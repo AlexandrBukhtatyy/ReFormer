@@ -1,0 +1,27 @@
+{
+  "name": "reformer-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspace playground",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlexandrBukhtatyy/ReFormer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer#readme",
+  "workspaces": [
+    "packages/*",
+    "projects/*"
+  ]
+}
