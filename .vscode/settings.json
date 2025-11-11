@@ -1,0 +1,13 @@
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": true
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "eslint.workingDirectories": [
+    "./packages/reformer",
+    "./projects/react-example",
+    "./projects/react-example-e2e"
+  ],
+  "prettier.configPath": "./.prettierrc.js"
+}
