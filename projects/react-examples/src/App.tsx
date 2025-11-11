@@ -1,11 +1,15 @@
 import { Button } from 'reformer'
-import './App.css'
 
 function App() {
 
   return (
     <>
-      <Button>Click me</Button>
+      <div className="container mx-auto">
+        <h1 className="text-3xl font-bold underline mb-4">
+          Hello world!
+        </h1>
+        <Button>Click me</Button>
+      </div>
     </>
   )
 }
