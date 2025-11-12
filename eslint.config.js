@@ -15,7 +15,7 @@ export default [
   ...compat.extends('plugin:react/recommended'),
   ...compat.extends('plugin:@typescript-eslint/recommended'),
   {
-    ignores: ['**/dist/**', '**/build/**', '**/node_modules/**'],
+    ignores: ['**/dist/**', '**/build/**', '**/node_modules/**', '*.log'],
   },
   {
     plugins: {
