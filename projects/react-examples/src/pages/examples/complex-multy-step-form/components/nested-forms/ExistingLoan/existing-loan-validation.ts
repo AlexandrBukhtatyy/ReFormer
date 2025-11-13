@@ -13,15 +13,13 @@ import {
   min,
   max,
   validateTree,
-} from '@/lib/forms/core/validators';
+} from 'reformer/validators';
 import type { ExistingLoan } from './ExistingLoanForm';
 
 /**
  * Валидация элемента существующего кредита
  */
-export const existingLoanValidation = (
-  path: ReturnType<typeof createFieldPath<ExistingLoan>>
-) => {
+export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<ExistingLoan>>) => {
   // Название банка обязательно
   required(path.bank, { message: 'Укажите название банка' });
   minLength(path.bank, 3, {

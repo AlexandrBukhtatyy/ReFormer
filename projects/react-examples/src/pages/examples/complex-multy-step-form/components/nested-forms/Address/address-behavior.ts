@@ -10,9 +10,9 @@
  * - Очистку зависимых полей при изменении вышестоящих
  */
 
-import { watchField, type BehaviorSchemaFn } from '@/lib/forms/core/behaviors';
+import { watchField, type BehaviorSchemaFn } from 'reformer/behaviors';
 import type { Address } from './AddressForm';
-import type { FieldPath } from '@/lib/forms/core/types';
+import type { FieldPath } from 'reformer';
 
 // API функции (заглушки, т.к. в примере они импортируются из domain API)
 // В реальном приложении эти функции будут в domains/credit-applications/api
@@ -29,9 +29,7 @@ const fetchCities = async (region: string): Promise<string[]> => {
  * apply([path.registrationAddress, path.residenceAddress], addressBehavior);
  * ```
  */
-export const addressBehavior: BehaviorSchemaFn<Address> = (
-  path: FieldPath<Address>
-) => {
+export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Address>) => {
   // ===================================================================
   // 1. Динамическая загрузка данных
   // ===================================================================

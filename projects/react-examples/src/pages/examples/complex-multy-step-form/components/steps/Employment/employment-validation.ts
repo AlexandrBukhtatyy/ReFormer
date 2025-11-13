@@ -1,4 +1,4 @@
-import type { FieldPath } from '@/lib/forms/core/types';
+import type { FieldPath } from 'reformer';
 import {
   applyWhen,
   validateTree,
@@ -8,7 +8,7 @@ import {
   minLength,
   maxLength,
   pattern,
-} from '@/lib/forms/core/validators';
+} from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**

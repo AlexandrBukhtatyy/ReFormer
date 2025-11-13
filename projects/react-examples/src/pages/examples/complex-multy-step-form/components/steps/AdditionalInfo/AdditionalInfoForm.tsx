@@ -9,8 +9,8 @@
  * NOTE: Массивы будут активированы после раскомментирования в схеме
  */
 
-import type { GroupNodeWithControls } from '@/lib/forms';
-import { FormField } from '@/lib/forms/components';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from 'reformer/components';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
@@ -50,7 +50,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           itemComponent={PropertyForm}
           itemLabel="Имущество"
           addButtonLabel="+ Добавить имущество"
-          emptyMessage="Нажмите &quot;Добавить имущество&quot; для добавления информации"
+          emptyMessage='Нажмите "Добавить имущество" для добавления информации'
           hasItems={hasProperty}
         />
       </div>
@@ -64,7 +64,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           itemComponent={ExistingLoanForm}
           itemLabel="Кредит"
           addButtonLabel="+ Добавить кредит"
-          emptyMessage="Нажмите &quot;Добавить кредит&quot; для добавления информации"
+          emptyMessage='Нажмите "Добавить кредит" для добавления информации'
           hasItems={hasExistingLoans}
         />
       </div>
@@ -78,7 +78,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           itemComponent={CoBorrowerForm}
           itemLabel="Созаемщик"
           addButtonLabel="+ Добавить созаемщика"
-          emptyMessage="Нажмите &quot;Добавить созаемщика&quot; для добавления информации"
+          emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
           emptyMessageHint="CoBorrowerForm поддерживает вложенную группу personalData"
           hasItems={hasCoBorrower}
         />

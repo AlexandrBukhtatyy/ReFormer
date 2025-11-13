@@ -1,12 +1,5 @@
-import type { FieldPath } from '@/lib/forms/core/types';
-import {
-  applyWhen,
-  required,
-  min,
-  max,
-  notEmpty,
-  validateItems,
-} from '@/lib/forms/core/validators';
+import type { FieldPath } from 'reformer';
+import { applyWhen, required, min, max, notEmpty, validateItems } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 // Импортируем validation схемы для элементов массивов

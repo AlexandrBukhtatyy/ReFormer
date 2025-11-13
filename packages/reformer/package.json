@@ -5,6 +5,20 @@
   "main": "dist/index.cjs.js",
   "module": "dist/index.es.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.ts",
+      "types": "./dist/index.d.ts"
+    },
+    "./behaviors": {
+      "import": "./dist/core/behaviors/index.ts",
+      "types": "./dist/core/behaviors/index.d.ts"
+    },
+    "./validators": {
+      "import": "./dist/core/validators/index.ts",
+      "types": "./dist/core/validators/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "dev": "vite",

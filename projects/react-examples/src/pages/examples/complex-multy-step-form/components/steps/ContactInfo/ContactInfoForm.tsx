@@ -7,8 +7,8 @@
  * - Условное отображение вложенных форм
  */
 
-import type { GroupNodeWithControls } from '@/lib/forms';
-import { FormField } from '@/lib/forms/components';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from 'reformer/components';
 import { Button } from '@/lib/ui/button';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
@@ -57,22 +57,14 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
         <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Адрес проживания</h3>
-            <Button
-              type="button"
-              size="sm"
-              onClick={copyRegistrationAddress}
-            >
+            <Button type="button" size="sm" onClick={copyRegistrationAddress}>
               Скопировать из адреса регистрации
             </Button>
           </div>
 
           <AddressForm control={control.residenceAddress} />
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={clearResidenceAddress}
-          >
+          <Button type="button" size="sm" onClick={clearResidenceAddress}>
             Очистить адрес проживания
           </Button>
         </div>

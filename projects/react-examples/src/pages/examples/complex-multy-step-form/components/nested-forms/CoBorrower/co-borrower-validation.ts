@@ -16,15 +16,13 @@ import {
   email,
   min,
   validateTree,
-} from '@/lib/forms/core/validators';
+} from 'reformer/validators';
 import type { CoBorrower } from './CoBorrowerForm';
 
 /**
  * Валидация элемента созаемщика
  */
-export const coBorrowerValidation = (
-  path: ReturnType<typeof createFieldPath<CoBorrower>>
-) => {
+export const coBorrowerValidation = (path: ReturnType<typeof createFieldPath<CoBorrower>>) => {
   // ============================================================================
   // Валидация вложенной группы personalData
   // ============================================================================
@@ -79,8 +77,7 @@ export const coBorrowerValidation = (
       const monthDiff = today.getMonth() - birthDate.getMonth();
       const dayDiff = today.getDate() - birthDate.getDate();
 
-      const finalAge =
-        monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      const finalAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
 
       if (finalAge < 18) {
         return {

@@ -2,7 +2,7 @@
  * Валидация первоначального взноса (должен быть >= 20% от стоимости недвижимости)
  */
 
-import type { TreeValidationContext, ValidationError } from '@/lib/forms';
+import type { TreeValidationContext, ValidationError } from 'reformer';
 
 /**
  * Валидация первоначального взноса (должен быть >= 20% от стоимости недвижимости)

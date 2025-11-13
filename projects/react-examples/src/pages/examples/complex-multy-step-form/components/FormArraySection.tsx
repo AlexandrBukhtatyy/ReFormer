@@ -20,8 +20,8 @@
  * ```
  */
 
-import type { ArrayNodeWithControls, GroupNodeWithControls } from '@/lib/forms';
-import { FormArrayManager } from '@/lib/forms/components';
+import type { ArrayNodeWithControls, GroupNodeWithControls } from 'reformer';
+import { FormArrayManager } from 'reformer/components';
 import type { ComponentType } from 'react';
 
 interface FormArraySectionProps<T extends object> {
@@ -80,18 +80,12 @@ export function FormArraySection<T extends object>({
         </button>
       </div>
 
-      <FormArrayManager
-        control={control}
-        component={itemComponent}
-        itemLabel={itemLabel}
-      />
+      <FormArrayManager control={control} component={itemComponent} itemLabel={itemLabel} />
 
       {isEmpty && (
         <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
           {emptyMessage}
-          {emptyMessageHint && (
-            <div className="mt-2 text-xs text-gray-500">{emptyMessageHint}</div>
-          )}
+          {emptyMessageHint && <div className="mt-2 text-xs text-gray-500">{emptyMessageHint}</div>}
         </div>
       )}
     </div>

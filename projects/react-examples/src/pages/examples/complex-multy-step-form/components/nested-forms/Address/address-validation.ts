@@ -5,8 +5,8 @@
  * к любому полю типа Address через композицию.
  */
 
-import type { ValidationSchemaFn, FieldPath } from '@/lib/forms/core/types';
-import { required, minLength, maxLength, pattern } from '@/lib/forms/core/validators';
+import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, minLength, maxLength, pattern } from 'reformer/validators';
 import type { Address } from './AddressForm';
 
 /**
@@ -17,9 +17,7 @@ import type { Address } from './AddressForm';
  * apply([path.registrationAddress, path.residenceAddress], addressValidation);
  * ```
  */
-export const addressValidation: ValidationSchemaFn<Address> = (
-  path: FieldPath<Address>
-) => {
+export const addressValidation: ValidationSchemaFn<Address> = (path: FieldPath<Address>) => {
   // Регион
   required(path.region, { message: 'Укажите регион' });
   minLength(path.region, 2, { message: 'Минимум 2 символа' });

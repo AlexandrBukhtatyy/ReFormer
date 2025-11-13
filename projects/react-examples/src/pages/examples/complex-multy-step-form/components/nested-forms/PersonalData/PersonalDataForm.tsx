@@ -1,8 +1,8 @@
 import { memo } from 'react';
-import { FormField } from '@/lib/forms/components/core/form-field';
-import { Input, RadioGroup } from '@/lib/forms/components';
+import { FormField } from 'reformer';
+import { Input, RadioGroup } from 'reformer/components';
 import { GENDERS } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from '@/lib/forms';
+import type { FormSchema, GroupNodeWithControls } from 'reformer';
 
 /**
  * Личные данные
@@ -73,7 +73,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
       placeholder: 'Введите место рождения',
     },
   },
-}
+};
 
 interface PersonalDataFormProps {
   // GroupProxy для вложенной формы personalData (используем any для обхода ограничений TypeScript)

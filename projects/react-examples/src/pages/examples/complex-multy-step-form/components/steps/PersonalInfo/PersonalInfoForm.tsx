@@ -6,8 +6,8 @@
  * - PassportDataForm (паспортные данные)
  */
 
-import type { GroupNodeWithControls } from '@/lib/forms';
-import { FormField } from '@/lib/forms/components';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from 'reformer/components';
 import { PersonalDataForm } from '../../nested-forms/PersonalData/PersonalDataForm';
 import { PassportDataForm } from '../../nested-forms/PassportData/PassportDataForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';

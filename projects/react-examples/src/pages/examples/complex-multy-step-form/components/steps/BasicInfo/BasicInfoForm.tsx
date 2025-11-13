@@ -1,5 +1,5 @@
-import type { GroupNodeWithControls } from '@/lib/forms';
-import { FormField } from '@/lib/forms/components';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from 'reformer/components';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface BasicInfoFormProps {

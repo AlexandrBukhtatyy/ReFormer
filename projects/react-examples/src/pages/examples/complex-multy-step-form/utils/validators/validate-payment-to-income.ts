@@ -2,7 +2,7 @@
  * Валидация платежеспособности (процент платежа от дохода <= 50%)
  */
 
-import type { TreeValidationContext, ValidationError } from '@/lib/forms';
+import type { TreeValidationContext, ValidationError } from 'reformer';
 
 /**
  * Валидация платежеспособности (процент платежа от дохода <= 50%)

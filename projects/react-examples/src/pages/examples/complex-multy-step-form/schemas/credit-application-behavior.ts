@@ -18,7 +18,15 @@
  * - 2 revalidateWhen
  */
 
-import { copyFrom, enableWhen, computeFrom, watchField, revalidateWhen, apply, type BehaviorSchemaFn } from '@/lib/forms/core/behaviors';
+import {
+  copyFrom,
+  enableWhen,
+  computeFrom,
+  watchField,
+  revalidateWhen,
+  apply,
+  type BehaviorSchemaFn,
+} from 'reformer/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 // Импортируем модульные behavior схемы
@@ -38,8 +46,8 @@ import {
 
 // API функции из api (уровень домена)
 // ПРИМЕЧАНИЕ: fetchRegions, fetchCities теперь используются в addressBehavior
-import { fetchCarModels } from '../../api';
-import type { FieldPath } from '@/lib/forms/core/types';
+import { fetchCarModels } from '../api';
+import type { FieldPath } from 'reformer';
 
 /**
  * Главная схема поведения формы заявки на кредит
@@ -169,32 +177,16 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   );
 
   // Первоначальный взнос (20% от стоимости недвижимости)
-  computeFrom(
-    path.initialPayment,
-    [path.propertyValue],
-    computeInitialPayment
-  );
+  computeFrom(path.initialPayment, [path.propertyValue], computeInitialPayment);
 
   // Полное имя (конкатенация Фамилия Имя Отчество)
-  computeFrom(
-    path.fullName,
-    [path.personalData],
-    computeFullName
-  );
+  computeFrom(path.fullName, [path.personalData], computeFullName);
 
   // Возраст (вычисляется из даты рождения)
-  computeFrom(
-    path.age,
-    [path.personalData],
-    computeAge
-  );
+  computeFrom(path.age, [path.personalData], computeAge);
 
   // Общий доход (основной + дополнительный)
-  computeFrom(
-    path.totalIncome,
-    [path.monthlyIncome, path.additionalIncome],
-    computeTotalIncome
-  );
+  computeFrom(path.totalIncome, [path.monthlyIncome, path.additionalIncome], computeTotalIncome);
 
   // Процент платежа от дохода
   computeFrom(
@@ -204,11 +196,7 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   );
 
   // Общий доход созаемщиков (сумма доходов всех созаемщиков)
-  computeFrom(
-    path.coBorrowersIncome,
-    [path.coBorrowers],
-    computeCoBorrowersIncome
-  );
+  computeFrom(path.coBorrowersIncome, [path.coBorrowers], computeCoBorrowersIncome);
 
   // ===================================================================
   // 4. watchField() - Динамическая загрузка данных (1)
@@ -217,12 +205,16 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // ПРИМЕЧАНИЕ: Загрузка регионов/городов для адресов теперь в addressBehavior (композиция)
 
   // Загрузка моделей автомобилей при изменении марки
-  watchField(path.carBrand, async (value, _ctx) => {
-    if (value) {
-      const models = await fetchCarModels(value);
-      console.log('Loaded car models:', models);
-    }
-  }, { immediate: false, debounce: 300 });
+  watchField(
+    path.carBrand,
+    async (value, _ctx) => {
+      if (value) {
+        const models = await fetchCarModels(value);
+        console.log('Loaded car models:', models);
+      }
+    },
+    { immediate: false, debounce: 300 }
+  );
 
   // ===================================================================
   // 5. revalidateWhen() - Перевалидация зависимых полей (2)

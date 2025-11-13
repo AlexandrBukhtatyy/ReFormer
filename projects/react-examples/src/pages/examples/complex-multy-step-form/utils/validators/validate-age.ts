@@ -2,7 +2,7 @@
  * Валидация возраста заемщика (18-70 лет)
  */
 
-import type { TreeValidationContext, ValidationError } from '@/lib/forms';
+import type { TreeValidationContext, ValidationError } from 'reformer';
 
 /**
  * Валидация возраста заемщика (18-70 лет)

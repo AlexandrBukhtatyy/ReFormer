@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { Checkbox, FormField, Input, Select, Textarea } from '@/lib/forms/components';
-import type { FormSchema, GroupNodeWithControls } from '@/lib/forms';
+import { Checkbox, FormField, Input, Select, Textarea } from 'reformer/components';
+import type { FormSchema, GroupNodeWithControls } from 'reformer';
 
 export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'none';
 

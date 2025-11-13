@@ -8,8 +8,8 @@
  * - 8 вычисляемых полей
  */
 
-import type { FormSchema } from '@/lib/forms';
-import { Input, Select, Textarea, Checkbox, RadioGroup, InputMask } from '@/lib/forms/components';
+import type { FormSchema } from 'reformer';
+import { Input, Select, Textarea, Checkbox, RadioGroup, InputMask } from 'reformer/components';
 import {
   LOAN_TYPES,
   EMPLOYMENT_STATUSES,
@@ -419,9 +419,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Массив форм: Имущество
-  properties: [
-    propertyFormSchema
-  ],
+  properties: [propertyFormSchema],
 
   hasExistingLoans: {
     value: false,
@@ -432,9 +430,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Массив форм: Существующие кредиты
-  existingLoans: [
-    existingLoansFormSchema
-  ],
+  existingLoans: [existingLoansFormSchema],
 
   hasCoBorrower: {
     value: false,
@@ -445,9 +441,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Массив форм: Созаемщики (с вложенной группой personalData)
-  coBorrowers: [
-    coBorrowersFormSchema
-  ],
+  coBorrowers: [coBorrowersFormSchema],
 
   // ========================================================================
   // Шаг 6: Согласия

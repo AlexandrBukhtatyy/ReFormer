@@ -1,4 +1,4 @@
-import type { FieldPath } from '@/lib/forms/core/types';
+import type { FieldPath } from 'reformer';
 import {
   applyWhen,
   validateTree,
@@ -7,7 +7,7 @@ import {
   max,
   minLength,
   maxLength,
-} from '@/lib/forms/core/validators';
+} from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**
@@ -61,7 +61,7 @@ export const basicInfoValidation = (path: FieldPath<CreditApplicationForm>) => {
           if (
             form.initialPayment &&
             form.propertyValue &&
-            form.initialPayment < (form.propertyValue * 0.2)
+            form.initialPayment < form.propertyValue * 0.2
           ) {
             return {
               code: 'initialPaymentTooLow',

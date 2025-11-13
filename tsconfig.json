@@ -6,9 +6,6 @@
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
-    "paths": {
-      "reformer": ["packages/reformer/src"]
-    }
+    "baseUrl": "."
   }
 }

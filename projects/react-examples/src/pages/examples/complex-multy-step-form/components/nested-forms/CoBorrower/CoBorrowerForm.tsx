@@ -1,8 +1,8 @@
 import { memo } from 'react';
-import { FormField } from '@/lib/forms/components/core/form-field';
-import { Input, InputMask, Select } from '@/lib/forms/components';
+import { FormField } from 'reformer/components/core/form-field';
+import { Input, InputMask, Select } from 'reformer/components';
 import { RELATIONSHIPS } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from '@/lib/forms';
+import type { FormSchema, GroupNodeWithControls } from 'reformer';
 
 export interface CoBorrower {
   id?: string;
@@ -99,7 +99,6 @@ interface CoBorrowerFormProps {
 }
 
 const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {
-
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">

@@ -1,7 +1,7 @@
 import { memo } from 'react';
-import { FormField } from '@/lib/forms/components/core/form-field';
-import { Input, InputMask, Textarea } from '@/lib/forms/components';
-import type { FormSchema, GroupNodeWithControls } from '@/lib/forms';
+import { FormField } from 'reformer/components/core/form-field';
+import { Input, InputMask, Textarea } from 'reformer/components';
+import type { FormSchema, GroupNodeWithControls } from 'reformer';
 
 /**
  * Паспортные данные (вложенная форма)
@@ -63,8 +63,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
       mask: '999-999',
     },
   },
-}
-
+};
 
 interface PassportDataFormProps {
   // GroupProxy для вложенной формы passportData (используем any для обхода ограничений TypeScript)
@@ -72,7 +71,6 @@ interface PassportDataFormProps {
 }
 
 const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">

@@ -1,11 +1,5 @@
-import type { FieldPath } from '@/lib/forms/core/types';
-import {
-  validateAsync,
-  required,
-  minLength,
-  maxLength,
-  pattern,
-} from '@/lib/forms/core/validators';
+import type { FieldPath } from 'reformer';
+import { validateAsync, required, minLength, maxLength, pattern } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**
@@ -14,10 +8,14 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 export const confirmationValidation = (path: FieldPath<CreditApplicationForm>) => {
   // Согласие на обработку персональных данных (обязательно)
   // required() уже проверяет что boolean === true, дополнительный validate не нужен
-  required(path.agreePersonalData, { message: 'Согласие на обработку персональных данных обязательно' });
+  required(path.agreePersonalData, {
+    message: 'Согласие на обработку персональных данных обязательно',
+  });
 
   // Согласие на получение кредитной истории (обязательно)
-  required(path.agreeCreditHistory, { message: 'Согласие на получение кредитной истории обязательно' });
+  required(path.agreeCreditHistory, {
+    message: 'Согласие на получение кредитной истории обязательно',
+  });
 
   // Согласие с условиями кредитования (обязательно)
   required(path.agreeTerms, { message: 'Согласие с условиями кредитования обязательно' });

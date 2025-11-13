@@ -1,6 +1,6 @@
-import type { FieldPath, ValidationSchemaFn } from '@/lib/forms/core/types';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application';
-import { apply, validateTree } from '@/lib/forms/core/validators';
+import { apply, validateTree } from 'reformer/validators';
 
 // Импортируем все схемы шагов
 import { basicInfoValidation } from '../components/steps/BasicInfo/basic-info-validation';

@@ -1,8 +1,8 @@
 import { memo } from 'react';
-import { FormField } from '@/lib/forms/components/core/form-field';
-import { Input, Select } from '@/lib/forms/components';
+import { FormField } from 'reformer/components/core/form-field';
+import { Input, Select } from 'reformer/components';
 import { EXISTING_LOAN_TYPES } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from '@/lib/forms';
+import type { FormSchema, GroupNodeWithControls } from 'reformer';
 
 export interface ExistingLoan {
   id?: string;
@@ -80,7 +80,6 @@ interface ExistingLoanFormProps {
 }
 
 const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {
-
   return (
     <div className="space-y-3">
       <FormField control={control.bank} />

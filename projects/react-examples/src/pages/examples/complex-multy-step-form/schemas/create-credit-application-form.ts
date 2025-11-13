@@ -12,8 +12,8 @@
  * - Поддержка вложенных форм и массивов
  */
 
-import type { GroupNodeWithControls } from '@/lib/forms';
-import { GroupNode } from '@/lib/forms/core/nodes/group-node';
+import type { GroupNodeWithControls } from 'reformer';
+import { GroupNode } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 // Импортируем все схемы

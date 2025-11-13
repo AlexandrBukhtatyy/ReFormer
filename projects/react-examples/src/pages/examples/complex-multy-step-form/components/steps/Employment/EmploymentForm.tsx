@@ -1,5 +1,5 @@
-import type { GroupNodeWithControls } from '@/lib/forms';
-import { FormField } from '@/lib/forms/components';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from 'reformer/components';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface EmploymentFormProps {
@@ -59,7 +59,8 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
       {employmentStatus === 'unemployed' && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md mt-6">
           <p className="text-sm text-yellow-800">
-            Обратите внимание: для получения кредита без подтвержденного дохода могут потребоваться дополнительные документы и поручители.
+            Обратите внимание: для получения кредита без подтвержденного дохода могут потребоваться
+            дополнительные документы и поручители.
           </p>
         </div>
       )}

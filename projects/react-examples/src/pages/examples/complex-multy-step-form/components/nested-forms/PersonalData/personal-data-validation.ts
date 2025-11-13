@@ -1,4 +1,4 @@
-import type { FieldPath } from '@/lib/forms/core/types';
+import type { FieldPath } from 'reformer';
 import {
   validate,
   validateTree,
@@ -6,7 +6,7 @@ import {
   minLength,
   maxLength,
   pattern,
-} from '@/lib/forms/core/validators';
+} from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**
@@ -18,21 +18,21 @@ export const personalDataValidation = (path: FieldPath<CreditApplicationForm>) =
   minLength(path.personalData.lastName, 2, { message: 'Минимум 2 символа' });
   maxLength(path.personalData.lastName, 50, { message: 'Максимум 50 символов' });
   pattern(path.personalData.lastName, /^[А-ЯЁа-яё\s-]+$/, {
-    message: 'Только русские буквы, пробелы и дефис'
+    message: 'Только русские буквы, пробелы и дефис',
   });
 
   required(path.personalData.firstName, { message: 'Имя обязательно' });
   minLength(path.personalData.firstName, 2, { message: 'Минимум 2 символа' });
   maxLength(path.personalData.firstName, 50, { message: 'Максимум 50 символов' });
   pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
-    message: 'Только русские буквы, пробелы и дефис'
+    message: 'Только русские буквы, пробелы и дефис',
   });
 
   required(path.personalData.middleName, { message: 'Отчество обязательно' });
   minLength(path.personalData.middleName, 2, { message: 'Минимум 2 символа' });
   maxLength(path.personalData.middleName, 50, { message: 'Максимум 50 символов' });
   pattern(path.personalData.middleName, /^[А-ЯЁа-яё\s-]+$/, {
-    message: 'Только русские буквы, пробелы и дефис'
+    message: 'Только русские буквы, пробелы и дефис',
   });
 
   required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });

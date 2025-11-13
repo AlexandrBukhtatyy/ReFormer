@@ -10,7 +10,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useStepForm } from '@/lib/forms';
+import { useStepForm } from 'reformer';
 import { createCreditApplicationForm } from './schemas/create-credit-application-form';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
@@ -19,7 +19,7 @@ import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
 import { STEPS, TOTAL_STEPS } from './constants/credit-application';
-import { NavigationButtons, StepIndicator } from '@/lib/forms/components';
+import { NavigationButtons, StepIndicator } from 'reformer/components';
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from './schemas/credit-application-validation';
