@@ -1,0 +1,79 @@
+/**
+ * Создание типизированного FieldPath для Behavior Schema
+ * Аналогично createFieldPath из validators
+ */
+
+import type { FieldPath, FieldPathNode } from '../types';
+
+/**
+ * Создать типизированный путь к полям формы
+ * Используется для декларативного описания behavior схем
+ *
+ * @example
+ * ```typescript
+ * const schema: BehaviorSchemaFn<MyForm> = (path) => {
+ *   // path.email, path.address.city и т.д. - типизированы
+ *   copyFrom(path.residenceAddress, path.registrationAddress, {
+ *     when: (form) => form.sameAsRegistration
+ *   });
+ * };
+ * ```
+ */
+export function createFieldPath<T>(): FieldPath<T> {
+  return createFieldPathProxy('');
+}
+
+/**
+ * Создать Proxy для вложенного доступа к полям
+ * @private
+ */
+function createFieldPathProxy<T>(currentPath: string): any {
+  return new Proxy(
+    {},
+    {
+      get(__target, prop: string) {
+        // Поддержка обоих вариантов для обратной совместимости
+        if (prop === '__path' || prop === '__fieldPath') {
+          return currentPath || prop;
+        }
+
+        if (prop === '__key') {
+          const parts = currentPath.split('.');
+          return parts[parts.length - 1] || prop;
+        }
+
+        const newPath = currentPath ? `${currentPath}.${prop}` : prop;
+
+        // Создаем объект FieldPathNode с вложенным Proxy
+        const node: FieldPathNode<T, any> = {
+          __path: newPath,
+          __key: prop,
+          __formType: undefined as any,
+          __fieldType: undefined as any,
+        };
+
+        // Возвращаем Proxy, который поддерживает дальнейшую вложенность
+        return new Proxy(node, {
+          get(_target, nestedProp: string) {
+            // Поддержка обоих вариантов для обратной совместимости
+            if (nestedProp === '__path' || nestedProp === '__fieldPath') {
+              return newPath;
+            }
+
+            if (nestedProp === '__key') {
+              return prop;
+            }
+
+            if (nestedProp === '__formType' || nestedProp === '__fieldType') {
+              return undefined;
+            }
+
+            // Для вложенных свойств создаем новый Proxy
+            const nestedPath = `${newPath}.${nestedProp}`;
+            return createFieldPathProxy<T>(nestedPath);
+          },
+        });
+      },
+    }
+  );
+}
