@@ -10,7 +10,7 @@
  */
 
 import type { GroupNodeWithControls } from 'reformer';
-import { FormField } from 'reformer/components';
+import { FormField } from '@/components/ui/form-field';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';

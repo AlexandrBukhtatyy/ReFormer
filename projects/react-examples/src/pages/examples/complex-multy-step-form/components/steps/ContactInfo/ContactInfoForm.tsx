@@ -8,10 +8,10 @@
  */
 
 import type { GroupNodeWithControls } from 'reformer';
-import { FormField } from 'reformer/components';
-import { Button } from '@/lib/ui/button';
+import { FormField } from '@/components/ui/form-field';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
+import { Button } from '@/components/ui/button';
 
 interface ContactInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;

@@ -1,8 +1,9 @@
 import { memo } from 'react';
-import { FormField } from 'reformer';
-import { Input, RadioGroup } from 'reformer/components';
 import { GENDERS } from '../../../constants/credit-application';
 import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { FormField } from '@/components/ui/form-field';
 
 /**
  * Личные данные

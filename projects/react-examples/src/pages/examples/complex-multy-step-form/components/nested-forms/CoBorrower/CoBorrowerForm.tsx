@@ -1,8 +1,10 @@
 import { memo } from 'react';
-import { FormField } from 'reformer/components/core/form-field';
-import { Input, InputMask, Select } from 'reformer/components';
 import { RELATIONSHIPS } from '../../../constants/credit-application';
 import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import { Input } from '@/components/ui/input';
+import { InputMask } from '@/components/ui/input-mask';
+import { Select } from '@/components/ui/select';
+import { FormField } from '@/components/ui/form-field';
 
 export interface CoBorrower {
   id?: string;

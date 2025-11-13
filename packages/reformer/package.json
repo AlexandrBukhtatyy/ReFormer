@@ -7,15 +7,15 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.ts",
+      "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./behaviors": {
-      "import": "./dist/core/behaviors/index.ts",
+      "import": "./dist/core/behaviors/index.js",
       "types": "./dist/core/behaviors/index.d.ts"
     },
     "./validators": {
-      "import": "./dist/core/validators/index.ts",
+      "import": "./dist/core/validators/index.js",
       "types": "./dist/core/validators/index.d.ts"
     }
   },

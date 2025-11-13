@@ -1,5 +1,4 @@
-import type { StepIndicatorProps } from "@/lib/forms/components";
-
+import type { StepIndicatorProps } from '@/components/ui/form-navigation/StepIndicator';
 
 export const STEPS: StepIndicatorProps['steps'] = [
   { number: 1, title: 'Кредит', icon: '💰' },

@@ -1,5 +1,5 @@
 import type { GroupNodeWithControls } from 'reformer';
-import { FormField } from 'reformer/components';
+import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface EmploymentFormProps {

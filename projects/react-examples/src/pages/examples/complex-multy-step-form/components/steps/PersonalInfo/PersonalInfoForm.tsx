@@ -7,10 +7,10 @@
  */
 
 import type { GroupNodeWithControls } from 'reformer';
-import { FormField } from 'reformer/components';
 import { PersonalDataForm } from '../../nested-forms/PersonalData/PersonalDataForm';
 import { PassportDataForm } from '../../nested-forms/PassportData/PassportDataForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
+import { FormField } from '@/components/ui/form-field';
 
 interface PersonalInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;

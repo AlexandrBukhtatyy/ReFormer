@@ -1,5 +1,9 @@
+import { Checkbox } from '@/components/ui/checkbox';
+import { FormField } from '@/components/ui/form-field';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
-import { Checkbox, FormField, Input, Select, Textarea } from 'reformer/components';
 import type { FormSchema, GroupNodeWithControls } from 'reformer';
 
 export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'none';

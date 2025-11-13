@@ -9,7 +9,6 @@
  */
 
 import type { FormSchema } from 'reformer';
-import { Input, Select, Textarea, Checkbox, RadioGroup, InputMask } from 'reformer/components';
 import {
   LOAN_TYPES,
   EMPLOYMENT_STATUSES,
@@ -24,6 +23,12 @@ import { existingLoansFormSchema } from '../components/nested-forms/ExistingLoan
 import { coBorrowersFormSchema } from '../components/nested-forms/CoBorrower/CoBorrowerForm';
 
 import type { CreditApplicationForm } from '../types/credit-application';
+import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { InputMask } from '@/components/ui/input-mask';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ========================================================================

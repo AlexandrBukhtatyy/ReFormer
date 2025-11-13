@@ -1,8 +1,9 @@
 import { memo } from 'react';
-import { FormField } from 'reformer/components/core/form-field';
-import { Input, Select } from 'reformer/components';
 import { EXISTING_LOAN_TYPES } from '../../../constants/credit-application';
 import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { FormField } from '@/components/ui/form-field';
 
 export interface ExistingLoan {
   id?: string;

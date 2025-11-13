@@ -1,7 +1,8 @@
 import { memo } from 'react';
-import { FormField } from 'reformer/components/core/form-field';
-import { Input, InputMask } from 'reformer/components';
 import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import { Input } from '@/components/ui/input';
+import { InputMask } from '@/components/ui/input-mask';
+import { FormField } from '@/components/ui/form-field';
 
 /**
  * Адрес (вложенная форма)

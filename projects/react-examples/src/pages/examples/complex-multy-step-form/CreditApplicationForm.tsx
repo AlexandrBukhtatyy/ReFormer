@@ -10,7 +10,6 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useStepForm } from 'reformer';
 import { createCreditApplicationForm } from './schemas/create-credit-application-form';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
@@ -19,12 +18,14 @@ import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
 import { STEPS, TOTAL_STEPS } from './constants/credit-application';
-import { NavigationButtons, StepIndicator } from 'reformer/components';
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { setSimulateError, getSimulateError } from './api/mock-credit-application-api';
+import { useStepForm } from '@/components/ui/form-navigation/hooks';
+import { StepIndicator } from '@/components/ui/form-navigation/StepIndicator';
+import { NavigationButtons } from '@/components/ui/form-navigation/NavigationButtons';
 
 // ============================================================================
 // Компонент формы
