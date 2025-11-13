@@ -7,8 +7,9 @@
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
-    "moduleResolution": "node",
-    "esModuleInterop": true
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "types": ["node", "vite/client", "vitest/globals"]
   },
   "include": ["src"]
 }

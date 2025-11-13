@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npm run build --workspaces",
-    "dev": "npm run dev --workspace playground",
+    "dev": "npm run dev --workspace react-examples",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
     "lint:fix": "eslint . --ext .js,.ts,.jsx,.tsx --fix",
@@ -38,6 +38,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "eslint": "^9.39.1",
