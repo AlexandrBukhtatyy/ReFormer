@@ -53,6 +53,7 @@
   "dependencies": {
     "@preact/signals-react-transform": "^0.6.0",
     "@tailwindcss/vite": "^4.1.17",
-    "tailwindcss": "^4.1.17"
+    "tailwindcss": "^4.1.17",
+    "uuid": "^13.0.0"
   }
 }

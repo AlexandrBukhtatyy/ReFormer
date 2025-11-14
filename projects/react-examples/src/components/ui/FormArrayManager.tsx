@@ -1,5 +1,3 @@
-import { useSignal } from '@preact/signals-react';
-import { useSignals } from '@preact/signals-react/runtime';
 import type { ComponentType } from 'react';
 import { Button } from './button';
 
@@ -27,9 +25,6 @@ interface FormArrayManagerProps {
  *   component={PropertyForm}
  *   itemLabel="Имущество"
  * />
- *
- * // PropertyForm получит только пропс:
- * // - control: GroupProxy элемента массива
  */
 export function FormArrayManager({
   control,
@@ -37,17 +32,16 @@ export function FormArrayManager({
   itemLabel = 'Элемент',
   renderTitle,
 }: FormArrayManagerProps) {
-  // ArrayProxy имеет метод map, который возвращает массив proxy элементов
   return (
     <>
       {control.map((itemControl: any, index: number) => {
         const title = renderTitle ? renderTitle(index) : `${itemLabel} #${index + 1}`;
 
-        // Используем уникальный ID из GroupProxy как key для избежания проблем при удалении
-        // const key = itemControl._id || index;
+        // Используем уникальный id из GroupProxy как key для избежания проблем при удалении
+        const key = itemControl.id || index;
 
         return (
-          <div key={index} className="mb-4 p-4 bg-white rounded border">
+          <div key={key} className="mb-4 p-4 bg-white rounded border">
             <div className="flex justify-between items-center mb-3">
               <h4 className="font-medium">{title}</h4>
               <Button onClick={() => control.removeAt(index)}>Удалить</Button>

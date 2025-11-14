@@ -29,6 +29,7 @@ import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validators/validation-registry';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * GroupNode - узел для группы полей
@@ -72,7 +73,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
   // ============================================================================
   // Приватные поля
   // ============================================================================
-
+  public id = uuidv4();
   private fields: Map<keyof T, FormNode<any>>;
   private _submitting: Signal<boolean>;
   private _disabled: Signal<boolean>;
