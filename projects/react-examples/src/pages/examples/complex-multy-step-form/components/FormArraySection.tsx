@@ -23,6 +23,7 @@
 import type { ArrayNodeWithControls, GroupNodeWithControls } from 'reformer';
 import type { ComponentType } from 'react';
 import { FormArrayManager } from '@/components/ui/FormArrayManager';
+import { Button } from '@/components/ui/button';
 
 interface FormArraySectionProps<T extends object> {
   /** Заголовок секции */
@@ -71,13 +72,7 @@ export function FormArraySection<T extends object>({
     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">{title}</h3>
-        <button
-          type="button"
-          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={() => control.push()}
-        >
-          {addButtonLabel}
-        </button>
+        <Button onClick={() => control.push()}>{addButtonLabel}</Button>
       </div>
 
       <FormArrayManager control={control} component={itemComponent} itemLabel={itemLabel} />

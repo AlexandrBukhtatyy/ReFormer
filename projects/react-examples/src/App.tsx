@@ -1,7 +1,8 @@
-import { Button } from './components/ui/button';
+import { useSignals } from '@preact/signals-react/runtime';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 
 function App() {
+  useSignals();
   return (
     <>
       <div className="container mx-auto">

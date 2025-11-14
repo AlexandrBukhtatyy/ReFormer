@@ -142,6 +142,7 @@ export class ArrayNode<T extends object = any> extends FormNode<T[]> {
       }
       return;
     }
+
     this.items.value = this.items.value.filter((_, i) => i !== index);
   }
 

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useSignals } from '@preact/signals-react/runtime';
 import type { FieldNode } from 'reformer';
 import { Checkbox } from './checkbox';
 // import { useFormControl } from '../../hooks/useFormControl';
@@ -10,7 +9,6 @@ export interface FormFieldProps {
 }
 
 const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) => {
-  useSignals();
   // TODO: Рассмотреть вариант использовать hook как средство изоляции от сигналов
   // const { value, errors, pending, disabled } = useFormControl(control);
   // console.log('[useFormControl]: ', value, errors, pending, disabled)

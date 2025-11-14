@@ -20,7 +20,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "vite build && tsc -p tsconfig.json",
     "dev": "vite",
     "test": "vitest",
     "test:watch": "vitest watch"

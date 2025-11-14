@@ -4,6 +4,8 @@
  * Работает с новым API (useStepForm хук)
  */
 
+import { Button } from '../button';
+
 interface NavigationButtonsProps {
   /** Текущий шаг (1-based) */
   currentStep: number;
@@ -32,45 +34,29 @@ export function NavigationButtons({
   onPrevious,
   onSubmit,
 }: NavigationButtonsProps) {
-
   return (
     <div className="flex gap-4 mt-8">
       {/* Кнопка "Назад" */}
       {currentStep > 1 && (
-        <button
-          type="button"
-          onClick={onPrevious}
-          className="px-6 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50"
-          disabled={isSubmitting}
-        >
+        <Button onClick={onPrevious} disabled={isSubmitting}>
           ← Назад
-        </button>
+        </Button>
       )}
 
       <div className="flex-1" />
 
       {/* Кнопка "Далее" */}
       {currentStep < totalSteps && (
-        <button
-          type="button"
-          onClick={onNext}
-          className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
-          disabled={isSubmitting}
-        >
+        <Button onClick={onNext} disabled={isSubmitting}>
           Далее →
-        </button>
+        </Button>
       )}
 
       {/* Кнопка "Отправить" */}
       {currentStep === totalSteps && (
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
-          disabled={isSubmitting}
-        >
+        <Button onClick={onSubmit} disabled={isSubmitting}>
           {isSubmitting ? 'Отправка...' : 'Отправить заявку'}
-        </button>
+        </Button>
       )}
     </div>
   );

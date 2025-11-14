@@ -88,7 +88,7 @@ export interface UseStepFormResult<T extends Record<string, any>> {
  * return (
  *   <div>
  *     {currentStep === 1 && <Step1Form control={form} />}
- *     <button onClick={goToNextStep}>Далее</button>
+ *     <Button onClick={goToNextStep}>Далее</Button>
  *   </div>
  * );
  * ```

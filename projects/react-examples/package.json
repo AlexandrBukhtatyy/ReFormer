@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@preact/signals-react": "^3.5.0",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@tailwindcss/vite": "^4.1.17",
@@ -17,7 +18,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.553.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react-dom": "^19.1.1",
     "reformer": "1.0.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17"

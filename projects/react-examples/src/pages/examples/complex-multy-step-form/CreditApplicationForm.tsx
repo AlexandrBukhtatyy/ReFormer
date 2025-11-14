@@ -26,6 +26,7 @@ import { setSimulateError, getSimulateError } from './api/mock-credit-applicatio
 import { useStepForm } from '@/components/ui/form-navigation/hooks';
 import { StepIndicator } from '@/components/ui/form-navigation/StepIndicator';
 import { NavigationButtons } from '@/components/ui/form-navigation/NavigationButtons';
+import { Button } from '@/components/ui/button';
 
 // ============================================================================
 // Компонент формы
@@ -104,12 +105,7 @@ function CreditApplicationForm() {
           <div className="text-red-600 text-5xl">⚠️</div>
           <div className="text-xl font-semibold text-red-800">Ошибка загрузки</div>
           <div className="text-red-700">{error}</div>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Попробовать снова
-          </button>
+          <Button onClick={() => window.location.reload()}>Попробовать снова</Button>
         </div>
       </div>
     );
