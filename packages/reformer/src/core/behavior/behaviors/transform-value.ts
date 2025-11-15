@@ -1,0 +1,112 @@
+/**
+ * Value transformation behavior
+ */
+
+import type { FieldPathNode } from '../../types';
+import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { createTransformBehavior, type TransformValueOptions } from '../behavior-factories';
+
+/**
+ * Трансформация значения поля при изменении
+ * Позволяет автоматически форматировать или преобразовывать значения
+ *
+ * @param field - Поле для трансформации
+ * @param transformer - Функция трансформации
+ * @param options - Опции
+ *
+ * @example
+ * ```typescript
+ * const schema: BehaviorSchemaFn<MyForm> = (path) => {
+ *   // Автоматически переводить текст в верхний регистр
+ *   transformValue(path.code, (value) => value?.toUpperCase());
+ *
+ *   // Форматировать номер телефона
+ *   transformValue(path.phone, (value) => {
+ *     if (!value) return value;
+ *     const digits = value.replace(/\D/g, '');
+ *     if (digits.length === 11) {
+ *       return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
+ *     }
+ *     return value;
+ *   });
+ *
+ *   // Удалять пробелы из email
+ *   transformValue(path.email, (value) => value?.trim().toLowerCase());
+ *
+ *   // Округлять числа
+ *   transformValue(path.amount, (value) => {
+ *     return typeof value === 'number' ? Math.round(value) : value;
+ *   });
+ * };
+ * ```
+ */
+export function transformValue<TForm extends Record<string, any>, TValue = any>(
+  field: FieldPathNode<TForm, TValue>,
+  transformer: (value: TValue) => TValue,
+  options?: TransformValueOptions & { debounce?: number }
+): void {
+  const { debounce } = options || {};
+
+  const handler = createTransformBehavior(field, transformer, options);
+  getCurrentBehaviorRegistry().register(handler, { debounce });
+}
+
+/**
+ * Хелпер для создания переиспользуемых трансформаций
+ *
+ * @example
+ * ```typescript
+ * // Создаем переиспользуемые трансформеры
+ * const toUpperCase = createTransformer<string>((value) => value?.toUpperCase());
+ * const toLowerCase = createTransformer<string>((value) => value?.toLowerCase());
+ * const trim = createTransformer<string>((value) => value?.trim());
+ *
+ * // Используем в форме
+ * const schema: BehaviorSchemaFn<MyForm> = (path) => {
+ *   toUpperCase(path.code);
+ *   toLowerCase(path.email);
+ *   trim(path.username);
+ * };
+ * ```
+ */
+export function createTransformer<TValue = any>(
+  transformer: (value: TValue) => TValue,
+  defaultOptions?: TransformValueOptions
+) {
+  return <TForm extends Record<string, any>>(
+    field: FieldPathNode<TForm, TValue>,
+    options?: TransformValueOptions & { debounce?: number }
+  ) => {
+    transformValue(field, transformer, { ...defaultOptions, ...options });
+  };
+}
+
+/**
+ * Готовые трансформеры для частых случаев
+ */
+export const transformers = {
+  /** Перевести в верхний регистр */
+  toUpperCase: createTransformer<string>((value) => value?.toUpperCase()),
+
+  /** Перевести в нижний регистр */
+  toLowerCase: createTransformer<string>((value) => value?.toLowerCase()),
+
+  /** Удалить пробелы с краев */
+  trim: createTransformer<string>((value) => value?.trim()),
+
+  /** Удалить все пробелы */
+  removeSpaces: createTransformer<string>((value) => value?.replace(/\s/g, '')),
+
+  /** Оставить только цифры */
+  digitsOnly: createTransformer<string>((value) => value?.replace(/\D/g, '')),
+
+  /** Округлить число */
+  round: createTransformer<number>((value) => (typeof value === 'number' ? Math.round(value) : value)),
+
+  /** Округлить до 2 знаков после запятой */
+  roundTo2: createTransformer<number>((value) =>
+    typeof value === 'number' ? Math.round(value * 100) / 100 : value
+  ),
+};
+
+export type { TransformValueOptions };

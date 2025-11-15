@@ -360,3 +360,155 @@ export function createSyncBehavior<TForm extends Record<string, any>, T>(
     };
   };
 }
+
+// ============================================================================
+// resetWhen - Условный сброс поля
+// ============================================================================
+
+export interface ResetWhenOptions {
+  /** Значение для сброса (по умолчанию null) */
+  resetValue?: any;
+  /** Сбросить только если поле dirty */
+  onlyIfDirty?: boolean;
+}
+
+/**
+ * Создает behavior для условного сброса поля
+ *
+ * @param field - Поле для сброса
+ * @param condition - Функция условия (true = reset)
+ * @param options - Опции
+ * @returns BehaviorHandlerFn
+ */
+export function createResetBehavior<TForm extends Record<string, any>>(
+  field: FieldPathNode<TForm, any>,
+  condition: (form: TForm) => boolean,
+  options?: ResetWhenOptions
+): BehaviorHandlerFn<TForm> {
+  const { resetValue = null, onlyIfDirty = false } = options || {};
+
+  return (form, _context, withDebounce) => {
+    const targetNode = resolveNode(form, field.__path);
+    if (!targetNode) return null;
+
+    return effect(() => {
+      const formValue = form.value.value;
+
+      withDebounce(() => {
+        const shouldReset = condition(formValue);
+
+        if (shouldReset) {
+          // Проверяем onlyIfDirty опцию
+          if (onlyIfDirty && !targetNode.dirty.value) {
+            return;
+          }
+
+          // Сбрасываем значение
+          targetNode.setValue(resetValue);
+
+          // Сбрасываем флаги dirty и touched
+          targetNode.markAsPristine();
+          targetNode.markAsUntouched();
+        }
+      });
+    });
+  };
+}
+
+// ============================================================================
+// validateWhen - Условная валидация
+// ============================================================================
+
+export interface ValidateWhenOptions {
+  /** Очищать ошибки когда условие не выполнено */
+  clearErrorsWhenInactive?: boolean;
+}
+
+/**
+ * Создает behavior для условной валидации поля
+ *
+ * @param field - Поле для валидации
+ * @param condition - Функция условия (true = validate, false = skip)
+ * @param options - Опции
+ * @returns BehaviorHandlerFn
+ */
+export function createValidateBehavior<TForm extends Record<string, any>>(
+  field: FieldPathNode<TForm, any>,
+  condition: (form: TForm) => boolean,
+  options?: ValidateWhenOptions
+): BehaviorHandlerFn<TForm> {
+  const { clearErrorsWhenInactive = true } = options || {};
+
+  return (form, _context, withDebounce) => {
+    const targetNode = resolveNode(form, field.__path);
+    if (!targetNode) return null;
+
+    return effect(() => {
+      const formValue = form.value.value;
+
+      withDebounce(() => {
+        const shouldValidate = condition(formValue);
+
+        if (shouldValidate) {
+          // Триггерим валидацию
+          targetNode.validate();
+        } else {
+          // Очищаем ошибки если условие не выполнено
+          if (clearErrorsWhenInactive && targetNode.errors.value.length > 0) {
+            targetNode.clearErrors();
+          }
+        }
+      });
+    });
+  };
+}
+
+// ============================================================================
+// transformValue - Трансформация значения
+// ============================================================================
+
+export interface TransformValueOptions {
+  /** Трансформировать только при изменении пользователем (не программно) */
+  onUserChangeOnly?: boolean;
+  /** Триггерить событие изменения после трансформации */
+  emitEvent?: boolean;
+}
+
+/**
+ * Создает behavior для трансформации значения поля
+ *
+ * @param field - Поле для трансформации
+ * @param transformer - Функция трансформации
+ * @param options - Опции
+ * @returns BehaviorHandlerFn
+ */
+export function createTransformBehavior<TForm extends Record<string, any>, TValue = any>(
+  field: FieldPathNode<TForm, TValue>,
+  transformer: (value: TValue) => TValue,
+  options?: TransformValueOptions
+): BehaviorHandlerFn<TForm> {
+  const { onUserChangeOnly = false, emitEvent = true } = options || {};
+
+  return (form, _context, withDebounce) => {
+    const targetNode = resolveNode(form, field.__path);
+    if (!targetNode) return null;
+
+    return effect(() => {
+      const currentValue = targetNode.value.value;
+
+      // Если нужно трансформировать только при изменении пользователем
+      if (onUserChangeOnly && !targetNode.touched.value) {
+        return;
+      }
+
+      withDebounce(() => {
+        const transformedValue = transformer(currentValue);
+
+        // Применяем трансформацию только если значение изменилось
+        if (transformedValue !== currentValue) {
+          targetNode.setValue(transformedValue, { emitEvent });
+        }
+      });
+    });
+  };
+}
