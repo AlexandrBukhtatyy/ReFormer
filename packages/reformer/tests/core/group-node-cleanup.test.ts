@@ -283,9 +283,9 @@ describe('GroupNode - Cleanup (dispose)', () => {
       });
 
       const callback = vi.fn();
-      // Поле 'value' нужно получать через fields.get() или getFieldByPath(),
+      // Поле 'value' нужно получать через getField() или getFieldByPath(),
       // т.к. .value зарезервировано для computed signal
-      const valueField = deepForm.level1.level2.level3.fields.get('value' as any);
+      const valueField = deepForm.level1.level2.level3.getField('value' as any);
       valueField?.watch(callback);
 
       expect(callback).toHaveBeenCalledTimes(1);

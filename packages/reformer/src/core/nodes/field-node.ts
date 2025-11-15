@@ -11,6 +11,7 @@ import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
 import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
 import { SubscriptionManager } from '../utils/subscription-manager';
+import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
  * FieldNode - узел для отдельного поля формы
@@ -331,16 +332,8 @@ export class FieldNode<T = any> extends FormNode<T> {
           try {
             return await validator(this._value.value);
           } catch (error) {
-            // Логируем ошибку в dev-mode
-            if (import.meta.env.DEV) {
-              console.error('[FieldNode] Async validator threw an error:', error);
-            }
-
-            // Возвращаем ValidationError вместо throw
-            return {
-              code: 'validator_error',
-              message: error instanceof Error ? error.message : 'Validator encountered an error',
-            } as ValidationError;
+            // Используем централизованный обработчик ошибок
+            return FormErrorHandler.handle(error, 'FieldNode AsyncValidator', ErrorStrategy.CONVERT);
           }
         })
       );

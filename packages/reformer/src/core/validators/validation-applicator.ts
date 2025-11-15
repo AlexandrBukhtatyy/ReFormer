@@ -20,14 +20,10 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import type { FieldNode } from '../nodes/field-node';
+import type { ValidatorRegistration, ValidationError } from '../types';
 import { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';
-
-/**
- * Type guard для проверки, является ли узел FieldNode
- */
-function isFieldNode(value: any): value is FieldNode<any> {
-  return value && typeof value === 'object' && 'validators' in value && 'asyncValidators' in value;
-}
+import { isFieldNode } from '../utils/type-guards';
+import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
  * Класс для применения валидаторов к форме
@@ -57,7 +53,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
    *
    * @param validators Зарегистрированные валидаторы
    */
-  async apply(validators: any[]): Promise<void> {
+  async apply(validators: ValidatorRegistration[]): Promise<void> {
     // 1. Группировка валидаторов
     const { validatorsByField, treeValidators } = this.groupValidators(validators);
 
@@ -78,12 +74,12 @@ export class ValidationApplicator<T extends Record<string, any>> {
    * @param validators Все зарегистрированные валидаторы
    * @returns Сгруппированные валидаторы
    */
-  private groupValidators(validators: any[]): {
-    validatorsByField: Map<string, any[]>;
-    treeValidators: any[];
+  private groupValidators(validators: ValidatorRegistration[]): {
+    validatorsByField: Map<string, ValidatorRegistration[]>;
+    treeValidators: ValidatorRegistration[];
   } {
-    const validatorsByField = new Map<string, any[]>();
-    const treeValidators: any[] = [];
+    const validatorsByField = new Map<string, ValidatorRegistration[]>();
+    const treeValidators: ValidatorRegistration[] = [];
 
     for (const registration of validators) {
       if (registration.type === 'tree') {
@@ -109,18 +105,16 @@ export class ValidationApplicator<T extends Record<string, any>> {
    *
    * @param validatorsByField Валидаторы, сгруппированные по полям
    */
-  private async applyFieldValidators(validatorsByField: Map<string, any[]>): Promise<void> {
+  private async applyFieldValidators(
+    validatorsByField: Map<string, ValidatorRegistration[]>
+  ): Promise<void> {
     for (const [fieldPath, fieldValidators] of validatorsByField) {
       // Поддержка вложенных путей (например, "personalData.lastName")
       const control = this.form.getFieldByPath(fieldPath);
 
       if (!control) {
         if (import.meta.env.DEV) {
-          const availableFields = Array.from(this.form['fields'].keys()).join(', ');
-          throw new Error(
-            `Field "${fieldPath}" not found in GroupNode.\n` +
-              `Available fields: ${availableFields}`
-          );
+          throw new Error(`Field "${fieldPath}" not found in GroupNode`);
         }
         console.warn(`Field ${fieldPath} not found in GroupNode`);
         continue;
@@ -134,7 +128,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
         continue;
       }
 
-      const errors: any[] = [];
+      const errors: ValidationError[] = [];
       const context = new ValidationContextImpl(this.form as any, fieldPath, control);
 
       // Выполнение валидаторов с учетом условий
@@ -149,18 +143,18 @@ export class ValidationApplicator<T extends Record<string, any>> {
 
         // Выполнение валидатора
         try {
-          let error;
+          let error: ValidationError | null = null;
           if (registration.type === 'sync') {
-            error = registration.validator(context);
+            error = (registration.validator as any)(context);
           } else if (registration.type === 'async') {
-            error = await registration.validator(context);
+            error = await (registration.validator as any)(context);
           }
 
           if (error) {
             errors.push(error);
           }
         } catch (e) {
-          console.error(`Error in validator for ${fieldPath}:`, e);
+          FormErrorHandler.handle(e, `ValidationApplicator: validator for ${fieldPath}`, ErrorStrategy.LOG);
         }
       }
 
@@ -187,7 +181,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
    *
    * @param treeValidators Список tree валидаторов
    */
-  private applyTreeValidators(treeValidators: any[]): void {
+  private applyTreeValidators(treeValidators: ValidatorRegistration[]): void {
     for (const registration of treeValidators) {
       const context = new TreeValidationContextImpl(this.form as any);
 
@@ -201,18 +195,24 @@ export class ValidationApplicator<T extends Record<string, any>> {
 
       // Выполнение tree валидатора
       try {
-        const error = registration.validator(context);
-        if (error && registration.options?.targetField) {
-          const targetControl = this.form['fields'].get(
-            registration.options.targetField as keyof T
-          );
-          if (targetControl) {
-            const existingErrors = targetControl.errors.value;
-            targetControl.setErrors([...existingErrors, error]);
+        // Tree валидаторы должны использовать TreeValidatorFn
+        if (registration.type !== 'tree') {
+          continue;
+        }
+
+        const error = (registration.validator as any)(context);
+        if (error && registration.options && 'targetField' in registration.options) {
+          const targetField = registration.options.targetField;
+          if (targetField) {
+            const targetControl = this.form.getFieldByPath(String(targetField));
+            if (targetControl && isFieldNode(targetControl)) {
+              const existingErrors = targetControl.errors.value;
+              targetControl.setErrors([...existingErrors, error]);
+            }
           }
         }
       } catch (e) {
-        console.error('Error in tree validator:', e);
+        FormErrorHandler.handle(e, 'ValidationApplicator: tree validator', ErrorStrategy.LOG);
       }
     }
   }

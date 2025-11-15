@@ -45,7 +45,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
       expect(field.valid.value).toBe(false);
       expect(field.errors.value).toHaveLength(1);
       expect(field.errors.value[0].code).toBe('validator_error');
-      expect(field.errors.value[0].message).toBe('Validator encountered an error');
+      expect(field.errors.value[0].message).toBe('String error');
     });
 
     it('should log error in dev mode', async () => {
@@ -66,7 +66,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
       // В dev mode console.error должен быть вызван
       if (import.meta.env.DEV) {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          '[FieldNode] Async validator threw an error:',
+          '[FieldNode AsyncValidator]',
           expect.any(Error)
         );
       }
@@ -330,7 +330,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       expect(field.valid.value).toBe(false);
       expect(field.errors.value[0].code).toBe('validator_error');
-      expect(field.errors.value[0].message).toBe('Validator encountered an error');
+      expect(field.errors.value[0].message).toBe('undefined');
     });
 
     it('should handle validator that throws null', async () => {
@@ -365,7 +365,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       expect(field.valid.value).toBe(false);
       expect(field.errors.value[0].code).toBe('validator_error');
-      expect(field.errors.value[0].message).toBe('Validator encountered an error');
+      expect(field.errors.value[0].message).toBe('[object Object]');
     });
   });
 });

@@ -145,12 +145,22 @@ export class NodeFactory {
 
     // Обработка начальных элементов:
     // Если элемент - схема группы, извлечь значения
-    const initialItems = restItems.map((item) => {
+    const initialItems: any[] = [];
+
+    // ✅ ИСПРАВЛЕНИЕ: Первый элемент является и схемой, и первым элементом данных
+    // Если первый элемент имеет значения (GroupConfig с value), добавляем его как первый item
+    if (this.isGroupConfig(itemSchema)) {
+      initialItems.push(this.extractValues(itemSchema));
+    }
+
+    // Добавляем остальные элементы
+    for (const item of restItems) {
       if (this.isGroupConfig(item)) {
-        return this.extractValues(item);
+        initialItems.push(this.extractValues(item));
+      } else {
+        initialItems.push(item);
       }
-      return item;
-    });
+    }
 
     return new ArrayNode(itemSchema, initialItems);
   }

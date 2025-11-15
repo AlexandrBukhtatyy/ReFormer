@@ -18,6 +18,7 @@ import type {
   ValidateAsyncOptions,
   ValidateTreeOptions,
 } from '../types/validation-schema';
+import { RegistryStack } from '../utils/registry-stack';
 
 /**
  * Контекст регистрации валидаторов
@@ -90,7 +91,7 @@ export class ValidationRegistry {
    * Global stack активных реестров
    * Используется для изоляции форм друг от друга
    */
-  private static registryStack: ValidationRegistry[] = [];
+  private static registryStack = new RegistryStack<ValidationRegistry>();
 
   private contextStack: RegistrationContext[] = [];
   private validators: ValidatorRegistration[] = [];
@@ -112,8 +113,7 @@ export class ValidationRegistry {
    * ```
    */
   static getCurrent(): ValidationRegistry | null {
-    const stack = ValidationRegistry.registryStack;
-    return stack.length > 0 ? stack[stack.length - 1] : null;
+    return ValidationRegistry.registryStack.getCurrent();
   }
 
   /**
@@ -142,11 +142,8 @@ export class ValidationRegistry {
       throw new Error('No active registration context');
     }
 
-    // Извлекаем из global stack
-    const popped = ValidationRegistry.registryStack.pop();
-    if (popped !== this && import.meta.env.DEV) {
-      console.warn('ValidationRegistry: Global stack mismatch. Expected this, got:', popped);
-    }
+    // Извлекаем из global stack с проверкой
+    ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
 
     // Сохраняем валидаторы в локальном состоянии
     this.validators = context.getValidators();
@@ -170,14 +167,8 @@ export class ValidationRegistry {
       throw new Error('No active registration context to cancel');
     }
 
-    // Извлекаем из global stack
-    const popped = ValidationRegistry.registryStack.pop();
-    if (popped !== this && import.meta.env.DEV) {
-      console.warn(
-        'ValidationRegistry: Global stack mismatch on cancel. Expected this, got:',
-        popped
-      );
-    }
+    // Извлекаем из global stack с проверкой
+    ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
 
     // Просто выбрасываем контекст без сохранения
   }

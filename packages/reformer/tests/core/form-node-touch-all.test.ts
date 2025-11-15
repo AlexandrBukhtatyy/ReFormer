@@ -253,14 +253,14 @@ describe('FormNode - touchAll()', () => {
       expect(form.user.profile.firstName.touched.value).toBe(true);
       expect(form.user.profile.lastName.touched.value).toBe(true);
 
-      // Array fields (use fields.get for 'value' field to avoid conflict)
+      // Array fields (use getFieldByPath for 'value' field to avoid conflict with FormNode.value)
       const item0 = form.user.contacts.at(0);
       const item1 = form.user.contacts.at(1);
 
       expect(item0?.type.touched.value).toBe(true);
-      expect(item0?.fields.get('value' as any)?.touched.value).toBe(true);
+      expect(item0?.getFieldByPath('value')?.touched.value).toBe(true);
       expect(item1?.type.touched.value).toBe(true);
-      expect(item1?.fields.get('value' as any)?.touched.value).toBe(true);
+      expect(item1?.getFieldByPath('value')?.touched.value).toBe(true);
     });
 
     it('should work on nested group', () => {
@@ -280,9 +280,9 @@ describe('FormNode - touchAll()', () => {
       const item1 = form.user.contacts.at(1);
 
       expect(item0?.type.touched.value).toBe(true);
-      expect(item0?.fields.get('value' as any)?.touched.value).toBe(true);
+      expect(item0?.getFieldByPath('value')?.touched.value).toBe(true);
       expect(item1?.type.touched.value).toBe(true);
-      expect(item1?.fields.get('value' as any)?.touched.value).toBe(true);
+      expect(item1?.getFieldByPath('value')?.touched.value).toBe(true);
 
       // Profile not affected
       expect(form.user.profile.firstName.touched.value).toBe(false);

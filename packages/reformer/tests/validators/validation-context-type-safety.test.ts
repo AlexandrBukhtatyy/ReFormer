@@ -4,7 +4,7 @@
  * Tests the improved type guards, warnings, and type-safe access
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { validate, validateTree } from '../../src/core/validators';
 import type { GroupNodeWithControls } from '../../src/core';
 import { makeForm } from '../../src/core/utils/make-form';

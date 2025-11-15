@@ -392,6 +392,10 @@ export class FieldPathNavigator {
         if (!Array.isArray(items)) return null;
         current = items[segment.index];
       }
+      // Если запрашивается индекс, но узел не является ArrayNode, возвращаем null
+      else if (current && segment.index !== undefined && !current.items) {
+        return null;
+      }
 
       if (current == null) return null;
     }

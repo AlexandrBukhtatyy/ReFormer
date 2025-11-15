@@ -240,9 +240,9 @@ export abstract class FormNode<T = any> {
         }
       }
 
-      // Фильтр по сообщению (частичное совпадение)
+      // Фильтр по сообщению (частичное совпадение, регистронезависимый)
       if (options.message !== undefined) {
-        if (!error.message.includes(options.message)) {
+        if (!error.message.toLowerCase().includes(options.message.toLowerCase())) {
           return false;
         }
       }
@@ -486,95 +486,4 @@ export abstract class FormNode<T = any> {
   protected onEnable(): void {
     // Пустая реализация по умолчанию
   }
-}
-
-// ============================================================================
-// Type Guards
-// ============================================================================
-
-/**
- * Type guard для проверки, является ли узел FieldNode
- *
- * @param node - проверяемый узел
- * @returns true если node является FieldNode
- *
- * @example
- * ```typescript
- * if (isFieldNode(node)) {
- *   // TypeScript знает, что node - это FieldNode
- *   node.markAsTouched();
- * }
- * ```
- */
-export function isFieldNode<T = any>(
-  node: FormNode<any>
-): node is import('./field-node').FieldNode<T> {
-  return Boolean(
-    node &&
-      typeof node === 'object' &&
-      'touched' in node &&
-      'dirty' in node &&
-      // FieldNode имеет markAsTouched, но GroupNode/ArrayNode нет (они итерируются)
-      typeof (node as any).markAsTouched === 'function' &&
-      // У FieldNode нет fields/items
-      !('fields' in node) &&
-      !('items' in node)
-  );
-}
-
-/**
- * Type guard для проверки, является ли узел GroupNode
- *
- * @param node - проверяемый узел
- * @returns true если node является GroupNode
- *
- * @example
- * ```typescript
- * if (isGroupNode(node)) {
- *   // TypeScript знает, что node - это GroupNode
- *   node.applyValidationSchema(schema);
- * }
- * ```
- */
-export function isGroupNode<T extends Record<string, any> = any>(
-  node: FormNode<any>
-): node is import('./group-node').GroupNode<T> {
-  return Boolean(
-    node &&
-      typeof node === 'object' &&
-      'applyValidationSchema' in node &&
-      'applyBehaviorSchema' in node &&
-      // GroupNode имеет fields Map, но ArrayNode имеет items
-      !('items' in node) &&
-      !('push' in node) &&
-      !('removeAt' in node)
-  );
-}
-
-/**
- * Type guard для проверки, является ли узел ArrayNode
- *
- * @param node - проверяемый узел
- * @returns true если node является ArrayNode
- *
- * @example
- * ```typescript
- * if (isArrayNode(node)) {
- *   // TypeScript знает, что node - это ArrayNode
- *   node.push({ name: 'New Item' });
- * }
- * ```
- */
-export function isArrayNode<T extends object = any>(
-  node: FormNode<any>
-): node is import('./array-node').ArrayNode<T> {
-  return Boolean(
-    node &&
-      typeof node === 'object' &&
-      'length' in node &&
-      'push' in node &&
-      'removeAt' in node &&
-      'at' in node &&
-      typeof (node as any).push === 'function'
-  );
 }

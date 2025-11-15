@@ -8,8 +8,9 @@ import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../src/core/nodes/field-node';
 import { GroupNode } from '../../src/core/nodes/group-node';
 import { ArrayNode } from '../../src/core/nodes/array-node';
-import { isFieldNode, isGroupNode, isArrayNode, FormNode } from '../../src/core/nodes/form-node';
+import { FormNode } from '../../src/core/nodes/form-node';
 import { makeForm } from '../../src/core/utils/make-form';
+import { isArrayNode, isFieldNode, isGroupNode } from '../../src/core/utils/type-guards';
 
 describe('FormNode Type Guards', () => {
   describe('isFieldNode()', () => {

@@ -7,6 +7,7 @@
 import type { GroupNode } from '../nodes/group-node';
 import type { BehaviorHandlerFn, BehaviorOptions } from './types';
 import { BehaviorContextImpl } from './behavior-context';
+import { RegistryStack } from '../utils/registry-stack';
 
 /**
  * Зарегистрированный behavior с опциями
@@ -47,7 +48,7 @@ export class BehaviorRegistry {
    * Stack активных контекстов регистрации
    * Используется для изоляции форм друг от друга
    */
-  private static contextStack: BehaviorRegistry[] = [];
+  private static contextStack = new RegistryStack<BehaviorRegistry>();
 
   private registrations: RegisteredBehavior<any>[] = [];
   private isRegistering = false;
@@ -69,8 +70,7 @@ export class BehaviorRegistry {
    * ```
    */
   static getCurrent(): BehaviorRegistry | null {
-    const stack = BehaviorRegistry.contextStack;
-    return stack.length > 0 ? stack[stack.length - 1] : null;
+    return BehaviorRegistry.contextStack.getCurrent();
   }
 
   /**
@@ -127,11 +127,8 @@ export class BehaviorRegistry {
   ): { count: number; cleanup: () => void } {
     this.isRegistering = false;
 
-    // Извлекаем из stack
-    const popped = BehaviorRegistry.contextStack.pop();
-    if (popped !== this && import.meta.env.DEV) {
-      console.warn('BehaviorRegistry: Context stack mismatch. Expected this, got:', popped);
-    }
+    // Извлекаем из stack с проверкой
+    BehaviorRegistry.contextStack.verify(this, 'BehaviorRegistry');
 
     const context = new BehaviorContextImpl(form);
     const disposeCallbacks: Array<() => void> = [];

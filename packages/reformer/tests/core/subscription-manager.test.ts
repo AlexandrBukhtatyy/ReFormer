@@ -504,13 +504,14 @@ describe('SubscriptionManager', () => {
       class MockFieldNode {
         private subscriptions = new SubscriptionManager();
         private watchCallbacks: Array<(value: string) => void> = [];
+        private watchCounter = 0;
 
         watch(callback: (value: string) => void): () => void {
           this.watchCallbacks.push(callback);
 
-          // Симуляция effect
+          // Симуляция effect с уникальным ключом
           const dispose = vi.fn();
-          return this.subscriptions.add(`watch-${Date.now()}`, dispose);
+          return this.subscriptions.add(`watch-${this.watchCounter++}`, dispose);
         }
 
         dispose(): void {

@@ -241,21 +241,6 @@ describe('FieldPathNavigator', () => {
   });
 
   describe('getNodeByPath', () => {
-    // Мок для GroupNode
-    class MockGroupNode {
-      public fields = new Map();
-
-      constructor(config: Record<string, any>) {
-        for (const [key, value] of Object.entries(config)) {
-          if (value instanceof MockFieldNode || value instanceof MockGroupNode) {
-            this.fields.set(key, value);
-          } else {
-            this.fields.set(key, new MockFieldNode(value));
-          }
-        }
-      }
-    }
-
     // Мок для FieldNode
     class MockFieldNode {
       public value: any;
@@ -275,6 +260,25 @@ describe('FieldPathNavigator', () => {
 
       constructor(items: any[]) {
         this.items = { value: items };
+      }
+    }
+
+    // Мок для GroupNode
+    class MockGroupNode {
+      public fields = new Map();
+
+      constructor(config: Record<string, any>) {
+        for (const [key, value] of Object.entries(config)) {
+          if (
+            value instanceof MockFieldNode ||
+            value instanceof MockGroupNode ||
+            value instanceof MockArrayNode
+          ) {
+            this.fields.set(key, value);
+          } else {
+            this.fields.set(key, new MockFieldNode(value));
+          }
+        }
       }
     }
 

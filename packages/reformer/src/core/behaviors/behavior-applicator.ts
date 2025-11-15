@@ -19,10 +19,10 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import type { BehaviorSchemaFn } from './types';
 import { BehaviorRegistry } from './behavior-registry';
 import { createFieldPath as createBehaviorFieldPath } from './create-field-path';
+import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
  * Класс для применения behavior схемы к форме
@@ -87,28 +87,16 @@ export class BehaviorApplicator<T extends Record<string, any>> {
       schemaFn(path);
 
       // 3. Завершить регистрацию и применить behaviors
-      // ✅ Передаём proxy-инстанс, если доступен (для прямого доступа к полям)
-      const formToUse = this.getProxyInstance();
+      // ✅ Используем публичный метод getProxy() для получения proxy-инстанса
+      const formToUse = this.form.getProxy();
       const result = this.behaviorRegistry.endRegistration(formToUse);
 
       // 4. Вернуть функцию cleanup
       return result.cleanup;
     } catch (error) {
-      console.error('Error applying behavior schema:', error);
+      FormErrorHandler.handle(error, 'BehaviorApplicator', ErrorStrategy.THROW);
+      // TypeScript требует return, но код никогда не дойдет сюда
       throw error;
     }
-  }
-
-  /**
-   * Получить proxy-инстанс формы для прямого доступа к полям
-   *
-   * Proxy позволяет писать form.email вместо form.fields.get('email')
-   *
-   * @returns Proxy-инстанс или сама форма
-   * @private
-   */
-  private getProxyInstance(): GroupNodeWithControls<T> {
-    const proxyInstance = (this.form as any)._proxyInstance;
-    return (proxyInstance || this.form) as GroupNodeWithControls<T>;
   }
 }

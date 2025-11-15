@@ -7,20 +7,7 @@ import type { FieldNode } from '../nodes/field-node';
 import type { FormNode } from '../nodes/form-node';
 import type { ValidationContext, TreeValidationContext } from '../types/validation-schema';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
-
-/**
- * Type guard для проверки, является ли объект FormNode
- */
-function isFormNode(value: any): value is FormNode<any> {
-  return (
-    value &&
-    typeof value === 'object' &&
-    'value' in value &&
-    'valid' in value &&
-    'setValue' in value &&
-    'getValue' in value
-  );
-}
+import { isFormNode } from '../utils/type-guards';
 
 /**
  * Реализация ValidationContext для валидации отдельного поля
@@ -57,34 +44,51 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
   getField<K extends keyof TForm>(path: K): TForm[K];
   getField(path: string): any;
   getField(path: any): any {
-    if (typeof path !== 'string') {
-      // Type-safe доступ через ключ
-      const field = (this.form as any)[path];
-
-      if (!field) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[ValidationContext] Path '${String(path)}' not found in form`);
-        }
-        return undefined;
-      }
-
-      // Используем type guard вместо duck typing
-      return isFormNode(field) ? field.value.value : field;
-    }
-
-    // String path для вложенных полей
-    return this.resolveNestedPath(path);
+    // Все пути (и простые ключи, и вложенные пути) обрабатываем через resolveFieldValue
+    // FieldPathNavigator умеет работать как с простыми ключами, так и с путями
+    return this.resolveFieldValue(String(path));
   }
 
   /**
-   * Resolve вложенного пути (например, 'address.city')
+   * Получить FormNode по пути
    *
-   * ✅ Делегирование FieldPathNavigator - устранение дублирования
+   * Разрешает путь к узлу формы (FieldNode, GroupNode, ArrayNode).
+   * Используется для получения ссылки на узел для дальнейших операций.
    *
+   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
+   * @returns FormNode или undefined, если путь не найден
    * @private
+   *
+   * @example
+   * ```typescript
+   * const cityNode = this.resolveFieldNode('address.city');
+   * if (cityNode) {
+   *   cityNode.markAsTouched();
+   * }
+   * ```
    */
-  private resolveNestedPath(path: string): any {
-    // ✅ Используем FieldPathNavigator вместо ручной логики
+  private resolveFieldNode(path: string): FormNode<any> | undefined {
+    const node = this.pathNavigator.getNodeByPath(this.form, path);
+    return node ?? undefined;
+  }
+
+  /**
+   * Получить значение поля по пути
+   *
+   * Разрешает путь и возвращает значение узла.
+   * Это упрощенный метод для получения только значения.
+   *
+   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
+   * @returns Значение поля или undefined, если путь не найден
+   * @private
+   *
+   * @example
+   * ```typescript
+   * const city = this.resolveFieldValue('address.city');
+   * // 'Moscow'
+   * ```
+   */
+  private resolveFieldValue(path: string): any {
     return this.pathNavigator.getFormNodeValue(this.form, path);
   }
 
@@ -101,30 +105,9 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
   setField(path: string, value: any): void;
   setField<K extends keyof TForm>(path: K, value: TForm[K]): void;
   setField(path: any, value: any): void {
-    if (typeof path !== 'string') {
-      // Type-safe доступ через ключ
-      const field = (this.form as any)[path];
-
-      if (!field) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[ValidationContext] Path '${String(path)}' not found in form`);
-        }
-        return;
-      }
-
-      // Используем type guard для проверки наличия setValue
-      if (isFormNode(field)) {
-        field.setValue(value);
-      } else {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[ValidationContext] Path '${String(path)}' is not a FormNode`);
-        }
-      }
-      return;
-    }
-
-    // String path для вложенных полей
-    this.setNestedPath(path, value);
+    // Все пути (и простые ключи, и вложенные пути) обрабатываем через setNestedPath
+    // getFieldByPath умеет работать как с простыми ключами, так и с путями
+    this.setNestedPath(String(path), value);
   }
 
   /**
@@ -191,36 +174,58 @@ export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
   getField<K extends keyof TForm>(path: K): TForm[K];
   getField(path: string): any;
   getField(path: any): any {
-    if (typeof path !== 'string') {
-      // Type-safe доступ через ключ
-      const field = (this.form as any)[path];
-
-      if (!field) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[TreeValidationContext] Path '${String(path)}' not found in form`);
-        }
-        return undefined;
-      }
-
-      // Используем type guard вместо duck typing
-      return isFormNode(field) ? field.value.value : field;
-    }
-
-    // String path для вложенных полей
-    return this.resolveNestedPath(path);
+    // Все пути (и простые ключи, и вложенные пути) обрабатываем через resolveFieldValue
+    // FieldPathNavigator умеет работать как с простыми ключами, так и с путями
+    return this.resolveFieldValue(String(path));
   }
 
   /**
-   * Resolve вложенного пути (например, 'address.city', 'items[0].title')
+   * Получить FormNode по пути
+   *
+   * Разрешает путь к узлу формы (FieldNode, GroupNode, ArrayNode).
+   * Используется для получения ссылки на узел для дальнейших операций.
+   *
+   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
+   * @returns FormNode или undefined, если путь не найден
+   * @private
+   *
+   * @example
+   * ```typescript
+   * const cityNode = this.resolveFieldNode('address.city');
+   * if (cityNode) {
+   *   cityNode.markAsTouched();
+   * }
+   * ```
+   */
+  private resolveFieldNode(path: string): FormNode<any> | undefined {
+    const node = this.pathNavigator.getNodeByPath(this.form, path);
+    return node ?? undefined;
+  }
+
+  /**
+   * Получить значение поля по пути
+   *
+   * Разрешает путь и возвращает значение узла.
+   * Это упрощенный метод для получения только значения.
    *
    * ✅ Делегирование FieldPathNavigator - устранение дублирования
-   * ✅ Теперь поддерживает массивы (items[0].name)
+   * ✅ Поддерживает массивы (items[0].name)
    *
+   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
+   * @returns Значение поля или undefined, если путь не найден
    * @private
+   *
+   * @example
+   * ```typescript
+   * const city = this.resolveFieldValue('address.city');
+   * // 'Moscow'
+   *
+   * const itemTitle = this.resolveFieldValue('items[0].title');
+   * // 'Item 1'
+   * ```
    */
-  private resolveNestedPath(path: string): any {
+  private resolveFieldValue(path: string): any {
     // ✅ Используем FieldPathNavigator вместо ручной логики split('.')
-    // Теперь корректно обрабатывает массивы!
     return this.pathNavigator.getFormNodeValue(this.form, path);
   }
 

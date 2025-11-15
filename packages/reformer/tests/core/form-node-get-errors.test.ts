@@ -294,16 +294,19 @@ describe('FormNode.getErrors()', () => {
       expect(result.length).toBe(1);
     });
 
-    it('should handle case-sensitive message filtering', () => {
+    it('should handle case-insensitive message filtering', () => {
       const errors: ValidationError[] = [{ code: 'error', message: 'Password is required' }];
 
       field.setErrors(errors);
 
+      // ✅ Поиск регистронезависимый - оба варианта должны найти ошибку
       const result1 = field.getErrors({ message: 'password' });
       const result2 = field.getErrors({ message: 'Password' });
+      const result3 = field.getErrors({ message: 'PASSWORD' });
 
-      expect(result1).toEqual([]);
+      expect(result1.length).toBe(1);
       expect(result2.length).toBe(1);
+      expect(result3.length).toBe(1);
     });
 
     it('should handle predicate that throws error gracefully', () => {

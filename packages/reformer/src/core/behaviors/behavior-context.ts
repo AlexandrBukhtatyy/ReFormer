@@ -37,8 +37,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
    * Поддерживает вложенные пути: "address.city"
    */
   getField<_K extends keyof TForm>(path: string): any {
-    const node = this.resolveFieldNode(path);
-    return node?.value.value;
+    return this.resolveFieldValue(path);
   }
 
   /**
@@ -126,5 +125,26 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
     // ✅ Используем getFieldByPath вместо ручного парсинга
     // getFieldByPath использует FieldPathNavigator внутри
     return this.form.getFieldByPath(fieldPath);
+  }
+
+  /**
+   * Получить значение поля по пути
+   *
+   * Разрешает путь и возвращает значение узла.
+   * Это упрощенный метод для получения только значения.
+   *
+   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
+   * @returns Значение поля или undefined, если путь не найден
+   * @private
+   *
+   * @example
+   * ```typescript
+   * const city = this.resolveFieldValue('address.city');
+   * // 'Moscow'
+   * ```
+   */
+  private resolveFieldValue(path: string): any {
+    const node = this.resolveFieldNode(path);
+    return node?.value.value;
   }
 }

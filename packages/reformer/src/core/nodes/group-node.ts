@@ -16,6 +16,7 @@ import type {
   ValidationError,
   FieldStatus,
   ValidationSchemaFn,
+  ValidatorRegistration,
   FormSchema,
   GroupNodeConfig,
 } from '../types';
@@ -29,6 +30,8 @@ import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validators/validation-registry';
+import { FieldRegistry } from './group-node/field-registry';
+import { ProxyBuilder } from './group-node/proxy-builder';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -74,7 +77,19 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
   // Приватные поля
   // ============================================================================
   public id = uuidv4();
-  private fields: Map<keyof T, FormNode<any>>;
+
+  /**
+   * Реестр полей формы
+   * Использует FieldRegistry для инкапсуляции логики управления коллекцией полей
+   */
+  private fieldRegistry: FieldRegistry<T>;
+
+  /**
+   * Строитель Proxy для типобезопасного доступа к полям
+   * Использует ProxyBuilder для создания Proxy с расширенной функциональностью
+   */
+  private proxyBuilder: ProxyBuilder<T>;
+
   private _submitting: Signal<boolean>;
   private _disabled: Signal<boolean>;
 
@@ -167,7 +182,10 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
   constructor(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>) {
     super();
 
-    this.fields = new Map();
+    // Инициализация модулей для управления полями и прокси
+    this.fieldRegistry = new FieldRegistry<T>();
+    this.proxyBuilder = new ProxyBuilder<T>(this.fieldRegistry);
+
     this._submitting = signal(false);
     this._disabled = signal(false);
     this._formErrors = signal<ValidationError[]>([]);
@@ -185,7 +203,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     // Создать поля из схемы с поддержкой вложенности
     for (const [key, config] of Object.entries(formSchema)) {
       const node = this.createNode(config);
-      this.fields.set(key as keyof T, node);
+      this.fieldRegistry.set(key as keyof T, node);
     }
 
     // Создать computed signals
@@ -194,7 +212,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     // Это обеспечивает reference equality и O(1) при повторных вызовах
     this.value = computed(() => {
       const result = {} as T;
-      this.fields.forEach((field, key) => {
+      this.fieldRegistry.forEach((field, key) => {
         result[key] = field.value.value;
       });
       return result;
@@ -206,21 +224,21 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       if (hasFormErrors) return false;
 
       // Проверяем все поля
-      return Array.from(this.fields.values()).every((field) => field.valid.value);
+      return Array.from(this.fieldRegistry.values()).every((field) => field.valid.value);
     });
 
     this.invalid = computed(() => !this.valid.value);
 
     this.pending = computed(() =>
-      Array.from(this.fields.values()).some((field) => field.pending.value)
+      Array.from(this.fieldRegistry.values()).some((field) => field.pending.value)
     );
 
     this.touched = computed(() =>
-      Array.from(this.fields.values()).some((field) => field.touched.value)
+      Array.from(this.fieldRegistry.values()).some((field) => field.touched.value)
     );
 
     this.dirty = computed(() =>
-      Array.from(this.fields.values()).some((field) => field.dirty.value)
+      Array.from(this.fieldRegistry.values()).some((field) => field.dirty.value)
     );
 
     this.errors = computed(() => {
@@ -230,7 +248,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       allErrors.push(...this._formErrors.value);
 
       // Добавляем field-level errors
-      this.fields.forEach((field) => {
+      this.fieldRegistry.forEach((field) => {
         allErrors.push(...field.errors.value);
       });
 
@@ -247,22 +265,8 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     this.submitting = computed(() => this._submitting.value);
 
     // Создать Proxy для прямого доступа к полям
-    const proxy = new Proxy(this, {
-      get(target, prop: string | symbol) {
-        // Приоритет 1: Собственные свойства и методы GroupNode
-        if (prop in target) {
-          return (target as any)[prop];
-        }
-
-        // Приоритет 2: Поля формы
-        if (typeof prop === 'string' && target.fields.has(prop as keyof T)) {
-          return target.fields.get(prop as keyof T);
-        }
-
-        // Fallback
-        return undefined;
-      },
-    });
+    // Используем ProxyBuilder для создания Proxy с расширенной функциональностью
+    const proxy = this.proxyBuilder.build(this);
 
     // ✅ Сохраняем Proxy-инстанс перед применением схем
     // Это позволяет BehaviorContext получить доступ к прокси через formNode
@@ -288,7 +292,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
 
   getValue(): T {
     const result = {} as T;
-    this.fields.forEach((field, key) => {
+    this.fieldRegistry.forEach((field, key) => {
       result[key] = field.getValue();
     });
     return result;
@@ -296,7 +300,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
 
   setValue(value: T, options?: SetValueOptions): void {
     for (const [key, fieldValue] of Object.entries(value)) {
-      const field = this.fields.get(key as keyof T);
+      const field = this.fieldRegistry.get(key as keyof T);
       if (field) {
         field.setValue(fieldValue, options);
       }
@@ -305,7 +309,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
 
   patchValue(value: Partial<T>): void {
     for (const [key, fieldValue] of Object.entries(value)) {
-      const field = this.fields.get(key as keyof T);
+      const field = this.fieldRegistry.get(key as keyof T);
       if (field && fieldValue !== undefined) {
         field.setValue(fieldValue);
       }
@@ -330,7 +334,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * ```
    */
   reset(value?: T): void {
-    this.fields.forEach((field, key) => {
+    this.fieldRegistry.forEach((field, key) => {
       const resetValue = value?.[key];
       field.reset(resetValue);
     });
@@ -364,7 +368,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * ```
    */
   resetToInitial(): void {
-    this.fields.forEach((field) => {
+    this.fieldRegistry.forEach((field) => {
       if ('resetToInitial' in field && typeof field.resetToInitial === 'function') {
         field.resetToInitial();
       } else {
@@ -375,7 +379,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
 
   async validate(): Promise<boolean> {
     // Шаг 1: Валидация всех полей
-    await Promise.all(Array.from(this.fields.values()).map((field) => field.validate()));
+    await Promise.all(Array.from(this.fieldRegistry.values()).map((field) => field.validate()));
 
     // Шаг 2: Применение contextual валидаторов из validation schema
     // Используем локальный реестр вместо глобального
@@ -385,7 +389,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     }
 
     // Проверяем, все ли поля валидны
-    return Array.from(this.fields.values()).every((field) => field.valid.value);
+    return Array.from(this.fieldRegistry.values()).every((field) => field.valid.value);
   }
 
   /**
@@ -418,7 +422,57 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     this._formErrors.value = [];
 
     // Очищаем field-level errors
-    this.fields.forEach((field) => field.clearErrors());
+    this.fieldRegistry.forEach((field) => field.clearErrors());
+  }
+
+  /**
+   * Получить поле по ключу
+   *
+   * Публичный метод для доступа к полю из fieldRegistry
+   *
+   * @param key - Ключ поля
+   * @returns FormNode или undefined, если поле не найдено
+   *
+   * @example
+   * ```typescript
+   * const emailField = form.getField('email');
+   * if (emailField) {
+   *   console.log(emailField.value.value);
+   * }
+   * ```
+   */
+  getField<K extends keyof T>(key: K): FormNode<T[K]> | undefined {
+    return this.fieldRegistry.get(key);
+  }
+
+  /**
+   * Получить Proxy-инстанс для прямого доступа к полям
+   *
+   * Proxy позволяет обращаться к полям формы напрямую через точечную нотацию:
+   * - form.email вместо form.fields.get('email')
+   * - form.address.city вместо form.fields.get('address').fields.get('city')
+   *
+   * Используется в:
+   * - BehaviorApplicator для доступа к полям в behavior functions
+   * - ValidationApplicator для доступа к форме в tree validators
+   *
+   * @returns Proxy-инстанс с типобезопасным доступом к полям или сама форма, если proxy не доступен
+   *
+   * @example
+   * ```typescript
+   * const form = new GroupNode({
+   *   controls: {
+   *     email: new FieldNode({ value: '' }),
+   *     name: new FieldNode({ value: '' })
+   *   }
+   * });
+   *
+   * const proxy = form.getProxy();
+   * console.log(proxy.email.value); // Прямой доступ к полю
+   * ```
+   */
+  getProxy(): GroupNodeWithControls<T> {
+    return (this._proxyInstance || this) as GroupNodeWithControls<T>;
   }
 
   // ============================================================================
@@ -431,7 +485,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Для GroupNode: рекурсивно помечаем все дочерние поля как touched
    */
   protected onMarkAsTouched(): void {
-    this.fields.forEach((field) => field.markAsTouched());
+    this.fieldRegistry.forEach((field) => field.markAsTouched());
   }
 
   /**
@@ -440,7 +494,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Для GroupNode: рекурсивно помечаем все дочерние поля как untouched
    */
   protected onMarkAsUntouched(): void {
-    this.fields.forEach((field) => field.markAsUntouched());
+    this.fieldRegistry.forEach((field) => field.markAsUntouched());
   }
 
   /**
@@ -449,7 +503,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Для GroupNode: рекурсивно помечаем все дочерние поля как dirty
    */
   protected onMarkAsDirty(): void {
-    this.fields.forEach((field) => field.markAsDirty());
+    this.fieldRegistry.forEach((field) => field.markAsDirty());
   }
 
   /**
@@ -458,7 +512,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Для GroupNode: рекурсивно помечаем все дочерние поля как pristine
    */
   protected onMarkAsPristine(): void {
-    this.fields.forEach((field) => field.markAsPristine());
+    this.fieldRegistry.forEach((field) => field.markAsPristine());
   }
 
   // ============================================================================
@@ -498,8 +552,8 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     try {
       const path = createFieldPath<T>();
       schemaFn(path);
-      // ✅ Передаём proxy-инстанс, если доступен (консистентность с applyBehaviorSchema)
-      const formToUse = (this._proxyInstance || this) as GroupNodeWithControls<T>;
+      // ✅ Используем публичный метод getProxy() для получения proxy-инстанса
+      const formToUse = this.getProxy();
       this.validationRegistry.endRegistration(formToUse);
     } catch (error) {
       console.error('Error applying validation schema:', error);
@@ -598,7 +652,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
         return undefined;
       }
 
-      current = current.fields.get(segment.key as any);
+      current = current.getField(segment.key as any);
       if (!current) return undefined;
 
       // Если есть индекс, получаем элемент массива
@@ -629,7 +683,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    *
    * @param validators Зарегистрированные валидаторы
    */
-  async applyContextualValidators(validators: any[]): Promise<void> {
+  async applyContextualValidators(validators: ValidatorRegistration[]): Promise<void> {
     await this.validationApplicator.apply(validators);
   }
 
@@ -693,8 +747,8 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     targetKey: K2,
     transform?: (value: T[K1]) => T[K2]
   ): () => void {
-    const sourceField = this.fields.get(sourceKey);
-    const targetField = this.fields.get(targetKey);
+    const sourceField = this.fieldRegistry.get(sourceKey);
+    const targetField = this.fieldRegistry.get(targetKey);
 
     if (!sourceField || !targetField) {
       if (import.meta.env.DEV) {
@@ -776,7 +830,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     // Синхронизируем _disabled signal с _status для обратной совместимости
     this._disabled.value = true;
 
-    this.fields.forEach((field) => {
+    this.fieldRegistry.forEach((field) => {
       field.disable();
     });
   }
@@ -790,7 +844,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     // Синхронизируем _disabled signal с _status для обратной совместимости
     this._disabled.value = false;
 
-    this.fields.forEach((field) => {
+    this.fieldRegistry.forEach((field) => {
       field.enable();
     });
   }
@@ -813,7 +867,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     this.disposers.dispose();
 
     // Рекурсивно очищаем дочерние узлы
-    this.fields.forEach((field) => {
+    this.fieldRegistry.forEach((field) => {
       if ('dispose' in field && typeof field.dispose === 'function') {
         field.dispose();
       }
