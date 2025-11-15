@@ -202,17 +202,9 @@ export function createComputeBehavior<TForm extends Record<string, any>>(
           if (!condition(formValue)) return;
         }
 
-        // ✅ Создаем объект с именами полей для computeFn
-        // computeFn ожидает объект вида { fieldName: value, ... }
-        const sourceValuesObject: Record<string, unknown> = {};
-        sources.forEach((source, index) => {
-          // Извлекаем имя поля из пути (последний сегмент)
-          const fieldName = source.__path.split('.').pop() || source.__path;
-          sourceValuesObject[fieldName] = sourceValues[index];
-        });
-
-        // Вычисляем новое значение
-        const computedValue = computeFn(sourceValuesObject);
+        // ✅ Вызываем computeFn с параметрами напрямую (type-safe)
+        // Функция получает значения полей как отдельные параметры
+        const computedValue = computeFn(...sourceValues);
 
         // Устанавливаем значение без триггера событий
         targetNode.setValue(computedValue, { emitEvent: false });

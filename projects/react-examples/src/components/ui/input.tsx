@@ -17,8 +17,15 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       const newValue = event.target.value;
 
       if (type === 'number') {
-        const numValue = newValue === '' ? null : Number(newValue);
-        onChange?.(numValue);
+        if (newValue === '') {
+          onChange?.(null);
+        } else {
+          const numValue = Number(newValue);
+          // Only call onChange if the value is a valid number (not NaN)
+          if (!isNaN(numValue)) {
+            onChange?.(numValue);
+          }
+        }
       } else {
         onChange?.(newValue || null);
       }
@@ -27,6 +34,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputValue = React.useMemo(() => {
       if (value === null || value === undefined) return '';
       if (type === 'number' && typeof value === 'number') {
+        // Don't render NaN values in number inputs
+        if (isNaN(value)) return '';
         return value.toString();
       }
       return String(value);

@@ -427,6 +427,25 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     return (this._proxyInstance || this) as GroupNodeWithControls<T>;
   }
 
+  /**
+   * Получить все поля формы как итератор
+   *
+   * Предоставляет доступ к внутренним полям для валидации и других операций
+   *
+   * @returns Итератор по всем полям формы
+   *
+   * @example
+   * ```typescript
+   * // Валидация всех полей
+   * await Promise.all(
+   *   Array.from(form.getAllFields()).map(field => field.validate())
+   * );
+   * ```
+   */
+  getAllFields(): IterableIterator<FormNode<any>> {
+    return this.fieldRegistry.values();
+  }
+
   // ============================================================================
   // Protected hooks (Template Method pattern)
   // ============================================================================
