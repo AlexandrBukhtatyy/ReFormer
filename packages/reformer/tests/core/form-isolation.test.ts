@@ -9,12 +9,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { required, email } from '../../src/core/validators';
-import { computeFrom, enableWhen } from '../../src/core/behaviors';
+import { required, email } from '../../src/core/validation/validators';
+import { computeFrom, enableWhen } from '../../src/core/behavior/behaviors';
 import type { ValidationSchemaFn } from '../../src/core/types/validation-schema';
-import type { BehaviorSchemaFn } from '../../src/core/behaviors/types';
+import type { BehaviorSchemaFn } from '../../src/core/behavior/types';
 import { makeForm } from '../../src/core/utils/make-form';
-import type { GroupNodeWithControls } from '../../src/core';
+import type { GroupNodeWithControls } from '../../src';
 import type { FieldPath } from '../../src/core/types';
 
 // Mock компонент для тестов

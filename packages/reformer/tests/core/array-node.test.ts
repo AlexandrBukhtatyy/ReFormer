@@ -4,8 +4,8 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ArrayNode } from '../../src/core/nodes/array-node';
-import type { BehaviorSchemaFn } from '../../src/core/behaviors/types';
-import { required, minLength } from '../../src/core/validators';
+import type { BehaviorSchemaFn } from '../../src/core/behavior/types';
+import { required, minLength } from '../../src/core/validation/validators';
 import type { FieldPath, ValidationSchemaFn } from '../../src/core/types';
 
 describe('ArrayNode', () => {

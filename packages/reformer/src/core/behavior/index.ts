@@ -19,17 +19,14 @@ export type {
 } from './types';
 
 // Функции для декларативного описания поведения
-export {
-  copyFrom,
-  enableWhen,
-  disableWhen,
-  showWhen,
-  hideWhen,
-  computeFrom,
-  watchField,
-  revalidateWhen,
-  syncFields,
-} from './schema-behaviors';
+// Behaviors
+export { copyFrom } from './behaviors/copy-from';
+export { enableWhen, disableWhen } from './behaviors/enable-when';
+export { showWhen, hideWhen } from './behaviors/show-when';
+export { computeFrom } from './behaviors/compute-from';
+export { watchField } from './behaviors/watch-field';
+export { revalidateWhen } from './behaviors/revalidate-when';
+export { syncFields } from './behaviors/sync-fields';
 
 // Композиция behavior схем (аналог toFieldPath из validation API)
 export { apply, applyWhen, toBehaviorFieldPath } from './compose-behavior';

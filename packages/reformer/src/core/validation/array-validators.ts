@@ -8,7 +8,7 @@
 
 import { getCurrentValidationRegistry } from '../utils/registry-helpers';
 import { extractPath } from './field-path';
-import { minLength } from './schema-validators';
+import { minLength } from './validators/min-length';
 import type { ValidateOptions, ValidationSchemaFn } from '../types/validation-schema';
 import type { FieldPathNode } from '../types';
 

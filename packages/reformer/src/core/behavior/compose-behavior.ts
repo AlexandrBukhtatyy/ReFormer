@@ -11,7 +11,7 @@
 
 import type { FieldPath, FieldPathNode } from '../types';
 import { createFieldPath } from './create-field-path';
-import { watchField } from './schema-behaviors';
+import { watchField } from './behaviors/watch-field';
 import type { BehaviorSchemaFn } from './types';
 
 // ============================================================================

@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { validate, validateTree } from '../../src/core/validators';
-import type { GroupNodeWithControls } from '../../src/core';
+import { validate, validateTree } from '../../src/core/validation';
+import type { GroupNodeWithControls } from '../../src/core/types';
 import { makeForm } from '../../src/core/utils/make-form';
 import type { FieldPath } from '../../src/core/types';
 

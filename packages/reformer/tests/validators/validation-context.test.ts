@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { required, validate, validateTree, email, minLength } from '../../src/core/validators';
+import { required, validate, validateTree, email, minLength } from '../../src/core/validation';
 import type { GroupNodeWithControls } from '../../src/core/types/group-node-proxy';
 import { makeForm } from '../../src/core/utils/make-form';
 import type { FieldPath } from '../../src/core/types';

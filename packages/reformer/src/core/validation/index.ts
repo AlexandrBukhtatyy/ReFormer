@@ -2,27 +2,24 @@
 // Validation Schema API
 // ============================================================================
 
-// Функции валидации
-export {
-  validate,
-  validateAsync,
-  validateTree,
-  applyWhen,
-  // Переиспользуемые валидаторы
-  required,
-  min,
-  max,
-  minLength,
-  maxLength,
-  email,
-  pattern,
-} from './schema-validators';
+// Core validation functions
+export { validate } from './core/validate';
+export { validateAsync } from './core/validate-async';
+export { validateTree } from './core/validate-tree';
+export { apply } from './core/apply';
+export { applyWhen } from './core/apply-when';
+
+// Reusable validators
+export { required } from './validators/required';
+export { min } from './validators/min';
+export { max } from './validators/max';
+export { minLength } from './validators/min-length';
+export { maxLength } from './validators/max-length';
+export { email } from './validators/email';
+export { pattern } from './validators/pattern';
 
 // Валидаторы для массивов
 export { notEmpty, validateItems } from './array-validators';
-
-// Композиция validation схем (аналог apply из behaviors API)
-export { apply } from './compose-validation';
 
 // Утилиты для FieldPath
 export { createFieldPath, extractPath, extractKey, toFieldPath } from './field-path';
