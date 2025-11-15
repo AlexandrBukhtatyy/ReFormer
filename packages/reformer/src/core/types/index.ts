@@ -86,7 +86,7 @@ export type {
 // GroupNode Configuration (with schemas)
 // ============================================================================
 
-import type { BehaviorSchemaFn } from '../behaviors/types';
+import type { BehaviorSchemaFn } from '../behavior/types';
 import type { FormSchema } from './deep-schema';
 import type { ValidationSchemaFn } from './validation-schema';
 

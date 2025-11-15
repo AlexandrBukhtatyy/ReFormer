@@ -6,8 +6,8 @@
  * array-validators.ts и schema-behaviors.ts
  */
 
-import { ValidationRegistry } from '../validators/validation-registry';
-import { BehaviorRegistry } from '../behaviors/behavior-registry';
+import { ValidationRegistry } from '../validation/validation-registry';
+import { BehaviorRegistry } from '../behavior/behavior-registry';
 
 /**
  * Получить текущий активный ValidationRegistry из context stack

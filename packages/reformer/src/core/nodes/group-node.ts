@@ -9,8 +9,8 @@
  * Наследует от FormNode и реализует все его абстрактные методы
  */
 
-import { signal, computed, effect } from '@preact/signals-react';
-import type { Signal, ReadonlySignal } from '@preact/signals-react';
+import { effect } from '@preact/signals-react';
+import type { ReadonlySignal } from '@preact/signals-react';
 import { FormNode, type SetValueOptions } from './form-node';
 import type {
   ValidationError,
@@ -21,17 +21,18 @@ import type {
   GroupNodeConfig,
 } from '../types';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
-import { createFieldPath } from '../validators';
-import { ValidationApplicator } from '../validators/validation-applicator';
-import type { BehaviorSchemaFn } from '../behaviors/types';
-import { BehaviorRegistry } from '../behaviors/behavior-registry';
-import { BehaviorApplicator } from '../behaviors/behavior-applicator';
+import { createFieldPath } from '../validation';
+import { ValidationApplicator } from '../validation/validation-applicator';
+import type { BehaviorSchemaFn } from '../behavior/types';
+import { BehaviorRegistry } from '../behavior/behavior-registry';
+import { BehaviorApplicator } from '../behavior/behavior-applicator';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
-import { ValidationRegistry } from '../validators/validation-registry';
+import { ValidationRegistry } from '../validation/validation-registry';
 import { FieldRegistry } from './group-node/field-registry';
 import { ProxyBuilder } from './group-node/proxy-builder';
+import { StateManager } from './group-node/state-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -90,14 +91,12 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    */
   private proxyBuilder: ProxyBuilder<T>;
 
-  private _submitting: Signal<boolean>;
-  private _disabled: Signal<boolean>;
-
   /**
-   * Form-level validation errors (не связанные с конкретным полем)
-   * Используется для server-side errors или кросс-полевой валидации
+   * Менеджер состояния формы
+   * Инкапсулирует всю логику создания и управления сигналами состояния
+   * Извлечен из GroupNode для соблюдения SRP
    */
-  private _formErrors: Signal<ValidationError[]>;
+  private stateManager: StateManager<T>;
 
   /**
    * Менеджер подписок для централизованного cleanup
@@ -152,7 +151,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
   private readonly behaviorApplicator = new BehaviorApplicator(this, this.behaviorRegistry);
 
   // ============================================================================
-  // Публичные computed signals
+  // Публичные computed signals (делегированы в StateManager)
   // ============================================================================
 
   public readonly value: ReadonlySignal<T>;
@@ -186,10 +185,6 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     this.fieldRegistry = new FieldRegistry<T>();
     this.proxyBuilder = new ProxyBuilder<T>(this.fieldRegistry);
 
-    this._submitting = signal(false);
-    this._disabled = signal(false);
-    this._formErrors = signal<ValidationError[]>([]);
-
     // Определяем, что передано: schema или config
     const isConfig = 'form' in schemaOrConfig;
     const formSchema = isConfig
@@ -206,63 +201,20 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       this.fieldRegistry.set(key as keyof T, node);
     }
 
-    // Создать computed signals
-    // Computed signal автоматически кеширует результат (мемоизация)
-    // Если зависимости (field.value.value) не изменились, вернет закешированный объект
-    // Это обеспечивает reference equality и O(1) при повторных вызовах
-    this.value = computed(() => {
-      const result = {} as T;
-      this.fieldRegistry.forEach((field, key) => {
-        result[key] = field.value.value;
-      });
-      return result;
-    });
+    // ✅ Создать менеджер состояния (инкапсулирует всю логику сигналов)
+    // StateManager создает все computed signals на основе fieldRegistry
+    this.stateManager = new StateManager<T>(this.fieldRegistry);
 
-    this.valid = computed(() => {
-      // Проверяем отсутствие form-level errors
-      const hasFormErrors = this._formErrors.value.length > 0;
-      if (hasFormErrors) return false;
-
-      // Проверяем все поля
-      return Array.from(this.fieldRegistry.values()).every((field) => field.valid.value);
-    });
-
-    this.invalid = computed(() => !this.valid.value);
-
-    this.pending = computed(() =>
-      Array.from(this.fieldRegistry.values()).some((field) => field.pending.value)
-    );
-
-    this.touched = computed(() =>
-      Array.from(this.fieldRegistry.values()).some((field) => field.touched.value)
-    );
-
-    this.dirty = computed(() =>
-      Array.from(this.fieldRegistry.values()).some((field) => field.dirty.value)
-    );
-
-    this.errors = computed(() => {
-      const allErrors: ValidationError[] = [];
-
-      // Добавляем form-level errors
-      allErrors.push(...this._formErrors.value);
-
-      // Добавляем field-level errors
-      this.fieldRegistry.forEach((field) => {
-        allErrors.push(...field.errors.value);
-      });
-
-      return allErrors;
-    });
-
-    this.status = computed(() => {
-      if (this._disabled.value) return 'disabled';
-      if (this.pending.value) return 'pending';
-      if (this.invalid.value) return 'invalid';
-      return 'valid';
-    });
-
-    this.submitting = computed(() => this._submitting.value);
+    // ✅ Делегировать публичные свойства в StateManager
+    this.value = this.stateManager.value;
+    this.valid = this.stateManager.valid;
+    this.invalid = this.stateManager.invalid;
+    this.touched = this.stateManager.touched;
+    this.dirty = this.stateManager.dirty;
+    this.pending = this.stateManager.pending;
+    this.errors = this.stateManager.errors;
+    this.status = this.stateManager.status;
+    this.submitting = this.stateManager.submitting;
 
     // Создать Proxy для прямого доступа к полям
     // Используем ProxyBuilder для создания Proxy с расширенной функциональностью
@@ -411,7 +363,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * ```
    */
   setErrors(errors: ValidationError[]): void {
-    this._formErrors.value = errors;
+    this.stateManager.setFormErrors(errors);
   }
 
   /**
@@ -419,7 +371,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    */
   clearErrors(): void {
     // Очищаем form-level errors
-    this._formErrors.value = [];
+    this.stateManager.clearFormErrors();
 
     // Очищаем field-level errors
     this.fieldRegistry.forEach((field) => field.clearErrors());
@@ -531,12 +483,12 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       return null;
     }
 
-    this._submitting.value = true;
+    this.stateManager.setSubmitting(true);
     try {
       const result = await onSubmit(this.getValue());
       return result;
     } finally {
-      this._submitting.value = false;
+      this.stateManager.setSubmitting(false);
     }
   }
 
@@ -827,8 +779,8 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Для GroupNode: рекурсивно отключаем все дочерние поля
    */
   protected onDisable(): void {
-    // Синхронизируем _disabled signal с _status для обратной совместимости
-    this._disabled.value = true;
+    // Синхронизируем disabled signal через StateManager
+    this.stateManager.setDisabled(true);
 
     this.fieldRegistry.forEach((field) => {
       field.disable();
@@ -841,8 +793,8 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Для GroupNode: рекурсивно включаем все дочерние поля
    */
   protected onEnable(): void {
-    // Синхронизируем _disabled signal с _status для обратной совместимости
-    this._disabled.value = false;
+    // Синхронизируем disabled signal через StateManager
+    this.stateManager.setDisabled(false);
 
     this.fieldRegistry.forEach((field) => {
       field.enable();
