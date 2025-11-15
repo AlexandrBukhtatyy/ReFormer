@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { ArrayNode } from '../../src/core/nodes/array-node';
 import type { FieldPath, ValidationSchemaFn } from '../../src/core/types';
-import { required, minLength } from '../../src/core/validators';
+import { required, minLength } from '../../src/core/validation';
 
 describe('ArrayNode - setValue() Validation', () => {
   interface ItemForm {

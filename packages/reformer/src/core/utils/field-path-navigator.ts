@@ -374,16 +374,25 @@ export class FieldPathNavigator {
       // Для GroupNode: доступ через fields Map
       if (current.fields && current.fields instanceof Map) {
         current = current.fields.get(segment.key);
+        // Если это не ArrayNode или нет индекса, продолжаем
+        if (segment.index === undefined) {
+          if (current == null) return null;
+          continue;
+        }
       }
       // Для ArrayNode: доступ через items и индекс
       else if (segment.index !== undefined && current.items) {
         const items = current.items.value || current.items;
         if (!Array.isArray(items)) return null;
         current = items[segment.index];
+        if (current == null) return null;
+        continue;
       }
       // Proxy-доступ (для обратной совместимости)
-      else {
+      else if (segment.index === undefined) {
         current = current[segment.key];
+        if (current == null) return null;
+        continue;
       }
 
       // Если нашли ArrayNode и есть индекс, получаем элемент массива

@@ -20,6 +20,7 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
   private fieldKey: keyof TForm;
   private control: FieldNode<TField>;
   private readonly pathNavigator = new FieldPathNavigator();
+  private readonly contextName = 'ValidationContext';
 
   constructor(form: GroupNode<TForm>, fieldKey: keyof TForm, control: FieldNode<TField>) {
     this.form = form;
@@ -89,7 +90,26 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
    * ```
    */
   private resolveFieldValue(path: string): any {
-    return this.pathNavigator.getFormNodeValue(this.form, path);
+    // Проверка на пустой путь
+    if (path === '' || path == null) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[${this.contextName}] Cannot get field value for empty path`);
+      }
+      return undefined;
+    }
+
+    // ✅ Используем getFieldByPath из GroupNode вместо прямой навигации
+    // Это работает с Proxy правильно
+    const node = this.form.getFieldByPath(path);
+    if (node && isFormNode(node)) {
+      return node.value.value;
+    }
+
+    // Предупреждение, если поле не найдено
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[${this.contextName}] Path '${path}' not found in form`);
+    }
+    return undefined;
   }
 
   /**
@@ -144,7 +164,9 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
   }
 
   getForm(): GroupNode<TForm> {
-    return this.form;
+    // ✅ Возвращаем Proxy вместо настоящего GroupNode
+    // Это обеспечивает согласованность с тем, что пользователь получает из makeForm
+    return this.form.getProxy() as GroupNode<TForm>;
   }
 }
 
@@ -156,6 +178,7 @@ export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
 {
   private form: GroupNode<TForm>;
   private readonly pathNavigator = new FieldPathNavigator();
+  private readonly contextName = 'TreeValidationContext';
 
   constructor(form: GroupNode<TForm>) {
     this.form = form;
@@ -225,8 +248,26 @@ export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
    * ```
    */
   private resolveFieldValue(path: string): any {
-    // ✅ Используем FieldPathNavigator вместо ручной логики split('.')
-    return this.pathNavigator.getFormNodeValue(this.form, path);
+    // Проверка на пустой путь
+    if (path === '' || path == null) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[${this.contextName}] Cannot get field value for empty path`);
+      }
+      return undefined;
+    }
+
+    // ✅ Используем getFieldByPath из GroupNode вместо прямой навигации
+    // Это работает с Proxy правильно
+    const node = this.form.getFieldByPath(path);
+    if (node && isFormNode(node)) {
+      return node.value.value;
+    }
+
+    // Предупреждение, если поле не найдено
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[${this.contextName}] Path '${path}' not found in form`);
+    }
+    return undefined;
   }
 
   formValue(): TForm {
@@ -234,6 +275,8 @@ export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
   }
 
   getForm(): GroupNode<TForm> {
-    return this.form;
+    // ✅ Возвращаем Proxy вместо настоящего GroupNode
+    // Это обеспечивает согласованность с тем, что пользователь получает из makeForm
+    return this.form.getProxy() as GroupNode<TForm>;
   }
 }

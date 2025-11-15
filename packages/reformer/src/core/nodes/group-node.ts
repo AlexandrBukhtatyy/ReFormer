@@ -398,6 +398,17 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
   }
 
   /**
+   * Получить Map всех полей формы
+   *
+   * Используется в FieldPathNavigator для навигации по полям
+   *
+   * @returns Map полей формы
+   */
+  get fields(): FieldRegistry<T> {
+    return this.fieldRegistry;
+  }
+
+  /**
    * Получить Proxy-инстанс для прямого доступа к полям
    *
    * Proxy позволяет обращаться к полям формы напрямую через точечную нотацию:
