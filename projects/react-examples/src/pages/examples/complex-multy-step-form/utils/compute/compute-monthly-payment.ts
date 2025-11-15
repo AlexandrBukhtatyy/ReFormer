@@ -7,9 +7,10 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param loanAmount - Сумма кредита (₽)
- * @param loanTerm - Срок кредита (месяцев)
- * @param interestRate - Процентная ставка (%)
+ * @param params - Объект с параметрами
+ * @param params.loanAmount - Сумма кредита (₽)
+ * @param params.loanTerm - Срок кредита (месяцев)
+ * @param params.interestRate - Процентная ставка (%)
  * @returns ежемесячный платеж (₽)
  *
  * Формула аннуитетного платежа:
@@ -19,11 +20,15 @@
  * r - месячная ставка (interestRate / 12 / 100)
  * n - срок кредита в месяцах (loanTerm)
  */
-export function computeMonthlyPayment(
-  loanAmount: number,
-  loanTerm: number,
-  interestRate: number
-): number {
+export function computeMonthlyPayment({
+  loanAmount,
+  loanTerm,
+  interestRate,
+}: {
+  loanAmount: number;
+  loanTerm: number;
+  interestRate: number;
+}): number {
   if (!loanAmount || !loanTerm || interestRate === undefined) {
     return 0;
   }

@@ -7,18 +7,24 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param loanType - Тип кредита
- * @param registrationAddress - Адрес регистрации (объект)
- * @param hasProperty - Наличие имущества
- * @param properties - Массив имущества
+ * @param params - Объект с параметрами
+ * @param params.loanType - Тип кредита
+ * @param params.registrationAddress - Адрес регистрации (объект)
+ * @param params.hasProperty - Наличие имущества
+ * @param params.properties - Массив имущества
  * @returns процентная ставка (%)
  */
-export function computeInterestRate(
-  loanType: string,
-  registrationAddress: any,
-  hasProperty: boolean,
-  properties: any[]
-): number {
+export function computeInterestRate({
+  loanType,
+  registrationAddress,
+  hasProperty,
+  properties,
+}: {
+  loanType: string;
+  registrationAddress: any;
+  hasProperty: boolean;
+  properties: any[];
+}): number {
   // Базовые ставки по типам кредита
   const baseRates: Record<string, number> = {
     consumer: 15.5,

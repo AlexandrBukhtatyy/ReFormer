@@ -7,10 +7,11 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param coBorrowers - Массив созаемщиков
+ * @param params - Объект с параметрами
+ * @param params.coBorrowers - Массив созаемщиков
  * @returns общий доход созаемщиков (₽)
  */
-export function computeCoBorrowersIncome(coBorrowers: any[]): number {
+export function computeCoBorrowersIncome({ coBorrowers }: { coBorrowers: any[] }): number {
   if (!coBorrowers || !Array.isArray(coBorrowers)) {
     return 0;
   }

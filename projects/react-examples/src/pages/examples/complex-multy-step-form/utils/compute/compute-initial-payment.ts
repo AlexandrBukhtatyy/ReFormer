@@ -7,10 +7,11 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param propertyValue - Стоимость недвижимости (₽)
+ * @param params - Объект с параметрами
+ * @param params.propertyValue - Стоимость недвижимости (₽)
  * @returns первоначальный взнос (₽)
  */
-export function computeInitialPayment(propertyValue: number): number {
+export function computeInitialPayment({ propertyValue }: { propertyValue: number }): number {
   if (!propertyValue) {
     return 0;
   }

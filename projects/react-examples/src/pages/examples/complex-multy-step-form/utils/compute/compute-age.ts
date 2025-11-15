@@ -7,10 +7,11 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param personalData - Объект с данными о человеке
+ * @param params - Объект с параметрами
+ * @param params.personalData - Объект с данными о человеке
  * @returns возраст (лет)
  */
-export function computeAge(personalData: any): number | null {
+export function computeAge({ personalData }: { personalData: any }): number | null {
   const birthDate = personalData?.birthDate;
 
   if (!birthDate) {

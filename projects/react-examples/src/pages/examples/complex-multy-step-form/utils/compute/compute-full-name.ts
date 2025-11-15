@@ -7,10 +7,11 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param personalData - Объект с данными о человеке
+ * @param params - Объект с параметрами
+ * @param params.personalData - Объект с данными о человеке
  * @returns полное имя
  */
-export function computeFullName(personalData: any): string {
+export function computeFullName({ personalData }: { personalData: any }): string {
   const lastName = personalData?.lastName || '';
   const firstName = personalData?.firstName || '';
   const middleName = personalData?.middleName || '';

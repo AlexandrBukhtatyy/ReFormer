@@ -7,11 +7,18 @@
  *
  * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
- * @param monthlyPayment - Ежемесячный платеж (₽)
- * @param totalIncome - Общий доход (₽)
+ * @param params - Объект с параметрами
+ * @param params.monthlyPayment - Ежемесячный платеж (₽)
+ * @param params.totalIncome - Общий доход (₽)
  * @returns процент платежа от дохода (%)
  */
-export function computePaymentRatio(monthlyPayment: number, totalIncome: number): number {
+export function computePaymentRatio({
+  monthlyPayment,
+  totalIncome,
+}: {
+  monthlyPayment: number;
+  totalIncome: number;
+}): number {
   if (!monthlyPayment || !totalIncome || totalIncome === 0) {
     return 0;
   }
