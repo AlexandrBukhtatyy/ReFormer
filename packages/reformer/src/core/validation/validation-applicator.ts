@@ -19,7 +19,6 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
-import type { FieldNode } from '../nodes/field-node';
 import type { ValidatorRegistration, ValidationError } from '../types';
 import { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';
 import { isFieldNode } from '../utils/type-guards';
@@ -154,7 +153,11 @@ export class ValidationApplicator<T extends Record<string, any>> {
             errors.push(error);
           }
         } catch (e) {
-          FormErrorHandler.handle(e, `ValidationApplicator: validator for ${fieldPath}`, ErrorStrategy.LOG);
+          FormErrorHandler.handle(
+            e,
+            `ValidationApplicator: validator for ${fieldPath}`,
+            ErrorStrategy.LOG
+          );
         }
       }
 

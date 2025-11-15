@@ -3,7 +3,6 @@
  */
 
 import { extractPath } from '../field-path';
-import type { FieldPath } from '../../types/field-path';
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
 import type {
   ContextualAsyncValidatorFn,

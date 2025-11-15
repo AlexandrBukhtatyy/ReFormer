@@ -77,9 +77,7 @@ export async function validateForm<T extends Record<string, any>>(
     form.clearErrors();
 
     // Валидируем все поля (field-level валидация)
-    await Promise.all(
-      Array.from(form.getAllFields()).map((field) => field.validate())
-    );
+    await Promise.all(Array.from(form.getAllFields()).map((field) => field.validate()));
 
     // Применяем contextual validators
     if (tempValidators.length > 0) {

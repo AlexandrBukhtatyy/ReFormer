@@ -2,11 +2,8 @@
  * Cross-field валидация
  */
 
+import { TreeValidatorFn, ValidateTreeOptions } from '../../types';
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
-import type {
-  TreeValidatorFn,
-  ValidateTreeOptions,
-} from '../../types/validation-schema';
 
 /**
  * Зарегистрировать cross-field валидатор

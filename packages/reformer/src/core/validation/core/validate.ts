@@ -3,13 +3,8 @@
  */
 
 import { extractPath } from '../field-path';
-import type { FieldPath } from '../../types/field-path';
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
-import type {
-  ContextualValidatorFn,
-  ValidateOptions,
-} from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { ContextualValidatorFn, FieldPathNode, ValidateOptions } from '../../types';
 
 /**
  * Зарегистрировать кастомный синхронный валидатор для поля

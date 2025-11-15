@@ -19,7 +19,7 @@ export { email } from './validators/email';
 export { pattern } from './validators/pattern';
 
 // Валидаторы для массивов
-export { notEmpty, validateItems } from './array-validators';
+export { notEmpty, validateItems } from './validators/array-validators';
 
 // Утилиты для FieldPath
 export { createFieldPath, extractPath, extractKey, toFieldPath } from './field-path';
