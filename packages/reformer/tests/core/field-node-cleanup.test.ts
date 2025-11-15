@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FieldNode } from '../../src/core/nodes/field-node';
-import { signal } from '@preact/signals-react';
+import { signal } from '@preact/signals-core';
 
 describe('FieldNode - Cleanup (dispose)', () => {
   let field: FieldNode<string>;

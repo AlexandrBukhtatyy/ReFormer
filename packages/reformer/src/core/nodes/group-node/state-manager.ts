@@ -28,8 +28,8 @@
  * ```
  */
 
-import { signal, computed } from '@preact/signals-react';
-import type { Signal, ReadonlySignal } from '@preact/signals-react';
+import { signal, computed } from '@preact/signals-core';
+import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import type { ValidationError, FieldStatus } from '../../types';
 import type { FieldRegistry } from './field-registry';
 

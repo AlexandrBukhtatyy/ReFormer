@@ -9,8 +9,8 @@
  * Наследует от FormNode и реализует все его абстрактные методы
  */
 
-import { effect } from '@preact/signals-react';
-import type { ReadonlySignal } from '@preact/signals-react';
+import { effect } from '@preact/signals-core';
+import type { ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import type {
   ValidationError,

@@ -9,7 +9,7 @@
  * - Protected hooks (onMarkAsTouched, onDisable и т.д.) переопределяются в наследниках
  */
 
-import { signal, computed, type ReadonlySignal, type Signal } from '@preact/signals-react';
+import { signal, computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
 import type { FieldStatus, ValidationError, ErrorFilterOptions } from '../types';
 
 /**

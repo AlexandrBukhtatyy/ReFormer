@@ -5,7 +5,7 @@
  * BehaviorHandlerFn - это функция, которая создает effect подписку.
  */
 
-import { effect } from '@preact/signals-react';
+import { effect } from '@preact/signals-core';
 import type { FormNode } from '../nodes/form-node';
 import type { GroupNode } from '../nodes/group-node';
 import type {

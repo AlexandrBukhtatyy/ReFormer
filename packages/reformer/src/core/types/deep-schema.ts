@@ -8,7 +8,7 @@
  */
 
 import type { ComponentType } from 'react';
-import type { ReadonlySignal } from '@preact/signals-react';
+import type { ReadonlySignal } from '@preact/signals-core';
 import type { ValidatorFn, AsyncValidatorFn, ValidationError } from './index';
 import type { FieldNode } from '../nodes/field-node';
 

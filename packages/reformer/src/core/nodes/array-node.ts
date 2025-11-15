@@ -7,8 +7,8 @@
  * - Реактивного состояния через signals
  */
 
-import { signal, computed, effect } from '@preact/signals-react';
-import type { Signal, ReadonlySignal } from '@preact/signals-react';
+import { signal, computed, effect } from '@preact/signals-core';
+import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import { GroupNode } from './group-node';
 import type { FieldStatus, ValidationError } from '../types';

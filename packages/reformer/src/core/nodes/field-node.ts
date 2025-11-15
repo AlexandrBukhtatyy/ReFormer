@@ -5,8 +5,8 @@
  * Наследует от FormNode и реализует все его абстрактные методы
  */
 
-import { signal, computed, effect } from '@preact/signals-react';
-import type { Signal, ReadonlySignal } from '@preact/signals-react';
+import { signal, computed, effect } from '@preact/signals-core';
+import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
 import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
@@ -333,7 +333,11 @@ export class FieldNode<T = any> extends FormNode<T> {
             return await validator(this._value.value);
           } catch (error) {
             // Используем централизованный обработчик ошибок
-            return FormErrorHandler.handle(error, 'FieldNode AsyncValidator', ErrorStrategy.CONVERT);
+            return FormErrorHandler.handle(
+              error,
+              'FieldNode AsyncValidator',
+              ErrorStrategy.CONVERT
+            );
           }
         })
       );
