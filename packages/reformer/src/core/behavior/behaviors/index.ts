@@ -10,7 +10,6 @@ export { watchField } from './watch-field';
 export { revalidateWhen } from './revalidate-when';
 export { syncFields } from './sync-fields';
 export { resetWhen, type ResetWhenOptions } from './reset-when';
-export { validateWhen, skipValidationWhen, type ValidateWhenOptions } from './validate-when';
 export {
   transformValue,
   createTransformer,
