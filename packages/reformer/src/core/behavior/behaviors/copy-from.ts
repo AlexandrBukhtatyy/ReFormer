@@ -3,9 +3,8 @@
  */
 
 import type { FieldPathNode } from '../../types';
-import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { CopyFromOptions } from '../types';
-import { createCopyBehavior } from '../behavior-factories';
+import { watchField } from './watch-field';
 
 /**
  * Копирует значения из одного поля/группы в другое при выполнении условия
@@ -30,8 +29,43 @@ export function copyFrom<TForm extends Record<string, any>, TSource, TTarget>(
   source: FieldPathNode<TForm, TSource>,
   options?: CopyFromOptions<TForm, TSource>
 ): void {
-  const { debounce } = options || {};
+  const { when, fields = 'all', transform, debounce } = options || {};
 
-  const handler = createCopyBehavior(target, source, options);
-  getCurrentBehaviorRegistry().register(handler, { debounce });
+  watchField(
+    source,
+    (sourceValue, ctx) => {
+      // Проверка условия
+      if (when) {
+        const formValue = ctx.getForm();
+        if (!when(formValue)) return;
+      }
+
+      // Трансформация значения
+      const value = transform ? transform(sourceValue) : sourceValue;
+
+      // Получаем target node
+      const targetNode = ctx.getFieldNode(target.__path);
+      if (!targetNode) return;
+
+      // Копирование
+      if (fields === 'all' || !fields) {
+        targetNode.setValue(value, { emitEvent: false });
+      } else {
+        // Частичное копирование для групп
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const patch: any = {};
+        fields.forEach((key) => {
+          if (sourceValue && typeof sourceValue === 'object') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            patch[key] = (sourceValue as any)[key];
+          }
+        });
+        if ('patchValue' in targetNode) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (targetNode as any).patchValue(patch);
+        }
+      }
+    },
+    { debounce }
+  );
 }

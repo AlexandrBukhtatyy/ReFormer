@@ -3,6 +3,7 @@
  */
 
 import type { FormNode } from '../nodes/form-node';
+import { GroupNode } from '../nodes/group-node';
 import type { ValidationError } from '../types';
 import type { FieldPath, FieldPathNode } from '../types/field-path';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
@@ -111,7 +112,7 @@ export interface BehaviorContext<TForm extends Record<string, any>> {
  * ```
  */
 export type BehaviorHandlerFn<TForm extends Record<string, any> = any> = (
-  form: import('../nodes/group-node').GroupNode<TForm>,
+  form: GroupNode<TForm>,
   context: BehaviorContext<TForm>,
   withDebounce: (callback: () => void) => void
 ) => (() => void) | null;

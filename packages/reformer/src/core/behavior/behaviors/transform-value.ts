@@ -3,8 +3,14 @@
  */
 
 import type { FieldPathNode } from '../../types';
-import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
-import { createTransformBehavior, type TransformValueOptions } from '../behavior-factories';
+import { watchField } from './watch-field';
+
+export interface TransformValueOptions {
+  /** Трансформировать только при изменении пользователем (не программно) */
+  onUserChangeOnly?: boolean;
+  /** Триггерить событие изменения после трансформации */
+  emitEvent?: boolean;
+}
 
 /**
  * Трансформация значения поля при изменении
@@ -45,10 +51,28 @@ export function transformValue<TForm extends Record<string, any>, TValue = any>(
   transformer: (value: TValue) => TValue,
   options?: TransformValueOptions & { debounce?: number }
 ): void {
-  const { debounce } = options || {};
+  const { onUserChangeOnly = false, emitEvent = true, debounce } = options || {};
 
-  const handler = createTransformBehavior(field, transformer, options);
-  getCurrentBehaviorRegistry().register(handler, { debounce });
+  watchField(
+    field,
+    (currentValue, ctx) => {
+      const targetNode = ctx.getFieldNode(field.__path);
+      if (!targetNode) return;
+
+      // Если нужно трансформировать только при изменении пользователем
+      if (onUserChangeOnly && !targetNode.touched.value) {
+        return;
+      }
+
+      const transformedValue = transformer(currentValue);
+
+      // Применяем трансформацию только если значение изменилось
+      if (transformedValue !== currentValue) {
+        targetNode.setValue(transformedValue, { emitEvent });
+      }
+    },
+    { debounce }
+  );
 }
 
 /**
@@ -110,5 +134,3 @@ export const transformers = {
     typeof value === 'number' ? Math.round(value * 100) / 100 : value
   ),
 };
-
-export type { TransformValueOptions };

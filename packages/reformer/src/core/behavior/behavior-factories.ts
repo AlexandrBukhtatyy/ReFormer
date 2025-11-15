@@ -35,64 +35,6 @@ function resolveNode<T extends Record<string, any>>(
 }
 
 // ============================================================================
-// copyFrom - Копирование значений между полями
-// ============================================================================
-
-/**
- * Создает behavior для копирования значений между полями
- *
- * @param target - Куда копировать
- * @param source - Откуда копировать
- * @param options - Опции копирования
- * @returns BehaviorHandlerFn
- */
-export function createCopyBehavior<TForm extends Record<string, any>, TSource>(
-  target: FieldPathNode<TForm, any>,
-  source: FieldPathNode<TForm, TSource>,
-  options?: CopyFromOptions<TForm, TSource>
-): BehaviorHandlerFn<TForm> {
-  const { when, fields = 'all', transform } = options || {};
-
-  return (form, _context, withDebounce) => {
-    const sourceNode = resolveNode(form, source.__path);
-    const targetNode = resolveNode(form, target.__path);
-
-    if (!sourceNode || !targetNode) return null;
-
-    return effect(() => {
-      const sourceValue = sourceNode.value.value;
-
-      withDebounce(() => {
-        // Проверка условия
-        if (when) {
-          const formValue = form.getValue();
-          if (!when(formValue)) return;
-        }
-
-        // Трансформация значения
-        const value = transform ? transform(sourceValue) : sourceValue;
-
-        // Копирование
-        if (fields === 'all' || !fields) {
-          targetNode.setValue(value, { emitEvent: false });
-        } else {
-          // Частичное копирование для групп
-          const patch: any = {};
-          fields.forEach((key) => {
-            if (sourceValue && typeof sourceValue === 'object') {
-              patch[key] = (sourceValue as any)[key];
-            }
-          });
-          if ('patchValue' in targetNode) {
-            (targetNode as any).patchValue(patch);
-          }
-        }
-      });
-    });
-  };
-}
-
-// ============================================================================
 // enableWhen - Условное включение/выключение полей
 // ============================================================================
 
@@ -424,43 +366,4 @@ export interface TransformValueOptions {
   onUserChangeOnly?: boolean;
   /** Триггерить событие изменения после трансформации */
   emitEvent?: boolean;
-}
-
-/**
- * Создает behavior для трансформации значения поля
- *
- * @param field - Поле для трансформации
- * @param transformer - Функция трансформации
- * @param options - Опции
- * @returns BehaviorHandlerFn
- */
-export function createTransformBehavior<TForm extends Record<string, any>, TValue = any>(
-  field: FieldPathNode<TForm, TValue>,
-  transformer: (value: TValue) => TValue,
-  options?: TransformValueOptions
-): BehaviorHandlerFn<TForm> {
-  const { onUserChangeOnly = false, emitEvent = true } = options || {};
-
-  return (form, _context, withDebounce) => {
-    const targetNode = resolveNode(form, field.__path);
-    if (!targetNode) return null;
-
-    return effect(() => {
-      const currentValue = targetNode.value.value;
-
-      // Если нужно трансформировать только при изменении пользователем
-      if (onUserChangeOnly && !targetNode.touched.value) {
-        return;
-      }
-
-      withDebounce(() => {
-        const transformedValue = transformer(currentValue);
-
-        // Применяем трансформацию только если значение изменилось
-        if (transformedValue !== currentValue) {
-          targetNode.setValue(transformedValue, { emitEvent });
-        }
-      });
-    });
-  };
 }
