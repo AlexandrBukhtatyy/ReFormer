@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface InputFilesProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+export interface InputFilesProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
   className?: string;
   value?: File | File[] | null;
   onChange?: (value: File | File[] | null) => void;
@@ -17,7 +18,22 @@ export interface InputFilesProps extends Omit<React.InputHTMLAttributes<HTMLInpu
 }
 
 const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
-  ({ className, value, onChange, onBlur, multiple = false, accept, disabled, placeholder, maxSize, uploader, ...props }, ref) => {
+  (
+    {
+      className,
+      value,
+      onChange,
+      onBlur,
+      multiple = false,
+      accept,
+      disabled,
+      placeholder,
+      maxSize,
+      uploader,
+      ...props
+    },
+    ref
+  ) => {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
 
@@ -36,9 +52,7 @@ const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
     return (
       <div className="space-y-2">
         {placeholder && (
-          <label className="text-sm font-medium text-foreground">
-            {placeholder}
-          </label>
+          <label className="text-sm font-medium text-foreground">{placeholder}</label>
         )}
         <input
           ref={ref}

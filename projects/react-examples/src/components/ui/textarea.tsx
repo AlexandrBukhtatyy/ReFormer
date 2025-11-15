@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
+export interface TextareaProps
+  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;
@@ -13,7 +14,10 @@ export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, value, onChange, onBlur, placeholder, disabled, rows = 3, maxLength, ...props }, ref) => {
+  (
+    { className, value, onChange, onBlur, placeholder, disabled, rows = 3, maxLength, ...props },
+    ref
+  ) => {
     const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = event.target.value;
       onChange?.(newValue || null);

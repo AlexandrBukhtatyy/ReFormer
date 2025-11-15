@@ -78,8 +78,7 @@ export function date<TForm = any, TField extends string | Date | undefined = str
       if (dateValue < minDate) {
         return {
           code: 'date_min',
-          message:
-            options?.message || `Дата должна быть не ранее ${minDate.toLocaleDateString()}`,
+          message: options?.message || `Дата должна быть не ранее ${minDate.toLocaleDateString()}`,
           params: { minDate: options.minDate, ...options?.params },
         };
       }
@@ -119,7 +118,9 @@ export function date<TForm = any, TField extends string | Date | undefined = str
 
     // Проверка возраста
     if (options?.minAge !== undefined || options?.maxAge !== undefined) {
-      const age = Math.floor((now.getTime() - dateValue.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      const age = Math.floor(
+        (now.getTime() - dateValue.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+      );
 
       if (options?.minAge !== undefined && age < options.minAge) {
         return {

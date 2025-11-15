@@ -101,7 +101,9 @@ export const transformers = {
   digitsOnly: createTransformer<string>((value) => value?.replace(/\D/g, '')),
 
   /** Округлить число */
-  round: createTransformer<number>((value) => (typeof value === 'number' ? Math.round(value) : value)),
+  round: createTransformer<number>((value) =>
+    typeof value === 'number' ? Math.round(value) : value
+  ),
 
   /** Округлить до 2 знаков после запятой */
   roundTo2: createTransformer<number>((value) =>

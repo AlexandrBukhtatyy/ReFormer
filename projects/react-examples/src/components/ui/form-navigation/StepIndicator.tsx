@@ -55,7 +55,9 @@ export function StepIndicator({
               <div className="text-xs opacity-70">{step.number}</div>
             </div>
             {index < steps.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <div
+                className={`flex-1 h-0.5 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}`}
+              />
             )}
           </div>
         );

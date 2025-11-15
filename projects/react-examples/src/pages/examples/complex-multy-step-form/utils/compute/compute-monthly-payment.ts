@@ -19,7 +19,11 @@
  * r - месячная ставка (interestRate / 12 / 100)
  * n - срок кредита в месяцах (loanTerm)
  */
-export function computeMonthlyPayment(loanAmount: number, loanTerm: number, interestRate: number): number {
+export function computeMonthlyPayment(
+  loanAmount: number,
+  loanTerm: number,
+  interestRate: number
+): number {
   if (!loanAmount || !loanTerm || interestRate === undefined) {
     return 0;
   }
@@ -33,7 +37,8 @@ export function computeMonthlyPayment(loanAmount: number, loanTerm: number, inte
   }
 
   // Формула аннуитетного платежа
-  const coefficient = (monthlyRate * Math.pow(1 + monthlyRate, loanTerm)) / (Math.pow(1 + monthlyRate, loanTerm) - 1);
+  const coefficient =
+    (monthlyRate * Math.pow(1 + monthlyRate, loanTerm)) / (Math.pow(1 + monthlyRate, loanTerm) - 1);
   const monthlyPayment = loanAmount * coefficient;
 
   return Math.round(monthlyPayment);

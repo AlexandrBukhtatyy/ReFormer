@@ -2,12 +2,12 @@
 // Базовые типы
 // ============================================================================
 
-import type { Address } from "../components/nested-forms/Address/AddressForm";
-import type { CoBorrower } from "../components/nested-forms/CoBorrower/CoBorrowerForm";
-import type { ExistingLoan } from "../components/nested-forms/ExistingLoan/ExistingLoanForm";
-import type { PassportData } from "../components/nested-forms/PassportData/PassportDataForm";
-import type { PersonalData } from "../components/nested-forms/PersonalData/PersonalDataForm";
-import type { Property } from "../components/nested-forms/Property/PropertyForm";
+import type { Address } from '../components/nested-forms/Address/AddressForm';
+import type { CoBorrower } from '../components/nested-forms/CoBorrower/CoBorrowerForm';
+import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/ExistingLoanForm';
+import type { PassportData } from '../components/nested-forms/PassportData/PassportDataForm';
+import type { PersonalData } from '../components/nested-forms/PersonalData/PersonalDataForm';
+import type { Property } from '../components/nested-forms/Property/PropertyForm';
 
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';

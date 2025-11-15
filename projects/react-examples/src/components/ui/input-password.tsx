@@ -2,7 +2,8 @@ import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export interface InputPasswordProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+export interface InputPasswordProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;
@@ -13,7 +14,19 @@ export interface InputPasswordProps extends Omit<React.InputHTMLAttributes<HTMLI
 }
 
 const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
-  ({ className, value, onChange, onBlur, placeholder = "Password", disabled, showToggle = true, ...props }, ref) => {
+  (
+    {
+      className,
+      value,
+      onChange,
+      onBlur,
+      placeholder = 'Password',
+      disabled,
+      showToggle = true,
+      ...props
+    },
+    ref
+  ) => {
     const [showPassword, setShowPassword] = React.useState(false);
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,7 +41,7 @@ const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
       <div className="relative">
         <input
           ref={ref}
-          type={showPassword ? "text" : "password"}
+          type={showPassword ? 'text' : 'password'}
           value={value || ''}
           disabled={disabled}
           placeholder={placeholder}
@@ -52,14 +65,10 @@ const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors bg-transparent border-none p-0 cursor-pointer focus:outline-none"
             onClick={togglePasswordVisibility}
             disabled={disabled}
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
             style={{ background: 'transparent', border: 'none', padding: 0 }}
           >
-            {showPassword ? (
-              <EyeOffIcon className="size-4" />
-            ) : (
-              <EyeIcon className="size-4" />
-            )}
+            {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
           </button>
         )}
       </div>
