@@ -25,7 +25,6 @@ import {
   watchField,
   revalidateWhen,
   apply,
-  resetWhen,
   type BehaviorSchemaFn,
 } from 'reformer/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
