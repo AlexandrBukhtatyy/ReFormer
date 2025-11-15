@@ -131,7 +131,7 @@ export function extractPath(node: FieldPathNode<any, any> | any): string {
  * };
  *
  * const mainValidation = (path: FieldPath<MyForm>) => {
- *   // ✅ Переиспользуем схему
+ *   //  Переиспользуем схему
  *   personalDataValidation(toFieldPath(path.personalData));
  *   required(path.email);
  * };

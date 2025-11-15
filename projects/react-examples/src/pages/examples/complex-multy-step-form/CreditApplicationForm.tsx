@@ -32,10 +32,10 @@ import { Button } from '@/components/ui/button';
 // Компонент формы
 // ============================================================================
 function CreditApplicationForm() {
-  // ✅ Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
+  //  Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
   const form = useMemo(() => createCreditApplicationForm(), []);
 
-  // ✅ Переключатель для имитации ошибок
+  //  Переключатель для имитации ошибок
   const [simulateErrorEnabled, setSimulateErrorEnabled] = useState(getSimulateError());
 
   const handleToggleError = () => {
@@ -44,7 +44,7 @@ function CreditApplicationForm() {
     setSimulateError(newValue);
   };
 
-  // ✅ Используем новый хук useStepForm
+  //  Используем новый хук useStepForm
   const { currentStep, completedSteps, goToNextStep, goToPreviousStep, goToStep, submit } =
     useStepForm(form, {
       totalSteps: 6,
@@ -56,7 +56,7 @@ function CreditApplicationForm() {
   // Загрузка данных
   // ============================================================================
 
-  // ✅ Загружаем данные заявки (можно передать ID: '1' или '2', или null для пустой формы)
+  //  Загружаем данные заявки (можно передать ID: '1' или '2', или null для пустой формы)
   const { isLoading, error } = useLoadCreditApplication(form, '1');
 
   // ============================================================================

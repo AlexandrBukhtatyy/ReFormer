@@ -177,7 +177,7 @@ export function applyWhen<TForm extends Record<string, any>, TValue>(
 ): void {
   if (!conditionField) return;
 
-  // ✅ ИСПРАВЛЕНО: Регистрируем behaviors только ОДИН РАЗ
+  //  ИСПРАВЛЕНО: Регистрируем behaviors только ОДИН РАЗ
   // вне watchField callback, чтобы избежать утечки памяти
   let hasRegistered = false;
 

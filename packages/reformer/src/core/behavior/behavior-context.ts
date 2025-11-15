@@ -27,7 +27,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
 
   constructor(form: GroupNode<TForm>) {
     this.form = form;
-    // ✅ Используем _proxyInstance если доступен, иначе fallback на form
+    //  Используем _proxyInstance если доступен, иначе fallback на form
     // _proxyInstance устанавливается в GroupNode конструкторе перед применением behavior схем
     this.formNode = ((form as any)._proxyInstance || form) as GroupNodeWithControls<TForm>;
   }
@@ -122,7 +122,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
 
     if (!fieldPath) return undefined;
 
-    // ✅ Используем getFieldByPath вместо ручного парсинга
+    //  Используем getFieldByPath вместо ручного парсинга
     // getFieldByPath использует FieldPathNavigator внутри
     return this.form.getFieldByPath(fieldPath);
   }

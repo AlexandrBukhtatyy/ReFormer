@@ -16,13 +16,13 @@
  *
  * const form: GroupNodeWithControls<MyForm> = new GroupNode(schema);
  *
- * // ✅ TypeScript знает, что это FieldNode<string>
+ * //  TypeScript знает, что это FieldNode<string>
  * form.name.setValue('John');
  *
- * // ✅ TypeScript знает, что это GroupNode<{city: string}>
+ * //  TypeScript знает, что это GroupNode<{city: string}>
  * form.address.city.setValue('Moscow');
  *
- * // ✅ TypeScript знает, что это ArrayNode<{title: string}>
+ * //  TypeScript знает, что это ArrayNode<{title: string}>
  * form.items.push({ title: 'New Item' });
  * ```
  */

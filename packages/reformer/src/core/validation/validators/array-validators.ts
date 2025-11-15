@@ -85,6 +85,6 @@ export function validateItems<TForm = any, TItem = any>(
   const path = extractPath(fieldPath);
 
   // Регистрируем схему валидации для элементов массива
-  // ✅ Используем текущий активный реестр из context stack
+  //  Используем текущий активный реестр из context stack
   getCurrentValidationRegistry().registerArrayItemValidation(path, itemSchemaFn);
 }

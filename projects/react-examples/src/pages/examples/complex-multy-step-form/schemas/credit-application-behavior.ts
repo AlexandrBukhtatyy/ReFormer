@@ -25,6 +25,7 @@ import {
   watchField,
   revalidateWhen,
   apply,
+  resetWhen,
   type BehaviorSchemaFn,
 } from 'reformer/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
@@ -61,7 +62,7 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // 0. Композиция behavior схем (apply)
   // ===================================================================
 
-  // ✅ Применяем addressBehavior к двум полям адреса
+  //  Применяем addressBehavior к двум полям адреса
   // Это заменяет дублирование логики загрузки регионов/городов
   apply([path.registrationAddress, path.residenceAddress], addressBehavior);
 
@@ -229,7 +230,6 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // ===================================================================
   // 6. Очистка ArrayNode при снятии чекбоксов (3)
   // ===================================================================
-  // ✅ Миграция на ArrayNode: автоматическая очистка массивов
 
   // Очистить массив имущества при снятии чекбокса hasProperty
   watchField(path.hasProperty, (hasProperty, ctx) => {

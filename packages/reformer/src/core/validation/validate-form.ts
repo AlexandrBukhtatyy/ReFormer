@@ -49,7 +49,7 @@ export async function validateForm<T extends Record<string, any>>(
   form: GroupNode<T>,
   schema: ValidationSchemaFn<T>
 ): Promise<boolean> {
-  // ✅ Создаем временный реестр для этой валидации
+  //  Создаем временный реестр для этой валидации
   // Это изолирует валидацию от других форм и не затрагивает постоянный реестр формы
   const tempRegistry = new ValidationRegistry();
 

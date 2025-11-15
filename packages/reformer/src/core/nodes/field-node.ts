@@ -304,7 +304,7 @@ export class FieldNode<T = any> extends FormNode<T> {
       if (error) syncErrors.push(error);
     }
 
-    // ✅ Проверка #1: после синхронной валидации
+    //  Проверка #1: после синхронной валидации
     if (validationId !== this.currentValidationId) {
       return false; // Эта валидация устарела
     }
@@ -317,7 +317,7 @@ export class FieldNode<T = any> extends FormNode<T> {
 
     // Асинхронная валидация - ПАРАЛЛЕЛЬНО
     if (this.asyncValidators.length > 0) {
-      // ✅ Проверка #2: перед установкой pending
+      //  Проверка #2: перед установкой pending
       if (validationId !== this.currentValidationId) {
         return false;
       }
@@ -342,7 +342,7 @@ export class FieldNode<T = any> extends FormNode<T> {
         })
       );
 
-      // ✅ Проверка #3: после Promise.all (основная проверка)
+      //  Проверка #3: после Promise.all (основная проверка)
       if (validationId !== this.currentValidationId) {
         // Не сбрасываем pending, т.к. новая валидация может еще выполняться
         return false;
@@ -350,7 +350,7 @@ export class FieldNode<T = any> extends FormNode<T> {
 
       this._pending.value = false;
 
-      // ✅ Проверка #4: перед обработкой async результатов
+      //  Проверка #4: перед обработкой async результатов
       if (validationId !== this.currentValidationId) {
         return false;
       }
@@ -363,12 +363,12 @@ export class FieldNode<T = any> extends FormNode<T> {
       }
     }
 
-    // ✅ Проверка #5: перед очисткой errors (финальная проверка)
+    //  Проверка #5: перед очисткой errors (финальная проверка)
     if (validationId !== this.currentValidationId) {
       return false;
     }
 
-    // ✅ Очищаем ошибки только если у поля есть собственные валидаторы
+    //  Очищаем ошибки только если у поля есть собственные валидаторы
     // Если валидаторов нет, значит используется ValidationSchema на уровне формы
     // и ошибки устанавливаются извне через setErrors()
     const hasOwnValidators = this.validators.length > 0 || this.asyncValidators.length > 0;

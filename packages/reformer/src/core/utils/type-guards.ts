@@ -61,9 +61,9 @@ export function isFormNode(value: any): value is FormNode<any> {
  * @example
  * ```typescript
  * if (isFieldNode(node)) {
- *   node.validators; // ✅ OK
- *   node.asyncValidators; // ✅ OK
- *   node.markAsTouched(); // ✅ OK
+ *   node.validators; //  OK
+ *   node.asyncValidators; //  OK
+ *   node.markAsTouched(); //  OK
  * }
  * ```
  */
@@ -96,8 +96,8 @@ export function isFieldNode(value: any): value is FieldNode<any> {
  * @example
  * ```typescript
  * if (isGroupNode(node)) {
- *   node.applyValidationSchema(schema); // ✅ OK
- *   node.getFieldByPath('user.email'); // ✅ OK
+ *   node.applyValidationSchema(schema); //  OK
+ *   node.getFieldByPath('user.email'); //  OK
  * }
  * ```
  */
@@ -130,9 +130,9 @@ export function isGroupNode(value: any): value is GroupNode<any> {
  * @example
  * ```typescript
  * if (isArrayNode(node)) {
- *   node.push(); // ✅ OK - добавить элемент
- *   node.removeAt(0); // ✅ OK - удалить элемент
- *   const item = node.at(0); // ✅ OK - получить элемент
+ *   node.push(); //  OK - добавить элемент
+ *   node.removeAt(0); //  OK - удалить элемент
+ *   const item = node.at(0); //  OK - получить элемент
  * }
  * ```
  */

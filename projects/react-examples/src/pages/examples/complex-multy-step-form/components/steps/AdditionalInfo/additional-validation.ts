@@ -19,7 +19,7 @@ export const additionalValidation = (path: FieldPath<CreditApplicationForm>) => 
 
   required(path.education, { message: 'Укажите уровень образования' });
 
-  // ✅ Валидация имущества: массив + элементы
+  //  Валидация имущества: массив + элементы
   applyWhen(
     path.hasProperty,
     (value) => value === true,
@@ -32,7 +32,7 @@ export const additionalValidation = (path: FieldPath<CreditApplicationForm>) => 
     }
   );
 
-  // ✅ Валидация существующих кредитов: массив + элементы
+  //  Валидация существующих кредитов: массив + элементы
   applyWhen(
     path.hasExistingLoans,
     (value) => value === true,
@@ -45,7 +45,7 @@ export const additionalValidation = (path: FieldPath<CreditApplicationForm>) => 
     }
   );
 
-  // ✅ Валидация созаемщиков: массив + элементы
+  //  Валидация созаемщиков: массив + элементы
   applyWhen(
     path.hasCoBorrower,
     (value) => value === true,

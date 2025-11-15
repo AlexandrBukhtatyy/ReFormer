@@ -208,7 +208,7 @@ export class BehaviorRegistry {
 // Ранее здесь был глобальный Singleton экземпляр BehaviorRegistry,
 // который создавал race conditions и нарушал изоляцию форм.
 //
-// ✅ Теперь каждый GroupNode создает собственный экземпляр BehaviorRegistry:
+//  Теперь каждый GroupNode создает собственный экземпляр BehaviorRegistry:
 //
 // @example
 // ```typescript

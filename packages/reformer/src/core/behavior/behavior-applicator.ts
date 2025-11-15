@@ -87,7 +87,7 @@ export class BehaviorApplicator<T extends Record<string, any>> {
       schemaFn(path);
 
       // 3. Завершить регистрацию и применить behaviors
-      // ✅ Используем публичный метод getProxy() для получения proxy-инстанса
+      //  Используем публичный метод getProxy() для получения proxy-инстанса
       const formToUse = this.form.getProxy();
       const result = this.behaviorRegistry.endRegistration(formToUse);
 

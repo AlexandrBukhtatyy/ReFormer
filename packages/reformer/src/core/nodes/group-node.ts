@@ -201,11 +201,11 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       this.fieldRegistry.set(key as keyof T, node);
     }
 
-    // ✅ Создать менеджер состояния (инкапсулирует всю логику сигналов)
+    //  Создать менеджер состояния (инкапсулирует всю логику сигналов)
     // StateManager создает все computed signals на основе fieldRegistry
     this.stateManager = new StateManager<T>(this.fieldRegistry);
 
-    // ✅ Делегировать публичные свойства в StateManager
+    //  Делегировать публичные свойства в StateManager
     this.value = this.stateManager.value;
     this.valid = this.stateManager.valid;
     this.invalid = this.stateManager.invalid;
@@ -220,7 +220,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     // Используем ProxyBuilder для создания Proxy с расширенной функциональностью
     const proxy = this.proxyBuilder.build(this);
 
-    // ✅ Сохраняем Proxy-инстанс перед применением схем
+    //  Сохраняем Proxy-инстанс перед применением схем
     // Это позволяет BehaviorContext получить доступ к прокси через formNode
     this._proxyInstance = proxy;
 
@@ -232,7 +232,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       this.applyValidationSchema(validationSchema);
     }
 
-    // ✅ ВАЖНО: Возвращаем Proxy для прямого доступа к полям
+    //  ВАЖНО: Возвращаем Proxy для прямого доступа к полям
     // Это позволяет писать form.email вместо form.controls.email
     // Используем GroupNodeWithControls для правильной типизации вложенных форм и массивов
     return proxy as GroupNodeWithControls<T>;
@@ -534,7 +534,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
     try {
       const path = createFieldPath<T>();
       schemaFn(path);
-      // ✅ Используем публичный метод getProxy() для получения proxy-инстанса
+      //  Используем публичный метод getProxy() для получения proxy-инстанса
       const formToUse = this.getProxy();
       this.validationRegistry.endRegistration(formToUse);
     } catch (error) {
@@ -620,7 +620,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
       return undefined;
     }
 
-    // ✅ Используем FieldPathNavigator вместо ручного парсинга
+    //  Используем FieldPathNavigator вместо ручного парсинга
     const segments = this.pathNavigator.parsePath(path);
     if (segments.length === 0) {
       return undefined;
@@ -689,7 +689,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * @private
    */
   private createNode(config: any): FormNode<any> {
-    // ✅ Полное делегирование NodeFactory
+    //  Полное делегирование NodeFactory
     // NodeFactory теперь поддерживает массивы напрямую
     return this.nodeFactory.createNode(config);
   }

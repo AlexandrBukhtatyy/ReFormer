@@ -299,7 +299,7 @@ describe('FormNode.getErrors()', () => {
 
       field.setErrors(errors);
 
-      // ✅ Поиск регистронезависимый - оба варианта должны найти ошибку
+      //  Поиск регистронезависимый - оба варианта должны найти ошибку
       const result1 = field.getErrors({ message: 'password' });
       const result2 = field.getErrors({ message: 'Password' });
       const result3 = field.getErrors({ message: 'PASSWORD' });

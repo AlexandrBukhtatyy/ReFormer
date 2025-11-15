@@ -98,7 +98,7 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
       return undefined;
     }
 
-    // ✅ Используем getFieldByPath из GroupNode вместо прямой навигации
+    //  Используем getFieldByPath из GroupNode вместо прямой навигации
     // Это работает с Proxy правильно
     const node = this.form.getFieldByPath(path);
     if (node && isFormNode(node)) {
@@ -164,7 +164,7 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
   }
 
   getForm(): GroupNode<TForm> {
-    // ✅ Возвращаем Proxy вместо настоящего GroupNode
+    //  Возвращаем Proxy вместо настоящего GroupNode
     // Это обеспечивает согласованность с тем, что пользователь получает из makeForm
     return this.form.getProxy() as GroupNode<TForm>;
   }
@@ -256,7 +256,7 @@ export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
       return undefined;
     }
 
-    // ✅ Используем getFieldByPath из GroupNode вместо прямой навигации
+    //  Используем getFieldByPath из GroupNode вместо прямой навигации
     // Это работает с Proxy правильно
     const node = this.form.getFieldByPath(path);
     if (node && isFormNode(node)) {
@@ -275,7 +275,7 @@ export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
   }
 
   getForm(): GroupNode<TForm> {
-    // ✅ Возвращаем Proxy вместо настоящего GroupNode
+    //  Возвращаем Proxy вместо настоящего GroupNode
     // Это обеспечивает согласованность с тем, что пользователь получает из makeForm
     return this.form.getProxy() as GroupNode<TForm>;
   }

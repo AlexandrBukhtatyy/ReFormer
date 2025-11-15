@@ -11,7 +11,6 @@ import type { GroupNode } from '../nodes/group-node';
 import type {
   BehaviorHandlerFn,
   BehaviorContext,
-  CopyFromOptions,
   EnableWhenOptions,
   ComputeFromOptions,
   WatchFieldOptions,
@@ -144,7 +143,7 @@ export function createComputeBehavior<TForm extends Record<string, any>>(
           if (!condition(formValue)) return;
         }
 
-        // ✅ Создаем объект с именами полей для computeFn
+        //  Создаем объект с именами полей для computeFn
         // computeFn ожидает объект вида { fieldName: value, ... }
         const sourceValuesObject: Record<string, unknown> = {};
         sources.forEach((source, index) => {
@@ -355,15 +354,4 @@ export function createResetBehavior<TForm extends Record<string, any>>(
       });
     });
   };
-}
-
-// ============================================================================
-// transformValue - Трансформация значения
-// ============================================================================
-
-export interface TransformValueOptions {
-  /** Трансформировать только при изменении пользователем (не программно) */
-  onUserChangeOnly?: boolean;
-  /** Триггерить событие изменения после трансформации */
-  emitEvent?: boolean;
 }

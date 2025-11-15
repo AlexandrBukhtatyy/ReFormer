@@ -63,10 +63,10 @@ export const contactInfoValidation = (path: FieldPath<CreditApplicationForm>) =>
     { targetField: 'emailAdditional' }
   );
 
-  // ✅ Валидация адреса регистрации через композицию
+  //  Валидация адреса регистрации через композицию
   apply(path.registrationAddress, addressValidation);
 
-  // ✅ Условная валидация адреса проживания через композицию
+  //  Условная валидация адреса проживания через композицию
   applyWhen(
     path.sameAsRegistration,
     (value) => value === false,

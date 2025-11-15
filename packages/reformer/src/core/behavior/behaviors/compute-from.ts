@@ -45,7 +45,7 @@ export function computeFrom<TForm extends Record<string, any>, TTarget>(
 ): void {
   const { debounce } = options || {};
 
-  // ✅ Передаем computeFn напрямую без обертки
+  //  Передаем computeFn напрямую без обертки
   const handler = createComputeBehavior(target, sources, computeFn, options);
   getCurrentBehaviorRegistry().register(handler, { debounce });
 }

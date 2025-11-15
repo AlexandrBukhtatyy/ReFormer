@@ -369,7 +369,7 @@ export class ArrayNode<T extends object = any> extends FormNode<T[]> {
         node.applyValidationSchema(this.validationSchemaFn);
       }
 
-      // ✅ Применяем behavior schema к новому элементу, если она была установлена
+      //  Применяем behavior schema к новому элементу, если она была установлена
       if (this.behaviorSchemaFn && 'applyBehaviorSchema' in node) {
         node.applyBehaviorSchema(this.behaviorSchemaFn);
       }
