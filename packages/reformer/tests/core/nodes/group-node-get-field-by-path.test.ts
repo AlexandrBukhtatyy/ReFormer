@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { GroupNodeWithControls } from '../../../src/core';
+import type { GroupNodeWithControls } from '../../../src';
 import { makeForm } from '../../../src/core/utils/make-form';
 
 describe('GroupNode - getFieldByPath()', () => {
