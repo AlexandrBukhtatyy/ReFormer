@@ -2,19 +2,19 @@
 // Типы ресурсов
 // ============================================================================
 
-export interface ResourceItem<T = any> {
+export interface ResourceItem<T> {
   id: string | number;
   label: string;
   value: T;
   [key: string]: any;
 }
 
-export interface ResourceResult<T = any> {
+export interface ResourceResult<T> {
   items: ResourceItem<T>[];
   totalCount: number;
 }
 
-export interface ResourceConfig<T = any> {
+export interface ResourceConfig<T> {
   type: 'static' | 'preload' | 'partial';
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
 }
@@ -34,7 +34,7 @@ export interface ResourceLoadParams {
  * Статический ресурс - данные загружаются один раз
  * @param items - массив элементов
  */
-export function staticResource<T = any>(items: ResourceItem<T>[]): ResourceConfig<T> {
+export function staticResource<T>(items: ResourceItem<T>[]): ResourceConfig<T> {
   return {
     type: 'static',
     load: async () => ({
@@ -52,7 +52,7 @@ export function staticResource<T = any>(items: ResourceItem<T>[]): ResourceConfi
  * Предзагрузка - данные загружаются один раз при первом обращении через функцию
  * @param loader - функция загрузки, принимает параметры и возвращает массив
  */
-export function preloadResource<T = any>(
+export function preloadResource<T>(
   loader: (params?: ResourceLoadParams) => Promise<ResourceItem<T>[]>
 ): ResourceConfig<T> {
   let cache: ResourceResult<T> | null = null;
@@ -80,7 +80,7 @@ export function preloadResource<T = any>(
  * Парциональная загрузка - данные загружаются порциями с учетом поиска/пагинации
  * @param loader - функция загрузки, принимает параметры и возвращает массив
  */
-export function partialResource<T = any>(
+export function partialResource<T>(
   loader: (params?: ResourceLoadParams) => Promise<ResourceItem<T>[]>
 ): ResourceConfig<T> {
   return {

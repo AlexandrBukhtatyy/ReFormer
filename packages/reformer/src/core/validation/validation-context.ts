@@ -12,7 +12,7 @@ import { isFormNode } from '../utils/type-guards';
 /**
  * Реализация ValidationContext для валидации отдельного поля
  */
-export class ValidationContextImpl<TForm extends Record<string, any> = any, TField = any>
+export class ValidationContextImpl<TForm extends Record<string, any>, TField>
   implements ValidationContext<TForm, TField>
 {
   private form: GroupNode<TForm>;
@@ -173,7 +173,7 @@ export class ValidationContextImpl<TForm extends Record<string, any> = any, TFie
 /**
  * Реализация TreeValidationContext для cross-field валидации
  */
-export class TreeValidationContextImpl<TForm extends Record<string, any> = any>
+export class TreeValidationContextImpl<TForm extends Record<string, any>>
   implements TreeValidationContext<TForm>
 {
   private form: GroupNode<TForm>;

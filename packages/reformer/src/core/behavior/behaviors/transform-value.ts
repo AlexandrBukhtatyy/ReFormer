@@ -2,7 +2,7 @@
  * Value transformation behavior
  */
 
-import type { FieldPathNode } from '../../types';
+import type { FieldPathNode, FormValue } from '../../types';
 import { watchField } from './watch-field';
 
 export interface TransformValueOptions {
@@ -46,7 +46,7 @@ export interface TransformValueOptions {
  * };
  * ```
  */
-export function transformValue<TForm extends Record<string, any>, TValue = any>(
+export function transformValue<TForm extends Record<string, FormValue>, TValue = FormValue>(
   field: FieldPathNode<TForm, TValue>,
   transformer: (value: TValue) => TValue,
   options?: TransformValueOptions & { debounce?: number }
@@ -93,11 +93,11 @@ export function transformValue<TForm extends Record<string, any>, TValue = any>(
  * };
  * ```
  */
-export function createTransformer<TValue = any>(
+export function createTransformer<TValue = FormValue>(
   transformer: (value: TValue) => TValue,
   defaultOptions?: TransformValueOptions
 ) {
-  return <TForm extends Record<string, any>>(
+  return <TForm extends Record<string, FormValue>>(
     field: FieldPathNode<TForm, TValue>,
     options?: TransformValueOptions & { debounce?: number }
   ) => {

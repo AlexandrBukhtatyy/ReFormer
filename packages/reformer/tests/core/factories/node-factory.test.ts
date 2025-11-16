@@ -3,6 +3,7 @@ import { NodeFactory } from '../../../src/core/factories/node-factory';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { GroupNode } from '../../../src/core/nodes/group-node';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('NodeFactory', () => {
   const factory = new NodeFactory();
@@ -15,7 +16,7 @@ describe('NodeFactory', () => {
     it('распознает минимальный конфиг поля', () => {
       const config = {
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       };
 
       expect(factory.isFieldConfig(config)).toBe(true);
@@ -24,7 +25,7 @@ describe('NodeFactory', () => {
     it('распознает полный конфиг поля с validators', () => {
       const config = {
         value: 'test@mail.com',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [],
         asyncValidators: [],
       };
@@ -34,8 +35,8 @@ describe('NodeFactory', () => {
 
     it('отклоняет конфиг группы', () => {
       const config = {
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
       };
 
       expect(factory.isFieldConfig(config)).toBe(false);
@@ -43,7 +44,7 @@ describe('NodeFactory', () => {
 
     it('отклоняет конфиг массива', () => {
       const config = {
-        schema: { title: { value: '', component: null as any } },
+        schema: { title: { value: '', component: null as ComponentInstance } },
         initialItems: [],
       };
 
@@ -67,7 +68,7 @@ describe('NodeFactory', () => {
     });
 
     it('отклоняет объект только с component', () => {
-      expect(factory.isFieldConfig({ component: null as any })).toBe(false);
+      expect(factory.isFieldConfig({ component: null as ComponentInstance })).toBe(false);
     });
   });
 
@@ -78,7 +79,7 @@ describe('NodeFactory', () => {
   describe('isArrayConfig', () => {
     it('распознает минимальный конфиг массива', () => {
       const config = {
-        schema: { title: { value: '', component: null as any } },
+        schema: { title: { value: '', component: null as ComponentInstance } },
       };
 
       expect(factory.isArrayConfig(config)).toBe(true);
@@ -86,7 +87,7 @@ describe('NodeFactory', () => {
 
     it('распознает конфиг массива с initialItems', () => {
       const config = {
-        schema: { title: { value: '', component: null as any } },
+        schema: { title: { value: '', component: null as ComponentInstance } },
         initialItems: [{ title: 'Item 1' }],
       };
 
@@ -96,7 +97,7 @@ describe('NodeFactory', () => {
     it('отклоняет конфиг поля', () => {
       const config = {
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       };
 
       expect(factory.isArrayConfig(config)).toBe(false);
@@ -104,7 +105,7 @@ describe('NodeFactory', () => {
 
     it('отклоняет конфиг группы', () => {
       const config = {
-        email: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
       };
 
       expect(factory.isArrayConfig(config)).toBe(false);
@@ -139,8 +140,8 @@ describe('NodeFactory', () => {
   describe('isGroupConfig', () => {
     it('распознает простой конфиг группы', () => {
       const config = {
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
       };
 
       expect(factory.isGroupConfig(config)).toBe(true);
@@ -149,11 +150,11 @@ describe('NodeFactory', () => {
     it('распознает вложенный конфиг группы', () => {
       const config = {
         user: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
         },
         settings: {
-          theme: { value: 'light', component: null as any },
+          theme: { value: 'light', component: null as ComponentInstance },
         },
       };
 
@@ -162,9 +163,9 @@ describe('NodeFactory', () => {
 
     it('распознает группу с массивом', () => {
       const config = {
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
         items: {
-          schema: { title: { value: '', component: null as any } },
+          schema: { title: { value: '', component: null as ComponentInstance } },
           initialItems: [],
         },
       };
@@ -175,7 +176,7 @@ describe('NodeFactory', () => {
     it('отклоняет конфиг поля', () => {
       const config = {
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       };
 
       expect(factory.isGroupConfig(config)).toBe(false);
@@ -183,7 +184,7 @@ describe('NodeFactory', () => {
 
     it('отклоняет конфиг массива', () => {
       const config = {
-        schema: { title: { value: '', component: null as any } },
+        schema: { title: { value: '', component: null as ComponentInstance } },
       };
 
       expect(factory.isGroupConfig(config)).toBe(false);
@@ -212,7 +213,7 @@ describe('NodeFactory', () => {
     it('создает FieldNode из конфига поля', () => {
       const config = {
         value: 'test@mail.com',
-        component: null as any,
+        component: null as ComponentInstance,
       };
 
       const node = factory.createNode(config);
@@ -223,8 +224,8 @@ describe('NodeFactory', () => {
 
     it('создает GroupNode из конфига группы', () => {
       const config = {
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
       };
 
       const node = factory.createNode(config);
@@ -234,7 +235,7 @@ describe('NodeFactory', () => {
 
     it('создает ArrayNode из конфига массива', () => {
       const config = {
-        schema: { title: { value: '', component: null as any } },
+        schema: { title: { value: '', component: null as ComponentInstance } },
         initialItems: [],
       };
 
@@ -246,7 +247,7 @@ describe('NodeFactory', () => {
 
     it('создает ArrayNode с начальными элементами', () => {
       const config = {
-        schema: { title: { value: '', component: null as any } },
+        schema: { title: { value: '', component: null as ComponentInstance } },
         initialItems: [{ title: 'Item 1' }, { title: 'Item 2' }],
       };
 
@@ -259,8 +260,8 @@ describe('NodeFactory', () => {
     it('создает вложенный GroupNode', () => {
       const config = {
         user: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
         },
       };
 
@@ -298,9 +299,9 @@ describe('NodeFactory', () => {
   describe('Интеграция - реальные сценарии', () => {
     it('создает форму регистрации', () => {
       const config = {
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
-        confirmPassword: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
+        confirmPassword: { value: '', component: null as ComponentInstance },
       };
 
       const form = factory.createNode(config);
@@ -310,11 +311,11 @@ describe('NodeFactory', () => {
 
     it('создает форму с вложенным адресом', () => {
       const config = {
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
         address: {
-          city: { value: '', component: null as any },
-          street: { value: '', component: null as any },
-          zipCode: { value: '', component: null as any },
+          city: { value: '', component: null as ComponentInstance },
+          street: { value: '', component: null as ComponentInstance },
+          zipCode: { value: '', component: null as ComponentInstance },
         },
       };
 
@@ -325,11 +326,11 @@ describe('NodeFactory', () => {
 
     it('создает форму с массивом элементов', () => {
       const config = {
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
         items: {
           schema: {
-            title: { value: '', component: null as any },
-            price: { value: 0, component: null as any },
+            title: { value: '', component: null as ComponentInstance },
+            price: { value: 0, component: null as ComponentInstance },
           },
           initialItems: [
             { title: 'Item 1', price: 100 },
@@ -345,19 +346,21 @@ describe('NodeFactory', () => {
 
     it('правильно определяет тип узла для смешанных конфигов', () => {
       // FieldNode
-      expect(factory.createNode({ value: '', component: null as any })).toBeInstanceOf(FieldNode);
+      expect(
+        factory.createNode({ value: '', component: null as ComponentInstance })
+      ).toBeInstanceOf(FieldNode);
 
       // GroupNode
       expect(
         factory.createNode({
-          field1: { value: '', component: null as any },
+          field1: { value: '', component: null as ComponentInstance },
         })
       ).toBeInstanceOf(GroupNode);
 
       // ArrayNode
       expect(
         factory.createNode({
-          schema: { value: '', component: null as any },
+          schema: { value: '', component: null as ComponentInstance },
         })
       ).toBeInstanceOf(ArrayNode);
     });
@@ -371,7 +374,7 @@ describe('NodeFactory', () => {
     it('обрабатывает конфиг с дополнительными свойствами для FieldNode', () => {
       const config = {
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [],
         asyncValidators: [],
         updateOn: 'blur' as const,
@@ -399,7 +402,7 @@ describe('NodeFactory', () => {
       // Если у конфига есть value и component, это всегда FieldNode
       const fieldConfig = {
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         schema: {}, // дополнительное свойство игнорируется
       };
 

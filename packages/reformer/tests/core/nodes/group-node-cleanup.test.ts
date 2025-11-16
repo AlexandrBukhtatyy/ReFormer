@@ -4,7 +4,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { makeForm } from '../../../src/core/utils/make-form';
-import type { GroupNodeWithControls } from '../../../src/core';
+import type { GroupNodeWithControls } from '../../../src';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Cleanup (dispose)', () => {
   interface TestForm {
@@ -17,9 +18,9 @@ describe('GroupNode - Cleanup (dispose)', () => {
 
   beforeEach(() => {
     form = makeForm<TestForm>({
-      email: { value: '', component: null as any },
-      password: { value: '', component: null as any },
-      age: { value: 0, component: null as any },
+      email: { value: '', component: null as ComponentInstance },
+      password: { value: '', component: null as ComponentInstance },
+      age: { value: 0, component: null as ComponentInstance },
     });
   });
 
@@ -45,9 +46,9 @@ describe('GroupNode - Cleanup (dispose)', () => {
 
     it('should cleanup multiple linkFields subscriptions', () => {
       const form2 = makeForm<TestForm>({
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
-        age: { value: 0, component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
+        age: { value: 0, component: null as ComponentInstance },
       });
 
       form.linkFields('email', 'password', (email: string) => `pwd-${email}`);
@@ -165,7 +166,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
       const nestedForm = makeForm<NestedForm>({
         user: {
           profile: {
-            name: { value: '', component: null as any },
+            name: { value: '', component: null as ComponentInstance },
           },
         },
       });
@@ -226,10 +227,10 @@ describe('GroupNode - Cleanup (dispose)', () => {
 
       const nestedForm = makeForm<NestedForm>({
         user: {
-          email: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
           profile: {
-            name: { value: '', component: null as any },
-            age: { value: 0, component: null as any },
+            name: { value: '', component: null as ComponentInstance },
+            age: { value: 0, component: null as ComponentInstance },
           },
         },
       });
@@ -276,7 +277,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         level1: {
           level2: {
             level3: {
-              value: { value: '', component: null as any },
+              value: { value: '', component: null as ComponentInstance },
             },
           },
         },
@@ -285,7 +286,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
       const callback = vi.fn();
       // Поле 'value' нужно получать через getField() или getFieldByPath(),
       // т.к. .value зарезервировано для computed signal
-      const valueField = deepForm.level1.level2.level3.getField('value' as any);
+      const valueField = deepForm.level1.level2.level3.getField('value' as unknown);
       valueField?.watch(callback);
 
       expect(callback).toHaveBeenCalledTimes(1);

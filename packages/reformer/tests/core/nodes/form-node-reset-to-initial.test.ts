@@ -8,14 +8,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { makeForm } from '../../../src/core/utils/make-form';
-import type { GroupNodeWithControls } from '../../../src/core';
+import { ComponentInstance } from '../../test-utils/types';
+import { GroupNodeWithControls } from 'packages/reformer/dist';
 
 describe('FormNode - resetToInitial()', () => {
   describe('FieldNode', () => {
     it('should reset to initialValue', () => {
       const field = new FieldNode({
         value: 'initial',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field.setValue('changed');
@@ -28,7 +29,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should reset after reset() with new value', () => {
       const field = new FieldNode({
         value: 'initial',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field.setValue('changed');
@@ -43,7 +44,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should clear validation state', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [
           (value: string) => (value === '' ? { code: 'required', message: 'Required' } : null),
         ],
@@ -77,9 +78,9 @@ describe('FormNode - resetToInitial()', () => {
 
     beforeEach(() => {
       form = makeForm({
-        email: { value: 'initial@mail.com', component: null as any },
-        name: { value: 'John', component: null as any },
-        age: { value: 25, component: null as any },
+        email: { value: 'initial@mail.com', component: null as ComponentInstance },
+        name: { value: 'John', component: null as ComponentInstance },
+        age: { value: 25, component: null as ComponentInstance },
       });
     });
 
@@ -158,11 +159,11 @@ describe('FormNode - resetToInitial()', () => {
     beforeEach(() => {
       form = makeForm({
         user: {
-          name: { value: 'Initial Name', component: null as any },
-          email: { value: 'initial@mail.com', component: null as any },
+          name: { value: 'Initial Name', component: null as ComponentInstance },
+          email: { value: 'initial@mail.com', component: null as ComponentInstance },
         },
         settings: {
-          theme: { value: 'light', component: null as any },
+          theme: { value: 'light', component: null as ComponentInstance },
         },
       });
     });
@@ -202,8 +203,8 @@ describe('FormNode - resetToInitial()', () => {
     beforeEach(() => {
       arrayNode = new ArrayNode<ItemForm>(
         {
-          name: { value: '', component: null as any },
-          price: { value: 0, component: null as any },
+          name: { value: '', component: null as ComponentInstance },
+          price: { value: 0, component: null as ComponentInstance },
         },
         [
           { name: 'Initial 1', price: 100 },
@@ -250,8 +251,8 @@ describe('FormNode - resetToInitial()', () => {
 
     it('should work with empty initialItems', () => {
       const emptyArray = new ArrayNode<ItemForm>({
-        name: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        name: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       emptyArray.push({ name: 'Item', price: 100 });
@@ -272,9 +273,9 @@ describe('FormNode - resetToInitial()', () => {
       }
 
       const form = makeForm<UserForm>({
-        email: { value: 'user@example.com', component: null as any },
-        name: { value: 'John Doe', component: null as any },
-        bio: { value: 'Initial bio', component: null as any },
+        email: { value: 'user@example.com', component: null as ComponentInstance },
+        name: { value: 'John Doe', component: null as ComponentInstance },
+        bio: { value: 'Initial bio', component: null as ComponentInstance },
       });
 
       // User edits form
@@ -300,11 +301,11 @@ describe('FormNode - resetToInitial()', () => {
       }
 
       const form = makeForm<TodoForm>({
-        title: { value: 'My TODO List', component: null as any },
+        title: { value: 'My TODO List', component: null as ComponentInstance },
         items: [
           {
-            task: { value: 'Initial task', component: null as any },
-            done: { value: false, component: null as any },
+            task: { value: 'Initial task', component: null as ComponentInstance },
+            done: { value: false, component: null as ComponentInstance },
           },
         ],
       });
@@ -325,7 +326,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should handle reset vs resetToInitial flow', () => {
       const field = new FieldNode({
         value: 'original',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       // Scenario 1: User makes change
@@ -346,7 +347,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should work when initial value is null', () => {
       const field = new FieldNode<string | null>({
         value: null,
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field.setValue('changed');
@@ -358,7 +359,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should work when initial value is empty string', () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field.setValue('changed');
@@ -370,7 +371,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should work when initial value is 0', () => {
       const field = new FieldNode({
         value: 0,
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field.setValue(100);
@@ -382,7 +383,7 @@ describe('FormNode - resetToInitial()', () => {
     it('should work multiple times', () => {
       const field = new FieldNode({
         value: 'initial',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       // First reset

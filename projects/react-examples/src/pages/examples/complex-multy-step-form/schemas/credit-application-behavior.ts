@@ -207,7 +207,7 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // Загрузка моделей автомобилей при изменении марки
   watchField(
     path.carBrand,
-    async (value, _ctx) => {
+    async (value) => {
       if (value) {
         const models = await fetchCarModels(value);
         console.log('Loaded car models:', models);

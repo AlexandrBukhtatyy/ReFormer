@@ -14,7 +14,7 @@ import type { BehaviorContext } from './types';
  * Реализация BehaviorContext
  * Используется в callback функциях behavior схем
  */
-export class BehaviorContextImpl<TForm extends Record<string, any>>
+export class BehaviorContextImpl<TForm extends Record<string, unknown>>
   implements BehaviorContext<TForm>
 {
   /**
@@ -29,14 +29,15 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
     this.form = form;
     //  Используем _proxyInstance если доступен, иначе fallback на form
     // _proxyInstance устанавливается в GroupNode конструкторе перед применением behavior схем
-    this.formNode = ((form as any)._proxyInstance || form) as GroupNodeWithControls<TForm>;
+    this.formNode = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
+      ._proxyInstance || form) as GroupNodeWithControls<TForm>;
   }
 
   /**
    * Получить значение поля по строковому пути
    * Поддерживает вложенные пути: "address.city"
    */
-  getField<_K extends keyof TForm>(path: string): any {
+  getField(path: string): unknown {
     return this.resolveFieldValue(path);
   }
 
@@ -44,7 +45,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
    * Установить значение поля по строковому пути
    * Использует emitEvent: false для избежания циклов
    */
-  setField<_K extends keyof TForm>(path: string, value: any): void {
+  setField(path: string, value: unknown): void {
     const node = this.resolveFieldNode(path);
     if (node) {
       node.setValue(value, { emitEvent: false });
@@ -54,17 +55,19 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
   /**
    * Обновить componentProps поля
    */
-  updateComponentProps(field: FieldPathNode<TForm, any>, props: Record<string, any>): void {
+  updateComponentProps(field: FieldPathNode<TForm, unknown>, props: Record<string, unknown>): void {
     const node = this.resolveFieldNode(field.__path);
     if (node && 'updateComponentProps' in node) {
-      (node as any).updateComponentProps(props);
+      (
+        node as unknown as { updateComponentProps: (props: Record<string, unknown>) => void }
+      ).updateComponentProps(props);
     }
   }
 
   /**
    * Перевалидировать поле
    */
-  async validateField(field: FieldPathNode<TForm, any>): Promise<boolean> {
+  async validateField(field: FieldPathNode<TForm, unknown>): Promise<boolean> {
     const node = this.resolveFieldNode(field.__path);
     if (node) {
       return await node.validate();
@@ -75,7 +78,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
   /**
    * Установить ошибки поля
    */
-  setErrors(field: FieldPathNode<TForm, any>, errors: ValidationError[]): void {
+  setErrors(field: FieldPathNode<TForm, unknown>, errors: ValidationError[]): void {
     const node = this.resolveFieldNode(field.__path);
     if (node) {
       node.setErrors(errors);
@@ -85,7 +88,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
   /**
    * Очистить ошибки поля
    */
-  clearErrors(field: FieldPathNode<TForm, any>): void {
+  clearErrors(field: FieldPathNode<TForm, unknown>): void {
     const node = this.resolveFieldNode(field.__path);
     if (node) {
       node.clearErrors();
@@ -104,7 +107,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
    * @param path - Путь к полю (например, "properties", "address.city")
    * @returns FormNode или undefined если путь не найден
    */
-  getFieldNode(path: string): FormNode<any> | undefined {
+  getFieldNode(path: string): FormNode<unknown> | undefined {
     return this.resolveFieldNode(path);
   }
 
@@ -116,8 +119,8 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
    * Поддерживает вложенные пути и массивы: "address.city", "items[0].name"
    */
   private resolveFieldNode(
-    pathOrNode: string | FieldPathNode<TForm, any>
-  ): FormNode<any> | undefined {
+    pathOrNode: string | FieldPathNode<TForm, unknown>
+  ): FormNode<unknown> | undefined {
     const fieldPath = typeof pathOrNode === 'string' ? pathOrNode : pathOrNode.__path;
 
     if (!fieldPath) return undefined;
@@ -143,7 +146,7 @@ export class BehaviorContextImpl<TForm extends Record<string, any>>
    * // 'Moscow'
    * ```
    */
-  private resolveFieldValue(path: string): any {
+  private resolveFieldValue(path: string): unknown {
     const node = this.resolveFieldNode(path);
     return node?.value.value;
   }

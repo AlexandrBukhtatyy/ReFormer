@@ -23,7 +23,7 @@ import type { FieldPathNode } from '../../types';
  * );
  * ```
  */
-export function applyWhen<TForm = any, TField = any>(
+export function applyWhen<TForm, TField>(
   fieldPath: FieldPathNode<TForm, TField>,
   condition: ConditionFn<TField>,
   validationFn: (path: FieldPath<TForm>) => void

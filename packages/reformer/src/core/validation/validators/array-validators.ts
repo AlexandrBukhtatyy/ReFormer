@@ -36,7 +36,7 @@ import type { FieldPathNode } from '../../types';
  * });
  * ```
  */
-export function notEmpty<TForm = any, TItem = any>(
+export function notEmpty<TForm, TItem>(
   fieldPath: FieldPathNode<TForm, TItem[] | undefined> | undefined,
   options?: ValidateOptions
 ): void {
@@ -76,7 +76,7 @@ export function notEmpty<TForm = any, TItem = any>(
  * });
  * ```
  */
-export function validateItems<TForm = any, TItem = any>(
+export function validateItems<TForm, TItem>(
   fieldPath: FieldPathNode<TForm, TItem[] | undefined> | undefined,
   itemSchemaFn: ValidationSchemaFn<TItem>
 ): void {

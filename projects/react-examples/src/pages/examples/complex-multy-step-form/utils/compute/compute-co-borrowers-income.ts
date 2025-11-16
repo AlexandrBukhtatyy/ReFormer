@@ -11,13 +11,13 @@
  * @param params.coBorrowers - Массив созаемщиков
  * @returns общий доход созаемщиков (₽)
  */
-export function computeCoBorrowersIncome({ coBorrowers }: { coBorrowers: any[] }): number {
+export function computeCoBorrowersIncome({ coBorrowers }: { coBorrowers: unknown[] }): number {
   if (!coBorrowers || !Array.isArray(coBorrowers)) {
     return 0;
   }
 
   return coBorrowers.reduce((sum, coBorrower) => {
-    const income = coBorrower?.monthlyIncome || 0;
-    return sum + income;
+    const income = (coBorrower as Record<string, unknown>)?.monthlyIncome || 0;
+    return sum + (typeof income === 'number' ? income : 0);
   }, 0);
 }

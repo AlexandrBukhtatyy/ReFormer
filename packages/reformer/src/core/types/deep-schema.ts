@@ -19,7 +19,7 @@ import type { FieldNode } from '../nodes/field-node';
 /**
  * Конфигурация поля
  */
-export interface FieldConfig<T = any> {
+export interface FieldConfig<T> {
   value: T | null;
   component: ComponentType<any>;
   componentProps?: Record<string, any>;

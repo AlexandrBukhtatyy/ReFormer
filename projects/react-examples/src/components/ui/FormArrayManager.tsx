@@ -3,9 +3,9 @@ import { Button } from './button';
 
 interface FormArrayManagerProps {
   // ArrayProxy (из DeepFormStore)
-  control: any;
+  control: unknown;
   // Компонент для рендера одного элемента массива
-  component: ComponentType<{ control: any }>;
+  component: ComponentType<{ control: unknown }>;
   // Название элемента для заголовка (например, "Имущество", "Кредит", "Созаемщик")
   itemLabel?: string;
   // Кастомная функция для генерации заголовка (принимает индекс)
@@ -34,7 +34,11 @@ export function FormArrayManager({
 }: FormArrayManagerProps) {
   return (
     <>
-      {control.map((itemControl: any, index: number) => {
+      {(
+        control as {
+          map: (callback: (item: unknown, index: number) => JSX.Element) => JSX.Element[];
+        }
+      ).map((itemControl: unknown, index: number) => {
         const title = renderTitle ? renderTitle(index) : `${itemLabel} #${index + 1}`;
 
         // Используем уникальный id из GroupProxy как key для избежания проблем при удалении

@@ -11,8 +11,8 @@
  * @param params.personalData - Объект с данными о человеке
  * @returns возраст (лет)
  */
-export function computeAge({ personalData }: { personalData: any }): number | null {
-  const birthDate = personalData?.birthDate;
+export function computeAge({ personalData }: { personalData: unknown }): number | null {
+  const birthDate = (personalData as Record<string, unknown>)?.birthDate;
 
   if (!birthDate) {
     return null;

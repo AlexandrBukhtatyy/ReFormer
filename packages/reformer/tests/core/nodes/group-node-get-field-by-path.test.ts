@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { GroupNodeWithControls } from '../../../src';
 import { makeForm } from '../../../src/core/utils/make-form';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - getFieldByPath()', () => {
   describe('Simple paths', () => {
@@ -20,9 +21,9 @@ describe('GroupNode - getFieldByPath()', () => {
 
     beforeEach(() => {
       form = makeForm({
-        email: { value: 'test@mail.com', component: null as any },
-        password: { value: 'secret', component: null as any },
-        age: { value: 25, component: null as any },
+        email: { value: 'test@mail.com', component: null as ComponentInstance },
+        password: { value: 'secret', component: null as ComponentInstance },
+        age: { value: 25, component: null as ComponentInstance },
       });
     });
 
@@ -67,12 +68,12 @@ describe('GroupNode - getFieldByPath()', () => {
     beforeEach(() => {
       form = makeForm({
         user: {
-          name: { value: 'John', component: null as any },
-          email: { value: 'john@mail.com', component: null as any },
+          name: { value: 'John', component: null as ComponentInstance },
+          email: { value: 'john@mail.com', component: null as ComponentInstance },
         },
         address: {
-          city: { value: 'Moscow', component: null as any },
-          street: { value: 'Main St', component: null as any },
+          city: { value: 'Moscow', component: null as ComponentInstance },
+          street: { value: 'Main St', component: null as ComponentInstance },
         },
       });
     });
@@ -131,16 +132,16 @@ describe('GroupNode - getFieldByPath()', () => {
       form = makeForm({
         items: [
           {
-            name: { value: 'Item 1', component: null as any },
-            price: { value: 100, component: null as any },
+            name: { value: 'Item 1', component: null as ComponentInstance },
+            price: { value: 100, component: null as ComponentInstance },
           },
           {
-            name: { value: 'Item 2', component: null as any },
-            price: { value: 200, component: null as any },
+            name: { value: 'Item 2', component: null as ComponentInstance },
+            price: { value: 200, component: null as ComponentInstance },
           },
           {
-            name: { value: 'Item 3', component: null as any },
-            price: { value: 300, component: null as any },
+            name: { value: 'Item 3', component: null as ComponentInstance },
+            price: { value: 300, component: null as ComponentInstance },
           },
         ],
       });
@@ -210,24 +211,24 @@ describe('GroupNode - getFieldByPath()', () => {
       form = makeForm({
         contacts: [
           {
-            email: { value: 'contact1@mail.com', component: null as any },
+            email: { value: 'contact1@mail.com', component: null as ComponentInstance },
             addresses: [
               {
-                city: { value: 'Moscow', component: null as any },
-                street: { value: 'Red Square', component: null as any },
+                city: { value: 'Moscow', component: null as ComponentInstance },
+                street: { value: 'Red Square', component: null as ComponentInstance },
               },
               {
-                city: { value: 'SPB', component: null as any },
-                street: { value: 'Nevsky', component: null as any },
+                city: { value: 'SPB', component: null as ComponentInstance },
+                street: { value: 'Nevsky', component: null as ComponentInstance },
               },
             ],
           },
           {
-            email: { value: 'contact2@mail.com', component: null as any },
+            email: { value: 'contact2@mail.com', component: null as ComponentInstance },
             addresses: [
               {
-                city: { value: 'Kazan', component: null as any },
-                street: { value: 'Bauman', component: null as any },
+                city: { value: 'Kazan', component: null as ComponentInstance },
+                street: { value: 'Bauman', component: null as ComponentInstance },
               },
             ],
           },
@@ -276,7 +277,7 @@ describe('GroupNode - getFieldByPath()', () => {
 
     beforeEach(() => {
       form = makeForm({
-        email: { value: 'test@mail.com', component: null as any },
+        email: { value: 'test@mail.com', component: null as ComponentInstance },
       });
     });
 
@@ -326,11 +327,11 @@ describe('GroupNode - getFieldByPath()', () => {
 
     beforeEach(() => {
       form = makeForm({
-        email: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
         user: {
-          name: { value: 'John', component: null as any },
+          name: { value: 'John', component: null as ComponentInstance },
         },
-        items: [{ title: { value: 'Item 1', component: null as any } }],
+        items: [{ title: { value: 'Item 1', component: null as ComponentInstance } }],
       });
     });
 
@@ -372,16 +373,16 @@ describe('GroupNode - getFieldByPath()', () => {
     beforeEach(() => {
       form = makeForm({
         profile: {
-          firstName: { value: 'John', component: null as any },
-          lastName: { value: 'Doe', component: null as any },
+          firstName: { value: 'John', component: null as ComponentInstance },
+          lastName: { value: 'Doe', component: null as ComponentInstance },
           contacts: [
             {
-              type: { value: 'email', component: null as any },
-              value: { value: 'john@mail.com', component: null as any },
+              type: { value: 'email', component: null as ComponentInstance },
+              value: { value: 'john@mail.com', component: null as ComponentInstance },
             },
             {
-              type: { value: 'phone', component: null as any },
-              value: { value: '+1234567890', component: null as any },
+              type: { value: 'phone', component: null as ComponentInstance },
+              value: { value: '+1234567890', component: null as ComponentInstance },
             },
           ],
         },

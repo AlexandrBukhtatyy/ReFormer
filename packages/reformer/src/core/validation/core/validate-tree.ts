@@ -29,7 +29,7 @@ import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
  * );
  * ```
  */
-export function validateTree<TForm = any>(
+export function validateTree<TForm>(
   validatorFn: TreeValidatorFn<TForm>,
   options?: ValidateTreeOptions
 ): void {

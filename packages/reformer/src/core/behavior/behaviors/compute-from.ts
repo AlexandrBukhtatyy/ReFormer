@@ -4,7 +4,7 @@
 
 import { effect } from '@preact/signals-core';
 import type { FormNode } from '../../nodes/form-node';
-import type { FieldPathNode } from '../../types';
+import type { FieldPathNode, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 
@@ -38,10 +38,10 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function computeFrom<TForm extends Record<string, any>, TTarget>(
+export function computeFrom<TForm extends Record<string, FormValue>, TTarget>(
   target: FieldPathNode<TForm, TTarget>,
-  sources: FieldPathNode<TForm, any>[],
-  computeFn: (...values: any[]) => TTarget,
+  sources: FieldPathNode<TForm, FormValue>[],
+  computeFn: (values: Record<string, unknown>) => TTarget,
   options?: ComputeFromOptions<TForm>
 ): void {
   const { debounce, condition } = options || {};
@@ -53,7 +53,7 @@ export function computeFrom<TForm extends Record<string, any>, TTarget>(
     // Разрешаем source узлы
     const sourceNodes = sources
       .map((field) => form.getFieldByPath(field.__path))
-      .filter((node): node is FormNode<any> => node !== undefined);
+      .filter((node): node is FormNode<unknown> => node !== undefined);
 
     if (sourceNodes.length === 0) return null;
 

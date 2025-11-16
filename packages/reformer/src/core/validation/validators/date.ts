@@ -18,7 +18,7 @@ import type { FieldPathNode } from '../../types';
  * date(path.age, { minAge: 18, maxAge: 100 });
  * ```
  */
-export function date<TForm = any, TField extends string | Date | undefined = string | Date>(
+export function date<TForm, TField extends string | Date | undefined = string | Date>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions & {
     /** Минимальная дата (включительно) */

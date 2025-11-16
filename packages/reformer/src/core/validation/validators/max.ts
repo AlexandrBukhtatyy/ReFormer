@@ -10,7 +10,7 @@ import type { FieldPathNode } from '../../types';
  * Адаптер для max валидатора
  * Поддерживает опциональные поля (number | undefined)
  */
-export function max<TForm = any, TField extends number | undefined = number>(
+export function max<TForm, TField extends number | undefined = number>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   maxValue: number,
   options?: ValidateOptions

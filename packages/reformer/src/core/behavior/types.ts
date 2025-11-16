@@ -4,7 +4,7 @@
 
 import type { FormNode } from '../nodes/form-node';
 import { GroupNode } from '../nodes/group-node';
-import type { ValidationError } from '../types';
+import type { ValidationError, FormValue } from '../types';
 import type { FieldPath, FieldPathNode } from '../types/field-path';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 
@@ -18,45 +18,45 @@ export type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
  * Контекст для behavior callback функций
  * Предоставляет методы для работы с формой
  */
-export interface BehaviorContext<TForm extends Record<string, any>> {
+export interface BehaviorContext<TForm extends Record<string, FormValue>> {
   /**
    * Получить значение поля по строковому пути
    * @param path - Путь к полю (например, "address.city")
    */
-  getField<_K extends keyof TForm>(path: string): any;
+  getField(path: string): unknown;
 
   /**
    * Установить значение поля по строковому пути
    * @param path - Путь к полю
    * @param value - Новое значение
    */
-  setField<_K extends keyof TForm>(path: string, value: any): void;
+  setField(path: string, value: unknown): void;
 
   /**
    * Обновить componentProps поля
    * @param field - FieldPathNode поля
    * @param props - Частичные пропсы для обновления
    */
-  updateComponentProps(field: FieldPathNode<TForm, any>, props: Record<string, any>): void;
+  updateComponentProps(field: FieldPathNode<TForm, unknown>, props: Record<string, unknown>): void;
 
   /**
    * Перевалидировать поле
    * @param field - FieldPathNode поля
    */
-  validateField(field: FieldPathNode<TForm, any>): Promise<boolean>;
+  validateField(field: FieldPathNode<TForm, unknown>): Promise<boolean>;
 
   /**
    * Установить ошибки поля
    * @param field - FieldPathNode поля
    * @param errors - Массив ошибок валидации
    */
-  setErrors(field: FieldPathNode<TForm, any>, errors: ValidationError[]): void;
+  setErrors(field: FieldPathNode<TForm, unknown>, errors: ValidationError[]): void;
 
   /**
    * Очистить ошибки поля
    * @param field - FieldPathNode поля
    */
-  clearErrors(field: FieldPathNode<TForm, any>): void;
+  clearErrors(field: FieldPathNode<TForm, unknown>): void;
 
   /**
    * Получить всю форму целиком
@@ -68,7 +68,7 @@ export interface BehaviorContext<TForm extends Record<string, any>> {
    * @param path - Путь к полю (например, "properties", "address.city")
    * @returns FormNode или undefined если путь не найден
    */
-  getFieldNode(path: string): FormNode<any> | undefined;
+  getFieldNode(path: string): FormNode<unknown> | undefined;
 
   /**
    * Получить корневой узел формы с доступом к полям через точку
@@ -111,11 +111,12 @@ export interface BehaviorContext<TForm extends Record<string, any>> {
  * };
  * ```
  */
-export type BehaviorHandlerFn<TForm extends Record<string, any> = any> = (
-  form: GroupNode<TForm>,
-  context: BehaviorContext<TForm>,
-  withDebounce: (callback: () => void) => void
-) => (() => void) | null;
+export type BehaviorHandlerFn<TForm extends Record<string, FormValue> = Record<string, FormValue>> =
+  (
+    form: GroupNode<TForm>,
+    context: BehaviorContext<TForm>,
+    withDebounce: (callback: () => void) => void
+  ) => (() => void) | null;
 
 /**
  * Общие опции для behavior
@@ -136,7 +137,7 @@ export interface CopyFromOptions<TForm, TSource> {
   fields?: (keyof TSource)[] | 'all';
 
   /** Трансформация значения */
-  transform?: (value: TSource) => any;
+  transform?: (value: TSource) => unknown;
 
   /** Debounce в мс */
   debounce?: number;

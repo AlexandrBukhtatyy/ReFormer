@@ -13,25 +13,13 @@ export interface InputFilesProps
   placeholder?: string;
   maxSize?: number;
   uploader?: {
-    upload: (file: File) => Promise<any>;
+    upload: (file: File) => Promise<unknown>;
   };
 }
 
 const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
   (
-    {
-      className,
-      value,
-      onChange,
-      onBlur,
-      multiple = false,
-      accept,
-      disabled,
-      placeholder,
-      maxSize,
-      uploader,
-      ...props
-    },
+    { className, onChange, onBlur, multiple = false, accept, disabled, placeholder, ...props },
     ref
   ) => {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -11,10 +11,11 @@
  * @param params.personalData - Объект с данными о человеке
  * @returns полное имя
  */
-export function computeFullName({ personalData }: { personalData: any }): string {
-  const lastName = personalData?.lastName || '';
-  const firstName = personalData?.firstName || '';
-  const middleName = personalData?.middleName || '';
+export function computeFullName({ personalData }: { personalData: unknown }): string {
+  const data = personalData as Record<string, unknown>;
+  const lastName = data?.lastName || '';
+  const firstName = data?.firstName || '';
+  const middleName = data?.middleName || '';
 
   return [lastName, firstName, middleName].filter(Boolean).join(' ');
 }

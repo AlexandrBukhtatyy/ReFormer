@@ -17,7 +17,7 @@ import type { FieldPathNode } from '../../types';
  * url(path.website, { requireProtocol: true });
  * ```
  */
-export function url<TForm = any, TField extends string | undefined = string>(
+export function url<TForm, TField extends string | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions & {
     /** Требовать наличие протокола (http:// или https://) */

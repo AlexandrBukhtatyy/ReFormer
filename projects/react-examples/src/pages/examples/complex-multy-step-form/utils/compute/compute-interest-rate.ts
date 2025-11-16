@@ -21,9 +21,9 @@ export function computeInterestRate({
   properties,
 }: {
   loanType: string;
-  registrationAddress: any;
+  registrationAddress: unknown;
   hasProperty: boolean;
-  properties: any[];
+  properties: unknown[];
 }): number {
   // Базовые ставки по типам кредита
   const baseRates: Record<string, number> = {
@@ -39,7 +39,7 @@ export function computeInterestRate({
   // Надбавки и скидки
   if (loanType === 'mortgage') {
     // Надбавка за регион (Москва дороже)
-    const region = registrationAddress?.region;
+    const region = (registrationAddress as Record<string, unknown>)?.region;
     if (region === 'moscow') {
       rate += 0.5;
     }

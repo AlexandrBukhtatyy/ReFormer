@@ -12,7 +12,7 @@ import { RegistryStack } from '../utils/registry-stack';
 /**
  * Зарегистрированный behavior с опциями
  */
-interface RegisteredBehavior<T extends Record<string, any>> {
+interface RegisteredBehavior<T extends Record<string, FormValue>> {
   /** Handler функция behavior */
   handler: BehaviorHandlerFn<T>;
   /** Debounce в миллисекундах */
@@ -50,7 +50,7 @@ export class BehaviorRegistry {
    */
   private static contextStack = new RegistryStack<BehaviorRegistry>();
 
-  private registrations: RegisteredBehavior<any>[] = [];
+  private registrations: RegisteredBehavior<Record<string, FormValue>>[] = [];
   private isRegistering = false;
 
   /**
@@ -122,7 +122,7 @@ export class BehaviorRegistry {
    * @param form - GroupNode формы
    * @returns Количество зарегистрированных behaviors и функция cleanup
    */
-  endRegistration<T extends Record<string, any>>(
+  endRegistration<T extends Record<string, FormValue>>(
     form: GroupNode<T>
   ): { count: number; cleanup: () => void } {
     this.isRegistering = false;
@@ -156,7 +156,7 @@ export class BehaviorRegistry {
    * Создать effect подписку для behavior
    * @private
    */
-  private createEffect<T extends Record<string, any>>(
+  private createEffect<T extends Record<string, FormValue>>(
     registered: RegisteredBehavior<T>,
     form: GroupNode<T>,
     context: BehaviorContextImpl<T>

@@ -7,19 +7,23 @@ import { ProxyBuilder } from '../../../../src/core/nodes/group-node/proxy-builde
 import { FieldRegistry } from '../../../../src/core/nodes/group-node/field-registry';
 import { GroupNode } from '../../../../src/core/nodes/group-node';
 import { FieldNode } from '../../../../src/core/nodes/field-node';
+import { ComponentInstance } from 'packages/reformer/tests/test-utils/types';
 
 describe('ProxyBuilder', () => {
   describe('Get trap', () => {
     it('should access field through proxy', () => {
       const fieldRegistry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
       fieldRegistry.set('email', emailField);
 
       const proxyBuilder = new ProxyBuilder(fieldRegistry);
       const form = new GroupNode({ controls: {} });
       const proxy = proxyBuilder.build(form);
 
-      expect((proxy as any).email).toBe(emailField);
+      expect((proxy as unknown).email).toBe(emailField);
     });
 
     it('should access GroupNode methods through proxy', () => {
@@ -39,7 +43,7 @@ describe('ProxyBuilder', () => {
       const form = new GroupNode({ controls: {} });
       const proxy = proxyBuilder.build(form);
 
-      expect((proxy as any).nonExistent).toBeUndefined();
+      expect((proxy as unknown).nonExistent).toBeUndefined();
     });
 
     it('should prioritize GroupNode properties over fields', () => {
@@ -54,8 +58,11 @@ describe('ProxyBuilder', () => {
 
     it('should access multiple fields', () => {
       const fieldRegistry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const nameField = new FieldNode({ value: 'John', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const nameField = new FieldNode({ value: 'John', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
       fieldRegistry.set('name', nameField);
 
@@ -63,8 +70,8 @@ describe('ProxyBuilder', () => {
       const form = new GroupNode({ controls: {} });
       const proxy = proxyBuilder.build(form);
 
-      expect((proxy as any).email).toBe(emailField);
-      expect((proxy as any).name).toBe(nameField);
+      expect((proxy as unknown).email).toBe(emailField);
+      expect((proxy as unknown).name).toBe(nameField);
     });
   });
 
@@ -81,7 +88,7 @@ describe('ProxyBuilder', () => {
 
     it('should warn when trying to set field directly in DEV mode', () => {
       const fieldRegistry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
 
       const proxyBuilder = new ProxyBuilder(fieldRegistry);
@@ -99,7 +106,7 @@ describe('ProxyBuilder', () => {
 
     it('should return false when setting field directly', () => {
       const fieldRegistry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
 
       const proxyBuilder = new ProxyBuilder(fieldRegistry);
@@ -117,16 +124,16 @@ describe('ProxyBuilder', () => {
       const form = new GroupNode({ controls: {} });
       const proxy = proxyBuilder.build(form);
 
-      (proxy as any).customProperty = 'custom value';
+      (proxy as unknown).customProperty = 'custom value';
 
-      expect((proxy as any).customProperty).toBe('custom value');
+      expect((proxy as unknown).customProperty).toBe('custom value');
     });
   });
 
   describe('Has trap', () => {
     it('should return true for existing fields', () => {
       const fieldRegistry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
 
       const proxyBuilder = new ProxyBuilder(fieldRegistry);
@@ -158,8 +165,8 @@ describe('ProxyBuilder', () => {
 
     it('should work with multiple fields', () => {
       const fieldRegistry = new FieldRegistry<{ email: string; name: string; age: number }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
-      const nameField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const nameField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
       fieldRegistry.set('name', nameField);
 
@@ -176,8 +183,8 @@ describe('ProxyBuilder', () => {
   describe('OwnKeys trap', () => {
     it('should include field keys', () => {
       const fieldRegistry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
-      const nameField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const nameField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
       fieldRegistry.set('name', nameField);
 
@@ -205,7 +212,7 @@ describe('ProxyBuilder', () => {
 
     it('should not have duplicates', () => {
       const fieldRegistry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
 
       const proxyBuilder = new ProxyBuilder(fieldRegistry);
@@ -222,7 +229,7 @@ describe('ProxyBuilder', () => {
   describe('GetOwnPropertyDescriptor trap', () => {
     it('should return descriptor for fields', () => {
       const fieldRegistry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
 
       const proxyBuilder = new ProxyBuilder(fieldRegistry);
@@ -269,8 +276,8 @@ describe('ProxyBuilder', () => {
   describe('Integration tests', () => {
     it('should work with Object.keys()', () => {
       const fieldRegistry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
-      const nameField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const nameField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
       fieldRegistry.set('name', nameField);
 
@@ -286,8 +293,8 @@ describe('ProxyBuilder', () => {
 
     it('should work with for...in loop', () => {
       const fieldRegistry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
-      const nameField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const nameField = new FieldNode({ value: '', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
       fieldRegistry.set('name', nameField);
 
@@ -307,8 +314,11 @@ describe('ProxyBuilder', () => {
     it('should maintain type safety', () => {
       type FormType = { email: string; name: string };
       const fieldRegistry = new FieldRegistry<FormType>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const nameField = new FieldNode({ value: 'John', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const nameField = new FieldNode({ value: 'John', component: null as ComponentInstance });
       fieldRegistry.set('email', emailField);
       fieldRegistry.set('name', nameField);
 
@@ -317,8 +327,8 @@ describe('ProxyBuilder', () => {
       const proxy = proxyBuilder.build(form);
 
       // TypeScript должен разрешить эти обращения
-      const email = (proxy as any).email;
-      const name = (proxy as any).name;
+      const email = (proxy as unknown).email;
+      const name = (proxy as unknown).name;
 
       expect(email).toBe(emailField);
       expect(name).toBe(nameField);

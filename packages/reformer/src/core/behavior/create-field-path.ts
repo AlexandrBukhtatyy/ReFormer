@@ -27,7 +27,7 @@ export function createFieldPath<T>(): FieldPath<T> {
  * Создать Proxy для вложенного доступа к полям
  * @private
  */
-function createFieldPathProxy<T>(currentPath: string): any {
+function createFieldPathProxy<T>(currentPath: string): FieldPath<T> {
   return new Proxy(
     {},
     {
@@ -45,11 +45,11 @@ function createFieldPathProxy<T>(currentPath: string): any {
         const newPath = currentPath ? `${currentPath}.${prop}` : prop;
 
         // Создаем объект FieldPathNode с вложенным Proxy
-        const node: FieldPathNode<T, any> = {
+        const node: FieldPathNode<T, unknown> = {
           __path: newPath,
           __key: prop,
-          __formType: undefined as any,
-          __fieldType: undefined as any,
+          __formType: undefined as unknown as T,
+          __fieldType: undefined as unknown,
         };
 
         // Возвращаем Proxy, который поддерживает дальнейшую вложенность

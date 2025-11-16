@@ -6,7 +6,7 @@
  * Mock component for testing
  * Used as a placeholder when testing form logic without actual UI components
  */
-export const mockComponent = null as any;
+export const mockComponent = null as unknown;
 
 /**
  * Common test interfaces
@@ -50,7 +50,7 @@ export const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
 /**
  * Mock async validator that always succeeds
  */
-export const mockAsyncValidatorSuccess = async (value: any) => {
+export const mockAsyncValidatorSuccess = async (_value: unknown) => {
   await delay(10);
   return null;
 };
@@ -58,7 +58,7 @@ export const mockAsyncValidatorSuccess = async (value: any) => {
 /**
  * Mock async validator that always fails
  */
-export const mockAsyncValidatorFail = async (value: any) => {
+export const mockAsyncValidatorFail = async (_value: unknown) => {
   await delay(10);
   return { code: 'mock_error', message: 'Mock validation error' };
 };
@@ -68,10 +68,10 @@ export const mockAsyncValidatorFail = async (value: any) => {
  */
 export const createMockAsyncValidator = (
   delayMs: number,
-  result: any | null,
+  result: unknown | null,
   shouldThrow = false
 ) => {
-  return async (value: any) => {
+  return async (_value: unknown) => {
     await delay(delayMs);
     if (shouldThrow) {
       throw new Error('Mock validator error');

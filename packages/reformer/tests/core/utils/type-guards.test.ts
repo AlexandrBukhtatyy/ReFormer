@@ -11,41 +11,42 @@ import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { FormNode } from '../../../src/core/nodes/form-node';
 import { makeForm } from '../../../src/core/utils/make-form';
 import { isArrayNode, isFieldNode, isGroupNode } from '../../../src/core/utils/type-guards';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('FormNode Type Guards', () => {
   describe('isFieldNode()', () => {
     it('should return true for FieldNode', () => {
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
-      expect(isFieldNode(field as any)).toBe(true);
+      expect(isFieldNode(field as unknown)).toBe(true);
     });
 
     it('should return false for GroupNode', () => {
       const group = new GroupNode({
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
       });
 
-      expect(isFieldNode(group as any)).toBe(false);
+      expect(isFieldNode(group as unknown)).toBe(false);
     });
 
     it('should return false for ArrayNode', () => {
       const array = new ArrayNode({
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
       });
 
-      expect(isFieldNode(array as any)).toBe(false);
+      expect(isFieldNode(array as unknown)).toBe(false);
     });
 
     it('should allow TypeScript type narrowing', () => {
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
-      if (isFieldNode(field as any)) {
+      if (isFieldNode(field as unknown)) {
         // TypeScript должен знать, что это FieldNode
         field.markAsTouched();
         field.markAsDirty();
@@ -57,8 +58,8 @@ describe('FormNode Type Guards', () => {
   describe('isGroupNode()', () => {
     it('should return true for GroupNode', () => {
       const group = new GroupNode({
-        name: { value: '', component: null as any },
-        email: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
+        email: { value: '', component: null as ComponentInstance },
       });
 
       expect(isGroupNode(group)).toBe(true);
@@ -67,23 +68,23 @@ describe('FormNode Type Guards', () => {
     it('should return false for FieldNode', () => {
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
-      expect(isGroupNode(field as any)).toBe(false);
+      expect(isGroupNode(field as unknown)).toBe(false);
     });
 
     it('should return false for ArrayNode', () => {
       const array = new ArrayNode({
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
       });
 
-      expect(isGroupNode(array as any)).toBe(false);
+      expect(isGroupNode(array as unknown)).toBe(false);
     });
 
     it('should allow TypeScript type narrowing', () => {
       const group = new GroupNode({
-        name: { value: 'John', component: null as any },
+        name: { value: 'John', component: null as ComponentInstance },
       });
 
       if (isGroupNode(group)) {
@@ -97,8 +98,8 @@ describe('FormNode Type Guards', () => {
   describe('isArrayNode()', () => {
     it('should return true for ArrayNode', () => {
       const array = new ArrayNode({
-        name: { value: '', component: null as any },
-        age: { value: 0, component: null as any },
+        name: { value: '', component: null as ComponentInstance },
+        age: { value: 0, component: null as ComponentInstance },
       });
 
       expect(isArrayNode(array)).toBe(true);
@@ -107,23 +108,23 @@ describe('FormNode Type Guards', () => {
     it('should return false for FieldNode', () => {
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
-      expect(isArrayNode(field as any)).toBe(false);
+      expect(isArrayNode(field as unknown)).toBe(false);
     });
 
     it('should return false for GroupNode', () => {
       const group = new GroupNode({
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
       });
 
-      expect(isArrayNode(group as any)).toBe(false);
+      expect(isArrayNode(group as unknown)).toBe(false);
     });
 
     it('should allow TypeScript type narrowing', () => {
       const array = new ArrayNode({
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
       });
 
       if (isArrayNode(array)) {
@@ -146,12 +147,12 @@ describe('FormNode Type Guards', () => {
 
       const form = makeForm<Form>({
         user: {
-          name: { value: '', component: null as any },
-          email: { value: '', component: null as any },
+          name: { value: '', component: null as ComponentInstance },
+          email: { value: '', component: null as ComponentInstance },
         },
         tags: [
           {
-            label: { value: '', component: null as any },
+            label: { value: '', component: null as ComponentInstance },
           },
         ],
       });
@@ -179,9 +180,9 @@ describe('FormNode Type Guards', () => {
 
     it('should handle type guards in conditional logic', () => {
       const nodes: Array<FieldNode<any> | GroupNode<any> | ArrayNode<any>> = [
-        new FieldNode({ value: 'test', component: null as any }),
-        new GroupNode({ name: { value: '', component: null as any } }),
-        new ArrayNode({ name: { value: '', component: null as any } }),
+        new FieldNode({ value: 'test', component: null as ComponentInstance }),
+        new GroupNode({ name: { value: '', component: null as ComponentInstance } }),
+        new ArrayNode({ name: { value: '', component: null as ComponentInstance } }),
       ];
 
       let fieldCount = 0;
@@ -206,31 +207,31 @@ describe('FormNode Type Guards', () => {
 
   describe('Edge cases', () => {
     it('should handle null', () => {
-      expect(isFieldNode(null as any)).toBe(false);
-      expect(isGroupNode(null as any)).toBe(false);
-      expect(isArrayNode(null as any)).toBe(false);
+      expect(isFieldNode(null as unknown)).toBe(false);
+      expect(isGroupNode(null as unknown)).toBe(false);
+      expect(isArrayNode(null as unknown)).toBe(false);
     });
 
     it('should handle undefined', () => {
-      expect(isFieldNode(undefined as any)).toBe(false);
-      expect(isGroupNode(undefined as any)).toBe(false);
-      expect(isArrayNode(undefined as any)).toBe(false);
+      expect(isFieldNode(undefined as unknown)).toBe(false);
+      expect(isGroupNode(undefined as unknown)).toBe(false);
+      expect(isArrayNode(undefined as unknown)).toBe(false);
     });
 
     it('should handle plain objects', () => {
       const plainObject = { value: 'test' };
 
-      expect(isFieldNode(plainObject as any)).toBe(false);
-      expect(isGroupNode(plainObject as any)).toBe(false);
-      expect(isArrayNode(plainObject as any)).toBe(false);
+      expect(isFieldNode(plainObject as unknown)).toBe(false);
+      expect(isGroupNode(plainObject as unknown)).toBe(false);
+      expect(isArrayNode(plainObject as unknown)).toBe(false);
     });
 
     it('should handle arrays', () => {
       const plainArray = [1, 2, 3];
 
-      expect(isFieldNode(plainArray as any)).toBe(false);
-      expect(isGroupNode(plainArray as any)).toBe(false);
-      expect(isArrayNode(plainArray as any)).toBe(false);
+      expect(isFieldNode(plainArray as unknown)).toBe(false);
+      expect(isGroupNode(plainArray as unknown)).toBe(false);
+      expect(isArrayNode(plainArray as unknown)).toBe(false);
     });
   });
 
@@ -240,10 +241,10 @@ describe('FormNode Type Guards', () => {
 
       const node: FormNodeUnion = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
-      if (isFieldNode(node as any)) {
+      if (isFieldNode(node as unknown)) {
         // TypeScript знает, что node - FieldNode<string>
         const value: string = node.value.value;
         expect(value).toBe('test');
@@ -262,9 +263,9 @@ describe('FormNode Type Guards', () => {
         return 'unknown';
       }
 
-      const field = new FieldNode({ value: 'test', component: null as any });
-      const group = new GroupNode({ name: { value: '', component: null as any } });
-      const array = new ArrayNode({ name: { value: '', component: null as any } });
+      const field = new FieldNode({ value: 'test', component: null as ComponentInstance });
+      const group = new GroupNode({ name: { value: '', component: null as ComponentInstance } });
+      const array = new ArrayNode({ name: { value: '', component: null as ComponentInstance } });
 
       expect(processNode(field)).toBe('field');
       expect(processNode(group)).toBe('group');

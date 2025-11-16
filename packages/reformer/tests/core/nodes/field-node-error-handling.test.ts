@@ -7,6 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import type { AsyncValidatorFn } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('FieldNode - Async Validator Error Handling', () => {
   describe('Single validator throws error', () => {
@@ -17,7 +18,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
       });
 
@@ -31,12 +32,12 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
     it('should handle non-Error exceptions', async () => {
       const throwingValidator: AsyncValidatorFn<string> = async () => {
-        throw 'String error'; // eslint-disable-line no-throw-literal
+        throw 'String error';
       };
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
       });
 
@@ -57,7 +58,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
       });
 
@@ -87,7 +88,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'ab',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator, workingValidator],
       });
 
@@ -117,7 +118,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'valid',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator, workingValidator],
       });
 
@@ -140,7 +141,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator1, throwingValidator2],
       });
 
@@ -162,7 +163,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test@example.com',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [networkValidator],
       });
 
@@ -183,7 +184,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [apiValidator],
       });
 
@@ -200,7 +201,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [rejectingValidator],
       });
 
@@ -216,7 +217,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
     it('should handle sync validator passing and async throwing', async () => {
       const field = new FieldNode({
         value: 'valid',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [
           (value: string) =>
             value.length < 3 ? { code: 'minLength', message: 'Too short' } : null,
@@ -241,7 +242,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'ab',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [
           (value: string) =>
             value.length < 3 ? { code: 'minLength', message: 'Too short' } : null,
@@ -275,7 +276,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
         debounce: 100,
       });
@@ -296,7 +297,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
         debounce: 100,
       });
@@ -317,12 +318,12 @@ describe('FieldNode - Async Validator Error Handling', () => {
   describe('Edge cases', () => {
     it('should handle validator that throws undefined', async () => {
       const throwingValidator: AsyncValidatorFn<string> = async () => {
-        throw undefined; // eslint-disable-line no-throw-literal
+        throw undefined;
       };
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
       });
 
@@ -335,12 +336,12 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
     it('should handle validator that throws null', async () => {
       const throwingValidator: AsyncValidatorFn<string> = async () => {
-        throw null; // eslint-disable-line no-throw-literal
+        throw null;
       };
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
       });
 
@@ -352,12 +353,12 @@ describe('FieldNode - Async Validator Error Handling', () => {
 
     it('should handle validator that throws object', async () => {
       const throwingValidator: AsyncValidatorFn<string> = async () => {
-        throw { custom: 'error' }; // eslint-disable-line no-throw-literal
+        throw { custom: 'error' };
       };
 
       const field = new FieldNode({
         value: 'test',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
       });
 

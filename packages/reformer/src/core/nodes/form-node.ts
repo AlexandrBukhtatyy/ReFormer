@@ -33,7 +33,7 @@ export interface SetValueOptions {
  * - Публичные методы (markAsTouched, disable и т.д.) реализованы здесь
  * - Protected hooks (onMarkAsTouched, onDisable и т.д.) переопределяются в наследниках
  */
-export abstract class FormNode<T = any> {
+export abstract class FormNode<T> {
   // ============================================================================
   // Protected состояние (для Template Method паттерна)
   // ============================================================================

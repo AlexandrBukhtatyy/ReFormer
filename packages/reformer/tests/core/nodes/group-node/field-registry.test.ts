@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { FieldRegistry } from '../../../../src/core/nodes/group-node/field-registry';
 import { FieldNode } from '../../../../src/core/nodes/field-node';
+import { ComponentInstance } from 'packages/reformer/tests/test-utils/types';
 
 describe('FieldRegistry', () => {
   describe('Basic operations', () => {
@@ -16,7 +17,10 @@ describe('FieldRegistry', () => {
 
     it('should set and get field', () => {
       const registry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
 
       registry.set('email', emailField);
 
@@ -32,7 +36,7 @@ describe('FieldRegistry', () => {
 
     it('should check field existence with has()', () => {
       const registry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
 
       registry.set('email', emailField);
 
@@ -42,7 +46,7 @@ describe('FieldRegistry', () => {
 
     it('should delete field', () => {
       const registry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
 
       registry.set('email', emailField);
       expect(registry.has('email')).toBe(true);
@@ -64,9 +68,9 @@ describe('FieldRegistry', () => {
 
     it('should clear all fields', () => {
       const registry = new FieldRegistry<{ email: string; name: string; age: number }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
-      const nameField = new FieldNode({ value: '', component: null as any });
-      const ageField = new FieldNode({ value: 0, component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const nameField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const ageField = new FieldNode({ value: 0, component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('name', nameField);
@@ -86,8 +90,11 @@ describe('FieldRegistry', () => {
   describe('Iteration', () => {
     it('should iterate with forEach()', () => {
       const registry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const nameField = new FieldNode({ value: 'John', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const nameField = new FieldNode({ value: 'John', component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('name', nameField);
@@ -104,8 +111,11 @@ describe('FieldRegistry', () => {
 
     it('should iterate with values()', () => {
       const registry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const nameField = new FieldNode({ value: 'John', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const nameField = new FieldNode({ value: 'John', component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('name', nameField);
@@ -119,8 +129,11 @@ describe('FieldRegistry', () => {
 
     it('should iterate with entries()', () => {
       const registry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const nameField = new FieldNode({ value: 'John', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const nameField = new FieldNode({ value: 'John', component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('name', nameField);
@@ -134,8 +147,8 @@ describe('FieldRegistry', () => {
 
     it('should iterate with keys()', () => {
       const registry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
-      const nameField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
+      const nameField = new FieldNode({ value: '', component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('name', nameField);
@@ -151,8 +164,11 @@ describe('FieldRegistry', () => {
   describe('Utility methods', () => {
     it('should convert to array with toArray()', () => {
       const registry = new FieldRegistry<{ email: string; name: string }>();
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const nameField = new FieldNode({ value: 'John', component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const nameField = new FieldNode({ value: 'John', component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('name', nameField);
@@ -166,7 +182,7 @@ describe('FieldRegistry', () => {
 
     it('should return Map view with asMap()', () => {
       const registry = new FieldRegistry<{ email: string }>();
-      const emailField = new FieldNode({ value: '', component: null as any });
+      const emailField = new FieldNode({ value: '', component: null as ComponentInstance });
 
       registry.set('email', emailField);
 
@@ -186,10 +202,16 @@ describe('FieldRegistry', () => {
         isActive: boolean;
       }>();
 
-      const emailField = new FieldNode({ value: 'test@mail.com', component: null as any });
-      const passwordField = new FieldNode({ value: 'secret', component: null as any });
-      const ageField = new FieldNode({ value: 25, component: null as any });
-      const isActiveField = new FieldNode({ value: true, component: null as any });
+      const emailField = new FieldNode({
+        value: 'test@mail.com',
+        component: null as ComponentInstance,
+      });
+      const passwordField = new FieldNode({
+        value: 'secret',
+        component: null as ComponentInstance,
+      });
+      const ageField = new FieldNode({ value: 25, component: null as ComponentInstance });
+      const isActiveField = new FieldNode({ value: true, component: null as ComponentInstance });
 
       registry.set('email', emailField);
       registry.set('password', passwordField);
@@ -205,8 +227,14 @@ describe('FieldRegistry', () => {
 
     it('should allow overwriting field', () => {
       const registry = new FieldRegistry<{ email: string }>();
-      const field1 = new FieldNode({ value: 'first@mail.com', component: null as any });
-      const field2 = new FieldNode({ value: 'second@mail.com', component: null as any });
+      const field1 = new FieldNode({
+        value: 'first@mail.com',
+        component: null as ComponentInstance,
+      });
+      const field2 = new FieldNode({
+        value: 'second@mail.com',
+        component: null as ComponentInstance,
+      });
 
       registry.set('email', field1);
       expect(registry.get('email')).toBe(field1);
@@ -258,8 +286,14 @@ describe('FieldRegistry', () => {
       };
 
       const registry = new FieldRegistry<ComplexForm>();
-      const userField = new FieldNode({ value: { name: '', email: '' }, component: null as any });
-      const settingsField = new FieldNode({ value: { theme: 'dark' }, component: null as any });
+      const userField = new FieldNode({
+        value: { name: '', email: '' },
+        component: null as ComponentInstance,
+      });
+      const settingsField = new FieldNode({
+        value: { theme: 'dark' },
+        component: null as ComponentInstance,
+      });
 
       registry.set('user', userField);
       registry.set('settings', settingsField);

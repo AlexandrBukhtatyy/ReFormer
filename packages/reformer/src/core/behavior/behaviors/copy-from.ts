@@ -2,7 +2,7 @@
  * Copy values between fields
  */
 
-import type { FieldPathNode } from '../../types';
+import type { FieldPathNode, FormValue } from '../../types';
 import type { CopyFromOptions } from '../types';
 import { watchField } from './watch-field';
 
@@ -24,7 +24,7 @@ import { watchField } from './watch-field';
  * };
  * ```
  */
-export function copyFrom<TForm extends Record<string, any>, TSource, TTarget>(
+export function copyFrom<TForm extends Record<string, FormValue>, TSource, TTarget>(
   target: FieldPathNode<TForm, TTarget>,
   source: FieldPathNode<TForm, TSource>,
   options?: CopyFromOptions<TForm, TSource>
@@ -52,17 +52,16 @@ export function copyFrom<TForm extends Record<string, any>, TSource, TTarget>(
         targetNode.setValue(value, { emitEvent: false });
       } else {
         // Частичное копирование для групп
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const patch: any = {};
+        const patch: Record<string, unknown> = {};
         fields.forEach((key) => {
           if (sourceValue && typeof sourceValue === 'object') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            patch[key] = (sourceValue as any)[key];
+            patch[key] = (sourceValue as Record<string, unknown>)[key];
           }
         });
         if ('patchValue' in targetNode) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (targetNode as any).patchValue(patch);
+          (
+            targetNode as unknown as { patchValue: (patch: Record<string, unknown>) => void }
+          ).patchValue(patch);
         }
       }
     },

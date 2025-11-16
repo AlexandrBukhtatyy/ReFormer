@@ -29,7 +29,7 @@ import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
  * console.log(field.valid.value); // true
  * ```
  */
-export class FieldNode<T = any> extends FormNode<T> {
+export class FieldNode<T> extends FormNode<T> {
   // ============================================================================
   // Приватные сигналы
   // ============================================================================

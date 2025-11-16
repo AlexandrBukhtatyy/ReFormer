@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import type { ValidatorFn } from '../../../src/core/types';
 import { makeForm } from '../../../src/core/utils/make-form';
+import { ComponentInstance } from '../../test-utils/types';
 
 const requiredValidator: ValidatorFn<string> = (value: string) => {
   return value.trim() === '' ? { code: 'required', message: 'Field is required' } : null;
@@ -18,7 +19,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should change updateOn from submit to change', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [requiredValidator],
       });
@@ -43,7 +44,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should change updateOn from change to blur', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -78,7 +79,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should change updateOn from blur to submit', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -121,13 +122,13 @@ describe('FieldNode - setUpdateOn()', () => {
       const form = makeForm<LoginForm>({
         email: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
         password: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
@@ -170,7 +171,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should start with blur and switch to change on user interaction', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -196,7 +197,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should handle multiple updateOn changes', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [requiredValidator],
       });
@@ -242,19 +243,19 @@ describe('FieldNode - setUpdateOn()', () => {
       const form = makeForm<Form>({
         field1: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
         field2: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
         field3: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
@@ -285,7 +286,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should handle setting same updateOn value', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -303,7 +304,7 @@ describe('FieldNode - setUpdateOn()', () => {
     it('should not affect existing validation state', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -331,7 +332,7 @@ describe('FieldNode - setUpdateOn()', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         asyncValidators: [asyncValidator],
       });
@@ -362,19 +363,19 @@ describe('FieldNode - setUpdateOn()', () => {
       const form = makeForm<RegistrationForm>({
         username: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
         email: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
         password: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },

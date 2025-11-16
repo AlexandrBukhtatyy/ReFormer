@@ -7,6 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import type { AsyncValidatorFn } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('FieldNode - Race Condition Protection', () => {
   describe('Async validation race conditions', () => {
@@ -18,7 +19,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [slowValidator],
       });
 
@@ -59,7 +60,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [slowValidator],
       });
 
@@ -94,7 +95,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [validator1, validator2],
       });
 
@@ -119,7 +120,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should correctly increment validationId', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           //@ts-ignore
           async (value) => {
@@ -150,7 +151,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           async (value) => {
             validatorCallCount();
@@ -185,7 +186,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should handle validation started during debounce period', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           async (value) => {
             await new Promise((resolve) => setTimeout(resolve, 10));
@@ -214,7 +215,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should not apply outdated debounced validation', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           async (value) => {
             await new Promise((resolve) => setTimeout(resolve, 50));
@@ -256,7 +257,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [validator1, validator2],
       });
 
@@ -296,7 +297,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [slowValidator, fastValidator],
       });
 
@@ -334,7 +335,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [emailValidator],
         debounce: 300,
       });
@@ -368,7 +369,7 @@ describe('FieldNode - Race Condition Protection', () => {
 
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           createNetworkValidator(100), // Быстрая сеть
           createNetworkValidator(200), // Медленная сеть
@@ -395,7 +396,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should handle async validation with sync errors', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [
           (value: string) =>
             value.length < 3 ? { code: 'minLength', message: 'Too short' } : null,
@@ -430,7 +431,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should handle validation ID overflow correctly', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           async () => {
             await new Promise((resolve) => setTimeout(resolve, 10));
@@ -455,7 +456,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should handle validation with no async validators', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [
           (value: string) =>
             value.length < 3 ? { code: 'minLength', message: 'Too short' } : null,
@@ -476,7 +477,7 @@ describe('FieldNode - Race Condition Protection', () => {
     it('should handle dispose during pending validation', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [
           async () => {
             await new Promise((resolve) => setTimeout(resolve, 200));

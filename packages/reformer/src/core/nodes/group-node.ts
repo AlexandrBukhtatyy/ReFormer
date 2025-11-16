@@ -73,7 +73,7 @@ import { v4 as uuidv4 } from 'uuid';
  * console.log(fullForm.valid.value); // true
  * ```
  */
-export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> {
+export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
   // ============================================================================
   // Приватные поля
   // ============================================================================
@@ -505,7 +505,7 @@ export class GroupNode<T extends Record<string, any> = any> extends FormNode<T> 
    * Отправить форму
    * Валидирует форму и вызывает onSubmit если форма валидна
    */
-  async submit<R = any>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> {
+  async submit<R>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> {
     this.markAsTouched();
 
     const isValid = await this.validate();

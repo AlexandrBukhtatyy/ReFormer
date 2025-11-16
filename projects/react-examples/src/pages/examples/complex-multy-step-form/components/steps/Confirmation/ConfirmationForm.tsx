@@ -74,8 +74,9 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
 
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md mt-6">
         <p className="text-sm text-yellow-800">
-          <strong>Внимание!</strong> После нажатия кнопки "Отправить заявку" вы подтверждаете
-          достоверность предоставленной информации и согласие c условиями кредитования.
+          <strong>Внимание!</strong> После нажатия кнопки &quot;Отправить заявку&quot; вы
+          подтверждаете достоверность предоставленной информации и согласие c условиями
+          кредитования.
         </p>
       </div>
 

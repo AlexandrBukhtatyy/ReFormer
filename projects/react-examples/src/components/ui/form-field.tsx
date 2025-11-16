@@ -4,7 +4,7 @@ import { Checkbox } from './checkbox';
 // import { useFormControl } from '../../hooks/useFormControl';
 
 export interface FormFieldProps {
-  control: FieldNode | any; // Поддержка любых узлов (FieldNode, GroupNode fields)
+  control: FieldNode | unknown; // Поддержка любых узлов (FieldNode, GroupNode fields)
   className?: string;
 }
 
@@ -27,10 +27,12 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
 
       <Component
         value={safeValue}
-        onChange={(e: any) => {
+        onChange={(e: unknown) => {
           // Для чекбоксов e - это boolean напрямую
           // Для обычных input e - это event с target.value
-          const newValue = isCheckbox ? e : (e?.target?.value ?? e);
+          const newValue = isCheckbox
+            ? e
+            : ((e as { target?: { value?: unknown } })?.target?.value ?? e);
           control.setValue(newValue);
         }}
         onBlur={() => {

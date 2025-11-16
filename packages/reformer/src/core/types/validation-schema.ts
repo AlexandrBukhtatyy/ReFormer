@@ -13,9 +13,9 @@ import type { FieldPath } from './field-path';
 
 // Forward declarations для избежания циклических зависимостей
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GroupNode<_T = any> = any;
+type GroupNode<_T> = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type FieldNode<_T = any> = any;
+type FieldNode<_T> = any;
 
 // ============================================================================
 // Контекст валидации
@@ -28,7 +28,7 @@ type FieldNode<_T = any> = any;
  * - Значениям других полей
  * - Всей форме
  */
-export interface ValidationContext<TForm = any, TField = any> {
+export interface ValidationContext<TForm, TField> {
   /**
    * Получить текущее значение поля
    */
@@ -69,7 +69,7 @@ export interface ValidationContext<TForm = any, TField = any> {
  * Контекст для cross-field валидации
  * Имеет доступ ко всей форме, но не к конкретному полю
  */
-export interface TreeValidationContext<TForm = any> {
+export interface TreeValidationContext<TForm> {
   /**
    * Получить значение поля по пути
    */
@@ -94,28 +94,26 @@ export interface TreeValidationContext<TForm = any> {
 /**
  * Функция валидации поля с контекстом
  */
-export type ContextualValidatorFn<TForm = any, TField = any> = (
+export type ContextualValidatorFn<TForm, TField> = (
   ctx: ValidationContext<TForm, TField>
 ) => ValidationError | null;
 
 /**
  * Асинхронная функция валидации поля с контекстом
  */
-export type ContextualAsyncValidatorFn<TForm = any, TField = any> = (
+export type ContextualAsyncValidatorFn<TForm, TField> = (
   ctx: ValidationContext<TForm, TField>
 ) => Promise<ValidationError | null>;
 
 /**
  * Функция cross-field валидации
  */
-export type TreeValidatorFn<TForm = any> = (
-  ctx: TreeValidationContext<TForm>
-) => ValidationError | null;
+export type TreeValidatorFn<TForm> = (ctx: TreeValidationContext<TForm>) => ValidationError | null;
 
 /**
  * Функция условия для applyWhen
  */
-export type ConditionFn<T = any> = (value: T) => boolean;
+export type ConditionFn<T> = (value: T) => boolean;
 
 // ============================================================================
 // Опции валидации

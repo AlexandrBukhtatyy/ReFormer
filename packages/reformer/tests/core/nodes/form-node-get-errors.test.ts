@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { GroupNode } from '../../../src/core/nodes/group-node';
 import type { ValidationError } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('FormNode.getErrors()', () => {
   describe('FieldNode', () => {
@@ -16,7 +17,7 @@ describe('FormNode.getErrors()', () => {
     beforeEach(() => {
       field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
     });
 
@@ -207,8 +208,8 @@ describe('FormNode.getErrors()', () => {
 
     beforeEach(() => {
       form = new GroupNode({
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
       });
     });
 
@@ -264,7 +265,7 @@ describe('FormNode.getErrors()', () => {
     beforeEach(() => {
       field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
     });
 
@@ -336,9 +337,9 @@ describe('FormNode.getErrors()', () => {
 
     beforeEach(() => {
       form = new GroupNode({
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
-        confirmPassword: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
+        confirmPassword: { value: '', component: null as ComponentInstance },
       });
     });
 

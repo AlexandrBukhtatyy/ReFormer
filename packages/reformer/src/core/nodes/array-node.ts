@@ -31,7 +31,7 @@ import { SubscriptionManager } from '../utils/subscription-manager';
  * console.log(array.length.value); // 1
  * ```
  */
-export class ArrayNode<T extends object = any> extends FormNode<T[]> {
+export class ArrayNode<T extends object> extends FormNode<T[]> {
   // ============================================================================
   // Приватные поля
   // ============================================================================

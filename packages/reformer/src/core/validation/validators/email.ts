@@ -10,7 +10,7 @@ import type { FieldPathNode } from '../../types';
  * Адаптер для email валидатора
  * Поддерживает опциональные поля (string | undefined)
  */
-export function email<TForm = any, TField extends string | undefined = string>(
+export function email<TForm, TField extends string | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions
 ): void {

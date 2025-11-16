@@ -6,7 +6,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { makeForm } from '../../../src/core/utils/make-form';
-import type { GroupNodeWithControls } from '../../../src/core';
+import type { GroupNodeWithControls } from '../../../src';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Reference Equality', () => {
   interface TestForm {
@@ -19,9 +20,9 @@ describe('GroupNode - Reference Equality', () => {
 
   beforeEach(() => {
     form = makeForm<TestForm>({
-      email: { value: 'test@mail.com', component: null as any },
-      password: { value: 'secret', component: null as any },
-      age: { value: 25, component: null as any },
+      email: { value: 'test@mail.com', component: null as ComponentInstance },
+      password: { value: 'secret', component: null as ComponentInstance },
+      age: { value: 25, component: null as ComponentInstance },
     });
   });
 
@@ -180,11 +181,11 @@ describe('GroupNode - Reference Equality', () => {
     it('should cache nested group values independently', () => {
       const nestedForm = makeForm<NestedForm>({
         user: {
-          name: { value: 'John', component: null as any },
-          email: { value: 'john@mail.com', component: null as any },
+          name: { value: 'John', component: null as ComponentInstance },
+          email: { value: 'john@mail.com', component: null as ComponentInstance },
         },
         settings: {
-          theme: { value: 'dark', component: null as any },
+          theme: { value: 'dark', component: null as ComponentInstance },
         },
       });
 
@@ -208,11 +209,11 @@ describe('GroupNode - Reference Equality', () => {
     it('should not invalidate cache when unrelated nested field changes', () => {
       const nestedForm = makeForm<NestedForm>({
         user: {
-          name: { value: 'John', component: null as any },
-          email: { value: 'john@mail.com', component: null as any },
+          name: { value: 'John', component: null as ComponentInstance },
+          email: { value: 'john@mail.com', component: null as ComponentInstance },
         },
         settings: {
-          theme: { value: 'dark', component: null as any },
+          theme: { value: 'dark', component: null as ComponentInstance },
         },
       });
 
@@ -247,7 +248,7 @@ describe('GroupNode - Reference Equality', () => {
       }
 
       const singleForm = makeForm<SingleFieldForm>({
-        name: { value: 'test', component: null as any },
+        name: { value: 'test', component: null as ComponentInstance },
       });
 
       const value1 = singleForm.value.value;

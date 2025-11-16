@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { signal } from '@preact/signals-core';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('FieldNode - Cleanup (dispose)', () => {
   let field: FieldNode<string>;
@@ -12,7 +13,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
   beforeEach(() => {
     field = new FieldNode({
       value: '',
-      component: null as any,
+      component: null as ComponentInstance,
     });
   });
 
@@ -140,7 +141,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
 
       const field2 = new FieldNode<string>({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field.computeFrom([source1], (v1) => `field1-${v1}`);
@@ -221,7 +222,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
 
       const fieldWithDebounce = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         asyncValidators: [asyncValidator],
         debounce: 500,
       });
@@ -261,7 +262,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
     it('should handle dispose() on field without subscriptions', () => {
       const emptyField = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       expect(() => emptyField.dispose()).not.toThrow();

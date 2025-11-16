@@ -40,7 +40,7 @@ import type { FieldPathNode } from '../../types';
  * );
  * ```
  */
-export function validateAsync<TForm = any, TField = any>(
+export function validateAsync<TForm, TField>(
   fieldPath: FieldPathNode<TForm, TField>,
   validatorFn: ContextualAsyncValidatorFn<TForm, TField>,
   options?: ValidateAsyncOptions

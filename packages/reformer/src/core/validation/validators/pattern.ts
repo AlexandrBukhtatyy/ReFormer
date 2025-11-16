@@ -10,7 +10,7 @@ import type { FieldPathNode } from '../../types';
  * Адаптер для pattern валидатора
  * Поддерживает опциональные поля (string | undefined)
  */
-export function pattern<TForm = any, TField extends string | undefined = string>(
+export function pattern<TForm, TField extends string | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   regex: RegExp,
   options?: ValidateOptions

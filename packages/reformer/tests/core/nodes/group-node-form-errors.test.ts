@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { GroupNodeWithControls, ValidationError } from '../../../src/core/types';
 import { makeForm } from '../../../src/core/utils/make-form';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Form-level Errors', () => {
   interface TestForm {
@@ -19,9 +20,9 @@ describe('GroupNode - Form-level Errors', () => {
 
   beforeEach(() => {
     form = makeForm<TestForm>({
-      email: { value: '', component: null as any },
-      password: { value: '', component: null as any },
-      confirmPassword: { value: '', component: null as any },
+      email: { value: '', component: null as ComponentInstance },
+      password: { value: '', component: null as ComponentInstance },
+      confirmPassword: { value: '', component: null as ComponentInstance },
     });
   });
 
@@ -228,8 +229,8 @@ describe('GroupNode - Form-level Errors', () => {
     it('should handle form-level errors in nested groups independently', () => {
       const nestedForm = makeForm<NestedForm>({
         user: {
-          name: { value: '', component: null as any },
-          email: { value: '', component: null as any },
+          name: { value: '', component: null as ComponentInstance },
+          email: { value: '', component: null as ComponentInstance },
         },
       });
 
@@ -258,8 +259,8 @@ describe('GroupNode - Form-level Errors', () => {
     it('should clear form-level errors recursively', () => {
       const nestedForm = makeForm<NestedForm>({
         user: {
-          name: { value: '', component: null as any },
-          email: { value: '', component: null as any },
+          name: { value: '', component: null as ComponentInstance },
+          email: { value: '', component: null as ComponentInstance },
         },
       });
 
@@ -337,7 +338,7 @@ describe('GroupNode - Form-level Errors', () => {
   describe('Edge cases', () => {
     it('should handle setErrors with undefined', () => {
       // Не должно упасть
-      expect(() => form.setErrors([] as any)).not.toThrow();
+      expect(() => form.setErrors([] as unknown)).not.toThrow();
     });
 
     it('should handle clearErrors on fresh form', () => {

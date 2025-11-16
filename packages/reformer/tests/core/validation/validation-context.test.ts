@@ -10,6 +10,7 @@ import { required, validate, validateTree, email, minLength } from '../../../src
 import type { GroupNodeWithControls } from '../../../src/core/types/group-node-proxy';
 import { makeForm } from '../../../src/core/utils/make-form';
 import type { FieldPath } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('ValidationContext через публичный API', () => {
   interface TestForm {
@@ -26,12 +27,12 @@ describe('ValidationContext через публичный API', () => {
 
   beforeEach(() => {
     form = makeForm<TestForm>({
-      email: { value: 'test@mail.com', component: null as any },
-      password: { value: 'password123', component: null as any },
-      confirmPassword: { value: 'password123', component: null as any },
+      email: { value: 'test@mail.com', component: null as ComponentInstance },
+      password: { value: 'password123', component: null as ComponentInstance },
+      confirmPassword: { value: 'password123', component: null as ComponentInstance },
       address: {
-        city: { value: 'Moscow', component: null as any },
-        street: { value: 'Lenina', component: null as any },
+        city: { value: 'Moscow', component: null as ComponentInstance },
+        street: { value: 'Lenina', component: null as ComponentInstance },
       },
     });
   });
@@ -40,12 +41,12 @@ describe('ValidationContext через публичный API', () => {
     it('should access current field value via context.value()', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -64,12 +65,12 @@ describe('ValidationContext через публичный API', () => {
     it('should access other field via context.getField()', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: 'secret123', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: 'secret123', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -88,12 +89,12 @@ describe('ValidationContext через публичный API', () => {
     it('should access nested field via context.getField()', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -115,12 +116,12 @@ describe('ValidationContext через публичный API', () => {
     it('should return undefined for non-existent path', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -140,12 +141,12 @@ describe('ValidationContext через публичный API', () => {
     it('should set field value via context.setField()', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: 'oldpassword', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: 'oldpassword', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -166,12 +167,12 @@ describe('ValidationContext через публичный API', () => {
     it('should set nested field value via context.setField()', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -196,12 +197,12 @@ describe('ValidationContext через публичный API', () => {
     it('should access full form value via context.formValue()', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: 'password123', component: null as any },
-          confirmPassword: { value: 'password123', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: 'password123', component: null as ComponentInstance },
+          confirmPassword: { value: 'password123', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -229,12 +230,12 @@ describe('ValidationContext через публичный API', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -258,12 +259,12 @@ describe('ValidationContext через публичный API', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -288,12 +289,12 @@ describe('ValidationContext через публичный API', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: 'secret123', component: null as any },
-          confirmPassword: { value: 'secret456', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: 'secret123', component: null as ComponentInstance },
+          confirmPassword: { value: 'secret456', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -323,12 +324,12 @@ describe('ValidationContext через публичный API', () => {
     it('should validate password confirmation (matching passwords)', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: 'secret123', component: null as any },
-          confirmPassword: { value: 'secret123', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: 'secret123', component: null as ComponentInstance },
+          confirmPassword: { value: 'secret123', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -361,8 +362,8 @@ describe('ValidationContext через публичный API', () => {
 
       const conditionalForm = makeForm<ConditionalForm>({
         form: {
-          loanType: { value: 'mortgage', component: null as any },
-          propertyValue: { value: null, component: null as any },
+          loanType: { value: 'mortgage', component: null as ComponentInstance },
+          propertyValue: { value: null, component: null as ComponentInstance },
         },
         validation: (path: FieldPath<ConditionalForm>) => {
           validate(path.propertyValue, (ctx) => {
@@ -397,12 +398,12 @@ describe('ValidationContext через публичный API', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: 'password123', component: null as any },
-          confirmPassword: { value: 'password123', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: 'password123', component: null as ComponentInstance },
+          confirmPassword: { value: 'password123', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: () => {
@@ -433,12 +434,12 @@ describe('ValidationContext через публичный API', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: 'secret', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: 'secret', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'SPB', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: 'SPB', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: () => {
@@ -463,12 +464,12 @@ describe('ValidationContext через публичный API', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
-          confirmPassword: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
+          confirmPassword: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: () => {
@@ -487,12 +488,12 @@ describe('ValidationContext через публичный API', () => {
     it('should target error to specific field via targetField option', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: 'secret123', component: null as any },
-          confirmPassword: { value: 'different', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: 'secret123', component: null as ComponentInstance },
+          confirmPassword: { value: 'different', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: () => {
@@ -535,10 +536,10 @@ describe('ValidationContext через публичный API', () => {
 
       const registrationForm = makeForm<RegistrationForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: 'short', component: null as any },
-          confirmPassword: { value: 'different', component: null as any },
-          terms: { value: false, component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: 'short', component: null as ComponentInstance },
+          confirmPassword: { value: 'different', component: null as ComponentInstance },
+          terms: { value: false, component: null as ComponentInstance },
         },
         validation: (path: FieldPath<RegistrationForm>) => {
           // Email валидация

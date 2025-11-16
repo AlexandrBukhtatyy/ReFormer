@@ -10,7 +10,7 @@ import type { FieldPathNode } from '../../types';
  * Адаптер для minLength валидатора
  * Поддерживает опциональные поля (string | undefined)
  */
-export function minLength<TForm = any, TField extends string | undefined = string>(
+export function minLength<TForm, TField extends string | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   minLen: number,
   options?: ValidateOptions

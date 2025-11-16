@@ -7,6 +7,7 @@ import { ArrayNode } from '../../../src/core/nodes/array-node';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
 import { required, minLength } from '../../../src/core/validation/validators';
 import type { FieldPath, ValidationSchemaFn } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('ArrayNode', () => {
   interface ItemForm {
@@ -18,8 +19,8 @@ describe('ArrayNode', () => {
 
   beforeEach(() => {
     arrayNode = new ArrayNode<ItemForm>({
-      title: { value: '', component: null as any },
-      price: { value: 0, component: null as any },
+      title: { value: '', component: null as ComponentInstance },
+      price: { value: 0, component: null as ComponentInstance },
     });
   });
 
@@ -537,8 +538,8 @@ describe('ArrayNode', () => {
     it('should create array with initial items', () => {
       const arrayWithInitial = new ArrayNode<ItemForm>(
         {
-          title: { value: '', component: null as any },
-          price: { value: 0, component: null as any },
+          title: { value: '', component: null as ComponentInstance },
+          price: { value: 0, component: null as ComponentInstance },
         },
         [
           { title: 'Initial 1', price: 100 },
@@ -914,8 +915,8 @@ describe('ArrayNode', () => {
   describe('disable/enable', () => {
     it('should disable all items in array', () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       arrayNode.push({ title: 'Item 1', price: 100 });
@@ -938,8 +939,8 @@ describe('ArrayNode', () => {
 
     it('should enable all items in array', () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       arrayNode.push({ title: 'Item 1', price: 100 });
@@ -962,8 +963,8 @@ describe('ArrayNode', () => {
 
     it('should handle disable/enable on empty array', () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // Should not throw on empty array
@@ -980,10 +981,10 @@ describe('ArrayNode', () => {
       }
 
       const nestedArrayNode = new ArrayNode<NestedItem>({
-        title: { value: '', component: null as any },
+        title: { value: '', component: null as ComponentInstance },
         subitems: [
           {
-            name: { value: '', component: null as any },
+            name: { value: '', component: null as ComponentInstance },
           },
         ],
       });
@@ -1016,10 +1017,10 @@ describe('ArrayNode', () => {
       }
 
       const nestedArrayNode = new ArrayNode<NestedItem>({
-        title: { value: '', component: null as any },
+        title: { value: '', component: null as ComponentInstance },
         subitems: [
           {
-            name: { value: '', component: null as any },
+            name: { value: '', component: null as ComponentInstance },
           },
         ],
       });
@@ -1046,8 +1047,8 @@ describe('ArrayNode', () => {
 
     it('should work with items added after disable', () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // Add and disable
@@ -1070,13 +1071,13 @@ describe('ArrayNode', () => {
       const arrayNode = new ArrayNode<ItemForm>({
         title: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           validators: [
             (value: string) =>
               value.length === 0 ? { code: 'required', message: 'Required' } : null,
           ],
         },
-        price: { value: 0, component: null as any },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // Add item with invalid title

@@ -29,11 +29,11 @@
 
 // Forward declarations для избежания циклических зависимостей
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type FieldNode<_T = any> = any;
+type FieldNode<_T> = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GroupNode<_T = any> = any;
+type GroupNode<_T> = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ArrayNode<_T = any> = any;
+type ArrayNode<_T> = any;
 
 /**
  * Мапит тип модели данных T на правильные типы узлов формы

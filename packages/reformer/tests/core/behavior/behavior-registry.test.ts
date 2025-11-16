@@ -8,6 +8,7 @@ import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
 import type { GroupNodeWithControls } from '../../src';
 import { makeForm } from '../../../src/core/utils/make-form';
 import type { FieldPath } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('BehaviorRegistry', () => {
   interface TestForm {
@@ -21,10 +22,10 @@ describe('BehaviorRegistry', () => {
 
   beforeEach(() => {
     form = makeForm({
-      email: { value: '', component: null as any },
-      copyEmail: { value: '', component: null as any },
-      country: { value: '', component: null as any },
-      region: { value: '', component: null as any },
+      email: { value: '', component: null as ComponentInstance },
+      copyEmail: { value: '', component: null as ComponentInstance },
+      country: { value: '', component: null as ComponentInstance },
+      region: { value: '', component: null as ComponentInstance },
     });
   });
 

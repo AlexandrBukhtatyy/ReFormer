@@ -18,7 +18,7 @@ import type { FieldPathNode } from '../../types';
  * number(path.rating, { min: 0, max: 5, multipleOf: 0.5 });
  * ```
  */
-export function number<TForm = any, TField extends number | undefined = number>(
+export function number<TForm, TField extends number | undefined = number>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions & {
     /** Минимальное значение (включительно) */

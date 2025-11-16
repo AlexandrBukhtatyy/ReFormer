@@ -49,7 +49,7 @@ export interface UseStepFormResult<T extends Record<string, any>> {
   goToStep: (step: number) => boolean;
 
   /** Отправить форму (с полной валидацией) */
-  submit: <R = any>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
+  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
 
   /** Первый ли это шаг */
   isFirstStep: boolean;
@@ -170,7 +170,7 @@ export function useStepForm<T extends Record<string, any>>(
   // ============================================================================
 
   const submit = useCallback(
-    async <R = any>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> => {
+    async <R>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> => {
       // Валидируем всю форму с полной схемой
       const isValid = await validateForm(form, config.fullSchema);
 

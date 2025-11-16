@@ -9,6 +9,7 @@ import { validate, validateTree } from '../../../src/core/validation';
 import type { GroupNodeWithControls } from '../../../src/core/types';
 import { makeForm } from '../../../src/core/utils/make-form';
 import type { FieldPath } from '../../../src/core/types';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('ValidationContext - Type Safety', () => {
   interface TestForm {
@@ -25,11 +26,11 @@ describe('ValidationContext - Type Safety', () => {
 
   beforeEach(() => {
     form = makeForm<TestForm>({
-      email: { value: 'test@mail.com', component: null as any },
-      password: { value: 'password123', component: null as any },
+      email: { value: 'test@mail.com', component: null as ComponentInstance },
+      password: { value: 'password123', component: null as ComponentInstance },
       address: {
-        city: { value: 'Moscow', component: null as any },
-        street: { value: 'Lenina', component: null as any },
+        city: { value: 'Moscow', component: null as ComponentInstance },
+        street: { value: 'Lenina', component: null as ComponentInstance },
       },
     });
 
@@ -45,11 +46,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should return value for existing field (type-safe key)', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -68,11 +69,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should return value for nested field (string path)', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -91,16 +92,16 @@ describe('ValidationContext - Type Safety', () => {
     it('should return undefined and warn for non-existent field (dev mode)', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
           validate(path.email, (ctx) => {
-            const nonExistent = ctx.getField('nonexistent' as any);
+            const nonExistent = ctx.getField('nonexistent' as unknown);
             expect(nonExistent).toBeUndefined();
             return null;
           });
@@ -120,11 +121,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should return undefined and warn for non-existent nested path', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -151,11 +152,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should return undefined and warn for completely invalid path', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -184,11 +185,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should set value for existing field (type-safe key)', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'old@mail.com', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: 'old@mail.com', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -207,11 +208,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should set value for nested field (string path)', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -232,11 +233,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should warn when setting non-existent field', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -260,11 +261,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should warn when setting non-existent nested path', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -295,11 +296,11 @@ describe('ValidationContext - Type Safety', () => {
 
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: () => {
@@ -320,16 +321,16 @@ describe('ValidationContext - Type Safety', () => {
     it('should warn when accessing non-existent field', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: () => {
           validateTree((ctx) => {
-            const nonExistent = ctx.getField('nonexistent' as any);
+            const nonExistent = ctx.getField('nonexistent' as unknown);
             expect(nonExistent).toBeUndefined();
             return null;
           });
@@ -349,11 +350,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should warn when accessing non-existent nested path', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: () => {
@@ -380,11 +381,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should correctly identify FormNode via type guard', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: 'test@mail.com', component: null as any },
-          password: { value: 'secret', component: null as any },
+          email: { value: 'test@mail.com', component: null as ComponentInstance },
+          password: { value: 'secret', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -409,11 +410,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should use type guard in setField to ensure setValue exists', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Old', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: 'Old', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -449,7 +450,7 @@ describe('ValidationContext - Type Safety', () => {
           level1: {
             level2: {
               level3: {
-                value: { value: 'deep', component: null as any },
+                value: { value: 'deep', component: null as ComponentInstance },
               },
             },
           },
@@ -470,7 +471,7 @@ describe('ValidationContext - Type Safety', () => {
 
       await deepForm.validate();
       // Поле 'value' получаем через fields.get()
-      const valueField = deepForm.level1.level2.level3.fields.get('value' as any);
+      const valueField = deepForm.level1.level2.level3.fields.get('value' as unknown);
       expect(valueField?.value.value).toBe('updated');
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
@@ -478,11 +479,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should handle partial paths correctly', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: 'Moscow', component: null as any },
-            street: { value: 'Lenina', component: null as any },
+            city: { value: 'Moscow', component: null as ComponentInstance },
+            street: { value: 'Lenina', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {
@@ -505,11 +506,11 @@ describe('ValidationContext - Type Safety', () => {
     it('should not break on empty path', async () => {
       form = makeForm<TestForm>({
         form: {
-          email: { value: '', component: null as any },
-          password: { value: '', component: null as any },
+          email: { value: '', component: null as ComponentInstance },
+          password: { value: '', component: null as ComponentInstance },
           address: {
-            city: { value: '', component: null as any },
-            street: { value: '', component: null as any },
+            city: { value: '', component: null as ComponentInstance },
+            street: { value: '', component: null as ComponentInstance },
           },
         },
         validation: (path: FieldPath<TestForm>) => {

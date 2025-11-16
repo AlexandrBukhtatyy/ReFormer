@@ -30,7 +30,7 @@ const InputSearch = React.forwardRef<HTMLInputElement, InputSearchProps>(
     },
     ref
   ) => {
-    const [suggestions, setSuggestions] = React.useState<any[]>([]);
+    const [suggestions, setSuggestions] = React.useState<unknown[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [showSuggestions, setShowSuggestions] = React.useState(false);
     const [inputValue, setInputValue] = React.useState(value || '');
@@ -58,6 +58,7 @@ const InputSearch = React.forwardRef<HTMLInputElement, InputSearchProps>(
             setSuggestions(response.items);
             setShowSuggestions(true);
           } catch (error) {
+            console.error('Failed to load suggestions:', error);
             setSuggestions([]);
           } finally {
             setLoading(false);
@@ -69,8 +70,9 @@ const InputSearch = React.forwardRef<HTMLInputElement, InputSearchProps>(
       }
     };
 
-    const handleSuggestionClick = (suggestion: any) => {
-      const selectedValue = suggestion.label || suggestion.value;
+    const handleSuggestionClick = (suggestion: unknown) => {
+      const suggestionObj = suggestion as { label?: string; value?: string };
+      const selectedValue = suggestionObj.label || suggestionObj.value || '';
       setInputValue(selectedValue);
       onChange?.(selectedValue);
       setShowSuggestions(false);

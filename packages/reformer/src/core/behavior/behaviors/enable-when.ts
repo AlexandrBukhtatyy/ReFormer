@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode } from '../../types';
+import type { FieldPathNode, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
@@ -24,8 +24,8 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function enableWhen<TForm extends Record<string, any>>(
-  field: FieldPathNode<TForm, any>,
+export function enableWhen<TForm extends Record<string, FormValue>>(
+  field: FieldPathNode<TForm, FormValue>,
   condition: (form: TForm) => boolean,
   options?: EnableWhenOptions
 ): void {
@@ -71,8 +71,8 @@ export function enableWhen<TForm extends Record<string, any>>(
  * };
  * ```
  */
-export function disableWhen<TForm extends Record<string, any>>(
-  field: FieldPathNode<TForm, any>,
+export function disableWhen<TForm extends Record<string, FormValue>>(
+  field: FieldPathNode<TForm, FormValue>,
   condition: (form: TForm) => boolean,
   options?: EnableWhenOptions
 ): void {

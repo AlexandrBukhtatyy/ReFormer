@@ -10,7 +10,7 @@ import type { FieldPathNode } from '../../types';
  * Адаптер для required валидатора
  * Поддерживает опциональные поля (TField | undefined)
  */
-export function required<TForm = any, TField = any>(
+export function required<TForm, TField>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions
 ): void {

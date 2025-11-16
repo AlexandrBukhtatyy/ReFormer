@@ -35,7 +35,7 @@ import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
  *
  * @template T Тип формы (объект)
  */
-export class BehaviorApplicator<T extends Record<string, any>> {
+export class BehaviorApplicator<T extends Record<string, unknown>> {
   private readonly form: GroupNode<T>;
   private readonly behaviorRegistry: BehaviorRegistry;
 

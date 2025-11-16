@@ -10,7 +10,7 @@ import type { FieldPathNode } from '../../types';
  * Адаптер для min валидатора
  * Поддерживает опциональные поля (number | undefined)
  */
-export function min<TForm = any, TField extends number | undefined = number>(
+export function min<TForm, TField extends number | undefined = number>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   minValue: number,
   options?: ValidateOptions

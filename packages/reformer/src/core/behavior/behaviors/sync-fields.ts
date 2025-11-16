@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode } from '../../types';
+import type { FieldPathNode, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { SyncFieldsOptions, BehaviorHandlerFn } from '../types';
 
@@ -22,7 +22,7 @@ import type { SyncFieldsOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function syncFields<TForm extends Record<string, any>, T>(
+export function syncFields<TForm extends Record<string, FormValue>, T>(
   field1: FieldPathNode<TForm, T>,
   field2: FieldPathNode<TForm, T>,
   options?: SyncFieldsOptions<T>

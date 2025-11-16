@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import type { FieldPath, ValidationSchemaFn } from '../../../src/core/types';
 import { required, minLength } from '../../../src/core/validation';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('ArrayNode - setValue() Validation', () => {
   interface ItemForm {
@@ -18,8 +19,8 @@ describe('ArrayNode - setValue() Validation', () => {
   describe('Basic validation triggering', () => {
     it('should trigger validation after setValue', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // Установка validation schema
@@ -51,8 +52,8 @@ describe('ArrayNode - setValue() Validation', () => {
 
     it('should not trigger validation when emitEvent is false', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
@@ -73,8 +74,8 @@ describe('ArrayNode - setValue() Validation', () => {
 
     it('should update status to invalid when validation fails', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
@@ -104,7 +105,7 @@ describe('ArrayNode - setValue() Validation', () => {
       const arrayNode = new ArrayNode<ItemForm>({
         title: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           asyncValidators: [
             async (value: string) => {
               await new Promise((resolve) => setTimeout(resolve, 10));
@@ -114,7 +115,7 @@ describe('ArrayNode - setValue() Validation', () => {
             },
           ],
         },
-        price: { value: 0, component: null as any },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       arrayNode.setValue([
@@ -139,7 +140,7 @@ describe('ArrayNode - setValue() Validation', () => {
       const arrayNode = new ArrayNode<ItemForm>({
         title: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           asyncValidators: [
             async () => {
               await new Promise((resolve) => setTimeout(resolve, 100));
@@ -147,7 +148,7 @@ describe('ArrayNode - setValue() Validation', () => {
             },
           ],
         },
-        price: { value: 0, component: null as any },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       arrayNode.setValue([{ title: 'test', price: 100 }]);
@@ -168,8 +169,8 @@ describe('ArrayNode - setValue() Validation', () => {
   describe('Multiple items validation', () => {
     it('should validate all items after setValue', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
@@ -200,8 +201,8 @@ describe('ArrayNode - setValue() Validation', () => {
 
     it('should collect errors from all items', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
@@ -228,8 +229,8 @@ describe('ArrayNode - setValue() Validation', () => {
   describe('Edge cases', () => {
     it('should handle empty array setValue', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       arrayNode.setValue([]);
@@ -242,8 +243,8 @@ describe('ArrayNode - setValue() Validation', () => {
 
     it('should clear previous items and validate new ones', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
@@ -274,8 +275,8 @@ describe('ArrayNode - setValue() Validation', () => {
 
     it('should not crash when setValue is called multiple times rapidly', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // Быстрые вызовы setValue
@@ -295,8 +296,8 @@ describe('ArrayNode - setValue() Validation', () => {
   describe('API consistency with FieldNode', () => {
     it('should behave like FieldNode setValue with validation', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
@@ -321,8 +322,8 @@ describe('ArrayNode - setValue() Validation', () => {
 
     it('should support emitEvent option like FieldNode', async () => {
       const arrayNode = new ArrayNode<ItemForm>({
-        title: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        title: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // С emitEvent: true (default)

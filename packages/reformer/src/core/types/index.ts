@@ -1,9 +1,34 @@
 // ============================================================================
+// Form Value Types
+// ============================================================================
+
+/**
+ * Represents any valid form value type
+ * Use this instead of 'any' for form values to maintain type safety
+ */
+export type FormValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Date
+  | File
+  | FormValue[]
+  | { [key: string]: FormValue };
+
+/**
+ * Type-safe alternative to 'any' for unknown form values
+ * Requires explicit type checking before use
+ */
+export type UnknownFormValue = unknown;
+
+// ============================================================================
 // Validator Types
 // ============================================================================
 
-export type ValidatorFn<T = any> = (value: T) => ValidationError | null;
-export type AsyncValidatorFn<T = any> = (value: T) => Promise<ValidationError | null>;
+export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
+export type AsyncValidatorFn<T = FormValue> = (value: T) => Promise<ValidationError | null>;
 
 export interface ValidationError {
   code: string;

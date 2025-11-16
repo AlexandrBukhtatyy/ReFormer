@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import type { ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
 import { makeForm } from '../../../src/core/utils/make-form';
+import { ComponentInstance } from '../../test-utils/types';
 
 const requiredValidator: ValidatorFn<string> = (value: string) => {
   return value.trim() === '' ? { code: 'required', message: 'Field is required' } : null;
@@ -27,7 +28,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate on every setValue', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -54,7 +55,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate immediately on setValue without debounce', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -68,7 +69,7 @@ describe('FieldNode - updateOn', () => {
     it('should be default when updateOn is not specified', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         validators: [requiredValidator],
       });
 
@@ -83,7 +84,7 @@ describe('FieldNode - updateOn', () => {
     it('should NOT validate on setValue', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -100,7 +101,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate on markAsTouched (blur)', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -123,7 +124,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate on setValue if field has errors', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -145,7 +146,7 @@ describe('FieldNode - updateOn', () => {
     it('should NOT validate on setValue if field has NO errors', async () => {
       const field = new FieldNode({
         value: 'initial',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -166,7 +167,7 @@ describe('FieldNode - updateOn', () => {
     it('should NOT validate on setValue', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [requiredValidator],
       });
@@ -182,7 +183,7 @@ describe('FieldNode - updateOn', () => {
     it('should NOT validate on markAsTouched', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [requiredValidator],
       });
@@ -198,7 +199,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate on manual validate() call', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [requiredValidator],
       });
@@ -215,7 +216,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate on setValue if field has errors', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [requiredValidator],
       });
@@ -241,13 +242,13 @@ describe('FieldNode - updateOn', () => {
       const form = makeForm<TestForm>({
         email: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [requiredValidator],
         },
         password: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           updateOn: 'submit',
           validators: [minLengthValidator],
         },
@@ -274,7 +275,7 @@ describe('FieldNode - updateOn', () => {
     it('should respect updateOn: "blur" with async validators', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         asyncValidators: [asyncValidator],
       });
@@ -296,7 +297,7 @@ describe('FieldNode - updateOn', () => {
     it('should respect updateOn: "submit" with async validators', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         asyncValidators: [asyncValidator],
       });
@@ -319,7 +320,7 @@ describe('FieldNode - updateOn', () => {
     it('should validate all validators when triggered', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator, minLengthValidator],
       });
@@ -336,7 +337,7 @@ describe('FieldNode - updateOn', () => {
     it('should run sync and async validators', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
         asyncValidators: [asyncValidator],
@@ -354,7 +355,7 @@ describe('FieldNode - updateOn', () => {
     it('should handle rapid changes with updateOn: "change"', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -374,7 +375,7 @@ describe('FieldNode - updateOn', () => {
     it('should handle updateOn with emitEvent: false', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         validators: [requiredValidator],
       });
@@ -389,7 +390,7 @@ describe('FieldNode - updateOn', () => {
     it('should handle reset with updateOn', async () => {
       const field = new FieldNode({
         value: 'initial',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator],
       });
@@ -413,7 +414,7 @@ describe('FieldNode - updateOn', () => {
     it('should hide errors when value becomes valid (updateOn: blur)', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [minLengthValidator],
       });
@@ -435,7 +436,7 @@ describe('FieldNode - updateOn', () => {
     it('should update error message when value still invalid (updateOn: blur)', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         validators: [requiredValidator, minLengthValidator],
       });
@@ -456,7 +457,7 @@ describe('FieldNode - updateOn', () => {
     it('should hide errors when value becomes valid (updateOn: submit)', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'submit',
         validators: [minLengthValidator],
       });
@@ -478,7 +479,7 @@ describe('FieldNode - updateOn', () => {
     it('should combine updateOn: "change" with debounce', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'change',
         asyncValidators: [asyncValidator],
         debounce: 100,
@@ -501,7 +502,7 @@ describe('FieldNode - updateOn', () => {
     it('should combine updateOn: "blur" with debounce', async () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
         updateOn: 'blur',
         asyncValidators: [asyncValidator],
         debounce: 100,

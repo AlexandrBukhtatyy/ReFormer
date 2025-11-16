@@ -27,7 +27,7 @@ import type { ContextualValidatorFn, FieldPathNode, ValidateOptions } from '../.
  * });
  * ```
  */
-export function validate<TForm = any, TField = any>(
+export function validate<TForm, TField>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   validatorFn: ContextualValidatorFn<TForm, TField>,
   options?: ValidateOptions

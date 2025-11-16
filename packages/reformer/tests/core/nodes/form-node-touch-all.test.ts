@@ -8,14 +8,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { makeForm } from '../../../src/core/utils/make-form';
-import type { GroupNodeWithControls } from '../../../src/core';
+import type { GroupNodeWithControls } from '../../../src';
+import { ComponentInstance } from '../../test-utils/types';
 
 describe('FormNode - touchAll()', () => {
   describe('FieldNode', () => {
     it('should mark field as touched', () => {
       const field = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       expect(field.touched.value).toBe(false);
@@ -28,12 +29,12 @@ describe('FormNode - touchAll()', () => {
     it('should be equivalent to markAsTouched', () => {
       const field1 = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       const field2 = new FieldNode({
         value: '',
-        component: null as any,
+        component: null as ComponentInstance,
       });
 
       field1.touchAll();
@@ -55,9 +56,9 @@ describe('FormNode - touchAll()', () => {
 
     beforeEach(() => {
       form = makeForm({
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
-        age: { value: 0, component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
+        age: { value: 0, component: null as ComponentInstance },
       });
     });
 
@@ -75,13 +76,13 @@ describe('FormNode - touchAll()', () => {
 
     it('should be equivalent to markAsTouched', () => {
       const form1 = makeForm({
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
       });
 
       const form2 = makeForm({
-        email: { value: '', component: null as any },
-        password: { value: '', component: null as any },
+        email: { value: '', component: null as ComponentInstance },
+        password: { value: '', component: null as ComponentInstance },
       });
 
       form1.touchAll();
@@ -109,12 +110,12 @@ describe('FormNode - touchAll()', () => {
     beforeEach(() => {
       form = makeForm({
         user: {
-          name: { value: '', component: null as any },
-          email: { value: '', component: null as any },
+          name: { value: '', component: null as ComponentInstance },
+          email: { value: '', component: null as ComponentInstance },
         },
         address: {
-          city: { value: '', component: null as any },
-          street: { value: '', component: null as any },
+          city: { value: '', component: null as ComponentInstance },
+          street: { value: '', component: null as ComponentInstance },
         },
       });
     });
@@ -159,8 +160,8 @@ describe('FormNode - touchAll()', () => {
 
     beforeEach(() => {
       arrayNode = new ArrayNode<ItemForm>({
-        name: { value: '', component: null as any },
-        price: { value: 0, component: null as any },
+        name: { value: '', component: null as ComponentInstance },
+        price: { value: 0, component: null as ComponentInstance },
       });
 
       // Add initial items
@@ -229,17 +230,17 @@ describe('FormNode - touchAll()', () => {
       form = makeForm({
         user: {
           profile: {
-            firstName: { value: '', component: null as any },
-            lastName: { value: '', component: null as any },
+            firstName: { value: '', component: null as ComponentInstance },
+            lastName: { value: '', component: null as ComponentInstance },
           },
           contacts: [
             {
-              type: { value: 'email', component: null as any },
-              value: { value: '', component: null as any },
+              type: { value: 'email', component: null as ComponentInstance },
+              value: { value: '', component: null as ComponentInstance },
             },
             {
-              type: { value: 'phone', component: null as any },
-              value: { value: '', component: null as any },
+              type: { value: 'phone', component: null as ComponentInstance },
+              value: { value: '', component: null as ComponentInstance },
             },
           ],
         },
@@ -301,14 +302,14 @@ describe('FormNode - touchAll()', () => {
       form = makeForm({
         email: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           validators: [
             (value: string) => (value === '' ? { code: 'required', message: 'Required' } : null),
           ],
         },
         password: {
           value: '',
-          component: null as any,
+          component: null as ComponentInstance,
           validators: [
             (value: string) => (value === '' ? { code: 'required', message: 'Required' } : null),
           ],
@@ -376,7 +377,7 @@ describe('FormNode - touchAll()', () => {
 
     it('should work on empty ArrayNode', () => {
       const arrayNode = new ArrayNode({
-        name: { value: '', component: null as any },
+        name: { value: '', component: null as ComponentInstance },
       });
 
       expect(() => arrayNode.touchAll()).not.toThrow();
@@ -395,11 +396,11 @@ describe('FormNode - touchAll()', () => {
 
       const form = makeForm<Form>({
         section1: {
-          field1: { value: '', component: null as any },
-          field2: { value: '', component: null as any },
+          field1: { value: '', component: null as ComponentInstance },
+          field2: { value: '', component: null as ComponentInstance },
         },
         section2: {
-          field3: { value: '', component: null as any },
+          field3: { value: '', component: null as ComponentInstance },
         },
       });
 

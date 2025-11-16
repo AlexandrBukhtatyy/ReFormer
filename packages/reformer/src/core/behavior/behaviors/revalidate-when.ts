@@ -4,7 +4,7 @@
 
 import { effect } from '@preact/signals-core';
 import type { FormNode } from '../../nodes/form-node';
-import type { FieldPathNode } from '../../types';
+import type { FieldPathNode, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
 
@@ -25,9 +25,9 @@ import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function revalidateWhen<TForm extends Record<string, any>>(
-  target: FieldPathNode<TForm, any>,
-  triggers: FieldPathNode<TForm, any>[],
+export function revalidateWhen<TForm extends Record<string, FormValue>>(
+  target: FieldPathNode<TForm, FormValue>,
+  triggers: FieldPathNode<TForm, FormValue>[],
   options?: RevalidateWhenOptions
 ): void {
   const { debounce } = options || {};
@@ -38,7 +38,7 @@ export function revalidateWhen<TForm extends Record<string, any>>(
 
     const sourceNodes = triggers
       .map((field) => form.getFieldByPath(field.__path))
-      .filter((node): node is FormNode<any> => node !== undefined);
+      .filter((node): node is FormNode<unknown> => node !== undefined);
 
     if (sourceNodes.length === 0) return null;
 

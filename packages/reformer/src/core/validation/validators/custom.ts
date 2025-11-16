@@ -9,7 +9,7 @@ import type { FieldPathNode } from '../../types';
 /**
  * Функция кастомной валидации
  */
-export type CustomValidatorFn<T = any> = (value: T) => boolean | string | null;
+export type CustomValidatorFn<T> = (value: T) => boolean | string | null;
 
 /**
  * Адаптер для создания кастомных валидаторов
@@ -35,7 +35,7 @@ export type CustomValidatorFn<T = any> = (value: T) => boolean | string | null;
  * });
  * ```
  */
-export function custom<TForm = any, TField = any>(
+export function custom<TForm, TField>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   validatorFn: CustomValidatorFn<TField>,
   options?: ValidateOptions & {
@@ -45,7 +45,7 @@ export function custom<TForm = any, TField = any>(
 ): void {
   if (!fieldPath) return; // Защита от undefined fieldPath
 
-  validate(fieldPath as any, (ctx) => {
+  validate(fieldPath as FieldPathNode<TForm, TField>, (ctx) => {
     const value = ctx.value();
 
     // Выполняем кастомную функцию
@@ -106,11 +106,11 @@ export function custom<TForm = any, TField = any>(
  * strongPassword(path.password);
  * ```
  */
-export function createCustomValidator<TField = any>(
+export function createCustomValidator<TField>(
   validatorFn: CustomValidatorFn<TField>,
   defaultOptions?: ValidateOptions & { code?: string }
 ) {
-  return <TForm = any>(
+  return <TForm>(
     fieldPath: FieldPathNode<TForm, TField> | undefined,
     options?: ValidateOptions & { code?: string }
   ) => {
