@@ -28,7 +28,7 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Обязательные согласия</h3>
+        <h3 className="text-lg font-semibold">Итого</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div>

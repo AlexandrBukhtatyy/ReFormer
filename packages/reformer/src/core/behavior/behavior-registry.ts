@@ -8,6 +8,7 @@ import type { GroupNode } from '../nodes/group-node';
 import type { BehaviorHandlerFn, BehaviorOptions } from './types';
 import { BehaviorContextImpl } from './behavior-context';
 import { RegistryStack } from '../utils/registry-stack';
+import { FormValue } from '../types';
 
 /**
  * Зарегистрированный behavior с опциями
