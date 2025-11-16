@@ -40,12 +40,12 @@ export interface TestFormWithArray {
 /**
  * Helper to create a delay for async tests
  */
-export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Helper to wait for next tick
  */
-export const nextTick = () => new Promise(resolve => setTimeout(resolve, 0));
+export const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /**
  * Mock async validator that always succeeds

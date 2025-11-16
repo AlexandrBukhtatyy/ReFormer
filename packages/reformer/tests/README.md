@@ -90,6 +90,7 @@ describe('[ModuleName]', () => {
 ## CI/CD
 
 Tests are automatically run on:
+
 - Pull requests
 - Commits to main branch
 - Pre-commit hooks (if configured)
