@@ -3,7 +3,7 @@
  */
 
 import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
+import type { ValidateOptions, ValidationContext } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 /**
@@ -37,7 +37,7 @@ export function number<TForm, TField extends number | undefined = number>(
 ): void {
   if (!fieldPath) return; // Защита от undefined fieldPath
 
-  validate(fieldPath as any, (ctx) => {
+  validate(fieldPath, (ctx: ValidationContext<TForm, TField>) => {
     const value = ctx.value();
 
     // Пропускаем null/undefined

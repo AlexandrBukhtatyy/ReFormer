@@ -1,1 +1,1 @@
-export type ComponentInstance = any;
+export type ComponentInstance = unknown;

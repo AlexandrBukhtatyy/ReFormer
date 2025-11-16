@@ -179,7 +179,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should handle type guards in conditional logic', () => {
-      const nodes: Array<FieldNode<any> | GroupNode<any> | ArrayNode<any>> = [
+      const nodes: Array<FieldNode<unknown> | GroupNode<unknown> | ArrayNode<unknown>> = [
         new FieldNode({ value: 'test', component: null as ComponentInstance }),
         new GroupNode({ name: { value: '', component: null as ComponentInstance } }),
         new ArrayNode({ name: { value: '', component: null as ComponentInstance } }),
@@ -237,7 +237,7 @@ describe('FormNode Type Guards', () => {
 
   describe('TypeScript type narrowing', () => {
     it('should narrow union types correctly', () => {
-      type FormNodeUnion = FieldNode<string> | GroupNode<any> | ArrayNode<any>;
+      type FormNodeUnion = FieldNode<string> | GroupNode<unknown> | ArrayNode<unknown>;
 
       const node: FormNodeUnion = new FieldNode({
         value: 'test',

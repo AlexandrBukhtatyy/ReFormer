@@ -19,6 +19,7 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
+import type { FormFields } from '../types';
 import type { ValidatorRegistration, ValidationError } from '../types';
 import { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';
 import { isFieldNode } from '../utils/type-guards';
@@ -35,7 +36,7 @@ import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
  *
  * @template T Тип формы (объект)
  */
-export class ValidationApplicator<T extends Record<string, any>> {
+export class ValidationApplicator<T extends FormFields> {
   private readonly form: GroupNode<T>;
 
   constructor(form: GroupNode<T>) {
@@ -128,7 +129,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
       }
 
       const errors: ValidationError[] = [];
-      const context = new ValidationContextImpl(this.form as any, fieldPath, control);
+      const context = new ValidationContextImpl(this.form, fieldPath, control);
 
       // Выполнение валидаторов с учетом условий
       for (const registration of fieldValidators) {
@@ -144,9 +145,9 @@ export class ValidationApplicator<T extends Record<string, any>> {
         try {
           let error: ValidationError | null = null;
           if (registration.type === 'sync') {
-            error = (registration.validator as any)(context);
+            error = registration.validator(context);
           } else if (registration.type === 'async') {
-            error = await (registration.validator as any)(context);
+            error = await registration.validator(context);
           }
 
           if (error) {
@@ -186,7 +187,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
    */
   private applyTreeValidators(treeValidators: ValidatorRegistration[]): void {
     for (const registration of treeValidators) {
-      const context = new TreeValidationContextImpl(this.form as any);
+      const context = new TreeValidationContextImpl(this.form);
 
       // Проверка условия (condition)
       if (registration.condition) {
@@ -203,7 +204,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
           continue;
         }
 
-        const error = (registration.validator as any)(context);
+        const error = registration.validator(context);
         if (error && registration.options && 'targetField' in registration.options) {
           const targetField = registration.options.targetField;
           if (targetField) {
@@ -231,7 +232,7 @@ export class ValidationApplicator<T extends Record<string, any>> {
    */
   private checkCondition(condition: {
     fieldPath: string;
-    conditionFn: (value: any) => boolean;
+    conditionFn: (value: unknown) => boolean;
   }): boolean {
     const conditionField = this.form.getFieldByPath(condition.fieldPath);
     if (!conditionField) {

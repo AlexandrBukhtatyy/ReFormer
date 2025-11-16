@@ -18,6 +18,7 @@ import type { FormNode } from '../nodes/form-node';
 import type { FieldNode } from '../nodes/field-node';
 import type { GroupNode } from '../nodes/group-node';
 import type { ArrayNode } from '../nodes/array-node';
+import type { FormValue, UnknownRecord } from '../types';
 
 /**
  * Проверить, является ли значение любым FormNode
@@ -35,7 +36,7 @@ import type { ArrayNode } from '../nodes/array-node';
  * }
  * ```
  */
-export function isFormNode(value: any): value is FormNode<any> {
+export function isFormNode(value: unknown): value is FormNode<FormValue> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -67,7 +68,7 @@ export function isFormNode(value: any): value is FormNode<any> {
  * }
  * ```
  */
-export function isFieldNode(value: any): value is FieldNode<any> {
+export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -77,7 +78,7 @@ export function isFieldNode(value: any): value is FieldNode<any> {
     'validators' in value &&
     'asyncValidators' in value &&
     // FieldNode имеет markAsTouched метод
-    typeof (value as any).markAsTouched === 'function' &&
+    typeof (value as UnknownRecord).markAsTouched === 'function' &&
     // У FieldNode нет fields или items
     !('fields' in value) &&
     !('items' in value)
@@ -101,7 +102,7 @@ export function isFieldNode(value: any): value is FieldNode<any> {
  * }
  * ```
  */
-export function isGroupNode(value: any): value is GroupNode<any> {
+export function isGroupNode(value: unknown): value is GroupNode<UnknownRecord> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -136,7 +137,7 @@ export function isGroupNode(value: any): value is GroupNode<any> {
  * }
  * ```
  */
-export function isArrayNode(value: any): value is ArrayNode<any> {
+export function isArrayNode(value: unknown): value is ArrayNode<UnknownRecord> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -148,8 +149,8 @@ export function isArrayNode(value: any): value is ArrayNode<any> {
     'push' in value &&
     'removeAt' in value &&
     'at' in value &&
-    typeof (value as any).push === 'function' &&
-    typeof (value as any).removeAt === 'function'
+    typeof (value as UnknownRecord).push === 'function' &&
+    typeof (value as UnknownRecord).removeAt === 'function'
   );
 }
 
@@ -166,7 +167,7 @@ export function isArrayNode(value: any): value is ArrayNode<any> {
  * console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
  * ```
  */
-export function getNodeType(node: any): string {
+export function getNodeType(node: unknown): string {
   if (isFieldNode(node)) return 'FieldNode';
   if (isGroupNode(node)) return 'GroupNode';
   if (isArrayNode(node)) return 'ArrayNode';

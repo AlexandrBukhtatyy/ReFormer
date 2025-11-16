@@ -30,7 +30,7 @@
 
 import { signal, computed } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
-import type { ValidationError, FieldStatus } from '../../types';
+import type { ValidationError, FieldStatus, FormFields } from '../../types';
 import type { FieldRegistry } from './field-registry';
 
 /**
@@ -47,7 +47,7 @@ import type { FieldRegistry } from './field-registry';
  *
  * @template T Тип формы (объект)
  */
-export class StateManager<T extends Record<string, any>> {
+export class StateManager<T extends FormFields> {
   // ============================================================================
   // Приватные сигналы (мутабельные)
   // ============================================================================

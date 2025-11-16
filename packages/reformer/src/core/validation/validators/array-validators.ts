@@ -43,7 +43,7 @@ export function notEmpty<TForm, TItem>(
   if (!fieldPath) return;
 
   // Используем minLength как базовую реализацию
-  minLength(fieldPath as any, 1, {
+  minLength(fieldPath, 1, {
     message: options?.message || 'Массив не должен быть пустым',
     params: { minLength: 1, ...options?.params },
   });

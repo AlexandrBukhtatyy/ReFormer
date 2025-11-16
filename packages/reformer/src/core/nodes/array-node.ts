@@ -11,7 +11,13 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import { GroupNode } from './group-node';
-import type { FieldStatus, ValidationError } from '../types';
+import type {
+  FieldStatus,
+  ValidationError,
+  WithValidationSchema,
+  WithBehaviorSchema,
+  FormFields,
+} from '../types';
 import type { FormSchema } from '../types/deep-schema';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import { SubscriptionManager } from '../utils/subscription-manager';
@@ -31,7 +37,7 @@ import { SubscriptionManager } from '../utils/subscription-manager';
  * console.log(array.length.value); // 1
  * ```
  */
-export class ArrayNode<T extends object> extends FormNode<T[]> {
+export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
   // ============================================================================
   // Приватные поля
   // ============================================================================
@@ -50,8 +56,8 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
   // Приватные поля для сохранения схем
   // ============================================================================
 
-  private validationSchemaFn?: any;
-  private behaviorSchemaFn?: any;
+  private validationSchemaFn?: unknown;
+  private behaviorSchemaFn?: unknown;
 
   // ============================================================================
   // Публичные computed signals
@@ -359,22 +365,22 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
   private createItem(initialValue?: Partial<T>): FormNode<T> {
     // Определить тип узла на основе схемы
     if (this.isGroupSchema(this.itemSchema)) {
-      const node = new GroupNode(this.itemSchema as any);
+      const node = new GroupNode(this.itemSchema as unknown as never);
       if (initialValue) {
         node.patchValue(initialValue);
       }
 
       // Применяем validation schema к новому элементу, если она была установлена
       if (this.validationSchemaFn && 'applyValidationSchema' in node) {
-        node.applyValidationSchema(this.validationSchemaFn);
+        (node as unknown as WithValidationSchema).applyValidationSchema(this.validationSchemaFn);
       }
 
       //  Применяем behavior schema к новому элементу, если она была установлена
       if (this.behaviorSchemaFn && 'applyBehaviorSchema' in node) {
-        node.applyBehaviorSchema(this.behaviorSchemaFn);
+        (node as unknown as WithBehaviorSchema).applyBehaviorSchema(this.behaviorSchemaFn);
       }
 
-      return node as any;
+      return node as unknown as FormNode<T>;
     }
 
     // Если схема - FieldConfig, ArrayNode не поддерживает примитивные массивы
@@ -388,7 +394,7 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    * Проверить, является ли схема групповой (объект полей)
    * @param schema - Схема для проверки
    */
-  private isGroupSchema(schema: any): boolean {
+  private isGroupSchema(schema: unknown): boolean {
     return (
       typeof schema === 'object' &&
       schema !== null &&
@@ -417,14 +423,17 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    * form.properties.applyValidationSchema(propertyValidation);
    * ```
    */
-  applyValidationSchema(schemaFn: any): void {
+  applyValidationSchema(schemaFn: unknown): void {
     // Сохраняем validation schema для применения к новым элементам
     this.validationSchemaFn = schemaFn;
 
     // Применяем validation schema ко всем существующим элементам
     this.items.value.forEach((item) => {
-      if ('applyValidationSchema' in item && typeof item.applyValidationSchema === 'function') {
-        item.applyValidationSchema(schemaFn);
+      if (
+        'applyValidationSchema' in item &&
+        typeof (item as WithValidationSchema).applyValidationSchema === 'function'
+      ) {
+        (item as WithValidationSchema).applyValidationSchema(schemaFn);
       }
     });
   }
@@ -443,14 +452,17 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
    * form.addresses.applyBehaviorSchema(addressBehavior);
    * ```
    */
-  applyBehaviorSchema(schemaFn: any): void {
+  applyBehaviorSchema(schemaFn: unknown): void {
     // Сохраняем behavior schema для применения к новым элементам
     this.behaviorSchemaFn = schemaFn;
 
     // Применяем behavior schema ко всем существующим элементам
     this.items.value.forEach((item) => {
-      if ('applyBehaviorSchema' in item && typeof item.applyBehaviorSchema === 'function') {
-        item.applyBehaviorSchema(schemaFn);
+      if (
+        'applyBehaviorSchema' in item &&
+        typeof (item as WithBehaviorSchema).applyBehaviorSchema === 'function'
+      ) {
+        (item as WithBehaviorSchema).applyBehaviorSchema(schemaFn);
       }
     });
   }

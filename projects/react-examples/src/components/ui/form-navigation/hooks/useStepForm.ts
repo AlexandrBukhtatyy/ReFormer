@@ -8,14 +8,14 @@
  * - Отправки формы
  */
 
-import type { GroupNodeWithControls, ValidationSchemaFn } from 'reformer';
+import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from 'reformer';
 import { validateForm } from 'reformer/validators';
 import { useState, useCallback } from 'react';
 
 /**
  * Конфигурация multi-step формы
  */
-export interface StepFormConfig<T extends Record<string, any>> {
+export interface StepFormConfig<T extends Record<string, FormValue>> {
   /** Общее количество шагов */
   totalSteps: number;
 
@@ -29,7 +29,7 @@ export interface StepFormConfig<T extends Record<string, any>> {
 /**
  * Результат хука useStepForm
  */
-export interface UseStepFormResult<T extends Record<string, any>> {
+export interface UseStepFormResult<T extends Record<string, FormValue>> {
   /** Текущий шаг (1-based) */
   currentStep: number;
 
@@ -93,7 +93,7 @@ export interface UseStepFormResult<T extends Record<string, any>> {
  * );
  * ```
  */
-export function useStepForm<T extends Record<string, any>>(
+export function useStepForm<T extends Record<string, FormValue>>(
   form: GroupNodeWithControls<T>,
   config: StepFormConfig<T>
 ): UseStepFormResult<T> {

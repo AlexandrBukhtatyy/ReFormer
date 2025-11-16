@@ -33,7 +33,7 @@ export type AsyncValidatorFn<T = FormValue> = (value: T) => Promise<ValidationEr
 export interface ValidationError {
   code: string;
   message: string;
-  params?: Record<string, any>;
+  params?: Record<string, FormValue>;
 }
 
 /**
@@ -47,7 +47,7 @@ export interface ErrorFilterOptions {
   message?: string;
 
   /** Фильтр по параметрам ошибки */
-  params?: Record<string, any>;
+  params?: Record<string, FormValue>;
 
   /** Кастомный предикат для фильтрации */
   predicate?: (error: ValidationError) => boolean;
@@ -119,7 +119,7 @@ import type { ValidationSchemaFn } from './validation-schema';
  * Конфигурация GroupNode с поддержкой схем
  * Используется для создания форм с автоматическим применением behavior и validation схем
  */
-export interface GroupNodeConfig<T extends Record<string, any>> {
+export interface GroupNodeConfig<T extends Record<string, FormValue>> {
   /** Схема структуры формы (поля и их конфигурация) */
   form: FormSchema<T>;
 
@@ -129,3 +129,98 @@ export interface GroupNodeConfig<T extends Record<string, any>> {
   /** Схема валидации (required, email, minLength и т.д.) */
   validation?: ValidationSchemaFn<T>;
 }
+
+// ============================================================================
+// Utility Types для избежания инлайновых типов
+// ============================================================================
+
+/**
+ * Тип для Record с unknown значениями
+ * Используется вместо инлайнового Record<string, unknown>
+ */
+export type UnknownRecord = Record<string, unknown>;
+
+/**
+ * Интерфейс для узлов с методом applyValidationSchema
+ */
+export interface WithValidationSchema {
+  applyValidationSchema(schemaFn: unknown): void;
+}
+
+/**
+ * Интерфейс для узлов с методом applyBehaviorSchema
+ */
+export interface WithBehaviorSchema {
+  applyBehaviorSchema(schemaFn: unknown): void;
+}
+
+/**
+ * Интерфейс для узлов, похожих на ArrayNode (с методом at)
+ * Используется для duck typing при обходе путей
+ */
+export interface ArrayNodeLike {
+  at(index: number): FormNode | undefined;
+  length: unknown;
+}
+
+// Импортируем FormNode для типа ArrayNodeLike
+import type { FormNode } from '../nodes/form-node';
+
+/**
+ * Конфиг с полем schema (для ArrayConfig)
+ */
+export interface ConfigWithSchema {
+  schema: unknown;
+  initialItems?: unknown[];
+}
+
+/**
+ * Конфиг с полем value (для извлечения значений)
+ */
+export interface ConfigWithValue {
+  value: unknown;
+}
+
+/**
+ * Generic тип для функций валидации с контекстом
+ * Используется в validation-schema вместо (form: any, context: any) => ...
+ */
+export type GenericFormContext = Record<string, FormValue>;
+
+/**
+ * Тип для параметров валидации (validator params)
+ * Используется для параметров валидаторов вместо Record<string, any>
+ */
+export type ValidatorParams = Record<string, FormValue>;
+
+/**
+ * Тип для конфига с полями (FormSchema generic constraint)
+ * Используется вместо Record<string, any> для схем форм
+ */
+export type FormFields = Record<string, FormValue>;
+
+/**
+ * Тип для путей к полям (field paths)
+ * Используется в навигации по полям вместо any
+ */
+export type FieldPathSegment = {
+  key: string;
+  index?: number;
+};
+
+/**
+ * Тип для коллбэков и обработчиков событий
+ * Используется вместо (...args: any[]) => any
+ */
+export type UnknownCallback = (...args: unknown[]) => unknown;
+
+/**
+ * Тип для ресурсов с параметрами загрузки
+ * Используется в resources.ts вместо any
+ */
+export type ResourceLoadParams = UnknownRecord;
+
+/**
+ * Тип для результатов загрузки ресурсов
+ */
+export type ResourceLoadResult = unknown;

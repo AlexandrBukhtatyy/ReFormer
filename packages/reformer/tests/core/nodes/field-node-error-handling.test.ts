@@ -177,7 +177,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
     it('should handle malformed API response', async () => {
       const apiValidator: AsyncValidatorFn<string> = async () => {
         // Симуляция malformed response
-        const response: any = null;
+        const response: unknown = null;
         // Попытка доступа к null приводит к ошибке
         return response.data.isValid ? null : { code: 'invalid', message: 'Invalid' };
       };

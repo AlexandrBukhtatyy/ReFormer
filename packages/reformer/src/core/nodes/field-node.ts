@@ -38,7 +38,7 @@ export class FieldNode<T> extends FormNode<T> {
   private _errors: Signal<ValidationError[]>;
   // _touched, _dirty, _status наследуются от FormNode (protected)
   private _pending: Signal<boolean>;
-  private _componentProps: Signal<Record<string, any>>;
+  private _componentProps: Signal<Record<string, unknown>>;
 
   // ============================================================================
   // Публичные computed signals
@@ -50,7 +50,7 @@ export class FieldNode<T> extends FormNode<T> {
   // touched, dirty, status наследуются от FormNode
   public readonly pending: ReadonlySignal<boolean>;
   public readonly errors: ReadonlySignal<ValidationError[]>;
-  public readonly componentProps: ReadonlySignal<Record<string, any>>;
+  public readonly componentProps: ReadonlySignal<Record<string, unknown>>;
 
   /**
    * Вычисляемое свойство: нужно ли показывать ошибку
@@ -435,7 +435,7 @@ export class FieldNode<T> extends FormNode<T> {
    * });
    * ```
    */
-  updateComponentProps(props: Partial<Record<string, any>>): void {
+  updateComponentProps(props: Partial<Record<string, unknown>>): void {
     this._componentProps.value = {
       ...this._componentProps.value,
       ...props,
@@ -532,7 +532,7 @@ export class FieldNode<T> extends FormNode<T> {
    * useEffect(() => dispose, []);
    * ```
    */
-  computeFrom<TSource extends any[]>(
+  computeFrom<TSource extends readonly unknown[]>(
     sources: ReadonlySignal<TSource[number]>[],
     computeFn: (...values: TSource) => T
   ): () => void {

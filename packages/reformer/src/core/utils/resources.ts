@@ -6,7 +6,7 @@ export interface ResourceItem<T> {
   id: string | number;
   label: string;
   value: T;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ResourceResult<T> {
@@ -23,7 +23,7 @@ export interface ResourceLoadParams {
   search?: string;
   page?: number;
   pageSize?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============================================================================

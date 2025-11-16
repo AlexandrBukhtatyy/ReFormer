@@ -185,7 +185,7 @@ export class FormErrorHandler {
     }
 
     if (typeof error === 'object' && error !== null && 'message' in error) {
-      return String((error as any).message);
+      return String((error as { message: unknown }).message);
     }
 
     return String(error);
@@ -240,8 +240,8 @@ export class FormErrorHandler {
       value !== null &&
       'code' in value &&
       'message' in value &&
-      typeof (value as any).code === 'string' &&
-      typeof (value as any).message === 'string'
+      typeof (value as { code: unknown }).code === 'string' &&
+      typeof (value as { message: unknown }).message === 'string'
     );
   }
 }

@@ -6,25 +6,25 @@ import type { GroupNode } from '../nodes/group-node';
 import type { FieldNode } from '../nodes/field-node';
 import type { FormNode } from '../nodes/form-node';
 import type { ValidationContext, TreeValidationContext } from '../types/validation-schema';
+import type { FormFields, FormValue } from '../types';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { isFormNode } from '../utils/type-guards';
 
 /**
  * Реализация ValidationContext для валидации отдельного поля
  */
-export class ValidationContextImpl<TForm extends Record<string, any>, TField>
+export class ValidationContextImpl<TForm extends FormFields, TField>
   implements ValidationContext<TForm, TField>
 {
   private form: GroupNode<TForm>;
-  // @ts-ignore
-  private fieldKey: keyof TForm;
+  private _fieldKey: keyof TForm;
   private control: FieldNode<TField>;
   private readonly pathNavigator = new FieldPathNavigator();
   private readonly contextName = 'ValidationContext';
 
   constructor(form: GroupNode<TForm>, fieldKey: keyof TForm, control: FieldNode<TField>) {
     this.form = form;
-    this.fieldKey = fieldKey;
+    this._fieldKey = fieldKey;
     this.control = control;
   }
 
@@ -43,8 +43,8 @@ export class ValidationContextImpl<TForm extends Record<string, any>, TField>
    * ```
    */
   getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): any;
-  getField(path: any): any {
+  getField(path: string): unknown;
+  getField(path: unknown): unknown {
     // Все пути (и простые ключи, и вложенные пути) обрабатываем через resolveFieldValue
     // FieldPathNavigator умеет работать как с простыми ключами, так и с путями
     return this.resolveFieldValue(String(path));
@@ -68,7 +68,7 @@ export class ValidationContextImpl<TForm extends Record<string, any>, TField>
    * }
    * ```
    */
-  private resolveFieldNode(path: string): FormNode<any> | undefined {
+  private resolveFieldNode(path: string): FormNode<FormValue> | undefined {
     const node = this.pathNavigator.getNodeByPath(this.form, path);
     return node ?? undefined;
   }
@@ -89,7 +89,7 @@ export class ValidationContextImpl<TForm extends Record<string, any>, TField>
    * // 'Moscow'
    * ```
    */
-  private resolveFieldValue(path: string): any {
+  private resolveFieldValue(path: string): unknown {
     // Проверка на пустой путь
     if (path === '' || path == null) {
       if (process.env.NODE_ENV !== 'production') {
@@ -122,9 +122,9 @@ export class ValidationContextImpl<TForm extends Record<string, any>, TField>
    * ctx.setField('address.city', 'Moscow')     // Вложенный путь
    * ```
    */
-  setField(path: string, value: any): void;
+  setField(path: string, value: unknown): void;
   setField<K extends keyof TForm>(path: K, value: TForm[K]): void;
-  setField(path: any, value: any): void {
+  setField(path: unknown, value: unknown): void {
     // Все пути (и простые ключи, и вложенные пути) обрабатываем через setNestedPath
     // getFieldByPath умеет работать как с простыми ключами, так и с путями
     this.setNestedPath(String(path), value);
@@ -134,7 +134,7 @@ export class ValidationContextImpl<TForm extends Record<string, any>, TField>
    * Установить значение по вложенному пути (например, 'address.city')
    * @private
    */
-  private setNestedPath(path: string, value: any): void {
+  private setNestedPath(path: string, value: unknown): void {
     // Используем getFieldByPath для правильного доступа к полям
     const field = this.form.getFieldByPath(path);
 
@@ -173,7 +173,7 @@ export class ValidationContextImpl<TForm extends Record<string, any>, TField>
 /**
  * Реализация TreeValidationContext для cross-field валидации
  */
-export class TreeValidationContextImpl<TForm extends Record<string, any>>
+export class TreeValidationContextImpl<TForm extends FormFields>
   implements TreeValidationContext<TForm>
 {
   private form: GroupNode<TForm>;
@@ -195,8 +195,8 @@ export class TreeValidationContextImpl<TForm extends Record<string, any>>
    * ```
    */
   getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): any;
-  getField(path: any): any {
+  getField(path: string): unknown;
+  getField(path: unknown): unknown {
     // Все пути (и простые ключи, и вложенные пути) обрабатываем через resolveFieldValue
     // FieldPathNavigator умеет работать как с простыми ключами, так и с путями
     return this.resolveFieldValue(String(path));
@@ -220,7 +220,7 @@ export class TreeValidationContextImpl<TForm extends Record<string, any>>
    * }
    * ```
    */
-  private resolveFieldNode(path: string): FormNode<any> | undefined {
+  private resolveFieldNode(path: string): FormNode<FormValue> | undefined {
     const node = this.pathNavigator.getNodeByPath(this.form, path);
     return node ?? undefined;
   }
@@ -247,7 +247,7 @@ export class TreeValidationContextImpl<TForm extends Record<string, any>>
    * // 'Item 1'
    * ```
    */
-  private resolveFieldValue(path: string): any {
+  private resolveFieldValue(path: string): unknown {
     // Проверка на пустой путь
     if (path === '' || path == null) {
       if (process.env.NODE_ENV !== 'production') {

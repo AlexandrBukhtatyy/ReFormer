@@ -46,7 +46,7 @@ export function getCurrentValidationRegistry(): ValidationRegistry {
       enterCondition: () => {},
       exitCondition: () => {},
       registerArrayItemValidation: () => {},
-    } as any;
+    } as unknown as ValidationRegistry;
   }
 
   return registry;
@@ -85,7 +85,7 @@ export function getCurrentBehaviorRegistry(): BehaviorRegistry {
     // В production возвращаем заглушку чтобы не ломать приложение
     return {
       register: () => {},
-    } as any;
+    } as unknown as BehaviorRegistry;
   }
 
   return registry;

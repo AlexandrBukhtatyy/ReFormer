@@ -45,7 +45,7 @@ import { createFieldPath } from './field-path';
  * }
  * ```
  */
-export async function validateForm<T extends Record<string, any>>(
+export async function validateForm<T extends FormFields>(
   form: GroupNode<T>,
   schema: ValidationSchemaFn<T>
 ): Promise<boolean> {
@@ -56,7 +56,7 @@ export async function validateForm<T extends Record<string, any>>(
   // Начинаем регистрацию валидаторов в временном реестре
   tempRegistry.beginRegistration();
 
-  let tempValidators: any[] = [];
+  let tempValidators: ValidatorRegistration[] = [];
   let cancelled = false;
 
   try {

@@ -27,6 +27,8 @@
  * ```
  */
 
+import type { FormFields } from './index';
+
 // Forward declarations для избежания циклических зависимостей
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FieldNode<_T> = any;
@@ -50,10 +52,10 @@ type ArrayNode<_T> = any;
  */
 export type FormNodeControls<T> = {
   [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
-    ? U extends Record<string, any>
+    ? U extends FormFields
       ? ArrayNodeWithControls<U> // Массив объектов → ArrayNodeWithControls
       : FieldNode<T[K]> // Массив примитивов → FieldNode
-    : NonNullable<T[K]> extends Record<string, any>
+    : NonNullable<T[K]> extends FormFields
       ? NonNullable<T[K]> extends Date | File | Blob
         ? FieldNode<T[K]> // Специальные объекты → FieldNode
         : GroupNodeWithControls<NonNullable<T[K]>> // Обычный объект → GroupNodeWithControls (рекурсивно!)
@@ -90,8 +92,7 @@ export type FormNodeControls<T> = {
  * form.profile.name.setValue('John');
  * ```
  */
-export type GroupNodeWithControls<T extends Record<string, any>> = GroupNode<T> &
-  FormNodeControls<T>;
+export type GroupNodeWithControls<T extends FormFields> = GroupNode<T> & FormNodeControls<T>;
 
 /**
  * Комбинированный тип для ArrayNode с Proxy доступом к элементам
@@ -122,7 +123,7 @@ export type GroupNodeWithControls<T extends Record<string, any>> = GroupNode<T> 
  * });
  * ```
  */
-export type ArrayNodeWithControls<T extends Record<string, any>> = ArrayNode<T> & {
+export type ArrayNodeWithControls<T extends FormFields> = ArrayNode<T> & {
   /**
    * Безопасный доступ к элементу массива по индексу
    * Возвращает GroupNode с типизированными полями или undefined

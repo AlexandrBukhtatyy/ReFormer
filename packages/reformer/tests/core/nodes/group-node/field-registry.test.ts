@@ -99,7 +99,7 @@ describe('FieldRegistry', () => {
       registry.set('email', emailField);
       registry.set('name', nameField);
 
-      const collected: Array<[string, FieldNode<any>]> = [];
+      const collected: Array<[string, FieldNode<unknown>]> = [];
       registry.forEach((field, key) => {
         collected.push([key as string, field]);
       });

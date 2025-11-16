@@ -186,14 +186,14 @@ describe('FieldPathNavigator', () => {
     });
 
     it('создает объект, если его нет', () => {
-      const obj: any = {};
+      const obj: unknown = {};
       navigator.setValueByPath(obj, 'address.city', 'Moscow');
       expect(obj.address).toBeDefined();
       expect(obj.address.city).toBe('Moscow');
     });
 
     it('создает вложенные объекты, если их нет', () => {
-      const obj: any = {};
+      const obj: unknown = {};
       navigator.setValueByPath(obj, 'user.profile.avatar.url', 'http://...');
       expect(obj.user).toBeDefined();
       expect(obj.user.profile).toBeDefined();
@@ -243,22 +243,22 @@ describe('FieldPathNavigator', () => {
   describe('getNodeByPath', () => {
     // Мок для FieldNode
     class MockFieldNode {
-      public value: any;
+      public value: unknown;
 
-      constructor(value: any) {
+      constructor(value: unknown) {
         this.value = { value };
       }
 
-      setValue(val: any) {
+      setValue(val: unknown) {
         this.value.value = val;
       }
     }
 
     // Мок для ArrayNode
     class MockArrayNode {
-      public items: any;
+      public items: unknown;
 
-      constructor(items: any[]) {
+      constructor(items: unknown[]) {
         this.items = { value: items };
       }
     }
@@ -267,7 +267,7 @@ describe('FieldPathNavigator', () => {
     class MockGroupNode {
       public fields = new Map();
 
-      constructor(config: Record<string, any>) {
+      constructor(config: Record<string, unknown>) {
         for (const [key, value] of Object.entries(config)) {
           if (
             value instanceof MockFieldNode ||
@@ -328,7 +328,7 @@ describe('FieldPathNavigator', () => {
       const arrayNode = new MockArrayNode(itemNodes);
 
       const form = new MockGroupNode({
-        items: arrayNode as any,
+        items: arrayNode as unknown,
       });
 
       const node = navigator.getNodeByPath(form, 'items[0]');
@@ -344,7 +344,7 @@ describe('FieldPathNavigator', () => {
       const arrayNode = new MockArrayNode(itemNodes);
 
       const form = new MockGroupNode({
-        items: arrayNode as any,
+        items: arrayNode as unknown,
       });
 
       const node = navigator.getNodeByPath(form, 'items[0].title');
@@ -366,7 +366,7 @@ describe('FieldPathNavigator', () => {
       const arrayNode = new MockArrayNode(itemNodes);
 
       const form = new MockGroupNode({
-        items: arrayNode as any,
+        items: arrayNode as unknown,
       });
 
       const node = navigator.getNodeByPath(form, 'items[10]');
@@ -419,7 +419,7 @@ describe('FieldPathNavigator', () => {
     });
 
     it('parsePath → setValueByPath работают вместе', () => {
-      const obj: any = {};
+      const obj: unknown = {};
       const path = 'address.city';
 
       const segments = navigator.parsePath(path);
@@ -430,7 +430,7 @@ describe('FieldPathNavigator', () => {
     });
 
     it('setValueByPath → getValueByPath работают вместе', () => {
-      const obj: any = {};
+      const obj: unknown = {};
       const path = 'items[0].title';
 
       // Создаем структуру вручную

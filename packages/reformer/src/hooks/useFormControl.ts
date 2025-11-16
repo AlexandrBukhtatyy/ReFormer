@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FieldNode } from '../core/nodes/field-node';
+import type { FormValue } from '../core/types';
 
-export const useFormControl = (control: FieldNode<any>) => {
+export const useFormControl = (control: FieldNode<FormValue>) => {
   const [value, setValue] = useState(control.value.value);
   const [errors, setErrors] = useState(control.errors.value);
   const [pending, setPending] = useState(control.pending.value);

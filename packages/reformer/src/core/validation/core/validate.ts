@@ -12,7 +12,7 @@ import type { ContextualValidatorFn, FieldPathNode, ValidateOptions } from '../.
  *
  * @example
  * ```typescript
- * validate(path.birthDate, (ctx) => {
+ * validate(path.birthDate, (ctx: ValidationContext<TForm, TField>) => {
  *   const birthDate = new Date(ctx.value());
  *   const age = calculateAge(birthDate);
  *
@@ -33,6 +33,6 @@ export function validate<TForm, TField>(
   options?: ValidateOptions
 ): void {
   if (!fieldPath) return; // Защита от undefined fieldPath
-  const path = extractPath(fieldPath as any);
+  const path = extractPath(fieldPath);
   getCurrentValidationRegistry().registerSync(path, validatorFn, options);
 }

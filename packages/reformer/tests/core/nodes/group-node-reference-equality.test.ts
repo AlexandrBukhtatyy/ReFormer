@@ -86,7 +86,7 @@ describe('GroupNode - Reference Equality', () => {
       expect(value2.email).toBe('new@mail.com');
     });
 
-    it('should return new reference when any field changed', () => {
+    it('should return new reference when unknown field changed', () => {
       const value1 = form.value.value;
 
       // Изменяем другое поле
@@ -231,7 +231,7 @@ describe('GroupNode - Reference Equality', () => {
 
   describe('Edge cases', () => {
     it('should handle empty form', () => {
-      interface EmptyForm {}
+      type EmptyForm = Record<string, never>;
 
       const emptyForm = makeForm<EmptyForm>({});
 
@@ -258,8 +258,7 @@ describe('GroupNode - Reference Equality', () => {
     });
 
     it('should handle reset', () => {
-      // @ts-ignore
-      const value1 = form.value.value;
+      const _value1 = form.value.value;
 
       // Reset к исходным значениям
       form.reset();

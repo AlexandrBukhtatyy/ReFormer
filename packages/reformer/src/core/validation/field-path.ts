@@ -22,8 +22,8 @@ export function createFieldPath<T>(): FieldPath<T> {
  * Внутренняя функция для создания прокси с отслеживанием пути
  * @private
  */
-function createFieldPathProxy<T>(basePath: string): any {
-  return new Proxy({} as any, {
+function createFieldPathProxy<T>(basePath: string): FieldPath<T> {
+  return new Proxy({} as Record<string, unknown>, {
     get(_target, prop: string | symbol) {
       if (typeof prop === 'symbol') {
         return undefined;
@@ -56,11 +56,11 @@ function createFieldPathProxy<T>(basePath: string): any {
       const newPath = basePath ? `${basePath}.${prop}` : prop;
 
       // Возвращаем объект, который ведет себя и как значение, и как прокси
-      const node: FieldPathNode<T, any> = {
-        __key: prop as any,
+      const node: FieldPathNode<T, unknown> = {
+        __key: prop as unknown,
         __path: newPath,
-        __formType: undefined as any,
-        __fieldType: undefined as any,
+        __formType: undefined as unknown,
+        __fieldType: undefined as unknown,
       };
 
       // Создаем прокси, который содержит и метаинформацию, и позволяет дальнейшую навигацию
@@ -100,7 +100,7 @@ function createFieldPathProxy<T>(basePath: string): any {
 /**
  * Извлечь путь из FieldPathNode
  */
-export function extractPath(node: FieldPathNode<any, any> | any): string {
+export function extractPath(node: FieldPathNode<unknown, unknown> | unknown): string {
   // Fallback для строк
   if (typeof node === 'string') {
     return node;
@@ -137,7 +137,7 @@ export function extractPath(node: FieldPathNode<any, any> | any): string {
  * };
  * ```
  */
-export function toFieldPath<T>(node: FieldPathNode<any, T>): FieldPath<T> {
+export function toFieldPath<T>(node: FieldPathNode<unknown, T>): FieldPath<T> {
   const basePath = extractPath(node);
   return createFieldPathProxy<T>(basePath);
 }
@@ -145,7 +145,7 @@ export function toFieldPath<T>(node: FieldPathNode<any, T>): FieldPath<T> {
 /**
  * Извлечь ключ поля из FieldPathNode
  */
-export function extractKey(node: FieldPathNode<any, any> | any): string {
+export function extractKey(node: FieldPathNode<unknown, unknown> | unknown): string {
   if (node && typeof node === 'object' && '__key' in node) {
     return node.__key as string;
   }

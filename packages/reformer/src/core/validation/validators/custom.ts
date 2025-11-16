@@ -3,7 +3,7 @@
  */
 
 import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
+import type { ValidateOptions, ValidationContext } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 /**
@@ -45,7 +45,7 @@ export function custom<TForm, TField>(
 ): void {
   if (!fieldPath) return; // Защита от undefined fieldPath
 
-  validate(fieldPath as FieldPathNode<TForm, TField>, (ctx) => {
+  validate(fieldPath as FieldPathNode<TForm, TField>, (ctx: ValidationContext<TForm, TField>) => {
     const value = ctx.value();
 
     // Выполняем кастомную функцию

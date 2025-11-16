@@ -22,7 +22,7 @@ describe('ValidationContext - Type Safety', () => {
   }
 
   let form: GroupNodeWithControls<TestForm>;
-  let consoleWarnSpy: any;
+  let consoleWarnSpy: unknown;
 
   beforeEach(() => {
     form = makeForm<TestForm>({
@@ -242,7 +242,7 @@ describe('ValidationContext - Type Safety', () => {
         },
         validation: (path: FieldPath<TestForm>) => {
           validate(path.email, (ctx) => {
-            ctx.setField('nonexistent' as any, 'value');
+            ctx.setField('nonexistent' as unknown, 'value');
             return null;
           });
         },
@@ -291,8 +291,8 @@ describe('ValidationContext - Type Safety', () => {
 
   describe('TreeValidationContext type safety', () => {
     it('should return value for existing field via getField', async () => {
-      let email: any = null;
-      let city: any = null;
+      let email: unknown = null;
+      let city: unknown = null;
 
       form = makeForm<TestForm>({
         form: {

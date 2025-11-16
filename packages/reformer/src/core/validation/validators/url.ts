@@ -3,7 +3,7 @@
  */
 
 import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
+import type { ValidateOptions, ValidationContext } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 /**
@@ -32,7 +32,7 @@ export function url<TForm, TField extends string | undefined = string>(
   const urlRegexWithProtocol = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
   const urlRegexRequireProtocol = /^https?:\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
 
-  validate(fieldPath as any, (ctx) => {
+  validate(fieldPath, (ctx: ValidationContext<TForm, TField>) => {
     const value = ctx.value();
 
     if (!value) {

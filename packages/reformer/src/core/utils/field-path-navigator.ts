@@ -1,3 +1,5 @@
+import type { UnknownRecord } from '../types';
+
 /**
  * Сегмент пути к полю формы
  *
@@ -161,14 +163,14 @@ export class FieldPathNavigator {
    * // undefined
    * ```
    */
-  getValueByPath(obj: any, path: string): any {
+  getValueByPath(obj: UnknownRecord, path: string): unknown {
     const segments = this.parsePath(path);
-    let current = obj;
+    let current: unknown = obj;
 
     for (const segment of segments) {
       if (current == null) return undefined;
 
-      current = current[segment.key];
+      current = (current as UnknownRecord)[segment.key];
 
       if (segment.index !== undefined) {
         if (!Array.isArray(current)) return undefined;
@@ -197,7 +199,7 @@ export class FieldPathNavigator {
    * navigator.setValueByPath(obj, 'address.city', 'Moscow');
    * // obj.address.city === 'Moscow'
    *
-   * const obj2: any = {};
+   * const obj2: UnknownRecord = {};
    * navigator.setValueByPath(obj2, 'address.city', 'Moscow');
    * // Создаст { address: { city: 'Moscow' } }
    *
@@ -206,14 +208,14 @@ export class FieldPathNavigator {
    * // obj3.items[0].title === 'New'
    * ```
    */
-  setValueByPath(obj: any, path: string, value: any): void {
+  setValueByPath(obj: UnknownRecord, path: string, value: unknown): void {
     const segments = this.parsePath(path);
 
     if (segments.length === 0) {
       throw new Error('Cannot set value: empty path');
     }
 
-    let current = obj;
+    let current: UnknownRecord = obj;
 
     // Проходим до предпоследнего сегмента
     for (let i = 0; i < segments.length - 1; i++) {
@@ -225,7 +227,7 @@ export class FieldPathNavigator {
         if (!Array.isArray(next)) {
           throw new Error(`Expected array at path segment: ${segment.key}, but got ${typeof next}`);
         }
-        current = next[segment.index];
+        current = next[segment.index] as UnknownRecord;
       } else {
         // Доступ к объекту: address
         if (next == null) {
@@ -233,7 +235,7 @@ export class FieldPathNavigator {
           current[segment.key] = {};
           next = current[segment.key];
         }
-        current = next;
+        current = next as UnknownRecord;
       }
     }
 
@@ -286,7 +288,7 @@ export class FieldPathNavigator {
    * // undefined
    * ```
    */
-  getFormNodeValue(form: any, path: string): any {
+  getFormNodeValue(form: unknown, path: string): unknown {
     const node = this.getNodeByPath(form, path);
 
     if (node == null) {
@@ -295,7 +297,7 @@ export class FieldPathNavigator {
 
     // FormNode возвращает .value.value
     if (this.isFormNode(node)) {
-      return node.value.value;
+      return (node as UnknownRecord).value.value;
     }
 
     // Для обычных объектов возвращаем как есть
@@ -313,12 +315,13 @@ export class FieldPathNavigator {
    * @returns true, если объект является FormNode
    * @private
    */
-  private isFormNode(obj: any): boolean {
+  private isFormNode(obj: unknown): boolean {
     return (
-      obj &&
+      obj != null &&
       typeof obj === 'object' &&
       'value' in obj &&
       typeof obj.value === 'object' &&
+      obj.value != null &&
       'value' in obj.value
     );
   }
@@ -364,16 +367,18 @@ export class FieldPathNavigator {
    * // null
    * ```
    */
-  getNodeByPath(form: any, path: string): any | null {
+  getNodeByPath(form: unknown, path: string): unknown | null {
     const segments = this.parsePath(path);
-    let current: any = form;
+    let current: unknown = form;
 
     for (const segment of segments) {
       if (current == null) return null;
 
+      const currentRecord = current as UnknownRecord;
+
       // Для GroupNode: доступ через fields Map
-      if (current.fields && current.fields instanceof Map) {
-        current = current.fields.get(segment.key);
+      if (currentRecord.fields && currentRecord.fields instanceof Map) {
+        current = currentRecord.fields.get(segment.key);
         // Если это не ArrayNode или нет индекса, продолжаем
         if (segment.index === undefined) {
           if (current == null) return null;
@@ -381,8 +386,8 @@ export class FieldPathNavigator {
         }
       }
       // Для ArrayNode: доступ через items и индекс
-      else if (segment.index !== undefined && current.items) {
-        const items = current.items.value || current.items;
+      else if (segment.index !== undefined && currentRecord.items) {
+        const items = (currentRecord.items as UnknownRecord).value || currentRecord.items;
         if (!Array.isArray(items)) return null;
         current = items[segment.index];
         if (current == null) return null;
@@ -390,19 +395,21 @@ export class FieldPathNavigator {
       }
       // Proxy-доступ (для обратной совместимости)
       else if (segment.index === undefined) {
-        current = current[segment.key];
+        current = currentRecord[segment.key];
         if (current == null) return null;
         continue;
       }
 
       // Если нашли ArrayNode и есть индекс, получаем элемент массива
-      if (current && segment.index !== undefined && current.items) {
-        const items = current.items.value || current.items;
+      if (current && segment.index !== undefined && (current as UnknownRecord).items) {
+        const items =
+          ((current as UnknownRecord).items as UnknownRecord).value ||
+          (current as UnknownRecord).items;
         if (!Array.isArray(items)) return null;
         current = items[segment.index];
       }
       // Если запрашивается индекс, но узел не является ArrayNode, возвращаем null
-      else if (current && segment.index !== undefined && !current.items) {
+      else if (current && segment.index !== undefined && !(current as UnknownRecord).items) {
         return null;
       }
 

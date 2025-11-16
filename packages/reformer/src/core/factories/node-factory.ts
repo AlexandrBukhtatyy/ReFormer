@@ -34,6 +34,7 @@ import { FieldNode } from '../nodes/field-node';
 import { GroupNode } from '../nodes/group-node';
 import { ArrayNode } from '../nodes/array-node';
 import type { FormNode } from '../nodes/form-node';
+import type { ConfigWithSchema, ConfigWithValue, UnknownRecord } from '../types';
 
 /**
  * Фабрика для создания узлов формы
@@ -86,25 +87,29 @@ export class NodeFactory {
    * ]);
    * ```
    */
-  createNode<T>(config: any): FormNode<T> {
+  createNode<T>(config: unknown): FormNode<T> {
     // 0. ✅ НОВОЕ: Проверка массива (приоритет: специфический формат)
     if (Array.isArray(config) && config.length >= 1) {
-      return this.createArrayNodeFromArray(config) as any;
+      return this.createArrayNodeFromArray(config) as unknown as FormNode<T>;
     }
 
     // 1. Проверка FieldConfig (приоритет: самый специфичный тип)
     if (this.isFieldConfig(config)) {
-      return new FieldNode(config) as any;
+      return new FieldNode(config as unknown as never) as unknown as FormNode<T>;
     }
 
     // 2. Проверка ArrayConfig
     if (this.isArrayConfig(config)) {
-      return new ArrayNode(config.schema, config.initialItems) as any;
+      const arrayConfig = config as ConfigWithSchema;
+      return new ArrayNode(
+        arrayConfig.schema as unknown as never,
+        arrayConfig.initialItems as unknown as never
+      ) as unknown as FormNode<T>;
     }
 
     // 3. Проверка GroupConfig (самый общий тип)
     if (this.isGroupConfig(config)) {
-      return new GroupNode(config) as any;
+      return new GroupNode(config as unknown as never) as unknown as FormNode<T>;
     }
 
     // Неизвестный конфиг
@@ -140,12 +145,12 @@ export class NodeFactory {
    * ```
    * @private
    */
-  private createArrayNodeFromArray(config: any[]): ArrayNode<any> {
+  private createArrayNodeFromArray(config: unknown[]): ArrayNode<object> {
     const [itemSchema, ...restItems] = config;
 
     // Обработка начальных элементов:
     // Если элемент - схема группы, извлечь значения
-    const initialItems: any[] = [];
+    const initialItems: unknown[] = [];
 
     //  ИСПРАВЛЕНИЕ: Первый элемент является и схемой, и первым элементом данных
     // Если первый элемент имеет значения (GroupConfig с value), добавляем его как первый item
@@ -162,7 +167,7 @@ export class NodeFactory {
       }
     }
 
-    return new ArrayNode(itemSchema, initialItems);
+    return new ArrayNode(itemSchema as object, initialItems as object[]);
   }
 
   /**
@@ -194,10 +199,10 @@ export class NodeFactory {
    * // { name: 'John', age: 30, address: { city: 'Moscow' } }
    * ```
    */
-  extractValues(schema: any): any {
+  extractValues(schema: unknown): unknown {
     // 1. FieldConfig - вернуть value
     if (this.isFieldConfig(schema)) {
-      return schema.value;
+      return (schema as ConfigWithValue).value;
     }
 
     // 2. Массив - рекурсивно обработать элементы
@@ -207,9 +212,9 @@ export class NodeFactory {
 
     // 3. GroupConfig - рекурсивно извлечь значения всех полей
     if (this.isGroupConfig(schema)) {
-      const result: any = {};
+      const result: UnknownRecord = {};
 
-      for (const [key, config] of Object.entries(schema)) {
+      for (const [key, config] of Object.entries(schema as UnknownRecord)) {
         result[key] = this.extractValues(config);
       }
 
@@ -239,7 +244,7 @@ export class NodeFactory {
    * factory.isFieldConfig(null); // false
    * ```
    */
-  isFieldConfig(config: any): boolean {
+  isFieldConfig(config: unknown): boolean {
     return (
       config != null && typeof config === 'object' && 'value' in config && 'component' in config
     );
@@ -266,7 +271,7 @@ export class NodeFactory {
    * factory.isArrayConfig({ email: { value: '' } }); // false
    * ```
    */
-  isArrayConfig(config: any): boolean {
+  isArrayConfig(config: unknown): boolean {
     return (
       config != null && typeof config === 'object' && 'schema' in config && !('value' in config)
     );
@@ -297,7 +302,7 @@ export class NodeFactory {
    * factory.isGroupConfig(null); // false
    * ```
    */
-  isGroupConfig(config: any): boolean {
+  isGroupConfig(config: unknown): boolean {
     return (
       config != null &&
       typeof config === 'object' &&

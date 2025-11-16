@@ -20,6 +20,7 @@
  */
 
 import type { FormNode } from '../form-node';
+import type { FormValue } from '../../types';
 
 /**
  * Реестр полей формы
@@ -29,12 +30,12 @@ import type { FormNode } from '../form-node';
  *
  * @template T Тип формы (объект)
  */
-export class FieldRegistry<T extends Record<string, any>> {
+export class FieldRegistry<T extends Record<string, FormValue>> {
   /**
    * Внутреннее хранилище полей
    * Map обеспечивает быструю lookup производительность O(1)
    */
-  private fields = new Map<keyof T, FormNode<any>>();
+  private fields = new Map<keyof T, FormNode<FormValue>>();
 
   /**
    * Установить поле в реестр
@@ -113,7 +114,7 @@ export class FieldRegistry<T extends Record<string, any>> {
    * });
    * ```
    */
-  forEach(callback: (field: FormNode<any>, key: keyof T) => void): void {
+  forEach(callback: (field: FormNode<FormValue>, key: keyof T) => void): void {
     this.fields.forEach(callback);
   }
 
@@ -129,7 +130,7 @@ export class FieldRegistry<T extends Record<string, any>> {
    * }
    * ```
    */
-  values(): IterableIterator<FormNode<any>> {
+  values(): IterableIterator<FormNode<FormValue>> {
     return this.fields.values();
   }
 
@@ -145,7 +146,7 @@ export class FieldRegistry<T extends Record<string, any>> {
    * }
    * ```
    */
-  entries(): IterableIterator<[keyof T, FormNode<any>]> {
+  entries(): IterableIterator<[keyof T, FormNode<FormValue>]> {
     return this.fields.entries();
   }
 
@@ -205,7 +206,7 @@ export class FieldRegistry<T extends Record<string, any>> {
    * const allValid = registry.toArray().every(field => field.valid.value);
    * ```
    */
-  toArray(): FormNode<any>[] {
+  toArray(): FormNode<FormValue>[] {
     return Array.from(this.fields.values());
   }
 
@@ -222,7 +223,7 @@ export class FieldRegistry<T extends Record<string, any>> {
    * const mapView = registry.asMap();
    * ```
    */
-  asMap(): ReadonlyMap<keyof T, FormNode<any>> {
+  asMap(): ReadonlyMap<keyof T, FormNode<FormValue>> {
     return this.fields;
   }
 }

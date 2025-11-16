@@ -301,7 +301,7 @@ describe('ArrayNode', () => {
 
       const behaviorSchema: BehaviorSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
         // Auto-capitalize title
-        path.title; // Reference field to register behavior
+        void path.title; // Reference field to register behavior
       };
 
       arrayNode.applyBehaviorSchema(behaviorSchema);
@@ -315,7 +315,7 @@ describe('ArrayNode', () => {
 
       const behaviorSchema: BehaviorSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
         appliedCount++;
-        path.title; // Reference field
+        void path.title; // Reference field
       };
 
       arrayNode.applyBehaviorSchema(behaviorSchema);
@@ -334,7 +334,7 @@ describe('ArrayNode', () => {
 
       const behaviorSchema: BehaviorSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
         appliedCount++;
-        path.title; // Reference field
+        void path.title; // Reference field
       };
 
       arrayNode.applyBehaviorSchema(behaviorSchema);
@@ -430,8 +430,8 @@ describe('ArrayNode', () => {
       arrayNode.push({ title: 'Item 2', price: 200 });
 
       arrayNode.patchValue([
-        { title: 'Updated Item 1', price: 100 } as any, // Partial update via type assertion
-        { title: 'Item 2', price: 250 } as any, // Partial update via type assertion
+        { title: 'Updated Item 1', price: 100 } as unknown, // Partial update via type assertion
+        { title: 'Item 2', price: 250 } as unknown, // Partial update via type assertion
       ]);
 
       expect(arrayNode.at(0)?.title.value.value).toBe('Updated Item 1');
@@ -1003,7 +1003,7 @@ describe('ArrayNode', () => {
       expect(item?.status.value).toBe('disabled');
 
       // Nested subitems should also be affected
-      item?.subitems.forEach((subitem: any) => {
+      item?.subitems.forEach((subitem: unknown) => {
         expect(subitem.status.value).toBe('disabled');
       });
     });
@@ -1040,7 +1040,7 @@ describe('ArrayNode', () => {
       expect(item?.status.value).not.toBe('disabled');
 
       // Nested subitems should also be enabled
-      item?.subitems.forEach((subitem: any) => {
+      item?.subitems.forEach((subitem: unknown) => {
         expect(subitem.status.value).not.toBe('disabled');
       });
     });

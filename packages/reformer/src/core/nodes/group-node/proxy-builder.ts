@@ -21,6 +21,7 @@
 import type { GroupNode } from '../group-node';
 import type { GroupNodeWithControls } from '../../types/group-node-proxy';
 import type { FieldRegistry } from './field-registry';
+import type { FormValue, UnknownRecord } from '../../types';
 
 /**
  * Строитель Proxy для GroupNode
@@ -34,7 +35,7 @@ import type { FieldRegistry } from './field-registry';
  *
  * @template T Тип формы (объект)
  */
-export class ProxyBuilder<T extends Record<string, any>> {
+export class ProxyBuilder<T extends Record<string, FormValue>> {
   /**
    * @param fieldRegistry - Реестр полей для доступа к коллекции
    */
@@ -83,7 +84,7 @@ export class ProxyBuilder<T extends Record<string, any>> {
         // Приоритет 1: Собственные свойства и методы GroupNode
         // Это важно, чтобы методы validate(), setValue() и т.д. работали корректно
         if (prop in target) {
-          return (target as any)[prop];
+          return (target as UnknownRecord)[prop as string];
         }
 
         // Приоритет 2: Поля формы
@@ -102,7 +103,7 @@ export class ProxyBuilder<T extends Record<string, any>> {
        * Запрещает прямую установку значений полей через form.email = value
        * Пользователь должен использовать form.email.setValue(value) или form.setValue({...})
        */
-      set: (target, prop: string | symbol, value: any) => {
+      set: (target, prop: string | symbol, value: unknown) => {
         // Запретить прямое изменение полей
         if (typeof prop === 'string' && this.fieldRegistry.has(prop as keyof T)) {
           if (import.meta.env.DEV) {
@@ -115,7 +116,7 @@ export class ProxyBuilder<T extends Record<string, any>> {
         }
 
         // Разрешить установку других свойств
-        (target as any)[prop] = value;
+        (target as UnknownRecord)[prop as string] = value;
         return true;
       },
 

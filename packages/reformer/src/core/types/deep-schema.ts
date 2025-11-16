@@ -9,7 +9,13 @@
 
 import type { ComponentType } from 'react';
 import type { ReadonlySignal } from '@preact/signals-core';
-import type { ValidatorFn, AsyncValidatorFn, ValidationError } from './index';
+import type {
+  ValidatorFn,
+  AsyncValidatorFn,
+  ValidationError,
+  UnknownRecord,
+  FormFields,
+} from './index';
 import type { FieldNode } from '../nodes/field-node';
 
 // ============================================================================
@@ -21,8 +27,8 @@ import type { FieldNode } from '../nodes/field-node';
  */
 export interface FieldConfig<T> {
   value: T | null;
-  component: ComponentType<any>;
-  componentProps?: Record<string, any>;
+  component: ComponentType<UnknownRecord>;
+  componentProps?: UnknownRecord;
   validators?: ValidatorFn<T>[];
   asyncValidators?: AsyncValidatorFn<T>[];
   disabled?: boolean;
@@ -34,7 +40,7 @@ export interface FieldConfig<T> {
 /**
  * Конфигурация массива (внутренняя)
  */
-export interface ArrayConfig<T extends Record<string, any>> {
+export interface ArrayConfig<T extends FormFields> {
   itemSchema: FormSchema<T>;
   initial?: Partial<T>[];
 }
@@ -80,10 +86,10 @@ export interface ArrayConfig<T extends Record<string, any>> {
  */
 export type FormSchema<T> = {
   [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
-    ? U extends Record<string, any>
+    ? U extends FormFields
       ? [FormSchema<U>] // Массив объектов
       : FieldConfig<T[K]> // Массив примитивов (как обычное поле)
-    : NonNullable<T[K]> extends Record<string, any>
+    : NonNullable<T[K]> extends FormFields
       ? NonNullable<T[K]> extends Date | File | Blob
         ? FieldConfig<T[K]> // Специальные объекты
         : FormSchema<NonNullable<T[K]>> | FieldConfig<T[K]> // Группа или поле с объектным типом
@@ -122,10 +128,10 @@ export type FormSchema<T> = {
  */
 export type DeepControls<T> = {
   [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
-    ? U extends Record<string, any>
+    ? U extends FormFields
       ? ArrayControlProxy<U>
       : FieldNode<T[K]>
-    : NonNullable<T[K]> extends Record<string, any>
+    : NonNullable<T[K]> extends FormFields
       ? NonNullable<T[K]> extends Date | File | Blob
         ? FieldNode<T[K]>
         : DeepControls<NonNullable<T[K]>> & GroupControlProxy<NonNullable<T[K]>>
@@ -137,7 +143,7 @@ export type DeepControls<T> = {
  *
  * Предоставляет методы для работы с группой полей как с единой формой
  */
-export interface GroupControlProxy<T extends Record<string, any>> {
+export interface GroupControlProxy<T extends FormFields> {
   /** Все поля группы валидны */
   valid: boolean;
 
@@ -208,7 +214,7 @@ export interface GroupControlProxy<T extends Record<string, any>> {
  * const titles = form.controls.items.map(item => item.title.value);
  * ```
  */
-export interface ArrayControlProxy<T extends Record<string, any>> {
+export interface ArrayControlProxy<T extends FormFields> {
   // ============================================================================
   // Доступ по индексу
   // ============================================================================

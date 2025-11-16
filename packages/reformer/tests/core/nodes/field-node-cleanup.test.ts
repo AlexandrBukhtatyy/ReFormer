@@ -95,8 +95,7 @@ describe('FieldNode - Cleanup (dispose)', () => {
       const callback2 = vi.fn();
 
       const unsubscribe1 = field.watch(callback1);
-      //@ts-ignore
-      const unsubscribe2 = field.watch(callback2);
+      const _unsubscribe2 = field.watch(callback2);
 
       // Unsubscribe first
       unsubscribe1();

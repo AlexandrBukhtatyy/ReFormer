@@ -3,7 +3,7 @@
  */
 
 import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
+import type { ValidateOptions, ValidationContext } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 /**
@@ -18,7 +18,7 @@ export function email<TForm, TField extends string | undefined = string>(
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  validate(fieldPath as any, (ctx) => {
+  validate(fieldPath, (ctx: ValidationContext<TForm, TField>) => {
     const value = ctx.value();
 
     if (!value) {

@@ -19,6 +19,8 @@ import type {
   ValidatorRegistration,
   FormSchema,
   GroupNodeConfig,
+  FormValue,
+  ArrayNodeLike,
 } from '../types';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import { createFieldPath } from '../validation';
@@ -73,7 +75,7 @@ import { v4 as uuidv4 } from 'uuid';
  * console.log(fullForm.valid.value); // true
  * ```
  */
-export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
+export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> {
   // ============================================================================
   // Приватные поля
   // ============================================================================
@@ -453,7 +455,7 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
    * );
    * ```
    */
-  getAllFields(): IterableIterator<FormNode<any>> {
+  getAllFields(): IterableIterator<FormNode<FormValue>> {
     return this.fieldRegistry.values();
   }
 
@@ -614,7 +616,7 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
    * form.getFieldByPath('invalid.path');    // undefined
    * ```
    */
-  public getFieldByPath(path: string): FormNode<any> | undefined {
+  public getFieldByPath(path: string): FormNode<FormValue> | undefined {
     // Проверка на некорректные пути (leading/trailing dots)
     if (path.startsWith('.') || path.endsWith('.')) {
       return undefined;
@@ -626,7 +628,8 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
       return undefined;
     }
 
-    let current: FormNode<any> | undefined = this;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    let current: FormNode<FormValue> | undefined = this;
 
     for (const segment of segments) {
       // Доступ к полю
@@ -634,14 +637,20 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
         return undefined;
       }
 
-      current = current.getField(segment.key as any);
+      current = current.getField(segment.key as unknown as never);
       if (!current) return undefined;
 
       // Если есть индекс, получаем элемент массива
       if (segment.index !== undefined) {
         // Используем duck typing вместо instanceof из-за circular dependency
-        if ('at' in current && 'length' in current && typeof (current as any).at === 'function') {
-          const item: FormNode<any> | undefined = (current as any).at(segment.index);
+        if (
+          'at' in current &&
+          'length' in current &&
+          typeof (current as ArrayNodeLike).at === 'function'
+        ) {
+          const item: FormNode<FormValue> | undefined = (current as ArrayNodeLike).at(
+            segment.index
+          );
           if (!item) return undefined;
           current = item;
         } else {
@@ -688,7 +697,7 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
    * @returns Созданный узел формы
    * @private
    */
-  private createNode(config: any): FormNode<any> {
+  private createNode(config: unknown): FormNode<FormValue> {
     //  Полное делегирование NodeFactory
     // NodeFactory теперь поддерживает массивы напрямую
     return this.nodeFactory.createNode(config);
@@ -743,7 +752,7 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
 
     const dispose = effect(() => {
       const sourceValue = sourceField.value.value;
-      const transformedValue = transform ? transform(sourceValue as T[K1]) : (sourceValue as any);
+      const transformedValue = transform ? transform(sourceValue as T[K1]) : (sourceValue as T[K2]);
 
       targetField.setValue(transformedValue, { emitEvent: false });
     });
@@ -782,7 +791,7 @@ export class GroupNode<T extends Record<string, any>> extends FormNode<T> {
    */
   watchField<K extends keyof T>(
     fieldPath: K extends string ? K : string,
-    callback: (value: any) => void | Promise<void>
+    callback: (value: T[K]) => void | Promise<void>
   ): () => void {
     const field = this.getFieldByPath(fieldPath as string);
 

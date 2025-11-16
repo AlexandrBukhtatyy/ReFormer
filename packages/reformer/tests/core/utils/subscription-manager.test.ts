@@ -422,8 +422,7 @@ describe('SubscriptionManager', () => {
       const dispose2 = vi.fn();
 
       const unsubscribe1 = manager.add('sub1', dispose1);
-      // @ts-ignore
-      const unsubscribe2 = manager.add('sub2', dispose2);
+      const _unsubscribe2 = manager.add('sub2', dispose2);
 
       unsubscribe1();
 
@@ -526,8 +525,7 @@ describe('SubscriptionManager', () => {
       const node = new MockFieldNode();
 
       const unsubscribe1 = node.watch(() => {});
-      // @ts-ignore
-      const unsubscribe2 = node.watch(() => {});
+      const _unsubscribe2 = node.watch(() => {});
 
       expect(node.getSubscriptionCount()).toBe(2);
 

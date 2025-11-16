@@ -8,7 +8,7 @@
  * - Асинхронная валидация с контекстом
  */
 
-import type { ValidationError } from './index';
+import type { ValidationError, ValidatorParams } from './index';
 import type { FieldPath } from './field-path';
 
 // Forward declarations для избежания циклических зависимостей
@@ -39,7 +39,7 @@ export interface ValidationContext<TForm, TField> {
    * @param path - Путь к полю (например, 'loanType', 'personalData.firstName')
    */
   getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): any;
+  getField(path: string): unknown;
 
   /**
    * Установить значение другого поля по пути
@@ -47,7 +47,7 @@ export interface ValidationContext<TForm, TField> {
    * @param value - Новое значение поля
    */
   setField<K extends keyof TForm>(path: K, value: TForm[K]): void;
-  setField(path: string, value: any): void;
+  setField(path: string, value: unknown): void;
 
   /**
    * Получить значения всей формы
@@ -74,7 +74,7 @@ export interface TreeValidationContext<TForm> {
    * Получить значение поля по пути
    */
   getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): any;
+  getField(path: string): unknown;
 
   /**
    * Получить значения всей формы
@@ -126,7 +126,7 @@ export interface ValidateOptions {
   /** Сообщение об ошибке */
   message?: string;
   /** Параметры ошибки */
-  params?: Record<string, any>;
+  params?: ValidatorParams;
 }
 
 /**

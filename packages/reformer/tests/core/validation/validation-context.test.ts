@@ -226,7 +226,7 @@ describe('ValidationContext через публичный API', () => {
     });
 
     it('should access form reference via context.getForm()', async () => {
-      let formRef: any = null;
+      let formRef: unknown = null;
 
       form = makeForm<TestForm>({
         form: {
@@ -255,7 +255,7 @@ describe('ValidationContext через публичный API', () => {
     });
 
     it('should access field control via context.getControl()', async () => {
-      let fieldControl: any = null;
+      let fieldControl: unknown = null;
 
       form = makeForm<TestForm>({
         form: {
@@ -394,7 +394,7 @@ describe('ValidationContext через публичный API', () => {
 
   describe('TreeValidationContext (validateTree)', () => {
     it('should access all fields in tree validation', async () => {
-      let contextFormValue: any = null;
+      let contextFormValue: unknown = null;
 
       form = makeForm<TestForm>({
         form: {
@@ -428,9 +428,9 @@ describe('ValidationContext через публичный API', () => {
     });
 
     it('should access any field by path in tree validation', async () => {
-      let email: any = null;
-      let password: any = null;
-      let city: any = null;
+      let email: unknown = null;
+      let password: unknown = null;
+      let city: unknown = null;
 
       form = makeForm<TestForm>({
         form: {
@@ -460,7 +460,7 @@ describe('ValidationContext через публичный API', () => {
     });
 
     it('should return undefined for non-existent path in tree validation', async () => {
-      let nonExistent: any = 'not-undefined';
+      let nonExistent: unknown = 'not-undefined';
 
       form = makeForm<TestForm>({
         form: {

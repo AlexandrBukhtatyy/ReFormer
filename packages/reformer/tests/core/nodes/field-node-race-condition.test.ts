@@ -122,8 +122,7 @@ describe('FieldNode - Race Condition Protection', () => {
         value: '',
         component: null as ComponentInstance,
         asyncValidators: [
-          //@ts-ignore
-          async (value) => {
+          async (_value) => {
             await new Promise((resolve) => setTimeout(resolve, 10));
             return null;
           },

@@ -263,7 +263,7 @@ describe('FieldNode - updateOn', () => {
       expect(form.password.valid.value).toBe(true);
 
       // Submit triggers validation
-      const result = await form.submit(async (values: any) => values);
+      const result = await form.submit(async (values: unknown) => values);
 
       expect(result).toBeNull(); // Form invalid
       expect(form.email.valid.value).toBe(false);

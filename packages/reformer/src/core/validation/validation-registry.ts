@@ -8,6 +8,7 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
+import { FormFields } from '../types';
 import type {
   ValidatorRegistration,
   ContextualValidatorFn,
@@ -136,7 +137,7 @@ export class ValidationRegistry {
    *
    * Сохраняет валидаторы в локальном состоянии (this.validators) вместо глобального WeakMap.
    */
-  endRegistration<T extends Record<string, any>>(form: GroupNode<T>): void {
+  endRegistration<T extends FormFields>(form: GroupNode<T>): void {
     const context = this.contextStack.pop();
     if (!context) {
       throw new Error('No active registration context');
@@ -274,7 +275,7 @@ export class ValidationRegistry {
    */
   registerArrayItemValidation(
     fieldPath: string,
-    itemSchemaFn: any // ValidationSchemaFn<TItem>
+    itemSchemaFn: unknown // ValidationSchemaFn<TItem>
   ): void {
     const context = this.getCurrentContext();
     if (!context) {
@@ -288,7 +289,7 @@ export class ValidationRegistry {
       type: 'array-items',
       validator: itemSchemaFn,
       options: {},
-    } as any);
+    } as unknown);
   }
 
   /**
@@ -305,7 +306,7 @@ export class ValidationRegistry {
    * @private
    */
   private applyValidators<T>(
-    // @ts-ignore
+    // @ts-expect-error - форма имеет сложную типизацию с Generic
     form: GroupNode<T>,
     validators: ValidatorRegistration[]
   ): void {
@@ -313,7 +314,7 @@ export class ValidationRegistry {
     const validatorsByField = new Map<string, ValidatorRegistration[]>();
 
     for (const registration of validators) {
-      if (registration.type === 'tree' || (registration as any).type === 'array-items') {
+      if (registration.type === 'tree' || (registration as unknown).type === 'array-items') {
         // Tree и array-items валидаторы обрабатываются отдельно
         continue;
       }
@@ -334,12 +335,12 @@ export class ValidationRegistry {
    * Применить array-items validators к ArrayNode элементам
    * @private
    */
-  private applyArrayItemValidators<T extends Record<string, any>>(
+  private applyArrayItemValidators<T extends FormFields>(
     form: GroupNode<T>,
     validators: ValidatorRegistration[]
   ): void {
     // Фильтруем array-items validators
-    const arrayItemValidators = validators.filter((v: any) => v.type === 'array-items');
+    const arrayItemValidators = validators.filter((v: unknown) => v.type === 'array-items');
 
     if (arrayItemValidators.length === 0) {
       return;
@@ -347,10 +348,10 @@ export class ValidationRegistry {
 
     // Применяем validation schema к каждому ArrayNode
     for (const registration of arrayItemValidators) {
-      const arrayNode = (form as any)[registration.fieldPath.split('.')[0]];
+      const arrayNode = (form as unknown)[registration.fieldPath.split('.')[0]];
 
       if (arrayNode && 'applyValidationSchema' in arrayNode) {
-        const itemSchemaFn = (registration as any).validator;
+        const itemSchemaFn = (registration as unknown).validator;
         arrayNode.applyValidationSchema(itemSchemaFn);
 
         if (import.meta.env.DEV) {
