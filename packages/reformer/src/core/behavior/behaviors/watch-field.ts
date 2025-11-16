@@ -2,10 +2,10 @@
  * Watch field changes
  */
 
+import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
-import type { BehaviorContext, WatchFieldOptions } from '../types';
-import { createWatchBehavior } from '../behavior-factories';
+import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Выполняет callback при изменении поля
@@ -34,8 +34,26 @@ export function watchField<TForm extends Record<string, any>, TField>(
   callback: (value: TField, ctx: BehaviorContext<TForm>) => void | Promise<void>,
   options?: WatchFieldOptions
 ): void {
-  const { debounce } = options || {};
+  const { debounce, immediate = false } = options || {};
 
-  const handler = createWatchBehavior(field, callback, options);
+  const handler: BehaviorHandlerFn<TForm> = (form, context, withDebounce) => {
+    const node = form.getFieldByPath(field.__path);
+    if (!node) return null;
+
+    // Вызвать сразу если immediate: true
+    if (immediate) {
+      const value = node.value.value;
+      callback(value, context);
+    }
+
+    return effect(() => {
+      const value = node.value.value;
+
+      withDebounce(() => {
+        callback(value, context);
+      });
+    });
+  };
+
   getCurrentBehaviorRegistry().register(handler, { debounce });
 }

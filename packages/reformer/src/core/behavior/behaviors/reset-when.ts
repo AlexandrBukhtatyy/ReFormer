@@ -2,9 +2,20 @@
  * Conditional field reset behavior
  */
 
+import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
-import { createResetBehavior, type ResetWhenOptions } from '../behavior-factories';
+import type { BehaviorHandlerFn } from '../types';
+
+/**
+ * Опции для resetWhen
+ */
+export interface ResetWhenOptions {
+  /** Значение для сброса (по умолчанию null) */
+  resetValue?: any;
+  /** Сбросить только если поле dirty */
+  onlyIfDirty?: boolean;
+}
 
 /**
  * Условный сброс поля при выполнении условия
@@ -36,10 +47,34 @@ export function resetWhen<TForm extends Record<string, any>>(
   condition: (form: TForm) => boolean,
   options?: ResetWhenOptions & { debounce?: number }
 ): void {
-  const { debounce } = options || {};
+  const { debounce, resetValue = null, onlyIfDirty = false } = options || {};
 
-  const handler = createResetBehavior(field, condition, options);
+  const handler: BehaviorHandlerFn<TForm> = (form, _context, withDebounce) => {
+    const targetNode = form.getFieldByPath(field.__path);
+    if (!targetNode) return null;
+
+    return effect(() => {
+      const formValue = form.value.value;
+
+      withDebounce(() => {
+        const shouldReset = condition(formValue);
+
+        if (shouldReset) {
+          // Проверяем onlyIfDirty опцию
+          if (onlyIfDirty && !targetNode.dirty.value) {
+            return;
+          }
+
+          // Сбрасываем значение
+          targetNode.setValue(resetValue);
+
+          // Сбрасываем флаги dirty и touched
+          targetNode.markAsPristine();
+          targetNode.markAsUntouched();
+        }
+      });
+    });
+  };
+
   getCurrentBehaviorRegistry().register(handler, { debounce });
 }
-
-export type { ResetWhenOptions };

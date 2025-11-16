@@ -2,10 +2,11 @@
  * Computed fields
  */
 
+import { effect } from '@preact/signals-core';
+import type { FormNode } from '../../nodes/form-node';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
-import type { ComputeFromOptions } from '../types';
-import { createComputeBehavior } from '../behavior-factories';
+import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Автоматически вычисляет значение поля на основе других полей
@@ -43,9 +44,47 @@ export function computeFrom<TForm extends Record<string, any>, TTarget>(
   computeFn: (...values: any[]) => TTarget,
   options?: ComputeFromOptions<TForm>
 ): void {
-  const { debounce } = options || {};
+  const { debounce, condition } = options || {};
 
-  //  Передаем computeFn напрямую без обертки
-  const handler = createComputeBehavior(target, sources, computeFn, options);
+  const handler: BehaviorHandlerFn<TForm> = (form, _context, withDebounce) => {
+    const targetNode = form.getFieldByPath(target.__path);
+    if (!targetNode) return null;
+
+    // Разрешаем source узлы
+    const sourceNodes = sources
+      .map((field) => form.getFieldByPath(field.__path))
+      .filter((node): node is FormNode<any> => node !== undefined);
+
+    if (sourceNodes.length === 0) return null;
+
+    return effect(() => {
+      // Читаем значения всех source полей
+      const sourceValues = sourceNodes.map((node) => node.value.value);
+
+      withDebounce(() => {
+        // Проверка условия
+        if (condition) {
+          const formValue = form.getValue();
+          if (!condition(formValue)) return;
+        }
+
+        // Создаем объект с именами полей для computeFn
+        // computeFn ожидает объект вида { fieldName: value, ... }
+        const sourceValuesObject: Record<string, unknown> = {};
+        sources.forEach((source, index) => {
+          // Извлекаем имя поля из пути (последний сегмент)
+          const fieldName = source.__path.split('.').pop() || source.__path;
+          sourceValuesObject[fieldName] = sourceValues[index];
+        });
+
+        // Вычисляем новое значение
+        const computedValue = computeFn(sourceValuesObject);
+
+        // Устанавливаем значение без триггера событий
+        targetNode.setValue(computedValue, { emitEvent: false });
+      });
+    });
+  };
+
   getCurrentBehaviorRegistry().register(handler, { debounce });
 }

@@ -2,10 +2,10 @@
  * Conditional enable/disable fields
  */
 
+import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
-import type { EnableWhenOptions } from '../types';
-import { createEnableBehavior } from '../behavior-factories';
+import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Условное включение поля на основе значений других полей
@@ -29,9 +29,30 @@ export function enableWhen<TForm extends Record<string, any>>(
   condition: (form: TForm) => boolean,
   options?: EnableWhenOptions
 ): void {
-  const { debounce } = options || {};
+  const { debounce, resetOnDisable = false } = options || {};
 
-  const handler = createEnableBehavior(field, condition, options);
+  const handler: BehaviorHandlerFn<TForm> = (form, _context, withDebounce) => {
+    const targetNode = form.getFieldByPath(field.__path);
+    if (!targetNode) return null;
+
+    return effect(() => {
+      const formValue = form.value.value;
+
+      withDebounce(() => {
+        const shouldEnable = condition(formValue);
+
+        if (shouldEnable) {
+          targetNode.enable();
+        } else {
+          targetNode.disable();
+          if (resetOnDisable) {
+            targetNode.reset();
+          }
+        }
+      });
+    });
+  };
+
   getCurrentBehaviorRegistry().register(handler, { debounce });
 }
 

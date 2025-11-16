@@ -4,7 +4,7 @@
 
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
-import { createShowBehavior } from '../behavior-factories';
+import type { BehaviorHandlerFn } from '../types';
 
 /**
  * Условное отображение поля (устанавливает hidden флаг)
@@ -25,10 +25,18 @@ import { createShowBehavior } from '../behavior-factories';
  * ```
  */
 export function showWhen<TForm extends Record<string, any>>(
-  field: FieldPathNode<TForm, any>,
-  condition: (form: TForm) => boolean
+  _field: FieldPathNode<TForm, any>,
+  _condition: (form: TForm) => boolean
 ): void {
-  const handler = createShowBehavior(field, condition);
+  const handler: BehaviorHandlerFn<TForm> = (_form, _context, _withDebounce) => {
+    if (import.meta.env.DEV) {
+      console.warn(
+        'BehaviorRegistry: "show" behavior is not implemented yet. Use "enable" instead.'
+      );
+    }
+    return null;
+  };
+
   getCurrentBehaviorRegistry().register(handler);
 }
 
