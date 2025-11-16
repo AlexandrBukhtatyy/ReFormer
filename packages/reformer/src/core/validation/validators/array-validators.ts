@@ -43,7 +43,8 @@ export function notEmpty<TForm, TItem>(
   if (!fieldPath) return;
 
   // Используем minLength как базовую реализацию
-  minLength(fieldPath, 1, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  minLength(fieldPath as any, 1, {
     message: options?.message || 'Массив не должен быть пустым',
     params: { minLength: 1, ...options?.params },
   });

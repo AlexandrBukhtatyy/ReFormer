@@ -145,9 +145,11 @@ export class ValidationApplicator<T extends FormFields> {
         try {
           let error: ValidationError | null = null;
           if (registration.type === 'sync') {
-            error = registration.validator(context);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            error = (registration.validator as any)(context);
           } else if (registration.type === 'async') {
-            error = await registration.validator(context);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            error = await (registration.validator as any)(context);
           }
 
           if (error) {
@@ -204,14 +206,16 @@ export class ValidationApplicator<T extends FormFields> {
           continue;
         }
 
-        const error = registration.validator(context);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const error = (registration.validator as any)(context);
         if (error && registration.options && 'targetField' in registration.options) {
           const targetField = registration.options.targetField;
           if (targetField) {
             const targetControl = this.form.getFieldByPath(String(targetField));
             if (targetControl && isFieldNode(targetControl)) {
               const existingErrors = targetControl.errors.value;
-              targetControl.setErrors([...existingErrors, error]);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              targetControl.setErrors([...existingErrors, error] as any);
             }
           }
         }

@@ -200,7 +200,8 @@ export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> 
     // Создать поля из схемы с поддержкой вложенности
     for (const [key, config] of Object.entries(formSchema)) {
       const node = this.createNode(config);
-      this.fieldRegistry.set(key as keyof T, node);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.fieldRegistry.set(key as keyof T, node as any);
     }
 
     //  Создать менеджер состояния (инкапсулирует всю логику сигналов)
@@ -247,7 +248,8 @@ export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> 
   getValue(): T {
     const result = {} as T;
     this.fieldRegistry.forEach((field, key) => {
-      result[key] = field.getValue();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      result[key] = field.getValue() as any;
     });
     return result;
   }
@@ -256,7 +258,8 @@ export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> 
     for (const [key, fieldValue] of Object.entries(value)) {
       const field = this.fieldRegistry.get(key as keyof T);
       if (field) {
-        field.setValue(fieldValue, options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        field.setValue(fieldValue as any, options);
       }
     }
   }
@@ -648,9 +651,8 @@ export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> 
           'length' in current &&
           typeof (current as ArrayNodeLike).at === 'function'
         ) {
-          const item: FormNode<FormValue> | undefined = (current as ArrayNodeLike).at(
-            segment.index
-          );
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const item: FormNode<any> | undefined = (current as ArrayNodeLike).at(segment.index);
           if (!item) return undefined;
           current = item;
         } else {
@@ -752,9 +754,11 @@ export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> 
 
     const dispose = effect(() => {
       const sourceValue = sourceField.value.value;
-      const transformedValue = transform ? transform(sourceValue as T[K1]) : (sourceValue as T[K2]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const transformedValue = transform ? transform(sourceValue as any) : (sourceValue as any);
 
-      targetField.setValue(transformedValue, { emitEvent: false });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      targetField.setValue(transformedValue as any, { emitEvent: false });
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
@@ -804,7 +808,8 @@ export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> 
 
     const dispose = effect(() => {
       const value = field.value.value;
-      callback(value);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      callback(value as any);
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe

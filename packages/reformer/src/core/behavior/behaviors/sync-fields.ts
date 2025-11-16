@@ -22,7 +22,7 @@ import type { SyncFieldsOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function syncFields<TForm extends Record<string, FormValue>, T>(
+export function syncFields<TForm extends Record<string, FormValue>, T extends FormValue>(
   field1: FieldPathNode<TForm, T>,
   field2: FieldPathNode<TForm, T>,
   options?: SyncFieldsOptions<T>
@@ -39,14 +39,14 @@ export function syncFields<TForm extends Record<string, FormValue>, T>(
     let isUpdating = false;
 
     const dispose1 = effect(() => {
-      const sourceValue = sourceNode.value.value;
+      const sourceValue = sourceNode.value.value as T;
 
       if (isUpdating) return;
 
       withDebounce(() => {
         isUpdating = true;
         const finalValue = transform ? transform(sourceValue) : sourceValue;
-        targetNode.setValue(finalValue, { emitEvent: false });
+        targetNode.setValue(finalValue as FormValue, { emitEvent: false });
         isUpdating = false;
       });
     });

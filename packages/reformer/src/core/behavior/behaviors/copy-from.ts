@@ -24,7 +24,11 @@ import { watchField } from './watch-field';
  * };
  * ```
  */
-export function copyFrom<TForm extends Record<string, FormValue>, TSource, TTarget>(
+export function copyFrom<
+  TForm extends Record<string, FormValue>,
+  TSource extends FormValue,
+  TTarget extends FormValue,
+>(
   target: FieldPathNode<TForm, TTarget>,
   source: FieldPathNode<TForm, TSource>,
   options?: CopyFromOptions<TForm, TSource>
@@ -41,7 +45,7 @@ export function copyFrom<TForm extends Record<string, FormValue>, TSource, TTarg
       }
 
       // Трансформация значения
-      const value = transform ? transform(sourceValue) : sourceValue;
+      const value = (transform ? transform(sourceValue) : sourceValue) as FormValue;
 
       // Получаем target node
       const targetNode = ctx.getFieldNode(target.__path);
@@ -55,13 +59,13 @@ export function copyFrom<TForm extends Record<string, FormValue>, TSource, TTarg
         const patch: Record<string, unknown> = {};
         fields.forEach((key) => {
           if (sourceValue && typeof sourceValue === 'object') {
-            patch[key] = (sourceValue as Record<string, unknown>)[key];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            patch[key as string] = (sourceValue as any)[key];
           }
         });
         if ('patchValue' in targetNode) {
-          (
-            targetNode as unknown as { patchValue: (patch: Record<string, unknown>) => void }
-          ).patchValue(patch);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (targetNode as any).patchValue(patch);
         }
       }
     },

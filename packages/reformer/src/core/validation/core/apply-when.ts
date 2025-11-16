@@ -31,7 +31,7 @@ export function applyWhen<TForm, TField>(
   const path = extractPath(fieldPath);
 
   // Входим в условный блок
-  getCurrentValidationRegistry().enterCondition(path, condition);
+  getCurrentValidationRegistry().enterCondition(path, condition as ConditionFn<unknown>);
 
   try {
     // Выполняем вложенную валидацию

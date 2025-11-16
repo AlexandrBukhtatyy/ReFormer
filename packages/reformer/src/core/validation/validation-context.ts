@@ -70,7 +70,8 @@ export class ValidationContextImpl<TForm extends FormFields, TField>
    */
   private resolveFieldNode(path: string): FormNode<FormValue> | undefined {
     const node = this.pathNavigator.getNodeByPath(this.form, path);
-    return node ?? undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (node ?? undefined) as any;
   }
 
   /**
@@ -147,7 +148,8 @@ export class ValidationContextImpl<TForm extends FormFields, TField>
 
     // Используем type guard
     if (isFormNode(field)) {
-      field.setValue(value);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      field.setValue(value as any);
     } else {
       if (process.env.NODE_ENV !== 'production') {
         console.warn(`[ValidationContext] Path '${path}' is not a FormNode`);
@@ -222,7 +224,8 @@ export class TreeValidationContextImpl<TForm extends FormFields>
    */
   private resolveFieldNode(path: string): FormNode<FormValue> | undefined {
     const node = this.pathNavigator.getNodeByPath(this.form, path);
-    return node ?? undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (node ?? undefined) as any;
   }
 
   /**

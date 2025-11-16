@@ -23,7 +23,8 @@ export function createFieldPath<T>(): FieldPath<T> {
  * @private
  */
 function createFieldPathProxy<T>(basePath: string): FieldPath<T> {
-  return new Proxy({} as Record<string, unknown>, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new Proxy({} as any, {
     get(_target, prop: string | symbol) {
       if (typeof prop === 'symbol') {
         return undefined;
@@ -36,7 +37,8 @@ function createFieldPathProxy<T>(basePath: string): FieldPath<T> {
 
       if (prop === '__key') {
         const parts = basePath.split('.');
-        return parts[parts.length - 1] || prop;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (parts[parts.length - 1] || prop) as any;
       }
 
       // Игнорируем некоторые служебные свойства
@@ -57,9 +59,11 @@ function createFieldPathProxy<T>(basePath: string): FieldPath<T> {
 
       // Возвращаем объект, который ведет себя и как значение, и как прокси
       const node: FieldPathNode<T, unknown> = {
-        __key: prop as unknown,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        __key: prop as any,
         __path: newPath,
-        __formType: undefined as unknown,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        __formType: undefined as any,
         __fieldType: undefined as unknown,
       };
 
@@ -109,7 +113,8 @@ export function extractPath(node: FieldPathNode<unknown, unknown> | unknown): st
   // Проверка для Proxy и обычных объектов
   if (node && typeof node === 'object') {
     // Пытаемся получить __path напрямую (работает для Proxy)
-    const path = node.__path;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const path = (node as any).__path;
     if (typeof path === 'string') {
       return path;
     }
@@ -137,7 +142,10 @@ export function extractPath(node: FieldPathNode<unknown, unknown> | unknown): st
  * };
  * ```
  */
-export function toFieldPath<T>(node: FieldPathNode<unknown, T>): FieldPath<T> {
+export function toFieldPath<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  node: FieldPathNode<unknown, T, never> | FieldPathNode<any, T, any>
+): FieldPath<T> {
   const basePath = extractPath(node);
   return createFieldPathProxy<T>(basePath);
 }

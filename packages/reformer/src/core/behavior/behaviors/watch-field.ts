@@ -29,7 +29,7 @@ import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../t
  * };
  * ```
  */
-export function watchField<TForm extends Record<string, FormValue>, TField>(
+export function watchField<TForm extends Record<string, FormValue>, TField extends FormValue>(
   field: FieldPathNode<TForm, TField>,
   callback: (value: TField, ctx: BehaviorContext<TForm>) => void | Promise<void>,
   options?: WatchFieldOptions
@@ -42,12 +42,12 @@ export function watchField<TForm extends Record<string, FormValue>, TField>(
 
     // Вызвать сразу если immediate: true
     if (immediate) {
-      const value = node.value.value;
+      const value = node.value.value as TField;
       callback(value, context);
     }
 
     return effect(() => {
-      const value = node.value.value;
+      const value = node.value.value as TField;
 
       withDebounce(() => {
         callback(value, context);

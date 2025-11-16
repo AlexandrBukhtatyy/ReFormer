@@ -145,7 +145,8 @@ export class NodeFactory {
    * ```
    * @private
    */
-  private createArrayNodeFromArray(config: unknown[]): ArrayNode<object> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private createArrayNodeFromArray(config: unknown[]): ArrayNode<any> {
     const [itemSchema, ...restItems] = config;
 
     // Обработка начальных элементов:
@@ -167,7 +168,8 @@ export class NodeFactory {
       }
     }
 
-    return new ArrayNode(itemSchema as object, initialItems as object[]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return new ArrayNode(itemSchema as any, initialItems as any);
   }
 
   /**

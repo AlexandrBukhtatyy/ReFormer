@@ -26,7 +26,7 @@ import { RegistryStack } from '../utils/registry-stack';
  */
 class RegistrationContext {
   private validators: ValidatorRegistration[] = [];
-  private conditionStack: Array<{ fieldPath: string; conditionFn: ConditionFn }> = [];
+  private conditionStack: Array<{ fieldPath: string; conditionFn: ConditionFn<unknown> }> = [];
 
   /**
    * Добавить валидатор в контекст
@@ -44,7 +44,7 @@ class RegistrationContext {
   /**
    * Войти в условный блок
    */
-  enterCondition(fieldPath: string, conditionFn: ConditionFn): void {
+  enterCondition(fieldPath: string, conditionFn: ConditionFn<unknown>): void {
     this.conditionStack.push({ fieldPath, conditionFn });
   }
 
@@ -184,9 +184,9 @@ export class ValidationRegistry {
   /**
    * Зарегистрировать синхронный валидатор
    */
-  registerSync(
+  registerSync<TForm = unknown, TField = unknown>(
     fieldPath: string,
-    validator: ContextualValidatorFn,
+    validator: ContextualValidatorFn<TForm, TField>,
     options?: ValidateOptions
   ): void {
     const context = this.getCurrentContext();
@@ -197,7 +197,7 @@ export class ValidationRegistry {
     context.addValidator({
       fieldPath,
       type: 'sync',
-      validator,
+      validator: validator as ContextualValidatorFn<unknown, unknown>,
       options,
     });
   }
@@ -205,9 +205,9 @@ export class ValidationRegistry {
   /**
    * Зарегистрировать асинхронный валидатор
    */
-  registerAsync(
+  registerAsync<TForm = unknown, TField = unknown>(
     fieldPath: string,
-    validator: ContextualAsyncValidatorFn,
+    validator: ContextualAsyncValidatorFn<TForm, TField>,
     options?: ValidateAsyncOptions
   ): void {
     const context = this.getCurrentContext();
@@ -218,7 +218,7 @@ export class ValidationRegistry {
     context.addValidator({
       fieldPath,
       type: 'async',
-      validator,
+      validator: validator as ContextualAsyncValidatorFn<unknown, unknown>,
       options,
     });
   }
@@ -226,7 +226,10 @@ export class ValidationRegistry {
   /**
    * Зарегистрировать tree валидатор
    */
-  registerTree(validator: TreeValidatorFn, options?: ValidateTreeOptions): void {
+  registerTree<TForm = unknown>(
+    validator: TreeValidatorFn<TForm>,
+    options?: ValidateTreeOptions
+  ): void {
     const context = this.getCurrentContext();
     if (!context) {
       throw new Error('Validators can only be registered inside a validation schema function');
@@ -235,7 +238,7 @@ export class ValidationRegistry {
     context.addValidator({
       fieldPath: options?.targetField || '__tree__',
       type: 'tree',
-      validator,
+      validator: validator as TreeValidatorFn<unknown>,
       options,
     });
   }
@@ -243,7 +246,7 @@ export class ValidationRegistry {
   /**
    * Войти в условный блок
    */
-  enterCondition(fieldPath: string, conditionFn: ConditionFn): void {
+  enterCondition(fieldPath: string, conditionFn: ConditionFn<unknown>): void {
     const context = this.getCurrentContext();
     if (!context) {
       throw new Error('Conditions can only be used inside a validation schema function');
@@ -289,7 +292,8 @@ export class ValidationRegistry {
       type: 'array-items',
       validator: itemSchemaFn,
       options: {},
-    } as unknown);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
   }
 
   /**
@@ -314,7 +318,8 @@ export class ValidationRegistry {
     const validatorsByField = new Map<string, ValidatorRegistration[]>();
 
     for (const registration of validators) {
-      if (registration.type === 'tree' || (registration as unknown).type === 'array-items') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (registration.type === 'tree' || (registration as any).type === 'array-items') {
         // Tree и array-items валидаторы обрабатываются отдельно
         continue;
       }
@@ -340,7 +345,8 @@ export class ValidationRegistry {
     validators: ValidatorRegistration[]
   ): void {
     // Фильтруем array-items validators
-    const arrayItemValidators = validators.filter((v: unknown) => v.type === 'array-items');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const arrayItemValidators = validators.filter((v: any) => v.type === 'array-items');
 
     if (arrayItemValidators.length === 0) {
       return;
@@ -348,10 +354,12 @@ export class ValidationRegistry {
 
     // Применяем validation schema к каждому ArrayNode
     for (const registration of arrayItemValidators) {
-      const arrayNode = (form as unknown)[registration.fieldPath.split('.')[0]];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const arrayNode = (form as any)[registration.fieldPath.split('.')[0]];
 
       if (arrayNode && 'applyValidationSchema' in arrayNode) {
-        const itemSchemaFn = (registration as unknown).validator;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const itemSchemaFn = (registration as any).validator;
         arrayNode.applyValidationSchema(itemSchemaFn);
 
         if (import.meta.env.DEV) {

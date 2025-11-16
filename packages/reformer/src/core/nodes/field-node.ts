@@ -538,7 +538,8 @@ export class FieldNode<T> extends FormNode<T> {
   ): () => void {
     const dispose = effect(() => {
       // Читаем все источники для отслеживания
-      const sourceValues = sources.map((source) => source.value) as TSource;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sourceValues = sources.map((source) => source.value) as any as TSource;
 
       // Вычисляем новое значение
       const newValue = computeFn(...sourceValues);

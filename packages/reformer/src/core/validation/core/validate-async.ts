@@ -17,7 +17,7 @@ import type { FieldPathNode } from '../../types';
  * ```typescript
  * validateAsync(
  *   path.inn,
- *   async (ctx) => {
+ *   async (ctx: ValidationContext<TForm, TField>) => {
  *     const inn = ctx.value();
  *     if (!inn) return null;
  *

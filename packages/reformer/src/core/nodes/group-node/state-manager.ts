@@ -176,7 +176,8 @@ export class StateManager<T extends FormFields> {
     this.value = computed(() => {
       const result = {} as T;
       this.fieldRegistry.forEach((field, key) => {
-        result[key] = field.value.value;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        result[key] = field.value.value as any;
       });
       return result;
     });

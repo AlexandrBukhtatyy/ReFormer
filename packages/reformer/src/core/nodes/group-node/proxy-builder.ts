@@ -21,7 +21,7 @@
 import type { GroupNode } from '../group-node';
 import type { GroupNodeWithControls } from '../../types/group-node-proxy';
 import type { FieldRegistry } from './field-registry';
-import type { FormValue, UnknownRecord } from '../../types';
+import type { FormValue } from '../../types';
 
 /**
  * Строитель Proxy для GroupNode
@@ -84,7 +84,8 @@ export class ProxyBuilder<T extends Record<string, FormValue>> {
         // Приоритет 1: Собственные свойства и методы GroupNode
         // Это важно, чтобы методы validate(), setValue() и т.д. работали корректно
         if (prop in target) {
-          return (target as UnknownRecord)[prop as string];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (target as any)[prop];
         }
 
         // Приоритет 2: Поля формы
@@ -116,7 +117,8 @@ export class ProxyBuilder<T extends Record<string, FormValue>> {
         }
 
         // Разрешить установку других свойств
-        (target as UnknownRecord)[prop as string] = value;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (target as any)[prop] = value;
         return true;
       },
 

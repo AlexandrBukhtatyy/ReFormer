@@ -38,7 +38,7 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function computeFrom<TForm extends Record<string, FormValue>, TTarget>(
+export function computeFrom<TForm extends Record<string, FormValue>, TTarget extends FormValue>(
   target: FieldPathNode<TForm, TTarget>,
   sources: FieldPathNode<TForm, FormValue>[],
   computeFn: (values: Record<string, unknown>) => TTarget,
@@ -53,13 +53,13 @@ export function computeFrom<TForm extends Record<string, FormValue>, TTarget>(
     // Разрешаем source узлы
     const sourceNodes = sources
       .map((field) => form.getFieldByPath(field.__path))
-      .filter((node): node is FormNode<unknown> => node !== undefined);
+      .filter((node): node is FormNode<FormValue> => node !== undefined);
 
     if (sourceNodes.length === 0) return null;
 
     return effect(() => {
       // Читаем значения всех source полей
-      const sourceValues = sourceNodes.map((node) => node.value.value);
+      const sourceValues = sourceNodes.map((node) => node!.value.value);
 
       withDebounce(() => {
         // Проверка условия

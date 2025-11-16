@@ -67,7 +67,8 @@ export class FieldRegistry<T extends Record<string, FormValue>> {
    * ```
    */
   get<K extends keyof T>(key: K): FormNode<T[K]> | undefined {
-    return this.fields.get(key);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.fields.get(key) as any;
   }
 
   /**

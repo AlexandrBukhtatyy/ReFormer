@@ -38,13 +38,13 @@ export function revalidateWhen<TForm extends Record<string, FormValue>>(
 
     const sourceNodes = triggers
       .map((field) => form.getFieldByPath(field.__path))
-      .filter((node): node is FormNode<unknown> => node !== undefined);
+      .filter((node): node is FormNode<FormValue> => node !== undefined);
 
     if (sourceNodes.length === 0) return null;
 
     return effect(() => {
       // Отслеживаем изменения source полей
-      sourceNodes.forEach((node) => node.value.value);
+      sourceNodes.forEach((node) => node!.value.value);
 
       withDebounce(() => {
         // Перезапускаем валидацию target поля

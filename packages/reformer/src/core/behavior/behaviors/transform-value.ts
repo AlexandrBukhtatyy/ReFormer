@@ -46,7 +46,10 @@ export interface TransformValueOptions {
  * };
  * ```
  */
-export function transformValue<TForm extends Record<string, FormValue>, TValue = FormValue>(
+export function transformValue<
+  TForm extends Record<string, FormValue>,
+  TValue extends FormValue = FormValue,
+>(
   field: FieldPathNode<TForm, TValue>,
   transformer: (value: TValue) => TValue,
   options?: TransformValueOptions & { debounce?: number }
@@ -93,7 +96,7 @@ export function transformValue<TForm extends Record<string, FormValue>, TValue =
  * };
  * ```
  */
-export function createTransformer<TValue = FormValue>(
+export function createTransformer<TValue extends FormValue = FormValue>(
   transformer: (value: TValue) => TValue,
   defaultOptions?: TransformValueOptions
 ) {

@@ -167,10 +167,13 @@ export type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
 export interface ValidatorRegistration {
   fieldPath: string;
   type: 'sync' | 'async' | 'tree';
-  validator: ContextualValidatorFn | ContextualAsyncValidatorFn | TreeValidatorFn;
+  validator:
+    | ContextualValidatorFn<unknown, unknown>
+    | ContextualAsyncValidatorFn<unknown, unknown>
+    | TreeValidatorFn<unknown>;
   options?: ValidateOptions | ValidateAsyncOptions | ValidateTreeOptions;
   condition?: {
     fieldPath: string;
-    conditionFn: ConditionFn;
+    conditionFn: ConditionFn<unknown>;
   };
 }

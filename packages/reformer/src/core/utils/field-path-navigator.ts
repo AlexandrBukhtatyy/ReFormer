@@ -297,7 +297,8 @@ export class FieldPathNavigator {
 
     // FormNode возвращает .value.value
     if (this.isFormNode(node)) {
-      return (node as UnknownRecord).value.value;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (node as any).value.value;
     }
 
     // Для обычных объектов возвращаем как есть

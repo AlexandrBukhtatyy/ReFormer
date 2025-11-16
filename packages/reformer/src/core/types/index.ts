@@ -159,7 +159,7 @@ export interface WithBehaviorSchema {
  * Используется для duck typing при обходе путей
  */
 export interface ArrayNodeLike {
-  at(index: number): FormNode | undefined;
+  at(index: number): FormNode<unknown> | undefined;
   length: unknown;
 }
 
@@ -213,12 +213,6 @@ export type FieldPathSegment = {
  * Используется вместо (...args: any[]) => any
  */
 export type UnknownCallback = (...args: unknown[]) => unknown;
-
-/**
- * Тип для ресурсов с параметрами загрузки
- * Используется в resources.ts вместо any
- */
-export type ResourceLoadParams = UnknownRecord;
 
 /**
  * Тип для результатов загрузки ресурсов

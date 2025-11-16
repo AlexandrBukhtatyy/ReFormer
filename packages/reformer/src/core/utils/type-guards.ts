@@ -18,7 +18,7 @@ import type { FormNode } from '../nodes/form-node';
 import type { FieldNode } from '../nodes/field-node';
 import type { GroupNode } from '../nodes/group-node';
 import type { ArrayNode } from '../nodes/array-node';
-import type { FormValue, UnknownRecord } from '../types';
+import type { FormValue } from '../types';
 
 /**
  * Проверить, является ли значение любым FormNode
@@ -78,7 +78,8 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
     'validators' in value &&
     'asyncValidators' in value &&
     // FieldNode имеет markAsTouched метод
-    typeof (value as UnknownRecord).markAsTouched === 'function' &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    typeof (value as any).markAsTouched === 'function' &&
     // У FieldNode нет fields или items
     !('fields' in value) &&
     !('items' in value)
@@ -102,7 +103,7 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
  * }
  * ```
  */
-export function isGroupNode(value: unknown): value is GroupNode<UnknownRecord> {
+export function isGroupNode(value: unknown): value is GroupNode<Record<string, FormValue>> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -137,7 +138,7 @@ export function isGroupNode(value: unknown): value is GroupNode<UnknownRecord> {
  * }
  * ```
  */
-export function isArrayNode(value: unknown): value is ArrayNode<UnknownRecord> {
+export function isArrayNode(value: unknown): value is ArrayNode<Record<string, FormValue>> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -149,8 +150,10 @@ export function isArrayNode(value: unknown): value is ArrayNode<UnknownRecord> {
     'push' in value &&
     'removeAt' in value &&
     'at' in value &&
-    typeof (value as UnknownRecord).push === 'function' &&
-    typeof (value as UnknownRecord).removeAt === 'function'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    typeof (value as any).push === 'function' &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    typeof (value as any).removeAt === 'function'
   );
 }
 

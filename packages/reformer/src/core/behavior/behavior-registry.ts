@@ -13,9 +13,9 @@ import { FormValue } from '../types';
 /**
  * Зарегистрированный behavior с опциями
  */
-interface RegisteredBehavior<T extends Record<string, FormValue>> {
+interface RegisteredBehavior {
   /** Handler функция behavior */
-  handler: BehaviorHandlerFn<T>;
+  handler: BehaviorHandlerFn<Record<string, FormValue>>;
   /** Debounce в миллисекундах */
   debounce?: number;
 }
@@ -51,7 +51,7 @@ export class BehaviorRegistry {
    */
   private static contextStack = new RegistryStack<BehaviorRegistry>();
 
-  private registrations: RegisteredBehavior<Record<string, FormValue>>[] = [];
+  private registrations: RegisteredBehavior[] = [];
   private isRegistering = false;
 
   /**
@@ -100,7 +100,10 @@ export class BehaviorRegistry {
    * registry.register(handler, { debounce: 300 });
    * ```
    */
-  register(handler: BehaviorHandlerFn, options?: BehaviorOptions): void {
+  register<T extends Record<string, FormValue> = Record<string, FormValue>>(
+    handler: BehaviorHandlerFn<T>,
+    options?: BehaviorOptions
+  ): void {
     if (!this.isRegistering) {
       if (import.meta.env.DEV) {
         throw new Error('BehaviorRegistry: call beginRegistration() before registering behaviors');
@@ -109,7 +112,9 @@ export class BehaviorRegistry {
     }
 
     this.registrations.push({
-      handler,
+      // Type assertion безопасен: handler будет вызван с правильным типом формы в createEffect
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      handler: handler as any,
       debounce: options?.debounce,
     });
   }
@@ -158,7 +163,7 @@ export class BehaviorRegistry {
    * @private
    */
   private createEffect<T extends Record<string, FormValue>>(
-    registered: RegisteredBehavior<T>,
+    registered: RegisteredBehavior,
     form: GroupNode<T>,
     context: BehaviorContextImpl<T>
   ): (() => void) | null {
@@ -185,7 +190,11 @@ export class BehaviorRegistry {
     };
 
     // Вызываем handler напрямую
-    const effectDispose = handler(form, context, withDebounce);
+    // Type assertion необходим из-за contravariance: handler хранится как
+    // BehaviorHandlerFn<Record<string, FormValue>>, но вызывается с более специфичным типом T.
+    // Используем any для обхода ограничений TypeScript при хранении generic handlers в массиве.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const effectDispose = (handler as any)(form, context, withDebounce);
 
     if (!effectDispose) {
       return null;

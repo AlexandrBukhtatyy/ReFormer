@@ -13,7 +13,7 @@ import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
  * @example
  * ```typescript
  * validateTree(
- *   (ctx) => {
+ *   (ctx: ValidationContext<TForm, TField>) => {
  *     const form = ctx.formValue();
  *     if (form.initialPayment && form.propertyValue) {
  *       if (form.initialPayment > form.propertyValue) {

@@ -12,7 +12,7 @@ import type { BehaviorHandlerFn } from '../types';
  */
 export interface ResetWhenOptions {
   /** Значение для сброса (по умолчанию null) */
-  resetValue?: unknown;
+  resetValue?: FormValue;
   /** Сбросить только если поле dirty */
   onlyIfDirty?: boolean;
 }

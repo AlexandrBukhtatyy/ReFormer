@@ -11,7 +11,8 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
-import type { ValidationSchemaFn } from '../types';
+import type { ValidationSchemaFn, ValidatorRegistration } from '../types';
+import type { FormFields } from '../types';
 import { ValidationRegistry } from './validation-registry';
 import { createFieldPath } from './field-path';
 

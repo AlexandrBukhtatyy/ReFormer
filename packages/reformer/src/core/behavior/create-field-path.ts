@@ -29,7 +29,8 @@ export function createFieldPath<T>(): FieldPath<T> {
  */
 function createFieldPathProxy<T>(currentPath: string): FieldPath<T> {
   return new Proxy(
-    {},
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    {} as any,
     {
       get(__target, prop: string) {
         // Поддержка обоих вариантов для обратной совместимости
@@ -39,7 +40,8 @@ function createFieldPathProxy<T>(currentPath: string): FieldPath<T> {
 
         if (prop === '__key') {
           const parts = currentPath.split('.');
-          return parts[parts.length - 1] || prop;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (parts[parts.length - 1] || prop) as any;
         }
 
         const newPath = currentPath ? `${currentPath}.${prop}` : prop;
@@ -47,7 +49,8 @@ function createFieldPathProxy<T>(currentPath: string): FieldPath<T> {
         // Создаем объект FieldPathNode с вложенным Proxy
         const node: FieldPathNode<T, unknown> = {
           __path: newPath,
-          __key: prop,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          __key: prop as any,
           __formType: undefined as unknown as T,
           __fieldType: undefined as unknown,
         };

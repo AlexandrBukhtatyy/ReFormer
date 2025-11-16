@@ -42,7 +42,7 @@ export type FieldPath<T> = {
  * Узел в пути поля
  * Содержит метаинформацию о поле для валидации
  */
-export interface FieldPathNode<TForm, TField, TKey extends keyof TForm> {
+export interface FieldPathNode<TForm, TField, TKey extends keyof TForm = keyof TForm> {
   /** Ключ поля */
   readonly __key: TKey;
   /** Путь к полю (для вложенных объектов) */
