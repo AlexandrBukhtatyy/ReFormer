@@ -10,13 +10,10 @@
 import { useEffect, useState } from 'react';
 import type { GroupNodeWithControls } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application';
-import {
-  fetchCreditApplication,
-  fetchDictionaries,
-  type DictionariesResponse,
-} from '.././api/mock-credit-application-api';
+import { fetchDictionaries, type DictionariesResponse } from '.././api/mock-credit-application-api';
 import type { Property } from '../components/nested-forms/Property/PropertyForm';
 import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/ExistingLoanForm';
+import { fetchCreditApplication } from '../api/fetch-credit-application';
 
 // ============================================================================
 // Типы
@@ -108,8 +105,8 @@ export const useLoadCreditApplication = (
         ]);
 
         // Проверка ошибок
-        if (!applicationResponse.success) {
-          throw new Error(applicationResponse.error || 'Ошибка загрузки заявки');
+        if (applicationResponse?.status !== 200) {
+          throw new Error('Ошибка загрузки заявки');
         }
 
         if (!dictionariesResponse.success) {

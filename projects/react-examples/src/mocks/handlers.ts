@@ -1,11 +1,11 @@
-import { http, HttpResponse } from 'msw'
- 
+import { handlers as carsHandlers } from './handlers/cars';
+import { handlers as citiesHandlers } from './handlers/cities';
+import { handlers as creditApplicationHandlers } from './handlers/credit-applications';
+import { handlers as regionHandlers } from './handlers/regions';
+
 export const handlers = [
-  http.get('https://api.example.com/user', () => {
-    return HttpResponse.json({
-      id: 'abc-123',
-      firstName: 'John',
-      lastName: 'Maverick',
-    })
-  }),
-]
+  ...carsHandlers,
+  ...citiesHandlers,
+  ...creditApplicationHandlers,
+  ...regionHandlers,
+];

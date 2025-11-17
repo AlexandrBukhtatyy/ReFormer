@@ -1,18 +1,20 @@
 /**
+ * Загрузка кредитной заявки по ID
+ */
+/**
  * Загрузка регионов для выбранной страны
  */
 
 import axios, { type AxiosResponse } from 'axios';
-import type { Option } from '../types/option';
 
 /**
  * Загрузка регионов для выбранной страны
  * @param country - код страны
  * @returns Promise с массивом регионов
  */
-export async function fetchRegions(country: string): Promise<AxiosResponse<Option[]> | void> {
+export async function fetchCreditApplication(id: string): Promise<AxiosResponse<any> | void> {
   return axios
-    .get(`/regions?country=${country}`)
+    .get(`/credit-applications?id=${id}`)
     .then(function (response) {
       // обработка успешного запроса
       console.log(response);

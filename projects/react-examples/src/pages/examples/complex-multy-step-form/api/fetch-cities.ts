@@ -2,6 +2,7 @@
  * Загрузка городов для выбранного региона
  */
 
+import axios, { type AxiosResponse } from 'axios';
 import type { Option } from '../types/option';
 
 /**
@@ -9,23 +10,19 @@ import type { Option } from '../types/option';
  * @param region - код региона
  * @returns Promise с массивом городов
  */
-export async function fetchCities(region: string): Promise<Option[]> {
-  // Имитация задержки API запроса
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  // Моковые данные
-  const citiesByRegion: Record<string, Option[]> = {
-    moscow: [
-      { value: 'moscow_center', label: 'Центральный округ' },
-      { value: 'moscow_north', label: 'Северный округ' },
-      { value: 'moscow_south', label: 'Южный округ' },
-    ],
-    spb: [
-      { value: 'spb_center', label: 'Центральный район' },
-      { value: 'spb_nevsky', label: 'Невский район' },
-      { value: 'spb_vasilievsky', label: 'Василеостровский район' },
-    ],
-  };
-
-  return citiesByRegion[region] || [];
+export async function fetchCities(region: string): Promise<AxiosResponse<Option[]> | void> {
+  return axios
+    .get(`/cities?region=${region}`)
+    .then(function (response) {
+      // обработка успешного запроса
+      console.log(response);
+      return response;
+    })
+    .catch(function (error) {
+      // обработка ошибки
+      console.log(error);
+    })
+    .finally(function () {
+      // выполняется всегда
+    });
 }
