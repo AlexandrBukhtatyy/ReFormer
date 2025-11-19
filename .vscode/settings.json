@@ -9,5 +9,5 @@
     "./projects/react-example",
     "./projects/react-example-e2e"
   ],
-  "prettier.configPath": "./.prettierrc.js"
+  "prettier.configPath": "./.prettierrc.cjs"
 }
