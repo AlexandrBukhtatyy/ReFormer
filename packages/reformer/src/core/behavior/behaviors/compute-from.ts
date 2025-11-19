@@ -4,7 +4,7 @@
 
 import { effect } from '@preact/signals-core';
 import type { FormNode } from '../../nodes/form-node';
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 
@@ -38,15 +38,15 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function computeFrom<TForm extends Record<string, FormValue>, TTarget extends FormValue>(
+export function computeFrom<TForm, TTarget extends FormValue>(
   target: FieldPathNode<TForm, TTarget>,
   sources: FieldPathNode<TForm, FormValue>[],
-  computeFn: (values: Record<string, unknown>) => TTarget,
-  options?: ComputeFromOptions<TForm>
+  computeFn: (values: TForm) => TTarget,
+  options?: ComputeFromOptions<FormFields>
 ): void {
   const { debounce, condition } = options || {};
 
-  const handler: BehaviorHandlerFn<TForm> = (form, _context, withDebounce) => {
+  const handler: BehaviorHandlerFn<FormFields> = (form, _context, withDebounce) => {
     const targetNode = form.getFieldByPath(target.__path);
     if (!targetNode) return null;
 
@@ -70,7 +70,7 @@ export function computeFrom<TForm extends Record<string, FormValue>, TTarget ext
 
         // Создаем объект с именами полей для computeFn
         // computeFn ожидает объект вида { fieldName: value, ... }
-        const sourceValuesObject: Record<string, unknown> = {};
+        const sourceValuesObject: FormValue = {};
         sources.forEach((source, index) => {
           // Извлекаем имя поля из пути (последний сегмент)
           const fieldName = source.__path.split('.').pop() || source.__path;
@@ -78,7 +78,7 @@ export function computeFrom<TForm extends Record<string, FormValue>, TTarget ext
         });
 
         // Вычисляем новое значение
-        const computedValue = computeFn(sourceValuesObject);
+        const computedValue = computeFn(sourceValuesObject as TForm);
 
         // Устанавливаем значение без триггера событий
         targetNode.setValue(computedValue, { emitEvent: false });

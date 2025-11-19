@@ -6,7 +6,7 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import type { FormNode } from '../nodes/form-node';
-import type { FieldPathNode, FormValue, ValidationError } from '../types';
+import type { FieldPathNode, FormFields, ValidationError } from '../types';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import type { BehaviorContext } from './types';
 
@@ -14,9 +14,7 @@ import type { BehaviorContext } from './types';
  * Реализация BehaviorContext
  * Используется в callback функциях behavior схем
  */
-export class BehaviorContextImpl<TForm extends Record<string, FormValue>>
-  implements BehaviorContext<TForm>
-{
+export class BehaviorContextImpl<TForm extends FormFields> implements BehaviorContext<TForm> {
   /**
    * Корневой узел формы с проксированными полями
    * Позволяет обращаться к полям напрямую: ctx.formNode.properties.clear()

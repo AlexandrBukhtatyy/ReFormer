@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../types';
 
@@ -31,15 +31,12 @@ import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../t
  */
 export function watchField<TForm, TField extends FormValue>(
   field: FieldPathNode<TForm, TField>,
-  callback: (
-    value: TField,
-    ctx: BehaviorContext<Record<string, FormValue>>
-  ) => void | Promise<void>,
+  callback: (value: TField, ctx: BehaviorContext<FormFields>) => void | Promise<void>,
   options?: WatchFieldOptions
 ): void {
   const { debounce, immediate = false } = options || {};
 
-  const handler: BehaviorHandlerFn<Record<string, FormValue>> = (form, context, withDebounce) => {
+  const handler: BehaviorHandlerFn<FormFields> = (form, context, withDebounce) => {
     const node = form.getFieldByPath(field.__path);
     if (!node) return null;
 

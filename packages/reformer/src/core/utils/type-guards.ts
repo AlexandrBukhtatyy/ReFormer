@@ -18,7 +18,7 @@ import type { FormNode } from '../nodes/form-node';
 import type { FieldNode } from '../nodes/field-node';
 import type { GroupNode } from '../nodes/group-node';
 import type { ArrayNode } from '../nodes/array-node';
-import type { FormValue } from '../types';
+import type { FormFields, FormValue } from '../types';
 
 /**
  * Проверить, является ли значение любым FormNode
@@ -103,7 +103,7 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
  * }
  * ```
  */
-export function isGroupNode(value: unknown): value is GroupNode<Record<string, FormValue>> {
+export function isGroupNode(value: unknown): value is GroupNode<FormFields> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -138,7 +138,7 @@ export function isGroupNode(value: unknown): value is GroupNode<Record<string, F
  * }
  * ```
  */
-export function isArrayNode(value: unknown): value is ArrayNode<Record<string, FormValue>> {
+export function isArrayNode(value: unknown): value is ArrayNode<FormFields> {
   if (value === null || value === undefined) {
     return false;
   }

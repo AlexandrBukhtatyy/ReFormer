@@ -9,7 +9,7 @@
  * Аналог toFieldPath и applyWhen из validation API.
  */
 
-import type { FieldPath, FieldPathNode, FormValue } from '../types';
+import type { FieldPath, FieldPathNode, FormFields, FormValue } from '../types';
 import { createFieldPath } from './create-field-path';
 import { watchField } from './behaviors/watch-field';
 import type { BehaviorSchemaFn } from './types';
@@ -170,7 +170,7 @@ export function apply<TForm, TField>(
  * );
  * ```
  */
-export function applyWhen<TForm extends Record<string, FormValue>, TValue extends FormValue>(
+export function applyWhen<TForm extends FormFields, TValue extends FormValue>(
   conditionField: FieldPathNode<TForm, TValue> | undefined,
   condition: (value: TValue) => boolean,
   callback: (path: FieldPath<TForm>) => void

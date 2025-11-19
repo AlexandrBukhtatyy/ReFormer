@@ -20,7 +20,7 @@
  */
 
 import type { FormNode } from '../form-node';
-import type { FormValue } from '../../types';
+import type { FormFields, FormValue } from '../../types';
 
 /**
  * Реестр полей формы
@@ -30,7 +30,7 @@ import type { FormValue } from '../../types';
  *
  * @template T Тип формы (объект)
  */
-export class FieldRegistry<T extends Record<string, FormValue>> {
+export class FieldRegistry<T extends FormFields> {
   /**
    * Внутреннее хранилище полей
    * Map обеспечивает быструю lookup производительность O(1)

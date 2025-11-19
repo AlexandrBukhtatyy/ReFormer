@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { BehaviorHandlerFn } from '../types';
 
@@ -42,7 +42,7 @@ export interface ResetWhenOptions {
  * };
  * ```
  */
-export function resetWhen<TForm extends Record<string, FormValue>>(
+export function resetWhen<TForm extends FormFields>(
   field: FieldPathNode<TForm, FormValue>,
   condition: (form: TForm) => boolean,
   options?: ResetWhenOptions & { debounce?: number }

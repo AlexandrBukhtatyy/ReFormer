@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
@@ -24,7 +24,7 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function enableWhen<TForm, TFormRecord extends Record<string, FormValue>>(
+export function enableWhen<TForm, TFormRecord extends FormFields>(
   field: FieldPathNode<TForm, FormValue>,
   condition: (form: TFormRecord) => boolean,
   options?: EnableWhenOptions
@@ -73,7 +73,7 @@ export function enableWhen<TForm, TFormRecord extends Record<string, FormValue>>
  */
 export function disableWhen<TForm>(
   field: FieldPathNode<TForm, FormValue>,
-  condition: (form: Record<string, FormValue>) => boolean,
+  condition: (form: FormFields) => boolean,
   options?: EnableWhenOptions
 ): void {
   // Инвертируем условие

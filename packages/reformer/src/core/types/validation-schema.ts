@@ -8,7 +8,7 @@
  * - Асинхронная валидация с контекстом
  */
 
-import type { ValidationError, ValidatorParams } from './index';
+import type { FormFields } from './index';
 import type { FieldPath } from './field-path';
 
 // Forward declarations для избежания циклических зависимостей
@@ -96,19 +96,19 @@ export interface TreeValidationContext<TForm> {
  */
 export type ContextualValidatorFn<TForm, TField> = (
   ctx: ValidationContext<TForm, TField>
-) => ValidationError | null;
+) => FormFields | null;
 
 /**
  * Асинхронная функция валидации поля с контекстом
  */
 export type ContextualAsyncValidatorFn<TForm, TField> = (
   ctx: ValidationContext<TForm, TField>
-) => Promise<ValidationError | null>;
+) => Promise<FormFields | null>;
 
 /**
  * Функция cross-field валидации
  */
-export type TreeValidatorFn<TForm> = (ctx: TreeValidationContext<TForm>) => ValidationError | null;
+export type TreeValidatorFn<TForm> = (ctx: TreeValidationContext<TForm>) => FormFields | null;
 
 /**
  * Функция условия для applyWhen
@@ -126,7 +126,7 @@ export interface ValidateOptions {
   /** Сообщение об ошибке */
   message?: string;
   /** Параметры ошибки */
-  params?: ValidatorParams;
+  params?: FormFields;
 }
 
 /**

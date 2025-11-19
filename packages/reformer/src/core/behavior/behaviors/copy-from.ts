@@ -2,7 +2,7 @@
  * Copy values between fields
  */
 
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import type { CopyFromOptions } from '../types';
 import { watchField } from './watch-field';
 
@@ -25,7 +25,7 @@ import { watchField } from './watch-field';
  * ```
  */
 export function copyFrom<
-  TForm extends Record<string, FormValue>,
+  TForm extends FormFields,
   TSource extends FieldPathNode<TForm, FormValue>,
   TTarget extends FieldPathNode<TForm, FormValue>,
 >(target: TTarget, source: TSource, options?: CopyFromOptions<FormValue>): void {

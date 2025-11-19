@@ -33,7 +33,7 @@ export type AsyncValidatorFn<T = FormValue> = (value: T) => Promise<ValidationEr
 export interface ValidationError {
   code: string;
   message: string;
-  params?: Record<string, FormValue>;
+  params?: FormFields;
 }
 
 /**
@@ -47,7 +47,7 @@ export interface ErrorFilterOptions {
   message?: string;
 
   /** Фильтр по параметрам ошибки */
-  params?: Record<string, FormValue>;
+  params?: FormFields;
 
   /** Кастомный предикат для фильтрации */
   predicate?: (error: ValidationError) => boolean;
@@ -119,7 +119,7 @@ import type { ValidationSchemaFn } from './validation-schema';
  * Конфигурация GroupNode с поддержкой схем
  * Используется для создания форм с автоматическим применением behavior и validation схем
  */
-export interface GroupNodeConfig<T extends Record<string, FormValue>> {
+export interface GroupNodeConfig<T extends FormFields> {
   /** Схема структуры формы (поля и их конфигурация) */
   form: FormSchema<T>;
 
@@ -182,20 +182,9 @@ export interface ConfigWithValue {
 }
 
 /**
- * Generic тип для функций валидации с контекстом
- * Используется в validation-schema вместо (form: any, context: any) => ...
- */
-export type GenericFormContext = Record<string, FormValue>;
-
-/**
- * Тип для параметров валидации (validator params)
- * Используется для параметров валидаторов вместо `Record<string, any>`
- */
-export type ValidatorParams = Record<string, FormValue>;
-
-/**
  * Тип для конфига с полями (FormSchema generic constraint)
  * Используется вместо `Record<string, any>` для схем форм
+ * @deprecated
  */
 export type FormFields = Record<string, FormValue>;
 

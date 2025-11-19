@@ -309,8 +309,7 @@ export class ValidationRegistry {
    * Применить зарегистрированные валидаторы к GroupNode
    * @private
    */
-  private applyValidators<T>(
-    // @ts-expect-error - форма имеет сложную типизацию с Generic
+  private applyValidators<T extends FormFields>(
     form: GroupNode<T>,
     validators: ValidatorRegistration[]
   ): void {

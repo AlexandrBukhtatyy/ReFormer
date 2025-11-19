@@ -21,7 +21,7 @@
 import type { GroupNode } from '../group-node';
 import type { GroupNodeWithControls } from '../../types/group-node-proxy';
 import type { FieldRegistry } from './field-registry';
-import type { FormValue } from '../../types';
+import type { FormFields, FormValue } from '../../types';
 
 /**
  * Строитель Proxy для GroupNode
@@ -35,7 +35,7 @@ import type { FormValue } from '../../types';
  *
  * @template T Тип формы (объект)
  */
-export class ProxyBuilder<T extends Record<string, FormValue>> {
+export class ProxyBuilder<T extends FormFields> {
   /**
    * @param fieldRegistry - Реестр полей для доступа к коллекции
    */

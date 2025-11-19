@@ -21,6 +21,7 @@ import type {
   GroupNodeConfig,
   FormValue,
   ArrayNodeLike,
+  FormFields,
 } from '../types';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import { createFieldPath } from '../validation';
@@ -75,7 +76,7 @@ import { v4 as uuidv4 } from 'uuid';
  * console.log(fullForm.valid.value); // true
  * ```
  */
-export class GroupNode<T extends Record<string, FormValue>> extends FormNode<T> {
+export class GroupNode<T extends FormFields> extends FormNode<T> {
   // ============================================================================
   // Приватные поля
   // ============================================================================

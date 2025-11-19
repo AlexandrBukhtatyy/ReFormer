@@ -4,7 +4,7 @@
 
 import type { FormNode } from '../nodes/form-node';
 import { GroupNode } from '../nodes/group-node';
-import type { ValidationError, FormValue } from '../types';
+import type { ValidationError, FormValue, FormFields } from '../types';
 import type { FieldPath, FieldPathNode } from '../types/field-path';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 
@@ -83,7 +83,7 @@ export interface BehaviorContext<TForm> {
    * });
    * ```
    */
-  readonly formNode: GroupNodeWithControls<Record<string, FormValue>>;
+  readonly formNode: GroupNodeWithControls<FormFields>;
 }
 
 /**
@@ -111,12 +111,11 @@ export interface BehaviorContext<TForm> {
  * };
  * ```
  */
-export type BehaviorHandlerFn<TForm extends Record<string, FormValue> = Record<string, FormValue>> =
-  (
-    form: GroupNode<TForm>,
-    context: BehaviorContext<TForm>,
-    withDebounce: (callback: () => void) => void
-  ) => (() => void) | null;
+export type BehaviorHandlerFn<TForm extends FormFields> = (
+  form: GroupNode<TForm>,
+  context: BehaviorContext<TForm>,
+  withDebounce: (callback: () => void) => void
+) => (() => void) | null;
 
 /**
  * Общие опции для behavior
@@ -131,7 +130,7 @@ export interface BehaviorOptions {
  */
 export interface CopyFromOptions<TSource> {
   /** Условие копирования */
-  when?: (form: Record<string, FormValue>) => boolean;
+  when?: (form: FormFields) => boolean;
 
   /** Какие поля копировать (для групп) */
   fields?: (keyof TSource)[] | 'all';
