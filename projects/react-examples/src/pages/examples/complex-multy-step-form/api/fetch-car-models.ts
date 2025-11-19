@@ -10,19 +10,8 @@ import axios, { type AxiosResponse } from 'axios';
  * @param brand - марка автомобиля
  * @returns Promise с массивом моделей
  */
-export async function fetchCarModels(brand: string): Promise<AxiosResponse<Option[]> | void> {
-  return axios
-    .get(`/cars?brand=${brand}`)
-    .then(function (response) {
-      // обработка успешного запроса
-      console.log(response);
-      return response;
-    })
-    .catch(function (error) {
-      // обработка ошибки
-      console.log(error);
-    })
-    .finally(function () {
-      // выполняется всегда
-    });
+export async function fetchCarModels(brand: string): Promise<AxiosResponse<Option[]>> {
+  return axios.get(`/cars?brand=${brand}`).then(function (response) {
+    return response;
+  });
 }

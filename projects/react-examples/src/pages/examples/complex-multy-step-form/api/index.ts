@@ -7,6 +7,7 @@
  * - Модели автомобилей по маркам
  */
 
+export { fetchCreditApplication } from './fetch-credit-application';
 export { fetchRegions } from './fetch-regions';
 export { fetchCities } from './fetch-cities';
 export { fetchCarModels } from './fetch-car-models';

@@ -9,7 +9,7 @@
  * - Полную типизацию TypeScript
  */
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { createCreditApplicationForm } from './schemas/create-credit-application-form';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
@@ -22,7 +22,6 @@ import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
-import { setSimulateError, getSimulateError } from './api/mock-credit-application-api';
 import { useStepForm } from '@/components/ui/form-navigation/hooks';
 import { StepIndicator } from '@/components/ui/form-navigation/StepIndicator';
 import { NavigationButtons } from '@/components/ui/form-navigation/NavigationButtons';
@@ -34,15 +33,6 @@ import { Button } from '@/components/ui/button';
 function CreditApplicationForm() {
   //  Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
   const form = useMemo(() => createCreditApplicationForm(), []);
-
-  //  Переключатель для имитации ошибок
-  const [simulateErrorEnabled, setSimulateErrorEnabled] = useState(getSimulateError());
-
-  const handleToggleError = () => {
-    const newValue = !simulateErrorEnabled;
-    setSimulateErrorEnabled(newValue);
-    setSimulateError(newValue);
-  };
 
   //  Используем новый хук useStepForm
   const { currentStep, completedSteps, goToNextStep, goToPreviousStep, goToStep, submit } =
@@ -116,22 +106,6 @@ function CreditApplicationForm() {
   // ============================================================================
   return (
     <div className="w-full">
-      {/* Панель отладки */}
-      <div className="mb-4 p-4 bg-gray-100 rounded-lg border border-gray-300">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-medium text-gray-700">Панель отладки</div>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <span className="text-sm text-gray-600">Имитация ошибок загрузки</span>
-            <input
-              type="checkbox"
-              checked={simulateErrorEnabled}
-              onChange={handleToggleError}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-            />
-          </label>
-        </div>
-      </div>
-
       {/* Индикатор шагов */}
       <StepIndicator
         steps={STEPS}

@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 
+const brands = ['toyota', 'bmw', 'mercedes'];
 const cars: Record<string, Array<any>> = {
   toyota: [
     { value: 'camry', label: 'Camry' },
@@ -22,13 +23,14 @@ const cars: Record<string, Array<any>> = {
 export const handlers = [
   http.get('/cars', ({ request }) => {
     const url = new URL(request.url);
-    const brand = url.searchParams.get('brand');
-    const foundedBrand = brand && cars[brand?.toLocaleLowerCase()];
+    const brand = url.searchParams.get('brand')?.toLocaleLowerCase();
+    const foundedBrand = brands.find((b) => brand && b.toLocaleLowerCase().includes(brand));
+    const foundedCars = foundedBrand && cars[foundedBrand];
 
-    if (!foundedBrand) {
+    if (!foundedCars) {
       return new HttpResponse(null, { status: 404 });
     }
 
-    return HttpResponse.json(foundedBrand);
+    return HttpResponse.json(foundedCars);
   }),
 ];

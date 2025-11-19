@@ -10,19 +10,8 @@ import type { Option } from '../types/option';
  * @param country - код страны
  * @returns Promise с массивом регионов
  */
-export async function fetchRegions(country: string): Promise<AxiosResponse<Option[]> | void> {
-  return axios
-    .get(`/regions?country=${country}`)
-    .then(function (response) {
-      // обработка успешного запроса
-      console.log(response);
-      return response;
-    })
-    .catch(function (error) {
-      // обработка ошибки
-      console.log(error);
-    })
-    .finally(function () {
-      // выполняется всегда
-    });
+export async function fetchRegions(country: string): Promise<AxiosResponse<Option[]>> {
+  return axios.get(`/regions?country=${country}`).then(function (response) {
+    return response;
+  });
 }

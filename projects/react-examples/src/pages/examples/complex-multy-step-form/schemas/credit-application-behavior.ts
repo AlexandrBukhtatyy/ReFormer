@@ -207,10 +207,17 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // Загрузка моделей автомобилей при изменении марки
   watchField(
     path.carBrand,
-    async (value) => {
+    async (value, ctx) => {
       if (value) {
-        const models = await fetchCarModels(value);
-        console.log('Loaded car models:', models);
+        try {
+          const { data: models } = await fetchCarModels(value);
+          ctx.getFieldNode(path.carModel).updateComponentProps({ options: models });
+          console.log('Loaded car models:', models);
+        } catch (error) {
+          console.log('Load car failure:', error);
+          ctx.getFieldNode(path.carModel)?.reset();
+          ctx.getFieldNode(path.carModel).updateComponentProps({ options: [] });
+        }
       }
     },
     { immediate: false, debounce: 300 }

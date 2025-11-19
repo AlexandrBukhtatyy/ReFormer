@@ -56,18 +56,6 @@ const MOCK_DICTIONARIES: DictionariesResponse = {
 };
 
 // ============================================================================
-// Конфигурация имитации ошибок
-// ============================================================================
-
-let simulateError = false;
-
-export const setSimulateError = (value: boolean) => {
-  simulateError = value;
-};
-
-export const getSimulateError = () => simulateError;
-
-// ============================================================================
 // API функции
 // ============================================================================
 
@@ -82,6 +70,8 @@ const delay = (ms: number = 2000) => new Promise((resolve) => setTimeout(resolve
 // TODO: Заменить контракт на AxiosResponse
 export const fetchDictionaries = async (): Promise<ApiResponse<DictionariesResponse>> => {
   await delay(2000);
+
+  const simulateError = false;
 
   if (simulateError) {
     return {

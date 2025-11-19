@@ -12,19 +12,8 @@ import axios, { type AxiosResponse } from 'axios';
  * @param country - код страны
  * @returns Promise с массивом регионов
  */
-export async function fetchCreditApplication(id: string): Promise<AxiosResponse<any> | void> {
-  return axios
-    .get(`/credit-applications?id=${id}`)
-    .then(function (response) {
-      // обработка успешного запроса
-      console.log(response);
-      return response;
-    })
-    .catch(function (error) {
-      // обработка ошибки
-      console.log(error);
-    })
-    .finally(function () {
-      // выполняется всегда
-    });
+export async function fetchCreditApplication(id: string): Promise<AxiosResponse<any>> {
+  return axios.get(`/credit-applications?id=${id}`).then(function (response) {
+    return response;
+  });
 }

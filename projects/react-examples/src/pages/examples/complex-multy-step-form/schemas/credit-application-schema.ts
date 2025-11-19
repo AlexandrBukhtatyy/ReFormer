@@ -118,7 +118,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   carModel: {
     value: null,
-    component: Input,
+    component: Select,
     componentProps: {
       label: 'Модель автомобиля',
       placeholder: 'Например: Camry',
