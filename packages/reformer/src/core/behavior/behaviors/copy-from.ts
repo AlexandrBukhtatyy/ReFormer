@@ -26,13 +26,9 @@ import { watchField } from './watch-field';
  */
 export function copyFrom<
   TForm extends Record<string, FormValue>,
-  TSource extends FormValue,
-  TTarget extends FormValue,
->(
-  target: FieldPathNode<TForm, TTarget>,
-  source: FieldPathNode<TForm, TSource>,
-  options?: CopyFromOptions<TForm, TSource>
-): void {
+  TSource extends FieldPathNode<TForm, FormValue>,
+  TTarget extends FieldPathNode<TForm, FormValue>,
+>(target: TTarget, source: TSource, options?: CopyFromOptions<FormValue>): void {
   const { when, fields = 'all', transform, debounce } = options || {};
 
   watchField(
