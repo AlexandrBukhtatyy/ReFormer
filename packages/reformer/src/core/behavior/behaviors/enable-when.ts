@@ -24,14 +24,14 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function enableWhen<TForm extends Record<string, FormValue>>(
+export function enableWhen<TForm, TFormRecord extends Record<string, FormValue>>(
   field: FieldPathNode<TForm, FormValue>,
-  condition: (form: TForm) => boolean,
+  condition: (form: TFormRecord) => boolean,
   options?: EnableWhenOptions
 ): void {
   const { debounce, resetOnDisable = false } = options || {};
 
-  const handler: BehaviorHandlerFn<TForm> = (form, _context, withDebounce) => {
+  const handler: BehaviorHandlerFn<TFormRecord> = (form, _context, withDebounce) => {
     const targetNode = form.getFieldByPath(field.__path);
     if (!targetNode) return null;
 
@@ -71,9 +71,9 @@ export function enableWhen<TForm extends Record<string, FormValue>>(
  * };
  * ```
  */
-export function disableWhen<TForm extends Record<string, FormValue>>(
+export function disableWhen<TForm>(
   field: FieldPathNode<TForm, FormValue>,
-  condition: (form: TForm) => boolean,
+  condition: (form: Record<string, FormValue>) => boolean,
   options?: EnableWhenOptions
 ): void {
   // Инвертируем условие
