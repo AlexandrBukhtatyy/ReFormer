@@ -178,7 +178,7 @@ export class NodeFactory {
    * ✅ НОВОЕ: Извлечено из GroupNode для централизации логики
    *
    * Преобразует схему формы в объект со значениями:
-   * - { name: { value: 'John', component: Input } } → { name: 'John' }
+   * - `{ name: { value: 'John', component: Input } } → { name: 'John' }`
    * - Поддерживает вложенные группы
    * - Поддерживает массивы
    *

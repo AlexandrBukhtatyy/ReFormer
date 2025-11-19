@@ -51,9 +51,9 @@ export interface ArrayConfig<T extends FormFields> {
 
 /**
  * Автоматически определяет тип схемы на основе TypeScript типа:
- * - T[] -> [FormSchema<T>] (массив с одним элементом)
- * - object -> FormSchema<T> (группа)
- * - primitive -> FieldConfig<T> (поле)
+ * - `T[] -> [FormSchema<T>]` (массив с одним элементом)
+ * - `object -> FormSchema<T>` (группа)
+ * - `primitive -> FieldConfig<T>` (поле)
  *
  * Использует NonNullable для корректной обработки опциональных полей
  *

@@ -4,8 +4,8 @@ import type { UnknownRecord } from '../types';
  * Сегмент пути к полю формы
  *
  * Представляет один сегмент в пути к полю, например:
- * - "email" → { key: 'email' }
- * - "items[0]" → { key: 'items', index: 0 }
+ * - `"email" → { key: 'email' }`
+ * - `"items[0]" → { key: 'items', index: 0 }`
  *
  * @example
  * ```typescript

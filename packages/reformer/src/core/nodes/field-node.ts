@@ -225,7 +225,7 @@ export class FieldNode<T> extends FormNode<T> {
   /**
    * Запустить валидацию поля
    * @param options - опции валидации
-   * @returns Promise<boolean> - true если поле валидно
+   * @returns `Promise<boolean>` - true если поле валидно
    *
    * @remarks
    * Метод защищен от race conditions через validationId.

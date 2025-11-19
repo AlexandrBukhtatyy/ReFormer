@@ -169,7 +169,7 @@ export abstract class FormNode<T> {
 
   /**
    * Запустить валидацию узла
-   * @returns Promise<boolean> - true если валидация успешна
+   * @returns `Promise<boolean>` - true если валидация успешна
    */
   abstract validate(): Promise<boolean>;
 

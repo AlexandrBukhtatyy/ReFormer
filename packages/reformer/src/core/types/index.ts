@@ -136,7 +136,7 @@ export interface GroupNodeConfig<T extends Record<string, FormValue>> {
 
 /**
  * Тип для Record с unknown значениями
- * Используется вместо инлайнового Record<string, unknown>
+ * Используется вместо инлайнового `Record<string, unknown>`
  */
 export type UnknownRecord = Record<string, unknown>;
 
@@ -189,13 +189,13 @@ export type GenericFormContext = Record<string, FormValue>;
 
 /**
  * Тип для параметров валидации (validator params)
- * Используется для параметров валидаторов вместо Record<string, any>
+ * Используется для параметров валидаторов вместо `Record<string, any>`
  */
 export type ValidatorParams = Record<string, FormValue>;
 
 /**
  * Тип для конфига с полями (FormSchema generic constraint)
- * Используется вместо Record<string, any> для схем форм
+ * Используется вместо `Record<string, any>` для схем форм
  */
 export type FormFields = Record<string, FormValue>;
 
