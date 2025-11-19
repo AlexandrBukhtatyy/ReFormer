@@ -2,6 +2,8 @@
  * Вычисление полного имени (конкатенация Фамилия Имя Отчество)
  */
 
+import type { PersonalData } from '../../components/nested-forms/PersonalData/PersonalDataForm';
+
 /**
  * Вычисление полного имени (конкатенация Фамилия Имя Отчество)
  *
@@ -11,8 +13,8 @@
  * @param params.personalData - Объект с данными о человеке
  * @returns полное имя
  */
-export function computeFullName({ personalData }: { personalData: unknown }): string {
-  const data = personalData as Record<string, unknown>;
+export function computeFullName({ personalData }: { personalData: PersonalData }): string {
+  const data = personalData;
   const lastName = data?.lastName || '';
   const firstName = data?.firstName || '';
   const middleName = data?.middleName || '';

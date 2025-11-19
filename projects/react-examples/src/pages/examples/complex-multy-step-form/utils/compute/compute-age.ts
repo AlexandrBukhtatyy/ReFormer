@@ -2,17 +2,17 @@
  * Вычисление возраста из даты рождения
  */
 
+import type { PersonalData } from '../../components/nested-forms/PersonalData/PersonalDataForm';
+
 /**
  * Вычисление возраста из даты рождения
- *
- * ✅ ОБНОВЛЕНО: Теперь принимает параметры напрямую (type-safe)
  *
  * @param params - Объект с параметрами
  * @param params.personalData - Объект с данными о человеке
  * @returns возраст (лет)
  */
-export function computeAge({ personalData }: { personalData: unknown }): number | null {
-  const birthDate = (personalData as Record<string, unknown>)?.birthDate;
+export function computeAge({ personalData }: { personalData: PersonalData }): number | null {
+  const birthDate = personalData.birthDate;
 
   if (!birthDate) {
     return null;

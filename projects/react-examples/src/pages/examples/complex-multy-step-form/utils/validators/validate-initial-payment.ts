@@ -3,13 +3,16 @@
  */
 
 import type { TreeValidationContext, ValidationError } from 'reformer';
+import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
  * Валидация первоначального взноса (должен быть >= 20% от стоимости недвижимости)
  * @param ctx - контекст валидации с доступом к полям формы
  * @returns ошибка валидации или null
  */
-export function validateInitialPayment(ctx: TreeValidationContext): ValidationError | null {
+export function validateInitialPayment(
+  ctx: TreeValidationContext<CreditApplicationForm>
+): ValidationError | null {
   const propertyValue = ctx.getField('propertyValue');
   const initialPayment = ctx.getField('initialPayment');
   const loanType = ctx.getField('loanType');
