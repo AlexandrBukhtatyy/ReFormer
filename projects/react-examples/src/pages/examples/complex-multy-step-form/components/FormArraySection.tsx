@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { ArrayNodeWithControls, GroupNodeWithControls } from 'reformer';
+import type { ArrayNodeWithControls, FormFields, GroupNodeWithControls } from 'reformer';
 import type { ComponentType } from 'react';
 import { FormArrayManager } from '@/components/ui/FormArrayManager';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ interface FormArraySectionProps<T extends object> {
   title: string;
 
   /** ArrayNode контроллер */
-  control: ArrayNodeWithControls<T> | undefined;
+  control: ArrayNodeWithControls<FormFields> | undefined;
 
   /** Компонент элемента массива */
   itemComponent: ComponentType<{ control: GroupNodeWithControls<T> }>;
