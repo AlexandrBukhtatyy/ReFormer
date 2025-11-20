@@ -44,7 +44,8 @@ export class FieldNode<T> extends FormNode<T> {
   private _errors: Signal<ValidationError[]>;
   // _touched, _dirty, _status наследуются от FormNode (protected)
   private _pending: Signal<boolean>;
-  private _componentProps: Signal<Record<string, FormFields>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _componentProps: Signal<Record<string, any>>;
 
   // ============================================================================
   // Публичные computed signals
@@ -56,7 +57,8 @@ export class FieldNode<T> extends FormNode<T> {
   // touched, dirty, status наследуются от FormNode
   public readonly pending: ReadonlySignal<boolean>;
   public readonly errors: ReadonlySignal<ValidationError[]>;
-  public readonly componentProps: ReadonlySignal<Record<string, FormFields>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public readonly componentProps: ReadonlySignal<Record<string, any>>;
 
   /**
    * Вычисляемое свойство: нужно ли показывать ошибку
