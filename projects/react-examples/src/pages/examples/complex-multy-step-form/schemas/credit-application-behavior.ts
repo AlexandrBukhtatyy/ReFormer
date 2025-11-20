@@ -211,12 +211,12 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
       if (value) {
         try {
           const { data: models } = await fetchCarModels(value);
-          ctx.getFieldNode(path.carModel).updateComponentProps({ options: models });
+          ctx.updateComponentProps(path.carModel, { options: models });
           console.log('Loaded car models:', models);
         } catch (error) {
           console.log('Load car failure:', error);
           ctx.getFieldNode(path.carModel)?.reset();
-          ctx.getFieldNode(path.carModel).updateComponentProps({ options: [] });
+          ctx.updateComponentProps(path.carModel, { options: [] });
         }
       }
     },
