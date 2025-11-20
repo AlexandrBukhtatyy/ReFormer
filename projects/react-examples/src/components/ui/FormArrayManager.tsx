@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react';
 import { Button } from './button';
+import type { ArrayNode, FormFields, GroupNodeWithControls } from 'reformer';
 
 interface FormArrayManagerProps {
   // ArrayProxy (из DeepFormStore)
-  control: unknown;
+  control: ArrayNode<FormFields>;
   // Компонент для рендера одного элемента массива
   component: ComponentType<{ control: unknown }>;
   // Название элемента для заголовка (например, "Имущество", "Кредит", "Созаемщик")
@@ -34,11 +35,7 @@ export function FormArrayManager({
 }: FormArrayManagerProps) {
   return (
     <>
-      {(
-        control as {
-          map: (callback: (item: unknown, index: number) => JSX.Element) => JSX.Element[];
-        }
-      ).map((itemControl: unknown, index: number) => {
+      {control.map((itemControl: GroupNodeWithControls<FormFields>, index: number) => {
         const title = renderTitle ? renderTitle(index) : `${itemLabel} #${index + 1}`;
 
         // Используем уникальный id из GroupProxy как key для избежания проблем при удалении

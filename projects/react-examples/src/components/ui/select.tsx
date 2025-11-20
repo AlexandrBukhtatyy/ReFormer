@@ -46,7 +46,8 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps<any>>(
           .load({})
           .then((response) => {
             setResourceOptions(
-              response.items.map((item) => ({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              response.items.map((item: any) => ({
                 id: item.id,
                 label: item.label,
                 value: String(item.value),
