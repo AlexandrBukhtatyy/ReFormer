@@ -57,7 +57,7 @@ export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<E
   required(path.maturityDate, { message: 'Укажите дату погашения кредита' });
 
   // Кросс-полевая валидация: остаток не может превышать сумму кредита
-  validateTree(
+  validateTree<ExistingLoan>(
     (ctx) => {
       const loan = ctx.formValue();
 
@@ -74,7 +74,7 @@ export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<E
   );
 
   // Кросс-полевая валидация: дата погашения должна быть в будущем
-  validateTree(
+  validateTree<ExistingLoan>(
     (ctx) => {
       const loan = ctx.formValue();
 

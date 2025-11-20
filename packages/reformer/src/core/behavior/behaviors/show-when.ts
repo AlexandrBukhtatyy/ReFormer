@@ -2,7 +2,7 @@
  * Conditional show/hide fields
  */
 
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { BehaviorHandlerFn } from '../types';
 
@@ -24,7 +24,7 @@ import type { BehaviorHandlerFn } from '../types';
  * )}
  * ```
  */
-export function showWhen<TForm extends Record<string, FormValue>>(
+export function showWhen<TForm extends FormFields>(
   _field: FieldPathNode<TForm, FormValue>,
   _condition: (form: TForm) => boolean
 ): void {
@@ -46,7 +46,7 @@ export function showWhen<TForm extends Record<string, FormValue>>(
  * @param field - Поле для скрытия
  * @param condition - Функция условия (true = hide, false = show)
  */
-export function hideWhen<TForm extends Record<string, FormValue>>(
+export function hideWhen<TForm extends FormFields>(
   field: FieldPathNode<TForm, FormValue>,
   condition: (form: TForm) => boolean
 ): void {

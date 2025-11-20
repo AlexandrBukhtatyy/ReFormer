@@ -24,14 +24,14 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function enableWhen<TForm, TFormRecord extends FormFields>(
+export function enableWhen<TForm>(
   field: FieldPathNode<TForm, FormValue>,
-  condition: (form: TFormRecord) => boolean,
+  condition: (form: FormFields) => boolean,
   options?: EnableWhenOptions
 ): void {
   const { debounce, resetOnDisable = false } = options || {};
 
-  const handler: BehaviorHandlerFn<TFormRecord> = (form, _context, withDebounce) => {
+  const handler: BehaviorHandlerFn<FormFields> = (form, _context, withDebounce) => {
     const targetNode = form.getFieldByPath(field.__path);
     if (!targetNode) return null;
 

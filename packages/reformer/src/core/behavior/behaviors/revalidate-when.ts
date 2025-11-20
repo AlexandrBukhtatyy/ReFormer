@@ -4,7 +4,7 @@
 
 import { effect } from '@preact/signals-core';
 import type { FormNode } from '../../nodes/form-node';
-import type { FieldPathNode, FormValue } from '../../types';
+import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
 
@@ -25,7 +25,7 @@ import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function revalidateWhen<TForm extends Record<string, FormValue>>(
+export function revalidateWhen<TForm extends FormFields>(
   target: FieldPathNode<TForm, FormValue>,
   triggers: FieldPathNode<TForm, FormValue>[],
   options?: RevalidateWhenOptions

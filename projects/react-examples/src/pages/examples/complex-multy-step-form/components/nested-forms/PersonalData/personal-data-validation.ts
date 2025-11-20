@@ -8,6 +8,7 @@ import {
   pattern,
 } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
+import type { PersonalData } from './PersonalDataForm';
 
 /**
  * Схема валидации для Шага 2: Персональные данные
@@ -104,7 +105,7 @@ export const personalDataValidation = (path: FieldPath<CreditApplicationForm>) =
   });
 
   // Кросс-полевая валидация: дата выдачи паспорта должна быть после достижения 14 лет
-  validateTree(
+  validateTree<PersonalData>(
     (ctx) => {
       const form = ctx.formValue();
       if (!form.personalData.birthDate || !form.passportData.issueDate) {
