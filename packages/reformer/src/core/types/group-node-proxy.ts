@@ -92,7 +92,7 @@ export type FormNodeControls<T> = {
  * form.profile.name.setValue('John');
  * ```
  */
-export type GroupNodeWithControls<T extends FormFields> = GroupNode<T> & FormNodeControls<T>;
+export type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
 
 /**
  * Комбинированный тип для ArrayNode с Proxy доступом к элементам
