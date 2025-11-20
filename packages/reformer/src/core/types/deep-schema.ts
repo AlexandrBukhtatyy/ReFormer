@@ -81,15 +81,17 @@ export interface ArrayConfig<T extends FormFields> {
  * ```
  */
 export type FormSchema<T> = {
-  [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
-    ? U extends FormFields
-      ? [FormSchema<U>] // Массив объектов
-      : FieldConfig<T[K]> // Массив примитивов (как обычное поле)
-    : NonNullable<T[K]> extends FormFields
-      ? NonNullable<T[K]> extends Date | File | Blob
-        ? FieldConfig<T[K]> // Специальные объекты
-        : FormSchema<NonNullable<T[K]>> | FieldConfig<T[K]> // Группа или поле с объектным типом
-      : FieldConfig<T[K]>; // Примитивное поле
+  [K in keyof T]: NonNullable<T[K]> extends string | number | boolean
+    ? FieldConfig<T[K]>
+    : NonNullable<T[K]> extends Array<infer U>
+      ? U extends string | number | boolean
+        ? FieldConfig<T[K]>
+        : U extends Date | File | Blob | Function
+          ? FieldConfig<T[K]>
+          : [FormSchema<U>]
+      : NonNullable<T[K]> extends Date | File | Blob | Function
+        ? FieldConfig<T[K]>
+        : FormSchema<NonNullable<T[K]>>;
 };
 
 // ============================================================================
@@ -123,15 +125,19 @@ export type FormSchema<T> = {
  * ```
  */
 export type DeepControls<T> = {
-  [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
-    ? U extends FormFields
-      ? ArrayControlProxy<U>
-      : FieldNode<T[K]>
-    : NonNullable<T[K]> extends FormFields
-      ? NonNullable<T[K]> extends Date | File | Blob
+  [K in keyof T]: NonNullable<T[K]> extends string | number | boolean
+    ? FieldNode<T[K]>
+    : NonNullable<T[K]> extends Array<infer U>
+      ? U extends string | number | boolean
         ? FieldNode<T[K]>
-        : DeepControls<NonNullable<T[K]>> & GroupControlProxy<NonNullable<T[K]>>
-      : FieldNode<T[K]>;
+        : U extends Date | File | Blob | Function
+          ? FieldNode<T[K]>
+          : U extends FormFields
+            ? ArrayControlProxy<U>
+            : FieldNode<T[K]>
+      : NonNullable<T[K]> extends Date | File | Blob | Function
+        ? FieldNode<T[K]>
+        : DeepControls<NonNullable<T[K]>> & GroupControlProxy<NonNullable<T[K]>>;
 };
 
 /**
