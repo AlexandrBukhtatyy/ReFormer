@@ -9,7 +9,13 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
-import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
+import type {
+  FieldConfig,
+  ValidationError,
+  ValidatorFn,
+  AsyncValidatorFn,
+  FormFields,
+} from '../types';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
@@ -38,7 +44,7 @@ export class FieldNode<T> extends FormNode<T> {
   private _errors: Signal<ValidationError[]>;
   // _touched, _dirty, _status наследуются от FormNode (protected)
   private _pending: Signal<boolean>;
-  private _componentProps: Signal<Record<string, unknown>>;
+  private _componentProps: Signal<Record<string, FormFields>>;
 
   // ============================================================================
   // Публичные computed signals
@@ -50,7 +56,7 @@ export class FieldNode<T> extends FormNode<T> {
   // touched, dirty, status наследуются от FormNode
   public readonly pending: ReadonlySignal<boolean>;
   public readonly errors: ReadonlySignal<ValidationError[]>;
-  public readonly componentProps: ReadonlySignal<Record<string, unknown>>;
+  public readonly componentProps: ReadonlySignal<Record<string, FormFields>>;
 
   /**
    * Вычисляемое свойство: нужно ли показывать ошибку
@@ -435,7 +441,8 @@ export class FieldNode<T> extends FormNode<T> {
    * });
    * ```
    */
-  updateComponentProps(props: Partial<Record<string, unknown>>): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updateComponentProps(props: Partial<Record<string, any>>): void {
     this._componentProps.value = {
       ...this._componentProps.value,
       ...props,

@@ -9,13 +9,7 @@
 
 import type { ComponentType } from 'react';
 import type { ReadonlySignal } from '@preact/signals-core';
-import type {
-  ValidatorFn,
-  AsyncValidatorFn,
-  ValidationError,
-  UnknownRecord,
-  FormFields,
-} from './index';
+import type { ValidatorFn, AsyncValidatorFn, ValidationError, FormFields } from './index';
 import type { FieldNode } from '../nodes/field-node';
 
 // ============================================================================
@@ -27,8 +21,10 @@ import type { FieldNode } from '../nodes/field-node';
  */
 export interface FieldConfig<T> {
   value: T | null;
-  component: ComponentType<UnknownRecord>;
-  componentProps?: UnknownRecord;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  componentProps?: any;
   validators?: ValidatorFn<T>[];
   asyncValidators?: AsyncValidatorFn<T>[];
   disabled?: boolean;

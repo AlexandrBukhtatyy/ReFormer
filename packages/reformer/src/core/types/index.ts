@@ -138,7 +138,8 @@ export interface GroupNodeConfig<T extends FormFields> {
  * Тип для Record с unknown значениями
  * Используется вместо инлайнового `Record<string, unknown>`
  */
-export type UnknownRecord = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type UnknownRecord = Record<string, any>;
 
 /**
  * Интерфейс для узлов с методом applyValidationSchema
