@@ -25,14 +25,14 @@ import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function revalidateWhen<TForm extends FormFields>(
+export function revalidateWhen<TForm>(
   target: FieldPathNode<TForm, FormValue>,
   triggers: FieldPathNode<TForm, FormValue>[],
   options?: RevalidateWhenOptions
 ): void {
   const { debounce } = options || {};
 
-  const handler: BehaviorHandlerFn<TForm> = (form, _context, withDebounce) => {
+  const handler: BehaviorHandlerFn<FormFields> = (form, _context, withDebounce) => {
     const targetNode = form.getFieldByPath(target.__path);
     if (!targetNode) return null;
 
