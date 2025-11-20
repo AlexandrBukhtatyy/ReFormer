@@ -4,7 +4,7 @@ import { Checkbox } from './checkbox';
 // import { useFormControl } from '../../hooks/useFormControl';
 
 export interface FormFieldProps {
-  control: FieldNode | unknown; // Поддержка любых узлов (FieldNode, GroupNode fields)
+  control: FieldNode<any>;
   className?: string;
 }
 
@@ -38,7 +38,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
         onBlur={() => {
           control.markAsTouched();
           // Запускаем валидацию при blur (для updateOn: 'blur' и 'submit')
-          if (control.updateOn === 'blur' || control.updateOn === 'submit') {
+          if (control.getUpdateOn() === 'blur' || control.getUpdateOn() === 'submit') {
             control.validate();
           }
         }}

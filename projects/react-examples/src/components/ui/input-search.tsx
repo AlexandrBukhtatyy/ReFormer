@@ -9,7 +9,7 @@ export interface InputSearchProps
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  resource?: ResourceConfig;
+  resource?: ResourceConfig<unknown>;
   placeholder?: string;
   disabled?: boolean;
   debounce?: number;
