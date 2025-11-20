@@ -44,10 +44,10 @@ const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ===================================================================
 
   // Платежеспособность (процент платежа от дохода <= 50%)
-  validateTree(validatePaymentToIncome, { targetField: 'monthlyPayment' });
+  validateTree<CreditApplicationForm>(validatePaymentToIncome, { targetField: 'monthlyPayment' });
 
   // Возраст заемщика (18-70 лет)
-  validateTree(validateAge, { targetField: 'age' });
+  validateTree<CreditApplicationForm>(validateAge, { targetField: 'age' });
 };
 
 export default creditApplicationValidation;

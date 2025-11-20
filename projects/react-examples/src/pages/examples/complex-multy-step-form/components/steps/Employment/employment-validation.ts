@@ -53,7 +53,7 @@ export const employmentValidation = (path: FieldPath<CreditApplicationForm>) => 
       max(path.workExperienceCurrent, 60, { message: 'Максимальный стаж: 60 лет' });
 
       // Cross-field: стаж на текущем месте не больше общего стажа
-      validateTree(
+      validateTree<CreditApplicationForm>(
         (ctx) => {
           const form = ctx.formValue();
           if (
@@ -102,7 +102,7 @@ export const employmentValidation = (path: FieldPath<CreditApplicationForm>) => 
   max(path.additionalIncome, 10000000, { message: 'Максимальный доход: 10 000 000 ₽' });
 
   // Если указан дополнительный доход, требуется указать источник
-  validateTree(
+  validateTree<CreditApplicationForm>(
     (ctx) => {
       const form = ctx.formValue();
       if (form.additionalIncome && form.additionalIncome > 0 && !form.additionalIncomeSource) {

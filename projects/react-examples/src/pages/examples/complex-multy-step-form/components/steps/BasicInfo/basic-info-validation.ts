@@ -43,7 +43,7 @@ export const basicInfoValidation = (path: FieldPath<CreditApplicationForm>) => {
       min(path.initialPayment, 0);
 
       // Cross-field валидация
-      validateTree(
+      validateTree<CreditApplicationForm>(
         (ctx) => {
           const form = ctx.formValue();
 
