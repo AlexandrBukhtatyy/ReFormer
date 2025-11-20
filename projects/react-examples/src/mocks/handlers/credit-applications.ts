@@ -1,5 +1,4 @@
 import { http, HttpResponse } from 'msw';
-import type { Option } from '../../pages/examples/complex-multy-step-form/types/option';
 import type { CreditApplicationForm } from '../../pages/examples/complex-multy-step-form/types/credit-application';
 
 const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> = {

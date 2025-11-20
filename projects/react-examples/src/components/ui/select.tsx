@@ -4,20 +4,21 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ResourceConfig } from 'reformer';
 
-export interface SelectProps
+export interface SelectProps<T>
   extends Omit<React.ComponentProps<typeof SelectPrimitive.Root>, 'value' | 'onValueChange'> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  resource?: ResourceConfig;
+  resource?: ResourceConfig<T>;
   options?: Array<{ value: string | number; label: string; group?: string }>;
   placeholder?: string;
   disabled?: boolean;
   clearable?: boolean;
 }
 
-const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Select = React.forwardRef<HTMLButtonElement, SelectProps<any>>(
   (
     {
       className,
