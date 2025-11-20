@@ -76,8 +76,7 @@ import { v4 as uuidv4 } from 'uuid';
  * console.log(fullForm.valid.value); // true
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class GroupNode<T = any> extends FormNode<T> {
+export class GroupNode<T extends FormFields> extends FormNode<T> {
   // ============================================================================
   // Приватные поля
   // ============================================================================

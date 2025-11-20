@@ -53,8 +53,11 @@ export class BehaviorContextImpl<TForm extends FormFields> implements BehaviorCo
   /**
    * Обновить componentProps поля
    */
-  updateComponentProps(field: FieldPathNode<TForm, unknown>, props: Record<string, unknown>): void {
-    const node = this.resolveFieldNode(field.__path);
+  updateComponentProps(
+    field: string | FieldPathNode<TForm, unknown>,
+    props: Record<string, unknown>
+  ): void {
+    const node = this.resolveFieldNode(field);
     if (node && 'updateComponentProps' in node) {
       (
         node as unknown as { updateComponentProps: (props: Record<string, unknown>) => void }
@@ -65,8 +68,8 @@ export class BehaviorContextImpl<TForm extends FormFields> implements BehaviorCo
   /**
    * Перевалидировать поле
    */
-  async validateField(field: FieldPathNode<TForm, unknown>): Promise<boolean> {
-    const node = this.resolveFieldNode(field.__path);
+  async validateField(field: string | FieldPathNode<TForm, unknown>): Promise<boolean> {
+    const node = this.resolveFieldNode(field);
     if (node) {
       return await node.validate();
     }
@@ -76,8 +79,8 @@ export class BehaviorContextImpl<TForm extends FormFields> implements BehaviorCo
   /**
    * Установить ошибки поля
    */
-  setErrors(field: FieldPathNode<TForm, unknown>, errors: ValidationError[]): void {
-    const node = this.resolveFieldNode(field.__path);
+  setErrors(field: string | FieldPathNode<TForm, unknown>, errors: ValidationError[]): void {
+    const node = this.resolveFieldNode(field);
     if (node) {
       node.setErrors(errors);
     }
@@ -86,8 +89,8 @@ export class BehaviorContextImpl<TForm extends FormFields> implements BehaviorCo
   /**
    * Очистить ошибки поля
    */
-  clearErrors(field: FieldPathNode<TForm, unknown>): void {
-    const node = this.resolveFieldNode(field.__path);
+  clearErrors(field: string | FieldPathNode<TForm, unknown>): void {
+    const node = this.resolveFieldNode(field);
     if (node) {
       node.clearErrors();
     }
@@ -101,11 +104,11 @@ export class BehaviorContextImpl<TForm extends FormFields> implements BehaviorCo
   }
 
   /**
-   * Получить узел формы (FormNode) по строковому пути
-   * @param path - Путь к полю (например, "properties", "address.city")
+   * Получить узел формы (FormNode) по пути
+   * @param path - Путь к полю (строка "address.city" или FieldPathNode)
    * @returns FormNode или undefined если путь не найден
    */
-  getFieldNode(path: string): FormNode<unknown> | undefined {
+  getFieldNode(path: string | FieldPathNode<TForm, unknown>): FormNode<unknown> | undefined {
     return this.resolveFieldNode(path);
   }
 

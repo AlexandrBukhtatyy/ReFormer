@@ -145,7 +145,7 @@ export type DeepControls<T> = {
  *
  * Предоставляет методы для работы с группой полей как с единой формой
  */
-export interface GroupControlProxy<T extends FormFields> {
+export interface GroupControlProxy<T> {
   /** Все поля группы валидны */
   valid: boolean;
 

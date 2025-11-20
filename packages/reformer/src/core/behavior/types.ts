@@ -34,29 +34,32 @@ export interface BehaviorContext<TForm extends FormFields> {
 
   /**
    * Обновить componentProps поля
-   * @param field - FieldPathNode поля
+   * @param field - Путь к полю (строка или FieldPathNode)
    * @param props - Частичные пропсы для обновления
    */
-  updateComponentProps(field: FieldPathNode<TForm, unknown>, props: Record<string, unknown>): void;
+  updateComponentProps(
+    field: string | FieldPathNode<TForm, unknown>,
+    props: Record<string, unknown>
+  ): void;
 
   /**
    * Перевалидировать поле
-   * @param field - FieldPathNode поля
+   * @param field - Путь к полю (строка или FieldPathNode)
    */
-  validateField(field: FieldPathNode<TForm, unknown>): Promise<boolean>;
+  validateField(field: string | FieldPathNode<TForm, unknown>): Promise<boolean>;
 
   /**
    * Установить ошибки поля
-   * @param field - FieldPathNode поля
+   * @param field - Путь к полю (строка или FieldPathNode)
    * @param errors - Массив ошибок валидации
    */
-  setErrors(field: FieldPathNode<TForm, unknown>, errors: ValidationError[]): void;
+  setErrors(field: string | FieldPathNode<TForm, unknown>, errors: ValidationError[]): void;
 
   /**
    * Очистить ошибки поля
-   * @param field - FieldPathNode поля
+   * @param field - Путь к полю (строка или FieldPathNode)
    */
-  clearErrors(field: FieldPathNode<TForm, unknown>): void;
+  clearErrors(field: string | FieldPathNode<TForm, unknown>): void;
 
   /**
    * Получить всю форму целиком
@@ -64,11 +67,11 @@ export interface BehaviorContext<TForm extends FormFields> {
   getForm(): TForm;
 
   /**
-   * Получить узел формы (FormNode) по строковому пути
-   * @param path - Путь к полю (например, "properties", "address.city")
+   * Получить узел формы (FormNode) по пути
+   * @param path - Путь к полю (строка "address.city" или FieldPathNode)
    * @returns FormNode или undefined если путь не найден
    */
-  getFieldNode(path: string): FormNode<unknown> | undefined;
+  getFieldNode(path: string | FieldPathNode<TForm, unknown>): FormNode<unknown> | undefined;
 
   /**
    * Получить корневой узел формы с доступом к полям через точку
