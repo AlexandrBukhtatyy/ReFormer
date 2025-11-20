@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { SearchIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResourceConfig } from 'reformer';
+import type { ResourceConfig, ResourceItem } from 'reformer';
 
 export interface InputSearchProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'resource'> {
@@ -9,7 +9,7 @@ export interface InputSearchProps
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  resource?: ResourceConfig<unknown>;
+  resource?: ResourceConfig<string>;
   placeholder?: string;
   disabled?: boolean;
   debounce?: number;
@@ -30,7 +30,7 @@ const InputSearch = React.forwardRef<HTMLInputElement, InputSearchProps>(
     },
     ref
   ) => {
-    const [suggestions, setSuggestions] = React.useState<unknown[]>([]);
+    const [suggestions, setSuggestions] = React.useState<ResourceItem<string>[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [showSuggestions, setShowSuggestions] = React.useState(false);
     const [inputValue, setInputValue] = React.useState(value || '');

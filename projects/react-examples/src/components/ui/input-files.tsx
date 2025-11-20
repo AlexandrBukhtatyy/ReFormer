@@ -2,9 +2,8 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 export interface InputFilesProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
   className?: string;
-  value?: File | File[] | null;
   onChange?: (value: File | File[] | null) => void;
   onBlur?: () => void;
   multiple?: boolean;
@@ -19,21 +18,65 @@ export interface InputFilesProps
 
 const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
   (
-    { className, onChange, onBlur, multiple = false, accept, disabled, placeholder, ...props },
+    {
+      className,
+      onChange,
+      onBlur,
+      multiple = false,
+      accept,
+      disabled,
+      placeholder,
+      maxSize,
+      uploader,
+      ...props
+    },
     ref
   ) => {
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const [error, setError] = React.useState<string | null>(null);
+    const [uploading, setUploading] = React.useState(false);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
+      setError(null);
 
       if (!files || files.length === 0) {
         onChange?.(null);
         return;
       }
 
-      if (multiple) {
-        onChange?.(Array.from(files));
+      const fileArray = Array.from(files);
+
+      // Validate file sizes
+      if (maxSize) {
+        const oversizedFiles = fileArray.filter((file) => file.size > maxSize);
+        if (oversizedFiles.length > 0) {
+          const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
+          setError(`File size exceeds ${maxSizeMB} MB`);
+          onChange?.(null);
+          return;
+        }
+      }
+
+      const result = multiple ? fileArray : fileArray[0];
+
+      // Upload files if uploader is provided
+      if (uploader) {
+        setUploading(true);
+        try {
+          if (Array.isArray(result)) {
+            await Promise.all(result.map((file) => uploader.upload(file)));
+          } else {
+            await uploader.upload(result);
+          }
+          onChange?.(result);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Upload failed');
+          onChange?.(null);
+        } finally {
+          setUploading(false);
+        }
       } else {
-        onChange?.(files[0]);
+        onChange?.(result);
       }
     };
 
@@ -47,7 +90,7 @@ const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
           type="file"
           multiple={multiple}
           accept={accept}
-          disabled={disabled}
+          disabled={disabled || uploading}
           data-slot="input"
           className={cn(
             'file:text-foreground file:bg-muted file:border-0 file:rounded-sm file:px-3 file:py-1 file:text-sm file:font-medium',
@@ -56,12 +99,15 @@ const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
             'focus-visible:outline-none focus-visible:ring-[3px]',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
+            error && 'border-destructive',
             className
           )}
           onChange={handleFileChange}
           onBlur={onBlur}
           {...props}
         />
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {uploading && <p className="text-sm text-muted-foreground">Uploading...</p>}
       </div>
     );
   }
