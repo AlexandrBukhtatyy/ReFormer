@@ -1,11 +1,13 @@
-import type { FieldPath } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import { validateAsync, required, minLength, maxLength, pattern } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**
  * Схема валидации для Шага 6: Согласия и подтверждение
  */
-export const confirmationValidation = (path: FieldPath<CreditApplicationForm>) => {
+export const confirmationValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
   // Согласие на обработку персональных данных (обязательно)
   // required() уже проверяет что boolean === true, дополнительный validate не нужен
   required(path.agreePersonalData, {

@@ -1,4 +1,4 @@
-import type { FieldPath } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import {
   validate,
   validateTree,
@@ -12,7 +12,9 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 /**
  * Схема валидации для Шага 2: Персональные данные
  */
-export const personalDataValidation = (path: FieldPath<CreditApplicationForm>) => {
+export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
   // Валидация личных данных
   required(path.personalData.lastName, { message: 'Фамилия обязательна' });
   minLength(path.personalData.lastName, 2, { message: 'Минимум 2 символа' });

@@ -15,15 +15,17 @@ import { useState, useCallback } from 'react';
 /**
  * Конфигурация multi-step формы
  */
-export interface StepFormConfig<T extends Record<string, FormValue>> {
+export interface StepFormConfig {
   /** Общее количество шагов */
   totalSteps: number;
 
   /** Схемы валидации для каждого шага */
-  stepSchemas: Record<number, ValidationSchemaFn<T>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stepSchemas: Record<number, ValidationSchemaFn<any>>;
 
   /** Полная схема валидации (для submit) */
-  fullSchema: ValidationSchemaFn<T>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fullSchema: ValidationSchemaFn<any>;
 }
 
 /**
@@ -95,7 +97,7 @@ export interface UseStepFormResult<T extends Record<string, FormValue>> {
  */
 export function useStepForm<T extends Record<string, FormValue>>(
   form: GroupNodeWithControls<T>,
-  config: StepFormConfig<T>
+  config: StepFormConfig
 ): UseStepFormResult<T> {
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);

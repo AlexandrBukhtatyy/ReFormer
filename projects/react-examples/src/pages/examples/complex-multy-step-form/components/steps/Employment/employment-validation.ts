@@ -1,4 +1,4 @@
-import type { FieldPath } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import {
   applyWhen,
   validateTree,
@@ -14,7 +14,9 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 /**
  * Схема валидации для Шага 4: Информация о занятости
  */
-export const employmentValidation = (path: FieldPath<CreditApplicationForm>) => {
+export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
   required(path.employmentStatus, { message: 'Укажите статус занятости' });
 
   // Условная валидация для работающих

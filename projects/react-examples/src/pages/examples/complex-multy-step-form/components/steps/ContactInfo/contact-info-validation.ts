@@ -1,4 +1,4 @@
-import type { FieldPath } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import { apply, applyWhen, validateTree, required, pattern, email } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
@@ -8,7 +8,9 @@ import { addressValidation } from '../../nested-forms/Address/address-validation
 /**
  * Схема валидации для Шага 3: Контактная информация
  */
-export const contactInfoValidation = (path: FieldPath<CreditApplicationForm>) => {
+export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
   // Основной телефон
   required(path.phoneMain, { message: 'Телефон обязателен' });
   pattern(path.phoneMain, /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {

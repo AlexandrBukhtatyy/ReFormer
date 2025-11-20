@@ -1,4 +1,4 @@
-import type { FieldPath } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import {
   applyWhen,
   validateTree,
@@ -16,7 +16,9 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
  * ✅ Чистая схема БЕЗ условия на currentStep
  * ✅ Содержит только бизнес-логику валидации полей шага 1
  */
-export const basicInfoValidation = (path: FieldPath<CreditApplicationForm>) => {
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
   required(path.loanType, { message: 'Выберите тип кредита' });
 
   required(path.loanAmount, { message: 'Укажите сумму кредита' });

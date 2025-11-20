@@ -60,4 +60,4 @@ export const STEP_VALIDATIONS = {
   4: employmentValidation,
   5: additionalValidation,
   6: confirmationValidation,
-} as const;
+};

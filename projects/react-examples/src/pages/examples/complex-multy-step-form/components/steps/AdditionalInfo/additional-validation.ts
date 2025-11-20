@@ -1,4 +1,4 @@
-import type { FieldPath } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from 'reformer';
 import { applyWhen, required, min, max, notEmpty, validateItems } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
@@ -10,7 +10,9 @@ import { coBorrowerValidation } from '../../nested-forms/CoBorrower/co-borrower-
 /**
  * Схема валидации для Шага 5: Дополнительная информация
  */
-export const additionalValidation = (path: FieldPath<CreditApplicationForm>) => {
+export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
   required(path.maritalStatus, { message: 'Укажите семейное положение' });
 
   required(path.dependents, { message: 'Укажите количество иждивенцев' });
