@@ -2,8 +2,6 @@
 // FieldPath - proxy для доступа к путям полей
 // ============================================================================
 
-import type { FormFields } from './index';
-
 /**
  * FieldPath предоставляет типобезопасный доступ к путям полей формы
  *
@@ -31,11 +29,11 @@ import type { FormFields } from './index';
 export type FieldPath<T> = {
   [K in keyof T]: NonNullable<T[K]> extends Array<unknown>
     ? FieldPathNode<T, T[K], K> // Массивы - не рекурсим (обрабатываются отдельно)
-    : NonNullable<T[K]> extends FormFields
-      ? NonNullable<T[K]> extends Date | File | Blob
-        ? FieldPathNode<T, T[K], K> // Специальные объекты - не рекурсим
-        : FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> // Обычные объекты - рекурсия!
-      : FieldPathNode<T, T[K], K>; // Примитивы
+    : NonNullable<T[K]> extends Date | File | Blob | Function
+      ? FieldPathNode<T, T[K], K> // Специальные объекты - не рекурсим
+      : NonNullable<T[K]> extends object
+        ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> // Обычные объекты - рекурсия!
+        : FieldPathNode<T, T[K], K>; // Примитивы
 };
 
 /**
