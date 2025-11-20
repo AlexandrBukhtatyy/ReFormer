@@ -33,5 +33,5 @@ export const createCreditApplicationForm = (): GroupNodeWithControls<CreditAppli
     validation: creditApplicationValidation,
   });
 
-  return form as GroupNodeWithControls<CreditApplicationForm>;
+  return form;
 };
