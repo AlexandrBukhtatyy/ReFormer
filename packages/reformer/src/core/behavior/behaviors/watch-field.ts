@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode, FormFields, FormValue } from '../../types';
+import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../types';
 
@@ -29,14 +29,15 @@ import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../t
  * };
  * ```
  */
-export function watchField<TForm, TField extends FormValue>(
+export function watchField<TForm, TField>(
   field: FieldPathNode<TForm, TField>,
-  callback: (value: TField, ctx: BehaviorContext<FormFields>) => void | Promise<void>,
+  callback: (value: TField, ctx: BehaviorContext<any>) => void | Promise<void>,
   options?: WatchFieldOptions
 ): void {
   const { debounce, immediate = false } = options || {};
 
-  const handler: BehaviorHandlerFn<FormFields> = (form, context, withDebounce) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handler: BehaviorHandlerFn<any> = (form, context, withDebounce) => {
     const node = form.getFieldByPath(field.__path);
     if (!node) return null;
 
@@ -55,5 +56,6 @@ export function watchField<TForm, TField extends FormValue>(
     });
   };
 
-  getCurrentBehaviorRegistry().register(handler, { debounce });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getCurrentBehaviorRegistry().register(handler as any, { debounce });
 }

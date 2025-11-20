@@ -70,7 +70,7 @@ const InputSearch = React.forwardRef<HTMLInputElement, InputSearchProps>(
       }
     };
 
-    const handleSuggestionClick = (suggestion: unknown) => {
+    const handleSuggestionClick = (suggestion: ResourceItem<string>) => {
       const suggestionObj = suggestion as { label?: string; value?: string };
       const selectedValue = suggestionObj.label || suggestionObj.value || '';
       setInputValue(selectedValue);

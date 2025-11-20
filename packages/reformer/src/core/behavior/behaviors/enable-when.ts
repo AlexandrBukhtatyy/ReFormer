@@ -3,7 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FieldPathNode, FormFields, FormValue } from '../../types';
+import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
@@ -25,13 +25,14 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  * ```
  */
 export function enableWhen<TForm>(
-  field: FieldPathNode<TForm, FormValue>,
-  condition: (form: FormFields) => boolean,
+  field: FieldPathNode<TForm, any>,
+  condition: (form: TForm) => boolean,
   options?: EnableWhenOptions
 ): void {
   const { debounce, resetOnDisable = false } = options || {};
 
-  const handler: BehaviorHandlerFn<FormFields> = (form, _context, withDebounce) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handler: BehaviorHandlerFn<any> = (form, _context, withDebounce) => {
     const targetNode = form.getFieldByPath(field.__path);
     if (!targetNode) return null;
 
@@ -53,7 +54,8 @@ export function enableWhen<TForm>(
     });
   };
 
-  getCurrentBehaviorRegistry().register(handler, { debounce });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getCurrentBehaviorRegistry().register(handler as any, { debounce });
 }
 
 /**
@@ -72,8 +74,8 @@ export function enableWhen<TForm>(
  * ```
  */
 export function disableWhen<TForm>(
-  field: FieldPathNode<TForm, FormValue>,
-  condition: (form: FormFields) => boolean,
+  field: FieldPathNode<TForm, any>,
+  condition: (form: TForm) => boolean,
   options?: EnableWhenOptions
 ): void {
   // Инвертируем условие

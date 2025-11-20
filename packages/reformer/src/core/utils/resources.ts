@@ -5,6 +5,7 @@
 export interface ResourceItem<T> {
   id: string | number;
   label: string;
+  description: string;
   value: T;
   [key: string]: unknown;
 }

@@ -3,8 +3,7 @@
  */
 
 import { effect } from '@preact/signals-core';
-import type { FormNode } from '../../nodes/form-node';
-import type { FieldPathNode, FormFields, FormValue } from '../../types';
+import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
 import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 
@@ -38,28 +37,29 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
  * };
  * ```
  */
-export function computeFrom<TForm, TTarget extends FormValue>(
+export function computeFrom<TForm, TTarget>(
   target: FieldPathNode<TForm, TTarget>,
-  sources: FieldPathNode<TForm, FormValue>[],
+  sources: FieldPathNode<TForm, any>[],
   computeFn: (values: TForm) => TTarget,
-  options?: ComputeFromOptions<FormFields>
+  options?: ComputeFromOptions<TForm>
 ): void {
   const { debounce, condition } = options || {};
 
-  const handler: BehaviorHandlerFn<FormFields> = (form, _context, withDebounce) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handler: BehaviorHandlerFn<any> = (form, _context, withDebounce) => {
     const targetNode = form.getFieldByPath(target.__path);
     if (!targetNode) return null;
 
     // Разрешаем source узлы
     const sourceNodes = sources
       .map((field) => form.getFieldByPath(field.__path))
-      .filter((node): node is FormNode<FormValue> => node !== undefined);
+      .filter((node) => node !== undefined);
 
     if (sourceNodes.length === 0) return null;
 
     return effect(() => {
       // Читаем значения всех source полей
-      const sourceValues = sourceNodes.map((node) => node!.value.value);
+      const sourceValues = sourceNodes.map((node) => node.value.value);
 
       withDebounce(() => {
         // Проверка условия
@@ -70,7 +70,7 @@ export function computeFrom<TForm, TTarget extends FormValue>(
 
         // Создаем объект с именами полей для computeFn
         // computeFn ожидает объект вида { fieldName: value, ... }
-        const sourceValuesObject: FormValue = {};
+        const sourceValuesObject: Record<string, unknown> = {};
         sources.forEach((source, index) => {
           // Извлекаем имя поля из пути (последний сегмент)
           const fieldName = source.__path.split('.').pop() || source.__path;
@@ -81,10 +81,12 @@ export function computeFrom<TForm, TTarget extends FormValue>(
         const computedValue = computeFn(sourceValuesObject as TForm);
 
         // Устанавливаем значение без триггера событий
-        targetNode.setValue(computedValue, { emitEvent: false });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        targetNode.setValue(computedValue as any, { emitEvent: false });
       });
     });
   };
 
-  getCurrentBehaviorRegistry().register(handler, { debounce });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getCurrentBehaviorRegistry().register(handler as any, { debounce });
 }

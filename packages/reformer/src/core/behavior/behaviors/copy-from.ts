@@ -2,7 +2,7 @@
  * Copy values between fields
  */
 
-import type { FieldPathNode, FormFields, FormValue } from '../../types';
+import type { FieldPathNode } from '../../types';
 import type { CopyFromOptions } from '../types';
 import { watchField } from './watch-field';
 
@@ -24,14 +24,15 @@ import { watchField } from './watch-field';
  * };
  * ```
  */
-export function copyFrom<
-  TForm extends FormFields,
-  TSource extends FieldPathNode<TForm, FormValue>,
-  TTarget extends FieldPathNode<TForm, FormValue>,
->(target: TTarget, source: TSource, options?: CopyFromOptions<FormValue>): void {
+export function copyFrom<TForm, TSource, TTarget>(
+  target: FieldPathNode<TForm, TTarget>,
+  source: FieldPathNode<TForm, TSource>,
+  options?: CopyFromOptions<TSource, TForm>
+): void {
   const { when, fields = 'all', transform, debounce } = options || {};
 
-  watchField(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  watchField<TForm, TSource>(
     source,
     (sourceValue, ctx) => {
       // Проверка условия
@@ -41,7 +42,7 @@ export function copyFrom<
       }
 
       // Трансформация значения
-      const value = (transform ? transform(sourceValue) : sourceValue) as FormValue;
+      const value = transform ? transform(sourceValue) : sourceValue;
 
       // Получаем target node
       const targetNode = ctx.getFieldNode(target.__path);

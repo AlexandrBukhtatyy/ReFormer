@@ -18,7 +18,7 @@ export type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
  * Контекст для behavior callback функций
  * Предоставляет методы для работы с формой
  */
-export interface BehaviorContext<TForm> {
+export interface BehaviorContext<TForm extends FormFields> {
   /**
    * Получить значение поля по строковому пути
    * @param path - Путь к полю (например, "address.city")
@@ -83,7 +83,7 @@ export interface BehaviorContext<TForm> {
    * });
    * ```
    */
-  readonly formNode: GroupNodeWithControls<FormFields>;
+  readonly formNode: GroupNodeWithControls<TForm>;
 }
 
 /**
@@ -128,9 +128,9 @@ export interface BehaviorOptions {
 /**
  * Опции для copyFrom
  */
-export interface CopyFromOptions<TSource> {
+export interface CopyFromOptions<TSource, TForm = unknown> {
   /** Условие копирования */
-  when?: (form: FormFields) => boolean;
+  when?: (form: TForm) => boolean;
 
   /** Какие поля копировать (для групп) */
   fields?: (keyof TSource)[] | 'all';
