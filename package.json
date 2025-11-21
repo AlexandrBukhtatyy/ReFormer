@@ -12,7 +12,8 @@
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
     "lint:fix": "eslint . --ext .js,.ts,.jsx,.tsx --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "scripts:analize:imports": "node scripts/analyze-imports/index.js"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
