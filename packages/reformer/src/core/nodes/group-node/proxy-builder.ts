@@ -35,7 +35,7 @@ import type { FormFields, FormValue } from '../../types';
  *
  * @template T Тип формы (объект)
  */
-export class ProxyBuilder<T extends FormFields> {
+export class ProxyBuilder<T> {
   /**
    * @param fieldRegistry - Реестр полей для доступа к коллекции
    */

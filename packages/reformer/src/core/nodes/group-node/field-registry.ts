@@ -30,12 +30,13 @@ import type { FormFields, FormValue } from '../../types';
  *
  * @template T Тип формы (объект)
  */
-export class FieldRegistry<T extends FormFields> {
+export class FieldRegistry<T> {
   /**
    * Внутреннее хранилище полей
    * Map обеспечивает быструю lookup производительность O(1)
    */
-  private fields = new Map<keyof T, FormNode<FormValue>>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private fields = new Map<keyof T, FormNode<any>>();
 
   /**
    * Установить поле в реестр

@@ -23,7 +23,6 @@ import type { BehaviorSchemaFn } from './types';
 import { BehaviorRegistry } from './behavior-registry';
 import { createFieldPath as createBehaviorFieldPath } from './create-field-path';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
-import { FormFields, FormValue } from '../types';
 
 /**
  * Класс для применения behavior схемы к форме
@@ -36,7 +35,7 @@ import { FormFields, FormValue } from '../types';
  *
  * @template T Тип формы (объект)
  */
-export class BehaviorApplicator<T extends FormFields> {
+export class BehaviorApplicator<T> {
   private readonly form: GroupNode<T>;
   private readonly behaviorRegistry: BehaviorRegistry;
 

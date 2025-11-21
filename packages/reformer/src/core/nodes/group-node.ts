@@ -256,7 +256,8 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   setValue(value: T, options?: SetValueOptions): void {
-    for (const [key, fieldValue] of Object.entries(value)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const [key, fieldValue] of Object.entries(value as any)) {
       const field = this.fieldRegistry.get(key as keyof T);
       if (field) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -269,7 +270,8 @@ export class GroupNode<T> extends FormNode<T> {
     for (const [key, fieldValue] of Object.entries(value)) {
       const field = this.fieldRegistry.get(key as keyof T);
       if (field && fieldValue !== undefined) {
-        field.setValue(fieldValue);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        field.setValue(fieldValue as any);
       }
     }
   }
@@ -294,7 +296,8 @@ export class GroupNode<T> extends FormNode<T> {
   reset(value?: T): void {
     this.fieldRegistry.forEach((field, key) => {
       const resetValue = value?.[key];
-      field.reset(resetValue);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      field.reset(resetValue as any);
     });
   }
 
@@ -632,8 +635,8 @@ export class GroupNode<T> extends FormNode<T> {
       return undefined;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    let current: FormNode<FormValue> | undefined = this;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias, @typescript-eslint/no-explicit-any
+    let current: FormNode<FormValue> | undefined = this as any;
 
     for (const segment of segments) {
       // Доступ к полю

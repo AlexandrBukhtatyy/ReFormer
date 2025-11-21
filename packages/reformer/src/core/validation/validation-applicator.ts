@@ -36,7 +36,7 @@ import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
  *
  * @template T Тип формы (объект)
  */
-export class ValidationApplicator<T extends FormFields> {
+export class ValidationApplicator<T> {
   private readonly form: GroupNode<T>;
 
   constructor(form: GroupNode<T>) {
@@ -129,7 +129,8 @@ export class ValidationApplicator<T extends FormFields> {
       }
 
       const errors: ValidationError[] = [];
-      const context = new ValidationContextImpl(this.form, fieldPath, control);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const context = new ValidationContextImpl(this.form, fieldPath as any, control);
 
       // Выполнение валидаторов с учетом условий
       for (const registration of fieldValidators) {

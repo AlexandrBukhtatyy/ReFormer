@@ -47,7 +47,7 @@ import type { FieldRegistry } from './field-registry';
  *
  * @template T Тип формы (объект)
  */
-export class StateManager<T extends FormFields> {
+export class StateManager<T> {
   // ============================================================================
   // Приватные сигналы (мутабельные)
   // ============================================================================

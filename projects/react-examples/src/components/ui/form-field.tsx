@@ -1,7 +1,6 @@
 import * as React from 'react';
 import type { FieldNode } from 'reformer';
 import { Checkbox } from './checkbox';
-// import { useFormControl } from '../../hooks/useFormControl';
 
 export interface FormFieldProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

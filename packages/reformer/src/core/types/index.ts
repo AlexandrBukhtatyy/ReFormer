@@ -119,7 +119,7 @@ import type { ValidationSchemaFn } from './validation-schema';
  * Конфигурация GroupNode с поддержкой схем
  * Используется для создания форм с автоматическим применением behavior и validation схем
  */
-export interface GroupNodeConfig<T extends FormFields> {
+export interface GroupNodeConfig<T> {
   /** Схема структуры формы (поля и их конфигурация) */
   form: FormSchema<T>;
 
