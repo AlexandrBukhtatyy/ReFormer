@@ -39,9 +39,21 @@ const config: Config = {
       {
         entryPoints: ['../../packages/reformer/src/index.ts'],
         tsconfig: '../../packages/reformer/tsconfig.json',
+        // Убрать префиксы "Class:", "Interface:" и дженерики из заголовков
+        pageTitleTemplates: {
+          index: '{projectName}',
+          // Функция удаляет дженерики: FormNode<T> -> FormNode
+          member: (args: { name: string }) =>
+            args.name.replace(/\\<[^>]*\\>/g, '').replace(/<[^>]*>/g, ''),
+          module: '{name}',
+        },
+        useCodeBlocks: true,
       },
     ],
   ],
+  markdown: {
+    format: 'detect',
+  },
   presets: [
     [
       'classic',
