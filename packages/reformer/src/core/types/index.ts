@@ -86,16 +86,10 @@ export type {
 } from './validation-schema';
 
 // ============================================================================
-// Re-exports from deep-schema (Variant 5)
+// Re-exports from deep-schema
 // ============================================================================
 
-export type {
-  FormSchema,
-  DeepControls,
-  GroupControlProxy,
-  ArrayControlProxy,
-  ArrayConfig,
-} from './deep-schema';
+export type { FormSchema, ArrayConfig } from './deep-schema';
 
 // ============================================================================
 // Re-exports from group-node-proxy (Typed Proxy Access)
