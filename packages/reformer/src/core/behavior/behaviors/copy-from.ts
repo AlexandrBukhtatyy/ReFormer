@@ -37,7 +37,7 @@ export function copyFrom<TForm, TSource, TTarget>(
     (sourceValue, ctx) => {
       // Проверка условия
       if (when) {
-        const formValue = ctx.getForm();
+        const formValue = ctx.form.getValue() as TForm;
         if (!when(formValue)) return;
       }
 
@@ -45,7 +45,7 @@ export function copyFrom<TForm, TSource, TTarget>(
       const value = transform ? transform(sourceValue) : sourceValue;
 
       // Получаем target node
-      const targetNode = ctx.getFieldNode(target.__path);
+      const targetNode = ctx.form.getFieldByPath(target.__path);
       if (!targetNode) return;
 
       // Копирование

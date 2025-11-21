@@ -49,7 +49,7 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
     async (region, ctx) => {
       if (region) {
         const cities = await fetchCities(region);
-        ctx.updateComponentProps(path.city, { options: cities });
+        ctx.form.city.updateComponentProps({ options: cities });
 
         if (import.meta.env.DEV) {
           console.log(`[addressBehavior] Loaded ${cities.length} cities for region:`, region);
@@ -66,7 +66,7 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
   // Очистить город при изменении региона
   watchField(path.region, (_region, ctx) => {
     // Очищаем город только если регион изменился
-    ctx.setField('city', '');
+    ctx.setFieldValue('city', '');
 
     if (import.meta.env.DEV) {
       console.log('[addressBehavior] Region changed, clearing city');
@@ -82,7 +82,7 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
     // Убираем все кроме цифр и ограничиваем длину
     const cleaned = postalCode?.replace(/\D/g, '').slice(0, 6);
     if (cleaned !== postalCode) {
-      ctx.setField('postalCode', cleaned || '');
+      ctx.setFieldValue('postalCode', cleaned || '');
     }
   });
 };

@@ -72,8 +72,6 @@ export type { FieldPath, FieldPathNode } from '../types/field-path';
 // ============================================================================
 
 export type {
-  ValidationContext,
-  TreeValidationContext,
   ContextualValidatorFn,
   ContextualAsyncValidatorFn,
   TreeValidatorFn,
@@ -90,6 +88,12 @@ export type {
 // ============================================================================
 
 export type { FormSchema, ArrayConfig } from './deep-schema';
+
+// ============================================================================
+// Re-exports from form-context (Unified Context)
+// ============================================================================
+
+export type { FormContext } from './form-context';
 
 // ============================================================================
 // Re-exports from group-node-proxy (Typed Proxy Access)

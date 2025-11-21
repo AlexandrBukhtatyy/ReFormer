@@ -10,82 +10,7 @@
 
 import type { FormFields, ValidationError } from './index';
 import type { FieldPath } from './field-path';
-
-// Forward declarations для избежания циклических зависимостей
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GroupNode<_T> = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type FieldNode<_T> = any;
-
-// ============================================================================
-// Контекст валидации
-// ============================================================================
-
-/**
- * Контекст валидации для отдельного поля
- * Предоставляет доступ к:
- * - Значению текущего поля
- * - Значениям других полей
- * - Всей форме
- */
-export interface ValidationContext<TForm, TField> {
-  /**
-   * Получить текущее значение поля
-   */
-  value(): TField;
-
-  /**
-   * Получить значение другого поля по пути
-   * @param path - Путь к полю (например, 'loanType', 'personalData.firstName')
-   */
-  getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): unknown;
-
-  /**
-   * Установить значение другого поля по пути
-   * @param path - Путь к полю (например, 'loanType', 'personalData.firstName')
-   * @param value - Новое значение поля
-   */
-  setField<K extends keyof TForm>(path: K, value: TForm[K]): void;
-  setField(path: string, value: unknown): void;
-
-  /**
-   * Получить значения всей формы
-   */
-  formValue(): TForm;
-
-  /**
-   * Получить контроллер поля
-   */
-  getControl(): FieldNode<TField>;
-
-  /**
-   * Получить GroupNode
-   */
-  getForm(): GroupNode<TForm>;
-}
-
-/**
- * Контекст для cross-field валидации
- * Имеет доступ ко всей форме, но не к конкретному полю
- */
-export interface TreeValidationContext<TForm> {
-  /**
-   * Получить значение поля по пути
-   */
-  getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): unknown;
-
-  /**
-   * Получить значения всей формы
-   */
-  formValue(): TForm;
-
-  /**
-   * Получить GroupNode
-   */
-  getForm(): GroupNode<TForm>;
-}
+import type { FormContext } from './form-context';
 
 // ============================================================================
 // Функции валидации
@@ -93,22 +18,57 @@ export interface TreeValidationContext<TForm> {
 
 /**
  * Функция валидации поля с контекстом
+ *
+ * Новый паттерн: (value, ctx: FormContext) => ValidationError | null
+ *
+ * @example
+ * ```typescript
+ * validate(path.email, (value, ctx) => {
+ *   if (!value) return { code: 'required', message: 'Email required' };
+ *   const confirm = ctx.form.confirmEmail.value.value;
+ *   if (value !== confirm) return { code: 'mismatch', message: 'Must match' };
+ *   return null;
+ * });
+ * ```
  */
 export type ContextualValidatorFn<TForm, TField> = (
-  ctx: ValidationContext<TForm, TField>
-) => FormFields | null;
+  value: TField,
+  ctx: FormContext<TForm>
+) => ValidationError | null;
 
 /**
  * Асинхронная функция валидации поля с контекстом
+ *
+ * @example
+ * ```typescript
+ * validateAsync(path.email, async (value, ctx) => {
+ *   const exists = await checkEmailExists(value);
+ *   if (exists) return { code: 'exists', message: 'Email already taken' };
+ *   return null;
+ * });
+ * ```
  */
 export type ContextualAsyncValidatorFn<TForm, TField> = (
-  ctx: ValidationContext<TForm, TField>
-) => Promise<FormFields | null>;
+  value: TField,
+  ctx: FormContext<TForm>
+) => Promise<ValidationError | null>;
 
 /**
  * Функция cross-field валидации
+ *
+ * @example
+ * ```typescript
+ * validateTree((ctx) => {
+ *   const password = ctx.form.password.value.value;
+ *   const confirm = ctx.form.confirmPassword.value.value;
+ *   if (password !== confirm) {
+ *     return { code: 'mismatch', message: 'Passwords must match' };
+ *   }
+ *   return null;
+ * });
+ * ```
  */
-export type TreeValidatorFn<TForm> = (ctx: TreeValidationContext<TForm>) => ValidationError | null;
+export type TreeValidatorFn<TForm> = (ctx: FormContext<TForm>) => ValidationError | null;
 
 /**
  * Функция условия для applyWhen

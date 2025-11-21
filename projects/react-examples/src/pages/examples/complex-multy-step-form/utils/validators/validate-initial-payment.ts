@@ -2,7 +2,7 @@
  * Валидация первоначального взноса (должен быть >= 20% от стоимости недвижимости)
  */
 
-import type { TreeValidationContext, ValidationError } from 'reformer';
+import type { FormContext, ValidationError } from 'reformer';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
@@ -11,11 +11,12 @@ import type { CreditApplicationForm } from '../../types/credit-application';
  * @returns ошибка валидации или null
  */
 export function validateInitialPayment(
-  ctx: TreeValidationContext<CreditApplicationForm>
+  ctx: FormContext<CreditApplicationForm>
 ): ValidationError | null {
-  const propertyValue = ctx.getField('propertyValue');
-  const initialPayment = ctx.getField('initialPayment');
-  const loanType = ctx.getField('loanType');
+  const form = ctx.form.getValue();
+  const propertyValue = form.propertyValue;
+  const initialPayment = form.initialPayment;
+  const loanType = form.loanType;
 
   // Валидация только для ипотеки
   if (loanType !== 'mortgage') {

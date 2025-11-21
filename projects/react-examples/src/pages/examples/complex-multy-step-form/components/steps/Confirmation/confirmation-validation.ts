@@ -39,8 +39,8 @@ export const confirmationValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Асинхронная проверка кода подписи
   validateAsync(
     path.electronicSignature,
-    async (ctx) => {
-      const code = ctx.value();
+    async (value) => {
+      const code = value;
 
       // Проверяем только если код полностью введен
       if (!code || code.length !== 6) return null;

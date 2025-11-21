@@ -56,7 +56,7 @@ export function transformValue<TForm extends FormFields, TValue extends FormValu
   watchField(
     field,
     (currentValue, ctx) => {
-      const targetNode = ctx.getFieldNode(field.__path);
+      const targetNode = ctx.form.getFieldByPath(field.__path);
       if (!targetNode) return;
 
       // Если нужно трансформировать только при изменении пользователем

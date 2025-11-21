@@ -2,7 +2,7 @@
  * Валидация платежеспособности (процент платежа от дохода <= 50%)
  */
 
-import type { TreeValidationContext, ValidationError } from 'reformer';
+import type { FormContext, ValidationError } from 'reformer';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
@@ -11,9 +11,10 @@ import type { CreditApplicationForm } from '../../types/credit-application';
  * @returns ошибка валидации или null
  */
 export function validatePaymentToIncome(
-  ctx: TreeValidationContext<CreditApplicationForm>
+  ctx: FormContext<CreditApplicationForm>
 ): ValidationError | null {
-  const paymentRatio = ctx.getField('paymentToIncomeRatio');
+  const form = ctx.form.getValue();
+  const paymentRatio = form.paymentToIncomeRatio;
 
   if (!paymentRatio) {
     return null;

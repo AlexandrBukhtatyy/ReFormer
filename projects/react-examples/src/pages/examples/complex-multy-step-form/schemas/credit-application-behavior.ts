@@ -211,12 +211,12 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
       if (value) {
         try {
           const { data: models } = await fetchCarModels(value);
-          ctx.updateComponentProps(path.carModel, { options: models });
+          ctx.form.carModel.updateComponentProps({ options: models });
           console.log('Loaded car models:', models);
         } catch (error) {
           console.log('Load car failure:', error);
-          ctx.getFieldNode(path.carModel)?.reset();
-          ctx.updateComponentProps(path.carModel, { options: [] });
+          ctx.form.carModel.reset();
+          ctx.form.carModel.updateComponentProps({ options: [] });
         }
       }
     },
@@ -240,21 +240,21 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // Очистить массив имущества при снятии чекбокса hasProperty
   watchField(path.hasProperty, (hasProperty, ctx) => {
     if (!hasProperty) {
-      ctx.formNode.properties?.clear();
+      ctx.form.properties?.clear();
     }
   });
 
   // Очистить массив кредитов при снятии чекбокса hasExistingLoans
   watchField(path.hasExistingLoans, (hasLoans, ctx) => {
     if (!hasLoans) {
-      ctx.formNode.existingLoans?.clear();
+      ctx.form.existingLoans?.clear();
     }
   });
 
   // Очистить массив созаемщиков при снятии чекбокса hasCoBorrower
   watchField(path.hasCoBorrower, (hasCoBorrower, ctx) => {
     if (!hasCoBorrower) {
-      ctx.formNode.coBorrowers?.clear();
+      ctx.form.coBorrowers?.clear();
     }
   });
 };

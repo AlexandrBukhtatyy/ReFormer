@@ -69,7 +69,7 @@ export const coBorrowerValidation = (path: ReturnType<typeof createFieldPath<CoB
   // Кросс-полевая валидация: созаемщику должно быть 18-80 лет
   validateTree<CoBorrower>(
     (ctx) => {
-      const coBorrower = ctx.formValue();
+      const coBorrower = ctx.form.getValue();
       const birthDate = new Date(coBorrower.personalData.birthDate);
       const today = new Date();
 

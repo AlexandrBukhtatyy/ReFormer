@@ -3,7 +3,7 @@
  */
 
 import { validate } from '../core/validate';
-import type { ValidateOptions, ValidationContext } from '../../types/validation-schema';
+import type { ValidateOptions } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 /**
@@ -37,9 +37,7 @@ export function date<TForm, TField extends string | Date | undefined = string | 
 ): void {
   if (!fieldPath) return; // Защита от undefined fieldPath
 
-  validate(fieldPath, (ctx: ValidationContext<TForm, TField>) => {
-    const value = ctx.value();
-
+  validate(fieldPath, (value) => {
     // Пропускаем null/undefined
     if (!value) {
       return null;

@@ -47,7 +47,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
       // Cross-field валидация
       validateTree<CreditApplicationForm>(
         (ctx) => {
-          const form = ctx.formValue();
+          const form = ctx.form.getValue();
 
           if (
             form.initialPayment &&

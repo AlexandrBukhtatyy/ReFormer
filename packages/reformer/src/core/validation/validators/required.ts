@@ -3,7 +3,7 @@
  */
 
 import { validate } from '../core/validate';
-import type { ValidateOptions, ValidationContext } from '../../types/validation-schema';
+import type { ValidateOptions } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 /**
@@ -16,9 +16,7 @@ export function required<TForm, TField>(
 ): void {
   if (!fieldPath) return; // Защита от undefined fieldPath
 
-  validate(fieldPath, (ctx: ValidationContext<TForm, TField>) => {
-    const value = ctx.value();
-
+  validate(fieldPath, (value) => {
     // Проверка на пустое значение
     if (value === null || value === undefined || value === '') {
       return {

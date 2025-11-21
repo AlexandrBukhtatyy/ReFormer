@@ -4,282 +4,90 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import type { FieldNode } from '../nodes/field-node';
-import type { FormNode } from '../nodes/form-node';
-import type { ValidationContext, TreeValidationContext } from '../types/validation-schema';
-import type { FormFields, FormValue } from '../types';
-import { FieldPathNavigator } from '../utils/field-path-navigator';
+import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FormContext } from '../types/form-context';
 import { isFormNode } from '../utils/type-guards';
 
-/**
- * Реализация ValidationContext для валидации отдельного поля
- */
-export class ValidationContextImpl<TForm, TField>
-  implements ValidationContext<TForm, TField>
-{
-  private form: GroupNode<TForm>;
-  private _fieldKey: keyof TForm;
-  private control: FieldNode<TField>;
-  private readonly pathNavigator = new FieldPathNavigator();
-  private readonly contextName = 'ValidationContext';
+// ============================================================================
+// Field Validation Context (для обычных валидаторов)
+// ============================================================================
 
-  constructor(form: GroupNode<TForm>, fieldKey: keyof TForm, control: FieldNode<TField>) {
-    this.form = form;
-    this._fieldKey = fieldKey;
+/**
+ * Реализация контекста валидации для отдельного поля
+ * Реализует FormContext
+ */
+export class ValidationContextImpl<TForm, TField> implements FormContext<TForm> {
+  private _form: GroupNode<TForm>;
+  private control: FieldNode<TField>;
+
+  /**
+   * Форма с типизированным Proxy-доступом к полям
+   */
+  public readonly form: GroupNodeWithControls<TForm>;
+
+  constructor(form: GroupNode<TForm>, _fieldKey: keyof TForm, control: FieldNode<TField>) {
+    this._form = form;
     this.control = control;
+
+    // Получаем Proxy для типизированного доступа
+    this.form = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
+      ._proxyInstance || form.getProxy()) as GroupNodeWithControls<TForm>;
   }
 
+  /**
+   * Получить текущее значение поля (внутренний метод для validation-applicator)
+   * @internal
+   */
   value(): TField {
     return this.control.value.value;
   }
 
   /**
-   * Получить значение поля по ключу или пути
-   * @param path - ключ поля (type-safe) или строковый путь для вложенных полей
-   * @returns значение поля
-   * @example
-   * ```typescript
-   * ctx.getField('email')         // Type-safe доступ
-   * ctx.getField('address.city')  // Вложенный путь
-   * ```
+   * Безопасно установить значение поля по строковому пути
+   * Автоматически использует emitEvent: false для предотвращения циклов
    */
-  getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): unknown;
-  getField(path: unknown): unknown {
-    // Все пути (и простые ключи, и вложенные пути) обрабатываем через resolveFieldValue
-    // FieldPathNavigator умеет работать как с простыми ключами, так и с путями
-    return this.resolveFieldValue(String(path));
-  }
-
-  /**
-   * Получить FormNode по пути
-   *
-   * Разрешает путь к узлу формы (FieldNode, GroupNode, ArrayNode).
-   * Используется для получения ссылки на узел для дальнейших операций.
-   *
-   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
-   * @returns FormNode или undefined, если путь не найден
-   * @private
-   *
-   * @example
-   * ```typescript
-   * const cityNode = this.resolveFieldNode('address.city');
-   * if (cityNode) {
-   *   cityNode.markAsTouched();
-   * }
-   * ```
-   */
-  private resolveFieldNode(path: string): FormNode<FormValue> | undefined {
-    const node = this.pathNavigator.getNodeByPath(this.form, path);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (node ?? undefined) as any;
-  }
-
-  /**
-   * Получить значение поля по пути
-   *
-   * Разрешает путь и возвращает значение узла.
-   * Это упрощенный метод для получения только значения.
-   *
-   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
-   * @returns Значение поля или undefined, если путь не найден
-   * @private
-   *
-   * @example
-   * ```typescript
-   * const city = this.resolveFieldValue('address.city');
-   * // 'Moscow'
-   * ```
-   */
-  private resolveFieldValue(path: string): unknown {
-    // Проверка на пустой путь
-    if (path === '' || path == null) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[${this.contextName}] Cannot get field value for empty path`);
-      }
-      return undefined;
-    }
-
-    //  Используем getFieldByPath из GroupNode вместо прямой навигации
-    // Это работает с Proxy правильно
-    const node = this.form.getFieldByPath(path);
+  setFieldValue(path: string, value: unknown): void {
+    const node = this._form.getFieldByPath(path);
     if (node && isFormNode(node)) {
-      return node.value.value;
-    }
-
-    // Предупреждение, если поле не найдено
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`[${this.contextName}] Path '${path}' not found in form`);
-    }
-    return undefined;
-  }
-
-  /**
-   * Установить значение поля по ключу или пути
-   * @param path - ключ поля (type-safe) или строковый путь для вложенных полей
-   * @param value - новое значение
-   * @example
-   * ```typescript
-   * ctx.setField('email', 'test@example.com')  // Type-safe доступ
-   * ctx.setField('address.city', 'Moscow')     // Вложенный путь
-   * ```
-   */
-  setField(path: string, value: unknown): void;
-  setField<K extends keyof TForm>(path: K, value: TForm[K]): void;
-  setField(path: unknown, value: unknown): void {
-    // Все пути (и простые ключи, и вложенные пути) обрабатываем через setNestedPath
-    // getFieldByPath умеет работать как с простыми ключами, так и с путями
-    this.setNestedPath(String(path), value);
-  }
-
-  /**
-   * Установить значение по вложенному пути (например, 'address.city')
-   * @private
-   */
-  private setNestedPath(path: string, value: unknown): void {
-    // Используем getFieldByPath для правильного доступа к полям
-    const field = this.form.getFieldByPath(path);
-
-    if (!field) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[ValidationContext] Path '${path}' not found in form`);
-      }
-      return;
-    }
-
-    // Используем type guard
-    if (isFormNode(field)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      field.setValue(value as any);
-    } else {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[ValidationContext] Path '${path}' is not a FormNode`);
-      }
+      node.setValue(value as any, { emitEvent: false });
     }
-  }
-
-  formValue(): TForm {
-    return this.form.getValue();
-  }
-
-  getControl(): FieldNode<TField> {
-    return this.control;
-  }
-
-  getForm(): GroupNode<TForm> {
-    //  Возвращаем Proxy вместо настоящего GroupNode
-    // Это обеспечивает согласованность с тем, что пользователь получает из makeForm
-    return this.form.getProxy() as GroupNode<TForm>;
   }
 }
 
+// ============================================================================
+// Tree Validation Context (для cross-field валидаторов)
+// ============================================================================
+
 /**
- * Реализация TreeValidationContext для cross-field валидации
+ * Реализация контекста для cross-field валидации
+ * Реализует FormContext
  */
-export class TreeValidationContextImpl<TForm>
-  implements TreeValidationContext<TForm>
-{
-  private form: GroupNode<TForm>;
-  private readonly pathNavigator = new FieldPathNavigator();
-  private readonly contextName = 'TreeValidationContext';
+export class TreeValidationContextImpl<TForm> implements FormContext<TForm> {
+  private _form: GroupNode<TForm>;
+
+  /**
+   * Форма с типизированным Proxy-доступом к полям
+   */
+  public readonly form: GroupNodeWithControls<TForm>;
 
   constructor(form: GroupNode<TForm>) {
-    this.form = form;
+    this._form = form;
+
+    // Получаем Proxy для типизированного доступа
+    this.form = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
+      ._proxyInstance || form.getProxy()) as GroupNodeWithControls<TForm>;
   }
 
   /**
-   * Получить значение поля по ключу или пути
-   * @param path - ключ поля (type-safe) или строковый путь для вложенных полей
-   * @returns значение поля
-   * @example
-   * ```typescript
-   * ctx.getField('email')         // Type-safe доступ
-   * ctx.getField('address.city')  // Вложенный путь
-   * ```
+   * Безопасно установить значение поля по строковому пути
+   * Автоматически использует emitEvent: false для предотвращения циклов
    */
-  getField<K extends keyof TForm>(path: K): TForm[K];
-  getField(path: string): unknown;
-  getField(path: unknown): unknown {
-    // Все пути (и простые ключи, и вложенные пути) обрабатываем через resolveFieldValue
-    // FieldPathNavigator умеет работать как с простыми ключами, так и с путями
-    return this.resolveFieldValue(String(path));
-  }
-
-  /**
-   * Получить FormNode по пути
-   *
-   * Разрешает путь к узлу формы (FieldNode, GroupNode, ArrayNode).
-   * Используется для получения ссылки на узел для дальнейших операций.
-   *
-   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
-   * @returns FormNode или undefined, если путь не найден
-   * @private
-   *
-   * @example
-   * ```typescript
-   * const cityNode = this.resolveFieldNode('address.city');
-   * if (cityNode) {
-   *   cityNode.markAsTouched();
-   * }
-   * ```
-   */
-  private resolveFieldNode(path: string): FormNode<FormValue> | undefined {
-    const node = this.pathNavigator.getNodeByPath(this.form, path);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (node ?? undefined) as any;
-  }
-
-  /**
-   * Получить значение поля по пути
-   *
-   * Разрешает путь и возвращает значение узла.
-   * Это упрощенный метод для получения только значения.
-   *
-   * ✅ Делегирование FieldPathNavigator - устранение дублирования
-   * ✅ Поддерживает массивы (items[0].name)
-   *
-   * @param path - Путь к полю (например, 'address.city', 'items[0].title')
-   * @returns Значение поля или undefined, если путь не найден
-   * @private
-   *
-   * @example
-   * ```typescript
-   * const city = this.resolveFieldValue('address.city');
-   * // 'Moscow'
-   *
-   * const itemTitle = this.resolveFieldValue('items[0].title');
-   * // 'Item 1'
-   * ```
-   */
-  private resolveFieldValue(path: string): unknown {
-    // Проверка на пустой путь
-    if (path === '' || path == null) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[${this.contextName}] Cannot get field value for empty path`);
-      }
-      return undefined;
-    }
-
-    //  Используем getFieldByPath из GroupNode вместо прямой навигации
-    // Это работает с Proxy правильно
-    const node = this.form.getFieldByPath(path);
+  setFieldValue(path: string, value: unknown): void {
+    const node = this._form.getFieldByPath(path);
     if (node && isFormNode(node)) {
-      return node.value.value;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      node.setValue(value as any, { emitEvent: false });
     }
-
-    // Предупреждение, если поле не найдено
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`[${this.contextName}] Path '${path}' not found in form`);
-    }
-    return undefined;
-  }
-
-  formValue(): TForm {
-    return this.form.getValue();
-  }
-
-  getForm(): GroupNode<TForm> {
-    //  Возвращаем Proxy вместо настоящего GroupNode
-    // Это обеспечивает согласованность с тем, что пользователь получает из makeForm
-    return this.form.getProxy() as GroupNode<TForm>;
   }
 }

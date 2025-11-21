@@ -34,7 +34,7 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
   // Кросс-полевая валидация: дополнительный телефон должен отличаться от основного
   validateTree<CreditApplicationForm>(
     (ctx) => {
-      const form = ctx.formValue();
+      const form = ctx.form.getValue();
       if (!form.phoneAdditional) return null;
 
       if (form.phoneMain === form.phoneAdditional) {
@@ -51,7 +51,7 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
   // Кросс-полевая валидация: дополнительный email должен отличаться от основного
   validateTree<CreditApplicationForm>(
     (ctx) => {
-      const form = ctx.formValue();
+      const form = ctx.form.getValue();
       if (!form.emailAdditional) return null;
 
       if (form.email.toLowerCase() === form.emailAdditional.toLowerCase()) {

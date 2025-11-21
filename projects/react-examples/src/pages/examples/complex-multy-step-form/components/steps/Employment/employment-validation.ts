@@ -57,7 +57,7 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
       // Cross-field: стаж на текущем месте не больше общего стажа
       validateTree<CreditApplicationForm>(
         (ctx) => {
-          const form = ctx.formValue();
+          const form = ctx.form.getValue();
           if (
             form.workExperienceCurrent &&
             form.workExperienceTotal &&
@@ -106,7 +106,7 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Если указан дополнительный доход, требуется указать источник
   validateTree<CreditApplicationForm>(
     (ctx) => {
-      const form = ctx.formValue();
+      const form = ctx.form.getValue();
       if (form.additionalIncome && form.additionalIncome > 0 && !form.additionalIncomeSource) {
         return {
           code: 'additionalIncomeSourceRequired',

@@ -2,7 +2,7 @@
  * Валидация возраста заемщика (18-70 лет)
  */
 
-import type { TreeValidationContext, ValidationError } from 'reformer';
+import type { FormContext, ValidationError } from 'reformer';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
@@ -10,10 +10,9 @@ import type { CreditApplicationForm } from '../../types/credit-application';
  * @param ctx - контекст валидации с доступом к полям формы
  * @returns ошибка валидации или null
  */
-export function validateAge(
-  ctx: TreeValidationContext<CreditApplicationForm>
-): ValidationError | null {
-  const age = ctx.getField('age');
+export function validateAge(ctx: FormContext<CreditApplicationForm>): ValidationError | null {
+  const form = ctx.form.getValue();
+  const age = form.age;
 
   if (!age) {
     return null;

@@ -40,8 +40,8 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
   required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
 
   // Валидация возраста
-  validate(path.personalData.birthDate, (ctx) => {
-    const birthDate = new Date(ctx.value());
+  validate(path.personalData.birthDate, (value) => {
+    const birthDate = new Date(value);
     const today = new Date();
     const age = today.getFullYear() - birthDate.getFullYear();
 
@@ -82,8 +82,8 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
   required(path.passportData.issueDate, { message: 'Дата выдачи обязательна' });
 
   // Валидация даты выдачи паспорта
-  validate(path.passportData.issueDate, (ctx) => {
-    const issueDate = new Date(ctx.value());
+  validate(path.passportData.issueDate, (value) => {
+    const issueDate = new Date(value);
     const today = new Date();
 
     if (issueDate > today) {
@@ -108,7 +108,7 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Кросс-полевая валидация: дата выдачи паспорта должна быть после достижения 14 лет
   validateTree<CreditApplicationForm>(
     (ctx) => {
-      const form = ctx.formValue();
+      const form = ctx.form.getValue();
       if (!form.personalData.birthDate || !form.passportData.issueDate) {
         return null;
       }

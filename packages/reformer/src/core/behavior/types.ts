@@ -2,11 +2,9 @@
  * Типы и интерфейсы для Behavior Schema API
  */
 
-import type { FormNode } from '../nodes/form-node';
 import { GroupNode } from '../nodes/group-node';
-import type { ValidationError, FormValue, FormFields } from '../types';
-import type { FieldPath, FieldPathNode } from '../types/field-path';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FieldPath } from '../types/field-path';
+import type { FormContext } from '../types/form-context';
 
 /**
  * Тип функции behavior схемы
@@ -16,78 +14,21 @@ export type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
 
 /**
  * Контекст для behavior callback функций
- * Предоставляет методы для работы с формой
+ * Алиас для FormContext
+ *
+ * @example
+ * ```typescript
+ * watchField(path.country, async (country, ctx) => {
+ *   // Прямой типизированный доступ к полям
+ *   const cities = await fetchCities(country);
+ *   ctx.form.city.updateComponentProps({ options: cities });
+ *
+ *   // Безопасная установка значения (без циклов)
+ *   ctx.setFieldValue('city', null);
+ * });
+ * ```
  */
-export interface BehaviorContext<TForm extends FormFields> {
-  /**
-   * Получить значение поля по строковому пути
-   * @param path - Путь к полю (например, "address.city")
-   */
-  getField(path: string): unknown;
-
-  /**
-   * Установить значение поля по строковому пути
-   * @param path - Путь к полю
-   * @param value - Новое значение
-   */
-  setField(path: string, value: unknown): void;
-
-  /**
-   * Обновить componentProps поля
-   * @param field - Путь к полю (строка или FieldPathNode)
-   * @param props - Частичные пропсы для обновления
-   */
-  updateComponentProps(
-    field: string | FieldPathNode<TForm, unknown>,
-    props: Record<string, unknown>
-  ): void;
-
-  /**
-   * Перевалидировать поле
-   * @param field - Путь к полю (строка или FieldPathNode)
-   */
-  validateField(field: string | FieldPathNode<TForm, unknown>): Promise<boolean>;
-
-  /**
-   * Установить ошибки поля
-   * @param field - Путь к полю (строка или FieldPathNode)
-   * @param errors - Массив ошибок валидации
-   */
-  setErrors(field: string | FieldPathNode<TForm, unknown>, errors: ValidationError[]): void;
-
-  /**
-   * Очистить ошибки поля
-   * @param field - Путь к полю (строка или FieldPathNode)
-   */
-  clearErrors(field: string | FieldPathNode<TForm, unknown>): void;
-
-  /**
-   * Получить всю форму целиком
-   */
-  getForm(): TForm;
-
-  /**
-   * Получить узел формы (FormNode) по пути
-   * @param path - Путь к полю (строка "address.city" или FieldPathNode)
-   * @returns FormNode или undefined если путь не найден
-   */
-  getFieldNode(path: string | FieldPathNode<TForm, unknown>): FormNode<unknown> | undefined;
-
-  /**
-   * Получить корневой узел формы с доступом к полям через точку
-   * @returns GroupNode с проксированными полями (GroupNodeWithControls)
-   *
-   * @example
-   * ```typescript
-   * watchField(path.hasProperty, (hasProperty, ctx) => {
-   *   if (!hasProperty) {
-   *     ctx.formNode.properties.clear(); // Прямой доступ к ArrayNode!
-   *   }
-   * });
-   * ```
-   */
-  readonly formNode: GroupNodeWithControls<TForm>;
-}
+export type BehaviorContext<TForm> = FormContext<TForm>;
 
 /**
  * Функция-handler для behavior
@@ -114,7 +55,7 @@ export interface BehaviorContext<TForm extends FormFields> {
  * };
  * ```
  */
-export type BehaviorHandlerFn<TForm extends FormFields> = (
+export type BehaviorHandlerFn<TForm> = (
   form: GroupNode<TForm>,
   context: BehaviorContext<TForm>,
   withDebounce: (callback: () => void) => void

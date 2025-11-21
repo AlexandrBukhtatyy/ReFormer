@@ -19,7 +19,6 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
-import type { FormFields } from '../types';
 import type { ValidatorRegistration, ValidationError } from '../types';
 import { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';
 import { isFieldNode } from '../utils/type-guards';
@@ -143,14 +142,17 @@ export class ValidationApplicator<T> {
         }
 
         // Выполнение валидатора
+        // Новый паттерн: (value, ctx) => ValidationError | null
         try {
           let error: ValidationError | null = null;
+          const value = context.value();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const validator = registration.validator as any;
+
           if (registration.type === 'sync') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            error = (registration.validator as any)(context);
+            error = validator(value, context);
           } else if (registration.type === 'async') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            error = await (registration.validator as any)(context);
+            error = await validator(value, context);
           }
 
           if (error) {
