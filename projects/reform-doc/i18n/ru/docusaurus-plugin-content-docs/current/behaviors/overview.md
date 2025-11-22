@@ -11,31 +11,28 @@ Behaviors добавляют реактивную логику в формы: в
 Behaviors автоматически реагируют на изменения в форме:
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
-import { computeFrom, showWhen } from 'reformer/behaviors';
+import { GroupNode } from 'reformer';
+import { computeFrom, enableWhen } from 'reformer/behaviors';
 
 const form = new GroupNode({
-  schema: {
-    price: new FieldNode({ value: 100 }),
-    quantity: new FieldNode({ value: 1 }),
-    total: new FieldNode({ value: 0 }),
-    discount: new FieldNode({ value: 0 }),
-    showDiscount: new FieldNode({ value: false }),
+  form: {
+    price: { value: 100 },
+    quantity: { value: 1 },
+    total: { value: 0 },
+    discount: { value: 0 },
+    showDiscount: { value: false },
   },
-  behaviorSchema: (path, ctx) => [
+  behavior: (path) => {
     // Автовычисление total
     computeFrom(
       [path.price, path.quantity],
       path.total,
-      (price, qty) => price * qty
-    ),
+      ({ price, quantity }) => price * quantity
+    );
 
-    // Условное отображение поля скидки
-    showWhen(
-      path.showDiscount,
-      () => form.controls.total.value > 500
-    ),
-  ],
+    // Условное включение поля скидки
+    enableWhen(path.discount, (form) => form.total > 500);
+  },
 });
 ```
 
@@ -55,7 +52,7 @@ const form = new GroupNode({
 
 ## Как работают Behaviors
 
-1. Определяются в `behaviorSchema`
+1. Определяются в `behavior`
 2. ReFormer настраивает реактивные подписки
 3. При изменении исходных полей behavior выполняется автоматически
 
@@ -64,8 +61,8 @@ const form = new GroupNode({
 computeFrom(
   [path.price, path.quantity],  // Отслеживать эти
   path.total,                    // Обновить это
-  (price, qty) => price * qty    // Этой функцией
-)
+  ({ price, quantity }) => price * quantity  // Этой функцией
+);
 ```
 
 ## Behavior vs Validation

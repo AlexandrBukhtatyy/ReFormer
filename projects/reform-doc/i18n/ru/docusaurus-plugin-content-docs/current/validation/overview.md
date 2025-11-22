@@ -8,21 +8,23 @@ ReFormer предоставляет декларативную валидаци�
 
 ## Базовое использование
 
-Определите валидацию в `validationSchema`:
+Определите валидацию в `validation`:
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 import { required, email, minLength } from 'reformer/validators';
 
 const form = new GroupNode({
-  schema: {
-    name: new FieldNode({ value: '' }),
-    email: new FieldNode({ value: '' }),
+  form: {
+    name: { value: '' },
+    email: { value: '' },
   },
-  validationSchema: (path, { validate }) => [
-    validate(path.name, required(), minLength(2)),
-    validate(path.email, required(), email()),
-  ],
+  validation: (path) => {
+    required(path.name);
+    minLength(path.name, 2);
+    required(path.email);
+    email(path.email);
+  },
 });
 ```
 
@@ -55,34 +57,34 @@ name.errors;
 
 | Валидатор | Описание | Ключ ошибки |
 |-----------|----------|-------------|
-| `required()` | Поле должно иметь значение | `required` |
-| `email()` | Корректный формат email | `email` |
-| `minLength(n)` | Минимальная длина строки | `minLength` |
-| `maxLength(n)` | Максимальная длина строки | `maxLength` |
-| `min(n)` | Минимальное числовое значение | `min` |
-| `max(n)` | Максимальное числовое значение | `max` |
-| `pattern(regex)` | Соответствие регулярному выражению | `pattern` |
-| `url()` | Корректный формат URL | `url` |
-| `phone()` | Корректный формат телефона | `phone` |
-| `number()` | Должно быть числом | `number` |
-| `date()` | Корректная дата | `date` |
+| `required(path.field)` | Поле должно иметь значение | `required` |
+| `email(path.field)` | Корректный формат email | `email` |
+| `minLength(path.field, n)` | Минимальная длина строки | `minLength` |
+| `maxLength(path.field, n)` | Максимальная длина строки | `maxLength` |
+| `min(path.field, n)` | Минимальное числовое значение | `min` |
+| `max(path.field, n)` | Максимальное числовое значение | `max` |
+| `pattern(path.field, regex)` | Соответствие регулярному выражению | `pattern` |
+| `url(path.field)` | Корректный формат URL | `url` |
+| `phone(path.field)` | Корректный формат телефона | `phone` |
+| `number(path.field)` | Должно быть числом | `number` |
+| `date(path.field)` | Корректная дата | `date` |
 
 ## Условная валидация
 
 Применять валидацию только при выполнении условия:
 
 ```typescript
-import { applyWhen } from 'reformer/validators';
+import { validate, applyWhen } from 'reformer/validators';
 
-validationSchema: (path, { validate }) => [
-  validate(
-    path.phone,
-    applyWhen(
-      () => form.controls.contactByPhone.value === true,
-      required()
-    )
-  ),
-]
+validation: (path) => {
+  applyWhen(
+    path.contactByPhone,
+    (contactByPhone) => contactByPhone === true,
+    () => {
+      required(path.phone);
+    }
+  );
+}
 ```
 
 ## Время валидации

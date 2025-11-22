@@ -4,7 +4,7 @@
 function partialResource<T>(loader): ResourceConfig<T>;
 ```
 
-Defined in: [core/utils/resources.ts:84](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/resources.ts#L84)
+Defined in: [core/utils/resources.ts:84](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L84)
 
 Парциональная загрузка - данные загружаются порциями с учетом поиска/пагинации
 

@@ -9,21 +9,24 @@ Build a simple contact form in 5 minutes.
 ## 1. Define the Form
 
 ```typescript title="src/forms/contact-form.ts"
-import { GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 import { required, email, minLength } from 'reformer/validators';
 
 export const createContactForm = () =>
   new GroupNode({
-    schema: {
-      name: new FieldNode({ value: '' }),
-      email: new FieldNode({ value: '' }),
-      message: new FieldNode({ value: '' }),
+    form: {
+      name: { value: '' },
+      email: { value: '' },
+      message: { value: '' },
     },
-    validationSchema: (path, { validate }) => [
-      validate(path.name, required(), minLength(2)),
-      validate(path.email, required(), email()),
-      validate(path.message, required(), minLength(10)),
-    ],
+    validation: (path) => {
+      required(path.name);
+      minLength(path.name, 2);
+      required(path.email);
+      email(path.email);
+      required(path.message);
+      minLength(path.message, 10);
+    },
   });
 
 export type ContactForm = ReturnType<typeof createContactForm>;
@@ -99,8 +102,8 @@ export function ContactForm() {
 | Concept | Description |
 |---------|-------------|
 | `GroupNode` | Container for form fields |
-| `FieldNode` | Single form field with value |
-| `validationSchema` | Declarative validation rules |
+| `form` | Form schema defining fields structure |
+| `validation` | Declarative validation rules |
 | `useFormControl` | React hook for field binding |
 | `markAllAsTouched()` | Show all validation errors |
 

@@ -8,21 +8,23 @@ ReFormer provides declarative validation with built-in validators and support fo
 
 ## Basic Usage
 
-Define validation in `validationSchema`:
+Define validation in `validation`:
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 import { required, email, minLength } from 'reformer/validators';
 
 const form = new GroupNode({
-  schema: {
-    name: new FieldNode({ value: '' }),
-    email: new FieldNode({ value: '' }),
+  form: {
+    name: { value: '' },
+    email: { value: '' },
   },
-  validationSchema: (path, { validate }) => [
-    validate(path.name, required(), minLength(2)),
-    validate(path.email, required(), email()),
-  ],
+  validation: (path) => {
+    required(path.name);
+    minLength(path.name, 2);
+    required(path.email);
+    email(path.email);
+  },
 });
 ```
 
@@ -55,34 +57,34 @@ name.errors;
 
 | Validator | Description | Error Key |
 |-----------|-------------|-----------|
-| `required()` | Field must have value | `required` |
-| `email()` | Valid email format | `email` |
-| `minLength(n)` | Minimum string length | `minLength` |
-| `maxLength(n)` | Maximum string length | `maxLength` |
-| `min(n)` | Minimum number value | `min` |
-| `max(n)` | Maximum number value | `max` |
-| `pattern(regex)` | Match regex pattern | `pattern` |
-| `url()` | Valid URL format | `url` |
-| `phone()` | Valid phone format | `phone` |
-| `number()` | Must be a number | `number` |
-| `date()` | Valid date | `date` |
+| `required(path.field)` | Field must have value | `required` |
+| `email(path.field)` | Valid email format | `email` |
+| `minLength(path.field, n)` | Minimum string length | `minLength` |
+| `maxLength(path.field, n)` | Maximum string length | `maxLength` |
+| `min(path.field, n)` | Minimum number value | `min` |
+| `max(path.field, n)` | Maximum number value | `max` |
+| `pattern(path.field, regex)` | Match regex pattern | `pattern` |
+| `url(path.field)` | Valid URL format | `url` |
+| `phone(path.field)` | Valid phone format | `phone` |
+| `number(path.field)` | Must be a number | `number` |
+| `date(path.field)` | Valid date | `date` |
 
 ## Conditional Validation
 
 Apply validation only when condition is met:
 
 ```typescript
-import { applyWhen } from 'reformer/validators';
+import { validate, applyWhen } from 'reformer/validators';
 
-validationSchema: (path, { validate }) => [
-  validate(
-    path.phone,
-    applyWhen(
-      () => form.controls.contactByPhone.value === true,
-      required()
-    )
-  ),
-]
+validation: (path) => {
+  applyWhen(
+    path.contactByPhone,
+    (contactByPhone) => contactByPhone === true,
+    () => {
+      required(path.phone);
+    }
+  );
+}
 ```
 
 ## Validation Timing

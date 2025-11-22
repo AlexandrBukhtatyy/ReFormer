@@ -1,6 +1,6 @@
 # ResourceItem
 
-Defined in: [core/utils/resources.ts:5](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/resources.ts#L5)
+Defined in: [core/utils/resources.ts:5](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L5)
 
 ## Type Parameters
 
@@ -22,7 +22,7 @@ Defined in: [core/utils/resources.ts:5](https://github.com/AlexandrBukhtatyy/ReF
 description: string;
 ```
 
-Defined in: [core/utils/resources.ts:8](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/resources.ts#L8)
+Defined in: [core/utils/resources.ts:8](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L8)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [core/utils/resources.ts:8](https://github.com/AlexandrBukhtatyy/ReF
 id: string | number;
 ```
 
-Defined in: [core/utils/resources.ts:6](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/resources.ts#L6)
+Defined in: [core/utils/resources.ts:6](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L6)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [core/utils/resources.ts:6](https://github.com/AlexandrBukhtatyy/ReF
 label: string;
 ```
 
-Defined in: [core/utils/resources.ts:7](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/resources.ts#L7)
+Defined in: [core/utils/resources.ts:7](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L7)
 
 ***
 
@@ -52,4 +52,4 @@ Defined in: [core/utils/resources.ts:7](https://github.com/AlexandrBukhtatyy/ReF
 value: T;
 ```
 
-Defined in: [core/utils/resources.ts:9](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/resources.ts#L9)
+Defined in: [core/utils/resources.ts:9](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L9)

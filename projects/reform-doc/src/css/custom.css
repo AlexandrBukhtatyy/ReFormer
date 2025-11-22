@@ -29,34 +29,34 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
-/* API Reference page - 4 columns layout for entity lists */
-[class*='docItemContainer'] h2 + ul {
+/* API Reference page only - 4 columns layout for entity lists */
+html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
   column-count: 4;
   column-gap: 1rem;
   list-style: none;
   padding-left: 0;
 }
 
-[class*='docItemContainer'] h2 + ul li {
+html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul li {
   break-inside: avoid;
   padding: 0.25rem 0;
 }
 
 /* Responsive: reduce columns on smaller screens */
 @media (max-width: 1200px) {
-  [class*='docItemContainer'] h2 + ul {
+  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
     column-count: 3;
   }
 }
 
 @media (max-width: 900px) {
-  [class*='docItemContainer'] h2 + ul {
+  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
     column-count: 2;
   }
 }
 
 @media (max-width: 600px) {
-  [class*='docItemContainer'] h2 + ul {
+  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
     column-count: 1;
   }
 }

@@ -1,6 +1,6 @@
 # ValidatorRegistration
 
-Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/validation-schema.ts#L127)
+Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/validation-schema.ts#L127)
 
 **`Internal`**
 
@@ -14,7 +14,7 @@ Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBuk
 optional condition: object;
 ```
 
-Defined in: [core/types/validation-schema.ts:135](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/validation-schema.ts#L135)
+Defined in: [core/types/validation-schema.ts:135](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/validation-schema.ts#L135)
 
 #### conditionFn
 
@@ -36,7 +36,7 @@ fieldPath: string;
 fieldPath: string;
 ```
 
-Defined in: [core/types/validation-schema.ts:128](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/validation-schema.ts#L128)
+Defined in: [core/types/validation-schema.ts:128](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/validation-schema.ts#L128)
 
 ***
 
@@ -49,7 +49,7 @@ optional options:
   | ValidateTreeOptions;
 ```
 
-Defined in: [core/types/validation-schema.ts:134](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/validation-schema.ts#L134)
+Defined in: [core/types/validation-schema.ts:134](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/validation-schema.ts#L134)
 
 ***
 
@@ -59,7 +59,7 @@ Defined in: [core/types/validation-schema.ts:134](https://github.com/AlexandrBuk
 type: "async" | "sync" | "tree";
 ```
 
-Defined in: [core/types/validation-schema.ts:129](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/validation-schema.ts#L129)
+Defined in: [core/types/validation-schema.ts:129](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/validation-schema.ts#L129)
 
 ***
 
@@ -72,4 +72,4 @@ validator:
 | TreeValidatorFn<unknown>;
 ```
 
-Defined in: [core/types/validation-schema.ts:130](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/validation-schema.ts#L130)
+Defined in: [core/types/validation-schema.ts:130](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/validation-schema.ts#L130)

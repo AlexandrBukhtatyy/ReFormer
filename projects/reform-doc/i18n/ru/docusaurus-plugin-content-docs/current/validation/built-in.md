@@ -13,8 +13,8 @@ sidebar_position: 2
 ```typescript
 import { required } from 'reformer/validators';
 
-validate(path.name, required())
-// Ошибка: { required: true }
+required(path.name);
+// Ошибка: { code: 'required', message: '...' }
 ```
 
 Пустые значения: `''`, `null`, `undefined`, `[]`
@@ -26,8 +26,8 @@ validate(path.name, required())
 ```typescript
 import { email } from 'reformer/validators';
 
-validate(path.email, email())
-// Ошибка: { email: true }
+email(path.email);
+// Ошибка: { code: 'email', message: '...' }
 ```
 
 ## minLength / maxLength
@@ -37,11 +37,11 @@ validate(path.email, email())
 ```typescript
 import { minLength, maxLength } from 'reformer/validators';
 
-validate(path.name, minLength(2))
-// Ошибка: { minLength: { required: 2, actual: 1 } }
+minLength(path.name, 2);
+// Ошибка: { code: 'minLength', params: { required: 2, actual: 1 } }
 
-validate(path.bio, maxLength(500))
-// Ошибка: { maxLength: { required: 500, actual: 501 } }
+maxLength(path.bio, 500);
+// Ошибка: { code: 'maxLength', params: { required: 500, actual: 501 } }
 ```
 
 ## min / max
@@ -51,11 +51,11 @@ validate(path.bio, maxLength(500))
 ```typescript
 import { min, max } from 'reformer/validators';
 
-validate(path.age, min(18))
-// Ошибка: { min: { min: 18, actual: 16 } }
+min(path.age, 18);
+// Ошибка: { code: 'min', params: { min: 18, actual: 16 } }
 
-validate(path.quantity, max(100))
-// Ошибка: { max: { max: 100, actual: 150 } }
+max(path.quantity, 100);
+// Ошибка: { code: 'max', params: { max: 100, actual: 150 } }
 ```
 
 ## pattern
@@ -66,12 +66,12 @@ validate(path.quantity, max(100))
 import { pattern } from 'reformer/validators';
 
 // Только буквы
-validate(path.code, pattern(/^[A-Z]+$/))
-// Ошибка: { pattern: { pattern: '/^[A-Z]+$/' } }
+pattern(path.code, /^[A-Z]+$/);
+// Ошибка: { code: 'pattern', params: { pattern: '/^[A-Z]+$/' } }
 
 // Кастомный ключ ошибки
-validate(path.code, pattern(/^[A-Z]+$/, 'uppercase'))
-// Ошибка: { uppercase: true }
+pattern(path.code, /^[A-Z]+$/, 'uppercase');
+// Ошибка: { code: 'uppercase' }
 ```
 
 ## url
@@ -81,8 +81,8 @@ validate(path.code, pattern(/^[A-Z]+$/, 'uppercase'))
 ```typescript
 import { url } from 'reformer/validators';
 
-validate(path.website, url())
-// Ошибка: { url: true }
+url(path.website);
+// Ошибка: { code: 'url', message: '...' }
 ```
 
 ## phone
@@ -92,8 +92,8 @@ validate(path.website, url())
 ```typescript
 import { phone } from 'reformer/validators';
 
-validate(path.phone, phone())
-// Ошибка: { phone: true }
+phone(path.phone);
+// Ошибка: { code: 'phone', message: '...' }
 ```
 
 ## number
@@ -103,8 +103,8 @@ validate(path.phone, phone())
 ```typescript
 import { number } from 'reformer/validators';
 
-validate(path.amount, number())
-// Ошибка: { number: true }
+number(path.amount);
+// Ошибка: { code: 'number', message: '...' }
 ```
 
 ## date
@@ -114,8 +114,8 @@ validate(path.amount, number())
 ```typescript
 import { date } from 'reformer/validators';
 
-validate(path.birthDate, date())
-// Ошибка: { date: true }
+date(path.birthDate);
+// Ошибка: { code: 'date', message: '...' }
 ```
 
 ## Комбинирование валидаторов
@@ -123,23 +123,23 @@ validate(path.birthDate, date())
 Применение нескольких валидаторов к одному полю:
 
 ```typescript
-validate(path.password,
-  required(),
-  minLength(8),
-  pattern(/[A-Z]/, 'uppercase'),
-  pattern(/[0-9]/, 'hasNumber')
-)
+validation: (path) => {
+  required(path.password);
+  minLength(path.password, 8);
+  pattern(path.password, /[A-Z]/, 'uppercase');
+  pattern(path.password, /[0-9]/, 'hasNumber');
+}
 ```
 
-Все валидаторы выполняются, ошибки объединяются:
+Все валидаторы выполняются, ошибки собираются:
 
 ```typescript
 // Если пароль "abc"
-errors: {
-  minLength: { required: 8, actual: 3 },
-  uppercase: true,
-  hasNumber: true
-}
+errors: [
+  { code: 'minLength', params: { required: 8, actual: 3 } },
+  { code: 'uppercase' },
+  { code: 'hasNumber' }
+]
 ```
 
 ## Следующие шаги

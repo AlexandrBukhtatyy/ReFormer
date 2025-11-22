@@ -13,8 +13,8 @@ Field must have a non-empty value.
 ```typescript
 import { required } from 'reformer/validators';
 
-validate(path.name, required())
-// Error: { required: true }
+required(path.name);
+// Error: { code: 'required', message: '...' }
 ```
 
 Empty values: `''`, `null`, `undefined`, `[]`
@@ -26,8 +26,8 @@ Valid email format.
 ```typescript
 import { email } from 'reformer/validators';
 
-validate(path.email, email())
-// Error: { email: true }
+email(path.email);
+// Error: { code: 'email', message: '...' }
 ```
 
 ## minLength / maxLength
@@ -37,11 +37,11 @@ String length constraints.
 ```typescript
 import { minLength, maxLength } from 'reformer/validators';
 
-validate(path.name, minLength(2))
-// Error: { minLength: { required: 2, actual: 1 } }
+minLength(path.name, 2);
+// Error: { code: 'minLength', params: { required: 2, actual: 1 } }
 
-validate(path.bio, maxLength(500))
-// Error: { maxLength: { required: 500, actual: 501 } }
+maxLength(path.bio, 500);
+// Error: { code: 'maxLength', params: { required: 500, actual: 501 } }
 ```
 
 ## min / max
@@ -51,11 +51,11 @@ Number value constraints.
 ```typescript
 import { min, max } from 'reformer/validators';
 
-validate(path.age, min(18))
-// Error: { min: { min: 18, actual: 16 } }
+min(path.age, 18);
+// Error: { code: 'min', params: { min: 18, actual: 16 } }
 
-validate(path.quantity, max(100))
-// Error: { max: { max: 100, actual: 150 } }
+max(path.quantity, 100);
+// Error: { code: 'max', params: { max: 100, actual: 150 } }
 ```
 
 ## pattern
@@ -66,12 +66,12 @@ Match regex pattern.
 import { pattern } from 'reformer/validators';
 
 // Only letters
-validate(path.code, pattern(/^[A-Z]+$/))
-// Error: { pattern: { pattern: '/^[A-Z]+$/' } }
+pattern(path.code, /^[A-Z]+$/);
+// Error: { code: 'pattern', params: { pattern: '/^[A-Z]+$/' } }
 
 // Custom error key
-validate(path.code, pattern(/^[A-Z]+$/, 'uppercase'))
-// Error: { uppercase: true }
+pattern(path.code, /^[A-Z]+$/, 'uppercase');
+// Error: { code: 'uppercase' }
 ```
 
 ## url
@@ -81,8 +81,8 @@ Valid URL format.
 ```typescript
 import { url } from 'reformer/validators';
 
-validate(path.website, url())
-// Error: { url: true }
+url(path.website);
+// Error: { code: 'url', message: '...' }
 ```
 
 ## phone
@@ -92,8 +92,8 @@ Valid phone number format.
 ```typescript
 import { phone } from 'reformer/validators';
 
-validate(path.phone, phone())
-// Error: { phone: true }
+phone(path.phone);
+// Error: { code: 'phone', message: '...' }
 ```
 
 ## number
@@ -103,8 +103,8 @@ Must be a valid number.
 ```typescript
 import { number } from 'reformer/validators';
 
-validate(path.amount, number())
-// Error: { number: true }
+number(path.amount);
+// Error: { code: 'number', message: '...' }
 ```
 
 ## date
@@ -114,8 +114,8 @@ Valid date value.
 ```typescript
 import { date } from 'reformer/validators';
 
-validate(path.birthDate, date())
-// Error: { date: true }
+date(path.birthDate);
+// Error: { code: 'date', message: '...' }
 ```
 
 ## Combining Validators
@@ -123,23 +123,23 @@ validate(path.birthDate, date())
 Apply multiple validators to one field:
 
 ```typescript
-validate(path.password,
-  required(),
-  minLength(8),
-  pattern(/[A-Z]/, 'uppercase'),
-  pattern(/[0-9]/, 'hasNumber')
-)
+validation: (path) => {
+  required(path.password);
+  minLength(path.password, 8);
+  pattern(path.password, /[A-Z]/, 'uppercase');
+  pattern(path.password, /[0-9]/, 'hasNumber');
+}
 ```
 
-All validators run, errors are merged:
+All validators run, errors are collected:
 
 ```typescript
 // If password is "abc"
-errors: {
-  minLength: { required: 8, actual: 3 },
-  uppercase: true,
-  hasNumber: true
-}
+errors: [
+  { code: 'minLength', params: { required: 8, actual: 3 } },
+  { code: 'uppercase' },
+  { code: 'hasNumber' }
+]
 ```
 
 ## Next Steps

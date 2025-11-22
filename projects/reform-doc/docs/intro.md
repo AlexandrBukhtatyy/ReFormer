@@ -15,6 +15,7 @@ slug: /
 - **Behaviors** — Computed fields, conditional visibility, field synchronization
 - **Nested Forms** — Support for complex nested structures and dynamic arrays
 - **Framework Agnostic** — Core library works anywhere, React bindings included
+- **AI-Friendly** — Well-documented API with clear patterns, easy for AI assistants to understand and generate code
 
 ## Quick Example
 

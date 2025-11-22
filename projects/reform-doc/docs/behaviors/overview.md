@@ -11,31 +11,28 @@ Behaviors add reactive logic to forms: computed fields, conditional visibility, 
 Behaviors automatically react to form changes:
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
-import { computeFrom, showWhen } from 'reformer/behaviors';
+import { GroupNode } from 'reformer';
+import { computeFrom, enableWhen } from 'reformer/behaviors';
 
 const form = new GroupNode({
-  schema: {
-    price: new FieldNode({ value: 100 }),
-    quantity: new FieldNode({ value: 1 }),
-    total: new FieldNode({ value: 0 }),
-    discount: new FieldNode({ value: 0 }),
-    showDiscount: new FieldNode({ value: false }),
+  form: {
+    price: { value: 100 },
+    quantity: { value: 1 },
+    total: { value: 0 },
+    discount: { value: 0 },
+    showDiscount: { value: false },
   },
-  behaviorSchema: (path, ctx) => [
+  behavior: (path) => {
     // Auto-compute total
     computeFrom(
       [path.price, path.quantity],
       path.total,
-      (price, qty) => price * qty
-    ),
+      ({ price, quantity }) => price * quantity
+    );
 
-    // Show discount field conditionally
-    showWhen(
-      path.showDiscount,
-      () => form.controls.total.value > 500
-    ),
-  ],
+    // Enable discount field conditionally
+    enableWhen(path.discount, (form) => form.total > 500);
+  },
 });
 ```
 
@@ -55,7 +52,7 @@ const form = new GroupNode({
 
 ## How Behaviors Work
 
-1. Define in `behaviorSchema`
+1. Define in `behavior`
 2. ReFormer sets up reactive subscriptions
 3. When source fields change, behavior runs automatically
 
@@ -64,8 +61,8 @@ const form = new GroupNode({
 computeFrom(
   [path.price, path.quantity],  // Watch these
   path.total,                    // Update this
-  (price, qty) => price * qty    // With this function
-)
+  ({ price, quantity }) => price * quantity  // With this function
+);
 ```
 
 ## Behavior vs Validation
