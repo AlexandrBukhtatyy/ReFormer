@@ -2,6 +2,8 @@
 // FieldPath - proxy для доступа к путям полей
 // ============================================================================
 
+import type { AnyFunction } from './index';
+
 /**
  * FieldPath предоставляет типобезопасный доступ к путям полей формы
  *
@@ -29,7 +31,7 @@
 export type FieldPath<T> = {
   [K in keyof T]: NonNullable<T[K]> extends Array<unknown>
     ? FieldPathNode<T, T[K], K> // Массивы - не рекурсим (обрабатываются отдельно)
-    : NonNullable<T[K]> extends Date | File | Blob | Function
+    : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
       ? FieldPathNode<T, T[K], K> // Специальные объекты - не рекурсим
       : NonNullable<T[K]> extends object
         ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> // Обычные объекты - рекурсия!

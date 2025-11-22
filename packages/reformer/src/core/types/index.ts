@@ -203,6 +203,12 @@ export type FieldPathSegment = {
 export type UnknownCallback = (...args: unknown[]) => unknown;
 
 /**
+ * Тип для проверки на функцию в conditional types
+ * Используется вместо Function для type narrowing
+ */
+export type AnyFunction = (...args: never[]) => unknown;
+
+/**
  * Тип для результатов загрузки ресурсов
  */
 export type ResourceLoadResult = unknown;

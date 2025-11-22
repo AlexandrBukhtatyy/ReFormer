@@ -5,15 +5,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { makeForm } from '../../../../src/core/utils/make-form';
 import { watchField } from '../../../../src/core/behavior/behaviors/watch-field';
-import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
+import type { BehaviorSchemaFn } from '../../../../src/core/behavior/types';
+import type { FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
 
 describe('watchField behavior', () => {
-  interface WatchForm {
+  type WatchForm = {
     country: string;
     city: string;
     amount: number;
-  }
+  };
 
   describe('basic functionality', () => {
     it('should call callback when field changes', async () => {
@@ -47,6 +48,7 @@ describe('watchField behavior', () => {
     });
 
     it('should provide BehaviorContext to callback', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let capturedContext: any = null;
 
       const form = makeForm<WatchForm>({

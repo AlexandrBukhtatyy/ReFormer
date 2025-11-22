@@ -10,14 +10,14 @@ import type { FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
 
 describe('computeFrom behavior', () => {
-  interface CalculatorForm {
+  type CalculatorForm = {
     price: number;
     quantity: number;
     discount: number;
     total: number;
     propertyValue: number;
     initialPayment: number;
-  }
+  };
 
   describe('basic functionality', () => {
     it('should compute value from single source', async () => {
@@ -145,11 +145,15 @@ describe('computeFrom behavior', () => {
       });
 
       const behavior: BehaviorSchemaFn<CalculatorForm> = (path: FieldPath<CalculatorForm>) => {
-        computeFrom([path.price, path.quantity, path.discount], path.total, (values: any) => {
-          const subtotal = values.price * values.quantity;
-          const discountAmount = subtotal * (values.discount / 100);
-          return subtotal - discountAmount;
-        });
+        computeFrom(
+          [path.price, path.quantity, path.discount],
+          path.total,
+          (values: CalculatorForm) => {
+            const subtotal = values.price * values.quantity;
+            const discountAmount = subtotal * (values.discount / 100);
+            return subtotal - discountAmount;
+          }
+        );
       };
 
       form.applyBehaviorSchema(behavior);
@@ -161,11 +165,11 @@ describe('computeFrom behavior', () => {
     });
 
     it('should handle null values gracefully', async () => {
-      interface NullableForm {
+      type NullableForm = {
         a: number | null;
         b: number | null;
         result: number | null;
-      }
+      };
 
       const form = makeForm<NullableForm>({
         a: { value: null, component: null as ComponentInstance },
@@ -198,11 +202,11 @@ describe('computeFrom behavior', () => {
 
   describe('condition option', () => {
     it('should only compute when condition is true', async () => {
-      interface ConditionalForm {
+      type ConditionalForm = {
         mode: string;
         input: number;
         output: number;
-      }
+      };
 
       const form = makeForm<ConditionalForm>({
         mode: { value: 'disabled', component: null as ComponentInstance },

@@ -8,7 +8,7 @@
  */
 
 import type { ComponentType } from 'react';
-import type { ValidatorFn, AsyncValidatorFn, FormFields } from './index';
+import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './index';
 
 // ============================================================================
 // Базовые типы
@@ -84,10 +84,10 @@ export type FormSchema<T> = {
     : NonNullable<T[K]> extends Array<infer U>
       ? U extends string | number | boolean
         ? FieldConfig<T[K]>
-        : U extends Date | File | Blob | Function
+        : U extends Date | File | Blob | AnyFunction
           ? FieldConfig<T[K]>
           : [FormSchema<U>]
-      : NonNullable<T[K]> extends Date | File | Blob | Function
+      : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
         ? FieldConfig<T[K]>
         : FormSchema<NonNullable<T[K]>>;
 };
