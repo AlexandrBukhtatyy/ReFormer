@@ -5,7 +5,8 @@
 import { describe, it, expect } from 'vitest';
 import { makeForm } from '../../../../src/core/utils/make-form';
 import { computeFrom } from '../../../../src/core/behavior/behaviors/compute-from';
-import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
+import type { BehaviorSchemaFn } from '../../../../src/core/behavior/types';
+import type { FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
 
 describe('computeFrom behavior', () => {
@@ -33,7 +34,7 @@ describe('computeFrom behavior', () => {
         computeFrom(
           [path.propertyValue],
           path.initialPayment,
-          (values: any) => values.propertyValue * 0.2 // 20% down payment
+          (values: CalculatorForm) => values.propertyValue * 0.2 // 20% down payment
         );
       };
 
@@ -58,7 +59,7 @@ describe('computeFrom behavior', () => {
         computeFrom(
           [path.price, path.quantity],
           path.total,
-          (values: any) => values.price * values.quantity
+          (values: CalculatorForm) => values.price * values.quantity
         );
       };
 
@@ -83,7 +84,7 @@ describe('computeFrom behavior', () => {
         computeFrom(
           [path.price, path.quantity],
           path.total,
-          (values: any) => values.price * values.quantity
+          (values: CalculatorForm) => values.price * values.quantity
         );
       };
 
@@ -114,7 +115,7 @@ describe('computeFrom behavior', () => {
         computeFrom(
           [path.price, path.quantity],
           path.total,
-          (values: any) => values.price * values.quantity
+          (values: CalculatorForm) => values.price * values.quantity
         );
       };
 
@@ -173,7 +174,7 @@ describe('computeFrom behavior', () => {
       });
 
       const behavior: BehaviorSchemaFn<NullableForm> = (path: FieldPath<NullableForm>) => {
-        computeFrom([path.a, path.b], path.result, (values: any) => {
+        computeFrom([path.a, path.b], path.result, (values: NullableForm) => {
           if (values.a === null || values.b === null) return null;
           return values.a + values.b;
         });
@@ -210,7 +211,7 @@ describe('computeFrom behavior', () => {
       });
 
       const behavior: BehaviorSchemaFn<ConditionalForm> = (path: FieldPath<ConditionalForm>) => {
-        computeFrom([path.input], path.output, (values: any) => values.input * 2, {
+        computeFrom([path.input], path.output, (values: ConditionalForm) => values.input * 2, {
           condition: (f) => f.mode === 'enabled',
         });
       };
@@ -247,7 +248,7 @@ describe('computeFrom behavior', () => {
         computeFrom(
           [path.price, path.quantity],
           path.total,
-          (values: any) => values.price * values.quantity
+          (values: CalculatorForm) => values.price * values.quantity
         );
       };
 

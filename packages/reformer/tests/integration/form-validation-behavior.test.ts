@@ -5,14 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import { makeForm } from '../../src/core/utils/make-form';
 import { required, minLength, email } from '../../src/core/validation/validators';
-import {
-  enableWhen,
-  computeFrom,
-  copyFrom,
-  transformValue,
-  transformers,
-} from '../../src/core/behavior/behaviors';
-import type { ValidationSchemaFn, BehaviorSchemaFn, FieldPath } from '../../src/core/types';
+import { enableWhen, computeFrom, copyFrom, transformers } from '../../src/core/behavior/behaviors';
+import type { BehaviorSchemaFn } from '../../src/core/behavior/types';
+import type { ValidationSchemaFn, FieldPath } from '../../src/core/types';
 import { ComponentInstance } from '../test-utils/types';
 
 describe('Integration: Form + Validation + Behavior', () => {

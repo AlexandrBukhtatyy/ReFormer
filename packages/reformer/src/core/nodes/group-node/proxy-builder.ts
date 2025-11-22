@@ -21,7 +21,6 @@
 import type { GroupNode } from '../group-node';
 import type { GroupNodeWithControls } from '../../types/group-node-proxy';
 import type { FieldRegistry } from './field-registry';
-import type { FormFields, FormValue } from '../../types';
 
 /**
  * Строитель Proxy для GroupNode

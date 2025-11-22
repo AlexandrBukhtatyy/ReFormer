@@ -36,6 +36,7 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
  * ```
  */
 export function computeFrom<TForm, TTarget>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sources: FieldPathNode<TForm, any>[],
   target: FieldPathNode<TForm, TTarget>,
   computeFn: (values: TForm) => TTarget,

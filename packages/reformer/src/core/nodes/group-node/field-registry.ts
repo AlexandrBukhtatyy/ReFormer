@@ -20,7 +20,7 @@
  */
 
 import type { FormNode } from '../form-node';
-import type { FormFields, FormValue } from '../../types';
+import type { FormValue } from '../../types';
 
 /**
  * Реестр полей формы

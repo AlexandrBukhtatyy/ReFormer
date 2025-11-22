@@ -31,7 +31,7 @@ import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../t
  */
 export function watchField<TForm, TField>(
   field: FieldPathNode<TForm, TField>,
-  callback: (value: TField, ctx: BehaviorContext<any>) => void | Promise<void>,
+  callback: (value: TField, ctx: BehaviorContext<TForm>) => void | Promise<void>,
   options?: WatchFieldOptions
 ): void {
   const { debounce, immediate = false } = options || {};

@@ -9,13 +9,7 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
-import type {
-  FieldConfig,
-  ValidationError,
-  ValidatorFn,
-  AsyncValidatorFn,
-  FormFields,
-} from '../types';
+import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 

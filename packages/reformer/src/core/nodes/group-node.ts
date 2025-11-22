@@ -21,7 +21,6 @@ import type {
   GroupNodeConfig,
   FormValue,
   ArrayNodeLike,
-  FormFields,
 } from '../types';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import { createFieldPath } from '../validation';
@@ -635,7 +634,7 @@ export class GroupNode<T> extends FormNode<T> {
       return undefined;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-this-alias, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let current: FormNode<FormValue> | undefined = this as any;
 
     for (const segment of segments) {

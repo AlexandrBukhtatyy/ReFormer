@@ -31,7 +31,6 @@ export function copyFrom<TForm, TSource, TTarget>(
 ): void {
   const { when, fields = 'all', transform, debounce } = options || {};
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   watchField<TForm, TSource>(
     source,
     (sourceValue, ctx) => {

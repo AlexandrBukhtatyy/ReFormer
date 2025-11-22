@@ -25,6 +25,7 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  * ```
  */
 export function enableWhen<TForm>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   field: FieldPathNode<TForm, any>,
   condition: (form: TForm) => boolean,
   options?: EnableWhenOptions
@@ -74,6 +75,7 @@ export function enableWhen<TForm>(
  * ```
  */
 export function disableWhen<TForm>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   field: FieldPathNode<TForm, any>,
   condition: (form: TForm) => boolean,
   options?: EnableWhenOptions

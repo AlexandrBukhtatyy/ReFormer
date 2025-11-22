@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 
 const brands = ['toyota', 'bmw', 'mercedes'];
-const cars: Record<string, Array<any>> = {
+const cars: Record<string, Array<{ value: string; label: string }>> = {
   toyota: [
     { value: 'camry', label: 'Camry' },
     { value: 'corolla', label: 'Corolla' },
