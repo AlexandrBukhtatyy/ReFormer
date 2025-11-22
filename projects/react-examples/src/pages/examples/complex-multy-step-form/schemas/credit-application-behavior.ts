@@ -164,39 +164,39 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
 
   // Процентная ставка (зависит от типа кредита, региона, наличия имущества)
   computeFrom(
-    path.interestRate,
     [path.loanType, path.registrationAddress, path.hasProperty, path.properties],
+    path.interestRate,
     computeInterestRate
   );
 
   // Ежемесячный платеж (вычисляется по формуле аннуитетного платежа)
   computeFrom(
-    path.monthlyPayment,
     [path.loanAmount, path.loanTerm, path.interestRate],
+    path.monthlyPayment,
     computeMonthlyPayment
   );
 
   // Первоначальный взнос (20% от стоимости недвижимости)
-  computeFrom(path.initialPayment, [path.propertyValue], computeInitialPayment);
+  computeFrom([path.propertyValue], path.initialPayment, computeInitialPayment);
 
   // Полное имя (конкатенация Фамилия Имя Отчество)
-  computeFrom(path.fullName, [path.personalData], computeFullName);
+  computeFrom([path.personalData], path.fullName, computeFullName);
 
   // Возраст (вычисляется из даты рождения)
-  computeFrom(path.age, [path.personalData], computeAge);
+  computeFrom([path.personalData], path.age, computeAge);
 
   // Общий доход (основной + дополнительный)
-  computeFrom(path.totalIncome, [path.monthlyIncome, path.additionalIncome], computeTotalIncome);
+  computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, computeTotalIncome);
 
   // Процент платежа от дохода
   computeFrom(
-    path.paymentToIncomeRatio,
     [path.monthlyPayment, path.totalIncome],
+    path.paymentToIncomeRatio,
     computePaymentRatio
   );
 
   // Общий доход созаемщиков (сумма доходов всех созаемщиков)
-  computeFrom(path.coBorrowersIncome, [path.coBorrowers], computeCoBorrowersIncome);
+  computeFrom([path.coBorrowers], path.coBorrowersIncome, computeCoBorrowersIncome);
 
   // ===================================================================
   // 4. watchField() - Динамическая загрузка данных (1)
