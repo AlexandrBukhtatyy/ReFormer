@@ -14,7 +14,7 @@ Defined in: [core/types/index.ts:44](https://github.com/AlexandrBukhtatyy/ReForm
 
 Фильтр по коду ошибки
 
-***
+---
 
 ### message?
 
@@ -24,7 +24,7 @@ Defined in: [core/types/index.ts:47](https://github.com/AlexandrBukhtatyy/ReForm
 
 Фильтр по сообщению (поддерживает частичное совпадение)
 
-***
+---
 
 ### params?
 
@@ -34,7 +34,7 @@ Defined in: [core/types/index.ts:50](https://github.com/AlexandrBukhtatyy/ReForm
 
 Фильтр по параметрам ошибки
 
-***
+---
 
 ### predicate()?
 

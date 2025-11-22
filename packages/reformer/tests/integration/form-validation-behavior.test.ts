@@ -5,7 +5,13 @@
 import { describe, it, expect } from 'vitest';
 import { makeForm } from '../../src/core/utils/make-form';
 import { required, minLength, email } from '../../src/core/validation/validators';
-import { enableWhen, computeFrom, copyFrom, transformValue, transformers } from '../../src/core/behavior/behaviors';
+import {
+  enableWhen,
+  computeFrom,
+  copyFrom,
+  transformValue,
+  transformers,
+} from '../../src/core/behavior/behaviors';
 import type { ValidationSchemaFn, BehaviorSchemaFn, FieldPath } from '../../src/core/types';
 import { ComponentInstance } from '../test-utils/types';
 
@@ -35,7 +41,9 @@ describe('Integration: Form + Validation + Behavior', () => {
       });
 
       // Validation schema
-      const validation: ValidationSchemaFn<RegistrationForm> = (path: FieldPath<RegistrationForm>) => {
+      const validation: ValidationSchemaFn<RegistrationForm> = (
+        path: FieldPath<RegistrationForm>
+      ) => {
         required(path.username, { message: 'Username is required' });
         minLength(path.username, 3, { message: 'Username must be at least 3 characters' });
         required(path.email);
@@ -67,7 +75,9 @@ describe('Integration: Form + Validation + Behavior', () => {
       });
 
       // Validation schema
-      const validation: ValidationSchemaFn<RegistrationForm> = (path: FieldPath<RegistrationForm>) => {
+      const validation: ValidationSchemaFn<RegistrationForm> = (
+        path: FieldPath<RegistrationForm>
+      ) => {
         required(path.username);
         minLength(path.username, 3);
         required(path.email);
@@ -204,14 +214,10 @@ describe('Integration: Form + Validation + Behavior', () => {
 
       // Behavior: compute total (sources first, target second)
       const behavior: BehaviorSchemaFn<OrderForm> = (path: FieldPath<OrderForm>) => {
-        computeFrom(
-          [path.quantity, path.unitPrice, path.discount],
-          path.total,
-          (values) => {
-            const subtotal = values.quantity * values.unitPrice;
-            return subtotal - (subtotal * values.discount / 100);
-          }
-        );
+        computeFrom([path.quantity, path.unitPrice, path.discount], path.total, (values) => {
+          const subtotal = values.quantity * values.unitPrice;
+          return subtotal - (subtotal * values.discount) / 100;
+        });
       };
 
       form.applyBehaviorSchema(behavior);
@@ -303,10 +309,8 @@ describe('Integration: Form + Validation + Behavior', () => {
 
       // Behavior: compute fullName (sources first, target second)
       const behavior: BehaviorSchemaFn<ProfileForm> = (path: FieldPath<ProfileForm>) => {
-        computeFrom(
-          [path.firstName, path.lastName],
-          path.fullName,
-          (values) => `${values.firstName} ${values.lastName}`.trim()
+        computeFrom([path.firstName, path.lastName], path.fullName, (values) =>
+          `${values.firstName} ${values.lastName}`.trim()
         );
       };
 

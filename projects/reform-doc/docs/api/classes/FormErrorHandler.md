@@ -5,6 +5,7 @@ Defined in: [core/utils/error-handler.ts:78](https://github.com/AlexandrBukhtaty
 Централизованный обработчик ошибок для форм
 
 Обеспечивает:
+
 - Единообразное логирование ошибок в DEV режиме
 - Гибкие стратегии обработки (throw/log/convert)
 - Типобезопасное извлечение сообщений из Error/string/unknown
@@ -85,15 +86,11 @@ ValidationError объект
 #### Example
 
 ```typescript
-const error = FormErrorHandler.createValidationError(
-  'required',
-  'This field is required',
-  'email'
-);
+const error = FormErrorHandler.createValidationError('required', 'This field is required', 'email');
 // { code: 'required', message: 'This field is required', field: 'email' }
 ```
 
-***
+---
 
 ### handle()
 
@@ -152,16 +149,12 @@ try {
 try {
   await validator(value);
 } catch (error) {
-  const validationError = FormErrorHandler.handle(
-    error,
-    'AsyncValidator',
-    ErrorStrategy.CONVERT
-  );
+  const validationError = FormErrorHandler.handle(error, 'AsyncValidator', ErrorStrategy.CONVERT);
   return validationError;
 }
 ```
 
-***
+---
 
 ### isValidationError()
 

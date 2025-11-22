@@ -25,7 +25,7 @@ console.log(array.length.value); // 1
 
 ### T
 
-`T` *extends* [`FormFields`](../type-aliases/FormFields.md)
+`T` _extends_ [`FormFields`](../type-aliases/FormFields.md)
 
 ## Constructors
 
@@ -68,7 +68,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_dirty`](FormNode.md#_dirty)
 
-***
+---
 
 ### \_status
 
@@ -83,7 +83,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_status`](FormNode.md#_status)
 
-***
+---
 
 ### \_touched
 
@@ -98,7 +98,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_touched`](FormNode.md#_touched)
 
-***
+---
 
 ### dirty
 
@@ -107,13 +107,13 @@ Protected: наследники могут читать/изменять чер�
 Defined in: [core/nodes/array-node.ts:70](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/array-node.ts#L70)
 
 Значение узла было изменено (dirty)
-Computed из _dirty для предоставления readonly интерфейса
+Computed из \_dirty для предоставления readonly интерфейса
 
 #### Overrides
 
 [`FormNode`](FormNode.md).[`dirty`](FormNode.md#dirty)
 
-***
+---
 
 ### disabled
 
@@ -127,7 +127,7 @@ Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`disabled`](FormNode.md#disabled)
 
-***
+---
 
 ### enabled
 
@@ -141,7 +141,7 @@ Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`enabled`](FormNode.md#enabled)
 
-***
+---
 
 ### errors
 
@@ -155,7 +155,7 @@ Defined in: [core/nodes/array-node.ts:72](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`errors`](FormNode.md#errors)
 
-***
+---
 
 ### invalid
 
@@ -169,7 +169,7 @@ Defined in: [core/nodes/array-node.ts:68](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`invalid`](FormNode.md#invalid)
 
-***
+---
 
 ### length
 
@@ -177,7 +177,7 @@ Defined in: [core/nodes/array-node.ts:68](https://github.com/AlexandrBukhtatyy/R
 
 Defined in: [core/nodes/array-node.ts:74](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/array-node.ts#L74)
 
-***
+---
 
 ### pending
 
@@ -191,7 +191,7 @@ Defined in: [core/nodes/array-node.ts:71](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`pending`](FormNode.md#pending)
 
-***
+---
 
 ### pristine
 
@@ -205,7 +205,7 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`pristine`](FormNode.md#pristine)
 
-***
+---
 
 ### status
 
@@ -214,13 +214,13 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 Defined in: [core/nodes/array-node.ts:73](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/array-node.ts#L73)
 
 Текущий статус узла
-Computed из _status для предоставления readonly интерфейса
+Computed из \_status для предоставления readonly интерфейса
 
 #### Overrides
 
 [`FormNode`](FormNode.md).[`status`](FormNode.md#status)
 
-***
+---
 
 ### touched
 
@@ -229,13 +229,13 @@ Computed из _status для предоставления readonly интерф�
 Defined in: [core/nodes/array-node.ts:69](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/array-node.ts#L69)
 
 Пользователь взаимодействовал с узлом (touched)
-Computed из _touched для предоставления readonly интерфейса
+Computed из \_touched для предоставления readonly интерфейса
 
 #### Overrides
 
 [`FormNode`](FormNode.md).[`touched`](FormNode.md#touched)
 
-***
+---
 
 ### untouched
 
@@ -249,7 +249,7 @@ Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`untouched`](FormNode.md#untouched)
 
-***
+---
 
 ### valid
 
@@ -263,7 +263,7 @@ Defined in: [core/nodes/array-node.ts:67](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`valid`](FormNode.md#valid)
 
-***
+---
 
 ### value
 
@@ -272,6 +272,7 @@ Defined in: [core/nodes/array-node.ts:67](https://github.com/AlexandrBukhtatyy/R
 Defined in: [core/nodes/array-node.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/array-node.ts#L66)
 
 Текущее значение узла
+
 - Для FieldNode: значение поля
 - Для GroupNode: объект со значениями всех полей
 - Для ArrayNode: массив значений элементов
@@ -312,7 +313,7 @@ import { addressBehavior } from './behaviors/address-behavior';
 form.addresses.applyBehaviorSchema(addressBehavior);
 ```
 
-***
+---
 
 ### applyValidationSchema()
 
@@ -323,6 +324,7 @@ Defined in: [core/nodes/array-node.ts:426](https://github.com/AlexandrBukhtatyy/
 Применить validation schema ко всем элементам массива
 
 Validation schema будет применена к:
+
 - Всем существующим элементам
 - Всем новым элементам, добавляемым через push/insert
 
@@ -346,7 +348,7 @@ import { propertyValidation } from './validation/property-validation';
 form.properties.applyValidationSchema(propertyValidation);
 ```
 
-***
+---
 
 ### at()
 
@@ -370,7 +372,7 @@ Defined in: [core/nodes/array-node.ts:188](https://github.com/AlexandrBukhtatyy/
 
 Типизированный GroupNode или undefined если индекс вне границ
 
-***
+---
 
 ### clear()
 
@@ -384,7 +386,7 @@ Defined in: [core/nodes/array-node.ts:179](https://github.com/AlexandrBukhtatyy/
 
 `void`
 
-***
+---
 
 ### clearErrors()
 
@@ -402,7 +404,7 @@ Defined in: [core/nodes/array-node.ts:288](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`clearErrors`](FormNode.md#clearerrors)
 
-***
+---
 
 ### disable()
 
@@ -425,7 +427,7 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`disable`](FormNode.md#disable)
 
-***
+---
 
 ### dispose()
 
@@ -454,7 +456,7 @@ useEffect(() => {
 
 [`FormNode`](FormNode.md).[`dispose`](FormNode.md#dispose)
 
-***
+---
 
 ### enable()
 
@@ -475,7 +477,7 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`enable`](FormNode.md#enable)
 
-***
+---
 
 ### forEach()
 
@@ -497,7 +499,7 @@ Defined in: [core/nodes/array-node.ts:340](https://github.com/AlexandrBukhtatyy/
 
 `void`
 
-***
+---
 
 ### getErrors()
 
@@ -508,6 +510,7 @@ Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/R
 Получить ошибки валидации с фильтрацией
 
 Позволяет фильтровать ошибки по различным критериям:
+
 - По коду ошибки
 - По сообщению (частичное совпадение)
 - По параметрам
@@ -546,12 +549,12 @@ const passwordErrors = form.getErrors({ message: 'Password' });
 
 // Ошибки по параметрам
 const minLengthErrors = form.getErrors({
-  params: { minLength: 8 }
+  params: { minLength: 8 },
 });
 
 // Кастомная фильтрация
 const customErrors = form.getErrors({
-  predicate: (err) => err.code.startsWith('custom_')
+  predicate: (err) => err.code.startsWith('custom_'),
 });
 ```
 
@@ -559,7 +562,7 @@ const customErrors = form.getErrors({
 
 [`FormNode`](FormNode.md).[`getErrors`](FormNode.md#geterrors)
 
-***
+---
 
 ### getValue()
 
@@ -578,7 +581,7 @@ Defined in: [core/nodes/array-node.ts:196](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`getValue`](FormNode.md#getvalue)
 
-***
+---
 
 ### insert()
 
@@ -606,7 +609,7 @@ Defined in: [core/nodes/array-node.ts:160](https://github.com/AlexandrBukhtatyy/
 
 `void`
 
-***
+---
 
 ### map()
 
@@ -636,7 +639,7 @@ Defined in: [core/nodes/array-node.ts:351](https://github.com/AlexandrBukhtatyy/
 
 Новый массив результатов
 
-***
+---
 
 ### markAsDirty()
 
@@ -657,7 +660,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsDirty`](FormNode.md#markasdirty)
 
-***
+---
 
 ### markAsPristine()
 
@@ -678,7 +681,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsPristine`](FormNode.md#markaspristine)
 
-***
+---
 
 ### markAsTouched()
 
@@ -699,7 +702,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsTouched`](FormNode.md#markastouched)
 
-***
+---
 
 ### markAsUntouched()
 
@@ -720,7 +723,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsUntouched`](FormNode.md#markasuntouched)
 
-***
+---
 
 ### onDisable()
 
@@ -743,7 +746,7 @@ Hook: вызывается после disable()
 form.items.disable();
 
 // Все элементы становятся disabled
-form.items.forEach(item => {
+form.items.forEach((item) => {
   console.log(item.status.value); // 'disabled'
 });
 ```
@@ -752,7 +755,7 @@ form.items.forEach(item => {
 
 [`FormNode`](FormNode.md).[`onDisable`](FormNode.md#ondisable)
 
-***
+---
 
 ### onEnable()
 
@@ -775,7 +778,7 @@ Hook: вызывается после enable()
 form.items.enable();
 
 // Все элементы становятся enabled
-form.items.forEach(item => {
+form.items.forEach((item) => {
   console.log(item.status.value); // 'valid' или 'invalid'
 });
 ```
@@ -784,7 +787,7 @@ form.items.forEach(item => {
 
 [`FormNode`](FormNode.md).[`onEnable`](FormNode.md#onenable)
 
-***
+---
 
 ### onMarkAsDirty()
 
@@ -804,7 +807,7 @@ Hook: вызывается после markAsDirty()
 
 [`FormNode`](FormNode.md).[`onMarkAsDirty`](FormNode.md#onmarkasdirty)
 
-***
+---
 
 ### onMarkAsPristine()
 
@@ -824,7 +827,7 @@ Hook: вызывается после markAsPristine()
 
 [`FormNode`](FormNode.md).[`onMarkAsPristine`](FormNode.md#onmarkaspristine)
 
-***
+---
 
 ### onMarkAsTouched()
 
@@ -844,7 +847,7 @@ Hook: вызывается после markAsTouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsTouched`](FormNode.md#onmarkastouched)
 
-***
+---
 
 ### onMarkAsUntouched()
 
@@ -864,7 +867,7 @@ Hook: вызывается после markAsUntouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsUntouched`](FormNode.md#onmarkasuntouched)
 
-***
+---
 
 ### patchValue()
 
@@ -891,7 +894,7 @@ Defined in: [core/nodes/array-node.ts:213](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`patchValue`](FormNode.md#patchvalue)
 
-***
+---
 
 ### push()
 
@@ -913,7 +916,7 @@ Defined in: [core/nodes/array-node.ts:133](https://github.com/AlexandrBukhtatyy/
 
 `void`
 
-***
+---
 
 ### removeAt()
 
@@ -935,7 +938,7 @@ Defined in: [core/nodes/array-node.ts:142](https://github.com/AlexandrBukhtatyy/
 
 `void`
 
-***
+---
 
 ### reset()
 
@@ -975,7 +978,7 @@ arrayNode.reset([{ name: 'Item 1' }, { name: 'Item 2' }]);
 
 [`FormNode`](FormNode.md).[`reset`](FormNode.md#reset)
 
-***
+---
 
 ### resetToInitial()
 
@@ -995,6 +998,7 @@ Defined in: [core/nodes/array-node.ts:273](https://github.com/AlexandrBukhtatyy/
 Более явный способ сброса к начальным значениям по сравнению с reset()
 
 Полезно когда:
+
 - Пользователь нажал "Cancel" - вернуть массив к исходным элементам
 - Массив был изменен через reset(newValues), но нужно вернуться к началу
 - Явное намерение показать "отмена всех изменений"
@@ -1002,10 +1006,10 @@ Defined in: [core/nodes/array-node.ts:273](https://github.com/AlexandrBukhtatyy/
 #### Example
 
 ```typescript
-const arrayNode = new ArrayNode(
-  { name: { value: '', component: Input } },
-  [{ name: 'Initial 1' }, { name: 'Initial 2' }]
-);
+const arrayNode = new ArrayNode({ name: { value: '', component: Input } }, [
+  { name: 'Initial 1' },
+  { name: 'Initial 2' },
+]);
 
 arrayNode.push({ name: 'New Item' });
 arrayNode.reset([{ name: 'Temp' }]);
@@ -1016,7 +1020,7 @@ console.log(arrayNode.length.value); // 2
 console.log(arrayNode.at(0)?.name.value.value); // 'Initial 1'
 ```
 
-***
+---
 
 ### setErrors()
 
@@ -1040,7 +1044,7 @@ Defined in: [core/nodes/array-node.ts:283](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setErrors`](FormNode.md#seterrors)
 
-***
+---
 
 ### setValue()
 
@@ -1070,7 +1074,7 @@ Defined in: [core/nodes/array-node.ts:200](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setValue`](FormNode.md#setvalue)
 
-***
+---
 
 ### touchAll()
 
@@ -1083,6 +1087,7 @@ Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/R
 пометить ВСЕ поля рекурсивно
 
 Полезно для:
+
 - Показа всех ошибок валидации перед submit
 - Принудительного отображения ошибок при нажатии "Validate All"
 - Отображения невалидных полей в wizard/step form
@@ -1111,7 +1116,7 @@ await form.submit(async (values) => {
 
 [`FormNode`](FormNode.md).[`touchAll`](FormNode.md#touchall)
 
-***
+---
 
 ### validate()
 
@@ -1131,7 +1136,7 @@ Defined in: [core/nodes/array-node.ts:278](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`validate`](FormNode.md#validate)
 
-***
+---
 
 ### watchItems()
 
@@ -1146,7 +1151,7 @@ Defined in: [core/nodes/array-node.ts:500](https://github.com/AlexandrBukhtatyy/
 
 ##### K
 
-`K` *extends* `string` \| `number` \| `symbol`
+`K` _extends_ `string` \| `number` \| `symbol`
 
 #### Parameters
 
@@ -1176,13 +1181,10 @@ Defined in: [core/nodes/array-node.ts:500](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 // Автоматический пересчет общей стоимости при изменении цен
-const dispose = form.existingLoans.watchItems(
-  'remainingAmount',
-  (amounts) => {
-    const totalDebt = amounts.reduce((sum, amount) => sum + (amount || 0), 0);
-    form.totalDebt.setValue(totalDebt);
-  }
-);
+const dispose = form.existingLoans.watchItems('remainingAmount', (amounts) => {
+  const totalDebt = amounts.reduce((sum, amount) => sum + (amount || 0), 0);
+  form.totalDebt.setValue(totalDebt);
+});
 
 // При изменении любого remainingAmount → пересчитается totalDebt
 form.existingLoans.at(0)?.remainingAmount.setValue(500000);
@@ -1191,7 +1193,7 @@ form.existingLoans.at(0)?.remainingAmount.setValue(500000);
 useEffect(() => dispose, []);
 ```
 
-***
+---
 
 ### watchLength()
 

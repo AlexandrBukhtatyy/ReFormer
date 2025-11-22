@@ -5,6 +5,7 @@
 Defined in: [core/types/deep-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L87)
 
 Автоматически определяет тип схемы на основе TypeScript типа:
+
 - `T[] -> [FormSchema<T>]` (массив с одним элементом)
 - `object -> FormSchema<T>` (группа)
 - `primitive -> FieldConfig<T>` (поле)
@@ -21,12 +22,14 @@ Defined in: [core/types/deep-schema.ts:87](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 interface Form {
-  name: string;                    // → FieldConfig<string>
-  address: {                       // → FormSchema<Address>
+  name: string; // → FieldConfig<string>
+  address: {
+    // → FormSchema<Address>
     city: string;
     street: string;
   };
-  items?: Array<{                  // → [FormSchema<Item>] (опциональный)
+  items?: Array<{
+    // → [FormSchema<Item>] (опциональный)
     title: string;
     price: number;
   }>;
@@ -38,9 +41,11 @@ const schema: FormSchema<Form> = {
     city: { value: '', component: Input },
     street: { value: '', component: Input },
   },
-  items: [{
-    title: { value: '', component: Input },
-    price: { value: 0, component: Input },
-  }],
+  items: [
+    {
+      title: { value: '', component: Input },
+      price: { value: 0, component: Input },
+    },
+  ],
 };
 ```

@@ -69,7 +69,7 @@ Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukh
 
 ### T
 
-`T` *extends* [`FormFields`](FormFields.md)
+`T` _extends_ [`FormFields`](FormFields.md)
 
 Тип модели данных элемента массива
 

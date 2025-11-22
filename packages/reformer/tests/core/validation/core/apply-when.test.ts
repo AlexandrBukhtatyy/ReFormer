@@ -23,7 +23,9 @@ describe('applyWhen', () => {
         details: { value: '', component: null as ComponentInstance },
       });
 
-      const validation: ValidationSchemaFn<ConditionalForm> = (path: FieldPath<ConditionalForm>) => {
+      const validation: ValidationSchemaFn<ConditionalForm> = (
+        path: FieldPath<ConditionalForm>
+      ) => {
         applyWhen(
           path.type,
           (type) => type === 'special',
@@ -54,7 +56,9 @@ describe('applyWhen', () => {
         details: { value: '', component: null as ComponentInstance },
       });
 
-      const validation: ValidationSchemaFn<ConditionalForm> = (path: FieldPath<ConditionalForm>) => {
+      const validation: ValidationSchemaFn<ConditionalForm> = (
+        path: FieldPath<ConditionalForm>
+      ) => {
         applyWhen(
           path.type,
           (type) => type === 'special',

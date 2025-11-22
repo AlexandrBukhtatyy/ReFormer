@@ -17,7 +17,7 @@ Defined in: [core/types/field-path.ts:45](https://github.com/AlexandrBukhtatyy/R
 
 ### TKey
 
-`TKey` *extends* keyof `TForm` = keyof `TForm`
+`TKey` _extends_ keyof `TForm` = keyof `TForm`
 
 ## Properties
 
@@ -29,7 +29,7 @@ Defined in: [core/types/field-path.ts:53](https://github.com/AlexandrBukhtatyy/R
 
 Тип поля
 
-***
+---
 
 ### \_\_formType?
 
@@ -39,7 +39,7 @@ Defined in: [core/types/field-path.ts:51](https://github.com/AlexandrBukhtatyy/R
 
 Тип формы
 
-***
+---
 
 ### \_\_key
 
@@ -49,7 +49,7 @@ Defined in: [core/types/field-path.ts:47](https://github.com/AlexandrBukhtatyy/R
 
 Ключ поля
 
-***
+---
 
 ### \_\_path
 

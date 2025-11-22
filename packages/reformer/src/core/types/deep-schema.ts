@@ -91,4 +91,3 @@ export type FormSchema<T> = {
         ? FieldConfig<T[K]>
         : FormSchema<NonNullable<T[K]>>;
 };
-

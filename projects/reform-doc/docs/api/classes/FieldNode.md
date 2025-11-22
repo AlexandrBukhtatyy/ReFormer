@@ -65,7 +65,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_dirty`](FormNode.md#_dirty)
 
-***
+---
 
 ### \_status
 
@@ -80,7 +80,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_status`](FormNode.md#_status)
 
-***
+---
 
 ### \_touched
 
@@ -95,7 +95,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_touched`](FormNode.md#_touched)
 
-***
+---
 
 ### component
 
@@ -103,7 +103,7 @@ Protected: наследники могут читать/изменять чер�
 
 Defined in: [core/nodes/field-node.ts:80](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L80)
 
-***
+---
 
 ### componentProps
 
@@ -111,7 +111,7 @@ Defined in: [core/nodes/field-node.ts:80](https://github.com/AlexandrBukhtatyy/R
 
 Defined in: [core/nodes/field-node.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L53)
 
-***
+---
 
 ### dirty
 
@@ -120,13 +120,13 @@ Defined in: [core/nodes/field-node.ts:53](https://github.com/AlexandrBukhtatyy/R
 Defined in: [core/nodes/form-node.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L78)
 
 Значение узла было изменено (dirty)
-Computed из _dirty для предоставления readonly интерфейса
+Computed из \_dirty для предоставления readonly интерфейса
 
 #### Inherited from
 
 [`FormNode`](FormNode.md).[`dirty`](FormNode.md#dirty)
 
-***
+---
 
 ### disabled
 
@@ -140,7 +140,7 @@ Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`disabled`](FormNode.md#disabled)
 
-***
+---
 
 ### enabled
 
@@ -154,7 +154,7 @@ Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`enabled`](FormNode.md#enabled)
 
-***
+---
 
 ### errors
 
@@ -168,7 +168,7 @@ Defined in: [core/nodes/field-node.ts:52](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`errors`](FormNode.md#errors)
 
-***
+---
 
 ### invalid
 
@@ -182,7 +182,7 @@ Defined in: [core/nodes/field-node.ts:49](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`invalid`](FormNode.md#invalid)
 
-***
+---
 
 ### pending
 
@@ -196,7 +196,7 @@ Defined in: [core/nodes/field-node.ts:51](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`pending`](FormNode.md#pending)
 
-***
+---
 
 ### pristine
 
@@ -210,7 +210,7 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`pristine`](FormNode.md#pristine)
 
-***
+---
 
 ### shouldShowError
 
@@ -221,7 +221,7 @@ Defined in: [core/nodes/field-node.ts:59](https://github.com/AlexandrBukhtatyy/R
 Вычисляемое свойство: нужно ли показывать ошибку
 Ошибка показывается если поле невалидно И (touched ИЛИ dirty)
 
-***
+---
 
 ### status
 
@@ -230,13 +230,13 @@ Defined in: [core/nodes/field-node.ts:59](https://github.com/AlexandrBukhtatyy/R
 Defined in: [core/nodes/form-node.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L89)
 
 Текущий статус узла
-Computed из _status для предоставления readonly интерфейса
+Computed из \_status для предоставления readonly интерфейса
 
 #### Inherited from
 
 [`FormNode`](FormNode.md).[`status`](FormNode.md#status)
 
-***
+---
 
 ### touched
 
@@ -245,13 +245,13 @@ Computed из _status для предоставления readonly интерф�
 Defined in: [core/nodes/form-node.ts:67](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L67)
 
 Пользователь взаимодействовал с узлом (touched)
-Computed из _touched для предоставления readonly интерфейса
+Computed из \_touched для предоставления readonly интерфейса
 
 #### Inherited from
 
 [`FormNode`](FormNode.md).[`touched`](FormNode.md#touched)
 
-***
+---
 
 ### untouched
 
@@ -265,7 +265,7 @@ Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`untouched`](FormNode.md#untouched)
 
-***
+---
 
 ### valid
 
@@ -279,7 +279,7 @@ Defined in: [core/nodes/field-node.ts:48](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`valid`](FormNode.md#valid)
 
-***
+---
 
 ### value
 
@@ -288,6 +288,7 @@ Defined in: [core/nodes/field-node.ts:48](https://github.com/AlexandrBukhtatyy/R
 Defined in: [core/nodes/field-node.ts:47](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L47)
 
 Текущее значение узла
+
 - Для FieldNode: значение поля
 - Для GroupNode: объект со значениями всех полей
 - Для ArrayNode: массив значений элементов
@@ -314,7 +315,7 @@ Defined in: [core/nodes/field-node.ts:389](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`clearErrors`](FormNode.md#clearerrors)
 
-***
+---
 
 ### computeFrom()
 
@@ -329,7 +330,7 @@ Defined in: [core/nodes/field-node.ts:535](https://github.com/AlexandrBukhtatyy/
 
 ##### TSource
 
-`TSource` *extends* readonly `unknown`[]
+`TSource` _extends_ readonly `unknown`[]
 
 #### Parameters
 
@@ -359,18 +360,15 @@ Defined in: [core/nodes/field-node.ts:535](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 // Автоматический расчет первоначального взноса (20% от стоимости)
-const dispose = form.initialPayment.computeFrom(
-  [form.propertyValue.value],
-  (propertyValue) => {
-    return propertyValue ? propertyValue * 0.2 : null;
-  }
-);
+const dispose = form.initialPayment.computeFrom([form.propertyValue.value], (propertyValue) => {
+  return propertyValue ? propertyValue * 0.2 : null;
+});
 
 // Cleanup
 useEffect(() => dispose, []);
 ```
 
-***
+---
 
 ### disable()
 
@@ -393,7 +391,7 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`disable`](FormNode.md#disable)
 
-***
+---
 
 ### dispose()
 
@@ -422,7 +420,7 @@ useEffect(() => {
 
 [`FormNode`](FormNode.md).[`dispose`](FormNode.md#dispose)
 
-***
+---
 
 ### enable()
 
@@ -443,7 +441,7 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`enable`](FormNode.md#enable)
 
-***
+---
 
 ### getErrors()
 
@@ -454,6 +452,7 @@ Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/R
 Получить ошибки валидации с фильтрацией
 
 Позволяет фильтровать ошибки по различным критериям:
+
 - По коду ошибки
 - По сообщению (частичное совпадение)
 - По параметрам
@@ -492,12 +491,12 @@ const passwordErrors = form.getErrors({ message: 'Password' });
 
 // Ошибки по параметрам
 const minLengthErrors = form.getErrors({
-  params: { minLength: 8 }
+  params: { minLength: 8 },
 });
 
 // Кастомная фильтрация
 const customErrors = form.getErrors({
-  predicate: (err) => err.code.startsWith('custom_')
+  predicate: (err) => err.code.startsWith('custom_'),
 });
 ```
 
@@ -505,7 +504,7 @@ const customErrors = form.getErrors({
 
 [`FormNode`](FormNode.md).[`getErrors`](FormNode.md#geterrors)
 
-***
+---
 
 ### getValue()
 
@@ -524,7 +523,7 @@ Defined in: [core/nodes/field-node.ts:128](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`getValue`](FormNode.md#getvalue)
 
-***
+---
 
 ### markAsDirty()
 
@@ -545,7 +544,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsDirty`](FormNode.md#markasdirty)
 
-***
+---
 
 ### markAsPristine()
 
@@ -566,7 +565,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsPristine`](FormNode.md#markaspristine)
 
-***
+---
 
 ### markAsTouched()
 
@@ -587,7 +586,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsTouched`](FormNode.md#markastouched)
 
-***
+---
 
 ### markAsUntouched()
 
@@ -608,7 +607,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsUntouched`](FormNode.md#markasuntouched)
 
-***
+---
 
 ### onDisable()
 
@@ -628,7 +627,7 @@ Hook: вызывается после disable()
 
 [`FormNode`](FormNode.md).[`onDisable`](FormNode.md#ondisable)
 
-***
+---
 
 ### onEnable()
 
@@ -648,7 +647,7 @@ Hook: вызывается после enable()
 
 [`FormNode`](FormNode.md).[`onEnable`](FormNode.md#onenable)
 
-***
+---
 
 ### onMarkAsDirty()
 
@@ -659,6 +658,7 @@ Defined in: [core/nodes/form-node.ts:442](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsDirty()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: может обновить родительскую форму
 - ArrayNode: может обновить родительскую форму
 - FieldNode: пустая реализация
@@ -671,7 +671,7 @@ Hook: вызывается после markAsDirty()
 
 [`FormNode`](FormNode.md).[`onMarkAsDirty`](FormNode.md#onmarkasdirty)
 
-***
+---
 
 ### onMarkAsPristine()
 
@@ -682,6 +682,7 @@ Defined in: [core/nodes/form-node.ts:454](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsPristine()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: пометить все дочерние узлы как pristine
 - ArrayNode: пометить все элементы массива как pristine
 - FieldNode: пустая реализация
@@ -694,7 +695,7 @@ Hook: вызывается после markAsPristine()
 
 [`FormNode`](FormNode.md).[`onMarkAsPristine`](FormNode.md#onmarkaspristine)
 
-***
+---
 
 ### onMarkAsTouched()
 
@@ -714,7 +715,7 @@ Hook: вызывается после markAsTouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsTouched`](FormNode.md#onmarkastouched)
 
-***
+---
 
 ### onMarkAsUntouched()
 
@@ -725,6 +726,7 @@ Defined in: [core/nodes/form-node.ts:430](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsUntouched()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: пометить все дочерние узлы как untouched
 - ArrayNode: пометить все элементы массива как untouched
 - FieldNode: пустая реализация (нет дочерних узлов)
@@ -737,7 +739,7 @@ Hook: вызывается после markAsUntouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsUntouched`](FormNode.md#onmarkasuntouched)
 
-***
+---
 
 ### patchValue()
 
@@ -766,7 +768,7 @@ Defined in: [core/nodes/field-node.ts:161](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`patchValue`](FormNode.md#patchvalue)
 
-***
+---
 
 ### reset()
 
@@ -791,6 +793,7 @@ Defined in: [core/nodes/field-node.ts:188](https://github.com/AlexandrBukhtatyy/
 #### Remarks
 
 Этот метод:
+
 - Устанавливает значение в value или initialValue
 - Очищает ошибки валидации
 - Сбрасывает touched/dirty флаги
@@ -812,7 +815,7 @@ field.reset('new value');
 
 [`FormNode`](FormNode.md).[`reset`](FormNode.md#reset)
 
-***
+---
 
 ### resetToInitial()
 
@@ -829,10 +832,12 @@ Defined in: [core/nodes/field-node.ts:221](https://github.com/AlexandrBukhtatyy/
 #### Remarks
 
 Алиас для reset() без параметров, но более явный:
+
 - resetToInitial() - явно показывает намерение вернуться к начальному значению
 - reset() - может принимать новое значение
 
 Полезно когда:
+
 - Пользователь нажал "Cancel" - вернуть форму в исходное состояние
 - Форма была изменена через reset(newValue), но нужно вернуться к самому началу
 - Явное намерение показать "отмену всех изменений"
@@ -850,7 +855,7 @@ field.resetToInitial();
 console.log(field.value.value); // 'initial'
 ```
 
-***
+---
 
 ### setErrors()
 
@@ -876,7 +881,7 @@ Defined in: [core/nodes/field-node.ts:384](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setErrors`](FormNode.md#seterrors)
 
-***
+---
 
 ### setUpdateOn()
 
@@ -908,8 +913,8 @@ const form = new GroupNode({
     value: '',
     component: Input,
     updateOn: 'submit', // Изначально валидация только при submit
-    validators: [required, email]
-  }
+    validators: [required, email],
+  },
 });
 
 await form.submit(async (values) => {
@@ -921,12 +926,12 @@ await form.submit(async (values) => {
 // Теперь валидация происходит при каждом изменении
 
 // Сценарий 2: Прогрессивное улучшение
-form.email.setUpdateOn('blur');  // Сначала только при blur
+form.email.setUpdateOn('blur'); // Сначала только при blur
 // ... пользователь начинает вводить ...
 form.email.setUpdateOn('change'); // Переключаем на change для real-time feedback
 ```
 
-***
+---
 
 ### setValue()
 
@@ -958,7 +963,7 @@ Defined in: [core/nodes/field-node.ts:132](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setValue`](FormNode.md#setvalue)
 
-***
+---
 
 ### touchAll()
 
@@ -971,6 +976,7 @@ Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/R
 пометить ВСЕ поля рекурсивно
 
 Полезно для:
+
 - Показа всех ошибок валидации перед submit
 - Принудительного отображения ошибок при нажатии "Validate All"
 - Отображения невалидных полей в wizard/step form
@@ -999,7 +1005,7 @@ await form.submit(async (values) => {
 
 [`FormNode`](FormNode.md).[`touchAll`](FormNode.md#touchall)
 
-***
+---
 
 ### updateComponentProps()
 
@@ -1024,11 +1030,11 @@ Defined in: [core/nodes/field-node.ts:438](https://github.com/AlexandrBukhtatyy/
 ```typescript
 // Обновление опций для Select после загрузки справочников
 form.registrationAddress.city.updateComponentProps({
-  options: cities
+  options: cities,
 });
 ```
 
-***
+---
 
 ### validate()
 
@@ -1073,7 +1079,7 @@ await field.validate({ debounce: 300 });
 
 [`FormNode`](FormNode.md).[`validate`](FormNode.md#validate)
 
-***
+---
 
 ### watch()
 

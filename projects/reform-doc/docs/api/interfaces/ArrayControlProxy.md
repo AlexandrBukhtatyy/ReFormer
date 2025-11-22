@@ -28,14 +28,14 @@ form.controls.items.forEach((item, i) => {
 });
 
 // Маппинг
-const titles = form.controls.items.map(item => item.title.value);
+const titles = form.controls.items.map((item) => item.title.value);
 ```
 
 ## Type Parameters
 
 ### T
 
-`T` *extends* [`FormFields`](../type-aliases/FormFields.md)
+`T` _extends_ [`FormFields`](../type-aliases/FormFields.md)
 
 ## Indexable
 
@@ -54,7 +54,7 @@ Defined in: [core/types/deep-schema.ts:255](https://github.com/AlexandrBukhtatyy
 
 Все ошибки валидации в массиве
 
-***
+---
 
 ### invalid
 
@@ -64,7 +64,7 @@ Defined in: [core/types/deep-schema.ts:250](https://github.com/AlexandrBukhtatyy
 
 Хотя бы один элемент массива невалиден
 
-***
+---
 
 ### items
 
@@ -74,7 +74,7 @@ Defined in: [core/types/deep-schema.ts:240](https://github.com/AlexandrBukhtatyy
 
 Массив всех элементов (реактивный)
 
-***
+---
 
 ### length
 
@@ -84,7 +84,7 @@ Defined in: [core/types/deep-schema.ts:235](https://github.com/AlexandrBukhtatyy
 
 Количество элементов в массиве (реактивное)
 
-***
+---
 
 ### valid
 
@@ -118,7 +118,7 @@ Defined in: [core/types/deep-schema.ts:292](https://github.com/AlexandrBukhtatyy
 
 Элемент или undefined если индекс вне границ
 
-***
+---
 
 ### clear()
 
@@ -132,7 +132,7 @@ Defined in: [core/types/deep-schema.ts:285](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### forEach()
 
@@ -154,7 +154,7 @@ Defined in: [core/types/deep-schema.ts:302](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### getValue()
 
@@ -168,7 +168,7 @@ Defined in: [core/types/deep-schema.ts:323](https://github.com/AlexandrBukhtatyy
 
 `T`[]
 
-***
+---
 
 ### insert()
 
@@ -197,7 +197,7 @@ Defined in: [core/types/deep-schema.ts:280](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### map()
 
@@ -227,7 +227,7 @@ Defined in: [core/types/deep-schema.ts:309](https://github.com/AlexandrBukhtatyy
 
 Новый массив результатов
 
-***
+---
 
 ### markAsTouched()
 
@@ -241,7 +241,7 @@ Defined in: [core/types/deep-schema.ts:334](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### push()
 
@@ -263,7 +263,7 @@ Defined in: [core/types/deep-schema.ts:265](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### remove()
 
@@ -286,7 +286,7 @@ Defined in: [core/types/deep-schema.ts:272](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### reset()
 
@@ -300,7 +300,7 @@ Defined in: [core/types/deep-schema.ts:339](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### setValue()
 
@@ -321,7 +321,7 @@ Defined in: [core/types/deep-schema.ts:329](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### validate()
 

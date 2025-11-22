@@ -179,11 +179,7 @@ describe('Integration: Nested Forms and Arrays', () => {
       // Behavior: compute tax (10%) and total from subtotal
       const behavior: BehaviorSchemaFn<OrderWithItems> = (path: FieldPath<OrderWithItems>) => {
         // Compute tax as 10% of subtotal (sources, target)
-        computeFrom(
-          [path.subtotal],
-          path.tax,
-          (values) => values.subtotal * 0.1
-        );
+        computeFrom([path.subtotal], path.tax, (values) => values.subtotal * 0.1);
 
         // Compute total as subtotal + tax (sources, target)
         computeFrom(

@@ -5,6 +5,7 @@ Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrB
 Сегмент пути к полю формы
 
 Представляет один сегмент в пути к полю, например:
+
 - `"email" → { key: 'email' }`
 - `"items[0]" → { key: 'items', index: 0 }`
 
@@ -12,10 +13,7 @@ Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrB
 
 ```typescript
 // Путь "items[0].name" разбивается на:
-[
-  { key: 'items', index: 0 },
-  { key: 'name' }
-]
+[{ key: 'items', index: 0 }, { key: 'name' }];
 ```
 
 ## Properties
@@ -29,7 +27,7 @@ Defined in: [core/utils/field-path-navigator.ts:29](https://github.com/AlexandrB
 Индекс в массиве (опционально)
 Присутствует только для сегментов вида "items[0]"
 
-***
+---
 
 ### key
 

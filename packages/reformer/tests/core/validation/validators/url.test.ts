@@ -42,12 +42,7 @@ describe('url validator', () => {
   });
 
   describe('invalid URLs', () => {
-    const invalidUrls = [
-      'not-a-url',
-      'ftp://invalid',
-      'just text',
-      '://missing-protocol.com',
-    ];
+    const invalidUrls = ['not-a-url', 'ftp://invalid', 'just text', '://missing-protocol.com'];
 
     it.each(invalidUrls)('should fail for invalid URL: %s', async (invalidUrl) => {
       const form = makeForm<UrlForm>({

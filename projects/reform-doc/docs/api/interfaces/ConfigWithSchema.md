@@ -12,7 +12,7 @@ Defined in: [core/types/index.ts:172](https://github.com/AlexandrBukhtatyy/ReFor
 
 Defined in: [core/types/index.ts:174](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L174)
 
-***
+---
 
 ### schema
 

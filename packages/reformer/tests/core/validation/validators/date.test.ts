@@ -124,7 +124,10 @@ describe('date validator', () => {
       futureDate.setFullYear(futureDate.getFullYear() + 1);
 
       const form = makeForm<DateForm>({
-        birthDate: { value: futureDate.toISOString().split('T')[0], component: null as ComponentInstance },
+        birthDate: {
+          value: futureDate.toISOString().split('T')[0],
+          component: null as ComponentInstance,
+        },
       });
 
       const validation: ValidationSchemaFn<DateForm> = (path: FieldPath<DateForm>) => {
@@ -145,7 +148,10 @@ describe('date validator', () => {
       pastDate.setFullYear(pastDate.getFullYear() - 1);
 
       const form = makeForm<DateForm>({
-        birthDate: { value: pastDate.toISOString().split('T')[0], component: null as ComponentInstance },
+        birthDate: {
+          value: pastDate.toISOString().split('T')[0],
+          component: null as ComponentInstance,
+        },
       });
 
       const validation: ValidationSchemaFn<DateForm> = (path: FieldPath<DateForm>) => {
@@ -167,7 +173,10 @@ describe('date validator', () => {
       birthDate.setFullYear(birthDate.getFullYear() - 10);
 
       const form = makeForm<DateForm>({
-        birthDate: { value: birthDate.toISOString().split('T')[0], component: null as ComponentInstance },
+        birthDate: {
+          value: birthDate.toISOString().split('T')[0],
+          component: null as ComponentInstance,
+        },
       });
 
       const validation: ValidationSchemaFn<DateForm> = (path: FieldPath<DateForm>) => {
@@ -187,7 +196,10 @@ describe('date validator', () => {
       birthDate.setFullYear(birthDate.getFullYear() - 20);
 
       const form = makeForm<DateForm>({
-        birthDate: { value: birthDate.toISOString().split('T')[0], component: null as ComponentInstance },
+        birthDate: {
+          value: birthDate.toISOString().split('T')[0],
+          component: null as ComponentInstance,
+        },
       });
 
       const validation: ValidationSchemaFn<DateForm> = (path: FieldPath<DateForm>) => {

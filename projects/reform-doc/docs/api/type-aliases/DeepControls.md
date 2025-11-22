@@ -7,6 +7,7 @@ Defined in: [core/types/deep-schema.ts:129](https://github.com/AlexandrBukhtatyy
 Типы контроллеров с учетом вложенности
 
 Предоставляет типобезопасный доступ к полям формы через Proxy:
+
 - Поля → FieldNode
 - Группы → DeepControls + GroupControlProxy
 - Массивы → ArrayControlProxy

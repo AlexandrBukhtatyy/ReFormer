@@ -4,6 +4,7 @@ Defined in: [core/types/validation-schema.ts:31](https://github.com/AlexandrBukh
 
 Контекст валидации для отдельного поля
 Предоставляет доступ к:
+
 - Значению текущего поля
 - Значениям других полей
 - Всей форме
@@ -32,7 +33,7 @@ Defined in: [core/types/validation-schema.ts:55](https://github.com/AlexandrBukh
 
 `TForm`
 
-***
+---
 
 ### getControl()
 
@@ -46,7 +47,7 @@ Defined in: [core/types/validation-schema.ts:60](https://github.com/AlexandrBukh
 
 `any`
 
-***
+---
 
 ### getField()
 
@@ -62,7 +63,7 @@ Defined in: [core/types/validation-schema.ts:41](https://github.com/AlexandrBukh
 
 ###### K
 
-`K` *extends* `string` \| `number` \| `symbol`
+`K` _extends_ `string` \| `number` \| `symbol`
 
 ##### Parameters
 
@@ -92,7 +93,7 @@ Defined in: [core/types/validation-schema.ts:42](https://github.com/AlexandrBukh
 
 `unknown`
 
-***
+---
 
 ### getForm()
 
@@ -106,7 +107,7 @@ Defined in: [core/types/validation-schema.ts:65](https://github.com/AlexandrBukh
 
 `any`
 
-***
+---
 
 ### setField()
 
@@ -122,7 +123,7 @@ Defined in: [core/types/validation-schema.ts:49](https://github.com/AlexandrBukh
 
 ###### K
 
-`K` *extends* `string` \| `number` \| `symbol`
+`K` _extends_ `string` \| `number` \| `symbol`
 
 ##### Parameters
 
@@ -162,7 +163,7 @@ Defined in: [core/types/validation-schema.ts:50](https://github.com/AlexandrBukh
 
 `void`
 
-***
+---
 
 ### value()
 

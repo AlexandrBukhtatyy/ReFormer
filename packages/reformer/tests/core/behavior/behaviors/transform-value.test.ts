@@ -4,7 +4,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { makeForm } from '../../../../src/core/utils/make-form';
-import { transformValue, transformers, createTransformer } from '../../../../src/core/behavior/behaviors/transform-value';
+import {
+  transformValue,
+  transformers,
+  createTransformer,
+} from '../../../../src/core/behavior/behaviors/transform-value';
 import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
 

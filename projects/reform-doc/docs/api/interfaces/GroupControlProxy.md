@@ -10,7 +10,7 @@ Defined in: [core/types/deep-schema.ts:146](https://github.com/AlexandrBukhtatyy
 
 ### T
 
-`T` *extends* [`FormFields`](../type-aliases/FormFields.md)
+`T` _extends_ [`FormFields`](../type-aliases/FormFields.md)
 
 ## Properties
 
@@ -22,7 +22,7 @@ Defined in: [core/types/deep-schema.ts:160](https://github.com/AlexandrBukhtatyy
 
 Хотя бы одно поле группы было изменено
 
-***
+---
 
 ### errors
 
@@ -32,7 +32,7 @@ Defined in: [core/types/deep-schema.ts:154](https://github.com/AlexandrBukhtatyy
 
 Все ошибки валидации в группе
 
-***
+---
 
 ### invalid
 
@@ -42,7 +42,7 @@ Defined in: [core/types/deep-schema.ts:151](https://github.com/AlexandrBukhtatyy
 
 Хотя бы одно поле группы невалидно
 
-***
+---
 
 ### touched
 
@@ -52,7 +52,7 @@ Defined in: [core/types/deep-schema.ts:157](https://github.com/AlexandrBukhtatyy
 
 Хотя бы одно поле группы было touched
 
-***
+---
 
 ### valid
 
@@ -76,7 +76,7 @@ Defined in: [core/types/deep-schema.ts:165](https://github.com/AlexandrBukhtatyy
 
 `T`
 
-***
+---
 
 ### markAsTouched()
 
@@ -90,7 +90,7 @@ Defined in: [core/types/deep-schema.ts:180](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### reset()
 
@@ -104,7 +104,7 @@ Defined in: [core/types/deep-schema.ts:185](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### setValue()
 
@@ -124,7 +124,7 @@ Defined in: [core/types/deep-schema.ts:170](https://github.com/AlexandrBukhtatyy
 
 `void`
 
-***
+---
 
 ### validate()
 

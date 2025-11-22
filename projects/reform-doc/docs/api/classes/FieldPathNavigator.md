@@ -79,9 +79,9 @@ Defined in: [core/utils/field-path-navigator.ts:291](https://github.com/Alexandr
 const form = new GroupNode({
   email: { value: 'test@mail.com', component: Input },
   address: {
-    city: { value: 'Moscow', component: Input }
+    city: { value: 'Moscow', component: Input },
   },
-  items: [{ title: { value: 'Item 1', component: Input } }]
+  items: [{ title: { value: 'Item 1', component: Input } }],
 });
 
 navigator.getFormNodeValue(form, 'email');
@@ -97,7 +97,7 @@ navigator.getFormNodeValue(form, 'invalid.path');
 // undefined
 ```
 
-***
+---
 
 ### getNodeByPath()
 
@@ -111,6 +111,7 @@ Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/Alexandr
 и возвращает узел по указанному пути.
 
 Поддерживает:
+
 - Доступ к полям GroupNode через fields Map
 - Доступ к элементам ArrayNode через индекс
 - Proxy-доступ к полям (для обратной совместимости)
@@ -141,9 +142,9 @@ Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/Alexandr
 const form = new GroupNode({
   email: { value: '', component: Input },
   address: {
-    city: { value: '', component: Input }
+    city: { value: '', component: Input },
   },
-  items: [{ title: { value: '', component: Input } }]
+  items: [{ title: { value: '', component: Input } }],
 });
 
 const emailNode = navigator.getNodeByPath(form, 'email');
@@ -162,7 +163,7 @@ const invalidNode = navigator.getNodeByPath(form, 'invalid.path');
 // null
 ```
 
-***
+---
 
 ### getValueByPath()
 
@@ -201,7 +202,7 @@ Defined in: [core/utils/field-path-navigator.ts:166](https://github.com/Alexandr
 const obj = {
   email: 'test@mail.com',
   address: { city: 'Moscow' },
-  items: [{ title: 'Item 1' }]
+  items: [{ title: 'Item 1' }],
 };
 
 navigator.getValueByPath(obj, 'email');
@@ -217,7 +218,7 @@ navigator.getValueByPath(obj, 'invalid.path');
 // undefined
 ```
 
-***
+---
 
 ### parsePath()
 
@@ -228,6 +229,7 @@ Defined in: [core/utils/field-path-navigator.ts:84](https://github.com/AlexandrB
 Парсит путь в массив сегментов
 
 Поддерживаемые форматы:
+
 - Простые пути: "name", "email"
 - Вложенные пути: "address.city", "user.profile.avatar"
 - Массивы: "items[0]", "items[0].name", "tags[1][0]"
@@ -260,7 +262,7 @@ navigator.parsePath('items[0].name');
 // [{ key: 'items', index: 0 }, { key: 'name' }]
 ```
 
-***
+---
 
 ### setValueByPath()
 

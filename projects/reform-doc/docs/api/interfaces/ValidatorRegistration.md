@@ -22,7 +22,7 @@ Defined in: [core/types/validation-schema.ts:175](https://github.com/AlexandrBuk
 
 > **fieldPath**: `string`
 
-***
+---
 
 ### fieldPath
 
@@ -30,7 +30,7 @@ Defined in: [core/types/validation-schema.ts:175](https://github.com/AlexandrBuk
 
 Defined in: [core/types/validation-schema.ts:168](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L168)
 
-***
+---
 
 ### options?
 
@@ -38,7 +38,7 @@ Defined in: [core/types/validation-schema.ts:168](https://github.com/AlexandrBuk
 
 Defined in: [core/types/validation-schema.ts:174](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L174)
 
-***
+---
 
 ### type
 
@@ -46,7 +46,7 @@ Defined in: [core/types/validation-schema.ts:174](https://github.com/AlexandrBuk
 
 Defined in: [core/types/validation-schema.ts:169](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L169)
 
-***
+---
 
 ### validator
 

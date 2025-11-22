@@ -116,11 +116,10 @@ describe('custom validator', () => {
       });
 
       const validation: ValidationSchemaFn<CustomForm> = (path: FieldPath<CustomForm>) => {
-        custom(
-          path.password,
-          (value) => value.length >= 8,
-          { code: 'password_weak', message: 'Password too weak' }
-        );
+        custom(path.password, (value) => value.length >= 8, {
+          code: 'password_weak',
+          message: 'Password too weak',
+        });
       };
 
       form.applyValidationSchema(validation);
@@ -137,11 +136,9 @@ describe('custom validator', () => {
       });
 
       const validation: ValidationSchemaFn<CustomForm> = (path: FieldPath<CustomForm>) => {
-        custom(
-          path.password,
-          (value) => value.length >= 8,
-          { message: 'Password must be at least 8 characters' }
-        );
+        custom(path.password, (value) => value.length >= 8, {
+          message: 'Password must be at least 8 characters',
+        });
       };
 
       form.applyValidationSchema(validation);
@@ -214,10 +211,10 @@ describe('custom validator', () => {
     it('should allow overriding options', async () => {
       // When validator returns a string, that string is used as the message
       // options.message only works when validator returns false
-      const minLength = createCustomValidator<string>(
-        (value) => value && value.length >= 3,
-        { code: 'min_length', message: 'Default message' }
-      );
+      const minLength = createCustomValidator<string>((value) => value && value.length >= 3, {
+        code: 'min_length',
+        message: 'Default message',
+      });
 
       const form = makeForm<CustomForm>({
         password: { value: '', component: null as ComponentInstance },

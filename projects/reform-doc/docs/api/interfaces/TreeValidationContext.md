@@ -25,7 +25,7 @@ Defined in: [core/types/validation-schema.ts:82](https://github.com/AlexandrBukh
 
 `TForm`
 
-***
+---
 
 ### getField()
 
@@ -41,7 +41,7 @@ Defined in: [core/types/validation-schema.ts:76](https://github.com/AlexandrBukh
 
 ###### K
 
-`K` *extends* `string` \| `number` \| `symbol`
+`K` _extends_ `string` \| `number` \| `symbol`
 
 ##### Parameters
 
@@ -69,7 +69,7 @@ Defined in: [core/types/validation-schema.ts:77](https://github.com/AlexandrBukh
 
 `unknown`
 
-***
+---
 
 ### getForm()
 

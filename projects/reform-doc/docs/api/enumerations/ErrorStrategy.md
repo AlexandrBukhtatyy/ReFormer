@@ -17,7 +17,7 @@ Defined in: [core/utils/error-handler.ts:43](https://github.com/AlexandrBukhtaty
 Конвертировать ошибку в ValidationError
 Используется в async validators для отображения ошибки валидации пользователю
 
-***
+---
 
 ### LOG
 
@@ -28,7 +28,7 @@ Defined in: [core/utils/error-handler.ts:37](https://github.com/AlexandrBukhtaty
 Залогировать и проглотить ошибку (продолжить выполнение)
 Используется когда ошибка не критична
 
-***
+---
 
 ### THROW
 

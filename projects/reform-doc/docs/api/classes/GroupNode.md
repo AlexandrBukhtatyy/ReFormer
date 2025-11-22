@@ -5,6 +5,7 @@ Defined in: [core/nodes/group-node.ts:78](https://github.com/AlexandrBukhtatyy/R
 GroupNode - узел для группы полей
 
 Поддерживает два API:
+
 1. Старый API (только schema) - обратная совместимость
 2. Новый API (config с form, behavior, validation) - автоматическое применение схем
 
@@ -48,7 +49,7 @@ console.log(fullForm.valid.value); // true
 
 ### T
 
-`T` *extends* `Record`\<`string`, [`FormValue`](../type-aliases/FormValue.md)\>
+`T` _extends_ `Record`\<`string`, [`FormValue`](../type-aliases/FormValue.md)\>
 
 ## Constructors
 
@@ -111,7 +112,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_dirty`](FormNode.md#_dirty)
 
-***
+---
 
 ### \_status
 
@@ -126,7 +127,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_status`](FormNode.md#_status)
 
-***
+---
 
 ### \_touched
 
@@ -141,7 +142,7 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_touched`](FormNode.md#_touched)
 
-***
+---
 
 ### dirty
 
@@ -150,13 +151,13 @@ Protected: наследники могут читать/изменять чер�
 Defined in: [core/nodes/group-node.ts:163](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/group-node.ts#L163)
 
 Значение узла было изменено (dirty)
-Computed из _dirty для предоставления readonly интерфейса
+Computed из \_dirty для предоставления readonly интерфейса
 
 #### Overrides
 
 [`FormNode`](FormNode.md).[`dirty`](FormNode.md#dirty)
 
-***
+---
 
 ### disabled
 
@@ -170,7 +171,7 @@ Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`disabled`](FormNode.md#disabled)
 
-***
+---
 
 ### enabled
 
@@ -184,7 +185,7 @@ Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`enabled`](FormNode.md#enabled)
 
-***
+---
 
 ### errors
 
@@ -198,7 +199,7 @@ Defined in: [core/nodes/group-node.ts:165](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`errors`](FormNode.md#errors)
 
-***
+---
 
 ### id
 
@@ -206,7 +207,7 @@ Defined in: [core/nodes/group-node.ts:165](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/nodes/group-node.ts:82](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/group-node.ts#L82)
 
-***
+---
 
 ### invalid
 
@@ -220,7 +221,7 @@ Defined in: [core/nodes/group-node.ts:161](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`invalid`](FormNode.md#invalid)
 
-***
+---
 
 ### pending
 
@@ -234,7 +235,7 @@ Defined in: [core/nodes/group-node.ts:164](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`pending`](FormNode.md#pending)
 
-***
+---
 
 ### pristine
 
@@ -248,7 +249,7 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`pristine`](FormNode.md#pristine)
 
-***
+---
 
 ### status
 
@@ -257,13 +258,13 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 Defined in: [core/nodes/group-node.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/group-node.ts#L166)
 
 Текущий статус узла
-Computed из _status для предоставления readonly интерфейса
+Computed из \_status для предоставления readonly интерфейса
 
 #### Overrides
 
 [`FormNode`](FormNode.md).[`status`](FormNode.md#status)
 
-***
+---
 
 ### submitting
 
@@ -271,7 +272,7 @@ Computed из _status для предоставления readonly интерф�
 
 Defined in: [core/nodes/group-node.ts:167](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/group-node.ts#L167)
 
-***
+---
 
 ### touched
 
@@ -280,13 +281,13 @@ Defined in: [core/nodes/group-node.ts:167](https://github.com/AlexandrBukhtatyy/
 Defined in: [core/nodes/group-node.ts:162](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/group-node.ts#L162)
 
 Пользователь взаимодействовал с узлом (touched)
-Computed из _touched для предоставления readonly интерфейса
+Computed из \_touched для предоставления readonly интерфейса
 
 #### Overrides
 
 [`FormNode`](FormNode.md).[`touched`](FormNode.md#touched)
 
-***
+---
 
 ### untouched
 
@@ -300,7 +301,7 @@ Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`untouched`](FormNode.md#untouched)
 
-***
+---
 
 ### valid
 
@@ -314,7 +315,7 @@ Defined in: [core/nodes/group-node.ts:160](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`valid`](FormNode.md#valid)
 
-***
+---
 
 ### value
 
@@ -323,6 +324,7 @@ Defined in: [core/nodes/group-node.ts:160](https://github.com/AlexandrBukhtatyy/
 Defined in: [core/nodes/group-node.ts:159](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/group-node.ts#L159)
 
 Текущее значение узла
+
 - Для FieldNode: значение поля
 - Для GroupNode: объект со значениями всех полей
 - Для ArrayNode: массив значений элементов
@@ -364,6 +366,7 @@ Defined in: [core/nodes/group-node.ts:589](https://github.com/AlexandrBukhtatyy/
 ✅ РЕФАКТОРИНГ: Делегирование BehaviorApplicator (SRP)
 
 Логика применения behavior схемы извлечена в BehaviorApplicator для:
+
 - Соблюдения Single Responsibility Principle
 - Уменьшения размера GroupNode (~50 строк)
 - Улучшения тестируемости
@@ -394,15 +397,13 @@ import { copyFrom, enableWhen, computeFrom } from '@/lib/forms/core/behaviors';
 
 const behaviorSchema: BehaviorSchemaFn<MyForm> = (path) => {
   copyFrom(path.residenceAddress, path.registrationAddress, {
-    when: (form) => form.sameAsRegistration === true
+    when: (form) => form.sameAsRegistration === true,
   });
 
   enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage');
 
-  computeFrom(
-    path.initialPayment,
-    [path.propertyValue],
-    (propertyValue) => propertyValue ? propertyValue * 0.2 : null
+  computeFrom(path.initialPayment, [path.propertyValue], (propertyValue) =>
+    propertyValue ? propertyValue * 0.2 : null
   );
 };
 
@@ -412,7 +413,7 @@ const cleanup = form.applyBehaviorSchema(behaviorSchema);
 useEffect(() => cleanup, []);
 ```
 
-***
+---
 
 ### applyContextualValidators()
 
@@ -425,6 +426,7 @@ Defined in: [core/nodes/group-node.ts:679](https://github.com/AlexandrBukhtatyy/
 ✅ РЕФАКТОРИНГ: Делегирование ValidationApplicator (SRP)
 
 Логика применения валидаторов извлечена в ValidationApplicator для:
+
 - Соблюдения Single Responsibility Principle
 - Уменьшения размера GroupNode (~120 строк)
 - Улучшения тестируемости
@@ -441,7 +443,7 @@ Defined in: [core/nodes/group-node.ts:679](https://github.com/AlexandrBukhtatyy/
 
 `Promise`\<`void`\>
 
-***
+---
 
 ### applyValidationSchema()
 
@@ -464,7 +466,7 @@ Defined in: [core/nodes/group-node.ts:536](https://github.com/AlexandrBukhtatyy/
 
 `void`
 
-***
+---
 
 ### clearErrors()
 
@@ -482,7 +484,7 @@ Defined in: [core/nodes/group-node.ts:377](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`clearErrors`](FormNode.md#clearerrors)
 
-***
+---
 
 ### disable()
 
@@ -505,7 +507,7 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`disable`](FormNode.md#disable)
 
-***
+---
 
 ### dispose()
 
@@ -534,7 +536,7 @@ useEffect(() => {
 
 [`FormNode`](FormNode.md).[`dispose`](FormNode.md#dispose)
 
-***
+---
 
 ### enable()
 
@@ -555,7 +557,7 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`enable`](FormNode.md#enable)
 
-***
+---
 
 ### getAllFields()
 
@@ -577,12 +579,10 @@ Defined in: [core/nodes/group-node.ts:461](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 // Валидация всех полей
-await Promise.all(
-  Array.from(form.getAllFields()).map(field => field.validate())
-);
+await Promise.all(Array.from(form.getAllFields()).map((field) => field.validate()));
 ```
 
-***
+---
 
 ### getErrors()
 
@@ -593,6 +593,7 @@ Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/R
 Получить ошибки валидации с фильтрацией
 
 Позволяет фильтровать ошибки по различным критериям:
+
 - По коду ошибки
 - По сообщению (частичное совпадение)
 - По параметрам
@@ -631,12 +632,12 @@ const passwordErrors = form.getErrors({ message: 'Password' });
 
 // Ошибки по параметрам
 const minLengthErrors = form.getErrors({
-  params: { minLength: 8 }
+  params: { minLength: 8 },
 });
 
 // Кастомная фильтрация
 const customErrors = form.getErrors({
-  predicate: (err) => err.code.startsWith('custom_')
+  predicate: (err) => err.code.startsWith('custom_'),
 });
 ```
 
@@ -644,7 +645,7 @@ const customErrors = form.getErrors({
 
 [`FormNode`](FormNode.md).[`getErrors`](FormNode.md#geterrors)
 
-***
+---
 
 ### getField()
 
@@ -660,7 +661,7 @@ Defined in: [core/nodes/group-node.ts:401](https://github.com/AlexandrBukhtatyy/
 
 ##### K
 
-`K` *extends* `string` \| `number` \| `symbol`
+`K` _extends_ `string` \| `number` \| `symbol`
 
 #### Parameters
 
@@ -685,7 +686,7 @@ if (emailField) {
 }
 ```
 
-***
+---
 
 ### getFieldByPath()
 
@@ -696,6 +697,7 @@ Defined in: [core/nodes/group-node.ts:622](https://github.com/AlexandrBukhtatyy/
 Получить вложенное поле по пути
 
 Поддерживаемые форматы путей:
+
 - Simple: "email" - получить поле верхнего уровня
 - Nested: "address.city" - получить вложенное поле
 - Array index: "items[0]" - получить элемент массива по индексу
@@ -721,19 +723,19 @@ FormNode если найдено, undefined если путь не сущест�
 const form = new GroupNode({
   email: { value: '', component: Input },
   address: {
-    city: { value: '', component: Input }
+    city: { value: '', component: Input },
   },
-  items: [{ name: { value: '', component: Input } }]
+  items: [{ name: { value: '', component: Input } }],
 });
 
-form.getFieldByPath('email');           // FieldNode
-form.getFieldByPath('address.city');    // FieldNode
-form.getFieldByPath('items[0]');        // GroupNode
-form.getFieldByPath('items[0].name');   // FieldNode
-form.getFieldByPath('invalid.path');    // undefined
+form.getFieldByPath('email'); // FieldNode
+form.getFieldByPath('address.city'); // FieldNode
+form.getFieldByPath('items[0]'); // GroupNode
+form.getFieldByPath('items[0].name'); // FieldNode
+form.getFieldByPath('invalid.path'); // undefined
 ```
 
-***
+---
 
 ### getProxy()
 
@@ -744,10 +746,12 @@ Defined in: [core/nodes/group-node.ts:442](https://github.com/AlexandrBukhtatyy/
 Получить Proxy-инстанс для прямого доступа к полям
 
 Proxy позволяет обращаться к полям формы напрямую через точечную нотацию:
+
 - form.email вместо form.fields.get('email')
 - form.address.city вместо form.fields.get('address').fields.get('city')
 
 Используется в:
+
 - BehaviorApplicator для доступа к полям в behavior functions
 - ValidationApplicator для доступа к форме в tree validators
 
@@ -763,15 +767,15 @@ Proxy-инстанс с типобезопасным доступом к пол�
 const form = new GroupNode({
   controls: {
     email: new FieldNode({ value: '' }),
-    name: new FieldNode({ value: '' })
-  }
+    name: new FieldNode({ value: '' }),
+  },
 });
 
 const proxy = form.getProxy();
 console.log(proxy.email.value); // Прямой доступ к полю
 ```
 
-***
+---
 
 ### getValue()
 
@@ -790,7 +794,7 @@ Defined in: [core/nodes/group-node.ts:248](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`getValue`](FormNode.md#getvalue)
 
-***
+---
 
 ### linkFields()
 
@@ -805,11 +809,11 @@ Defined in: [core/nodes/group-node.ts:738](https://github.com/AlexandrBukhtatyy/
 
 ##### K1
 
-`K1` *extends* `string` \| `number` \| `symbol`
+`K1` _extends_ `string` \| `number` \| `symbol`
 
 ##### K2
 
-`K2` *extends* `string` \| `number` \| `symbol`
+`K2` _extends_ `string` \| `number` \| `symbol`
 
 #### Parameters
 
@@ -845,10 +849,8 @@ Defined in: [core/nodes/group-node.ts:738](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 // Автоматический расчет минимального взноса от стоимости недвижимости
-const dispose = form.linkFields(
-  'propertyValue',
-  'initialPayment',
-  (propertyValue) => propertyValue ? propertyValue * 0.2 : null
+const dispose = form.linkFields('propertyValue', 'initialPayment', (propertyValue) =>
+  propertyValue ? propertyValue * 0.2 : null
 );
 
 // При изменении propertyValue → автоматически обновится initialPayment
@@ -859,7 +861,7 @@ form.propertyValue.setValue(1000000);
 useEffect(() => dispose, []);
 ```
 
-***
+---
 
 ### markAsDirty()
 
@@ -880,7 +882,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsDirty`](FormNode.md#markasdirty)
 
-***
+---
 
 ### markAsPristine()
 
@@ -901,7 +903,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsPristine`](FormNode.md#markaspristine)
 
-***
+---
 
 ### markAsTouched()
 
@@ -922,7 +924,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsTouched`](FormNode.md#markastouched)
 
-***
+---
 
 ### markAsUntouched()
 
@@ -943,7 +945,7 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsUntouched`](FormNode.md#markasuntouched)
 
-***
+---
 
 ### onDisable()
 
@@ -963,7 +965,7 @@ Hook: вызывается после disable()
 
 [`FormNode`](FormNode.md).[`onDisable`](FormNode.md#ondisable)
 
-***
+---
 
 ### onEnable()
 
@@ -983,7 +985,7 @@ Hook: вызывается после enable()
 
 [`FormNode`](FormNode.md).[`onEnable`](FormNode.md#onenable)
 
-***
+---
 
 ### onMarkAsDirty()
 
@@ -1003,7 +1005,7 @@ Hook: вызывается после markAsDirty()
 
 [`FormNode`](FormNode.md).[`onMarkAsDirty`](FormNode.md#onmarkasdirty)
 
-***
+---
 
 ### onMarkAsPristine()
 
@@ -1023,7 +1025,7 @@ Hook: вызывается после markAsPristine()
 
 [`FormNode`](FormNode.md).[`onMarkAsPristine`](FormNode.md#onmarkaspristine)
 
-***
+---
 
 ### onMarkAsTouched()
 
@@ -1043,7 +1045,7 @@ Hook: вызывается после markAsTouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsTouched`](FormNode.md#onmarkastouched)
 
-***
+---
 
 ### onMarkAsUntouched()
 
@@ -1063,7 +1065,7 @@ Hook: вызывается после markAsUntouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsUntouched`](FormNode.md#onmarkasuntouched)
 
-***
+---
 
 ### patchValue()
 
@@ -1092,7 +1094,7 @@ Defined in: [core/nodes/group-node.ts:267](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`patchValue`](FormNode.md#patchvalue)
 
-***
+---
 
 ### reset()
 
@@ -1132,7 +1134,7 @@ form.reset({ email: 'new@mail.com', password: '' });
 
 [`FormNode`](FormNode.md).[`reset`](FormNode.md#reset)
 
-***
+---
 
 ### resetToInitial()
 
@@ -1152,6 +1154,7 @@ Defined in: [core/nodes/group-node.ts:327](https://github.com/AlexandrBukhtatyy/
 Более явный способ сброса к начальным значениям по сравнению с reset()
 
 Полезно когда:
+
 - Пользователь нажал "Cancel" - полная отмена изменений
 - Форма была изменена через reset(newValues), но нужно вернуться к самому началу
 - Явное намерение показать "отмена всех изменений"
@@ -1161,7 +1164,7 @@ Defined in: [core/nodes/group-node.ts:327](https://github.com/AlexandrBukhtatyy/
 ```typescript
 const form = new GroupNode({
   email: { value: 'initial@mail.com', component: Input },
-  name: { value: 'John', component: Input }
+  name: { value: 'John', component: Input },
 });
 
 form.email.setValue('changed@mail.com');
@@ -1172,7 +1175,7 @@ form.resetToInitial();
 console.log(form.getValue()); // { email: 'initial@mail.com', name: 'John' }
 ```
 
-***
+---
 
 ### setErrors()
 
@@ -1202,9 +1205,7 @@ Defined in: [core/nodes/group-node.ts:370](https://github.com/AlexandrBukhtatyy/
 try {
   await api.createUser(form.getValue());
 } catch (error) {
-  form.setErrors([
-    { code: 'duplicate_email', message: 'Email уже используется' }
-  ]);
+  form.setErrors([{ code: 'duplicate_email', message: 'Email уже используется' }]);
 }
 ```
 
@@ -1212,7 +1213,7 @@ try {
 
 [`FormNode`](FormNode.md).[`setErrors`](FormNode.md#seterrors)
 
-***
+---
 
 ### setValue()
 
@@ -1244,7 +1245,7 @@ Defined in: [core/nodes/group-node.ts:257](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setValue`](FormNode.md#setvalue)
 
-***
+---
 
 ### submit()
 
@@ -1271,7 +1272,7 @@ Defined in: [core/nodes/group-node.ts:513](https://github.com/AlexandrBukhtatyy/
 
 `Promise`\<`R` \| `null`\>
 
-***
+---
 
 ### touchAll()
 
@@ -1284,6 +1285,7 @@ Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/R
 пометить ВСЕ поля рекурсивно
 
 Полезно для:
+
 - Показа всех ошибок валидации перед submit
 - Принудительного отображения ошибок при нажатии "Validate All"
 - Отображения невалидных полей в wizard/step form
@@ -1312,7 +1314,7 @@ await form.submit(async (values) => {
 
 [`FormNode`](FormNode.md).[`touchAll`](FormNode.md#touchall)
 
-***
+---
 
 ### validate()
 
@@ -1332,7 +1334,7 @@ Defined in: [core/nodes/group-node.ts:337](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`validate`](FormNode.md#validate)
 
-***
+---
 
 ### watchField()
 
@@ -1347,13 +1349,13 @@ Defined in: [core/nodes/group-node.ts:796](https://github.com/AlexandrBukhtatyy/
 
 ##### K
 
-`K` *extends* `string` \| `number` \| `symbol`
+`K` _extends_ `string` \| `number` \| `symbol`
 
 #### Parameters
 
 ##### fieldPath
 
-`K` *extends* `string` ? `K`\<`K`\> : `string`
+`K` _extends_ `string` ? `K`\<`K`\> : `string`
 
 Строковый путь к полю (например, "address.city")
 
@@ -1377,17 +1379,14 @@ Defined in: [core/nodes/group-node.ts:796](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 // Подписка на изменение страны для загрузки городов
-const dispose = form.watchField(
-  'registrationAddress.country',
-  async (countryCode) => {
-    if (countryCode) {
-      const cities = await fetchCitiesByCountry(countryCode);
-      form.registrationAddress.city.updateComponentProps({
-        options: cities
-      });
-    }
+const dispose = form.watchField('registrationAddress.country', async (countryCode) => {
+  if (countryCode) {
+    const cities = await fetchCitiesByCountry(countryCode);
+    form.registrationAddress.city.updateComponentProps({
+      options: cities,
+    });
   }
-);
+});
 
 // Cleanup
 useEffect(() => dispose, []);

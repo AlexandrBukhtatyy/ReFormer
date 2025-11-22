@@ -18,7 +18,7 @@ Defined in: [core/types/validation-schema.ts:137](https://github.com/AlexandrBuk
 
 Задержка перед выполнением валидации (в мс)
 
-***
+---
 
 ### message?
 
@@ -32,7 +32,7 @@ Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBuk
 
 [`ValidateOptions`](ValidateOptions.md).[`message`](ValidateOptions.md#message)
 
-***
+---
 
 ### params?
 

@@ -7,6 +7,7 @@ Defined in: [core/types/group-node-proxy.ts:53](https://github.com/AlexandrBukht
 Мапит тип модели данных T на правильные типы узлов формы
 
 Рекурсивно определяет типы узлов на основе структуры данных:
+
 - `T[K] extends Array<infer U>` где U - объект → `ArrayNodeWithControls<U>`
 - `T[K] extends Array<infer U>` где U - примитив → `FieldNode<T[K]>` (массив как обычное поле)
 - `T[K] extends object` → `GroupNodeWithControls<T[K]>` (вложенная форма с типизацией)

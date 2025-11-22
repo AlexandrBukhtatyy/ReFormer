@@ -77,7 +77,7 @@ Defined in: [core/utils/registry-stack.ts:88](https://github.com/AlexandrBukhtat
 
 `void`
 
-***
+---
 
 ### getCurrent()
 
@@ -93,7 +93,7 @@ Defined in: [core/utils/registry-stack.ts:51](https://github.com/AlexandrBukhtat
 
 Текущий элемент или null если стек пуст
 
-***
+---
 
 ### isEmpty()
 
@@ -109,7 +109,7 @@ Defined in: [core/utils/registry-stack.ts:81](https://github.com/AlexandrBukhtat
 
 true если стек пуст
 
-***
+---
 
 ### pop()
 
@@ -125,7 +125,7 @@ Defined in: [core/utils/registry-stack.ts:43](https://github.com/AlexandrBukhtat
 
 Извлеченный элемент или undefined если стек пуст
 
-***
+---
 
 ### push()
 
@@ -147,7 +147,7 @@ Defined in: [core/utils/registry-stack.ts:35](https://github.com/AlexandrBukhtat
 
 `void`
 
-***
+---
 
 ### verify()
 

@@ -14,11 +14,7 @@ describe('phone validator', () => {
   }
 
   describe('format: any (default)', () => {
-    const validPhones = [
-      '+1234567890',
-      '1234567890',
-      '(123) 456-7890',
-    ];
+    const validPhones = ['+1234567890', '1234567890', '(123) 456-7890'];
 
     it.each(validPhones)('should pass for valid phone: %s', async (validPhone) => {
       const form = makeForm<PhoneForm>({
@@ -53,12 +49,7 @@ describe('phone validator', () => {
   });
 
   describe('format: ru', () => {
-    const validRuPhones = [
-      '+7 900 123-45-67',
-      '8 (900) 123-45-67',
-      '+79001234567',
-      '89001234567',
-    ];
+    const validRuPhones = ['+7 900 123-45-67', '8 (900) 123-45-67', '+79001234567', '89001234567'];
 
     it.each(validRuPhones)('should pass for valid RU phone: %s', async (validPhone) => {
       const form = makeForm<PhoneForm>({
@@ -78,12 +69,7 @@ describe('phone validator', () => {
 
   describe('format: us', () => {
     // US format requires area code starting with 2-9
-    const validUsPhones = [
-      '(212) 456-7890',
-      '212-456-7890',
-      '2124567890',
-      '+1 212-456-7890',
-    ];
+    const validUsPhones = ['(212) 456-7890', '212-456-7890', '2124567890', '+1 212-456-7890'];
 
     it.each(validUsPhones)('should pass for valid US phone: %s', async (validPhone) => {
       const form = makeForm<PhoneForm>({
@@ -102,26 +88,25 @@ describe('phone validator', () => {
   });
 
   describe('format: international', () => {
-    const validIntlPhones = [
-      '+12345678901',
-      '+442071234567',
-      '+33123456789',
-    ];
+    const validIntlPhones = ['+12345678901', '+442071234567', '+33123456789'];
 
-    it.each(validIntlPhones)('should pass for valid international phone: %s', async (validPhone) => {
-      const form = makeForm<PhoneForm>({
-        phoneNumber: { value: validPhone, component: null as ComponentInstance },
-      });
+    it.each(validIntlPhones)(
+      'should pass for valid international phone: %s',
+      async (validPhone) => {
+        const form = makeForm<PhoneForm>({
+          phoneNumber: { value: validPhone, component: null as ComponentInstance },
+        });
 
-      const validation: ValidationSchemaFn<PhoneForm> = (path: FieldPath<PhoneForm>) => {
-        phone(path.phoneNumber, { format: 'international' });
-      };
+        const validation: ValidationSchemaFn<PhoneForm> = (path: FieldPath<PhoneForm>) => {
+          phone(path.phoneNumber, { format: 'international' });
+        };
 
-      form.applyValidationSchema(validation);
-      await form.validate();
+        form.applyValidationSchema(validation);
+        await form.validate();
 
-      expect(form.phoneNumber.valid.value).toBe(true);
-    });
+        expect(form.phoneNumber.valid.value).toBe(true);
+      }
+    );
   });
 
   describe('empty values', () => {

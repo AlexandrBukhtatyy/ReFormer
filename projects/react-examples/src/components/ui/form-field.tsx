@@ -50,9 +50,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
         <span className="text-red-500 text-sm mt-1 block">{errors.value[0]?.message}</span>
       )}
 
-      {pending.value && (
-        <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>
-      )}
+      {pending.value && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
     </div>
   );
 };

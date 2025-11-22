@@ -18,7 +18,7 @@ Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBuk
 
 Сообщение об ошибке
 
-***
+---
 
 ### params?
 

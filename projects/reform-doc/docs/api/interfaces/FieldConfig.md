@@ -18,7 +18,7 @@ Defined in: [core/types/deep-schema.ts:28](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/types/deep-schema.ts:33](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L33)
 
-***
+---
 
 ### component
 
@@ -26,7 +26,7 @@ Defined in: [core/types/deep-schema.ts:33](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/types/deep-schema.ts:30](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L30)
 
-***
+---
 
 ### componentProps?
 
@@ -34,7 +34,7 @@ Defined in: [core/types/deep-schema.ts:30](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/types/deep-schema.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L31)
 
-***
+---
 
 ### debounce?
 
@@ -44,7 +44,7 @@ Defined in: [core/types/deep-schema.ts:37](https://github.com/AlexandrBukhtatyy/
 
 Задержка (в мс) перед запуском асинхронной валидации
 
-***
+---
 
 ### disabled?
 
@@ -52,7 +52,7 @@ Defined in: [core/types/deep-schema.ts:37](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/types/deep-schema.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L34)
 
-***
+---
 
 ### updateOn?
 
@@ -60,7 +60,7 @@ Defined in: [core/types/deep-schema.ts:34](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/types/deep-schema.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L35)
 
-***
+---
 
 ### validators?
 
@@ -68,7 +68,7 @@ Defined in: [core/types/deep-schema.ts:35](https://github.com/AlexandrBukhtatyy/
 
 Defined in: [core/types/deep-schema.ts:32](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L32)
 
-***
+---
 
 ### value
 

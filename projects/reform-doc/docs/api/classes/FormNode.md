@@ -8,7 +8,8 @@ Defined in: [core/nodes/form-node.ts:36](https://github.com/AlexandrBukhtatyy/Re
 и реализуют единый интерфейс для работы с состоянием и валидацией
 
 Template Method паттерн используется для управления состоянием:
-- Общие signals (_touched, _dirty, _status) определены в базовом классе
+
+- Общие signals (\_touched, \_dirty, \_status) определены в базовом классе
 - Публичные методы (markAsTouched, disable и т.д.) реализованы здесь
 - Protected hooks (onMarkAsTouched, onDisable и т.д.) переопределяются в наследниках
 
@@ -45,7 +46,7 @@ Defined in: [core/nodes/form-node.ts:51](https://github.com/AlexandrBukhtatyy/Re
 Значение узла было изменено (dirty)
 Protected: наследники могут читать/изменять через методы
 
-***
+---
 
 ### \_status
 
@@ -56,7 +57,7 @@ Defined in: [core/nodes/form-node.ts:57](https://github.com/AlexandrBukhtatyy/Re
 Текущий статус узла
 Protected: наследники могут читать/изменять через методы
 
-***
+---
 
 ### \_touched
 
@@ -67,7 +68,7 @@ Defined in: [core/nodes/form-node.ts:45](https://github.com/AlexandrBukhtatyy/Re
 Пользователь взаимодействовал с узлом (touched)
 Protected: наследники могут читать/изменять через методы
 
-***
+---
 
 ### dirty
 
@@ -76,9 +77,9 @@ Protected: наследники могут читать/изменять чер�
 Defined in: [core/nodes/form-node.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L78)
 
 Значение узла было изменено (dirty)
-Computed из _dirty для предоставления readonly интерфейса
+Computed из \_dirty для предоставления readonly интерфейса
 
-***
+---
 
 ### disabled
 
@@ -88,7 +89,7 @@ Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/Re
 
 Узел отключен (disabled)
 
-***
+---
 
 ### enabled
 
@@ -98,7 +99,7 @@ Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/Re
 
 Узел включен (enabled)
 
-***
+---
 
 ### errors
 
@@ -108,7 +109,7 @@ Defined in: [core/nodes/form-node.ts:131](https://github.com/AlexandrBukhtatyy/R
 
 Массив ошибок валидации
 
-***
+---
 
 ### invalid
 
@@ -118,7 +119,7 @@ Defined in: [core/nodes/form-node.ts:121](https://github.com/AlexandrBukhtatyy/R
 
 Узел невалиден (есть ошибки валидации)
 
-***
+---
 
 ### pending
 
@@ -128,7 +129,7 @@ Defined in: [core/nodes/form-node.ts:126](https://github.com/AlexandrBukhtatyy/R
 
 Выполняется асинхронная валидация
 
-***
+---
 
 ### pristine
 
@@ -138,7 +139,7 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 
 Значение узла не было изменено (pristine)
 
-***
+---
 
 ### status
 
@@ -147,9 +148,9 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 Defined in: [core/nodes/form-node.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L89)
 
 Текущий статус узла
-Computed из _status для предоставления readonly интерфейса
+Computed из \_status для предоставления readonly интерфейса
 
-***
+---
 
 ### touched
 
@@ -158,9 +159,9 @@ Computed из _status для предоставления readonly интерф�
 Defined in: [core/nodes/form-node.ts:67](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L67)
 
 Пользователь взаимодействовал с узлом (touched)
-Computed из _touched для предоставления readonly интерфейса
+Computed из \_touched для предоставления readonly интерфейса
 
-***
+---
 
 ### untouched
 
@@ -170,7 +171,7 @@ Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/Re
 
 Пользователь не взаимодействовал с узлом (untouched)
 
-***
+---
 
 ### valid
 
@@ -180,7 +181,7 @@ Defined in: [core/nodes/form-node.ts:116](https://github.com/AlexandrBukhtatyy/R
 
 Узел валиден (все валидаторы прошли успешно)
 
-***
+---
 
 ### value
 
@@ -189,6 +190,7 @@ Defined in: [core/nodes/form-node.ts:116](https://github.com/AlexandrBukhtatyy/R
 Defined in: [core/nodes/form-node.ts:111](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L111)
 
 Текущее значение узла
+
 - Для FieldNode: значение поля
 - Для GroupNode: объект со значениями всех полей
 - Для ArrayNode: массив значений элементов
@@ -207,7 +209,7 @@ Defined in: [core/nodes/form-node.ts:185](https://github.com/AlexandrBukhtatyy/R
 
 `void`
 
-***
+---
 
 ### disable()
 
@@ -226,7 +228,7 @@ Template Method: обновляет статус в базовом классе,
 
 `void`
 
-***
+---
 
 ### dispose()?
 
@@ -252,7 +254,7 @@ useEffect(() => {
 }, []);
 ```
 
-***
+---
 
 ### enable()
 
@@ -269,7 +271,7 @@ Template Method: обновляет статус в базовом классе,
 
 `void`
 
-***
+---
 
 ### getErrors()
 
@@ -280,6 +282,7 @@ Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/R
 Получить ошибки валидации с фильтрацией
 
 Позволяет фильтровать ошибки по различным критериям:
+
 - По коду ошибки
 - По сообщению (частичное совпадение)
 - По параметрам
@@ -318,16 +321,16 @@ const passwordErrors = form.getErrors({ message: 'Password' });
 
 // Ошибки по параметрам
 const minLengthErrors = form.getErrors({
-  params: { minLength: 8 }
+  params: { minLength: 8 },
 });
 
 // Кастомная фильтрация
 const customErrors = form.getErrors({
-  predicate: (err) => err.code.startsWith('custom_')
+  predicate: (err) => err.code.startsWith('custom_'),
 });
 ```
 
-***
+---
 
 ### getValue()
 
@@ -342,7 +345,7 @@ Defined in: [core/nodes/form-node.ts:141](https://github.com/AlexandrBukhtatyy/R
 
 `T`
 
-***
+---
 
 ### markAsDirty()
 
@@ -359,7 +362,7 @@ Template Method: обновляет signal в базовом классе,
 
 `void`
 
-***
+---
 
 ### markAsPristine()
 
@@ -376,7 +379,7 @@ Template Method: обновляет signal в базовом классе,
 
 `void`
 
-***
+---
 
 ### markAsTouched()
 
@@ -393,7 +396,7 @@ Template Method: обновляет signal в базовом классе,
 
 `void`
 
-***
+---
 
 ### markAsUntouched()
 
@@ -410,7 +413,7 @@ Template Method: обновляет signal в базовом классе,
 
 `void`
 
-***
+---
 
 ### onDisable()
 
@@ -421,6 +424,7 @@ Defined in: [core/nodes/form-node.ts:474](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после disable()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: отключить все дочерние узлы
 - ArrayNode: отключить все элементы массива
 - FieldNode: очистить ошибки валидации
@@ -438,7 +442,7 @@ protected onDisable(): void {
 }
 ```
 
-***
+---
 
 ### onEnable()
 
@@ -449,6 +453,7 @@ Defined in: [core/nodes/form-node.ts:486](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после enable()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: включить все дочерние узлы
 - ArrayNode: включить все элементы массива
 - FieldNode: пустая реализация
@@ -457,7 +462,7 @@ Hook: вызывается после enable()
 
 `void`
 
-***
+---
 
 ### onMarkAsDirty()
 
@@ -468,6 +473,7 @@ Defined in: [core/nodes/form-node.ts:442](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsDirty()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: может обновить родительскую форму
 - ArrayNode: может обновить родительскую форму
 - FieldNode: пустая реализация
@@ -476,7 +482,7 @@ Hook: вызывается после markAsDirty()
 
 `void`
 
-***
+---
 
 ### onMarkAsPristine()
 
@@ -487,6 +493,7 @@ Defined in: [core/nodes/form-node.ts:454](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsPristine()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: пометить все дочерние узлы как pristine
 - ArrayNode: пометить все элементы массива как pristine
 - FieldNode: пустая реализация
@@ -495,7 +502,7 @@ Hook: вызывается после markAsPristine()
 
 `void`
 
-***
+---
 
 ### onMarkAsTouched()
 
@@ -506,6 +513,7 @@ Defined in: [core/nodes/form-node.ts:417](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsTouched()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: пометить все дочерние узлы как touched
 - ArrayNode: пометить все элементы массива как touched
 - FieldNode: пустая реализация (нет дочерних узлов)
@@ -523,7 +531,7 @@ protected onMarkAsTouched(): void {
 }
 ```
 
-***
+---
 
 ### onMarkAsUntouched()
 
@@ -534,6 +542,7 @@ Defined in: [core/nodes/form-node.ts:430](https://github.com/AlexandrBukhtatyy/R
 Hook: вызывается после markAsUntouched()
 
 Переопределите в наследниках для дополнительной логики:
+
 - GroupNode: пометить все дочерние узлы как untouched
 - ArrayNode: пометить все элементы массива как untouched
 - FieldNode: пустая реализация (нет дочерних узлов)
@@ -542,7 +551,7 @@ Hook: вызывается после markAsUntouched()
 
 `void`
 
-***
+---
 
 ### patchValue()
 
@@ -567,7 +576,7 @@ Defined in: [core/nodes/form-node.ts:158](https://github.com/AlexandrBukhtatyy/R
 
 `void`
 
-***
+---
 
 ### reset()
 
@@ -589,7 +598,7 @@ Defined in: [core/nodes/form-node.ts:164](https://github.com/AlexandrBukhtatyy/R
 
 `void`
 
-***
+---
 
 ### setErrors()
 
@@ -611,7 +620,7 @@ Defined in: [core/nodes/form-node.ts:180](https://github.com/AlexandrBukhtatyy/R
 
 `void`
 
-***
+---
 
 ### setValue()
 
@@ -639,7 +648,7 @@ Defined in: [core/nodes/form-node.ts:148](https://github.com/AlexandrBukhtatyy/R
 
 `void`
 
-***
+---
 
 ### touchAll()
 
@@ -652,6 +661,7 @@ Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/R
 пометить ВСЕ поля рекурсивно
 
 Полезно для:
+
 - Показа всех ошибок валидации перед submit
 - Принудительного отображения ошибок при нажатии "Validate All"
 - Отображения невалидных полей в wizard/step form
@@ -676,7 +686,7 @@ await form.submit(async (values) => {
 });
 ```
 
-***
+---
 
 ### validate()
 

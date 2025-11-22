@@ -131,7 +131,10 @@ describe('pattern validator', () => {
 
     it('should validate UUID format', async () => {
       const form = makeForm<StringForm>({
-        code: { value: '550e8400-e29b-41d4-a716-446655440000', component: null as ComponentInstance },
+        code: {
+          value: '550e8400-e29b-41d4-a716-446655440000',
+          component: null as ComponentInstance,
+        },
       });
 
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

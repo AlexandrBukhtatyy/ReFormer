@@ -8,6 +8,7 @@ Defined in: [core/utils/debounce.ts:55](https://github.com/AlexandrBukhtatyy/ReF
 повторно до истечения времени, предыдущий вызов отменяется.
 
 Полезно для:
+
 - Отложенной валидации при вводе (debounced validation)
 - Отложенного сохранения данных
 - Отложенной обработки событий behaviors
@@ -58,7 +59,7 @@ Defined in: [core/utils/debounce.ts:73](https://github.com/AlexandrBukhtatyy/ReF
 
 ```typescript
 const debouncer = new Debouncer(300); // 300мс задержка
-const immediate = new Debouncer(0);  // Без задержки
+const immediate = new Debouncer(0); // Без задержки
 ```
 
 ## Methods
@@ -90,7 +91,7 @@ debouncer.debounce(async () => {
 debouncer.cancel(); // Отменяем вызов
 ```
 
-***
+---
 
 ### debounce()
 
@@ -137,7 +138,7 @@ debouncer.debounce(async () => console.log('Second'));
 // Через 300мс выведет только: "Second"
 ```
 
-***
+---
 
 ### flush()
 
@@ -184,7 +185,7 @@ await debouncer.flush(async () => console.log('Immediate'));
 // "Delayed" не выполнится (отменен)
 ```
 
-***
+---
 
 ### isPending()
 

@@ -9,7 +9,7 @@ Defined in: [core/types/index.ts:122](https://github.com/AlexandrBukhtatyy/ReFor
 
 ### T
 
-`T` *extends* `Record`\<`string`, [`FormValue`](../type-aliases/FormValue.md)\>
+`T` _extends_ `Record`\<`string`, [`FormValue`](../type-aliases/FormValue.md)\>
 
 ## Properties
 
@@ -21,7 +21,7 @@ Defined in: [core/types/index.ts:127](https://github.com/AlexandrBukhtatyy/ReFor
 
 Схема реактивного поведения (copyFrom, enableWhen, computeFrom и т.д.)
 
-***
+---
 
 ### form
 
@@ -31,7 +31,7 @@ Defined in: [core/types/index.ts:124](https://github.com/AlexandrBukhtatyy/ReFor
 
 Схема структуры формы (поля и их конфигурация)
 
-***
+---
 
 ### validation?
 

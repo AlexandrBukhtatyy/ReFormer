@@ -144,15 +144,11 @@ describe('computeFrom behavior', () => {
       });
 
       const behavior: BehaviorSchemaFn<CalculatorForm> = (path: FieldPath<CalculatorForm>) => {
-        computeFrom(
-          [path.price, path.quantity, path.discount],
-          path.total,
-          (values: any) => {
-            const subtotal = values.price * values.quantity;
-            const discountAmount = subtotal * (values.discount / 100);
-            return subtotal - discountAmount;
-          }
-        );
+        computeFrom([path.price, path.quantity, path.discount], path.total, (values: any) => {
+          const subtotal = values.price * values.quantity;
+          const discountAmount = subtotal * (values.discount / 100);
+          return subtotal - discountAmount;
+        });
       };
 
       form.applyBehaviorSchema(behavior);
@@ -177,14 +173,10 @@ describe('computeFrom behavior', () => {
       });
 
       const behavior: BehaviorSchemaFn<NullableForm> = (path: FieldPath<NullableForm>) => {
-        computeFrom(
-          [path.a, path.b],
-          path.result,
-          (values: any) => {
-            if (values.a === null || values.b === null) return null;
-            return values.a + values.b;
-          }
-        );
+        computeFrom([path.a, path.b], path.result, (values: any) => {
+          if (values.a === null || values.b === null) return null;
+          return values.a + values.b;
+        });
       };
 
       form.applyBehaviorSchema(behavior);
@@ -218,12 +210,9 @@ describe('computeFrom behavior', () => {
       });
 
       const behavior: BehaviorSchemaFn<ConditionalForm> = (path: FieldPath<ConditionalForm>) => {
-        computeFrom(
-          [path.input],
-          path.output,
-          (values: any) => values.input * 2,
-          { condition: (f) => f.mode === 'enabled' }
-        );
+        computeFrom([path.input], path.output, (values: any) => values.input * 2, {
+          condition: (f) => f.mode === 'enabled',
+        });
       };
 
       form.applyBehaviorSchema(behavior);

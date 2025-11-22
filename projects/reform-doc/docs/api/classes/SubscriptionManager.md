@@ -8,6 +8,7 @@ Defined in: [core/utils/subscription-manager.ts:28](https://github.com/AlexandrB
 предотвращает утечки памяти и упрощает отладку.
 
 Каждая подписка имеет уникальный ключ, что позволяет:
+
 - Отписываться от конкретной подписки по ключу
 - Автоматически заменять существующие подписки
 - Отслеживать количество активных подписок (для отладки)
@@ -95,7 +96,7 @@ manager.add('anotherSub', disposeFn);
 manager.remove('anotherSub');
 ```
 
-***
+---
 
 ### clear()
 
@@ -125,7 +126,7 @@ class FieldNode {
 }
 ```
 
-***
+---
 
 ### dispose()
 
@@ -153,7 +154,7 @@ class FieldNode {
 }
 ```
 
-***
+---
 
 ### getKeys()
 
@@ -181,7 +182,7 @@ manager.add('watch-errors', disposeFn2);
 console.log(manager.getKeys()); // ['watch-value', 'watch-errors']
 ```
 
-***
+---
 
 ### has()
 
@@ -215,7 +216,7 @@ console.log(manager.has('mySub')); // true
 console.log(manager.has('nonExistent')); // false
 ```
 
-***
+---
 
 ### remove()
 
@@ -255,7 +256,7 @@ const removed = manager.remove('mySub'); // true
 const removed2 = manager.remove('nonExistent'); // false
 ```
 
-***
+---
 
 ### size()
 
