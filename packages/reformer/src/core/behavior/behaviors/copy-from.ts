@@ -9,15 +9,15 @@ import { watchField } from './watch-field';
 /**
  * Копирует значения из одного поля/группы в другое при выполнении условия
  *
- * @param target - Куда копировать
  * @param source - Откуда копировать
+ * @param target - Куда копировать
  * @param options - Опции копирования
  *
  * @example
  * ```typescript
  * const schema: BehaviorSchemaFn<MyForm> = (path) => {
  *   // Копировать адрес регистрации в адрес проживания
- *   copyFrom(path.residenceAddress, path.registrationAddress, {
+ *   copyFrom(path.registrationAddress, path.residenceAddress, {
  *     when: (form) => form.sameAsRegistration === true,
  *     fields: 'all'
  *   });
@@ -25,8 +25,8 @@ import { watchField } from './watch-field';
  * ```
  */
 export function copyFrom<TForm, TSource, TTarget>(
-  target: FieldPathNode<TForm, TTarget>,
   source: FieldPathNode<TForm, TSource>,
+  target: FieldPathNode<TForm, TTarget>,
   options?: CopyFromOptions<TSource, TForm>
 ): void {
   const { when, fields = 'all', transform, debounce } = options || {};

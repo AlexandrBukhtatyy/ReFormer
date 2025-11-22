@@ -136,8 +136,8 @@ describe('Form Isolation', () => {
         path: FieldPath<BehaviorTestForm>
       ) => {
         computeFrom(
-          path.targetField1,
           [path.sourceField],
+          path.targetField1,
           ({ sourceField }) => `Copy1: ${sourceField}`
         );
       };
@@ -147,8 +147,8 @@ describe('Form Isolation', () => {
         path: FieldPath<BehaviorTestForm>
       ) => {
         computeFrom(
-          path.targetField2,
           [path.sourceField],
+          path.targetField2,
           ({ sourceField }) => `Copy2: ${sourceField}`
         );
       };
@@ -268,7 +268,7 @@ describe('Form Isolation', () => {
           email(path.email);
         },
         behavior: (path: FieldPath<FullTestForm>) => {
-          computeFrom(path.confirmEmail, [path.email, path.autoFill], ({ email, autoFill }) =>
+          computeFrom([path.email, path.autoFill], path.confirmEmail, ({ email, autoFill }) =>
             autoFill ? email : ''
           );
         },

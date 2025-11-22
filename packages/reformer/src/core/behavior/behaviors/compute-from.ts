@@ -10,36 +10,34 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 /**
  * Автоматически вычисляет значение поля на основе других полей
  *
- * @param target - Поле для записи результата
  * @param sources - Массив полей-зависимостей
- * @param computeFn - Функция вычисления (принимает параметры напрямую)
+ * @param target - Поле для записи результата
+ * @param computeFn - Функция вычисления (принимает объект с именами полей)
  * @param options - Опции
- *
- * ✅ ОБНОВЛЕНО: computeFn теперь принимает параметры напрямую (type-safe)
  *
  * @example
  * ```typescript
  * const schema: BehaviorSchemaFn<MyForm> = (path) => {
  *   // Автоматический расчет минимального взноса
  *   computeFrom(
- *     path.initialPayment,
  *     [path.propertyValue],
- *     (propertyValue) => propertyValue ? propertyValue * 0.2 : null, // ← Параметр напрямую
+ *     path.initialPayment,
+ *     (values) => values.propertyValue ? values.propertyValue * 0.2 : null,
  *     { debounce: 300 }
  *   );
  *
  *   // Общая стоимость = цена * количество
  *   computeFrom(
- *     path.total,
  *     [path.price, path.quantity],
- *     (price, quantity) => price * quantity // ← Параметры напрямую
+ *     path.total,
+ *     (values) => values.price * values.quantity
  *   );
  * };
  * ```
  */
 export function computeFrom<TForm, TTarget>(
-  target: FieldPathNode<TForm, TTarget>,
   sources: FieldPathNode<TForm, any>[],
+  target: FieldPathNode<TForm, TTarget>,
   computeFn: (values: TForm) => TTarget,
   options?: ComputeFromOptions<TForm>
 ): void {

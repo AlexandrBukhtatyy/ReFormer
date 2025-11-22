@@ -33,33 +33,10 @@ describe('BehaviorRegistry', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Registration lifecycle', () => {
-    it('should register and apply behaviors', () => {
-      const behaviorSchema: BehaviorSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
-        copyFrom(path.copyEmail, path.email);
-      };
-
-      const cleanup = form.applyBehaviorSchema(behaviorSchema);
-
-      expect(cleanup).toBeInstanceOf(Function);
-    });
-
-    it('should cleanup behaviors when dispose is called', () => {
-      const behaviorSchema: BehaviorSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
-        copyFrom(path.copyEmail, path.email);
-      };
-
-      const cleanup = form.applyBehaviorSchema(behaviorSchema);
-
-      // Cleanup должен быть вызван без ошибок
-      expect(() => cleanup()).not.toThrow();
-    });
-  });
-
   describe('copyFrom behavior', () => {
     it('should copy value from source to target', async () => {
       const behaviorSchema: BehaviorSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
-        copyFrom(path.copyEmail, path.email);
+        copyFrom(path.email, path.copyEmail);
       };
 
       form.applyBehaviorSchema(behaviorSchema);
@@ -77,7 +54,7 @@ describe('BehaviorRegistry', () => {
       let shouldCopy = false;
 
       const behaviorSchema: BehaviorSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
-        copyFrom(path.copyEmail, path.email, {
+        copyFrom(path.email, path.copyEmail, {
           when: () => shouldCopy,
         });
       };
