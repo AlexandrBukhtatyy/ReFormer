@@ -104,21 +104,21 @@ const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <FormField control={control.personalData.lastName} />
-        <FormField control={control.personalData.firstName} />
-        <FormField control={control.personalData.middleName} />
+        <FormField control={control.personalData.lastName} testId="coBorrower-lastName" />
+        <FormField control={control.personalData.firstName} testId="coBorrower-firstName" />
+        <FormField control={control.personalData.middleName} testId="coBorrower-middleName" />
       </div>
 
-      <FormField control={control.personalData.birthDate} />
+      <FormField control={control.personalData.birthDate} testId="coBorrower-birthDate" />
 
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={control.phone} />
-        <FormField control={control.email} />
+        <FormField control={control.phone} testId="coBorrower-phone" />
+        <FormField control={control.email} testId="coBorrower-email" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={control.relationship} />
-        <FormField control={control.monthlyIncome} />
+        <FormField control={control.relationship} testId="coBorrower-relationship" />
+        <FormField control={control.monthlyIncome} testId="coBorrower-monthlyIncome" />
       </div>
     </div>
   );

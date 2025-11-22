@@ -16,13 +16,21 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
 }
 
 const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
-  ({ className, value, onChange, onBlur, options, disabled, ...props }, ref) => {
+  (
+    { className, value, onChange, onBlur, options, disabled, 'data-testid': dataTestId, ...props },
+    ref
+  ) => {
     const handleRadioChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.value);
     };
 
     return (
-      <div ref={ref} className={cn('flex flex-col gap-2', className)} {...props}>
+      <div
+        ref={ref}
+        className={cn('flex flex-col gap-2', className)}
+        data-testid={dataTestId}
+        {...props}
+      >
         {options.map((option) => (
           <div key={option.value} className="flex items-center gap-2">
             <input
@@ -36,6 +44,7 @@ const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
               )}
               onChange={handleRadioChange}
               onBlur={onBlur}
+              data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
             />
             <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               {option.label}

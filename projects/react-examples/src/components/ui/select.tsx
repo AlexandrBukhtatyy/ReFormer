@@ -18,7 +18,7 @@ export interface SelectProps<T>
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Select = React.forwardRef<HTMLButtonElement, SelectProps<any>>(
+const Select = React.forwardRef<HTMLButtonElement, SelectProps<any> & { 'data-testid'?: string }>(
   (
     {
       className,
@@ -30,6 +30,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps<any>>(
       placeholder,
       disabled,
       clearable = false,
+      'data-testid': dataTestId,
       ...props
     },
     ref
@@ -104,6 +105,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps<any>>(
             ref={ref}
             className={cn(className, showClearButton && 'pr-8')}
             disabled={loading}
+            data-testid={dataTestId}
           >
             <SelectValue
               placeholder={loading ? 'Loading...' : placeholder || 'Select an option...'}

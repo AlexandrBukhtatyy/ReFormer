@@ -38,7 +38,7 @@ export function NavigationButtons({
     <div className="flex gap-4 mt-8">
       {/* Кнопка "Назад" */}
       {currentStep > 1 && (
-        <Button onClick={onPrevious} disabled={isSubmitting}>
+        <Button onClick={onPrevious} disabled={isSubmitting} data-testid="btn-previous">
           ← Назад
         </Button>
       )}
@@ -47,14 +47,14 @@ export function NavigationButtons({
 
       {/* Кнопка "Далее" */}
       {currentStep < totalSteps && (
-        <Button onClick={onNext} disabled={isSubmitting}>
+        <Button onClick={onNext} disabled={isSubmitting} data-testid="btn-next">
           Далее →
         </Button>
       )}
 
       {/* Кнопка "Отправить" */}
       {currentStep === totalSteps && (
-        <Button onClick={onSubmit} disabled={isSubmitting}>
+        <Button onClick={onSubmit} disabled={isSubmitting} data-testid="btn-submit">
           {isSubmitting ? 'Отправка...' : 'Отправить заявку'}
         </Button>
       )}

@@ -12,7 +12,10 @@ export interface CheckboxProps
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className, value, onChange, onBlur, label, disabled, ...props }, ref) => {
+  (
+    { className, value, onChange, onBlur, label, disabled, 'data-testid': dataTestId, ...props },
+    ref
+  ) => {
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.checked);
     };
@@ -31,6 +34,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           )}
           onChange={handleCheckboxChange}
           onBlur={onBlur}
+          data-testid={dataTestId}
           {...props}
         />
         {label && (

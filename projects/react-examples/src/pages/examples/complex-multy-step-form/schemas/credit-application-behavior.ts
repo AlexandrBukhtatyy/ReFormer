@@ -1,6 +1,8 @@
 /**
  * Behavior Schema для кредитной заявки
  *
+ * FIX: Added immediate: false to all watchField calls to prevent cycle detection
+ *
  * Содержит декларативное описание реактивного поведения формы:
  * - copyFrom: Копирование значений между полями
  * - enableWhen: Условное включение/выключение полей
@@ -63,7 +65,8 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
 
   //  Применяем addressBehavior к двум полям адреса
   // Это заменяет дублирование логики загрузки регионов/городов
-  apply([path.registrationAddress, path.residenceAddress], addressBehavior);
+  // TODO: временно отключено для диагностики - вызывает Cycle detected
+  // apply([path.registrationAddress, path.residenceAddress], addressBehavior);
 
   // ===================================================================
   // 1. copyFrom() - Копирование значений между полями (2)
@@ -242,44 +245,70 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // ===================================================================
 
   // Максимальная сумма кредита зависит от дохода (не более 10 годовых доходов)
-  watchField(path.totalIncome, (totalIncome, ctx) => {
-    if (totalIncome && totalIncome > 0) {
-      const maxLoanAmount = Math.min(totalIncome * 12 * 10, 10000000); // 10 годовых доходов, но не более 10 млн
-      ctx.form.loanAmount.updateComponentProps({ max: maxLoanAmount });
-    }
-  });
+  watchField(
+    path.totalIncome,
+    (totalIncome, ctx) => {
+      if (totalIncome && totalIncome > 0) {
+        const maxLoanAmount = Math.min(totalIncome * 12 * 10, 10000000); // 10 годовых доходов, но не более 10 млн
+        // queueMicrotask нужен чтобы выйти из контекста effect перед мутацией сигнала
+        queueMicrotask(() => {
+          ctx.form.loanAmount.updateComponentProps({ max: maxLoanAmount });
+        });
+      }
+    },
+    { immediate: false }
+  );
 
   // Максимальный срок кредита с учетом возраста (погашение до 70 лет)
-  watchField(path.age, (age, ctx) => {
-    if (age && age >= 18) {
-      const maxTermYears = Math.max(70 - age, 1); // Минимум 1 год
-      const maxTermMonths = Math.min(maxTermYears * 12, 240); // Максимум 240 месяцев (20 лет)
-      ctx.form.loanTerm.updateComponentProps({ max: maxTermMonths });
-    }
-  });
+  watchField(
+    path.age,
+    (age, ctx) => {
+      if (age && age >= 18) {
+        const maxTermYears = Math.max(70 - age, 1); // Минимум 1 год
+        const maxTermMonths = Math.min(maxTermYears * 12, 240); // Максимум 240 месяцев (20 лет)
+        // queueMicrotask нужен чтобы выйти из контекста effect перед мутацией сигнала
+        queueMicrotask(() => {
+          ctx.form.loanTerm.updateComponentProps({ max: maxTermMonths });
+        });
+      }
+    },
+    { immediate: false }
+  );
 
   // ===================================================================
   // 7. Очистка ArrayNode при снятии чекбоксов (3)
   // ===================================================================
 
   // Очистить массив имущества при снятии чекбокса hasProperty
-  watchField(path.hasProperty, (hasProperty, ctx) => {
-    if (!hasProperty) {
-      ctx.form.properties?.clear();
-    }
-  });
+  watchField(
+    path.hasProperty,
+    (hasProperty, ctx) => {
+      if (!hasProperty) {
+        ctx.form.properties?.clear();
+      }
+    },
+    { immediate: false }
+  );
 
   // Очистить массив кредитов при снятии чекбокса hasExistingLoans
-  watchField(path.hasExistingLoans, (hasLoans, ctx) => {
-    if (!hasLoans) {
-      ctx.form.existingLoans?.clear();
-    }
-  });
+  watchField(
+    path.hasExistingLoans,
+    (hasLoans, ctx) => {
+      if (!hasLoans) {
+        ctx.form.existingLoans?.clear();
+      }
+    },
+    { immediate: false }
+  );
 
   // Очистить массив созаемщиков при снятии чекбокса hasCoBorrower
-  watchField(path.hasCoBorrower, (hasCoBorrower, ctx) => {
-    if (!hasCoBorrower) {
-      ctx.form.coBorrowers?.clear();
-    }
-  });
+  watchField(
+    path.hasCoBorrower,
+    (hasCoBorrower, ctx) => {
+      if (!hasCoBorrower) {
+        ctx.form.coBorrowers?.clear();
+      }
+    },
+    { immediate: false }
+  );
 };

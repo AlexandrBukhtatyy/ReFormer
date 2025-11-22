@@ -83,17 +83,17 @@ interface ExistingLoanFormProps {
 const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {
   return (
     <div className="space-y-3">
-      <FormField control={control.bank} />
-      <FormField control={control.type} />
+      <FormField control={control.bank} testId="existingLoan-bank" />
+      <FormField control={control.type} testId="existingLoan-type" />
 
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={control.amount} />
-        <FormField control={control.remainingAmount} />
+        <FormField control={control.amount} testId="existingLoan-amount" />
+        <FormField control={control.remainingAmount} testId="existingLoan-remainingAmount" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={control.monthlyPayment} />
-        <FormField control={control.maturityDate} />
+        <FormField control={control.monthlyPayment} testId="existingLoan-monthlyPayment" />
+        <FormField control={control.maturityDate} testId="existingLoan-maturityDate" />
       </div>
     </div>
   );

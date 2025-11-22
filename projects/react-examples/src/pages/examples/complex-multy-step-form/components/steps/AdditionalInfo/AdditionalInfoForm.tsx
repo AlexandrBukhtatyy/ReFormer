@@ -27,22 +27,24 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
   const hasCoBorrower = control.hasCoBorrower.value.value;
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold">Дополнительная информация</h2>
+    <div className="space-y-6" data-testid="step-additional-info">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Дополнительная информация
+      </h2>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Общая информация</h3>
 
-        <FormField control={control.maritalStatus} />
+        <FormField control={control.maritalStatus} testId="maritalStatus" />
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={control.dependents} />
-          <FormField control={control.education} />
+          <FormField control={control.dependents} testId="dependents" />
+          <FormField control={control.education} testId="education" />
         </div>
       </div>
 
       <div className="space-y-4">
-        <FormField control={control.hasProperty} />
+        <FormField control={control.hasProperty} testId="hasProperty" />
 
         <FormArraySection
           title="Имущество"
@@ -56,7 +58,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       </div>
 
       <div className="space-y-4">
-        <FormField control={control.hasExistingLoans} />
+        <FormField control={control.hasExistingLoans} testId="hasExistingLoans" />
 
         <FormArraySection
           title="Существующие кредиты"
@@ -70,7 +72,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       </div>
 
       <div className="space-y-4">
-        <FormField control={control.hasCoBorrower} />
+        <FormField control={control.hasCoBorrower} testId="hasCoBorrower" />
 
         <FormArraySection
           title="Созаемщики"

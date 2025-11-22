@@ -8,8 +8,10 @@ interface ConfirmationFormProps {
 
 export function ConfirmationForm({ control }: ConfirmationFormProps) {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold">Подтверждение и согласия</h2>
+    <div className="space-y-6" data-testid="step-confirmation">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Подтверждение и согласия
+      </h2>
       <div className="space-y-4">
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-800">
@@ -52,21 +54,21 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Обязательные согласия</h3>
         <div className="space-y-3">
-          <FormField control={control.agreePersonalData} />
-          <FormField control={control.agreeCreditHistory} />
-          <FormField control={control.agreeTerms} />
-          <FormField control={control.confirmAccuracy} />
+          <FormField control={control.agreePersonalData} testId="agreePersonalData" />
+          <FormField control={control.agreeCreditHistory} testId="agreeCreditHistory" />
+          <FormField control={control.agreeTerms} testId="agreeTerms" />
+          <FormField control={control.confirmAccuracy} testId="confirmAccuracy" />
         </div>
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold mt-6">Опциональные согласия</h3>
-        <FormField control={control.agreeMarketing} />
+        <FormField control={control.agreeMarketing} testId="agreeMarketing" />
       </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold mt-6">Электронная подпись</h3>
-        <FormField control={control.electronicSignature} />
+        <FormField control={control.electronicSignature} testId="electronicSignature" />
         <p className="text-xs text-gray-500">
           Введите код из SMS, отправленный на ваш номер телефона
         </p>

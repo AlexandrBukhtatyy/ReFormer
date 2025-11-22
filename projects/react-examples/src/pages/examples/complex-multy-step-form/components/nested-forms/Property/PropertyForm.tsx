@@ -70,10 +70,10 @@ interface PropertyFormProps {
 const PropertyFormComponent = ({ control }: PropertyFormProps) => {
   return (
     <div className="space-y-3">
-      <FormField control={control.type} />
-      <FormField control={control.description} />
-      <FormField control={control.estimatedValue} />
-      <FormField control={control.hasEncumbrance} />
+      <FormField control={control.type} testId="property-type" />
+      <FormField control={control.description} testId="property-description" />
+      <FormField control={control.estimatedValue} testId="property-estimatedValue" />
+      <FormField control={control.hasEncumbrance} testId="property-hasEncumbrance" />
     </div>
   );
 };

@@ -85,15 +85,15 @@ const PersonalDataFormComponent = ({ control }: PersonalDataFormProps) => {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-4">
-        <FormField control={control.lastName} />
-        <FormField control={control.firstName} />
-        <FormField control={control.middleName} />
+        <FormField control={control.lastName} testId="personalData-lastName" />
+        <FormField control={control.firstName} testId="personalData-firstName" />
+        <FormField control={control.middleName} testId="personalData-middleName" />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={control.birthDate} />
-        <FormField control={control.gender} />
+        <FormField control={control.birthDate} testId="personalData-birthDate" />
+        <FormField control={control.gender} testId="personalData-gender" />
       </div>
-      <FormField control={control.birthPlace} />
+      <FormField control={control.birthPlace} testId="personalData-birthPlace" />
     </div>
   );
 };

@@ -63,25 +63,33 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
   // ===================================================================
 
   // Очистить город при изменении региона
-  watchField(path.region, (_region, ctx) => {
-    // Очищаем город только если регион изменился
-    ctx.setFieldValue('city', '');
+  watchField(
+    path.region,
+    (_region, ctx) => {
+      // Очищаем город только если регион изменился
+      ctx.setFieldValue('city', '');
 
-    if (import.meta.env.DEV) {
-      console.log('[addressBehavior] Region changed, clearing city');
-    }
-  });
+      if (import.meta.env.DEV) {
+        console.log('[addressBehavior] Region changed, clearing city');
+      }
+    },
+    { immediate: false }
+  );
 
   // ===================================================================
   // 3. Валидация почтового индекса (опционально)
   // ===================================================================
 
   // Можно добавить автоформатирование почтового индекса
-  watchField(path.postalCode, (postalCode, ctx) => {
-    // Убираем все кроме цифр и ограничиваем длину
-    const cleaned = postalCode?.replace(/\D/g, '').slice(0, 6);
-    if (cleaned !== postalCode) {
-      ctx.setFieldValue('postalCode', cleaned || '');
-    }
-  });
+  watchField(
+    path.postalCode,
+    (postalCode, ctx) => {
+      // Убираем все кроме цифр и ограничиваем длину
+      const cleaned = postalCode?.replace(/\D/g, '').slice(0, 6);
+      if (cleaned !== postalCode) {
+        ctx.setFieldValue('postalCode', cleaned || '');
+      }
+    },
+    { immediate: false }
+  );
 };

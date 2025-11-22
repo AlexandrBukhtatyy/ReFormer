@@ -18,8 +18,10 @@ interface PersonalInfoFormProps {
 
 export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold">Персональные данные</h2>
+    <div className="space-y-6" data-testid="step-personal-info">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Персональные данные
+      </h2>
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Личные данные</h3>
         <PersonalDataForm control={control.personalData} />
@@ -31,8 +33,8 @@ export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Дополнительные документы</h3>
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={control.inn} />
-          <FormField control={control.snils} />
+          <FormField control={control.inn} testId="inn" />
+          <FormField control={control.snils} testId="snils" />
         </div>
       </div>
     </div>

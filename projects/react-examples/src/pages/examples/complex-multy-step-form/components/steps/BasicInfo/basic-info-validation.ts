@@ -44,7 +44,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
       required(path.initialPayment, { message: 'Укажите первоначальный взнос' });
       min(path.initialPayment, 0);
 
-      // Cross-field валидация
+      // Cross-field валидация для первоначального взноса
       validateTree<CreditApplicationForm>(
         (ctx) => {
           const form = ctx.form.getValue();
@@ -73,6 +73,25 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
           return null;
         },
         { targetField: 'initialPayment' }
+      );
+
+      // Cross-field валидация: сумма кредита не может превышать (стоимость - взнос)
+      validateTree<CreditApplicationForm>(
+        (ctx) => {
+          const form = ctx.form.getValue();
+
+          if (form.loanAmount && form.propertyValue && form.initialPayment) {
+            const maxLoanAmount = form.propertyValue - form.initialPayment;
+            if (form.loanAmount > maxLoanAmount) {
+              return {
+                code: 'loanAmountExceedsMax',
+                message: `Сумма кредита не может превышать ${maxLoanAmount.toLocaleString('ru-RU')} ₽ (стоимость недвижимости минус первоначальный взнос)`,
+              };
+            }
+          }
+          return null;
+        },
+        { targetField: 'loanAmount' }
       );
     }
   );

@@ -66,7 +66,9 @@ const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   validateTree<CreditApplicationForm>(warnSeniorAge, { targetField: 'age' });
 
   // Предупреждение о малом стаже на текущем месте работы (< 3 месяцев)
-  validateTree<CreditApplicationForm>(warnLowWorkExperience, { targetField: 'workExperienceCurrent' });
+  validateTree<CreditApplicationForm>(warnLowWorkExperience, {
+    targetField: 'workExperienceCurrent',
+  });
 };
 
 export default creditApplicationValidation;

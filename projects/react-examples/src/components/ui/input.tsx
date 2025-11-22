@@ -24,7 +24,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           const numValue = Number(newValue);
           // Only call onChange if the value is a valid number (not NaN)
           if (!isNaN(numValue)) {
-            onChange?.(numValue);
+            // Block negative values if min is 0 or positive
+            const minValue = props.min !== undefined ? Number(props.min) : undefined;
+            if (minValue !== undefined && minValue >= 0 && numValue < 0) {
+              onChange?.(0);
+            } else {
+              onChange?.(numValue);
+            }
           }
         }
       } else {

@@ -32,24 +32,26 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold">Контактная информация</h2>
+    <div className="space-y-6" data-testid="step-contact-info">
+      <h2 className="text-xl font-bold" data-testid="step-heading">
+        Контактная информация
+      </h2>
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Контакты</h3>
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={control.phoneMain} />
-          <FormField control={control.phoneAdditional} />
+          <FormField control={control.phoneMain} testId="phoneMain" />
+          <FormField control={control.phoneAdditional} testId="phoneAdditional" />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={control.email} />
-          <FormField control={control.emailAdditional} />
+          <FormField control={control.email} testId="email" />
+          <FormField control={control.emailAdditional} testId="emailAdditional" />
         </div>
       </div>
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Адрес регистрации</h3>
-        <AddressForm control={control.registrationAddress} />
+        <AddressForm control={control.registrationAddress} testIdPrefix="registrationAddress" />
       </div>
-      <FormField control={control.sameAsRegistration} />
+      <FormField control={control.sameAsRegistration} testId="sameAsRegistration" />
       {!sameAsRegistration && (
         <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex justify-between items-center">
@@ -59,7 +61,7 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
             </Button>
           </div>
 
-          <AddressForm control={control.residenceAddress} />
+          <AddressForm control={control.residenceAddress} testIdPrefix="residenceAddress" />
 
           <Button size="sm" onClick={clearResidenceAddress}>
             Очистить адрес проживания

@@ -103,6 +103,23 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   min(path.additionalIncome, 0, { message: 'Дополнительный доход не может быть отрицательным' });
   max(path.additionalIncome, 10000000, { message: 'Максимальный доход: 10 000 000 ₽' });
 
+  // Cross-field: платеж не должен превышать 50% от дохода (paymentToIncome)
+  validateTree<CreditApplicationForm>(
+    (ctx) => {
+      const form = ctx.form.getValue();
+      const ratio = form.paymentToIncomeRatio;
+
+      if (ratio && ratio > 50) {
+        return {
+          code: 'paymentToIncomeExceeded',
+          message: `Ежемесячный платеж не должен превышать 50% от дохода (текущий: ${ratio}%)`,
+        };
+      }
+      return null;
+    },
+    { targetField: 'monthlyIncome' }
+  );
+
   // Если указан дополнительный доход, требуется указать источник
   validateTree<CreditApplicationForm>(
     (ctx) => {

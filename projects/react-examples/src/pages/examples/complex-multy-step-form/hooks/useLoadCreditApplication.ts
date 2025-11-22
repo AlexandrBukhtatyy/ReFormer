@@ -10,11 +10,7 @@
 import { useEffect, useState } from 'react';
 import type { GroupNodeWithControls } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application';
-import {
-  fetchCreditApplication,
-  fetchDictionaries,
-  type DictionariesResponse,
-} from '../api';
+import { fetchCreditApplication, fetchDictionaries, type DictionariesResponse } from '../api';
 import type { Property } from '../components/nested-forms/Property/PropertyForm';
 import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/ExistingLoanForm';
 
@@ -45,34 +41,37 @@ const patchFormValue = (
   // ======================================================================
   // Обновление динамических справочников через updateComponentProps
   // ======================================================================
-
-  // Обновляем опции городов для адреса регистрации
-  // registrationAddress - это GroupNodeWithControls<Address> с полем city
-  form.registrationAddress.city.updateComponentProps({
-    options: dictionaries.cities,
-  });
-
-  // Обновляем опции городов для адреса проживания
-  // residenceAddress - это тоже GroupNodeWithControls<Address>
-  form.residenceAddress?.city.updateComponentProps({
-    options: dictionaries.cities,
-  });
-
-  // Обновляем опции типов имущества для всех элементов массива properties
-  // properties - это ArrayNode<Property>
-  // forEach возвращает GroupNode элементы, а не значения
-  form.properties?.forEach((propertyNode: GroupNodeWithControls<Property>) => {
-    propertyNode.type.updateComponentProps({
-      options: dictionaries.propertyTypes,
+  // ВАЖНО: вызываем через queueMicrotask, чтобы дождаться завершения
+  // всех реактивных эффектов от patchValue и избежать "Cycle detected"
+  queueMicrotask(() => {
+    // Обновляем опции городов для адреса регистрации
+    // registrationAddress - это GroupNodeWithControls<Address> с полем city
+    form.registrationAddress.city.updateComponentProps({
+      options: dictionaries.cities,
     });
-  });
 
-  // Обновляем опции банков для всех элементов массива existingLoans
-  // existingLoans - это ArrayNode<ExistingLoan>
-  // forEach возвращает GroupNode элементы, а не значения
-  form.existingLoans?.forEach((loanNode: GroupNodeWithControls<ExistingLoan>) => {
-    loanNode.bank.updateComponentProps({
-      options: dictionaries.banks,
+    // Обновляем опции городов для адреса проживания
+    // residenceAddress - это тоже GroupNodeWithControls<Address>
+    form.residenceAddress?.city.updateComponentProps({
+      options: dictionaries.cities,
+    });
+
+    // Обновляем опции типов имущества для всех элементов массива properties
+    // properties - это ArrayNode<Property>
+    // forEach возвращает GroupNode элементы, а не значения
+    form.properties?.forEach((propertyNode: GroupNodeWithControls<Property>) => {
+      propertyNode.type.updateComponentProps({
+        options: dictionaries.propertyTypes,
+      });
+    });
+
+    // Обновляем опции банков для всех элементов массива existingLoans
+    // existingLoans - это ArrayNode<ExistingLoan>
+    // forEach возвращает GroupNode элементы, а не значения
+    form.existingLoans?.forEach((loanNode: GroupNodeWithControls<ExistingLoan>) => {
+      loanNode.bank.updateComponentProps({
+        options: dictionaries.banks,
+      });
     });
   });
 };
