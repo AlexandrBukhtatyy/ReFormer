@@ -1,8 +1,12 @@
-# Type Alias: FormFields
+# ~~FormFields~~
 
-> **FormFields** = `Record`\<`string`, [`FormValue`](FormValue.md)\>
+```ts
+type FormFields = Record<string, FormValue>;
+```
 
-Defined in: [core/types/index.ts:200](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L200)
+Defined in: [core/types/index.ts:190](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L190)
 
 Тип для конфига с полями (FormSchema generic constraint)
 Используется вместо `Record<string, any>` для схем форм
+
+## Deprecated

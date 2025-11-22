@@ -1,0 +1,186 @@
+{
+  "homepage.tagline": {
+    "message": "Реактивная библиотека форм на сигналах",
+    "description": "The tagline on the homepage"
+  },
+  "homepage.getStarted": {
+    "message": "Начать",
+    "description": "Get Started button on homepage"
+  },
+  "homepage.tryPlayground": {
+    "message": "Попробовать",
+    "description": "Try Playground button on homepage"
+  },
+  "homepage.feature.reactive.title": {
+    "message": "Реактивность по умолчанию",
+    "description": "Reactive feature title"
+  },
+  "homepage.feature.reactive.description": {
+    "message": "Построено на Preact Signals для точечной реактивности. Перерисовываются только компоненты, использующие изменённые значения.",
+    "description": "Reactive feature description"
+  },
+  "homepage.feature.typeSafe.title": {
+    "message": "Типобезопасные формы",
+    "description": "Type-safe feature title"
+  },
+  "homepage.feature.typeSafe.description": {
+    "message": "Полная поддержка TypeScript с автоматическим выводом типов. Ловите ошибки на этапе компиляции, а не в рантайме.",
+    "description": "Type-safe feature description"
+  },
+  "homepage.feature.validation.title": {
+    "message": "Декларативная валидация",
+    "description": "Validation feature title"
+  },
+  "homepage.feature.validation.description": {
+    "message": "14 встроенных валидаторов, асинхронная валидация и простое создание кастомных валидаторов. Определите правила один раз — применяйте везде.",
+    "description": "Validation feature description"
+  },
+  "homepage.feature.behaviors.title": {
+    "message": "Умные поведения",
+    "description": "Behaviors feature title"
+  },
+  "homepage.feature.behaviors.description": {
+    "message": "Вычисляемые поля, условная видимость, синхронизация полей. Сложная логика форм стала простой.",
+    "description": "Behaviors feature description"
+  },
+  "homepage.feature.nested.title": {
+    "message": "Вложенные структуры",
+    "description": "Nested feature title"
+  },
+  "homepage.feature.nested.description": {
+    "message": "Поддержка глубоко вложенных объектов и динамических массивов. Создавайте любую структуру форм.",
+    "description": "Nested feature description"
+  },
+  "homepage.feature.agnostic.title": {
+    "message": "Фреймворк-агностик",
+    "description": "Agnostic feature title"
+  },
+  "homepage.feature.agnostic.description": {
+    "message": "Ядро работает где угодно. React-биндинги включены, поддержка других фреймворков скоро.",
+    "description": "Agnostic feature description"
+  },
+  "homepage.feature.aiFriendly.title": {
+    "message": "AI-Friendly",
+    "description": "AI-Friendly feature title"
+  },
+  "homepage.feature.aiFriendly.description": {
+    "message": "Хорошо документированный API с понятными паттернами. ИИ-ассистенты легко понимают и генерируют код с ReFormer.",
+    "description": "AI-Friendly feature description"
+  },
+  "theme.common.skipToMainContent": {
+    "message": "Перейти к основному содержимому",
+    "description": "The skip to content label used for accessibility"
+  },
+  "theme.common.editThisPage": {
+    "message": "Редактировать эту страницу",
+    "description": "The link label to edit the current page"
+  },
+  "theme.common.headingLinkTitle": {
+    "message": "Прямая ссылка на {heading}",
+    "description": "Title for the heading link"
+  },
+  "theme.docs.sidebar.expandButtonTitle": {
+    "message": "Развернуть боковую панель",
+    "description": "The title for the button that expands the sidebar"
+  },
+  "theme.docs.sidebar.collapseButtonTitle": {
+    "message": "Свернуть боковую панель",
+    "description": "The title for the button that collapses the sidebar"
+  },
+  "theme.docs.sidebar.collapseButtonAriaLabel": {
+    "message": "Свернуть боковую панель",
+    "description": "The aria-label for the button that collapses the sidebar"
+  },
+  "theme.docs.sidebar.navAriaLabel": {
+    "message": "Навигация по документации",
+    "description": "The aria-label for the docs navigation"
+  },
+  "theme.docs.sidebar.closeSidebarButtonAriaLabel": {
+    "message": "Закрыть навигацию",
+    "description": "The aria-label for the button that closes the sidebar"
+  },
+  "theme.docs.sidebar.toggleSidebarButtonAriaLabel": {
+    "message": "Переключить навигацию",
+    "description": "The aria-label for the button that toggles the sidebar"
+  },
+  "theme.navbar.mobileVersionsDropdown.label": {
+    "message": "Версии",
+    "description": "The label for the navbar versions dropdown on mobile"
+  },
+  "theme.docs.versions.unreleasedVersionLabel": {
+    "message": "Это документация для невыпущенной версии {siteTitle} {versionLabel}.",
+    "description": "The label for unreleased version"
+  },
+  "theme.docs.breadcrumbs.navAriaLabel": {
+    "message": "Навигация по хлебным крошкам",
+    "description": "The aria-label for the breadcrumb navigation"
+  },
+  "theme.docs.breadcrumbs.home": {
+    "message": "Главная страница",
+    "description": "The ARIA label for the home page in the breadcrumbs"
+  },
+  "theme.colorToggle.ariaLabel": {
+    "message": "Переключить между тёмным и светлым режимом (текущий {mode})",
+    "description": "The aria-label for the color theme toggle"
+  },
+  "theme.colorToggle.ariaLabel.mode.dark": {
+    "message": "тёмный режим",
+    "description": "The aria-label for dark mode"
+  },
+  "theme.colorToggle.ariaLabel.mode.light": {
+    "message": "светлый режим",
+    "description": "The aria-label for light mode"
+  },
+  "theme.navbar.mobileSidebarSecondaryMenu.backButtonLabel": {
+    "message": "← Назад к главному меню",
+    "description": "The label of the back button"
+  },
+  "theme.docs.paginator.navAriaLabel": {
+    "message": "Навигация по документации",
+    "description": "The aria-label for the pagination navigation"
+  },
+  "theme.docs.paginator.previous": {
+    "message": "Назад",
+    "description": "The label used to navigate to the previous doc"
+  },
+  "theme.docs.paginator.next": {
+    "message": "Далее",
+    "description": "The label used to navigate to the next doc"
+  },
+  "theme.TOCCollapsible.toggleButtonLabel": {
+    "message": "На этой странице",
+    "description": "The toggle button label in TOC"
+  },
+  "theme.docs.sidebar.categoryGeneratedIndexMoreBooksLabel": {
+    "message": "Больше в {categoryTitle}",
+    "description": "Label for the read more link in the category generated index"
+  },
+  "theme.NotFound.title": {
+    "message": "Страница не найдена",
+    "description": "The title for the 404 page"
+  },
+  "theme.NotFound.p1": {
+    "message": "Мы не смогли найти то, что вы искали.",
+    "description": "The first paragraph of the 404 page"
+  },
+  "theme.NotFound.p2": {
+    "message": "Пожалуйста, свяжитесь с владельцем сайта, который направил вас сюда, и сообщите ему, что ссылка не работает.",
+    "description": "The second paragraph of the 404 page"
+  },
+  "theme.SearchBar.label": {
+    "message": "Поиск",
+    "description": "The search bar placeholder"
+  },
+  "theme.lastUpdated.lastUpdatedAtBy": {
+    "message": "Последнее обновление {atDate} от {byUser}",
+    "description": "The label for the last updated date and author"
+  },
+  "theme.lastUpdated.atDate": {
+    "message": "{date}",
+    "description": "The date format for the last updated date"
+  },
+  "theme.lastUpdated.byUser": {
+    "message": "{user}",
+    "description": "The username format for the last updated user"
+  }
+}

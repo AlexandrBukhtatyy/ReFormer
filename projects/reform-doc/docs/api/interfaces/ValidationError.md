@@ -1,27 +1,45 @@
-# Interface: ValidationError
+# ValidationError
 
-Defined in: [core/types/index.ts:33](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L33)
+Defined in: [core/types/index.ts:33](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L33)
 
 ## Properties
 
 ### code
 
-> **code**: `string`
+```ts
+code: string;
+```
 
-Defined in: [core/types/index.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L34)
+Defined in: [core/types/index.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L34)
 
----
+***
 
 ### message
 
-> **message**: `string`
+```ts
+message: string;
+```
 
-Defined in: [core/types/index.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L35)
+Defined in: [core/types/index.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L35)
 
----
+***
 
 ### params?
 
-> `optional` **params**: `Record`\<`string`, [`FormValue`](../type-aliases/FormValue.md)\>
+```ts
+optional params: FormFields;
+```
 
-Defined in: [core/types/index.ts:36](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L36)
+Defined in: [core/types/index.ts:36](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L36)
+
+***
+
+### severity?
+
+```ts
+optional severity: "error" | "warning";
+```
+
+Defined in: [core/types/index.ts:38](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L38)
+
+Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission

@@ -1,6 +1,6 @@
-# Class: FieldPathNavigator
+# FieldPathNavigator
 
-Defined in: [core/utils/field-path-navigator.ts:59](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L59)
+Defined in: [core/utils/field-path-navigator.ts:59](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L59)
 
 Навигация по путям к полям формы
 
@@ -33,7 +33,9 @@ titleNode?.setValue('New Title');
 
 ### Constructor
 
-> **new FieldPathNavigator**(): `FieldPathNavigator`
+```ts
+new FieldPathNavigator(): FieldPathNavigator;
+```
 
 #### Returns
 
@@ -43,9 +45,11 @@ titleNode?.setValue('New Title');
 
 ### getFormNodeValue()
 
-> **getFormNodeValue**(`form`, `path`): `unknown`
+```ts
+getFormNodeValue(form, path): unknown;
+```
 
-Defined in: [core/utils/field-path-navigator.ts:291](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L291)
+Defined in: [core/utils/field-path-navigator.ts:291](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L291)
 
 Получить значение из FormNode по пути
 
@@ -79,9 +83,9 @@ Defined in: [core/utils/field-path-navigator.ts:291](https://github.com/Alexandr
 const form = new GroupNode({
   email: { value: 'test@mail.com', component: Input },
   address: {
-    city: { value: 'Moscow', component: Input },
+    city: { value: 'Moscow', component: Input }
   },
-  items: [{ title: { value: 'Item 1', component: Input } }],
+  items: [{ title: { value: 'Item 1', component: Input } }]
 });
 
 navigator.getFormNodeValue(form, 'email');
@@ -97,13 +101,15 @@ navigator.getFormNodeValue(form, 'invalid.path');
 // undefined
 ```
 
----
+***
 
 ### getNodeByPath()
 
-> **getNodeByPath**(`form`, `path`): `unknown`
+```ts
+getNodeByPath(form, path): unknown;
+```
 
-Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L371)
+Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L371)
 
 Получает узел формы по пути
 
@@ -111,7 +117,6 @@ Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/Alexandr
 и возвращает узел по указанному пути.
 
 Поддерживает:
-
 - Доступ к полям GroupNode через fields Map
 - Доступ к элементам ArrayNode через индекс
 - Proxy-доступ к полям (для обратной совместимости)
@@ -142,9 +147,9 @@ Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/Alexandr
 const form = new GroupNode({
   email: { value: '', component: Input },
   address: {
-    city: { value: '', component: Input },
+    city: { value: '', component: Input }
   },
-  items: [{ title: { value: '', component: Input } }],
+  items: [{ title: { value: '', component: Input } }]
 });
 
 const emailNode = navigator.getNodeByPath(form, 'email');
@@ -163,13 +168,15 @@ const invalidNode = navigator.getNodeByPath(form, 'invalid.path');
 // null
 ```
 
----
+***
 
 ### getValueByPath()
 
-> **getValueByPath**(`obj`, `path`): `unknown`
+```ts
+getValueByPath(obj, path): unknown;
+```
 
-Defined in: [core/utils/field-path-navigator.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L166)
+Defined in: [core/utils/field-path-navigator.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L166)
 
 Получает значение по пути из объекта
 
@@ -202,7 +209,7 @@ Defined in: [core/utils/field-path-navigator.ts:166](https://github.com/Alexandr
 const obj = {
   email: 'test@mail.com',
   address: { city: 'Moscow' },
-  items: [{ title: 'Item 1' }],
+  items: [{ title: 'Item 1' }]
 };
 
 navigator.getValueByPath(obj, 'email');
@@ -218,18 +225,19 @@ navigator.getValueByPath(obj, 'invalid.path');
 // undefined
 ```
 
----
+***
 
 ### parsePath()
 
-> **parsePath**(`path`): [`PathSegment`](../interfaces/PathSegment.md)[]
+```ts
+parsePath(path): PathSegment[];
+```
 
-Defined in: [core/utils/field-path-navigator.ts:84](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L84)
+Defined in: [core/utils/field-path-navigator.ts:84](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L84)
 
 Парсит путь в массив сегментов
 
 Поддерживаемые форматы:
-
 - Простые пути: "name", "email"
 - Вложенные пути: "address.city", "user.profile.avatar"
 - Массивы: "items[0]", "items[0].name", "tags[1][0]"
@@ -262,13 +270,18 @@ navigator.parsePath('items[0].name');
 // [{ key: 'items', index: 0 }, { key: 'name' }]
 ```
 
----
+***
 
 ### setValueByPath()
 
-> **setValueByPath**(`obj`, `path`, `value`): `void`
+```ts
+setValueByPath(
+   obj, 
+   path, 
+   value): void;
+```
 
-Defined in: [core/utils/field-path-navigator.ts:211](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L211)
+Defined in: [core/utils/field-path-navigator.ts:211](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L211)
 
 Устанавливает значение по пути в объекте (мутирует объект)
 

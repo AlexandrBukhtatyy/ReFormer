@@ -1,15 +1,16 @@
-# Type Alias: FieldPath\<T\>
+# FieldPath
 
-> **FieldPath**\<`T`\> = \{ \[K in keyof T\]: NonNullable\<T\[K\]\> extends unknown\[\] ? FieldPathNode\<T, T\[K\], K\> : NonNullable\<T\[K\]\> extends FormFields ? NonNullable\<T\[K\]\> extends Date \| File \| Blob ? FieldPathNode\<T, T\[K\], K\> : FieldPathNode\<T, T\[K\], K\> & FieldPath\<NonNullable\<T\[K\]\>\> : FieldPathNode\<T, T\[K\], K\> \}
+```ts
+type FieldPath<T> = { [K in keyof T]: NonNullable<T[K]> extends unknown[] ? FieldPathNode<T, T[K], K> : NonNullable<T[K]> extends Date | File | Blob | AnyFunction ? FieldPathNode<T, T[K], K> : NonNullable<T[K]> extends object ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> : FieldPathNode<T, T[K], K> };
+```
 
-Defined in: [core/types/field-path.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/field-path.ts#L31)
+Defined in: [core/types/field-path.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/field-path.ts#L31)
 
 FieldPath предоставляет типобезопасный доступ к путям полей формы
 
 Рекурсивно обрабатывает вложенные объекты для поддержки вложенных форм.
 
 Использование:
-
 ```typescript
 const validation = (path: FieldPath<MyForm>) => {
   required(path.email, { message: 'Email обязателен' });

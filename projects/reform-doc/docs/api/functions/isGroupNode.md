@@ -1,8 +1,10 @@
-# Function: isGroupNode()
+# isGroupNode()
 
-> **isGroupNode**(`value`): `value is GroupNode<Record<string, FormValue>>`
+```ts
+function isGroupNode(value): value is GroupNode<FormFields>;
+```
 
-Defined in: [core/utils/type-guards.ts:106](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/type-guards.ts#L106)
+Defined in: [core/utils/type-guards.ts:106](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/type-guards.ts#L106)
 
 Проверить, является ли значение GroupNode (объект с вложенными полями)
 
@@ -19,7 +21,7 @@ GroupNode представляет объект с вложенными поля
 
 ## Returns
 
-`value is GroupNode<Record<string, FormValue>>`
+`value is GroupNode<FormFields>`
 
 true если value является GroupNode
 

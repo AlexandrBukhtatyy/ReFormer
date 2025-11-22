@@ -1,6 +1,6 @@
-# Interface: ValidateTreeOptions
+# ValidateTreeOptions
 
-Defined in: [core/types/validation-schema.ts:143](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L143)
+Defined in: [core/types/validation-schema.ts:103](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L103)
 
 Опции для функции validateTree
 
@@ -8,8 +8,10 @@ Defined in: [core/types/validation-schema.ts:143](https://github.com/AlexandrBuk
 
 ### targetField?
 
-> `optional` **targetField**: `string`
+```ts
+optional targetField: string;
+```
 
-Defined in: [core/types/validation-schema.ts:145](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L145)
+Defined in: [core/types/validation-schema.ts:105](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L105)
 
 Поле, к которому привязать ошибку

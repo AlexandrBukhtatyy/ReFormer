@@ -1,8 +1,10 @@
-# Type Alias: ArrayNodeWithControls\<T\>
+# ArrayNodeWithControls
 
-> **ArrayNodeWithControls**\<`T`\> = `ArrayNode`\<`T`\> & `object`
+```ts
+type ArrayNodeWithControls<T> = ArrayNode<T> & object;
+```
 
-Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/group-node-proxy.ts#L126)
+Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/group-node-proxy.ts#L126)
 
 Комбинированный тип для ArrayNode с Proxy доступом к элементам
 
@@ -12,7 +14,9 @@ Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukh
 
 ### at()
 
-> **at**(`index`): `any`
+```ts
+at(index): any;
+```
 
 Безопасный доступ к элементу массива по индексу
 Возвращает GroupNode с типизированными полями или undefined
@@ -29,7 +33,9 @@ Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukh
 
 ### forEach()
 
-> **forEach**(`callback`): `void`
+```ts
+forEach(callback): void;
+```
 
 Итерация по элементам массива с типизированными элементами
 
@@ -45,7 +51,9 @@ Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukh
 
 ### map()
 
-> **map**\<`R`\>(`callback`): `R`[]
+```ts
+map<R>(callback): R[];
+```
 
 Маппинг элементов массива с типизированными элементами
 
@@ -69,7 +77,7 @@ Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukh
 
 ### T
 
-`T` _extends_ [`FormFields`](FormFields.md)
+`T` *extends* [`FormFields`](FormFields.md)
 
 Тип модели данных элемента массива
 

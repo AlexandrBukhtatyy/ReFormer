@@ -1,6 +1,6 @@
-# Class: RegistryStack\<T\>
+# RegistryStack
 
-Defined in: [core/utils/registry-stack.ts:28](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L28)
+Defined in: [core/utils/registry-stack.ts:28](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L28)
 
 Generic Registry Stack - утилита для управления стеком регистрации
 
@@ -39,7 +39,9 @@ class ValidationRegistry {
 
 ### Constructor
 
-> **new RegistryStack**\<`T`\>(): `RegistryStack`\<`T`\>
+```ts
+new RegistryStack<T>(): RegistryStack<T>;
+```
 
 #### Returns
 
@@ -51,9 +53,11 @@ class ValidationRegistry {
 
 #### Get Signature
 
-> **get** **length**(): `number`
+```ts
+get length(): number;
+```
 
-Defined in: [core/utils/registry-stack.ts:73](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L73)
+Defined in: [core/utils/registry-stack.ts:73](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L73)
 
 Получить длину стека
 
@@ -67,9 +71,11 @@ Defined in: [core/utils/registry-stack.ts:73](https://github.com/AlexandrBukhtat
 
 ### clear()
 
-> **clear**(): `void`
+```ts
+clear(): void;
+```
 
-Defined in: [core/utils/registry-stack.ts:88](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L88)
+Defined in: [core/utils/registry-stack.ts:88](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L88)
 
 Очистить стек
 
@@ -77,13 +83,15 @@ Defined in: [core/utils/registry-stack.ts:88](https://github.com/AlexandrBukhtat
 
 `void`
 
----
+***
 
 ### getCurrent()
 
-> **getCurrent**(): `T` \| `null`
+```ts
+getCurrent(): T | null;
+```
 
-Defined in: [core/utils/registry-stack.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L51)
+Defined in: [core/utils/registry-stack.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L51)
 
 Получить текущий элемент (вершину стека) без извлечения
 
@@ -93,13 +101,15 @@ Defined in: [core/utils/registry-stack.ts:51](https://github.com/AlexandrBukhtat
 
 Текущий элемент или null если стек пуст
 
----
+***
 
 ### isEmpty()
 
-> **isEmpty**(): `boolean`
+```ts
+isEmpty(): boolean;
+```
 
-Defined in: [core/utils/registry-stack.ts:81](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L81)
+Defined in: [core/utils/registry-stack.ts:81](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L81)
 
 Проверить, пуст ли стек
 
@@ -109,13 +119,15 @@ Defined in: [core/utils/registry-stack.ts:81](https://github.com/AlexandrBukhtat
 
 true если стек пуст
 
----
+***
 
 ### pop()
 
-> **pop**(): `T` \| `undefined`
+```ts
+pop(): T | undefined;
+```
 
-Defined in: [core/utils/registry-stack.ts:43](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L43)
+Defined in: [core/utils/registry-stack.ts:43](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L43)
 
 Извлечь элемент из стека
 
@@ -125,13 +137,15 @@ Defined in: [core/utils/registry-stack.ts:43](https://github.com/AlexandrBukhtat
 
 Извлеченный элемент или undefined если стек пуст
 
----
+***
 
 ### push()
 
-> **push**(`item`): `void`
+```ts
+push(item): void;
+```
 
-Defined in: [core/utils/registry-stack.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L35)
+Defined in: [core/utils/registry-stack.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L35)
 
 Добавить элемент в стек
 
@@ -147,13 +161,15 @@ Defined in: [core/utils/registry-stack.ts:35](https://github.com/AlexandrBukhtat
 
 `void`
 
----
+***
 
 ### verify()
 
-> **verify**(`expected`, `name`): `void`
+```ts
+verify(expected, name): void;
+```
 
-Defined in: [core/utils/registry-stack.ts:62](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-stack.ts#L62)
+Defined in: [core/utils/registry-stack.ts:62](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-stack.ts#L62)
 
 Извлечь элемент из стека с проверкой
 Выводит предупреждение в DEV режиме если извлеченный элемент не совпадает с ожидаемым

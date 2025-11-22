@@ -1,10 +1,14 @@
-# Type Alias: ContextualValidatorFn()\<TForm, TField\>
+# ContextualValidatorFn()
 
-> **ContextualValidatorFn**\<`TForm`, `TField`\> = (`ctx`) => [`ValidationError`](../interfaces/ValidationError.md) \| `null`
+```ts
+type ContextualValidatorFn<TForm, TField> = (value, ctx) => ValidationError | null;
+```
 
-Defined in: [core/types/validation-schema.ts:97](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L97)
+Defined in: [core/types/validation-schema.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L34)
 
 Функция валидации поля с контекстом
+
+Новый паттерн: (value, ctx: FormContext) => ValidationError | null
 
 ## Type Parameters
 
@@ -18,10 +22,25 @@ Defined in: [core/types/validation-schema.ts:97](https://github.com/AlexandrBukh
 
 ## Parameters
 
+### value
+
+`TField`
+
 ### ctx
 
-[`ValidationContext`](../interfaces/ValidationContext.md)\<`TForm`, `TField`\>
+[`FormContext`](../interfaces/FormContext.md)\<`TForm`\>
 
 ## Returns
 
 [`ValidationError`](../interfaces/ValidationError.md) \| `null`
+
+## Example
+
+```typescript
+validate(path.email, (value, ctx) => {
+  if (!value) return { code: 'required', message: 'Email required' };
+  const confirm = ctx.form.confirmEmail.value.value;
+  if (value !== confirm) return { code: 'mismatch', message: 'Must match' };
+  return null;
+});
+```

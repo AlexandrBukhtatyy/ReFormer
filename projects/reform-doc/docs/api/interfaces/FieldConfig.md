@@ -1,6 +1,6 @@
-# Interface: FieldConfig\<T\>
+# FieldConfig
 
-Defined in: [core/types/deep-schema.ts:28](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L28)
+Defined in: [core/types/deep-schema.ts:20](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L20)
 
 Конфигурация поля
 
@@ -14,64 +14,80 @@ Defined in: [core/types/deep-schema.ts:28](https://github.com/AlexandrBukhtatyy/
 
 ### asyncValidators?
 
-> `optional` **asyncValidators**: [`AsyncValidatorFn`](../type-aliases/AsyncValidatorFn.md)\<`T`\>[]
+```ts
+optional asyncValidators: AsyncValidatorFn<T>[];
+```
 
-Defined in: [core/types/deep-schema.ts:33](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L33)
+Defined in: [core/types/deep-schema.ts:27](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L27)
 
----
+***
 
 ### component
 
-> **component**: `ComponentType`\<[`UnknownRecord`](../type-aliases/UnknownRecord.md)\>
+```ts
+component: ComponentType<any>;
+```
 
-Defined in: [core/types/deep-schema.ts:30](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L30)
+Defined in: [core/types/deep-schema.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L23)
 
----
+***
 
 ### componentProps?
 
-> `optional` **componentProps**: [`UnknownRecord`](../type-aliases/UnknownRecord.md)
+```ts
+optional componentProps: any;
+```
 
-Defined in: [core/types/deep-schema.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L31)
+Defined in: [core/types/deep-schema.ts:25](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L25)
 
----
+***
 
 ### debounce?
 
-> `optional` **debounce**: `number`
+```ts
+optional debounce: number;
+```
 
-Defined in: [core/types/deep-schema.ts:37](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L37)
+Defined in: [core/types/deep-schema.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L31)
 
 Задержка (в мс) перед запуском асинхронной валидации
 
----
+***
 
 ### disabled?
 
-> `optional` **disabled**: `boolean`
+```ts
+optional disabled: boolean;
+```
 
-Defined in: [core/types/deep-schema.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L34)
+Defined in: [core/types/deep-schema.ts:28](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L28)
 
----
+***
 
 ### updateOn?
 
-> `optional` **updateOn**: `"change"` \| `"blur"` \| `"submit"`
+```ts
+optional updateOn: "change" | "blur" | "submit";
+```
 
-Defined in: [core/types/deep-schema.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L35)
+Defined in: [core/types/deep-schema.ts:29](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L29)
 
----
+***
 
 ### validators?
 
-> `optional` **validators**: [`ValidatorFn`](../type-aliases/ValidatorFn.md)\<`T`\>[]
+```ts
+optional validators: ValidatorFn<T>[];
+```
 
-Defined in: [core/types/deep-schema.ts:32](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L32)
+Defined in: [core/types/deep-schema.ts:26](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L26)
 
----
+***
 
 ### value
 
-> **value**: `T` \| `null`
+```ts
+value: T | null;
+```
 
-Defined in: [core/types/deep-schema.ts:29](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L29)
+Defined in: [core/types/deep-schema.ts:21](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L21)

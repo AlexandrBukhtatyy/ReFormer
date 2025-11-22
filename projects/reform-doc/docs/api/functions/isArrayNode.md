@@ -1,8 +1,10 @@
-# Function: isArrayNode()
+# isArrayNode()
 
-> **isArrayNode**(`value`): `value is ArrayNode<Record<string, FormValue>>`
+```ts
+function isArrayNode(value): value is ArrayNode<FormFields>;
+```
 
-Defined in: [core/utils/type-guards.ts:141](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/type-guards.ts#L141)
+Defined in: [core/utils/type-guards.ts:141](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/type-guards.ts#L141)
 
 Проверить, является ли значение ArrayNode (массив форм)
 
@@ -19,7 +21,7 @@ ArrayNode представляет массив вложенных форм (о�
 
 ## Returns
 
-`value is ArrayNode<Record<string, FormValue>>`
+`value is ArrayNode<FormFields>`
 
 true если value является ArrayNode
 

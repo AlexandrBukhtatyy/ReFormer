@@ -1,8 +1,10 @@
-# Type Alias: ValidatorFn()\<T\>
+# ValidatorFn()
 
-> **ValidatorFn**\<`T`\> = (`value`) => [`ValidationError`](../interfaces/ValidationError.md) \| `null`
+```ts
+type ValidatorFn<T> = (value) => ValidationError | null;
+```
 
-Defined in: [core/types/index.ts:30](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L30)
+Defined in: [core/types/index.ts:30](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L30)
 
 ## Type Parameters
 

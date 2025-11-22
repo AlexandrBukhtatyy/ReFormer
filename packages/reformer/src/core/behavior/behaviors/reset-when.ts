@@ -1,5 +1,6 @@
 /**
- * Conditional field reset behavior
+ * Условный сброс полей
+ * @module behaviors/resetWhen
  */
 
 import { effect } from '@preact/signals-core';

@@ -1,8 +1,10 @@
-# Function: isFormNode()
+# isFormNode()
 
-> **isFormNode**(`value`): `value is FormNode<FormValue>`
+```ts
+function isFormNode(value): value is FormNode<FormValue>;
+```
 
-Defined in: [core/utils/type-guards.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/type-guards.ts#L39)
+Defined in: [core/utils/type-guards.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/type-guards.ts#L39)
 
 Проверить, является ли значение любым FormNode
 

@@ -26,13 +26,15 @@ import {
   computeFrom,
   watchField,
   revalidateWhen,
-  apply,
+  // apply is temporarily unused while debugging cycle detection issues
+  // apply,
   type BehaviorSchemaFn,
 } from 'reformer/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 // Импортируем модульные behavior схемы
-import { addressBehavior } from '../components/nested-forms/Address/address-behavior';
+// addressBehavior is temporarily unused while debugging cycle detection issues
+// import { addressBehavior } from '../components/nested-forms/Address/address-behavior';
 
 // Compute функции из utils
 import {

@@ -1,6 +1,6 @@
-# Interface: ArrayNodeLike
+# ArrayNodeLike
 
-Defined in: [core/types/index.ts:161](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L161)
+Defined in: [core/types/index.ts:162](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L162)
 
 Интерфейс для узлов, похожих на ArrayNode (с методом at)
 Используется для duck typing при обходе путей
@@ -9,17 +9,21 @@ Defined in: [core/types/index.ts:161](https://github.com/AlexandrBukhtatyy/ReFor
 
 ### length
 
-> **length**: `unknown`
+```ts
+length: unknown;
+```
 
-Defined in: [core/types/index.ts:163](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L163)
+Defined in: [core/types/index.ts:164](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L164)
 
 ## Methods
 
 ### at()
 
-> **at**(`index`): [`FormNode`](../classes/FormNode.md)\<`unknown`\> \| `undefined`
+```ts
+at(index): FormNode<unknown> | undefined;
+```
 
-Defined in: [core/types/index.ts:162](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L162)
+Defined in: [core/types/index.ts:163](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L163)
 
 #### Parameters
 

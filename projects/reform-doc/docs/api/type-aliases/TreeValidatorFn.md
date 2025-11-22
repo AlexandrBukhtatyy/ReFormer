@@ -1,8 +1,10 @@
-# Type Alias: TreeValidatorFn()\<TForm\>
+# TreeValidatorFn()
 
-> **TreeValidatorFn**\<`TForm`\> = (`ctx`) => [`ValidationError`](../interfaces/ValidationError.md) \| `null`
+```ts
+type TreeValidatorFn<TForm> = (ctx) => ValidationError | null;
+```
 
-Defined in: [core/types/validation-schema.ts:111](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L111)
+Defined in: [core/types/validation-schema.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L71)
 
 Функция cross-field валидации
 
@@ -16,8 +18,21 @@ Defined in: [core/types/validation-schema.ts:111](https://github.com/AlexandrBuk
 
 ### ctx
 
-[`TreeValidationContext`](../interfaces/TreeValidationContext.md)\<`TForm`\>
+[`FormContext`](../interfaces/FormContext.md)\<`TForm`\>
 
 ## Returns
 
 [`ValidationError`](../interfaces/ValidationError.md) \| `null`
+
+## Example
+
+```typescript
+validateTree((ctx) => {
+  const password = ctx.form.password.value.value;
+  const confirm = ctx.form.confirmPassword.value.value;
+  if (password !== confirm) {
+    return { code: 'mismatch', message: 'Passwords must match' };
+  }
+  return null;
+});
+```

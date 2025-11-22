@@ -1,5 +1,6 @@
 /**
- * Copy values between fields
+ * Копирование значений между полями
+ * @module behaviors/copyFrom
  */
 
 import type { FieldPathNode } from '../../types';

@@ -1,11 +1,10 @@
-# Interface: PathSegment
+# PathSegment
 
-Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L19)
+Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L19)
 
 Сегмент пути к полю формы
 
 Представляет один сегмент в пути к полю, например:
-
 - `"email" → { key: 'email' }`
 - `"items[0]" → { key: 'items', index: 0 }`
 
@@ -13,26 +12,33 @@ Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrB
 
 ```typescript
 // Путь "items[0].name" разбивается на:
-[{ key: 'items', index: 0 }, { key: 'name' }];
+[
+  { key: 'items', index: 0 },
+  { key: 'name' }
+]
 ```
 
 ## Properties
 
 ### index?
 
-> `optional` **index**: `number`
+```ts
+optional index: number;
+```
 
-Defined in: [core/utils/field-path-navigator.ts:29](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L29)
+Defined in: [core/utils/field-path-navigator.ts:29](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L29)
 
 Индекс в массиве (опционально)
 Присутствует только для сегментов вида "items[0]"
 
----
+***
 
 ### key
 
-> **key**: `string`
+```ts
+key: string;
+```
 
-Defined in: [core/utils/field-path-navigator.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/field-path-navigator.ts#L23)
+Defined in: [core/utils/field-path-navigator.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L23)
 
 Ключ поля

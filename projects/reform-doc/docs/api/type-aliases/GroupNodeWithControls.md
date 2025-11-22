@@ -1,8 +1,10 @@
-# Type Alias: GroupNodeWithControls\<T\>
+# GroupNodeWithControls
 
-> **GroupNodeWithControls**\<`T`\> = `GroupNode`\<`T`\> & [`FormNodeControls`](FormNodeControls.md)\<`T`\>
+```ts
+type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
+```
 
-Defined in: [core/types/group-node-proxy.ts:95](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/group-node-proxy.ts#L95)
+Defined in: [core/types/group-node-proxy.ts:95](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/group-node-proxy.ts#L95)
 
 Комбинированный тип для GroupNode с Proxy доступом к полям
 
@@ -13,7 +15,7 @@ Defined in: [core/types/group-node-proxy.ts:95](https://github.com/AlexandrBukht
 
 ### T
 
-`T` _extends_ [`FormFields`](FormFields.md)
+`T`
 
 Тип модели данных формы
 

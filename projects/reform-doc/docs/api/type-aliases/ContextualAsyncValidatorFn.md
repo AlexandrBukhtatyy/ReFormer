@@ -1,8 +1,10 @@
-# Type Alias: ContextualAsyncValidatorFn()\<TForm, TField\>
+# ContextualAsyncValidatorFn()
 
-> **ContextualAsyncValidatorFn**\<`TForm`, `TField`\> = (`ctx`) => `Promise`\<[`ValidationError`](../interfaces/ValidationError.md) \| `null`\>
+```ts
+type ContextualAsyncValidatorFn<TForm, TField> = (value, ctx) => Promise<ValidationError | null>;
+```
 
-Defined in: [core/types/validation-schema.ts:104](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L104)
+Defined in: [core/types/validation-schema.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L51)
 
 Асинхронная функция валидации поля с контекстом
 
@@ -18,10 +20,24 @@ Defined in: [core/types/validation-schema.ts:104](https://github.com/AlexandrBuk
 
 ## Parameters
 
+### value
+
+`TField`
+
 ### ctx
 
-[`ValidationContext`](../interfaces/ValidationContext.md)\<`TForm`, `TField`\>
+[`FormContext`](../interfaces/FormContext.md)\<`TForm`\>
 
 ## Returns
 
 `Promise`\<[`ValidationError`](../interfaces/ValidationError.md) \| `null`\>
+
+## Example
+
+```typescript
+validateAsync(path.email, async (value, ctx) => {
+  const exists = await checkEmailExists(value);
+  if (exists) return { code: 'exists', message: 'Email already taken' };
+  return null;
+});
+```

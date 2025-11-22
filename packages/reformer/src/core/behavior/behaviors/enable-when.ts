@@ -1,5 +1,6 @@
 /**
- * Conditional enable/disable fields
+ * Условное включение/отключение полей
+ * @module behaviors/enableWhen
  */
 
 import { effect } from '@preact/signals-core';

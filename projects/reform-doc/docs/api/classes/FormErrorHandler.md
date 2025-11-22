@@ -1,11 +1,10 @@
-# Class: FormErrorHandler
+# FormErrorHandler
 
-Defined in: [core/utils/error-handler.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/error-handler.ts#L78)
+Defined in: [core/utils/error-handler.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L78)
 
 Централизованный обработчик ошибок для форм
 
 Обеспечивает:
-
 - Единообразное логирование ошибок в DEV режиме
 - Гибкие стратегии обработки (throw/log/convert)
 - Типобезопасное извлечение сообщений из Error/string/unknown
@@ -39,7 +38,9 @@ try {
 
 ### Constructor
 
-> **new FormErrorHandler**(): `FormErrorHandler`
+```ts
+new FormErrorHandler(): FormErrorHandler;
+```
 
 #### Returns
 
@@ -49,9 +50,14 @@ try {
 
 ### createValidationError()
 
-> `static` **createValidationError**(`code`, `message`, `field?`): [`ValidationError`](../interfaces/ValidationError.md)
+```ts
+static createValidationError(
+   code, 
+   message, 
+   field?): ValidationError;
+```
 
-Defined in: [core/utils/error-handler.ts:214](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/error-handler.ts#L214)
+Defined in: [core/utils/error-handler.ts:214](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L214)
 
 Создать ValidationError с заданными параметрами
 
@@ -86,17 +92,26 @@ ValidationError объект
 #### Example
 
 ```typescript
-const error = FormErrorHandler.createValidationError('required', 'This field is required', 'email');
+const error = FormErrorHandler.createValidationError(
+  'required',
+  'This field is required',
+  'email'
+);
 // { code: 'required', message: 'This field is required', field: 'email' }
 ```
 
----
+***
 
 ### handle()
 
-> `static` **handle**(`error`, `context`, `strategy`): `void` \| [`ValidationError`](../interfaces/ValidationError.md)
+```ts
+static handle(
+   error, 
+   context, 
+   strategy): void | ValidationError;
+```
 
-Defined in: [core/utils/error-handler.ts:118](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/error-handler.ts#L118)
+Defined in: [core/utils/error-handler.ts:118](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L118)
 
 Обработать ошибку согласно заданной стратегии
 
@@ -149,18 +164,24 @@ try {
 try {
   await validator(value);
 } catch (error) {
-  const validationError = FormErrorHandler.handle(error, 'AsyncValidator', ErrorStrategy.CONVERT);
+  const validationError = FormErrorHandler.handle(
+    error,
+    'AsyncValidator',
+    ErrorStrategy.CONVERT
+  );
   return validationError;
 }
 ```
 
----
+***
 
 ### isValidationError()
 
-> `static` **isValidationError**(`value`): `value is ValidationError`
+```ts
+static isValidationError(value): value is ValidationError;
+```
 
-Defined in: [core/utils/error-handler.ts:237](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/error-handler.ts#L237)
+Defined in: [core/utils/error-handler.ts:237](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L237)
 
 Проверить, является ли объект ValidationError
 

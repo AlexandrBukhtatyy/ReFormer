@@ -13,6 +13,7 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   onBlur?: () => void;
   options: RadioOption[];
   disabled?: boolean;
+  'data-testid'?: string;
 }
 
 const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(

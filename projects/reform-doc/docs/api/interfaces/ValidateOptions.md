@@ -1,6 +1,6 @@
-# Interface: ValidateOptions
+# ValidateOptions
 
-Defined in: [core/types/validation-schema.ts:125](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L125)
+Defined in: [core/types/validation-schema.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L85)
 
 Опции для функции validate
 
@@ -12,18 +12,22 @@ Defined in: [core/types/validation-schema.ts:125](https://github.com/AlexandrBuk
 
 ### message?
 
-> `optional` **message**: `string`
+```ts
+optional message: string;
+```
 
-Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L127)
+Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L87)
 
 Сообщение об ошибке
 
----
+***
 
 ### params?
 
-> `optional` **params**: [`ValidatorParams`](../type-aliases/ValidatorParams.md)
+```ts
+optional params: FormFields;
+```
 
-Defined in: [core/types/validation-schema.ts:129](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L129)
+Defined in: [core/types/validation-schema.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L89)
 
 Параметры ошибки

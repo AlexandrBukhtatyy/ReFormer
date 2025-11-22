@@ -1,6 +1,6 @@
-# Class: SubscriptionManager
+# SubscriptionManager
 
-Defined in: [core/utils/subscription-manager.ts:28](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L28)
+Defined in: [core/utils/subscription-manager.ts:28](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L28)
 
 Менеджер подписок для FormNode
 
@@ -8,7 +8,6 @@ Defined in: [core/utils/subscription-manager.ts:28](https://github.com/AlexandrB
 предотвращает утечки памяти и упрощает отладку.
 
 Каждая подписка имеет уникальный ключ, что позволяет:
-
 - Отписываться от конкретной подписки по ключу
 - Автоматически заменять существующие подписки
 - Отслеживать количество активных подписок (для отладки)
@@ -34,7 +33,9 @@ class FieldNode {
 
 ### Constructor
 
-> **new SubscriptionManager**(): `SubscriptionManager`
+```ts
+new SubscriptionManager(): SubscriptionManager;
+```
 
 #### Returns
 
@@ -44,9 +45,11 @@ class FieldNode {
 
 ### add()
 
-> **add**(`key`, `dispose`): () => `void`
+```ts
+add(key, dispose): () => void;
+```
 
-Defined in: [core/utils/subscription-manager.ts:64](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L64)
+Defined in: [core/utils/subscription-manager.ts:64](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L64)
 
 Добавляет подписку
 
@@ -72,7 +75,9 @@ Defined in: [core/utils/subscription-manager.ts:64](https://github.com/AlexandrB
 
 Функция для отписки от этой конкретной подписки
 
-> (): `void`
+```ts
+(): void;
+```
 
 ##### Returns
 
@@ -96,13 +101,15 @@ manager.add('anotherSub', disposeFn);
 manager.remove('anotherSub');
 ```
 
----
+***
 
 ### clear()
 
-> **clear**(): `void`
+```ts
+clear(): void;
+```
 
-Defined in: [core/utils/subscription-manager.ts:129](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L129)
+Defined in: [core/utils/subscription-manager.ts:129](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L129)
 
 Очищает все подписки
 
@@ -126,13 +133,15 @@ class FieldNode {
 }
 ```
 
----
+***
 
 ### dispose()
 
-> **dispose**(): `void`
+```ts
+dispose(): void;
+```
 
-Defined in: [core/utils/subscription-manager.ts:218](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L218)
+Defined in: [core/utils/subscription-manager.ts:218](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L218)
 
 Отписывается от всех подписок (алиас для clear())
 
@@ -154,13 +163,15 @@ class FieldNode {
 }
 ```
 
----
+***
 
 ### getKeys()
 
-> **getKeys**(): `string`[]
+```ts
+getKeys(): string[];
+```
 
-Defined in: [core/utils/subscription-manager.ts:198](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L198)
+Defined in: [core/utils/subscription-manager.ts:198](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L198)
 
 Возвращает список всех ключей активных подписок
 
@@ -182,13 +193,15 @@ manager.add('watch-errors', disposeFn2);
 console.log(manager.getKeys()); // ['watch-value', 'watch-errors']
 ```
 
----
+***
 
 ### has()
 
-> **has**(`key`): `boolean`
+```ts
+has(key): boolean;
+```
 
-Defined in: [core/utils/subscription-manager.ts:178](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L178)
+Defined in: [core/utils/subscription-manager.ts:178](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L178)
 
 Проверяет, есть ли подписка с данным ключом
 
@@ -216,13 +229,15 @@ console.log(manager.has('mySub')); // true
 console.log(manager.has('nonExistent')); // false
 ```
 
----
+***
 
 ### remove()
 
-> **remove**(`key`): `boolean`
+```ts
+remove(key): boolean;
+```
 
-Defined in: [core/utils/subscription-manager.ts:101](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L101)
+Defined in: [core/utils/subscription-manager.ts:101](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L101)
 
 Удаляет подписку по ключу
 
@@ -256,13 +271,15 @@ const removed = manager.remove('mySub'); // true
 const removed2 = manager.remove('nonExistent'); // false
 ```
 
----
+***
 
 ### size()
 
-> **size**(): `number`
+```ts
+size(): number;
+```
 
-Defined in: [core/utils/subscription-manager.ts:159](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/subscription-manager.ts#L159)
+Defined in: [core/utils/subscription-manager.ts:159](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/subscription-manager.ts#L159)
 
 Возвращает количество активных подписок
 

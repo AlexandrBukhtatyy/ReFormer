@@ -9,6 +9,7 @@ export interface CheckboxProps
   onBlur?: () => void;
   label?: string;
   disabled?: boolean;
+  'data-testid'?: string;
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(

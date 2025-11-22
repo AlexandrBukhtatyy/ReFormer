@@ -1,31 +1,95 @@
-# Function: useFormControl()
+# useFormControl()
 
-> **useFormControl**(`control`): `object`
+```ts
+function useFormControl<T>(control): object;
+```
 
-Defined in: [hooks/useFormControl.ts:5](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/hooks/useFormControl.ts#L5)
+Defined in: [hooks/useFormControl.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/hooks/useFormControl.ts#L23)
+
+Хук для работы с FieldNode - возвращает сигналы напрямую
+
+Оптимальный способ использования: сигналы можно использовать напрямую в JSX,
+они автоматически обновляют компонент при изменении.
+
+## Type Parameters
+
+### T
+
+`T` *extends* [`FormValue`](../type-aliases/FormValue.md)
 
 ## Parameters
 
 ### control
 
-[`FieldNode`](../classes/FieldNode.md)\<[`FormValue`](../type-aliases/FormValue.md)\>
+[`FieldNode`](../classes/FieldNode.md)\<`T`\>
 
 ## Returns
 
 `object`
 
+### dirty
+
+```ts
+dirty: ReadonlySignal<boolean> = control.dirty;
+```
+
 ### disabled
 
-> **disabled**: `boolean`
+```ts
+disabled: ReadonlySignal<boolean> = control.disabled;
+```
 
 ### errors
 
-> **errors**: [`ValidationError`](../interfaces/ValidationError.md)[]
+```ts
+errors: ReadonlySignal<ValidationError[]> = control.errors;
+```
+
+### invalid
+
+```ts
+invalid: ReadonlySignal<boolean> = control.invalid;
+```
 
 ### pending
 
-> **pending**: `boolean`
+```ts
+pending: ReadonlySignal<boolean> = control.pending;
+```
+
+### shouldShowError
+
+```ts
+shouldShowError: ReadonlySignal<boolean> = control.shouldShowError;
+```
+
+### touched
+
+```ts
+touched: ReadonlySignal<boolean> = control.touched;
+```
+
+### valid
+
+```ts
+valid: ReadonlySignal<boolean> = control.valid;
+```
 
 ### value
 
-> **value**: `string` \| `number` \| `boolean` \| `Date` \| `File` \| [`FormValue`](../type-aliases/FormValue.md)[] \| \{\[`key`: `string`\]: [`FormValue`](../type-aliases/FormValue.md); \} \| `null` \| `undefined`
+```ts
+value: ReadonlySignal<T> = control.value;
+```
+
+## Example
+
+```tsx
+const { value, errors } = useFormControl(control);
+
+return (
+  <div>
+    <input value={value.value} onChange={e => control.setValue(e.target.value)} />
+    {errors.value.length > 0 && <span>{errors.value[0].message}</span>}
+  </div>
+);
+```

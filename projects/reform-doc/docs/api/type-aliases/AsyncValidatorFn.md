@@ -1,8 +1,10 @@
-# Type Alias: AsyncValidatorFn()\<T\>
+# AsyncValidatorFn()
 
-> **AsyncValidatorFn**\<`T`\> = (`value`) => `Promise`\<[`ValidationError`](../interfaces/ValidationError.md) \| `null`\>
+```ts
+type AsyncValidatorFn<T> = (value) => Promise<ValidationError | null>;
+```
 
-Defined in: [core/types/index.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L31)
+Defined in: [core/types/index.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L31)
 
 ## Type Parameters
 

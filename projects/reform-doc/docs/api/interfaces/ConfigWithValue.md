@@ -1,6 +1,6 @@
-# Interface: ConfigWithValue
+# ConfigWithValue
 
-Defined in: [core/types/index.ts:180](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L180)
+Defined in: [core/types/index.ts:181](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L181)
 
 Конфиг с полем value (для извлечения значений)
 
@@ -8,6 +8,8 @@ Defined in: [core/types/index.ts:180](https://github.com/AlexandrBukhtatyy/ReFor
 
 ### value
 
-> **value**: `unknown`
+```ts
+value: unknown;
+```
 
-Defined in: [core/types/index.ts:181](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L181)
+Defined in: [core/types/index.ts:182](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L182)

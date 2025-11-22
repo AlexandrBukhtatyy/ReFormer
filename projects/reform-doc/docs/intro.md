@@ -1,47 +1,55 @@
 ---
 sidebar_position: 1
+slug: /
 ---
 
-# Tutorial Intro
+# Introduction
 
-Let's discover **Docusaurus in less than 5 minutes**.
+**ReFormer** is a reactive forms library built on [Preact Signals](https://preactjs.com/guide/v10/signals/). It provides a declarative way to build complex forms with validation, computed fields, and conditional logic.
 
-## Getting Started
+## Key Features
 
-Get started by **creating a new site**.
+- **Reactive State** — Built on Signals for fine-grained reactivity
+- **Type-Safe** — Full TypeScript support with inferred types
+- **Declarative Validation** — Built-in validators + custom validation support
+- **Behaviors** — Computed fields, conditional visibility, field synchronization
+- **Nested Forms** — Support for complex nested structures and dynamic arrays
+- **Framework Agnostic** — Core library works anywhere, React bindings included
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## Quick Example
 
-### What you'll need
+```typescript
+import { GroupNode, FieldNode } from 'reformer';
+import { required, email } from 'reformer/validators';
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+// Define form structure
+const form = new GroupNode({
+  schema: {
+    name: new FieldNode({ value: '' }),
+    email: new FieldNode({ value: '' }),
+  },
+  validationSchema: (path, { validate }) => [
+    validate(path.name, required()),
+    validate(path.email, required(), email()),
+  ],
+});
 
-## Generate a new site
-
-Generate a new Docusaurus site using the **classic template**.
-
-The classic template will automatically be added to your project after you run the command:
-
-```bash
-npm init docusaurus@latest my-website classic
+// React to changes
+form.value; // { name: '', email: '' }
+form.controls.name.setValue('John');
+form.value; // { name: 'John', email: '' }
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+## Core Concepts
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+| Concept | Description |
+|---------|-------------|
+| [**Nodes**](/docs/core-concepts/nodes) | Building blocks: `FieldNode`, `GroupNode`, `ArrayNode` |
+| [**Validation**](/docs/validation/overview) | Built-in validators and custom validation |
+| [**Behaviors**](/docs/behaviors/overview) | Reactive logic: computed fields, conditional visibility |
 
-## Start your site
+## Next Steps
 
-Run the development server:
-
-```bash
-cd my-website
-npm run start
-```
-
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
-
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+- [Installation](/docs/getting-started/installation) — Add ReFormer to your project
+- [Quick Start](/docs/getting-started/quick-start) — Build your first form
+- [API Reference](/docs/api) — Full API documentation

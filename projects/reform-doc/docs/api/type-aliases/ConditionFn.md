@@ -1,8 +1,10 @@
-# Type Alias: ConditionFn()\<T\>
+# ConditionFn()
 
-> **ConditionFn**\<`T`\> = (`value`) => `boolean`
+```ts
+type ConditionFn<T> = (value) => boolean;
+```
 
-Defined in: [core/types/validation-schema.ts:116](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L116)
+Defined in: [core/types/validation-schema.ts:76](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L76)
 
 Функция условия для applyWhen
 

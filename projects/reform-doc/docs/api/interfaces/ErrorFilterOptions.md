@@ -1,6 +1,6 @@
-# Interface: ErrorFilterOptions
+# ErrorFilterOptions
 
-Defined in: [core/types/index.ts:42](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L42)
+Defined in: [core/types/index.ts:44](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L44)
 
 Опции для фильтрации ошибок в методе getErrors()
 
@@ -8,39 +8,47 @@ Defined in: [core/types/index.ts:42](https://github.com/AlexandrBukhtatyy/ReForm
 
 ### code?
 
-> `optional` **code**: `string` \| `string`[]
+```ts
+optional code: string | string[];
+```
 
-Defined in: [core/types/index.ts:44](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L44)
+Defined in: [core/types/index.ts:46](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L46)
 
 Фильтр по коду ошибки
 
----
+***
 
 ### message?
 
-> `optional` **message**: `string`
+```ts
+optional message: string;
+```
 
-Defined in: [core/types/index.ts:47](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L47)
+Defined in: [core/types/index.ts:49](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L49)
 
 Фильтр по сообщению (поддерживает частичное совпадение)
 
----
+***
 
 ### params?
 
-> `optional` **params**: `Record`\<`string`, [`FormValue`](../type-aliases/FormValue.md)\>
+```ts
+optional params: FormFields;
+```
 
-Defined in: [core/types/index.ts:50](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L50)
+Defined in: [core/types/index.ts:52](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L52)
 
 Фильтр по параметрам ошибки
 
----
+***
 
 ### predicate()?
 
-> `optional` **predicate**: (`error`) => `boolean`
+```ts
+optional predicate: (error) => boolean;
+```
 
-Defined in: [core/types/index.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L53)
+Defined in: [core/types/index.ts:55](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L55)
 
 Кастомный предикат для фильтрации
 

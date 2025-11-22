@@ -1,5 +1,6 @@
 /**
- * Conditional show/hide fields
+ * Условное отображение/скрытие полей
+ * @module behaviors/showWhen
  */
 
 import type { FieldPathNode, FormFields, FormValue } from '../../types';

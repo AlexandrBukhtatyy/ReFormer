@@ -1,8 +1,10 @@
-# Function: getCurrentBehaviorRegistry()
+# getCurrentBehaviorRegistry()
 
-> **getCurrentBehaviorRegistry**(): `BehaviorRegistry`
+```ts
+function getCurrentBehaviorRegistry(): BehaviorRegistry;
+```
 
-Defined in: [core/utils/registry-helpers.ts:75](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/registry-helpers.ts#L75)
+Defined in: [core/utils/registry-helpers.ts:75](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/registry-helpers.ts#L75)
 
 **`Internal`**
 

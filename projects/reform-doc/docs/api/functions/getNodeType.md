@@ -1,8 +1,10 @@
-# Function: getNodeType()
+# getNodeType()
 
-> **getNodeType**(`node`): `string`
+```ts
+function getNodeType(node): string;
+```
 
-Defined in: [core/utils/type-guards.ts:173](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/utils/type-guards.ts#L173)
+Defined in: [core/utils/type-guards.ts:173](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/type-guards.ts#L173)
 
 Получить тип узла как строку (для отладки)
 

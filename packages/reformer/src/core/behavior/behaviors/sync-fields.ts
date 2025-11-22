@@ -1,5 +1,6 @@
 /**
- * Two-way field synchronization
+ * Двусторонняя синхронизация полей
+ * @module behaviors/syncFields
  */
 
 import { effect } from '@preact/signals-core';

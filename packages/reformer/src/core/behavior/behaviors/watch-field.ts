@@ -1,5 +1,6 @@
 /**
- * Watch field changes
+ * Отслеживание изменений поля
+ * @module behaviors/watchField
  */
 
 import { effect } from '@preact/signals-core';

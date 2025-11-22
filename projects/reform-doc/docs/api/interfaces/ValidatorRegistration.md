@@ -1,6 +1,6 @@
-# Interface: ValidatorRegistration
+# ValidatorRegistration
 
-Defined in: [core/types/validation-schema.ts:167](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L167)
+Defined in: [core/types/validation-schema.ts:127](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L127)
 
 **`Internal`**
 
@@ -10,46 +10,66 @@ Defined in: [core/types/validation-schema.ts:167](https://github.com/AlexandrBuk
 
 ### condition?
 
-> `optional` **condition**: `object`
+```ts
+optional condition: object;
+```
 
-Defined in: [core/types/validation-schema.ts:175](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L175)
+Defined in: [core/types/validation-schema.ts:135](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L135)
 
 #### conditionFn
 
-> **conditionFn**: [`ConditionFn`](../type-aliases/ConditionFn.md)\<`unknown`\>
+```ts
+conditionFn: ConditionFn<unknown>;
+```
 
 #### fieldPath
 
-> **fieldPath**: `string`
+```ts
+fieldPath: string;
+```
 
----
+***
 
 ### fieldPath
 
-> **fieldPath**: `string`
+```ts
+fieldPath: string;
+```
 
-Defined in: [core/types/validation-schema.ts:168](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L168)
+Defined in: [core/types/validation-schema.ts:128](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L128)
 
----
+***
 
 ### options?
 
-> `optional` **options**: [`ValidateOptions`](ValidateOptions.md) \| [`ValidateAsyncOptions`](ValidateAsyncOptions.md) \| [`ValidateTreeOptions`](ValidateTreeOptions.md)
+```ts
+optional options: 
+  | ValidateOptions
+  | ValidateAsyncOptions
+  | ValidateTreeOptions;
+```
 
-Defined in: [core/types/validation-schema.ts:174](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L174)
+Defined in: [core/types/validation-schema.ts:134](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L134)
 
----
+***
 
 ### type
 
-> **type**: `"async"` \| `"sync"` \| `"tree"`
+```ts
+type: "async" | "sync" | "tree";
+```
 
-Defined in: [core/types/validation-schema.ts:169](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L169)
+Defined in: [core/types/validation-schema.ts:129](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L129)
 
----
+***
 
 ### validator
 
-> **validator**: [`ContextualValidatorFn`](../type-aliases/ContextualValidatorFn.md)\<`unknown`, `unknown`\> \| [`ContextualAsyncValidatorFn`](../type-aliases/ContextualAsyncValidatorFn.md)\<`unknown`, `unknown`\> \| [`TreeValidatorFn`](../type-aliases/TreeValidatorFn.md)\<`unknown`\>
+```ts
+validator: 
+  | ContextualValidatorFn<unknown, unknown>
+  | ContextualAsyncValidatorFn<unknown, unknown>
+| TreeValidatorFn<unknown>;
+```
 
-Defined in: [core/types/validation-schema.ts:170](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/validation-schema.ts#L170)
+Defined in: [core/types/validation-schema.ts:130](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/validation-schema.ts#L130)

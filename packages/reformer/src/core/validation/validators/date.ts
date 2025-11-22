@@ -1,5 +1,6 @@
 /**
- * Date validator
+ * Валидатор даты
+ * @module validators/date
  */
 
 import { validate } from '../core/validate';

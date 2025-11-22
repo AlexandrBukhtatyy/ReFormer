@@ -1,6 +1,6 @@
-# Class: NodeFactory
+# NodeFactory
 
-Defined in: [core/factories/node-factory.ts:44](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/factories/node-factory.ts#L44)
+Defined in: [core/factories/node-factory.ts:44](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/factories/node-factory.ts#L44)
 
 Фабрика для создания узлов формы
 
@@ -10,7 +10,9 @@ Defined in: [core/factories/node-factory.ts:44](https://github.com/AlexandrBukht
 
 ### Constructor
 
-> **new NodeFactory**(): `NodeFactory`
+```ts
+new NodeFactory(): NodeFactory;
+```
 
 #### Returns
 
@@ -20,16 +22,17 @@ Defined in: [core/factories/node-factory.ts:44](https://github.com/AlexandrBukht
 
 ### createNode()
 
-> **createNode**\<`T`\>(`config`): [`FormNode`](FormNode.md)\<`T`\>
+```ts
+createNode<T>(config): FormNode<T>;
+```
 
-Defined in: [core/factories/node-factory.ts:90](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/factories/node-factory.ts#L90)
+Defined in: [core/factories/node-factory.ts:90](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/factories/node-factory.ts#L90)
 
 Создает узел формы на основе конфигурации
 
 ✅ ОБНОВЛЕНО: Теперь поддерживает массивы напрямую
 
 Автоматически определяет тип узла:
-
 - FieldNode: имеет value и component
 - ArrayNode: массив [schema, ...items] или { schema, initialItems }
 - GroupNode: объект без value, component, schema
@@ -67,43 +70,44 @@ const factory = new NodeFactory();
 const field = factory.createNode({
   value: 'test@mail.com',
   component: Input,
-  validators: [required, email],
+  validators: [required, email]
 });
 
 // GroupNode
 const group = factory.createNode({
   email: { value: '', component: Input },
-  password: { value: '', component: Input },
+  password: { value: '', component: Input }
 });
 
 // ArrayNode (объект)
 const array = factory.createNode({
   schema: { title: { value: '', component: Input } },
-  initialItems: [{ title: 'Item 1' }],
+  initialItems: [{ title: 'Item 1' }]
 });
 
 // ArrayNode (массив) - новый формат
 const array2 = factory.createNode([
   { title: { value: '', component: Input } }, // schema
   { title: 'Item 1' }, // initial item 1
-  { title: 'Item 2' }, // initial item 2
+  { title: 'Item 2' }  // initial item 2
 ]);
 ```
 
----
+***
 
 ### extractValues()
 
-> **extractValues**(`schema`): `unknown`
+```ts
+extractValues(schema): unknown;
+```
 
-Defined in: [core/factories/node-factory.ts:204](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/factories/node-factory.ts#L204)
+Defined in: [core/factories/node-factory.ts:204](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/factories/node-factory.ts#L204)
 
 Извлечь значения из схемы (рекурсивно)
 
 ✅ НОВОЕ: Извлечено из GroupNode для централизации логики
 
 Преобразует схему формы в объект со значениями:
-
 - `{ name: { value: 'John', component: Input } } → { name: 'John' }`
 - Поддерживает вложенные группы
 - Поддерживает массивы
@@ -131,30 +135,30 @@ const schema = {
   name: { value: 'John', component: Input },
   age: { value: 30, component: Input },
   address: {
-    city: { value: 'Moscow', component: Input },
-  },
+    city: { value: 'Moscow', component: Input }
+  }
 };
 
 factory.extractValues(schema);
 // { name: 'John', age: 30, address: { city: 'Moscow' } }
 ```
 
----
+***
 
 ### isArrayConfig()
 
-> **isArrayConfig**(`config`): `boolean`
+```ts
+isArrayConfig(config): boolean;
+```
 
-Defined in: [core/factories/node-factory.ts:276](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/factories/node-factory.ts#L276)
+Defined in: [core/factories/node-factory.ts:276](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/factories/node-factory.ts#L276)
 
 Проверяет, является ли конфиг конфигурацией массива (ArrayConfig)
 
 ArrayConfig имеет обязательное свойство:
-
 - schema: схема для элементов массива
 
 И НЕ имеет:
-
 - value (отличие от FieldConfig)
 
 #### Parameters
@@ -181,18 +185,19 @@ factory.isArrayConfig({ value: '', component: Input }); // false
 factory.isArrayConfig({ email: { value: '' } }); // false
 ```
 
----
+***
 
 ### isFieldConfig()
 
-> **isFieldConfig**(`config`): `boolean`
+```ts
+isFieldConfig(config): boolean;
+```
 
-Defined in: [core/factories/node-factory.ts:249](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/factories/node-factory.ts#L249)
+Defined in: [core/factories/node-factory.ts:249](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/factories/node-factory.ts#L249)
 
 Проверяет, является ли конфиг конфигурацией поля (FieldConfig)
 
 FieldConfig имеет обязательные свойства:
-
 - value: начальное значение поля
 - component: React-компонент для отображения
 
@@ -220,18 +225,19 @@ factory.isFieldConfig({ email: { value: '' } }); // false
 factory.isFieldConfig(null); // false
 ```
 
----
+***
 
 ### isGroupConfig()
 
-> **isGroupConfig**(`config`): `boolean`
+```ts
+isGroupConfig(config): boolean;
+```
 
-Defined in: [core/factories/node-factory.ts:307](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/factories/node-factory.ts#L307)
+Defined in: [core/factories/node-factory.ts:307](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/factories/node-factory.ts#L307)
 
 Проверяет, является ли конфиг конфигурацией группы (GroupConfig)
 
 GroupConfig - это объект, который:
-
 - НЕ является FieldConfig (нет value/component)
 - НЕ является ArrayConfig (нет schema)
 - Содержит вложенные конфиги полей/групп/массивов
@@ -257,7 +263,7 @@ const factory = new NodeFactory();
 
 factory.isGroupConfig({
   email: { value: '', component: Input },
-  password: { value: '', component: Input },
+  password: { value: '', component: Input }
 }); // true
 
 factory.isGroupConfig({ value: '', component: Input }); // false

@@ -1,6 +1,6 @@
-# Interface: FieldPathNode\<TForm, TField, TKey\>
+# FieldPathNode
 
-Defined in: [core/types/field-path.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/field-path.ts#L45)
+Defined in: [core/types/field-path.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/field-path.ts#L45)
 
 Узел в пути поля
 Содержит метаинформацию о поле для валидации
@@ -17,44 +17,52 @@ Defined in: [core/types/field-path.ts:45](https://github.com/AlexandrBukhtatyy/R
 
 ### TKey
 
-`TKey` _extends_ keyof `TForm` = keyof `TForm`
+`TKey` = `unknown`
 
 ## Properties
 
 ### \_\_fieldType?
 
-> `readonly` `optional` **\_\_fieldType**: `TField`
+```ts
+readonly optional __fieldType: TField;
+```
 
-Defined in: [core/types/field-path.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/field-path.ts#L53)
+Defined in: [core/types/field-path.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/field-path.ts#L53)
 
 Тип поля
 
----
+***
 
 ### \_\_formType?
 
-> `readonly` `optional` **\_\_formType**: `TForm`
+```ts
+readonly optional __formType: TForm;
+```
 
-Defined in: [core/types/field-path.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/field-path.ts#L51)
+Defined in: [core/types/field-path.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/field-path.ts#L51)
 
 Тип формы
 
----
+***
 
 ### \_\_key
 
-> `readonly` **\_\_key**: `TKey`
+```ts
+readonly __key: TKey;
+```
 
-Defined in: [core/types/field-path.ts:47](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/field-path.ts#L47)
+Defined in: [core/types/field-path.ts:47](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/field-path.ts#L47)
 
 Ключ поля
 
----
+***
 
 ### \_\_path
 
-> `readonly` **\_\_path**: `string`
+```ts
+readonly __path: string;
+```
 
-Defined in: [core/types/field-path.ts:49](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/field-path.ts#L49)
+Defined in: [core/types/field-path.ts:49](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/field-path.ts#L49)
 
 Путь к полю (для вложенных объектов)

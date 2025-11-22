@@ -1,5 +1,6 @@
 /**
- * Phone number validator
+ * Валидатор номера телефона
+ * @module validators/phone
  */
 
 import { validate } from '../core/validate';

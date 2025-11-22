@@ -1,8 +1,10 @@
-# Type Alias: UnknownRecord
+# UnknownRecord
 
-> **UnknownRecord** = `Record`\<`string`, `unknown`\>
+```ts
+type UnknownRecord = Record<string, any>;
+```
 
-Defined in: [core/types/index.ts:141](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L141)
+Defined in: [core/types/index.ts:142](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L142)
 
 Тип для Record с unknown значениями
 Используется вместо инлайнового `Record<string, unknown>`

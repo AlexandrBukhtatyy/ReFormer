@@ -1,6 +1,6 @@
-# Class: FieldNode\<T\>
+# FieldNode
 
-Defined in: [core/nodes/field-node.ts:32](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L32)
+Defined in: [core/nodes/field-node.ts:32](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L32)
 
 FieldNode - узел для отдельного поля формы
 
@@ -32,9 +32,11 @@ console.log(field.valid.value); // true
 
 ### Constructor
 
-> **new FieldNode**\<`T`\>(`config`): `FieldNode`\<`T`\>
+```ts
+new FieldNode<T>(config): FieldNode<T>;
+```
 
-Defined in: [core/nodes/field-node.ts:86](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L86)
+Defined in: [core/nodes/field-node.ts:88](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L88)
 
 #### Parameters
 
@@ -54,9 +56,11 @@ Defined in: [core/nodes/field-node.ts:86](https://github.com/AlexandrBukhtatyy/R
 
 ### \_dirty
 
-> `protected` **\_dirty**: `Signal`\<`boolean`\>
+```ts
+protected _dirty: Signal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L51)
+Defined in: [core/nodes/form-node.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L51)
 
 Значение узла было изменено (dirty)
 Protected: наследники могут читать/изменять через методы
@@ -65,13 +69,15 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_dirty`](FormNode.md#_dirty)
 
----
+***
 
 ### \_status
 
-> `protected` **\_status**: `Signal`\<[`FieldStatus`](../type-aliases/FieldStatus.md)\>
+```ts
+protected _status: Signal<FieldStatus>;
+```
 
-Defined in: [core/nodes/form-node.ts:57](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L57)
+Defined in: [core/nodes/form-node.ts:57](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L57)
 
 Текущий статус узла
 Protected: наследники могут читать/изменять через методы
@@ -80,13 +86,15 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_status`](FormNode.md#_status)
 
----
+***
 
 ### \_touched
 
-> `protected` **\_touched**: `Signal`\<`boolean`\>
+```ts
+protected _touched: Signal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L45)
+Defined in: [core/nodes/form-node.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L45)
 
 Пользователь взаимодействовал с узлом (touched)
 Protected: наследники могут читать/изменять через методы
@@ -95,44 +103,52 @@ Protected: наследники могут читать/изменять чер�
 
 [`FormNode`](FormNode.md).[`_touched`](FormNode.md#_touched)
 
----
+***
 
 ### component
 
-> `readonly` **component**: `ComponentType`\<[`UnknownRecord`](../type-aliases/UnknownRecord.md)\>
+```ts
+readonly component: ComponentType<any>;
+```
 
-Defined in: [core/nodes/field-node.ts:80](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L80)
+Defined in: [core/nodes/field-node.ts:82](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L82)
 
----
+***
 
 ### componentProps
 
-> `readonly` **componentProps**: `ReadonlySignal`\<`Record`\<`string`, `unknown`\>\>
+```ts
+readonly componentProps: ReadonlySignal<Record<string, any>>;
+```
 
-Defined in: [core/nodes/field-node.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L53)
+Defined in: [core/nodes/field-node.ts:55](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L55)
 
----
+***
 
 ### dirty
 
-> `readonly` **dirty**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly dirty: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L78)
+Defined in: [core/nodes/form-node.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L78)
 
 Значение узла было изменено (dirty)
-Computed из \_dirty для предоставления readonly интерфейса
+Computed из _dirty для предоставления readonly интерфейса
 
 #### Inherited from
 
 [`FormNode`](FormNode.md).[`dirty`](FormNode.md#dirty)
 
----
+***
 
 ### disabled
 
-> `readonly` **disabled**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly disabled: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L94)
+Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L94)
 
 Узел отключен (disabled)
 
@@ -140,13 +156,15 @@ Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`disabled`](FormNode.md#disabled)
 
----
+***
 
 ### enabled
 
-> `readonly` **enabled**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly enabled: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L99)
+Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L99)
 
 Узел включен (enabled)
 
@@ -154,13 +172,15 @@ Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`enabled`](FormNode.md#enabled)
 
----
+***
 
 ### errors
 
-> `readonly` **errors**: `ReadonlySignal`\<[`ValidationError`](../interfaces/ValidationError.md)[]\>
+```ts
+readonly errors: ReadonlySignal<ValidationError[]>;
+```
 
-Defined in: [core/nodes/field-node.ts:52](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L52)
+Defined in: [core/nodes/field-node.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L53)
 
 Массив ошибок валидации
 
@@ -168,13 +188,15 @@ Defined in: [core/nodes/field-node.ts:52](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`errors`](FormNode.md#errors)
 
----
+***
 
 ### invalid
 
-> `readonly` **invalid**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly invalid: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/field-node.ts:49](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L49)
+Defined in: [core/nodes/field-node.ts:50](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L50)
 
 Узел невалиден (есть ошибки валидации)
 
@@ -182,13 +204,15 @@ Defined in: [core/nodes/field-node.ts:49](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`invalid`](FormNode.md#invalid)
 
----
+***
 
 ### pending
 
-> `readonly` **pending**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly pending: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/field-node.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L51)
+Defined in: [core/nodes/field-node.ts:52](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L52)
 
 Выполняется асинхронная валидация
 
@@ -196,13 +220,15 @@ Defined in: [core/nodes/field-node.ts:51](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`pending`](FormNode.md#pending)
 
----
+***
 
 ### pristine
 
-> `readonly` **pristine**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly pristine: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L83)
+Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L83)
 
 Значение узла не было изменено (pristine)
 
@@ -210,54 +236,62 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`pristine`](FormNode.md#pristine)
 
----
+***
 
 ### shouldShowError
 
-> `readonly` **shouldShowError**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly shouldShowError: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/field-node.ts:59](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L59)
+Defined in: [core/nodes/field-node.ts:61](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L61)
 
 Вычисляемое свойство: нужно ли показывать ошибку
 Ошибка показывается если поле невалидно И (touched ИЛИ dirty)
 
----
+***
 
 ### status
 
-> `readonly` **status**: `ReadonlySignal`\<[`FieldStatus`](../type-aliases/FieldStatus.md)\>
+```ts
+readonly status: ReadonlySignal<FieldStatus>;
+```
 
-Defined in: [core/nodes/form-node.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L89)
+Defined in: [core/nodes/form-node.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L89)
 
 Текущий статус узла
-Computed из \_status для предоставления readonly интерфейса
+Computed из _status для предоставления readonly интерфейса
 
 #### Inherited from
 
 [`FormNode`](FormNode.md).[`status`](FormNode.md#status)
 
----
+***
 
 ### touched
 
-> `readonly` **touched**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly touched: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:67](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L67)
+Defined in: [core/nodes/form-node.ts:67](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L67)
 
 Пользователь взаимодействовал с узлом (touched)
-Computed из \_touched для предоставления readonly интерфейса
+Computed из _touched для предоставления readonly интерфейса
 
 #### Inherited from
 
 [`FormNode`](FormNode.md).[`touched`](FormNode.md#touched)
 
----
+***
 
 ### untouched
 
-> `readonly` **untouched**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly untouched: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L72)
+Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L72)
 
 Пользователь не взаимодействовал с узлом (untouched)
 
@@ -265,13 +299,15 @@ Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/Re
 
 [`FormNode`](FormNode.md).[`untouched`](FormNode.md#untouched)
 
----
+***
 
 ### valid
 
-> `readonly` **valid**: `ReadonlySignal`\<`boolean`\>
+```ts
+readonly valid: ReadonlySignal<boolean>;
+```
 
-Defined in: [core/nodes/field-node.ts:48](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L48)
+Defined in: [core/nodes/field-node.ts:49](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L49)
 
 Узел валиден (все валидаторы прошли успешно)
 
@@ -279,16 +315,17 @@ Defined in: [core/nodes/field-node.ts:48](https://github.com/AlexandrBukhtatyy/R
 
 [`FormNode`](FormNode.md).[`valid`](FormNode.md#valid)
 
----
+***
 
 ### value
 
-> `readonly` **value**: `ReadonlySignal`\<`T`\>
+```ts
+readonly value: ReadonlySignal<T>;
+```
 
-Defined in: [core/nodes/field-node.ts:47](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L47)
+Defined in: [core/nodes/field-node.ts:48](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L48)
 
 Текущее значение узла
-
 - Для FieldNode: значение поля
 - Для GroupNode: объект со значениями всех полей
 - Для ArrayNode: массив значений элементов
@@ -301,9 +338,11 @@ Defined in: [core/nodes/field-node.ts:47](https://github.com/AlexandrBukhtatyy/R
 
 ### clearErrors()
 
-> **clearErrors**(): `void`
+```ts
+clearErrors(): void;
+```
 
-Defined in: [core/nodes/field-node.ts:389](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L389)
+Defined in: [core/nodes/field-node.ts:391](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L391)
 
 Очистить ошибки валидации
 
@@ -315,13 +354,15 @@ Defined in: [core/nodes/field-node.ts:389](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`clearErrors`](FormNode.md#clearerrors)
 
----
+***
 
 ### computeFrom()
 
-> **computeFrom**\<`TSource`\>(`sources`, `computeFn`): () => `void`
+```ts
+computeFrom<TSource>(sources, computeFn): () => void;
+```
 
-Defined in: [core/nodes/field-node.ts:535](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L535)
+Defined in: [core/nodes/field-node.ts:542](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L542)
 
 Вычисляемое значение из других полей
 Автоматически обновляет текущее поле при изменении источников
@@ -330,7 +371,7 @@ Defined in: [core/nodes/field-node.ts:535](https://github.com/AlexandrBukhtatyy/
 
 ##### TSource
 
-`TSource` _extends_ readonly `unknown`[]
+`TSource` *extends* readonly `unknown`[]
 
 #### Parameters
 
@@ -350,7 +391,9 @@ Defined in: [core/nodes/field-node.ts:535](https://github.com/AlexandrBukhtatyy/
 
 Функция отписки для cleanup
 
-> (): `void`
+```ts
+(): void;
+```
 
 ##### Returns
 
@@ -360,21 +403,26 @@ Defined in: [core/nodes/field-node.ts:535](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 // Автоматический расчет первоначального взноса (20% от стоимости)
-const dispose = form.initialPayment.computeFrom([form.propertyValue.value], (propertyValue) => {
-  return propertyValue ? propertyValue * 0.2 : null;
-});
+const dispose = form.initialPayment.computeFrom(
+  [form.propertyValue.value],
+  (propertyValue) => {
+    return propertyValue ? propertyValue * 0.2 : null;
+  }
+);
 
 // Cleanup
 useEffect(() => dispose, []);
 ```
 
----
+***
 
 ### disable()
 
-> **disable**(): `void`
+```ts
+disable(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:365](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L365)
+Defined in: [core/nodes/form-node.ts:365](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L365)
 
 Отключить узел
 
@@ -391,13 +439,15 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`disable`](FormNode.md#disable)
 
----
+***
 
 ### dispose()
 
-> **dispose**(): `void`
+```ts
+dispose(): void;
+```
 
-Defined in: [core/nodes/field-node.ts:569](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L569)
+Defined in: [core/nodes/field-node.ts:576](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L576)
 
 Очистить все ресурсы и таймеры
 Должен вызываться при unmount компонента
@@ -420,13 +470,15 @@ useEffect(() => {
 
 [`FormNode`](FormNode.md).[`dispose`](FormNode.md#dispose)
 
----
+***
 
 ### enable()
 
-> **enable**(): `void`
+```ts
+enable(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:376](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L376)
+Defined in: [core/nodes/form-node.ts:376](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L376)
 
 Включить узел
 
@@ -441,18 +493,19 @@ Template Method: обновляет статус в базовом классе,
 
 [`FormNode`](FormNode.md).[`enable`](FormNode.md#enable)
 
----
+***
 
 ### getErrors()
 
-> **getErrors**(`options?`): [`ValidationError`](../interfaces/ValidationError.md)[]
+```ts
+getErrors(options?): ValidationError[];
+```
 
-Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L226)
+Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L226)
 
 Получить ошибки валидации с фильтрацией
 
 Позволяет фильтровать ошибки по различным критериям:
-
 - По коду ошибки
 - По сообщению (частичное совпадение)
 - По параметрам
@@ -491,12 +544,12 @@ const passwordErrors = form.getErrors({ message: 'Password' });
 
 // Ошибки по параметрам
 const minLengthErrors = form.getErrors({
-  params: { minLength: 8 },
+  params: { minLength: 8 }
 });
 
 // Кастомная фильтрация
 const customErrors = form.getErrors({
-  predicate: (err) => err.code.startsWith('custom_'),
+  predicate: (err) => err.code.startsWith('custom_')
 });
 ```
 
@@ -504,13 +557,29 @@ const customErrors = form.getErrors({
 
 [`FormNode`](FormNode.md).[`getErrors`](FormNode.md#geterrors)
 
----
+***
+
+### getUpdateOn()
+
+```ts
+getUpdateOn(): "change" | "blur" | "submit";
+```
+
+Defined in: [core/nodes/field-node.ts:484](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L484)
+
+#### Returns
+
+`"change"` \| `"blur"` \| `"submit"`
+
+***
 
 ### getValue()
 
-> **getValue**(): `T`
+```ts
+getValue(): T;
+```
 
-Defined in: [core/nodes/field-node.ts:128](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L128)
+Defined in: [core/nodes/field-node.ts:130](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L130)
 
 Получить значение узла (non-reactive)
 Использует .peek() для получения значения без создания зависимости
@@ -523,13 +592,15 @@ Defined in: [core/nodes/field-node.ts:128](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`getValue`](FormNode.md#getvalue)
 
----
+***
 
 ### markAsDirty()
 
-> **markAsDirty**(): `void`
+```ts
+markAsDirty(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:308](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L308)
+Defined in: [core/nodes/form-node.ts:308](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L308)
 
 Отметить узел как dirty (значение изменено)
 
@@ -544,13 +615,15 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsDirty`](FormNode.md#markasdirty)
 
----
+***
 
 ### markAsPristine()
 
-> **markAsPristine**(): `void`
+```ts
+markAsPristine(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:319](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L319)
+Defined in: [core/nodes/form-node.ts:319](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L319)
 
 Отметить узел как pristine (значение не изменено)
 
@@ -565,13 +638,15 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsPristine`](FormNode.md#markaspristine)
 
----
+***
 
 ### markAsTouched()
 
-> **markAsTouched**(): `void`
+```ts
+markAsTouched(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:286](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L286)
+Defined in: [core/nodes/form-node.ts:286](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L286)
 
 Отметить узел как touched (пользователь взаимодействовал)
 
@@ -586,13 +661,15 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsTouched`](FormNode.md#markastouched)
 
----
+***
 
 ### markAsUntouched()
 
-> **markAsUntouched**(): `void`
+```ts
+markAsUntouched(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:297](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L297)
+Defined in: [core/nodes/form-node.ts:297](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L297)
 
 Отметить узел как untouched
 
@@ -607,13 +684,15 @@ Template Method: обновляет signal в базовом классе,
 
 [`FormNode`](FormNode.md).[`markAsUntouched`](FormNode.md#markasuntouched)
 
----
+***
 
 ### onDisable()
 
-> `protected` **onDisable**(): `void`
+```ts
+protected onDisable(): void;
+```
 
-Defined in: [core/nodes/field-node.ts:414](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L414)
+Defined in: [core/nodes/field-node.ts:416](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L416)
 
 Hook: вызывается после disable()
 
@@ -627,13 +706,15 @@ Hook: вызывается после disable()
 
 [`FormNode`](FormNode.md).[`onDisable`](FormNode.md#ondisable)
 
----
+***
 
 ### onEnable()
 
-> `protected` **onEnable**(): `void`
+```ts
+protected onEnable(): void;
+```
 
-Defined in: [core/nodes/field-node.ts:423](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L423)
+Defined in: [core/nodes/field-node.ts:425](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L425)
 
 Hook: вызывается после enable()
 
@@ -647,18 +728,19 @@ Hook: вызывается после enable()
 
 [`FormNode`](FormNode.md).[`onEnable`](FormNode.md#onenable)
 
----
+***
 
 ### onMarkAsDirty()
 
-> `protected` **onMarkAsDirty**(): `void`
+```ts
+protected onMarkAsDirty(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:442](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L442)
+Defined in: [core/nodes/form-node.ts:442](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L442)
 
 Hook: вызывается после markAsDirty()
 
 Переопределите в наследниках для дополнительной логики:
-
 - GroupNode: может обновить родительскую форму
 - ArrayNode: может обновить родительскую форму
 - FieldNode: пустая реализация
@@ -671,18 +753,19 @@ Hook: вызывается после markAsDirty()
 
 [`FormNode`](FormNode.md).[`onMarkAsDirty`](FormNode.md#onmarkasdirty)
 
----
+***
 
 ### onMarkAsPristine()
 
-> `protected` **onMarkAsPristine**(): `void`
+```ts
+protected onMarkAsPristine(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:454](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L454)
+Defined in: [core/nodes/form-node.ts:454](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L454)
 
 Hook: вызывается после markAsPristine()
 
 Переопределите в наследниках для дополнительной логики:
-
 - GroupNode: пометить все дочерние узлы как pristine
 - ArrayNode: пометить все элементы массива как pristine
 - FieldNode: пустая реализация
@@ -695,13 +778,15 @@ Hook: вызывается после markAsPristine()
 
 [`FormNode`](FormNode.md).[`onMarkAsPristine`](FormNode.md#onmarkaspristine)
 
----
+***
 
 ### onMarkAsTouched()
 
-> `protected` **onMarkAsTouched**(): `void`
+```ts
+protected onMarkAsTouched(): void;
+```
 
-Defined in: [core/nodes/field-node.ts:403](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L403)
+Defined in: [core/nodes/field-node.ts:405](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L405)
 
 Hook: вызывается после markAsTouched()
 
@@ -715,18 +800,19 @@ Hook: вызывается после markAsTouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsTouched`](FormNode.md#onmarkastouched)
 
----
+***
 
 ### onMarkAsUntouched()
 
-> `protected` **onMarkAsUntouched**(): `void`
+```ts
+protected onMarkAsUntouched(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:430](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L430)
+Defined in: [core/nodes/form-node.ts:430](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L430)
 
 Hook: вызывается после markAsUntouched()
 
 Переопределите в наследниках для дополнительной логики:
-
 - GroupNode: пометить все дочерние узлы как untouched
 - ArrayNode: пометить все элементы массива как untouched
 - FieldNode: пустая реализация (нет дочерних узлов)
@@ -739,13 +825,15 @@ Hook: вызывается после markAsUntouched()
 
 [`FormNode`](FormNode.md).[`onMarkAsUntouched`](FormNode.md#onmarkasuntouched)
 
----
+***
 
 ### patchValue()
 
-> **patchValue**(`value`): `void`
+```ts
+patchValue(value): void;
+```
 
-Defined in: [core/nodes/field-node.ts:161](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L161)
+Defined in: [core/nodes/field-node.ts:163](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L163)
 
 Частично обновить значение узла
 Для FieldNode: работает как setValue
@@ -768,13 +856,15 @@ Defined in: [core/nodes/field-node.ts:161](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`patchValue`](FormNode.md#patchvalue)
 
----
+***
 
 ### reset()
 
-> **reset**(`value?`): `void`
+```ts
+reset(value?): void;
+```
 
-Defined in: [core/nodes/field-node.ts:188](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L188)
+Defined in: [core/nodes/field-node.ts:190](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L190)
 
 Сбросить поле к указанному значению (или к initialValue)
 
@@ -793,7 +883,6 @@ Defined in: [core/nodes/field-node.ts:188](https://github.com/AlexandrBukhtatyy/
 #### Remarks
 
 Этот метод:
-
 - Устанавливает значение в value или initialValue
 - Очищает ошибки валидации
 - Сбрасывает touched/dirty флаги
@@ -815,13 +904,15 @@ field.reset('new value');
 
 [`FormNode`](FormNode.md).[`reset`](FormNode.md#reset)
 
----
+***
 
 ### resetToInitial()
 
-> **resetToInitial**(): `void`
+```ts
+resetToInitial(): void;
+```
 
-Defined in: [core/nodes/field-node.ts:221](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L221)
+Defined in: [core/nodes/field-node.ts:223](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L223)
 
 Сбросить поле к исходному значению (initialValue)
 
@@ -832,12 +923,10 @@ Defined in: [core/nodes/field-node.ts:221](https://github.com/AlexandrBukhtatyy/
 #### Remarks
 
 Алиас для reset() без параметров, но более явный:
-
 - resetToInitial() - явно показывает намерение вернуться к начальному значению
 - reset() - может принимать новое значение
 
 Полезно когда:
-
 - Пользователь нажал "Cancel" - вернуть форму в исходное состояние
 - Форма была изменена через reset(newValue), но нужно вернуться к самому началу
 - Явное намерение показать "отмену всех изменений"
@@ -855,13 +944,15 @@ field.resetToInitial();
 console.log(field.value.value); // 'initial'
 ```
 
----
+***
 
 ### setErrors()
 
-> **setErrors**(`errors`): `void`
+```ts
+setErrors(errors): void;
+```
 
-Defined in: [core/nodes/field-node.ts:384](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L384)
+Defined in: [core/nodes/field-node.ts:386](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L386)
 
 Установить ошибки валидации извне
 
@@ -881,13 +972,15 @@ Defined in: [core/nodes/field-node.ts:384](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setErrors`](FormNode.md#seterrors)
 
----
+***
 
 ### setUpdateOn()
 
-> **setUpdateOn**(`updateOn`): `void`
+```ts
+setUpdateOn(updateOn): void;
+```
 
-Defined in: [core/nodes/field-node.ts:477](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L477)
+Defined in: [core/nodes/field-node.ts:480](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L480)
 
 Динамически изменяет триггер валидации (updateOn)
 Полезно для адаптивной валидации - например, переключиться на instant feedback после первого submit
@@ -913,8 +1006,8 @@ const form = new GroupNode({
     value: '',
     component: Input,
     updateOn: 'submit', // Изначально валидация только при submit
-    validators: [required, email],
-  },
+    validators: [required, email]
+  }
 });
 
 await form.submit(async (values) => {
@@ -926,18 +1019,20 @@ await form.submit(async (values) => {
 // Теперь валидация происходит при каждом изменении
 
 // Сценарий 2: Прогрессивное улучшение
-form.email.setUpdateOn('blur'); // Сначала только при blur
+form.email.setUpdateOn('blur');  // Сначала только при blur
 // ... пользователь начинает вводить ...
 form.email.setUpdateOn('change'); // Переключаем на change для real-time feedback
 ```
 
----
+***
 
 ### setValue()
 
-> **setValue**(`value`, `options?`): `void`
+```ts
+setValue(value, options?): void;
+```
 
-Defined in: [core/nodes/field-node.ts:132](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L132)
+Defined in: [core/nodes/field-node.ts:134](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L134)
 
 Установить значение узла
 
@@ -963,20 +1058,21 @@ Defined in: [core/nodes/field-node.ts:132](https://github.com/AlexandrBukhtatyy/
 
 [`FormNode`](FormNode.md).[`setValue`](FormNode.md#setvalue)
 
----
+***
 
 ### touchAll()
 
-> **touchAll**(): `void`
+```ts
+touchAll(): void;
+```
 
-Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/form-node.ts#L349)
+Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/form-node.ts#L349)
 
 Пометить все поля (включая вложенные) как touched
 Алиас для markAsTouched(), но более явно показывает намерение
 пометить ВСЕ поля рекурсивно
 
 Полезно для:
-
 - Показа всех ошибок валидации перед submit
 - Принудительного отображения ошибок при нажатии "Validate All"
 - Отображения невалидных полей в wizard/step form
@@ -1005,13 +1101,15 @@ await form.submit(async (values) => {
 
 [`FormNode`](FormNode.md).[`touchAll`](FormNode.md#touchall)
 
----
+***
 
 ### updateComponentProps()
 
-> **updateComponentProps**(`props`): `void`
+```ts
+updateComponentProps(props): void;
+```
 
-Defined in: [core/nodes/field-node.ts:438](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L438)
+Defined in: [core/nodes/field-node.ts:441](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L441)
 
 Обновляет свойства компонента (например, опции для Select)
 
@@ -1019,7 +1117,7 @@ Defined in: [core/nodes/field-node.ts:438](https://github.com/AlexandrBukhtatyy/
 
 ##### props
 
-`Partial`\<`Record`\<`string`, `unknown`\>\>
+`Partial`\<`Record`\<`string`, `any`\>\>
 
 #### Returns
 
@@ -1030,17 +1128,19 @@ Defined in: [core/nodes/field-node.ts:438](https://github.com/AlexandrBukhtatyy/
 ```typescript
 // Обновление опций для Select после загрузки справочников
 form.registrationAddress.city.updateComponentProps({
-  options: cities,
+  options: cities
 });
 ```
 
----
+***
 
 ### validate()
 
-> **validate**(`options?`): `Promise`\<`boolean`\>
+```ts
+validate(options?): Promise<boolean>;
+```
 
-Defined in: [core/nodes/field-node.ts:243](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L243)
+Defined in: [core/nodes/field-node.ts:245](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L245)
 
 Запустить валидацию поля
 
@@ -1079,13 +1179,15 @@ await field.validate({ debounce: 300 });
 
 [`FormNode`](FormNode.md).[`validate`](FormNode.md#validate)
 
----
+***
 
 ### watch()
 
-> **watch**(`callback`): () => `void`
+```ts
+watch(callback): () => void;
+```
 
-Defined in: [core/nodes/field-node.ts:502](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/nodes/field-node.ts#L502)
+Defined in: [core/nodes/field-node.ts:509](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/nodes/field-node.ts#L509)
 
 Подписка на изменения значения поля
 Автоматически отслеживает изменения через @preact/signals effect
@@ -1102,7 +1204,9 @@ Defined in: [core/nodes/field-node.ts:502](https://github.com/AlexandrBukhtatyy/
 
 Функция отписки для cleanup
 
-> (): `void`
+```ts
+(): void;
+```
 
 ##### Returns
 

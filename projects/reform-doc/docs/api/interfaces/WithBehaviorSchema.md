@@ -1,6 +1,6 @@
-# Interface: WithBehaviorSchema
+# WithBehaviorSchema
 
-Defined in: [core/types/index.ts:153](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L153)
+Defined in: [core/types/index.ts:154](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L154)
 
 Интерфейс для узлов с методом applyBehaviorSchema
 
@@ -8,9 +8,11 @@ Defined in: [core/types/index.ts:153](https://github.com/AlexandrBukhtatyy/ReFor
 
 ### applyBehaviorSchema()
 
-> **applyBehaviorSchema**(`schemaFn`): `void`
+```ts
+applyBehaviorSchema(schemaFn): void;
+```
 
-Defined in: [core/types/index.ts:154](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/index.ts#L154)
+Defined in: [core/types/index.ts:155](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/index.ts#L155)
 
 #### Parameters
 

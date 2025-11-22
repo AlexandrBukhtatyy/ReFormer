@@ -1,11 +1,12 @@
-# Type Alias: FormSchema\<T\>
+# FormSchema
 
-> **FormSchema**\<`T`\> = \{ \[K in keyof T\]: NonNullable\<T\[K\]\> extends (infer U)\[\] ? U extends FormFields ? \[FormSchema\<U\>\] : FieldConfig\<T\[K\]\> : NonNullable\<T\[K\]\> extends FormFields ? NonNullable\<T\[K\]\> extends Date \| File \| Blob ? FieldConfig\<T\[K\]\> : FormSchema\<NonNullable\<T\[K\]\>\> \| FieldConfig\<T\[K\]\> : FieldConfig\<T\[K\]\> \}
+```ts
+type FormSchema<T> = { [K in keyof T]: NonNullable<T[K]> extends string | number | boolean ? FieldConfig<T[K]> : NonNullable<T[K]> extends (infer U)[] ? U extends string | number | boolean ? FieldConfig<T[K]> : U extends Date | File | Blob | AnyFunction ? FieldConfig<T[K]> : [FormSchema<U>] : NonNullable<T[K]> extends Date | File | Blob | AnyFunction ? FieldConfig<T[K]> : FormSchema<NonNullable<T[K]>> };
+```
 
-Defined in: [core/types/deep-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0a4bb3eb91c092897c9afb429f71c64b1be9df7b/packages/reformer/src/core/types/deep-schema.ts#L87)
+Defined in: [core/types/deep-schema.ts:81](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L81)
 
 Автоматически определяет тип схемы на основе TypeScript типа:
-
 - `T[] -> [FormSchema<T>]` (массив с одним элементом)
 - `object -> FormSchema<T>` (группа)
 - `primitive -> FieldConfig<T>` (поле)
@@ -22,14 +23,12 @@ Defined in: [core/types/deep-schema.ts:87](https://github.com/AlexandrBukhtatyy/
 
 ```typescript
 interface Form {
-  name: string; // → FieldConfig<string>
-  address: {
-    // → FormSchema<Address>
+  name: string;                    // → FieldConfig<string>
+  address: {                       // → FormSchema<Address>
     city: string;
     street: string;
   };
-  items?: Array<{
-    // → [FormSchema<Item>] (опциональный)
+  items?: Array<{                  // → [FormSchema<Item>] (опциональный)
     title: string;
     price: number;
   }>;
@@ -41,11 +40,9 @@ const schema: FormSchema<Form> = {
     city: { value: '', component: Input },
     street: { value: '', component: Input },
   },
-  items: [
-    {
-      title: { value: '', component: Input },
-      price: { value: 0, component: Input },
-    },
-  ],
+  items: [{
+    title: { value: '', component: Input },
+    price: { value: 0, component: Input },
+  }],
 };
 ```

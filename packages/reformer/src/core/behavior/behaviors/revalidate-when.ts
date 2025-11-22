@@ -1,5 +1,6 @@
 /**
- * Revalidate fields on changes
+ * Перевалидация полей при изменениях
+ * @module behaviors/revalidateWhen
  */
 
 import { effect } from '@preact/signals-core';

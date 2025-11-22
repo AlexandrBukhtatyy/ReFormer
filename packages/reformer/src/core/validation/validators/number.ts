@@ -1,5 +1,6 @@
 /**
- * Number validator with advanced options
+ * Валидатор числовых значений
+ * @module validators/number
  */
 
 import { validate } from '../core/validate';

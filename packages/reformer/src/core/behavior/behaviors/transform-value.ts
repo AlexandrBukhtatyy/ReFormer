@@ -1,5 +1,6 @@
 /**
- * Value transformation behavior
+ * Трансформация значений полей
+ * @module behaviors/transformValue
  */
 
 import type { FieldPathNode, FormFields, FormValue } from '../../types';

@@ -1,5 +1,6 @@
 /**
- * Computed fields
+ * Вычисляемые поля
+ * @module behaviors/computeFrom
  */
 
 import { effect } from '@preact/signals-core';

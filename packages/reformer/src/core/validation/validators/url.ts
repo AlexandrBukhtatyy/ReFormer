@@ -1,5 +1,6 @@
 /**
- * URL format validator
+ * Валидатор URL
+ * @module validators/url
  */
 
 import { validate } from '../core/validate';
