@@ -1,6 +1,6 @@
 # FieldPathNavigator
 
-Defined in: [core/utils/field-path-navigator.ts:59](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L59)
+Defined in: [core/utils/field-path-navigator.ts:59](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/field-path-navigator.ts#L59)
 
 Навигация по путям к полям формы
 
@@ -49,7 +49,7 @@ new FieldPathNavigator(): FieldPathNavigator;
 getFormNodeValue(form, path): unknown;
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:291](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L291)
+Defined in: [core/utils/field-path-navigator.ts:291](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/field-path-navigator.ts#L291)
 
 Получить значение из FormNode по пути
 
@@ -109,7 +109,7 @@ navigator.getFormNodeValue(form, 'invalid.path');
 getNodeByPath(form, path): unknown;
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L371)
+Defined in: [core/utils/field-path-navigator.ts:371](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/field-path-navigator.ts#L371)
 
 Получает узел формы по пути
 
@@ -176,7 +176,7 @@ const invalidNode = navigator.getNodeByPath(form, 'invalid.path');
 getValueByPath(obj, path): unknown;
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L166)
+Defined in: [core/utils/field-path-navigator.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/field-path-navigator.ts#L166)
 
 Получает значение по пути из объекта
 
@@ -233,7 +233,7 @@ navigator.getValueByPath(obj, 'invalid.path');
 parsePath(path): PathSegment[];
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:84](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L84)
+Defined in: [core/utils/field-path-navigator.ts:84](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/field-path-navigator.ts#L84)
 
 Парсит путь в массив сегментов
 
@@ -281,7 +281,7 @@ setValueByPath(
    value): void;
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:211](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/field-path-navigator.ts#L211)
+Defined in: [core/utils/field-path-navigator.ts:211](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/field-path-navigator.ts#L211)
 
 Устанавливает значение по пути в объекте (мутирует объект)
 

@@ -1,8 +1,9 @@
 ---
 sidebar_position: 1
+sidebar_label: Хуки
 ---
 
-# React Hooks
+# Хуки
 
 ReFormer предоставляет React hooks для бесшовной интеграции.
 

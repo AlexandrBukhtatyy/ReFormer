@@ -1,0 +1,26 @@
+{
+  "sidebar.docsSidebar.category.Getting Started": {
+    "message": "Начало работы",
+    "description": "The label for category Getting Started in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Core Concepts": {
+    "message": "Основные концепции",
+    "description": "The label for category Core Concepts in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Validation": {
+    "message": "Валидация",
+    "description": "The label for category Validation in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Behaviors": {
+    "message": "Поведения",
+    "description": "The label for category Behaviors in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.Frameworks": {
+    "message": "Фреймворки",
+    "description": "The label for category Frameworks in sidebar docsSidebar"
+  },
+  "sidebar.docsSidebar.category.React": {
+    "message": "React",
+    "description": "The label for category React in sidebar docsSidebar"
+  }
+}

@@ -4,7 +4,7 @@
 function useFormControl<T>(control): object;
 ```
 
-Defined in: [hooks/useFormControl.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/hooks/useFormControl.ts#L23)
+Defined in: [hooks/useFormControl.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/hooks/useFormControl.ts#L23)
 
 Хук для работы с FieldNode - возвращает сигналы напрямую
 

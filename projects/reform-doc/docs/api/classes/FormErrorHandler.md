@@ -1,6 +1,6 @@
 # FormErrorHandler
 
-Defined in: [core/utils/error-handler.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L78)
+Defined in: [core/utils/error-handler.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/error-handler.ts#L78)
 
 Централизованный обработчик ошибок для форм
 
@@ -57,7 +57,7 @@ static createValidationError(
    field?): ValidationError;
 ```
 
-Defined in: [core/utils/error-handler.ts:214](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L214)
+Defined in: [core/utils/error-handler.ts:214](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/error-handler.ts#L214)
 
 Создать ValidationError с заданными параметрами
 
@@ -111,7 +111,7 @@ static handle(
    strategy): void | ValidationError;
 ```
 
-Defined in: [core/utils/error-handler.ts:118](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L118)
+Defined in: [core/utils/error-handler.ts:118](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/error-handler.ts#L118)
 
 Обработать ошибку согласно заданной стратегии
 
@@ -181,7 +181,7 @@ try {
 static isValidationError(value): value is ValidationError;
 ```
 
-Defined in: [core/utils/error-handler.ts:237](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/utils/error-handler.ts#L237)
+Defined in: [core/utils/error-handler.ts:237](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/utils/error-handler.ts#L237)
 
 Проверить, является ли объект ValidationError
 

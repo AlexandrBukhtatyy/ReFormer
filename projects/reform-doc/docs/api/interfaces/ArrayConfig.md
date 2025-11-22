@@ -1,6 +1,6 @@
 # ArrayConfig
 
-Defined in: [core/types/deep-schema.ts:37](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L37)
+Defined in: [core/types/deep-schema.ts:37](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/deep-schema.ts#L37)
 
 Конфигурация массива (внутренняя)
 
@@ -18,7 +18,7 @@ Defined in: [core/types/deep-schema.ts:37](https://github.com/AlexandrBukhtatyy/
 optional initial: Partial<T>[];
 ```
 
-Defined in: [core/types/deep-schema.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L39)
+Defined in: [core/types/deep-schema.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/deep-schema.ts#L39)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [core/types/deep-schema.ts:39](https://github.com/AlexandrBukhtatyy/
 itemSchema: FormSchema<T>;
 ```
 
-Defined in: [core/types/deep-schema.ts:38](https://github.com/AlexandrBukhtatyy/ReFormer/blob/cfe63ccdb422f5ff2245f12de46311ef4d5a36a2/packages/reformer/src/core/types/deep-schema.ts#L38)
+Defined in: [core/types/deep-schema.ts:38](https://github.com/AlexandrBukhtatyy/ReFormer/blob/82f7a382c065e1c53e721ca1f2d0088e6c1b9020/packages/reformer/src/core/types/deep-schema.ts#L38)

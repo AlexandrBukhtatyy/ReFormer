@@ -1,8 +1,9 @@
 ---
 sidebar_position: 2
+sidebar_label: Components
 ---
 
-# React Components
+# Components
 
 Example components for common form patterns.
 

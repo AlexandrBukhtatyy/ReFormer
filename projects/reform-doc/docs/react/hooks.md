@@ -1,8 +1,9 @@
 ---
 sidebar_position: 1
+sidebar_label: Hooks
 ---
 
-# React Hooks
+# Hooks
 
 ReFormer provides React hooks for seamless integration.
 
