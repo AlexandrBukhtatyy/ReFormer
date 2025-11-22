@@ -34,6 +34,8 @@ export interface ValidationError {
   code: string;
   message: string;
   params?: FormFields;
+  /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
+  severity?: 'error' | 'warning';
 }
 
 /**

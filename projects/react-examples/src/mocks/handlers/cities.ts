@@ -15,15 +15,16 @@ const citiesByRegion: Record<string, Option[]> = {
 };
 
 export const handlers = [
-  http.get('/cities', ({ request }) => {
+  // GET /api/v1/cities?region={region} - Получение городов по региону
+  http.get('/api/v1/cities', ({ request }) => {
     const url = new URL(request.url);
     const region = url.searchParams.get('region');
-    const foundedRegion = region && citiesByRegion[region?.toLocaleLowerCase()];
+    const foundedCities = region && citiesByRegion[region?.toLowerCase()];
 
-    if (!foundedRegion) {
-      return new HttpResponse(null, { status: 404 });
+    if (!foundedCities) {
+      return HttpResponse.json([]); // Возвращаем пустой массив вместо 404
     }
 
-    return HttpResponse.json(foundedRegion);
+    return HttpResponse.json(foundedCities);
   }),
 ];

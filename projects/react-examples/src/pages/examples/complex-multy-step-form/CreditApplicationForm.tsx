@@ -22,6 +22,7 @@ import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
+import { submitCreditApplication } from './api';
 import { useStepForm } from '@/components/ui/form-navigation/hooks';
 import { StepIndicator } from '@/components/ui/form-navigation/StepIndicator';
 import { NavigationButtons } from '@/components/ui/form-navigation/NavigationButtons';
@@ -55,12 +56,18 @@ function CreditApplicationForm() {
 
   const submitApplication = async () => {
     const result = await submit(async (values) => {
-      console.log('Отправка формы:', values);
-      return values;
+      // Отправляем данные на сервер через API
+      const response = await submitCreditApplication(values);
+
+      if (response.status === 200 || response.status === 201) {
+        return response.data;
+      }
+
+      throw new Error('Ошибка отправки заявки');
     });
 
     if (result) {
-      alert('Заявка успешно отправлена!');
+      alert(`Заявка успешно отправлена! ID: ${result.id}`);
     } else {
       alert('Пожалуйста, исправьте ошибки в форме');
     }

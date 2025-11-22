@@ -22,4 +22,11 @@ export {
 } from './compute';
 
 // Реэкспорт validator функций
-export { validateInitialPayment, validatePaymentToIncome, validateAge } from './validators';
+export {
+  validateInitialPayment,
+  validatePaymentToIncome,
+  validateAge,
+  warnHighDebtLoad,
+  warnSeniorAge,
+  warnLowWorkExperience,
+} from './validators';

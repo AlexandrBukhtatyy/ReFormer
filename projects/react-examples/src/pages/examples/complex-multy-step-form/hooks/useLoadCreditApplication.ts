@@ -10,10 +10,13 @@
 import { useEffect, useState } from 'react';
 import type { GroupNodeWithControls } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application';
-import { fetchDictionaries, type DictionariesResponse } from '.././api/mock-credit-application-api';
+import {
+  fetchCreditApplication,
+  fetchDictionaries,
+  type DictionariesResponse,
+} from '../api';
 import type { Property } from '../components/nested-forms/Property/PropertyForm';
 import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/ExistingLoanForm';
-import { fetchCreditApplication } from '../api/fetch-credit-application';
 
 // ============================================================================
 // Типы
@@ -109,12 +112,12 @@ export const useLoadCreditApplication = (
           throw new Error('Ошибка загрузки заявки');
         }
 
-        if (!dictionariesResponse.success) {
-          throw new Error(dictionariesResponse.error || 'Ошибка загрузки справочников');
+        if (dictionariesResponse?.status !== 200) {
+          throw new Error('Ошибка загрузки справочников');
         }
 
         // Обновляем данные формы и словари
-        patchFormValue(form, applicationResponse.data!, dictionariesResponse.data!);
+        patchFormValue(form, applicationResponse.data, dictionariesResponse.data);
 
         // Успешная загрузка
         setLoadingState({ isLoading: false, error: null });

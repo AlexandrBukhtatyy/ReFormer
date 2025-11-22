@@ -1,23 +1,18 @@
 /**
  * Загрузка кредитной заявки по ID
- */
-/**
- * Загрузка регионов для выбранной страны
+ * GET /api/v1/credit-applications/{id}
  */
 
 import axios, { type AxiosResponse } from 'axios';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 /**
- * Загрузка регионов для выбранной страны
- * @param country - код страны
- * @returns Promise с массивом регионов
+ * Загрузка кредитной заявки по ID
+ * @param id - идентификатор заявки
+ * @returns Promise с данными заявки
  */
-
 export async function fetchCreditApplication(
   id: string
 ): Promise<AxiosResponse<Partial<CreditApplicationForm>>> {
-  return axios.get(`/credit-applications?id=${id}`).then(function (response) {
-    return response;
-  });
+  return axios.get(`/api/v1/credit-applications/${id}`);
 }

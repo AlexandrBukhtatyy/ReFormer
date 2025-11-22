@@ -208,6 +208,9 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   watchField(
     path.carBrand,
     async (value, ctx) => {
+      // Очищаем модель при смене марки (согласно спецификации)
+      ctx.form.carModel.reset();
+
       if (value) {
         try {
           const { data: models } = await fetchCarModels(value);
@@ -215,9 +218,10 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
           console.log('Loaded car models:', models);
         } catch (error) {
           console.log('Load car failure:', error);
-          ctx.form.carModel.reset();
           ctx.form.carModel.updateComponentProps({ options: [] });
         }
+      } else {
+        ctx.form.carModel.updateComponentProps({ options: [] });
       }
     },
     { immediate: false, debounce: 300 }
@@ -234,7 +238,28 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   revalidateWhen(path.initialPayment, [path.propertyValue]);
 
   // ===================================================================
-  // 6. Очистка ArrayNode при снятии чекбоксов (3)
+  // 6. Динамические лимиты полей
+  // ===================================================================
+
+  // Максимальная сумма кредита зависит от дохода (не более 10 годовых доходов)
+  watchField(path.totalIncome, (totalIncome, ctx) => {
+    if (totalIncome && totalIncome > 0) {
+      const maxLoanAmount = Math.min(totalIncome * 12 * 10, 10000000); // 10 годовых доходов, но не более 10 млн
+      ctx.form.loanAmount.updateComponentProps({ max: maxLoanAmount });
+    }
+  });
+
+  // Максимальный срок кредита с учетом возраста (погашение до 70 лет)
+  watchField(path.age, (age, ctx) => {
+    if (age && age >= 18) {
+      const maxTermYears = Math.max(70 - age, 1); // Минимум 1 год
+      const maxTermMonths = Math.min(maxTermYears * 12, 240); // Максимум 240 месяцев (20 лет)
+      ctx.form.loanTerm.updateComponentProps({ max: maxTermMonths });
+    }
+  });
+
+  // ===================================================================
+  // 7. Очистка ArrayNode при снятии чекбоксов (3)
   // ===================================================================
 
   // Очистить массив имущества при снятии чекбокса hasProperty

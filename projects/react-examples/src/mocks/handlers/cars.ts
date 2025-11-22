@@ -21,14 +21,15 @@ const cars: Record<string, Array<{ value: string; label: string }>> = {
 };
 
 export const handlers = [
-  http.get('/cars', ({ request }) => {
+  // GET /api/v1/car-models?brand={brand} - Получение моделей автомобилей по марке
+  http.get('/api/v1/car-models', ({ request }) => {
     const url = new URL(request.url);
-    const brand = url.searchParams.get('brand')?.toLocaleLowerCase();
-    const foundedBrand = brands.find((b) => brand && b.toLocaleLowerCase().includes(brand));
+    const brand = url.searchParams.get('brand')?.toLowerCase();
+    const foundedBrand = brands.find((b) => brand && b.toLowerCase().includes(brand));
     const foundedCars = foundedBrand && cars[foundedBrand];
 
     if (!foundedCars) {
-      return new HttpResponse(null, { status: 404 });
+      return HttpResponse.json([]); // Возвращаем пустой массив вместо 404
     }
 
     return HttpResponse.json(foundedCars);

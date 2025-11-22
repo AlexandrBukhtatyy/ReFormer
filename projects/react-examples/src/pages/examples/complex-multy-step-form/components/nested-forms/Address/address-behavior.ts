@@ -13,13 +13,7 @@
 import { watchField, type BehaviorSchemaFn } from 'reformer/behaviors';
 import type { Address } from './AddressForm';
 import type { FieldPath } from 'reformer';
-
-// API функции (заглушки, т.к. в примере они импортируются из domain API)
-// В реальном приложении эти функции будут в domains/credit-applications/api
-const fetchCities = async (region: string): Promise<string[]> => {
-  console.log('Fetching cities for region:', region);
-  return ['Москва', 'Одинцово', 'Химки'];
-};
+import { fetchCities } from '../../../api';
 
 /**
  * Behavior схема для Address
@@ -48,11 +42,16 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
     path.region,
     async (region, ctx) => {
       if (region) {
-        const cities = await fetchCities(region);
-        ctx.form.city.updateComponentProps({ options: cities });
+        try {
+          const { data: cities } = await fetchCities(region);
+          ctx.form.city.updateComponentProps({ options: cities });
 
-        if (import.meta.env.DEV) {
-          console.log(`[addressBehavior] Loaded ${cities.length} cities for region:`, region);
+          if (import.meta.env.DEV) {
+            console.log(`[addressBehavior] Loaded ${cities.length} cities for region:`, region);
+          }
+        } catch (error) {
+          console.error('[addressBehavior] Failed to load cities:', error);
+          ctx.form.city.updateComponentProps({ options: [] });
         }
       }
     },

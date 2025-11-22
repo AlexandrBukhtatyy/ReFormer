@@ -52,10 +52,10 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
       };
     }
 
-    if (age > 75) {
+    if (age > 70) {
       return {
         code: 'tooOld',
-        message: 'Максимальный возраст заемщика: 75 лет',
+        message: 'Максимальный возраст заемщика: 70 лет',
       };
     }
 

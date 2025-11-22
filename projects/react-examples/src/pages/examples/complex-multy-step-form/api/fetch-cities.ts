@@ -1,5 +1,6 @@
 /**
  * Загрузка городов для выбранного региона
+ * GET /api/v1/cities?region={region}
  */
 
 import axios, { type AxiosResponse } from 'axios';
@@ -11,7 +12,5 @@ import type { Option } from '../types/option';
  * @returns Promise с массивом городов
  */
 export async function fetchCities(region: string): Promise<AxiosResponse<Option[]>> {
-  return axios.get(`/cities?region=${region}`).then(function (response) {
-    return response;
-  });
+  return axios.get(`/api/v1/cities?region=${region}`);
 }

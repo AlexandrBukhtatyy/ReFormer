@@ -17,15 +17,9 @@ const regionsByCountry: Record<string, Option[]> = {
 };
 
 export const handlers = [
-  http.get('/regions', ({ request }) => {
-    const url = new URL(request.url);
-    const country = url.searchParams.get('country');
-    const foundedRegion = country && regionsByCountry[country?.toLocaleLowerCase()];
-
-    if (!foundedRegion) {
-      return new HttpResponse(null, { status: 404 });
-    }
-
-    return HttpResponse.json(foundedRegion);
+  // GET /api/v1/regions - Получение списка регионов
+  http.get('/api/v1/regions', () => {
+    // Возвращаем все регионы России по умолчанию
+    return HttpResponse.json(regionsByCountry['RU'] || []);
   }),
 ];

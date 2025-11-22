@@ -191,15 +191,33 @@ const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> = {
 };
 
 export const handlers = [
-  http.get('/credit-applications', ({ request }) => {
-    const url = new URL(request.url);
-    const id = url.searchParams.get('id');
-    const foundedCreditApplication = id && MOCK_APPLICATIONS[id];
+  // GET /api/v1/credit-applications/{id} - Получение заявки по ID
+  http.get('/api/v1/credit-applications/:id', ({ params }) => {
+    const { id } = params;
+    const foundedCreditApplication = typeof id === 'string' && MOCK_APPLICATIONS[id];
 
     if (!foundedCreditApplication) {
       return new HttpResponse(null, { status: 404 });
     }
 
     return HttpResponse.json(foundedCreditApplication);
+  }),
+
+  // POST /api/v1/credit-applications - Создание/обновление заявки
+  http.post('/api/v1/credit-applications', async ({ request }) => {
+    const body = (await request.json()) as Partial<CreditApplicationForm>;
+
+    // Симуляция сохранения заявки
+    const newId = String(Date.now());
+    MOCK_APPLICATIONS[newId] = body;
+
+    return HttpResponse.json(
+      {
+        success: true,
+        id: newId,
+        message: 'Заявка успешно сохранена',
+      },
+      { status: 201 }
+    );
   }),
 ];

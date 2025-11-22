@@ -11,7 +11,13 @@ import { additionalValidation } from '../components/steps/AdditionalInfo/additio
 import { confirmationValidation } from '../components/steps/Confirmation/confirmation-validation';
 
 // Импортируем validator функции для вычисляемых полей
-import { validatePaymentToIncome, validateAge } from '../utils';
+import {
+  validatePaymentToIncome,
+  validateAge,
+  warnHighDebtLoad,
+  warnSeniorAge,
+  warnLowWorkExperience,
+} from '../utils';
 
 /**
  * Главная схема валидации формы заявки на кредит
@@ -48,6 +54,19 @@ const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
   // Возраст заемщика (18-70 лет)
   validateTree<CreditApplicationForm>(validateAge, { targetField: 'age' });
+
+  // ===================================================================
+  // 3. Предупреждения (warnings) - не блокируют отправку формы
+  // ===================================================================
+
+  // Предупреждение о высокой долговой нагрузке (> 40%)
+  validateTree<CreditApplicationForm>(warnHighDebtLoad, { targetField: 'paymentToIncomeRatio' });
+
+  // Предупреждение о возрасте > 60 лет
+  validateTree<CreditApplicationForm>(warnSeniorAge, { targetField: 'age' });
+
+  // Предупреждение о малом стаже на текущем месте работы (< 3 месяцев)
+  validateTree<CreditApplicationForm>(warnLowWorkExperience, { targetField: 'workExperienceCurrent' });
 };
 
 export default creditApplicationValidation;
