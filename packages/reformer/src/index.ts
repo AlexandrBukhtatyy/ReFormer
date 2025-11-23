@@ -8,4 +8,4 @@ export { GroupNode } from './core/nodes/group-node';
 export { ArrayNode } from './core/nodes/array-node';
 export type { SetValueOptions } from './core/nodes/form-node';
 
-export { useFormControl, type FormControlState } from './hooks/useFormControl';
+export { useFormControl } from './hooks/useFormControl';

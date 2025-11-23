@@ -13,11 +13,7 @@ const isStackBlitz = process.env.STACKBLITZ === 'true';
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [['module:@preact/signals-react-transform']],
-      },
-    }),
+    react(),
     tailwindcss(),
     // Swagger UI доступен по /api-docs
     swaggerUIPlugin(),

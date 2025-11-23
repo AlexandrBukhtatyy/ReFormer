@@ -9,6 +9,7 @@ import { required, email, minLength } from 'reformer/validators';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { FormField } from '@/components/ui/form-field';
+import { FormStateDisplay } from './FormSateDisplay';
 
 // Определение типа формы
 interface ContactFormData {
@@ -51,8 +52,10 @@ const contactFormSchema: FormSchema<ContactFormData> = {
 const contactFormValidation = (path: FieldPath<ContactFormData>) => {
   required(path.name, { message: 'Имя обязательно' });
   minLength(path.name, 2, { message: 'Минимум 2 символа' });
+
   required(path.email, { message: 'Email обязателен' });
   email(path.email, { message: 'Некорректный email' });
+
   required(path.message, { message: 'Сообщение обязательно' });
   minLength(path.message, 10, { message: 'Минимум 10 символов' });
 };
@@ -63,22 +66,6 @@ function createContactForm(): GroupNodeWithControls<ContactFormData> {
     form: contactFormSchema,
     validation: contactFormValidation,
   });
-}
-
-// Компонент отображения состояния формы (реактивный)
-function FormStateDisplay({ form }: { form: GroupNodeWithControls<ContactFormData> }) {
-  const state = {
-    value: form.value.value,
-    valid: form.valid.value,
-    touched: form.touched.value,
-    dirty: form.dirty.value,
-  };
-
-  return (
-    <pre className="p-4 bg-gray-100 rounded text-sm overflow-auto max-h-96">
-      {JSON.stringify(state, null, 2)}
-    </pre>
-  );
 }
 
 // Основной компонент формы
@@ -132,7 +119,7 @@ export default function SimpleForm() {
       {/* Состояние формы */}
       <div className="flex-1 p-6 bg-white rounded-lg shadow">
         <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
-        <FormStateDisplay form={form} />
+        <FormStateDisplay form={form.value.value} />
       </div>
     </div>
   );

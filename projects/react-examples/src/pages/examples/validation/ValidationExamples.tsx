@@ -4,7 +4,12 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, useFormControl, type GroupNodeWithControls, type FormSchema, type FieldNode, type FieldPath } from 'reformer';
+import {
+  GroupNode,
+  type GroupNodeWithControls,
+  type FormSchema,
+  type FieldPath,
+} from 'reformer';
 import {
   required,
   email,
@@ -21,6 +26,7 @@ import {
 } from 'reformer/validators';
 import { Input } from '@/components/ui/input';
 import { ExampleCard } from '@/components/ui/example-card';
+import { FormField } from '@/components/ui/form-field';
 
 // Тип формы для демонстрации валидаторов
 interface ValidationDemoForm {
@@ -163,44 +169,6 @@ function createValidationForm(): GroupNodeWithControls<ValidationDemoForm> {
   });
 }
 
-// Компонент поля с отображением ошибок
-function ValidatedField({
-  control,
-  type = 'text',
-}: {
-  control: FieldNode<string | number | null>;
-  type?: string;
-}) {
-  const { value, touched, invalid, valid, errors, disabled } = useFormControl(control);
-  const showError = touched.value && invalid.value;
-
-  return (
-    <div>
-      <input
-        type={type}
-        value={value.value ?? ''}
-        onChange={(e) => {
-          const newValue = type === 'number' ? (e.target.value ? Number(e.target.value) : null) : e.target.value;
-          control.setValue(newValue as string);
-        }}
-        onBlur={() => control.markAsTouched()}
-        disabled={disabled.value}
-        className={`w-full p-2 border rounded ${
-          showError ? 'border-red-500 bg-red-50' : 'border-gray-300'
-        }`}
-        placeholder="Введите значение..."
-      />
-      {showError && errors.value.length > 0 && (
-        <p className="text-red-500 text-sm mt-1">
-          {errors.value[0]?.message || 'Ошибка валидации'}
-        </p>
-      )}
-      {touched.value && valid.value && (
-        <p className="text-green-500 text-sm mt-1">Валидно</p>
-      )}
-    </div>
-  );
-}
 
 export default function ValidationExamples() {
   const form = useMemo(() => createValidationForm(), []);
@@ -217,9 +185,7 @@ export default function ValidationExamples() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-2">Примеры валидации</h2>
-      <p className="text-gray-600 mb-6">
-        Демонстрация встроенных валидаторов ReFormer
-      </p>
+      <p className="text-gray-600 mb-6">Демонстрация встроенных валидаторов ReFormer</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <ExampleCard
@@ -230,7 +196,7 @@ export default function ValidationExamples() {
   message: 'Это поле обязательно'
 })`}
         >
-          <ValidatedField control={form.requiredField} type="text" />
+          <FormField control={form.requiredField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -242,7 +208,7 @@ email(path.emailField, {
   message: 'Введите корректный email'
 })`}
         >
-          <ValidatedField control={form.emailField} type="email" />
+          <FormField control={form.emailField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -253,7 +219,7 @@ email(path.emailField, {
   message: 'Минимум 5 символов'
 })`}
         >
-          <ValidatedField control={form.minLengthField} type="text" />
+          <FormField control={form.minLengthField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -264,7 +230,7 @@ email(path.emailField, {
   message: 'Максимум 10 символов'
 })`}
         >
-          <ValidatedField control={form.maxLengthField} type="text" />
+          <FormField control={form.maxLengthField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -275,7 +241,7 @@ email(path.emailField, {
   message: 'Минимум 10'
 })`}
         >
-          <ValidatedField control={form.minField} type="number" />
+          <FormField control={form.minField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -286,7 +252,7 @@ email(path.emailField, {
   message: 'Максимум 100'
 })`}
         >
-          <ValidatedField control={form.maxField} type="number" />
+          <FormField control={form.maxField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -297,7 +263,7 @@ email(path.emailField, {
   message: 'Только буквы'
 })`}
         >
-          <ValidatedField control={form.patternField} type="text" />
+          <FormField control={form.patternField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -308,7 +274,7 @@ email(path.emailField, {
   message: 'Введите корректный URL'
 })`}
         >
-          <ValidatedField control={form.urlField} type="text" />
+          <FormField control={form.urlField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -320,7 +286,7 @@ email(path.emailField, {
   message: 'Введите российский номер'
 })`}
         >
-          <ValidatedField control={form.phoneField} type="tel" />
+          <FormField control={form.phoneField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -333,7 +299,7 @@ email(path.emailField, {
   max: 100
 })`}
         >
-          <ValidatedField control={form.numberField} type="number" />
+          <FormField control={form.numberField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -345,7 +311,7 @@ email(path.emailField, {
   message: 'Дата не может быть в будущем'
 })`}
         >
-          <ValidatedField control={form.dateField} type="date" />
+          <FormField control={form.dateField} form={form} />
         </ExampleCard>
 
         <ExampleCard
@@ -362,7 +328,7 @@ email(path.emailField, {
   return null;
 })`}
         >
-          <ValidatedField control={form.customField} type="password" />
+          <FormField control={form.customField} form={form} />
         </ExampleCard>
       </div>
 
@@ -373,10 +339,7 @@ email(path.emailField, {
         >
           Проверить все
         </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-        >
+        <button onClick={handleReset} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
           Сбросить
         </button>
       </div>

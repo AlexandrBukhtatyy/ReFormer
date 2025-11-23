@@ -12,27 +12,28 @@ export interface FormFieldProps {
 }
 
 const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className, testId }) => {
-  const { value, errors, pending, disabled, invalid, shouldShowError } = useFormControl(control);
+  const { value, errors, pending, disabled, invalid, shouldShowError, componentProps } =
+    useFormControl(control);
 
   const Component = control.component;
   const isCheckbox = control.component === Checkbox;
   // Конвертируем null/undefined в безопасные значения
-  const safeValue = value.value ?? (isCheckbox ? false : '');
+  const safeValue = value ?? (isCheckbox ? false : '');
 
   // Используем переданный testId или componentProps.testId или 'unknown'
   const fieldTestId =
-    testId ?? (control.componentProps.value as { testId?: string })?.testId ?? 'unknown';
+    testId ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
 
   return (
     <div className={className} data-testid={`field-${fieldTestId}`}>
-      {control.componentProps.value.label && !isCheckbox && (
+      {componentProps.label && !isCheckbox && (
         <label className="block mb-1 text-sm font-medium" data-testid={`label-${fieldTestId}`}>
-          {control.componentProps.value.label}
+          {componentProps.label}
         </label>
       )}
 
       <Component
-        {...control.componentProps.value}
+        {...componentProps}
         value={safeValue}
         onChange={(e: unknown) => {
           // Для чекбоксов e - это boolean напрямую
@@ -42,7 +43,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className
             : ((e as { target?: { value?: unknown } })?.target?.value ?? e);
           control.setValue(newValue);
           // Ре-валидация при вводе, если уже есть ошибки (чтобы ошибки исчезали)
-          if (errors.value.length > 0) {
+          if (errors.length > 0) {
             form ? form.validate() : control.validate();
           }
         }}
@@ -53,18 +54,18 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className
             form ? form.validate() : control.validate();
           }
         }}
-        disabled={disabled.value}
-        aria-invalid={invalid.value}
+        disabled={disabled}
+        aria-invalid={invalid}
         data-testid={`input-${fieldTestId}`}
       />
 
-      {shouldShowError.value && (
+      {shouldShowError && (
         <span className="text-red-500 text-sm mt-1 block" data-testid={`error-${fieldTestId}`}>
-          {errors.value[0]?.message}
+          {errors[0]?.message}
         </span>
       )}
 
-      {pending.value && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
+      {pending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
     </div>
   );
 };
