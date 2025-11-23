@@ -34,7 +34,6 @@ export function FormArrayManager({
   renderTitle,
 }: FormArrayManagerProps) {
   // Читаем сигнал length напрямую для триггера ре-рендера при изменении массива
-  // Это необходимо для @preact/signals-react - сигнал должен читаться в теле компонента
   const _length = control.length.value;
   void _length; // Подавляем предупреждение о неиспользуемой переменной
 
