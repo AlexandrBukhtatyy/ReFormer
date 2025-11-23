@@ -1,54 +1,107 @@
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { handlers } from './handlers';
 
-// Простой middleware для обработки MSW handlers в Vite
-async function handleMswRequest(
+// Standalone mock server без зависимости от MSW
+// Используется в StackBlitz где BroadcastChannel не поддерживается
+
+import {
+  resolveRegions,
+  resolveCities,
+  resolveCarModels,
+  resolveDictionaries,
+  resolveCreditApplication,
+  createCreditApplication,
+} from './resolvers';
+
+type RouteHandler = (
   req: IncomingMessage,
-  res: ServerResponse
-): Promise<boolean> {
-  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  params: Record<string, string>,
+  query: URLSearchParams
+) => Promise<{ status: number; body: unknown }>;
+
+const routes: Array<{ method: string; pattern: RegExp; handler: RouteHandler }> = [
+  // GET /api/v1/regions
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/regions$/,
+    handler: async () => resolveRegions(),
+  },
+
+  // GET /api/v1/cities?region={region}
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/cities$/,
+    handler: async (_req, _params, query) => resolveCities(query.get('region')),
+  },
+
+  // GET /api/v1/car-models?brand={brand}
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/car-models$/,
+    handler: async (_req, _params, query) => resolveCarModels(query.get('brand')),
+  },
+
+  // GET /api/v1/dictionaries
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/dictionaries$/,
+    handler: async () => resolveDictionaries(),
+  },
+
+  // GET /api/v1/credit-applications/:id
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/credit-applications\/([^/]+)$/,
+    handler: async (_req, params) => resolveCreditApplication(params['0']),
+  },
+
+  // POST /api/v1/credit-applications
+  {
+    method: 'POST',
+    pattern: /^\/api\/v1\/credit-applications$/,
+    handler: async (req) => {
+      const body = await readBody(req);
+      return createCreditApplication(body);
+    },
+  },
+];
+
+async function readBody(req: IncomingMessage): Promise<unknown> {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (chunk: Buffer) => (data += chunk.toString()));
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data));
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
+
+async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  const urlObj = new URL(req.url || '/', `http://${req.headers.host}`);
+  const pathname = urlObj.pathname;
   const method = req.method || 'GET';
 
-  // Собираем body для POST/PUT запросов
-  let body: string | undefined;
-  if (method !== 'GET' && method !== 'HEAD') {
-    body = await new Promise<string>((resolve) => {
-      let data = '';
-      req.on('data', (chunk: Buffer) => (data += chunk.toString()));
-      req.on('end', () => resolve(data));
+  for (const route of routes) {
+    if (route.method !== method) continue;
+
+    const match = pathname.match(route.pattern);
+    if (!match) continue;
+
+    const params: Record<string, string> = {};
+    match.slice(1).forEach((value, index) => {
+      params[String(index)] = value;
     });
-  }
 
-  const request = new Request(url.toString(), {
-    method,
-    headers: Object.fromEntries(
-      Object.entries(req.headers).filter(([, v]) => v !== undefined) as [string, string][]
-    ),
-    body: body || undefined,
-  });
+    const result = await route.handler(req, params, urlObj.searchParams);
 
-  // Пробуем каждый handler
-  for (const handler of handlers) {
-    const result = await handler.parse({ request });
-
-    if (result.match) {
-      // Handler совпал, получаем response
-      const response = await handler.run({
-        request: request as any,
-        requestId: crypto.randomUUID(),
-      });
-
-      if (response?.response) {
-        res.statusCode = response.response.status;
-        response.response.headers.forEach((value: string, key: string) => {
-          res.setHeader(key, value);
-        });
-        const responseBody = await response.response.text();
-        res.end(responseBody);
-        return true;
-      }
-    }
+    res.statusCode = result.status;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(result.body));
+    return true;
   }
 
   return false;
@@ -59,23 +112,22 @@ export function mockServerPlugin(): Plugin {
     name: 'vite-plugin-mock-server',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        // Обрабатываем только /api запросы
         if (!req.url?.startsWith('/api')) {
           return next();
         }
 
         try {
-          const handled = await handleMswRequest(req, res);
+          const handled = await handleRequest(req, res);
           if (!handled) {
             next();
           }
         } catch (error) {
-          console.error('[MSW] Error handling request:', error);
+          console.error('[Mock Server] Error:', error);
           next();
         }
       });
 
-      console.log('[MSW] Mock middleware enabled for /api routes');
+      console.log('[Mock Server] Enabled for /api routes (StackBlitz mode)');
     },
   };
 }
