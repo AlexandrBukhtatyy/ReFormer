@@ -1,6 +1,6 @@
 # GroupNode
 
-Defined in: [core/nodes/group-node.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L78)
+Defined in: [core/nodes/group-node.ts:78](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L78)
 
 GroupNode - узел для группы полей
 
@@ -58,7 +58,7 @@ console.log(fullForm.valid.value); // true
 new GroupNode<T>(schema): GroupNode<T>;
 ```
 
-Defined in: [core/nodes/group-node.ts:176](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L176)
+Defined in: [core/nodes/group-node.ts:176](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L176)
 
 Создать GroupNode только со схемой формы (обратная совместимость)
 
@@ -82,7 +82,7 @@ Defined in: [core/nodes/group-node.ts:176](https://github.com/AlexandrBukhtatyy/
 new GroupNode<T>(config): GroupNode<T>;
 ```
 
-Defined in: [core/nodes/group-node.ts:181](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L181)
+Defined in: [core/nodes/group-node.ts:181](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L181)
 
 Создать GroupNode с полной конфигурацией (form, behavior, validation)
 
@@ -110,7 +110,7 @@ FormNode<T>.constructor
 protected _dirty: Signal<boolean>;
 ```
 
-Defined in: [core/nodes/form-node.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L51)
+Defined in: [core/nodes/form-node.ts:51](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L51)
 
 Значение узла было изменено (dirty)
 Protected: наследники могут читать/изменять через методы
@@ -127,7 +127,7 @@ Protected: наследники могут читать/изменять чер�
 protected _status: Signal<FieldStatus>;
 ```
 
-Defined in: [core/nodes/form-node.ts:57](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L57)
+Defined in: [core/nodes/form-node.ts:57](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L57)
 
 Текущий статус узла
 Protected: наследники могут читать/изменять через методы
@@ -144,7 +144,7 @@ Protected: наследники могут читать/изменять чер�
 protected _touched: Signal<boolean>;
 ```
 
-Defined in: [core/nodes/form-node.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L45)
+Defined in: [core/nodes/form-node.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L45)
 
 Пользователь взаимодействовал с узлом (touched)
 Protected: наследники могут читать/изменять через методы
@@ -161,7 +161,7 @@ Protected: наследники могут читать/изменять чер�
 readonly dirty: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:163](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L163)
+Defined in: [core/nodes/group-node.ts:163](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L163)
 
 Значение узла было изменено (dirty)
 Computed из _dirty для предоставления readonly интерфейса
@@ -178,7 +178,7 @@ Computed из _dirty для предоставления readonly интерфе
 readonly disabled: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L94)
+Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L94)
 
 Узел отключен (disabled)
 
@@ -194,7 +194,7 @@ Defined in: [core/nodes/form-node.ts:94](https://github.com/AlexandrBukhtatyy/Re
 readonly enabled: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L99)
+Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L99)
 
 Узел включен (enabled)
 
@@ -210,7 +210,7 @@ Defined in: [core/nodes/form-node.ts:99](https://github.com/AlexandrBukhtatyy/Re
 readonly errors: ReadonlySignal<ValidationError[]>;
 ```
 
-Defined in: [core/nodes/group-node.ts:165](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L165)
+Defined in: [core/nodes/group-node.ts:165](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L165)
 
 Массив ошибок валидации
 
@@ -226,7 +226,7 @@ Defined in: [core/nodes/group-node.ts:165](https://github.com/AlexandrBukhtatyy/
 id: string;
 ```
 
-Defined in: [core/nodes/group-node.ts:82](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L82)
+Defined in: [core/nodes/group-node.ts:82](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L82)
 
 ***
 
@@ -236,7 +236,7 @@ Defined in: [core/nodes/group-node.ts:82](https://github.com/AlexandrBukhtatyy/R
 readonly invalid: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:161](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L161)
+Defined in: [core/nodes/group-node.ts:161](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L161)
 
 Узел невалиден (есть ошибки валидации)
 
@@ -252,7 +252,7 @@ Defined in: [core/nodes/group-node.ts:161](https://github.com/AlexandrBukhtatyy/
 readonly pending: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:164](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L164)
+Defined in: [core/nodes/group-node.ts:164](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L164)
 
 Выполняется асинхронная валидация
 
@@ -268,7 +268,7 @@ Defined in: [core/nodes/group-node.ts:164](https://github.com/AlexandrBukhtatyy/
 readonly pristine: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L83)
+Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L83)
 
 Значение узла не было изменено (pristine)
 
@@ -284,7 +284,7 @@ Defined in: [core/nodes/form-node.ts:83](https://github.com/AlexandrBukhtatyy/Re
 readonly status: ReadonlySignal<FieldStatus>;
 ```
 
-Defined in: [core/nodes/group-node.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L166)
+Defined in: [core/nodes/group-node.ts:166](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L166)
 
 Текущий статус узла
 Computed из _status для предоставления readonly интерфейса
@@ -301,7 +301,7 @@ Computed из _status для предоставления readonly интерф�
 readonly submitting: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:167](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L167)
+Defined in: [core/nodes/group-node.ts:167](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L167)
 
 ***
 
@@ -311,7 +311,7 @@ Defined in: [core/nodes/group-node.ts:167](https://github.com/AlexandrBukhtatyy/
 readonly touched: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:162](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L162)
+Defined in: [core/nodes/group-node.ts:162](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L162)
 
 Пользователь взаимодействовал с узлом (touched)
 Computed из _touched для предоставления readonly интерфейса
@@ -328,7 +328,7 @@ Computed из _touched для предоставления readonly интерф
 readonly untouched: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L72)
+Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L72)
 
 Пользователь не взаимодействовал с узлом (untouched)
 
@@ -344,7 +344,7 @@ Defined in: [core/nodes/form-node.ts:72](https://github.com/AlexandrBukhtatyy/Re
 readonly valid: ReadonlySignal<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:160](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L160)
+Defined in: [core/nodes/group-node.ts:160](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L160)
 
 Узел валиден (все валидаторы прошли успешно)
 
@@ -360,7 +360,7 @@ Defined in: [core/nodes/group-node.ts:160](https://github.com/AlexandrBukhtatyy/
 readonly value: ReadonlySignal<T>;
 ```
 
-Defined in: [core/nodes/group-node.ts:159](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L159)
+Defined in: [core/nodes/group-node.ts:159](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L159)
 
 Текущее значение узла
 - Для FieldNode: значение поля
@@ -381,7 +381,7 @@ Defined in: [core/nodes/group-node.ts:159](https://github.com/AlexandrBukhtatyy/
 get fields(): FieldRegistry<T>;
 ```
 
-Defined in: [core/nodes/group-node.ts:418](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L418)
+Defined in: [core/nodes/group-node.ts:418](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L418)
 
 Получить Map всех полей формы
 
@@ -401,7 +401,7 @@ Map полей формы
 applyBehaviorSchema(schemaFn): () => void;
 ```
 
-Defined in: [core/nodes/group-node.ts:595](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L595)
+Defined in: [core/nodes/group-node.ts:595](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L595)
 
 Применить behavior schema к форме
 
@@ -466,7 +466,7 @@ useEffect(() => cleanup, []);
 applyContextualValidators(validators): Promise<void>;
 ```
 
-Defined in: [core/nodes/group-node.ts:685](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L685)
+Defined in: [core/nodes/group-node.ts:685](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L685)
 
 Применить contextual валидаторы к полям
 
@@ -497,7 +497,7 @@ Defined in: [core/nodes/group-node.ts:685](https://github.com/AlexandrBukhtatyy/
 applyValidationSchema(schemaFn): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:542](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L542)
+Defined in: [core/nodes/group-node.ts:542](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L542)
 
 Применить validation schema к форме
 
@@ -522,7 +522,7 @@ Defined in: [core/nodes/group-node.ts:542](https://github.com/AlexandrBukhtatyy/
 clearErrors(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:383](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L383)
+Defined in: [core/nodes/group-node.ts:383](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L383)
 
 Очистить все errors (form-level + field-level)
 
@@ -542,7 +542,7 @@ Defined in: [core/nodes/group-node.ts:383](https://github.com/AlexandrBukhtatyy/
 disable(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:365](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L365)
+Defined in: [core/nodes/form-node.ts:365](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L365)
 
 Отключить узел
 
@@ -567,7 +567,7 @@ Template Method: обновляет статус в базовом классе,
 dispose(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:867](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L867)
+Defined in: [core/nodes/group-node.ts:867](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L867)
 
 Очистить все ресурсы узла
 Рекурсивно очищает все subscriptions и дочерние узлы
@@ -598,7 +598,7 @@ useEffect(() => {
 enable(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:376](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L376)
+Defined in: [core/nodes/form-node.ts:376](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L376)
 
 Включить узел
 
@@ -621,7 +621,7 @@ Template Method: обновляет статус в базовом классе,
 getAllFields(): IterableIterator<FormNode<FormValue>>;
 ```
 
-Defined in: [core/nodes/group-node.ts:467](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L467)
+Defined in: [core/nodes/group-node.ts:467](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L467)
 
 Получить все поля формы как итератор
 
@@ -650,7 +650,7 @@ await Promise.all(
 getErrors(options?): ValidationError[];
 ```
 
-Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L226)
+Defined in: [core/nodes/form-node.ts:226](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L226)
 
 Получить ошибки валидации с фильтрацией
 
@@ -714,7 +714,7 @@ const customErrors = form.getErrors({
 getField<K>(key): FormNode<T[K]> | undefined;
 ```
 
-Defined in: [core/nodes/group-node.ts:407](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L407)
+Defined in: [core/nodes/group-node.ts:407](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L407)
 
 Получить поле по ключу
 
@@ -759,7 +759,7 @@ getFieldByPath(path):
   | undefined;
 ```
 
-Defined in: [core/nodes/group-node.ts:628](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L628)
+Defined in: [core/nodes/group-node.ts:628](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L628)
 
 Получить вложенное поле по пути
 
@@ -810,7 +810,7 @@ form.getFieldByPath('invalid.path');    // undefined
 getProxy(): any;
 ```
 
-Defined in: [core/nodes/group-node.ts:448](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L448)
+Defined in: [core/nodes/group-node.ts:448](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L448)
 
 Получить Proxy-инстанс для прямого доступа к полям
 
@@ -850,7 +850,7 @@ console.log(proxy.email.value); // Прямой доступ к полю
 getValue(): T;
 ```
 
-Defined in: [core/nodes/group-node.ts:248](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L248)
+Defined in: [core/nodes/group-node.ts:248](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L248)
 
 Получить значение узла (non-reactive)
 Использует .peek() для получения значения без создания зависимости
@@ -874,7 +874,7 @@ linkFields<K1, K2>(
    transform?): () => void;
 ```
 
-Defined in: [core/nodes/group-node.ts:744](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L744)
+Defined in: [core/nodes/group-node.ts:744](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L744)
 
 Связывает два поля: при изменении source автоматически обновляется target
 Поддерживает опциональную трансформацию значения
@@ -947,7 +947,7 @@ useEffect(() => dispose, []);
 markAsDirty(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:308](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L308)
+Defined in: [core/nodes/form-node.ts:308](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L308)
 
 Отметить узел как dirty (значение изменено)
 
@@ -970,7 +970,7 @@ Template Method: обновляет signal в базовом классе,
 markAsPristine(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:319](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L319)
+Defined in: [core/nodes/form-node.ts:319](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L319)
 
 Отметить узел как pristine (значение не изменено)
 
@@ -993,7 +993,7 @@ Template Method: обновляет signal в базовом классе,
 markAsTouched(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:286](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L286)
+Defined in: [core/nodes/form-node.ts:286](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L286)
 
 Отметить узел как touched (пользователь взаимодействовал)
 
@@ -1016,7 +1016,7 @@ Template Method: обновляет signal в базовом классе,
 markAsUntouched(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:297](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L297)
+Defined in: [core/nodes/form-node.ts:297](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L297)
 
 Отметить узел как untouched
 
@@ -1039,7 +1039,7 @@ Template Method: обновляет signal в базовом классе,
 protected onDisable(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:831](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L831)
+Defined in: [core/nodes/group-node.ts:831](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L831)
 
 Hook: вызывается после disable()
 
@@ -1061,7 +1061,7 @@ Hook: вызывается после disable()
 protected onEnable(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:845](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L845)
+Defined in: [core/nodes/group-node.ts:845](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L845)
 
 Hook: вызывается после enable()
 
@@ -1083,7 +1083,7 @@ Hook: вызывается после enable()
 protected onMarkAsDirty(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:498](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L498)
+Defined in: [core/nodes/group-node.ts:498](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L498)
 
 Hook: вызывается после markAsDirty()
 
@@ -1105,7 +1105,7 @@ Hook: вызывается после markAsDirty()
 protected onMarkAsPristine(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:507](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L507)
+Defined in: [core/nodes/group-node.ts:507](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L507)
 
 Hook: вызывается после markAsPristine()
 
@@ -1127,7 +1127,7 @@ Hook: вызывается после markAsPristine()
 protected onMarkAsTouched(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:480](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L480)
+Defined in: [core/nodes/group-node.ts:480](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L480)
 
 Hook: вызывается после markAsTouched()
 
@@ -1149,7 +1149,7 @@ Hook: вызывается после markAsTouched()
 protected onMarkAsUntouched(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:489](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L489)
+Defined in: [core/nodes/group-node.ts:489](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L489)
 
 Hook: вызывается после markAsUntouched()
 
@@ -1171,7 +1171,7 @@ Hook: вызывается после markAsUntouched()
 patchValue(value): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:268](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L268)
+Defined in: [core/nodes/group-node.ts:268](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L268)
 
 Частично обновить значение узла
 Для FieldNode: работает как setValue
@@ -1202,7 +1202,7 @@ Defined in: [core/nodes/group-node.ts:268](https://github.com/AlexandrBukhtatyy/
 reset(value?): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:295](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L295)
+Defined in: [core/nodes/group-node.ts:295](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L295)
 
 Сбросить форму к указанным значениям (или к initialValues)
 
@@ -1244,7 +1244,7 @@ form.reset({ email: 'new@mail.com', password: '' });
 resetToInitial(): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:330](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L330)
+Defined in: [core/nodes/group-node.ts:330](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L330)
 
 Сбросить форму к исходным значениям (initialValues)
 
@@ -1286,7 +1286,7 @@ console.log(form.getValue()); // { email: 'initial@mail.com', name: 'John' }
 setErrors(errors): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:376](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L376)
+Defined in: [core/nodes/group-node.ts:376](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L376)
 
 Установить form-level validation errors
 Используется для server-side validation или кросс-полевых ошибок
@@ -1328,7 +1328,7 @@ try {
 setValue(value, options?): void;
 ```
 
-Defined in: [core/nodes/group-node.ts:257](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L257)
+Defined in: [core/nodes/group-node.ts:257](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L257)
 
 Установить значение узла
 
@@ -1362,7 +1362,7 @@ Defined in: [core/nodes/group-node.ts:257](https://github.com/AlexandrBukhtatyy/
 submit<R>(onSubmit): Promise<R | null>;
 ```
 
-Defined in: [core/nodes/group-node.ts:519](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L519)
+Defined in: [core/nodes/group-node.ts:519](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L519)
 
 Отправить форму
 Валидирует форму и вызывает onSubmit если форма валидна
@@ -1391,7 +1391,7 @@ Defined in: [core/nodes/group-node.ts:519](https://github.com/AlexandrBukhtatyy/
 touchAll(): void;
 ```
 
-Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/form-node.ts#L349)
+Defined in: [core/nodes/form-node.ts:349](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/form-node.ts#L349)
 
 Пометить все поля (включая вложенные) как touched
 Алиас для markAsTouched(), но более явно показывает намерение
@@ -1434,7 +1434,7 @@ await form.submit(async (values) => {
 validate(): Promise<boolean>;
 ```
 
-Defined in: [core/nodes/group-node.ts:340](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L340)
+Defined in: [core/nodes/group-node.ts:340](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L340)
 
 Запустить валидацию узла
 
@@ -1456,7 +1456,7 @@ Defined in: [core/nodes/group-node.ts:340](https://github.com/AlexandrBukhtatyy/
 watchField<K>(fieldPath, callback): () => void;
 ```
 
-Defined in: [core/nodes/group-node.ts:802](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/nodes/group-node.ts#L802)
+Defined in: [core/nodes/group-node.ts:802](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/nodes/group-node.ts#L802)
 
 Подписка на изменения вложенного поля по строковому пути
 Поддерживает вложенные пути типа "address.city"

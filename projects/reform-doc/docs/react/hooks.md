@@ -32,29 +32,23 @@ function TextField({ field }: { field: FieldNode<string> }) {
 
 `useFormControl` returns the field with all reactive properties:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `value` | `T` | Current value |
-| `setValue(v)` | `function` | Update value |
-| `valid` | `boolean` | Is valid |
-| `invalid` | `boolean` | Has errors |
-| `errors` | `object \| null` | Error object |
-| `touched` | `boolean` | User interacted |
-| `dirty` | `boolean` | Value changed |
-| `disabled` | `boolean` | Is disabled |
-| `visible` | `boolean` | Is visible |
-| `pending` | `boolean` | Async validation running |
+| Property      | Type             | Description              |
+| ------------- | ---------------- | ------------------------ |
+| `value`       | `T`              | Current value            |
+| `setValue(v)` | `function`       | Update value             |
+| `valid`       | `boolean`        | Is valid                 |
+| `invalid`     | `boolean`        | Has errors               |
+| `errors`      | `object \| null` | Error object             |
+| `touched`     | `boolean`        | User interacted          |
+| `dirty`       | `boolean`        | Value changed            |
+| `disabled`    | `boolean`        | Is disabled              |
+| `visible`     | `boolean`        | Is visible               |
+| `pending`     | `boolean`        | Async validation running |
 
 ### Example: Complete Field
 
 ```tsx
-function FormField({
-  field,
-  label,
-}: {
-  field: FieldNode<string>;
-  label: string;
-}) {
+function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
   const control = useFormControl(field);
 
   if (!control.visible) return null;
@@ -118,9 +112,7 @@ function PhoneList({ array }: { array: ArrayNode<PhoneSchema> }) {
           <button onClick={() => array.removeAt(index)}>Remove</button>
         </div>
       ))}
-      <button onClick={() => array.push({ type: 'mobile', number: '' })}>
-        Add Phone
-      </button>
+      <button onClick={() => array.push({ type: 'mobile', number: '' })}>Add Phone</button>
     </div>
   );
 }
@@ -168,7 +160,7 @@ function Form() {
   // This component doesn't re-render on field changes
   return (
     <form>
-      <NameField />  {/* Re-renders only when name changes */}
+      <NameField /> {/* Re-renders only when name changes */}
       <EmailField /> {/* Re-renders only when email changes */}
     </form>
   );
@@ -178,4 +170,4 @@ function Form() {
 ## Next Steps
 
 - [Components](/docs/react/components) — Reusable form components
-- [Examples](https://stackblitz.com/github/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples) — Live playground
+- [Examples](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx) — Live playground

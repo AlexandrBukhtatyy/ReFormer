@@ -100,7 +100,7 @@ const config: Config = {
           label: 'API',
         },
         {
-          href: 'https://stackblitz.com/github/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples',
+          href: 'https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx',
           label: 'Playground',
           position: 'left',
         },
@@ -136,7 +136,7 @@ const config: Config = {
           items: [
             {
               label: 'Examples',
-              href: 'https://stackblitz.com/github/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples',
+              href: 'https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx',
             },
             {
               label: 'GitHub',

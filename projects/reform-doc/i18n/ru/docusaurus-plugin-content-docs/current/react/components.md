@@ -196,20 +196,12 @@ export function FormArray<T>({
       {control.controls.map((item, index) => (
         <div key={item.id} className="form-array-item">
           {renderItem(item, index)}
-          <button
-            type="button"
-            onClick={() => array.removeAt(index)}
-            className="remove-btn"
-          >
+          <button type="button" onClick={() => array.removeAt(index)} className="remove-btn">
             Удалить
           </button>
         </div>
       ))}
-      <button
-        type="button"
-        onClick={() => array.push(emptyValue)}
-        className="add-btn"
-      >
+      <button type="button" onClick={() => array.push(emptyValue)} className="add-btn">
         {addLabel}
       </button>
     </div>
@@ -253,17 +245,12 @@ function UserForm() {
           { value: 'user', label: 'Пользователь' },
         ]}
       />
-      <Checkbox
-        field={form.controls.notifications}
-        label="Получать уведомления"
-      />
+      <Checkbox field={form.controls.notifications} label="Получать уведомления" />
       <FormArray
         array={form.controls.phones}
         emptyValue=""
         addLabel="Добавить телефон"
-        renderItem={(phone) => (
-          <Input field={phone} label="Телефон" />
-        )}
+        renderItem={(phone) => <Input field={phone} label="Телефон" />}
       />
     </form>
   );
@@ -272,5 +259,5 @@ function UserForm() {
 
 ## Следующие шаги
 
-- [Примеры](https://stackblitz.com/github/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples) — интерактивный playground
+- [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx) — интерактивный playground
 - [API Reference](/docs/api) — полная документация API

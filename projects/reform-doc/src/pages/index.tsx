@@ -17,9 +17,7 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">
-          <Translate id="homepage.tagline">
-            Reactive forms library with signals
-          </Translate>
+          <Translate id="homepage.tagline">Reactive forms library with signals</Translate>
         </p>
         <div className={styles.buttons}>
           <Link className="button button--secondary button--lg" to="/docs">
@@ -28,7 +26,7 @@ function HomepageHeader() {
           <Link
             className="button button--outline button--secondary button--lg"
             style={{ marginLeft: '1rem' }}
-            href="https://stackblitz.com/github/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples"
+            href="https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx"
           >
             <Translate id="homepage.tryPlayground">Try Playground</Translate>
           </Link>
@@ -105,13 +103,7 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({
-  titleId,
-  titleDefault,
-  descriptionId,
-  descriptionDefault,
-  icon,
-}: FeatureItem) {
+function Feature({ titleId, titleDefault, descriptionId, descriptionDefault, icon }: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center padding-horiz--md padding-vert--md">

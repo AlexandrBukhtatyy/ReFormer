@@ -32,29 +32,23 @@ function TextField({ field }: { field: FieldNode<string> }) {
 
 `useFormControl` возвращает поле со всеми реактивными свойствами:
 
-| Свойство | Тип | Описание |
-|----------|-----|----------|
-| `value` | `T` | Текущее значение |
-| `setValue(v)` | `function` | Обновить значение |
-| `valid` | `boolean` | Валидно |
-| `invalid` | `boolean` | Есть ошибки |
-| `errors` | `object \| null` | Объект ошибок |
-| `touched` | `boolean` | Пользователь взаимодействовал |
-| `dirty` | `boolean` | Значение изменено |
-| `disabled` | `boolean` | Отключено |
-| `visible` | `boolean` | Видимо |
-| `pending` | `boolean` | Асинхронная валидация выполняется |
+| Свойство      | Тип              | Описание                          |
+| ------------- | ---------------- | --------------------------------- |
+| `value`       | `T`              | Текущее значение                  |
+| `setValue(v)` | `function`       | Обновить значение                 |
+| `valid`       | `boolean`        | Валидно                           |
+| `invalid`     | `boolean`        | Есть ошибки                       |
+| `errors`      | `object \| null` | Объект ошибок                     |
+| `touched`     | `boolean`        | Пользователь взаимодействовал     |
+| `dirty`       | `boolean`        | Значение изменено                 |
+| `disabled`    | `boolean`        | Отключено                         |
+| `visible`     | `boolean`        | Видимо                            |
+| `pending`     | `boolean`        | Асинхронная валидация выполняется |
 
 ### Пример: Полное поле
 
 ```tsx
-function FormField({
-  field,
-  label,
-}: {
-  field: FieldNode<string>;
-  label: string;
-}) {
+function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
   const control = useFormControl(field);
 
   if (!control.visible) return null;
@@ -73,9 +67,7 @@ function FormField({
         <span className="error-message">Это поле обязательно</span>
       )}
       {control.touched && control.errors?.minLength && (
-        <span className="error-message">
-          Минимум {control.errors.minLength.required} символов
-        </span>
+        <span className="error-message">Минимум {control.errors.minLength.required} символов</span>
       )}
       {control.pending && <span className="loading">Проверка...</span>}
     </div>
@@ -118,9 +110,7 @@ function PhoneList({ array }: { array: ArrayNode<PhoneSchema> }) {
           <button onClick={() => array.removeAt(index)}>Удалить</button>
         </div>
       ))}
-      <button onClick={() => array.push({ type: 'mobile', number: '' })}>
-        Добавить телефон
-      </button>
+      <button onClick={() => array.push({ type: 'mobile', number: '' })}>Добавить телефон</button>
     </div>
   );
 }
@@ -168,7 +158,7 @@ function Form() {
   // Этот компонент НЕ перерисовывается при изменении полей
   return (
     <form>
-      <NameField />  {/* Перерисовывается только при изменении name */}
+      <NameField /> {/* Перерисовывается только при изменении name */}
       <EmailField /> {/* Перерисовывается только при изменении email */}
     </form>
   );
@@ -178,4 +168,4 @@ function Form() {
 ## Следующие шаги
 
 - [Компоненты](/docs/react/components) — переиспользуемые компоненты форм
-- [Примеры](https://stackblitz.com/github/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples) — интерактивный playground
+- [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx) — интерактивный playground

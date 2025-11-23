@@ -1,6 +1,6 @@
 # ValidateAsyncOptions
 
-Defined in: [core/types/validation-schema.ts:95](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/validation-schema.ts#L95)
+Defined in: [core/types/validation-schema.ts:95](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/validation-schema.ts#L95)
 
 Опции для функции validateAsync
 
@@ -16,7 +16,7 @@ Defined in: [core/types/validation-schema.ts:95](https://github.com/AlexandrBukh
 optional debounce: number;
 ```
 
-Defined in: [core/types/validation-schema.ts:97](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/validation-schema.ts#L97)
+Defined in: [core/types/validation-schema.ts:97](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/validation-schema.ts#L97)
 
 Задержка перед выполнением валидации (в мс)
 
@@ -28,7 +28,7 @@ Defined in: [core/types/validation-schema.ts:97](https://github.com/AlexandrBukh
 optional message: string;
 ```
 
-Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/validation-schema.ts#L87)
+Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/validation-schema.ts#L87)
 
 Сообщение об ошибке
 
@@ -44,7 +44,7 @@ Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukh
 optional params: FormFields;
 ```
 
-Defined in: [core/types/validation-schema.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/validation-schema.ts#L89)
+Defined in: [core/types/validation-schema.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/validation-schema.ts#L89)
 
 Параметры ошибки
 

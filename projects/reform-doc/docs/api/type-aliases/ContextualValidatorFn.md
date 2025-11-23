@@ -4,7 +4,7 @@
 type ContextualValidatorFn<TForm, TField> = (value, ctx) => ValidationError | null;
 ```
 
-Defined in: [core/types/validation-schema.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/validation-schema.ts#L34)
+Defined in: [core/types/validation-schema.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/validation-schema.ts#L34)
 
 Функция валидации поля с контекстом
 
