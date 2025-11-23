@@ -8,6 +8,7 @@
  */
 
 import type { GroupNodeWithControls } from 'reformer';
+import { useFormControl } from 'reformer';
 import { FormField } from '@/components/ui/form-field';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
@@ -18,7 +19,7 @@ interface ContactInfoFormProps {
 }
 
 export function ContactInfoForm({ control }: ContactInfoFormProps) {
-  const sameAsRegistration = control.sameAsRegistration.value.value;
+  const { value: sameAsRegistration } = useFormControl(control.sameAsRegistration);
 
   // Копировать адрес регистрации в адрес проживания
   const copyRegistrationAddress = () => {

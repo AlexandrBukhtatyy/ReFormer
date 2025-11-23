@@ -1,4 +1,5 @@
 import type { GroupNodeWithControls } from 'reformer';
+import { useFormControl } from 'reformer';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
@@ -7,7 +8,7 @@ interface BasicInfoFormProps {
 }
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {
-  const loanType = control.loanType.value.value;
+  const { value: loanType } = useFormControl(control.loanType);
 
   return (
     <div className="space-y-6" data-testid="step-basic-info">

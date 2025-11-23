@@ -366,10 +366,10 @@ function SelectField({
 export default function BehaviorsExamples() {
   const form = useMemo(() => createBehaviorsForm(), []);
 
-  // Читаем значения для условного рендеринга
-  const hasDiscount = form.hasDiscount.value.value;
-  const country = form.country.value.value;
-  const paymentType = form.paymentType.value.value;
+  // Подписываемся на изменения для условного рендеринга
+  const { value: hasDiscount } = useFormControl(form.hasDiscount);
+  const { value: country } = useFormControl(form.country);
+  const { value: paymentType } = useFormControl(form.paymentType);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
