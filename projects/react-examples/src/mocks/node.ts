@@ -1,5 +1,5 @@
 import { setupServer } from 'msw/node';
-import { handlers } from './handlers';
+import { handlers } from './_generated/msw-handlers';
 
 // MSW Node server для тестов
 // Не запускать автоматически - используется в тестовом окружении

@@ -18,6 +18,13 @@ npm run test:e2e:ui
 npm run test:e2e:chromium
 npm run test:e2e:report
 
+# projects/react-examples
+
+npm run dev                # Стандартный режим (MSW Service Worker)
+npm run dev:stackblitz     # Режим StackBlitz (Vite middleware)
+npm run generate:mocks     # Генерация handlers из OpenAPI spec
+npm run build              # Сборка (включает generate:mocks)
+
 # projects/reform-doc
 
 npm run build

@@ -1,0 +1,250 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Mock API",
+    "version": "1.0.0",
+    "description": "Автогенерированная документация Mock API"
+  },
+  "paths": {
+    "/api/v1/regions": {
+      "get": {
+        "operationId": "getRegions",
+        "summary": "Получение списка регионов",
+        "tags": [
+          "Regions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Список регионов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Option"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cities": {
+      "get": {
+        "operationId": "getCities",
+        "summary": "Получение городов по региону",
+        "tags": [
+          "Cities"
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "query",
+            "description": "Код региона",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список городов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Option"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/car-models": {
+      "get": {
+        "operationId": "getCarModels",
+        "summary": "Получение моделей автомобилей по марке",
+        "tags": [
+          "Cars"
+        ],
+        "parameters": [
+          {
+            "name": "brand",
+            "in": "query",
+            "description": "Марка автомобиля",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список моделей",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Option"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dictionaries": {
+      "get": {
+        "operationId": "getDictionaries",
+        "summary": "Получение справочников",
+        "tags": [
+          "Dictionaries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Справочники",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictionariesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/credit-applications/{id}": {
+      "get": {
+        "operationId": "getCreditApplication",
+        "summary": "Получение заявки по ID",
+        "tags": [
+          "CreditApplications"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID заявки",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Данные заявки",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditApplication"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Заявка не найдена"
+          }
+        }
+      }
+    },
+    "/api/v1/credit-applications": {
+      "post": {
+        "operationId": "createCreditApplication",
+        "summary": "Создание новой заявки",
+        "tags": [
+          "CreditApplications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditApplication"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Заявка создана",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApplicationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Option": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ]
+      },
+      "DictionariesResponse": {
+        "type": "object",
+        "properties": {
+          "banks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            }
+          },
+          "cities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            }
+          },
+          "propertyTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            }
+          }
+        }
+      },
+      "CreditApplication": {
+        "type": "object",
+        "description": "Форма кредитной заявки"
+      },
+      "CreateApplicationResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}
