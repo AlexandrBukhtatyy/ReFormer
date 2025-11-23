@@ -119,7 +119,7 @@ export default function SimpleForm() {
       {/* Состояние формы */}
       <div className="flex-1 p-6 bg-white rounded-lg shadow">
         <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
-        <FormStateDisplay form={form.value.value} />
+        <FormStateDisplay form={form} />
       </div>
     </div>
   );
