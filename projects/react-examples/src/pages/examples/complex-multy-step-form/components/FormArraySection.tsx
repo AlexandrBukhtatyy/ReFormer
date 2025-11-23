@@ -20,7 +20,12 @@
  * ```
  */
 
-import type { ArrayNodeWithControls, FormFields, GroupNodeWithControls } from 'reformer';
+import {
+  useFormControl,
+  type ArrayNodeWithControls,
+  type FormFields,
+  type GroupNodeWithControls,
+} from 'reformer';
 import type { ComponentType } from 'react';
 import { FormArrayManager } from '@/components/ui/FormArrayManager';
 import { Button } from '@/components/ui/button';
@@ -61,12 +66,15 @@ export function FormArraySection<T extends object>({
   hasItems,
   emptyMessageHint,
 }: FormArraySectionProps<T>) {
+  // Подписка на изменения длины массива для триггера ре-рендера
+  const { length } = useFormControl(control);
+
   // Не показываем секцию, если hasItems === false
   if (!hasItems || !control) {
     return null;
   }
 
-  const isEmpty = control.length.value === 0;
+  const isEmpty = length === 0;
 
   return (
     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">

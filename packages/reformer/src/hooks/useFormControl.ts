@@ -1,11 +1,56 @@
 import { useEffect, useState } from 'react';
 import type { FieldNode } from '../core/nodes/field-node';
-import type { FormValue } from '../core/types';
+import type { ArrayNode } from '../core/nodes/array-node';
+import type { FormValue, ValidationError, FormFields } from '../core/types';
+
+// ============================================================================
+// Типы возвращаемых значений
+// ============================================================================
+
+interface FieldControlState<T> {
+  value: T;
+  pending: boolean;
+  disabled: boolean;
+  errors: ValidationError[];
+  valid: boolean;
+  invalid: boolean;
+  touched: boolean;
+  shouldShowError: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  componentProps: Record<string, any>;
+}
+
+interface ArrayControlState<T> {
+  value: T[];
+  length: number;
+  pending: boolean;
+  errors: ValidationError[];
+  valid: boolean;
+  invalid: boolean;
+  touched: boolean;
+  dirty: boolean;
+}
+
+// ============================================================================
+// Перегрузки функции
+// ============================================================================
+
+/**
+ * Хук для работы с ArrayNode - возвращает состояние массива с подписками на сигналы
+ */
+export function useFormControl<T extends FormFields>(
+  control: ArrayNode<T> | undefined
+): ArrayControlState<T>;
 
 /**
  * Хук для работы с FieldNode - возвращает состояние поля с подписками на сигналы
+ */
+export function useFormControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T>;
+
+/**
+ * Хук для работы с FieldNode или ArrayNode - возвращает состояние с подписками на сигналы
  *
- * @example
+ * @example FieldNode
  * ```tsx
  * const { value, errors, componentProps } = useFormControl(control);
  *
@@ -16,53 +61,115 @@ import type { FormValue } from '../core/types';
  *   </div>
  * );
  * ```
+ *
+ * @example ArrayNode
+ * ```tsx
+ * const { length } = useFormControl(arrayControl);
+ *
+ * return (
+ *   <div>
+ *     {arrayControl.map((item, index) => (
+ *       <ItemComponent key={item.id || index} control={item} />
+ *     ))}
+ *     {length === 0 && <span>Список пуст</span>}
+ *   </div>
+ * );
+ * ```
  */
-export const useFormControl = (control: FieldNode<FormValue>) => {
-  const [value, setValue] = useState(control.value.value);
-  const [pending, setPending] = useState(control.pending.value);
-  const [disabled, setDisabled] = useState(control.disabled.value);
-  const [errors, setErrors] = useState(control.errors.value);
-  const [valid, setValid] = useState(control.valid.value);
-  const [invalid, setInvalid] = useState(control.invalid.value);
-  const [touched, setTouched] = useState(control.touched.value);
-  const [shouldShowError, setShouldShowError] = useState(control.shouldShowError.value);
+export function useFormControl(
+  control: FieldNode<FormValue> | ArrayNode<FormFields> | undefined
+): FieldControlState<FormValue> | ArrayControlState<FormFields> {
+  // Определяем тип контрола по наличию специфичных свойств
+  const isArrayNode = control && 'length' in control && 'map' in control;
+
+  // ============================================================================
+  // State для ArrayNode
+  // ============================================================================
+  const [length, setLength] = useState(isArrayNode ? control.length.value : 0);
+  const [arrayValue, setArrayValue] = useState<FormFields[]>(
+    isArrayNode ? control.value.value : []
+  );
+  const [dirty, setDirty] = useState(isArrayNode ? control.dirty.value : false);
+
+  // ============================================================================
+  // State для FieldNode
+  // ============================================================================
+  const [fieldValue, setFieldValue] = useState(
+    !isArrayNode && control ? (control as FieldNode<FormValue>).value.value : undefined
+  );
+  const [disabled, setDisabled] = useState(
+    !isArrayNode && control ? (control as FieldNode<FormValue>).disabled.value : false
+  );
+  const [shouldShowError, setShouldShowError] = useState(
+    !isArrayNode && control ? (control as FieldNode<FormValue>).shouldShowError.value : false
+  );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [componentProps, setComponentProps] = useState<Record<string, any>>(
-    control.componentProps.value
+    !isArrayNode && control ? (control as FieldNode<FormValue>).componentProps.value : {}
   );
 
-  // Подписка на сигналы для обновления состояния компонента
-  useEffect(() => {
-    const unsubscribeValue = control.value.subscribe((state) => setValue(state));
-    const unsubscribePending = control.pending.subscribe((state) => setPending(state));
-    const unsubscribeDisabled = control.disabled.subscribe((state) => setDisabled(state));
-    const unsubscribeErrors = control.errors.subscribe((state) => setErrors(state));
-    const unsubscribeValid = control.valid.subscribe((state) => setValid(state));
-    const unsubscribeInvalid = control.invalid.subscribe((state) => setInvalid(state));
-    const unsubscribeTouched = control.touched.subscribe((state) => setTouched(state));
-    const unsubscribeShouldShowError = control.shouldShowError.subscribe((state) =>
-      setShouldShowError(state)
-    );
-    const unsubscribeComponentProps = control.componentProps.subscribe((state) =>
-      setComponentProps(state)
-    );
+  // ============================================================================
+  // Общий state
+  // ============================================================================
+  const [pending, setPending] = useState(control?.pending.value ?? false);
+  const [errors, setErrors] = useState<ValidationError[]>(control?.errors.value ?? []);
+  const [valid, setValid] = useState(control?.valid.value ?? true);
+  const [invalid, setInvalid] = useState(control?.invalid.value ?? false);
+  const [touched, setTouched] = useState(control?.touched.value ?? false);
 
-    // Очистка подписок при размонтировании компонента
+  // ============================================================================
+  // Подписки
+  // ============================================================================
+  useEffect(() => {
+    if (!control) return;
+
+    const unsubscribers: Array<() => void> = [];
+
+    // Общие подписки
+    unsubscribers.push(control.pending.subscribe(setPending));
+    unsubscribers.push(control.errors.subscribe(setErrors));
+    unsubscribers.push(control.valid.subscribe(setValid));
+    unsubscribers.push(control.invalid.subscribe(setInvalid));
+    unsubscribers.push(control.touched.subscribe(setTouched));
+
+    if (isArrayNode) {
+      // ArrayNode подписки
+      const arrayControl = control as ArrayNode<FormFields>;
+      unsubscribers.push(arrayControl.length.subscribe(setLength));
+      unsubscribers.push(arrayControl.value.subscribe(setArrayValue));
+      unsubscribers.push(arrayControl.dirty.subscribe(setDirty));
+    } else {
+      // FieldNode подписки
+      const fieldControl = control as FieldNode<FormValue>;
+      unsubscribers.push(fieldControl.value.subscribe(setFieldValue));
+      unsubscribers.push(fieldControl.disabled.subscribe(setDisabled));
+      unsubscribers.push(fieldControl.shouldShowError.subscribe(setShouldShowError));
+      unsubscribers.push(fieldControl.componentProps.subscribe(setComponentProps));
+    }
+
     return () => {
-      unsubscribeValue();
-      unsubscribeErrors();
-      unsubscribePending();
-      unsubscribeDisabled();
-      unsubscribeValid();
-      unsubscribeInvalid();
-      unsubscribeTouched();
-      unsubscribeShouldShowError();
-      unsubscribeComponentProps();
+      unsubscribers.forEach((unsub) => unsub());
     };
-  }, [control]);
+  }, [control, isArrayNode]);
+
+  // ============================================================================
+  // Возврат результата
+  // ============================================================================
+  if (isArrayNode) {
+    return {
+      value: arrayValue,
+      length,
+      pending,
+      errors,
+      valid,
+      invalid,
+      touched,
+      dirty,
+    } as ArrayControlState<FormFields>;
+  }
 
   return {
-    value,
+    value: fieldValue,
     pending,
     disabled,
     errors,
@@ -71,10 +178,5 @@ export const useFormControl = (control: FieldNode<FormValue>) => {
     touched,
     shouldShowError,
     componentProps,
-  };
-};
-
-/**
- * Тип для возвращаемого значения useFormControlSignals
- */
-// export type FormControlState<T extends FormValue> = ReturnType<typeof useFormControl<T>>;
+  } as FieldControlState<FormValue>;
+}

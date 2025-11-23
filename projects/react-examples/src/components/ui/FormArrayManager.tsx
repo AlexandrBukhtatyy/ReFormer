@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { Button } from './button';
-import type { ArrayNode, FormFields, GroupNodeWithControls } from 'reformer';
+import { useFormControl, type ArrayNode, type FormFields, type GroupNodeWithControls } from 'reformer';
 
 interface FormArrayManagerProps {
   // ArrayProxy (из DeepFormStore)
@@ -33,9 +33,8 @@ export function FormArrayManager({
   itemLabel = 'Элемент',
   renderTitle,
 }: FormArrayManagerProps) {
-  // Читаем сигнал length напрямую для триггера ре-рендера при изменении массива
-  const _length = control.length.value;
-  void _length; // Подавляем предупреждение о неиспользуемой переменной
+  // Подписка на изменения длины массива для триггера ре-рендера
+  const { length } = useFormControl(control);
 
   return (
     <>
