@@ -269,9 +269,9 @@ function NumberField({
       <label className="block text-sm font-medium mb-1">{label}</label>
       <input
         type="number"
-        value={value.value}
+        value={value}
         onChange={(e) => control.setValue(Number(e.target.value) || 0)}
-        disabled={disabled.value || readOnly}
+        disabled={disabled || readOnly}
         className="w-full p-2 border rounded border-gray-300 disabled:bg-gray-100"
       />
     </div>
@@ -295,9 +295,9 @@ function TextField({
       <label className="block text-sm font-medium mb-1">{label}</label>
       <input
         type="text"
-        value={value.value ?? ''}
+        value={value ?? ''}
         onChange={(e) => control.setValue(e.target.value)}
-        disabled={disabled.value}
+        disabled={disabled}
         placeholder={placeholder}
         className="w-full p-2 border rounded border-gray-300 disabled:bg-gray-100"
       />
@@ -320,9 +320,9 @@ function CheckboxField({
       <label className="flex items-center gap-2">
         <input
           type="checkbox"
-          checked={value.value}
+          checked={value}
           onChange={(e) => control.setValue(e.target.checked)}
-          disabled={disabled.value}
+          disabled={disabled}
           className="w-4 h-4"
         />
         <span className="text-sm font-medium">{label}</span>
@@ -347,9 +347,9 @@ function SelectField({
     <div className="mb-4">
       <label className="block text-sm font-medium mb-1">{label}</label>
       <select
-        value={value.value}
+        value={value}
         onChange={(e) => control.setValue(e.target.value)}
-        disabled={disabled.value}
+        disabled={disabled}
         className="w-full p-2 border rounded border-gray-300 disabled:bg-gray-100"
       >
         <option value="">Выберите...</option>
