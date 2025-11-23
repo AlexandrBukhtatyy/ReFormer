@@ -6,7 +6,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
  */
 export class CreditFormPage {
   readonly page: Page;
-  readonly baseUrl = 'http://localhost:5173';
+  readonly baseUrl = 'http://localhost:5173/examples/complex';
 
   // Навигация
   readonly nextButton: Locator;

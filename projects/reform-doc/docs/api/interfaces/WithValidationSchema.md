@@ -1,6 +1,6 @@
 # WithValidationSchema
 
-Defined in: [core/types/index.ts:147](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/index.ts#L147)
+Defined in: [core/types/index.ts:147](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/index.ts#L147)
 
 Интерфейс для узлов с методом applyValidationSchema
 
@@ -12,7 +12,7 @@ Defined in: [core/types/index.ts:147](https://github.com/AlexandrBukhtatyy/ReFor
 applyValidationSchema(schemaFn): void;
 ```
 
-Defined in: [core/types/index.ts:148](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/types/index.ts#L148)
+Defined in: [core/types/index.ts:148](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/types/index.ts#L148)
 
 #### Parameters
 

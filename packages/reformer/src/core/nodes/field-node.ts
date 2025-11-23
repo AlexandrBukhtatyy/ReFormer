@@ -94,7 +94,7 @@ export class FieldNode<T> extends FormNode<T> {
     this.initialValue = config.value as T;
     this.validators = config.validators || [];
     this.asyncValidators = config.asyncValidators || [];
-    this.updateOn = config.updateOn || 'change';
+    this.updateOn = config.updateOn || 'blur';
     this.debounceMs = config.debounce || 0;
     this.component = config.component;
 

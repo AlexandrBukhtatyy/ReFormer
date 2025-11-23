@@ -4,7 +4,7 @@
 function isFieldNode(value): value is FieldNode<FormValue>;
 ```
 
-Defined in: [core/utils/type-guards.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/type-guards.ts#L71)
+Defined in: [core/utils/type-guards.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/utils/type-guards.ts#L71)
 
 Проверить, является ли значение FieldNode (примитивное поле)
 

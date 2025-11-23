@@ -1,57 +1,41 @@
-import { useState } from 'react';
-import { useSignals } from '@preact/signals-react/runtime';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 import SimpleForm from './pages/examples/simple-form/SimpleForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 
-type ExamplePage =
-  | 'simple'
-  | 'validation'
-  | 'behaviors'
-  | 'complex';
+type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex';
 
-const examples: { id: ExamplePage; title: string; description: string }[] = [
+const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
     id: 'simple',
+    path: '/examples/simple',
     title: 'Простая форма',
     description: 'Базовый пример с GroupNode и FieldNode',
   },
   {
+    id: 'complex',
+    path: '/examples/complex',
+    title: 'Комплексная форма',
+    description: 'Многошаговая форма кредитной заявки',
+  },
+  {
     id: 'validation',
+    path: '/examples/validation',
     title: 'Валидация',
     description: 'Встроенные валидаторы',
   },
   {
     id: 'behaviors',
+    path: '/examples/behaviors',
     title: 'Поведения',
     description: 'computeFrom, enableWhen и условная логика',
   },
-  {
-    id: 'complex',
-    title: 'Комплексная форма',
-    description: 'Многошаговая форма кредитной заявки',
-  },
 ];
 
-function App() {
-  useSignals();
-  const [currentPage, setCurrentPage] = useState<ExamplePage>('simple');
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'simple':
-        return <SimpleForm />;
-      case 'validation':
-        return <ValidationExamples />;
-      case 'behaviors':
-        return <BehaviorsExamples />;
-      case 'complex':
-        return <CreditApplicationForm />;
-      default:
-        return <SimpleForm />;
-    }
-  };
+function Layout() {
+  const location = useLocation();
+  const currentExample = examples.find((e) => location.pathname.startsWith(e.path));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,17 +54,19 @@ function App() {
         <div className="container mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto py-2">
             {examples.map((example) => (
-              <button
+              <NavLink
                 key={example.id}
-                onClick={() => setCurrentPage(example.id)}
-                className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
-                  currentPage === example.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
+                to={example.path}
+                className={({ isActive }) =>
+                  `px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`
+                }
               >
                 {example.title}
-              </button>
+              </NavLink>
             ))}
           </div>
         </div>
@@ -90,14 +76,21 @@ function App() {
       <div className="bg-blue-50 border-b border-blue-100">
         <div className="container mx-auto px-4 py-3">
           <p className="text-blue-800 text-sm">
-            {examples.find((e) => e.id === currentPage)?.description}
+            {currentExample?.description || 'Выберите пример'}
           </p>
         </div>
       </div>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {renderPage()}
+        <Routes>
+          <Route path="/examples/simple" element={<SimpleForm />} />
+          <Route path="/examples/validation" element={<ValidationExamples />} />
+          <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
+          <Route path="/examples/complex" element={<CreditApplicationForm />} />
+          <Route path="/" element={<Navigate to="/examples/simple" replace />} />
+          <Route path="*" element={<Navigate to="/examples/simple" replace />} />
+        </Routes>
       </main>
 
       {/* Footer */}
@@ -115,6 +108,14 @@ function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Layout />
+    </BrowserRouter>
   );
 }
 

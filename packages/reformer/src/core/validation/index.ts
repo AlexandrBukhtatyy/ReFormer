@@ -17,6 +17,11 @@ export { minLength } from './validators/min-length';
 export { maxLength } from './validators/max-length';
 export { email } from './validators/email';
 export { pattern } from './validators/pattern';
+export { url } from './validators/url';
+export { phone, type PhoneFormat } from './validators/phone';
+export { number } from './validators/number';
+export { date } from './validators/date';
+export { custom, createCustomValidator, type CustomValidatorFn } from './validators/custom';
 
 // Валидаторы для массивов
 export { notEmpty, validateItems } from './validators/array-validators';

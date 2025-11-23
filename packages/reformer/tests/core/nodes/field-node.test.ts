@@ -177,13 +177,13 @@ describe('FieldNode', () => {
       expect(field.errors.value).toEqual([]);
     });
 
-    it('should initialize with default updateOn = "change"', () => {
+    it('should initialize with default updateOn = "blur"', () => {
       const field = new FieldNode({
         value: '',
         component: null as ComponentInstance,
       });
 
-      expect(field.getUpdateOn()).toBe('change');
+      expect(field.getUpdateOn()).toBe('blur');
     });
 
     it('should initialize with custom updateOn', () => {

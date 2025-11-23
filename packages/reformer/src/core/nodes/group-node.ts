@@ -338,6 +338,9 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   async validate(): Promise<boolean> {
+    // Шаг 0: Очищаем ошибки перед валидацией (для корректной работы ValidationSchema)
+    this.clearErrors();
+
     // Шаг 1: Валидация всех полей
     await Promise.all(Array.from(this.fieldRegistry.values()).map((field) => field.validate()));
 

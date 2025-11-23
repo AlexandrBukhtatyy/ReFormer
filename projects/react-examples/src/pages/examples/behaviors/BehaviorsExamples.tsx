@@ -1,30 +1,69 @@
 /**
  * Примеры поведений (behaviors) с ReFormer
- * Демонстрирует computeFrom, enableWhen и условную логику
+ * Демонстрирует все доступные behaviors
  */
 
 import { useMemo } from 'react';
 import { GroupNode, useFormControl, type GroupNodeWithControls, type FormSchema, type FieldNode, type FieldPath } from 'reformer';
-import { required, min } from 'reformer/validators';
-import { computeFrom, enableWhen, type BehaviorSchemaFn } from 'reformer/behaviors';
+import { required, min, max } from 'reformer/validators';
+import {
+  computeFrom,
+  enableWhen,
+  disableWhen,
+  copyFrom,
+  watchField,
+  transformValue,
+  resetWhen,
+  syncFields,
+  revalidateWhen,
+  type BehaviorSchemaFn
+} from 'reformer/behaviors';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ExampleCard } from '@/components/ui/example-card';
 
 // Тип формы для демонстрации behaviors
 interface BehaviorsDemoForm {
-  // Калькулятор: цена × количество = итого
+  // computeFrom: цена × количество = итого
   price: number;
   quantity: number;
   total: number;
 
-  // Условная активация
+  // enableWhen: страна -> город
   country: string;
   city: string;
 
-  // Условное отображение
+  // enableWhen: чекбокс -> скидка
   hasDiscount: boolean;
   discountPercent: number;
+
+  // disableWhen: readonly когда confirmed
+  isConfirmed: boolean;
+  editableField: string;
+
+  // copyFrom: копирование адреса
+  useShippingAsBilling: boolean;
+  shippingAddress: string;
+  billingAddress: string;
+
+  // watchField: лог изменений
+  watchedField: string;
+
+  // transformValue: uppercase
+  uppercaseField: string;
+
+  // resetWhen: сброс при смене типа
+  paymentType: string;
+  cardNumber: string;
+
+  // syncFields: синхронизация полей
+  syncField1: string;
+  syncField2: string;
+
+  // revalidateWhen: перевалидация
+  maxAmount: number;
+  amount: number;
 }
 
 // Схема формы
@@ -32,29 +71,17 @@ const behaviorsFormSchema: FormSchema<BehaviorsDemoForm> = {
   price: {
     value: 100,
     component: Input,
-    componentProps: {
-      label: 'Цена',
-      type: 'number',
-      min: 0,
-    },
+    componentProps: { label: 'Цена', type: 'number', min: 0 },
   },
   quantity: {
     value: 1,
     component: Input,
-    componentProps: {
-      label: 'Количество',
-      type: 'number',
-      min: 1,
-    },
+    componentProps: { label: 'Количество', type: 'number', min: 1 },
   },
   total: {
     value: 100,
     component: Input,
-    componentProps: {
-      label: 'Итого',
-      type: 'number',
-      disabled: true,
-    },
+    componentProps: { label: 'Итого', type: 'number', disabled: true },
   },
   country: {
     value: '',
@@ -72,36 +99,101 @@ const behaviorsFormSchema: FormSchema<BehaviorsDemoForm> = {
   city: {
     value: '',
     component: Input,
-    componentProps: {
-      label: 'Город',
-      placeholder: 'Введите город',
-    },
+    componentProps: { label: 'Город', placeholder: 'Введите город' },
   },
   hasDiscount: {
     value: false,
     component: Checkbox,
-    componentProps: {
-      label: 'Применить скидку',
-    },
+    componentProps: { label: 'Применить скидку' },
   },
   discountPercent: {
     value: 0,
     component: Input,
+    componentProps: { label: 'Процент скидки', type: 'number', min: 0, max: 100 },
+  },
+  isConfirmed: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Подтвердить' },
+  },
+  editableField: {
+    value: 'Редактируемый текст',
+    component: Input,
+    componentProps: { label: 'Поле', placeholder: 'Введите текст' },
+  },
+  useShippingAsBilling: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Использовать адрес доставки' },
+  },
+  shippingAddress: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Адрес доставки', placeholder: 'Введите адрес доставки' },
+  },
+  billingAddress: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Адрес оплаты', placeholder: 'Введите адрес оплаты' },
+  },
+  watchedField: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Отслеживаемое поле', placeholder: 'Введите что-нибудь' },
+  },
+  uppercaseField: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Текст (в uppercase)', placeholder: 'Будет преобразован' },
+  },
+  paymentType: {
+    value: '',
+    component: Select,
     componentProps: {
-      label: 'Процент скидки',
-      type: 'number',
-      min: 0,
-      max: 100,
+      label: 'Способ оплаты',
+      placeholder: 'Выберите способ',
+      options: [
+        { value: 'card', label: 'Карта' },
+        { value: 'cash', label: 'Наличные' },
+      ],
     },
+  },
+  cardNumber: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Номер карты', placeholder: '0000 0000 0000 0000' },
+  },
+  syncField1: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Поле 1', placeholder: 'Введите текст' },
+  },
+  syncField2: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Поле 2', placeholder: 'Синхронизировано' },
+  },
+  maxAmount: {
+    value: 1000,
+    component: Input,
+    componentProps: { label: 'Макс. сумма', type: 'number' },
+  },
+  amount: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Сумма', type: 'number' },
   },
 };
 
-// Валидация - path это FieldPath<T>
+// Валидация
 const behaviorsFormValidation = (path: FieldPath<BehaviorsDemoForm>) => {
   required(path.price, { message: 'Укажите цену' });
   min(path.price, 0, { message: 'Цена не может быть отрицательной' });
   required(path.quantity, { message: 'Укажите количество' });
   min(path.quantity, 1, { message: 'Минимум 1' });
+
+  // Динамическая валидация: amount <= maxAmount
+  max(path.amount, 1000, { message: 'Превышен лимит' });
 };
 
 // Behavior схема
@@ -122,6 +214,34 @@ const behaviorsFormBehavior: BehaviorSchemaFn<BehaviorsDemoForm> = (path) => {
   enableWhen(path.discountPercent, (form) => form.hasDiscount === true, {
     resetOnDisable: true,
   });
+
+  // disableWhen: деактивировать поле когда подтверждено
+  disableWhen(path.editableField, (form) => form.isConfirmed === true);
+
+  // copyFrom: копировать адрес доставки в адрес оплаты
+  copyFrom(path.shippingAddress, path.billingAddress, {
+    when: (form) => form.useShippingAsBilling === true,
+  });
+
+  // watchField: отслеживание изменений (пример использует внешний callback)
+  watchField(path.watchedField, (_value, _ctx) => {
+    // Callback вызывается при каждом изменении
+    // Можно обновлять UI, загружать данные и т.д.
+  });
+
+  // transformValue: преобразовать в uppercase
+  transformValue(path.uppercaseField, (value) => value?.toUpperCase() ?? '');
+
+  // resetWhen: сбросить номер карты когда способ оплаты != карта
+  resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', {
+    resetValue: '',
+  });
+
+  // syncFields: синхронизация двух полей
+  syncFields(path.syncField1, path.syncField2);
+
+  // revalidateWhen: перевалидировать amount при изменении maxAmount
+  revalidateWhen(path.amount, [path.maxAmount]);
 };
 
 function createBehaviorsForm(): GroupNodeWithControls<BehaviorsDemoForm> {
@@ -249,111 +369,241 @@ export default function BehaviorsExamples() {
   // Читаем значения для условного рендеринга
   const hasDiscount = form.hasDiscount.value.value;
   const country = form.country.value.value;
+  const paymentType = form.paymentType.value.value;
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-2">Примеры поведений (Behaviors)</h2>
       <p className="text-gray-600 mb-6">
         Демонстрация реактивных поведений ReFormer
       </p>
 
-      {/* ComputeFrom Example */}
-      <div className="mb-8 p-4 border rounded-lg bg-blue-50">
-        <h3 className="text-lg font-semibold mb-2">
-          🧮 computeFrom — Автоматический расчет
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Итого = Цена × Количество (вычисляется автоматически)
-        </p>
-        <div className="grid grid-cols-3 gap-4">
-          <NumberField control={form.price} label="Цена" />
-          <NumberField control={form.quantity} label="Количество" />
-          <NumberField control={form.total} label="Итого" readOnly />
-        </div>
-        <pre className="text-xs bg-gray-800 text-green-400 p-2 rounded mt-2 overflow-x-auto">
-{`computeFrom(
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* ComputeFrom Example */}
+        <ExampleCard
+          title="computeFrom"
+          description="Автоматический расчет: Итого = Цена × Количество"
+          bgColor="bg-white"
+          code={`computeFrom(
   [path.price, path.quantity],
   path.total,
   (values) => values.price * values.quantity
 )`}
-        </pre>
-      </div>
+        >
+          <div className="grid grid-cols-3 gap-4">
+            <NumberField control={form.price} label="Цена" />
+            <NumberField control={form.quantity} label="Количество" />
+            <NumberField control={form.total} label="Итого" readOnly />
+          </div>
+        </ExampleCard>
 
-      {/* EnableWhen Example - Country/City */}
-      <div className="mb-8 p-4 border rounded-lg bg-purple-50">
-        <h3 className="text-lg font-semibold mb-2">
-          🔒 enableWhen — Условная активация
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Поле города активно только если выбрана страна
-        </p>
-        <SelectField
-          control={form.country}
-          label="Страна"
-          options={[
-            { value: 'ru', label: 'Россия' },
-            { value: 'us', label: 'США' },
-            { value: 'de', label: 'Германия' },
-          ]}
-        />
-        <TextField
-          control={form.city}
-          label={`Город ${!country ? '(выберите страну)' : ''}`}
-          placeholder="Введите город..."
-        />
-        <pre className="text-xs bg-gray-800 text-green-400 p-2 rounded mt-2 overflow-x-auto">
-{`enableWhen(
+        {/* EnableWhen Example - Country/City */}
+        <ExampleCard
+          title="enableWhen"
+          description="Поле города активно только если выбрана страна"
+          bgColor="bg-white"
+          code={`enableWhen(
   path.city,
   (form) => Boolean(form.country),
   { resetOnDisable: true }
 )`}
-        </pre>
-      </div>
+        >
+          <SelectField
+            control={form.country}
+            label="Страна"
+            options={[
+              { value: 'ru', label: 'Россия' },
+              { value: 'us', label: 'США' },
+              { value: 'de', label: 'Германия' },
+            ]}
+          />
+          <TextField
+            control={form.city}
+            label={`Город ${!country ? '(выберите страну)' : ''}`}
+            placeholder="Введите город..."
+          />
+        </ExampleCard>
 
-      {/* EnableWhen Example - Discount */}
-      <div className="mb-8 p-4 border rounded-lg bg-yellow-50">
-        <h3 className="text-lg font-semibold mb-2">
-          👁️ enableWhen — Условное отображение
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Поле скидки появляется только если включен чекбокс
-        </p>
-        <CheckboxField control={form.hasDiscount} label="Применить скидку" />
-        {hasDiscount && (
-          <NumberField control={form.discountPercent} label="Процент скидки" />
-        )}
-        <pre className="text-xs bg-gray-800 text-green-400 p-2 rounded mt-2 overflow-x-auto">
-{`enableWhen(
+        {/* EnableWhen Example - Discount */}
+        <ExampleCard
+          title="enableWhen"
+          description="Поле скидки активно только если включен чекбокс"
+          bgColor="bg-white"
+          code={`enableWhen(
   path.discountPercent,
   (form) => form.hasDiscount === true,
   { resetOnDisable: true }
 )`}
-        </pre>
-      </div>
+        >
+          <CheckboxField control={form.hasDiscount} label="Применить скидку" />
+          {hasDiscount && (
+            <NumberField control={form.discountPercent} label="Процент скидки" />
+          )}
+        </ExampleCard>
 
-      {/* Other behaviors info */}
-      <div className="mb-8 p-4 border rounded-lg bg-gray-50">
-        <h3 className="text-lg font-semibold mb-2">
-          📚 Другие behaviors
-        </h3>
-        <ul className="text-sm space-y-2">
-          <li><code className="bg-gray-200 px-1 rounded">watchField</code> — Отслеживание изменений поля</li>
-          <li><code className="bg-gray-200 px-1 rounded">copyFrom</code> — Копирование значения из другого поля</li>
-          <li><code className="bg-gray-200 px-1 rounded">syncFields</code> — Синхронизация значений между полями</li>
-          <li><code className="bg-gray-200 px-1 rounded">revalidateWhen</code> — Перевалидация при изменении зависимых полей</li>
-          <li><code className="bg-gray-200 px-1 rounded">transformValue</code> — Трансформация значения (uppercase, trim)</li>
-          <li><code className="bg-gray-200 px-1 rounded">resetWhen</code> — Сброс поля при определенном условии</li>
-          <li><code className="bg-gray-200 px-1 rounded">showWhen</code> — Условное отображение поля</li>
-        </ul>
+        {/* DisableWhen Example */}
+        <ExampleCard
+          title="disableWhen"
+          description="Поле блокируется при подтверждении"
+          bgColor="bg-white"
+          code={`disableWhen(
+  path.editableField,
+  (form) => form.isConfirmed === true
+)`}
+        >
+          <TextField
+            control={form.editableField}
+            label="Редактируемое поле"
+            placeholder="Введите текст..."
+          />
+          <CheckboxField control={form.isConfirmed} label="Подтвердить (заблокировать поле)" />
+        </ExampleCard>
+
+        {/* CopyFrom Example */}
+        <ExampleCard
+          title="copyFrom"
+          description="Копирование адреса доставки в адрес оплаты"
+          bgColor="bg-white"
+          code={`copyFrom(
+  path.shippingAddress,
+  path.billingAddress,
+  { when: (form) => form.useShippingAsBilling }
+)`}
+        >
+          <TextField
+            control={form.shippingAddress}
+            label="Адрес доставки"
+            placeholder="Введите адрес..."
+          />
+          <CheckboxField control={form.useShippingAsBilling} label="Использовать для оплаты" />
+          <TextField
+            control={form.billingAddress}
+            label="Адрес оплаты"
+            placeholder="Будет скопирован..."
+          />
+        </ExampleCard>
+
+        {/* WatchField Example */}
+        <ExampleCard
+          title="watchField"
+          description="Отслеживание изменений поля с callback"
+          bgColor="bg-white"
+          code={`watchField(
+  path.watchedField,
+  (value, ctx) => {
+    console.log('Новое значение:', value);
+    // Можно делать API запросы, обновлять UI...
+  }
+)`}
+        >
+          <TextField
+            control={form.watchedField}
+            label="Отслеживаемое поле"
+            placeholder="Введите что-нибудь..."
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            Смотрите консоль браузера для логов
+          </p>
+        </ExampleCard>
+
+        {/* TransformValue Example */}
+        <ExampleCard
+          title="transformValue"
+          description="Автоматическое преобразование текста в uppercase"
+          bgColor="bg-white"
+          code={`transformValue(
+  path.uppercaseField,
+  (value) => value?.toUpperCase() ?? ''
+)`}
+        >
+          <TextField
+            control={form.uppercaseField}
+            label="Код (uppercase)"
+            placeholder="Будет преобразован в uppercase..."
+          />
+        </ExampleCard>
+
+        {/* ResetWhen Example */}
+        <ExampleCard
+          title="resetWhen"
+          description="Сброс поля при смене условия"
+          bgColor="bg-white"
+          code={`resetWhen(
+  path.cardNumber,
+  (form) => form.paymentType !== 'card',
+  { resetValue: '' }
+)`}
+        >
+          <SelectField
+            control={form.paymentType}
+            label="Способ оплаты"
+            options={[
+              { value: 'card', label: 'Карта' },
+              { value: 'cash', label: 'Наличные' },
+            ]}
+          />
+          {paymentType === 'card' && (
+            <TextField
+              control={form.cardNumber}
+              label="Номер карты"
+              placeholder="0000 0000 0000 0000"
+            />
+          )}
+          {paymentType === 'cash' && (
+            <p className="text-sm text-gray-500">Номер карты сброшен</p>
+          )}
+        </ExampleCard>
+
+        {/* SyncFields Example */}
+        <ExampleCard
+          title="syncFields"
+          description="Двусторонняя синхронизация полей"
+          bgColor="bg-white"
+          code={`syncFields(
+  path.syncField1,
+  path.syncField2
+)`}
+        >
+          <TextField
+            control={form.syncField1}
+            label="Поле 1"
+            placeholder="Введите текст..."
+          />
+          <TextField
+            control={form.syncField2}
+            label="Поле 2 (синхронизировано)"
+            placeholder="Синхронизировано с полем 1..."
+          />
+        </ExampleCard>
+
+        {/* RevalidateWhen Example */}
+        <ExampleCard
+          title="revalidateWhen"
+          description="Перевалидация при изменении зависимого поля"
+          bgColor="bg-white"
+          code={`revalidateWhen(
+  path.amount,
+  [path.maxAmount],
+  { debounce: 300 }
+)`}
+        >
+          <NumberField control={form.maxAmount} label="Макс. сумма" />
+          <NumberField control={form.amount} label="Сумма (валидация: <= макс.)" />
+          <p className="text-xs text-gray-500 mt-2">
+            Измените макс. сумму — поле суммы перевалидируется
+          </p>
+        </ExampleCard>
       </div>
 
       {/* Reset Button */}
-      <button
-        onClick={() => form.reset()}
-        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-      >
-        Сбросить форму
-      </button>
+      <div className="mt-6">
+        <button
+          onClick={() => form.reset()}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          Сбросить форму
+        </button>
+      </div>
     </div>
   );
 }

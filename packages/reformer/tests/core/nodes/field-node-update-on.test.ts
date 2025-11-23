@@ -24,7 +24,7 @@ const asyncValidator: AsyncValidatorFn<string> = async (value: string) => {
 };
 
 describe('FieldNode - updateOn', () => {
-  describe('updateOn: "change" (default)', () => {
+  describe('updateOn: "change"', () => {
     it('should validate on every setValue', async () => {
       const field = new FieldNode({
         value: '',
@@ -66,6 +66,9 @@ describe('FieldNode - updateOn', () => {
       expect(field.errors.value).toHaveLength(1);
     });
 
+  });
+
+  describe('updateOn: "blur" (default)', () => {
     it('should be default when updateOn is not specified', async () => {
       const field = new FieldNode({
         value: '',
@@ -73,14 +76,14 @@ describe('FieldNode - updateOn', () => {
         validators: [requiredValidator],
       });
 
+      // setValue should NOT trigger validation (blur is default)
       field.setValue('');
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(field.valid.value).toBe(false);
+      // Still valid because validation wasn't triggered
+      expect(field.valid.value).toBe(true);
     });
-  });
 
-  describe('updateOn: "blur"', () => {
     it('should NOT validate on setValue', async () => {
       const field = new FieldNode({
         value: '',

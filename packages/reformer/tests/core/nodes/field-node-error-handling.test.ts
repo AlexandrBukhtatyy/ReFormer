@@ -299,6 +299,7 @@ describe('FieldNode - Async Validator Error Handling', () => {
         value: '',
         component: null as ComponentInstance,
         asyncValidators: [throwingValidator],
+        updateOn: 'change',
         debounce: 100,
       });
 

@@ -4,7 +4,7 @@
 type FormControlState<T> = ReturnType<typeof useFormControl>;
 ```
 
-Defined in: [hooks/useFormControl.ts:43](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/hooks/useFormControl.ts#L43)
+Defined in: [hooks/useFormControl.ts:43](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/hooks/useFormControl.ts#L43)
 
 Тип для возвращаемого значения useFormControlSignals
 

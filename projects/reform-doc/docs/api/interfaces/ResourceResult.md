@@ -1,6 +1,6 @@
 # ResourceResult
 
-Defined in: [core/utils/resources.ts:13](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L13)
+Defined in: [core/utils/resources.ts:13](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/utils/resources.ts#L13)
 
 ## Type Parameters
 
@@ -16,7 +16,7 @@ Defined in: [core/utils/resources.ts:13](https://github.com/AlexandrBukhtatyy/Re
 items: ResourceItem<T>[];
 ```
 
-Defined in: [core/utils/resources.ts:14](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L14)
+Defined in: [core/utils/resources.ts:14](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/utils/resources.ts#L14)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [core/utils/resources.ts:14](https://github.com/AlexandrBukhtatyy/Re
 totalCount: number;
 ```
 
-Defined in: [core/utils/resources.ts:15](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6c591333cce7039afe1dde0903d75315103b9850/packages/reformer/src/core/utils/resources.ts#L15)
+Defined in: [core/utils/resources.ts:15](https://github.com/AlexandrBukhtatyy/ReFormer/blob/81b4edf889773afad8bd14cea3a7a05de464964e/packages/reformer/src/core/utils/resources.ts#L15)

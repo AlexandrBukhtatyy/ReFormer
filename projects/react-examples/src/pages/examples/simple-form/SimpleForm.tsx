@@ -4,10 +4,11 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, useFormControl, type GroupNodeWithControls, type FormSchema, type FieldNode, type FieldPath } from 'reformer';
+import { GroupNode, type GroupNodeWithControls, type FormSchema, type FieldPath } from 'reformer';
 import { required, email, minLength } from 'reformer/validators';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { FormField } from '@/components/ui/form-field';
 
 // Определение типа формы
 interface ContactFormData {
@@ -64,44 +65,19 @@ function createContactForm(): GroupNodeWithControls<ContactFormData> {
   });
 }
 
-// Компонент поля ввода
-function FormField({
-  control,
-  label,
-  type = 'text',
-  multiline = false,
-}: {
-  control: FieldNode<string>;
-  label: string;
-  type?: string;
-  multiline?: boolean;
-}) {
-  const { value, touched, invalid, errors, disabled } = useFormControl(control);
-  const showError = touched.value && invalid.value;
-
-  const inputProps = {
-    value: value.value ?? '',
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-      control.setValue(e.target.value),
-    onBlur: () => control.markAsTouched(),
-    disabled: disabled.value,
-    className: `w-full p-2 border rounded ${showError ? 'border-red-500' : 'border-gray-300'}`,
+// Компонент отображения состояния формы (реактивный)
+function FormStateDisplay({ form }: { form: GroupNodeWithControls<ContactFormData> }) {
+  const state = {
+    value: form.value.value,
+    valid: form.valid.value,
+    touched: form.touched.value,
+    dirty: form.dirty.value,
   };
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium mb-1">{label}</label>
-      {multiline ? (
-        <textarea {...inputProps} rows={4} />
-      ) : (
-        <input type={type} {...inputProps} />
-      )}
-      {showError && errors.value.length > 0 && (
-        <p className="text-red-500 text-sm mt-1">
-          {errors.value[0]?.message || 'Ошибка валидации'}
-        </p>
-      )}
-    </div>
+    <pre className="p-4 bg-gray-100 rounded text-sm overflow-auto max-h-96">
+      {JSON.stringify(state, null, 2)}
+    </pre>
   );
 }
 
@@ -109,9 +85,10 @@ function FormField({
 export default function SimpleForm() {
   const form = useMemo(() => createContactForm(), []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAllAsTouched();
+    form.markAsTouched();
+    await form.validate();
 
     if (form.valid.value) {
       alert(`Отправлено!\n${JSON.stringify(form.getValue(), null, 2)}`);
@@ -124,49 +101,38 @@ export default function SimpleForm() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">Контактная форма</h2>
-      <p className="text-gray-600 mb-4">
-        Простой пример формы с валидацией
-      </p>
+    <div className="flex flex-col md:flex-row gap-6 max-w-4xl mx-auto">
+      {/* Форма */}
+      <div className="flex-1 p-6 bg-white rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Контактная форма</h2>
 
-      <form onSubmit={handleSubmit}>
-        <FormField control={form.name} label="Имя" />
-        <FormField control={form.email} label="Email" type="email" />
-        <FormField control={form.message} label="Сообщение" multiline />
+        <form onSubmit={handleSubmit}>
+          <FormField control={form.name} form={form} className="mb-4" />
+          <FormField control={form.email} form={form} className="mb-4" />
+          <FormField control={form.message} form={form} className="mb-4" />
 
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          >
-            Отправить
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-          >
-            Сбросить
-          </button>
-        </div>
-      </form>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+            >
+              Отправить
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              Сбросить
+            </button>
+          </div>
+        </form>
+      </div>
 
-      {/* Debug info */}
-      <div className="mt-6 p-4 bg-gray-100 rounded text-sm">
-        <h3 className="font-bold mb-2">Состояние формы:</h3>
-        <pre className="overflow-auto">
-          {JSON.stringify(
-            {
-              value: form.getValue(),
-              valid: form.valid.value,
-              touched: form.touched.value,
-              dirty: form.dirty.value,
-            },
-            null,
-            2
-          )}
-        </pre>
+      {/* Состояние формы */}
+      <div className="flex-1 p-6 bg-white rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
+        <FormStateDisplay form={form} />
       </div>
     </div>
   );
