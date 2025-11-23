@@ -2,12 +2,12 @@ import { defineConfig, devices } from '@playwright/test';
 import path from 'path';
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * E2E test configuration via environment variables:
+ * - E2E_PORT: Port for dev server (default: 5173)
+ * - E2E_BASE_URL: Base URL for tests (default: http://localhost:${E2E_PORT})
  */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+const E2E_PORT = parseInt(process.env.E2E_PORT || '5173', 10);
+const E2E_BASE_URL = process.env.E2E_BASE_URL || `http://localhost:${E2E_PORT}`;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -27,7 +27,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    // baseURL: 'http://localhost:3000',
+    baseURL: E2E_BASE_URL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -73,8 +73,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
-    port: 5173,
+    command: `npm run dev -- --port ${E2E_PORT}`,
+    port: E2E_PORT,
     cwd: path.resolve(__dirname, '../react-examples'),
     reuseExistingServer: !process.env.CI,
   },

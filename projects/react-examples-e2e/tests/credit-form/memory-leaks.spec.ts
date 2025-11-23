@@ -21,7 +21,7 @@ test.describe('Утечки памяти (Memory Leaks)', () => {
     async ({ page }) => {
       // Несколько циклов перезагрузки
       for (let i = 0; i < 5; i++) {
-        await page.goto('http://localhost:5173');
+        await page.goto('/');
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(500);
       }

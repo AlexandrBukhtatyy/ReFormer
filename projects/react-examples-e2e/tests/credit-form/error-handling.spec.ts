@@ -126,7 +126,7 @@ test.describe('Обработка ошибок', () => {
       // Этот тест требует настройки network interception
       // Проверяем базовую загрузку
 
-      await page.goto('http://localhost:5173');
+      await page.goto('/');
       await page.waitForLoadState('networkidle');
 
       // Проверяем что форма загрузилась

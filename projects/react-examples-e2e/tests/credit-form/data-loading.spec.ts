@@ -19,7 +19,7 @@ test.describe('Динамическая загрузка данных', () => {
     },
     async ({ page }) => {
       // Открываем форму и ждём загрузки
-      await page.goto('http://localhost:5173');
+      await page.goto('/');
 
       // Проверяем индикатор загрузки
       const loadingIndicator = page.getByText(/загрузка данных/i);

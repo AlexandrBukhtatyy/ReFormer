@@ -21,7 +21,7 @@ test.describe('Производительность (Performance)', () => {
     async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto('http://localhost:5173');
+      await page.goto('/');
       await page.waitForSelector('h2', { timeout: 10000 });
 
       const loadTime = Date.now() - startTime;

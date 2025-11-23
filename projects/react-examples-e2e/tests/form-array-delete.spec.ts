@@ -17,7 +17,7 @@ test.describe('FormArrayManager - Remove item bug', () => {
     });
 
     // 1. Открыть страницу
-    await page.goto('http://localhost:5173');
+    await page.goto('/');
 
     // 2. Дождаться загрузки формы
     await page.waitForLoadState('networkidle');
