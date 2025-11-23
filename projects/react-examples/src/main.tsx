@@ -8,10 +8,19 @@ async function enableMocking() {
     return;
   }
 
-  const { worker } = await import('./mocks/browser.ts');
+  // В StackBlitz моки работают через proxy к mock-server (см. npm run dev:stackblitz)
+  // Service Worker не поддерживается в StackBlitz WebContainers
+  const isStackBlitz =
+    typeof window !== 'undefined' &&
+    (window.location.hostname.includes('stackblitz') ||
+      window.location.hostname.includes('webcontainer'));
 
-  // `worker.start()` returns a Promise that resolves
-  // once the Service Worker is up and ready to intercept requests.
+  if (isStackBlitz) {
+    console.log('[MSW] Running in StackBlitz mode - using proxy to mock server');
+    return;
+  }
+
+  const { worker } = await import('./mocks/browser.ts');
   return worker.start();
 }
 

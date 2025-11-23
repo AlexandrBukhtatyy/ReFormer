@@ -5,8 +5,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
+import { mockServerPlugin } from './src/mocks/vite-plugin-mock-server';
 
 // https://vite.dev/config/
+const isStackBlitz = process.env.STACKBLITZ === 'true';
+
 export default defineConfig({
   plugins: [
     react({
@@ -15,6 +18,8 @@ export default defineConfig({
       },
     }),
     tailwindcss(),
+    // В режиме StackBlitz используем MSW middleware вместо Service Worker
+    ...(isStackBlitz ? [mockServerPlugin()] : []),
   ],
   resolve: {
     alias: {
