@@ -6,7 +6,7 @@
   "description": "",
   "main": "index.js",
   "stackblitz": {
-    "startCommand": "npm install && npm run dev -w react-examples"
+    "startCommand": "npm run build -w reformer && npm install && npm run dev -w react-examples"
   },
   "scripts": {
     "build": "npm run build --workspaces",
