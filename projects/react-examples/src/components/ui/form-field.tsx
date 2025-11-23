@@ -12,7 +12,7 @@ export interface FormFieldProps {
 }
 
 const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className, testId }) => {
-  const { value, errors, pending, disabled, invalid, shouldShowError, componentProps } =
+  const { value, errors, pending, disabled, shouldShowError, componentProps } =
     useFormControl(control);
 
   const Component = control.component;
@@ -55,7 +55,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className
           }
         }}
         disabled={disabled}
-        aria-invalid={invalid}
+        aria-invalid={shouldShowError}
         data-testid={`input-${fieldTestId}`}
       />
 

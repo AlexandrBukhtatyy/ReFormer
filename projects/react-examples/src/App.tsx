@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 import SimpleForm from './pages/examples/simple-form/SimpleForm';
@@ -33,10 +34,51 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
   },
 ];
 
-function Layout() {
+// Мемоизированная навигация - не перерисовывается при изменениях в дочерних компонентах
+const Navigation = memo(function Navigation() {
+  console.debug('Navigation render');
+  return (
+    <nav className="bg-white border-b">
+      <div className="container mx-auto px-4">
+        <div className="flex gap-1 overflow-x-auto py-2">
+          {examples.map((example) => (
+            <NavLink
+              key={example.id}
+              to={example.path}
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`
+              }
+            >
+              {example.title}
+            </NavLink>
+          ))}
+        </div>
+      </div>
+    </nav>
+  );
+});
+
+// Описание текущего примера - зависит от location
+function ExampleDescription() {
   const location = useLocation();
   const currentExample = examples.find((e) => location.pathname.startsWith(e.path));
 
+  return (
+    <div className="bg-blue-50 border-b border-blue-100">
+      <div className="container mx-auto px-4 py-3">
+        <p className="text-blue-800 text-sm">
+          {currentExample?.description || 'Выберите пример'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Layout() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -50,36 +92,10 @@ function Layout() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex gap-1 overflow-x-auto py-2">
-            {examples.map((example) => (
-              <NavLink
-                key={example.id}
-                to={example.path}
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  }`
-                }
-              >
-                {example.title}
-              </NavLink>
-            ))}
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Current Example Description */}
-      <div className="bg-blue-50 border-b border-blue-100">
-        <div className="container mx-auto px-4 py-3">
-          <p className="text-blue-800 text-sm">
-            {currentExample?.description || 'Выберите пример'}
-          </p>
-        </div>
-      </div>
+      <ExampleDescription />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
