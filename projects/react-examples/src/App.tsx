@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
-import SimpleForm from './pages/examples/simple-form/SimpleForm';
+import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 
@@ -11,8 +11,8 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
   {
     id: 'simple',
     path: '/examples/simple',
-    title: 'Простая форма',
-    description: 'Базовый пример с GroupNode и FieldNode',
+    title: 'Форма регистрации',
+    description: 'Регистрация с асинхронной валидацией, behaviors и маской телефона',
   },
   {
     id: 'complex',
@@ -100,7 +100,7 @@ function Layout() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Routes>
-          <Route path="/examples/simple" element={<SimpleForm />} />
+          <Route path="/examples/simple" element={<RegistrationForm />} />
           <Route path="/examples/validation" element={<ValidationExamples />} />
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
@@ -108,7 +108,6 @@ function Layout() {
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
       </main>
-
       {/* Footer */}
       <footer className="bg-white border-t mt-auto">
         <div className="container mx-auto px-4 py-4 text-center text-gray-500 text-sm">

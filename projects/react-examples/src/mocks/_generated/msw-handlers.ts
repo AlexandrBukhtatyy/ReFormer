@@ -59,5 +59,43 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 });
     }
     return HttpResponse.json(result.body, { status: result.status });
+  }),
+
+  http.get('/api/v1/auth/check-username', ({ request }) => {
+    const url = new URL(request.url);
+    const username = url.searchParams.get('username');
+    const result = resolvers.checkUsernameAvailability(username);
+    if (result.status === 404) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(result.body, { status: result.status });
+  }),
+
+  http.get('/api/v1/auth/check-email', ({ request }) => {
+    const url = new URL(request.url);
+    const email = url.searchParams.get('email');
+    const result = resolvers.checkEmailAvailability(email);
+    if (result.status === 404) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(result.body, { status: result.status });
+  }),
+
+  http.post('/api/v1/auth/validate-captcha', async ({ request }) => {
+    const body = await request.json();
+    const result = resolvers.validateCaptcha(body);
+    if (result.status === 404) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(result.body, { status: result.status });
+  }),
+
+  http.post('/api/v1/auth/register', async ({ request }) => {
+    const body = await request.json();
+    const result = resolvers.registerUser(body);
+    if (result.status === 404) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(result.body, { status: result.status });
   })
 ];

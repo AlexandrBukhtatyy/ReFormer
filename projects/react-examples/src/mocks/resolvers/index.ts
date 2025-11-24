@@ -11,6 +11,7 @@ import { citiesByRegion } from '../data/cities';
 import { brands, cars } from '../data/cars';
 import { MOCK_DICTIONARIES, type DictionariesResponse } from '../data/dictionaries';
 import { MOCK_APPLICATIONS } from '../data/credit-applications';
+import { EXISTING_USERS, REGISTERED_USERS, VALID_CAPTCHA, type User } from '../data/users';
 import type { Option } from '../../pages/examples/complex-multy-step-form/types/option';
 import type { CreditApplicationForm } from '../../pages/examples/complex-multy-step-form/types/credit-application';
 
@@ -199,6 +200,261 @@ export function createCreditApplication(data: unknown): ResolverResult<CreateApp
       success: true,
       id: newId,
       message: 'Заявка успешно сохранена',
+    },
+  };
+}
+
+/**
+ * @openapi
+ * /api/v1/auth/check-username:
+ *   get:
+ *     operationId: checkUsernameAvailability
+ *     summary: Проверка доступности username
+ *     tags: [Auth]
+ *     parameters:
+ *       - name: username
+ *         in: query
+ *         required: true
+ *         description: Username для проверки
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Результат проверки
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UsernameCheckResult'
+ */
+export interface UsernameCheckResult {
+  available: boolean;
+  message?: string;
+}
+
+export function checkUsernameAvailability(username: string): ResolverResult<UsernameCheckResult> {
+  // Имитация задержки сети (300-800ms)
+  const userExists = EXISTING_USERS.some(
+    (u) => u.username.toLowerCase() === username.toLowerCase()
+  );
+
+  if (userExists) {
+    return {
+      status: 200,
+      body: {
+        available: false,
+        message: 'Имя пользователя уже занято',
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      available: true,
+      message: 'Имя пользователя доступно',
+    },
+  };
+}
+
+/**
+ * @openapi
+ * /api/v1/auth/check-email:
+ *   get:
+ *     operationId: checkEmailAvailability
+ *     summary: Проверка доступности email
+ *     tags: [Auth]
+ *     parameters:
+ *       - name: email
+ *         in: query
+ *         required: true
+ *         description: Email для проверки
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Результат проверки
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/EmailCheckResult'
+ */
+export interface EmailCheckResult {
+  available: boolean;
+  message?: string;
+}
+
+export function checkEmailAvailability(email: string): ResolverResult<EmailCheckResult> {
+  const emailExists = EXISTING_USERS.some(
+    (u) => u.email.toLowerCase() === email.toLowerCase()
+  );
+
+  if (emailExists) {
+    return {
+      status: 200,
+      body: {
+        available: false,
+        message: 'Email уже зарегистрирован',
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      available: true,
+      message: 'Email доступен',
+    },
+  };
+}
+
+/**
+ * @openapi
+ * /api/v1/auth/validate-captcha:
+ *   post:
+ *     operationId: validateCaptcha
+ *     summary: Валидация captcha
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               captcha:
+ *                 type: string
+ *             required:
+ *               - captcha
+ *     responses:
+ *       200:
+ *         description: Результат валидации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CaptchaValidationResult'
+ */
+export interface CaptchaValidationResult {
+  valid: boolean;
+  message?: string;
+}
+
+export function validateCaptcha(captcha: string): ResolverResult<CaptchaValidationResult> {
+  if (captcha === VALID_CAPTCHA) {
+    return {
+      status: 200,
+      body: {
+        valid: true,
+        message: 'Captcha верна',
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      valid: false,
+      message: 'Неверная captcha',
+    },
+  };
+}
+
+/**
+ * @openapi
+ * /api/v1/auth/register:
+ *   post:
+ *     operationId: registerUser
+ *     summary: Регистрация нового пользователя
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterUserRequest'
+ *     responses:
+ *       201:
+ *         description: Пользователь зарегистрирован
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/RegisterUserResult'
+ *       400:
+ *         description: Ошибка валидации
+ */
+export interface RegisterUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  fullName: string;
+  phone: string;
+  captcha: string;
+  acceptTerms: boolean;
+}
+
+export interface RegisterUserResult {
+  success: boolean;
+  userId?: string;
+  message: string;
+}
+
+export function registerUser(data: RegisterUserRequest): ResolverResult<RegisterUserResult> {
+  // Проверка captcha
+  if (data.captcha !== VALID_CAPTCHA) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        message: 'Неверная captcha',
+      },
+    };
+  }
+
+  // Проверка уникальности username
+  const usernameExists = EXISTING_USERS.some(
+    (u) => u.username.toLowerCase() === data.username.toLowerCase()
+  );
+  if (usernameExists) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        message: 'Имя пользователя уже занято',
+      },
+    };
+  }
+
+  // Проверка уникальности email
+  const emailExists = EXISTING_USERS.some(
+    (u) => u.email.toLowerCase() === data.email.toLowerCase()
+  );
+  if (emailExists) {
+    return {
+      status: 400,
+      body: {
+        success: false,
+        message: 'Email уже зарегистрирован',
+      },
+    };
+  }
+
+  // Создание нового пользователя
+  const newUser: User = {
+    id: String(Date.now()),
+    username: data.username,
+    email: data.email,
+    fullName: data.fullName,
+    phone: data.phone,
+    createdAt: new Date().toISOString(),
+  };
+
+  REGISTERED_USERS.push(newUser);
+
+  return {
+    status: 201,
+    body: {
+      success: true,
+      userId: newUser.id,
+      message: 'Регистрация успешно завершена!',
     },
   };
 }

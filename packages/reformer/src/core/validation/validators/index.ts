@@ -13,4 +13,3 @@ export { url } from './url';
 export { phone, type PhoneFormat } from './phone';
 export { number } from './number';
 export { date } from './date';
-export { custom, createCustomValidator, type CustomValidatorFn } from './custom';

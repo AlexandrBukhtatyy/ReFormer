@@ -22,7 +22,7 @@ import {
   phone,
   number,
   date,
-  custom,
+  validate,
 } from 'reformer/validators';
 import { Input } from '@/components/ui/input';
 import { ExampleCard } from '@/components/ui/example-card';
@@ -152,12 +152,18 @@ const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
   required(path.dateField, { message: 'Дата обязательна' });
   date(path.dateField, { noFuture: true, message: 'Дата не может быть в будущем' });
 
-  // Custom
+  // Validate
   required(path.customField, { message: 'Пароль обязателен' });
-  custom(path.customField, (value: string) => {
-    if (!value || value.length < 8) return 'Минимум 8 символов';
-    if (!/[0-9]/.test(value)) return 'Должна быть хотя бы одна цифра';
-    if (!/[a-zA-Z]/.test(value)) return 'Должна быть хотя бы одна буква';
+  validate(path.customField, (value: string) => {
+    if (!value || value.length < 8) {
+      return { code: 'too-short', message: 'Минимум 8 символов' };
+    }
+    if (!/[0-9]/.test(value)) {
+      return { code: 'no-digit', message: 'Должна быть хотя бы одна цифра' };
+    }
+    if (!/[a-zA-Z]/.test(value)) {
+      return { code: 'no-letter', message: 'Должна быть хотя бы одна буква' };
+    }
     return null;
   });
 };
@@ -315,16 +321,16 @@ email(path.emailField, {
         </ExampleCard>
 
         <ExampleCard
-          title="Custom"
-          description="Кастомная валидация пароля"
+          title="Validate"
+          description="Кастомная валидация пароля через validate"
           bgColor="bg-white"
-          code={`custom(path.customField, (value) => {
+          code={`validate(path.customField, (value) => {
   if (!value || value.length < 8)
-    return 'Минимум 8 символов';
+    return { code: 'too-short', message: 'Минимум 8 символов' };
   if (!/[0-9]/.test(value))
-    return 'Должна быть хотя бы одна цифра';
+    return { code: 'no-digit', message: 'Должна быть хотя бы одна цифра' };
   if (!/[a-zA-Z]/.test(value))
-    return 'Должна быть хотя бы одна буква';
+    return { code: 'no-letter', message: 'Должна быть хотя бы одна буква' };
   return null;
 })`}
         >

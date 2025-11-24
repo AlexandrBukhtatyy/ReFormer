@@ -21,7 +21,6 @@ export { url } from './validators/url';
 export { phone, type PhoneFormat } from './validators/phone';
 export { number } from './validators/number';
 export { date } from './validators/date';
-export { custom, createCustomValidator, type CustomValidatorFn } from './validators/custom';
 
 // Валидаторы для массивов
 export { notEmpty, validateItems } from './validators/array-validators';

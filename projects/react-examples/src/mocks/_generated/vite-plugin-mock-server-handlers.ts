@@ -69,5 +69,39 @@ export const routes = [
       const body = await readBody(req);
       return resolvers.createCreditApplication(body);
     },
+  },
+
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/auth\/check-username$/,
+    handler: async (req: IncomingMessage, params: string[], query: URLSearchParams) => {
+      return resolvers.checkUsernameAvailability(query.get('username'));
+    },
+  },
+
+  {
+    method: 'GET',
+    pattern: /^\/api\/v1\/auth\/check-email$/,
+    handler: async (req: IncomingMessage, params: string[], query: URLSearchParams) => {
+      return resolvers.checkEmailAvailability(query.get('email'));
+    },
+  },
+
+  {
+    method: 'POST',
+    pattern: /^\/api\/v1\/auth\/validate-captcha$/,
+    handler: async (req: IncomingMessage, params: string[], query: URLSearchParams) => {
+      const body = await readBody(req);
+      return resolvers.validateCaptcha(body);
+    },
+  },
+
+  {
+    method: 'POST',
+    pattern: /^\/api\/v1\/auth\/register$/,
+    handler: async (req: IncomingMessage, params: string[], query: URLSearchParams) => {
+      const body = await readBody(req);
+      return resolvers.registerUser(body);
+    },
   }
 ];
