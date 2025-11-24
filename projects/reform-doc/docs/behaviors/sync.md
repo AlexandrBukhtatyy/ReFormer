@@ -13,7 +13,7 @@ Copy value from source to target field.
 ```typescript
 import { copyFrom } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   copyFrom(path.email, path.username),
 ]
 ```
@@ -22,22 +22,18 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    billingAddress: new GroupNode({
-      schema: {
-        street: new FieldNode({ value: '' }),
-        city: new FieldNode({ value: '' }),
-      },
-    }),
-    shippingAddress: new GroupNode({
-      schema: {
-        street: new FieldNode({ value: '' }),
-        city: new FieldNode({ value: '' }),
-      },
-    }),
-    sameAsBilling: new FieldNode({ value: false }),
+  form: {
+    billingAddress: {
+      street: { value: '' },
+      city: { value: '' },
+    },
+    shippingAddress: {
+      street: { value: '' },
+      city: { value: '' },
+    },
+    sameAsBilling: { value: false },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     // Only copy when checkbox is checked
     copyFrom(
       path.billingAddress.street,
@@ -56,7 +52,7 @@ const form = new GroupNode({
 ### Example: Initial Value
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Copy only once, on initial load
   copyFrom(path.defaultEmail, path.email, { once: true }),
 ]
@@ -69,7 +65,7 @@ Two-way synchronization between fields.
 ```typescript
 import { syncFields } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   syncFields(path.displayName, path.username),
 ]
 ```
@@ -88,11 +84,11 @@ form.controls.displayName.value; // 'jane'
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    celsius: new FieldNode({ value: 0 }),
-    fahrenheit: new FieldNode({ value: 32 }),
+  form: {
+    celsius: { value: 0 },
+    fahrenheit: { value: 32 },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     syncFields(
       path.celsius,
       path.fahrenheit,
@@ -116,7 +112,7 @@ form.controls.celsius.value; // 20
 Copy with transformation:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   copyFrom(
     path.firstName,
     path.initials,
@@ -136,18 +132,15 @@ Copy array values:
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    templateEmails: new ArrayNode({
-      schema: () => new FieldNode({ value: '' }),
-      value: ['admin@example.com', 'support@example.com'],
-    }),
-    recipientEmails: new ArrayNode({
-      schema: () => new FieldNode({ value: '' }),
-      value: [],
-    }),
-    useTemplate: new FieldNode({ value: false }),
+  form: {
+    templateEmails: [
+      { value: 'admin@example.com' },
+      { value: 'support@example.com' },
+    ],
+    recipientEmails: [],
+    useTemplate: { value: false },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     copyFrom(
       path.templateEmails,
       path.recipientEmails,

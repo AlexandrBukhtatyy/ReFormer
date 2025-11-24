@@ -55,9 +55,9 @@ GroupNode and ArrayNode compute their value from children:
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    firstName: new FieldNode({ value: '' }),
-    lastName: new FieldNode({ value: '' }),
+  form: {
+    firstName: { value: '' },
+    lastName: { value: '' },
   },
 });
 

@@ -8,14 +8,20 @@ sidebar_position: 4
 
 ## Простой кастомный валидатор
 
-```typescript
-import { custom } from 'reformer/validators';
+Используйте `validate()` для инлайн кастомных валидаторов:
 
-// Inline кастомный валидатор
-validate(path.age, custom(
-  (value) => value >= 18,
-  'mustBeAdult'
-))
+```typescript
+import { validate } from 'reformer/validators';
+
+validation: (path) => {
+  // Инлайн кастомный валидатор
+  validate(path.age, (value) => {
+    if (value < 18) {
+      return { mustBeAdult: true };
+    }
+    return null;
+  });
+}
 // Ошибка: { mustBeAdult: true }
 ```
 
@@ -94,51 +100,71 @@ validate(path.confirmPassword, matchField('password'))
 Валидация связей между полями:
 
 ```typescript
-validationSchema: (path, { validate }) => [
-  validate(path.startDate, required()),
-  validate(path.endDate, required()),
-  validate(path.endDate, (value, context) => {
-    const startDate = context.root.controls.startDate.value;
+validation: (path) => {
+  required(path.startDate);
+  required(path.endDate);
 
-    if (value && startDate && value < startDate) {
+  // Валидация, что дата окончания после даты начала
+  validate(path.endDate, (value, ctx) => {
+    const startDate = ctx.form.startDate.value.value;
+
+    if (value && startDate && new Date(value) < new Date(startDate)) {
       return { endBeforeStart: true };
     }
     return null;
-  }),
-]
+  });
+}
 ```
 
 ## Валидация элементов массива
 
-Валидация элементов в ArrayNode:
+Валидация элементов в динамических массивах:
 
 ```typescript
-const form = new GroupNode({
-  schema: {
-    emails: new ArrayNode({
-      schema: () => new FieldNode({ value: '' }),
-      value: [''],
-    }),
+interface ContactForm {
+  name: string;
+  emails: string[];
+}
+
+const form = new GroupNode<ContactForm>({
+  form: {
+    name: { value: '' },
+    emails: [{ value: '' }],
   },
-  validationSchema: (path, { validate }) => [
+  validation: (path) => {
+    required(path.name);
+
     // Валидация каждого email в массиве
-    validate(path.emails.$each, required(), email()),
-  ],
+    required(path.emails.$each);
+    email(path.emails.$each);
+  },
 });
 ```
 
-## Условный кастомный валидатор
+## Условная валидация с кастомной логикой
+
+Используйте `when()` для условных кастомных валидаторов:
 
 ```typescript
-import { applyWhen } from 'reformer/validators';
+import { when } from 'reformer/validators';
 
-validate(
-  path.taxId,
-  applyWhen(
-    (context) => context.root.controls.country.value === 'US',
-    custom((value) => /^\d{9}$/.test(value), 'invalidTaxId')
-  )
-)
+validation: (path) => {
+  required(path.country);
+
+  // Требовать tax ID только для пользователей из США
+  when(
+    () => form.controls.country.value === 'US',
+    (path) => {
+      required(path.taxId);
+      validate(path.taxId, (value) => {
+        if (!/^\d{9}$/.test(value)) {
+          return { invalidTaxId: true };
+        }
+        return null;
+      });
+    }
+  );
+}
 ```
 
 ## Следующие шаги

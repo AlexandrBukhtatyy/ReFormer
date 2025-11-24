@@ -74,13 +74,12 @@ name.errors;
 Применять валидацию только при выполнении условия:
 
 ```typescript
-import { validate, applyWhen } from 'reformer/validators';
+import { when } from 'reformer/validators';
 
 validation: (path) => {
-  applyWhen(
-    path.contactByPhone,
-    (contactByPhone) => contactByPhone === true,
-    () => {
+  when(
+    () => form.controls.contactByPhone.value === true,
+    (path) => {
       required(path.phone);
     }
   );

@@ -1,6 +1,6 @@
 # ResourceLoadParams
 
-Defined in: [core/utils/resources.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a3c7aab04746efd72e6c230f052496b66681f449/packages/reformer/src/core/utils/resources.ts#L23)
+Defined in: [core/utils/resources.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/resources.ts#L23)
 
 ## Indexable
 
@@ -16,7 +16,7 @@ Defined in: [core/utils/resources.ts:23](https://github.com/AlexandrBukhtatyy/Re
 optional page: number;
 ```
 
-Defined in: [core/utils/resources.ts:25](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a3c7aab04746efd72e6c230f052496b66681f449/packages/reformer/src/core/utils/resources.ts#L25)
+Defined in: [core/utils/resources.ts:25](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/resources.ts#L25)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [core/utils/resources.ts:25](https://github.com/AlexandrBukhtatyy/Re
 optional pageSize: number;
 ```
 
-Defined in: [core/utils/resources.ts:26](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a3c7aab04746efd72e6c230f052496b66681f449/packages/reformer/src/core/utils/resources.ts#L26)
+Defined in: [core/utils/resources.ts:26](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/resources.ts#L26)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [core/utils/resources.ts:26](https://github.com/AlexandrBukhtatyy/Re
 optional search: string;
 ```
 
-Defined in: [core/utils/resources.ts:24](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a3c7aab04746efd72e6c230f052496b66681f449/packages/reformer/src/core/utils/resources.ts#L24)
+Defined in: [core/utils/resources.ts:24](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/resources.ts#L24)

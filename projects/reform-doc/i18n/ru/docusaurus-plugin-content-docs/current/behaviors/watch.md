@@ -13,7 +13,7 @@ sidebar_position: 5
 ```typescript
 import { watchField } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(path.country, (newValue, oldValue) => {
     console.log(`Страна изменилась с ${oldValue} на ${newValue}`);
     // Загрузить города для новой страны
@@ -26,11 +26,11 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    category: new FieldNode({ value: '' }),
-    subcategory: new FieldNode({ value: '' }),
+  form: {
+    category: { value: '' },
+    subcategory: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     watchField(path.category, async (category) => {
       // Сбросить подкатегорию
       form.controls.subcategory.setValue('');
@@ -46,7 +46,7 @@ const form = new GroupNode({
 ### Пример: Аналитика
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(path.step, (step) => {
     analytics.track('form_step_changed', { step });
   }),
@@ -60,7 +60,7 @@ behaviorSchema: (path, ctx) => [
 ```typescript
 import { revalidateWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Перевалидировать confirmPassword при изменении password
   revalidateWhen(
     path.confirmPassword,
@@ -72,21 +72,23 @@ behaviorSchema: (path, ctx) => [
 ### Пример: Диапазон дат
 
 ```typescript
+import { validate } from 'reformer/validators';
+
 const form = new GroupNode({
-  schema: {
-    startDate: new FieldNode({ value: '' }),
-    endDate: new FieldNode({ value: '' }),
+  form: {
+    startDate: { value: '' },
+    endDate: { value: '' },
   },
-  validationSchema: (path, { validate }) => [
+  validation: (path) => {
     validate(path.endDate, (value, ctx) => {
       const start = ctx.root.controls.startDate.value;
       if (start && value && value < start) {
         return { endBeforeStart: true };
       }
       return null;
-    }),
-  ],
-  behaviorSchema: (path, ctx) => [
+    });
+  },
+  behaviors: (path, ctx) => [
     // Перевалидировать endDate при изменении startDate
     revalidateWhen(path.endDate, [path.startDate]),
   ],
@@ -96,7 +98,7 @@ const form = new GroupNode({
 ### Пример: Кросс-валидация
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Сложность пароля зависит от username (не может содержать его)
   revalidateWhen(path.password, [path.username]),
 
@@ -110,7 +112,7 @@ behaviorSchema: (path, ctx) => [
 Отслеживание нескольких полей:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField([path.firstName, path.lastName], () => {
     // Вызывается при изменении любого из них
     updateDisplayName();
@@ -123,7 +125,7 @@ behaviorSchema: (path, ctx) => [
 Предотвращение слишком частых обновлений:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(
     path.searchQuery,
     async (query) => {
@@ -140,7 +142,7 @@ behaviorSchema: (path, ctx) => [
 Возврат функции очистки:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(path.livePreview, (enabled) => {
     if (enabled) {
       const interval = setInterval(refreshPreview, 1000);
@@ -153,7 +155,7 @@ behaviorSchema: (path, ctx) => [
 ## Комбинирование Watch с другими Behaviors
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Показать premium поля
   showWhen(path.premiumOptions, () =>
     form.controls.plan.value === 'premium'

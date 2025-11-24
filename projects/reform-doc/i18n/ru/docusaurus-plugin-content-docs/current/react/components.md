@@ -212,24 +212,22 @@ export function FormArray<T>({
 ## Пример использования
 
 ```tsx
-import { GroupNode, FieldNode, ArrayNode } from 'reformer';
+import { GroupNode } from 'reformer';
 import { required, email } from 'reformer/validators';
 
 const form = new GroupNode({
-  schema: {
-    name: new FieldNode({ value: '' }),
-    email: new FieldNode({ value: '' }),
-    role: new FieldNode({ value: '' }),
-    notifications: new FieldNode({ value: false }),
-    phones: new ArrayNode({
-      schema: () => new FieldNode({ value: '' }),
-      value: [''],
-    }),
+  form: {
+    name: { value: '' },
+    email: { value: '' },
+    role: { value: '' },
+    notifications: { value: false },
+    phones: [{ value: '' }],
   },
-  validationSchema: (path, { validate }) => [
-    validate(path.name, required()),
-    validate(path.email, required(), email()),
-  ],
+  validation: (path) => {
+    required(path.name);
+    required(path.email);
+    email(path.email);
+  },
 });
 
 function UserForm() {

@@ -13,7 +13,7 @@ sidebar_position: 3
 ```typescript
 import { showWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   showWhen(
     path.otherIncome,
     () => form.controls.hasOtherIncome.value === true
@@ -25,12 +25,12 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    contactMethod: new FieldNode({ value: 'email' }),
-    email: new FieldNode({ value: '' }),
-    phone: new FieldNode({ value: '' }),
+  form: {
+    contactMethod: { value: 'email' },
+    email: { value: '' },
+    phone: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     showWhen(path.email, () =>
       form.controls.contactMethod.value === 'email'
     ),
@@ -69,7 +69,7 @@ function ContactForm() {
 ```typescript
 import { enableWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   enableWhen(
     path.submitButton,
     () => form.controls.agreeToTerms.value === true
@@ -81,11 +81,11 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    step1Complete: new FieldNode({ value: false }),
-    step2Data: new FieldNode({ value: '' }),
+  form: {
+    step1Complete: { value: false },
+    step2Data: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     enableWhen(path.step2Data, () =>
       form.controls.step1Complete.value === true
     ),
@@ -100,7 +100,7 @@ const form = new GroupNode({
 ```typescript
 import { resetWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Сбросить детали при изменении типа
   resetWhen(
     path.typeDetails,
@@ -114,11 +114,11 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    country: new FieldNode({ value: '' }),
-    city: new FieldNode({ value: '' }),
+  form: {
+    country: { value: '' },
+    city: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     // Сбросить город при изменении страны
     resetWhen(
       path.city,
@@ -138,7 +138,7 @@ form.controls.country.setValue('US'); // city сбрасывается в ''
 Использование нескольких behaviors вместе:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Показать бизнес-поля только для бизнес-аккаунтов
   showWhen(path.companyName, () =>
     form.controls.accountType.value === 'business'
@@ -160,7 +160,7 @@ behaviorSchema: (path, ctx) => [
 ## Сложные условия
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   showWhen(path.spouseInfo, () => {
     const status = form.controls.maritalStatus.value;
     const includeSpouse = form.controls.includeSpouse.value;

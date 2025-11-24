@@ -55,9 +55,9 @@ GroupNode и ArrayNode вычисляют своё значение из доч�
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    firstName: new FieldNode({ value: '' }),
-    lastName: new FieldNode({ value: '' }),
+  form: {
+    firstName: { value: '' },
+    lastName: { value: '' },
   },
 });
 

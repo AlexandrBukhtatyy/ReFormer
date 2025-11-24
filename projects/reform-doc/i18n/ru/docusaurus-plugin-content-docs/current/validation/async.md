@@ -2,22 +2,23 @@
 sidebar_position: 3
 ---
 
-# Асинхронная валидация
+# Асинхронная Валидация
 
-Валидация на сервере или выполнение ресурсоёмких проверок.
+Валидация на сервере или выполнение дорогих проверок.
 
-## Базовый асинхронный валидатор
+## Базовый Асинхронный Валидатор
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 import { required } from 'reformer/validators';
 
 const form = new GroupNode({
-  schema: {
-    username: new FieldNode({ value: '' }),
+  form: {
+    username: { value: '' },
   },
-  validationSchema: (path, { validate, validateAsync }) => [
-    validate(path.username, required()),
+  validation: (path, { validateAsync }) => {
+    required(path.username);
+
     validateAsync(path.username, async (value) => {
       const response = await fetch(`/api/check-username?name=${value}`);
       const { available } = await response.json();
@@ -26,34 +27,36 @@ const form = new GroupNode({
         return { usernameTaken: true };
       }
       return null;
-    }),
-  ],
+    });
+  },
 });
 ```
 
-## Debounce
+## Debouncing (Задержка)
 
-Избежание слишком частых запросов с помощью debounce:
+Избегайте слишком большого количества запросов с помощью debounce:
 
 ```typescript
-validateAsync(
-  path.username,
-  async (value) => {
-    const available = await checkUsername(value);
-    return available ? null : { usernameTaken: true };
-  },
-  { debounce: 300 } // Ждать 300мс после окончания ввода
-)
+validation: (path, { validateAsync }) => {
+  validateAsync(
+    path.username,
+    async (value) => {
+      const available = await checkUsername(value);
+      return available ? null : { usernameTaken: true };
+    },
+    { debounce: 300 } // Ждать 300мс после остановки ввода
+  );
+}
 ```
 
-## Состояние загрузки
+## Состояние Загрузки
 
-Отслеживание выполнения асинхронной валидации:
+Отслеживайте процесс асинхронной валидации:
 
 ```typescript
 const username = form.controls.username;
 
-username.pending; // true во время валидации
+username.pending.value; // true во время валидации
 ```
 
 ```tsx
@@ -62,47 +65,53 @@ function UsernameField() {
 
   return (
     <div>
-      <input value={field.value} onChange={...} />
+      <input
+        value={field.value}
+        onChange={(e) => field.setValue(e.target.value)}
+      />
       {field.pending && <span>Проверка...</span>}
-      {field.errors?.usernameTaken && <span>Имя занято</span>}
+      {field.errors?.usernameTaken && <span>Имя пользователя занято</span>}
     </div>
   );
 }
 ```
 
-## Асинхронная валидация с контекстом
+## Асинхронная Валидация с Контекстом
 
 Доступ к другим полям во время асинхронной валидации:
 
 ```typescript
-validateAsync(path.email, async (value, context) => {
-  const userId = context.root.controls.userId.value;
+validation: (path, { validateAsync }) => {
+  validateAsync(path.email, async (value, ctx) => {
+    const userId = ctx.form.userId.value.value;
 
-  const response = await fetch('/api/check-email', {
-    method: 'POST',
-    body: JSON.stringify({ email: value, userId }),
+    const response = await fetch('/api/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email: value, userId }),
+    });
+
+    const { valid } = await response.json();
+    return valid ? null : { emailInUse: true };
   });
-
-  const { valid } = await response.json();
-  return valid ? null : { emailInUse: true };
-})
+}
 ```
 
-## Комбинирование синхронной и асинхронной валидации
+## Комбинирование Синхронной и Асинхронной
 
-Синхронные валидаторы выполняются первыми. Асинхронные запускаются только если синхронные прошли:
+Синхронные валидаторы запускаются первыми. Асинхронные только если синхронные прошли:
 
 ```typescript
-validationSchema: (path, { validate, validateAsync }) => [
+validation: (path, { validateAsync }) => {
   // Синхронно: выполняется сразу
-  validate(path.username, required(), minLength(3)),
+  required(path.username);
+  minLength(path.username, 3);
 
   // Асинхронно: только если синхронные валидаторы прошли
-  validateAsync(path.username, checkUsernameAvailable),
-]
+  validateAsync(path.username, checkUsernameAvailable);
+}
 ```
 
-## Следующие шаги
+## Следующие Шаги
 
-- [Кастомные валидаторы](/docs/validation/custom) — создание переиспользуемых валидаторов
-- [Behaviors](/docs/behaviors/overview) — условная валидация с behaviors
+- [Кастомные Валидаторы](/docs/validation/custom) — Создание переиспользуемых валидаторов
+- [Поведения](/docs/behaviors/overview) — Условная валидация с поведениями

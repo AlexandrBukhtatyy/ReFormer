@@ -9,15 +9,16 @@ Validate against server or perform expensive checks.
 ## Basic Async Validator
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 import { required } from 'reformer/validators';
 
 const form = new GroupNode({
-  schema: {
-    username: new FieldNode({ value: '' }),
+  form: {
+    username: { value: '' },
   },
-  validationSchema: (path, { validate, validateAsync }) => [
-    validate(path.username, required()),
+  validation: (path, { validateAsync }) => {
+    required(path.username);
+
     validateAsync(path.username, async (value) => {
       const response = await fetch(`/api/check-username?name=${value}`);
       const { available } = await response.json();
@@ -26,8 +27,8 @@ const form = new GroupNode({
         return { usernameTaken: true };
       }
       return null;
-    }),
-  ],
+    });
+  },
 });
 ```
 
@@ -36,14 +37,16 @@ const form = new GroupNode({
 Avoid too many requests with debounce:
 
 ```typescript
-validateAsync(
-  path.username,
-  async (value) => {
-    const available = await checkUsername(value);
-    return available ? null : { usernameTaken: true };
-  },
-  { debounce: 300 } // Wait 300ms after typing stops
-)
+validation: (path, { validateAsync }) => {
+  validateAsync(
+    path.username,
+    async (value) => {
+      const available = await checkUsername(value);
+      return available ? null : { usernameTaken: true };
+    },
+    { debounce: 300 } // Wait 300ms after typing stops
+  );
+}
 ```
 
 ## Loading State
@@ -53,7 +56,7 @@ Track async validation in progress:
 ```typescript
 const username = form.controls.username;
 
-username.pending; // true while validating
+username.pending.value; // true while validating
 ```
 
 ```tsx
@@ -62,7 +65,10 @@ function UsernameField() {
 
   return (
     <div>
-      <input value={field.value} onChange={...} />
+      <input
+        value={field.value}
+        onChange={(e) => field.setValue(e.target.value)}
+      />
       {field.pending && <span>Checking...</span>}
       {field.errors?.usernameTaken && <span>Username taken</span>}
     </div>
@@ -75,17 +81,19 @@ function UsernameField() {
 Access other fields during async validation:
 
 ```typescript
-validateAsync(path.email, async (value, context) => {
-  const userId = context.root.controls.userId.value;
+validation: (path, { validateAsync }) => {
+  validateAsync(path.email, async (value, ctx) => {
+    const userId = ctx.form.userId.value.value;
 
-  const response = await fetch('/api/check-email', {
-    method: 'POST',
-    body: JSON.stringify({ email: value, userId }),
+    const response = await fetch('/api/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email: value, userId }),
+    });
+
+    const { valid } = await response.json();
+    return valid ? null : { emailInUse: true };
   });
-
-  const { valid } = await response.json();
-  return valid ? null : { emailInUse: true };
-})
+}
 ```
 
 ## Combining Sync and Async
@@ -93,13 +101,14 @@ validateAsync(path.email, async (value, context) => {
 Sync validators run first. Async only runs if sync passes:
 
 ```typescript
-validationSchema: (path, { validate, validateAsync }) => [
+validation: (path, { validateAsync }) => {
   // Sync: runs immediately
-  validate(path.username, required(), minLength(3)),
+  required(path.username);
+  minLength(path.username, 3);
 
   // Async: only runs if sync validators pass
-  validateAsync(path.username, checkUsernameAvailable),
-]
+  validateAsync(path.username, checkUsernameAvailable);
+}
 ```
 
 ## Next Steps

@@ -58,18 +58,16 @@ name.value; // 'John'
 Группирует несколько полей в объект.
 
 ```typescript
-import { GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 
 const form = new GroupNode({
-  schema: {
-    firstName: new FieldNode({ value: '' }),
-    lastName: new FieldNode({ value: '' }),
-    address: new GroupNode({
-      schema: {
-        street: new FieldNode({ value: '' }),
-        city: new FieldNode({ value: '' }),
-      },
-    }),
+  form: {
+    firstName: { value: '' },
+    lastName: { value: '' },
+    address: {
+      street: { value: '' },
+      city: { value: '' },
+    },
   },
 });
 
@@ -102,30 +100,27 @@ form.value;
 Динамический список элементов.
 
 ```typescript
-import { ArrayNode, GroupNode, FieldNode } from 'reformer';
+import { GroupNode } from 'reformer';
 
-const phones = new ArrayNode({
-  schema: () =>
-    new GroupNode({
-      schema: {
-        type: new FieldNode({ value: 'mobile' }),
-        number: new FieldNode({ value: '' }),
-      },
-    }),
-  value: [{ type: 'home', number: '123-456' }],
+const form = new GroupNode({
+  form: {
+    phones: [
+      { type: { value: 'home' }, number: { value: '123-456' } },
+    ],
+  },
 });
 
 // Доступ к элементам
-phones.controls[0].controls.number.value; // '123-456'
+form.controls.phones.controls[0].controls.number.value; // '123-456'
 
 // Добавить элемент
-phones.push({ type: 'work', number: '' });
+form.controls.phones.push({ type: 'work', number: '' });
 
 // Удалить элемент
-phones.removeAt(0);
+form.controls.phones.removeAt(0);
 
 // Получить все значения
-phones.value; // [{ type: 'work', number: '' }]
+form.controls.phones.value; // [{ type: 'work', number: '' }]
 ```
 
 ### Методы ArrayNode
@@ -144,9 +139,9 @@ ReFormer автоматически выводит типы:
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    name: new FieldNode({ value: '' }),
-    age: new FieldNode({ value: 0 }),
+  form: {
+    name: { value: '' },
+    age: { value: 0 },
   },
 });
 

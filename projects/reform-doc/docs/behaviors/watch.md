@@ -13,7 +13,7 @@ Execute callback when field value changes.
 ```typescript
 import { watchField } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(path.country, (newValue, oldValue) => {
     console.log(`Country changed from ${oldValue} to ${newValue}`);
     // Load cities for new country
@@ -26,11 +26,11 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    category: new FieldNode({ value: '' }),
-    subcategory: new FieldNode({ value: '' }),
+  form: {
+    category: { value: '' },
+    subcategory: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     watchField(path.category, async (category) => {
       // Reset subcategory
       form.controls.subcategory.setValue('');
@@ -46,7 +46,7 @@ const form = new GroupNode({
 ### Example: Analytics
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(path.step, (step) => {
     analytics.track('form_step_changed', { step });
   }),
@@ -60,7 +60,7 @@ Trigger field revalidation when another field changes.
 ```typescript
 import { revalidateWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Revalidate confirmPassword when password changes
   revalidateWhen(
     path.confirmPassword,
@@ -72,21 +72,23 @@ behaviorSchema: (path, ctx) => [
 ### Example: Date Range
 
 ```typescript
+import { validate } from 'reformer/validators';
+
 const form = new GroupNode({
-  schema: {
-    startDate: new FieldNode({ value: '' }),
-    endDate: new FieldNode({ value: '' }),
+  form: {
+    startDate: { value: '' },
+    endDate: { value: '' },
   },
-  validationSchema: (path, { validate }) => [
+  validation: (path) => {
     validate(path.endDate, (value, ctx) => {
       const start = ctx.root.controls.startDate.value;
       if (start && value && value < start) {
         return { endBeforeStart: true };
       }
       return null;
-    }),
-  ],
-  behaviorSchema: (path, ctx) => [
+    });
+  },
+  behaviors: (path, ctx) => [
     // Revalidate endDate when startDate changes
     revalidateWhen(path.endDate, [path.startDate]),
   ],
@@ -96,7 +98,7 @@ const form = new GroupNode({
 ### Example: Cross-Field Validation
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Password strength depends on username (can't contain it)
   revalidateWhen(path.password, [path.username]),
 
@@ -110,7 +112,7 @@ behaviorSchema: (path, ctx) => [
 Watch multiple fields:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField([path.firstName, path.lastName], () => {
     // Called when either changes
     updateDisplayName();
@@ -123,7 +125,7 @@ behaviorSchema: (path, ctx) => [
 Prevent too frequent updates:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(
     path.searchQuery,
     async (query) => {
@@ -140,7 +142,7 @@ behaviorSchema: (path, ctx) => [
 Return cleanup function:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   watchField(path.livePreview, (enabled) => {
     if (enabled) {
       const interval = setInterval(refreshPreview, 1000);
@@ -153,7 +155,7 @@ behaviorSchema: (path, ctx) => [
 ## Combining Watch with Other Behaviors
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Show premium fields
   showWhen(path.premiumOptions, () =>
     form.controls.plan.value === 'premium'

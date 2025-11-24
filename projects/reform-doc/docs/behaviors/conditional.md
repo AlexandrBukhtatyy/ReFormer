@@ -13,7 +13,7 @@ Show field only when condition is true.
 ```typescript
 import { showWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   showWhen(
     path.otherIncome,
     () => form.controls.hasOtherIncome.value === true
@@ -25,12 +25,12 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    contactMethod: new FieldNode({ value: 'email' }),
-    email: new FieldNode({ value: '' }),
-    phone: new FieldNode({ value: '' }),
+  form: {
+    contactMethod: { value: 'email' },
+    email: { value: '' },
+    phone: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     showWhen(path.email, () =>
       form.controls.contactMethod.value === 'email'
     ),
@@ -69,7 +69,7 @@ Enable field only when condition is true.
 ```typescript
 import { enableWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   enableWhen(
     path.submitButton,
     () => form.controls.agreeToTerms.value === true
@@ -81,11 +81,11 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    step1Complete: new FieldNode({ value: false }),
-    step2Data: new FieldNode({ value: '' }),
+  form: {
+    step1Complete: { value: false },
+    step2Data: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     enableWhen(path.step2Data, () =>
       form.controls.step1Complete.value === true
     ),
@@ -100,7 +100,7 @@ Reset field to initial value when condition becomes true.
 ```typescript
 import { resetWhen } from 'reformer/behaviors';
 
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Reset details when type changes
   resetWhen(
     path.typeDetails,
@@ -114,11 +114,11 @@ behaviorSchema: (path, ctx) => [
 
 ```typescript
 const form = new GroupNode({
-  schema: {
-    country: new FieldNode({ value: '' }),
-    city: new FieldNode({ value: '' }),
+  form: {
+    country: { value: '' },
+    city: { value: '' },
   },
-  behaviorSchema: (path, ctx) => [
+  behaviors: (path, ctx) => [
     // Reset city when country changes
     resetWhen(
       path.city,
@@ -138,7 +138,7 @@ form.controls.country.setValue('UK'); // city resets to ''
 Use multiple behaviors together:
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   // Show business fields only for business accounts
   showWhen(path.companyName, () =>
     form.controls.accountType.value === 'business'
@@ -160,7 +160,7 @@ behaviorSchema: (path, ctx) => [
 ## Complex Conditions
 
 ```typescript
-behaviorSchema: (path, ctx) => [
+behaviors: (path, ctx) => [
   showWhen(path.spouseInfo, () => {
     const status = form.controls.maritalStatus.value;
     const includeSpouse = form.controls.includeSpouse.value;
