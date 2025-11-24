@@ -3,6 +3,10 @@
     "message": "Начало работы",
     "description": "The label for category Getting Started in sidebar docsSidebar"
   },
+  "sidebar.docsSidebar.category.Tutorial": {
+    "message": "Туториал",
+    "description": "The label for category Tutorial in sidebar docsSidebar"
+  },
   "sidebar.docsSidebar.category.Recommendations": {
     "message": "Рекомендации",
     "description": "The label for category Recommendations in sidebar docsSidebar"
