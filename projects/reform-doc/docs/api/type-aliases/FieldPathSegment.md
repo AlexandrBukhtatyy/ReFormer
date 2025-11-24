@@ -4,7 +4,7 @@
 type FieldPathSegment = object;
 ```
 
-Defined in: [core/types/index.ts:196](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/index.ts#L196)
+Defined in: [core/types/index.ts:196](https://github.com/AlexandrBukhtatyy/ReFormer/blob/21a22c7cca8ff4c7a6412f104e9d66a1709f1bf6/packages/reformer/src/core/types/index.ts#L196)
 
 Тип для путей к полям (field paths)
 Используется в навигации по полям вместо any
@@ -17,7 +17,7 @@ Defined in: [core/types/index.ts:196](https://github.com/AlexandrBukhtatyy/ReFor
 optional index: number;
 ```
 
-Defined in: [core/types/index.ts:198](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/index.ts#L198)
+Defined in: [core/types/index.ts:198](https://github.com/AlexandrBukhtatyy/ReFormer/blob/21a22c7cca8ff4c7a6412f104e9d66a1709f1bf6/packages/reformer/src/core/types/index.ts#L198)
 
 ***
 
@@ -27,4 +27,4 @@ Defined in: [core/types/index.ts:198](https://github.com/AlexandrBukhtatyy/ReFor
 key: string;
 ```
 
-Defined in: [core/types/index.ts:197](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/core/types/index.ts#L197)
+Defined in: [core/types/index.ts:197](https://github.com/AlexandrBukhtatyy/ReFormer/blob/21a22c7cca8ff4c7a6412f104e9d66a1709f1bf6/packages/reformer/src/core/types/index.ts#L197)

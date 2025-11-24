@@ -15,55 +15,9 @@ sidebar_position: 1
 npm install reformer
 ```
 
-## Peer-зависимости
-
-ReFormer использует [Preact Signals](https://preactjs.com/guide/v10/signals/) для реактивности:
-
-```bash
-npm install @preact/signals-react
-```
-
-### Конфигурация Babel (React)
-
-Для React-проектов добавьте signals transform в конфиг Babel:
-
-```bash
-npm install -D @preact/signals-react-transform
-```
-
-```javascript title="babel.config.js"
-module.exports = {
-  plugins: [['module:@preact/signals-react-transform']],
-};
-```
-
-Или для Vite:
-
-```typescript title="vite.config.ts"
-import react from '@vitejs/plugin-react';
-
-export default {
-  plugins: [
-    react({
-      babel: {
-        plugins: [['module:@preact/signals-react-transform']],
-      },
-    }),
-  ],
-};
-```
-
-## Структура проекта
-
-```
-your-project/
-├── src/
-│   ├── forms/           # Определения форм
-│   │   └── user-form.ts
-│   └── components/      # Компоненты форм
-│       └── UserForm.tsx
-```
+ReFormer включает все необходимые зависимости, включая [Preact Signals Core](https://github.com/preactjs/signals/blob/main/packages/core/README.md#guide--api) для реактивности.
 
 ## Следующие шаги
 
+- [Структура проекта](/docs/recommendations/project-structure) — рекомендуемая организация проекта
 - [Быстрый старт](/docs/getting-started/quick-start) — создайте первую форму

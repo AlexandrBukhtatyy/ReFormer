@@ -62,9 +62,7 @@ export function ContactForm() {
           onChange={(e) => name.setValue(e.target.value)}
           placeholder="Name"
         />
-        {name.touched && name.errors?.required && (
-          <span>Name is required</span>
-        )}
+        {name.touched && name.errors?.required && <span>Name is required</span>}
       </div>
 
       <div>
@@ -73,9 +71,7 @@ export function ContactForm() {
           onChange={(e) => email.setValue(e.target.value)}
           placeholder="Email"
         />
-        {email.touched && email.errors?.email && (
-          <span>Invalid email</span>
-        )}
+        {email.touched && email.errors?.email && <span>Invalid email</span>}
       </div>
 
       <div>
@@ -96,16 +92,6 @@ export function ContactForm() {
   );
 }
 ```
-
-## 3. Key Concepts Used
-
-| Concept | Description |
-|---------|-------------|
-| `GroupNode` | Container for form fields |
-| `form` | Form schema defining fields structure |
-| `validation` | Declarative validation rules |
-| `useFormControl` | React hook for field binding |
-| `markAllAsTouched()` | Show all validation errors |
 
 ## Next Steps
 

@@ -14,6 +14,14 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Recommendations',
+      collapsed: false,
+      items: [
+        'recommendations/project-structure',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Core Concepts',
       collapsed: false,
       items: [

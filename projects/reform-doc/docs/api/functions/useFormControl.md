@@ -1,95 +1,81 @@
 # useFormControl()
 
-```ts
-function useFormControl<T>(control): object;
-```
+Хук для работы с FieldNode или ArrayNode - возвращает состояние с подписками на сигналы
 
-Defined in: [hooks/useFormControl.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/a90f09dd6532f27be3e08d4c85d7d4a30f44c424/packages/reformer/src/hooks/useFormControl.ts#L23)
-
-Хук для работы с FieldNode - возвращает сигналы напрямую
-
-Оптимальный способ использования: сигналы можно использовать напрямую в JSX,
-они автоматически обновляют компонент при изменении.
-
-## Type Parameters
-
-### T
-
-`T` *extends* [`FormValue`](../type-aliases/FormValue.md)
-
-## Parameters
-
-### control
-
-[`FieldNode`](../classes/FieldNode.md)\<`T`\>
-
-## Returns
-
-`object`
-
-### dirty
-
-```ts
-dirty: ReadonlySignal<boolean> = control.dirty;
-```
-
-### disabled
-
-```ts
-disabled: ReadonlySignal<boolean> = control.disabled;
-```
-
-### errors
-
-```ts
-errors: ReadonlySignal<ValidationError[]> = control.errors;
-```
-
-### invalid
-
-```ts
-invalid: ReadonlySignal<boolean> = control.invalid;
-```
-
-### pending
-
-```ts
-pending: ReadonlySignal<boolean> = control.pending;
-```
-
-### shouldShowError
-
-```ts
-shouldShowError: ReadonlySignal<boolean> = control.shouldShowError;
-```
-
-### touched
-
-```ts
-touched: ReadonlySignal<boolean> = control.touched;
-```
-
-### valid
-
-```ts
-valid: ReadonlySignal<boolean> = control.valid;
-```
-
-### value
-
-```ts
-value: ReadonlySignal<T> = control.value;
-```
-
-## Example
+## Examples
 
 ```tsx
-const { value, errors } = useFormControl(control);
+const { value, errors, componentProps } = useFormControl(control);
 
 return (
   <div>
-    <input value={value.value} onChange={e => control.setValue(e.target.value)} />
-    {errors.value.length > 0 && <span>{errors.value[0].message}</span>}
+    <input value={value} onChange={e => control.setValue(e.target.value)} />
+    {errors.length > 0 && <span>{errors[0].message}</span>}
   </div>
 );
 ```
+
+```tsx
+const { length } = useFormControl(arrayControl);
+
+return (
+  <div>
+    {arrayControl.map((item, index) => (
+      <ItemComponent key={item.id || index} control={item} />
+    ))}
+    {length === 0 && <span>Список пуст</span>}
+  </div>
+);
+```
+
+## Call Signature
+
+```ts
+function useFormControl<T>(control): ArrayControlState<T>;
+```
+
+Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/ReFormer/blob/21a22c7cca8ff4c7a6412f104e9d66a1709f1bf6/packages/reformer/src/hooks/useFormControl.ts#L41)
+
+Хук для работы с ArrayNode - возвращает состояние массива с подписками на сигналы
+
+### Type Parameters
+
+#### T
+
+`T` *extends* [`FormFields`](../type-aliases/FormFields.md)
+
+### Parameters
+
+#### control
+
+[`ArrayNode`](../classes/ArrayNode.md)\<`T`\> | `undefined`
+
+### Returns
+
+`ArrayControlState`\<`T`\>
+
+## Call Signature
+
+```ts
+function useFormControl<T>(control): FieldControlState<T>;
+```
+
+Defined in: [hooks/useFormControl.ts:48](https://github.com/AlexandrBukhtatyy/ReFormer/blob/21a22c7cca8ff4c7a6412f104e9d66a1709f1bf6/packages/reformer/src/hooks/useFormControl.ts#L48)
+
+Хук для работы с FieldNode - возвращает состояние поля с подписками на сигналы
+
+### Type Parameters
+
+#### T
+
+`T` *extends* [`FormValue`](../type-aliases/FormValue.md)
+
+### Parameters
+
+#### control
+
+[`FieldNode`](../classes/FieldNode.md)\<`T`\>
+
+### Returns
+
+`FieldControlState`\<`T`\>

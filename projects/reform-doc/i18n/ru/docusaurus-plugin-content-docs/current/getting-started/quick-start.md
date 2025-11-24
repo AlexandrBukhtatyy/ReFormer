@@ -62,9 +62,7 @@ export function ContactForm() {
           onChange={(e) => name.setValue(e.target.value)}
           placeholder="Имя"
         />
-        {name.touched && name.errors?.required && (
-          <span>Имя обязательно</span>
-        )}
+        {name.touched && name.errors?.required && <span>Имя обязательно</span>}
       </div>
 
       <div>
@@ -73,9 +71,7 @@ export function ContactForm() {
           onChange={(e) => email.setValue(e.target.value)}
           placeholder="Email"
         />
-        {email.touched && email.errors?.email && (
-          <span>Некорректный email</span>
-        )}
+        {email.touched && email.errors?.email && <span>Некорректный email</span>}
       </div>
 
       <div>
@@ -96,16 +92,6 @@ export function ContactForm() {
   );
 }
 ```
-
-## 3. Использованные концепции
-
-| Концепция | Описание |
-|-----------|----------|
-| `GroupNode` | Контейнер для полей формы |
-| `form` | Схема формы, определяющая структуру полей |
-| `validation` | Декларативные правила валидации |
-| `useFormControl` | React-хук для привязки поля |
-| `markAllAsTouched()` | Показать все ошибки валидации |
 
 ## Следующие шаги
 
