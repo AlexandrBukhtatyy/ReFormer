@@ -4,7 +4,7 @@
 function isGroupNode(value): value is GroupNode<FormFields>;
 ```
 
-Defined in: [core/utils/type-guards.ts:106](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/type-guards.ts#L106)
+Defined in: [core/utils/type-guards.ts:106](https://github.com/AlexandrBukhtatyy/ReFormer/blob/5ceaa6f29bbeaf24a4aaf6730d727f1d0b368936/packages/reformer/src/core/utils/type-guards.ts#L106)
 
 Проверить, является ли значение GroupNode (объект с вложенными полями)
 

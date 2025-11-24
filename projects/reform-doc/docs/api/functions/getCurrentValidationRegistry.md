@@ -4,7 +4,7 @@
 function getCurrentValidationRegistry(): ValidationRegistry;
 ```
 
-Defined in: [core/utils/registry-helpers.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/registry-helpers.ts#L31)
+Defined in: [core/utils/registry-helpers.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/5ceaa6f29bbeaf24a4aaf6730d727f1d0b368936/packages/reformer/src/core/utils/registry-helpers.ts#L31)
 
 **`Internal`**
 

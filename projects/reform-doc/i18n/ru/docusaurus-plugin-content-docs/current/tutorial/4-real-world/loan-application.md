@@ -8,21 +8,24 @@ sidebar_position: 1
 
 ## Что мы построим
 
-Многошаговую форму заявки на кредит с:
-- **Вложенными группами** для организации секций
-- **Динамическими массивами** для созаемщиков и источников дохода
-- **Валидацией** на всех уровнях
-- **Вычисляемыми полями** для расчета кредита
-- **Условной логикой** для деталей трудоустройства
-- **Многошаговым интерфейсом-мастером**
+Многошаговую форму заявки на кредит с полной валидацией, вычисляемыми полями и условной логикой.
 
-## Структура формы
+## Чему вы научитесь
+
+При создании этой формы вы освоите:
+
+- **Вложенные группы** — Организация сложных форм в логические секции (personalInfo, employment, loanDetails)
+- **Динамические массивы** — Управление списками созаёмщиков с функциональностью добавления/удаления
+- **Комплексная валидация** — Обязательные поля, паттерны, диапазоны и условная валидация с `when()`
+- **Вычисляемые поля** — Автоматический расчёт ежемесячного платежа на основе суммы и срока кредита
+- **Условная логика** — Показ/скрытие полей трудоустройства в зависимости от статуса занятости
+- **Многошаговый мастер** — Навигация по шагам формы с валидацией и отслеживанием прогресса
+
+## Шаг 1: Определение структуры данных
+
+Сначала определим TypeScript интерфейс для данных нашей формы. Это обеспечивает типобезопасность и документирует структуру формы.
 
 ```typescript title="src/components/LoanApplication/form.ts"
-import { GroupNode } from 'reformer';
-import { required, email, min, max, minLength, pattern } from 'reformer/validators';
-import { computed, visible } from 'reformer/behaviors';
-
 interface LoanApplicationData {
   // Личная информация
   personalInfo: {
@@ -50,15 +53,24 @@ interface LoanApplicationData {
     monthlyPayment: number; // вычисляется
   };
 
-  // Созаемщики (динамический массив)
+  // Созаёмщики (динамический массив)
   coBorrowers: Array<{
     firstName: string;
     lastName: string;
     relationship: string;
   }>;
 }
+```
 
-const phonePattern = /^\+?[\d\s\-()]+$/;
+## Шаг 2: Создание структуры формы
+
+Теперь создадим структуру формы используя декларативный синтаксис ReFormer. Обратите внимание как:
+- Вложенные объекты становятся экземплярами `GroupNode`
+- Массивы становятся экземплярами `ArrayNode` с шаблонами элементов
+- Простые значения используют синтаксис `{ value: ... }`
+
+```typescript
+import { GroupNode } from 'reformer';
 
 export const loanApplicationForm = new GroupNode<LoanApplicationData>({
   form: {
@@ -91,6 +103,20 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
       relationship: { value: '' },
     }],
   },
+});
+```
+
+## Шаг 3: Добавление валидации
+
+Добавим комплексные правила валидации, включая условную валидацию для полей трудоустройства.
+
+```typescript
+import { required, email, min, max, minLength, pattern } from 'reformer/validators';
+
+const phonePattern = /^\+?[\d\s\-()]+$/;
+
+export const loanApplicationForm = new GroupNode<LoanApplicationData>({
+  form: { /* ... из Шага 2 ... */ },
 
   validation: (path, { when }) => {
     // Валидация личной информации
@@ -109,7 +135,7 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
     required(path.employment.monthlyIncome);
     min(path.employment.monthlyIncome, 0);
 
-    // Условная: поля работодателя обязательны для занятых/самозанятых
+    // Условная валидация: поля работодателя обязательны для работающих/самозанятых
     when(
       () => {
         const status = loanApplicationForm.controls.employment.controls.status.value;
@@ -133,14 +159,27 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
     required(path.loanDetails.purpose);
     minLength(path.loanDetails.purpose, 10);
 
-    // Валидация созаемщиков
+    // Валидация созаёмщиков
     required(path.coBorrowers.$each.firstName);
     required(path.coBorrowers.$each.lastName);
     required(path.coBorrowers.$each.relationship);
   },
+});
+```
+
+## Шаг 4: Добавление реактивного поведения
+
+Настроим вычисляемые поля и условную видимость с помощью behaviors.
+
+```typescript
+import { computed, visible } from 'reformer/behaviors';
+
+export const loanApplicationForm = new GroupNode<LoanApplicationData>({
+  form: { /* ... */ },
+  validation: { /* ... */ },
 
   behaviors: (path, { use }) => [
-    // Показывать поля работодателя только для занятых/самозанятых
+    // Показывать поля работодателя только для работающих/самозанятых
     use(visible(
       path.employment.employerName,
       [path.employment.status],
@@ -159,13 +198,13 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
       (status) => status === 'employed' || status === 'self-employed'
     )),
 
-    // Рассчитать ежемесячный платеж (упрощенная формула)
+    // Вычислить ежемесячный платёж (упрощённая формула)
     use(computed(
       path.loanDetails.monthlyPayment,
       [path.loanDetails.amount, path.loanDetails.term],
       (amount, term) => {
         if (!amount || !term) return 0;
-        const monthlyRate = 0.05 / 12; // 5% годовая ставка
+        const monthlyRate = 0.05 / 12; // годовая ставка 5%
         const payment = (amount * monthlyRate * Math.pow(1 + monthlyRate, term)) /
                        (Math.pow(1 + monthlyRate, term) - 1);
         return Math.round(payment * 100) / 100;
@@ -175,93 +214,16 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
 });
 ```
 
-## Многошаговый компонент
+## Шаг 5: Создание компонентов шагов
 
-```tsx title="src/components/LoanApplication/index.tsx"
-import { useState } from 'react';
+Создадим отдельные компоненты для каждого шага мастера.
+
+### Шаг 5.1: Личная информация
+
+```tsx
 import { useFormControl } from 'reformer';
 import { loanApplicationForm } from './form';
 
-export function LoanApplicationForm() {
-  const [currentStep, setCurrentStep] = useState(1);
-
-  const handleNext = () => {
-    // Валидировать текущий шаг перед продолжением
-    const currentSection = getCurrentSection();
-    currentSection.markAllAsTouched();
-
-    if (currentSection.valid) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    setCurrentStep((prev) => prev - 1);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    loanApplicationForm.markAllAsTouched();
-
-    if (!loanApplicationForm.valid) {
-      return;
-    }
-
-    console.log('Заявка на кредит:', loanApplicationForm.value);
-    alert('Заявка успешно отправлена!');
-  };
-
-  const getCurrentSection = () => {
-    switch (currentStep) {
-      case 1: return loanApplicationForm.controls.personalInfo;
-      case 2: return loanApplicationForm.controls.employment;
-      case 3: return loanApplicationForm.controls.loanDetails;
-      default: return loanApplicationForm;
-    }
-  };
-
-  return (
-    <div className="loan-application">
-      <h1>Заявка на кредит</h1>
-
-      {/* Индикатор прогресса */}
-      <div className="steps">
-        <div className={currentStep >= 1 ? 'step active' : 'step'}>Личная информация</div>
-        <div className={currentStep >= 2 ? 'step active' : 'step'}>Трудоустройство</div>
-        <div className={currentStep >= 3 ? 'step active' : 'step'}>Детали кредита</div>
-        <div className={currentStep >= 4 ? 'step active' : 'step'}>Созаемщики</div>
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        {currentStep === 1 && <PersonalInfoStep />}
-        {currentStep === 2 && <EmploymentStep />}
-        {currentStep === 3 && <LoanDetailsStep />}
-        {currentStep === 4 && <CoBorrowersStep />}
-
-        {/* Навигация */}
-        <div className="navigation">
-          {currentStep > 1 && (
-            <button type="button" onClick={handleBack}>
-              Назад
-            </button>
-          )}
-
-          {currentStep < 4 ? (
-            <button type="button" onClick={handleNext}>
-              Далее
-            </button>
-          ) : (
-            <button type="submit" disabled={!loanApplicationForm.valid}>
-              Отправить заявку
-            </button>
-          )}
-        </div>
-      </form>
-    </div>
-  );
-}
-
-// Шаг 1: Личная информация
 function PersonalInfoStep() {
   const firstName = useFormControl(loanApplicationForm.controls.personalInfo.controls.firstName);
   const lastName = useFormControl(loanApplicationForm.controls.personalInfo.controls.lastName);
@@ -339,8 +301,13 @@ function PersonalInfoStep() {
     </div>
   );
 }
+```
 
-// Шаг 2: Трудоустройство (с условными полями)
+### Шаг 5.2: Трудоустройство
+
+Этот шаг демонстрирует условную видимость полей в зависимости от статуса занятости.
+
+```tsx
 function EmploymentStep() {
   const status = useFormControl(loanApplicationForm.controls.employment.controls.status);
   const employerName = useFormControl(loanApplicationForm.controls.employment.controls.employerName);
@@ -353,18 +320,19 @@ function EmploymentStep() {
       <h2>Информация о трудоустройстве</h2>
 
       <div>
-        <label>Статус трудоустройства</label>
+        <label>Статус занятости</label>
         <select
           value={status.value}
           onChange={(e) => status.setValue(e.target.value as any)}
         >
-          <option value="employed">Работает</option>
+          <option value="employed">Работаю</option>
           <option value="self-employed">Самозанятый</option>
           <option value="retired">На пенсии</option>
           <option value="unemployed">Безработный</option>
         </select>
       </div>
 
+      {/* Условно видимые поля */}
       {employerName.visible && (
         <div>
           <label>Название работодателя</label>
@@ -394,7 +362,7 @@ function EmploymentStep() {
       )}
 
       <div>
-        <label>Ежемесячный доход ($)</label>
+        <label>Ежемесячный доход (₽)</label>
         <input
           type="number"
           value={monthlyIncome.value}
@@ -404,7 +372,7 @@ function EmploymentStep() {
 
       {yearsEmployed.visible && (
         <div>
-          <label>Лет на работе</label>
+          <label>Лет работы</label>
           <input
             type="number"
             value={yearsEmployed.value}
@@ -415,8 +383,13 @@ function EmploymentStep() {
     </div>
   );
 }
+```
 
-// Шаг 3: Детали кредита (с вычисляемым ежемесячным платежом)
+### Шаг 5.3: Детали кредита
+
+Этот шаг демонстрирует вычисляемое поле, которое автоматически рассчитывает ежемесячный платёж.
+
+```tsx
 function LoanDetailsStep() {
   const amount = useFormControl(loanApplicationForm.controls.loanDetails.controls.amount);
   const term = useFormControl(loanApplicationForm.controls.loanDetails.controls.term);
@@ -428,17 +401,17 @@ function LoanDetailsStep() {
       <h2>Детали кредита</h2>
 
       <div>
-        <label>Сумма кредита ($)</label>
+        <label>Сумма кредита (₽)</label>
         <input
           type="number"
           value={amount.value}
           onChange={(e) => amount.setValue(Number(e.target.value))}
         />
         {amount.touched && amount.errors?.min && (
-          <span className="error">Минимум $1,000</span>
+          <span className="error">Минимум 1 000₽</span>
         )}
         {amount.touched && amount.errors?.max && (
-          <span className="error">Максимум $500,000</span>
+          <span className="error">Максимум 500 000₽</span>
         )}
       </div>
 
@@ -463,26 +436,31 @@ function LoanDetailsStep() {
           rows={3}
         />
         {purpose.touched && purpose.errors?.minLength && (
-          <span className="error">Укажите больше деталей (минимум 10 символов)</span>
+          <span className="error">Пожалуйста, опишите подробнее (минимум 10 символов)</span>
         )}
       </div>
 
-      {/* Вычисляемое поле */}
+      {/* Вычисляемое поле - обновляется автоматически */}
       <div className="computed-field">
-        <label>Предполагаемый ежемесячный платеж</label>
-        <strong>${monthlyPayment.value.toFixed(2)}</strong>
+        <label>Расчётный ежемесячный платёж</label>
+        <strong>{monthlyPayment.value.toFixed(2)}₽</strong>
       </div>
     </div>
   );
 }
+```
 
-// Шаг 4: Созаемщики (динамический массив)
+### Шаг 5.4: Созаёмщики
+
+Этот шаг демонстрирует работу с динамическими массивами - добавление и удаление элементов.
+
+```tsx
 function CoBorrowersStep() {
   const coBorrowers = useFormControl(loanApplicationForm.controls.coBorrowers);
 
   return (
     <div className="step-content">
-      <h2>Созаемщики (необязательно)</h2>
+      <h2>Созаёмщики (опционально)</h2>
 
       {coBorrowers.items.map((coBorrower, index) => {
         const firstName = useFormControl(coBorrower.controls.firstName);
@@ -491,7 +469,7 @@ function CoBorrowersStep() {
 
         return (
           <div key={coBorrower.id} className="co-borrower">
-            <h3>Созаемщик {index + 1}</h3>
+            <h3>Созаёмщик {index + 1}</h3>
 
             <div>
               <label>Имя</label>
@@ -515,7 +493,7 @@ function CoBorrowersStep() {
             </div>
 
             <div>
-              <label>Родство</label>
+              <label>Отношение</label>
               <select
                 value={relationship.value}
                 onChange={(e) => relationship.setValue(e.target.value)}
@@ -532,7 +510,7 @@ function CoBorrowersStep() {
               type="button"
               onClick={() => coBorrowers.removeAt(index)}
             >
-              Удалить созаемщика
+              Удалить созаёмщика
             </button>
           </div>
         );
@@ -542,76 +520,111 @@ function CoBorrowersStep() {
         type="button"
         onClick={() => coBorrowers.push()}
       >
-        Добавить созаемщика
+        Добавить созаёмщика
       </button>
     </div>
   );
 }
 ```
 
-## Ключевые продемонстрированные возможности
+## Шаг 6: Создание главного компонента мастера
 
-### 1. Вложенные группы
-```typescript
-personalInfo: { ... }  // Вложенный объект становится группой
-employment: { ... }    // Вложенный объект становится группой
-loanDetails: { ... }   // Вложенный объект становится группой
+Теперь соберём всё вместе в многошаговом мастере с навигацией и валидацией.
+
+```tsx title="src/components/LoanApplication/index.tsx"
+import { useState } from 'react';
+import { loanApplicationForm } from './form';
+
+export function LoanApplicationForm() {
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const handleNext = () => {
+    // Валидировать текущий шаг перед переходом
+    const currentSection = getCurrentSection();
+    currentSection.markAllAsTouched();
+
+    if (currentSection.valid) {
+      setCurrentStep((prev) => prev + 1);
+    }
+  };
+
+  const handleBack = () => {
+    setCurrentStep((prev) => prev - 1);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    loanApplicationForm.markAllAsTouched();
+
+    if (!loanApplicationForm.valid) {
+      return;
+    }
+
+    console.log('Заявка на кредит:', loanApplicationForm.value);
+    alert('Заявка успешно отправлена!');
+  };
+
+  const getCurrentSection = () => {
+    switch (currentStep) {
+      case 1: return loanApplicationForm.controls.personalInfo;
+      case 2: return loanApplicationForm.controls.employment;
+      case 3: return loanApplicationForm.controls.loanDetails;
+      default: return loanApplicationForm;
+    }
+  };
+
+  return (
+    <div className="loan-application">
+      <h1>Заявка на кредит</h1>
+
+      {/* Индикатор прогресса */}
+      <div className="steps">
+        <div className={currentStep >= 1 ? 'step active' : 'step'}>Личная информация</div>
+        <div className={currentStep >= 2 ? 'step active' : 'step'}>Трудоустройство</div>
+        <div className={currentStep >= 3 ? 'step active' : 'step'}>Детали кредита</div>
+        <div className={currentStep >= 4 ? 'step active' : 'step'}>Созаёмщики</div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        {currentStep === 1 && <PersonalInfoStep />}
+        {currentStep === 2 && <EmploymentStep />}
+        {currentStep === 3 && <LoanDetailsStep />}
+        {currentStep === 4 && <CoBorrowersStep />}
+
+        {/* Навигация */}
+        <div className="navigation">
+          {currentStep > 1 && (
+            <button type="button" onClick={handleBack}>
+              Назад
+            </button>
+          )}
+
+          {currentStep < 4 ? (
+            <button type="button" onClick={handleNext}>
+              Далее
+            </button>
+          ) : (
+            <button type="submit" disabled={!loanApplicationForm.valid}>
+              Отправить заявку
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}
 ```
-
-### 2. Динамические массивы
-```typescript
-coBorrowers: [{        // Синтаксис массива с шаблоном элемента
-  firstName: { value: '' },
-  lastName: { value: '' },
-  relationship: { value: '' },
-}]
-```
-
-### 3. Валидация
-- Обязательные поля
-- Паттерны email и телефона
-- Числовые диапазоны (min/max)
-- Условная валидация с `when`
-
-### 4. Вычисляемые поля
-```typescript
-use(computed(
-  path.loanDetails.monthlyPayment,
-  [path.loanDetails.amount, path.loanDetails.term],
-  (amount, term) => calculatePayment(amount, term)
-))
-```
-
-### 5. Условная логика
-```typescript
-use(visible(
-  path.employment.employerName,
-  [path.employment.status],
-  (status) => status === 'employed' || status === 'self-employed'
-))
-```
-
-### 6. Многошаговый мастер
-- Пошаговая навигация
-- Валидация на уровне секций
-- Индикатор прогресса
-- Состояние формы сохраняется между шагами
 
 ## Поздравляем!
 
-Вы завершили туториал по ReFormer! Теперь вы знаете, как:
-- ✅ Создавать формы с простым синтаксисом конфигурации
-- ✅ Добавлять валидацию со встроенными валидаторами
-- ✅ Обрабатывать отправку формы
-- ✅ Организовывать сложные формы с вложенными объектами
-- ✅ Управлять динамическими списками с синтаксисом массивов
-- ✅ Создавать вычисляемые поля
-- ✅ Реализовывать условную логику
-- ✅ Добавлять асинхронную валидацию
+Вы завершили туториал ReFormer и создали production-ready форму заявки на кредит!
 
 ## Следующие шаги
 
-- Изучите [Справочник API](/docs/api) для детальной документации
-- Ознакомьтесь с [Основными концепциями](/docs/core-concepts/nodes) для более глубокого понимания
-- Просмотрите [Поведения](/docs/behaviors/overview) для изучения продвинутых паттернов
-- Присоединяйтесь к сообществу и делитесь своими формами на ReFormer!
+Продолжите ваше обучение:
+
+- **[API Reference](/docs/api)** — Изучите полную документацию API
+- **[Основные концепции](/docs/core-concepts/nodes)** — Углубите понимание узлов и реактивного состояния
+- **[Паттерны](/docs/patterns/project-structure)** — Изучите лучшие практики организации сложных форм
+- **[Стратегии валидации](/docs/validation/validation-strategies)** — Продвинутые техники валидации
+- **Присоединяйтесь к сообществу** — Делитесь своими формами ReFormer и получайте помощь от других разработчиков!

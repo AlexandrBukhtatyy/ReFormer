@@ -4,7 +4,7 @@
 const Resources: object;
 ```
 
-Defined in: [core/utils/resources.ts:103](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2e1775025c7d62faafbd0cf76e1deefd8869e9b3/packages/reformer/src/core/utils/resources.ts#L103)
+Defined in: [core/utils/resources.ts:103](https://github.com/AlexandrBukhtatyy/ReFormer/blob/5ceaa6f29bbeaf24a4aaf6730d727f1d0b368936/packages/reformer/src/core/utils/resources.ts#L103)
 
 ## Type Declaration
 
