@@ -65,6 +65,7 @@ interface LoanApplicationData {
 ## Шаг 2: Создание структуры формы
 
 Теперь создадим структуру формы используя декларативный синтаксис ReFormer. Обратите внимание как:
+
 - Вложенные объекты становятся экземплярами `GroupNode`
 - Массивы становятся экземплярами `ArrayNode` с шаблонами элементов
 - Простые значения используют синтаксис `{ value: ... }`
@@ -97,11 +98,13 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
       monthlyPayment: { value: 0 },
     },
 
-    coBorrowers: [{
-      firstName: { value: '' },
-      lastName: { value: '' },
-      relationship: { value: '' },
-    }],
+    coBorrowers: [
+      {
+        firstName: { value: '' },
+        lastName: { value: '' },
+        relationship: { value: '' },
+      },
+    ],
   },
 });
 ```
@@ -116,7 +119,9 @@ import { required, email, min, max, minLength, pattern } from 'reformer/validato
 const phonePattern = /^\+?[\d\s\-()]+$/;
 
 export const loanApplicationForm = new GroupNode<LoanApplicationData>({
-  form: { /* ... из Шага 2 ... */ },
+  form: {
+    /* ... из Шага 2 ... */
+  },
 
   validation: (path, { when }) => {
     // Валидация личной информации
@@ -175,41 +180,54 @@ export const loanApplicationForm = new GroupNode<LoanApplicationData>({
 import { computed, visible } from 'reformer/behaviors';
 
 export const loanApplicationForm = new GroupNode<LoanApplicationData>({
-  form: { /* ... */ },
-  validation: { /* ... */ },
+  form: {
+    /* ... */
+  },
+  validation: {
+    /* ... */
+  },
 
   behaviors: (path, { use }) => [
     // Показывать поля работодателя только для работающих/самозанятых
-    use(visible(
-      path.employment.employerName,
-      [path.employment.status],
-      (status) => status === 'employed' || status === 'self-employed'
-    )),
+    use(
+      visible(
+        path.employment.employerName,
+        [path.employment.status],
+        (status) => status === 'employed' || status === 'self-employed'
+      )
+    ),
 
-    use(visible(
-      path.employment.position,
-      [path.employment.status],
-      (status) => status === 'employed' || status === 'self-employed'
-    )),
+    use(
+      visible(
+        path.employment.position,
+        [path.employment.status],
+        (status) => status === 'employed' || status === 'self-employed'
+      )
+    ),
 
-    use(visible(
-      path.employment.yearsEmployed,
-      [path.employment.status],
-      (status) => status === 'employed' || status === 'self-employed'
-    )),
+    use(
+      visible(
+        path.employment.yearsEmployed,
+        [path.employment.status],
+        (status) => status === 'employed' || status === 'self-employed'
+      )
+    ),
 
     // Вычислить ежемесячный платёж (упрощённая формула)
-    use(computed(
-      path.loanDetails.monthlyPayment,
-      [path.loanDetails.amount, path.loanDetails.term],
-      (amount, term) => {
-        if (!amount || !term) return 0;
-        const monthlyRate = 0.05 / 12; // годовая ставка 5%
-        const payment = (amount * monthlyRate * Math.pow(1 + monthlyRate, term)) /
-                       (Math.pow(1 + monthlyRate, term) - 1);
-        return Math.round(payment * 100) / 100;
-      }
-    )),
+    use(
+      computed(
+        path.loanDetails.monthlyPayment,
+        [path.loanDetails.amount, path.loanDetails.term],
+        (amount, term) => {
+          if (!amount || !term) return 0;
+          const monthlyRate = 0.05 / 12; // годовая ставка 5%
+          const payment =
+            (amount * monthlyRate * Math.pow(1 + monthlyRate, term)) /
+            (Math.pow(1 + monthlyRate, term) - 1);
+          return Math.round(payment * 100) / 100;
+        }
+      )
+    ),
   ],
 });
 ```
@@ -229,7 +247,9 @@ function PersonalInfoStep() {
   const lastName = useFormControl(loanApplicationForm.controls.personalInfo.controls.lastName);
   const email = useFormControl(loanApplicationForm.controls.personalInfo.controls.email);
   const phone = useFormControl(loanApplicationForm.controls.personalInfo.controls.phone);
-  const dateOfBirth = useFormControl(loanApplicationForm.controls.personalInfo.controls.dateOfBirth);
+  const dateOfBirth = useFormControl(
+    loanApplicationForm.controls.personalInfo.controls.dateOfBirth
+  );
 
   return (
     <div className="step-content">
@@ -270,9 +290,7 @@ function PersonalInfoStep() {
           onChange={(e) => email.setValue(e.target.value)}
           onBlur={() => email.markAsTouched()}
         />
-        {email.touched && email.errors?.email && (
-          <span className="error">Некорректный email</span>
-        )}
+        {email.touched && email.errors?.email && <span className="error">Некорректный email</span>}
       </div>
 
       <div>
@@ -310,10 +328,16 @@ function PersonalInfoStep() {
 ```tsx
 function EmploymentStep() {
   const status = useFormControl(loanApplicationForm.controls.employment.controls.status);
-  const employerName = useFormControl(loanApplicationForm.controls.employment.controls.employerName);
+  const employerName = useFormControl(
+    loanApplicationForm.controls.employment.controls.employerName
+  );
   const position = useFormControl(loanApplicationForm.controls.employment.controls.position);
-  const monthlyIncome = useFormControl(loanApplicationForm.controls.employment.controls.monthlyIncome);
-  const yearsEmployed = useFormControl(loanApplicationForm.controls.employment.controls.yearsEmployed);
+  const monthlyIncome = useFormControl(
+    loanApplicationForm.controls.employment.controls.monthlyIncome
+  );
+  const yearsEmployed = useFormControl(
+    loanApplicationForm.controls.employment.controls.yearsEmployed
+  );
 
   return (
     <div className="step-content">
@@ -321,10 +345,7 @@ function EmploymentStep() {
 
       <div>
         <label>Статус занятости</label>
-        <select
-          value={status.value}
-          onChange={(e) => status.setValue(e.target.value as any)}
-        >
+        <select value={status.value} onChange={(e) => status.setValue(e.target.value as any)}>
           <option value="employed">Работаю</option>
           <option value="self-employed">Самозанятый</option>
           <option value="retired">На пенсии</option>
@@ -394,7 +415,9 @@ function LoanDetailsStep() {
   const amount = useFormControl(loanApplicationForm.controls.loanDetails.controls.amount);
   const term = useFormControl(loanApplicationForm.controls.loanDetails.controls.term);
   const purpose = useFormControl(loanApplicationForm.controls.loanDetails.controls.purpose);
-  const monthlyPayment = useFormControl(loanApplicationForm.controls.loanDetails.controls.monthlyPayment);
+  const monthlyPayment = useFormControl(
+    loanApplicationForm.controls.loanDetails.controls.monthlyPayment
+  );
 
   return (
     <div className="step-content">
@@ -407,12 +430,8 @@ function LoanDetailsStep() {
           value={amount.value}
           onChange={(e) => amount.setValue(Number(e.target.value))}
         />
-        {amount.touched && amount.errors?.min && (
-          <span className="error">Минимум 1 000₽</span>
-        )}
-        {amount.touched && amount.errors?.max && (
-          <span className="error">Максимум 500 000₽</span>
-        )}
+        {amount.touched && amount.errors?.min && <span className="error">Минимум 1 000₽</span>}
+        {amount.touched && amount.errors?.max && <span className="error">Максимум 500 000₽</span>}
       </div>
 
       <div>
@@ -422,9 +441,7 @@ function LoanDetailsStep() {
           value={term.value}
           onChange={(e) => term.setValue(Number(e.target.value))}
         />
-        {term.touched && term.errors?.min && (
-          <span className="error">Минимум 6 месяцев</span>
-        )}
+        {term.touched && term.errors?.min && <span className="error">Минимум 6 месяцев</span>}
       </div>
 
       <div>
@@ -506,20 +523,14 @@ function CoBorrowersStep() {
               </select>
             </div>
 
-            <button
-              type="button"
-              onClick={() => coBorrowers.removeAt(index)}
-            >
+            <button type="button" onClick={() => coBorrowers.removeAt(index)}>
               Удалить созаёмщика
             </button>
           </div>
         );
       })}
 
-      <button
-        type="button"
-        onClick={() => coBorrowers.push()}
-      >
+      <button type="button" onClick={() => coBorrowers.push()}>
         Добавить созаёмщика
       </button>
     </div>
@@ -541,7 +552,7 @@ export function LoanApplicationForm() {
   const handleNext = () => {
     // Валидировать текущий шаг перед переходом
     const currentSection = getCurrentSection();
-    currentSection.markAllAsTouched();
+    currentSection.markAsTouched();
 
     if (currentSection.valid) {
       setCurrentStep((prev) => prev + 1);
@@ -554,7 +565,7 @@ export function LoanApplicationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    loanApplicationForm.markAllAsTouched();
+    loanApplicationForm.markAsTouched();
 
     if (!loanApplicationForm.valid) {
       return;
@@ -566,10 +577,14 @@ export function LoanApplicationForm() {
 
   const getCurrentSection = () => {
     switch (currentStep) {
-      case 1: return loanApplicationForm.controls.personalInfo;
-      case 2: return loanApplicationForm.controls.employment;
-      case 3: return loanApplicationForm.controls.loanDetails;
-      default: return loanApplicationForm;
+      case 1:
+        return loanApplicationForm.controls.personalInfo;
+      case 2:
+        return loanApplicationForm.controls.employment;
+      case 3:
+        return loanApplicationForm.controls.loanDetails;
+      default:
+        return loanApplicationForm;
     }
   };
 

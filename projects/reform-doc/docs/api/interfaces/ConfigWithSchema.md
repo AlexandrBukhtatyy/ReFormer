@@ -1,6 +1,6 @@
 # ConfigWithSchema
 
-Defined in: [core/types/index.ts:173](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/index.ts#L173)
+Defined in: [core/types/index.ts:173](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/index.ts#L173)
 
 Конфиг с полем schema (для ArrayConfig)
 
@@ -12,7 +12,7 @@ Defined in: [core/types/index.ts:173](https://github.com/AlexandrBukhtatyy/ReFor
 optional initialItems: unknown[];
 ```
 
-Defined in: [core/types/index.ts:175](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/index.ts#L175)
+Defined in: [core/types/index.ts:175](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/index.ts#L175)
 
 ***
 
@@ -22,4 +22,4 @@ Defined in: [core/types/index.ts:175](https://github.com/AlexandrBukhtatyy/ReFor
 schema: unknown;
 ```
 
-Defined in: [core/types/index.ts:174](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/index.ts#L174)
+Defined in: [core/types/index.ts:174](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/index.ts#L174)

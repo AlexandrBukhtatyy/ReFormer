@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { makeForm } from '../../../src/core/utils/make-form';
+import { makeForm } from '../../../src/core/utils/create-form';
 import { GroupNode } from '../../../src/core/nodes/group-node';
 import type {
   GroupNodeWithControls,

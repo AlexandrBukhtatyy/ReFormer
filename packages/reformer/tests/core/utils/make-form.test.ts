@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 // TODO: Import the module to test
-// import { ... } from '../../../src/core/utils/make-form';
+// import { ... } from '../../../src/core/utils/create-form';
 
 describe('MakeForm', () => {
   beforeEach(() => {

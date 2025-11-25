@@ -16,6 +16,7 @@ In this lesson, you'll learn how to work with lists of items that users can add,
 ## Why Use ArrayNode?
 
 Many forms need to handle lists of items:
+
 - Contact list with multiple phone numbers
 - Order form with multiple products
 - Resume with multiple work experiences
@@ -46,10 +47,12 @@ const phonePattern = /^\+?[\d\s\-()]+$/;
 export const contactForm = new GroupNode<ContactFormData>({
   form: {
     name: { value: '' },
-    phones: [{
-      type: { value: 'mobile' },
-      number: { value: '' },
-    }],
+    phones: [
+      {
+        type: { value: 'mobile' },
+        number: { value: '' },
+      },
+    ],
   },
   validation: (path) => {
     required(path.name);
@@ -110,7 +113,7 @@ export function PhoneListForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    contactForm.markAllAsTouched();
+    contactForm.markAsTouched();
 
     if (!contactForm.valid) {
       return;
@@ -129,9 +132,7 @@ export function PhoneListForm() {
           onChange={(e) => name.setValue(e.target.value)}
           onBlur={() => name.markAsTouched()}
         />
-        {name.touched && name.errors?.required && (
-          <span className="error">Name is required</span>
-        )}
+        {name.touched && name.errors?.required && <span className="error">Name is required</span>}
       </div>
 
       <div>
@@ -143,13 +144,13 @@ export function PhoneListForm() {
           const number = useFormControl(phone.controls.number);
 
           return (
-            <div key={phone.id} style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc' }}>
+            <div
+              key={phone.id}
+              style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc' }}
+            >
               <div>
                 <label>Type</label>
-                <select
-                  value={type.value}
-                  onChange={(e) => type.setValue(e.target.value)}
-                >
+                <select value={type.value} onChange={(e) => type.setValue(e.target.value)}>
                   <option value="mobile">Mobile</option>
                   <option value="home">Home</option>
                   <option value="work">Work</option>
@@ -172,20 +173,14 @@ export function PhoneListForm() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => phones.removeAt(index)}
-              >
+              <button type="button" onClick={() => phones.removeAt(index)}>
                 Remove
               </button>
             </div>
           );
         })}
 
-        <button
-          type="button"
-          onClick={() => phones.push()}
-        >
+        <button type="button" onClick={() => phones.push()}>
           Add Phone Number
         </button>
       </div>
@@ -216,7 +211,7 @@ validation: (path) => {
   required(path.phones.$each.type);
   required(path.phones.$each.number);
   pattern(path.phones.$each.number, phonePattern);
-}
+};
 ```
 
 The `$each` segment tells ReFormer to apply validation to every item in the array.
@@ -253,17 +248,19 @@ interface OrderFormData {
   items: {
     product: string;
     quantity: number;
-    variants: string[];  // Nested array!
+    variants: string[]; // Nested array!
   }[];
 }
 
 export const orderForm = new GroupNode<OrderFormData>({
   form: {
-    items: [{
-      product: { value: '' },
-      quantity: { value: 1 },
-      variants: [{ value: '' }],  // Nested array of strings
-    }],
+    items: [
+      {
+        product: { value: '' },
+        quantity: { value: 1 },
+        variants: [{ value: '' }], // Nested array of strings
+      },
+    ],
   },
 });
 ```

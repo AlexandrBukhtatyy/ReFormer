@@ -6,11 +6,11 @@ sidebar_position: 1
 
 Nodes are the building blocks of ReFormer forms. There are three types:
 
-| Node | Purpose | Example |
-|------|---------|---------|
-| `FieldNode` | Single value (string, number, etc.) | Text input, checkbox |
-| `GroupNode` | Object with named fields | Form section, address |
-| `ArrayNode` | Dynamic list of items | Phone numbers, addresses |
+| Node        | Purpose                             | Example                  |
+| ----------- | ----------------------------------- | ------------------------ |
+| `FieldNode` | Single value (string, number, etc.) | Text input, checkbox     |
+| `GroupNode` | Object with named fields            | Form section, address    |
+| `ArrayNode` | Dynamic list of items               | Phone numbers, addresses |
 
 ## FieldNode
 
@@ -31,27 +31,27 @@ name.value; // 'John'
 
 ### FieldNode Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `value` | `T` | Current value |
-| `valid` | `boolean` | No validation errors |
-| `invalid` | `boolean` | Has validation errors |
-| `touched` | `boolean` | User has interacted |
-| `dirty` | `boolean` | Value changed from initial |
-| `errors` | `Record<string, any>` | Validation errors |
-| `disabled` | `boolean` | Field is disabled |
-| `visible` | `boolean` | Field is visible |
+| Property   | Type                  | Description                |
+| ---------- | --------------------- | -------------------------- |
+| `value`    | `T`                   | Current value              |
+| `valid`    | `boolean`             | No validation errors       |
+| `invalid`  | `boolean`             | Has validation errors      |
+| `touched`  | `boolean`             | User has interacted        |
+| `dirty`    | `boolean`             | Value changed from initial |
+| `errors`   | `Record<string, any>` | Validation errors          |
+| `disabled` | `boolean`             | Field is disabled          |
+| `visible`  | `boolean`             | Field is visible           |
 
 ### FieldNode Methods
 
-| Method | Description |
-|--------|-------------|
-| `setValue(value)` | Set new value |
-| `reset()` | Reset to initial value |
-| `markAsTouched()` | Mark as touched |
-| `markAsDirty()` | Mark as dirty |
-| `disable()` / `enable()` | Toggle disabled state |
-| `show()` / `hide()` | Toggle visibility |
+| Method                   | Description            |
+| ------------------------ | ---------------------- |
+| `setValue(value)`        | Set new value          |
+| `reset()`                | Reset to initial value |
+| `markAsTouched()`        | Mark as touched        |
+| `markAsDirty()`          | Mark as dirty          |
+| `disable()` / `enable()` | Toggle disabled state  |
+| `show()` / `hide()`      | Toggle visibility      |
 
 ## GroupNode
 
@@ -84,16 +84,16 @@ form.value;
 
 Inherits all FieldNode properties plus:
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property   | Type              | Description |
+| ---------- | ----------------- | ----------- |
 | `controls` | `{ [key]: Node }` | Child nodes |
 
 ### GroupNode Methods
 
-| Method | Description |
-|--------|-------------|
-| `markAllAsTouched()` | Mark all children as touched |
-| `resetAll()` | Reset all children |
+| Method            | Description                  |
+| ----------------- | ---------------------------- |
+| `markAsTouched()` | Mark all children as touched |
+| `resetAll()`      | Reset all children           |
 
 ## ArrayNode
 
@@ -104,9 +104,7 @@ import { GroupNode } from 'reformer';
 
 const form = new GroupNode({
   form: {
-    phones: [
-      { type: { value: 'home' }, number: { value: '123-456' } },
-    ],
+    phones: [{ type: { value: 'home' }, number: { value: '123-456' } }],
   },
 });
 
@@ -125,13 +123,13 @@ form.controls.phones.value; // [{ type: 'work', number: '' }]
 
 ### ArrayNode Methods
 
-| Method | Description |
-|--------|-------------|
-| `push(value)` | Add item to end |
-| `insert(index, value)` | Insert at position |
-| `removeAt(index)` | Remove item at position |
-| `move(from, to)` | Move item |
-| `clear()` | Remove all items |
+| Method                 | Description             |
+| ---------------------- | ----------------------- |
+| `push(value)`          | Add item to end         |
+| `insert(index, value)` | Insert at position      |
+| `removeAt(index)`      | Remove item at position |
+| `move(from, to)`       | Move item               |
+| `clear()`              | Remove all items        |
 
 ## Type Inference
 

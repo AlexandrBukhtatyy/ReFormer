@@ -128,7 +128,7 @@ function ContactForm() {
     e.preventDefault();
 
     // Показать все ошибки валидации
-    form.markAllAsTouched();
+    form.markAsTouched();
 
     if (form.valid) {
       // Отправить данные

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../src/core/utils/make-form';
+import { makeForm } from '../../src/core/utils/create-form';
 import { required, minLength, email } from '../../src/core/validation/validators';
 import { enableWhen, computeFrom, copyFrom, transformers } from '../../src/core/behavior/behaviors';
 import type { BehaviorSchemaFn } from '../../src/core/behavior/types';

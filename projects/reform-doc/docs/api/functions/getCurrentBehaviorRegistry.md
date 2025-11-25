@@ -4,7 +4,7 @@
 function getCurrentBehaviorRegistry(): BehaviorRegistry;
 ```
 
-Defined in: [core/utils/registry-helpers.ts:75](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/utils/registry-helpers.ts#L75)
+Defined in: [core/utils/registry-helpers.ts:75](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/utils/registry-helpers.ts#L75)
 
 **`Internal`**
 

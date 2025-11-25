@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/make-form';
+import { makeForm } from '../../../../src/core/utils/create-form';
 import { url } from '../../../../src/core/validation/validators/url';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';

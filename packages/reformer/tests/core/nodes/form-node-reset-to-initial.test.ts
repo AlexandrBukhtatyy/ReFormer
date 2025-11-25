@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
-import { makeForm } from '../../../src/core/utils/make-form';
+import { makeForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 import { GroupNodeWithControls } from 'packages/reformer/dist';
 

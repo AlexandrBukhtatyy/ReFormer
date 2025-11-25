@@ -9,7 +9,7 @@ import { FieldNode } from '../../../src/core/nodes/field-node';
 import { GroupNode } from '../../../src/core/nodes/group-node';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { FormNode } from '../../../src/core/nodes/form-node';
-import { makeForm } from '../../../src/core/utils/make-form';
+import { makeForm } from '../../../src/core/utils/create-form';
 import { isArrayNode, isFieldNode, isGroupNode } from '../../../src/core/utils/type-guards';
 import { ComponentInstance } from '../../test-utils/types';
 

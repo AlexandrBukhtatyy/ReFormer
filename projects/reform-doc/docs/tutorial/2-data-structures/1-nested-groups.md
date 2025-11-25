@@ -32,12 +32,12 @@ Real-world forms often have logical sections. Instead of one flat structure, you
   personalInfo: {
     firstName: string;
     lastName: string;
-  };
+  }
   address: {
     street: string;
     city: string;
     zipCode: string;
-  };
+  }
 }
 ```
 
@@ -151,7 +151,7 @@ export function ProfileForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    profileForm.markAllAsTouched();
+    profileForm.markAsTouched();
 
     if (!profileForm.valid) {
       return;
@@ -201,9 +201,7 @@ export function ProfileForm() {
             onChange={(e) => email.setValue(e.target.value)}
             onBlur={() => email.markAsTouched()}
           />
-          {email.touched && email.errors?.email && (
-            <span className="error">Invalid email</span>
-          )}
+          {email.touched && email.errors?.email && <span className="error">Invalid email</span>}
         </div>
       </section>
 
@@ -232,9 +230,7 @@ export function ProfileForm() {
             onChange={(e) => city.setValue(e.target.value)}
             onBlur={() => city.markAsTouched()}
           />
-          {city.touched && city.errors?.required && (
-            <span className="error">City is required</span>
-          )}
+          {city.touched && city.errors?.required && <span className="error">City is required</span>}
         </div>
 
         <div>
@@ -273,7 +269,7 @@ console.log(profileForm.controls.personalInfo.errors);
 // { firstName: { required: true }, lastName: { required: true }, ... }
 
 // Mark entire section as touched
-profileForm.controls.personalInfo.markAllAsTouched();
+profileForm.controls.personalInfo.markAsTouched();
 ```
 
 ## Benefits of Nested Groups

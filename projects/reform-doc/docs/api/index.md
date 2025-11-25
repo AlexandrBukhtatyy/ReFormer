@@ -72,6 +72,7 @@
 
 ## Functions
 
+- [createForm](functions/createForm.md)
 - [getCurrentBehaviorRegistry](functions/getCurrentBehaviorRegistry.md)
 - [getCurrentValidationRegistry](functions/getCurrentValidationRegistry.md)
 - [getNodeType](functions/getNodeType.md)

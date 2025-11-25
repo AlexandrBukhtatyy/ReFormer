@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { GroupNodeWithControls, ValidationError } from '../../../src/core/types';
-import { makeForm } from '../../../src/core/utils/make-form';
+import { makeForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Form-level Errors', () => {

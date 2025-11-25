@@ -25,11 +25,13 @@ const form = new GroupNode({
 ```
 
 **Best for:**
+
 - Simple fields (text, numbers)
 - Real-time feedback
 - Client-side validation
 
 **Avoid for:**
+
 - Expensive validations
 - API calls
 
@@ -50,6 +52,7 @@ const form = new GroupNode({
 ```
 
 **Best for:**
+
 - Most form fields
 - Better UX (less intrusive)
 - Async validation with debounce
@@ -71,7 +74,7 @@ const form = new GroupNode({
 
 // Trigger validation manually
 const handleSubmit = () => {
-  form.markAllAsTouched();
+  form.markAsTouched();
   if (form.valid.value) {
     console.log('Valid:', form.getValue());
   }
@@ -79,6 +82,7 @@ const handleSubmit = () => {
 ```
 
 **Best for:**
+
 - Optional fields
 - Large text areas
 - Complex forms where real-time validation is distracting
@@ -119,6 +123,7 @@ const form = new GroupNode({
 ```
 
 **Benefits:**
+
 - Faster feedback for basic errors
 - Reduces unnecessary API calls
 - Better performance
@@ -475,7 +480,7 @@ validation: (path, { validateAsync }) => {
       debounce: 500, // Wait 500ms after user stops typing
     }
   );
-}
+};
 ```
 
 ### Cancel Previous Async Validations
@@ -494,7 +499,7 @@ validation: (path, { validateAsync }) => {
     },
     { debounce: 300 }
   );
-}
+};
 ```
 
 ### Lazy Validation

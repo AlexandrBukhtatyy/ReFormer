@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/make-form';
+import { makeForm } from '../../../../src/core/utils/create-form';
 import { computeFrom } from '../../../../src/core/behavior/behaviors/compute-from';
 import type { BehaviorSchemaFn } from '../../../../src/core/behavior/types';
 import type { FieldPath } from '../../../../src/core/types';

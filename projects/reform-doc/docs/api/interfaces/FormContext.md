@@ -1,6 +1,6 @@
 # FormContext
 
-Defined in: [core/types/form-context.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/form-context.ts#L35)
+Defined in: [core/types/form-context.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/form-context.ts#L35)
 
 Единый контекст для работы с формой
 
@@ -22,7 +22,7 @@ Defined in: [core/types/form-context.ts:35](https://github.com/AlexandrBukhtatyy
 readonly form: any;
 ```
 
-Defined in: [core/types/form-context.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/form-context.ts#L66)
+Defined in: [core/types/form-context.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/form-context.ts#L66)
 
 Форма с типизированным Proxy-доступом к полям
 
@@ -62,7 +62,7 @@ ctx.form.items.clear()
 setFieldValue(path, value): void;
 ```
 
-Defined in: [core/types/form-context.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/form-context.ts#L85)
+Defined in: [core/types/form-context.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/form-context.ts#L85)
 
 Безопасно установить значение поля по строковому пути
 

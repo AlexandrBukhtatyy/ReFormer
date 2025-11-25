@@ -36,9 +36,7 @@ export function TextField({ field, label }: TextFieldProps) {
         className={showError ? 'error' : ''}
       />
       {showError && control.errors && (
-        <span className="error-message">
-          {getErrorMessage(control.errors)}
-        </span>
+        <span className="error-message">{getErrorMessage(control.errors)}</span>
       )}
     </div>
   );
@@ -62,10 +60,7 @@ export type ErrorKey =
   | 'emailTaken'
   | 'passwordMismatch';
 
-export const errorMessages: Record<
-  ErrorKey,
-  (params: any) => string
-> = {
+export const errorMessages: Record<ErrorKey, (params: any) => string> = {
   required: () => 'This field is required',
   email: () => 'Please enter a valid email address',
   minLength: (p) => `Must be at least ${p.required} characters`,
@@ -114,10 +109,10 @@ export function ErrorList({ errors }: ErrorListProps) {
 }
 
 // Usage
-<TextField field={form.controls.password} label="Password" />
-{password.touched && password.errors && (
-  <ErrorList errors={password.errors} />
-)}
+<TextField field={form.controls.password} label="Password" />;
+{
+  password.touched && password.errors && <ErrorList errors={password.errors} />;
+}
 ```
 
 ### Error Icons
@@ -144,14 +139,10 @@ export function TextField({ field, label }: TextFieldProps) {
           {!control.pending && control.touched && control.valid && (
             <CheckCircle className="success" />
           )}
-          {!control.pending && control.touched && control.invalid && (
-            <XCircle className="error" />
-          )}
+          {!control.pending && control.touched && control.invalid && <XCircle className="error" />}
         </div>
       </div>
-      {control.touched && control.errors && (
-        <ErrorMessage errors={control.errors} />
-      )}
+      {control.touched && control.errors && <ErrorMessage errors={control.errors} />}
     </div>
   );
 }
@@ -272,7 +263,7 @@ export function FormWithToasts() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAllAsTouched();
+    form.markAsTouched();
 
     if (form.invalid.value) {
       const errors = collectAllErrors(form);
@@ -305,7 +296,7 @@ export function FormWithErrorModal() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAllAsTouched();
+    form.markAsTouched();
 
     if (form.invalid.value) {
       const allErrors = collectAllErrors(form);
@@ -324,9 +315,7 @@ export function FormWithErrorModal() {
       <Dialog open={showErrors} onOpenChange={setShowErrors}>
         <Dialog.Content>
           <Dialog.Title>Form Errors</Dialog.Title>
-          <Dialog.Description>
-            Please fix the following errors:
-          </Dialog.Description>
+          <Dialog.Description>Please fix the following errors:</Dialog.Description>
           <ul>
             {errors.map((error, index) => (
               <li key={index}>
@@ -355,7 +344,7 @@ const form = useMemo(() => createRegistrationForm(), []);
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  form.markAllAsTouched();
+  form.markAsTouched();
 
   if (form.invalid.value) return;
 
@@ -397,7 +386,7 @@ const [serverError, setServerError] = useState<string | null>(null);
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setServerError(null);
-  form.markAllAsTouched();
+  form.markAsTouched();
 
   if (form.invalid.value) return;
 
@@ -440,10 +429,7 @@ Support multiple languages:
 ```typescript title="utils/error-messages-i18n.ts"
 type Locale = 'en' | 'es' | 'fr';
 
-const errorMessagesLocalized: Record<
-  Locale,
-  Record<ErrorKey, (params: any) => string>
-> = {
+const errorMessagesLocalized: Record<Locale, Record<ErrorKey, (params: any) => string>> = {
   en: {
     required: () => 'This field is required',
     email: () => 'Please enter a valid email',
@@ -491,7 +477,7 @@ export function ErrorMessage({ errors }: { errors: Record<string, any> }) {
 // App wrapper
 <LocaleContext.Provider value="es">
   <MyForm />
-</LocaleContext.Provider>
+</LocaleContext.Provider>;
 ```
 
 ## Error Styling
@@ -575,9 +561,7 @@ export function TextField({ field, label }: TextFieldProps) {
 
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700">
-        {label}
-      </label>
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
       <input
         value={control.value ?? ''}
         onChange={(e) => control.setValue(e.target.value)}
@@ -649,14 +633,12 @@ export function FormWithAutoFocus() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAllAsTouched();
+    form.markAsTouched();
 
     if (form.invalid.value) {
       // Focus first error
       setTimeout(() => {
-        const firstError = formRef.current?.querySelector(
-          '[aria-invalid="true"]'
-        ) as HTMLElement;
+        const firstError = formRef.current?.querySelector('[aria-invalid="true"]') as HTMLElement;
         firstError?.focus();
       }, 0);
       return;
@@ -686,7 +668,7 @@ export function FormWithAnnouncements() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAllAsTouched();
+    form.markAsTouched();
 
     if (form.invalid.value) {
       const errors = collectAllErrors(form);
@@ -701,12 +683,7 @@ export function FormWithAnnouncements() {
 
   return (
     <>
-      <div
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
       <form onSubmit={handleSubmit}>{/* fields */}</form>
@@ -721,21 +698,25 @@ export function FormWithAnnouncements() {
 
 ```tsx
 // ✅ Good - show after touched
-{control.touched && control.errors && (
-  <ErrorMessage errors={control.errors} />
-)}
+{
+  control.touched && control.errors && <ErrorMessage errors={control.errors} />;
+}
 
 // ❌ Bad - show immediately
-{control.errors && <ErrorMessage errors={control.errors} />}
+{
+  control.errors && <ErrorMessage errors={control.errors} />;
+}
 ```
 
 ### 2. Provide Helpful Messages
 
 ```typescript
 // ✅ Good - specific and helpful
-return { passwordTooWeak: {
-  message: 'Password must contain uppercase, lowercase, number, and be at least 8 characters'
-}};
+return {
+  passwordTooWeak: {
+    message: 'Password must contain uppercase, lowercase, number, and be at least 8 characters',
+  },
+};
 
 // ❌ Bad - vague
 return { invalid: true };
@@ -745,12 +726,18 @@ return { invalid: true };
 
 ```tsx
 // ✅ Good - multiple indicators
-<input className={showError ? 'error' : ''} aria-invalid={showError} />
-{showError && <XCircle className="error-icon" />}
-{showError && <ErrorMessage />}
+<input className={showError ? 'error' : ''} aria-invalid={showError} />;
+{
+  showError && <XCircle className="error-icon" />;
+}
+{
+  showError && <ErrorMessage />;
+}
 
 // ❌ Bad - text only
-{showError && <span>Error</span>}
+{
+  showError && <span>Error</span>;
+}
 ```
 
 ### 4. Handle Server Errors Gracefully

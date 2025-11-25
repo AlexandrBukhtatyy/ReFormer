@@ -9,6 +9,7 @@ Compose complex forms from simple, reusable parts.
 ## Why Compose Forms?
 
 Form composition helps you:
+
 - Break large forms into manageable pieces
 - Reuse form sections across different forms
 - Create multi-step wizards
@@ -146,7 +147,7 @@ export const createWizardForm = () => {
     const stepNode = form.controls[stepKey];
 
     // Mark step fields as touched
-    stepNode.markAllAsTouched();
+    stepNode.markAsTouched();
 
     // Validate current step
     if (stepNode.valid.value) {
@@ -238,16 +239,10 @@ export function WizardForm() {
 
       {/* Navigation */}
       <div className="wizard__navigation">
-        {currentStep.value > 1 && (
-          <button onClick={prevStep}>Previous</button>
-        )}
-        {currentStep.value < 3 && (
-          <button onClick={nextStep}>Next</button>
-        )}
+        {currentStep.value > 1 && <button onClick={prevStep}>Previous</button>}
+        {currentStep.value < 3 && <button onClick={nextStep}>Next</button>}
         {currentStep.value === 3 && (
-          <button onClick={() => console.log(form.getValue())}>
-            Submit
-          </button>
+          <button onClick={() => console.log(form.getValue())}>Submit</button>
         )}
       </div>
     </div>
@@ -323,10 +318,7 @@ export function EducationForm() {
       {educations.controls.map((education, index) => (
         <div key={education.id} className="education-form__item">
           <h3>Education {index + 1}</h3>
-          <TextField
-            field={education.controls.institution}
-            label="Institution"
-          />
+          <TextField field={education.controls.institution} label="Institution" />
           <TextField field={education.controls.degree} label="Degree" />
           <DateField field={education.controls.startDate} label="Start Date" />
           <DateField field={education.controls.endDate} label="End Date" />
@@ -419,7 +411,7 @@ export function SettingsForm() {
   const privacy = useFormControl(form.controls.privacy);
 
   const handleSave = () => {
-    form.markAllAsTouched();
+    form.markAsTouched();
     if (form.valid.value) {
       console.log('Saving:', form.getValue());
     }

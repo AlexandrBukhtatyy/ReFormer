@@ -16,6 +16,7 @@ In this lesson, you'll learn how to validate fields against server-side data, su
 ## Why Use Async Validation?
 
 Some validations require server communication:
+
 - Check if username is already taken
 - Verify email address exists
 - Validate coupon code against database
@@ -108,7 +109,7 @@ export function RegistrationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    registrationForm.markAllAsTouched();
+    registrationForm.markAsTouched();
 
     // Wait for async validation to complete
     await registrationForm.validateAsync();
@@ -130,9 +131,7 @@ export function RegistrationForm() {
           onChange={(e) => username.setValue(e.target.value)}
           onBlur={() => username.markAsTouched()}
         />
-        {username.validating && (
-          <span className="info">Checking availability...</span>
-        )}
+        {username.validating && <span className="info">Checking availability...</span>}
         {username.touched && username.errors?.required && (
           <span className="error">Username is required</span>
         )}

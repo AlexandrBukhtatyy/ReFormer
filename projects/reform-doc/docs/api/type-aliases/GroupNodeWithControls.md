@@ -4,7 +4,7 @@
 type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
 ```
 
-Defined in: [core/types/group-node-proxy.ts:95](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/group-node-proxy.ts#L95)
+Defined in: [core/types/group-node-proxy.ts:95](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/group-node-proxy.ts#L95)
 
 Комбинированный тип для GroupNode с Proxy доступом к полям
 

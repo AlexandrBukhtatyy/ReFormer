@@ -4,7 +4,7 @@
 type FormNodeControls<T> = { [K in keyof T]: NonNullable<T[K]> extends (infer U)[] ? U extends FormFields ? ArrayNodeWithControls<U> : FieldNode<T[K]> : NonNullable<T[K]> extends FormFields ? NonNullable<T[K]> extends Date | File | Blob ? FieldNode<T[K]> : GroupNodeWithControls<NonNullable<T[K]>> : FieldNode<T[K]> };
 ```
 
-Defined in: [core/types/group-node-proxy.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/group-node-proxy.ts#L53)
+Defined in: [core/types/group-node-proxy.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/group-node-proxy.ts#L53)
 
 Мапит тип модели данных T на правильные типы узлов формы
 

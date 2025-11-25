@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/make-form';
+import { makeForm } from '../../../../src/core/utils/create-form';
 import { enableWhen, disableWhen } from '../../../../src/core/behavior/behaviors/enable-when';
 import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';

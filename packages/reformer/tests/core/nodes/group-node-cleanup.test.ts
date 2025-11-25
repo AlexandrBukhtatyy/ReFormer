@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { makeForm } from '../../../src/core/utils/make-form';
+import { makeForm } from '../../../src/core/utils/create-form';
 import type { GroupNodeWithControls } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 

@@ -32,12 +32,12 @@ sidebar_position: 1
   personalInfo: {
     firstName: string;
     lastName: string;
-  };
+  }
   address: {
     street: string;
     city: string;
     zipCode: string;
-  };
+  }
 }
 ```
 
@@ -151,7 +151,7 @@ export function ProfileForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    profileForm.markAllAsTouched();
+    profileForm.markAsTouched();
 
     if (!profileForm.valid) {
       return;
@@ -232,9 +232,7 @@ export function ProfileForm() {
             onChange={(e) => city.setValue(e.target.value)}
             onBlur={() => city.markAsTouched()}
           />
-          {city.touched && city.errors?.required && (
-            <span className="error">Город обязателен</span>
-          )}
+          {city.touched && city.errors?.required && <span className="error">Город обязателен</span>}
         </div>
 
         <div>
@@ -273,7 +271,7 @@ console.log(profileForm.controls.personalInfo.errors);
 // { firstName: { required: true }, lastName: { required: true }, ... }
 
 // Пометить всю секцию как тронутую
-profileForm.controls.personalInfo.markAllAsTouched();
+profileForm.controls.personalInfo.markAsTouched();
 ```
 
 ## Преимущества вложенных групп

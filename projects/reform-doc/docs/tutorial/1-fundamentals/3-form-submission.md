@@ -33,7 +33,7 @@ export function RegistrationForm() {
     e.preventDefault();
 
     // Mark all fields as touched to show validation errors
-    registrationForm.markAllAsTouched();
+    registrationForm.markAsTouched();
 
     // Check if form is valid
     if (!registrationForm.valid) {
@@ -63,7 +63,6 @@ export function RegistrationForm() {
 
       // Reset form
       registrationForm.reset();
-
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
@@ -83,9 +82,7 @@ export function RegistrationForm() {
           onBlur={() => name.markAsTouched()}
           disabled={isSubmitting}
         />
-        {name.touched && name.errors?.required && (
-          <span className="error">Name is required</span>
-        )}
+        {name.touched && name.errors?.required && <span className="error">Name is required</span>}
         {name.touched && name.errors?.minLength && (
           <span className="error">Name must be at least 2 characters</span>
         )}
@@ -109,9 +106,7 @@ export function RegistrationForm() {
         )}
       </div>
 
-      {submitError && (
-        <div className="error">{submitError}</div>
-      )}
+      {submitError && <div className="error">{submitError}</div>}
 
       <button type="submit" disabled={!registrationForm.valid || isSubmitting}>
         {isSubmitting ? 'Registering...' : 'Register'}
@@ -123,13 +118,13 @@ export function RegistrationForm() {
 
 ## Key Methods for Submission
 
-### markAllAsTouched()
+### markAsTouched()
 
 Shows validation errors for all fields:
 
 ```typescript
 // Before submission, mark all fields as touched
-registrationForm.markAllAsTouched();
+registrationForm.markAsTouched();
 
 // Now all validation errors will be visible
 // even for fields the user hasn't interacted with
@@ -189,7 +184,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     setSubmitError(null);
 
     // Perform submission...
-
   } catch (error) {
     setSubmitError(error.message);
   } finally {
@@ -237,7 +231,7 @@ Here's the complete submission flow:
 
 ## Key Concepts
 
-- **`markAllAsTouched()`** — shows validation errors for all fields
+- **`markAsTouched()`** — shows validation errors for all fields
 - **`valid`** — check before submission
 - **`value`** — contains complete form data
 - **`reset()`** — resets form to initial state

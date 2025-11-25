@@ -4,8 +4,9 @@ import CreditApplicationForm from './pages/examples/complex-multy-step-form/Cred
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
+import Playground from './pages/examples/playground/Playground';
 
-type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex';
+type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'playground';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -31,6 +32,12 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/behaviors',
     title: 'Поведения',
     description: 'computeFrom, enableWhen и условная логика',
+  },
+  {
+    id: 'playground',
+    path: '/examples/playground',
+    title: 'Песочница',
+    description: 'Страница для эксперементов',
   },
 ];
 
@@ -70,9 +77,7 @@ function ExampleDescription() {
   return (
     <div className="bg-blue-50 border-b border-blue-100">
       <div className="container mx-auto px-4 py-3">
-        <p className="text-blue-800 text-sm">
-          {currentExample?.description || 'Выберите пример'}
-        </p>
+        <p className="text-blue-800 text-sm">{currentExample?.description || 'Выберите пример'}</p>
       </div>
     </div>
   );
@@ -104,6 +109,7 @@ function Layout() {
           <Route path="/examples/validation" element={<ValidationExamples />} />
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
+          <Route path="/examples/playground" element={<Playground />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

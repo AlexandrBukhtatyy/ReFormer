@@ -16,6 +16,7 @@ sidebar_position: 2
 ## Зачем использовать ArrayNode?
 
 Многим формам требуется обрабатывать списки элементов:
+
 - Список контактов с несколькими номерами телефонов
 - Форма заказа с несколькими товарами
 - Резюме с несколькими местами работы
@@ -46,10 +47,12 @@ const phonePattern = /^\+?[\d\s\-()]+$/;
 export const contactForm = new GroupNode<ContactFormData>({
   form: {
     name: { value: '' },
-    phones: [{
-      type: { value: 'mobile' },
-      number: { value: '' },
-    }],
+    phones: [
+      {
+        type: { value: 'mobile' },
+        number: { value: '' },
+      },
+    ],
   },
   validation: (path) => {
     required(path.name);
@@ -110,7 +113,7 @@ export function PhoneListForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    contactForm.markAllAsTouched();
+    contactForm.markAsTouched();
 
     if (!contactForm.valid) {
       return;
@@ -129,9 +132,7 @@ export function PhoneListForm() {
           onChange={(e) => name.setValue(e.target.value)}
           onBlur={() => name.markAsTouched()}
         />
-        {name.touched && name.errors?.required && (
-          <span className="error">Имя обязательно</span>
-        )}
+        {name.touched && name.errors?.required && <span className="error">Имя обязательно</span>}
       </div>
 
       <div>
@@ -143,13 +144,13 @@ export function PhoneListForm() {
           const number = useFormControl(phone.controls.number);
 
           return (
-            <div key={phone.id} style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc' }}>
+            <div
+              key={phone.id}
+              style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc' }}
+            >
               <div>
                 <label>Тип</label>
-                <select
-                  value={type.value}
-                  onChange={(e) => type.setValue(e.target.value)}
-                >
+                <select value={type.value} onChange={(e) => type.setValue(e.target.value)}>
                   <option value="mobile">Мобильный</option>
                   <option value="home">Домашний</option>
                   <option value="work">Рабочий</option>
@@ -172,20 +173,14 @@ export function PhoneListForm() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => phones.removeAt(index)}
-              >
+              <button type="button" onClick={() => phones.removeAt(index)}>
                 Удалить
               </button>
             </div>
           );
         })}
 
-        <button
-          type="button"
-          onClick={() => phones.push()}
-        >
+        <button type="button" onClick={() => phones.push()}>
           Добавить номер телефона
         </button>
       </div>
@@ -216,7 +211,7 @@ validation: (path) => {
   required(path.phones.$each.type);
   required(path.phones.$each.number);
   pattern(path.phones.$each.number, phonePattern);
-}
+};
 ```
 
 Сегмент `$each` указывает ReFormer применить валидацию к каждому элементу массива.
@@ -253,17 +248,19 @@ interface OrderFormData {
   items: {
     product: string;
     quantity: number;
-    variants: string[];  // Вложенный массив!
+    variants: string[]; // Вложенный массив!
   }[];
 }
 
 export const orderForm = new GroupNode<OrderFormData>({
   form: {
-    items: [{
-      product: { value: '' },
-      quantity: { value: 1 },
-      variants: [{ value: '' }],  // Вложенный массив строк
-    }],
+    items: [
+      {
+        product: { value: '' },
+        quantity: { value: 1 },
+        variants: [{ value: '' }], // Вложенный массив строк
+      },
+    ],
   },
 });
 ```

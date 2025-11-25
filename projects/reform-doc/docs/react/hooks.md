@@ -130,7 +130,7 @@ function ContactForm() {
     e.preventDefault();
 
     // Show all validation errors
-    form.markAllAsTouched();
+    form.markAsTouched();
 
     if (form.valid) {
       // Submit data

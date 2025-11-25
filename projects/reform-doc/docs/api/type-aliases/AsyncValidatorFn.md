@@ -4,7 +4,7 @@
 type AsyncValidatorFn<T> = (value) => Promise<ValidationError | null>;
 ```
 
-Defined in: [core/types/index.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/bd45b7bd0af225a0a37544ca26180fb6ed2c99d8/packages/reformer/src/core/types/index.ts#L31)
+Defined in: [core/types/index.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/index.ts#L31)
 
 ## Type Parameters
 

@@ -1,19 +1,11 @@
----
-sidebar_position: 2
----
-
-# Быстрый старт
-
-Создайте простую контактную форму за 5 минут.
-
-## Шаг 1: Создание компонентов для полей
-
-ReFormer использует ваши собственные компоненты для отображения полей.
-
-### Базовые компоненты
-
-```tsx title="src/components/ui/Input.tsx"
 import * as React from 'react';
+import { useMemo } from 'react';
+import { createForm, useFormControl, type FieldNode } from 'reformer';
+import { required, email, minLength } from 'reformer/validators';
+
+// ============================================================================
+// Шаг 1: Компоненты для полей
+// ============================================================================
 
 interface InputProps {
   value?: string;
@@ -23,7 +15,7 @@ interface InputProps {
   disabled?: boolean;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ value, onChange, onBlur, placeholder, disabled }, ref) => (
     <input
       ref={ref}
@@ -37,10 +29,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     />
   )
 );
-```
-
-```tsx title="src/components/ui/Textarea.tsx"
-import * as React from 'react';
 
 interface TextareaProps {
   value?: string;
@@ -50,7 +38,7 @@ interface TextareaProps {
   disabled?: boolean;
 }
 
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ value, onChange, onBlur, placeholder, disabled }, ref) => (
     <textarea
       ref={ref}
@@ -64,20 +52,18 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     />
   )
 );
-```
 
-### Универсальный компонент FormField
-
-```tsx title="src/components/ui/FormField.tsx"
-import * as React from 'react';
-import { useFormControl, type FieldNode } from 'reformer';
+// ============================================================================
+// Универсальный компонент FormField
+// ============================================================================
 
 interface FormFieldProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: FieldNode<any>;
   className?: string;
 }
 
-export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
+const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
   const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
 
   const Component = control.component;
@@ -105,37 +91,22 @@ export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
     </div>
   );
 };
-```
 
-:::info Зачем FormField?
-`FormField` автоматически:
+// ============================================================================
+// Шаг 2: Интерфейс формы
+// ============================================================================
 
-- Отображает label из `componentProps`
-- Связывает значение с формой
-- Вызывает `markAsTouched()` при blur
-- Показывает ошибки валидации
-  :::
-
-## Шаг 2: Описание интерфейса формы
-
-```typescript title="src/forms/contact-form.type.ts"
 type ContactFormType = {
   name: string;
   email: string;
   message: string;
 };
-```
 
-## Шаг 3: Создание описания формы
+// ============================================================================
+// Шаг 3: Описание формы (структура + валидация)
+// ============================================================================
 
-```typescript title="src/forms/contact-form.ts"
-import { createForm } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
-import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
-import { ContactFormType } from '@/forms/contact-form.type';
-
-export const createContactForm = () =>
+const createContactForm = () =>
   createForm<ContactFormType>({
     form: {
       name: { value: '', component: Input, componentProps: { label: 'Имя' } },
@@ -151,24 +122,12 @@ export const createContactForm = () =>
       minLength(path.message, 10);
     },
   });
-```
 
-:::info Ключевые моменты
+// ============================================================================
+// Шаг 4: Компонент формы
+// ============================================================================
 
-- **`createForm<T>`** — фабричная функция с автоматической типизацией
-- **`component`** — React-компонент для отображения поля
-- **`componentProps`** — пропсы для компонента (label, placeholder и т.д.)
-- **`validation`** — декларативная схема валидации
-  :::
-
-## Шаг 4: Создание компонента формы
-
-```tsx title="src/components/ContactForm.tsx"
-import { useMemo } from 'react';
-import { createContactForm } from '@/forms/contact-form';
-import { FormField } from '@/components/ui/FormField';
-
-export function ContactForm() {
+function ContactForm() {
   const form = useMemo(() => createContactForm(), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,19 +156,16 @@ export function ContactForm() {
     </form>
   );
 }
-```
 
-## Результат
+// ============================================================================
+// Страница Playground
+// ============================================================================
 
-Вы создали форму с:
-
-- ✅ Типобезопасностью TypeScript
-- ✅ Декларативной валидацией
-- ✅ Автоматическим отображением ошибок
-- ✅ Чистым и минимальным кодом
-
-## Следующие шаги
-
-- [Основные концепции](/docs/core-concepts/nodes) — узнайте больше о Nodes
-- [Валидация](/docs/validation/overview) — все встроенные валидаторы
-- [Behaviors](/docs/behaviors/overview) — вычисляемые поля и условная логика
+export default function Playground() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Playground</h1>
+      <ContactForm />
+    </div>
+  );
+}

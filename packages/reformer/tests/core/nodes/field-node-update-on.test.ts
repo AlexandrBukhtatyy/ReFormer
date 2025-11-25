@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import type { ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
-import { makeForm } from '../../../src/core/utils/make-form';
+import { makeForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 const requiredValidator: ValidatorFn<string> = (value: string) => {
@@ -65,7 +65,6 @@ describe('FieldNode - updateOn', () => {
       // Validation happens synchronously for sync validators
       expect(field.errors.value).toHaveLength(1);
     });
-
   });
 
   describe('updateOn: "blur" (default)', () => {

@@ -16,6 +16,7 @@ sidebar_position: 3
 ## Зачем использовать асинхронную валидацию?
 
 Некоторые валидации требуют связи с сервером:
+
 - Проверить, занято ли имя пользователя
 - Проверить существование email-адреса
 - Валидировать промокод по базе данных
@@ -108,7 +109,7 @@ export function RegistrationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    registrationForm.markAllAsTouched();
+    registrationForm.markAsTouched();
 
     // Ждем завершения асинхронной валидации
     await registrationForm.validateAsync();
@@ -130,9 +131,7 @@ export function RegistrationForm() {
           onChange={(e) => username.setValue(e.target.value)}
           onBlur={() => username.markAsTouched()}
         />
-        {username.validating && (
-          <span className="info">Проверка доступности...</span>
-        )}
+        {username.validating && <span className="info">Проверка доступности...</span>}
         {username.touched && username.errors?.required && (
           <span className="error">Имя пользователя обязательно</span>
         )}
@@ -156,9 +155,7 @@ export function RegistrationForm() {
           onChange={(e) => email.setValue(e.target.value)}
           onBlur={() => email.markAsTouched()}
         />
-        {email.touched && email.errors?.required && (
-          <span className="error">Email обязателен</span>
-        )}
+        {email.touched && email.errors?.required && <span className="error">Email обязателен</span>}
       </div>
 
       <div>

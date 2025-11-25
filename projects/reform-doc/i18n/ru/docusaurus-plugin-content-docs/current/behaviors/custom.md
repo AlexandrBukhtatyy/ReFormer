@@ -9,6 +9,7 @@ sidebar_position: 6
 ## Что такое Поведения?
 
 Поведения — это реактивные побочные эффекты, которые выполняются при изменении значений формы. Они полезны для:
+
 - Автосохранения данных формы
 - Синхронизации полей
 - Управления фокусом
@@ -30,7 +31,7 @@ behaviors: (path, { use }) => [
       console.log('Field1 изменилось:', values.field1);
     },
   }),
-]
+];
 ```
 
 ## Поведение с Множественными Зависимостями
@@ -45,11 +46,11 @@ behaviors: (path, { use }) => [
     run: (values) => {
       const { price, quantity, tax } = values;
       const subtotal = price * quantity;
-      const total = subtotal + (subtotal * tax / 100);
+      const total = subtotal + (subtotal * tax) / 100;
       console.log('Итого:', total);
     },
   }),
-]
+];
 ```
 
 ## Переиспользуемая Фабрика Поведений
@@ -99,16 +100,18 @@ export function autoSave<T>(options: AutoSaveOptions): Behavior<T> {
 import { autoSave } from './behaviors/auto-save';
 
 behaviors: (path, { use }) => [
-  use(autoSave({
-    debounce: 2000,
-    onSave: async (data) => {
-      await fetch('/api/save', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
-  })),
-]
+  use(
+    autoSave({
+      debounce: 2000,
+      onSave: async (data) => {
+        await fetch('/api/save', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+      },
+    })
+  ),
+];
 ```
 
 ## Поведение с Очисткой
@@ -132,9 +135,7 @@ export function focusField<T>(options: FocusFieldOptions): Behavior<T> {
     paths: [],
     run: (_values, ctx) => {
       timeoutId = setTimeout(() => {
-        const input = document.querySelector<HTMLInputElement>(
-          `[name="${fieldName}"]`
-        );
+        const input = document.querySelector<HTMLInputElement>(`[name="${fieldName}"]`);
         input?.focus();
       }, delay);
     },
@@ -145,9 +146,7 @@ export function focusField<T>(options: FocusFieldOptions): Behavior<T> {
 }
 
 // Использование - фокус на первом поле с ошибкой
-behaviors: (path, { use }) => [
-  use(focusField({ fieldName: 'email', delay: 100 })),
-]
+behaviors: (path, { use }) => [use(focusField({ fieldName: 'email', delay: 100 }))];
 ```
 
 ## Условное Поведение
@@ -163,9 +162,7 @@ interface ConditionalSyncOptions<T> {
   sourcePath: any;
 }
 
-export function conditionalSync<T>(
-  options: ConditionalSyncOptions<T>
-): Behavior<T> {
+export function conditionalSync<T>(options: ConditionalSyncOptions<T>): Behavior<T> {
   const { condition, targetPath, sourcePath } = options;
 
   return {
@@ -184,12 +181,14 @@ export function conditionalSync<T>(
 
 // Использование - копировать адрес доставки в адрес плательщика при установке флажка
 behaviors: (path, { use }) => [
-  use(conditionalSync({
-    condition: (form) => form.sameAsShipping,
-    targetPath: path.shippingAddress,
-    sourcePath: path.billingAddress,
-  })),
-]
+  use(
+    conditionalSync({
+      condition: (form) => form.sameAsShipping,
+      targetPath: path.shippingAddress,
+      sourcePath: path.billingAddress,
+    })
+  ),
+];
 ```
 
 ## Практические Примеры
@@ -207,16 +206,8 @@ interface AutoCompleteOptions {
   debounce?: number;
 }
 
-export function autoComplete<T>(
-  options: AutoCompleteOptions
-): Behavior<T> {
-  const {
-    searchPath,
-    resultPath,
-    fetchResults,
-    minLength = 2,
-    debounce = 300,
-  } = options;
+export function autoComplete<T>(options: AutoCompleteOptions): Behavior<T> {
+  const { searchPath, resultPath, fetchResults, minLength = 2, debounce = 300 } = options;
 
   let timeoutId: NodeJS.Timeout;
 
@@ -250,19 +241,19 @@ export function autoComplete<T>(
 
 // Использование
 behaviors: (path, { use }) => [
-  use(autoComplete({
-    searchPath: path.citySearch,
-    resultPath: path.citySuggestions,
-    fetchResults: async (query) => {
-      const response = await fetch(
-        `/api/cities?q=${encodeURIComponent(query)}`
-      );
-      return response.json();
-    },
-    minLength: 3,
-    debounce: 500,
-  })),
-]
+  use(
+    autoComplete({
+      searchPath: path.citySearch,
+      resultPath: path.citySuggestions,
+      fetchResults: async (query) => {
+        const response = await fetch(`/api/cities?q=${encodeURIComponent(query)}`);
+        return response.json();
+      },
+      minLength: 3,
+      debounce: 500,
+    })
+  ),
+];
 ```
 
 ### Клавиатурные Сокращения
@@ -278,9 +269,7 @@ interface KeyboardShortcut {
   action: (ctx: any) => void;
 }
 
-export function keyboardShortcuts<T>(
-  shortcuts: KeyboardShortcut[]
-): Behavior<T> {
+export function keyboardShortcuts<T>(shortcuts: KeyboardShortcut[]): Behavior<T> {
   const handleKeyDown = (event: KeyboardEvent, ctx: any) => {
     for (const shortcut of shortcuts) {
       if (
@@ -312,25 +301,27 @@ export function keyboardShortcuts<T>(
 
 // Использование
 behaviors: (path, { use }) => [
-  use(keyboardShortcuts([
-    {
-      key: 's',
-      ctrl: true,
-      action: (ctx) => {
-        ctx.form.markAllAsTouched();
-        if (ctx.form.valid.value) {
-          console.log('Сохранение...', ctx.form.getValue());
-        }
+  use(
+    keyboardShortcuts([
+      {
+        key: 's',
+        ctrl: true,
+        action: (ctx) => {
+          ctx.form.markAsTouched();
+          if (ctx.form.valid.value) {
+            console.log('Сохранение...', ctx.form.getValue());
+          }
+        },
       },
-    },
-    {
-      key: 'Escape',
-      action: (ctx) => {
-        ctx.form.reset();
+      {
+        key: 'Escape',
+        action: (ctx) => {
+          ctx.form.reset();
+        },
       },
-    },
-  ])),
-]
+    ])
+  ),
+];
 ```
 
 ### Отслеживание Аналитики
@@ -384,11 +375,13 @@ export function analytics<T>(options: AnalyticsOptions = {}): Behavior<T> {
 
 // Использование
 behaviors: (path, { use }) => [
-  use(analytics({
-    trackChanges: true,
-    trackErrors: true,
-  })),
-]
+  use(
+    analytics({
+      trackChanges: true,
+      trackErrors: true,
+    })
+  ),
+];
 ```
 
 ### Синхронизация с LocalStorage
@@ -401,9 +394,7 @@ interface LocalStorageSyncOptions {
   debounce?: number;
 }
 
-export function localStorageSync<T>(
-  options: LocalStorageSyncOptions
-): Behavior<T> {
+export function localStorageSync<T>(options: LocalStorageSyncOptions): Behavior<T> {
   const { key, debounce = 500 } = options;
   let timeoutId: NodeJS.Timeout;
 
@@ -447,9 +438,7 @@ const form = new GroupNode({
     name: { value: savedData?.name || '' },
     email: { value: savedData?.email || '' },
   },
-  behaviors: (path, { use }) => [
-    use(localStorageSync({ key: 'myForm', debounce: 1000 })),
-  ],
+  behaviors: (path, { use }) => [use(localStorageSync({ key: 'myForm', debounce: 1000 }))],
 });
 ```
 
@@ -462,9 +451,7 @@ interface VisibilityWatcherOptions {
   onVisibilityChange: (fieldName: string, visible: boolean) => void;
 }
 
-export function visibilityWatcher<T>(
-  options: VisibilityWatcherOptions
-): Behavior<T> {
+export function visibilityWatcher<T>(options: VisibilityWatcherOptions): Behavior<T> {
   const { onVisibilityChange } = options;
   const previousState = new Map<string, boolean>();
 
@@ -488,12 +475,14 @@ export function visibilityWatcher<T>(
 
 // Использование
 behaviors: (path, { use }) => [
-  use(visibilityWatcher({
-    onVisibilityChange: (fieldName, visible) => {
-      console.log(`Поле ${fieldName} теперь ${visible ? 'видимо' : 'скрыто'}`);
-    },
-  })),
-]
+  use(
+    visibilityWatcher({
+      onVisibilityChange: (fieldName, visible) => {
+        console.log(`Поле ${fieldName} теперь ${visible ? 'видимо' : 'скрыто'}`);
+      },
+    })
+  ),
+];
 ```
 
 ## Комбинирование Нескольких Поведений
@@ -510,30 +499,36 @@ const form = new GroupNode({
   },
   behaviors: (path, { use }) => [
     // Автосохранение каждые 2 секунды
-    use(autoSave({
-      debounce: 2000,
-      onSave: async (data) => {
-        await fetch('/api/save', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        });
-      },
-    })),
+    use(
+      autoSave({
+        debounce: 2000,
+        onSave: async (data) => {
+          await fetch('/api/save', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          });
+        },
+      })
+    ),
 
     // Отслеживание взаимодействий с формой
-    use(analytics({
-      trackChanges: true,
-      trackErrors: true,
-    })),
+    use(
+      analytics({
+        trackChanges: true,
+        trackErrors: true,
+      })
+    ),
 
     // Добавление клавиатурных сокращений
-    use(keyboardShortcuts([
-      {
-        key: 's',
-        ctrl: true,
-        action: (ctx) => console.log('Сохранение...'),
-      },
-    ])),
+    use(
+      keyboardShortcuts([
+        {
+          key: 's',
+          ctrl: true,
+          action: (ctx) => console.log('Сохранение...'),
+        },
+      ])
+    ),
   ],
 });
 ```
@@ -548,13 +543,13 @@ use({
   key: 'myBehavior',
   paths: [path.field],
   run: () => {},
-})
+});
 
 // ❌ Плохо - отсутствует ключ
 use({
   paths: [path.field],
   run: () => {},
-})
+});
 ```
 
 ### 2. Очищайте Ресурсы
@@ -570,17 +565,17 @@ use({
   cleanup: () => {
     clearTimeout(timerId);
   },
-})
+});
 ```
 
 ### 3. Указывайте Зависимости
 
 ```typescript
 // ✅ Хорошо - реагирует только на конкретные поля
-paths: [path.field1, path.field2]
+paths: [path.field1, path.field2];
 
 // ❌ Плохо - реагирует на все изменения (если не задумано)
-paths: []
+paths: [];
 ```
 
 ### 4. Обрабатывайте Ошибки
@@ -597,7 +592,7 @@ use({
       // Не пробрасывайте ошибку - поведения не должны ломать форму
     }
   },
-})
+});
 ```
 
 ## Следующие Шаги

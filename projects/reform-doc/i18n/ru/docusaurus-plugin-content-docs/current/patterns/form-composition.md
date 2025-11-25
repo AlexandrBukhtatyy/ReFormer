@@ -9,6 +9,7 @@ sidebar_position: 3
 ## Зачем Компоновать Формы?
 
 Композиция форм помогает:
+
 - Разбить большие формы на управляемые части
 - Переиспользовать секции форм в разных формах
 - Создавать многошаговые мастера
@@ -146,7 +147,7 @@ export const createWizardForm = () => {
     const stepNode = form.controls[stepKey];
 
     // Отметить поля шага как touched
-    stepNode.markAllAsTouched();
+    stepNode.markAsTouched();
 
     // Валидировать текущий шаг
     if (stepNode.valid.value) {
@@ -238,16 +239,10 @@ export function WizardForm() {
 
       {/* Навигация */}
       <div className="wizard__navigation">
-        {currentStep.value > 1 && (
-          <button onClick={prevStep}>Назад</button>
-        )}
-        {currentStep.value < 3 && (
-          <button onClick={nextStep}>Далее</button>
-        )}
+        {currentStep.value > 1 && <button onClick={prevStep}>Назад</button>}
+        {currentStep.value < 3 && <button onClick={nextStep}>Далее</button>}
         {currentStep.value === 3 && (
-          <button onClick={() => console.log(form.getValue())}>
-            Отправить
-          </button>
+          <button onClick={() => console.log(form.getValue())}>Отправить</button>
         )}
       </div>
     </div>
@@ -323,10 +318,7 @@ export function EducationForm() {
       {educations.controls.map((education, index) => (
         <div key={education.id} className="education-form__item">
           <h3>Образование {index + 1}</h3>
-          <TextField
-            field={education.controls.institution}
-            label="Учебное заведение"
-          />
+          <TextField field={education.controls.institution} label="Учебное заведение" />
           <TextField field={education.controls.degree} label="Степень" />
           <DateField field={education.controls.startDate} label="Дата начала" />
           <DateField field={education.controls.endDate} label="Дата окончания" />
@@ -419,7 +411,7 @@ export function SettingsForm() {
   const privacy = useFormControl(form.controls.privacy);
 
   const handleSave = () => {
-    form.markAllAsTouched();
+    form.markAsTouched();
     if (form.valid.value) {
       console.log('Сохранение:', form.getValue());
     }

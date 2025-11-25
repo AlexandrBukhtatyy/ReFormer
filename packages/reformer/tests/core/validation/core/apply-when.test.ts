@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/make-form';
+import { makeForm } from '../../../../src/core/utils/create-form';
 import { applyWhen } from '../../../../src/core/validation/core/apply-when';
 import { required } from '../../../../src/core/validation/validators/required';
 import { min } from '../../../../src/core/validation/validators/min';

@@ -33,7 +33,7 @@ export function RegistrationForm() {
     e.preventDefault();
 
     // Помечаем все поля как тронутые, чтобы показать ошибки валидации
-    registrationForm.markAllAsTouched();
+    registrationForm.markAsTouched();
 
     // Проверяем, валидна ли форма
     if (!registrationForm.valid) {
@@ -63,7 +63,6 @@ export function RegistrationForm() {
 
       // Сбрасываем форму
       registrationForm.reset();
-
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Произошла ошибка');
     } finally {
@@ -83,9 +82,7 @@ export function RegistrationForm() {
           onBlur={() => name.markAsTouched()}
           disabled={isSubmitting}
         />
-        {name.touched && name.errors?.required && (
-          <span className="error">Имя обязательно</span>
-        )}
+        {name.touched && name.errors?.required && <span className="error">Имя обязательно</span>}
         {name.touched && name.errors?.minLength && (
           <span className="error">Имя должно быть не менее 2 символов</span>
         )}
@@ -101,17 +98,13 @@ export function RegistrationForm() {
           onBlur={() => email.markAsTouched()}
           disabled={isSubmitting}
         />
-        {email.touched && email.errors?.required && (
-          <span className="error">Email обязателен</span>
-        )}
+        {email.touched && email.errors?.required && <span className="error">Email обязателен</span>}
         {email.touched && email.errors?.email && (
           <span className="error">Некорректный формат email</span>
         )}
       </div>
 
-      {submitError && (
-        <div className="error">{submitError}</div>
-      )}
+      {submitError && <div className="error">{submitError}</div>}
 
       <button type="submit" disabled={!registrationForm.valid || isSubmitting}>
         {isSubmitting ? 'Регистрация...' : 'Зарегистрироваться'}
@@ -123,13 +116,13 @@ export function RegistrationForm() {
 
 ## Ключевые методы для отправки
 
-### markAllAsTouched()
+### markAsTouched()
 
 Показывает ошибки валидации для всех полей:
 
 ```typescript
 // Перед отправкой помечаем все поля как тронутые
-registrationForm.markAllAsTouched();
+registrationForm.markAsTouched();
 
 // Теперь все ошибки валидации будут видны
 // даже для полей, с которыми пользователь не взаимодействовал
@@ -189,7 +182,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     setSubmitError(null);
 
     // Выполняем отправку...
-
   } catch (error) {
     setSubmitError(error.message);
   } finally {
@@ -237,7 +229,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 ## Ключевые концепции
 
-- **`markAllAsTouched()`** — показывает ошибки валидации для всех полей
+- **`markAsTouched()`** — показывает ошибки валидации для всех полей
 - **`valid`** — проверяйте перед отправкой
 - **`value`** — содержит полные данные формы
 - **`reset()`** — сбрасывает форму в исходное состояние
