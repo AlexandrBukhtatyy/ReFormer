@@ -68,6 +68,17 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
 ### Универсальный компонент FormField
 
+:::info Зачем FormField?
+`FormField` автоматически:
+
+- Отображает label из `componentProps`
+- Связывает значение с формой
+- Вызывает `markAsTouched()` при blur
+- Показывает ошибки валидации
+
+Данный компонент нужен не только для того что бы унифицировать работу с полями формы но и оптимизировать рендер формы.
+:::
+
 ```tsx title="src/components/ui/FormField.tsx"
 import * as React from 'react';
 import { useFormControl, type FieldNode } from 'reformer';
@@ -107,15 +118,6 @@ export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
 };
 ```
 
-:::info Зачем FormField?
-`FormField` автоматически:
-
-- Отображает label из `componentProps`
-- Связывает значение с формой
-- Вызывает `markAsTouched()` при blur
-- Показывает ошибки валидации
-  :::
-
 ## Шаг 2: Описание интерфейса формы
 
 ```typescript title="src/forms/contact-form.type.ts"
@@ -127,6 +129,14 @@ type ContactFormType = {
 ```
 
 ## Шаг 3: Создание описания формы
+
+:::info Ключевые моменты
+
+- **`createForm<T>`** — фабричная функция с автоматической типизацией
+- **`component`** — React-компонент для отображения поля
+- **`componentProps`** — пропсы для компонента (label, placeholder и т.д.)
+- **`validation`** — декларативная схема валидации
+  :::
 
 ```typescript title="src/forms/contact-form.ts"
 import { createForm } from 'reformer';
@@ -152,14 +162,6 @@ export const createContactForm = () =>
     },
   });
 ```
-
-:::info Ключевые моменты
-
-- **`createForm<T>`** — фабричная функция с автоматической типизацией
-- **`component`** — React-компонент для отображения поля
-- **`componentProps`** — пропсы для компонента (label, placeholder и т.д.)
-- **`validation`** — декларативная схема валидации
-  :::
 
 ## Шаг 4: Создание компонента формы
 

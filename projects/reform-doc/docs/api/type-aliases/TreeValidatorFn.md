@@ -4,7 +4,7 @@
 type TreeValidatorFn<TForm> = (ctx) => ValidationError | null;
 ```
 
-Defined in: [core/types/validation-schema.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/2f9343515d3674da9440637d3df644f3d1ac43db/packages/reformer/src/core/types/validation-schema.ts#L71)
+Defined in: [core/types/validation-schema.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/69429d1a694e5580ca07c0984e88198935beb82c/packages/reformer/src/core/types/validation-schema.ts#L71)
 
 Функция cross-field валидации
 
