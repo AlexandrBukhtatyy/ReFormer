@@ -1,17 +1,15 @@
 import * as React from 'react';
-import { useFormControl, type FieldNode, type GroupNode } from 'reformer';
+import { useFormControl, type FieldNode } from 'reformer';
 import { Checkbox } from './checkbox';
 
 export interface FormFieldProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: FieldNode<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form?: GroupNode<any>;
   className?: string;
   testId?: string;
 }
 
-const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className, testId }) => {
+const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId }) => {
   const { value, errors, pending, disabled, shouldShowError, componentProps } =
     useFormControl(control);
 
@@ -21,8 +19,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className
   const safeValue = value ?? (isCheckbox ? false : '');
 
   // Используем переданный testId или componentProps.testId или 'unknown'
-  const fieldTestId =
-    testId ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
+  const fieldTestId = testId ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
 
   return (
     <div className={className} data-testid={`field-${fieldTestId}`}>
@@ -42,17 +39,9 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, form, className
             ? e
             : ((e as { target?: { value?: unknown } })?.target?.value ?? e);
           control.setValue(newValue);
-          // Ре-валидация при вводе, если уже есть ошибки (чтобы ошибки исчезали)
-          if (errors.length > 0) {
-            form ? form.validate() : control.validate();
-          }
         }}
         onBlur={() => {
           control.markAsTouched();
-          // Запускаем валидацию при blur (для updateOn: 'blur' и 'submit')
-          if (control.getUpdateOn() === 'blur' || control.getUpdateOn() === 'submit') {
-            form ? form.validate() : control.validate();
-          }
         }}
         disabled={disabled}
         aria-invalid={shouldShowError}
@@ -76,7 +65,6 @@ export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) =
   // Возвращаем true, если пропсы НЕ изменились (пропустить ререндер)
   return (
     prevProps.control === nextProps.control &&
-    prevProps.form === nextProps.form &&
     prevProps.className === nextProps.className &&
     prevProps.testId === nextProps.testId
   );

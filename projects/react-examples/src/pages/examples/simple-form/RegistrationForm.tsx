@@ -162,23 +162,23 @@ export default function RegistrationForm() {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.username} form={form} className="mb-4" />
-            <FormField control={form.email} form={form} className="mb-4" />
+            <FormField control={form.username} className="mb-4" />
+            <FormField control={form.email} className="mb-4" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.password} form={form} className="mb-4" />
-            <FormField control={form.confirmPassword} form={form} className="mb-4" />
+            <FormField control={form.password} className="mb-4" />
+            <FormField control={form.confirmPassword} className="mb-4" />
           </div>
 
-          <FormField control={form.fullName} form={form} className="mb-4" />
+          <FormField control={form.fullName} className="mb-4" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField control={form.phone} form={form} className="mb-4" />
-            <FormField control={form.captcha} form={form} className="mb-4" />
+            <FormField control={form.phone} className="mb-4" />
+            <FormField control={form.captcha} className="mb-4" />
           </div>
 
-          <FormField control={form.acceptTerms} form={form} className="mb-6" />
+          <FormField control={form.acceptTerms} className="mb-6" />
 
           <div className="flex gap-2">
             <button
@@ -201,9 +201,16 @@ export default function RegistrationForm() {
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
           <h3 className="font-semibold mb-2">💡 Подсказки для тестирования:</h3>
           <ul className="text-sm text-gray-700 space-y-1">
-            <li>• Занятые username: <code>johndoe</code>, <code>janedoe</code>, <code>admin</code></li>
-            <li>• Занятые email: <code>john@example.com</code>, <code>jane@example.com</code>, <code>admin@example.com</code></li>
-            <li>• Правильная captcha: <code>ABC123</code></li>
+            <li>
+              • Занятые username: <code>johndoe</code>, <code>janedoe</code>, <code>admin</code>
+            </li>
+            <li>
+              • Занятые email: <code>john@example.com</code>, <code>jane@example.com</code>,{' '}
+              <code>admin@example.com</code>
+            </li>
+            <li>
+              • Правильная captcha: <code>ABC123</code>
+            </li>
           </ul>
         </div>
       </div>
