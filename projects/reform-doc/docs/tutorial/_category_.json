@@ -1,5 +1,10 @@
 {
   "label": "Tutorial",
-  "position": 3,
-  "collapsed": false
+  "position": 2,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "title": "Tutorial",
+    "description": "Step-by-step guide to building a Loan Application form with ReFormer"
+  }
 }

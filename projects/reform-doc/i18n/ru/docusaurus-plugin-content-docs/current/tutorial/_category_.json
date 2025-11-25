@@ -1,5 +1,10 @@
 {
   "label": "Туториал",
-  "position": 3,
-  "collapsed": false
+  "position": 2,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "title": "Туториал",
+    "description": "Пошаговое руководство по созданию формы заявки на кредит с ReFormer"
+  }
 }
