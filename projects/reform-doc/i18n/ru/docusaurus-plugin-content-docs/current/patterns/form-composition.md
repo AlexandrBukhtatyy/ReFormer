@@ -786,5 +786,5 @@ export function createRegistrationForm() {
 ## Следующие Шаги
 
 - [Переиспользуемые Схемы](/docs/patterns/reusable-schemas) — Создание переиспользуемых частей форм
-- [Стратегии Валидации](/docs/patterns/validation-strategies) — Продвинутые паттерны валидации
+- [Стратегии Валидации](/docs/validation/validation-strategies) — Продвинутые паттерны валидации
 - [Кастомные Поведения](/docs/behaviors/custom) — Добавление реактивной логики к составным формам

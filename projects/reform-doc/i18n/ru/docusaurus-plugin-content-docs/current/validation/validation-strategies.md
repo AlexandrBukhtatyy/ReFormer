@@ -696,6 +696,6 @@ validateAsync(path.email, async (value) => {
 
 ## Следующие Шаги
 
-- [Обработка Ошибок](/docs/patterns/error-handling) — Обработка и отображение ошибок валидации
+- [Обработка Ошибок](/docs/validation/error-handling) — Обработка и отображение ошибок валидации
 - [Кастомные Валидаторы](/docs/validation/custom) — Создание кастомной логики валидации
 - [Асинхронная Валидация](/docs/validation/async) — Паттерны серверной валидации

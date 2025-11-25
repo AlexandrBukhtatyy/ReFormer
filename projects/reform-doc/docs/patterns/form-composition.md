@@ -786,5 +786,5 @@ export function createRegistrationForm() {
 ## Next Steps
 
 - [Reusable Schemas](/docs/patterns/reusable-schemas) — Create reusable form parts
-- [Validation Strategies](/docs/patterns/validation-strategies) — Advanced validation patterns
+- [Validation Strategies](/docs/validation/validation-strategies) — Advanced validation patterns
 - [Custom Behaviors](/docs/behaviors/custom) — Add reactive logic to composed forms

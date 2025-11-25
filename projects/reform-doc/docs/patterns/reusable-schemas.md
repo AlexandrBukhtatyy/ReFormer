@@ -632,6 +632,6 @@ describe('personSchema', () => {
 ## Next Steps
 
 - [Form Composition](/docs/patterns/form-composition) — Compose complex forms from simple parts
-- [Validation Strategies](/docs/patterns/validation-strategies) — Advanced validation patterns
+- [Validation Strategies](/docs/validation/validation-strategies) — Advanced validation patterns
 - [Custom Validators](/docs/validation/custom) — Create custom validators
 - [Custom Behaviors](/docs/behaviors/custom) — Create custom behaviors

@@ -631,6 +631,6 @@ describe('personSchema', () => {
 ## Следующие Шаги
 
 - [Композиция Форм](/docs/patterns/form-composition) — Композиция сложных форм из простых частей
-- [Стратегии Валидации](/docs/patterns/validation-strategies) — Продвинутые паттерны валидации
+- [Стратегии Валидации](/docs/validation/validation-strategies) — Продвинутые паттерны валидации
 - [Кастомные Валидаторы](/docs/validation/custom) — Создание кастомных валидаторов
 - [Кастомные Поведения](/docs/behaviors/custom) — Создание кастомных поведений

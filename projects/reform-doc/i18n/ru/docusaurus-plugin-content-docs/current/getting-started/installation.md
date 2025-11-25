@@ -19,5 +19,5 @@ ReFormer включает все необходимые зависимости, 
 
 ## Следующие шаги
 
-- [Структура проекта](/docs/recommendations/project-structure) — рекомендуемая организация проекта
+- [Структура проекта](/docs/patterns/project-structure) — рекомендуемая организация проекта
 - [Быстрый старт](/docs/getting-started/quick-start) — создайте первую форму

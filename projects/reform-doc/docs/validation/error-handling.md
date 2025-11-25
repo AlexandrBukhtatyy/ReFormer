@@ -784,6 +784,6 @@ alert('Server error');
 
 ## Next Steps
 
-- [Validation Strategies](/docs/patterns/validation-strategies) — Advanced validation patterns
+- [Validation Strategies](/docs/validation/validation-strategies) — Advanced validation patterns
 - [Custom Validators](/docs/validation/custom) — Create custom validation logic
 - [Form Composition](/docs/patterns/form-composition) — Build complex forms

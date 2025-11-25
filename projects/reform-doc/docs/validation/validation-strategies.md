@@ -696,6 +696,6 @@ validateAsync(path.email, async (value) => {
 
 ## Next Steps
 
-- [Error Handling](/docs/patterns/error-handling) — Handle and display validation errors
+- [Error Handling](/docs/validation/error-handling) — Handle and display validation errors
 - [Custom Validators](/docs/validation/custom) — Create custom validation logic
 - [Async Validation](/docs/validation/async) — Server-side validation patterns

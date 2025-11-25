@@ -19,5 +19,5 @@ ReFormer includes all necessary dependencies, including [Preact Signals Core](ht
 
 ## Next Steps
 
-- [Project Structure](/docs/recommendations/project-structure) — Recommended project organization
+- [Project Structure](/docs/patterns/project-structure) — Recommended project organization
 - [Quick Start](/docs/getting-started/quick-start) — Build your first form
