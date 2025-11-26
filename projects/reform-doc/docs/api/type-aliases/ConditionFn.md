@@ -4,7 +4,7 @@
 type ConditionFn<T> = (value) => boolean;
 ```
 
-Defined in: [core/types/validation-schema.ts:76](https://github.com/AlexandrBukhtatyy/ReFormer/blob/00d059d4c214534c0160525e911b62a54789ee88/packages/reformer/src/core/types/validation-schema.ts#L76)
+Defined in: [core/types/validation-schema.ts:76](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8ff0e4e0843184094d947de69314442db46de23d/packages/reformer/src/core/types/validation-schema.ts#L76)
 
 Функция условия для applyWhen
 

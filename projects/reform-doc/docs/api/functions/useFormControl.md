@@ -34,7 +34,7 @@ return (
 function useFormControl<T>(control): ArrayControlState<T>;
 ```
 
-Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/ReFormer/blob/00d059d4c214534c0160525e911b62a54789ee88/packages/reformer/src/hooks/useFormControl.ts#L41)
+Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8ff0e4e0843184094d947de69314442db46de23d/packages/reformer/src/hooks/useFormControl.ts#L41)
 
 Хук для работы с ArrayNode - возвращает состояние массива с подписками на сигналы
 
@@ -60,7 +60,7 @@ Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/Re
 function useFormControl<T>(control): FieldControlState<T>;
 ```
 
-Defined in: [hooks/useFormControl.ts:48](https://github.com/AlexandrBukhtatyy/ReFormer/blob/00d059d4c214534c0160525e911b62a54789ee88/packages/reformer/src/hooks/useFormControl.ts#L48)
+Defined in: [hooks/useFormControl.ts:48](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8ff0e4e0843184094d947de69314442db46de23d/packages/reformer/src/hooks/useFormControl.ts#L48)
 
 Хук для работы с FieldNode - возвращает состояние поля с подписками на сигналы
 
