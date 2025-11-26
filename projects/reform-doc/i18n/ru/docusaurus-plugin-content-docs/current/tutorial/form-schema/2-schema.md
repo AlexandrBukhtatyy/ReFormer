@@ -285,7 +285,11 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   emailAdditional: {
     value: '',
     component: Input,
-    componentProps: { label: 'Дополнительный email', type: 'email', placeholder: 'example@mail.com' },
+    componentProps: {
+      label: 'Дополнительный email',
+      type: 'email',
+      placeholder: 'example@mail.com',
+    },
   },
 
   // Адрес регистрации (вложенный)
@@ -505,38 +509,40 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Массив имущества
-  properties: [{
-    type: {
-      value: 'apartment',
-      component: Select,
-      componentProps: {
-        label: 'Тип имущества',
-        options: [
-          { value: 'apartment', label: 'Квартира' },
-          { value: 'house', label: 'Дом' },
-          { value: 'land', label: 'Земельный участок' },
-          { value: 'commercial', label: 'Коммерческая недвижимость' },
-          { value: 'car', label: 'Автомобиль' },
-          { value: 'other', label: 'Другое' },
-        ],
+  properties: [
+    {
+      type: {
+        value: 'apartment',
+        component: Select,
+        componentProps: {
+          label: 'Тип имущества',
+          options: [
+            { value: 'apartment', label: 'Квартира' },
+            { value: 'house', label: 'Дом' },
+            { value: 'land', label: 'Земельный участок' },
+            { value: 'commercial', label: 'Коммерческая недвижимость' },
+            { value: 'car', label: 'Автомобиль' },
+            { value: 'other', label: 'Другое' },
+          ],
+        },
+      },
+      description: {
+        value: '',
+        component: Textarea,
+        componentProps: { label: 'Описание', placeholder: 'Опишите имущество', rows: 2 },
+      },
+      estimatedValue: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Оценочная стоимость', type: 'number', min: 0 },
+      },
+      hasEncumbrance: {
+        value: false,
+        component: Checkbox,
+        componentProps: { label: 'Есть обременение (ипотека, залог)' },
       },
     },
-    description: {
-      value: '',
-      component: Textarea,
-      componentProps: { label: 'Описание', placeholder: 'Опишите имущество', rows: 2 },
-    },
-    estimatedValue: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Оценочная стоимость', type: 'number', min: 0 },
-    },
-    hasEncumbrance: {
-      value: false,
-      component: Checkbox,
-      componentProps: { label: 'Есть обременение (ипотека, залог)' },
-    },
-  }],
+  ],
 
   hasExistingLoans: {
     value: false,
@@ -545,46 +551,48 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Массив существующих кредитов
-  existingLoans: [{
-    bank: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Банк', placeholder: 'Название банка' },
-    },
-    type: {
-      value: 'consumer',
-      component: Select,
-      componentProps: {
-        label: 'Тип кредита',
-        options: [
-          { value: 'consumer', label: 'Потребительский' },
-          { value: 'mortgage', label: 'Ипотека' },
-          { value: 'car', label: 'Автокредит' },
-          { value: 'credit_card', label: 'Кредитная карта' },
-        ],
+  existingLoans: [
+    {
+      bank: {
+        value: '',
+        component: Input,
+        componentProps: { label: 'Банк', placeholder: 'Название банка' },
+      },
+      type: {
+        value: 'consumer',
+        component: Select,
+        componentProps: {
+          label: 'Тип кредита',
+          options: [
+            { value: 'consumer', label: 'Потребительский' },
+            { value: 'mortgage', label: 'Ипотека' },
+            { value: 'car', label: 'Автокредит' },
+            { value: 'credit_card', label: 'Кредитная карта' },
+          ],
+        },
+      },
+      amount: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Сумма кредита', type: 'number', min: 0 },
+      },
+      remainingAmount: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Остаток долга', type: 'number', min: 0 },
+      },
+      monthlyPayment: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Ежемесячный платёж', type: 'number', min: 0 },
+      },
+      maturityDate: {
+        value: '',
+        component: Input,
+        componentProps: { label: 'Дата погашения', type: 'date' },
       },
     },
-    amount: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Сумма кредита', type: 'number', min: 0 },
-    },
-    remainingAmount: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Остаток долга', type: 'number', min: 0 },
-    },
-    monthlyPayment: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Ежемесячный платёж', type: 'number', min: 0 },
-    },
-    maturityDate: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Дата погашения', type: 'date' },
-    },
-  }],
+  ],
 
   hasCoBorrower: {
     value: false,
@@ -593,59 +601,61 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Массив созаёмщиков (с вложенным personalData)
-  coBorrowers: [{
-    personalData: {
-      lastName: {
+  coBorrowers: [
+    {
+      personalData: {
+        lastName: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Фамилия' },
+        },
+        firstName: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Имя' },
+        },
+        middleName: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Отчество' },
+        },
+        birthDate: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Дата рождения', type: 'date' },
+        },
+      },
+      phone: {
         value: '',
         component: Input,
-        componentProps: { label: 'Фамилия' },
+        componentProps: { label: 'Телефон', placeholder: '+7 (000) 000-00-00' },
       },
-      firstName: {
+      email: {
         value: '',
         component: Input,
-        componentProps: { label: 'Имя' },
+        componentProps: { label: 'Email', type: 'email' },
       },
-      middleName: {
-        value: '',
+      relationship: {
+        value: 'spouse',
+        component: Select,
+        componentProps: {
+          label: 'Родственная связь',
+          options: [
+            { value: 'spouse', label: 'Супруг/Супруга' },
+            { value: 'parent', label: 'Родитель' },
+            { value: 'child', label: 'Ребёнок' },
+            { value: 'sibling', label: 'Брат/Сестра' },
+            { value: 'other', label: 'Другое' },
+          ],
+        },
+      },
+      monthlyIncome: {
+        value: 0,
         component: Input,
-        componentProps: { label: 'Отчество' },
-      },
-      birthDate: {
-        value: '',
-        component: Input,
-        componentProps: { label: 'Дата рождения', type: 'date' },
+        componentProps: { label: 'Ежемесячный доход', type: 'number', min: 0 },
       },
     },
-    phone: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Телефон', placeholder: '+7 (000) 000-00-00' },
-    },
-    email: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Email', type: 'email' },
-    },
-    relationship: {
-      value: 'spouse',
-      component: Select,
-      componentProps: {
-        label: 'Родственная связь',
-        options: [
-          { value: 'spouse', label: 'Супруг/Супруга' },
-          { value: 'parent', label: 'Родитель' },
-          { value: 'child', label: 'Ребёнок' },
-          { value: 'sibling', label: 'Брат/Сестра' },
-          { value: 'other', label: 'Другое' },
-        ],
-      },
-    },
-    monthlyIncome: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Ежемесячный доход', type: 'number', min: 0 },
-    },
-  }],
+  ],
 
   // ============================================================================
   // Шаг 6: Согласия
@@ -785,7 +795,7 @@ const count = form.controls.properties.length.value;
 Как видите, эта схема имеет несколько проблем:
 
 1. **Дублирование** — `registrationAddress` и `residenceAddress` имеют идентичную структуру
-2. **Большой файл** — более 500 строк, сложно ориентироваться
+2. **Большой файл** — более 700 строк, сложно ориентироваться
 3. **Нет переиспользования** — похожие паттерны повторяются (адреса, персональные данные)
 4. **Сложно поддерживать** — изменение полей адреса требует изменений в нескольких местах
 

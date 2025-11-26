@@ -17,11 +17,11 @@
   },
   "link.item.label.Examples": {
     "message": "Примеры",
-    "description": "The label of footer link with label=Examples"
+    "description": "The label of footer link with label=Examples linking to https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx"
   },
   "link.item.label.GitHub": {
     "message": "GitHub",
-    "description": "The label of footer link with label=GitHub"
+    "description": "The label of footer link with label=GitHub linking to https://github.com/AlexandrBukhtatyy/ReFormer"
   },
   "copyright": {
     "message": "Copyright © 2025 ReFormer. Создано с помощью Docusaurus.",

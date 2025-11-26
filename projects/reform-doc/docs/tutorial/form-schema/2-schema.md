@@ -505,38 +505,40 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Properties Array
-  properties: [{
-    type: {
-      value: 'apartment',
-      component: Select,
-      componentProps: {
-        label: 'Property Type',
-        options: [
-          { value: 'apartment', label: 'Apartment' },
-          { value: 'house', label: 'House' },
-          { value: 'land', label: 'Land' },
-          { value: 'commercial', label: 'Commercial' },
-          { value: 'car', label: 'Car' },
-          { value: 'other', label: 'Other' },
-        ],
+  properties: [
+    {
+      type: {
+        value: 'apartment',
+        component: Select,
+        componentProps: {
+          label: 'Property Type',
+          options: [
+            { value: 'apartment', label: 'Apartment' },
+            { value: 'house', label: 'House' },
+            { value: 'land', label: 'Land' },
+            { value: 'commercial', label: 'Commercial' },
+            { value: 'car', label: 'Car' },
+            { value: 'other', label: 'Other' },
+          ],
+        },
+      },
+      description: {
+        value: '',
+        component: Textarea,
+        componentProps: { label: 'Description', placeholder: 'Describe the property', rows: 2 },
+      },
+      estimatedValue: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Estimated Value', type: 'number', min: 0 },
+      },
+      hasEncumbrance: {
+        value: false,
+        component: Checkbox,
+        componentProps: { label: 'Has encumbrance (mortgage, lien)' },
       },
     },
-    description: {
-      value: '',
-      component: Textarea,
-      componentProps: { label: 'Description', placeholder: 'Describe the property', rows: 2 },
-    },
-    estimatedValue: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Estimated Value', type: 'number', min: 0 },
-    },
-    hasEncumbrance: {
-      value: false,
-      component: Checkbox,
-      componentProps: { label: 'Has encumbrance (mortgage, lien)' },
-    },
-  }],
+  ],
 
   hasExistingLoans: {
     value: false,
@@ -545,46 +547,48 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Existing Loans Array
-  existingLoans: [{
-    bank: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Bank', placeholder: 'Bank name' },
-    },
-    type: {
-      value: 'consumer',
-      component: Select,
-      componentProps: {
-        label: 'Loan Type',
-        options: [
-          { value: 'consumer', label: 'Consumer' },
-          { value: 'mortgage', label: 'Mortgage' },
-          { value: 'car', label: 'Car Loan' },
-          { value: 'credit_card', label: 'Credit Card' },
-        ],
+  existingLoans: [
+    {
+      bank: {
+        value: '',
+        component: Input,
+        componentProps: { label: 'Bank', placeholder: 'Bank name' },
+      },
+      type: {
+        value: 'consumer',
+        component: Select,
+        componentProps: {
+          label: 'Loan Type',
+          options: [
+            { value: 'consumer', label: 'Consumer' },
+            { value: 'mortgage', label: 'Mortgage' },
+            { value: 'car', label: 'Car Loan' },
+            { value: 'credit_card', label: 'Credit Card' },
+          ],
+        },
+      },
+      amount: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Loan Amount', type: 'number', min: 0 },
+      },
+      remainingAmount: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Remaining Amount', type: 'number', min: 0 },
+      },
+      monthlyPayment: {
+        value: 0,
+        component: Input,
+        componentProps: { label: 'Monthly Payment', type: 'number', min: 0 },
+      },
+      maturityDate: {
+        value: '',
+        component: Input,
+        componentProps: { label: 'Maturity Date', type: 'date' },
       },
     },
-    amount: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Loan Amount', type: 'number', min: 0 },
-    },
-    remainingAmount: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Remaining Amount', type: 'number', min: 0 },
-    },
-    monthlyPayment: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Monthly Payment', type: 'number', min: 0 },
-    },
-    maturityDate: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Maturity Date', type: 'date' },
-    },
-  }],
+  ],
 
   hasCoBorrower: {
     value: false,
@@ -593,59 +597,61 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   // Co-Borrowers Array (with nested personalData)
-  coBorrowers: [{
-    personalData: {
-      lastName: {
+  coBorrowers: [
+    {
+      personalData: {
+        lastName: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Last Name' },
+        },
+        firstName: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'First Name' },
+        },
+        middleName: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Middle Name' },
+        },
+        birthDate: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Birth Date', type: 'date' },
+        },
+      },
+      phone: {
         value: '',
         component: Input,
-        componentProps: { label: 'Last Name' },
+        componentProps: { label: 'Phone', placeholder: '+7 (000) 000-00-00' },
       },
-      firstName: {
+      email: {
         value: '',
         component: Input,
-        componentProps: { label: 'First Name' },
+        componentProps: { label: 'Email', type: 'email' },
       },
-      middleName: {
-        value: '',
+      relationship: {
+        value: 'spouse',
+        component: Select,
+        componentProps: {
+          label: 'Relationship',
+          options: [
+            { value: 'spouse', label: 'Spouse' },
+            { value: 'parent', label: 'Parent' },
+            { value: 'child', label: 'Child' },
+            { value: 'sibling', label: 'Sibling' },
+            { value: 'other', label: 'Other' },
+          ],
+        },
+      },
+      monthlyIncome: {
+        value: 0,
         component: Input,
-        componentProps: { label: 'Middle Name' },
-      },
-      birthDate: {
-        value: '',
-        component: Input,
-        componentProps: { label: 'Birth Date', type: 'date' },
+        componentProps: { label: 'Monthly Income', type: 'number', min: 0 },
       },
     },
-    phone: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Phone', placeholder: '+7 (000) 000-00-00' },
-    },
-    email: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Email', type: 'email' },
-    },
-    relationship: {
-      value: 'spouse',
-      component: Select,
-      componentProps: {
-        label: 'Relationship',
-        options: [
-          { value: 'spouse', label: 'Spouse' },
-          { value: 'parent', label: 'Parent' },
-          { value: 'child', label: 'Child' },
-          { value: 'sibling', label: 'Sibling' },
-          { value: 'other', label: 'Other' },
-        ],
-      },
-    },
-    monthlyIncome: {
-      value: 0,
-      component: Input,
-      componentProps: { label: 'Monthly Income', type: 'number', min: 0 },
-    },
-  }],
+  ],
 
   // ============================================================================
   // Step 6: Confirmations
@@ -785,7 +791,7 @@ const count = form.controls.properties.length.value;
 As you can see, this schema has several problems:
 
 1. **Duplication** — `registrationAddress` and `residenceAddress` have identical structure
-2. **Large file** — over 500 lines, hard to navigate
+2. **Large file** — over 700 lines, hard to navigate
 3. **No reuse** — similar patterns repeated (addresses, personal data)
 4. **Hard to maintain** — changing address fields requires changes in multiple places
 
