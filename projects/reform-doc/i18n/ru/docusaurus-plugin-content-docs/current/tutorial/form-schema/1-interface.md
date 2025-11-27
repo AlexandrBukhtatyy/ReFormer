@@ -14,7 +14,7 @@ sidebar_position: 1
 
 Сначала определим перечисляемые типы, используемые в форме:
 
-```typescript title="src/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 // Типы кредита
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 
@@ -37,20 +37,20 @@ export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'commercial'
 
 ### Адрес
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface Address {
   region: string;
   city: string;
   street: string;
   house: string;
-  apartment?: string;  // Опциональное поле
+  apartment?: string; // Опциональное поле
   postalCode: string;
 }
 ```
 
 ### Персональные данные
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface PersonalData {
   lastName: string;
   firstName: string;
@@ -63,7 +63,7 @@ export interface PersonalData {
 
 ### Паспортные данные
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface PassportData {
   series: string;
   number: string;
@@ -75,7 +75,7 @@ export interface PassportData {
 
 ### Имущество (для массивов)
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface Property {
   type: PropertyType;
   description: string;
@@ -86,7 +86,7 @@ export interface Property {
 
 ### Существующий кредит (для массивов)
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface ExistingLoan {
   bank: string;
   type: string;
@@ -99,7 +99,7 @@ export interface ExistingLoan {
 
 ### Созаёмщик (для массивов)
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface CoBorrower {
   personalData: {
     lastName: string;
@@ -118,7 +118,7 @@ export interface CoBorrower {
 
 Теперь объединим всё в основной интерфейс формы:
 
-```typescript title="src/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface CreditApplicationForm {
   // ============================================
   // Шаг 1: Основная информация о кредите
@@ -280,8 +280,8 @@ interface Form {
 
 ```typescript
 interface Address {
-  city: string;           // Обязательное
-  apartment?: string;     // Опциональное
+  city: string; // Обязательное
+  apartment?: string; // Опциональное
 }
 ```
 
@@ -293,7 +293,7 @@ interface Address {
 interface Form {
   firstName: string;
   lastName: string;
-  fullName: string;  // Вычисляется из firstName + lastName
+  fullName: string; // Вычисляется из firstName + lastName
 }
 ```
 
@@ -308,10 +308,10 @@ interface Form {
 
 ```typescript
 // TypeScript поймает эту ошибку
-form.controls.emial  // Ошибка: Свойство 'emial' не существует
+form.controls.emial; // Ошибка: Свойство 'emial' не существует
 
 // Подсказки типов при доступе к значениям
-const amount = form.value.loanAmount;  // TypeScript знает, что это number
+const amount = form.value.loanAmount; // TypeScript знает, что это number
 ```
 
 ## Следующий шаг

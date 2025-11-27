@@ -14,7 +14,7 @@ Before creating a form schema, we need to define its TypeScript interface. This 
 
 First, define the enumeration types used in the form:
 
-```typescript title="src/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 // Loan types
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 
@@ -37,20 +37,20 @@ Complex forms often have nested structures. Define separate interfaces for reusa
 
 ### Address
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface Address {
   region: string;
   city: string;
   street: string;
   house: string;
-  apartment?: string;  // Optional field
+  apartment?: string; // Optional field
   postalCode: string;
 }
 ```
 
 ### Personal Data
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface PersonalData {
   lastName: string;
   firstName: string;
@@ -63,7 +63,7 @@ export interface PersonalData {
 
 ### Passport Data
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface PassportData {
   series: string;
   number: string;
@@ -75,7 +75,7 @@ export interface PassportData {
 
 ### Property (for arrays)
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface Property {
   type: PropertyType;
   description: string;
@@ -86,7 +86,7 @@ export interface Property {
 
 ### Existing Loan (for arrays)
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface ExistingLoan {
   bank: string;
   type: string;
@@ -99,7 +99,7 @@ export interface ExistingLoan {
 
 ### Co-Borrower (for arrays)
 
-```typescript
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface CoBorrower {
   personalData: {
     lastName: string;
@@ -118,7 +118,7 @@ export interface CoBorrower {
 
 Now combine everything into the main form interface:
 
-```typescript title="src/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.types.ts"
 export interface CreditApplicationForm {
   // ============================================
   // Step 1: Basic Loan Information
@@ -280,8 +280,8 @@ Use `?` for truly optional fields:
 
 ```typescript
 interface Address {
-  city: string;           // Required
-  apartment?: string;     // Optional
+  city: string; // Required
+  apartment?: string; // Optional
 }
 ```
 
@@ -293,7 +293,7 @@ Include computed fields in the interface even though they'll be calculated:
 interface Form {
   firstName: string;
   lastName: string;
-  fullName: string;  // Computed from firstName + lastName
+  fullName: string; // Computed from firstName + lastName
 }
 ```
 
@@ -308,10 +308,10 @@ With a properly defined interface, TypeScript will:
 
 ```typescript
 // TypeScript will catch this error
-form.controls.emial  // Error: Property 'emial' does not exist
+form.controls.emial; // Error: Property 'emial' does not exist
 
 // Type hints when accessing values
-const amount = form.value.loanAmount;  // TypeScript knows this is a number
+const amount = form.value.loanAmount; // TypeScript knows this is a number
 ```
 
 ## Next Steps

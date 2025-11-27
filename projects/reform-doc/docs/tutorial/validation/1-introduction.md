@@ -62,6 +62,7 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
 ```
 
 Benefits:
+
 - **Less Code** - Concise validation rules
 - **Declarative** - Clear intent and easy to read
 - **Maintainable** - Changes are localized
@@ -119,21 +120,14 @@ Apply validation based on other fields:
 import { requiredWhen, minWhen, maxWhen } from 'reformer/validators';
 
 // Required when condition is true
-requiredWhen(
-  path.propertyValue,
-  path.loanType,
-  (loanType) => loanType === 'mortgage',
-  { message: 'Property value is required for mortgage' }
-);
+requiredWhen(path.propertyValue, path.loanType, (loanType) => loanType === 'mortgage', {
+  message: 'Property value is required for mortgage',
+});
 
 // Min/max when condition is true
-minWhen(
-  path.propertyValue,
-  1000000,
-  path.loanType,
-  (loanType) => loanType === 'mortgage',
-  { message: 'Minimum property value: 1,000,000' }
-);
+minWhen(path.propertyValue, 1000000, path.loanType, (loanType) => loanType === 'mortgage', {
+  message: 'Minimum property value: 1,000,000',
+});
 ```
 
 ### Array Validators
@@ -144,13 +138,9 @@ Validate arrays and their elements:
 import { arrayMinLength, arrayMaxLength, arrayMinLengthWhen } from 'reformer/validators';
 
 // Array length validation
-arrayMinLengthWhen(
-  path.properties,
-  1,
-  path.hasProperty,
-  (has) => has === true,
-  { message: 'Add at least one property' }
-);
+arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+  message: 'Add at least one property',
+});
 
 arrayMaxLength(path.properties, 10, { message: 'Maximum 10 properties' });
 
@@ -241,6 +231,7 @@ export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationFo
 ```
 
 This organization provides:
+
 - **Clarity** - Easy to find validation for a specific step
 - **Maintainability** - Changes in one step don't affect others
 - **Scalability** - Easy to add new validation rules
@@ -271,36 +262,42 @@ src/
 By the end of this section, our credit application form will have:
 
 ### Step 1: Loan Information
-- ✅ Required fields (loanAmount, loanTerm, loanPurpose)
-- ✅ Numeric ranges (min/max for amount and term)
-- ✅ Conditional validation (mortgage/car fields)
+
+- Required fields (loanAmount, loanTerm, loanPurpose)
+- Numeric ranges (min/max for amount and term)
+- Conditional validation (mortgage/car fields)
 
 ### Step 2: Personal Information
-- ✅ Name validation (required, minLength, Cyrillic pattern)
-- ✅ Birth date validation (not in future, age 18-70)
-- ✅ Passport validation (series/number format)
-- ✅ INN and SNILS (pattern validation)
+
+- Name validation (required, minLength, Cyrillic pattern)
+- Birth date validation (not in future, age 18-70)
+- Passport validation (series/number format)
+- INN and SNILS (pattern validation)
 
 ### Step 3: Contact Information
-- ✅ Email and phone formats
-- ✅ Address validation (required fields)
-- ✅ Conditional residence address validation
+
+- Email and phone formats
+- Address validation (required fields)
+- Conditional residence address validation
 
 ### Step 4: Employment
-- ✅ Conditional employment/business field validation
-- ✅ Income validation (minimum threshold)
-- ✅ Work experience validation (minimum 3 months at current job)
+
+- Conditional employment/business field validation
+- Income validation (minimum threshold)
+- Work experience validation (minimum 3 months at current job)
 
 ### Step 5: Additional Information
-- ✅ Array validation (minLength when present)
-- ✅ Array element validation
-- ✅ Co-borrowers validation (email, phone, income)
+
+- Array validation (minLength when present)
+- Array element validation
+- Co-borrowers validation (email, phone, income)
 
 ### Cross-Step
-- ✅ Down payment >= 20% of property value
-- ✅ Monthly payment <= 50% of total income
-- ✅ Age affects field availability
-- ✅ Async: INN, SNILS, email uniqueness checks
+
+- Down payment >= 20% of property value
+- Monthly payment <= 50% of total income
+- Age affects field availability
+- Async: INN, SNILS, email uniqueness checks
 
 ## Integration with Behaviors
 
@@ -311,12 +308,9 @@ Validation works seamlessly with behaviors:
 showWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
 
 // Validation only applies when field is visible
-requiredWhen(
-  path.propertyValue,
-  path.loanType,
-  (type) => type === 'mortgage',
-  { message: 'Property value is required' }
-);
+requiredWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage', {
+  message: 'Property value is required',
+});
 ```
 
 When a field is hidden by a behavior, its validation is automatically skipped!
@@ -326,6 +320,7 @@ When a field is hidden by a behavior, its validation is automatically skipped!
 Let's start with validating Step 1: Loan Information. This step demonstrates the most common validation patterns you'll use throughout the form.
 
 In the next section we'll:
+
 1. Create the validator file for Step 1
 2. Implement required field validation
 3. Add numeric range validation (min/max)

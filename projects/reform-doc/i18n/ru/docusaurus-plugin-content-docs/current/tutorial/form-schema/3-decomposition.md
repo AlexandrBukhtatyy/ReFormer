@@ -23,7 +23,7 @@ sidebar_position: 3
 
 Структура адреса используется дважды в нашей форме. Давайте выделим её:
 
-```typescript title="src/schemas/address.schema.ts"
+```typescript title="src/forms/credit-application/schemas/address.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input } from '@/components/ui/input';
 
@@ -74,7 +74,7 @@ export const addressSchema: FormSchema<Address> = {
 
 Персональные данные — также распространённый паттерн:
 
-```typescript title="src/schemas/personal-data.schema.ts"
+```typescript title="src/forms/credit-application/schemas/personal-data.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, RadioGroup } from '@/components/ui';
 
@@ -129,7 +129,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
 
 ### Схема паспортных данных
 
-```typescript title="src/schemas/passport-data.schema.ts"
+```typescript title="src/forms/credit-application/schemas/passport-data.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Textarea } from '@/components/ui';
 
@@ -172,7 +172,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
 
 ### Схема имущества (для массивов)
 
-```typescript title="src/schemas/property.schema.ts"
+```typescript title="src/forms/credit-application/schemas/property.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Textarea, Checkbox } from '@/components/ui';
 
@@ -221,7 +221,7 @@ export const propertySchema: FormSchema<Property> = {
 
 ### Схема существующего кредита (для массивов)
 
-```typescript title="src/schemas/existing-loan.schema.ts"
+```typescript title="src/forms/credit-application/schemas/existing-loan.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select } from '@/components/ui';
 
@@ -278,7 +278,7 @@ export const existingLoanSchema: FormSchema<ExistingLoan> = {
 
 ### Схема созаёмщика (вложенная структура в массиве)
 
-```typescript title="src/schemas/co-borrower.schema.ts"
+```typescript title="src/forms/credit-application/schemas/co-borrower.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select } from '@/components/ui';
 
@@ -354,7 +354,7 @@ export const coBorrowerSchema: FormSchema<CoBorrower> = {
 
 Теперь используем выделенные схемы в основной схеме формы:
 
-```typescript title="src/schemas/credit-application.schema.ts"
+```typescript title="src/forms/credit-application/schemas/credit-application.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Checkbox, Textarea, RadioGroup } from '@/components/ui';
 import type { CreditApplicationForm } from '../types';
@@ -421,15 +421,23 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // Поля для автокредита
   carBrand: { value: '', component: Input, componentProps: { label: 'Марка автомобиля' } },
   carModel: { value: '', component: Input, componentProps: { label: 'Модель автомобиля' } },
-  carYear: { value: null, component: Input, componentProps: { label: 'Год выпуска', type: 'number' } },
-  carPrice: { value: null, component: Input, componentProps: { label: 'Стоимость', type: 'number' } },
+  carYear: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Год выпуска', type: 'number' },
+  },
+  carPrice: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Стоимость', type: 'number' },
+  },
 
   // ============================================================================
   // Шаг 2: Персональные данные — ИСПОЛЬЗУЕМ ПЕРЕИСПОЛЬЗУЕМЫЕ СХЕМЫ
   // ============================================================================
 
-  personalData: personalDataSchema,    // ← Переиспользуемая схема
-  passportData: passportDataSchema,    // ← Переиспользуемая схема
+  personalData: personalDataSchema, // ← Переиспользуемая схема
+  passportData: passportDataSchema, // ← Переиспользуемая схема
 
   inn: { value: '', component: Input, componentProps: { label: 'ИНН' } },
   snils: { value: '', component: Input, componentProps: { label: 'СНИЛС' } },
@@ -439,17 +447,25 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ============================================================================
 
   phoneMain: { value: '', component: Input, componentProps: { label: 'Основной телефон' } },
-  phoneAdditional: { value: '', component: Input, componentProps: { label: 'Дополнительный телефон' } },
+  phoneAdditional: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Дополнительный телефон' },
+  },
   email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } },
-  emailAdditional: { value: '', component: Input, componentProps: { label: 'Дополнительный email', type: 'email' } },
+  emailAdditional: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Дополнительный email', type: 'email' },
+  },
 
-  registrationAddress: addressSchema,  // ← Переиспользуемая схема
+  registrationAddress: addressSchema, // ← Переиспользуемая схема
   sameAsRegistration: {
     value: true,
     component: Checkbox,
     componentProps: { label: 'Адрес проживания совпадает с адресом регистрации' },
   },
-  residenceAddress: addressSchema,     // ← Та же схема используется повторно!
+  residenceAddress: addressSchema, // ← Та же схема используется повторно!
 
   // ============================================================================
   // Шаг 4: Информация о занятости
@@ -475,14 +491,38 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   companyPhone: { value: '', component: Input, componentProps: { label: 'Телефон компании' } },
   companyAddress: { value: '', component: Input, componentProps: { label: 'Адрес компании' } },
   position: { value: '', component: Input, componentProps: { label: 'Должность' } },
-  workExperienceTotal: { value: null, component: Input, componentProps: { label: 'Общий стаж (месяцев)', type: 'number' } },
-  workExperienceCurrent: { value: null, component: Input, componentProps: { label: 'На текущем месте (месяцев)', type: 'number' } },
-  monthlyIncome: { value: null, component: Input, componentProps: { label: 'Ежемесячный доход', type: 'number' } },
-  additionalIncome: { value: null, component: Input, componentProps: { label: 'Дополнительный доход', type: 'number' } },
-  additionalIncomeSource: { value: '', component: Input, componentProps: { label: 'Источник дополнительного дохода' } },
+  workExperienceTotal: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Общий стаж (месяцев)', type: 'number' },
+  },
+  workExperienceCurrent: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'На текущем месте (месяцев)', type: 'number' },
+  },
+  monthlyIncome: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Ежемесячный доход', type: 'number' },
+  },
+  additionalIncome: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Дополнительный доход', type: 'number' },
+  },
+  additionalIncomeSource: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Источник дополнительного дохода' },
+  },
   businessType: { value: '', component: Input, componentProps: { label: 'Тип бизнеса' } },
   businessInn: { value: '', component: Input, componentProps: { label: 'ИНН ИП' } },
-  businessActivity: { value: '', component: Textarea, componentProps: { label: 'Вид деятельности', rows: 3 } },
+  businessActivity: {
+    value: '',
+    component: Textarea,
+    componentProps: { label: 'Вид деятельности', rows: 3 },
+  },
 
   // ============================================================================
   // Шаг 5: Дополнительная информация — МАССИВЫ ИСПОЛЬЗУЮТ ПЕРЕИСПОЛЬЗУЕМЫЕ СХЕМЫ
@@ -502,7 +542,11 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
     },
   },
 
-  dependents: { value: 0, component: Input, componentProps: { label: 'Иждивенцы', type: 'number' } },
+  dependents: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Иждивенцы', type: 'number' },
+  },
   education: {
     value: 'higher',
     component: Select,
@@ -517,37 +561,93 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
     },
   },
 
-  hasProperty: { value: false, component: Checkbox, componentProps: { label: 'У меня есть имущество' } },
-  properties: [propertySchema],        // ← Массив с переиспользуемой схемой
+  hasProperty: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'У меня есть имущество' },
+  },
+  properties: [propertySchema], // ← Массив с переиспользуемой схемой
 
-  hasExistingLoans: { value: false, component: Checkbox, componentProps: { label: 'У меня есть действующие кредиты' } },
+  hasExistingLoans: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'У меня есть действующие кредиты' },
+  },
   existingLoans: [existingLoanSchema], // ← Массив с переиспользуемой схемой
 
-  hasCoBorrower: { value: false, component: Checkbox, componentProps: { label: 'Добавить созаёмщика' } },
-  coBorrowers: [coBorrowerSchema],     // ← Массив с переиспользуемой схемой
+  hasCoBorrower: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Добавить созаёмщика' },
+  },
+  coBorrowers: [coBorrowerSchema], // ← Массив с переиспользуемой схемой
 
   // ============================================================================
   // Шаг 6: Согласия
   // ============================================================================
 
-  agreePersonalData: { value: false, component: Checkbox, componentProps: { label: 'Согласие на обработку персональных данных' } },
-  agreeCreditHistory: { value: false, component: Checkbox, componentProps: { label: 'Согласие на проверку кредитной истории' } },
-  agreeMarketing: { value: false, component: Checkbox, componentProps: { label: 'Согласие на маркетинговые материалы' } },
-  agreeTerms: { value: false, component: Checkbox, componentProps: { label: 'Согласие с условиями кредитования' } },
-  confirmAccuracy: { value: false, component: Checkbox, componentProps: { label: 'Подтверждаю достоверность данных' } },
+  agreePersonalData: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Согласие на обработку персональных данных' },
+  },
+  agreeCreditHistory: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Согласие на проверку кредитной истории' },
+  },
+  agreeMarketing: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Согласие на маркетинговые материалы' },
+  },
+  agreeTerms: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Согласие с условиями кредитования' },
+  },
+  confirmAccuracy: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Подтверждаю достоверность данных' },
+  },
   electronicSignature: { value: '', component: Input, componentProps: { label: 'Код из СМС' } },
 
   // ============================================================================
   // Вычисляемые поля
   // ============================================================================
 
-  interestRate: { value: 0, component: Input, componentProps: { label: 'Процентная ставка (%)', disabled: true } },
-  monthlyPayment: { value: 0, component: Input, componentProps: { label: 'Ежемесячный платёж', disabled: true } },
-  fullName: { value: '', component: Input, componentProps: { label: 'Полное имя', disabled: true } },
+  interestRate: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Процентная ставка (%)', disabled: true },
+  },
+  monthlyPayment: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Ежемесячный платёж', disabled: true },
+  },
+  fullName: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Полное имя', disabled: true },
+  },
   age: { value: null, component: Input, componentProps: { label: 'Возраст', disabled: true } },
-  totalIncome: { value: 0, component: Input, componentProps: { label: 'Общий доход', disabled: true } },
-  paymentToIncomeRatio: { value: 0, component: Input, componentProps: { label: 'Платёж/Доход (%)', disabled: true } },
-  coBorrowersIncome: { value: 0, component: Input, componentProps: { label: 'Доход созаёмщиков', disabled: true } },
+  totalIncome: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Общий доход', disabled: true },
+  },
+  paymentToIncomeRatio: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Платёж/Доход (%)', disabled: true },
+  },
+  coBorrowersIncome: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Доход созаёмщиков', disabled: true },
+  },
 };
 ```
 
@@ -606,7 +706,8 @@ describe('addressSchema', () => {
 // address.schema.ts - добавляем новое поле
 export const addressSchema: FormSchema<Address> = {
   // ... существующие поля
-  country: {  // ← Новое поле
+  country: {
+    // ← Новое поле
     value: '',
     component: Input,
     componentProps: { label: 'Страна' },
