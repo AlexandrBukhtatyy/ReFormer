@@ -1,7 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { GroupNodeWithControls } from 'reformer';
-import type { CreditApplicationForm } from '@/types/credit-application.types';
-import { creditApplicationService, debounce } from '@/services/credit-application.service';
+import type { CreditApplicationForm } from '@/forms/credit-application/types/credit-application.types';
+import {
+  creditApplicationService,
+  debounce,
+} from '@/forms/credit-application/services/credit-application.service';
 
 interface UseAutosaveOptions {
   /** Delay in ms before autosave triggers (default: 2000) */

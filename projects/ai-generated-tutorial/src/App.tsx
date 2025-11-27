@@ -1,4 +1,4 @@
-import { CreditApplicationForm } from '@/components/CreditApplicationForm';
+import { CreditApplicationForm } from '@/forms/credit-application/CreditApplicationForm';
 
 function App() {
   return (

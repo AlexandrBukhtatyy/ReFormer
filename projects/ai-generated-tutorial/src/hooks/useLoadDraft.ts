@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { GroupNodeWithControls } from 'reformer';
-import type { CreditApplicationForm } from '@/types/credit-application.types';
-import { creditApplicationService } from '@/services/credit-application.service';
+import type { CreditApplicationForm } from '@/forms/credit-application/types/credit-application.types';
+import { creditApplicationService } from '@/forms/credit-application/services/credit-application.service';
 
 interface UseLoadDraftResult {
   /** Whether a draft exists */

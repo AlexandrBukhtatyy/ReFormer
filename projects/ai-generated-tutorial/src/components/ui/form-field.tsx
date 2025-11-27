@@ -55,10 +55,6 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
   );
 };
 
-export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.control === nextProps.control &&
-    prevProps.className === nextProps.className &&
-    prevProps.testId === nextProps.testId
-  );
-});
+// Don't use React.memo here - useFormControl already handles subscriptions
+// and the component needs to re-render when form state changes
+export const FormField = FormFieldComponent;
