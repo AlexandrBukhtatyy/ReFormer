@@ -1,11 +1,11 @@
 import type { GroupNodeWithControls } from 'reformer';
 import { useFormControl } from 'reformer';
 import { FormField } from '@/components/ui/form-field';
-import { FormArrayManager } from '@/forms/FormArrayManager';
 import { PropertyForm } from '../sub-forms/PropertyForm';
 import { ExistingLoanForm } from '../sub-forms/ExistingLoanForm';
 import { CoBorrowerForm } from '../sub-forms/CoBorrowerForm';
 import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormArrayManager } from '@/components/forms/FormArrayManager';
 
 interface AdditionalInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import type { GroupNodeWithControls } from 'reformer';
 import { FormField } from '@/components/ui/form-field';
-import type { Address } from '.../types/credit-application.types';
+import type { Address } from '../types/credit-application.types';
 
 interface AddressFormProps {
   control: GroupNodeWithControls<Address>;
