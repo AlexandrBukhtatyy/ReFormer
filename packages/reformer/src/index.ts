@@ -9,3 +9,5 @@ export { ArrayNode } from './core/nodes/array-node';
 export type { SetValueOptions } from './core/nodes/form-node';
 
 export { useFormControl } from './hooks/useFormControl';
+
+export type { BehaviorSchemaFn } from './core/behavior/types';
