@@ -21,8 +21,8 @@ sidebar_position: 2
 Сначала создадим структуру каталогов и файл behavior для Шага 1:
 
 ```bash
-mkdir -p src/behaviors/steps
-touch src/behaviors/steps/step-1-loan-info.behaviors.ts
+mkdir -p src/schemas/behaviors/steps
+touch src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts
 ```
 
 ## Реализация Behaviors
@@ -31,7 +31,7 @@ touch src/behaviors/steps/step-1-loan-info.behaviors.ts
 
 Начнём с импорта необходимых функций и типов:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
@@ -50,7 +50,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 - Скидка 0.5% для крупных городов (Москва, Санкт-Петербург)
 - Скидка 1.0% если заявитель владеет имуществом
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ==========================================
   // Вычисляемое поле: Процентная ставка
@@ -114,7 +114,7 @@ P = A × (r × (1+r)^n) / ((1+r)^n - 1)
 - n = количество месяцев
 ```
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
@@ -166,7 +166,7 @@ ReFormer автоматически обрабатывает зависимос�
 
 Показываем поля для ипотеки только когда `loanType === 'mortgage'`:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
@@ -190,7 +190,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Аналогично, показываем поля для автокредита только для автокредитов:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
@@ -210,7 +210,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Когда пользователь меняет тип кредита, мы должны очистить поля от предыдущего типа, чтобы избежать путаницы:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
@@ -251,7 +251,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Вот полный файл behavior для Шага 1:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';

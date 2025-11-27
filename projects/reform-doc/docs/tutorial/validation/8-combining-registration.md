@@ -20,12 +20,12 @@ We've created validators for each step plus cross-step validation. Now let's:
 Create the main validation file that imports and applies all step validators:
 
 ```bash
-touch src/validators/credit-application.validators.ts
+touch src/schemas/validators/credit-application.validators.ts
 ```
 
 ### Implementation
 
-```typescript title="src/validators/credit-application.validators.ts"
+```typescript title="src/schemas/validators/credit-application.validators.ts"
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -111,31 +111,33 @@ Your project should now have this structure:
 
 ```
 src/
-├── validators/
-│   ├── steps/
-│   │   ├── step-1-loan-info.validators.ts
-│   │   ├── step-2-personal-info.validators.ts
-│   │   ├── step-3-contact-info.validators.ts
-│   │   ├── step-4-employment.validators.ts
-│   │   └── step-5-additional-info.validators.ts
-│   ├── cross-step.validators.ts
-│   └── credit-application.validators.ts  ← Main file
-│
-├── behaviors/
-│   ├── steps/
-│   │   ├── step-1-loan-info.behaviors.ts
-│   │   ├── step-2-personal-info.behaviors.ts
-│   │   ├── step-3-contact-info.behaviors.ts
-│   │   ├── step-4-employment.behaviors.ts
-│   │   └── step-5-additional-info.behaviors.ts
-│   ├── cross-step.behaviors.ts
-│   └── credit-application.behaviors.ts
-│
 ├── schemas/
+│   ├── validators/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.validators.ts
+│   │   │   ├── step-2-personal-info.validators.ts
+│   │   │   ├── step-3-contact-info.validators.ts
+│   │   │   ├── step-4-employment.validators.ts
+│   │   │   └── step-5-additional-info.validators.ts
+│   │   ├── cross-step.validators.ts
+│   │   └── credit-application.validators.ts  ← Main file
+│   ├── behaviors/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.behaviors.ts
+│   │   │   ├── step-2-personal-info.behaviors.ts
+│   │   │   ├── step-3-contact-info.behaviors.ts
+│   │   │   ├── step-4-employment.behaviors.ts
+│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   ├── cross-step.behaviors.ts
+│   │   └── credit-application.behaviors.ts
 │   ├── credit-application.schema.ts
 │   └── create-form.ts  ← Validation registered here
 │
 ├── components/
+│   ├── forms/
+│   │   └── createCreditApplicationForm.ts
+│   ├── steps/
+│   ├── nested-forms/
 │   └── CreditApplicationForm.tsx
 │
 └── types/
@@ -295,11 +297,18 @@ form.field('loanType').setValue('mortgage');
 
 ### 3. On Form Submit
 ```typescript
-form.submit().then((data) => {
+// Mark all fields as touched
+form.touchAll();
+
+// Get current form values
+const data = form.getValue();
+
+// Check if form is valid before sending
+if (form.valid.value) {
   console.log('Valid data:', data);
-}).catch((errors) => {
-  console.log('Validation errors:', errors);
-});
+} else {
+  console.log('Validation errors - check form.errors.value');
+}
 ```
 
 ### 4. Manual Validation

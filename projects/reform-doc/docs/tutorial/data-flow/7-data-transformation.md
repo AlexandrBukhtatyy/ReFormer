@@ -812,6 +812,116 @@ const apiData = submissionTransformer.serialize(formData);
 await submitApplication(apiData);
 ```
 
+## Type Safety Tips
+
+When working with form values in TypeScript, follow these guidelines:
+
+### 1. Use Typed Form Creation
+
+```typescript
+// ✅ Create form with type parameter
+const form = createForm<CreditApplicationForm>({
+  form: creditApplicationSchema,
+  behavior: creditApplicationBehaviors,
+  validation: creditApplicationValidation,
+});
+
+// form.getValue() returns CreditApplicationForm
+const data = form.getValue();
+```
+
+### 2. Type Assertions for Generic Functions
+
+When creating utility functions that work with any form type, use proper generics:
+
+```typescript
+// ✅ Generic function with proper typing
+function debounce<T extends (...args: any[]) => void>(
+  fn: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
+
+// ❌ Avoid: Using unknown[] causes type errors
+function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: number) {
+  // This won't work with typed callbacks
+}
+```
+
+### 3. Working with getValue()
+
+```typescript
+// ✅ Type-safe access to form values
+const form = createForm<MyFormType>({ form: schema });
+const data = form.getValue(); // Returns MyFormType
+
+// Access nested values with full type support
+const loanAmount = data.loanAmount; // number
+const firstName = data.personalData.firstName; // string
+```
+
+### 4. Type-Safe Transformers
+
+```typescript
+// ✅ Properly typed transformer
+interface DataTransformer<TForm, TApi> {
+  serialize: (formData: TForm) => TApi;
+  deserialize: (apiData: TApi) => TForm;
+}
+
+const transformer: DataTransformer<CreditApplicationForm, CreditApplicationApi> = {
+  serialize: (formData) => ({
+    // TypeScript knows formData is CreditApplicationForm
+    loan_amount: formData.loanAmount,
+    loan_term: formData.loanTerm,
+  }),
+  deserialize: (apiData) => ({
+    // TypeScript knows apiData is CreditApplicationApi
+    loanAmount: apiData.loan_amount,
+    loanTerm: apiData.loan_term,
+  }),
+};
+```
+
+### 5. Handling Unknown Form Nodes
+
+When working with generic FormNode without type parameter:
+
+```typescript
+import type { FormNode } from 'reformer';
+
+// ✅ Use type assertion when you know the type
+function submitForm<T>(form: FormNode) {
+  const data = form.getValue() as T;
+  // Now data has type T
+}
+
+// ✅ Or use generic function parameter
+function submitForm<T>(form: FormNode<T>) {
+  const data = form.getValue(); // data is T
+}
+```
+
+### 6. Common ESLint Workarounds
+
+When TypeScript strictness conflicts with ReFormer patterns:
+
+```typescript
+// ✅ Suppress any[] when needed for callbacks
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => void>(
+  fn: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  // implementation
+}
+```
+
 ## What's Next?
 
 In the final section, we'll bring everything together in **Complete Integration**:

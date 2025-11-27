@@ -24,7 +24,7 @@ sidebar_position: 7
 
 ## Реализация
 
-```typescript title="src/behaviors/cross-step.behaviors.ts"
+```typescript title="src/schemas/behaviors/cross-step.behaviors.ts"
 import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -188,7 +188,7 @@ watch(path.loanAmount, (value) => {
 
 ## Полный код
 
-```typescript title="src/behaviors/cross-step.behaviors.ts"
+```typescript title="src/schemas/behaviors/cross-step.behaviors.ts"
 import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

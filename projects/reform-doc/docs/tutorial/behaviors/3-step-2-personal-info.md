@@ -21,7 +21,7 @@ These computed fields will be displayed in other parts of the form and used in v
 Create the behavior file for Step 2:
 
 ```bash
-touch src/behaviors/steps/step-2-personal-info.behaviors.ts
+touch src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts
 ```
 
 ## Implementing the Behaviors
@@ -30,7 +30,7 @@ touch src/behaviors/steps/step-2-personal-info.behaviors.ts
 
 In Russian forms, the full name (ФИО) is typically formatted as: **Фамилия Имя Отчество** (Last First Middle).
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';
@@ -82,7 +82,7 @@ Both work, but watching groups is simpler when you need all fields.
 
 Calculate the applicant's age from their birth date:
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
@@ -133,7 +133,7 @@ The age calculation checks:
 
 Since `fullName` and `age` are computed automatically, they should be read-only (disabled):
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
@@ -172,7 +172,7 @@ However, using `disableWhen` keeps all behaviors centralized and makes them easi
 
 Here's the complete behavior file for Step 2:
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';

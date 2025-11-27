@@ -682,17 +682,17 @@ export function SuccessPage() {
 
 ## Best Practices Summary
 
-### 1. Always Validate Before Submit
+### 1. Always Show Validation Before Submit
 
 ```typescript
-// ✅ Use form.submit() - validates automatically
-await form.submit(async (validData) => {
-  return await submitToAPI(validData);
-});
+// ✅ Use form.touchAll() + form.getValue()
+form.touchAll(); // Shows validation errors
+const data = form.getValue();
+await submitToAPI(data);
 
-// ❌ Manual submission without validation
-const data = form.value.value;
-await submitToAPI(data); // Might be invalid!
+// ❌ Direct access without touchAll
+const data = form.getValue();
+await submitToAPI(data); // User won't see validation errors
 ```
 
 ### 2. Transform Data Appropriately
@@ -853,10 +853,10 @@ return <CreditApplicationForm />;
 
 ```typescript
 // Computed fields are included automatically
-const result = await form.submit(async (data) => {
-  // data includes computed fields like monthlyPayment, age, etc.
-  return await submitApplication(data);
-});
+form.touchAll();
+const data = form.getValue();
+// data includes computed fields like monthlyPayment, age, etc.
+const result = await submitApplication(data);
 ```
 
 ## Final Recommendations

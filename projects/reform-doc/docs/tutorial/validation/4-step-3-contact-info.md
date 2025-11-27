@@ -27,7 +27,7 @@ Step 3 contains contact and address fields:
 Create the validator file for Step 3:
 
 ```bash
-touch src/validators/steps/step-3-contact-info.validators.ts
+touch src/schemas/validators/steps/step-3-contact-info.validators.ts
 ```
 
 ## Implementation
@@ -36,7 +36,7 @@ touch src/validators/steps/step-3-contact-info.validators.ts
 
 Start with phone and email format validation:
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -85,7 +85,7 @@ Format validators like `email()` and `phone()` automatically skip empty values. 
 
 Add validation for registration address (always required):
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -112,7 +112,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Add conditional validation for residence address (required only when different from registration):
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -157,7 +157,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Here's the complete validator for Step 3:
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

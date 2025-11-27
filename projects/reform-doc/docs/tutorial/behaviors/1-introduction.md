@@ -163,7 +163,7 @@ revalidateWhen(path.monthlyPayment, [path.totalIncome]);
 For our Credit Application form, we'll organize behaviors by form steps - matching the structure we created in the Rendering section:
 
 ```typescript
-// src/behaviors/credit-application.behaviors.ts
+// src/schemas/behaviors/credit-application.behaviors.ts
 export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // Step 1: Loan Information
   step1LoanBehaviors(path);
@@ -197,16 +197,16 @@ We'll create the following structure:
 
 ```
 src/
-├── behaviors/
-│   ├── steps/
-│   │   ├── step-1-loan-info.behaviors.ts
-│   │   ├── step-2-personal-info.behaviors.ts
-│   │   ├── step-3-contact-info.behaviors.ts
-│   │   ├── step-4-employment.behaviors.ts
-│   │   └── step-5-additional-info.behaviors.ts
-│   ├── cross-step.behaviors.ts
-│   └── credit-application.behaviors.ts  (main file)
 ├── schemas/
+│   ├── behaviors/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.behaviors.ts
+│   │   │   ├── step-2-personal-info.behaviors.ts
+│   │   │   ├── step-3-contact-info.behaviors.ts
+│   │   │   ├── step-4-employment.behaviors.ts
+│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   ├── cross-step.behaviors.ts
+│   │   └── credit-application.behaviors.ts  (main file)
 │   └── create-form.ts  (behaviors registered here)
 └── ...
 ```

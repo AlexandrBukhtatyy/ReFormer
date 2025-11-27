@@ -118,10 +118,12 @@ export function useSubmissionState<T>(
     setState({ status: 'submitting' });
 
     try {
-      // Use form.submit() for automatic validation
-      const result = await form.submit(async (validData) => {
-        return await submitFn(validData);
-      });
+      // Mark all fields as touched to show validation errors
+      form.touchAll();
+
+      // Get form values and submit
+      const data = form.getValue();
+      const result = await submitFn(data);
 
       // Set success state
       setState({ status: 'success', data: result });

@@ -10,33 +10,38 @@ Implementing form submission with automatic validation and data transformation.
 
 Basic submission covers the essential flow:
 
-- **form.submit()** - The core submission method
-- **Automatic Validation** - Validates before submission
+- **form.getValue()** - Get current form values
+- **form.touchAll()** - Mark all fields as touched to show errors
 - **Data Transformation** - Serialize form data for API
 - **API Service** - Submit to server
 - **Success Handling** - Process successful response
 - **Error Handling** - Handle submission failures
 - **UI States** - Loading and disabled states
 
-## The form.submit() Method
+## Form Submission Pattern
 
-The `form.submit()` method is the core of ReFormer's submission system. It automatically validates your form before calling your submission callback.
+ReFormer provides methods to get form values and trigger validation display. The recommended pattern combines `getValue()` with state management.
 
 ### Basic Usage
 
 ```typescript
-const result = await form.submit(async (validData) => {
-  // This callback only executes if validation passes
-  // validData is guaranteed to be valid
-  return await submitToServer(validData);
-});
+const handleSubmit = async () => {
+  // Mark all fields as touched to show validation errors
+  form.touchAll();
+
+  // Get form values
+  const formData = form.getValue();
+
+  // Submit to server
+  const result = await submitToServer(formData);
+  return result;
+};
 ```
 
-**Key features**:
-- Validates all fields automatically
-- Throws error if validation fails
-- Callback receives only validated data
-- Returns whatever your callback returns
+**Key methods**:
+- `form.getValue()` - Returns current form values
+- `form.touchAll()` - Marks all fields as touched (shows validation errors)
+- `form.valid.value` - Check if form is valid (reactive signal)
 
 ### Submission Flow
 
@@ -47,34 +52,34 @@ const result = await form.submit(async (validData) => {
            │
            ▼
 ┌─────────────────────────────────────┐
-│   form.submit() is called           │
+│   handleSubmit() is called          │
 └──────────┬──────────────────────────┘
            │
            ▼
 ┌─────────────────────────────────────┐
-│   1. Run validation                 │
-│      - All validators execute       │
-│      - Check required fields        │
-│      - Check custom rules           │
+│   1. form.touchAll()                │
+│      - Show all validation errors   │
+│      - Mark fields as touched       │
 └──────────┬──────────────────────────┘
            │
            ▼
-    ┌──────────────┐
-    │  Is Valid?   │
-    └──┬────────┬──┘
-       │ NO     │ YES
-       ▼        ▼
-    ┌─────┐  ┌──────────────────────────┐
-    │STOP │  │ 2. Call submit callback  │
-    │Show │  │    - Pass valid data     │
-    │Errors│ │    - Execute API call    │
-    └─────┘  └──────────┬───────────────┘
-                        │
-                        ▼
+┌─────────────────────────────────────┐
+│   2. Get values with getValue()     │
+│      - Returns form data object     │
+└──────────┬──────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────┐
+│   3. Transform & send to API        │
+│      - Serialize data               │
+│      - POST to server               │
+└──────────┬──────────────────────────┘
+           │
+           ▼
               ┌──────────────────────────┐
-              │ 3. Return result         │
-              │    - Success: result     │
-              │    - Error: throw        │
+              │ 4. Handle result         │
+              │    - Success: show msg   │
+              │    - Error: show error   │
               └──────────────────────────┘
 ```
 
@@ -376,17 +381,17 @@ function CreditApplicationForm() {
     setSubmitting(true);
 
     try {
-      // form.submit() automatically:
-      // 1. Validates all fields
-      // 2. Throws if invalid
-      // 3. Calls callback with valid data
-      const result = await form.submit(async (validData) => {
-        // Transform form data to API format
-        const apiData = creditApplicationTransformer.serialize(validData);
+      // Mark all fields as touched to show validation errors
+      form.touchAll();
 
-        // Submit to server
-        return await submitApplication(apiData);
-      });
+      // Get current form values
+      const formData = form.getValue();
+
+      // Transform form data to API format
+      const apiData = creditApplicationTransformer.serialize(formData);
+
+      // Submit to server
+      const result = await submitApplication(apiData);
 
       // Success!
       console.log('Application submitted:', result);
@@ -430,7 +435,7 @@ function CreditApplicationForm() {
       {/* Submit button */}
       <button
         type="submit"
-        disabled={submitting || !form.valid.value}
+        disabled={submitting}
         className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
       >
         {submitting ? 'Submitting...' : 'Submit Application'}
@@ -446,20 +451,21 @@ function CreditApplicationForm() {
 // 1. User clicks submit
 handleSubmit() // called
 
-// 2. Validation happens automatically
-form.submit(async (validData) => {
-  // 3. This callback only runs if validation passes
+// 2. Mark all fields as touched to show errors
+form.touchAll();
 
-  // 4. Transform data
-  const apiData = transformer.serialize(validData);
+// 3. Get form values
+const formData = form.getValue();
 
-  // 5. Send to server
-  return await submitApplication(apiData);
-});
+// 4. Transform data
+const apiData = transformer.serialize(formData);
+
+// 5. Send to server
+const result = await submitApplication(apiData);
 
 // 6. Handle result
-// - Success: result returned
-// - Error: exception thrown
+// - Success: show success message
+// - Error: show error message
 ```
 
 ## Creating a Submit Button Component
@@ -550,10 +556,10 @@ function CreditApplicationForm() {
     setSubmitting(true);
 
     try {
-      const result = await form.submit(async (data) => {
-        const apiData = creditApplicationTransformer.serialize(data);
-        return await submitApplication(apiData);
-      });
+      form.touchAll();
+      const data = form.getValue();
+      const apiData = creditApplicationTransformer.serialize(data);
+      const result = await submitApplication(apiData);
 
       console.log('Success:', result);
     } catch (error) {
@@ -604,13 +610,17 @@ export function CreditApplicationForm() {
     setSubmitting(true);
 
     try {
-      const result = await form.submit(async (validData) => {
-        // Transform to API format
-        const apiData = creditApplicationTransformer.serialize(validData);
+      // Mark all fields as touched to show validation errors
+      form.touchAll();
 
-        // Submit to server
-        return await submitApplication(apiData);
-      });
+      // Get current form values
+      const validData = form.getValue();
+
+      // Transform to API format
+      const apiData = creditApplicationTransformer.serialize(validData);
+
+      // Submit to server
+      const result = await submitApplication(apiData);
 
       // Success!
       setSuccess(true);
@@ -799,35 +809,36 @@ describe('CreditApplicationForm - Basic Submission', () => {
 
 ## Key Takeaways
 
-### form.submit() Pattern
+### Submission Pattern
 
 ```typescript
-// ✅ Correct: Use form.submit()
-const result = await form.submit(async (validData) => {
-  return await submitToAPI(validData);
-});
+// ✅ Correct: Use form.touchAll() + form.getValue()
+const handleSubmit = async () => {
+  form.touchAll(); // Show validation errors
+  const data = form.getValue();
+  const apiData = transformer.serialize(data);
+  return await submitToAPI(apiData);
+};
 
-// ❌ Wrong: Manual validation
-const isValid = await form.validate();
-if (isValid) {
-  const data = form.value.value;
-  await submitToAPI(data);
-}
+// ❌ Wrong: Direct access without touchAll
+const data = form.getValue();
+await submitToAPI(data); // User won't see validation errors
 ```
 
 ### Always Transform Data
 
 ```typescript
 // ✅ Correct: Transform before sending
-const result = await form.submit(async (data) => {
+const handleSubmit = async () => {
+  form.touchAll();
+  const data = form.getValue();
   const apiData = transformer.serialize(data);
   return await submitApplication(apiData);
-});
+};
 
 // ❌ Wrong: Send raw form data
-const result = await form.submit(async (data) => {
-  return await submitApplication(data); // May not match API format
-});
+const data = form.getValue();
+await submitApplication(data); // May not match API format
 ```
 
 ### Handle Loading State
@@ -836,15 +847,20 @@ const result = await form.submit(async (data) => {
 // ✅ Correct: Track loading state
 const [submitting, setSubmitting] = useState(false);
 
-try {
+const handleSubmit = async () => {
   setSubmitting(true);
-  await form.submit(submitFn);
-} finally {
-  setSubmitting(false);
-}
+  try {
+    form.touchAll();
+    const data = form.getValue();
+    await submitToAPI(data);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
 // ❌ Wrong: No loading indication
-await form.submit(submitFn); // User doesn't know submission is happening
+form.touchAll();
+await submitToAPI(form.getValue()); // User doesn't know submission is happening
 ```
 
 ### Disable Submit When Invalid

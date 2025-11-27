@@ -28,7 +28,7 @@ Step 2 contains personal data fields that need careful validation:
 Create the validator file for Step 2:
 
 ```bash
-touch src/validators/steps/step-2-personal-info.validators.ts
+touch src/schemas/validators/steps/step-2-personal-info.validators.ts
 ```
 
 ## Implementation
@@ -37,7 +37,7 @@ touch src/validators/steps/step-2-personal-info.validators.ts
 
 Validate names using the Cyrillic pattern:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 import { required, minLength, pattern, createValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -90,7 +90,7 @@ The pattern `/^[А-ЯЁа-яё\s-]+$/` ensures:
 
 Add custom validation for birth date:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -163,7 +163,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Add validation for Russian passport format:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -239,7 +239,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Add validation for Russian identification numbers:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -267,7 +267,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Here's the complete validator for Step 2:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 import { required, minLength, pattern, createValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

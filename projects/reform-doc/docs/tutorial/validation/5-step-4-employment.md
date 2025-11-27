@@ -32,7 +32,7 @@ Step 4 contains employment-related fields with conditional requirements:
 Create the validator file for Step 4:
 
 ```bash
-touch src/validators/steps/step-4-employment.validators.ts
+touch src/schemas/validators/steps/step-4-employment.validators.ts
 ```
 
 ## Implementation
@@ -41,7 +41,7 @@ touch src/validators/steps/step-4-employment.validators.ts
 
 Start with required fields that apply to all employment statuses:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 import { required, min, minLength, requiredWhen, minWhen, pattern } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -82,7 +82,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Add validation for employed individuals:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -145,7 +145,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Add validation for self-employed individuals:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -205,7 +205,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Here's the complete validator for Step 4:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 import { required, min, requiredWhen, minWhen, pattern } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

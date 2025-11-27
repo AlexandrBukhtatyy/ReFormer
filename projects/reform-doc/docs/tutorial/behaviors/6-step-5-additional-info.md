@@ -15,7 +15,7 @@ Step 5 handles optional arrays that appear based on checkboxes:
 
 ## Implementation
 
-```typescript title="src/behaviors/steps/step-5-additional-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-5-additional-info.behaviors.ts"
 import { showWhen, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, CoBorrower } from '@/types';

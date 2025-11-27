@@ -17,7 +17,7 @@ Step 4 handles different employment statuses with their specific fields:
 
 ## Implementation
 
-```typescript title="src/behaviors/steps/step-4-employment.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-4-employment.behaviors.ts"
 import { showWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

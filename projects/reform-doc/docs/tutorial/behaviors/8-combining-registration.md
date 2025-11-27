@@ -20,12 +20,12 @@ We've created behaviors for each step plus cross-step behaviors. Now let's:
 Create the main behavior file that imports and applies all step behaviors:
 
 ```bash
-touch src/behaviors/credit-application.behaviors.ts
+touch src/schemas/behaviors/credit-application.behaviors.ts
 ```
 
 ### Implementation
 
-```typescript title="src/behaviors/credit-application.behaviors.ts"
+```typescript title="src/schemas/behaviors/credit-application.behaviors.ts"
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -110,21 +110,24 @@ Your project should now have this structure:
 
 ```
 src/
-├── behaviors/
-│   ├── steps/
-│   │   ├── step-1-loan-info.behaviors.ts
-│   │   ├── step-2-personal-info.behaviors.ts
-│   │   ├── step-3-contact-info.behaviors.ts
-│   │   ├── step-4-employment.behaviors.ts
-│   │   └── step-5-additional-info.behaviors.ts
-│   ├── cross-step.behaviors.ts
-│   └── credit-application.behaviors.ts  ← Main file
-│
 ├── schemas/
+│   ├── behaviors/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.behaviors.ts
+│   │   │   ├── step-2-personal-info.behaviors.ts
+│   │   │   ├── step-3-contact-info.behaviors.ts
+│   │   │   ├── step-4-employment.behaviors.ts
+│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   ├── cross-step.behaviors.ts
+│   │   └── credit-application.behaviors.ts  ← Main file
 │   ├── credit-application.schema.ts
 │   └── create-form.ts  ← Behaviors registered here
 │
 ├── components/
+│   ├── forms/
+│   │   └── createCreditApplicationForm.ts
+│   ├── steps/
+│   ├── nested-forms/
 │   └── CreditApplicationForm.tsx
 │
 └── types/

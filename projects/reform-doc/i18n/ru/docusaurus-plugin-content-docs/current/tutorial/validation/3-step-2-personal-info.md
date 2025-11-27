@@ -28,7 +28,7 @@ sidebar_position: 3
 Создайте файл валидатора для Шага 2:
 
 ```bash
-touch src/validators/steps/step-2-personal-info.validators.ts
+touch src/schemas/validators/steps/step-2-personal-info.validators.ts
 ```
 
 ## Реализация
@@ -37,7 +37,7 @@ touch src/validators/steps/step-2-personal-info.validators.ts
 
 Валидируйте имена используя паттерн кириллицы:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 import { required, minLength, pattern, createValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -90,7 +90,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Добавьте пользовательскую валидацию для даты рождения:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -163,7 +163,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Добавьте валидацию для русского формата паспорта:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -239,7 +239,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Добавьте валидацию для российских идентификационных номеров:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -267,7 +267,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Вот полный валидатор для Шага 2:
 
-```typescript title="src/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
 import { required, minLength, pattern, createValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

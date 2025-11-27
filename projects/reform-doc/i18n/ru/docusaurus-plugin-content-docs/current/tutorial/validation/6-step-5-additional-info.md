@@ -35,7 +35,7 @@ sidebar_position: 6
 Создайте файл валидатора для Шага 5:
 
 ```bash
-touch src/validators/steps/step-5-additional-info.validators.ts
+touch src/schemas/validators/steps/step-5-additional-info.validators.ts
 ```
 
 ## Реализация
@@ -44,7 +44,7 @@ touch src/validators/steps/step-5-additional-info.validators.ts
 
 Начните с валидации массива имущества:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 import {
   required,
   min,
@@ -120,7 +120,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Добавьте валидацию для существующих кредитов:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -173,7 +173,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Добавьте валидацию для созаёмщиков с валидацией вложенных объектов:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -241,7 +241,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Вот полный валидатор для Шага 5:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 import {
   required,
   min,

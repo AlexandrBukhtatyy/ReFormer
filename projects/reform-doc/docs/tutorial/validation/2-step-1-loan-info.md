@@ -28,8 +28,8 @@ Step 1 contains loan-related fields that need validation:
 Create the validator file for Step 1:
 
 ```bash
-mkdir -p src/validators/steps
-touch src/validators/steps/step-1-loan-info.validators.ts
+mkdir -p src/schemas/validators/steps
+touch src/schemas/validators/steps/step-1-loan-info.validators.ts
 ```
 
 ## Implementation
@@ -38,7 +38,7 @@ touch src/validators/steps/step-1-loan-info.validators.ts
 
 Start with basic required fields and numeric ranges:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 import { required, min, max, minLength, maxLength, requiredWhen, minWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -89,7 +89,7 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 Add validation for mortgage-specific fields using `requiredWhen` and `minWhen`:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -146,7 +146,7 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add validation for car loan-specific fields:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -229,7 +229,7 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Here's the complete validator for Step 1:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 import {
   required,
   min,

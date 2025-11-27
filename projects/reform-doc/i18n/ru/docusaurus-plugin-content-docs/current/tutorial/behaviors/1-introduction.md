@@ -163,7 +163,7 @@ revalidateWhen(path.monthlyPayment, [path.totalIncome]);
 Для нашей формы кредитной заявки мы организуем behaviors по шагам формы - как мы делали в разделе Rendering:
 
 ```typescript
-// src/behaviors/credit-application.behaviors.ts
+// src/schemas/behaviors/credit-application.behaviors.ts
 export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // Шаг 1: Информация о кредите
   step1LoanBehaviors(path);
@@ -197,16 +197,16 @@ export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm>
 
 ```
 src/
-├── behaviors/
-│   ├── steps/
-│   │   ├── step-1-loan-info.behaviors.ts
-│   │   ├── step-2-personal-info.behaviors.ts
-│   │   ├── step-3-contact-info.behaviors.ts
-│   │   ├── step-4-employment.behaviors.ts
-│   │   └── step-5-additional-info.behaviors.ts
-│   ├── cross-step.behaviors.ts
-│   └── credit-application.behaviors.ts  (главный файл)
 ├── schemas/
+│   ├── behaviors/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.behaviors.ts
+│   │   │   ├── step-2-personal-info.behaviors.ts
+│   │   │   ├── step-3-contact-info.behaviors.ts
+│   │   │   ├── step-4-employment.behaviors.ts
+│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   ├── cross-step.behaviors.ts
+│   │   └── credit-application.behaviors.ts  (главный файл)
 │   └── create-form.ts  (behaviors регистрируются здесь)
 └── ...
 ```

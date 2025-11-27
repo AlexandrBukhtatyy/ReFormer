@@ -123,7 +123,9 @@ export function useOptimistic<T>(
 
     try {
       // Perform actual submission
-      const result = await form.submit(submitFn);
+      form.touchAll();
+      const data = form.getValue();
+      const result = await submitFn(data);
 
       // Confirm optimistic update
       setIsOptimistic(false);

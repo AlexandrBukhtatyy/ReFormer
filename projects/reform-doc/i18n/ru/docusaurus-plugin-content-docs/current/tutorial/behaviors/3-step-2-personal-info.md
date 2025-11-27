@@ -21,7 +21,7 @@ sidebar_position: 3
 Создадим файл behavior для Шага 2:
 
 ```bash
-touch src/behaviors/steps/step-2-personal-info.behaviors.ts
+touch src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts
 ```
 
 ## Реализация Behaviors
@@ -30,7 +30,7 @@ touch src/behaviors/steps/step-2-personal-info.behaviors.ts
 
 В русских формах полное имя (ФИО) обычно форматируется как: **Фамилия Имя Отчество**.
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';
@@ -82,7 +82,7 @@ computeFrom([path.personalData.firstName, path.personalData.lastName, ...], ...)
 
 Рассчитываем возраст заявителя из его даты рождения:
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
@@ -133,7 +133,7 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 
 Поскольку `fullName` и `age` вычисляются автоматически, они должны быть только для чтения (отключены):
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
@@ -172,7 +172,7 @@ fullName: {
 
 Вот полный файл behavior для Шага 2:
 
-```typescript title="src/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';

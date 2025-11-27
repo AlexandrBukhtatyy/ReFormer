@@ -27,7 +27,7 @@ sidebar_position: 4
 Создайте файл валидатора для Шага 3:
 
 ```bash
-touch src/validators/steps/step-3-contact-info.validators.ts
+touch src/schemas/validators/steps/step-3-contact-info.validators.ts
 ```
 
 ## Реализация
@@ -36,7 +36,7 @@ touch src/validators/steps/step-3-contact-info.validators.ts
 
 Начните с валидации формата телефона и email:
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -85,7 +85,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Добавьте валидацию для адреса регистрации (всегда обязателен):
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -112,7 +112,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Добавьте условную валидацию для адреса проживания (требуется только когда отличается от регистрации):
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -157,7 +157,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Вот полный валидатор для Шага 3:
 
-```typescript title="src/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
 import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

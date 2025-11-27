@@ -20,12 +20,12 @@ sidebar_position: 8
 Создайте основной файл валидации, который импортирует и применяет все валидаторы шагов:
 
 ```bash
-touch src/validators/credit-application.validators.ts
+touch src/schemas/validators/credit-application.validators.ts
 ```
 
 ### Реализация
 
-```typescript title="src/validators/credit-application.validators.ts"
+```typescript title="src/schemas/validators/credit-application.validators.ts"
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -111,31 +111,33 @@ export function createCreditApplicationForm() {
 
 ```
 src/
-├── validators/
-│   ├── steps/
-│   │   ├── step-1-loan-info.validators.ts
-│   │   ├── step-2-personal-info.validators.ts
-│   │   ├── step-3-contact-info.validators.ts
-│   │   ├── step-4-employment.validators.ts
-│   │   └── step-5-additional-info.validators.ts
-│   ├── cross-step.validators.ts
-│   └── credit-application.validators.ts  ← Основной файл
-│
-├── behaviors/
-│   ├── steps/
-│   │   ├── step-1-loan-info.behaviors.ts
-│   │   ├── step-2-personal-info.behaviors.ts
-│   │   ├── step-3-contact-info.behaviors.ts
-│   │   ├── step-4-employment.behaviors.ts
-│   │   └── step-5-additional-info.behaviors.ts
-│   ├── cross-step.behaviors.ts
-│   └── credit-application.behaviors.ts
-│
 ├── schemas/
+│   ├── validators/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.validators.ts
+│   │   │   ├── step-2-personal-info.validators.ts
+│   │   │   ├── step-3-contact-info.validators.ts
+│   │   │   ├── step-4-employment.validators.ts
+│   │   │   └── step-5-additional-info.validators.ts
+│   │   ├── cross-step.validators.ts
+│   │   └── credit-application.validators.ts  ← Основной файл
+│   ├── behaviors/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.behaviors.ts
+│   │   │   ├── step-2-personal-info.behaviors.ts
+│   │   │   ├── step-3-contact-info.behaviors.ts
+│   │   │   ├── step-4-employment.behaviors.ts
+│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   ├── cross-step.behaviors.ts
+│   │   └── credit-application.behaviors.ts
 │   ├── credit-application.schema.ts
 │   └── create-form.ts  ← Валидация зарегистрирована здесь
 │
 ├── components/
+│   ├── forms/
+│   │   └── createCreditApplicationForm.ts
+│   ├── steps/
+│   ├── nested-forms/
 │   └── CreditApplicationForm.tsx
 │
 └── types/

@@ -32,7 +32,7 @@ sidebar_position: 5
 Создайте файл валидатора для Шага 4:
 
 ```bash
-touch src/validators/steps/step-4-employment.validators.ts
+touch src/schemas/validators/steps/step-4-employment.validators.ts
 ```
 
 ## Реализация
@@ -41,7 +41,7 @@ touch src/validators/steps/step-4-employment.validators.ts
 
 Начните с требуемых полей, которые применяются ко всем статусам занятости:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 import { required, min, minLength, requiredWhen, minWhen, pattern } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -82,7 +82,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Добавьте валидацию для работающих людей:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -145,7 +145,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Добавьте валидацию для самозанятых людей:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -205,7 +205,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Вот полный валидатор для Шага 4:
 
-```typescript title="src/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
 import { required, min, requiredWhen, minWhen, pattern } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

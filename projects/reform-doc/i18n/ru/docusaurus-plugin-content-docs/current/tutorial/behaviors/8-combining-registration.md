@@ -20,12 +20,12 @@ sidebar_position: 8
 Создадим главный файл behavior который импортирует и применяет все behaviors шагов:
 
 ```bash
-touch src/behaviors/credit-application.behaviors.ts
+touch src/schemas/behaviors/credit-application.behaviors.ts
 ```
 
 ### Реализация
 
-```typescript title="src/behaviors/credit-application.behaviors.ts"
+```typescript title="src/schemas/behaviors/credit-application.behaviors.ts"
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -110,21 +110,24 @@ export function createCreditApplicationForm() {
 
 ```
 src/
-├── behaviors/
-│   ├── steps/
-│   │   ├── step-1-loan-info.behaviors.ts
-│   │   ├── step-2-personal-info.behaviors.ts
-│   │   ├── step-3-contact-info.behaviors.ts
-│   │   ├── step-4-employment.behaviors.ts
-│   │   └── step-5-additional-info.behaviors.ts
-│   ├── cross-step.behaviors.ts
-│   └── credit-application.behaviors.ts  ← Главный файл
-│
 ├── schemas/
+│   ├── behaviors/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.behaviors.ts
+│   │   │   ├── step-2-personal-info.behaviors.ts
+│   │   │   ├── step-3-contact-info.behaviors.ts
+│   │   │   ├── step-4-employment.behaviors.ts
+│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   ├── cross-step.behaviors.ts
+│   │   └── credit-application.behaviors.ts  ← Главный файл
 │   ├── credit-application.schema.ts
 │   └── create-form.ts  ← Behaviors зарегистрированы здесь
 │
 ├── components/
+│   ├── forms/
+│   │   └── createCreditApplicationForm.ts
+│   ├── steps/
+│   ├── nested-forms/
 │   └── CreditApplicationForm.tsx
 │
 └── types/

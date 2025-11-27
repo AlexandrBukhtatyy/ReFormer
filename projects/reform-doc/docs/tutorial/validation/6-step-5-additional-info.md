@@ -35,7 +35,7 @@ Step 5 contains array fields that need special validation:
 Create the validator file for Step 5:
 
 ```bash
-touch src/validators/steps/step-5-additional-info.validators.ts
+touch src/schemas/validators/steps/step-5-additional-info.validators.ts
 ```
 
 ## Implementation
@@ -44,7 +44,7 @@ touch src/validators/steps/step-5-additional-info.validators.ts
 
 Start with properties array validation:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 import {
   required,
   min,
@@ -120,7 +120,7 @@ Use the `'*'` wildcard to validate all elements in an array:
 
 Add validation for existing loans:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -173,7 +173,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Add validation for co-borrowers with nested object validation:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -241,7 +241,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Here's the complete validator for Step 5:
 
-```typescript title="src/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
 import {
   required,
   min,

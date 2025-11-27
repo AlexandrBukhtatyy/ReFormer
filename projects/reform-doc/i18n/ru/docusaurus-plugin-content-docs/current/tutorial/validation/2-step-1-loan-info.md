@@ -28,8 +28,8 @@ sidebar_position: 2
 Создайте файл валидатора для Шага 1:
 
 ```bash
-mkdir -p src/validators/steps
-touch src/validators/steps/step-1-loan-info.validators.ts
+mkdir -p src/schemas/validators/steps
+touch src/schemas/validators/steps/step-1-loan-info.validators.ts
 ```
 
 ## Реализация
@@ -38,7 +38,7 @@ touch src/validators/steps/step-1-loan-info.validators.ts
 
 Начните с базовых обязательных полей и числовых диапазонов:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 import { required, min, max, minLength, maxLength, requiredWhen, minWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -89,7 +89,7 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 Добавьте валидацию для полей, связанных с ипотекой, используя `requiredWhen` и `minWhen`:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -146,7 +146,7 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте валидацию для полей, связанных с автокредитом:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -229,7 +229,7 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Вот полный валидатор для Шага 1:
 
-```typescript title="src/validators/steps/step-1-loan-info.validators.ts"
+```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
 import {
   required,
   min,

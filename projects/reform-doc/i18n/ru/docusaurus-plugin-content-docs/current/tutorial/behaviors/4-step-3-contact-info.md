@@ -19,12 +19,12 @@ sidebar_position: 4
 ## Создание файла Behavior
 
 ```bash
-touch src/behaviors/steps/step-3-contact-info.behaviors.ts
+touch src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts
 ```
 
 ## Реализация Behaviors
 
-```typescript title="src/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -117,7 +117,7 @@ copyTo(
 
 ## Полный код
 
-```typescript title="src/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

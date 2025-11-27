@@ -218,7 +218,7 @@ createAsyncValidator(
 Для нашей формы кредитного заявления мы организуем валидацию по шагам формы - соответствуя структуре, которую мы использовали в Behaviors:
 
 ```typescript
-// src/validators/credit-application.validators.ts
+// src/schemas/validators/credit-application.validators.ts
 export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // Шаг 1: Информация о кредите
   step1LoanValidation(path);
@@ -252,16 +252,16 @@ export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationFo
 
 ```
 src/
-├── validators/
-│   ├── steps/
-│   │   ├── step-1-loan-info.validators.ts
-│   │   ├── step-2-personal-info.validators.ts
-│   │   ├── step-3-contact-info.validators.ts
-│   │   ├── step-4-employment.validators.ts
-│   │   └── step-5-additional-info.validators.ts
-│   ├── cross-step.validators.ts
-│   └── credit-application.validators.ts  (главный файл)
 ├── schemas/
+│   ├── validators/
+│   │   ├── steps/
+│   │   │   ├── step-1-loan-info.validators.ts
+│   │   │   ├── step-2-personal-info.validators.ts
+│   │   │   ├── step-3-contact-info.validators.ts
+│   │   │   ├── step-4-employment.validators.ts
+│   │   │   └── step-5-additional-info.validators.ts
+│   │   ├── cross-step.validators.ts
+│   │   └── credit-application.validators.ts  (главный файл)
 │   └── create-form.ts  (валидация зарегистрирована здесь)
 └── ...
 ```

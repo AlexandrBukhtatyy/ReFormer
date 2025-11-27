@@ -252,10 +252,10 @@ export function CreditApplicationForm() {
 
   const { submit, attempt, retrying } = useRetry(
     async () => {
-      return await form.submit(async (data) => {
-        const apiData = creditApplicationTransformer.serialize(data);
-        return await submitApplication(apiData);
-      });
+      form.touchAll();
+      const data = form.getValue();
+      const apiData = creditApplicationTransformer.serialize(data);
+      return await submitApplication(apiData);
     },
     {
       maxAttempts: 3,
@@ -475,9 +475,11 @@ export function useSubmissionState<T>(
 } {
   const [state, setState] = useState<SubmissionState<T>>({ status: 'idle' });
 
-  // Wrap submitFn with form.submit
+  // Wrap submitFn with form methods
   const wrappedSubmit = useCallback(async () => {
-    return await form.submit(submitFn);
+    form.touchAll();
+    const data = form.getValue();
+    return await submitFn(data);
   }, [form, submitFn]);
 
   // Add retry logic

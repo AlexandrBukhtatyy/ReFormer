@@ -17,7 +17,7 @@ sidebar_position: 5
 
 ## Реализация
 
-```typescript title="src/behaviors/steps/step-4-employment.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-4-employment.behaviors.ts"
 import { showWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

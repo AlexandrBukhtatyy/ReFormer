@@ -67,21 +67,21 @@ const handleSubmit = async () => {
 };
 ```
 
-Use ReFormer's built-in submission mechanism:
+Use ReFormer's form methods with structured submission:
 
 ```tsx
 // ✅ Declarative approach - structured submission
 const handleSubmit = async () => {
   try {
-    // form.submit() automatically:
-    // 1. Validates all fields
-    // 2. Throws error if invalid
-    // 3. Calls callback with valid data
-    const result = await form.submit(async (data) => {
-      // Transform and send
-      const apiData = transformer.serialize(data);
-      return await submitApplication(apiData);
-    });
+    // Mark all fields as touched to show validation errors
+    form.touchAll();
+
+    // Get current form values
+    const data = form.getValue();
+
+    // Transform and send
+    const apiData = transformer.serialize(data);
+    const result = await submitApplication(apiData);
 
     // Handle success
     navigate(`/success?id=${result.id}`);
@@ -246,23 +246,24 @@ const data = form.value.value;
 // }
 ```
 
-### Validation (Automatic)
+### Validation (Check Before Submit)
 ```typescript
-// form.submit() validates before sending
-await form.submit(async (data) => {
-  // This callback only runs if validation passes
-  return await sendToServer(data);
-});
+// Check form validity before sending
+form.touchAll(); // Show validation errors if any
+const data = form.getValue();
+// form.valid.value tells you if the form is valid
+if (form.valid.value) {
+  await sendToServer(data);
+}
 ```
 
 ### Data Flow (Manual)
 ```typescript
 // Transform before submission
-const result = await form.submit(async (data) => {
-  // Use transformer from Data Flow section
-  const apiData = transformer.serialize(data);
-  return await submitApplication(apiData);
-});
+form.touchAll();
+const data = form.getValue();
+const apiData = transformer.serialize(data);
+const result = await submitApplication(apiData);
 
 // Clear draft after success
 if (result.success) {
@@ -304,23 +305,28 @@ src/
 
 ## Key Concepts
 
-### 1. form.submit()
+### 1. Form Submission Pattern
 
-The core submission method:
+The recommended submission pattern:
 
 ```typescript
-const result = await form.submit(async (validData) => {
-  // This callback receives validated data
-  // Return the result from your API
-  return await apiCall(validData);
-});
+const handleSubmit = async () => {
+  // Show validation errors
+  form.touchAll();
+
+  // Get form values
+  const data = form.getValue();
+
+  // Submit to server
+  const result = await apiCall(data);
+  return result;
+};
 ```
 
-**Key points**:
-- Validates automatically before callback
-- Throws if validation fails
-- Callback receives only valid data
-- Returns whatever the callback returns
+**Key methods**:
+- `form.touchAll()` - Marks all fields as touched to show validation errors
+- `form.getValue()` - Returns current form values
+- `form.valid.value` - Check if form is currently valid
 
 ### 2. Submission States
 
@@ -385,29 +391,37 @@ const transformer = {
 
 ### Basic Submit
 ```typescript
-await form.submit(async (data) => {
+const handleSubmit = async () => {
+  form.touchAll();
+  const data = form.getValue();
   return await api.submit(data);
-});
+};
 ```
 
 ### Submit with Transform
 ```typescript
-await form.submit(async (data) => {
+const handleSubmit = async () => {
+  form.touchAll();
+  const data = form.getValue();
   const transformed = transformer.serialize(data);
   return await api.submit(transformed);
-});
+};
 ```
 
 ### Submit with State
 ```typescript
 const [submitting, setSubmitting] = useState(false);
 
-try {
+const handleSubmit = async () => {
   setSubmitting(true);
-  await form.submit(submitFn);
-} finally {
-  setSubmitting(false);
-}
+  try {
+    form.touchAll();
+    const data = form.getValue();
+    await api.submit(data);
+  } finally {
+    setSubmitting(false);
+  }
+};
 ```
 
 ### Submit with Retry
@@ -415,7 +429,9 @@ try {
 let attempts = 0;
 while (attempts < maxAttempts) {
   try {
-    return await form.submit(submitFn);
+    form.touchAll();
+    const data = form.getValue();
+    return await api.submit(data);
   } catch (error) {
     if (!isRetryable(error)) throw error;
     attempts++;
@@ -427,7 +443,7 @@ while (attempts < maxAttempts) {
 ## Getting Started
 
 Let's start with **Basic Submission** - the foundation of form submission. This covers:
-- Using `form.submit()`
+- Using `form.touchAll()` and `form.getValue()`
 - Creating API service
 - Handling validation
 - Success and error responses

@@ -26,7 +26,7 @@ sidebar_position: 7
 Создайте файл валидатора между шагами:
 
 ```bash
-touch src/validators/cross-step.validators.ts
+touch src/schemas/validators/cross-step.validators.ts
 ```
 
 ## Реализация
@@ -35,7 +35,7 @@ touch src/validators/cross-step.validators.ts
 
 Убедитесь, что первоначальный платёж составляет минимум 20% от стоимости имущества:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 import { createValidator, createAsyncValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -83,7 +83,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 Убедитесь, что ежемесячный платёж не превышает 50% от общего дохода домохозяйства:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -117,7 +117,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Убедитесь, что сумма кредита не превышает цену автомобиля:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -149,7 +149,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Валидируйте остаток кредита, чтобы он не превышал оригинальную сумму:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -179,7 +179,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Валидируйте возраст между 18 и 70:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -216,7 +216,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте асинхронную валидацию для проверки ИНН:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -258,7 +258,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте асинхронную валидацию для проверки СНИЛС:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -297,7 +297,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте асинхронную валидацию для уникальности email:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -341,7 +341,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Вот полный валидатор между шагами:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 import { createValidator, createAsyncValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

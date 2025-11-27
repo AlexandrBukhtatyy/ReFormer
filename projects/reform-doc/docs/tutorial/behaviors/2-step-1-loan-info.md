@@ -21,8 +21,8 @@ For the first step of our Credit Application form, we need to add the following 
 First, let's create the directory structure and behavior file for Step 1:
 
 ```bash
-mkdir -p src/behaviors/steps
-touch src/behaviors/steps/step-1-loan-info.behaviors.ts
+mkdir -p src/schemas/behaviors/steps
+touch src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts
 ```
 
 ## Implementing the Behaviors
@@ -31,7 +31,7 @@ touch src/behaviors/steps/step-1-loan-info.behaviors.ts
 
 Start by importing the necessary functions and types:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
@@ -50,7 +50,7 @@ The interest rate depends on multiple factors:
 - 0.5% discount for major cities (Moscow, St. Petersburg)
 - 1.0% discount if applicant owns property
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ==========================================
   // Computed: Interest Rate
@@ -114,7 +114,7 @@ Where:
 - n = number of months
 ```
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
@@ -166,7 +166,7 @@ You don't need to worry about the execution order!
 
 Show mortgage-specific fields only when `loanType === 'mortgage'`:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
@@ -190,7 +190,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Similarly, show car-specific fields only for car loans:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
@@ -210,7 +210,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 When the user changes loan type, we should clear the fields from the previous type to avoid confusion:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
@@ -251,7 +251,7 @@ Don't use `watch` to set field values that should be derived - use `computeFrom`
 
 Here's the complete behavior file for Step 1:
 
-```typescript title="src/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';

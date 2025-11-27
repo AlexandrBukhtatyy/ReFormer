@@ -19,12 +19,12 @@ This demonstrates a common pattern: giving users the option to use the same valu
 ## Creating the Behavior File
 
 ```bash
-touch src/behaviors/steps/step-3-contact-info.behaviors.ts
+touch src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts
 ```
 
 ## Implementing the Behaviors
 
-```typescript title="src/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -117,7 +117,7 @@ For addresses, `copyTo` is correct because we don't want changes to `residenceAd
 
 ## Complete Code
 
-```typescript title="src/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';

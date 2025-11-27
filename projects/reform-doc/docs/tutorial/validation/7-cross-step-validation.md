@@ -26,7 +26,7 @@ Cross-step validation enforces business rules that depend on fields from multipl
 Create the cross-step validator file:
 
 ```bash
-touch src/validators/cross-step.validators.ts
+touch src/schemas/validators/cross-step.validators.ts
 ```
 
 ## Implementation
@@ -35,7 +35,7 @@ touch src/validators/cross-step.validators.ts
 
 Ensure down payment is at least 20% of property value:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 import { createValidator, createAsyncValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -83,7 +83,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 Ensure monthly payment doesn't exceed 50% of total household income:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -117,7 +117,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Ensure loan amount doesn't exceed car price:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -149,7 +149,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Validate remaining loan amount doesn't exceed original amount:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -179,7 +179,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Validate age is between 18 and 70:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -216,7 +216,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add async validation for INN verification:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -258,7 +258,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add async validation for SNILS verification:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -297,7 +297,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add async validation for email uniqueness:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -341,7 +341,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Here's the complete cross-step validator:
 
-```typescript title="src/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.validators.ts"
 import { createValidator, createAsyncValidator } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
