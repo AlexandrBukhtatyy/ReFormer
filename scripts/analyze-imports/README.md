@@ -14,10 +14,10 @@ npm run scripts:analize:imports -- <путь к директории>
 npm run scripts:analize:imports -- <путь к директории> --output имя_файла.md
 
 # Примеры
-npm run scripts:analize:imports -- projects/react-examples
+npm run scripts:analize:imports -- projects/react-playground
 npm run scripts:analize:imports -- packages/reformer
-npm run scripts:analize:imports -- projects/react-examples/src/pages/examples/complex-multy-step-form --output imports.md
-npm run scripts:analize:imports -- projects/react-examples/src -o analysis.md
+npm run scripts:analize:imports -- projects/react-playground/src/pages/examples/complex-multy-step-form --output imports.md
+npm run scripts:analize:imports -- projects/react-playground/src -o analysis.md
 ```
 
 **Важно:**

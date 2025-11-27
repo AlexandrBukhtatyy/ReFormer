@@ -4,7 +4,7 @@
 function isFormNode(value): value is FormNode<FormValue>;
 ```
 
-Defined in: [core/utils/type-guards.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/67c6c21902e727e89d7f622f6fc0ba56c693c0cc/packages/reformer/src/core/utils/type-guards.ts#L39)
+Defined in: [core/utils/type-guards.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/004c1ffc7ad7a532d48a1818bbddff4ad2796ac4/packages/reformer/src/core/utils/type-guards.ts#L39)
 
 Проверить, является ли значение любым FormNode
 

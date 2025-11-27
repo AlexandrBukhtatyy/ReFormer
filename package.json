@@ -6,11 +6,11 @@
   "description": "",
   "main": "index.js",
   "stackblitz": {
-    "startCommand": "npm run build -w reformer && npm install && npm run dev:stackblitz -w react-examples"
+    "startCommand": "npm run build -w reformer && npm install && npm run dev:stackblitz -w react-playground"
   },
   "scripts": {
     "build": "npm run build --workspaces",
-    "dev": "npm run dev --workspace react-examples",
+    "dev": "npm run dev --workspace react-playground",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint . --ext .js,.ts,.jsx,.tsx",
     "lint:fix": "eslint . --ext .js,.ts,.jsx,.tsx --fix",

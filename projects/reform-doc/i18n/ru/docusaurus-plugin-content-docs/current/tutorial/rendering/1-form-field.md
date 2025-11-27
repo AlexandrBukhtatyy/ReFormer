@@ -23,19 +23,20 @@ sidebar_position: 1
 ```tsx
 import { useFormControl, type FieldNode } from 'reformer';
 
-const { value, errors, pending, disabled, shouldShowError, componentProps } = useFormControl(control);
+const { value, errors, pending, disabled, shouldShowError, componentProps } =
+  useFormControl(control);
 ```
 
 ### Возвращаемые значения
 
-| Свойство | Тип | Описание |
-|----------|-----|----------|
-| `value` | `T` | Текущее значение поля |
-| `errors` | `ValidationError[]` | Массив ошибок валидации |
-| `pending` | `boolean` | `true` во время асинхронной валидации |
-| `disabled` | `boolean` | Заблокировано ли поле |
-| `shouldShowError` | `boolean` | `true` если поле тронуто и есть ошибки |
-| `componentProps` | `object` | Пропсы для компонента (label, placeholder и т.д.) |
+| Свойство          | Тип                 | Описание                                          |
+| ----------------- | ------------------- | ------------------------------------------------- |
+| `value`           | `T`                 | Текущее значение поля                             |
+| `errors`          | `ValidationError[]` | Массив ошибок валидации                           |
+| `pending`         | `boolean`           | `true` во время асинхронной валидации             |
+| `disabled`        | `boolean`           | Заблокировано ли поле                             |
+| `shouldShowError` | `boolean`           | `true` если поле тронуто и есть ошибки            |
+| `componentProps`  | `object`            | Пропсы для компонента (label, placeholder и т.д.) |
 
 ## Реализация FormField
 
@@ -63,9 +64,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
     <div className={className}>
       {/* Отображаем label (кроме чекбоксов, у которых встроенный label) */}
       {componentProps.label && !isCheckbox && (
-        <label className="block mb-1 text-sm font-medium">
-          {componentProps.label}
-        </label>
+        <label className="block mb-1 text-sm font-medium">{componentProps.label}</label>
       )}
 
       {/* Рендерим сам компонент */}
@@ -89,40 +88,17 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
 
       {/* Показываем ошибку валидации */}
       {shouldShowError && (
-        <span className="text-red-500 text-sm mt-1 block">
-          {errors[0]?.message}
-        </span>
+        <span className="text-red-500 text-sm mt-1 block">{errors[0]?.message}</span>
       )}
 
       {/* Показываем состояние ожидания при асинхронной валидации */}
-      {pending && (
-        <span className="text-gray-500 text-sm mt-1 block">
-          Проверка...
-        </span>
-      )}
+      {pending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
     </div>
   );
 };
+
+export const FormField = FormFieldComponent;
 ```
-
-## Мемоизация
-
-Чтобы предотвратить лишние ререндеры при изменении других полей, оберните компонент в `React.memo`:
-
-```tsx title="src/components/ui/FormField.tsx"
-export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {
-  // Возвращаем true, если пропсы НЕ изменились (пропустить ререндер)
-  return (
-    prevProps.control === nextProps.control &&
-    prevProps.className === nextProps.className
-  );
-});
-```
-
-Эта оптимизация важна, потому что:
-- Каждый `FieldNode` — это стабильная ссылка
-- Компонент ререндерится только при изменении своего конкретного поля
-- Изменения в других полях не вызовут ререндер этого компонента
 
 ## Использование
 
@@ -134,13 +110,13 @@ function MyForm() {
     firstName: {
       value: '',
       component: Input,
-      componentProps: { label: 'Имя', placeholder: 'Введите имя' }
+      componentProps: { label: 'Имя', placeholder: 'Введите имя' },
     },
     agreeToTerms: {
       value: false,
       component: Checkbox,
-      componentProps: { label: 'Я согласен с условиями' }
-    }
+      componentProps: { label: 'Я согласен с условиями' },
+    },
   });
 
   return (
@@ -165,6 +141,7 @@ function MyForm() {
 ### Отображение ошибок
 
 Флаг `shouldShowError` равен `true`, когда:
+
 - Поле было тронуто (`touched = true`)
 - Поле имеет ошибки валидации (`errors.length > 0`)
 

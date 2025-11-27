@@ -47,6 +47,7 @@
 - [AnyFunction](type-aliases/AnyFunction.md)
 - [ArrayNodeWithControls](type-aliases/ArrayNodeWithControls.md)
 - [AsyncValidatorFn](type-aliases/AsyncValidatorFn.md)
+- [BehaviorSchemaFn](type-aliases/BehaviorSchemaFn.md)
 - [ConditionFn](type-aliases/ConditionFn.md)
 - [ContextualAsyncValidatorFn](type-aliases/ContextualAsyncValidatorFn.md)
 - [ContextualValidatorFn](type-aliases/ContextualValidatorFn.md)

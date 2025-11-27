@@ -170,4 +170,4 @@ function Form() {
 ## Next Steps
 
 - [Components](/docs/react/components) — Reusable form components
-- [Examples](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx) — Live playground
+- [Examples](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx) — Live playground

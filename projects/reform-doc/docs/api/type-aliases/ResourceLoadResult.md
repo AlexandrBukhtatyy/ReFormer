@@ -4,6 +4,6 @@
 type ResourceLoadResult = unknown;
 ```
 
-Defined in: [core/types/index.ts:216](https://github.com/AlexandrBukhtatyy/ReFormer/blob/67c6c21902e727e89d7f622f6fc0ba56c693c0cc/packages/reformer/src/core/types/index.ts#L216)
+Defined in: [core/types/index.ts:216](https://github.com/AlexandrBukhtatyy/ReFormer/blob/004c1ffc7ad7a532d48a1818bbddff4ad2796ac4/packages/reformer/src/core/types/index.ts#L216)
 
 Тип для результатов загрузки ресурсов

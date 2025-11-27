@@ -1,5 +1,5 @@
 {
-  "name": "react-example-e2e",
+  "name": "react-playground-e2e",
   "private": true,
   "scripts": {
     "test:e2e": "playwright test",

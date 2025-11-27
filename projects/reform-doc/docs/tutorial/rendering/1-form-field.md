@@ -23,19 +23,20 @@ The `useFormControl` hook extracts reactive state from a `FieldNode`:
 ```tsx
 import { useFormControl, type FieldNode } from 'reformer';
 
-const { value, errors, pending, disabled, shouldShowError, componentProps } = useFormControl(control);
+const { value, errors, pending, disabled, shouldShowError, componentProps } =
+  useFormControl(control);
 ```
 
 ### Return Values
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `value` | `T` | Current field value |
-| `errors` | `ValidationError[]` | Array of validation errors |
-| `pending` | `boolean` | `true` during async validation |
-| `disabled` | `boolean` | Whether the field is disabled |
-| `shouldShowError` | `boolean` | `true` if field is touched and has errors |
-| `componentProps` | `object` | Props passed to component (label, placeholder, etc.) |
+| Property          | Type                | Description                                          |
+| ----------------- | ------------------- | ---------------------------------------------------- |
+| `value`           | `T`                 | Current field value                                  |
+| `errors`          | `ValidationError[]` | Array of validation errors                           |
+| `pending`         | `boolean`           | `true` during async validation                       |
+| `disabled`        | `boolean`           | Whether the field is disabled                        |
+| `shouldShowError` | `boolean`           | `true` if field is touched and has errors            |
+| `componentProps`  | `object`            | Props passed to component (label, placeholder, etc.) |
 
 ## FormField Implementation
 
@@ -63,9 +64,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
     <div className={className}>
       {/* Render label (except for checkboxes which have built-in labels) */}
       {componentProps.label && !isCheckbox && (
-        <label className="block mb-1 text-sm font-medium">
-          {componentProps.label}
-        </label>
+        <label className="block mb-1 text-sm font-medium">{componentProps.label}</label>
       )}
 
       {/* Render the actual component */}
@@ -89,40 +88,17 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className }) =>
 
       {/* Show validation error */}
       {shouldShowError && (
-        <span className="text-red-500 text-sm mt-1 block">
-          {errors[0]?.message}
-        </span>
+        <span className="text-red-500 text-sm mt-1 block">{errors[0]?.message}</span>
       )}
 
       {/* Show pending state during async validation */}
-      {pending && (
-        <span className="text-gray-500 text-sm mt-1 block">
-          Validating...
-        </span>
-      )}
+      {pending && <span className="text-gray-500 text-sm mt-1 block">Validating...</span>}
     </div>
   );
 };
+
+export const FormField = FormFieldComponent;
 ```
-
-## Memoization
-
-To prevent unnecessary re-renders when other fields change, wrap the component with `React.memo`:
-
-```tsx title="src/components/ui/FormField.tsx"
-export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {
-  // Return true if props have NOT changed (skip re-render)
-  return (
-    prevProps.control === nextProps.control &&
-    prevProps.className === nextProps.className
-  );
-});
-```
-
-This optimization is important because:
-- Each `FieldNode` is a stable reference
-- The component only re-renders when its specific field changes
-- Other fields changing won't cause this component to re-render
 
 ## Usage
 
@@ -134,13 +110,13 @@ function MyForm() {
     firstName: {
       value: '',
       component: Input,
-      componentProps: { label: 'First Name', placeholder: 'Enter your name' }
+      componentProps: { label: 'First Name', placeholder: 'Enter your name' },
     },
     agreeToTerms: {
       value: false,
       component: Checkbox,
-      componentProps: { label: 'I agree to terms' }
-    }
+      componentProps: { label: 'I agree to terms' },
+    },
   });
 
   return (
@@ -165,6 +141,7 @@ Calling `control.markAsTouched()` on blur marks the field as "touched". This is 
 ### Error Display
 
 The `shouldShowError` flag is `true` when:
+
 - The field has been touched (`touched = true`)
 - The field has validation errors (`errors.length > 0`)
 

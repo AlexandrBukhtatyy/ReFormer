@@ -257,5 +257,5 @@ function UserForm() {
 
 ## Следующие шаги
 
-- [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-examples?file=projects/react-examples/src/App.tsx) — интерактивный playground
+- [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx) — интерактивный playground
 - [API Reference](/docs/api) — полная документация API

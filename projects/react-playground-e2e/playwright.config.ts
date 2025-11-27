@@ -75,7 +75,7 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --port ${E2E_PORT}`,
     port: E2E_PORT,
-    cwd: path.resolve(__dirname, '../react-examples'),
+    cwd: path.resolve(__dirname, '../react-playground'),
     reuseExistingServer: !process.env.CI,
   },
 });
