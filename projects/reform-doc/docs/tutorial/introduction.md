@@ -20,15 +20,10 @@ By the end of this tutorial, you will understand:
 - How to implement behaviors (computed fields, conditional logic)
 - How to handle form submission and server errors
 
-## Prerequisites
-
-- Basic knowledge of React and TypeScript
-- ReFormer installed in your project
-
 ## Tutorial Structure
 
 1. **Introduction** — Overview and form structure
-2. **Preparation** — Create FormField and field components
+2. **Project Setup** — Install dependencies and set up project structure
 3. **Form Schema** — Define interface, create schema, decompose into parts
 4. **Rendering** — Build form components and steps
 5. **Behaviors** — Add computed fields, conditional logic, and more

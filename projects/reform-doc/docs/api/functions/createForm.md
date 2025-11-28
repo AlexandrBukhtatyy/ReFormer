@@ -8,7 +8,7 @@
 function createForm<T>(config): any;
 ```
 
-Defined in: [core/utils/create-form.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/utils/create-form.ts#L45)
+Defined in: [core/utils/create-form.ts:45](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/create-form.ts#L45)
 
 Создать форму с полной конфигурацией (form, behavior, validation)
 
@@ -58,7 +58,7 @@ form.email.setValue('test@mail.com');
 function createForm<T>(schema): any;
 ```
 
-Defined in: [core/utils/create-form.ts:61](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/utils/create-form.ts#L61)
+Defined in: [core/utils/create-form.ts:61](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/create-form.ts#L61)
 
 Создать форму только со схемой полей (обратная совместимость)
 

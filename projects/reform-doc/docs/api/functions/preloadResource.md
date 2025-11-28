@@ -4,7 +4,7 @@
 function preloadResource<T>(loader): ResourceConfig<T>;
 ```
 
-Defined in: [core/utils/resources.ts:56](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/utils/resources.ts#L56)
+Defined in: [core/utils/resources.ts:56](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/resources.ts#L56)
 
 Предзагрузка - данные загружаются один раз при первом обращении через функцию
 

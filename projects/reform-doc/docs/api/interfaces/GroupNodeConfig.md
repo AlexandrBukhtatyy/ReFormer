@@ -1,6 +1,6 @@
 # GroupNodeConfig
 
-Defined in: [core/types/index.ts:122](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/index.ts#L122)
+Defined in: [core/types/index.ts:122](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/index.ts#L122)
 
 Конфигурация GroupNode с поддержкой схем
 Используется для создания форм с автоматическим применением behavior и validation схем
@@ -19,7 +19,7 @@ Defined in: [core/types/index.ts:122](https://github.com/AlexandrBukhtatyy/ReFor
 optional behavior: BehaviorSchemaFn<T>;
 ```
 
-Defined in: [core/types/index.ts:127](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/index.ts#L127)
+Defined in: [core/types/index.ts:127](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/index.ts#L127)
 
 Схема реактивного поведения (copyFrom, enableWhen, computeFrom и т.д.)
 
@@ -31,7 +31,7 @@ Defined in: [core/types/index.ts:127](https://github.com/AlexandrBukhtatyy/ReFor
 form: FormSchema<T>;
 ```
 
-Defined in: [core/types/index.ts:124](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/index.ts#L124)
+Defined in: [core/types/index.ts:124](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/index.ts#L124)
 
 Схема структуры формы (поля и их конфигурация)
 
@@ -43,6 +43,6 @@ Defined in: [core/types/index.ts:124](https://github.com/AlexandrBukhtatyy/ReFor
 optional validation: ValidationSchemaFn<T>;
 ```
 
-Defined in: [core/types/index.ts:130](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/index.ts#L130)
+Defined in: [core/types/index.ts:130](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/index.ts#L130)
 
 Схема валидации (required, email, minLength и т.д.)

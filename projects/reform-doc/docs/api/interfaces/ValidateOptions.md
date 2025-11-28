@@ -1,6 +1,6 @@
 # ValidateOptions
 
-Defined in: [core/types/validation-schema.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/validation-schema.ts#L85)
+Defined in: [core/types/validation-schema.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/validation-schema.ts#L85)
 
 Опции для функции validate
 
@@ -16,7 +16,7 @@ Defined in: [core/types/validation-schema.ts:85](https://github.com/AlexandrBukh
 optional message: string;
 ```
 
-Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/validation-schema.ts#L87)
+Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/validation-schema.ts#L87)
 
 Сообщение об ошибке
 
@@ -28,6 +28,6 @@ Defined in: [core/types/validation-schema.ts:87](https://github.com/AlexandrBukh
 optional params: FormFields;
 ```
 
-Defined in: [core/types/validation-schema.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/ea2ae035215d691e049dbb965a182b2d4c638892/packages/reformer/src/core/types/validation-schema.ts#L89)
+Defined in: [core/types/validation-schema.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/types/validation-schema.ts#L89)
 
 Параметры ошибки
