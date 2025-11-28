@@ -1,6 +1,6 @@
 # ErrorStrategy
 
-Defined in: [core/utils/error-handler.ts:26](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/error-handler.ts#L26)
+Defined in: [core/utils/error-handler.ts:26](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/error-handler.ts#L26)
 
 Стратегия обработки ошибок
 
@@ -14,7 +14,7 @@ Defined in: [core/utils/error-handler.ts:26](https://github.com/AlexandrBukhtaty
 CONVERT: "convert";
 ```
 
-Defined in: [core/utils/error-handler.ts:43](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/error-handler.ts#L43)
+Defined in: [core/utils/error-handler.ts:43](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/error-handler.ts#L43)
 
 Конвертировать ошибку в ValidationError
 Используется в async validators для отображения ошибки валидации пользователю
@@ -27,7 +27,7 @@ Defined in: [core/utils/error-handler.ts:43](https://github.com/AlexandrBukhtaty
 LOG: "log";
 ```
 
-Defined in: [core/utils/error-handler.ts:37](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/error-handler.ts#L37)
+Defined in: [core/utils/error-handler.ts:37](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/error-handler.ts#L37)
 
 Залогировать и проглотить ошибку (продолжить выполнение)
 Используется когда ошибка не критична
@@ -40,7 +40,7 @@ Defined in: [core/utils/error-handler.ts:37](https://github.com/AlexandrBukhtaty
 THROW: "throw";
 ```
 
-Defined in: [core/utils/error-handler.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/error-handler.ts#L31)
+Defined in: [core/utils/error-handler.ts:31](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/error-handler.ts#L31)
 
 Пробросить ошибку дальше (throw)
 Используется когда ошибка критична и должна остановить выполнение

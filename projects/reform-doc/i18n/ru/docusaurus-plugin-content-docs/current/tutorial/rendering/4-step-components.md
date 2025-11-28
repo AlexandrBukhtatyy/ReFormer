@@ -44,11 +44,11 @@ export function StepName({ control }: StepProps) {
 
 Первый шаг собирает данные о кредите с условными полями:
 
-```tsx title="src/steps/BasicInfoForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/BasicInfoForm.tsx"
 import type { GroupNodeWithControls } from 'reformer';
 import { useFormControl } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
-import type { CreditApplicationForm } from '../types';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormField } from '@/components/ui/FormField';
 
 interface BasicInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
@@ -56,7 +56,7 @@ interface BasicInfoFormProps {
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {
   // Подписка на изменения loanType
-  const { value: loanType } = useFormControl(control.loanType);
+  const { value: loanType } = useFormControl<CreditApplicationForm['loanType']>(control.loanType);
 
   return (
     <div className="space-y-6">
@@ -104,12 +104,13 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
 
 Этот шаг демонстрирует использование вложенных форм:
 
-```tsx title="src/steps/PersonalInfoForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/PersonalInfoForm.tsx"
 import type { GroupNodeWithControls } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormField } from '@/components/ui/FormField';
+// TODO: Реализуем на следующем этапе документации
 import { PersonalDataForm } from '../nested-forms/PersonalDataForm';
 import { PassportDataForm } from '../nested-forms/PassportDataForm';
-import type { CreditApplicationForm } from '../types';
 
 interface PersonalInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
@@ -149,12 +150,13 @@ export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
 
 Демонстрирует переиспользование вложенных форм и операции с группами:
 
-```tsx title="src/steps/ContactInfoForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/ContactInfoForm.tsx"
 import type { GroupNodeWithControls } from 'reformer';
 import { useFormControl } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormField } from '@/components/ui/FormField';
+// TODO: Реализуем на следующем этапе документации
 import { AddressForm } from '../nested-forms/AddressForm';
-import type { CreditApplicationForm } from '../types';
 
 interface ContactInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
@@ -245,18 +247,20 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
 
 Показывает условные секции на основе статуса занятости:
 
-```tsx title="src/steps/EmploymentForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/EmploymentForm.tsx"
 import type { GroupNodeWithControls } from 'reformer';
 import { useFormControl } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
-import type { CreditApplicationForm } from '../types';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormField } from '@/components/ui/FormField';
 
 interface EmploymentFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {
-  const { value: employmentStatus } = useFormControl(control.employmentStatus);
+  const { value: employmentStatus } = useFormControl<CreditApplicationForm['employmentStatus']>(
+    control.employmentStatus
+  );
 
   const isEmployed = employmentStatus === 'employed';
   const isSelfEmployed = employmentStatus === 'selfEmployed';
@@ -315,15 +319,17 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 
 Демонстрирует работу с массивами (рассматривается в следующем разделе):
 
-```tsx title="src/steps/AdditionalInfoForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx
 import type { GroupNodeWithControls } from 'reformer';
 import { useFormControl } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormField } from '@/components/ui/FormField';
+
+// TODO: Реализуем на следующем этапе документации
 import { FormArraySection } from '../components/FormArraySection';
 import { PropertyForm } from '../nested-forms/PropertyForm';
 import { ExistingLoanForm } from '../nested-forms/ExistingLoanForm';
 import { CoBorrowerForm } from '../nested-forms/CoBorrowerForm';
-import type { CreditApplicationForm } from '../types';
 
 interface AdditionalInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
@@ -395,10 +401,10 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
 Финальный шаг со всеми согласиями:
 
-```tsx title="src/steps/ConfirmationForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/ConfirmationForm.tsx"
 import type { GroupNodeWithControls } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
-import type { CreditApplicationForm } from '../types';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { FormField } from '@/components/ui/FormField';
 
 interface ConfirmationFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
@@ -458,7 +464,9 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
 const { value: status } = useFormControl(control.status);
 
 // Ре-рендер только при изменении status
-{status === 'active' && <ActiveSection />}
+{
+  status === 'active' && <ActiveSection />;
+}
 ```
 
 ### 4. Выделяйте переиспользуемые паттерны

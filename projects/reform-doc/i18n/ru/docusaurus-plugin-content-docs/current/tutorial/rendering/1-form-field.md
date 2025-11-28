@@ -18,7 +18,7 @@ sidebar_position: 1
 
 ## Хук useFormControl
 
-Хук `useFormControl` извлекает реактивное состояние из `FieldNode`:
+Библиотека ReFormer предоставляет хук `useFormControl`, который извлекает реактивное состояние из `FieldNode`:
 
 ```tsx
 import { useFormControl, type FieldNode } from 'reformer';
@@ -102,30 +102,61 @@ export const FormField = FormFieldComponent;
 
 ## Использование
 
-```tsx
-import { FormField } from './components/ui/FormField';
+```tsx title="reform-tutorial/src/forms/credit-application/CreditApplicationForm.tsx"
+import { FormField } from '@/components/ui/FormField';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@radix-ui/react-checkbox';
+import { useMemo } from 'react';
+import { createForm } from 'reformer';
 
-function MyForm() {
-  const form = createForm<PersonalInfo>({
-    firstName: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Имя', placeholder: 'Введите имя' },
-    },
-    agreeToTerms: {
-      value: false,
-      component: Checkbox,
-      componentProps: { label: 'Я согласен с условиями' },
+interface PersonalInfo {
+  firstName: string;
+  agreeToTerms: boolean;
+}
+
+const createCreditApplicationForm = () => {
+  return createForm<PersonalInfo>({
+    form: {
+      firstName: {
+        value: '',
+        component: Input,
+        componentProps: { label: 'Имя', placeholder: 'Введите имя' },
+      },
+      agreeToTerms: {
+        value: false,
+        component: Checkbox,
+        componentProps: { label: 'Я согласен с условиями' },
+      },
     },
   });
+};
+
+export function CreditApplicationForm() {
+  const form = useMemo(() => createCreditApplicationForm(), []);
 
   return (
     <form>
-      <FormField control={form.controls.firstName} className="mb-4" />
-      <FormField control={form.controls.agreeToTerms} className="mb-4" />
+      <FormField control={form.firstName} className="mb-4" />
+      <FormField control={form.agreeToTerms} className="mb-4" />
     </form>
   );
 }
+```
+
+И добавим наш компонент формы в корневой компонент.
+
+```tsx title="reform-tutorial/src/App.tsx"
+import { CreditApplicationForm } from './forms/credit-application/CreditApplicationForm';
+
+function App() {
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center">
+      <CreditApplicationForm />
+    </div>
+  );
+}
+
+export default App;
 ```
 
 ## Ключевые концепции

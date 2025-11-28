@@ -8,11 +8,63 @@ sidebar_position: 2
 
 ## Обзор
 
-ReFormer использует ваши собственные компоненты для отображения полей формы. Это даёт вам полный контроль над стилями и поведением. В этом разделе мы создадим базовые компоненты для формы заявки на кредит.
+Компоненты полей в ReFormer:
 
-## Требования к компонентам
+- Оборачивают нативные элементы или компоненты UI-библиотек
+- Следуют стандартному интерфейсу (value, onChange, onBlur, disabled)
+- Могут быть свободно стилизованы и настроены
 
-Чтобы компонент работал с `FormField`, он должен принимать эти пропсы:
+Этот паттерн необходим для:
+
+- Единообразного внешнего вида и поведения во всех формах
+- Полного контроля над стилями и доступностью
+- Лёгкой интеграции с любой UI-библиотекой
+
+## Как работают компоненты полей
+
+Паттерн компонента поля состоит из трёх частей:
+
+1. **Интерфейс пропсов** — определяет обязательные пропсы: `value`, `onChange`, `onBlur`, `disabled`
+2. **Компонент** — контролируемый компонент с обработкой null
+3. **forwardRef + displayName** — для доступа к DOM и отладки
+
+```tsx
+import * as React from 'react';
+
+// 1. Интерфейс пропсов
+interface InputProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+}
+
+// 2. Компонент
+const InputComponent = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ value, onChange, onBlur, disabled, placeholder, className }, ref) => {
+    return (
+      <input
+        ref={ref}
+        value={value ?? ''}
+        onChange={(e) => onChange?.(e.target.value || null)}
+        onBlur={onBlur}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={className}
+      />
+    );
+  }
+);
+
+// 3. displayName
+InputComponent.displayName = 'Input';
+
+export const Input = InputComponent;
+```
+
+### Справочник по пропсам
 
 | Пропс | Тип | Описание |
 |-------|-----|----------|
@@ -21,9 +73,33 @@ ReFormer использует ваши собственные компонент
 | `onBlur` | `() => void` | Обработчик потери фокуса (запускает валидацию) |
 | `disabled` | `boolean` | Заблокировано ли поле |
 
-Дополнительные пропсы, такие как `placeholder`, `label`, `options`, передаются через `componentProps`.
+Дополнительные пропсы, такие как `placeholder`, `label`, `options`, передаются через `componentProps` в схеме.
 
-## Компонент Input
+### Использование в схеме формы
+
+Компонент поля подключается к форме через схему:
+
+```tsx
+import { Input } from './components/ui/Input';
+
+const form = createForm<{ email: string }>({
+  email: {
+    value: '',
+    component: Input,
+    componentProps: {
+      label: 'Email',
+      type: 'email',
+      placeholder: 'Введите email'
+    }
+  }
+});
+```
+
+## Реализация компонентов
+
+Все компоненты ниже используют нативные HTML-элементы для наглядности. Вы можете заменить их на компоненты из предпочитаемой UI-библиотеки.
+
+### Input
 
 Текстовый ввод, который обрабатывает как текст, так и числа:
 
@@ -74,25 +150,48 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = 'Input';
 ```
 
-### Использование в схеме формы
+### Textarea
 
-```tsx
-import { Input } from './components/ui/Input';
+Многострочный текстовый ввод:
 
-const form = createForm<{ email: string }>({
-  email: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Email',
-      type: 'email',
-      placeholder: 'Введите email'
-    }
+```tsx title="src/components/ui/Textarea.tsx"
+import * as React from 'react';
+
+export interface TextareaProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+  rows?: number;
+  className?: string;
+}
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ value, onChange, onBlur, placeholder, disabled, rows = 3, className }, ref) => {
+    const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onChange?.(event.target.value || null);
+    };
+
+    return (
+      <textarea
+        ref={ref}
+        value={value || ''}
+        onChange={handleChange}
+        onBlur={onBlur}
+        disabled={disabled}
+        placeholder={placeholder}
+        rows={rows}
+        className={className}
+      />
+    );
   }
-});
+);
+
+Textarea.displayName = 'Textarea';
 ```
 
-## Компонент Select
+### Select
 
 Выпадающий список с опциями:
 
@@ -148,29 +247,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 Select.displayName = 'Select';
 ```
 
-### Использование в схеме формы
-
-```tsx
-import { Select } from './components/ui/Select';
-
-const form = createForm<{ loanType: string }>({
-  loanType: {
-    value: '',
-    component: Select,
-    componentProps: {
-      label: 'Тип кредита',
-      placeholder: 'Выберите тип кредита',
-      options: [
-        { value: 'consumer', label: 'Потребительский кредит' },
-        { value: 'mortgage', label: 'Ипотека' },
-        { value: 'car', label: 'Автокредит' }
-      ]
-    }
-  }
-});
-```
-
-## Компонент Checkbox
+### Checkbox
 
 Чекбокс для булевых значений:
 
@@ -212,64 +289,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
 Checkbox.displayName = 'Checkbox';
 ```
 
-### Использование в схеме формы
-
-```tsx
-import { Checkbox } from './components/ui/Checkbox';
-
-const form = createForm<{ agreeToTerms: boolean }>({
-  agreeToTerms: {
-    value: false,
-    component: Checkbox,
-    componentProps: {
-      label: 'Я согласен с условиями'
-    }
-  }
-});
-```
-
-## Компонент Textarea
-
-Многострочный текстовый ввод:
-
-```tsx title="src/components/ui/Textarea.tsx"
-import * as React from 'react';
-
-export interface TextareaProps {
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
-  rows?: number;
-  className?: string;
-}
-
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ value, onChange, onBlur, placeholder, disabled, rows = 3, className }, ref) => {
-    const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      onChange?.(event.target.value || null);
-    };
-
-    return (
-      <textarea
-        ref={ref}
-        value={value || ''}
-        onChange={handleChange}
-        onBlur={onBlur}
-        disabled={disabled}
-        placeholder={placeholder}
-        rows={rows}
-        className={className}
-      />
-    );
-  }
-);
-
-Textarea.displayName = 'Textarea';
-```
-
-## Компонент RadioGroup
+### RadioGroup
 
 Группа радиокнопок:
 
@@ -319,31 +339,72 @@ export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
 RadioGroup.displayName = 'RadioGroup';
 ```
 
-### Использование в схеме формы
+## Использование UI-библиотек
+
+Вы можете использовать существующие UI-библиотеки, такие как Radix UI, shadcn/ui или Material UI. Просто убедитесь, что ваши компоненты-обёртки следуют описанному выше интерфейсу.
+
+Пример адаптации Radix UI Select:
 
 ```tsx
-import { RadioGroup } from './components/ui/RadioGroup';
+import * as SelectPrimitive from '@radix-ui/react-select';
 
-const form = createForm<{ gender: string }>({
-  gender: {
-    value: '',
-    component: RadioGroup,
-    componentProps: {
-      label: 'Пол',
-      options: [
-        { value: 'male', label: 'Мужской' },
-        { value: 'female', label: 'Женский' }
-      ]
-    }
-  }
-});
+interface SelectProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export function Select({ value, onChange, onBlur, options, placeholder, disabled }: SelectProps) {
+  return (
+    <SelectPrimitive.Root
+      value={value || ''}
+      onValueChange={(val) => onChange?.(val || null)}
+      onOpenChange={(open) => !open && onBlur?.()}
+      disabled={disabled}
+    >
+      <SelectPrimitive.Trigger>
+        <SelectPrimitive.Value placeholder={placeholder} />
+      </SelectPrimitive.Trigger>
+
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Content>
+          <SelectPrimitive.Viewport>
+            {options.map((option) => (
+              <SelectPrimitive.Item key={option.value} value={option.value}>
+                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+              </SelectPrimitive.Item>
+            ))}
+          </SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    </SelectPrimitive.Root>
+  );
+}
 ```
 
-## Ключевые паттерны
+Проект reform-tutorial использует компоненты shadcn/ui, построенные на примитивах Radix UI.
+
+## Лучшие практики
 
 ### 1. Контролируемые компоненты
 
-Все компоненты должны быть контролируемыми — они получают `value` и вызывают `onChange` для его обновления. Никогда не храните локальное состояние для значения поля.
+Все компоненты должны быть контролируемыми — они получают `value` и вызывают `onChange` для его обновления. Никогда не храните локальное состояние для значения поля:
+
+```tsx
+// Правильно — контролируемый
+const Input = ({ value, onChange }) => (
+  <input value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+);
+
+// Неправильно — неконтролируемый с локальным состоянием
+const Input = ({ defaultValue }) => {
+  const [value, setValue] = useState(defaultValue);
+  return <input value={value} onChange={(e) => setValue(e.target.value)} />;
+};
+```
 
 ### 2. Обработка null
 
@@ -363,40 +424,30 @@ onChange?.(newValue);
 
 ```tsx
 export const Input = React.forwardRef<HTMLInputElement, InputProps>((props, ref) => {
-  return <input ref={ref} {...} />;
+  return <input ref={ref} {...props} />;
 });
 ```
 
 ### 4. Display Name
 
-Устанавливайте `displayName` для удобства отладки:
+Устанавливайте `displayName` для удобства отладки в React DevTools:
 
 ```tsx
 Input.displayName = 'Input';
 ```
 
-## Использование UI-библиотек
+### 5. Доступность
 
-Вы можете использовать существующие UI-библиотеки, такие как Radix UI, shadcn/ui или Material UI. Просто убедитесь, что ваши компоненты-обёртки следуют описанному выше интерфейсу.
-
-Пример с Radix UI Select:
+Поддерживайте `aria-invalid` для состояний валидации:
 
 ```tsx
-import * as SelectPrimitive from '@radix-ui/react-select';
-
-export const Select = ({ value, onChange, onBlur, options, ...props }) => {
-  return (
-    <SelectPrimitive.Root
-      value={value || ''}
-      onValueChange={onChange}
-      onOpenChange={(open) => !open && onBlur?.()}
-    >
-      {/* ... реализация Radix UI */}
-    </SelectPrimitive.Root>
-  );
-};
+<input
+  aria-invalid={hasError}
+  className={cn(baseStyles, hasError && errorStyles)}
+  {...props}
+/>
 ```
 
 ## Следующий шаг
 
-Теперь, когда у вас есть компоненты полей и `FormField`, вы готовы определить схему формы для заявки на кредит.
+Теперь, когда у вас есть компоненты полей, давайте создадим компонент `FormField`, который связывает их с состоянием формы.

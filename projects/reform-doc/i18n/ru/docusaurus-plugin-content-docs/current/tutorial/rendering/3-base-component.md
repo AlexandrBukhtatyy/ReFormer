@@ -2,13 +2,13 @@
 sidebar_position: 3
 ---
 
-# Базовый компонент
+# Базовый компонент формы
 
 Создание главного компонента формы с навигацией по шагам.
 
 ## Обзор
 
-Базовый компонент — это точка входа для нашей многошаговой формы. Он:
+Базовый компонент формы — это точка входа для нашей многошаговой формы. Он:
 
 - Создаёт и управляет экземпляром формы
 - Обрабатывает навигацию по шагам
@@ -17,11 +17,12 @@ sidebar_position: 3
 
 ## Создание экземпляра формы
 
-Сначала создайте экземпляр формы с помощью `useMemo`, чтобы предотвратить пересоздание при каждом рендере:
+Ранее мы уже создали компонент для демонстрации работы схемы.
+Пора время применить реальную схему в нашем компоненте.
 
-```tsx title="src/components/CreditApplicationForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo } from 'react';
-import { createCreditApplicationForm } from './schemas/create-credit-application-form';
+import { createCreditApplicationForm } from './createCreditApplicationForm';
 
 function CreditApplicationForm() {
   // Создаём экземпляр формы один раз
@@ -98,21 +99,14 @@ function CreditApplicationForm() {
 
       {/* Кнопки навигации */}
       <div className="flex justify-between mt-6">
-        <button
-          onClick={goToPreviousStep}
-          disabled={currentStep === 1}
-        >
+        <button onClick={goToPreviousStep} disabled={currentStep === 1}>
           Назад
         </button>
 
         {currentStep < totalSteps ? (
-          <button onClick={goToNextStep}>
-            Далее
-          </button>
+          <button onClick={goToNextStep}>Далее</button>
         ) : (
-          <button onClick={handleSubmit}>
-            Отправить
-          </button>
+          <button onClick={handleSubmit}>Отправить</button>
         )}
       </div>
     </div>
@@ -141,6 +135,7 @@ function BasicInfoForm({ control }: StepProps) {
 ```
 
 Такой подход:
+
 - Даёт каждому шагу доступ ко всем полям формы
 - Позволяет создавать зависимости между шагами (например, показывать поля на основе значений с других шагов)
 - Сохраняет единый источник истины для состояния формы
@@ -179,7 +174,7 @@ function CreditApplicationForm() {
 
 ## Полный пример
 
-Вот полный базовый компонент:
+Вот полный базовый компонент формы:
 
 ```tsx title="src/components/CreditApplicationForm.tsx"
 import { useMemo, useState } from 'react';
@@ -260,9 +255,7 @@ function CreditApplicationForm() {
             key={step.id}
             onClick={() => goToStep(step.id)}
             className={`px-4 py-2 rounded ${
-              currentStep === step.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700'
+              currentStep === step.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
             }`}
           >
             {step.id}. {step.title}
@@ -291,17 +284,11 @@ function CreditApplicationForm() {
         </button>
 
         {currentStep < totalSteps ? (
-          <button
-            onClick={goToNextStep}
-            className="px-6 py-2 bg-blue-600 text-white rounded"
-          >
+          <button onClick={goToNextStep} className="px-6 py-2 bg-blue-600 text-white rounded">
             Далее
           </button>
         ) : (
-          <button
-            onClick={handleSubmit}
-            className="px-6 py-2 bg-green-600 text-white rounded"
-          >
+          <button onClick={handleSubmit} className="px-6 py-2 bg-green-600 text-white rounded">
             Отправить заявку
           </button>
         )}
@@ -309,7 +296,8 @@ function CreditApplicationForm() {
 
       {/* Информация о прогрессе */}
       <div className="mt-4 text-center text-sm text-gray-600">
-        Шаг {currentStep} из {totalSteps} • {Math.round((currentStep / totalSteps) * 100)}% завершено
+        Шаг {currentStep} из {totalSteps} • {Math.round((currentStep / totalSteps) * 100)}%
+        завершено
       </div>
     </div>
   );
@@ -320,4 +308,4 @@ export default CreditApplicationForm;
 
 ## Следующий шаг
 
-Теперь, когда у нас есть базовый компонент, давайте создадим отдельные компоненты шагов, которые отображают поля формы.
+Теперь, когда у нас есть базовый компонент формы, давайте создадим отдельные компоненты шагов, которые отображают поля формы.

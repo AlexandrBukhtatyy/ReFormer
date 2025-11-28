@@ -1,6 +1,6 @@
 # Debouncer
 
-Defined in: [core/utils/debounce.ts:55](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/debounce.ts#L55)
+Defined in: [core/utils/debounce.ts:55](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/debounce.ts#L55)
 
 Класс для debouncing (отложенного выполнения) функций
 
@@ -40,7 +40,7 @@ class FieldNode {
 new Debouncer(delay): Debouncer;
 ```
 
-Defined in: [core/utils/debounce.ts:73](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/debounce.ts#L73)
+Defined in: [core/utils/debounce.ts:73](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/debounce.ts#L73)
 
 Создать Debouncer с заданной задержкой
 
@@ -71,7 +71,7 @@ const immediate = new Debouncer(0);  // Без задержки
 cancel(): void;
 ```
 
-Defined in: [core/utils/debounce.ts:142](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/debounce.ts#L142)
+Defined in: [core/utils/debounce.ts:142](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/debounce.ts#L142)
 
 Отменить отложенное выполнение
 
@@ -102,7 +102,7 @@ debouncer.cancel(); // Отменяем вызов
 debounce<T>(fn): Promise<T>;
 ```
 
-Defined in: [core/utils/debounce.ts:97](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/debounce.ts#L97)
+Defined in: [core/utils/debounce.ts:97](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/debounce.ts#L97)
 
 Отложить выполнение функции
 
@@ -151,7 +151,7 @@ debouncer.debounce(async () => console.log('Second'));
 flush<T>(fn): Promise<T>;
 ```
 
-Defined in: [core/utils/debounce.ts:171](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/debounce.ts#L171)
+Defined in: [core/utils/debounce.ts:171](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/debounce.ts#L171)
 
 Выполнить функцию немедленно, отменив любой отложенный вызов
 
@@ -200,7 +200,7 @@ await debouncer.flush(async () => console.log('Immediate'));
 isPending(): boolean;
 ```
 
-Defined in: [core/utils/debounce.ts:194](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/debounce.ts#L194)
+Defined in: [core/utils/debounce.ts:194](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/debounce.ts#L194)
 
 Проверить, есть ли активный (запланированный) вызов
 

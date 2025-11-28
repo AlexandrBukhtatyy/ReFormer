@@ -9,252 +9,192 @@ sidebar_position: 5
 ## Обзор
 
 Переиспользуемые компоненты форм:
+
 - Инкапсулируют группу связанных полей
 - Могут использоваться многократно в разных контекстах
 - Принимают проп `control`, типизированный под их структуру
-- Экспортируют и схему, и компонент
 
 Этот паттерн необходим для:
+
 - Уменьшения дублирования кода
 - Обеспечения единообразной раскладки полей
 - Управления массивами сложных объектов
 
-## Вложенные компоненты форм
+## Как работают вложенные формы
 
-### Создание переиспользуемой формы адреса
+Паттерн вложенных форм состоит из трёх частей:
 
-Создадим компонент `AddressForm`, который можно переиспользовать для адреса регистрации и проживания:
+1. **Интерфейс пропсов** — определяет тип `control` через `GroupNodeWithControls<T>`
+2. **Компонент** — отвечает только за layout полей, используя `FormField`
+3. **Мемоизация** — оборачиваем в `memo()` для предотвращения лишних ре-рендеров
 
-```tsx title="src/nested-forms/AddressForm.tsx"
-import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
-import { InputMask } from '@/components/ui/input-mask';
-
-// 1. Определяем тип
-export interface Address {
-  region: string;
-  city: string;
-  street: string;
-  house: string;
-  apartment?: string;
-  postalCode: string;
+```tsx
+// 1. Интерфейс пропсов
+interface MyFormProps {
+  control: GroupNodeWithControls<MyType>;
 }
 
-// 2. Определяем переиспользуемую схему
-export const addressFormSchema: FormSchema<Address> = {
-  region: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Регион',
-      placeholder: 'Введите регион',
-    },
-  },
-  city: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Город',
-      placeholder: 'Введите город',
-    },
-  },
-  street: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Улица',
-      placeholder: 'Введите улицу',
-    },
-  },
-  house: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Дом',
-      placeholder: '№',
-    },
-  },
-  apartment: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Квартира',
-      placeholder: '№',
-    },
-  },
-  postalCode: {
-    value: '',
-    component: InputMask,
-    componentProps: {
-      label: 'Индекс',
-      placeholder: '000000',
-      mask: '999999',
-    },
-  },
+// 2. Компонент
+const MyFormComponent = ({ control }: MyFormProps) => {
+  return (
+    <div className="space-y-4">
+      <FormField control={control.field1} />
+      <FormField control={control.field2} />
+    </div>
+  );
 };
 
-// 3. Определяем интерфейс пропсов
+// 3. Мемоизация
+export const MyForm = memo(MyFormComponent);
+```
+
+### Использование вложенной формы
+
+Вложенная форма используется в родительском компоненте через передачу `control`:
+
+```tsx
+import { MyForm } from './sub-forms/MyForm';
+
+export function ParentForm({ control }: ParentFormProps) {
+  return (
+    <div className="space-y-6">
+      <h3>Секция 1</h3>
+      <MyForm control={control.section1} />
+
+      <h3>Секция 2</h3>
+      <MyForm control={control.section2} />
+    </div>
+  );
+}
+```
+
+## Где применять вложенные формы
+
+- **Адреса** — регистрации, проживания, доставки
+- **Персональные данные** — для заёмщика, созаёмщика, контактного лица
+- **Документы** — паспорт, права, СНИЛС
+- **Повторяющиеся блоки** — имущество, кредиты, источники дохода
+
+## Реализация форм по туториалу
+
+Все формы находятся в `reform-tutorial/src/forms/credit-application/sub-forms/`.
+
+### AddressForm
+
+Форма адреса — регион, город, улица, дом, квартира, индекс.
+
+```tsx title="reform-tutorial/src/forms/credit-application/sub-forms/AddressForm.tsx"
+import { memo } from 'react';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from '@/components/ui/FormField';
+import type { Address } from '../types/credit-application.types';
+
 interface AddressFormProps {
   control: GroupNodeWithControls<Address>;
-  testIdPrefix?: string;
 }
 
-// 4. Создаём компонент
-const AddressFormComponent = ({ control, testIdPrefix = 'address' }: AddressFormProps) => {
+const AddressFormComponent = ({ control }: AddressFormProps) => {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <FormField control={control.region} testId={`${testIdPrefix}-region`} />
-        <FormField control={control.city} testId={`${testIdPrefix}-city`} />
+        <FormField control={control.region} />
+        <FormField control={control.city} />
       </div>
 
-      <FormField control={control.street} testId={`${testIdPrefix}-street`} />
+      <FormField control={control.street} />
 
       <div className="grid grid-cols-3 gap-4">
-        <FormField control={control.house} testId={`${testIdPrefix}-house`} />
-        <FormField control={control.apartment} testId={`${testIdPrefix}-apartment`} />
-        <FormField control={control.postalCode} testId={`${testIdPrefix}-postalCode`} />
+        <FormField control={control.house} />
+        <FormField control={control.apartment} />
+        <FormField control={control.postalCode} />
       </div>
     </div>
   );
 };
 
-// 5. Мемоизируем для предотвращения лишних ре-рендеров
 export const AddressForm = memo(AddressFormComponent);
 ```
 
-### Использование вложенных форм в родительской схеме
+### PersonalDataForm
 
-Импортируйте и используйте вложенную схему в родительской форме:
+Персональные данные — ФИО, дата рождения, место рождения, пол.
 
-```tsx title="src/schemas/create-credit-application-form.ts"
-import { addressFormSchema, type Address } from '../nested-forms/AddressForm';
+```tsx title="reform-tutorial/src/forms/credit-application/sub-forms/PersonalDataForm.tsx"
+import { memo } from 'react';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from '@/components/ui/FormField';
+import type { PersonalData } from '../types/credit-application.types';
 
-interface CreditApplicationForm {
-  // ... другие поля
-  registrationAddress: Address;
-  residenceAddress: Address;
+interface PersonalDataFormProps {
+  control: GroupNodeWithControls<PersonalData>;
 }
 
-export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
-  // ... другие поля
-
-  // Используем переиспользуемую схему
-  registrationAddress: addressFormSchema,
-  residenceAddress: addressFormSchema,
-};
-```
-
-### Использование в компонентах шагов
-
-```tsx title="src/steps/ContactInfoForm.tsx"
-import { AddressForm } from '../nested-forms/AddressForm';
-
-export function ContactInfoForm({ control }: ContactInfoFormProps) {
+const PersonalDataFormComponent = ({ control }: PersonalDataFormProps) => {
   return (
-    <div className="space-y-6">
-      {/* Адрес регистрации */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Адрес регистрации</h3>
-        <AddressForm
-          control={control.registrationAddress}
-          testIdPrefix="registrationAddress"
-        />
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-4">
+        <FormField control={control.lastName} />
+        <FormField control={control.firstName} />
+        <FormField control={control.middleName} />
       </div>
 
-      {/* Адрес проживания */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Адрес проживания</h3>
-        <AddressForm
-          control={control.residenceAddress}
-          testIdPrefix="residenceAddress"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.birthDate} />
+        <FormField control={control.birthPlace} />
       </div>
+
+      <FormField control={control.gender} />
     </div>
   );
-}
+};
+
+export const PersonalDataForm = memo(PersonalDataFormComponent);
 ```
 
-## Вложенные структуры с группами
+### PassportDataForm
 
-Для сложных вложенных структур можно вкладывать группы внутри формы:
+Паспортные данные — серия, номер, дата выдачи, код подразделения, кем выдан.
 
-```tsx title="src/nested-forms/CoBorrowerForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/sub-forms/PassportDataForm.tsx"
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from '@/components/ui/FormField';
+import type { PassportData } from '../types/credit-application.types';
 
-// Вложенная структура с группами
-export interface CoBorrower {
-  personalData: {
-    lastName: string;
-    firstName: string;
-    middleName: string;
-    birthDate: string;
-  };
-  phone: string;
-  email: string;
-  relationship: string;
-  monthlyIncome: number;
+interface PassportDataFormProps {
+  control: GroupNodeWithControls<PassportData>;
 }
 
-export const coBorrowerFormSchema: FormSchema<CoBorrower> = {
-  // Вложенная группа
-  personalData: {
-    lastName: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Фамилия', placeholder: 'Введите фамилию' },
-    },
-    firstName: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Имя', placeholder: 'Введите имя' },
-    },
-    middleName: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Отчество', placeholder: 'Введите отчество' },
-    },
-    birthDate: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Дата рождения', type: 'date' },
-    },
-  },
-  phone: {
-    value: '',
-    component: Input,
-    componentProps: { label: 'Телефон', placeholder: '+7 (___) ___-__-__' },
-  },
-  email: {
-    value: '',
-    component: Input,
-    componentProps: { label: 'Email', placeholder: 'example@mail.com', type: 'email' },
-  },
-  relationship: {
-    value: 'spouse',
-    component: Select,
-    componentProps: {
-      label: 'Отношение к заёмщику',
-      options: [
-        { value: 'spouse', label: 'Супруг(а)' },
-        { value: 'parent', label: 'Родитель' },
-        { value: 'sibling', label: 'Брат/сестра' },
-        { value: 'other', label: 'Другое' },
-      ],
-    },
-  },
-  monthlyIncome: {
-    value: 0,
-    component: Input,
-    componentProps: { label: 'Ежемесячный доход', type: 'number', min: 0 },
-  },
+const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.series} />
+        <FormField control={control.number} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.issueDate} />
+        <FormField control={control.departmentCode} />
+      </div>
+
+      <FormField control={control.issuedBy} />
+    </div>
+  );
 };
+
+export const PassportDataForm = memo(PassportDataFormComponent);
+```
+
+### CoBorrowerForm
+
+Данные созаёмщика — персональные данные, телефон, email, родство, доход.
+
+```tsx title="reform-tutorial/src/forms/credit-application/sub-forms/CoBorrowerForm.tsx"
+import { memo } from 'react';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from '@/components/ui/FormField';
+import type { CoBorrower } from '../types/credit-application.types';
 
 interface CoBorrowerFormProps {
   control: GroupNodeWithControls<CoBorrower>;
@@ -262,9 +202,8 @@ interface CoBorrowerFormProps {
 
 const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {
   return (
-    <div className="space-y-3">
-      {/* Доступ к полям вложенной группы */}
-      <div className="grid grid-cols-3 gap-3">
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-4">
         <FormField control={control.personalData.lastName} />
         <FormField control={control.personalData.firstName} />
         <FormField control={control.personalData.middleName} />
@@ -288,160 +227,155 @@ const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {
 export const CoBorrowerForm = memo(CoBorrowerFormComponent);
 ```
 
-## Работа с массивами
+### PropertyForm
 
-### Определение массива в схеме
+Информация об имуществе — тип, стоимость, описание, обременение.
 
-Определяйте массивы в схеме с помощью обёртки `array`:
+```tsx title="reform-tutorial/src/forms/credit-application/sub-forms/PropertyForm.tsx"
+import { memo } from 'react';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from '@/components/ui/FormField';
+import type { Property } from '../types/credit-application.types';
 
-```tsx title="src/schemas/create-credit-application-form.ts"
-import { array } from 'reformer';
-import { propertyFormSchema, type Property } from '../nested-forms/PropertyForm';
-import { coBorrowerFormSchema, type CoBorrower } from '../nested-forms/CoBorrowerForm';
-
-interface CreditApplicationForm {
-  hasProperty: boolean;
-  properties: Property[];
-  hasCoBorrower: boolean;
-  coBorrowers: CoBorrower[];
+interface PropertyFormProps {
+  control: GroupNodeWithControls<Property>;
 }
 
-export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
-  hasProperty: {
-    value: false,
-    component: Checkbox,
-    componentProps: { label: 'У меня есть имущество' },
-  },
+const PropertyFormComponent = ({ control }: PropertyFormProps) => {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.type} />
+        <FormField control={control.estimatedValue} />
+      </div>
 
-  // Массив имущества
-  properties: array(propertyFormSchema),
+      <FormField control={control.description} />
 
-  hasCoBorrower: {
-    value: false,
-    component: Checkbox,
-    componentProps: { label: 'У меня есть созаёмщик' },
-  },
-
-  // Массив созаёмщиков
-  coBorrowers: array(coBorrowerFormSchema),
+      <FormField control={control.hasEncumbrance} />
+    </div>
+  );
 };
+
+export const PropertyForm = memo(PropertyFormComponent);
 ```
+
+### ExistingLoanForm
+
+Существующие кредиты — банк, тип, сумма, остаток, платёж, дата погашения.
+
+```tsx title="reform-tutorial/src/forms/credit-application/sub-forms/ExistingLoanForm.tsx"
+import { memo } from 'react';
+import type { GroupNodeWithControls } from 'reformer';
+import { FormField } from '@/components/ui/FormField';
+import type { ExistingLoan } from '../types/credit-application.types';
+
+interface ExistingLoanFormProps {
+  control: GroupNodeWithControls<ExistingLoan>;
+}
+
+const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.bank} />
+        <FormField control={control.type} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <FormField control={control.amount} />
+        <FormField control={control.remainingAmount} />
+        <FormField control={control.monthlyPayment} />
+      </div>
+
+      <FormField control={control.maturityDate} />
+    </div>
+  );
+};
+
+export const ExistingLoanForm = memo(ExistingLoanFormComponent);
+```
+
+## Работа с массивами
 
 ### Операции с массивами
 
 `ArrayNodeWithControls` предоставляет следующие операции:
 
-| Метод | Описание |
-|-------|----------|
-| `push()` | Добавить новый элемент со значениями по умолчанию из схемы |
-| `removeAt(index)` | Удалить элемент по указанному индексу |
-| `map(callback)` | Итерация по элементам массива |
-| `length` | Получить текущую длину массива |
+| Метод             | Описание                                                   |
+| ----------------- | ---------------------------------------------------------- |
+| `push()`          | Добавить новый элемент со значениями по умолчанию из схемы |
+| `removeAt(index)` | Удалить элемент по указанному индексу                      |
+| `map(callback)`   | Итерация по элементам массива                              |
+| `length`          | Получить текущую длину массива                             |
 
-### Компонент FormArrayManager
+### FormArrayManager
 
-Создайте переиспользуемый компонент для рендеринга элементов массива:
+Универсальный компонент для управления массивами форм:
 
-```tsx title="src/components/FormArrayManager.tsx"
+```tsx title="reform-tutorial/src/components/ui/FormArrayManager.tsx"
 import type { ComponentType } from 'react';
-import { useFormControl, type ArrayNode, type FormFields, type GroupNodeWithControls } from 'reformer';
+import {
+  useFormControl,
+  type ArrayNode,
+  type FormFields,
+  type GroupNodeWithControls,
+} from 'reformer';
 import { Button } from '@/components/ui/button';
 
 interface FormArrayManagerProps {
   control: ArrayNode<FormFields>;
-  component: ComponentType<{ control: unknown }>;
+  component: ComponentType<{ control: GroupNodeWithControls<FormFields> }>;
   itemLabel?: string;
-  renderTitle?: (index: number) => string;
+  addButtonLabel?: string;
+  emptyMessage?: string;
 }
 
 export function FormArrayManager({
   control,
   component: ItemComponent,
   itemLabel = 'Элемент',
-  renderTitle,
+  addButtonLabel = '+ Добавить',
+  emptyMessage = 'Нет элементов. Нажмите кнопку выше, чтобы добавить.',
 }: FormArrayManagerProps) {
-  // Подписка на изменения длины массива
   const { length } = useFormControl(control);
 
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">
+          {length} {itemLabel}
+        </span>
+        <Button type="button" variant="outline" size="sm" onClick={() => control.push()}>
+          {addButtonLabel}
+        </Button>
+      </div>
+
       {control.map((itemControl: GroupNodeWithControls<FormFields>, index: number) => {
-        const title = renderTitle ? renderTitle(index) : `${itemLabel} #${index + 1}`;
         const key = itemControl.id || index;
 
         return (
-          <div key={key} className="mb-4 p-4 bg-white rounded border">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="font-medium">{title}</h4>
-              <Button onClick={() => control.removeAt(index)}>Удалить</Button>
+          <div key={key} className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-medium text-gray-900">
+                {itemLabel} #{index + 1}
+              </h4>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => control.removeAt(index)}
+              >
+                Удалить
+              </Button>
             </div>
 
             <ItemComponent control={itemControl} />
           </div>
         );
       })}
-    </>
-  );
-}
-```
 
-### Компонент FormArraySection
-
-Компонент более высокого уровня, объединяющий управление массивом с UI секции:
-
-```tsx title="src/components/FormArraySection.tsx"
-import {
-  useFormControl,
-  type ArrayNodeWithControls,
-  type FormFields,
-  type GroupNodeWithControls,
-} from 'reformer';
-import type { ComponentType } from 'react';
-import { FormArrayManager } from './FormArrayManager';
-import { Button } from '@/components/ui/button';
-
-interface FormArraySectionProps<T extends object> {
-  title: string;
-  control: ArrayNodeWithControls<FormFields> | undefined;
-  itemComponent: ComponentType<{ control: GroupNodeWithControls<T> }>;
-  itemLabel: string;
-  addButtonLabel: string;
-  emptyMessage: string;
-  hasItems: boolean;
-}
-
-export function FormArraySection<T extends object>({
-  title,
-  control,
-  itemComponent,
-  itemLabel,
-  addButtonLabel,
-  emptyMessage,
-  hasItems,
-}: FormArraySectionProps<T>) {
-  const { length } = useFormControl(control);
-
-  if (!hasItems || !control) {
-    return null;
-  }
-
-  const isEmpty = length === 0;
-
-  return (
-    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <Button onClick={() => control.push()}>{addButtonLabel}</Button>
-      </div>
-
-      <FormArrayManager
-        control={control}
-        component={itemComponent}
-        itemLabel={itemLabel}
-      />
-
-      {isEmpty && (
-        <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
+      {length === 0 && (
+        <div className="p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center text-gray-500">
           {emptyMessage}
         </div>
       )}
@@ -450,14 +384,14 @@ export function FormArraySection<T extends object>({
 }
 ```
 
-### Использование массивов в компонентах шагов
+### Использование FormArrayManager
 
-```tsx title="src/steps/AdditionalInfoForm.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx"
 import { useFormControl } from 'reformer';
-import { FormField } from '@/components/ui/form-field';
-import { FormArraySection } from '../components/FormArraySection';
-import { PropertyForm } from '../nested-forms/PropertyForm';
-import { CoBorrowerForm } from '../nested-forms/CoBorrowerForm';
+import { FormField } from '@/components/ui/FormField';
+import { FormArrayManager } from '@/components/forms/FormArrayManager';
+import { PropertyForm } from '../sub-forms/PropertyForm';
+import { CoBorrowerForm } from '../sub-forms/CoBorrowerForm';
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
   const { value: hasProperty } = useFormControl(control.hasProperty);
@@ -465,37 +399,27 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
   return (
     <div className="space-y-6">
-      {/* Массив имущества */}
-      <div className="space-y-4">
-        <FormField control={control.hasProperty} />
-        {hasProperty && (
-          <FormArraySection
-            title="Имущество"
-            control={control.properties}
-            itemComponent={PropertyForm}
-            itemLabel="Имущество"
-            addButtonLabel="+ Добавить имущество"
-            emptyMessage="Нажмите для добавления информации об имуществе"
-            hasItems={hasProperty}
-          />
-        )}
-      </div>
+      <FormField control={control.hasProperty} />
+      {hasProperty && (
+        <FormArrayManager
+          control={control.properties}
+          component={PropertyForm}
+          itemLabel="Имущество"
+          addButtonLabel="+ Добавить имущество"
+          emptyMessage="Нажмите для добавления информации об имуществе"
+        />
+      )}
 
-      {/* Массив созаёмщиков */}
-      <div className="space-y-4">
-        <FormField control={control.hasCoBorrower} />
-        {hasCoBorrower && (
-          <FormArraySection
-            title="Созаёмщики"
-            control={control.coBorrowers}
-            itemComponent={CoBorrowerForm}
-            itemLabel="Созаёмщик"
-            addButtonLabel="+ Добавить созаёмщика"
-            emptyMessage="Нажмите для добавления информации о созаёмщике"
-            hasItems={hasCoBorrower}
-          />
-        )}
-      </div>
+      <FormField control={control.hasCoBorrower} />
+      {hasCoBorrower && (
+        <FormArrayManager
+          control={control.coBorrowers}
+          component={CoBorrowerForm}
+          itemLabel="Созаёмщик"
+          addButtonLabel="+ Добавить созаёмщика"
+          emptyMessage="Нажмите для добавления информации о созаёмщике"
+        />
+      )}
     </div>
   );
 }
@@ -503,22 +427,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
 ## Лучшие практики
 
-### 1. Всегда экспортируйте схему и тип
-
-Экспортируйте и схему, и TypeScript интерфейс для переиспользования:
-
-```tsx
-// Экспорт типа для типизации
-export interface Address { ... }
-
-// Экспорт схемы для композиции форм
-export const addressFormSchema: FormSchema<Address> = { ... }
-
-// Экспорт компонента для рендеринга
-export const AddressForm = memo(AddressFormComponent);
-```
-
-### 2. Используйте мемоизацию
+### 1. Всегда используйте memo()
 
 Оборачивайте вложенные компоненты форм в `memo` для предотвращения лишних ре-рендеров:
 
@@ -528,16 +437,22 @@ const AddressFormComponent = ({ control }: AddressFormProps) => { ... };
 export const AddressForm = memo(AddressFormComponent);
 ```
 
+### 2. Типизируйте пропсы через GroupNodeWithControls
+
+```tsx
+interface MyFormProps {
+  control: GroupNodeWithControls<MyType>;
+}
+```
+
 ### 3. Используйте уникальные ключи для элементов массива
 
 Используйте свойство `id` из контролов как ключи вместо индекса массива:
 
 ```tsx
-{control.map((itemControl, index) => (
-  <div key={itemControl.id || index}>
-    ...
-  </div>
-))}
+{
+  control.map((itemControl, index) => <div key={itemControl.id || index}>...</div>);
+}
 ```
 
 ### 4. Подписывайтесь на длину массива

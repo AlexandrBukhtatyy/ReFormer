@@ -169,7 +169,7 @@ npx shadcn@latest init
 Запустим скрипт
 
 ```bash
-npx shadcn@latest add button
+npx shadcn@latest add button input select checkbox textarea radio-group
 ```
 
 Модифицируем корневой компонент

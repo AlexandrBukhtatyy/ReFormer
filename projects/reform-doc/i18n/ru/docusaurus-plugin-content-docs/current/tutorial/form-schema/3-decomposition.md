@@ -356,8 +356,6 @@ export const coBorrowerSchema: FormSchema<CoBorrower> = {
 
 ```typescript title="src/forms/credit-application/schemas/credit-application.schema.ts"
 import type { FormSchema } from 'reformer';
-import { Input, Select, Checkbox, Textarea, RadioGroup } from '@/components/ui';
-import type { CreditApplicationForm } from '../types';
 
 // Импорт переиспользуемых схем
 import { addressSchema } from './address.schema';
@@ -366,6 +364,12 @@ import { passportDataSchema } from './passport-data.schema';
 import { propertySchema } from './property.schema';
 import { existingLoanSchema } from './existing-loan.schema';
 import { coBorrowerSchema } from './co-borrower.schema';
+import type { CreditApplicationForm } from '../types/credit-application.types';
+import { Select } from '@radix-ui/react-select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@radix-ui/react-checkbox';
+import { RadioGroup } from '@radix-ui/react-radio-group';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ============================================================================
@@ -659,14 +663,14 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 src/
 ├── schemas/
 │   ├── address.schema.ts
-│   ├── personal-data.schema.ts
-│   ├── passport-data.schema.ts
-│   ├── property.schema.ts
-│   ├── existing-loan.schema.ts
 │   ├── co-borrower.schema.ts
-│   └── credit-application.schema.ts
+│   ├── credit-application.schema.ts
+│   ├── passport-data.schema.ts
+│   ├── existing-loan.schema.ts
+│   ├── personal-data.schema.ts
+│   └── property.schema.ts
 └── types/
-    └── credit-application.ts
+    └── credit-application.type.ts
 ```
 
 ## Преимущества декомпозиции

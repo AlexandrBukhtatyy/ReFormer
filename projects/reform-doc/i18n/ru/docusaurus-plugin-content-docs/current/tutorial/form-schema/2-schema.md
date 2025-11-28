@@ -58,10 +58,10 @@ properties: [{
 
 Вот полная схема, соответствующая интерфейсу `CreditApplicationForm`:
 
-```typescript title="src/forms/credit-application/schemas\credit-application.schema.ts"
+```typescript title="src/forms/credit-application/schemas/credit-application.schema.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Checkbox, Textarea, RadioGroup } from './components/ui';
-import type { CreditApplicationForm } from './types';
+import type { CreditApplicationForm } from '../types/credit-application.types';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ============================================================================
@@ -749,8 +749,8 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
 ```typescript title="src/forms/credit-application/createCreditApplicationForm.ts"
 import { createForm } from 'reformer';
-import type { CreditApplicationForm } from './types';
 import { creditApplicationSchema } from './schemas/credit-application.schema';
+import type { CreditApplicationForm } from './types/credit-application.types';
 
 export const createCreditApplicationForm = () => {
   return createForm<CreditApplicationForm>(creditApplicationSchema);

@@ -1,6 +1,6 @@
 # PathSegment
 
-Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/field-path-navigator.ts#L19)
+Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/field-path-navigator.ts#L19)
 
 Сегмент пути к полю формы
 
@@ -26,7 +26,7 @@ Defined in: [core/utils/field-path-navigator.ts:19](https://github.com/AlexandrB
 optional index: number;
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:29](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/field-path-navigator.ts#L29)
+Defined in: [core/utils/field-path-navigator.ts:29](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/field-path-navigator.ts#L29)
 
 Индекс в массиве (опционально)
 Присутствует только для сегментов вида "items[0]"
@@ -39,6 +39,6 @@ Defined in: [core/utils/field-path-navigator.ts:29](https://github.com/AlexandrB
 key: string;
 ```
 
-Defined in: [core/utils/field-path-navigator.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9b7d1dcf176674e04dc8b74c64fd99540d095a33/packages/reformer/src/core/utils/field-path-navigator.ts#L23)
+Defined in: [core/utils/field-path-navigator.ts:23](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dcfbc8e01cad51c12ece27c493ae5214ef7de021/packages/reformer/src/core/utils/field-path-navigator.ts#L23)
 
 Ключ поля

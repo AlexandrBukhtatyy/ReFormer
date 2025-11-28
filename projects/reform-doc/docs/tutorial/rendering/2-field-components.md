@@ -8,11 +8,63 @@ Creating basic components for form fields.
 
 ## Overview
 
-ReFormer uses your own components to render form fields. This gives you full control over styling and behavior. In this section, we'll create the basic components needed for our Credit Application form.
+Field components in ReFormer:
 
-## Component Requirements
+- Wrap native elements or UI library components
+- Follow a standard interface (value, onChange, onBlur, disabled)
+- Can be styled and customized freely
 
-For a component to work with `FormField`, it must accept these props:
+This pattern is essential for:
+
+- Consistent look and behavior across all forms
+- Full control over styling and accessibility
+- Easy integration with any UI library
+
+## How Field Components Work
+
+The field component pattern consists of three parts:
+
+1. **Props interface** — defines required props: `value`, `onChange`, `onBlur`, `disabled`
+2. **Component** — controlled component with null handling
+3. **forwardRef + displayName** — for DOM access and debugging
+
+```tsx
+import * as React from 'react';
+
+// 1. Props interface
+interface InputProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+}
+
+// 2. Component
+const InputComponent = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ value, onChange, onBlur, disabled, placeholder, className }, ref) => {
+    return (
+      <input
+        ref={ref}
+        value={value ?? ''}
+        onChange={(e) => onChange?.(e.target.value || null)}
+        onBlur={onBlur}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={className}
+      />
+    );
+  }
+);
+
+// 3. displayName
+InputComponent.displayName = 'Input';
+
+export const Input = InputComponent;
+```
+
+### Props Reference
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -21,9 +73,33 @@ For a component to work with `FormField`, it must accept these props:
 | `onBlur` | `() => void` | Handler for blur event (triggers validation) |
 | `disabled` | `boolean` | Whether the field is disabled |
 
-Additional props like `placeholder`, `label`, `options` are passed through `componentProps`.
+Additional props like `placeholder`, `label`, `options` are passed through `componentProps` in the schema.
 
-## Input Component
+### Usage in Form Schema
+
+A field component is connected to the form through the schema:
+
+```tsx
+import { Input } from './components/ui/Input';
+
+const form = createForm<{ email: string }>({
+  email: {
+    value: '',
+    component: Input,
+    componentProps: {
+      label: 'Email',
+      type: 'email',
+      placeholder: 'Enter your email'
+    }
+  }
+});
+```
+
+## Tutorial Implementations
+
+All components shown below use native HTML elements for clarity. You can replace them with your preferred UI library.
+
+### Input
 
 A text input that handles both text and number types:
 
@@ -74,25 +150,48 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = 'Input';
 ```
 
-### Usage in Form Schema
+### Textarea
 
-```tsx
-import { Input } from './components/ui/Input';
+A multi-line text input:
 
-const form = createForm<{ email: string }>({
-  email: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Email',
-      type: 'email',
-      placeholder: 'Enter your email'
-    }
+```tsx title="src/components/ui/Textarea.tsx"
+import * as React from 'react';
+
+export interface TextareaProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+  rows?: number;
+  className?: string;
+}
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ value, onChange, onBlur, placeholder, disabled, rows = 3, className }, ref) => {
+    const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onChange?.(event.target.value || null);
+    };
+
+    return (
+      <textarea
+        ref={ref}
+        value={value || ''}
+        onChange={handleChange}
+        onBlur={onBlur}
+        disabled={disabled}
+        placeholder={placeholder}
+        rows={rows}
+        className={className}
+      />
+    );
   }
-});
+);
+
+Textarea.displayName = 'Textarea';
 ```
 
-## Select Component
+### Select
 
 A dropdown select component with options:
 
@@ -148,29 +247,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 Select.displayName = 'Select';
 ```
 
-### Usage in Form Schema
-
-```tsx
-import { Select } from './components/ui/Select';
-
-const form = createForm<{ loanType: string }>({
-  loanType: {
-    value: '',
-    component: Select,
-    componentProps: {
-      label: 'Loan Type',
-      placeholder: 'Select loan type',
-      options: [
-        { value: 'consumer', label: 'Consumer Loan' },
-        { value: 'mortgage', label: 'Mortgage' },
-        { value: 'car', label: 'Car Loan' }
-      ]
-    }
-  }
-});
-```
-
-## Checkbox Component
+### Checkbox
 
 A checkbox component for boolean values:
 
@@ -212,64 +289,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
 Checkbox.displayName = 'Checkbox';
 ```
 
-### Usage in Form Schema
-
-```tsx
-import { Checkbox } from './components/ui/Checkbox';
-
-const form = createForm<{ agreeToTerms: boolean }>({
-  agreeToTerms: {
-    value: false,
-    component: Checkbox,
-    componentProps: {
-      label: 'I agree to the terms and conditions'
-    }
-  }
-});
-```
-
-## Textarea Component
-
-A multi-line text input:
-
-```tsx title="src/components/ui/Textarea.tsx"
-import * as React from 'react';
-
-export interface TextareaProps {
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
-  rows?: number;
-  className?: string;
-}
-
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ value, onChange, onBlur, placeholder, disabled, rows = 3, className }, ref) => {
-    const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      onChange?.(event.target.value || null);
-    };
-
-    return (
-      <textarea
-        ref={ref}
-        value={value || ''}
-        onChange={handleChange}
-        onBlur={onBlur}
-        disabled={disabled}
-        placeholder={placeholder}
-        rows={rows}
-        className={className}
-      />
-    );
-  }
-);
-
-Textarea.displayName = 'Textarea';
-```
-
-## RadioGroup Component
+### RadioGroup
 
 A group of radio buttons:
 
@@ -319,31 +339,72 @@ export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
 RadioGroup.displayName = 'RadioGroup';
 ```
 
-### Usage in Form Schema
+## Using UI Libraries
+
+You can use existing UI libraries like Radix UI, shadcn/ui, or Material UI. Just ensure your wrapper components follow the interface pattern described above.
+
+Example adapting a Radix UI Select:
 
 ```tsx
-import { RadioGroup } from './components/ui/RadioGroup';
+import * as SelectPrimitive from '@radix-ui/react-select';
 
-const form = createForm<{ gender: string }>({
-  gender: {
-    value: '',
-    component: RadioGroup,
-    componentProps: {
-      label: 'Gender',
-      options: [
-        { value: 'male', label: 'Male' },
-        { value: 'female', label: 'Female' }
-      ]
-    }
-  }
-});
+interface SelectProps {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export function Select({ value, onChange, onBlur, options, placeholder, disabled }: SelectProps) {
+  return (
+    <SelectPrimitive.Root
+      value={value || ''}
+      onValueChange={(val) => onChange?.(val || null)}
+      onOpenChange={(open) => !open && onBlur?.()}
+      disabled={disabled}
+    >
+      <SelectPrimitive.Trigger>
+        <SelectPrimitive.Value placeholder={placeholder} />
+      </SelectPrimitive.Trigger>
+
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Content>
+          <SelectPrimitive.Viewport>
+            {options.map((option) => (
+              <SelectPrimitive.Item key={option.value} value={option.value}>
+                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+              </SelectPrimitive.Item>
+            ))}
+          </SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    </SelectPrimitive.Root>
+  );
+}
 ```
 
-## Key Patterns
+The reform-tutorial project uses shadcn/ui components built on Radix UI primitives.
+
+## Best Practices
 
 ### 1. Controlled Components
 
-All components should be controlled — they receive `value` and call `onChange` to update it. Never store local state for the field value.
+All components should be controlled — they receive `value` and call `onChange` to update it. Never store local state for the field value:
+
+```tsx
+// Good - controlled
+const Input = ({ value, onChange }) => (
+  <input value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+);
+
+// Bad - uncontrolled with local state
+const Input = ({ defaultValue }) => {
+  const [value, setValue] = useState(defaultValue);
+  return <input value={value} onChange={(e) => setValue(e.target.value)} />;
+};
+```
 
 ### 2. Null Handling
 
@@ -363,40 +424,30 @@ Use `React.forwardRef` to allow parent components to access the underlying DOM e
 
 ```tsx
 export const Input = React.forwardRef<HTMLInputElement, InputProps>((props, ref) => {
-  return <input ref={ref} {...} />;
+  return <input ref={ref} {...props} />;
 });
 ```
 
 ### 4. Display Name
 
-Set `displayName` for easier debugging:
+Set `displayName` for easier debugging in React DevTools:
 
 ```tsx
 Input.displayName = 'Input';
 ```
 
-## Using UI Libraries
+### 5. Accessibility
 
-You can use existing UI libraries like Radix UI, shadcn/ui, or Material UI. Just ensure your wrapper components follow the interface pattern above.
-
-Example with Radix UI Select:
+Support `aria-invalid` for validation states:
 
 ```tsx
-import * as SelectPrimitive from '@radix-ui/react-select';
-
-export const Select = ({ value, onChange, onBlur, options, ...props }) => {
-  return (
-    <SelectPrimitive.Root
-      value={value || ''}
-      onValueChange={onChange}
-      onOpenChange={(open) => !open && onBlur?.()}
-    >
-      {/* ... Radix UI implementation */}
-    </SelectPrimitive.Root>
-  );
-};
+<input
+  aria-invalid={hasError}
+  className={cn(baseStyles, hasError && errorStyles)}
+  {...props}
+/>
 ```
 
-## Next Steps
+## Next Step
 
-Now that you have your field components and `FormField`, you're ready to define the form schema for the Credit Application form.
+Now that you have your field components, let's create the `FormField` component that connects them to the form state.
