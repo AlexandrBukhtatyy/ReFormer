@@ -6,6 +6,8 @@
  *
  * @template T - Тип элементов в стеке (ValidationRegistry или BehaviorRegistry)
  *
+ * @internal
+ *
  * @example
  * ```typescript
  * class ValidationRegistry {

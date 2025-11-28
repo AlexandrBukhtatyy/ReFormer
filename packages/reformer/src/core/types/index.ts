@@ -5,6 +5,9 @@
 /**
  * Represents any valid form value type
  * Use this instead of 'any' for form values to maintain type safety
+ *
+ * @group Types
+ * @category Core Types
  */
 export type FormValue =
   | string
@@ -20,6 +23,7 @@ export type FormValue =
 /**
  * Type-safe alternative to 'any' for unknown form values
  * Requires explicit type checking before use
+ * @internal
  */
 export type UnknownFormValue = unknown;
 
@@ -27,9 +31,25 @@ export type UnknownFormValue = unknown;
 // Validator Types
 // ============================================================================
 
+/**
+ * Синхронная функция валидации
+ * @group Types
+ * @category Validation Types
+ */
 export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
+
+/**
+ * Асинхронная функция валидации
+ * @group Types
+ * @category Validation Types
+ */
 export type AsyncValidatorFn<T = FormValue> = (value: T) => Promise<ValidationError | null>;
 
+/**
+ * Ошибка валидации
+ * @group Types
+ * @category Validation Types
+ */
 export interface ValidationError {
   code: string;
   message: string;
@@ -40,6 +60,8 @@ export interface ValidationError {
 
 /**
  * Опции для фильтрации ошибок в методе getErrors()
+ * @group Types
+ * @category Validation Types
  */
 export interface ErrorFilterOptions {
   /** Фильтр по коду ошибки */
@@ -59,6 +81,11 @@ export interface ErrorFilterOptions {
 // Field Status
 // ============================================================================
 
+/**
+ * Статус поля формы
+ * @group Types
+ * @category Core Types
+ */
 export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
 
 // ============================================================================
@@ -118,6 +145,9 @@ import type { ValidationSchemaFn } from './validation-schema';
 /**
  * Конфигурация GroupNode с поддержкой схем
  * Используется для создания форм с автоматическим применением behavior и validation схем
+ *
+ * @group Types
+ * @category Configuration Types
  */
 export interface GroupNodeConfig<T> {
   /** Схема структуры формы (поля и их конфигурация) */
@@ -137,12 +167,14 @@ export interface GroupNodeConfig<T> {
 /**
  * Тип для Record с unknown значениями
  * Используется вместо инлайнового `Record<string, unknown>`
+ * @internal
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type UnknownRecord = Record<string, any>;
 
 /**
  * Интерфейс для узлов с методом applyValidationSchema
+ * @internal
  */
 export interface WithValidationSchema {
   applyValidationSchema(schemaFn: unknown): void;
@@ -150,6 +182,7 @@ export interface WithValidationSchema {
 
 /**
  * Интерфейс для узлов с методом applyBehaviorSchema
+ * @internal
  */
 export interface WithBehaviorSchema {
   applyBehaviorSchema(schemaFn: unknown): void;
@@ -158,6 +191,7 @@ export interface WithBehaviorSchema {
 /**
  * Интерфейс для узлов, похожих на ArrayNode (с методом at)
  * Используется для duck typing при обходе путей
+ * @internal
  */
 export interface ArrayNodeLike {
   at(index: number): FormNode<unknown> | undefined;
@@ -169,6 +203,7 @@ import type { FormNode } from '../nodes/form-node';
 
 /**
  * Конфиг с полем schema (для ArrayConfig)
+ * @internal
  */
 export interface ConfigWithSchema {
   schema: unknown;
@@ -177,6 +212,7 @@ export interface ConfigWithSchema {
 
 /**
  * Конфиг с полем value (для извлечения значений)
+ * @internal
  */
 export interface ConfigWithValue {
   value: unknown;
@@ -186,12 +222,14 @@ export interface ConfigWithValue {
  * Тип для конфига с полями (FormSchema generic constraint)
  * Используется вместо `Record<string, any>` для схем форм
  * @deprecated
+ * @internal
  */
 export type FormFields = Record<string, FormValue>;
 
 /**
  * Тип для путей к полям (field paths)
  * Используется в навигации по полям вместо any
+ * @internal
  */
 export type FieldPathSegment = {
   key: string;
@@ -201,16 +239,19 @@ export type FieldPathSegment = {
 /**
  * Тип для коллбэков и обработчиков событий
  * Используется вместо (...args: any[]) => any
+ * @internal
  */
 export type UnknownCallback = (...args: unknown[]) => unknown;
 
 /**
  * Тип для проверки на функцию в conditional types
  * Используется вместо Function для type narrowing
+ * @internal
  */
 export type AnyFunction = (...args: never[]) => unknown;
 
 /**
  * Тип для результатов загрузки ресурсов
+ * @internal
  */
 export type ResourceLoadResult = unknown;

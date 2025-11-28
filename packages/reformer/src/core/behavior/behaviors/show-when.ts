@@ -1,5 +1,8 @@
 /**
  * Условное отображение/скрытие полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/showWhen
  */
 
@@ -9,6 +12,9 @@ import type { BehaviorHandlerFn } from '../types';
 
 /**
  * Условное отображение поля (устанавливает hidden флаг)
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для отображения/скрытия
  * @param condition - Функция условия (true = show, false = hide)
@@ -43,6 +49,9 @@ export function showWhen<TForm extends FormFields>(
 
 /**
  * Условное скрытие поля (инверсия showWhen)
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для скрытия
  * @param condition - Функция условия (true = hide, false = show)

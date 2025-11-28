@@ -1,5 +1,8 @@
 /**
  * Валидатор номера телефона
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/phone
  */
 
@@ -9,12 +12,18 @@ import type { FieldPathNode } from '../../types';
 
 /**
  * Формат телефона для валидации
+ *
+ * @group Validation
+ * @category Validators
  */
 export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
 
 /**
  * Адаптер для phone валидатора
  * Поддерживает опциональные поля (string | undefined)
+ *
+ * @group Validation
+ * @category Validators
  *
  * @example
  * ```typescript

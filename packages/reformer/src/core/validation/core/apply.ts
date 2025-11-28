@@ -5,6 +5,9 @@
  * - apply: применение схемы к полям (новый API)
  *
  * Дополняет существующий toFieldPath и applyWhen.
+ *
+ * @group Validation
+ * @category Core Functions
  */
 
 import type { FieldPathNode, FieldPath } from '../../types';
@@ -19,6 +22,9 @@ import { toFieldPath } from '../field-path';
  * Применить validation схему к корневому path формы
  *
  * Используется для композиции схем на уровне всей формы.
+ *
+ * @group Validation
+ * @category Core Functions
  *
  * @param path - Корневой FieldPath формы (весь объект путей)
  * @param validationSchema - Схема валидации

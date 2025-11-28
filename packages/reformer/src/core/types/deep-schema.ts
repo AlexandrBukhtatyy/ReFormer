@@ -5,6 +5,8 @@
  * - `[{...}]` → массив форм
  * - `{...}` → вложенная группа
  * - `{value, component}` → конфигурация поля
+ *
+ * @group Types
  */
 
 import type { ComponentType } from 'react';
@@ -16,6 +18,8 @@ import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './i
 
 /**
  * Конфигурация поля
+ * @group Types
+ * @category Configuration Types
  */
 export interface FieldConfig<T> {
   value: T | null;
@@ -32,7 +36,9 @@ export interface FieldConfig<T> {
 }
 
 /**
- * Конфигурация массива (внутренняя)
+ * Конфигурация массива
+ * @group Types
+ * @category Configuration Types
  */
 export interface ArrayConfig<T extends FormFields> {
   itemSchema: FormSchema<T>;
@@ -50,6 +56,9 @@ export interface ArrayConfig<T extends FormFields> {
  * - `primitive -> FieldConfig<T>` (поле)
  *
  * Использует NonNullable для корректной обработки опциональных полей
+ *
+ * @group Types
+ * @category Configuration Types
  *
  * @example
  * ```typescript

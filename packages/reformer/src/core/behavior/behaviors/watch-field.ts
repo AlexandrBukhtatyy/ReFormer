@@ -1,5 +1,8 @@
 /**
  * Отслеживание изменений поля
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/watchField
  */
 
@@ -10,6 +13,9 @@ import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../t
 
 /**
  * Выполняет callback при изменении поля
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для отслеживания
  * @param callback - Функция обратного вызова

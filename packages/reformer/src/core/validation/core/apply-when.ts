@@ -1,5 +1,8 @@
 /**
  * Условная валидация
+ *
+ * @group Validation
+ * @category Core Functions
  */
 
 import { extractPath, createFieldPath } from '../field-path';
@@ -10,6 +13,9 @@ import type { FieldPathNode } from '../../types';
 
 /**
  * Применить валидацию только при выполнении условия
+ *
+ * @group Validation
+ * @category Core Functions
  *
  * @example
  * ```typescript

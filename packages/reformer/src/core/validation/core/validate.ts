@@ -1,5 +1,8 @@
 /**
  * Кастомная синхронная валидация поля
+ *
+ * @group Validation
+ * @category Core Functions
  */
 
 import { extractPath } from '../field-path';
@@ -9,6 +12,9 @@ import type { ContextualValidatorFn, FieldPathNode, ValidateOptions } from '../.
 /**
  * Зарегистрировать кастомный синхронный валидатор для поля
  * Поддерживает опциональные поля
+ *
+ * @group Validation
+ * @category Core Functions
  *
  * @example
  * ```typescript

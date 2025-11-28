@@ -7,6 +7,8 @@
  * Использует Template Method паттерн для управления состоянием:
  * - Публичные методы (markAsTouched, disable и т.д.) реализованы в базовом классе
  * - Protected hooks (onMarkAsTouched, onDisable и т.д.) переопределяются в наследниках
+ *
+ * @group Nodes
  */
 
 import { signal, computed, type ReadonlySignal, type Signal } from '@preact/signals-core';
@@ -14,6 +16,7 @@ import type { FieldStatus, ValidationError, ErrorFilterOptions } from '../types'
 
 /**
  * Опции для setValue
+ * @group Nodes
  */
 export interface SetValueOptions {
   /** Не вызывать событие изменения (не триггерить валидацию) */
@@ -32,6 +35,8 @@ export interface SetValueOptions {
  * - Общие signals (_touched, _dirty, _status) определены в базовом классе
  * - Публичные методы (markAsTouched, disable и т.д.) реализованы здесь
  * - Protected hooks (onMarkAsTouched, onDisable и т.д.) переопределяются в наследниках
+ *
+ * @group Nodes
  */
 export abstract class FormNode<T> {
   // ============================================================================

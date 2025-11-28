@@ -5,6 +5,8 @@
  * - Динамического добавления/удаления элементов
  * - Валидации всех элементов
  * - Реактивного состояния через signals
+ *
+ * @group Nodes
  */
 
 import { signal, computed, effect } from '@preact/signals-core';
@@ -24,6 +26,8 @@ import { SubscriptionManager } from '../utils/subscription-manager';
 
 /**
  * ArrayNode - массив форм с реактивным состоянием
+ *
+ * @group Nodes
  *
  * @example
  * ```typescript

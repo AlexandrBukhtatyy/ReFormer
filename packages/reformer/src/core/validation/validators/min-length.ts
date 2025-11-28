@@ -1,5 +1,8 @@
 /**
  * Валидатор минимальной длины строки
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/minLength
  */
 
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
  *
  * Проверяет, что длина строки не меньше указанного минимума.
  * Пустые значения пропускаются (используйте `required` для обязательности).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param minLen - Минимальная допустимая длина строки

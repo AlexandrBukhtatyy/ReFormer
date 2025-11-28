@@ -1,11 +1,20 @@
 /**
  * Трансформация значений полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/transformValue
  */
 
 import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { watchField } from './watch-field';
 
+/**
+ * Опции для transformValue
+ *
+ * @group Behaviors
+ * @category Behavior Types
+ */
 export interface TransformValueOptions {
   /** Трансформировать только при изменении пользователем (не программно) */
   onUserChangeOnly?: boolean;
@@ -16,6 +25,9 @@ export interface TransformValueOptions {
 /**
  * Трансформация значения поля при изменении
  * Позволяет автоматически форматировать или преобразовывать значения
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для трансформации
  * @param transformer - Функция трансформации
@@ -79,6 +91,9 @@ export function transformValue<TForm extends FormFields, TValue extends FormValu
 /**
  * Хелпер для создания переиспользуемых трансформаций
  *
+ * @group Behaviors
+ * @category Behavior Rules
+ *
  * @example
  * ```typescript
  * // Создаем переиспользуемые трансформеры
@@ -108,6 +123,9 @@ export function createTransformer<TValue extends FormValue = FormValue>(
 
 /**
  * Готовые трансформеры для частых случаев
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  */
 export const transformers = {
   /** Перевести в верхний регистр */

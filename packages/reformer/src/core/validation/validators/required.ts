@@ -1,5 +1,8 @@
 /**
  * Валидатор обязательного поля
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/required
  */
 
@@ -13,6 +16,9 @@ import type { FieldPathNode } from '../../types';
  * Проверяет, что поле имеет непустое значение.
  * Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
  * Для boolean полей требуется значение `true`.
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param options - Опции валидации (message, params)

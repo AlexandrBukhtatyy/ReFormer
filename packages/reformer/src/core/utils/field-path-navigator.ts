@@ -7,6 +7,8 @@ import type { UnknownRecord } from '../types';
  * - `"email" → { key: 'email' }`
  * - `"items[0]" → { key: 'items', index: 0 }`
  *
+ * @internal
+ *
  * @example
  * ```typescript
  * // Путь "items[0].name" разбивается на:
@@ -37,6 +39,8 @@ export interface PathSegment {
  * обработки путей вида "address.city" или "items[0].name".
  *
  * Устраняет дублирование логики парсинга путей в 4 местах кодовой базы.
+ *
+ * @internal
  *
  * @example
  * ```typescript

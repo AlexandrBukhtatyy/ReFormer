@@ -1,5 +1,8 @@
 /**
  * Асинхронная валидация поля
+ *
+ * @group Validation
+ * @category Core Functions
  */
 
 import { extractPath } from '../field-path';
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
 
 /**
  * Зарегистрировать асинхронный валидатор для поля
+ *
+ * @group Validation
+ * @category Core Functions
  *
  * @example
  * ```typescript

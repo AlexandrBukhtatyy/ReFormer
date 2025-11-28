@@ -1,5 +1,8 @@
 /**
  * Перевалидация полей при изменениях
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/revalidateWhen
  */
 
@@ -11,6 +14,9 @@ import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Перевалидирует поле при изменении других полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param target - Поле для перевалидации
  * @param triggers - Поля-триггеры

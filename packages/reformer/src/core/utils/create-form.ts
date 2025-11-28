@@ -4,6 +4,8 @@
  * Решает проблему с типизацией конструктора GroupNode, который возвращает
  * Proxy (GroupNodeWithControls), но TypeScript не может это вывести автоматически.
  *
+ * @group Utilities
+ *
  * @example
  * ```typescript
  * // Вместо:
@@ -19,6 +21,8 @@ import type { GroupNodeWithControls, GroupNodeConfig, FormSchema } from '../type
 
 /**
  * Создать форму с полной конфигурацией (form, behavior, validation)
+ *
+ * @group Utilities
  *
  * @param config - Конфигурация формы с полями, поведением и валидацией
  * @returns Типизированная форма с Proxy-доступом к полям

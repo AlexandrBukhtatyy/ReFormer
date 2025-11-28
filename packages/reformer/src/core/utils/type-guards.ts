@@ -3,6 +3,9 @@
  *
  * Устраняет дублирование между form-node.ts, validation-applicator.ts и validation-context.ts
  *
+ * @group Utilities
+ * @category Type Guards
+ *
  * @example
  * ```typescript
  * import { isFieldNode, isGroupNode } from '@/core/utils/type-guards';
@@ -24,6 +27,9 @@ import type { FormFields, FormValue } from '../types';
  * Проверить, является ли значение любым FormNode
  *
  * Проверяет базовые свойства, общие для всех типов узлов
+ *
+ * @group Utilities
+ * @category Type Guards
  *
  * @param value - Значение для проверки
  * @returns true если value является FormNode
@@ -55,6 +61,9 @@ export function isFormNode(value: unknown): value is FormNode<FormValue> {
  *
  * FieldNode представляет примитивное поле формы (string, number, boolean и т.д.)
  * и имеет валидаторы, но не имеет вложенных полей или элементов массива
+ *
+ * @group Utilities
+ * @category Type Guards
  *
  * @param value - Значение для проверки
  * @returns true если value является FieldNode

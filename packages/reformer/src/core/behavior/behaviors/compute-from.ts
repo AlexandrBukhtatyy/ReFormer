@@ -1,5 +1,8 @@
 /**
  * Вычисляемые поля
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/computeFrom
  */
 
@@ -10,6 +13,9 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Автоматически вычисляет значение поля на основе других полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param sources - Массив полей-зависимостей
  * @param target - Поле для записи результата

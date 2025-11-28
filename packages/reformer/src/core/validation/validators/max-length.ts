@@ -1,5 +1,8 @@
 /**
  * Валидатор максимальной длины строки
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/maxLength
  */
 
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
  *
  * Проверяет, что длина строки не превышает указанный максимум.
  * Пустые значения пропускаются (используйте `required` для обязательности).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param maxLen - Максимальная допустимая длина строки

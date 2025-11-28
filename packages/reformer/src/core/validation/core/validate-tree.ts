@@ -1,5 +1,8 @@
 /**
  * Cross-field валидация
+ *
+ * @group Validation
+ * @category Core Functions
  */
 
 import { TreeValidatorFn, ValidateTreeOptions } from '../../types';
@@ -9,6 +12,9 @@ import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
  * Зарегистрировать cross-field валидатор
  *
  * Используется для валидации, которая зависит от нескольких полей
+ *
+ * @group Validation
+ * @category Core Functions
  *
  * @example
  * ```typescript

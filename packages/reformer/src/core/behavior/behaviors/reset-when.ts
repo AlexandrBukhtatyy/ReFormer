@@ -1,5 +1,8 @@
 /**
  * Условный сброс полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/resetWhen
  */
 
@@ -10,6 +13,9 @@ import type { BehaviorHandlerFn } from '../types';
 
 /**
  * Опции для resetWhen
+ *
+ * @group Behaviors
+ * @category Behavior Types
  */
 export interface ResetWhenOptions {
   /** Значение для сброса (по умолчанию null) */
@@ -20,6 +26,9 @@ export interface ResetWhenOptions {
 
 /**
  * Условный сброс поля при выполнении условия
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для сброса
  * @param condition - Функция условия (true = reset)

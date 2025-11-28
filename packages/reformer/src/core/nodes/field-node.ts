@@ -3,6 +3,8 @@
  *
  * Представляет одно поле формы с валидацией и состоянием
  * Наследует от FormNode и реализует все его абстрактные методы
+ *
+ * @group Nodes
  */
 
 import { signal, computed, effect } from '@preact/signals-core';
@@ -15,6 +17,8 @@ import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
  * FieldNode - узел для отдельного поля формы
+ *
+ * @group Nodes
  *
  * @example
  * ```typescript

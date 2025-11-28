@@ -1,5 +1,8 @@
 /**
  * Валидатор числовых значений
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/number
  */
 
@@ -10,6 +13,9 @@ import type { FieldPathNode } from '../../types';
 /**
  * Адаптер для number валидатора
  * Проверяет, что значение является числом и соответствует заданным ограничениям
+ *
+ * @group Validation
+ * @category Validators
  *
  * @example
  * ```typescript

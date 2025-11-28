@@ -4,6 +4,8 @@
  * Решает проблему типизации, когда GroupNode<T> использует Proxy для прямого доступа к полям.
  * TypeScript не может автоматически определить правильные типы для вложенных форм и массивов.
  *
+ * @group Types
+ *
  * @example
  * ```typescript
  * interface MyForm {
@@ -48,6 +50,9 @@ type ArrayNode<_T> = any;
  *
  * Использует NonNullable для правильной обработки опциональных полей
  *
+ * @group Types
+ * @category Proxy Types
+ *
  * @template T - Тип модели данных формы
  */
 export type FormNodeControls<T> = {
@@ -67,6 +72,9 @@ export type FormNodeControls<T> = {
  *
  * Объединяет методы и свойства GroupNode с типизированными полями формы.
  * Это позволяет использовать как API GroupNode, так и прямой доступ к полям.
+ *
+ * @group Types
+ * @category Proxy Types
  *
  * @template T - Тип модели данных формы
  *
@@ -98,6 +106,9 @@ export type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
  * Комбинированный тип для ArrayNode с Proxy доступом к элементам
  *
  * Объединяет методы и свойства ArrayNode с типизированным доступом к элементам массива.
+ *
+ * @group Types
+ * @category Proxy Types
  *
  * @template T - Тип модели данных элемента массива
  *

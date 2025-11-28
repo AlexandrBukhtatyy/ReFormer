@@ -1,5 +1,8 @@
 /**
  * Валидатор максимального значения
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/max
  */
 
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
  *
  * Проверяет, что числовое значение не превышает указанный максимум.
  * Пустые значения пропускаются (используйте `required` для обязательности).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param maxValue - Максимально допустимое значение

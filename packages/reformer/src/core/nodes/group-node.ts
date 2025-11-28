@@ -7,6 +7,8 @@
  * - ArrayNode (массив форм)
  *
  * Наследует от FormNode и реализует все его абстрактные методы
+ *
+ * @group Nodes
  */
 
 import { effect } from '@preact/signals-core';
@@ -43,6 +45,8 @@ import { v4 as uuidv4 } from 'uuid';
  * Поддерживает два API:
  * 1. Старый API (только schema) - обратная совместимость
  * 2. Новый API (config с form, behavior, validation) - автоматическое применение схем
+ *
+ * @group Nodes
  *
  * @example
  * ```typescript

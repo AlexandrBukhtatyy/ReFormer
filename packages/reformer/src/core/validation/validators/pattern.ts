@@ -1,5 +1,8 @@
 /**
  * Валидатор паттерна (регулярного выражения)
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/pattern
  */
 
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
  *
  * Проверяет, что значение соответствует указанному регулярному выражению.
  * Пустые значения пропускаются (используйте `required` для обязательности).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param regex - Регулярное выражение для проверки

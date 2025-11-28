@@ -1,5 +1,8 @@
 /**
  * Условное включение/отключение полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/enableWhen
  */
 
@@ -10,6 +13,9 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Условное включение поля на основе значений других полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для включения/выключения
  * @param condition - Функция условия (true = enable, false = disable)
@@ -62,6 +68,9 @@ export function enableWhen<TForm>(
 
 /**
  * Условное выключение поля (инверсия enableWhen)
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field - Поле для выключения
  * @param condition - Функция условия (true = disable, false = enable)

@@ -1,5 +1,8 @@
 /**
  * Копирование значений между полями
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/copyFrom
  */
 
@@ -9,6 +12,9 @@ import { watchField } from './watch-field';
 
 /**
  * Копирует значения из одного поля/группы в другое при выполнении условия
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param source - Откуда копировать
  * @param target - Куда копировать

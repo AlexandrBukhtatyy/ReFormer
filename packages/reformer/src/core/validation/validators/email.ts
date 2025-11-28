@@ -1,5 +1,8 @@
 /**
  * Валидатор формата email
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/email
  */
 
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
  *
  * Проверяет, что значение соответствует формату email адреса.
  * Пустые значения пропускаются (используйте `required` для обязательности).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param options - Опции валидации (message, params)

@@ -1,5 +1,8 @@
 /**
  * Валидатор минимального значения
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/min
  */
 
@@ -12,6 +15,9 @@ import type { FieldPathNode } from '../../types';
  *
  * Проверяет, что числовое значение не меньше указанного минимума.
  * Пустые значения пропускаются (используйте `required` для обязательности).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Путь к полю для валидации
  * @param minValue - Минимально допустимое значение

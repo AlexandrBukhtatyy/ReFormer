@@ -1,5 +1,8 @@
 /**
  * Двусторонняя синхронизация полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  * @module behaviors/syncFields
  */
 
@@ -10,6 +13,9 @@ import type { SyncFieldsOptions, BehaviorHandlerFn } from '../types';
 
 /**
  * Двусторонняя синхронизация двух полей
+ *
+ * @group Behaviors
+ * @category Behavior Rules
  *
  * @param field1 - Первое поле
  * @param field2 - Второе поле

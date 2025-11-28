@@ -4,6 +4,9 @@
  * Предоставляет специализированные функции для валидации ArrayNode:
  * - notEmpty: проверка что массив не пустой
  * - validateItems: применение validation schema к каждому элементу
+ *
+ * @group Validation
+ * @category Validators
  */
 
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
@@ -20,6 +23,9 @@ import type { FieldPathNode } from '../../types';
  * Проверить что массив содержит хотя бы один элемент
  *
  * Это удобный алиас для `minLength(field, 1)`, оптимизированный для массивов.
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Поле-массив для валидации
  * @param options - Опции валидации (message, params и т.д.)
@@ -59,6 +65,9 @@ export function notEmpty<TForm, TItem>(
  *
  * Регистрирует схему валидации, которая будет автоматически применяться
  * к каждому элементу ArrayNode (как существующим, так и новым).
+ *
+ * @group Validation
+ * @category Validators
  *
  * @param fieldPath - Поле-массив для валидации элементов
  * @param itemSchemaFn - Validation schema для одного элемента

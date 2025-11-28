@@ -1,5 +1,8 @@
 /**
  * Валидатор URL
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/url
  */
 
@@ -10,6 +13,9 @@ import type { FieldPathNode } from '../../types';
 /**
  * Адаптер для URL валидатора
  * Поддерживает опциональные поля (string | undefined)
+ *
+ * @group Validation
+ * @category Validators
  *
  * @example
  * ```typescript

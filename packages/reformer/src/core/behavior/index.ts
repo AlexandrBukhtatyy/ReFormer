@@ -1,6 +1,7 @@
 /**
  * Behavior Schema API - Декларативное описание реактивного поведения форм
  *
+ * @group Behaviors
  * @module behaviors
  */
 

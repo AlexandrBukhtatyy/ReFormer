@@ -1,5 +1,8 @@
 /**
  * Валидатор даты
+ *
+ * @group Validation
+ * @category Validators
  * @module validators/date
  */
 
@@ -10,6 +13,9 @@ import type { FieldPathNode } from '../../types';
 /**
  * Адаптер для date валидатора
  * Проверяет, что значение является валидной датой и соответствует ограничениям
+ *
+ * @group Validation
+ * @category Validators
  *
  * @example
  * ```typescript
