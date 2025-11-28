@@ -104,36 +104,6 @@ export function createCreditApplicationForm() {
 
 That's it! Behaviors are now active when the form is created.
 
-## File Structure
-
-Your project should now have this structure:
-
-```
-src/
-├── schemas/
-│   ├── behaviors/
-│   │   ├── steps/
-│   │   │   ├── loan-info.ts
-│   │   │   ├── personal-info.ts
-│   │   │   ├── contact-info.ts
-│   │   │   ├── employment.ts
-│   │   │   └── additional-info.ts
-│   │   ├── cross-step.behaviors.ts
-│   │   └── credit-application.behaviors.ts  ← Main file
-│   ├── credit-application.ts
-│   └── create-form.ts  ← Behaviors registered here
-│
-├── components/
-│   ├── forms/
-│   │   └── createCreditApplicationForm.ts
-│   ├── steps/
-│   ├── nested-forms/
-│   └── CreditApplicationForm.tsx
-│
-└── types/
-    └── credit-application.ts
-```
-
 ## Testing All Behaviors
 
 Create a comprehensive test checklist:

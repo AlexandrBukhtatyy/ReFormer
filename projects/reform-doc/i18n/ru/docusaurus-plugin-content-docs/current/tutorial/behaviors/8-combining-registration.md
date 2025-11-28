@@ -104,36 +104,6 @@ export function createCreditApplicationForm() {
 
 Вот и всё! Behaviors теперь активны при создании формы.
 
-## Структура файлов
-
-Ваш проект теперь должен иметь эту структуру:
-
-```
-src/
-├── schemas/
-│   ├── behaviors/
-│   │   ├── steps/
-│   │   │   ├── loan-info.ts
-│   │   │   ├── personal-info.ts
-│   │   │   ├── contact-info.ts
-│   │   │   ├── employment.ts
-│   │   │   └── additional-info.ts
-│   │   ├── cross-step.behaviors.ts
-│   │   └── credit-application.behaviors.ts  ← Главный файл
-│   ├── credit-application.ts
-│   └── create-form.ts  ← Behaviors зарегистрированы здесь
-│
-├── components/
-│   ├── forms/
-│   │   └── createCreditApplicationForm.ts
-│   ├── steps/
-│   ├── nested-forms/
-│   └── CreditApplicationForm.tsx
-│
-└── types/
-    └── credit-application.ts
-```
-
 ## Тестирование всех Behaviors
 
 Создадим полный чек-лист тестирования:
