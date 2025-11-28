@@ -1,5 +1,5 @@
 import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import { useFormControlValue } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 
@@ -8,9 +8,8 @@ interface EmploymentFormProps {
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {
-  const { value: employmentStatus } = useFormControl<CreditApplicationForm['employmentStatus']>(
-    control.employmentStatus
-  );
+  // Подписываемся ТОЛЬКО на значение для условного рендеринга
+  const employmentStatus = useFormControlValue(control.employmentStatus);
 
   const isEmployed = employmentStatus === 'employed';
   const isSelfEmployed = employmentStatus === 'selfEmployed';

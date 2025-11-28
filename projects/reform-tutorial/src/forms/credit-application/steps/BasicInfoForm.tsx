@@ -1,5 +1,5 @@
 import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import { useFormControlValue } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 
@@ -8,8 +8,8 @@ interface BasicInfoFormProps {
 }
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {
-  // Подписка на изменения loanType
-  const { value: loanType } = useFormControl<CreditApplicationForm['loanType']>(control.loanType);
+  // Подписка ТОЛЬКО на значение loanType (не на errors, valid и т.д.)
+  const loanType = useFormControlValue(control.loanType);
 
   return (
     <div className="space-y-6">

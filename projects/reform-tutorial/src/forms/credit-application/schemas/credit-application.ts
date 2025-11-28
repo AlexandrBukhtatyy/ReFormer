@@ -1,19 +1,17 @@
 import type { FormSchema } from 'reformer';
 
 // Импорт переиспользуемых схем
-import { addressSchema } from './address.schema';
-import { personalDataSchema } from './personal-data.schema';
-import { passportDataSchema } from './passport-data.schema';
-import { propertySchema } from './property.schema';
-import { existingLoanSchema } from './existing-loan.schema';
-import { coBorrowerSchema } from './co-borrower.schema';
+import { addressSchema } from './address';
+import { personalDataSchema } from './personal-data';
+import { passportDataSchema } from './passport-data';
+import { propertySchema } from './property';
+import { existingLoanSchema } from './existing-loan';
+import { coBorrowerSchema } from './co-borrower';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { InputSearch } from '@/components/ui/input-search';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ============================================================================

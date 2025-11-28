@@ -4,12 +4,13 @@ import { FormField } from '@/components/ui/FormField';
 // TODO: Реализуем на следующем этапе документации
 import { PersonalDataForm } from '../sub-forms/PersonalDataForm';
 import { PassportDataForm } from '../sub-forms/PassportDataForm';
+import { memo } from 'react';
 
 interface PersonalInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
 }
 
-export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
+export function PersonalInfoFormComponent({ control }: PersonalInfoFormProps) {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold">Персональные данные</h2>
@@ -37,3 +38,5 @@ export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
     </div>
   );
 }
+
+export const PersonalInfoForm = memo(PersonalInfoFormComponent);

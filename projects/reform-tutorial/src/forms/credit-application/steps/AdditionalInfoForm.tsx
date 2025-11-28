@@ -1,5 +1,5 @@
 import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import { useFormControlValue } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 
@@ -14,9 +14,10 @@ interface AdditionalInfoFormProps {
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
-  const { value: hasProperty } = useFormControl(control.hasProperty);
-  const { value: hasExistingLoans } = useFormControl(control.hasExistingLoans);
-  const { value: hasCoBorrower } = useFormControl(control.hasCoBorrower);
+  // Подписываемся ТОЛЬКО на значения для условного рендеринга
+  const hasProperty = useFormControlValue(control.hasProperty);
+  const hasExistingLoans = useFormControlValue(control.hasExistingLoans);
+  const hasCoBorrower = useFormControlValue(control.hasCoBorrower);
 
   return (
     <div className="space-y-6">

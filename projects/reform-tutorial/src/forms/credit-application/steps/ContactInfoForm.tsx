@@ -1,5 +1,5 @@
 import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import { useFormControlValue } from 'reformer';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 // TODO: Реализуем на следующем этапе документации
@@ -10,7 +10,8 @@ interface ContactInfoFormProps {
 }
 
 export function ContactInfoForm({ control }: ContactInfoFormProps) {
-  const { value: sameAsRegistration } = useFormControl(control.sameAsRegistration);
+  // Подписываемся ТОЛЬКО на значение для условного рендеринга
+  const sameAsRegistration = useFormControlValue(control.sameAsRegistration);
 
   // Копировать адрес регистрации в адрес проживания
   const copyAddress = () => {
