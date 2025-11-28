@@ -80,7 +80,7 @@ Additional props like `placeholder`, `label`, `options` are passed through `comp
 A field component is connected to the form through the schema:
 
 ```tsx
-import { Input } from './components/ui/Input';
+import { Input } from './components/ui/input';
 
 const form = createForm<{ email: string }>({
   email: {
@@ -97,78 +97,399 @@ const form = createForm<{ email: string }>({
 
 ## Tutorial Implementations
 
-All components shown below use native HTML elements for clarity. You can replace them with your preferred UI library.
+All components are located in `reform-tutorial/src/components/ui/`.
 
 ### Input
 
-A text input that handles both text and number types:
+A text input that handles text and number types with proper validation:
 
-```tsx title="src/components/ui/Input.tsx"
+```tsx title="reform-tutorial/src/components/ui/input.tsx"
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export interface InputProps {
+export interface InputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   value?: string | number | null;
   onChange?: (value: string | number | null) => void;
   onBlur?: () => void;
   type?: 'text' | 'email' | 'number' | 'tel' | 'url' | 'password';
-  placeholder?: string;
-  disabled?: boolean;
-  className?: string;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ value, onChange, onBlur, type = 'text', placeholder, disabled, className }, ref) => {
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, value, onChange, onBlur, type = 'text', ...props }, ref) => {
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = event.target.value;
 
       if (type === 'number') {
-        // Convert to number or null for empty value
-        onChange?.(newValue === '' ? null : Number(newValue));
+        if (newValue === '') {
+          onChange?.(null);
+        } else {
+          const numValue = Number(newValue);
+          if (!isNaN(numValue)) {
+            onChange?.(numValue);
+          }
+        }
       } else {
         onChange?.(newValue || null);
       }
     };
 
-    // Convert value to string for display
-    const displayValue = value ?? '';
+    const inputValue = React.useMemo(() => {
+      if (value === null || value === undefined) return '';
+      if (type === 'number' && typeof value === 'number') {
+        if (isNaN(value)) return '';
+        return value.toString();
+      }
+      return String(value);
+    }, [value, type]);
 
     return (
       <input
         ref={ref}
         type={type}
-        value={displayValue}
-        onChange={handleChange}
+        value={inputValue}
+        className={cn(
+          'h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm',
+          'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px]',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          'aria-invalid:border-destructive',
+          className
+        )}
+        onChange={handleInputChange}
         onBlur={onBlur}
-        disabled={disabled}
-        placeholder={placeholder}
-        className={className}
+        {...props}
       />
     );
   }
 );
 
 Input.displayName = 'Input';
+
+export { Input };
+```
+
+### InputPassword
+
+Password input with visibility toggle:
+
+```tsx title="reform-tutorial/src/components/ui/input-password.tsx"
+import * as React from 'react';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+export interface InputPasswordProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  showToggle?: boolean;
+}
+
+const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
+  ({ className, value, onChange, onBlur, showToggle = true, ...props }, ref) => {
+    const [showPassword, setShowPassword] = React.useState(false);
+
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChange?.(event.target.value || null);
+    };
+
+    return (
+      <div className="relative">
+        <input
+          ref={ref}
+          type={showPassword ? 'text' : 'password'}
+          value={value || ''}
+          className={cn(
+            'h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm',
+            showToggle && 'pr-10',
+            className
+          )}
+          onChange={handleInputChange}
+          onBlur={onBlur}
+          {...props}
+        />
+        {showToggle && (
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+            onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+          </button>
+        )}
+      </div>
+    );
+  }
+);
+
+InputPassword.displayName = 'InputPassword';
+
+export { InputPassword };
+```
+
+### InputMask
+
+Input with mask placeholder:
+
+```tsx title="reform-tutorial/src/components/ui/input-mask.tsx"
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+
+export interface InputMaskProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  mask?: string; // e.g. '999-999-999 99'
+}
+
+const InputMask = React.forwardRef<HTMLInputElement, InputMaskProps>(
+  ({ className, value, onChange, onBlur, mask, placeholder, ...props }, ref) => {
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChange?.(event.target.value || null);
+    };
+
+    return (
+      <input
+        ref={ref}
+        type="text"
+        value={value || ''}
+        placeholder={placeholder || mask}
+        className={cn(
+          'h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm',
+          className
+        )}
+        onChange={handleInputChange}
+        onBlur={onBlur}
+        {...props}
+      />
+    );
+  }
+);
+
+InputMask.displayName = 'InputMask';
+
+export { InputMask };
+```
+
+### InputSearch
+
+Search input with autocomplete from resource:
+
+```tsx title="reform-tutorial/src/components/ui/input-search.tsx"
+import * as React from 'react';
+import { SearchIcon, XIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { ResourceConfig, ResourceItem } from 'reformer';
+
+export interface InputSearchProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'resource'> {
+  value?: string | null;
+  onChange?: (value: string | null) => void;
+  onBlur?: () => void;
+  resource?: ResourceConfig<string>;
+  debounce?: number;
+}
+
+const InputSearch = React.forwardRef<HTMLInputElement, InputSearchProps>(
+  ({ className, value, onChange, onBlur, resource, debounce = 300, ...props }, ref) => {
+    const [suggestions, setSuggestions] = React.useState<ResourceItem<string>[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [showSuggestions, setShowSuggestions] = React.useState(false);
+    const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = event.target.value;
+      onChange?.(newValue || null);
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      if (resource && newValue.trim()) {
+        timeoutRef.current = setTimeout(async () => {
+          setLoading(true);
+          try {
+            const response = await resource.load({ search: newValue });
+            setSuggestions(response.items);
+            setShowSuggestions(true);
+          } catch {
+            setSuggestions([]);
+          } finally {
+            setLoading(false);
+          }
+        }, debounce);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    };
+
+    const handleSuggestionClick = (suggestion: ResourceItem<string>) => {
+      onChange?.(suggestion.label || '');
+      setShowSuggestions(false);
+    };
+
+    return (
+      <div className="relative">
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground size-4" />
+        <input
+          ref={ref}
+          type="text"
+          value={value || ''}
+          className={cn('pl-10 pr-10 h-9 w-full rounded-md border', className)}
+          onChange={handleInputChange}
+          onBlur={() => {
+            setTimeout(() => setShowSuggestions(false), 200);
+            onBlur?.();
+          }}
+          {...props}
+        />
+        {value && !loading && (
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2"
+            onClick={() => onChange?.(null)}
+          >
+            <XIcon className="size-4" />
+          </button>
+        )}
+
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-md max-h-60 overflow-auto">
+            {suggestions.map((suggestion, index) => (
+              <div
+                key={suggestion.id || index}
+                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSuggestionClick(suggestion);
+                }}
+              >
+                {suggestion.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+InputSearch.displayName = 'InputSearch';
+
+export { InputSearch };
+```
+
+### InputFiles
+
+File input with validation and upload support:
+
+```tsx title="reform-tutorial/src/components/ui/input-files.tsx"
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+
+export interface InputFilesProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
+  onChange?: (value: File | File[] | null) => void;
+  onBlur?: () => void;
+  multiple?: boolean;
+  accept?: string;
+  maxSize?: number;
+  uploader?: { upload: (file: File) => Promise<unknown> };
+}
+
+const InputFiles = React.forwardRef<HTMLInputElement, InputFilesProps>(
+  ({ className, onChange, onBlur, multiple = false, accept, maxSize, uploader, ...props }, ref) => {
+    const [error, setError] = React.useState<string | null>(null);
+    const [uploading, setUploading] = React.useState(false);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      setError(null);
+
+      if (!files || files.length === 0) {
+        onChange?.(null);
+        return;
+      }
+
+      const fileArray = Array.from(files);
+
+      // Validate file sizes
+      if (maxSize) {
+        const oversizedFiles = fileArray.filter((file) => file.size > maxSize);
+        if (oversizedFiles.length > 0) {
+          setError(`File size exceeds ${(maxSize / (1024 * 1024)).toFixed(2)} MB`);
+          onChange?.(null);
+          return;
+        }
+      }
+
+      const result = multiple ? fileArray : fileArray[0];
+
+      if (uploader) {
+        setUploading(true);
+        try {
+          if (Array.isArray(result)) {
+            await Promise.all(result.map((file) => uploader.upload(file)));
+          } else {
+            await uploader.upload(result);
+          }
+          onChange?.(result);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Upload failed');
+          onChange?.(null);
+        } finally {
+          setUploading(false);
+        }
+      } else {
+        onChange?.(result);
+      }
+    };
+
+    return (
+      <div className="space-y-2">
+        <input
+          ref={ref}
+          type="file"
+          multiple={multiple}
+          accept={accept}
+          disabled={uploading}
+          className={cn('h-9 w-full rounded-md border px-3 py-1 text-sm', className)}
+          onChange={handleFileChange}
+          onBlur={onBlur}
+          {...props}
+        />
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {uploading && <p className="text-sm text-muted-foreground">Uploading...</p>}
+      </div>
+    );
+  }
+);
+
+InputFiles.displayName = 'InputFiles';
+
+export { InputFiles };
 ```
 
 ### Textarea
 
-A multi-line text input:
+Multi-line text input:
 
-```tsx title="src/components/ui/Textarea.tsx"
+```tsx title="reform-tutorial/src/components/ui/textarea.tsx"
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export interface TextareaProps {
+export interface TextareaProps
+  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
   rows?: number;
-  className?: string;
+  maxLength?: number;
 }
 
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ value, onChange, onBlur, placeholder, disabled, rows = 3, className }, ref) => {
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, value, onChange, onBlur, rows = 3, maxLength, ...props }, ref) => {
     const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       onChange?.(event.target.value || null);
     };
@@ -177,94 +498,149 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         value={value || ''}
+        rows={rows}
+        maxLength={maxLength}
+        className={cn(
+          'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm',
+          'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px]',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          'resize-y',
+          className
+        )}
         onChange={handleChange}
         onBlur={onBlur}
-        disabled={disabled}
-        placeholder={placeholder}
-        rows={rows}
-        className={className}
+        {...props}
       />
     );
   }
 );
 
 Textarea.displayName = 'Textarea';
+
+export { Textarea };
 ```
 
 ### Select
 
-A dropdown select component with options:
+Dropdown select with resource loading and clearable option:
 
-```tsx title="src/components/ui/Select.tsx"
+```tsx title="reform-tutorial/src/components/ui/select.tsx"
 import * as React from 'react';
+import * as SelectPrimitive from '@radix-ui/react-select';
+import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { ResourceConfig } from 'reformer';
 
-export interface SelectOption {
-  value: string | number;
-  label: string;
-}
-
-export interface SelectProps {
+export interface SelectProps<T> {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  options?: SelectOption[];
+  resource?: ResourceConfig<T>;
+  options?: Array<{ value: string | number; label: string; group?: string }>;
   placeholder?: string;
   disabled?: boolean;
-  className?: string;
+  clearable?: boolean;
 }
 
-export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ value, onChange, onBlur, options = [], placeholder, disabled, className }, ref) => {
-    const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const newValue = event.target.value;
-      onChange?.(newValue || null);
-    };
+const Select = React.forwardRef<HTMLButtonElement, SelectProps<unknown>>(
+  ({ value, onChange, onBlur, resource, options: directOptions, placeholder, disabled, clearable = false }, ref) => {
+    const [resourceOptions, setResourceOptions] = React.useState<Array<{ id: string | number; label: string; value: string }>>([]);
+    const [loading, setLoading] = React.useState(false);
+
+    React.useEffect(() => {
+      if (resource) {
+        setLoading(true);
+        resource.load({})
+          .then((response) => {
+            setResourceOptions(response.items.map((item: any) => ({
+              id: item.id,
+              label: item.label,
+              value: String(item.value),
+            })));
+          })
+          .finally(() => setLoading(false));
+      }
+    }, [resource]);
+
+    const options = directOptions
+      ? directOptions.map((opt) => ({ id: opt.value, label: opt.label, value: String(opt.value) }))
+      : resourceOptions;
 
     return (
-      <select
-        ref={ref}
-        value={value || ''}
-        onChange={handleChange}
-        onBlur={onBlur}
-        disabled={disabled}
-        className={className}
-      >
-        {placeholder && (
-          <option value="" disabled>
-            {placeholder}
-          </option>
+      <div className="relative w-full">
+        <SelectPrimitive.Root
+          value={value || ''}
+          onValueChange={(val) => onChange?.(val)}
+          onOpenChange={(open) => !open && onBlur?.()}
+          disabled={disabled || loading}
+        >
+          <SelectPrimitive.Trigger
+            ref={ref}
+            className={cn(
+              'h-9 w-full rounded-md border px-3 py-2 text-sm flex items-center justify-between',
+              clearable && value && 'pr-8'
+            )}
+          >
+            <SelectPrimitive.Value placeholder={loading ? 'Loading...' : placeholder} />
+            <ChevronDownIcon className="size-4 opacity-50" />
+          </SelectPrimitive.Trigger>
+          <SelectPrimitive.Portal>
+            <SelectPrimitive.Content className="z-50 min-w-[8rem] rounded-md border bg-white shadow-md">
+              <SelectPrimitive.Viewport className="p-1">
+                {options.map((option) => (
+                  <SelectPrimitive.Item
+                    key={option.id}
+                    value={option.value}
+                    className="flex items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm cursor-default hover:bg-accent"
+                  >
+                    <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                    <SelectPrimitive.ItemIndicator className="absolute right-2">
+                      <CheckIcon className="size-4" />
+                    </SelectPrimitive.ItemIndicator>
+                  </SelectPrimitive.Item>
+                ))}
+              </SelectPrimitive.Viewport>
+            </SelectPrimitive.Content>
+          </SelectPrimitive.Portal>
+        </SelectPrimitive.Root>
+
+        {clearable && value && !disabled && (
+          <button
+            type="button"
+            className="absolute right-8 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            onClick={(e) => { e.stopPropagation(); onChange?.(null); }}
+          >
+            <XIcon className="size-4" />
+          </button>
         )}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      </div>
     );
   }
 );
 
 Select.displayName = 'Select';
+
+export { Select };
 ```
 
 ### Checkbox
 
-A checkbox component for boolean values:
+Checkbox for boolean values:
 
-```tsx title="src/components/ui/Checkbox.tsx"
+```tsx title="reform-tutorial/src/components/ui/checkbox.tsx"
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export interface CheckboxProps {
+export interface CheckboxProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
   value?: boolean;
   onChange?: (value: boolean) => void;
   onBlur?: () => void;
   label?: string;
-  disabled?: boolean;
-  className?: string;
 }
 
-export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ value, onChange, onBlur, label, disabled, className }, ref) => {
+const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
+  ({ className, value, onChange, onBlur, label, disabled, ...props }, ref) => {
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.checked);
     };
@@ -275,60 +651,71 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           ref={ref}
           type="checkbox"
           checked={value || false}
+          disabled={disabled}
+          className={cn(
+            'h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            className
+          )}
           onChange={handleChange}
           onBlur={onBlur}
-          disabled={disabled}
-          className={className}
+          {...props}
         />
-        {label && <label>{label}</label>}
+        {label && <label className="text-sm font-medium">{label}</label>}
       </div>
     );
   }
 );
 
 Checkbox.displayName = 'Checkbox';
+
+export { Checkbox };
 ```
 
 ### RadioGroup
 
-A group of radio buttons:
+Group of radio buttons:
 
-```tsx title="src/components/ui/RadioGroup.tsx"
+```tsx title="reform-tutorial/src/components/ui/radio-group.tsx"
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 export interface RadioOption {
   value: string;
   label: string;
 }
 
-export interface RadioGroupProps {
+export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
   value?: string | null;
   onChange?: (value: string) => void;
   onBlur?: () => void;
   options: RadioOption[];
   disabled?: boolean;
-  className?: string;
 }
 
-export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
-  ({ value, onChange, onBlur, options, disabled, className }, ref) => {
+const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
+  ({ className, value, onChange, onBlur, options, disabled, ...props }, ref) => {
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.value);
     };
 
     return (
-      <div ref={ref} className={className}>
+      <div ref={ref} className={cn('flex flex-col gap-2', className)} {...props}>
         {options.map((option) => (
           <div key={option.value} className="flex items-center gap-2">
             <input
               type="radio"
               value={option.value}
               checked={value === option.value}
+              disabled={disabled}
+              className={cn(
+                'h-4 w-4 border-gray-300 text-primary focus:ring-2 focus:ring-primary',
+                'disabled:cursor-not-allowed disabled:opacity-50'
+              )}
               onChange={handleChange}
               onBlur={onBlur}
-              disabled={disabled}
             />
-            <label>{option.label}</label>
+            <label className="text-sm font-medium">{option.label}</label>
           </div>
         ))}
       </div>
@@ -337,55 +724,9 @@ export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
 );
 
 RadioGroup.displayName = 'RadioGroup';
+
+export { RadioGroup };
 ```
-
-## Using UI Libraries
-
-You can use existing UI libraries like Radix UI, shadcn/ui, or Material UI. Just ensure your wrapper components follow the interface pattern described above.
-
-Example adapting a Radix UI Select:
-
-```tsx
-import * as SelectPrimitive from '@radix-ui/react-select';
-
-interface SelectProps {
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-  onBlur?: () => void;
-  options: { value: string; label: string }[];
-  placeholder?: string;
-  disabled?: boolean;
-}
-
-export function Select({ value, onChange, onBlur, options, placeholder, disabled }: SelectProps) {
-  return (
-    <SelectPrimitive.Root
-      value={value || ''}
-      onValueChange={(val) => onChange?.(val || null)}
-      onOpenChange={(open) => !open && onBlur?.()}
-      disabled={disabled}
-    >
-      <SelectPrimitive.Trigger>
-        <SelectPrimitive.Value placeholder={placeholder} />
-      </SelectPrimitive.Trigger>
-
-      <SelectPrimitive.Portal>
-        <SelectPrimitive.Content>
-          <SelectPrimitive.Viewport>
-            {options.map((option) => (
-              <SelectPrimitive.Item key={option.value} value={option.value}>
-                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
-              </SelectPrimitive.Item>
-            ))}
-          </SelectPrimitive.Viewport>
-        </SelectPrimitive.Content>
-      </SelectPrimitive.Portal>
-    </SelectPrimitive.Root>
-  );
-}
-```
-
-The reform-tutorial project uses shadcn/ui components built on Radix UI primitives.
 
 ## Best Practices
 

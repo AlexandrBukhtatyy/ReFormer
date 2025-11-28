@@ -1,51 +1,45 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface TextareaProps
-  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
+export interface InputMaskProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
+  mask?: string; // Простая маска (например: '999-999-999 99')
   placeholder?: string;
   disabled?: boolean;
-  rows?: number;
-  maxLength?: number;
 }
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  (
-    { className, value, onChange, onBlur, placeholder, disabled, rows = 3, maxLength, ...props },
-    ref
-  ) => {
-    const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+const InputMask = React.forwardRef<HTMLInputElement, InputMaskProps>(
+  ({ className, value, onChange, onBlur, mask, placeholder, disabled, ...props }, ref) => {
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = event.target.value;
       onChange?.(newValue || null);
     };
 
-    const textareaValue = React.useMemo(() => {
+    const inputValue = React.useMemo(() => {
       if (value === null || value === undefined) return '';
       return String(value);
     }, [value]);
 
     return (
-      <textarea
+      <input
         ref={ref}
-        value={textareaValue}
+        type="text"
+        value={inputValue}
         disabled={disabled}
-        placeholder={placeholder}
-        rows={rows}
-        maxLength={maxLength}
+        placeholder={placeholder || mask}
         className={cn(
-          'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors',
+          'h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors',
           'placeholder:text-muted-foreground',
           'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
           'disabled:cursor-not-allowed disabled:opacity-50',
           'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
-          'resize-y',
           className
         )}
-        onChange={handleTextareaChange}
+        onChange={handleInputChange}
         onBlur={onBlur}
         {...props}
       />
@@ -53,6 +47,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   }
 );
 
-Textarea.displayName = 'Textarea';
+InputMask.displayName = 'InputMask';
 
-export { Textarea };
+export { InputMask };

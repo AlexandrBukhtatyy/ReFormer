@@ -9,10 +9,10 @@ import { existingLoanSchema } from './existing-loan.schema';
 import { coBorrowerSchema } from './co-borrower.schema';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ============================================================================
