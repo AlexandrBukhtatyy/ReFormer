@@ -87,7 +87,11 @@ export function CreditApplicationForm({
   // ============================================
   // 4. AUTO-SAVE
   // ============================================
-  const { status: saveStatus, pause: pauseAutoSave, resume: resumeAutoSave } = useAutoSave(form, {
+  const {
+    status: saveStatus,
+    pause: pauseAutoSave,
+    resume: resumeAutoSave,
+  } = useAutoSave(form, {
     debounce: 30000, // 30 seconds
     saveFn: async (formData) => {
       // Serialize with draft transformer (keeps computed fields)
@@ -128,7 +132,13 @@ export function CreditApplicationForm({
   // ============================================
   // 6. DATA PREFILL
   // ============================================
-  const { state: prefillState, preview, loadPreview, apply: applyPrefill, cancel: cancelPrefill } = useDataPrefill(form);
+  const {
+    state: prefillState,
+    preview,
+    loadPreview,
+    apply: applyPrefill,
+    cancel: cancelPrefill,
+  } = useDataPrefill(form);
 
   // ============================================
   // 7. FORM SUBMISSION
@@ -189,15 +199,9 @@ export function CreditApplicationForm({
         {/* ========== HEADER ========== */}
         <header className="form-header">
           <div className="form-title">
-            <h1>
-              {applicationId
-                ? 'Edit Credit Application'
-                : 'New Credit Application'}
-            </h1>
+            <h1>{applicationId ? 'Edit Credit Application' : 'New Credit Application'}</h1>
             {draftManager.currentDraft && (
-              <span className="draft-badge">
-                Draft: {draftManager.currentDraft.name}
-              </span>
+              <span className="draft-badge">Draft: {draftManager.currentDraft.name}</span>
             )}
           </div>
 
@@ -220,11 +224,7 @@ export function CreditApplicationForm({
             />
 
             {/* Reset Controls */}
-            <ResetControls
-              form={form}
-              onReset={handleReset}
-              onClear={handleClear}
-            />
+            <ResetControls form={form} onReset={handleReset} onClear={handleClear} />
           </div>
         </header>
 
@@ -377,11 +377,7 @@ export function ControlPanel({
       {/* Reset */}
       <div className="control-group">
         <label>Reset</label>
-        <ResetControls
-          form={form}
-          onReset={onReset}
-          onClear={onClear}
-        />
+        <ResetControls form={form} onReset={onReset} onClear={onClear} />
       </div>
     </div>
   );
@@ -518,6 +514,7 @@ function ApplicationPage() {
 Comprehensive testing checklist:
 
 ### New Application Flow
+
 - [ ] Open form without IDs
 - [ ] Form starts empty
 - [ ] Fill some fields
@@ -532,6 +529,7 @@ Comprehensive testing checklist:
 - [ ] Draft deleted after submit
 
 ### Edit Existing Application Flow
+
 - [ ] Open form with applicationId
 - [ ] See loading spinner
 - [ ] Form loads with data
@@ -542,6 +540,7 @@ Comprehensive testing checklist:
 - [ ] API receives updates
 
 ### Prefill Flow
+
 - [ ] Open new form
 - [ ] Click "Fill from Profile"
 - [ ] See preview dialog
@@ -553,6 +552,7 @@ Comprehensive testing checklist:
 - [ ] Draft includes prefilled data
 
 ### Reset Flow
+
 - [ ] Load draft or application
 - [ ] Modify fields
 - [ ] Click "Reset"
@@ -562,6 +562,7 @@ Comprehensive testing checklist:
 - [ ] Can edit again
 
 ### Draft Management Flow
+
 - [ ] Create multiple drafts
 - [ ] Switch between drafts
 - [ ] Each draft preserves data
@@ -572,6 +573,7 @@ Comprehensive testing checklist:
 - [ ] Other drafts unaffected
 
 ### Error Handling
+
 - [ ] Network error during load
 - [ ] See error message
 - [ ] Can retry
@@ -600,10 +602,7 @@ useAutoSave(form, {
 const form = useMemo(() => createCreditApplicationForm(), []);
 
 // Memoize expensive calculations
-const transformedData = useMemo(
-  () => transformer.serialize(formData),
-  [formData]
-);
+const transformedData = useMemo(() => transformer.serialize(formData), [formData]);
 ```
 
 ### 3. Lazy Loading
@@ -637,30 +636,35 @@ useEffect(() => {
 ## Best Practices
 
 ### 1. Error Handling
+
 - Always handle loading and error states
 - Show user-friendly error messages
 - Provide retry mechanisms
 - Log errors for debugging
 
 ### 2. User Feedback
+
 - Show loading indicators
 - Display save status
 - Confirm destructive actions
 - Celebrate successes
 
 ### 3. Data Integrity
+
 - Validate before submission
 - Transform consistently
 - Handle edge cases
 - Test round-trips
 
 ### 4. Performance
+
 - Debounce expensive operations
 - Memoize calculations
 - Lazy load when possible
 - Clean up subscriptions
 
 ### 5. User Experience
+
 - Auto-save frequently
 - Don't block user input
 - Preserve work on errors
@@ -706,9 +710,9 @@ src/
 │   └── data-transform.service.ts       # Transform utils
 │
 └── types/
-    ├── draft.types.ts                  # Draft interfaces
-    ├── transformer.types.ts            # Transformer interfaces
-    └── user-profile.types.ts           # Profile interfaces
+    ├── draft.ts                  # Draft interfaces
+    ├── transformer.ts            # Transformer interfaces
+    └── user-profile.ts           # Profile interfaces
 ```
 
 ## Summary
@@ -716,24 +720,28 @@ src/
 We've built a complete, production-ready form with:
 
 ### Data Loading
+
 - Multiple sources (API, localStorage, profile)
 - Priority-based loading
 - Loading state management
 - Error handling
 
 ### Auto-Save
+
 - Debounced saving
 - Status indication
 - Save on page unload
 - Dual storage (localStorage + API)
 
 ### Draft Management
+
 - Create, read, update, delete
 - Multiple drafts support
 - Draft switching
 - Auto-save integration
 
 ### Reset & Clear
+
 - Reset to initial values
 - Clear all data
 - Step-level reset
@@ -741,18 +749,21 @@ We've built a complete, production-ready form with:
 - Confirmation dialogs
 
 ### Data Prefill
+
 - Load from user profile
 - Smart merging
 - Preview changes
 - Selective prefill
 
 ### Data Transformation
+
 - Bidirectional conversion
 - Date handling
 - Data normalization
 - Computed field removal
 
 ### Form Submission
+
 - Validation before submit
 - Transform for API
 - Error handling

@@ -28,6 +28,7 @@ Prefilling improves user experience:
 - **Consistency** - Same data across applications
 
 Example: Credit application can prefill:
+
 - Personal data (name, birth date)
 - Contact info (phone, email, address)
 - Documents (passport, INN, SNILS)
@@ -37,7 +38,7 @@ Example: Credit application can prefill:
 
 Define the profile interface:
 
-```typescript title="src/types/user-profile.types.ts"
+```typescript title="src/types/user-profile.ts"
 /**
  * User profile data
  */
@@ -276,7 +277,8 @@ export function calculatePrefillResult(
     }
 
     // Check if field is already filled
-    const isFieldFilled = currentValue !== undefined &&
+    const isFieldFilled =
+      currentValue !== undefined &&
       currentValue !== null &&
       currentValue !== '' &&
       (typeof currentValue !== 'object' || Object.keys(currentValue).length > 0);
@@ -300,19 +302,19 @@ export function calculatePrefillResult(
  */
 export function getFieldLabel(fieldPath: string): string {
   const labels: Record<string, string> = {
-    'personalData': 'Personal Information',
+    personalData: 'Personal Information',
     'personalData.firstName': 'First Name',
     'personalData.lastName': 'Last Name',
     'personalData.middleName': 'Middle Name',
     'personalData.birthDate': 'Birth Date',
-    'phoneMain': 'Phone Number',
-    'email': 'Email',
-    'registrationAddress': 'Registration Address',
-    'residenceAddress': 'Residence Address',
-    'passportData': 'Passport Information',
-    'inn': 'INN (Tax ID)',
-    'snils': 'SNILS (Insurance Number)',
-    'employment': 'Employment Information',
+    phoneMain: 'Phone Number',
+    email: 'Email',
+    registrationAddress: 'Registration Address',
+    residenceAddress: 'Residence Address',
+    passportData: 'Passport Information',
+    inn: 'INN (Tax ID)',
+    snils: 'SNILS (Insurance Number)',
+    employment: 'Employment Information',
   };
 
   return labels[fieldPath] || fieldPath;
@@ -375,32 +377,35 @@ export function useDataPrefill(form: FormNode): UseDataPrefillReturn {
   const [pendingOptions, setPendingOptions] = useState<PrefillOptions | null>(null);
 
   // Load and preview prefill
-  const loadPreview = useCallback(async (options: PrefillOptions = {}) => {
-    setState('loading');
-    setError(null);
-    setPreview(null);
+  const loadPreview = useCallback(
+    async (options: PrefillOptions = {}) => {
+      setState('loading');
+      setError(null);
+      setPreview(null);
 
-    try {
-      // Load user profile
-      const profile = await loadUserProfile();
+      try {
+        // Load user profile
+        const profile = await loadUserProfile();
 
-      // Map to form data
-      const profileData = mapProfileToFormData(profile);
+        // Map to form data
+        const profileData = mapProfileToFormData(profile);
 
-      // Calculate what would change
-      const currentData = form.value.value;
-      const prefillResult = calculatePrefillResult(currentData, profileData, options);
+        // Calculate what would change
+        const currentData = form.value.value;
+        const prefillResult = calculatePrefillResult(currentData, profileData, options);
 
-      // Store preview
-      setPreview(prefillResult);
-      setPendingOptions(options);
-      setState('preview');
-    } catch (err) {
-      console.error('Failed to load prefill preview:', err);
-      setError(err as Error);
-      setState('error');
-    }
-  }, [form]);
+        // Store preview
+        setPreview(prefillResult);
+        setPendingOptions(options);
+        setState('preview');
+      } catch (err) {
+        console.error('Failed to load prefill preview:', err);
+        setError(err as Error);
+        setState('error');
+      }
+    },
+    [form]
+  );
 
   // Apply prefill from preview
   const apply = useCallback(() => {
@@ -430,36 +435,39 @@ export function useDataPrefill(form: FormNode): UseDataPrefillReturn {
   }, []);
 
   // Direct prefill without preview
-  const prefill = useCallback(async (options: PrefillOptions = {}) => {
-    setState('loading');
-    setError(null);
+  const prefill = useCallback(
+    async (options: PrefillOptions = {}) => {
+      setState('loading');
+      setError(null);
 
-    try {
-      // Load user profile
-      const profile = await loadUserProfile();
+      try {
+        // Load user profile
+        const profile = await loadUserProfile();
 
-      // Map to form data
-      const profileData = mapProfileToFormData(profile);
+        // Map to form data
+        const profileData = mapProfileToFormData(profile);
 
-      // Calculate what to prefill
-      const currentData = form.value.value;
-      const prefillResult = calculatePrefillResult(currentData, profileData, options);
+        // Calculate what to prefill
+        const currentData = form.value.value;
+        const prefillResult = calculatePrefillResult(currentData, profileData, options);
 
-      // Apply directly
-      form.patchValue(prefillResult.data);
+        // Apply directly
+        form.patchValue(prefillResult.data);
 
-      setState('applied');
+        setState('applied');
 
-      // Reset after 2 seconds
-      setTimeout(() => {
-        setState('idle');
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to prefill form:', err);
-      setError(err as Error);
-      setState('error');
-    }
-  }, [form]);
+        // Reset after 2 seconds
+        setTimeout(() => {
+          setState('idle');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to prefill form:', err);
+        setError(err as Error);
+        setState('error');
+      }
+    },
+    [form]
+  );
 
   return {
     state,
@@ -501,11 +509,7 @@ export function PrefillButton({ form, showPreview = true }: PrefillButtonProps) 
   const isApplied = state === 'applied';
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isLoading || isApplied}
-      className="prefill-button"
-    >
+    <button onClick={handleClick} disabled={isLoading || isApplied} className="prefill-button">
       {isLoading && <Spinner className="w-4 h-4 mr-2" />}
       {isApplied && <CheckIcon className="w-4 h-4 mr-2" />}
       {!isLoading && !isApplied && <UserIcon className="w-4 h-4 mr-2" />}
@@ -522,8 +526,20 @@ export function PrefillButton({ form, showPreview = true }: PrefillButtonProps) 
 function Spinner({ className }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
     </svg>
   );
 }
@@ -539,7 +555,12 @@ function CheckIcon({ className }: { className?: string }) {
 function UserIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+      />
     </svg>
   );
 }
@@ -559,11 +580,7 @@ interface PrefillPreviewDialogProps {
   onCancel: () => void;
 }
 
-export function PrefillPreviewDialog({
-  preview,
-  onApply,
-  onCancel,
-}: PrefillPreviewDialogProps) {
+export function PrefillPreviewDialog({ preview, onApply, onCancel }: PrefillPreviewDialogProps) {
   const hasChanges = preview.changedFields.length > 0;
 
   return (
@@ -579,7 +596,7 @@ export function PrefillPreviewDialog({
 
             {/* Changed fields */}
             <div className="changed-fields-list">
-              {preview.changedFields.map(field => (
+              {preview.changedFields.map((field) => (
                 <div key={field} className="field-item">
                   <CheckIcon className="w-4 h-4 text-green-600" />
                   <span>{getFieldLabel(field)}</span>
@@ -655,11 +672,7 @@ export function PrefillWithPreview({ form }: PrefillWithPreviewProps) {
       <PrefillButton form={form} showPreview={true} />
 
       {state === 'preview' && preview && (
-        <PrefillPreviewDialog
-          preview={preview}
-          onApply={apply}
-          onCancel={cancel}
-        />
+        <PrefillPreviewDialog preview={preview} onApply={apply} onCancel={cancel} />
       )}
     </>
   );
@@ -700,10 +713,8 @@ export function SelectivePrefill({ form }: SelectivePrefillProps) {
   ];
 
   const handleToggleField = (fieldId: string) => {
-    setSelectedFields(prev =>
-      prev.includes(fieldId)
-        ? prev.filter(id => id !== fieldId)
-        : [...prev, fieldId]
+    setSelectedFields((prev) =>
+      prev.includes(fieldId) ? prev.filter((id) => id !== fieldId) : [...prev, fieldId]
     );
   };
 
@@ -719,7 +730,7 @@ export function SelectivePrefill({ form }: SelectivePrefillProps) {
       <h3>Select Fields to Prefill</h3>
 
       <div className="field-selection">
-        {availableFields.map(field => (
+        {availableFields.map((field) => (
           <label key={field.id} className="field-checkbox">
             <input
               type="checkbox"
@@ -783,6 +794,7 @@ export function CreditApplicationForm() {
 Test these scenarios:
 
 ### Scenario 1: Basic Prefill
+
 - [ ] Click "Fill from Profile"
 - [ ] See preview dialog
 - [ ] Review changed fields
@@ -790,6 +802,7 @@ Test these scenarios:
 - [ ] Form is populated
 
 ### Scenario 2: Partial Prefill
+
 - [ ] Fill some fields manually
 - [ ] Click "Fill from Profile"
 - [ ] Filled fields are skipped
@@ -797,6 +810,7 @@ Test these scenarios:
 - [ ] No overwrite happens
 
 ### Scenario 3: Prefill with Overwrite
+
 - [ ] Fill some fields
 - [ ] Enable overwrite option
 - [ ] Click prefill
@@ -804,12 +818,14 @@ Test these scenarios:
 - [ ] Manual data is replaced
 
 ### Scenario 4: Selective Prefill
+
 - [ ] Choose specific fields
 - [ ] Click prefill
 - [ ] Only selected fields filled
 - [ ] Other fields unchanged
 
 ### Scenario 5: Cancel Prefill
+
 - [ ] Click "Fill from Profile"
 - [ ] See preview
 - [ ] Click "Cancel"
@@ -817,6 +833,7 @@ Test these scenarios:
 - [ ] Form unchanged
 
 ### Scenario 6: Error Handling
+
 - [ ] Disconnect internet
 - [ ] Click prefill
 - [ ] See error message
@@ -835,12 +852,14 @@ Test these scenarios:
 ## Common Patterns
 
 ### Basic Prefill
+
 ```typescript
 const { prefill } = useDataPrefill(form);
 await prefill();
 ```
 
 ### Prefill with Preview
+
 ```typescript
 const { loadPreview, apply, preview } = useDataPrefill(form);
 await loadPreview();
@@ -848,6 +867,7 @@ if (preview) apply();
 ```
 
 ### Selective Prefill
+
 ```typescript
 await prefill({
   fields: ['personalData', 'contacts'],
@@ -856,6 +876,7 @@ await prefill({
 ```
 
 ### Prefill with Overwrite
+
 ```typescript
 await prefill({ overwrite: true });
 ```
@@ -863,6 +884,7 @@ await prefill({ overwrite: true });
 ## What's Next?
 
 In the next section, we'll add **Data Transformation**:
+
 - Serialize form data for API
 - Deserialize API data for form
 - Date transformations

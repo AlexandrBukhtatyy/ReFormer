@@ -179,7 +179,7 @@ import { Button } from "@/components/ui/button"
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
+    <div className="flex min-h-svh flex-col items-center py-6">
       <Button>Click me</Button>
     </div>
   )
@@ -198,4 +198,4 @@ npm run dev # => http://localhost:5173/
 
 ## Следующие шаги
 
-После настройки проекта переходите к [Схема формы](./form-schema/1-interface), чтобы определить структуру данных формы.
+После настройки проекта переходите к [Схема формы](./form-schema/interface), чтобы определить структуру данных формы.

@@ -23,7 +23,7 @@ sidebar_position: 3
 
 Структура адреса используется дважды в нашей форме. Давайте выделим её:
 
-```typescript title="src/forms/credit-application/schemas/address.schema.ts"
+```typescript title="src/forms/credit-application/schemas/address.ts"
 import type { FormSchema } from 'reformer';
 import { Input } from '@/components/ui/input';
 
@@ -74,7 +74,7 @@ export const addressSchema: FormSchema<Address> = {
 
 Персональные данные — также распространённый паттерн:
 
-```typescript title="src/forms/credit-application/schemas/personal-data.schema.ts"
+```typescript title="src/forms/credit-application/schemas/personal-data.ts"
 import type { FormSchema } from 'reformer';
 import { Input, RadioGroup } from '@/components/ui';
 
@@ -129,7 +129,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
 
 ### Схема паспортных данных
 
-```typescript title="src/forms/credit-application/schemas/passport-data.schema.ts"
+```typescript title="src/forms/credit-application/schemas/passport-data.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Textarea } from '@/components/ui';
 
@@ -172,7 +172,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
 
 ### Схема имущества (для массивов)
 
-```typescript title="src/forms/credit-application/schemas/property.schema.ts"
+```typescript title="src/forms/credit-application/schemas/property.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Textarea, Checkbox } from '@/components/ui';
 
@@ -221,7 +221,7 @@ export const propertySchema: FormSchema<Property> = {
 
 ### Схема существующего кредита (для массивов)
 
-```typescript title="src/forms/credit-application/schemas/existing-loan.schema.ts"
+```typescript title="src/forms/credit-application/schemas/existing-loan.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select } from '@/components/ui';
 
@@ -278,7 +278,7 @@ export const existingLoanSchema: FormSchema<ExistingLoan> = {
 
 ### Схема созаёмщика (вложенная структура в массиве)
 
-```typescript title="src/forms/credit-application/schemas/co-borrower.schema.ts"
+```typescript title="src/forms/credit-application/schemas/co-borrower.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select } from '@/components/ui';
 
@@ -354,7 +354,7 @@ export const coBorrowerSchema: FormSchema<CoBorrower> = {
 
 Теперь используем выделенные схемы в основной схеме формы:
 
-```typescript title="src/forms/credit-application/schemas/credit-application.schema.ts"
+```typescript title="src/forms/credit-application/schemas/credit-application.ts"
 import type { FormSchema } from 'reformer';
 
 // Импорт переиспользуемых схем
@@ -477,7 +477,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   employmentStatus: {
     value: 'employed',
-    component: RadioGroup,
+    component: Select,
     componentProps: {
       label: 'Статус занятости',
       options: [
@@ -662,13 +662,13 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 ```
 src/
 ├── schemas/
-│   ├── address.schema.ts
-│   ├── co-borrower.schema.ts
-│   ├── credit-application.schema.ts
-│   ├── passport-data.schema.ts
-│   ├── existing-loan.schema.ts
-│   ├── personal-data.schema.ts
-│   └── property.schema.ts
+│   ├── address.ts
+│   ├── co-borrower.ts
+│   ├── credit-application.ts
+│   ├── passport-data.ts
+│   ├── existing-loan.ts
+│   ├── personal-data.ts
+│   └── property.ts
 └── types/
     └── credit-application.type.ts
 ```
@@ -707,7 +707,7 @@ describe('addressSchema', () => {
 Изменение структуры адреса требует редактирования только одного файла:
 
 ```typescript
-// address.schema.ts - добавляем новое поле
+// address.ts - добавляем новое поле
 export const addressSchema: FormSchema<Address> = {
   // ... существующие поля
   country: {

@@ -98,7 +98,7 @@ export function createCreditApplicationForm() {
   return createForm<CreditApplicationForm>({
     schema: creditApplicationSchema,
     behaviors: creditApplicationBehaviors,
-    validation: creditApplicationValidation,  // ← Register validation here
+    validation: creditApplicationValidation, // ← Register validation here
   });
 }
 ```
@@ -123,14 +123,14 @@ src/
 │   │   └── credit-application.validators.ts  ← Main file
 │   ├── behaviors/
 │   │   ├── steps/
-│   │   │   ├── step-1-loan-info.behaviors.ts
-│   │   │   ├── step-2-personal-info.behaviors.ts
-│   │   │   ├── step-3-contact-info.behaviors.ts
-│   │   │   ├── step-4-employment.behaviors.ts
-│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   │   ├── loan-info.ts
+│   │   │   ├── personal-info.ts
+│   │   │   ├── contact-info.ts
+│   │   │   ├── employment.ts
+│   │   │   └── additional-info.ts
 │   │   ├── cross-step.behaviors.ts
 │   │   └── credit-application.behaviors.ts
-│   ├── credit-application.schema.ts
+│   ├── credit-application.ts
 │   └── create-form.ts  ← Validation registered here
 │
 ├── components/
@@ -149,6 +149,7 @@ src/
 Create a comprehensive test checklist:
 
 ### Step 1: Loan Information
+
 - [ ] Required fields (loanType, loanAmount, loanTerm, loanPurpose)
 - [ ] Numeric ranges (amount 50k-10M, term 6-360 months)
 - [ ] String length (purpose 10-500 chars)
@@ -156,6 +157,7 @@ Create a comprehensive test checklist:
 - [ ] Conditional car loan fields (brand, model, year, price)
 
 ### Step 2: Personal Information
+
 - [ ] Required names with Cyrillic pattern
 - [ ] Birth date not in future
 - [ ] Age 18-70 validation
@@ -164,6 +166,7 @@ Create a comprehensive test checklist:
 - [ ] INN (10 or 12 digits) and SNILS (11 digits)
 
 ### Step 3: Contact Information
+
 - [ ] Required main phone and email
 - [ ] Optional additional phone and email (validated if provided)
 - [ ] Required registration address fields
@@ -171,6 +174,7 @@ Create a comprehensive test checklist:
 - [ ] Postal code format (6 digits)
 
 ### Step 4: Employment
+
 - [ ] Required employment status
 - [ ] Required monthly income (min 10,000)
 - [ ] Conditional company fields (when employed)
@@ -179,6 +183,7 @@ Create a comprehensive test checklist:
 - [ ] Business experience >= 6 months (when self-employed)
 
 ### Step 5: Additional Information
+
 - [ ] Properties array (min 1 when hasProperty, max 10)
 - [ ] Property element validation (type, description, value)
 - [ ] Existing loans array (min 1 when hasExistingLoans, max 20)
@@ -187,6 +192,7 @@ Create a comprehensive test checklist:
 - [ ] Co-borrower element validation (name, email, phone, income)
 
 ### Cross-Step
+
 - [ ] Down payment >= 20% of property value
 - [ ] Monthly payment <= 50% of household income
 - [ ] Loan amount <= car price
@@ -251,9 +257,7 @@ Make sure you're using the form with validation:
 function CreditApplicationForm() {
   const form = useMemo(() => createCreditApplicationForm(), []); // ← Uses validation
 
-  return (
-    <FormField control={form.loanAmount} />
-  );
+  return <FormField control={form.loanAmount} />;
 }
 ```
 
@@ -280,6 +284,7 @@ function DebugField({ control }: { control: FieldNode<any> }) {
 Understanding when validation runs:
 
 ### 1. On Field Change
+
 ```typescript
 form.field('loanAmount').setValue(100000);
 // → Triggers all validators for loanAmount
@@ -287,6 +292,7 @@ form.field('loanAmount').setValue(100000);
 ```
 
 ### 2. On Dependency Change
+
 ```typescript
 form.field('loanType').setValue('mortgage');
 // → Re-runs conditional validators:
@@ -296,6 +302,7 @@ form.field('loanType').setValue('mortgage');
 ```
 
 ### 3. On Form Submit
+
 ```typescript
 // Mark all fields as touched
 form.touchAll();
@@ -312,6 +319,7 @@ if (form.valid.value) {
 ```
 
 ### 4. Manual Validation
+
 ```typescript
 // Validate single field
 await form.field('loanAmount').validate();
@@ -332,7 +340,7 @@ Validation is optimized by ReFormer, but keep these in mind:
 ```typescript
 // ❌ Bad - expensive operation on every change
 createValidator(path.field, [], (value) => {
-  return expensiveCalculation(value);  // Runs on every keystroke!
+  return expensiveCalculation(value); // Runs on every keystroke!
 });
 
 // ✅ Better - keep sync validators fast
@@ -355,7 +363,7 @@ createAsyncValidator(
   async (inn) => {
     return await fetch(`/api/validate/inn?value=${inn}`);
   },
-  { debounce: 500 }  // ← Debounce
+  { debounce: 500 } // ← Debounce
 );
 ```
 
@@ -365,15 +373,19 @@ createAsyncValidator(
 // ❌ Bad - unnecessary dependencies
 createValidator(
   path.field,
-  [path.a, path.b, path.c, path.d, path.e],  // Too many!
-  (value, deps) => { /* ... */ }
+  [path.a, path.b, path.c, path.d, path.e], // Too many!
+  (value, deps) => {
+    /* ... */
+  }
 );
 
 // ✅ Good - only necessary dependencies
 createValidator(
   path.field,
-  [path.dependency],  // Only what's needed
-  (value, [dep]) => { /* ... */ }
+  [path.dependency], // Only what's needed
+  (value, [dep]) => {
+    /* ... */
+  }
 );
 ```
 
@@ -381,12 +393,20 @@ createValidator(
 
 ```typescript
 // ❌ Bad - circular dependency
-createValidator(path.a, [path.b], (a, [b]) => { /* ... */ });
-createValidator(path.b, [path.a], (b, [a]) => { /* ... */ });  // Infinite loop!
+createValidator(path.a, [path.b], (a, [b]) => {
+  /* ... */
+});
+createValidator(path.b, [path.a], (b, [a]) => {
+  /* ... */
+}); // Infinite loop!
 
 // ✅ Good - one-way dependencies
-createValidator(path.a, [], (a) => { /* ... */ });
-createValidator(path.b, [path.a], (b, [a]) => { /* ... */ });
+createValidator(path.a, [], (a) => {
+  /* ... */
+});
+createValidator(path.b, [path.a], (b, [a]) => {
+  /* ... */
+});
 ```
 
 ## Accessing Validation State
@@ -401,10 +421,7 @@ function FormField({ control }) {
 
   return (
     <div>
-      <input
-        value={field.value ?? ''}
-        onChange={(e) => control.setValue(e.target.value)}
-      />
+      <input value={field.value ?? ''} onChange={(e) => control.setValue(e.target.value)} />
 
       {/* Show errors */}
       {field.errors.length > 0 && (
@@ -447,33 +464,39 @@ form.isValid.subscribe((valid) => {
 We've successfully implemented complete validation for the Credit Application form:
 
 ### Step 1: Loan Information
+
 - ✅ Required fields and numeric ranges
 - ✅ String length validation
 - ✅ Conditional mortgage/car loan fields
 
 ### Step 2: Personal Information
+
 - ✅ Name validation with Cyrillic pattern
 - ✅ Birth date and age validation
 - ✅ Passport format validation
 - ✅ INN and SNILS patterns
 
 ### Step 3: Contact Information
+
 - ✅ Email and phone format validation
 - ✅ Required address fields
 - ✅ Conditional residence address
 
 ### Step 4: Employment
+
 - ✅ Required income and status
 - ✅ Conditional employment fields
 - ✅ Conditional self-employment fields
 - ✅ Work/business experience minimums
 
 ### Step 5: Additional Information
+
 - ✅ Array length validation
 - ✅ Array element validation
 - ✅ Nested object validation in arrays
 
 ### Cross-Step
+
 - ✅ Down payment >= 20% validation
 - ✅ Monthly payment <= 50% income
 - ✅ Loan amount <= car price
@@ -497,14 +520,15 @@ We've successfully implemented complete validation for the Credit Application fo
 
 Our form now has both:
 
-| Feature | Behaviors | Validation |
-|---------|-----------|------------|
-| Purpose | Automate interactions | Ensure data quality |
-| When runs | On field changes | On field changes + submit |
-| Examples | - Show/hide fields<br/>- Compute values<br/>- Copy data | - Required fields<br/>- Format checks<br/>- Business rules |
-| User feedback | Visual changes | Error messages |
+| Feature       | Behaviors                                               | Validation                                                 |
+| ------------- | ------------------------------------------------------- | ---------------------------------------------------------- |
+| Purpose       | Automate interactions                                   | Ensure data quality                                        |
+| When runs     | On field changes                                        | On field changes + submit                                  |
+| Examples      | - Show/hide fields<br/>- Compute values<br/>- Copy data | - Required fields<br/>- Format checks<br/>- Business rules |
+| User feedback | Visual changes                                          | Error messages                                             |
 
 They work together:
+
 - Behaviors **hide** fields → Validation **skips** them
 - Behaviors **compute** values → Validation **checks** them
 - Behaviors **enable/disable** → Validation respects state
@@ -514,12 +538,14 @@ They work together:
 The form now has sophisticated validation, but we still need to handle data flow and submission. In the next sections, we'll cover:
 
 ### Data Flow (Next Section)
+
 - Loading initial form data
 - Saving form progress (auto-save)
 - Resetting form state
 - Cloning and duplicating forms
 
 ### Submission (Following Section)
+
 - Handling form submission
 - Server communication
 - Success and error handling

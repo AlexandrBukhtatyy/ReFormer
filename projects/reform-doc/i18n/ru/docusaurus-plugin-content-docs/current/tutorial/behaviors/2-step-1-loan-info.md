@@ -21,8 +21,8 @@ sidebar_position: 2
 Сначала создадим структуру каталогов и файл behavior для Шага 1:
 
 ```bash
-mkdir -p src/schemas/behaviors/steps
-touch src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts
+mkdir -p reform-tutorial/src/forms/credit-application/schemas/behaviors
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts
 ```
 
 ## Реализация Behaviors
@@ -31,12 +31,12 @@ touch src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts
 
 Начнём с импорта необходимых функций и типов:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Behaviors будут здесь
@@ -46,12 +46,13 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ### 2. Расчёт процентной ставки
 
 Процентная ставка зависит от нескольких факторов:
+
 - Базовая ставка варьируется в зависимости от типа кредита
 - Скидка 0.5% для крупных городов (Москва, Санкт-Петербург)
 - Скидка 1.0% если заявитель владеет имуществом
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ==========================================
   // Вычисляемое поле: Процентная ставка
   // ==========================================
@@ -95,6 +96,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **Как это работает:**
+
 - `computeFrom` отслеживает исходные поля (`loanType`, `registrationAddress`, `hasProperty`)
 - Когда любое из них изменяется, запускается функция вычисления
 - Результат автоматически устанавливается в `interestRate`
@@ -114,8 +116,8 @@ P = A × (r × (1+r)^n) / ((1+r)^n - 1)
 - n = количество месяцев
 ```
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
   // ==========================================
@@ -138,7 +140,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
       // Формула аннуитета: P = A * (r * (1+r)^n) / ((1+r)^n - 1)
       const factor = Math.pow(1 + monthlyRate, termMonths);
-      const payment = amount * (monthlyRate * factor) / (factor - 1);
+      const payment = (amount * (monthlyRate * factor)) / (factor - 1);
 
       // Округляем до целого числа
       return Math.round(payment);
@@ -150,12 +152,14 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **Зависимости:**
+
 - Ежемесячный платёж зависит от `interestRate`
 - `interestRate` - это вычисляемое поле, которое обновляется автоматически
 - Это создаёт **цепочку зависимостей**: `loanType` → `interestRate` → `monthlyPayment`
 
 :::tip Цепочки вычисляемых полей
 ReFormer автоматически обрабатывает зависимости вычисляемых полей. Когда изменяется `loanType`:
+
 1. Сначала пересчитывается `interestRate`
 2. Затем пересчитывается `monthlyPayment` (используя новую ставку)
 
@@ -166,8 +170,8 @@ ReFormer автоматически обрабатывает зависимос�
 
 Показываем поля для ипотеки только когда `loanType === 'mortgage'`:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
   // ==========================================
@@ -181,6 +185,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **Как это работает:**
+
 - `showWhen` отслеживает поле `loanType`
 - Когда `loanType === 'mortgage'`, поля показываются
 - Когда `loanType` меняется на другое значение, поля скрываются
@@ -190,8 +195,8 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Аналогично, показываем поля для автокредита только для автокредитов:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
   // ==========================================
@@ -210,8 +215,8 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Когда пользователь меняет тип кредита, мы должны очистить поля от предыдущего типа, чтобы избежать путаницы:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
   // ==========================================
@@ -236,6 +241,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **Зачем `emitEvent: false`?**
+
 - Предотвращает запуск дополнительных behaviors и валидации
 - Избегает лишних ре-рендеров
 - Значения полей очищаются программно, а не пользователем
@@ -251,12 +257,12 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Вот полный файл behavior для Шага 1:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -306,7 +312,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 
       const monthlyRate = annualRate / 100 / 12;
       const factor = Math.pow(1 + monthlyRate, termMonths);
-      const payment = amount * (monthlyRate * factor) / (factor - 1);
+      const payment = (amount * (monthlyRate * factor)) / (factor - 1);
 
       return Math.round(payment);
     }
@@ -352,12 +358,12 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ```typescript title="src/schemas/create-form.ts"
 import { createForm } from 'reformer';
 import { creditApplicationSchema } from './credit-application.schema';
-import { step1LoanBehaviors } from '../behaviors/steps/step-1-loan-info.behaviors';
+import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
 
 export function createCreditApplicationForm() {
   return createForm({
     schema: creditApplicationSchema,
-    behaviors: step1LoanBehaviors, // Временно для тестирования
+    behaviors: loanBehaviorSchema, // Временно для тестирования
   });
 }
 ```
@@ -390,6 +396,7 @@ export function createCreditApplicationForm() {
 ## Результат
 
 Теперь Шаг 1 формы имеет:
+
 - ✅ Автоматический расчёт процентной ставки со скидками
 - ✅ Автоматический расчёт ежемесячного платежа
 - ✅ Условные поля ипотеки (видны только для ипотеки)

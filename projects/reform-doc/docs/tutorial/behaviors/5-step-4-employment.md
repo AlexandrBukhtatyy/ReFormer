@@ -17,12 +17,12 @@ Step 4 handles different employment statuses with their specific fields:
 
 ## Implementation
 
-```typescript title="src/schemas/behaviors/steps/step-4-employment.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/employment.ts"
 import { showWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -69,15 +69,11 @@ export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Computed: Total Income
   // ==========================================
-  computeFrom(
-    [path.monthlyIncome, path.additionalIncome],
-    path.totalIncome,
-    (values) => {
-      const main = (values.monthlyIncome as number) || 0;
-      const additional = (values.additionalIncome as number) || 0;
-      return main + additional;
-    }
-  );
+  computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (values) => {
+    const main = (values.monthlyIncome as number) || 0;
+    const additional = (values.additionalIncome as number) || 0;
+    return main + additional;
+  });
 
   // Disable totalIncome (read-only)
   disableWhen(path.totalIncome, path.totalIncome, () => true);
@@ -87,16 +83,19 @@ export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Key Points
 
 **Multiple Conditional Fields:**
+
 - Group related fields by condition (employed vs self-employed)
 - Use `showWhen` for each field individually
 - Fields hide/show together when status changes
 
 **Field Reset Pattern:**
+
 - Clear values when switching employment types
 - Prevents stale data (e.g., company name for self-employed)
 - Use `{ emitEvent: false }` to avoid triggering validations
 
 **Total Income:**
+
 - Simple sum of two income sources
 - Handles missing values (`|| 0`)
 - Updates automatically when either income changes
@@ -104,6 +103,7 @@ export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Result
 
 Step 4 now has:
+
 - ✅ Employment-specific fields (company/business)
 - ✅ Automatic field reset on status change
 - ✅ Total income calculation

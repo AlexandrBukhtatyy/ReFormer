@@ -20,22 +20,22 @@ sidebar_position: 8
 Создадим главный файл behavior который импортирует и применяет все behaviors шагов:
 
 ```bash
-touch src/schemas/behaviors/credit-application.behaviors.ts
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts
 ```
 
 ### Реализация
 
-```typescript title="src/schemas/behaviors/credit-application.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts"
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 // Импортируем behaviors шагов
-import { step1LoanBehaviors } from './steps/step-1-loan-info.behaviors';
-import { step2PersonalBehaviors } from './steps/step-2-personal-info.behaviors';
-import { step3ContactBehaviors } from './steps/step-3-contact-info.behaviors';
-import { step4EmploymentBehaviors } from './steps/step-4-employment.behaviors';
-import { step5AdditionalBehaviors } from './steps/step-5-additional-info.behaviors';
-import { crossStepBehaviors } from './cross-step.behaviors';
+import { loanBehaviorSchema } from './steps/step-1-loan-info.behaviors';
+import { personalBehaviorSchema } from './steps/step-2-personal-info.behaviors';
+import { contactBehaviorSchema } from './steps/step-3-contact-info.behaviors';
+import { employmentBehaviorSchema } from './steps/step-4-employment.behaviors';
+import { additionalBehaviorSchema } from './steps/step-5-additional-info.behaviors';
+import { crossStepBehaviorsSchema } from './cross-step.behaviors';
 
 /**
  * Полная схема behaviors для формы Кредитной заявки
@@ -54,32 +54,32 @@ export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm>
   // ==========================================
   // Шаг 1: Информация о кредите
   // ==========================================
-  step1LoanBehaviors(path);
+  loanBehaviorSchema(path);
 
   // ==========================================
   // Шаг 2: Личные данные
   // ==========================================
-  step2PersonalBehaviors(path);
+  personalBehaviorSchema(path);
 
   // ==========================================
   // Шаг 3: Контактная информация
   // ==========================================
-  step3ContactBehaviors(path);
+  contactBehaviorSchema(path);
 
   // ==========================================
   // Шаг 4: Занятость
   // ==========================================
-  step4EmploymentBehaviors(path);
+  employmentBehaviorSchema(path);
 
   // ==========================================
   // Шаг 5: Дополнительная информация
   // ==========================================
-  step5AdditionalBehaviors(path);
+  additionalBehaviorSchema(path);
 
   // ==========================================
   // Кросс-шаговые Behaviors
   // ==========================================
-  crossStepBehaviors(path);
+  crossStepBehaviorsSchema(path);
 };
 ```
 
@@ -96,7 +96,7 @@ import type { CreditApplicationForm } from '@/types';
 export function createCreditApplicationForm() {
   return createForm<CreditApplicationForm>({
     schema: creditApplicationSchema,
-    behaviors: creditApplicationBehaviors,  // ← Регистрируем behaviors здесь
+    behaviors: creditApplicationBehaviors, // ← Регистрируем behaviors здесь
     // валидация будет добавлена в следующем разделе
   });
 }
@@ -113,14 +113,14 @@ src/
 ├── schemas/
 │   ├── behaviors/
 │   │   ├── steps/
-│   │   │   ├── step-1-loan-info.behaviors.ts
-│   │   │   ├── step-2-personal-info.behaviors.ts
-│   │   │   ├── step-3-contact-info.behaviors.ts
-│   │   │   ├── step-4-employment.behaviors.ts
-│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   │   ├── loan-info.ts
+│   │   │   ├── personal-info.ts
+│   │   │   ├── contact-info.ts
+│   │   │   ├── employment.ts
+│   │   │   └── additional-info.ts
 │   │   ├── cross-step.behaviors.ts
 │   │   └── credit-application.behaviors.ts  ← Главный файл
-│   ├── credit-application.schema.ts
+│   ├── credit-application.ts
 │   └── create-form.ts  ← Behaviors зарегистрированы здесь
 │
 ├── components/
@@ -139,6 +139,7 @@ src/
 Создадим полный чек-лист тестирования:
 
 ### Шаг 1: Информация о кредите
+
 - [ ] Процентная ставка обновляется при изменении типа кредита
 - [ ] Процентная ставка получает скидку для крупных городов
 - [ ] Процентная ставка получает скидку для владельцев имущества
@@ -148,29 +149,34 @@ src/
 - [ ] Поля очищаются при переключении типов кредитов
 
 ### Шаг 2: Личные данные
+
 - [ ] Полное имя генерируется из имени, фамилии, отчества
 - [ ] Возраст рассчитывается из даты рождения
 - [ ] Оба вычисляемых поля отключены
 
 ### Шаг 3: Контактная информация
+
 - [ ] Адрес проживания скрывается когда отмечено "совпадает с регистрацией"
 - [ ] Адрес регистрации копируется в адрес проживания
 - [ ] Адрес проживания отключается когда совпадает с регистрацией
 - [ ] Ручные изменения адреса проживания работают когда снят флажок
 
 ### Шаг 4: Занятость
+
 - [ ] Поля компании показываются только для работающих
 - [ ] Поля бизнеса показываются только для ИП
 - [ ] Поля очищаются при переключении статуса занятости
 - [ ] Общий доход рассчитывается из основного + дополнительного
 
 ### Шаг 5: Дополнительная информация
+
 - [ ] Массив имущества показывается только когда отмечен чекбокс
 - [ ] Массив существующих кредитов показывается только когда отмечен чекбокс
 - [ ] Массив созаёмщиков показывается только когда отмечен чекбокс
 - [ ] Доход созаёмщиков суммирует доходы всех созаёмщиков
 
 ### Кросс-шаговые
+
 - [ ] Соотношение платёж/доход рассчитывается правильно
 - [ ] Поля кредита отключаются когда возраст < 18
 - [ ] Ежемесячный платёж ревалидируется при изменении дохода
@@ -184,13 +190,17 @@ src/
 
 ```typescript
 // Добавляем логирование отладки к behaviors
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   console.log('Регистрируем behaviors Шага 1');
 
-  computeFrom([path.loanAmount, path.loanTerm, path.interestRate], path.monthlyPayment, (values) => {
-    console.log('Вычисляем ежемесячный платёж:', values);
-    // ... вычисление
-  });
+  computeFrom(
+    [path.loanAmount, path.loanTerm, path.interestRate],
+    path.monthlyPayment,
+    (values) => {
+      console.log('Вычисляем ежемесячный платёж:', values);
+      // ... вычисление
+    }
+  );
 };
 ```
 
@@ -231,9 +241,7 @@ createForm({
 function CreditApplicationForm() {
   const form = useMemo(() => createCreditApplicationForm(), []); // ← Использует behaviors
 
-  return (
-    <FormField control={form.monthlyPayment} />
-  );
+  return <FormField control={form.monthlyPayment} />;
 }
 ```
 
@@ -264,9 +272,12 @@ watch(path.field, (value) => {
 });
 
 // ✅ Лучше - debounce API вызовов
-watch(path.field, debounce((value) => {
-  makeAPICall(value);
-}, 500));
+watch(
+  path.field,
+  debounce((value) => {
+    makeAPICall(value);
+  }, 500)
+);
 ```
 
 ### 3. Не создавайте циклические зависимости
@@ -285,29 +296,35 @@ computeFrom([path.a, path.b], path.c, ...);
 Мы успешно реализовали все behaviors для формы Кредитной заявки:
 
 ### Шаг 1: Информация о кредите
+
 - ✅ Расчет процентной ставки (базовая + скидки)
 - ✅ Расчет ежемесячного платежа (формула аннуитета)
 - ✅ Условные поля ипотеки/авто
 - ✅ Автоматический сброс полей
 
 ### Шаг 2: Личные данные
+
 - ✅ Генерирование полного имени (формат ФИО)
 - ✅ Расчет возраста из даты рождения
 
 ### Шаг 3: Контактная информация
+
 - ✅ Копирование адреса (регистрация → проживание)
 - ✅ Условная видимость/доступ
 
 ### Шаг 4: Занятость
+
 - ✅ Поля специфичные для занятости
 - ✅ Расчет общего дохода
 - ✅ Сброс полей при изменении статуса
 
 ### Шаг 5: Дополнительная информация
+
 - ✅ Условные массивы (имущество, кредиты, созаёмщики)
 - ✅ Расчет дохода созаёмщиков
 
 ### Кросс-шаговые
+
 - ✅ Соотношение платёж/доход
 - ✅ Умная ревалидация
 - ✅ Контроль доступа по возрасту
@@ -324,6 +341,7 @@ computeFrom([path.a, path.b], path.c, ...);
 ## Что дальше?
 
 Форма теперь имеет сложную интерактивность, но ей ещё нужна валидация чтобы гарантировать качество данных. В следующем разделе (**Валидация**) мы добавим:
+
 - Встроенные валидаторы (required, min, max, email и т.д.)
 - Условную валидацию (правила которые зависят от других полей)
 - Кросс-полевую валидацию (платёж <= 50% дохода)

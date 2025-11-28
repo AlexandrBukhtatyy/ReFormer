@@ -1,6 +1,6 @@
 # ConfigWithValue
 
-Defined in: [core/types/index.ts:181](https://github.com/AlexandrBukhtatyy/ReFormer/blob/38c056cd3838adfe8f094f9ee4c602d4ad0ef4a6/packages/reformer/src/core/types/index.ts#L181)
+Defined in: [core/types/index.ts:181](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L181)
 
 Конфиг с полем value (для извлечения значений)
 
@@ -12,4 +12,4 @@ Defined in: [core/types/index.ts:181](https://github.com/AlexandrBukhtatyy/ReFor
 value: unknown;
 ```
 
-Defined in: [core/types/index.ts:182](https://github.com/AlexandrBukhtatyy/ReFormer/blob/38c056cd3838adfe8f094f9ee4c602d4ad0ef4a6/packages/reformer/src/core/types/index.ts#L182)
+Defined in: [core/types/index.ts:182](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L182)

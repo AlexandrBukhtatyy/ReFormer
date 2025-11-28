@@ -58,7 +58,7 @@ properties: [{
 
 Here is the complete schema matching our `CreditApplicationForm` interface:
 
-```typescript title="src\forms\credit-application\schemas\credit-application.schema.ts"
+```typescript title="src\forms\credit-application\schemas\credit-application.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Checkbox, Textarea, RadioGroup } from './components/ui';
 import type { CreditApplicationForm } from './types';
@@ -368,7 +368,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   employmentStatus: {
     value: 'employed',
-    component: RadioGroup,
+    component: Select,
     componentProps: {
       label: 'Employment Status',
       options: [

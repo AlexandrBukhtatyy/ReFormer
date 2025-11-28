@@ -21,7 +21,7 @@ sidebar_position: 3
 Создадим файл behavior для Шага 2:
 
 ```bash
-touch src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts
 ```
 
 ## Реализация Behaviors
@@ -30,37 +30,34 @@ touch src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts
 
 В русских формах полное имя (ФИО) обычно форматируется как: **Фамилия Имя Отчество**.
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';
 
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // Вычисляемое: Полное имя (ФИО)
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.fullName,
-    (values) => {
-      const pd = values.personalData as PersonalData;
-      if (!pd) return '';
+  computeFrom([path.personalData], path.fullName, (values) => {
+    const pd = values.personalData as PersonalData;
+    if (!pd) return '';
 
-      // Формат: Фамилия Имя Отчество
-      // Фильтруем пустые значения
-      const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
+    // Формат: Фамилия Имя Отчество
+    // Фильтруем пустые значения
+    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
 
-      return parts.join(' ');
-    }
-  );
+    return parts.join(' ');
+  });
 
   // ... ещё behaviors
 };
 ```
 
 **Как это работает:**
+
 - Мы отслеживаем всю группу `personalData` (а не отдельные поля)
 - Когда любое поле в `personalData` изменяется, полное имя обновляется
 - Пустые значения фильтруются (например, если отчество опционально)
@@ -68,6 +65,7 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 
 :::tip Отслеживание групп
 Вы можете отслеживать целые группы вместо отдельных полей:
+
 ```typescript
 // ✅ Отслеживаем всю группу
 computeFrom([path.personalData], ...)
@@ -75,6 +73,7 @@ computeFrom([path.personalData], ...)
 // ❌ Отслеживаем отдельные поля (более подробный код)
 computeFrom([path.personalData.firstName, path.personalData.lastName, ...], ...)
 ```
+
 Оба варианта работают, но отслеживание групп проще, когда нужны все поля.
 :::
 
@@ -82,59 +81,57 @@ computeFrom([path.personalData.firstName, path.personalData.lastName, ...], ...)
 
 Рассчитываем возраст заявителя из его даты рождения:
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
   // ==========================================
   // Вычисляемое: Возраст
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.age,
-    (values) => {
-      const birthDate = (values.personalData as PersonalData)?.birthDate;
-      if (!birthDate) return null;
+  computeFrom([path.personalData], path.age, (values) => {
+    const birthDate = (values.personalData as PersonalData)?.birthDate;
+    if (!birthDate) return null;
 
-      const today = new Date();
-      const birth = new Date(birthDate);
+    const today = new Date();
+    const birth = new Date(birthDate);
 
-      // Рассчитываем разницу в годах
-      let age = today.getFullYear() - birth.getFullYear();
+    // Рассчитываем разницу в годах
+    let age = today.getFullYear() - birth.getFullYear();
 
-      // Корректируем если день рождения не наступил в этом году
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-
-      return age;
+    // Корректируем если день рождения не наступил в этом году
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
     }
-  );
+
+    return age;
+  });
 
   // ... ещё behaviors
 };
 ```
 
 **Обработанные граничные случаи:**
+
 - Возвращает `null` если дата рождения не установлена
 - Правильно обрабатывает дни рождения, которые ещё не наступили в этом году
 - Учитывает различия в месяцах и днях
 
 :::info Логика расчета возраста
 Расчет возраста проверяет:
+
 1. Разницу в годах (например, 2025 - 1990 = 35)
 2. Если день рождения ещё не наступил в этом году, вычитаем 1
    - Проверка месяца: Текущий месяц < месяц рождения → день рождения ещё не наступил
    - Проверка дня: Одинаковый месяц, но текущий день < день рождения → день рождения ещё не наступил
-:::
+     :::
 
 ### 3. Сделать вычисляемые поля только для чтения
 
 Поскольку `fullName` и `age` вычисляются автоматически, они должны быть только для чтения (отключены):
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущие behaviors
 
   // ==========================================
@@ -146,6 +143,7 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ```
 
 **Зачем `disableWhen(path.fullName, path.fullName, () => true)`?**
+
 - Первый аргумент: поле для отключения
 - Второй аргумент: поле для отслеживания (отслеживаем само себя)
 - Третий аргумент: условие (всегда `true` означает всегда отключено)
@@ -154,6 +152,7 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 
 :::tip Альтернатива: отключение на уровне схемы
 Вы также можете отключить поля в схеме:
+
 ```typescript
 fullName: {
   value: '',
@@ -172,51 +171,43 @@ fullName: {
 
 Вот полный файл behavior для Шага 2:
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';
 
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // Вычисляемое: Полное имя (ФИО)
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.fullName,
-    (values) => {
-      const pd = values.personalData as PersonalData;
-      if (!pd) return '';
+  computeFrom([path.personalData], path.fullName, (values) => {
+    const pd = values.personalData as PersonalData;
+    if (!pd) return '';
 
-      const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
-      return parts.join(' ');
-    }
-  );
+    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
+    return parts.join(' ');
+  });
 
   // ==========================================
   // Вычисляемое: Возраст
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.age,
-    (values) => {
-      const birthDate = (values.personalData as PersonalData)?.birthDate;
-      if (!birthDate) return null;
+  computeFrom([path.personalData], path.age, (values) => {
+    const birthDate = (values.personalData as PersonalData)?.birthDate;
+    if (!birthDate) return null;
 
-      const today = new Date();
-      const birth = new Date(birthDate);
+    const today = new Date();
+    const birth = new Date(birthDate);
 
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-
-      return age;
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
     }
-  );
+
+    return age;
+  });
 
   // ==========================================
   // Отключить вычисляемые поля
@@ -231,15 +222,15 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 Добавьте behaviors Шага 2 в вашу форму временно:
 
 ```typescript title="src/schemas/create-form.ts"
-import { step1LoanBehaviors } from '../behaviors/steps/step-1-loan-info.behaviors';
-import { step2PersonalBehaviors } from '../behaviors/steps/step-2-personal-info.behaviors';
+import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
+import { personalBehaviorSchema } from '../behaviors/steps/step-2-personal-info.behaviors';
 
 export function createCreditApplicationForm() {
   return createForm({
     schema: creditApplicationSchema,
     behaviors: (path) => {
-      step1LoanBehaviors(path);
-      step2PersonalBehaviors(path); // ← Добавляем Шаг 2
+      loanBehaviorSchema(path);
+      personalBehaviorSchema(path); // ← Добавляем Шаг 2
     },
   });
 }
@@ -312,11 +303,13 @@ function ApplicantSummary({ control }: Props) {
 ## Результат
 
 Теперь Шаг 2 формы имеет:
+
 - ✅ Автогенерированное полное имя в формате ФИО
 - ✅ Автоматический расчет возраста с правильной обработкой дня рождения
 - ✅ Отображение вычисляемых полей только для чтения
 
 Эти вычисленные значения будут полезны для:
+
 - **Отображения** - Показ информации о заявителе в резюме
 - **Валидации** - Правила валидации на основе возраста (например, должен быть 18+)
 - **Кросс-шаговых behaviors** - Контроль доступа на основе возраста

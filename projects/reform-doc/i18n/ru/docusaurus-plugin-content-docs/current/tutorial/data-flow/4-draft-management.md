@@ -21,6 +21,7 @@ sidebar_position: 4
 ## Почему управление черновиками?
 
 Пользователи часто нуждаются в:
+
 - **Сохранение прогресса** перед уходом
 - **Возобновление позже** с любого устройства
 - **Сравнение вариантов** сохраняя несколько сценариев
@@ -28,6 +29,7 @@ sidebar_position: 4
 - **Отслеживание истории** изменений
 
 Пример: Пользователь может создать черновики для:
+
 - "Консервативный кредит" - Меньшая сумма, безопаснее
 - "Агрессивный кредит" - Большая сумма, рискованнее
 - "С сокредитором" - Совместное заявление
@@ -37,7 +39,7 @@ sidebar_position: 4
 
 Сначала определим интерфейс черновика:
 
-```typescript title="src/types/draft.types.ts"
+```typescript title="src/types/draft.ts"
 /**
  * Метаданные и данные черновика
  */
@@ -105,7 +107,7 @@ export function getAllDrafts(): Draft[] {
  */
 export function getDraftById(id: string): Draft | null {
   const drafts = getAllDrafts();
-  return drafts.find(d => d.id === id) || null;
+  return drafts.find((d) => d.id === id) || null;
 }
 
 /**
@@ -135,7 +137,7 @@ export function createDraft(input: CreateDraftInput): Draft {
  */
 export function updateDraft(id: string, input: UpdateDraftInput): Draft | null {
   const drafts = getAllDrafts();
-  const index = drafts.findIndex(d => d.id === id);
+  const index = drafts.findIndex((d) => d.id === id);
 
   if (index === -1) {
     return null;
@@ -157,7 +159,7 @@ export function updateDraft(id: string, input: UpdateDraftInput): Draft | null {
  */
 export function deleteDraft(id: string): boolean {
   const drafts = getAllDrafts();
-  const filtered = drafts.filter(d => d.id !== id);
+  const filtered = drafts.filter((d) => d.id !== id);
 
   if (filtered.length === drafts.length) {
     return false; // Черновик не найден
@@ -244,9 +246,10 @@ export function searchDrafts(query: string): Draft[] {
   const drafts = getAllDrafts();
   const lowerQuery = query.toLowerCase();
 
-  return drafts.filter(draft =>
-    draft.name.toLowerCase().includes(lowerQuery) ||
-    draft.description?.toLowerCase().includes(lowerQuery)
+  return drafts.filter(
+    (draft) =>
+      draft.name.toLowerCase().includes(lowerQuery) ||
+      draft.description?.toLowerCase().includes(lowerQuery)
   );
 }
 
@@ -327,71 +330,89 @@ export function useDraftManager(form: FormNode): UseDraftManagerReturn {
   }, []);
 
   // Получение текущего черновика
-  const currentDraft = drafts.find(d => d.id === currentDraftId) || null;
+  const currentDraft = drafts.find((d) => d.id === currentDraftId) || null;
 
   // Создание нового черновика из текущих данных формы
-  const create = useCallback((name: string, description?: string): Draft => {
-    const draft = createDraft({
-      name,
-      data: form.value.value,
-      description,
-    });
+  const create = useCallback(
+    (name: string, description?: string): Draft => {
+      const draft = createDraft({
+        name,
+        data: form.value.value,
+        description,
+      });
 
-    setCurrentDraftId(draft.id);
-    setCurrentDraftIdState(draft.id);
-    refresh();
+      setCurrentDraftId(draft.id);
+      setCurrentDraftIdState(draft.id);
+      refresh();
 
-    return draft;
-  }, [form, refresh]);
+      return draft;
+    },
+    [form, refresh]
+  );
 
   // Загрузка черновика в форму
-  const load = useCallback((id: string) => {
-    const draft = getDraftById(id);
-    if (!draft) {
-      console.error('Чёрновик не найден:', id);
-      return;
-    }
+  const load = useCallback(
+    (id: string) => {
+      const draft = getDraftById(id);
+      if (!draft) {
+        console.error('Чёрновик не найден:', id);
+        return;
+      }
 
-    form.patchValue(draft.data);
-    setCurrentDraftId(id);
-    setCurrentDraftIdState(id);
-  }, [form]);
+      form.patchValue(draft.data);
+      setCurrentDraftId(id);
+      setCurrentDraftIdState(id);
+    },
+    [form]
+  );
 
   // Обновление текущего черновика
-  const updateCurrent = useCallback((input: UpdateDraftInput) => {
-    if (!currentDraftId) {
-      console.warn('Нет текущего черновика для обновления');
-      return;
-    }
+  const updateCurrent = useCallback(
+    (input: UpdateDraftInput) => {
+      if (!currentDraftId) {
+        console.warn('Нет текущего черновика для обновления');
+        return;
+      }
 
-    updateDraft(currentDraftId, input);
-    refresh();
-  }, [currentDraftId, refresh]);
+      updateDraft(currentDraftId, input);
+      refresh();
+    },
+    [currentDraftId, refresh]
+  );
 
   // Удаление черновика
-  const remove = useCallback((id: string) => {
-    const success = deleteDraft(id);
-    if (success) {
-      if (currentDraftId === id) {
-        setCurrentDraftIdState(null);
+  const remove = useCallback(
+    (id: string) => {
+      const success = deleteDraft(id);
+      if (success) {
+        if (currentDraftId === id) {
+          setCurrentDraftIdState(null);
+        }
+        refresh();
       }
-      refresh();
-    }
-  }, [currentDraftId, refresh]);
+    },
+    [currentDraftId, refresh]
+  );
 
   // Дублирование черновика
-  const duplicateHandler = useCallback((id: string, newName: string): Draft | null => {
-    const newDraft = duplicateDraft(id, newName);
-    if (newDraft) {
-      refresh();
-    }
-    return newDraft;
-  }, [refresh]);
+  const duplicateHandler = useCallback(
+    (id: string, newName: string): Draft | null => {
+      const newDraft = duplicateDraft(id, newName);
+      if (newDraft) {
+        refresh();
+      }
+      return newDraft;
+    },
+    [refresh]
+  );
 
   // Сохранение текущей формы как нового черновика
-  const saveAsNew = useCallback((name: string, description?: string): Draft => {
-    return create(name, description);
-  }, [create]);
+  const saveAsNew = useCallback(
+    (name: string, description?: string): Draft => {
+      return create(name, description);
+    },
+    [create]
+  );
 
   // Очистка текущего черновика
   const clearCurrent = useCallback(() => {
@@ -446,14 +467,11 @@ export function DraftSelector({
   return (
     <div className="draft-selector">
       {/* Отображение текущего черновика */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="draft-selector-button"
-      >
+      <button onClick={() => setIsOpen(!isOpen)} className="draft-selector-button">
         <FolderIcon className="w-5 h-5" />
         <span>
           {currentDraftId
-            ? drafts.find(d => d.id === currentDraftId)?.name || 'Без названия'
+            ? drafts.find((d) => d.id === currentDraftId)?.name || 'Без названия'
             : 'Черновик не выбран'}
         </span>
         <ChevronIcon className={`w-4 h-4 transition ${isOpen ? 'rotate-180' : ''}`} />
@@ -469,7 +487,7 @@ export function DraftSelector({
                 <p>Нет сохранённых черновиков</p>
               </div>
             ) : (
-              drafts.map(draft => (
+              drafts.map((draft) => (
                 <DraftItem
                   key={draft.id}
                   draft={draft}
@@ -496,10 +514,7 @@ export function DraftSelector({
 
           {/* Кнопка создания нового */}
           <div className="draft-selector-footer">
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="create-draft-button"
-            >
+            <button onClick={() => setShowCreateDialog(true)} className="create-draft-button">
               <PlusIcon className="w-4 h-4" />
               <span>Сохранить как новый черновик</span>
             </button>
@@ -538,9 +553,7 @@ function DraftItem({ draft, isActive, onLoad, onDelete, onDuplicate }: DraftItem
       <button onClick={onLoad} className="draft-item-button">
         <div className="draft-item-content">
           <div className="draft-item-name">{draft.name}</div>
-          {draft.description && (
-            <div className="draft-item-description">{draft.description}</div>
-          )}
+          {draft.description && <div className="draft-item-description">{draft.description}</div>}
           <div className="draft-item-meta">
             <span>{formatDate(draft.updatedAt)}</span>
           </div>
@@ -549,10 +562,7 @@ function DraftItem({ draft, isActive, onLoad, onDelete, onDuplicate }: DraftItem
 
       {/* Меню действий */}
       <div className="draft-item-actions">
-        <button
-          onClick={() => setShowMenu(!showMenu)}
-          className="draft-item-menu-button"
-        >
+        <button onClick={() => setShowMenu(!showMenu)} className="draft-item-menu-button">
           <DotsIcon className="w-4 h-4" />
         </button>
 
@@ -651,27 +661,64 @@ function formatDate(timestamp: number): string {
 
 // Компоненты иконок (используйте вашу предпочитаемую библиотеку иконок)
 function FolderIcon({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+      />
+    </svg>
+  );
 }
 
 function ChevronIcon({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
 }
 
 function PlusIcon({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
 }
 
 function DotsIcon({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="5" r="1" fill="currentColor" /><circle cx="12" cy="19" r="1" fill="currentColor" /></svg>;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="5" r="1" fill="currentColor" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" />
+    </svg>
+  );
 }
 
 function CopyIcon({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth={2} /><path strokeWidth={2} d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth={2} />
+      <path strokeWidth={2} d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  );
 }
 
 function TrashIcon({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
+    </svg>
+  );
 }
 ```
 
@@ -747,6 +794,7 @@ export function CreditApplicationForm() {
 Протестируйте эти сценарии:
 
 ### Сценарий 1: Создание черновика
+
 - [ ] Заполните форму с данными
 - [ ] Нажмите "Сохранить как новый черновик"
 - [ ] Введите имя черновика
@@ -754,12 +802,14 @@ export function CreditApplicationForm() {
 - [ ] Черновик установлен как текущий
 
 ### Сценарий 2: Загрузка черновика
+
 - [ ] Имеется несколько черновиков
 - [ ] Выберите черновик из списка
 - [ ] Форма загружается с данными черновика
 - [ ] Индикатор текущего черновика обновляется
 
 ### Сценарий 3: Обновление черновика
+
 - [ ] Загрузите черновик
 - [ ] Измените данные формы
 - [ ] Подождите автосохранения
@@ -767,6 +817,7 @@ export function CreditApplicationForm() {
 - [ ] Изменения сохранены
 
 ### Сценарий 4: Удаление черновика
+
 - [ ] Выберите черновик
 - [ ] Нажмите удалить
 - [ ] Подтвердите удаление
@@ -774,6 +825,7 @@ export function CreditApplicationForm() {
 - [ ] Текущий черновик очищен если был удалён
 
 ### Сценарий 5: Дублирование черновика
+
 - [ ] Выберите черновик
 - [ ] Нажмите дублировать
 - [ ] Введите новое имя
@@ -781,6 +833,7 @@ export function CreditApplicationForm() {
 - [ ] Оба черновика в списке
 
 ### Сценарий 6: Переключение между черновиками
+
 - [ ] Черновик A загружен
 - [ ] Заполните несколько полей
 - [ ] Переключитесь на черновик B
@@ -800,26 +853,31 @@ export function CreditApplicationForm() {
 ## Распространённые паттерны
 
 ### Создание черновика
+
 ```typescript
 const draft = draftManager.create('Мой черновик', 'Опциональное описание');
 ```
 
 ### Загрузка черновика
+
 ```typescript
 draftManager.load(draftId);
 ```
 
 ### Обновление текущего черновика
+
 ```typescript
 draftManager.updateCurrent({ data: form.value.value });
 ```
 
 ### Удаление черновика
+
 ```typescript
 draftManager.remove(draftId);
 ```
 
 ### Получение всех черновиков
+
 ```typescript
 const drafts = draftManager.drafts;
 ```
@@ -827,6 +885,7 @@ const drafts = draftManager.drafts;
 ## Что дальше?
 
 В следующем разделе мы добавим функцию **Сброс и очистка**:
+
 - Возврат к исходным значениям
 - Очистка всех данных формы
 - Сброс определённых этапов

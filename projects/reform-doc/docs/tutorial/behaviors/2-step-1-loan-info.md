@@ -21,8 +21,8 @@ For the first step of our Credit Application form, we need to add the following 
 First, let's create the directory structure and behavior file for Step 1:
 
 ```bash
-mkdir -p src/schemas/behaviors/steps
-touch src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts
+mkdir -p reform-tutorial/src/forms/credit-application/schemas/behaviors
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts
 ```
 
 ## Implementing the Behaviors
@@ -31,12 +31,12 @@ touch src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts
 
 Start by importing the necessary functions and types:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Behaviors will go here
@@ -46,12 +46,13 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ### 2. Interest Rate Calculation
 
 The interest rate depends on multiple factors:
+
 - Base rate varies by loan type
 - 0.5% discount for major cities (Moscow, St. Petersburg)
 - 1.0% discount if applicant owns property
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ==========================================
   // Computed: Interest Rate
   // ==========================================
@@ -95,6 +96,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **How it works:**
+
 - `computeFrom` watches the source fields (`loanType`, `registrationAddress`, `hasProperty`)
 - Whenever any of them changes, the computation function runs
 - The result is automatically set to `interestRate`
@@ -114,8 +116,8 @@ Where:
 - n = number of months
 ```
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
   // ==========================================
@@ -138,7 +140,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
       // Annuity formula: P = A * (r * (1+r)^n) / ((1+r)^n - 1)
       const factor = Math.pow(1 + monthlyRate, termMonths);
-      const payment = amount * (monthlyRate * factor) / (factor - 1);
+      const payment = (amount * (monthlyRate * factor)) / (factor - 1);
 
       // Round to nearest integer
       return Math.round(payment);
@@ -150,12 +152,14 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **Dependencies:**
+
 - The monthly payment depends on `interestRate`
 - `interestRate` is a computed field that updates automatically
 - This creates a **dependency chain**: `loanType` → `interestRate` → `monthlyPayment`
 
 :::tip Computed Field Chains
 ReFormer handles computed field dependencies automatically. When `loanType` changes:
+
 1. `interestRate` recalculates first
 2. Then `monthlyPayment` recalculates (using the new rate)
 
@@ -166,8 +170,8 @@ You don't need to worry about the execution order!
 
 Show mortgage-specific fields only when `loanType === 'mortgage'`:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
   // ==========================================
@@ -181,6 +185,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **How it works:**
+
 - `showWhen` watches the `loanType` field
 - When `loanType === 'mortgage'`, the fields are shown
 - When `loanType` changes to something else, the fields are hidden
@@ -190,8 +195,8 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 Similarly, show car-specific fields only for car loans:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
   // ==========================================
@@ -210,8 +215,8 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 When the user changes loan type, we should clear the fields from the previous type to avoid confusion:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
   // ==========================================
@@ -236,6 +241,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path
 ```
 
 **Why `emitEvent: false`?**
+
 - Prevents triggering additional behaviors and validation
 - Avoids unnecessary re-renders
 - The field values are being cleared programmatically, not by user input
@@ -251,12 +257,12 @@ Don't use `watch` to set field values that should be derived - use `computeFrom`
 
 Here's the complete behavior file for Step 1:
 
-```typescript title="src/schemas/behaviors/steps/step-1-loan-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
 import { computeFrom, showWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -306,7 +312,7 @@ export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 
       const monthlyRate = annualRate / 100 / 12;
       const factor = Math.pow(1 + monthlyRate, termMonths);
-      const payment = amount * (monthlyRate * factor) / (factor - 1);
+      const payment = (amount * (monthlyRate * factor)) / (factor - 1);
 
       return Math.round(payment);
     }
@@ -352,12 +358,12 @@ To test these behaviors, you'll need to temporarily register them with your form
 ```typescript title="src/schemas/create-form.ts"
 import { createForm } from 'reformer';
 import { creditApplicationSchema } from './credit-application.schema';
-import { step1LoanBehaviors } from '../behaviors/steps/step-1-loan-info.behaviors';
+import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
 
 export function createCreditApplicationForm() {
   return createForm({
     schema: creditApplicationSchema,
-    behaviors: step1LoanBehaviors, // Temporary for testing
+    behaviors: loanBehaviorSchema, // Temporary for testing
   });
 }
 ```
@@ -390,6 +396,7 @@ export function createCreditApplicationForm() {
 ## Result
 
 Now Step 1 of the form has:
+
 - ✅ Automatic interest rate calculation with discounts
 - ✅ Automatic monthly payment calculation
 - ✅ Conditional mortgage fields (only visible for mortgage)

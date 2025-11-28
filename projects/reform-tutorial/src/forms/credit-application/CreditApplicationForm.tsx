@@ -66,9 +66,9 @@ function CreditApplicationForm() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div>
       {/* Индикатор шагов */}
-      <div className="flex justify-between mb-8">
+      <div className="flex justify-between mb-4">
         {STEPS.map((step) => (
           <button
             key={step.id}

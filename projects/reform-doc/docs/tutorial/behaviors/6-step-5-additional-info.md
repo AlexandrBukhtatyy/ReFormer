@@ -15,12 +15,12 @@ Step 5 handles optional arrays that appear based on checkboxes:
 
 ## Implementation
 
-```typescript title="src/schemas/behaviors/steps/step-5-additional-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/additional-info.ts"
 import { showWhen, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, CoBorrower } from '@/types';
 
-export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const additionalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -41,14 +41,10 @@ export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Computed: Total Co-Borrowers Income
   // ==========================================
-  computeFrom(
-    [path.coBorrowers],
-    path.coBorrowersIncome,
-    (values) => {
-      const coBorrowers = (values.coBorrowers as CoBorrower[]) || [];
-      return coBorrowers.reduce((sum, cb) => sum + (cb.monthlyIncome || 0), 0);
-    }
-  );
+  computeFrom([path.coBorrowers], path.coBorrowersIncome, (values) => {
+    const coBorrowers = (values.coBorrowers as CoBorrower[]) || [];
+    return coBorrowers.reduce((sum, cb) => sum + (cb.monthlyIncome || 0), 0);
+  });
 
   // Disable coBorrowersIncome (read-only)
   disableWhen(path.coBorrowersIncome, path.coBorrowersIncome, () => true);
@@ -58,16 +54,19 @@ export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Key Points
 
 **Conditional Arrays:**
+
 - Arrays are hidden until user opts in via checkbox
 - Cleaner UX - user doesn't see irrelevant sections
 - Validation only runs on visible arrays
 
 **Array Computation:**
+
 - Watch entire array: `computeFrom([path.coBorrowers], ...)`
 - When array changes (items added/removed/modified), sum recalculates
 - Use `reduce` to sum values from array items
 
 **Use Case:**
+
 - User checks "I have co-borrowers"
 - Array section appears with "Add Co-Borrower" button
 - User adds co-borrowers
@@ -77,6 +76,7 @@ export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Result
 
 Step 5 now has:
+
 - ✅ Conditional array visibility (properties, loans, co-borrowers)
 - ✅ Co-borrowers income calculation
 - ✅ Clean progressive disclosure UX

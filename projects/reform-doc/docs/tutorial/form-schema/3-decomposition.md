@@ -23,7 +23,7 @@ Schema decomposition solves these problems by extracting common patterns into re
 
 The address structure is used twice in our form. Let's extract it:
 
-```typescript title="src/schemas/address.schema.ts"
+```typescript title="src/schemas/address.ts"
 import type { FormSchema } from 'reformer';
 import { Input } from '@/components/ui/input';
 
@@ -74,7 +74,7 @@ export const addressSchema: FormSchema<Address> = {
 
 Personal data is also a common pattern:
 
-```typescript title="src/schemas/personal-data.schema.ts"
+```typescript title="src/schemas/personal-data.ts"
 import type { FormSchema } from 'reformer';
 import { Input, RadioGroup } from '@/components/ui';
 
@@ -129,7 +129,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
 
 ### Passport Data Schema
 
-```typescript title="src/schemas/passport-data.schema.ts"
+```typescript title="src/schemas/passport-data.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Textarea } from '@/components/ui';
 
@@ -172,7 +172,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
 
 ### Property Schema (for arrays)
 
-```typescript title="src/schemas/property.schema.ts"
+```typescript title="src/schemas/property.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Textarea, Checkbox } from '@/components/ui';
 
@@ -221,7 +221,7 @@ export const propertySchema: FormSchema<Property> = {
 
 ### Existing Loan Schema (for arrays)
 
-```typescript title="src/schemas/existing-loan.schema.ts"
+```typescript title="src/schemas/existing-loan.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select } from '@/components/ui';
 
@@ -278,7 +278,7 @@ export const existingLoanSchema: FormSchema<ExistingLoan> = {
 
 ### Co-Borrower Schema (nested structure in array)
 
-```typescript title="src/schemas/co-borrower.schema.ts"
+```typescript title="src/schemas/co-borrower.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select } from '@/components/ui';
 
@@ -354,7 +354,7 @@ export const coBorrowerSchema: FormSchema<CoBorrower> = {
 
 Now let's use these extracted schemas in the main form schema:
 
-```typescript title="src/schemas/credit-application.schema.ts"
+```typescript title="src/schemas/credit-application.ts"
 import type { FormSchema } from 'reformer';
 import { Input, Select, Checkbox, Textarea, RadioGroup } from '@/components/ui';
 import type { CreditApplicationForm } from '../types';
@@ -422,14 +422,18 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   carBrand: { value: '', component: Input, componentProps: { label: 'Car Brand' } },
   carModel: { value: '', component: Input, componentProps: { label: 'Car Model' } },
   carYear: { value: null, component: Input, componentProps: { label: 'Year', type: 'number' } },
-  carPrice: { value: null, component: Input, componentProps: { label: 'Car Price', type: 'number' } },
+  carPrice: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Car Price', type: 'number' },
+  },
 
   // ============================================================================
   // Step 2: Personal Information — USE REUSABLE SCHEMAS
   // ============================================================================
 
-  personalData: personalDataSchema,    // ← Reusable schema
-  passportData: passportDataSchema,    // ← Reusable schema
+  personalData: personalDataSchema, // ← Reusable schema
+  passportData: passportDataSchema, // ← Reusable schema
 
   inn: { value: '', component: Input, componentProps: { label: 'INN' } },
   snils: { value: '', component: Input, componentProps: { label: 'SNILS' } },
@@ -441,15 +445,19 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   phoneMain: { value: '', component: Input, componentProps: { label: 'Main Phone' } },
   phoneAdditional: { value: '', component: Input, componentProps: { label: 'Additional Phone' } },
   email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } },
-  emailAdditional: { value: '', component: Input, componentProps: { label: 'Additional Email', type: 'email' } },
+  emailAdditional: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Additional Email', type: 'email' },
+  },
 
-  registrationAddress: addressSchema,  // ← Reusable schema
+  registrationAddress: addressSchema, // ← Reusable schema
   sameAsRegistration: {
     value: true,
     component: Checkbox,
     componentProps: { label: 'Residence address is the same as registration' },
   },
-  residenceAddress: addressSchema,     // ← Same schema reused!
+  residenceAddress: addressSchema, // ← Same schema reused!
 
   // ============================================================================
   // Step 4: Employment Information
@@ -475,14 +483,38 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   companyPhone: { value: '', component: Input, componentProps: { label: 'Company Phone' } },
   companyAddress: { value: '', component: Input, componentProps: { label: 'Company Address' } },
   position: { value: '', component: Input, componentProps: { label: 'Position' } },
-  workExperienceTotal: { value: null, component: Input, componentProps: { label: 'Total Experience (months)', type: 'number' } },
-  workExperienceCurrent: { value: null, component: Input, componentProps: { label: 'Current Job (months)', type: 'number' } },
-  monthlyIncome: { value: null, component: Input, componentProps: { label: 'Monthly Income', type: 'number' } },
-  additionalIncome: { value: null, component: Input, componentProps: { label: 'Additional Income', type: 'number' } },
-  additionalIncomeSource: { value: '', component: Input, componentProps: { label: 'Additional Income Source' } },
+  workExperienceTotal: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Total Experience (months)', type: 'number' },
+  },
+  workExperienceCurrent: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Current Job (months)', type: 'number' },
+  },
+  monthlyIncome: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Monthly Income', type: 'number' },
+  },
+  additionalIncome: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Additional Income', type: 'number' },
+  },
+  additionalIncomeSource: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Additional Income Source' },
+  },
   businessType: { value: '', component: Input, componentProps: { label: 'Business Type' } },
   businessInn: { value: '', component: Input, componentProps: { label: 'Business INN' } },
-  businessActivity: { value: '', component: Textarea, componentProps: { label: 'Business Activity', rows: 3 } },
+  businessActivity: {
+    value: '',
+    component: Textarea,
+    componentProps: { label: 'Business Activity', rows: 3 },
+  },
 
   // ============================================================================
   // Step 5: Additional Information — ARRAYS USE REUSABLE SCHEMAS
@@ -502,7 +534,11 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
     },
   },
 
-  dependents: { value: 0, component: Input, componentProps: { label: 'Dependents', type: 'number' } },
+  dependents: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Dependents', type: 'number' },
+  },
   education: {
     value: 'higher',
     component: Select,
@@ -518,36 +554,84 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   },
 
   hasProperty: { value: false, component: Checkbox, componentProps: { label: 'I have property' } },
-  properties: [propertySchema],        // ← Array with reusable schema
+  properties: [propertySchema], // ← Array with reusable schema
 
-  hasExistingLoans: { value: false, component: Checkbox, componentProps: { label: 'I have existing loans' } },
+  hasExistingLoans: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I have existing loans' },
+  },
   existingLoans: [existingLoanSchema], // ← Array with reusable schema
 
-  hasCoBorrower: { value: false, component: Checkbox, componentProps: { label: 'Add co-borrower' } },
-  coBorrowers: [coBorrowerSchema],     // ← Array with reusable schema
+  hasCoBorrower: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Add co-borrower' },
+  },
+  coBorrowers: [coBorrowerSchema], // ← Array with reusable schema
 
   // ============================================================================
   // Step 6: Confirmations
   // ============================================================================
 
-  agreePersonalData: { value: false, component: Checkbox, componentProps: { label: 'I agree to processing of personal data' } },
-  agreeCreditHistory: { value: false, component: Checkbox, componentProps: { label: 'I agree to credit history check' } },
-  agreeMarketing: { value: false, component: Checkbox, componentProps: { label: 'I agree to marketing materials' } },
-  agreeTerms: { value: false, component: Checkbox, componentProps: { label: 'I agree to loan terms' } },
-  confirmAccuracy: { value: false, component: Checkbox, componentProps: { label: 'I confirm accuracy' } },
+  agreePersonalData: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to processing of personal data' },
+  },
+  agreeCreditHistory: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to credit history check' },
+  },
+  agreeMarketing: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to marketing materials' },
+  },
+  agreeTerms: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to loan terms' },
+  },
+  confirmAccuracy: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I confirm accuracy' },
+  },
   electronicSignature: { value: '', component: Input, componentProps: { label: 'SMS Code' } },
 
   // ============================================================================
   // Computed Fields
   // ============================================================================
 
-  interestRate: { value: 0, component: Input, componentProps: { label: 'Interest Rate (%)', disabled: true } },
-  monthlyPayment: { value: 0, component: Input, componentProps: { label: 'Monthly Payment', disabled: true } },
+  interestRate: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Interest Rate (%)', disabled: true },
+  },
+  monthlyPayment: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Monthly Payment', disabled: true },
+  },
   fullName: { value: '', component: Input, componentProps: { label: 'Full Name', disabled: true } },
   age: { value: null, component: Input, componentProps: { label: 'Age', disabled: true } },
-  totalIncome: { value: 0, component: Input, componentProps: { label: 'Total Income', disabled: true } },
-  paymentToIncomeRatio: { value: 0, component: Input, componentProps: { label: 'Payment/Income (%)', disabled: true } },
-  coBorrowersIncome: { value: 0, component: Input, componentProps: { label: 'Co-Borrowers Income', disabled: true } },
+  totalIncome: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Total Income', disabled: true },
+  },
+  paymentToIncomeRatio: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Payment/Income (%)', disabled: true },
+  },
+  coBorrowersIncome: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Co-Borrowers Income', disabled: true },
+  },
 };
 ```
 
@@ -558,13 +642,13 @@ After decomposition, your project structure might look like:
 ```
 src/
 ├── schemas/
-│   ├── address.schema.ts
-│   ├── personal-data.schema.ts
-│   ├── passport-data.schema.ts
-│   ├── property.schema.ts
-│   ├── existing-loan.schema.ts
-│   ├── co-borrower.schema.ts
-│   └── credit-application.schema.ts
+│   ├── address.ts
+│   ├── personal-data.ts
+│   ├── passport-data.ts
+│   ├── property.ts
+│   ├── existing-loan.ts
+│   ├── co-borrower.ts
+│   └── credit-application.ts
 └── types/
     └── credit-application.ts
 ```
@@ -603,10 +687,11 @@ describe('addressSchema', () => {
 Changing the address structure only requires editing one file:
 
 ```typescript
-// address.schema.ts - add a new field
+// address.ts - add a new field
 export const addressSchema: FormSchema<Address> = {
   // ... existing fields
-  country: {  // ← New field
+  country: {
+    // ← New field
     value: '',
     component: Input,
     componentProps: { label: 'Country' },

@@ -28,6 +28,7 @@ sidebar_position: 6
 - **Согласованность** - Одни и те же данные во всех приложениях
 
 Пример: Форма кредитного заявления может предзаполнять:
+
 - Личные данные (имя, дата рождения)
 - Контактная информация (телефон, email, адрес)
 - Документы (паспорт, ИНН, СНИЛС)
@@ -37,7 +38,7 @@ sidebar_position: 6
 
 Определим интерфейс профиля:
 
-```typescript title="src/types/user-profile.types.ts"
+```typescript title="src/types/user-profile.ts"
 /**
  * Данные профиля пользователя
  */
@@ -276,7 +277,8 @@ export function calculatePrefillResult(
     }
 
     // Проверяем, заполнено ли поле
-    const isFieldFilled = currentValue !== undefined &&
+    const isFieldFilled =
+      currentValue !== undefined &&
       currentValue !== null &&
       currentValue !== '' &&
       (typeof currentValue !== 'object' || Object.keys(currentValue).length > 0);
@@ -300,19 +302,19 @@ export function calculatePrefillResult(
  */
 export function getFieldLabel(fieldPath: string): string {
   const labels: Record<string, string> = {
-    'personalData': 'Личная информация',
+    personalData: 'Личная информация',
     'personalData.firstName': 'Имя',
     'personalData.lastName': 'Фамилия',
     'personalData.middleName': 'Отчество',
     'personalData.birthDate': 'Дата рождения',
-    'phoneMain': 'Номер телефона',
-    'email': 'Email',
-    'registrationAddress': 'Адрес регистрации',
-    'residenceAddress': 'Адрес проживания',
-    'passportData': 'Информация о паспорте',
-    'inn': 'ИНН (Налоговый ID)',
-    'snils': 'СНИЛС (Страховой номер)',
-    'employment': 'Информация о трудоустройстве',
+    phoneMain: 'Номер телефона',
+    email: 'Email',
+    registrationAddress: 'Адрес регистрации',
+    residenceAddress: 'Адрес проживания',
+    passportData: 'Информация о паспорте',
+    inn: 'ИНН (Налоговый ID)',
+    snils: 'СНИЛС (Страховой номер)',
+    employment: 'Информация о трудоустройстве',
   };
 
   return labels[fieldPath] || fieldPath;
@@ -375,32 +377,35 @@ export function useDataPrefill(form: FormNode): UseDataPrefillReturn {
   const [pendingOptions, setPendingOptions] = useState<PrefillOptions | null>(null);
 
   // Загрузка и предпросмотр предзаполнения
-  const loadPreview = useCallback(async (options: PrefillOptions = {}) => {
-    setState('loading');
-    setError(null);
-    setPreview(null);
+  const loadPreview = useCallback(
+    async (options: PrefillOptions = {}) => {
+      setState('loading');
+      setError(null);
+      setPreview(null);
 
-    try {
-      // Загрузка профиля пользователя
-      const profile = await loadUserProfile();
+      try {
+        // Загрузка профиля пользователя
+        const profile = await loadUserProfile();
 
-      // Сопоставление с данными формы
-      const profileData = mapProfileToFormData(profile);
+        // Сопоставление с данными формы
+        const profileData = mapProfileToFormData(profile);
 
-      // Вычисление того, что изменится
-      const currentData = form.value.value;
-      const prefillResult = calculatePrefillResult(currentData, profileData, options);
+        // Вычисление того, что изменится
+        const currentData = form.value.value;
+        const prefillResult = calculatePrefillResult(currentData, profileData, options);
 
-      // Сохранение предпросмотра
-      setPreview(prefillResult);
-      setPendingOptions(options);
-      setState('preview');
-    } catch (err) {
-      console.error('Ошибка загрузки предпросмотра предзаполнения:', err);
-      setError(err as Error);
-      setState('error');
-    }
-  }, [form]);
+        // Сохранение предпросмотра
+        setPreview(prefillResult);
+        setPendingOptions(options);
+        setState('preview');
+      } catch (err) {
+        console.error('Ошибка загрузки предпросмотра предзаполнения:', err);
+        setError(err as Error);
+        setState('error');
+      }
+    },
+    [form]
+  );
 
   // Применение предзаполнения из предпросмотра
   const apply = useCallback(() => {
@@ -430,36 +435,39 @@ export function useDataPrefill(form: FormNode): UseDataPrefillReturn {
   }, []);
 
   // Прямое предзаполнение без предпросмотра
-  const prefill = useCallback(async (options: PrefillOptions = {}) => {
-    setState('loading');
-    setError(null);
+  const prefill = useCallback(
+    async (options: PrefillOptions = {}) => {
+      setState('loading');
+      setError(null);
 
-    try {
-      // Загрузка профиля пользователя
-      const profile = await loadUserProfile();
+      try {
+        // Загрузка профиля пользователя
+        const profile = await loadUserProfile();
 
-      // Сопоставление с данными формы
-      const profileData = mapProfileToFormData(profile);
+        // Сопоставление с данными формы
+        const profileData = mapProfileToFormData(profile);
 
-      // Вычисление того, что предзаполнить
-      const currentData = form.value.value;
-      const prefillResult = calculatePrefillResult(currentData, profileData, options);
+        // Вычисление того, что предзаполнить
+        const currentData = form.value.value;
+        const prefillResult = calculatePrefillResult(currentData, profileData, options);
 
-      // Прямое применение
-      form.patchValue(prefillResult.data);
+        // Прямое применение
+        form.patchValue(prefillResult.data);
 
-      setState('applied');
+        setState('applied');
 
-      // Сброс через 2 секунды
-      setTimeout(() => {
-        setState('idle');
-      }, 2000);
-    } catch (err) {
-      console.error('Ошибка предзаполнения формы:', err);
-      setError(err as Error);
-      setState('error');
-    }
-  }, [form]);
+        // Сброс через 2 секунды
+        setTimeout(() => {
+          setState('idle');
+        }, 2000);
+      } catch (err) {
+        console.error('Ошибка предзаполнения формы:', err);
+        setError(err as Error);
+        setState('error');
+      }
+    },
+    [form]
+  );
 
   return {
     state,
@@ -501,11 +509,7 @@ export function PrefillButton({ form, showPreview = true }: PrefillButtonProps) 
   const isApplied = state === 'applied';
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isLoading || isApplied}
-      className="prefill-button"
-    >
+    <button onClick={handleClick} disabled={isLoading || isApplied} className="prefill-button">
       {isLoading && <Spinner className="w-4 h-4 mr-2" />}
       {isApplied && <CheckIcon className="w-4 h-4 mr-2" />}
       {!isLoading && !isApplied && <UserIcon className="w-4 h-4 mr-2" />}
@@ -522,8 +526,20 @@ export function PrefillButton({ form, showPreview = true }: PrefillButtonProps) 
 function Spinner({ className }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
     </svg>
   );
 }
@@ -539,7 +555,12 @@ function CheckIcon({ className }: { className?: string }) {
 function UserIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+      />
     </svg>
   );
 }
@@ -559,11 +580,7 @@ interface PrefillPreviewDialogProps {
   onCancel: () => void;
 }
 
-export function PrefillPreviewDialog({
-  preview,
-  onApply,
-  onCancel,
-}: PrefillPreviewDialogProps) {
+export function PrefillPreviewDialog({ preview, onApply, onCancel }: PrefillPreviewDialogProps) {
   const hasChanges = preview.changedFields.length > 0;
 
   return (
@@ -579,7 +596,7 @@ export function PrefillPreviewDialog({
 
             {/* Изменённые поля */}
             <div className="changed-fields-list">
-              {preview.changedFields.map(field => (
+              {preview.changedFields.map((field) => (
                 <div key={field} className="field-item">
                   <CheckIcon className="w-4 h-4 text-green-600" />
                   <span>{getFieldLabel(field)}</span>
@@ -673,6 +690,7 @@ export function CreditApplicationForm() {
 Протестируйте эти сценарии:
 
 ### Сценарий 1: Базовое предзаполнение
+
 - [ ] Нажмите "Заполнить из профиля"
 - [ ] Смотрите диалог предпросмотра
 - [ ] Просмотрите изменённые поля
@@ -680,6 +698,7 @@ export function CreditApplicationForm() {
 - [ ] Форма заполнена
 
 ### Сценарий 2: Частичное предзаполнение
+
 - [ ] Заполните некоторые поля вручную
 - [ ] Нажмите "Заполнить из профиля"
 - [ ] Заполненные поля пропущены
@@ -687,6 +706,7 @@ export function CreditApplicationForm() {
 - [ ] Перезаписи не происходит
 
 ### Сценарий 3: Предзаполнение с перезаписью
+
 - [ ] Заполните некоторые поля
 - [ ] Включите опцию перезаписи
 - [ ] Нажмите предзаполнение
@@ -694,12 +714,14 @@ export function CreditApplicationForm() {
 - [ ] Ручные данные заменены
 
 ### Сценарий 4: Выборочное предзаполнение
+
 - [ ] Выберите определённые поля
 - [ ] Нажмите предзаполнение
 - [ ] Заполнены только выбранные поля
 - [ ] Другие поля не изменены
 
 ### Сценарий 5: Отмена предзаполнения
+
 - [ ] Нажмите "Заполнить из профиля"
 - [ ] Смотрите предпросмотр
 - [ ] Нажмите "Отмена"
@@ -707,6 +729,7 @@ export function CreditApplicationForm() {
 - [ ] Форма не изменена
 
 ### Сценарий 6: Обработка ошибок
+
 - [ ] Отключите интернет
 - [ ] Нажмите предзаполнение
 - [ ] Смотрите сообщение об ошибке
@@ -725,12 +748,14 @@ export function CreditApplicationForm() {
 ## Распространённые паттерны
 
 ### Базовое предзаполнение
+
 ```typescript
 const { prefill } = useDataPrefill(form);
 await prefill();
 ```
 
 ### Предзаполнение с предпросмотром
+
 ```typescript
 const { loadPreview, apply, preview } = useDataPrefill(form);
 await loadPreview();
@@ -738,6 +763,7 @@ if (preview) apply();
 ```
 
 ### Выборочное предзаполнение
+
 ```typescript
 await prefill({
   fields: ['personalData', 'contacts'],
@@ -746,6 +772,7 @@ await prefill({
 ```
 
 ### Предзаполнение с перезаписью
+
 ```typescript
 await prefill({ overwrite: true });
 ```
@@ -753,6 +780,7 @@ await prefill({ overwrite: true });
 ## Что дальше?
 
 В следующем разделе мы добавим функцию **Преобразование данных**:
+
 - Сериализация данных формы для API
 - Десериализация данных API для формы
 - Преобразование дат

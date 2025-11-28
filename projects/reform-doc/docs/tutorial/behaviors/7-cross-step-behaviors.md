@@ -18,18 +18,19 @@ Some behaviors need data from multiple steps. These cross-step behaviors handle:
 ## Why Separate Cross-Step Behaviors?
 
 Benefits of separation:
+
 - **Clarity** - Easy to see which behaviors span multiple steps
 - **Maintainability** - Changes to step behaviors don't affect cross-step logic
 - **Documentation** - Cross-step dependencies are explicit
 
 ## Implementation
 
-```typescript title="src/schemas/behaviors/cross-step.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
 import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const crossStepBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -96,11 +97,13 @@ export const crossStepBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ### 1. Payment-to-Income Ratio
 
 This is a critical metric for loan approval:
+
 - **Input**: Monthly payment, applicant income, co-borrowers income
 - **Output**: Percentage (e.g., 35% means payment is 35% of income)
 - **Use**: Banks typically require ratio < 50%
 
 **Dependency chain:**
+
 ```
 loanAmount, loanTerm, interestRate
     ↓
@@ -133,6 +136,7 @@ revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
 ```
 
 **Why needed:**
+
 - User fills loan info first (Step 1)
 - Then fills income (Step 4)
 - Payment validation should run again with new income data
@@ -147,6 +151,7 @@ disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
 ```
 
 **Flow:**
+
 1. User enters birth date (Step 2)
 2. Age is computed automatically
 3. If age < 18, loan fields in Step 1 become disabled
@@ -166,6 +171,7 @@ watch(path.loanAmount, (value) => {
 ```
 
 **Use cases:**
+
 - Track which loan types are most popular
 - Monitor interest rate distribution
 - Analyze drop-off points in the form
@@ -173,6 +179,7 @@ watch(path.loanAmount, (value) => {
 
 :::tip Production Analytics
 In production, integrate with your analytics platform:
+
 ```typescript
 import { analytics } from '@/services/analytics';
 
@@ -184,16 +191,17 @@ watch(path.loanAmount, (value) => {
   });
 });
 ```
+
 :::
 
 ## Complete Code
 
-```typescript title="src/schemas/behaviors/cross-step.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
 import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const crossStepBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Payment-to-Income Ratio
@@ -268,10 +276,8 @@ function LoanSummary({ control }: Props) {
 
       {!isAcceptable && (
         <p className="text-sm text-red-600 mt-2">
-          Payment exceeds 50% of household income. Consider:
-          - Reducing loan amount
-          - Extending loan term
-          - Adding co-borrowers
+          Payment exceeds 50% of household income. Consider: - Reducing loan amount - Extending loan
+          term - Adding co-borrowers
         </p>
       )}
     </div>
@@ -282,6 +288,7 @@ function LoanSummary({ control }: Props) {
 ## Result
 
 Cross-step behaviors now provide:
+
 - ✅ Payment-to-income ratio calculation
 - ✅ Smart revalidation on income changes
 - ✅ Age-based access control (prevents minors from applying)

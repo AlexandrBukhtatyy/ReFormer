@@ -20,22 +20,22 @@ We've created behaviors for each step plus cross-step behaviors. Now let's:
 Create the main behavior file that imports and applies all step behaviors:
 
 ```bash
-touch src/schemas/behaviors/credit-application.behaviors.ts
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts
 ```
 
 ### Implementation
 
-```typescript title="src/schemas/behaviors/credit-application.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts"
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 // Import step behaviors
-import { step1LoanBehaviors } from './steps/step-1-loan-info.behaviors';
-import { step2PersonalBehaviors } from './steps/step-2-personal-info.behaviors';
-import { step3ContactBehaviors } from './steps/step-3-contact-info.behaviors';
-import { step4EmploymentBehaviors } from './steps/step-4-employment.behaviors';
-import { step5AdditionalBehaviors } from './steps/step-5-additional-info.behaviors';
-import { crossStepBehaviors } from './cross-step.behaviors';
+import { loanBehaviorSchema } from './steps/step-1-loan-info.behaviors';
+import { personalBehaviorSchema } from './steps/step-2-personal-info.behaviors';
+import { contactBehaviorSchema } from './steps/step-3-contact-info.behaviors';
+import { employmentBehaviorSchema } from './steps/step-4-employment.behaviors';
+import { additionalBehaviorSchema } from './steps/step-5-additional-info.behaviors';
+import { crossStepBehaviorsSchema } from './cross-step.behaviors';
 
 /**
  * Complete behavior schema for Credit Application Form
@@ -54,32 +54,32 @@ export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm>
   // ==========================================
   // Step 1: Loan Information
   // ==========================================
-  step1LoanBehaviors(path);
+  loanBehaviorSchema(path);
 
   // ==========================================
   // Step 2: Personal Information
   // ==========================================
-  step2PersonalBehaviors(path);
+  personalBehaviorSchema(path);
 
   // ==========================================
   // Step 3: Contact Information
   // ==========================================
-  step3ContactBehaviors(path);
+  contactBehaviorSchema(path);
 
   // ==========================================
   // Step 4: Employment
   // ==========================================
-  step4EmploymentBehaviors(path);
+  employmentBehaviorSchema(path);
 
   // ==========================================
   // Step 5: Additional Information
   // ==========================================
-  step5AdditionalBehaviors(path);
+  additionalBehaviorSchema(path);
 
   // ==========================================
   // Cross-Step Behaviors
   // ==========================================
-  crossStepBehaviors(path);
+  crossStepBehaviorsSchema(path);
 };
 ```
 
@@ -96,7 +96,7 @@ import type { CreditApplicationForm } from '@/types';
 export function createCreditApplicationForm() {
   return createForm<CreditApplicationForm>({
     schema: creditApplicationSchema,
-    behaviors: creditApplicationBehaviors,  // ← Register behaviors here
+    behaviors: creditApplicationBehaviors, // ← Register behaviors here
     // validation will be added in the next section
   });
 }
@@ -113,14 +113,14 @@ src/
 ├── schemas/
 │   ├── behaviors/
 │   │   ├── steps/
-│   │   │   ├── step-1-loan-info.behaviors.ts
-│   │   │   ├── step-2-personal-info.behaviors.ts
-│   │   │   ├── step-3-contact-info.behaviors.ts
-│   │   │   ├── step-4-employment.behaviors.ts
-│   │   │   └── step-5-additional-info.behaviors.ts
+│   │   │   ├── loan-info.ts
+│   │   │   ├── personal-info.ts
+│   │   │   ├── contact-info.ts
+│   │   │   ├── employment.ts
+│   │   │   └── additional-info.ts
 │   │   ├── cross-step.behaviors.ts
 │   │   └── credit-application.behaviors.ts  ← Main file
-│   ├── credit-application.schema.ts
+│   ├── credit-application.ts
 │   └── create-form.ts  ← Behaviors registered here
 │
 ├── components/
@@ -139,6 +139,7 @@ src/
 Create a comprehensive test checklist:
 
 ### Step 1: Loan Information
+
 - [ ] Interest rate updates when loan type changes
 - [ ] Interest rate gets discount for major cities
 - [ ] Interest rate gets discount for property owners
@@ -148,29 +149,34 @@ Create a comprehensive test checklist:
 - [ ] Fields clear when switching loan types
 
 ### Step 2: Personal Information
+
 - [ ] Full name generates from first, last, middle names
 - [ ] Age calculates from birth date
 - [ ] Both computed fields are disabled
 
 ### Step 3: Contact Information
+
 - [ ] Residence address hides when "same as registration" checked
 - [ ] Registration address copies to residence address
 - [ ] Residence address disables when same as registration
 - [ ] Manual changes to residence address work when unchecked
 
 ### Step 4: Employment
+
 - [ ] Company fields show only for employed
 - [ ] Business fields show only for self-employed
 - [ ] Fields clear when switching employment status
 - [ ] Total income calculates from main + additional
 
 ### Step 5: Additional Information
+
 - [ ] Properties array shows only when checkbox checked
 - [ ] Existing loans array shows only when checkbox checked
 - [ ] Co-borrowers array shows only when checkbox checked
 - [ ] Co-borrowers income sums all co-borrower incomes
 
 ### Cross-Step
+
 - [ ] Payment-to-income ratio calculates correctly
 - [ ] Loan fields disable when age < 18
 - [ ] Monthly payment revalidates when income changes
@@ -184,13 +190,17 @@ If behaviors don't work as expected:
 
 ```typescript
 // Add debug logging to behaviors
-export const step1LoanBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   console.log('Registering Step 1 behaviors');
 
-  computeFrom([path.loanAmount, path.loanTerm, path.interestRate], path.monthlyPayment, (values) => {
-    console.log('Computing monthly payment:', values);
-    // ... computation
-  });
+  computeFrom(
+    [path.loanAmount, path.loanTerm, path.interestRate],
+    path.monthlyPayment,
+    (values) => {
+      console.log('Computing monthly payment:', values);
+      // ... computation
+    }
+  );
 };
 ```
 
@@ -231,9 +241,7 @@ Make sure you're using the form with behaviors:
 function CreditApplicationForm() {
   const form = useMemo(() => createCreditApplicationForm(), []); // ← Uses behaviors
 
-  return (
-    <FormField control={form.monthlyPayment} />
-  );
+  return <FormField control={form.monthlyPayment} />;
 }
 ```
 
@@ -264,9 +272,12 @@ watch(path.field, (value) => {
 });
 
 // ✅ Better - debounce API calls
-watch(path.field, debounce((value) => {
-  makeAPICall(value);
-}, 500));
+watch(
+  path.field,
+  debounce((value) => {
+    makeAPICall(value);
+  }, 500)
+);
 ```
 
 ### 3. Don't Create Circular Dependencies
@@ -285,29 +296,35 @@ computeFrom([path.a, path.b], path.c, ...);
 We've successfully implemented all behaviors for the Credit Application form:
 
 ### Step 1: Loan Information
+
 - ✅ Interest rate calculation (base + discounts)
 - ✅ Monthly payment calculation (annuity formula)
 - ✅ Conditional mortgage/car fields
 - ✅ Automatic field reset
 
 ### Step 2: Personal Information
+
 - ✅ Full name generation (ФИО format)
 - ✅ Age calculation from birth date
 
 ### Step 3: Contact Information
+
 - ✅ Address copying (registration → residence)
 - ✅ Conditional visibility/access
 
 ### Step 4: Employment
+
 - ✅ Employment-specific fields
 - ✅ Total income calculation
 - ✅ Field reset on status change
 
 ### Step 5: Additional Information
+
 - ✅ Conditional arrays (properties, loans, co-borrowers)
 - ✅ Co-borrowers income calculation
 
 ### Cross-Step
+
 - ✅ Payment-to-income ratio
 - ✅ Smart revalidation
 - ✅ Age-based access control
@@ -324,6 +341,7 @@ We've successfully implemented all behaviors for the Credit Application form:
 ## What's Next?
 
 The form now has sophisticated interactivity, but it still needs validation to ensure data quality. In the next section (**Validation**), we'll add:
+
 - Built-in validators (required, min, max, email, etc.)
 - Conditional validation (rules that depend on other fields)
 - Cross-field validation (payment <= 50% income)

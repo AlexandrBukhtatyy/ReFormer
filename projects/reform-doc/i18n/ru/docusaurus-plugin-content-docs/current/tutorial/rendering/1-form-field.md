@@ -150,7 +150,7 @@ import { CreditApplicationForm } from './forms/credit-application/CreditApplicat
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
+    <div className="flex min-h-svh flex-col items-center py-6">
       <CreditApplicationForm />
     </div>
   );

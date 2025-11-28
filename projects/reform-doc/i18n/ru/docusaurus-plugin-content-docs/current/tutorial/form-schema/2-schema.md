@@ -58,9 +58,9 @@ properties: [{
 
 Вот полная схема, соответствующая интерфейсу `CreditApplicationForm`:
 
-```typescript title="src/forms/credit-application/schemas/credit-application.schema.ts"
+```typescript title="src/forms/credit-application/schemas/credit-application.ts"
 import type { FormSchema } from 'reformer';
-import { Input, Select, Checkbox, Textarea, RadioGroup } from './components/ui';
+import { Input, Select, Checkbox, Textarea, RadioGroup, Select } from './components/ui';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
@@ -149,7 +149,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   carModel: {
     value: '',
-    component: Input,
+    component: Select,
     componentProps: {
       label: 'Модель автомобиля',
       placeholder: 'Например: Camry',
@@ -372,7 +372,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   employmentStatus: {
     value: 'employed',
-    component: RadioGroup,
+    component: Select,
     componentProps: {
       label: 'Статус занятости',
       options: [

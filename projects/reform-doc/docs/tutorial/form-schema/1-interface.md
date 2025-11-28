@@ -14,7 +14,7 @@ Before creating a form schema, we need to define its TypeScript interface. This 
 
 First, define the enumeration types used in the form:
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 // Loan types
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 
@@ -37,7 +37,7 @@ Complex forms often have nested structures. Define separate interfaces for reusa
 
 ### Address
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface Address {
   region: string;
   city: string;
@@ -50,7 +50,7 @@ export interface Address {
 
 ### Personal Data
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface PersonalData {
   lastName: string;
   firstName: string;
@@ -63,7 +63,7 @@ export interface PersonalData {
 
 ### Passport Data
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface PassportData {
   series: string;
   number: string;
@@ -75,7 +75,7 @@ export interface PassportData {
 
 ### Property (for arrays)
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface Property {
   type: PropertyType;
   description: string;
@@ -86,7 +86,7 @@ export interface Property {
 
 ### Existing Loan (for arrays)
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface ExistingLoan {
   bank: string;
   type: string;
@@ -99,7 +99,7 @@ export interface ExistingLoan {
 
 ### Co-Borrower (for arrays)
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface CoBorrower {
   personalData: {
     lastName: string;
@@ -118,7 +118,7 @@ export interface CoBorrower {
 
 Now combine everything into the main form interface:
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface CreditApplicationForm {
   // ============================================
   // Step 1: Basic Loan Information

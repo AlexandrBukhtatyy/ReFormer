@@ -21,7 +21,7 @@ These computed fields will be displayed in other parts of the form and used in v
 Create the behavior file for Step 2:
 
 ```bash
-touch src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts
 ```
 
 ## Implementing the Behaviors
@@ -30,37 +30,34 @@ touch src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts
 
 In Russian forms, the full name (ФИО) is typically formatted as: **Фамилия Имя Отчество** (Last First Middle).
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';
 
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // Computed: Full Name (ФИО)
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.fullName,
-    (values) => {
-      const pd = values.personalData as PersonalData;
-      if (!pd) return '';
+  computeFrom([path.personalData], path.fullName, (values) => {
+    const pd = values.personalData as PersonalData;
+    if (!pd) return '';
 
-      // Russian format: Фамилия Имя Отчество
-      // Filter out empty values
-      const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
+    // Russian format: Фамилия Имя Отчество
+    // Filter out empty values
+    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
 
-      return parts.join(' ');
-    }
-  );
+    return parts.join(' ');
+  });
 
   // ... more behaviors
 };
 ```
 
 **How it works:**
+
 - We watch the entire `personalData` group (not individual fields)
 - When any field in `personalData` changes, the full name updates
 - Empty values are filtered out (e.g., if middleName is optional)
@@ -68,6 +65,7 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 
 :::tip Watching Groups
 You can watch entire groups instead of individual fields:
+
 ```typescript
 // ✅ Watch the entire group
 computeFrom([path.personalData], ...)
@@ -75,6 +73,7 @@ computeFrom([path.personalData], ...)
 // ❌ Watch individual fields (more verbose)
 computeFrom([path.personalData.firstName, path.personalData.lastName, ...], ...)
 ```
+
 Both work, but watching groups is simpler when you need all fields.
 :::
 
@@ -82,59 +81,57 @@ Both work, but watching groups is simpler when you need all fields.
 
 Calculate the applicant's age from their birth date:
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
   // ==========================================
   // Computed: Age
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.age,
-    (values) => {
-      const birthDate = (values.personalData as PersonalData)?.birthDate;
-      if (!birthDate) return null;
+  computeFrom([path.personalData], path.age, (values) => {
+    const birthDate = (values.personalData as PersonalData)?.birthDate;
+    if (!birthDate) return null;
 
-      const today = new Date();
-      const birth = new Date(birthDate);
+    const today = new Date();
+    const birth = new Date(birthDate);
 
-      // Calculate year difference
-      let age = today.getFullYear() - birth.getFullYear();
+    // Calculate year difference
+    let age = today.getFullYear() - birth.getFullYear();
 
-      // Adjust if birthday hasn't occurred this year
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-
-      return age;
+    // Adjust if birthday hasn't occurred this year
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
     }
-  );
+
+    return age;
+  });
 
   // ... more behaviors
 };
 ```
 
 **Edge cases handled:**
+
 - Returns `null` if birth date is not set
 - Correctly handles birthdays that haven't occurred yet this year
 - Accounts for month and day differences
 
 :::info Age Calculation Logic
 The age calculation checks:
+
 1. Year difference (e.g., 2025 - 1990 = 35)
 2. If the birthday hasn't occurred yet this year, subtract 1
    - Month check: Current month < birth month → birthday not yet
    - Day check: Same month, but current day < birth day → birthday not yet
-:::
+     :::
 
 ### 3. Making Computed Fields Read-Only
 
 Since `fullName` and `age` are computed automatically, they should be read-only (disabled):
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous behaviors
 
   // ==========================================
@@ -146,6 +143,7 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ```
 
 **Why `disableWhen(path.fullName, path.fullName, () => true)`?**
+
 - First argument: the field to disable
 - Second argument: the field to watch (we watch itself)
 - Third argument: condition (always `true` means always disabled)
@@ -154,6 +152,7 @@ This pattern ensures the field is always disabled, regardless of form state.
 
 :::tip Alternative: Schema-level Disable
 You can also disable fields in the schema:
+
 ```typescript
 fullName: {
   value: '',
@@ -172,51 +171,43 @@ However, using `disableWhen` keeps all behaviors centralized and makes them easi
 
 Here's the complete behavior file for Step 2:
 
-```typescript title="src/schemas/behaviors/steps/step-2-personal-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, PersonalData } from '@/types';
 
-export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // Computed: Full Name (ФИО)
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.fullName,
-    (values) => {
-      const pd = values.personalData as PersonalData;
-      if (!pd) return '';
+  computeFrom([path.personalData], path.fullName, (values) => {
+    const pd = values.personalData as PersonalData;
+    if (!pd) return '';
 
-      const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
-      return parts.join(' ');
-    }
-  );
+    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
+    return parts.join(' ');
+  });
 
   // ==========================================
   // Computed: Age
   // ==========================================
-  computeFrom(
-    [path.personalData],
-    path.age,
-    (values) => {
-      const birthDate = (values.personalData as PersonalData)?.birthDate;
-      if (!birthDate) return null;
+  computeFrom([path.personalData], path.age, (values) => {
+    const birthDate = (values.personalData as PersonalData)?.birthDate;
+    if (!birthDate) return null;
 
-      const today = new Date();
-      const birth = new Date(birthDate);
+    const today = new Date();
+    const birth = new Date(birthDate);
 
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-
-      return age;
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
     }
-  );
+
+    return age;
+  });
 
   // ==========================================
   // Disable Computed Fields
@@ -231,15 +222,15 @@ export const step2PersonalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 Add Step 2 behaviors to your form temporarily:
 
 ```typescript title="src/schemas/create-form.ts"
-import { step1LoanBehaviors } from '../behaviors/steps/step-1-loan-info.behaviors';
-import { step2PersonalBehaviors } from '../behaviors/steps/step-2-personal-info.behaviors';
+import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
+import { personalBehaviorSchema } from '../behaviors/steps/step-2-personal-info.behaviors';
 
 export function createCreditApplicationForm() {
   return createForm({
     schema: creditApplicationSchema,
     behaviors: (path) => {
-      step1LoanBehaviors(path);
-      step2PersonalBehaviors(path); // ← Add Step 2
+      loanBehaviorSchema(path);
+      personalBehaviorSchema(path); // ← Add Step 2
     },
   });
 }
@@ -312,11 +303,13 @@ Or as read-only fields in the form:
 ## Result
 
 Now Step 2 of the form has:
+
 - ✅ Auto-generated full name in Russian FIO format
 - ✅ Auto-calculated age with correct birthday handling
 - ✅ Read-only display of computed fields
 
 These computed values will be useful in:
+
 - **Display** - Showing applicant info in summaries
 - **Validation** - Age-based validation rules (e.g., must be 18+)
 - **Cross-step behaviors** - Controlling access based on age

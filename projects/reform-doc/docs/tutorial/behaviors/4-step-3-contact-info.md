@@ -19,45 +19,37 @@ This demonstrates a common pattern: giving users the option to use the same valu
 ## Creating the Behavior File
 
 ```bash
-touch src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts
 ```
 
 ## Implementing the Behaviors
 
-```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const step3ContactBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // 1. Hide Residence Address When Same as Registration
   // ==========================================
-  hideWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   // ==========================================
   // 2. Disable Residence Address When Same as Registration
   // ==========================================
-  disableWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   // ==========================================
   // 3. Copy Registration Address to Residence Address
   // ==========================================
   copyTo(
-    path.registrationAddress,      // Source
-    path.residenceAddress,          // Target
-    path.sameAsRegistration,        // Condition field
-    (shouldCopy) => shouldCopy === true  // When to copy
+    path.registrationAddress, // Source
+    path.residenceAddress, // Target
+    path.sameAsRegistration, // Condition field
+    (shouldCopy) => shouldCopy === true // When to copy
   );
 };
 ```
@@ -65,16 +57,19 @@ export const step3ContactBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ### Understanding Each Behavior
 
 **1. hideWhen:**
+
 - Hides the `residenceAddress` fields from the UI
 - Fields are not validated when hidden
 - Fields are not included in form submission
 
 **2. disableWhen:**
+
 - Makes `residenceAddress` fields read-only
 - Prevents user from editing
 - Works together with `hideWhen` (though hidden fields are already inaccessible)
 
 **3. copyTo:**
+
 - Watches `registrationAddress` for changes
 - When `sameAsRegistration` is `true`, copies the value to `residenceAddress`
 - Runs whenever `registrationAddress` changes while condition is met
@@ -94,14 +89,15 @@ The `copyTo` behavior creates a smart synchronization:
 
 ```typescript
 copyTo(
-  sourceField,      // What to copy FROM
-  targetField,      // What to copy TO
-  conditionField,   // Field that determines if copying should happen
-  conditionFn       // Function that evaluates the condition
+  sourceField, // What to copy FROM
+  targetField, // What to copy TO
+  conditionField, // Field that determines if copying should happen
+  conditionFn // Function that evaluates the condition
 );
 ```
 
 **Execution flow:**
+
 1. User fills in registration address (city, street, house, etc.)
 2. User checks "Same as registration" checkbox
 3. `copyTo` immediately copies `registrationAddress` → `residenceAddress`
@@ -109,6 +105,7 @@ copyTo(
 5. If user unchecks "Same as registration", copying stops (but value remains)
 
 :::caution copyTo vs syncWith
+
 - **`copyTo`** - One-way copying (source → target)
 - **`syncWith`** - Two-way synchronization (source ↔ target)
 
@@ -117,25 +114,17 @@ For addresses, `copyTo` is correct because we don't want changes to `residenceAd
 
 ## Complete Code
 
-```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const step3ContactBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  hideWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
-  disableWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   copyTo(
     path.registrationAddress,
@@ -180,10 +169,7 @@ function ContactInfoStep({ control }: Props) {
       {/* Registration Address */}
       <div>
         <h3 className="font-semibold mb-4">Registration Address</h3>
-        <AddressForm
-          control={control.registrationAddress}
-          testIdPrefix="registration"
-        />
+        <AddressForm control={control.registrationAddress} testIdPrefix="registration" />
       </div>
 
       {/* Same as Registration Checkbox */}
@@ -192,10 +178,7 @@ function ContactInfoStep({ control }: Props) {
       {/* Residence Address - will hide/disable automatically */}
       <div>
         <h3 className="font-semibold mb-4">Residence Address</h3>
-        <AddressForm
-          control={control.residenceAddress}
-          testIdPrefix="residence"
-        />
+        <AddressForm control={control.residenceAddress} testIdPrefix="residence" />
       </div>
     </div>
   );
@@ -207,6 +190,7 @@ The behaviors handle the rest automatically!
 ## Result
 
 Step 3 now has:
+
 - ✅ Smart address copying (registration → residence)
 - ✅ Conditional visibility (hide when same)
 - ✅ Conditional access control (disable when same)

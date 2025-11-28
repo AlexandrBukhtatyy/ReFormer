@@ -17,12 +17,12 @@ sidebar_position: 5
 
 ## Реализация
 
-```typescript title="src/schemas/behaviors/steps/step-4-employment.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/employment.ts"
 import { showWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -69,15 +69,11 @@ export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Вычисляемое: Общий доход
   // ==========================================
-  computeFrom(
-    [path.monthlyIncome, path.additionalIncome],
-    path.totalIncome,
-    (values) => {
-      const main = (values.monthlyIncome as number) || 0;
-      const additional = (values.additionalIncome as number) || 0;
-      return main + additional;
-    }
-  );
+  computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (values) => {
+    const main = (values.monthlyIncome as number) || 0;
+    const additional = (values.additionalIncome as number) || 0;
+    return main + additional;
+  });
 
   // Отключить totalIncome (только для чтения)
   disableWhen(path.totalIncome, path.totalIncome, () => true);
@@ -87,16 +83,19 @@ export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Ключевые моменты
 
 **Несколько условных полей:**
+
 - Группируйте связанные поля по условию (работающий vs ИП)
 - Используйте `showWhen` для каждого поля отдельно
 - Поля скрываются/показываются вместе при изменении статуса
 
 **Паттерн сброса полей:**
+
 - Очищайте значения при переключении типов занятости
 - Предотвращайте устаревшие данные (например, название компании для ИП)
 - Используйте `{ emitEvent: false }` чтобы избежать запуска валидаций
 
 **Общий доход:**
+
 - Простая сумма двух источников дохода
 - Обрабатывает отсутствующие значения (`|| 0`)
 - Обновляется автоматически когда изменяется любой из доходов
@@ -104,6 +103,7 @@ export const step4EmploymentBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Результат
 
 Шаг 4 теперь имеет:
+
 - ✅ Поля специфичные для занятости (компания/бизнес)
 - ✅ Автоматический сброс полей при изменении статуса
 - ✅ Расчет общего дохода

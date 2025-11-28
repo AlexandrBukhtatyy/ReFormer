@@ -18,18 +18,19 @@ sidebar_position: 7
 ## Почему разделять кросс-шаговые behaviors?
 
 Преимущества разделения:
+
 - **Ясность** - Легко видеть какие behaviors охватывают несколько шагов
 - **Поддерживаемость** - Изменения в behaviors шагов не влияют на кросс-шаговую логику
 - **Документация** - Кросс-шаговые зависимости явные
 
 ## Реализация
 
-```typescript title="src/schemas/behaviors/cross-step.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
 import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const crossStepBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -96,11 +97,13 @@ export const crossStepBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ### 1. Соотношение платёж/доход
 
 Это критическая метрика для одобрения кредита:
+
 - **Входные данные**: Ежемесячный платёж, доход заявителя, доход созаёмщиков
 - **Выходные данные**: Процент (например, 35% означает что платёж составляет 35% дохода)
 - **Использование**: Банки обычно требуют соотношение < 50%
 
 **Цепочка зависимостей:**
+
 ```
 loanAmount, loanTerm, interestRate
     ↓
@@ -133,6 +136,7 @@ revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
 ```
 
 **Зачем нужно:**
+
 - Пользователь заполняет информацию о кредите первым (Шаг 1)
 - Затем заполняет доход (Шаг 4)
 - Валидация платежа должна запуститься снова с новыми данными дохода
@@ -147,6 +151,7 @@ disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
 ```
 
 **Поток:**
+
 1. Пользователь вводит дату рождения (Шаг 2)
 2. Возраст вычисляется автоматически
 3. Если возраст < 18, поля кредита на Шаге 1 становятся отключены
@@ -166,6 +171,7 @@ watch(path.loanAmount, (value) => {
 ```
 
 **Сценарии использования:**
+
 - Отслеживайте какие типы кредитов самые популярные
 - Мониторьте распределение процентных ставок
 - Анализируйте точки отказа в форме
@@ -173,6 +179,7 @@ watch(path.loanAmount, (value) => {
 
 :::tip Аналитика в продакшене
 В продакшене, интегрируйте со своей платформой аналитики:
+
 ```typescript
 import { analytics } from '@/services/analytics';
 
@@ -184,16 +191,17 @@ watch(path.loanAmount, (value) => {
   });
 });
 ```
+
 :::
 
 ## Полный код
 
-```typescript title="src/schemas/behaviors/cross-step.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
 import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const crossStepBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Соотношение платёж/доход
@@ -268,10 +276,8 @@ function LoanSummary({ control }: Props) {
 
       {!isAcceptable && (
         <p className="text-sm text-red-600 mt-2">
-          Платёж превышает 50% семейного дохода. Рассмотрите:
-          - Сокращение суммы кредита
-          - Продление срока кредита
-          - Добавление созаёмщиков
+          Платёж превышает 50% семейного дохода. Рассмотрите: - Сокращение суммы кредита - Продление
+          срока кредита - Добавление созаёмщиков
         </p>
       )}
     </div>
@@ -282,6 +288,7 @@ function LoanSummary({ control }: Props) {
 ## Результат
 
 Кросс-шаговые behaviors теперь предоставляют:
+
 - ✅ Расчет соотношения платёж/доход
 - ✅ Умная ревалидация при изменении дохода
 - ✅ Контроль доступа по возрасту (предотвращает подачу заявок несовершеннолетними)

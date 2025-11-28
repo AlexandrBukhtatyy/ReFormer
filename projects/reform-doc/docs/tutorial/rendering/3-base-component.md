@@ -98,21 +98,14 @@ function CreditApplicationForm() {
 
       {/* Navigation buttons */}
       <div className="flex justify-between mt-6">
-        <button
-          onClick={goToPreviousStep}
-          disabled={currentStep === 1}
-        >
+        <button onClick={goToPreviousStep} disabled={currentStep === 1}>
           Previous
         </button>
 
         {currentStep < totalSteps ? (
-          <button onClick={goToNextStep}>
-            Next
-          </button>
+          <button onClick={goToNextStep}>Next</button>
         ) : (
-          <button onClick={handleSubmit}>
-            Submit
-          </button>
+          <button onClick={handleSubmit}>Submit</button>
         )}
       </div>
     </div>
@@ -141,6 +134,7 @@ function BasicInfoForm({ control }: StepProps) {
 ```
 
 This approach:
+
 - Gives each step access to all form fields
 - Enables cross-step dependencies (e.g., showing fields based on values from other steps)
 - Keeps a single source of truth for form state
@@ -254,15 +248,13 @@ function CreditApplicationForm() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       {/* Step indicator */}
-      <div className="flex justify-between mb-8">
+      <div>
         {STEPS.map((step) => (
           <button
             key={step.id}
             onClick={() => goToStep(step.id)}
             className={`px-4 py-2 rounded ${
-              currentStep === step.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700'
+              currentStep === step.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
             }`}
           >
             {step.id}. {step.title}
@@ -291,17 +283,11 @@ function CreditApplicationForm() {
         </button>
 
         {currentStep < totalSteps ? (
-          <button
-            onClick={goToNextStep}
-            className="px-6 py-2 bg-blue-600 text-white rounded"
-          >
+          <button onClick={goToNextStep} className="px-6 py-2 bg-blue-600 text-white rounded">
             Next
           </button>
         ) : (
-          <button
-            onClick={handleSubmit}
-            className="px-6 py-2 bg-green-600 text-white rounded"
-          >
+          <button onClick={handleSubmit} className="px-6 py-2 bg-green-600 text-white rounded">
             Submit Application
           </button>
         )}
@@ -309,7 +295,8 @@ function CreditApplicationForm() {
 
       {/* Progress info */}
       <div className="mt-4 text-center text-sm text-gray-600">
-        Step {currentStep} of {totalSteps} • {Math.round((currentStep / totalSteps) * 100)}% complete
+        Step {currentStep} of {totalSteps} • {Math.round((currentStep / totalSteps) * 100)}%
+        complete
       </div>
     </div>
   );

@@ -58,6 +58,7 @@ export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm>
 ```
 
 Benefits:
+
 - **Less code** - No manual subscriptions or cleanup
 - **Declarative** - Easier to understand intent
 - **Maintainable** - Changes are localized
@@ -76,15 +77,11 @@ Automatically calculate field values based on other fields:
 import { computeFrom } from 'reformer/behaviors';
 
 // Calculate total income
-computeFrom(
-  [path.monthlyIncome, path.additionalIncome],
-  path.totalIncome,
-  (values) => {
-    const main = values.monthlyIncome as number || 0;
-    const additional = values.additionalIncome as number || 0;
-    return main + additional;
-  }
-);
+computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (values) => {
+  const main = (values.monthlyIncome as number) || 0;
+  const additional = (values.additionalIncome as number) || 0;
+  return main + additional;
+});
 ```
 
 ### Conditional Visibility
@@ -166,91 +163,38 @@ For our Credit Application form, we'll organize behaviors by form steps - matchi
 // src/schemas/behaviors/credit-application.behaviors.ts
 export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // Step 1: Loan Information
-  step1LoanBehaviors(path);
+  loanBehaviorSchema(path);
 
   // Step 2: Personal Information
-  step2PersonalBehaviors(path);
+  personalBehaviorSchema(path);
 
   // Step 3: Contact Information
-  step3ContactBehaviors(path);
+  contactBehaviorSchema(path);
 
   // Step 4: Employment
-  step4EmploymentBehaviors(path);
+  employmentBehaviorSchema(path);
 
   // Step 5: Additional Information
-  step5AdditionalBehaviors(path);
+  additionalBehaviorSchema(path);
 
   // Cross-step behaviors
-  crossStepBehaviors(path);
+  crossStepBehaviorsSchema(path);
 };
 ```
 
 This organization provides:
+
 - **Clarity** - Easy to find behaviors for a specific step
 - **Maintainability** - Changes to one step don't affect others
 - **Scalability** - Easy to add new behaviors
 - **Reusability** - Step behaviors can be reused in other forms
-
-## File Structure
-
-We'll create the following structure:
-
-```
-src/
-├── schemas/
-│   ├── behaviors/
-│   │   ├── steps/
-│   │   │   ├── step-1-loan-info.behaviors.ts
-│   │   │   ├── step-2-personal-info.behaviors.ts
-│   │   │   ├── step-3-contact-info.behaviors.ts
-│   │   │   ├── step-4-employment.behaviors.ts
-│   │   │   └── step-5-additional-info.behaviors.ts
-│   │   ├── cross-step.behaviors.ts
-│   │   └── credit-application.behaviors.ts  (main file)
-│   └── create-form.ts  (behaviors registered here)
-└── ...
-```
-
-## What We'll Build
-
-By the end of this section, our Credit Application form will have:
-
-### Step 1: Loan Information
-- ✅ Auto-calculated interest rate (based on loan type, city, property)
-- ✅ Auto-calculated monthly payment (annuity formula)
-- ✅ Conditional mortgage/car fields (shown only when relevant)
-- ✅ Automatic field reset (when loan type changes)
-
-### Step 2: Personal Information
-- ✅ Auto-generated full name (from first, last, middle names)
-- ✅ Auto-calculated age (from birth date)
-- ✅ Read-only computed fields
-
-### Step 3: Contact Information
-- ✅ Conditional residence address (hidden when same as registration)
-- ✅ Automatic address copying (registration → residence)
-- ✅ Disabled fields when not needed
-
-### Step 4: Employment
-- ✅ Conditional employment fields (shown based on status)
-- ✅ Auto-calculated total income (main + additional)
-- ✅ Automatic field reset (when status changes)
-
-### Step 5: Additional Information
-- ✅ Conditional arrays (properties, loans, co-borrowers)
-- ✅ Auto-calculated co-borrowers income (sum of all)
-
-### Cross-Step
-- ✅ Payment-to-income ratio (uses data from multiple steps)
-- ✅ Smart revalidation (triggers when dependencies change)
-- ✅ Age-based access control (disables fields if age < 18)
-- ✅ Analytics tracking (monitors user behavior)
 
 ## Getting Started
 
 Let's start by adding behaviors to Step 1: Loan Information. This step demonstrates the most common behavior patterns you'll use throughout the form.
 
 In the next section, we'll:
+
 1. Create the behavior file for Step 1
 2. Implement computed fields for interest rate and monthly payment
 3. Add conditional visibility for mortgage/car fields

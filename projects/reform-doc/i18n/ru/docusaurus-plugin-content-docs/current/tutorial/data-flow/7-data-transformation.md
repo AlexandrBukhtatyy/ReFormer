@@ -21,19 +21,19 @@ sidebar_position: 7
 
 Формы и API часто используют разные форматы:
 
-| Формат формы | Формат API | Причина |
-|---------------|-----------|---------|
-| `Date` объект | ISO строка | JSON сериализация |
-| `"+7 (999) 123-45-67"` | `"79991234567"` | Формат хранения |
-| `"John Doe"` (вычислено) | Не отправляется | Вычисляемое поле |
-| `null` значения | Не отправляется | Чистая нагрузка |
-| Вложенные объекты | Плоская структура | Дизайн API |
+| Формат формы             | Формат API        | Причина           |
+| ------------------------ | ----------------- | ----------------- |
+| `Date` объект            | ISO строка        | JSON сериализация |
+| `"+7 (999) 123-45-67"`   | `"79991234567"`   | Формат хранения   |
+| `"John Doe"` (вычислено) | Не отправляется   | Вычисляемое поле  |
+| `null` значения          | Не отправляется   | Чистая нагрузка   |
+| Вложенные объекты        | Плоская структура | Дизайн API        |
 
 ## Интерфейс преобразователя данных
 
 Определим интерфейс преобразователя:
 
-```typescript title="src/types/transformer.types.ts"
+```typescript title="src/types/transformer.ts"
 /**
  * Интерфейс преобразователя данных
  */
@@ -84,22 +84,15 @@ import type { TransformOptions } from '@/types/transformer.types';
 /**
  * Удаление пустых/null/undefined значений из объекта
  */
-export function removeEmptyValues(
-  obj: any,
-  options: TransformOptions = {}
-): any {
-  const {
-    removeNulls = true,
-    removeUndefined = true,
-    removeEmptyStrings = false,
-  } = options;
+export function removeEmptyValues(obj: any, options: TransformOptions = {}): any {
+  const { removeNulls = true, removeUndefined = true, removeEmptyStrings = false } = options;
 
   if (obj === null || obj === undefined) {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => removeEmptyValues(item, options));
+    return obj.map((item) => removeEmptyValues(item, options));
   }
 
   if (typeof obj === 'object') {
@@ -135,7 +128,7 @@ export function datesToISOStrings(obj: any): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => datesToISOStrings(item));
+    return obj.map((item) => datesToISOStrings(item));
   }
 
   if (typeof obj === 'object') {
@@ -160,7 +153,7 @@ export function isoStringsToDates(obj: any, dateFields: string[] = []): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => isoStringsToDates(item, dateFields));
+    return obj.map((item) => isoStringsToDates(item, dateFields));
   }
 
   if (typeof obj === 'object') {
@@ -269,7 +262,7 @@ export function trimStrings(obj: any): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => trimStrings(item));
+    return obj.map((item) => trimStrings(item));
   }
 
   if (typeof obj === 'object') {
@@ -321,12 +314,7 @@ const COMPUTED_FIELDS = [
 /**
  * Поля дат, требующие преобразования
  */
-const DATE_FIELDS = [
-  'birthDate',
-  'issueDate',
-  'startDate',
-  'endDate',
-];
+const DATE_FIELDS = ['birthDate', 'issueDate', 'startDate', 'endDate'];
 
 /**
  * Преобразователь данных кредитного заявления
@@ -408,9 +396,7 @@ function convertDatesInObject(obj: any, path: string = ''): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map((item, index) =>
-      convertDatesInObject(item, `${path}[${index}]`)
-    );
+    return obj.map((item, index) => convertDatesInObject(item, `${path}[${index}]`));
   }
 
   if (typeof obj === 'object') {
@@ -421,9 +407,7 @@ function convertDatesInObject(obj: any, path: string = ''): any {
       const fieldPath = path ? `${path}.${key}` : key;
 
       // Проверяем, является ли это поле или его родитель полем даты
-      const isDateField = DATE_FIELDS.some(dateField =>
-        fieldPath.includes(dateField)
-      );
+      const isDateField = DATE_FIELDS.some((dateField) => fieldPath.includes(dateField));
 
       if (isDateField && typeof value === 'string') {
         try {
@@ -462,12 +446,7 @@ export const draftTransformer: DataTransformer = {
 
   deserialize: (draftData: any) => {
     // Преобразуем даты обратно
-    return isoStringsToDates(draftData, [
-      'birthDate',
-      'issueDate',
-      'startDate',
-      'endDate',
-    ]);
+    return isoStringsToDates(draftData, ['birthDate', 'issueDate', 'startDate', 'endDate']);
   },
 };
 ```
@@ -735,6 +714,7 @@ describe('creditApplicationTransformer', () => {
 Протестируйте эти сценарии:
 
 ### Сценарий 1: Сериализация для API
+
 - [ ] Создайте форму с данными
 - [ ] Сериализуйте данные формы
 - [ ] Даты - ISO строки
@@ -744,6 +724,7 @@ describe('creditApplicationTransformer', () => {
 - [ ] Пустые значения удалены
 
 ### Сценарий 2: Десериализация из API
+
 - [ ] Загрузите данные API
 - [ ] Десериализуйте данные
 - [ ] ISO строки становятся Date
@@ -752,18 +733,21 @@ describe('creditApplicationTransformer', () => {
 - [ ] Форма принимает данные
 
 ### Сценарий 3: Полный цикл
+
 - [ ] Начните с данных формы
 - [ ] Сериализуйте в API
 - [ ] Десериализуйте обратно
 - [ ] Данные совпадают с оригиналом (кроме вычисляемых полей)
 
 ### Сценарий 4: Сохранение/загрузка черновика
+
 - [ ] Сохраните черновик с вычисляемыми полями
 - [ ] Загрузите черновик
 - [ ] Все поля восстановлены
 - [ ] Вычисляемые поля пересчитываются
 
 ### Сценарий 5: Отправка
+
 - [ ] Заполните форму полностью
 - [ ] Валидируйте форму
 - [ ] Сериализуйте для отправки
@@ -783,22 +767,26 @@ describe('creditApplicationTransformer', () => {
 ## Распространённые паттерны
 
 ### Базовая сериализация
+
 ```typescript
 const apiData = transformer.serialize(formData);
 ```
 
 ### Базовая десериализация
+
 ```typescript
 const formData = transformer.deserialize(apiData);
 ```
 
 ### Сохранение с преобразованием
+
 ```typescript
 const draftData = draftTransformer.serialize(form.value.value);
 await saveDraft(draftData);
 ```
 
 ### Загрузка с преобразованием
+
 ```typescript
 const apiData = await loadApplication(id);
 const formData = transformer.deserialize(apiData);
@@ -806,6 +794,7 @@ form.patchValue(formData);
 ```
 
 ### Отправка с преобразованием
+
 ```typescript
 const formData = form.value.value;
 const apiData = submissionTransformer.serialize(formData);
@@ -815,6 +804,7 @@ await submitApplication(apiData);
 ## Что дальше?
 
 В финальном разделе мы соберём всё вместе в **Полной интеграции**:
+
 - Объединение всех функций Data Flow
 - Полный компонент формы
 - Панель управления со всеми функциями

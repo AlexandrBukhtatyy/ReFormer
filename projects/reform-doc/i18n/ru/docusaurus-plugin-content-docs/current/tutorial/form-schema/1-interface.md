@@ -14,7 +14,7 @@ sidebar_position: 1
 
 Сначала определим перечисляемые типы, используемые в форме:
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 // Типы кредита
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 
@@ -37,7 +37,7 @@ export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'commercial'
 
 ### Адрес
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface Address {
   region: string;
   city: string;
@@ -50,7 +50,7 @@ export interface Address {
 
 ### Персональные данные
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface PersonalData {
   lastName: string;
   firstName: string;
@@ -63,7 +63,7 @@ export interface PersonalData {
 
 ### Паспортные данные
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface PassportData {
   series: string;
   number: string;
@@ -75,7 +75,7 @@ export interface PassportData {
 
 ### Имущество (для массивов)
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface Property {
   type: PropertyType;
   description: string;
@@ -86,7 +86,7 @@ export interface Property {
 
 ### Существующий кредит (для массивов)
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface ExistingLoan {
   bank: string;
   type: string;
@@ -99,7 +99,7 @@ export interface ExistingLoan {
 
 ### Созаёмщик (для массивов)
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface CoBorrower {
   personalData: {
     lastName: string;
@@ -118,7 +118,7 @@ export interface CoBorrower {
 
 Теперь объединим всё в основной интерфейс формы:
 
-```typescript title="src/forms/credit-application/types/credit-application.types.ts"
+```typescript title="src/forms/credit-application/types/credit-application.ts"
 export interface CreditApplicationForm {
   // ============================================
   // Шаг 1: Основная информация о кредите

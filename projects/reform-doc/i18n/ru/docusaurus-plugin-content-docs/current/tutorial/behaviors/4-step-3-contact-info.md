@@ -19,45 +19,37 @@ sidebar_position: 4
 ## Создание файла Behavior
 
 ```bash
-touch src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts
+touch reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts
 ```
 
 ## Реализация Behaviors
 
-```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const step3ContactBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // 1. Скрыть адрес проживания когда совпадает с регистрацией
   // ==========================================
-  hideWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   // ==========================================
   // 2. Отключить адрес проживания когда совпадает с регистрацией
   // ==========================================
-  disableWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   // ==========================================
   // 3. Копировать адрес регистрации в адрес проживания
   // ==========================================
   copyTo(
-    path.registrationAddress,      // Источник
-    path.residenceAddress,          // Назначение
-    path.sameAsRegistration,        // Поле условия
-    (shouldCopy) => shouldCopy === true  // Когда копировать
+    path.registrationAddress, // Источник
+    path.residenceAddress, // Назначение
+    path.sameAsRegistration, // Поле условия
+    (shouldCopy) => shouldCopy === true // Когда копировать
   );
 };
 ```
@@ -65,16 +57,19 @@ export const step3ContactBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
 ### Разбор каждого behavior
 
 **1. hideWhen:**
+
 - Скрывает поля `residenceAddress` из пользовательского интерфейса
 - Поля не валидируются когда скрыты
 - Поля не включаются в отправку формы
 
 **2. disableWhen:**
+
 - Делает поля `residenceAddress` только для чтения
 - Предотвращает редактирование пользователем
 - Работает вместе с `hideWhen` (хотя скрытые поля уже недоступны)
 
 **3. copyTo:**
+
 - Отслеживает `registrationAddress` на изменения
 - Когда `sameAsRegistration` - `true`, копирует значение в `residenceAddress`
 - Запускается каждый раз когда `registrationAddress` изменяется при выполнении условия
@@ -94,14 +89,15 @@ Behavior `copyTo` создаёт умную синхронизацию:
 
 ```typescript
 copyTo(
-  sourceField,      // Откуда копировать
-  targetField,      // Куда копировать
-  conditionField,   // Поле которое определяет должно ли происходить копирование
-  conditionFn       // Функция которая вычисляет условие
+  sourceField, // Откуда копировать
+  targetField, // Куда копировать
+  conditionField, // Поле которое определяет должно ли происходить копирование
+  conditionFn // Функция которая вычисляет условие
 );
 ```
 
 **Поток выполнения:**
+
 1. Пользователь заполняет адрес регистрации (город, улица, дом и т.д.)
 2. Пользователь отмечает чекбокс "Совпадает с регистрацией"
 3. `copyTo` сразу же копирует `registrationAddress` → `residenceAddress`
@@ -109,6 +105,7 @@ copyTo(
 5. Если пользователь снимет флажок "Совпадает с регистрацией", копирование остановится (но значение останется)
 
 :::caution copyTo vs syncWith
+
 - **`copyTo`** - Одностороннее копирование (источник → назначение)
 - **`syncWith`** - Двусторонняя синхронизация (источник ↔ назначение)
 
@@ -117,25 +114,17 @@ copyTo(
 
 ## Полный код
 
-```typescript title="src/schemas/behaviors/steps/step-3-contact-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
 import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
-export const step3ContactBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  hideWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
-  disableWhen(
-    path.residenceAddress,
-    path.sameAsRegistration,
-    (value) => value === true
-  );
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   copyTo(
     path.registrationAddress,
@@ -180,10 +169,7 @@ function ContactInfoStep({ control }: Props) {
       {/* Адрес регистрации */}
       <div>
         <h3 className="font-semibold mb-4">Адрес регистрации</h3>
-        <AddressForm
-          control={control.registrationAddress}
-          testIdPrefix="registration"
-        />
+        <AddressForm control={control.registrationAddress} testIdPrefix="registration" />
       </div>
 
       {/* Чекбокс "Совпадает с регистрацией" */}
@@ -192,10 +178,7 @@ function ContactInfoStep({ control }: Props) {
       {/* Адрес проживания - будет скрыт/отключен автоматически */}
       <div>
         <h3 className="font-semibold mb-4">Адрес проживания</h3>
-        <AddressForm
-          control={control.residenceAddress}
-          testIdPrefix="residence"
-        />
+        <AddressForm control={control.residenceAddress} testIdPrefix="residence" />
       </div>
     </div>
   );
@@ -207,6 +190,7 @@ Behaviors обрабатывают всё остальное автоматич�
 ## Результат
 
 Шаг 3 теперь имеет:
+
 - ✅ Умное копирование адреса (регистрация → проживание)
 - ✅ Условная видимость (скрыт когда совпадает)
 - ✅ Контроль условного доступа (отключен когда совпадает)

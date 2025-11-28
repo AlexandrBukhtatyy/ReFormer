@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { InputSearch } from '@/components/ui/input-search';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ============================================================================
@@ -67,7 +68,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   // Поля для автокредита
   carBrand: { value: '', component: Input, componentProps: { label: 'Марка автомобиля' } },
-  carModel: { value: '', component: Input, componentProps: { label: 'Модель автомобиля' } },
+  carModel: { value: '', component: Select, componentProps: { label: 'Модель автомобиля' } },
   carYear: {
     value: null,
     component: Input,
@@ -120,7 +121,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   employmentStatus: {
     value: 'employed',
-    component: RadioGroup,
+    component: Select,
     componentProps: {
       label: 'Статус занятости',
       options: [
@@ -177,7 +178,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 
   maritalStatus: {
     value: 'single',
-    component: RadioGroup,
+    component: Select,
     componentProps: {
       label: 'Семейное положение',
       options: [

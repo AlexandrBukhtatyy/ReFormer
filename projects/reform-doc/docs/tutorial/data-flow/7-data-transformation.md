@@ -21,19 +21,19 @@ A bidirectional data transformation system:
 
 Forms and APIs often use different formats:
 
-| Form Format | API Format | Reason |
-|-------------|------------|--------|
-| `Date` object | ISO string | JSON serialization |
-| `"+7 (999) 123-45-67"` | `"79991234567"` | Storage format |
-| `"John Doe"` (computed) | Not sent | Computed field |
-| `null` values | Not sent | Clean payload |
-| Nested objects | Flat structure | API design |
+| Form Format             | API Format      | Reason             |
+| ----------------------- | --------------- | ------------------ |
+| `Date` object           | ISO string      | JSON serialization |
+| `"+7 (999) 123-45-67"`  | `"79991234567"` | Storage format     |
+| `"John Doe"` (computed) | Not sent        | Computed field     |
+| `null` values           | Not sent        | Clean payload      |
+| Nested objects          | Flat structure  | API design         |
 
 ## Data Transformer Interface
 
 Define the transformer interface:
 
-```typescript title="src/types/transformer.types.ts"
+```typescript title="src/types/transformer.ts"
 /**
  * Data transformer interface
  */
@@ -84,22 +84,15 @@ import type { TransformOptions } from '@/types/transformer.types';
 /**
  * Remove empty/null/undefined values from object
  */
-export function removeEmptyValues(
-  obj: any,
-  options: TransformOptions = {}
-): any {
-  const {
-    removeNulls = true,
-    removeUndefined = true,
-    removeEmptyStrings = false,
-  } = options;
+export function removeEmptyValues(obj: any, options: TransformOptions = {}): any {
+  const { removeNulls = true, removeUndefined = true, removeEmptyStrings = false } = options;
 
   if (obj === null || obj === undefined) {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => removeEmptyValues(item, options));
+    return obj.map((item) => removeEmptyValues(item, options));
   }
 
   if (typeof obj === 'object') {
@@ -135,7 +128,7 @@ export function datesToISOStrings(obj: any): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => datesToISOStrings(item));
+    return obj.map((item) => datesToISOStrings(item));
   }
 
   if (typeof obj === 'object') {
@@ -160,7 +153,7 @@ export function isoStringsToDates(obj: any, dateFields: string[] = []): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => isoStringsToDates(item, dateFields));
+    return obj.map((item) => isoStringsToDates(item, dateFields));
   }
 
   if (typeof obj === 'object') {
@@ -269,7 +262,7 @@ export function trimStrings(obj: any): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => trimStrings(item));
+    return obj.map((item) => trimStrings(item));
   }
 
   if (typeof obj === 'object') {
@@ -321,12 +314,7 @@ const COMPUTED_FIELDS = [
 /**
  * Date fields that need conversion
  */
-const DATE_FIELDS = [
-  'birthDate',
-  'issueDate',
-  'startDate',
-  'endDate',
-];
+const DATE_FIELDS = ['birthDate', 'issueDate', 'startDate', 'endDate'];
 
 /**
  * Credit application data transformer
@@ -408,9 +396,7 @@ function convertDatesInObject(obj: any, path: string = ''): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map((item, index) =>
-      convertDatesInObject(item, `${path}[${index}]`)
-    );
+    return obj.map((item, index) => convertDatesInObject(item, `${path}[${index}]`));
   }
 
   if (typeof obj === 'object') {
@@ -421,9 +407,7 @@ function convertDatesInObject(obj: any, path: string = ''): any {
       const fieldPath = path ? `${path}.${key}` : key;
 
       // Check if this field or its parent is a date field
-      const isDateField = DATE_FIELDS.some(dateField =>
-        fieldPath.includes(dateField)
-      );
+      const isDateField = DATE_FIELDS.some((dateField) => fieldPath.includes(dateField));
 
       if (isDateField && typeof value === 'string') {
         try {
@@ -462,12 +446,7 @@ export const draftTransformer: DataTransformer = {
 
   deserialize: (draftData: any) => {
     // Convert dates back
-    return isoStringsToDates(draftData, [
-      'birthDate',
-      'issueDate',
-      'startDate',
-      'endDate',
-    ]);
+    return isoStringsToDates(draftData, ['birthDate', 'issueDate', 'startDate', 'endDate']);
   },
 };
 ```
@@ -735,6 +714,7 @@ describe('creditApplicationTransformer', () => {
 Test these scenarios:
 
 ### Scenario 1: Serialize for API
+
 - [ ] Create form with data
 - [ ] Serialize form data
 - [ ] Dates are ISO strings
@@ -744,6 +724,7 @@ Test these scenarios:
 - [ ] Empty values removed
 
 ### Scenario 2: Deserialize from API
+
 - [ ] Load API data
 - [ ] Deserialize data
 - [ ] ISO strings become Dates
@@ -752,18 +733,21 @@ Test these scenarios:
 - [ ] Form accepts data
 
 ### Scenario 3: Round-Trip
+
 - [ ] Start with form data
 - [ ] Serialize to API
 - [ ] Deserialize back
 - [ ] Data matches original (minus computed fields)
 
 ### Scenario 4: Draft Save/Load
+
 - [ ] Save draft with computed fields
 - [ ] Load draft
 - [ ] All fields restored
 - [ ] Computed fields recalculate
 
 ### Scenario 5: Submission
+
 - [ ] Fill form completely
 - [ ] Validate form
 - [ ] Serialize for submission
@@ -783,22 +767,26 @@ Test these scenarios:
 ## Common Patterns
 
 ### Basic Serialization
+
 ```typescript
 const apiData = transformer.serialize(formData);
 ```
 
 ### Basic Deserialization
+
 ```typescript
 const formData = transformer.deserialize(apiData);
 ```
 
 ### Save with Transform
+
 ```typescript
 const draftData = draftTransformer.serialize(form.value.value);
 await saveDraft(draftData);
 ```
 
 ### Load with Transform
+
 ```typescript
 const apiData = await loadApplication(id);
 const formData = transformer.deserialize(apiData);
@@ -806,6 +794,7 @@ form.patchValue(formData);
 ```
 
 ### Submit with Transform
+
 ```typescript
 const formData = form.value.value;
 const apiData = submissionTransformer.serialize(formData);
@@ -925,6 +914,7 @@ export function debounce<T extends (...args: any[]) => void>(
 ## What's Next?
 
 In the final section, we'll bring everything together in **Complete Integration**:
+
 - Combine all Data Flow features
 - Complete form component
 - Control panel with all features

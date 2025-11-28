@@ -4,7 +4,7 @@
 type ValidationSchemaFn<T> = (path) => void;
 ```
 
-Defined in: [core/types/validation-schema.ts:117](https://github.com/AlexandrBukhtatyy/ReFormer/blob/38c056cd3838adfe8f094f9ee4c602d4ad0ef4a6/packages/reformer/src/core/types/validation-schema.ts#L117)
+Defined in: [core/types/validation-schema.ts:117](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/validation-schema.ts#L117)
 
 Функция validation schema
 

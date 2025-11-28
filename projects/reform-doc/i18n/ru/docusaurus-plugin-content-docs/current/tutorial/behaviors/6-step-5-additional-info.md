@@ -15,12 +15,12 @@ sidebar_position: 6
 
 ## Реализация
 
-```typescript title="src/schemas/behaviors/steps/step-5-additional-info.behaviors.ts"
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/additional-info.ts"
 import { showWhen, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, CoBorrower } from '@/types';
 
-export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (
+export const additionalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
@@ -41,14 +41,10 @@ export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Вычисляемое: Общий доход созаёмщиков
   // ==========================================
-  computeFrom(
-    [path.coBorrowers],
-    path.coBorrowersIncome,
-    (values) => {
-      const coBorrowers = (values.coBorrowers as CoBorrower[]) || [];
-      return coBorrowers.reduce((sum, cb) => sum + (cb.monthlyIncome || 0), 0);
-    }
-  );
+  computeFrom([path.coBorrowers], path.coBorrowersIncome, (values) => {
+    const coBorrowers = (values.coBorrowers as CoBorrower[]) || [];
+    return coBorrowers.reduce((sum, cb) => sum + (cb.monthlyIncome || 0), 0);
+  });
 
   // Отключить coBorrowersIncome (только для чтения)
   disableWhen(path.coBorrowersIncome, path.coBorrowersIncome, () => true);
@@ -58,16 +54,19 @@ export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Ключевые моменты
 
 **Условные массивы:**
+
 - Массивы скрыты до тех пор пока пользователь не согласится через чекбокс
 - Чище UX - пользователь не видит неактуальные секции
 - Валидация запускается только на видимых массивах
 
 **Вычисление массивов:**
+
 - Отслеживайте весь массив: `computeFrom([path.coBorrowers], ...)`
 - Когда массив изменяется (элементы добавлены/удалены/изменены), сумма пересчитывается
 - Используйте `reduce` для суммирования значений из элементов массива
 
 **Сценарий использования:**
+
 - Пользователь отмечает "У меня есть созаёмщики"
 - Появляется секция массива с кнопкой "Добавить созаёмщика"
 - Пользователь добавляет созаёмщиков
@@ -77,6 +76,7 @@ export const step5AdditionalBehaviors: BehaviorSchemaFn<CreditApplicationForm> =
 ## Результат
 
 Шаг 5 теперь имеет:
+
 - ✅ Условная видимость массивов (имущество, кредиты, созаёмщики)
 - ✅ Расчет дохода созаёмщиков
 - ✅ Чистый UX с прогрессивным раскрытием информации
