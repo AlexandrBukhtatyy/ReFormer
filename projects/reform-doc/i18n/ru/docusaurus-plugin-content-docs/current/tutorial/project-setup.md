@@ -6,10 +6,6 @@ sidebar_position: 1
 
 Настройка проекта для работы с ReFormer.
 
-:::info В разработке
-Этот раздел находится в разработке.
-:::
-
 ## Требования
 
 - Node.js 18+
@@ -149,19 +145,24 @@ export default defineConfig({
 
 #### Инициализируем Shadcn
 
-:::tip Решение ошибки при инициализации shadcn
-Если вы получите ошибку:
-No Tailwind CSS configuration found at D:\Work\ReFormer\projects\reform-tutorial.
-It is likely you do not have Tailwind CSS installed or have an invalid configuration.
-Install Tailwind CSS then try again.
-
-Перезапустите команду
-`npm install tailwindcss @tailwindcss/vite`
-:::
-
 ```bash
 npx shadcn@latest init
 ```
+
+<details>
+  <summary>Ошибка: No Tailwind CSS configuration found</summary>
+
+Если вы получите ошибку:
+
+```bash
+  No Tailwind CSS configuration found at D:\Work\ReFormer\projects\reform-tutorial.
+  It is likely you do not have Tailwind CSS installed or have an invalid configuration.
+  Install Tailwind CSS then try again.
+```
+
+Перезапустите команду: `npm install tailwindcss @tailwindcss/vite`
+
+</details>
 
 #### Добавим первый компонент и проверим работу Shadcn
 
