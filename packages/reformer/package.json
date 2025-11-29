@@ -1,7 +1,7 @@
 {
-  "name": "reformer",
-  "version": "1.0.0",
-  "description": "",
+  "name": "reform",
+  "version": "1.0.0-beta.1",
+  "description": "Reactive form state management library for React with signals-based architecture",
   "main": "dist/index.cjs.js",
   "module": "dist/index.es.js",
   "types": "dist/index.d.ts",
@@ -25,18 +25,45 @@
     "test": "vitest",
     "test:watch": "vitest watch"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "react",
+    "forms",
+    "validation",
+    "state-management",
+    "signals",
+    "reactive"
+  ],
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
   "dependencies": {
-    "@preact/signals-core": "^1.8.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "@preact/signals-core": "^1.8.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/utils": "^4.0.8",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
     "vite-plugin-dts": "^4.5.4",
