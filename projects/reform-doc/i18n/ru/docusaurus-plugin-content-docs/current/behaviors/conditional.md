@@ -6,62 +6,6 @@ sidebar_position: 3
 
 Показ, скрытие, включение или отключение полей на основе условий.
 
-## showWhen
-
-Показывать поле только когда условие истинно.
-
-```typescript
-import { showWhen } from 'reformer/behaviors';
-
-behaviors: (path, ctx) => [
-  showWhen(
-    path.otherIncome,
-    () => form.controls.hasOtherIncome.value === true
-  ),
-]
-```
-
-### Пример: Предпочтения контакта
-
-```typescript
-const form = new GroupNode({
-  form: {
-    contactMethod: { value: 'email' },
-    email: { value: '' },
-    phone: { value: '' },
-  },
-  behaviors: (path, ctx) => [
-    showWhen(path.email, () =>
-      form.controls.contactMethod.value === 'email'
-    ),
-    showWhen(path.phone, () =>
-      form.controls.contactMethod.value === 'phone'
-    ),
-  ],
-});
-```
-
-### Использование в React
-
-```tsx
-function ContactForm() {
-  const email = useFormControl(form.controls.email);
-  const phone = useFormControl(form.controls.phone);
-
-  return (
-    <form>
-      <select {...bindSelect(form.controls.contactMethod)}>
-        <option value="email">Email</option>
-        <option value="phone">Телефон</option>
-      </select>
-
-      {email.visible && <input {...bindInput(email)} />}
-      {phone.visible && <input {...bindInput(phone)} />}
-    </form>
-  );
-}
-```
-
 ## enableWhen
 
 Включать поле только когда условие истинно.
@@ -70,11 +14,8 @@ function ContactForm() {
 import { enableWhen } from 'reformer/behaviors';
 
 behaviors: (path, ctx) => [
-  enableWhen(
-    path.submitButton,
-    () => form.controls.agreeToTerms.value === true
-  ),
-]
+  enableWhen(path.submitButton, () => form.controls.agreeToTerms.value === true),
+];
 ```
 
 ### Пример: Пошаговая форма
@@ -86,9 +27,7 @@ const form = new GroupNode({
     step2Data: { value: '' },
   },
   behaviors: (path, ctx) => [
-    enableWhen(path.step2Data, () =>
-      form.controls.step1Complete.value === true
-    ),
+    enableWhen(path.step2Data, () => form.controls.step1Complete.value === true),
   ],
 });
 ```
@@ -102,12 +41,8 @@ import { resetWhen } from 'reformer/behaviors';
 
 behaviors: (path, ctx) => [
   // Сбросить детали при изменении типа
-  resetWhen(
-    path.typeDetails,
-    () => form.controls.type.value,
-    { watchValue: true }
-  ),
-]
+  resetWhen(path.typeDetails, () => form.controls.type.value, { watchValue: true }),
+];
 ```
 
 ### Пример: Зависимые выпадающие списки
@@ -120,11 +55,7 @@ const form = new GroupNode({
   },
   behaviors: (path, ctx) => [
     // Сбросить город при изменении страны
-    resetWhen(
-      path.city,
-      () => form.controls.country.value,
-      { watchValue: true }
-    ),
+    resetWhen(path.city, () => form.controls.country.value, { watchValue: true }),
   ],
 });
 
@@ -140,33 +71,25 @@ form.controls.country.setValue('US'); // city сбрасывается в ''
 ```typescript
 behaviors: (path, ctx) => [
   // Показать бизнес-поля только для бизнес-аккаунтов
-  showWhen(path.companyName, () =>
-    form.controls.accountType.value === 'business'
-  ),
-  showWhen(path.taxId, () =>
-    form.controls.accountType.value === 'business'
-  ),
+  enableWhen(path.companyName, () => form.controls.accountType.value === 'business'),
+  enableWhen(path.taxId, () => form.controls.accountType.value === 'business'),
 
   // Сбросить бизнес-поля при переключении на личный аккаунт
-  resetWhen(path.companyName, () =>
-    form.controls.accountType.value === 'personal'
-  ),
-  resetWhen(path.taxId, () =>
-    form.controls.accountType.value === 'personal'
-  ),
-]
+  resetWhen(path.companyName, () => form.controls.accountType.value === 'personal'),
+  resetWhen(path.taxId, () => form.controls.accountType.value === 'personal'),
+];
 ```
 
 ## Сложные условия
 
 ```typescript
 behaviors: (path, ctx) => [
-  showWhen(path.spouseInfo, () => {
+  enableWhen(path.spouseInfo, () => {
     const status = form.controls.maritalStatus.value;
     const includeSpouse = form.controls.includeSpouse.value;
     return status === 'married' && includeSpouse === true;
   }),
-]
+];
 ```
 
 ## Следующие шаги

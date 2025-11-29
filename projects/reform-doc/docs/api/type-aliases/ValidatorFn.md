@@ -4,7 +4,9 @@
 type ValidatorFn<T> = (value) => ValidationError | null;
 ```
 
-Defined in: [core/types/index.ts:30](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L30)
+Defined in: [core/types/index.ts:39](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/index.ts#L39)
+
+Синхронная функция валидации
 
 ## Type Parameters
 

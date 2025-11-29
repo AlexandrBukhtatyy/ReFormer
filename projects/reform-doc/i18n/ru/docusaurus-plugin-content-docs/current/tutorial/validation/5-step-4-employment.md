@@ -10,22 +10,22 @@ sidebar_position: 5
 
 Шаг 4 содержит поля, связанные с занятостью, с условными требованиями:
 
-| Поле | Правила валидации |
-|------|------------------|
-| `employmentStatus` | Обязательно |
-| `monthlyIncome` | Обязательно, min 10 000 |
-| `additionalIncome` | Опционально, min 0 |
-| **Для работающих** | |
-| `companyName` | Обязательно при работе |
-| `companyAddress` | Обязательно при работе |
-| `position` | Обязательно при работе |
-| `workExperienceTotal` | Опционально, min 0 |
-| `workExperienceCurrent` | Обязательно при работе, min 3 месяца |
-| **Для самозанятых** | |
-| `businessType` | Обязательно при самозанятости |
-| `businessInn` | Обязательно при самозанятости, 10 или 12 цифр |
-| `businessAddress` | Обязательно при самозанятости |
-| `businessExperience` | Обязательно при самозанятости, min 6 месяцев |
+| Поле                    | Правила валидации                             |
+| ----------------------- | --------------------------------------------- |
+| `employmentStatus`      | Обязательно                                   |
+| `monthlyIncome`         | Обязательно, min 10 000                       |
+| `additionalIncome`      | Опционально, min 0                            |
+| **Для работающих**      |                                               |
+| `companyName`           | Обязательно при работе                        |
+| `companyAddress`        | Обязательно при работе                        |
+| `position`              | Обязательно при работе                        |
+| `workExperienceTotal`   | Опционально, min 0                            |
+| `workExperienceCurrent` | Обязательно при работе, min 3 месяца          |
+| **Для самозанятых**     |                                               |
+| `businessType`          | Обязательно при самозанятости                 |
+| `businessInn`           | Обязательно при самозанятости, 10 или 12 цифр |
+| `businessAddress`       | Обязательно при самозанятости                 |
+| `businessExperience`    | Обязательно при самозанятости, min 6 месяцев  |
 
 ## Создание файла валидатора
 
@@ -91,28 +91,19 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Название компании
-  requiredWhen(
-    path.companyName,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Название компании обязательно' }
-  );
+  requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Название компании обязательно',
+  });
 
   // Адрес компании
-  requiredWhen(
-    path.companyAddress,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Адрес компании обязателен' }
-  );
+  requiredWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Адрес компании обязателен',
+  });
 
   // Должность
-  requiredWhen(
-    path.position,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Должность обязательна' }
-  );
+  requiredWhen(path.position, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Должность обязательна',
+  });
 
   // Стаж работы на текущем месте (минимум 3 месяца)
   requiredWhen(
@@ -122,22 +113,14 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
     { message: 'Стаж работы на текущем месте обязателен' }
   );
 
-  minWhen(
-    path.workExperienceCurrent,
-    3,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Минимум 3 месяца опыта на текущем месте требуется' }
-  );
+  minWhen(path.workExperienceCurrent, 3, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Минимум 3 месяца опыта на текущем месте требуется',
+  });
 
   // Общий стаж работы (опционален, но не может быть отрицательным)
-  minWhen(
-    path.workExperienceTotal,
-    0,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Общий стаж не может быть отрицательным' }
-  );
+  minWhen(path.workExperienceTotal, 0, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Общий стаж не может быть отрицательным',
+  });
 };
 ```
 
@@ -154,20 +137,14 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Тип бизнеса
-  requiredWhen(
-    path.businessType,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Тип бизнеса обязателен' }
-  );
+  requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Тип бизнеса обязателен',
+  });
 
   // ИНН бизнеса (10 или 12 цифр)
-  requiredWhen(
-    path.businessInn,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'ИНН бизнеса обязателен' }
-  );
+  requiredWhen(path.businessInn, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'ИНН бизнеса обязателен',
+  });
 
   // Валидация паттерна только для самозанятых
   // Примечание: Это будет проверено в валидации между шагами с асинхронным валидатором
@@ -176,12 +153,9 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   });
 
   // Адрес бизнеса
-  requiredWhen(
-    path.businessAddress,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Адрес бизнеса обязателен' }
-  );
+  requiredWhen(path.businessAddress, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Адрес бизнеса обязателен',
+  });
 
   // Опыт в бизнесе (минимум 6 месяцев)
   requiredWhen(
@@ -241,26 +215,17 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // Условно: Поля работающих
   // ==========================================
 
-  requiredWhen(
-    path.companyName,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Название компании обязательно' }
-  );
+  requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Название компании обязательно',
+  });
 
-  requiredWhen(
-    path.companyAddress,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Адрес компании обязателен' }
-  );
+  requiredWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Адрес компании обязателен',
+  });
 
-  requiredWhen(
-    path.position,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Должность обязательна' }
-  );
+  requiredWhen(path.position, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Должность обязательна',
+  });
 
   requiredWhen(
     path.workExperienceCurrent,
@@ -269,50 +234,33 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
     { message: 'Стаж работы на текущем месте обязателен' }
   );
 
-  minWhen(
-    path.workExperienceCurrent,
-    3,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Минимум 3 месяца опыта на текущем месте требуется' }
-  );
+  minWhen(path.workExperienceCurrent, 3, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Минимум 3 месяца опыта на текущем месте требуется',
+  });
 
-  minWhen(
-    path.workExperienceTotal,
-    0,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Общий стаж не может быть отрицательным' }
-  );
+  minWhen(path.workExperienceTotal, 0, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Общий стаж не может быть отрицательным',
+  });
 
   // ==========================================
   // Условно: Поля самозанятых
   // ==========================================
 
-  requiredWhen(
-    path.businessType,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Тип бизнеса обязателен' }
-  );
+  requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Тип бизнеса обязателен',
+  });
 
-  requiredWhen(
-    path.businessInn,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'ИНН бизнеса обязателен' }
-  );
+  requiredWhen(path.businessInn, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'ИНН бизнеса обязателен',
+  });
 
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'ИНН бизнеса должен быть 10 или 12 цифр',
   });
 
-  requiredWhen(
-    path.businessAddress,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Адрес бизнеса обязателен' }
-  );
+  requiredWhen(path.businessAddress, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Адрес бизнеса обязателен',
+  });
 
   requiredWhen(
     path.businessExperience,
@@ -349,20 +297,14 @@ min(path.monthlyIncome, 10000, { message: 'Минимальный ежемеся
 
 ```typescript
 // Требуется только при работе
-requiredWhen(
-  path.companyName,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Название компании обязательно' }
-);
+requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Название компании обязательно',
+});
 
 // Требуется только при самозанятости
-requiredWhen(
-  path.businessType,
-  path.employmentStatus,
-  (status) => status === 'selfEmployed',
-  { message: 'Тип бизнеса обязателен' }
-);
+requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
+  message: 'Тип бизнеса обязателен',
+});
 ```
 
 ### Условные валидаторы min
@@ -372,9 +314,9 @@ requiredWhen(
 ```typescript
 minWhen(
   path.workExperienceCurrent,
-  3,  // Минимальное значение
-  path.employmentStatus,  // Зависимость
-  (status) => status === 'employed',  // Условие
+  3, // Минимальное значение
+  path.employmentStatus, // Зависимость
+  (status) => status === 'employed', // Условие
   { message: 'Минимум 3 месяца опыта на текущем месте требуется' }
 );
 ```
@@ -385,16 +327,13 @@ minWhen(
 
 ```typescript
 // Behavior: Показывать поля компании только при работе
-showWhen(path.companyName, path.employmentStatus, (status) => status === 'employed');
-showWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
+enableWhen(path.companyName, path.employmentStatus, (status) => status === 'employed');
+enableWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
 
 // Валидация: Требовать поля компании только при работе
-requiredWhen(
-  path.companyName,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Название компании обязательно' }
-);
+requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Название компании обязательно',
+});
 ```
 
 Идеальное выравнивание! Поля скрываются/показываются и требуются/опциональны в синхронизации.
@@ -404,6 +343,7 @@ requiredWhen(
 Протестируйте эти сценарии:
 
 ### Базовые поля (все статусы)
+
 - [ ] Оставьте статус занятости пусто → Ошибка показана
 - [ ] Оставьте ежемесячный доход пусто → Ошибка показана
 - [ ] Введите ежемесячный доход < 10 000 → Ошибка показана
@@ -412,6 +352,7 @@ requiredWhen(
 - [ ] Оставьте дополнительный доход пусто → Ошибки нет (опционально)
 
 ### Статус работающих
+
 - [ ] Выберите "работающих" → Поля компании становятся требуемыми
 - [ ] Оставьте название компании пусто → Ошибка показана
 - [ ] Оставьте адрес компании пусто → Ошибка показана
@@ -421,6 +362,7 @@ requiredWhen(
 - [ ] Введите стаж >= 3 месяцев → Ошибки нет
 
 ### Статус самозанятых
+
 - [ ] Выберите "самозанятых" → Поля бизнеса становятся требуемыми
 - [ ] Оставьте тип бизнеса пусто → Ошибка показана
 - [ ] Оставьте ИНН бизнеса пусто → Ошибка показана
@@ -433,12 +375,14 @@ requiredWhen(
 - [ ] Введите опыт бизнеса >= 6 месяцев → Ошибки нет
 
 ### Статус без работы/другой
+
 - [ ] Выберите "без работы" → Только базовые поля требуются
 - [ ] Поля компании не требуются
 - [ ] Поля бизнеса не требуются
 - [ ] Ежемесячный доход все ещё требуется
 
 ### Переключение статуса занятости
+
 - [ ] Заполните поля работающих → Переключитесь на "самозанятых" → Ошибки работающих исчезают
 - [ ] Заполните поля бизнеса → Переключитесь на "работающих" → Ошибки бизнеса исчезают
 - [ ] Переключитесь на "без работы" → Все условные ошибки исчезают
@@ -449,11 +393,11 @@ requiredWhen(
 
 ```typescript
 type EmploymentStatus =
-  | 'employed'       // Полная занятость
-  | 'selfEmployed'   // Самозанятый / предприниматель
-  | 'unemployed'     // Без работы
-  | 'retired'        // На пенсии
-  | 'student';       // Студент
+  | 'employed' // Полная занятость
+  | 'selfEmployed' // Самозанятый / предприниматель
+  | 'unemployed' // Без работы
+  | 'retired' // На пенсии
+  | 'student'; // Студент
 ```
 
 Каждый статус может иметь различные требования валидации.
@@ -469,27 +413,23 @@ type EmploymentStatus =
 ## Распространённые паттерны
 
 ### Требуется для определённого статуса
+
 ```typescript
-requiredWhen(
-  path.field,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Поле требуется' }
-);
+requiredWhen(path.field, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Поле требуется',
+});
 ```
 
 ### Минимум когда статус совпадает
+
 ```typescript
-minWhen(
-  path.field,
-  minimumValue,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Минимальное значение не достигнуто' }
-);
+minWhen(path.field, minimumValue, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Минимальное значение не достигнуто',
+});
 ```
 
 ### Неотрицательное опциональное поле
+
 ```typescript
 // Нет required(), просто min(0) чтобы предотвратить отрицательные значения
 min(path.additionalIncome, 0, {
@@ -500,6 +440,7 @@ min(path.additionalIncome, 0, {
 ## Что дальше?
 
 В следующем разделе мы добавим валидацию для **Шага 5: Дополнительная информация**, включая:
+
 - Валидация массивов (имущество, существующие кредиты, созаёмщики)
 - Ограничения длины массива (min/max)
 - Валидация отдельных элементов массива

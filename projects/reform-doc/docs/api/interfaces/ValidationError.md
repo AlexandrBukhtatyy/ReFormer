@@ -1,6 +1,8 @@
 # ValidationError
 
-Defined in: [core/types/index.ts:33](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L33)
+Defined in: [core/types/index.ts:53](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/index.ts#L53)
+
+Ошибка валидации
 
 ## Properties
 
@@ -10,7 +12,7 @@ Defined in: [core/types/index.ts:33](https://github.com/AlexandrBukhtatyy/ReForm
 code: string;
 ```
 
-Defined in: [core/types/index.ts:34](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L34)
+Defined in: [core/types/index.ts:54](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/index.ts#L54)
 
 ***
 
@@ -20,7 +22,7 @@ Defined in: [core/types/index.ts:34](https://github.com/AlexandrBukhtatyy/ReForm
 message: string;
 ```
 
-Defined in: [core/types/index.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L35)
+Defined in: [core/types/index.ts:55](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/index.ts#L55)
 
 ***
 
@@ -30,7 +32,7 @@ Defined in: [core/types/index.ts:35](https://github.com/AlexandrBukhtatyy/ReForm
 optional params: FormFields;
 ```
 
-Defined in: [core/types/index.ts:36](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L36)
+Defined in: [core/types/index.ts:56](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/index.ts#L56)
 
 ***
 
@@ -40,6 +42,6 @@ Defined in: [core/types/index.ts:36](https://github.com/AlexandrBukhtatyy/ReForm
 optional severity: "error" | "warning";
 ```
 
-Defined in: [core/types/index.ts:38](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/index.ts#L38)
+Defined in: [core/types/index.ts:58](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/index.ts#L58)
 
 Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission

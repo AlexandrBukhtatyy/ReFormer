@@ -32,7 +32,7 @@ touch reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.t
 Начнём с импорта необходимых функций и типов:
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, showWhen, watch } from 'reformer/behaviors';
+import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
@@ -177,8 +177,8 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
   // ==========================================
   // Условная видимость: Поля ипотеки
   // ==========================================
-  showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
-  showWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
 
   // ... ещё behaviors
 };
@@ -186,7 +186,7 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 **Как это работает:**
 
-- `showWhen` отслеживает поле `loanType`
+- `enableWhen` отслеживает поле `loanType`
 - Когда `loanType === 'mortgage'`, поля показываются
 - Когда `loanType` меняется на другое значение, поля скрываются
 - Скрытые поля не валидируются и не включаются в отправку формы
@@ -202,10 +202,10 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
   // ==========================================
   // Условная видимость: Поля автокредита
   // ==========================================
-  showWhen(path.carBrand, path.loanType, (value) => value === 'car');
-  showWhen(path.carModel, path.loanType, (value) => value === 'car');
-  showWhen(path.carYear, path.loanType, (value) => value === 'car');
-  showWhen(path.carPrice, path.loanType, (value) => value === 'car');
+  enableWhen(path.carBrand, path.loanType, (value) => value === 'car');
+  enableWhen(path.carModel, path.loanType, (value) => value === 'car');
+  enableWhen(path.carYear, path.loanType, (value) => value === 'car');
+  enableWhen(path.carPrice, path.loanType, (value) => value === 'car');
 
   // ... ещё behaviors
 };
@@ -258,7 +258,7 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
 Вот полный файл behavior для Шага 1:
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, showWhen, watch } from 'reformer/behaviors';
+import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
@@ -321,16 +321,16 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Условная видимость: Поля ипотеки
   // ==========================================
-  showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
-  showWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
 
   // ==========================================
   // Условная видимость: Поля автокредита
   // ==========================================
-  showWhen(path.carBrand, path.loanType, (value) => value === 'car');
-  showWhen(path.carModel, path.loanType, (value) => value === 'car');
-  showWhen(path.carYear, path.loanType, (value) => value === 'car');
-  showWhen(path.carPrice, path.loanType, (value) => value === 'car');
+  enableWhen(path.carBrand, path.loanType, (value) => value === 'car');
+  enableWhen(path.carModel, path.loanType, (value) => value === 'car');
+  enableWhen(path.carYear, path.loanType, (value) => value === 'car');
+  enableWhen(path.carPrice, path.loanType, (value) => value === 'car');
 
   // ==========================================
   // Watch: Сброс полей
@@ -408,7 +408,7 @@ export function createCreditApplicationForm() {
 ## Ключевые выводы
 
 - `computeFrom` автоматически обрабатывает цепочки вычисляемых полей
-- `showWhen` обеспечивает чистую условную видимость
+- `enableWhen` обеспечивает чистую условную видимость
 - `watch` предназначен для побочных эффектов, а не для производных значений
 - Используйте `{ emitEvent: false }` при программной очистке полей
 - Behaviors устраняют необходимость в ручном управлении подписками

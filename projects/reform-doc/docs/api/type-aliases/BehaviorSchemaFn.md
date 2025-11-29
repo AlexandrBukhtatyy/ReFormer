@@ -4,7 +4,7 @@
 type BehaviorSchemaFn<T> = (path) => void;
 ```
 
-Defined in: [core/behavior/types.ts:13](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/behavior/types.ts#L13)
+Defined in: [core/behavior/types.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/behavior/types.ts#L19)
 
 Тип функции behavior схемы
 Принимает FieldPath и описывает поведение формы

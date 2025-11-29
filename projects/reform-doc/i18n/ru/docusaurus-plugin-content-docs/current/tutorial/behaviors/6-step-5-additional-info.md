@@ -16,7 +16,7 @@ sidebar_position: 6
 ## Реализация
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/additional-info.ts"
-import { showWhen, computeFrom, disableWhen } from 'reformer/behaviors';
+import { enableWhen, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, CoBorrower } from '@/types';
 
@@ -26,17 +26,17 @@ export const additionalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Показать массив имущества когда hasProperty === true
   // ==========================================
-  showWhen(path.properties, path.hasProperty, (value) => value === true);
+  enableWhen(path.properties, path.hasProperty, (value) => value === true);
 
   // ==========================================
   // Показать массив существующих кредитов когда hasExistingLoans === true
   // ==========================================
-  showWhen(path.existingLoans, path.hasExistingLoans, (value) => value === true);
+  enableWhen(path.existingLoans, path.hasExistingLoans, (value) => value === true);
 
   // ==========================================
   // Показать массив созаёмщиков когда hasCoBorrower === true
   // ==========================================
-  showWhen(path.coBorrowers, path.hasCoBorrower, (value) => value === true);
+  enableWhen(path.coBorrowers, path.hasCoBorrower, (value) => value === true);
 
   // ==========================================
   // Вычисляемое: Общий доход созаёмщиков

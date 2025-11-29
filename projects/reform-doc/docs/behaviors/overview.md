@@ -24,11 +24,7 @@ const form = new GroupNode({
   },
   behavior: (path) => {
     // Auto-compute total
-    computeFrom(
-      [path.price, path.quantity],
-      path.total,
-      ({ price, quantity }) => price * quantity
-    );
+    computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
 
     // Enable discount field conditionally
     enableWhen(path.discount, (form) => form.total > 500);
@@ -38,17 +34,16 @@ const form = new GroupNode({
 
 ## Available Behaviors
 
-| Behavior | Description |
-|----------|-------------|
-| [`computeFrom`](/docs/behaviors/computed#computefrom) | Calculate field from other fields |
-| [`transformValue`](/docs/behaviors/computed#transformvalue) | Transform value on change |
-| [`showWhen`](/docs/behaviors/conditional#showwhen) | Conditional visibility |
-| [`enableWhen`](/docs/behaviors/conditional#enablewhen) | Conditional enable/disable |
-| [`resetWhen`](/docs/behaviors/conditional#resetwhen) | Reset field on condition |
-| [`copyFrom`](/docs/behaviors/sync#copyfrom) | Copy value from another field |
-| [`syncFields`](/docs/behaviors/sync#syncfields) | Two-way synchronization |
-| [`watchField`](/docs/behaviors/watch#watchfield) | React to field changes |
-| [`revalidateWhen`](/docs/behaviors/watch#revalidatewhen) | Trigger revalidation |
+| Behavior                                                    | Description                       |
+| ----------------------------------------------------------- | --------------------------------- |
+| [`computeFrom`](/docs/behaviors/computed#computefrom)       | Calculate field from other fields |
+| [`transformValue`](/docs/behaviors/computed#transformvalue) | Transform value on change         |
+| [`enableWhen`](/docs/behaviors/conditional#enablewhen)      | Conditional enable/disable        |
+| [`resetWhen`](/docs/behaviors/conditional#resetwhen)        | Reset field on condition          |
+| [`copyFrom`](/docs/behaviors/sync#copyfrom)                 | Copy value from another field     |
+| [`syncFields`](/docs/behaviors/sync#syncfields)             | Two-way synchronization           |
+| [`watchField`](/docs/behaviors/watch#watchfield)            | React to field changes            |
+| [`revalidateWhen`](/docs/behaviors/watch#revalidatewhen)    | Trigger revalidation              |
 
 ## How Behaviors Work
 
@@ -59,22 +54,22 @@ const form = new GroupNode({
 ```typescript
 // When price or quantity changes → total updates
 computeFrom(
-  [path.price, path.quantity],  // Watch these
-  path.total,                    // Update this
-  ({ price, quantity }) => price * quantity  // With this function
+  [path.price, path.quantity], // Watch these
+  path.total, // Update this
+  ({ price, quantity }) => price * quantity // With this function
 );
 ```
 
 ## Behavior vs Validation
 
-| Aspect | Validation | Behavior |
-|--------|------------|----------|
-| Purpose | Check correctness | React to changes |
-| Output | Errors | Side effects |
+| Aspect   | Validation             | Behavior                  |
+| -------- | ---------------------- | ------------------------- |
+| Purpose  | Check correctness      | React to changes          |
+| Output   | Errors                 | Side effects              |
 | Examples | Required, email format | Computed total, show/hide |
 
 ## Next Steps
 
 - [Computed Fields](/docs/behaviors/computed) — `computeFrom`, `transformValue`
-- [Conditional Logic](/docs/behaviors/conditional) — `showWhen`, `enableWhen`, `resetWhen`
+- [Conditional Logic](/docs/behaviors/conditional) — `enableWhen`, `resetWhen`
 - [Field Sync](/docs/behaviors/sync) — `copyFrom`, `syncFields`

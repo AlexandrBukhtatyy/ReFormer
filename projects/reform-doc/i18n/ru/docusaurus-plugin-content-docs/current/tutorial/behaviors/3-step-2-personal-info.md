@@ -8,7 +8,7 @@ sidebar_position: 3
 
 ## Обзор
 
-Для Шага 2 (Личные данные) нам нужны более простые behaviors, которые получают значения из группы `personalData`:
+Для Шага 2 (Личные данные) нам нужны behaviors, которые работают с полями из группы `personalData`:
 
 1. **Вычисляемое: Полное имя** - Генерирование из имени, фамилии и отчества (формат ФИО)
 2. **Вычисляемое: Возраст** - Расчет из даты рождения
@@ -33,24 +33,25 @@ touch reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-in
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
-import type { CreditApplicationForm, PersonalData } from '@/types';
+import type { CreditApplicationForm } from '../../types/credit-application.types';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
-  // Вычисляемое: Полное имя (ФИО)
+  // 1. Вычисляемое поле: Полное имя (ФИО)
+  // Подписываемся только на поля, от которых зависит ФИО
   // ==========================================
-  computeFrom([path.personalData], path.fullName, (values) => {
-    const pd = values.personalData as PersonalData;
-    if (!pd) return '';
-
-    // Формат: Фамилия Имя Отчество
-    // Фильтруем пустые значения
-    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
-
-    return parts.join(' ');
-  });
+  computeFrom<any, string>(
+    [path.personalData.lastName, path.personalData.firstName, path.personalData.middleName],
+    path.fullName,
+    (values: { lastName: string; firstName: string; middleName: string }) => {
+      // Формат: Фамилия Имя Отчество
+      // Фильтруем пустые значения
+      const parts = [values.lastName, values.firstName, values.middleName].filter(Boolean);
+      return parts.join(' ');
+    }
+  );
 
   // ... ещё behaviors
 };
@@ -58,23 +59,24 @@ export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 
 **Как это работает:**
 
-- Мы отслеживаем всю группу `personalData` (а не отдельные поля)
-- Когда любое поле в `personalData` изменяется, полное имя обновляется
+- Мы подписываемся только на конкретные поля (`lastName`, `firstName`, `middleName`)
+- Когда любое из этих полей изменяется, полное имя пересчитывается
+- Объект `values` содержит текущие значения всех отслеживаемых полей
 - Пустые значения фильтруются (например, если отчество опционально)
 - Результат - это чистое, правильно отформатированное полное имя
 
-:::tip Отслеживание групп
-Вы можете отслеживать целые группы вместо отдельных полей:
+:::tip Точечная подписка vs группа
+Рекомендуется подписываться на конкретные поля для оптимизации:
 
 ```typescript
-// ✅ Отслеживаем всю группу
-computeFrom([path.personalData], ...)
-
-// ❌ Отслеживаем отдельные поля (более подробный код)
+// ✅ Подписываемся только на нужные поля (рекомендуется)
 computeFrom([path.personalData.firstName, path.personalData.lastName, ...], ...)
+
+// ⚠️ Подписка на группу - менее оптимально
+computeFrom([path.personalData], ...)
 ```
 
-Оба варианта работают, но отслеживание групп проще, когда нужны все поля.
+Точечная подписка обеспечивает пересчёт только при изменении релевантных полей.
 :::
 
 ### 2. Расчет возраста
@@ -86,26 +88,28 @@ export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   // ... предыдущие behaviors
 
   // ==========================================
-  // Вычисляемое: Возраст
+  // 2. Вычисляемое поле: Возраст
+  // Подписываемся только на дату рождения
   // ==========================================
-  computeFrom([path.personalData], path.age, (values) => {
-    const birthDate = (values.personalData as PersonalData)?.birthDate;
-    if (!birthDate) return null;
+  computeFrom<any, number | null>(
+    [path.personalData.birthDate],
+    path.age,
+    (values: { birthDate: string }) => {
+      const birthDate = values.birthDate;
+      if (!birthDate) return null;
 
-    const today = new Date();
-    const birth = new Date(birthDate);
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
 
-    // Рассчитываем разницу в годах
-    let age = today.getFullYear() - birth.getFullYear();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
 
-    // Корректируем если день рождения не наступил в этом году
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+      return age;
     }
-
-    return age;
-  });
+  );
 
   // ... ещё behaviors
 };
@@ -124,7 +128,8 @@ export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 2. Если день рождения ещё не наступил в этом году, вычитаем 1
    - Проверка месяца: Текущий месяц < месяц рождения → день рождения ещё не наступил
    - Проверка дня: Одинаковый месяц, но текущий день < день рождения → день рождения ещё не наступил
-     :::
+
+:::
 
 ### 3. Сделать вычисляемые поля только для чтения
 
@@ -135,20 +140,19 @@ export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   // ... предыдущие behaviors
 
   // ==========================================
-  // Отключить вычисляемые поля (всегда только для чтения)
+  // 3. Отключить вычисляемые поля (только для чтения)
   // ==========================================
-  disableWhen(path.fullName, path.fullName, () => true);
-  disableWhen(path.age, path.age, () => true);
+  disableWhen(path.fullName, () => true);
+  disableWhen(path.age, () => true);
 };
 ```
 
-**Зачем `disableWhen(path.fullName, path.fullName, () => true)`?**
+**Сигнатура `disableWhen(target, condition)`:**
 
 - Первый аргумент: поле для отключения
-- Второй аргумент: поле для отслеживания (отслеживаем само себя)
-- Третий аргумент: условие (всегда `true` означает всегда отключено)
+- Второй аргумент: функция условия (возвращает `true` → поле отключено)
 
-Этот паттерн гарантирует, что поле всегда будет отключено, независимо от состояния формы.
+Условие `() => true` означает, что поле всегда будет отключено, независимо от состояния формы.
 
 :::tip Альтернатива: отключение на уровне схемы
 Вы также можете отключить поля в схеме:
@@ -174,66 +178,86 @@ fullName: {
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
 import { computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
-import type { CreditApplicationForm, PersonalData } from '@/types';
+import type { CreditApplicationForm } from '../../types/credit-application.types';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
-  // Вычисляемое: Полное имя (ФИО)
+  // 1. Вычисляемое поле: Полное имя (ФИО)
+  // Подписываемся только на поля, от которых зависит ФИО
   // ==========================================
-  computeFrom([path.personalData], path.fullName, (values) => {
-    const pd = values.personalData as PersonalData;
-    if (!pd) return '';
-
-    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(Boolean);
-    return parts.join(' ');
-  });
-
-  // ==========================================
-  // Вычисляемое: Возраст
-  // ==========================================
-  computeFrom([path.personalData], path.age, (values) => {
-    const birthDate = (values.personalData as PersonalData)?.birthDate;
-    if (!birthDate) return null;
-
-    const today = new Date();
-    const birth = new Date(birthDate);
-
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  computeFrom<any, string>(
+    [path.personalData.lastName, path.personalData.firstName, path.personalData.middleName],
+    path.fullName,
+    (values: { lastName: string; firstName: string; middleName: string }) => {
+      const parts = [values.lastName, values.firstName, values.middleName].filter(Boolean);
+      return parts.join(' ');
     }
-
-    return age;
-  });
+  );
 
   // ==========================================
-  // Отключить вычисляемые поля
+  // 2. Вычисляемое поле: Возраст
+  // Подписываемся только на дату рождения
   // ==========================================
-  disableWhen(path.fullName, path.fullName, () => true);
-  disableWhen(path.age, path.age, () => true);
+  computeFrom<any, number | null>(
+    [path.personalData.birthDate],
+    path.age,
+    (values: { birthDate: string }) => {
+      const birthDate = values.birthDate;
+      if (!birthDate) return null;
+
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+
+      return age;
+    }
+  );
+
+  // ==========================================
+  // 3. Отключить вычисляемые поля (только для чтения)
+  // ==========================================
+  disableWhen(path.fullName, () => true);
+  disableWhen(path.age, () => true);
 };
 ```
 
 ## Тестирование Behaviors
 
-Добавьте behaviors Шага 2 в вашу форму временно:
+Добавьте behaviors Шага 2 в вашу форму. В файле `credit-application.behaviors.ts` импортируйте и вызовите схему:
 
-```typescript title="src/schemas/create-form.ts"
-import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
-import { personalBehaviorSchema } from '../behaviors/steps/step-2-personal-info.behaviors';
+```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts"
+import { loanBehaviorSchema } from './loan-info';
+import { personalBehaviorSchema } from './personal-info';
+import type { BehaviorSchemaFn } from 'reformer';
+import type { CreditApplicationForm } from '../../types/credit-application.types';
 
-export function createCreditApplicationForm() {
-  return createForm({
-    schema: creditApplicationSchema,
-    behaviors: (path) => {
-      loanBehaviorSchema(path);
-      personalBehaviorSchema(path); // ← Добавляем Шаг 2
-    },
+export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+  loanBehaviorSchema(path);
+  personalBehaviorSchema(path); // ← Добавляем Шаг 2
+};
+```
+
+Затем используйте в создании формы:
+
+```typescript title="reform-tutorial/src/forms/credit-application/createCreditApplicationForm.ts"
+import { createForm } from 'reformer';
+import { creditApplicationSchema } from './schemas/credit-application';
+import { creditApplicationBehaviors } from './schemas/behaviors/credit-application.behaviors';
+import type { CreditApplicationForm } from './types/credit-application.types';
+
+export const createCreditApplicationForm = () => {
+  return createForm<CreditApplicationForm>({
+    form: creditApplicationSchema,
+    behavior: creditApplicationBehaviors,
   });
-}
+};
 ```
 
 ### Сценарии тестирования
@@ -260,7 +284,7 @@ export function createCreditApplicationForm() {
 
 Эти вычисляемые поля могут быть отображены в любой части вашей формы. Например, вы можете показать их в резюме:
 
-```tsx title="src/components/ApplicantSummary.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/components/ApplicantSummary.tsx"
 import { useFormControl } from 'reformer';
 
 function ApplicantSummary({ control }: Props) {
@@ -287,7 +311,7 @@ function ApplicantSummary({ control }: Props) {
 
 Или как поля только для чтения в форме:
 
-```tsx title="src/steps/PersonalInfoStep.tsx"
+```tsx title="reform-tutorial/src/forms/credit-application/steps/PersonalInfoForm.tsx"
 <FormField control={control.personalData.firstName} />
 <FormField control={control.personalData.lastName} />
 <FormField control={control.personalData.middleName} />
@@ -317,9 +341,9 @@ function ApplicantSummary({ control }: Props) {
 
 ## Ключевые выводы
 
-- Отслеживайте целые группы, когда нужны все поля: `computeFrom([path.personalData], ...)`
+- Подписывайтесь на конкретные поля для оптимизации: `computeFrom([path.personalData.firstName, ...], ...)`
 - Обрабатывайте граничные случаи в расчетах дат (дни рождения, которые ещё не наступили)
-- Используйте `disableWhen(..., ..., () => true)` для всегда отключённых полей
+- Используйте `disableWhen(target, () => true)` для всегда отключённых полей
 - Вычисляемые поля могут быть отображены в любой части формы
 - Централизуйте behaviors для удобства поддержки
 

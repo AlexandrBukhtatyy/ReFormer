@@ -16,7 +16,7 @@ Step 5 handles optional arrays that appear based on checkboxes:
 ## Implementation
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/additional-info.ts"
-import { showWhen, computeFrom, disableWhen } from 'reformer/behaviors';
+import { enableWhen, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, CoBorrower } from '@/types';
 
@@ -26,17 +26,17 @@ export const additionalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Show Properties Array When hasProperty === true
   // ==========================================
-  showWhen(path.properties, path.hasProperty, (value) => value === true);
+  enableWhen(path.properties, path.hasProperty, (value) => value === true);
 
   // ==========================================
   // Show Existing Loans Array When hasExistingLoans === true
   // ==========================================
-  showWhen(path.existingLoans, path.hasExistingLoans, (value) => value === true);
+  enableWhen(path.existingLoans, path.hasExistingLoans, (value) => value === true);
 
   // ==========================================
   // Show Co-Borrowers Array When hasCoBorrower === true
   // ==========================================
-  showWhen(path.coBorrowers, path.hasCoBorrower, (value) => value === true);
+  enableWhen(path.coBorrowers, path.hasCoBorrower, (value) => value === true);
 
   // ==========================================
   // Computed: Total Co-Borrowers Income

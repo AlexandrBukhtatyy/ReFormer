@@ -10,22 +10,22 @@ Validating employment and income fields with conditional rules based on employme
 
 Step 4 contains employment-related fields with conditional requirements:
 
-| Field | Validation Rules |
-|-------|------------------|
-| `employmentStatus` | Required |
-| `monthlyIncome` | Required, min 10,000 |
-| `additionalIncome` | Optional, min 0 |
-| **For Employed** | |
-| `companyName` | Required when employed |
-| `companyAddress` | Required when employed |
-| `position` | Required when employed |
-| `workExperienceTotal` | Optional, min 0 |
-| `workExperienceCurrent` | Required when employed, min 3 months |
-| **For Self-Employed** | |
-| `businessType` | Required when self-employed |
-| `businessInn` | Required when self-employed, 10 or 12 digits |
-| `businessAddress` | Required when self-employed |
-| `businessExperience` | Required when self-employed, min 6 months |
+| Field                   | Validation Rules                             |
+| ----------------------- | -------------------------------------------- |
+| `employmentStatus`      | Required                                     |
+| `monthlyIncome`         | Required, min 10,000                         |
+| `additionalIncome`      | Optional, min 0                              |
+| **For Employed**        |                                              |
+| `companyName`           | Required when employed                       |
+| `companyAddress`        | Required when employed                       |
+| `position`              | Required when employed                       |
+| `workExperienceTotal`   | Optional, min 0                              |
+| `workExperienceCurrent` | Required when employed, min 3 months         |
+| **For Self-Employed**   |                                              |
+| `businessType`          | Required when self-employed                  |
+| `businessInn`           | Required when self-employed, 10 or 12 digits |
+| `businessAddress`       | Required when self-employed                  |
+| `businessExperience`    | Required when self-employed, min 6 months    |
 
 ## Creating the Validator File
 
@@ -91,28 +91,19 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Company name
-  requiredWhen(
-    path.companyName,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Company name is required' }
-  );
+  requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Company name is required',
+  });
 
   // Company address
-  requiredWhen(
-    path.companyAddress,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Company address is required' }
-  );
+  requiredWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Company address is required',
+  });
 
   // Position
-  requiredWhen(
-    path.position,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Position is required' }
-  );
+  requiredWhen(path.position, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Position is required',
+  });
 
   // Current work experience (minimum 3 months at current job)
   requiredWhen(
@@ -122,22 +113,14 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
     { message: 'Work experience at current job is required' }
   );
 
-  minWhen(
-    path.workExperienceCurrent,
-    3,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Minimum 3 months of experience at current job required' }
-  );
+  minWhen(path.workExperienceCurrent, 3, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Minimum 3 months of experience at current job required',
+  });
 
   // Total work experience (optional, but must be non-negative)
-  minWhen(
-    path.workExperienceTotal,
-    0,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Total work experience cannot be negative' }
-  );
+  minWhen(path.workExperienceTotal, 0, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Total work experience cannot be negative',
+  });
 };
 ```
 
@@ -154,20 +137,14 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Business type
-  requiredWhen(
-    path.businessType,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business type is required' }
-  );
+  requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Business type is required',
+  });
 
   // Business INN (10 or 12 digits)
-  requiredWhen(
-    path.businessInn,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business INN is required' }
-  );
+  requiredWhen(path.businessInn, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Business INN is required',
+  });
 
   // Pattern validation only when self-employed
   // Note: This will be checked in cross-step validation with async validator
@@ -176,12 +153,9 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   });
 
   // Business address
-  requiredWhen(
-    path.businessAddress,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business address is required' }
-  );
+  requiredWhen(path.businessAddress, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Business address is required',
+  });
 
   // Business experience (minimum 6 months)
   requiredWhen(
@@ -241,26 +215,17 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // Conditional: Employed Fields
   // ==========================================
 
-  requiredWhen(
-    path.companyName,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Company name is required' }
-  );
+  requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Company name is required',
+  });
 
-  requiredWhen(
-    path.companyAddress,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Company address is required' }
-  );
+  requiredWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Company address is required',
+  });
 
-  requiredWhen(
-    path.position,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Position is required' }
-  );
+  requiredWhen(path.position, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Position is required',
+  });
 
   requiredWhen(
     path.workExperienceCurrent,
@@ -269,50 +234,33 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
     { message: 'Work experience at current job is required' }
   );
 
-  minWhen(
-    path.workExperienceCurrent,
-    3,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Minimum 3 months of experience at current job required' }
-  );
+  minWhen(path.workExperienceCurrent, 3, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Minimum 3 months of experience at current job required',
+  });
 
-  minWhen(
-    path.workExperienceTotal,
-    0,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Total work experience cannot be negative' }
-  );
+  minWhen(path.workExperienceTotal, 0, path.employmentStatus, (status) => status === 'employed', {
+    message: 'Total work experience cannot be negative',
+  });
 
   // ==========================================
   // Conditional: Self-Employed Fields
   // ==========================================
 
-  requiredWhen(
-    path.businessType,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business type is required' }
-  );
+  requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Business type is required',
+  });
 
-  requiredWhen(
-    path.businessInn,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business INN is required' }
-  );
+  requiredWhen(path.businessInn, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Business INN is required',
+  });
 
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
   });
 
-  requiredWhen(
-    path.businessAddress,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business address is required' }
-  );
+  requiredWhen(path.businessAddress, path.employmentStatus, (status) => status === 'selfEmployed', {
+    message: 'Business address is required',
+  });
 
   requiredWhen(
     path.businessExperience,
@@ -349,20 +297,14 @@ These fields are only required for specific employment statuses:
 
 ```typescript
 // Required only when employed
-requiredWhen(
-  path.companyName,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Company name is required' }
-);
+requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Company name is required',
+});
 
 // Required only when self-employed
-requiredWhen(
-  path.businessType,
-  path.employmentStatus,
-  (status) => status === 'selfEmployed',
-  { message: 'Business type is required' }
-);
+requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
+  message: 'Business type is required',
+});
 ```
 
 ### Conditional Min Validators
@@ -372,9 +314,9 @@ Minimum values that only apply under certain conditions:
 ```typescript
 minWhen(
   path.workExperienceCurrent,
-  3,  // Minimum value
-  path.employmentStatus,  // Dependency
-  (status) => status === 'employed',  // Condition
+  3, // Minimum value
+  path.employmentStatus, // Dependency
+  (status) => status === 'employed', // Condition
   { message: 'Minimum 3 months of experience at current job required' }
 );
 ```
@@ -385,16 +327,13 @@ From the Behaviors section, we have:
 
 ```typescript
 // Behavior: Show company fields only when employed
-showWhen(path.companyName, path.employmentStatus, (status) => status === 'employed');
-showWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
+enableWhen(path.companyName, path.employmentStatus, (status) => status === 'employed');
+enableWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
 
 // Validation: Require company fields only when employed
-requiredWhen(
-  path.companyName,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Company name is required' }
-);
+requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Company name is required',
+});
 ```
 
 Perfect alignment! Fields are hidden/shown and required/optional in sync.
@@ -404,6 +343,7 @@ Perfect alignment! Fields are hidden/shown and required/optional in sync.
 Test these scenarios:
 
 ### Basic Fields (All Statuses)
+
 - [ ] Leave employment status empty → Error shown
 - [ ] Leave monthly income empty → Error shown
 - [ ] Enter monthly income < 10,000 → Error shown
@@ -412,6 +352,7 @@ Test these scenarios:
 - [ ] Leave additional income empty → No error (optional)
 
 ### Employed Status
+
 - [ ] Select "employed" → Company fields become required
 - [ ] Leave company name empty → Error shown
 - [ ] Leave company address empty → Error shown
@@ -421,6 +362,7 @@ Test these scenarios:
 - [ ] Enter work experience >= 3 months → No error
 
 ### Self-Employed Status
+
 - [ ] Select "self-employed" → Business fields become required
 - [ ] Leave business type empty → Error shown
 - [ ] Leave business INN empty → Error shown
@@ -433,12 +375,14 @@ Test these scenarios:
 - [ ] Enter business experience >= 6 months → No error
 
 ### Unemployed/Other Status
+
 - [ ] Select "unemployed" → Only basic fields required
 - [ ] Company fields not required
 - [ ] Business fields not required
 - [ ] Monthly income still required
 
 ### Switching Employment Status
+
 - [ ] Fill employed fields → Switch to "self-employed" → Employed errors disappear
 - [ ] Fill business fields → Switch to "employed" → Business errors disappear
 - [ ] Switch to "unemployed" → All conditional errors disappear
@@ -449,11 +393,11 @@ Typical employment status values:
 
 ```typescript
 type EmploymentStatus =
-  | 'employed'       // Full-time employment
-  | 'selfEmployed'   // Self-employed / entrepreneur
-  | 'unemployed'     // Unemployed
-  | 'retired'        // Retired
-  | 'student';       // Student
+  | 'employed' // Full-time employment
+  | 'selfEmployed' // Self-employed / entrepreneur
+  | 'unemployed' // Unemployed
+  | 'retired' // Retired
+  | 'student'; // Student
 ```
 
 Each status may have different validation requirements.
@@ -469,27 +413,23 @@ Each status may have different validation requirements.
 ## Common Patterns
 
 ### Required for Specific Status
+
 ```typescript
-requiredWhen(
-  path.field,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Field is required' }
-);
+requiredWhen(path.field, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Field is required',
+});
 ```
 
 ### Minimum When Status Matches
+
 ```typescript
-minWhen(
-  path.field,
-  minimumValue,
-  path.employmentStatus,
-  (status) => status === 'employed',
-  { message: 'Minimum value not met' }
-);
+minWhen(path.field, minimumValue, path.employmentStatus, (status) => status === 'employed', {
+  message: 'Minimum value not met',
+});
 ```
 
 ### Non-Negative Optional Field
+
 ```typescript
 // No required(), just min(0) to prevent negatives
 min(path.additionalIncome, 0, {
@@ -500,6 +440,7 @@ min(path.additionalIncome, 0, {
 ## What's Next?
 
 In the next section, we'll add validation for **Step 5: Additional Information**, including:
+
 - Array validation (properties, existing loans, co-borrowers)
 - Array length constraints (min/max)
 - Validating individual array elements

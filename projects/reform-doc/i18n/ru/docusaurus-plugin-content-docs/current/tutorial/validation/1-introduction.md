@@ -305,7 +305,7 @@ src/
 
 ```typescript
 // Behavior скрывает поле когда не нужно
-showWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
+enableWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
 
 // Валидация применяется только когда поле видно
 requiredWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage', {

@@ -4,7 +4,7 @@
 type ArrayNodeWithControls<T> = ArrayNode<T> & object;
 ```
 
-Defined in: [core/types/group-node-proxy.ts:126](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/group-node-proxy.ts#L126)
+Defined in: [core/types/group-node-proxy.ts:137](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/group-node-proxy.ts#L137)
 
 Комбинированный тип для ArrayNode с Proxy доступом к элементам
 
@@ -77,7 +77,7 @@ map<R>(callback): R[];
 
 ### T
 
-`T` *extends* [`FormFields`](FormFields.md)
+`T` *extends* `FormFields`
 
 Тип модели данных элемента массива
 

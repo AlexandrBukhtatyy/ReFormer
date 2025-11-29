@@ -19,7 +19,7 @@ behaviors: (path, ctx) => [
     // Load cities for new country
     loadCities(newValue);
   }),
-]
+];
 ```
 
 ### Example: Dynamic Options
@@ -50,7 +50,7 @@ behaviors: (path, ctx) => [
   watchField(path.step, (step) => {
     analytics.track('form_step_changed', { step });
   }),
-]
+];
 ```
 
 ## revalidateWhen
@@ -62,11 +62,8 @@ import { revalidateWhen } from 'reformer/behaviors';
 
 behaviors: (path, ctx) => [
   // Revalidate confirmPassword when password changes
-  revalidateWhen(
-    path.confirmPassword,
-    [path.password]
-  ),
-]
+  revalidateWhen(path.confirmPassword, [path.password]),
+];
 ```
 
 ### Example: Date Range
@@ -104,7 +101,7 @@ behaviors: (path, ctx) => [
 
   // Confirm password must match password
   revalidateWhen(path.confirmPassword, [path.password]),
-]
+];
 ```
 
 ## Multiple Watchers
@@ -117,7 +114,7 @@ behaviors: (path, ctx) => [
     // Called when either changes
     updateDisplayName();
   }),
-]
+];
 ```
 
 ## Debounced Watch
@@ -134,7 +131,7 @@ behaviors: (path, ctx) => [
     },
     { debounce: 300 }
   ),
-]
+];
 ```
 
 ## Watch with Cleanup
@@ -149,7 +146,7 @@ behaviors: (path, ctx) => [
       return () => clearInterval(interval); // Cleanup
     }
   }),
-]
+];
 ```
 
 ## Combining Watch with Other Behaviors
@@ -157,9 +154,7 @@ behaviors: (path, ctx) => [
 ```typescript
 behaviors: (path, ctx) => [
   // Show premium fields
-  showWhen(path.premiumOptions, () =>
-    form.controls.plan.value === 'premium'
-  ),
+  enableWhen(path.premiumOptions, () => form.controls.plan.value === 'premium'),
 
   // Track plan changes
   watchField(path.plan, (plan) => {
@@ -168,7 +163,7 @@ behaviors: (path, ctx) => [
 
   // Revalidate dependent fields
   revalidateWhen(path.features, [path.plan]),
-]
+];
 ```
 
 ## Next Steps

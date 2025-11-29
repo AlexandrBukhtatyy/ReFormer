@@ -18,7 +18,7 @@ Step 4 handles different employment statuses with their specific fields:
 ## Implementation
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/employment.ts"
-import { showWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
+import { enableWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -28,20 +28,20 @@ export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Show Company Fields for Employed
   // ==========================================
-  showWhen(path.companyName, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.companyInn, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.companyPhone, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.companyAddress, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.position, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.workExperienceTotal, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.workExperienceCurrent, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyName, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyInn, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyPhone, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyAddress, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.position, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.workExperienceTotal, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.workExperienceCurrent, path.employmentStatus, (s) => s === 'employed');
 
   // ==========================================
   // Show Business Fields for Self-Employed
   // ==========================================
-  showWhen(path.businessType, path.employmentStatus, (s) => s === 'selfEmployed');
-  showWhen(path.businessInn, path.employmentStatus, (s) => s === 'selfEmployed');
-  showWhen(path.businessActivity, path.employmentStatus, (s) => s === 'selfEmployed');
+  enableWhen(path.businessType, path.employmentStatus, (s) => s === 'selfEmployed');
+  enableWhen(path.businessInn, path.employmentStatus, (s) => s === 'selfEmployed');
+  enableWhen(path.businessActivity, path.employmentStatus, (s) => s === 'selfEmployed');
 
   // ==========================================
   // Watch: Clear Fields When Status Changes
@@ -85,7 +85,7 @@ export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> =
 **Multiple Conditional Fields:**
 
 - Group related fields by condition (employed vs self-employed)
-- Use `showWhen` for each field individually
+- Use `enableWhen` for each field individually
 - Fields hide/show together when status changes
 
 **Field Reset Pattern:**

@@ -10,25 +10,25 @@ sidebar_position: 6
 
 Шаг 5 содержит поля массивов, которые требуют специальную валидацию:
 
-| Поле | Правила валидации |
-|------|------------------|
-| **Массив имущества** | |
-| `properties` | Min 1 элемент когда `hasProperty` = true, max 10 элементов |
-| `properties[*].type` | Требуется для каждого элемента |
-| `properties[*].description` | Требуется, minLength 10 |
-| `properties[*].estimatedValue` | Требуется, min 0 |
-| **Массив существующих кредитов** | |
-| `existingLoans` | Min 1 элемент когда `hasExistingLoans` = true, max 20 элементов |
-| `existingLoans[*].bank` | Требуется для каждого элемента |
-| `existingLoans[*].amount` | Требуется, min 0 |
-| `existingLoans[*].remainingAmount` | Опционально, min 0 |
-| **Массив созаёмщиков** | |
-| `coBorrowers` | Min 1 элемент когда `hasCoBorrower` = true, max 5 элементов |
-| `coBorrowers[*].personalData.firstName` | Требуется для каждого элемента |
-| `coBorrowers[*].personalData.lastName` | Требуется для каждого элемента |
-| `coBorrowers[*].phone` | Требуется, формат телефона |
-| `coBorrowers[*].email` | Требуется, формат email |
-| `coBorrowers[*].monthlyIncome` | Требуется, min 0 |
+| Поле                                    | Правила валидации                                               |
+| --------------------------------------- | --------------------------------------------------------------- |
+| **Массив имущества**                    |                                                                 |
+| `properties`                            | Min 1 элемент когда `hasProperty` = true, max 10 элементов      |
+| `properties[*].type`                    | Требуется для каждого элемента                                  |
+| `properties[*].description`             | Требуется, minLength 10                                         |
+| `properties[*].estimatedValue`          | Требуется, min 0                                                |
+| **Массив существующих кредитов**        |                                                                 |
+| `existingLoans`                         | Min 1 элемент когда `hasExistingLoans` = true, max 20 элементов |
+| `existingLoans[*].bank`                 | Требуется для каждого элемента                                  |
+| `existingLoans[*].amount`               | Требуется, min 0                                                |
+| `existingLoans[*].remainingAmount`      | Опционально, min 0                                              |
+| **Массив созаёмщиков**                  |                                                                 |
+| `coBorrowers`                           | Min 1 элемент когда `hasCoBorrower` = true, max 5 элементов     |
+| `coBorrowers[*].personalData.firstName` | Требуется для каждого элемента                                  |
+| `coBorrowers[*].personalData.lastName`  | Требуется для каждого элемента                                  |
+| `coBorrowers[*].phone`                  | Требуется, формат телефона                                      |
+| `coBorrowers[*].email`                  | Требуется, формат email                                         |
+| `coBorrowers[*].monthlyIncome`          | Требуется, min 0                                                |
 
 ## Создание файла валидатора
 
@@ -52,7 +52,7 @@ import {
   email,
   phone,
   arrayMinLengthWhen,
-  arrayMaxLength
+  arrayMaxLength,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -74,13 +74,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Валидация длины массива
-  arrayMinLengthWhen(
-    path.properties,
-    1,
-    path.hasProperty,
-    (has) => has === true,
-    { message: 'Добавьте хотя бы одно имущество' }
-  );
+  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+    message: 'Добавьте хотя бы одно имущество',
+  });
 
   arrayMaxLength(path.properties, 10, {
     message: 'Максимум 10 имущества разрешено',
@@ -111,10 +107,11 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 :::tip Валидация элементов массива
 Используйте `'*'` wildcard для валидации всех элементов в массиве:
+
 - `path.properties['*'].type` валидирует поле `type` каждого имущества
 - Валидация запускается для каждого существующего элемента массива
 - Новые элементы валидируются при добавлении
-:::
+  :::
 
 ### Валидация массива существующих кредитов
 
@@ -129,13 +126,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Валидация длины массива
-  arrayMinLengthWhen(
-    path.existingLoans,
-    1,
-    path.hasExistingLoans,
-    (has) => has === true,
-    { message: 'Добавьте хотя бы один существующий кредит' }
-  );
+  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
+    message: 'Добавьте хотя бы один существующий кредит',
+  });
 
   arrayMaxLength(path.existingLoans, 20, {
     message: 'Максимум 20 кредитов разрешено',
@@ -182,13 +175,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Валидация длины массива
-  arrayMinLengthWhen(
-    path.coBorrowers,
-    1,
-    path.hasCoBorrower,
-    (has) => has === true,
-    { message: 'Добавьте хотя бы одного созаёмщика' }
-  );
+  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
+    message: 'Добавьте хотя бы одного созаёмщика',
+  });
 
   arrayMaxLength(path.coBorrowers, 5, {
     message: 'Максимум 5 созаёмщиков разрешено',
@@ -249,7 +238,7 @@ import {
   email,
   phone,
   arrayMinLengthWhen,
-  arrayMaxLength
+  arrayMaxLength,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -270,13 +259,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив имущества
   // ==========================================
 
-  arrayMinLengthWhen(
-    path.properties,
-    1,
-    path.hasProperty,
-    (has) => has === true,
-    { message: 'Добавьте хотя бы одно имущество' }
-  );
+  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+    message: 'Добавьте хотя бы одно имущество',
+  });
 
   arrayMaxLength(path.properties, 10, {
     message: 'Максимум 10 имущества разрешено',
@@ -306,13 +291,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив существующих кредитов
   // ==========================================
 
-  arrayMinLengthWhen(
-    path.existingLoans,
-    1,
-    path.hasExistingLoans,
-    (has) => has === true,
-    { message: 'Добавьте хотя бы один существующий кредит' }
-  );
+  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
+    message: 'Добавьте хотя бы один существующий кредит',
+  });
 
   arrayMaxLength(path.existingLoans, 20, {
     message: 'Максимум 20 кредитов разрешено',
@@ -346,13 +327,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив созаёмщиков
   // ==========================================
 
-  arrayMinLengthWhen(
-    path.coBorrowers,
-    1,
-    path.hasCoBorrower,
-    (has) => has === true,
-    { message: 'Добавьте хотя бы одного созаёмщика' }
-  );
+  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
+    message: 'Добавьте хотя бы одного созаёмщика',
+  });
 
   arrayMaxLength(path.coBorrowers, 5, {
     message: 'Максимум 5 созаёмщиков разрешено',
@@ -401,12 +378,13 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 ### Валидация длины массива
 
 #### Условный минимум
+
 ```typescript
 arrayMinLengthWhen(
   path.properties,
-  1,  // Минимальная длина
-  path.hasProperty,  // Поле зависимости
-  (has) => has === true,  // Условие
+  1, // Минимальная длина
+  path.hasProperty, // Поле зависимости
+  (has) => has === true, // Условие
   { message: 'Добавьте хотя бы одно имущество' }
 );
 ```
@@ -416,6 +394,7 @@ arrayMinLengthWhen(
 - Работает с behaviors, которые показывают/скрывают массивы
 
 #### Максимальная длина
+
 ```typescript
 arrayMaxLength(path.properties, 10, {
   message: 'Максимум 10 имущества разрешено',
@@ -443,6 +422,7 @@ minLength(path.properties['*'].description, 10, {
 ```
 
 **Как это работает**:
+
 - `path.properties['*']` означает "каждый элемент в массиве properties"
 - Валидация запускается для каждого существующего элемента
 - Новые элементы валидируются при добавлении в массив
@@ -460,18 +440,19 @@ required(path.coBorrowers['*'].personalData.firstName, {
 ```
 
 **Структура**:
+
 ```typescript
 coBorrowers: [
   {
     personalData: {
-      firstName: 'Иван',    // ← Это поле
-      lastName: 'Иванов'
+      firstName: 'Иван', // ← Это поле
+      lastName: 'Иванов',
     },
     phone: '+71234567890',
     email: 'ivan@example.com',
-    monthlyIncome: 50000
-  }
-]
+    monthlyIncome: 50000,
+  },
+];
 ```
 
 ### Интеграция с Behaviors
@@ -480,16 +461,12 @@ coBorrowers: [
 
 ```typescript
 // Behavior: Показывать массив имущества только когда флажок отмечен
-showWhen(path.properties, path.hasProperty, (has) => has === true);
+enableWhen(path.properties, path.hasProperty, (has) => has === true);
 
 // Валидация: Требовать минимум одно имущество когда видимо
-arrayMinLengthWhen(
-  path.properties,
-  1,
-  path.hasProperty,
-  (has) => has === true,
-  { message: 'Добавьте хотя бы одно имущество' }
-);
+arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+  message: 'Добавьте хотя бы одно имущество',
+});
 ```
 
 Идеальная синхронизация! Массив скрывается/видим и требуется/опционален вместе.
@@ -499,6 +476,7 @@ arrayMinLengthWhen(
 Протестируйте эти сценарии:
 
 ### Массив имущества
+
 - [ ] Отметьте "есть имущество" → Массив становится требуемым
 - [ ] Оставьте массив пусто → Ошибка показана
 - [ ] Добавьте одно имущество → Ошибки нет
@@ -510,6 +488,7 @@ arrayMinLengthWhen(
 - [ ] Введите отрицательную стоимость → Ошибка показана
 
 ### Массив существующих кредитов
+
 - [ ] Отметьте "есть существующие кредиты" → Массив становится требуемым
 - [ ] Оставьте массив пусто → Ошибка показана
 - [ ] Добавьте один кредит → Ошибки нет
@@ -520,6 +499,7 @@ arrayMinLengthWhen(
 - [ ] Введите отрицательный остаток → Ошибка показана
 
 ### Массив созаёмщиков
+
 - [ ] Отметьте "есть созаёмщик" → Массив становится требуемым
 - [ ] Оставьте массив пусто → Ошибка показана
 - [ ] Добавьте одного созаёмщика → Ошибки нет
@@ -534,6 +514,7 @@ arrayMinLengthWhen(
 - [ ] Введите отрицательный доход → Ошибка показана
 
 ### Управление массивом
+
 - [ ] Добавьте элемент → Элемент получает валидацию
 - [ ] Удалите элемент → Ошибки элемента исчезают
 - [ ] Отмените "есть имущество" → Массив не требуется, ошибки очищены
@@ -549,15 +530,12 @@ arrayMinLengthWhen(
 ## Распространённые паттерны
 
 ### Условный массив с валидацией элементов
+
 ```typescript
 // Массив должен иметь минимум 1 элемент когда флажок true
-arrayMinLengthWhen(
-  path.items,
-  1,
-  path.hasItems,
-  (has) => has === true,
-  { message: 'Добавьте хотя бы один элемент' }
-);
+arrayMinLengthWhen(path.items, 1, path.hasItems, (has) => has === true, {
+  message: 'Добавьте хотя бы один элемент',
+});
 
 // Каждый элемент должен иметь требуемые поля
 required(path.items['*'].name, { message: 'Имя требуется' });
@@ -565,6 +543,7 @@ min(path.items['*'].value, 0, { message: 'Значение должно быть
 ```
 
 ### Массив с максимальной длиной
+
 ```typescript
 arrayMaxLength(path.items, 10, {
   message: 'Максимум 10 элементов разрешено',
@@ -572,6 +551,7 @@ arrayMaxLength(path.items, 10, {
 ```
 
 ### Вложенный объект в массиве
+
 ```typescript
 // Валидируйте поля внутри вложенных объектов
 required(path.items['*'].contact.email, {
@@ -582,6 +562,7 @@ required(path.items['*'].contact.email, {
 ## Что дальше?
 
 В следующем разделе мы добавим **Валидацию между шагами**, включая:
+
 - Валидацию, охватывающую несколько шагов формы
 - Бизнес-правила (первоначальный платёж >= 20%, ежемесячный платёж <= 50% дохода)
 - Валидацию на основе возраста (минимум/максимум возраст)

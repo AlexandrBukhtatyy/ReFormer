@@ -32,7 +32,7 @@ touch reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.t
 Start by importing the necessary functions and types:
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, showWhen, watch } from 'reformer/behaviors';
+import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
@@ -177,8 +177,8 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
   // ==========================================
   // Conditional Visibility: Mortgage Fields
   // ==========================================
-  showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
-  showWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
 
   // ... more behaviors
 };
@@ -186,7 +186,7 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
 
 **How it works:**
 
-- `showWhen` watches the `loanType` field
+- `enableWhen` watches the `loanType` field
 - When `loanType === 'mortgage'`, the fields are shown
 - When `loanType` changes to something else, the fields are hidden
 - Hidden fields are not validated and not included in form submission
@@ -202,10 +202,10 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
   // ==========================================
   // Conditional Visibility: Car Loan Fields
   // ==========================================
-  showWhen(path.carBrand, path.loanType, (value) => value === 'car');
-  showWhen(path.carModel, path.loanType, (value) => value === 'car');
-  showWhen(path.carYear, path.loanType, (value) => value === 'car');
-  showWhen(path.carPrice, path.loanType, (value) => value === 'car');
+  enableWhen(path.carBrand, path.loanType, (value) => value === 'car');
+  enableWhen(path.carModel, path.loanType, (value) => value === 'car');
+  enableWhen(path.carYear, path.loanType, (value) => value === 'car');
+  enableWhen(path.carPrice, path.loanType, (value) => value === 'car');
 
   // ... more behaviors
 };
@@ -258,7 +258,7 @@ Don't use `watch` to set field values that should be derived - use `computeFrom`
 Here's the complete behavior file for Step 1:
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, showWhen, watch } from 'reformer/behaviors';
+import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm, Address } from '@/types';
 
@@ -321,16 +321,16 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Conditional Visibility: Mortgage Fields
   // ==========================================
-  showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
-  showWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
 
   // ==========================================
   // Conditional Visibility: Car Loan Fields
   // ==========================================
-  showWhen(path.carBrand, path.loanType, (value) => value === 'car');
-  showWhen(path.carModel, path.loanType, (value) => value === 'car');
-  showWhen(path.carYear, path.loanType, (value) => value === 'car');
-  showWhen(path.carPrice, path.loanType, (value) => value === 'car');
+  enableWhen(path.carBrand, path.loanType, (value) => value === 'car');
+  enableWhen(path.carModel, path.loanType, (value) => value === 'car');
+  enableWhen(path.carYear, path.loanType, (value) => value === 'car');
+  enableWhen(path.carPrice, path.loanType, (value) => value === 'car');
 
   // ==========================================
   // Watch: Reset Fields
@@ -408,7 +408,7 @@ The form is becoming smarter and more user-friendly!
 ## Key Takeaways
 
 - `computeFrom` handles computed field chains automatically
-- `showWhen` provides clean conditional visibility
+- `enableWhen` provides clean conditional visibility
 - `watch` is for side effects, not derived values
 - Use `{ emitEvent: false }` when clearing fields programmatically
 - Behaviors eliminate manual subscription management

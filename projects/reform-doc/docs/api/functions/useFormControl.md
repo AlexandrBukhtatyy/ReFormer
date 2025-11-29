@@ -2,6 +2,9 @@
 
 Хук для работы с FieldNode или ArrayNode - возвращает состояние с подписками на сигналы
 
+Использует useSyncExternalStore для оптимальной интеграции с React 18+.
+Компонент ре-рендерится только когда реально изменились данные контрола.
+
 ## Examples
 
 ```tsx
@@ -34,7 +37,7 @@ return (
 function useFormControl<T>(control): ArrayControlState<T>;
 ```
 
-Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/hooks/useFormControl.ts#L41)
+Defined in: [hooks/useFormControl.ts:364](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/hooks/useFormControl.ts#L364)
 
 Хук для работы с ArrayNode - возвращает состояние массива с подписками на сигналы
 
@@ -42,7 +45,7 @@ Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/Re
 
 #### T
 
-`T` *extends* [`FormFields`](../type-aliases/FormFields.md)
+`T` *extends* `FormFields`
 
 ### Parameters
 
@@ -60,7 +63,7 @@ Defined in: [hooks/useFormControl.ts:41](https://github.com/AlexandrBukhtatyy/Re
 function useFormControl<T>(control): FieldControlState<T>;
 ```
 
-Defined in: [hooks/useFormControl.ts:48](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/hooks/useFormControl.ts#L48)
+Defined in: [hooks/useFormControl.ts:372](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/hooks/useFormControl.ts#L372)
 
 Хук для работы с FieldNode - возвращает состояние поля с подписками на сигналы
 

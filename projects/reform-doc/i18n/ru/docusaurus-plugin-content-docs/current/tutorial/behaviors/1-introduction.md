@@ -52,8 +52,8 @@ function CreditApplicationForm() {
 // ✅ Декларативный подход - behaviors
 export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // Показываем поля ипотеки только когда loanType === 'mortgage'
-  showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
-  showWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
 };
 ```
 
@@ -89,10 +89,10 @@ computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (valu
 Показывают или скрывают поля по условиям:
 
 ```typescript
-import { showWhen, hideWhen } from 'reformer/behaviors';
+import { enableWhen, hideWhen } from 'reformer/behaviors';
 
 // Показываем поля ипотеки только для ипотечных кредитов
-showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
 
 // Скрываем адрес проживания когда совпадает с регистрацией
 hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);

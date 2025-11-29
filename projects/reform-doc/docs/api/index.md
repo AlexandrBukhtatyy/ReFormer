@@ -1,87 +1,101 @@
 # reformer
 
+## Nodes
+
+- [ArrayNode](classes/ArrayNode.md)
+- [FieldNode](classes/FieldNode.md)
+- [FormNode](classes/FormNode.md)
+- [GroupNode](classes/GroupNode.md)
+- [SetValueOptions](interfaces/SetValueOptions.md)
+
+## Types
+
+### Core Types
+
+- [FieldStatus](type-aliases/FieldStatus.md)
+- [FormValue](type-aliases/FormValue.md)
+
+### Configuration Types
+
+- [ArrayConfig](interfaces/ArrayConfig.md)
+- [FieldConfig](interfaces/FieldConfig.md)
+- [GroupNodeConfig](interfaces/GroupNodeConfig.md)
+- [FormSchema](type-aliases/FormSchema.md)
+
+### Proxy Types
+
+- [ArrayNodeWithControls](type-aliases/ArrayNodeWithControls.md)
+- [FormNodeControls](type-aliases/FormNodeControls.md)
+- [GroupNodeWithControls](type-aliases/GroupNodeWithControls.md)
+
+### Validation Types
+
+- [ErrorFilterOptions](interfaces/ErrorFilterOptions.md)
+- [ValidationError](interfaces/ValidationError.md)
+- [AsyncValidatorFn](type-aliases/AsyncValidatorFn.md)
+- [ValidatorFn](type-aliases/ValidatorFn.md)
+
+## React Hooks
+
+- [useFormControl](functions/useFormControl.md)
+- [useFormControlValue](functions/useFormControlValue.md)
+
+## Behaviors
+
+### Behavior Types
+
+- [BehaviorSchemaFn](type-aliases/BehaviorSchemaFn.md)
+
+## Utilities
+
+### Type Guards
+
+- [isFieldNode](functions/isFieldNode.md)
+- [isFormNode](functions/isFormNode.md)
+
+### Other
+
+- [createForm](functions/createForm.md)
+
+## Classes
+
+- [FormErrorHandler](classes/FormErrorHandler.md)
+- [NodeFactory](classes/NodeFactory.md)
+
 ## Enumerations
 
 - [ErrorStrategy](enumerations/ErrorStrategy.md)
 
-## Classes
-
-- [ArrayNode](classes/ArrayNode.md)
-- [Debouncer](classes/Debouncer.md)
-- [FieldNode](classes/FieldNode.md)
-- [FieldPathNavigator](classes/FieldPathNavigator.md)
-- [FormErrorHandler](classes/FormErrorHandler.md)
-- [FormNode](classes/FormNode.md)
-- [GroupNode](classes/GroupNode.md)
-- [NodeFactory](classes/NodeFactory.md)
-- [RegistryStack](classes/RegistryStack.md)
-- [SubscriptionManager](classes/SubscriptionManager.md)
-
-## Interfaces
-
-- [ArrayConfig](interfaces/ArrayConfig.md)
-- [ArrayNodeLike](interfaces/ArrayNodeLike.md)
-- [ConfigWithSchema](interfaces/ConfigWithSchema.md)
-- [ConfigWithValue](interfaces/ConfigWithValue.md)
-- [ErrorFilterOptions](interfaces/ErrorFilterOptions.md)
-- [FieldConfig](interfaces/FieldConfig.md)
-- [FieldPathNode](interfaces/FieldPathNode.md)
-- [FormContext](interfaces/FormContext.md)
-- [GroupNodeConfig](interfaces/GroupNodeConfig.md)
-- [PathSegment](interfaces/PathSegment.md)
-- [ResourceConfig](interfaces/ResourceConfig.md)
-- [ResourceItem](interfaces/ResourceItem.md)
-- [ResourceLoadParams](interfaces/ResourceLoadParams.md)
-- [ResourceResult](interfaces/ResourceResult.md)
-- [SetValueOptions](interfaces/SetValueOptions.md)
-- [ValidateAsyncOptions](interfaces/ValidateAsyncOptions.md)
-- [ValidateOptions](interfaces/ValidateOptions.md)
-- [ValidateTreeOptions](interfaces/ValidateTreeOptions.md)
-- [ValidationError](interfaces/ValidationError.md)
-- [ValidatorRegistration](interfaces/ValidatorRegistration.md)
-- [WithBehaviorSchema](interfaces/WithBehaviorSchema.md)
-- [WithValidationSchema](interfaces/WithValidationSchema.md)
-
-## Type Aliases
-
-- [AnyFunction](type-aliases/AnyFunction.md)
-- [ArrayNodeWithControls](type-aliases/ArrayNodeWithControls.md)
-- [AsyncValidatorFn](type-aliases/AsyncValidatorFn.md)
-- [BehaviorSchemaFn](type-aliases/BehaviorSchemaFn.md)
-- [ConditionFn](type-aliases/ConditionFn.md)
-- [ContextualAsyncValidatorFn](type-aliases/ContextualAsyncValidatorFn.md)
-- [ContextualValidatorFn](type-aliases/ContextualValidatorFn.md)
-- [FieldPath](type-aliases/FieldPath.md)
-- [FieldPathSegment](type-aliases/FieldPathSegment.md)
-- [FieldStatus](type-aliases/FieldStatus.md)
-- [~~FormFields~~](type-aliases/FormFields.md)
-- [FormNodeControls](type-aliases/FormNodeControls.md)
-- [FormSchema](type-aliases/FormSchema.md)
-- [FormValue](type-aliases/FormValue.md)
-- [GroupNodeWithControls](type-aliases/GroupNodeWithControls.md)
-- [ResourceLoadResult](type-aliases/ResourceLoadResult.md)
-- [TreeValidatorFn](type-aliases/TreeValidatorFn.md)
-- [UnknownCallback](type-aliases/UnknownCallback.md)
-- [UnknownFormValue](type-aliases/UnknownFormValue.md)
-- [UnknownRecord](type-aliases/UnknownRecord.md)
-- [ValidationSchemaFn](type-aliases/ValidationSchemaFn.md)
-- [ValidatorFn](type-aliases/ValidatorFn.md)
-
-## Variables
-
-- [Resources](variables/Resources.md)
-
 ## Functions
 
-- [createForm](functions/createForm.md)
-- [getCurrentBehaviorRegistry](functions/getCurrentBehaviorRegistry.md)
-- [getCurrentValidationRegistry](functions/getCurrentValidationRegistry.md)
 - [getNodeType](functions/getNodeType.md)
 - [isArrayNode](functions/isArrayNode.md)
-- [isFieldNode](functions/isFieldNode.md)
-- [isFormNode](functions/isFormNode.md)
 - [isGroupNode](functions/isGroupNode.md)
 - [partialResource](functions/partialResource.md)
 - [preloadResource](functions/preloadResource.md)
 - [staticResource](functions/staticResource.md)
-- [useFormControl](functions/useFormControl.md)
+
+## Interfaces
+
+- [FieldPathNode](interfaces/FieldPathNode.md)
+- [FormContext](interfaces/FormContext.md)
+- [ResourceConfig](interfaces/ResourceConfig.md)
+- [ResourceItem](interfaces/ResourceItem.md)
+- [ResourceLoadParams](interfaces/ResourceLoadParams.md)
+- [ResourceResult](interfaces/ResourceResult.md)
+- [ValidateAsyncOptions](interfaces/ValidateAsyncOptions.md)
+- [ValidateOptions](interfaces/ValidateOptions.md)
+- [ValidateTreeOptions](interfaces/ValidateTreeOptions.md)
+
+## Type Aliases
+
+- [ConditionFn](type-aliases/ConditionFn.md)
+- [ContextualAsyncValidatorFn](type-aliases/ContextualAsyncValidatorFn.md)
+- [ContextualValidatorFn](type-aliases/ContextualValidatorFn.md)
+- [FieldPath](type-aliases/FieldPath.md)
+- [TreeValidatorFn](type-aliases/TreeValidatorFn.md)
+- [ValidationSchemaFn](type-aliases/ValidationSchemaFn.md)
+
+## Variables
+
+- [Resources](variables/Resources.md)

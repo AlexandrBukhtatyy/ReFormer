@@ -10,25 +10,25 @@ Validating arrays and their elements with conditional requirements and nested ob
 
 Step 5 contains array fields that need special validation:
 
-| Field | Validation Rules |
-|-------|------------------|
-| **Properties Array** | |
-| `properties` | Min 1 item when `hasProperty` = true, max 10 items |
-| `properties[*].type` | Required for each item |
-| `properties[*].description` | Required, minLength 10 |
-| `properties[*].estimatedValue` | Required, min 0 |
-| **Existing Loans Array** | |
-| `existingLoans` | Min 1 item when `hasExistingLoans` = true, max 20 items |
-| `existingLoans[*].bank` | Required for each item |
-| `existingLoans[*].amount` | Required, min 0 |
-| `existingLoans[*].remainingAmount` | Optional, min 0 |
-| **Co-Borrowers Array** | |
-| `coBorrowers` | Min 1 item when `hasCoBorrower` = true, max 5 items |
-| `coBorrowers[*].personalData.firstName` | Required for each item |
-| `coBorrowers[*].personalData.lastName` | Required for each item |
-| `coBorrowers[*].phone` | Required, phone format |
-| `coBorrowers[*].email` | Required, email format |
-| `coBorrowers[*].monthlyIncome` | Required, min 0 |
+| Field                                   | Validation Rules                                        |
+| --------------------------------------- | ------------------------------------------------------- |
+| **Properties Array**                    |                                                         |
+| `properties`                            | Min 1 item when `hasProperty` = true, max 10 items      |
+| `properties[*].type`                    | Required for each item                                  |
+| `properties[*].description`             | Required, minLength 10                                  |
+| `properties[*].estimatedValue`          | Required, min 0                                         |
+| **Existing Loans Array**                |                                                         |
+| `existingLoans`                         | Min 1 item when `hasExistingLoans` = true, max 20 items |
+| `existingLoans[*].bank`                 | Required for each item                                  |
+| `existingLoans[*].amount`               | Required, min 0                                         |
+| `existingLoans[*].remainingAmount`      | Optional, min 0                                         |
+| **Co-Borrowers Array**                  |                                                         |
+| `coBorrowers`                           | Min 1 item when `hasCoBorrower` = true, max 5 items     |
+| `coBorrowers[*].personalData.firstName` | Required for each item                                  |
+| `coBorrowers[*].personalData.lastName`  | Required for each item                                  |
+| `coBorrowers[*].phone`                  | Required, phone format                                  |
+| `coBorrowers[*].email`                  | Required, email format                                  |
+| `coBorrowers[*].monthlyIncome`          | Required, min 0                                         |
 
 ## Creating the Validator File
 
@@ -52,7 +52,7 @@ import {
   email,
   phone,
   arrayMinLengthWhen,
-  arrayMaxLength
+  arrayMaxLength,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -74,13 +74,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Array length validation
-  arrayMinLengthWhen(
-    path.properties,
-    1,
-    path.hasProperty,
-    (has) => has === true,
-    { message: 'Add at least one property' }
-  );
+  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+    message: 'Add at least one property',
+  });
 
   arrayMaxLength(path.properties, 10, {
     message: 'Maximum 10 properties allowed',
@@ -111,10 +107,11 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 :::tip Array Element Validation
 Use the `'*'` wildcard to validate all elements in an array:
+
 - `path.properties['*'].type` validates the `type` field of every property
 - Validation runs for each existing array element
 - New elements are validated when added
-:::
+  :::
 
 ### Existing Loans Array Validation
 
@@ -129,13 +126,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Array length validation
-  arrayMinLengthWhen(
-    path.existingLoans,
-    1,
-    path.hasExistingLoans,
-    (has) => has === true,
-    { message: 'Add at least one existing loan' }
-  );
+  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
+    message: 'Add at least one existing loan',
+  });
 
   arrayMaxLength(path.existingLoans, 20, {
     message: 'Maximum 20 loans allowed',
@@ -182,13 +175,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // ==========================================
 
   // Array length validation
-  arrayMinLengthWhen(
-    path.coBorrowers,
-    1,
-    path.hasCoBorrower,
-    (has) => has === true,
-    { message: 'Add at least one co-borrower' }
-  );
+  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
+    message: 'Add at least one co-borrower',
+  });
 
   arrayMaxLength(path.coBorrowers, 5, {
     message: 'Maximum 5 co-borrowers allowed',
@@ -249,7 +238,7 @@ import {
   email,
   phone,
   arrayMinLengthWhen,
-  arrayMaxLength
+  arrayMaxLength,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -270,13 +259,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Properties Array
   // ==========================================
 
-  arrayMinLengthWhen(
-    path.properties,
-    1,
-    path.hasProperty,
-    (has) => has === true,
-    { message: 'Add at least one property' }
-  );
+  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+    message: 'Add at least one property',
+  });
 
   arrayMaxLength(path.properties, 10, {
     message: 'Maximum 10 properties allowed',
@@ -306,13 +291,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Existing Loans Array
   // ==========================================
 
-  arrayMinLengthWhen(
-    path.existingLoans,
-    1,
-    path.hasExistingLoans,
-    (has) => has === true,
-    { message: 'Add at least one existing loan' }
-  );
+  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
+    message: 'Add at least one existing loan',
+  });
 
   arrayMaxLength(path.existingLoans, 20, {
     message: 'Maximum 20 loans allowed',
@@ -346,13 +327,9 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Co-Borrowers Array
   // ==========================================
 
-  arrayMinLengthWhen(
-    path.coBorrowers,
-    1,
-    path.hasCoBorrower,
-    (has) => has === true,
-    { message: 'Add at least one co-borrower' }
-  );
+  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
+    message: 'Add at least one co-borrower',
+  });
 
   arrayMaxLength(path.coBorrowers, 5, {
     message: 'Maximum 5 co-borrowers allowed',
@@ -401,12 +378,13 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 ### Array Length Validation
 
 #### Conditional Minimum Length
+
 ```typescript
 arrayMinLengthWhen(
   path.properties,
-  1,  // Minimum length
-  path.hasProperty,  // Dependency field
-  (has) => has === true,  // Condition
+  1, // Minimum length
+  path.hasProperty, // Dependency field
+  (has) => has === true, // Condition
   { message: 'Add at least one property' }
 );
 ```
@@ -416,6 +394,7 @@ arrayMinLengthWhen(
 - Works with behaviors that show/hide arrays
 
 #### Maximum Length
+
 ```typescript
 arrayMaxLength(path.properties, 10, {
   message: 'Maximum 10 properties allowed',
@@ -443,6 +422,7 @@ minLength(path.properties['*'].description, 10, {
 ```
 
 **How it works**:
+
 - `path.properties['*']` means "every element in properties array"
 - Validation runs for each existing element
 - New elements are validated when added to array
@@ -460,18 +440,19 @@ required(path.coBorrowers['*'].personalData.firstName, {
 ```
 
 **Structure**:
+
 ```typescript
 coBorrowers: [
   {
     personalData: {
-      firstName: 'John',    // ← This field
-      lastName: 'Doe'
+      firstName: 'John', // ← This field
+      lastName: 'Doe',
     },
     phone: '+1234567890',
     email: 'john@example.com',
-    monthlyIncome: 50000
-  }
-]
+    monthlyIncome: 50000,
+  },
+];
 ```
 
 ### Integration with Behaviors
@@ -480,16 +461,12 @@ From Behaviors section:
 
 ```typescript
 // Behavior: Show properties array only when checkbox is checked
-showWhen(path.properties, path.hasProperty, (has) => has === true);
+enableWhen(path.properties, path.hasProperty, (has) => has === true);
 
 // Validation: Require at least one property when visible
-arrayMinLengthWhen(
-  path.properties,
-  1,
-  path.hasProperty,
-  (has) => has === true,
-  { message: 'Add at least one property' }
-);
+arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
+  message: 'Add at least one property',
+});
 ```
 
 Perfect synchronization! Array is hidden/visible and required/optional together.
@@ -499,6 +476,7 @@ Perfect synchronization! Array is hidden/visible and required/optional together.
 Test these scenarios:
 
 ### Properties Array
+
 - [ ] Check "has property" → Array becomes required
 - [ ] Leave array empty → Error shown
 - [ ] Add one property → No error
@@ -510,6 +488,7 @@ Test these scenarios:
 - [ ] Enter negative estimated value → Error shown
 
 ### Existing Loans Array
+
 - [ ] Check "has existing loans" → Array becomes required
 - [ ] Leave array empty → Error shown
 - [ ] Add one loan → No error
@@ -520,6 +499,7 @@ Test these scenarios:
 - [ ] Enter negative remaining amount → Error shown
 
 ### Co-Borrowers Array
+
 - [ ] Check "has co-borrower" → Array becomes required
 - [ ] Leave array empty → Error shown
 - [ ] Add one co-borrower → No error
@@ -534,6 +514,7 @@ Test these scenarios:
 - [ ] Enter negative income → Error shown
 
 ### Array Management
+
 - [ ] Add item → Item gets validated
 - [ ] Remove item → Item's errors disappear
 - [ ] Uncheck "has property" → Array not required, errors cleared
@@ -549,15 +530,12 @@ Test these scenarios:
 ## Common Patterns
 
 ### Conditional Array with Element Validation
+
 ```typescript
 // Array must have at least 1 item when checkbox is true
-arrayMinLengthWhen(
-  path.items,
-  1,
-  path.hasItems,
-  (has) => has === true,
-  { message: 'Add at least one item' }
-);
+arrayMinLengthWhen(path.items, 1, path.hasItems, (has) => has === true, {
+  message: 'Add at least one item',
+});
 
 // Each item must have required fields
 required(path.items['*'].name, { message: 'Name is required' });
@@ -565,6 +543,7 @@ min(path.items['*'].value, 0, { message: 'Value must be non-negative' });
 ```
 
 ### Array with Maximum Length
+
 ```typescript
 arrayMaxLength(path.items, 10, {
   message: 'Maximum 10 items allowed',
@@ -572,6 +551,7 @@ arrayMaxLength(path.items, 10, {
 ```
 
 ### Nested Object in Array
+
 ```typescript
 // Validate fields within nested objects
 required(path.items['*'].contact.email, {
@@ -582,6 +562,7 @@ required(path.items['*'].contact.email, {
 ## What's Next?
 
 In the next section, we'll add **Cross-Step Validation**, including:
+
 - Validation that spans multiple form steps
 - Business rules (down payment >= 20%, monthly payment <= 50% income)
 - Age-based validation (minimum/maximum age)

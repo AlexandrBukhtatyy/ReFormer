@@ -19,7 +19,7 @@ behaviors: (path, ctx) => [
     // Загрузить города для новой страны
     loadCities(newValue);
   }),
-]
+];
 ```
 
 ### Пример: Динамические опции
@@ -50,7 +50,7 @@ behaviors: (path, ctx) => [
   watchField(path.step, (step) => {
     analytics.track('form_step_changed', { step });
   }),
-]
+];
 ```
 
 ## revalidateWhen
@@ -62,11 +62,8 @@ import { revalidateWhen } from 'reformer/behaviors';
 
 behaviors: (path, ctx) => [
   // Перевалидировать confirmPassword при изменении password
-  revalidateWhen(
-    path.confirmPassword,
-    [path.password]
-  ),
-]
+  revalidateWhen(path.confirmPassword, [path.password]),
+];
 ```
 
 ### Пример: Диапазон дат
@@ -104,7 +101,7 @@ behaviors: (path, ctx) => [
 
   // Подтверждение пароля должно совпадать с паролем
   revalidateWhen(path.confirmPassword, [path.password]),
-]
+];
 ```
 
 ## Отслеживание нескольких полей
@@ -117,7 +114,7 @@ behaviors: (path, ctx) => [
     // Вызывается при изменении любого из них
     updateDisplayName();
   }),
-]
+];
 ```
 
 ## Debounced Watch
@@ -134,7 +131,7 @@ behaviors: (path, ctx) => [
     },
     { debounce: 300 }
   ),
-]
+];
 ```
 
 ## Watch с очисткой
@@ -149,7 +146,7 @@ behaviors: (path, ctx) => [
       return () => clearInterval(interval); // Очистка
     }
   }),
-]
+];
 ```
 
 ## Комбинирование Watch с другими Behaviors
@@ -157,9 +154,7 @@ behaviors: (path, ctx) => [
 ```typescript
 behaviors: (path, ctx) => [
   // Показать premium поля
-  showWhen(path.premiumOptions, () =>
-    form.controls.plan.value === 'premium'
-  ),
+  enableWhen(path.premiumOptions, () => form.controls.plan.value === 'premium'),
 
   // Отслеживать изменения плана
   watchField(path.plan, (plan) => {
@@ -168,7 +163,7 @@ behaviors: (path, ctx) => [
 
   // Перевалидировать зависимые поля
   revalidateWhen(path.features, [path.plan]),
-]
+];
 ```
 
 ## Следующие шаги

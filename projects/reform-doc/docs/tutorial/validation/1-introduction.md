@@ -305,7 +305,7 @@ Validation works seamlessly with behaviors:
 
 ```typescript
 // Behavior hides field when not needed
-showWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
+enableWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
 
 // Validation only applies when field is visible
 requiredWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage', {

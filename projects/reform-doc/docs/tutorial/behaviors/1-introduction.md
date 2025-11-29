@@ -52,8 +52,8 @@ Use declarative behaviors:
 // ✅ Declarative approach - behaviors
 export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // Show mortgage fields only when loanType === 'mortgage'
-  showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
-  showWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+  enableWhen(path.initialPayment, path.loanType, (value) => value === 'mortgage');
 };
 ```
 
@@ -89,13 +89,13 @@ computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (valu
 Show or hide fields based on conditions:
 
 ```typescript
-import { showWhen, hideWhen } from 'reformer/behaviors';
+import { enableWhen } from 'reformer/behaviors';
 
 // Show mortgage fields only for mortgage loans
-showWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
+enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
 
 // Hide residence address when same as registration
-hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
+enableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === false);
 ```
 
 ### Conditional Access

@@ -24,11 +24,7 @@ const form = new GroupNode({
   },
   behavior: (path) => {
     // Автовычисление total
-    computeFrom(
-      [path.price, path.quantity],
-      path.total,
-      ({ price, quantity }) => price * quantity
-    );
+    computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
 
     // Условное включение поля скидки
     enableWhen(path.discount, (form) => form.total > 500);
@@ -38,17 +34,16 @@ const form = new GroupNode({
 
 ## Доступные Behaviors
 
-| Behavior | Описание |
-|----------|----------|
-| [`computeFrom`](/docs/behaviors/computed#computefrom) | Вычисление поля из других полей |
+| Behavior                                                    | Описание                             |
+| ----------------------------------------------------------- | ------------------------------------ |
+| [`computeFrom`](/docs/behaviors/computed#computefrom)       | Вычисление поля из других полей      |
 | [`transformValue`](/docs/behaviors/computed#transformvalue) | Трансформация значения при изменении |
-| [`showWhen`](/docs/behaviors/conditional#showwhen) | Условная видимость |
-| [`enableWhen`](/docs/behaviors/conditional#enablewhen) | Условное включение/отключение |
-| [`resetWhen`](/docs/behaviors/conditional#resetwhen) | Сброс поля по условию |
-| [`copyFrom`](/docs/behaviors/sync#copyfrom) | Копирование значения из другого поля |
-| [`syncFields`](/docs/behaviors/sync#syncfields) | Двусторонняя синхронизация |
-| [`watchField`](/docs/behaviors/watch#watchfield) | Реакция на изменения поля |
-| [`revalidateWhen`](/docs/behaviors/watch#revalidatewhen) | Запуск повторной валидации |
+| [`enableWhen`](/docs/behaviors/conditional#enablewhen)      | Условное включение/отключение        |
+| [`resetWhen`](/docs/behaviors/conditional#resetwhen)        | Сброс поля по условию                |
+| [`copyFrom`](/docs/behaviors/sync#copyfrom)                 | Копирование значения из другого поля |
+| [`syncFields`](/docs/behaviors/sync#syncfields)             | Двусторонняя синхронизация           |
+| [`watchField`](/docs/behaviors/watch#watchfield)            | Реакция на изменения поля            |
+| [`revalidateWhen`](/docs/behaviors/watch#revalidatewhen)    | Запуск повторной валидации           |
 
 ## Как работают Behaviors
 
@@ -59,22 +54,22 @@ const form = new GroupNode({
 ```typescript
 // Когда price или quantity меняется → total обновляется
 computeFrom(
-  [path.price, path.quantity],  // Отслеживать эти
-  path.total,                    // Обновить это
-  ({ price, quantity }) => price * quantity  // Этой функцией
+  [path.price, path.quantity], // Отслеживать эти
+  path.total, // Обновить это
+  ({ price, quantity }) => price * quantity // Этой функцией
 );
 ```
 
 ## Behavior vs Validation
 
-| Аспект | Валидация | Behavior |
-|--------|-----------|----------|
-| Цель | Проверка корректности | Реакция на изменения |
-| Результат | Ошибки | Побочные эффекты |
-| Примеры | Required, формат email | Вычисляемый total, show/hide |
+| Аспект    | Валидация              | Behavior                     |
+| --------- | ---------------------- | ---------------------------- |
+| Цель      | Проверка корректности  | Реакция на изменения         |
+| Результат | Ошибки                 | Побочные эффекты             |
+| Примеры   | Required, формат email | Вычисляемый total, show/hide |
 
 ## Следующие шаги
 
 - [Вычисляемые поля](/docs/behaviors/computed) — `computeFrom`, `transformValue`
-- [Условная логика](/docs/behaviors/conditional) — `showWhen`, `enableWhen`, `resetWhen`
+- [Условная логика](/docs/behaviors/conditional) — `enableWhen`, `enableWhen`, `resetWhen`
 - [Синхронизация](/docs/behaviors/sync) — `copyFrom`, `syncFields`

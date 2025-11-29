@@ -1,6 +1,6 @@
 # FormContext
 
-Defined in: [core/types/form-context.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/form-context.ts#L35)
+Defined in: [core/types/form-context.ts:35](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/form-context.ts#L35)
 
 Единый контекст для работы с формой
 
@@ -14,46 +14,6 @@ Defined in: [core/types/form-context.ts:35](https://github.com/AlexandrBukhtatyy
 
 `TForm`
 
-## Properties
-
-### form
-
-```ts
-readonly form: any;
-```
-
-Defined in: [core/types/form-context.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/form-context.ts#L66)
-
-Форма с типизированным Proxy-доступом к полям
-
-Позволяет обращаться к полям напрямую через точечную нотацию:
-- `ctx.form.email` → FieldNode
-- `ctx.form.address.city` → FieldNode (вложенный)
-- `ctx.form.items` → ArrayNode
-
-#### Example
-
-```typescript
-// Получить значение
-ctx.form.email.value.value
-
-// Установить значение (⚠️ может вызвать цикл в behavior!)
-ctx.form.email.setValue('new@mail.com')
-
-// Безопасно установить значение
-ctx.form.email.setValue('new@mail.com', { emitEvent: false })
-
-// Обновить пропсы компонента
-ctx.form.city.updateComponentProps({ options: cities })
-
-// Валидация поля
-await ctx.form.email.validate()
-
-// Работа с массивами
-ctx.form.items.push({ title: 'New' })
-ctx.form.items.clear()
-```
-
 ## Methods
 
 ### setFieldValue()
@@ -62,7 +22,7 @@ ctx.form.items.clear()
 setFieldValue(path, value): void;
 ```
 
-Defined in: [core/types/form-context.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/6a3c391fd3177a419f8ce8013fe1d505a3c04543/packages/reformer/src/core/types/form-context.ts#L85)
+Defined in: [core/types/form-context.ts:85](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/form-context.ts#L85)
 
 Безопасно установить значение поля по строковому пути
 
@@ -94,4 +54,44 @@ Defined in: [core/types/form-context.ts:85](https://github.com/AlexandrBukhtatyy
 watchField(path.country, (country, ctx) => {
   ctx.setFieldValue('city', null);
 });
+```
+
+## Properties
+
+### form
+
+```ts
+readonly form: any;
+```
+
+Defined in: [core/types/form-context.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/types/form-context.ts#L66)
+
+Форма с типизированным Proxy-доступом к полям
+
+Позволяет обращаться к полям напрямую через точечную нотацию:
+- `ctx.form.email` → FieldNode
+- `ctx.form.address.city` → FieldNode (вложенный)
+- `ctx.form.items` → ArrayNode
+
+#### Example
+
+```typescript
+// Получить значение
+ctx.form.email.value.value
+
+// Установить значение (⚠️ может вызвать цикл в behavior!)
+ctx.form.email.setValue('new@mail.com')
+
+// Безопасно установить значение
+ctx.form.email.setValue('new@mail.com', { emitEvent: false })
+
+// Обновить пропсы компонента
+ctx.form.city.updateComponentProps({ options: cities })
+
+// Валидация поля
+await ctx.form.email.validate()
+
+// Работа с массивами
+ctx.form.items.push({ title: 'New' })
+ctx.form.items.clear()
 ```

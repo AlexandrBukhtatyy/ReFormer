@@ -18,7 +18,7 @@ sidebar_position: 5
 ## Реализация
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/employment.ts"
-import { showWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
+import { enableWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -28,20 +28,20 @@ export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> =
   // ==========================================
   // Показать поля компании для работающих
   // ==========================================
-  showWhen(path.companyName, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.companyInn, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.companyPhone, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.companyAddress, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.position, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.workExperienceTotal, path.employmentStatus, (s) => s === 'employed');
-  showWhen(path.workExperienceCurrent, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyName, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyInn, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyPhone, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.companyAddress, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.position, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.workExperienceTotal, path.employmentStatus, (s) => s === 'employed');
+  enableWhen(path.workExperienceCurrent, path.employmentStatus, (s) => s === 'employed');
 
   // ==========================================
   // Показать поля бизнеса для ИП
   // ==========================================
-  showWhen(path.businessType, path.employmentStatus, (s) => s === 'selfEmployed');
-  showWhen(path.businessInn, path.employmentStatus, (s) => s === 'selfEmployed');
-  showWhen(path.businessActivity, path.employmentStatus, (s) => s === 'selfEmployed');
+  enableWhen(path.businessType, path.employmentStatus, (s) => s === 'selfEmployed');
+  enableWhen(path.businessInn, path.employmentStatus, (s) => s === 'selfEmployed');
+  enableWhen(path.businessActivity, path.employmentStatus, (s) => s === 'selfEmployed');
 
   // ==========================================
   // Отслеживание: Очистить поля при изменении статуса
@@ -85,7 +85,7 @@ export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> =
 **Несколько условных полей:**
 
 - Группируйте связанные поля по условию (работающий vs ИП)
-- Используйте `showWhen` для каждого поля отдельно
+- Используйте `enableWhen` для каждого поля отдельно
 - Поля скрываются/показываются вместе при изменении статуса
 
 **Паттерн сброса полей:**

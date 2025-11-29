@@ -10,18 +10,18 @@ sidebar_position: 2
 
 Шаг 1 содержит поля, связанные с кредитом, которые нуждаются в валидации:
 
-| Поле | Правила валидации |
-|------|------------------|
-| `loanType` | Обязательно |
-| `loanAmount` | Обязательно, min 50 000, max 10 000 000 |
-| `loanTerm` | Обязательно, min 6 месяцев, max 360 месяцев |
-| `loanPurpose` | Обязательно, minLength 10, maxLength 500 |
-| `propertyValue` | Обязательно когда loanType = 'mortgage', min 1 000 000 |
-| `initialPayment` | Обязательно когда loanType = 'mortgage' |
-| `carBrand` | Обязательно когда loanType = 'car' |
-| `carModel` | Обязательно когда loanType = 'car' |
-| `carYear` | Обязательно когда loanType = 'car', min 2000 |
-| `carPrice` | Обязательно когда loanType = 'car' |
+| Поле             | Правила валидации                                      |
+| ---------------- | ------------------------------------------------------ |
+| `loanType`       | Обязательно                                            |
+| `loanAmount`     | Обязательно, min 50 000, max 10 000 000                |
+| `loanTerm`       | Обязательно, min 6 месяцев, max 360 месяцев            |
+| `loanPurpose`    | Обязательно, minLength 10, maxLength 500               |
+| `propertyValue`  | Обязательно когда loanType = 'mortgage', min 1 000 000 |
+| `initialPayment` | Обязательно когда loanType = 'mortgage'                |
+| `carBrand`       | Обязательно когда loanType = 'car'                     |
+| `carModel`       | Обязательно когда loanType = 'car'                     |
+| `carYear`        | Обязательно когда loanType = 'car', min 2000           |
+| `carPrice`       | Обязательно когда loanType = 'car'                     |
 
 ## Создание файла валидатора
 
@@ -39,7 +39,15 @@ touch src/schemas/validators/steps/step-1-loan-info.validators.ts
 Начните с базовых обязательных полей и числовых диапазонов:
 
 ```typescript title="src/schemas/validators/steps/step-1-loan-info.validators.ts"
-import { required, min, max, minLength, maxLength, requiredWhen, minWhen } from 'reformer/validators';
+import {
+  required,
+  min,
+  max,
+  minLength,
+  maxLength,
+  requiredWhen,
+  minWhen,
+} from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -98,47 +106,29 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (p
   // ==========================================
 
   // Стоимость имущества - обязательно только для ипотеки
-  requiredWhen(
-    path.propertyValue,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Стоимость имущества обязательна для ипотеки' }
-  );
+  requiredWhen(path.propertyValue, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Стоимость имущества обязательна для ипотеки',
+  });
 
   // Минимальная стоимость имущества - применяется только для ипотеки
-  minWhen(
-    path.propertyValue,
-    1000000,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Минимальная стоимость имущества: 1 000 000' }
-  );
+  minWhen(path.propertyValue, 1000000, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Минимальная стоимость имущества: 1 000 000',
+  });
 
   // Максимальная стоимость имущества
-  maxWhen(
-    path.propertyValue,
-    500000000,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Максимальная стоимость имущества: 500 000 000' }
-  );
+  maxWhen(path.propertyValue, 500000000, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Максимальная стоимость имущества: 500 000 000',
+  });
 
   // Первоначальный платёж - обязателен только для ипотеки
-  requiredWhen(
-    path.initialPayment,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Первоначальный платёж обязателен для ипотеки' }
-  );
+  requiredWhen(path.initialPayment, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Первоначальный платёж обязателен для ипотеки',
+  });
 
   // Минимальный первоначальный платёж
-  minWhen(
-    path.initialPayment,
-    100000,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Минимальный первоначальный платёж: 100 000' }
-  );
+  minWhen(path.initialPayment, 100000, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Минимальный первоначальный платёж: 100 000',
+  });
 };
 ```
 
@@ -155,73 +145,45 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (p
   // ==========================================
 
   // Марка автомобиля
-  requiredWhen(
-    path.carBrand,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Марка автомобиля обязательна' }
-  );
+  requiredWhen(path.carBrand, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Марка автомобиля обязательна',
+  });
 
   // Модель автомобиля
-  requiredWhen(
-    path.carModel,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Модель автомобиля обязательна' }
-  );
+  requiredWhen(path.carModel, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Модель автомобиля обязательна',
+  });
 
   // Год выпуска
-  requiredWhen(
-    path.carYear,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Год выпуска обязателен' }
-  );
+  requiredWhen(path.carYear, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Год выпуска обязателен',
+  });
 
   // Минимальный год выпуска (машины не старше 2000)
-  minWhen(
-    path.carYear,
-    2000,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Автомобиль должен быть 2000 года или новее' }
-  );
+  minWhen(path.carYear, 2000, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Автомобиль должен быть 2000 года или новее',
+  });
 
   // Максимальный год выпуска (текущий год + 1 для предзаказов)
   const currentYear = new Date().getFullYear();
-  maxWhen(
-    path.carYear,
-    currentYear + 1,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: `Максимальный год: ${currentYear + 1}` }
-  );
+  maxWhen(path.carYear, currentYear + 1, path.loanType, (loanType) => loanType === 'car', {
+    message: `Максимальный год: ${currentYear + 1}`,
+  });
 
   // Цена автомобиля
-  requiredWhen(
-    path.carPrice,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Цена автомобиля обязательна' }
-  );
+  requiredWhen(path.carPrice, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Цена автомобиля обязательна',
+  });
 
   // Минимальная цена автомобиля
-  minWhen(
-    path.carPrice,
-    100000,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Минимальная цена автомобиля: 100 000' }
-  );
+  minWhen(path.carPrice, 100000, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Минимальная цена автомобиля: 100 000',
+  });
 
   // Максимальная цена автомобиля
-  maxWhen(
-    path.carPrice,
-    20000000,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Максимальная цена автомобиля: 20 000 000' }
-  );
+  maxWhen(path.carPrice, 20000000, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Максимальная цена автомобиля: 20 000 000',
+  });
 };
 ```
 
@@ -238,7 +200,7 @@ import {
   maxLength,
   requiredWhen,
   minWhen,
-  maxWhen
+  maxWhen,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -284,107 +246,61 @@ export const step1LoanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Условно: Поля ипотеки
   // ==========================================
-  requiredWhen(
-    path.propertyValue,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Стоимость имущества обязательна для ипотеки' }
-  );
+  requiredWhen(path.propertyValue, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Стоимость имущества обязательна для ипотеки',
+  });
 
-  minWhen(
-    path.propertyValue,
-    1000000,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Минимальная стоимость имущества: 1 000 000' }
-  );
+  minWhen(path.propertyValue, 1000000, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Минимальная стоимость имущества: 1 000 000',
+  });
 
-  maxWhen(
-    path.propertyValue,
-    500000000,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Максимальная стоимость имущества: 500 000 000' }
-  );
+  maxWhen(path.propertyValue, 500000000, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Максимальная стоимость имущества: 500 000 000',
+  });
 
-  requiredWhen(
-    path.initialPayment,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Первоначальный платёж обязателен для ипотеки' }
-  );
+  requiredWhen(path.initialPayment, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Первоначальный платёж обязателен для ипотеки',
+  });
 
-  minWhen(
-    path.initialPayment,
-    100000,
-    path.loanType,
-    (loanType) => loanType === 'mortgage',
-    { message: 'Минимальный первоначальный платёж: 100 000' }
-  );
+  minWhen(path.initialPayment, 100000, path.loanType, (loanType) => loanType === 'mortgage', {
+    message: 'Минимальный первоначальный платёж: 100 000',
+  });
 
   // ==========================================
   // Условно: Поля автокредита
   // ==========================================
-  requiredWhen(
-    path.carBrand,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Марка автомобиля обязательна' }
-  );
+  requiredWhen(path.carBrand, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Марка автомобиля обязательна',
+  });
 
-  requiredWhen(
-    path.carModel,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Модель автомобиля обязательна' }
-  );
+  requiredWhen(path.carModel, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Модель автомобиля обязательна',
+  });
 
-  requiredWhen(
-    path.carYear,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Год выпуска обязателен' }
-  );
+  requiredWhen(path.carYear, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Год выпуска обязателен',
+  });
 
-  minWhen(
-    path.carYear,
-    2000,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Автомобиль должен быть 2000 года или новее' }
-  );
+  minWhen(path.carYear, 2000, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Автомобиль должен быть 2000 года или новее',
+  });
 
   const currentYear = new Date().getFullYear();
-  maxWhen(
-    path.carYear,
-    currentYear + 1,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: `Максимальный год: ${currentYear + 1}` }
-  );
+  maxWhen(path.carYear, currentYear + 1, path.loanType, (loanType) => loanType === 'car', {
+    message: `Максимальный год: ${currentYear + 1}`,
+  });
 
-  requiredWhen(
-    path.carPrice,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Цена автомобиля обязательна' }
-  );
+  requiredWhen(path.carPrice, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Цена автомобиля обязательна',
+  });
 
-  minWhen(
-    path.carPrice,
-    100000,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Минимальная цена автомобиля: 100 000' }
-  );
+  minWhen(path.carPrice, 100000, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Минимальная цена автомобиля: 100 000',
+  });
 
-  maxWhen(
-    path.carPrice,
-    20000000,
-    path.loanType,
-    (loanType) => loanType === 'car',
-    { message: 'Максимальная цена автомобиля: 20 000 000' }
-  );
+  maxWhen(path.carPrice, 20000000, path.loanType, (loanType) => loanType === 'car', {
+    message: 'Максимальная цена автомобиля: 20 000 000',
+  });
 };
 ```
 
@@ -413,12 +329,9 @@ max(path.loanAmount, 10000000, { message: 'Максимальная сумма: 
 ### Условные валидаторы
 
 ```typescript
-requiredWhen(
-  path.propertyValue,
-  path.loanType,
-  (loanType) => loanType === 'mortgage',
-  { message: 'Стоимость имущества обязательна для ипотеки' }
-);
+requiredWhen(path.propertyValue, path.loanType, (loanType) => loanType === 'mortgage', {
+  message: 'Стоимость имущества обязательна для ипотеки',
+});
 ```
 
 - **Первый аргумент**: Поле для валидации
@@ -433,18 +346,16 @@ requiredWhen(
 
 ```typescript
 // Behavior скрывает поля ипотеки когда не нужны
-showWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
+enableWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
 
 // Валидация применяется только когда видимо
-requiredWhen(
-  path.propertyValue,
-  path.loanType,
-  (type) => type === 'mortgage',
-  { message: 'Стоимость имущества обязательна' }
-);
+requiredWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage', {
+  message: 'Стоимость имущества обязательна',
+});
 ```
 
 Когда `loanType` не 'mortgage':
+
 1. Behavior **скрывает** поле → Пользователь его не видит
 2. Валидация **пропускает** поле → Ошибки не показываются
 
@@ -455,28 +366,33 @@ requiredWhen(
 Протестируйте эти сценарии:
 
 ### Обязательные поля
+
 - [ ] Попытка отправить без выбора типа кредита → Ошибка показана
 - [ ] Попытка отправить без суммы кредита → Ошибка показана
 - [ ] Попытка отправить без срока → Ошибка показана
 - [ ] Попытка отправить без цели → Ошибка показана
 
 ### Числовые диапазоны
+
 - [ ] Введите сумму кредита < 50 000 → Ошибка показана
 - [ ] Введите сумму кредита > 10 000 000 → Ошибка показана
 - [ ] Введите срок < 6 → Ошибка показана
 - [ ] Введите срок > 360 → Ошибка показана
 
 ### Длина строки
+
 - [ ] Введите цель с < 10 символами → Ошибка показана
 - [ ] Введите цель с > 500 символами → Ошибка показана
 
 ### Условно: Ипотека
+
 - [ ] Выберите тип кредита = 'mortgage' → propertyValue и initialPayment становятся обязательны
 - [ ] Оставьте propertyValue пусто → Ошибка показана
 - [ ] Введите propertyValue < 1 000 000 → Ошибка показана
 - [ ] Оставьте initialPayment пусто → Ошибка показана
 
 ### Условно: Автокредит
+
 - [ ] Выберите тип кредита = 'car' → Поля автомобиля становятся обязательны
 - [ ] Оставьте carBrand пусто → Ошибка показана
 - [ ] Оставьте carModel пусто → Ошибка показана
@@ -484,6 +400,7 @@ requiredWhen(
 - [ ] Введите carPrice < 100 000 → Ошибка показана
 
 ### Переключение типов кредита
+
 - [ ] Заполните поля ипотеки → Переключитесь на 'car' → Ошибки ипотеки исчезают
 - [ ] Заполните поля автокредита → Переключитесь на 'mortgage' → Ошибки автокредита исчезают
 
@@ -498,6 +415,7 @@ requiredWhen(
 ## Что дальше?
 
 В следующем разделе мы добавим валидацию для **Шага 2: Личная информация**, включая:
+
 - Валидацию имён с паттернами кириллицы
 - Валидацию даты рождения с расчётом возраста
 - Валидацию формата паспорта
