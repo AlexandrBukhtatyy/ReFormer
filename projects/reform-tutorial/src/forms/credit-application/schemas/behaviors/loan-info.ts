@@ -1,17 +1,19 @@
 import { computeFrom, enableWhen, watchField } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
-import type { CreditApplicationForm, Address } from '../../types/credit-application.types';
+import type { CreditApplicationForm } from '../../types/credit-application.types';
 
 export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // ==========================================
   // Вычисляемое поле: Процентная ставка
+  // Подписываемся только на конкретные поля (city вместо всего registrationAddress)
   // ==========================================
-  computeFrom(
-    [path.loanType, path.registrationAddress, path.hasProperty],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  computeFrom<any, number>(
+    [path.loanType, path.registrationAddress.city, path.hasProperty],
     path.interestRate,
-    (values) => {
+    (values: { loanType: string; city: string; hasProperty: boolean }) => {
       const baseRates: Record<string, number> = {
         mortgage: 8.5,
         car: 12.0,
@@ -20,12 +22,10 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
         refinancing: 14.0,
       };
 
-      let rate = baseRates[values.loanType as string] || 15.0;
+      let rate = baseRates[values.loanType] || 15.0;
 
       // Скидка для крупных городов
-      const address = values.registrationAddress as Address;
-      const city = address?.city || '';
-      if (['Москва', 'Санкт-Петербург'].includes(city)) {
+      if (['Москва', 'Санкт-Петербург'].includes(values.city || '')) {
         rate -= 0.5;
       }
 
