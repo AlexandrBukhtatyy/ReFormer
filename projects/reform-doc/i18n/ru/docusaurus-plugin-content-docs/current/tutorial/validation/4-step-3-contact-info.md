@@ -10,17 +10,17 @@ sidebar_position: 4
 
 Шаг 3 содержит контактные и адресные поля:
 
-| Поле | Правила валидации |
-|------|------------------|
-| `phoneMain` | Обязательно, формат телефона |
-| `phoneAdditional` | Опционально, формат телефона |
-| `email` | Обязательно, формат email |
-| `emailAdditional` | Опционально, формат email |
-| `registrationAddress.city` | Обязательно |
-| `registrationAddress.street` | Обязательно |
-| `registrationAddress.house` | Обязательно |
-| `registrationAddress.postalCode` | Опционально, 6 цифр |
-| `residenceAddress.*` | Обязательно когда `sameAsRegistration` false |
+| Поле                             | Правила валидации                            |
+| -------------------------------- | -------------------------------------------- |
+| `phoneMain`                      | Обязательно, формат телефона                 |
+| `phoneAdditional`                | Опционально, формат телефона                 |
+| `email`                          | Обязательно, формат email                    |
+| `emailAdditional`                | Опционально, формат email                    |
+| `registrationAddress.city`       | Обязательно                                  |
+| `registrationAddress.street`     | Обязательно                                  |
+| `registrationAddress.house`      | Обязательно                                  |
+| `registrationAddress.postalCode` | Опционально, 6 цифр                          |
+| `residenceAddress.*`             | Обязательно когда `sameAsRegistration` false |
 
 ## Создание файла валидатора
 
@@ -121,28 +121,19 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // ==========================================
 
   // Город - обязателен когда sameAsRegistration false
-  requiredWhen(
-    path.residenceAddress.city,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Город обязателен' }
-  );
+  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
+    message: 'Город обязателен',
+  });
 
   // Улица - обязательна когда sameAsRegistration false
-  requiredWhen(
-    path.residenceAddress.street,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Улица обязательна' }
-  );
+  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
+    message: 'Улица обязательна',
+  });
 
   // Дом - обязателен когда sameAsRegistration false
-  requiredWhen(
-    path.residenceAddress.house,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Номер дома обязателен' }
-  );
+  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
+    message: 'Номер дома обязателен',
+  });
 
   // Квартира опциональна
 
@@ -208,26 +199,17 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Адрес проживания (Условно обязателен)
   // ==========================================
 
-  requiredWhen(
-    path.residenceAddress.city,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Город обязателен' }
-  );
+  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
+    message: 'Город обязателен',
+  });
 
-  requiredWhen(
-    path.residenceAddress.street,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Улица обязательна' }
-  );
+  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
+    message: 'Улица обязательна',
+  });
 
-  requiredWhen(
-    path.residenceAddress.house,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Номер дома обязателен' }
-  );
+  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
+    message: 'Номер дома обязателен',
+  });
 
   pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
     message: 'Почтовый код должен быть 6 цифр',
@@ -268,13 +250,14 @@ phone(path.phoneMain, { message: 'Неверный формат телефона
 ```typescript
 requiredWhen(
   path.residenceAddress.city,
-  path.sameAsRegistration,  // ← Отслеживайте это поле
-  (same) => !same,           // ← Условие: требуется когда false
+  path.sameAsRegistration, // ← Отслеживайте это поле
+  (same) => !same, // ← Условие: требуется когда false
   { message: 'Город обязателен' }
 );
 ```
 
 **Как это работает**:
+
 1. Отслеживает поле `sameAsRegistration`
 2. Когда `sameAsRegistration` изменяется, переоценивает условие
 3. Если условие возвращает `true`, поле становится обязательным
@@ -286,7 +269,7 @@ requiredWhen(
 
 ```typescript
 // Behavior: Скрыть адрес проживания когда совпадает с регистрацией
-hideWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
+disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
 
 // Behavior: Отключить адрес проживания когда совпадает с регистрацией
 disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
@@ -295,12 +278,13 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === t
 requiredWhen(
   path.residenceAddress.city,
   path.sameAsRegistration,
-  (same) => !same,  // Требуется когда НЕ совпадает
+  (same) => !same, // Требуется когда НЕ совпадает
   { message: 'Город обязателен' }
 );
 ```
 
 Идеальная синхронизация:
+
 - Когда `sameAsRegistration = true` → Поле **скрыто** и **не требуется**
 - Когда `sameAsRegistration = false` → Поле **видимо** и **требуется**
 
@@ -309,6 +293,7 @@ requiredWhen(
 Протестируйте эти сценарии:
 
 ### Валидация телефона
+
 - [ ] Оставьте главный телефон пусто → Ошибка показана
 - [ ] Введите неверный формат главного телефона → Ошибка показана
 - [ ] Введите валидный главный телефон → Ошибки нет
@@ -316,6 +301,7 @@ requiredWhen(
 - [ ] Оставьте дополнительный телефон пусто → Ошибки нет
 
 ### Валидация email
+
 - [ ] Оставьте главный email пусто → Ошибка показана
 - [ ] Введите неверный формат email (без @) → Ошибка показана
 - [ ] Введите неверный формат email (без домена) → Ошибка показана
@@ -324,6 +310,7 @@ requiredWhen(
 - [ ] Оставьте дополнительный email пусто → Ошибки нет
 
 ### Адрес регистрации
+
 - [ ] Оставьте город пусто → Ошибка показана
 - [ ] Оставьте улицу пусто → Ошибка показана
 - [ ] Оставьте дом пусто → Ошибка показана
@@ -334,6 +321,7 @@ requiredWhen(
 - [ ] Оставьте почтовый код пусто → Ошибки нет (опционально)
 
 ### Адрес проживания
+
 - [ ] Отметьте "совпадает с регистрацией" → Поля проживания не требуются
 - [ ] Отмените "совпадает с регистрацией" → Поля проживания становятся требуемыми
 - [ ] Оставьте город проживания пусто (когда отличается) → Ошибка показана
@@ -346,11 +334,11 @@ requiredWhen(
 
 ```typescript
 // Все валидные форматы:
-'+7 (999) 123-45-67'
-'+79991234567'
-'89991234567'
-'9991234567'
-'+1 (234) 567-8901'  // Международный
+'+7 (999) 123-45-67';
+'+79991234567';
+'89991234567';
+'9991234567';
+'+1 (234) 567-8901'; // Международный
 ```
 
 ## Поддерживаемые форматы email
@@ -359,16 +347,16 @@ requiredWhen(
 
 ```typescript
 // Валидные emails:
-'user@example.com'
-'user.name@example.com'
-'user+tag@example.co.uk'
-'user_name123@sub.example.org'
+'user@example.com';
+'user.name@example.com';
+'user+tag@example.co.uk';
+'user_name123@sub.example.org';
 
 // Невалидные emails:
-'user@'              // Нет домена
-'@example.com'       // Нет пользователя
-'user @example.com'  // Пробел в имени пользователя
-'user@example'       // Нет TLD
+'user@'; // Нет домена
+'@example.com'; // Нет пользователя
+'user @example.com'; // Пробел в имени пользователя
+'user@example'; // Нет TLD
 ```
 
 ## Ключевые выводы
@@ -382,18 +370,21 @@ requiredWhen(
 ## Распространённые паттерны
 
 ### Требуемый email
+
 ```typescript
 required(path.email, { message: 'Email обязателен' });
 email(path.email, { message: 'Неверный формат email' });
 ```
 
 ### Опциональный email (валидирует формат если указан)
+
 ```typescript
 email(path.emailAdditional, { message: 'Неверный формат email' });
 // Нет required() - поле опционально
 ```
 
 ### Русский почтовый код
+
 ```typescript
 pattern(path.postalCode, /^\d{6}$/, {
   message: 'Почтовый код должен быть 6 цифр',
@@ -403,6 +394,7 @@ pattern(path.postalCode, /^\d{6}$/, {
 ## Что дальше?
 
 В следующем разделе мы добавим валидацию для **Шага 4: Занятость**, включая:
+
 - Требуемый статус занятости
 - Условную валидацию для работающих vs самозанятых
 - Валидацию дохода с минимальными пороговыми значениями

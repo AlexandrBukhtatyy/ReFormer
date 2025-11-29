@@ -25,7 +25,7 @@ touch reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-inf
 ## Implementing the Behaviors
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
+import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -35,7 +35,7 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 1. Hide Residence Address When Same as Registration
   // ==========================================
-  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   // ==========================================
   // 2. Disable Residence Address When Same as Registration
@@ -56,7 +56,7 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 
 ### Understanding Each Behavior
 
-**1. hideWhen:**
+**1. disableWhen:**
 
 - Hides the `residenceAddress` fields from the UI
 - Fields are not validated when hidden
@@ -66,7 +66,7 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 
 - Makes `residenceAddress` fields read-only
 - Prevents user from editing
-- Works together with `hideWhen` (though hidden fields are already inaccessible)
+- Works together with `disableWhen` (though hidden fields are already inaccessible)
 
 **3. copyTo:**
 
@@ -74,10 +74,10 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 - When `sameAsRegistration` is `true`, copies the value to `residenceAddress`
 - Runs whenever `registrationAddress` changes while condition is met
 
-:::tip hideWhen vs disableWhen
-You might wonder why we use both `hideWhen` and `disableWhen` for the same condition:
+:::tip disableWhen vs disableWhen
+You might wonder why we use both `disableWhen` and `disableWhen` for the same condition:
 
-- `hideWhen` - Removes fields from UI completely (cleaner UX)
+- `disableWhen` - Removes fields from UI completely (cleaner UX)
 - `disableWhen` - Prevents editing if fields are shown
 
 While redundant here, in some cases you might want disabled-but-visible fields. Using both is defensive programming.
@@ -115,14 +115,14 @@ For addresses, `copyTo` is correct because we don't want changes to `residenceAd
 ## Complete Code
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
+import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
@@ -198,7 +198,7 @@ Step 3 now has:
 
 ## Key Takeaways
 
-- `hideWhen` for conditional visibility
+- `disableWhen` for conditional visibility
 - `disableWhen` for conditional access control
 - `copyTo` for one-way data synchronization
 - Combine multiple behaviors for robust UX

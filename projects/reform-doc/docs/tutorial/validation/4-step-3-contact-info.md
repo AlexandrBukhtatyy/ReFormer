@@ -10,17 +10,17 @@ Validating email, phone, and address fields with format validators and condition
 
 Step 3 contains contact and address fields:
 
-| Field | Validation Rules |
-|-------|------------------|
-| `phoneMain` | Required, phone format |
-| `phoneAdditional` | Optional, phone format |
-| `email` | Required, email format |
-| `emailAdditional` | Optional, email format |
-| `registrationAddress.city` | Required |
-| `registrationAddress.street` | Required |
-| `registrationAddress.house` | Required |
-| `registrationAddress.postalCode` | Optional, 6 digits |
-| `residenceAddress.*` | Required when `sameAsRegistration` is false |
+| Field                            | Validation Rules                            |
+| -------------------------------- | ------------------------------------------- |
+| `phoneMain`                      | Required, phone format                      |
+| `phoneAdditional`                | Optional, phone format                      |
+| `email`                          | Required, email format                      |
+| `emailAdditional`                | Optional, email format                      |
+| `registrationAddress.city`       | Required                                    |
+| `registrationAddress.street`     | Required                                    |
+| `registrationAddress.house`      | Required                                    |
+| `registrationAddress.postalCode` | Optional, 6 digits                          |
+| `residenceAddress.*`             | Required when `sameAsRegistration` is false |
 
 ## Creating the Validator File
 
@@ -121,28 +121,19 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // ==========================================
 
   // City - required when sameAsRegistration is false
-  requiredWhen(
-    path.residenceAddress.city,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'City is required' }
-  );
+  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
+    message: 'City is required',
+  });
 
   // Street - required when sameAsRegistration is false
-  requiredWhen(
-    path.residenceAddress.street,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Street is required' }
-  );
+  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
+    message: 'Street is required',
+  });
 
   // House - required when sameAsRegistration is false
-  requiredWhen(
-    path.residenceAddress.house,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'House number is required' }
-  );
+  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
+    message: 'House number is required',
+  });
 
   // Apartment is optional
 
@@ -208,26 +199,17 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Residence Address (Conditionally Required)
   // ==========================================
 
-  requiredWhen(
-    path.residenceAddress.city,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'City is required' }
-  );
+  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
+    message: 'City is required',
+  });
 
-  requiredWhen(
-    path.residenceAddress.street,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'Street is required' }
-  );
+  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
+    message: 'Street is required',
+  });
 
-  requiredWhen(
-    path.residenceAddress.house,
-    path.sameAsRegistration,
-    (same) => !same,
-    { message: 'House number is required' }
-  );
+  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
+    message: 'House number is required',
+  });
 
   pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
     message: 'Postal code must be 6 digits',
@@ -268,13 +250,14 @@ phone(path.phoneMain, { message: 'Invalid phone format' });
 ```typescript
 requiredWhen(
   path.residenceAddress.city,
-  path.sameAsRegistration,  // ← Watch this field
-  (same) => !same,           // ← Condition: required when false
+  path.sameAsRegistration, // ← Watch this field
+  (same) => !same, // ← Condition: required when false
   { message: 'City is required' }
 );
 ```
 
 **How it works**:
+
 1. Watches `sameAsRegistration` field
 2. When `sameAsRegistration` changes, re-evaluates condition
 3. If condition returns `true`, field becomes required
@@ -286,7 +269,7 @@ Remember from Behaviors section:
 
 ```typescript
 // Behavior: Hide residence address when same as registration
-hideWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
+disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
 
 // Behavior: Disable residence address when same as registration
 disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
@@ -295,12 +278,13 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === t
 requiredWhen(
   path.residenceAddress.city,
   path.sameAsRegistration,
-  (same) => !same,  // Required when NOT same
+  (same) => !same, // Required when NOT same
   { message: 'City is required' }
 );
 ```
 
 Perfect synchronization:
+
 - When `sameAsRegistration = true` → Field **hidden** and **not required**
 - When `sameAsRegistration = false` → Field **visible** and **required**
 
@@ -309,6 +293,7 @@ Perfect synchronization:
 Test these scenarios:
 
 ### Phone Validation
+
 - [ ] Leave main phone empty → Error shown
 - [ ] Enter invalid main phone format → Error shown
 - [ ] Enter valid main phone → No error
@@ -316,6 +301,7 @@ Test these scenarios:
 - [ ] Leave additional phone empty → No error
 
 ### Email Validation
+
 - [ ] Leave main email empty → Error shown
 - [ ] Enter invalid email format (no @) → Error shown
 - [ ] Enter invalid email format (no domain) → Error shown
@@ -324,6 +310,7 @@ Test these scenarios:
 - [ ] Leave additional email empty → No error
 
 ### Registration Address
+
 - [ ] Leave city empty → Error shown
 - [ ] Leave street empty → Error shown
 - [ ] Leave house empty → Error shown
@@ -334,6 +321,7 @@ Test these scenarios:
 - [ ] Leave postal code empty → No error (optional)
 
 ### Residence Address
+
 - [ ] Check "same as registration" → Residence fields not required
 - [ ] Uncheck "same as registration" → Residence fields become required
 - [ ] Leave residence city empty (when different) → Error shown
@@ -346,11 +334,11 @@ The `phone()` validator accepts various formats:
 
 ```typescript
 // All valid formats:
-'+7 (999) 123-45-67'
-'+79991234567'
-'89991234567'
-'9991234567'
-'+1 (234) 567-8901'  // International
+'+7 (999) 123-45-67';
+'+79991234567';
+'89991234567';
+'9991234567';
+'+1 (234) 567-8901'; // International
 ```
 
 ## Supported Email Formats
@@ -359,16 +347,16 @@ The `email()` validator follows standard email format:
 
 ```typescript
 // Valid emails:
-'user@example.com'
-'user.name@example.com'
-'user+tag@example.co.uk'
-'user_name123@sub.example.org'
+'user@example.com';
+'user.name@example.com';
+'user+tag@example.co.uk';
+'user_name123@sub.example.org';
 
 // Invalid emails:
-'user@'              // No domain
-'@example.com'       // No user
-'user @example.com'  // Space in username
-'user@example'       // No TLD
+'user@'; // No domain
+'@example.com'; // No user
+'user @example.com'; // Space in username
+'user@example'; // No TLD
 ```
 
 ## Key Takeaways
@@ -382,18 +370,21 @@ The `email()` validator follows standard email format:
 ## Common Patterns
 
 ### Required Email
+
 ```typescript
 required(path.email, { message: 'Email is required' });
 email(path.email, { message: 'Invalid email format' });
 ```
 
 ### Optional Email (validates format if provided)
+
 ```typescript
 email(path.emailAdditional, { message: 'Invalid email format' });
 // No required() - field is optional
 ```
 
 ### Russian Postal Code
+
 ```typescript
 pattern(path.postalCode, /^\d{6}$/, {
   message: 'Postal code must be 6 digits',
@@ -403,6 +394,7 @@ pattern(path.postalCode, /^\d{6}$/, {
 ## What's Next?
 
 In the next section, we'll add validation for **Step 4: Employment**, including:
+
 - Required employment status
 - Conditional validation for employed vs self-employed
 - Income validation with minimum thresholds

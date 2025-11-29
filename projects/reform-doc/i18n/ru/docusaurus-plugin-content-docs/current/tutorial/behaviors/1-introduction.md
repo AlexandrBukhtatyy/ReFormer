@@ -89,13 +89,13 @@ computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (valu
 Показывают или скрывают поля по условиям:
 
 ```typescript
-import { enableWhen, hideWhen } from 'reformer/behaviors';
+import { enableWhen, disableWhen } from 'reformer/behaviors';
 
 // Показываем поля ипотеки только для ипотечных кредитов
 enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
 
 // Скрываем адрес проживания когда совпадает с регистрацией
-hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
+disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 ```
 
 ### Условный доступ

@@ -25,7 +25,7 @@ touch reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-inf
 ## Реализация Behaviors
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
+import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -35,7 +35,7 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 1. Скрыть адрес проживания когда совпадает с регистрацией
   // ==========================================
-  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   // ==========================================
   // 2. Отключить адрес проживания когда совпадает с регистрацией
@@ -56,7 +56,7 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 
 ### Разбор каждого behavior
 
-**1. hideWhen:**
+**1. disableWhen:**
 
 - Скрывает поля `residenceAddress` из пользовательского интерфейса
 - Поля не валидируются когда скрыты
@@ -66,7 +66,7 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 
 - Делает поля `residenceAddress` только для чтения
 - Предотвращает редактирование пользователем
-- Работает вместе с `hideWhen` (хотя скрытые поля уже недоступны)
+- Работает вместе с `disableWhen` (хотя скрытые поля уже недоступны)
 
 **3. copyTo:**
 
@@ -74,10 +74,10 @@ export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 - Когда `sameAsRegistration` - `true`, копирует значение в `residenceAddress`
 - Запускается каждый раз когда `registrationAddress` изменяется при выполнении условия
 
-:::tip hideWhen vs disableWhen
-Вы можете задаться вопросом, почему мы используем оба `hideWhen` и `disableWhen` для одного условия:
+:::tip disableWhen vs disableWhen
+Вы можете задаться вопросом, почему мы используем оба `disableWhen` и `disableWhen` для одного условия:
 
-- `hideWhen` - Удаляет поля из UI полностью (чище UX)
+- `disableWhen` - Удаляет поля из UI полностью (чище UX)
 - `disableWhen` - Предотвращает редактирование если поля показаны
 
 Хотя это может быть избыточным здесь, в некоторых случаях вы можете захотеть отключённые но видимые поля. Использование обоих - это защитное программирование.
@@ -115,14 +115,14 @@ copyTo(
 ## Полный код
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { hideWhen, disableWhen, copyTo } from 'reformer/behaviors';
+import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  hideWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
+  disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
   disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
 
@@ -198,7 +198,7 @@ Behaviors обрабатывают всё остальное автоматич�
 
 ## Ключевые выводы
 
-- `hideWhen` для условной видимости
+- `disableWhen` для условной видимости
 - `disableWhen` для условного контроля доступа
 - `copyTo` для односторонней синхронизации данных
 - Объединяйте несколько behaviors для надёжного UX
