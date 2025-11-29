@@ -20,22 +20,22 @@ sidebar_position: 8
 Создайте основной файл валидации, который импортирует и применяет все валидаторы шагов:
 
 ```bash
-touch src/schemas/validators/credit-application.validators.ts
+touch src/schemas/validators/credit-application.ts
 ```
 
 ### Реализация
 
-```typescript title="src/schemas/validators/credit-application.validators.ts"
+```typescript title="src/schemas/validators/credit-application.ts"
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 // Импортируйте валидаторы шагов
-import { step1LoanValidation } from './steps/step-1-loan-info.validators';
-import { step2PersonalValidation } from './steps/step-2-personal-info.validators';
-import { step3ContactValidation } from './steps/step-3-contact-info.validators';
-import { step4EmploymentValidation } from './steps/step-4-employment.validators';
-import { step5AdditionalValidation } from './steps/step-5-additional-info.validators';
-import { crossStepValidation } from './cross-step.validators';
+import { step1LoanValidation } from './loan-info';
+import { step2PersonalValidation } from './personal-info';
+import { step3ContactValidation } from './contact-info';
+import { step4EmploymentValidation } from './employment';
+import { step5AdditionalValidation } from './additional-info';
+import { crossStepValidation } from './cross-step';
 
 /**
  * Полная схема валидации для формы кредитного заявления
@@ -91,7 +91,7 @@ export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationFo
 import { createForm } from 'reformer';
 import { creditApplicationSchema } from './credit-application.schema';
 import { creditApplicationBehaviors } from '../behaviors/credit-application.behaviors';
-import { creditApplicationValidation } from '../validators/credit-application.validators';
+import { creditApplicationValidation } from '../validators/credit-application';
 import type { CreditApplicationForm } from '@/types';
 
 export function createCreditApplicationForm() {
@@ -113,21 +113,19 @@ export function createCreditApplicationForm() {
 src/
 ├── schemas/
 │   ├── validators/
-│   │   ├── steps/
-│   │   │   ├── step-1-loan-info.validators.ts
-│   │   │   ├── step-2-personal-info.validators.ts
-│   │   │   ├── step-3-contact-info.validators.ts
-│   │   │   ├── step-4-employment.validators.ts
-│   │   │   └── step-5-additional-info.validators.ts
-│   │   ├── cross-step.validators.ts
-│   │   └── credit-application.validators.ts  ← Основной файл
+│   │   ├── loan-info.ts
+│   │   ├── personal-info.ts
+│   │   ├── contact-info.ts
+│   │   ├── employment.ts
+│   │   ├── additional-info.ts
+│   │   ├── cross-step.ts
+│   │   └── credit-application.ts  ← Основной файл
 │   ├── behaviors/
-│   │   ├── steps/
-│   │   │   ├── loan-info.ts
-│   │   │   ├── personal-info.ts
-│   │   │   ├── contact-info.ts
-│   │   │   ├── employment.ts
-│   │   │   └── additional-info.ts
+│   │   ├── loan-info.ts
+│   │   ├── personal-info.ts
+│   │   ├── contact-info.ts
+│   │   ├── employment.ts
+│   │   ├── additional-info.ts
 │   │   ├── cross-step.behaviors.ts
 │   │   └── credit-application.behaviors.ts
 │   ├── credit-application.ts

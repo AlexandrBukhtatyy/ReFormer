@@ -245,12 +245,11 @@ We'll create the following structure:
 src/
 ├── schemas/
 │   ├── validators/
-│   │   ├── steps/
-│   │   │   ├── step-1-loan-info.validators.ts
-│   │   │   ├── step-2-personal-info.validators.ts
-│   │   │   ├── step-3-contact-info.validators.ts
-│   │   │   ├── step-4-employment.validators.ts
-│   │   │   └── step-5-additional-info.validators.ts
+│   │   ├── loan-info.ts
+│   │   ├── personal-info.ts
+│   │   ├── contact-info.ts
+│   │   ├── employment.ts
+│   │   ├── additional-info.ts
 │   │   ├── cross-step.validators.ts
 │   │   └── credit-application.validators.ts  (main file)
 │   └── create-form.ts  (validation registered here)

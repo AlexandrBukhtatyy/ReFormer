@@ -28,7 +28,7 @@ Step 2 contains personal data fields that need careful validation:
 Create the validator file for Step 2:
 
 ```bash
-touch src/schemas/validators/steps/step-2-personal-info.validators.ts
+touch src/schemas/validators/personal-info.ts
 ```
 
 ## Implementation
@@ -37,8 +37,8 @@ touch src/schemas/validators/steps/step-2-personal-info.validators.ts
 
 Validate names using the Cyrillic pattern:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
-import { required, minLength, pattern, createValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/personal-info.ts"
+import { required, minLength, pattern, validate } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -90,7 +90,7 @@ The pattern `/^[А-ЯЁа-яё\s-]+$/` ensures:
 
 Add custom validation for birth date:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/personal-info.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -101,61 +101,53 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
   required(path.personalData.birthDate, { message: 'Birth date is required' });
 
   // Custom: Not in the future
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+  validate(path.personalData.birthDate, (birthDate) => {
+    if (!birthDate) return null;
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(birthDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDate',
-          message: 'Birth date cannot be in the future',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        code: 'futureDate',
+        message: 'Birth date cannot be in the future',
+      };
     }
-  );
+
+    return null;
+  });
 
   // Custom: Age between 18 and 70
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+  validate(path.personalData.birthDate, (birthDate) => {
+    if (!birthDate) return null;
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
+    const date = new Date(birthDate);
+    const today = new Date();
 
-      let age = today.getFullYear() - date.getFullYear();
-      const monthDiff = today.getMonth() - date.getMonth();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
 
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-        age--;
-      }
-
-      if (age < 18) {
-        return {
-          type: 'underAge',
-          message: 'Applicant must be at least 18 years old',
-        };
-      }
-
-      if (age > 70) {
-        return {
-          type: 'overAge',
-          message: 'Applicant must be 70 years old or younger',
-        };
-      }
-
-      return null;
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+      age--;
     }
-  );
+
+    if (age < 18) {
+      return {
+        code: 'underAge',
+        message: 'Applicant must be at least 18 years old',
+      };
+    }
+
+    if (age > 70) {
+      return {
+        code: 'overAge',
+        message: 'Applicant must be 70 years old or younger',
+      };
+    }
+
+    return null;
+  });
 };
 ```
 
@@ -163,7 +155,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Add validation for Russian passport format:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/personal-info.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -187,47 +179,42 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
   required(path.passportData.issueDate, { message: 'Issue date is required' });
 
   // Custom: Issue date not in future
-  createValidator(
-    path.passportData.issueDate,
-    [],
-    (issueDate) => {
-      if (!issueDate) return null;
+  validate(path.passportData.issueDate, (issueDate) => {
+    if (!issueDate) return null;
 
-      const date = new Date(issueDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(issueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDateIssue',
-          message: 'Issue date cannot be in the future',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        code: 'futureDateIssue',
+        message: 'Issue date cannot be in the future',
+      };
     }
-  );
+
+    return null;
+  });
 
   // Custom: Issue date must be after birth date
-  createValidator(
-    path.passportData.issueDate,
-    [path.personalData.birthDate],
-    (issueDate, [birthDate]) => {
-      if (!issueDate || !birthDate) return null;
+  validate(path.passportData.issueDate, (issueDate, ctx) => {
+    if (!issueDate) return null;
 
-      const issue = new Date(issueDate as string);
-      const birth = new Date(birthDate as string);
+    const birthDate = ctx.form.personalData.birthDate.value.value;
+    if (!birthDate) return null;
 
-      if (issue <= birth) {
-        return {
-          type: 'issueDateBeforeBirth',
-          message: 'Issue date must be after birth date',
-        };
-      }
+    const issue = new Date(issueDate);
+    const birth = new Date(birthDate);
 
-      return null;
+    if (issue <= birth) {
+      return {
+        code: 'issueDateBeforeBirth',
+        message: 'Issue date must be after birth date',
+      };
     }
-  );
+
+    return null;
+  });
 
   // Issued by
   required(path.passportData.issuedBy, { message: 'Issuing authority is required' });
@@ -239,7 +226,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Add validation for Russian identification numbers:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/personal-info.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -267,8 +254,8 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Here's the complete validator for Step 2:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
-import { required, minLength, pattern, createValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/personal-info.ts"
+import { required, minLength, pattern, validate } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -310,60 +297,52 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
   required(path.personalData.birthDate, { message: 'Birth date is required' });
 
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+  validate(path.personalData.birthDate, (birthDate) => {
+    if (!birthDate) return null;
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(birthDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDate',
-          message: 'Birth date cannot be in the future',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        code: 'futureDate',
+        message: 'Birth date cannot be in the future',
+      };
     }
-  );
 
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+    return null;
+  });
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
+  validate(path.personalData.birthDate, (birthDate) => {
+    if (!birthDate) return null;
 
-      let age = today.getFullYear() - date.getFullYear();
-      const monthDiff = today.getMonth() - date.getMonth();
+    const date = new Date(birthDate);
+    const today = new Date();
 
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-        age--;
-      }
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
 
-      if (age < 18) {
-        return {
-          type: 'underAge',
-          message: 'Applicant must be at least 18 years old',
-        };
-      }
-
-      if (age > 70) {
-        return {
-          type: 'overAge',
-          message: 'Applicant must be 70 years old or younger',
-        };
-      }
-
-      return null;
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+      age--;
     }
-  );
+
+    if (age < 18) {
+      return {
+        code: 'underAge',
+        message: 'Applicant must be at least 18 years old',
+      };
+    }
+
+    if (age > 70) {
+      return {
+        code: 'overAge',
+        message: 'Applicant must be 70 years old or younger',
+      };
+    }
+
+    return null;
+  });
 
   // ==========================================
   // Passport Data
@@ -381,46 +360,41 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
   required(path.passportData.issueDate, { message: 'Issue date is required' });
 
-  createValidator(
-    path.passportData.issueDate,
-    [],
-    (issueDate) => {
-      if (!issueDate) return null;
+  validate(path.passportData.issueDate, (issueDate) => {
+    if (!issueDate) return null;
 
-      const date = new Date(issueDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(issueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDateIssue',
-          message: 'Issue date cannot be in the future',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        code: 'futureDateIssue',
+        message: 'Issue date cannot be in the future',
+      };
     }
-  );
 
-  createValidator(
-    path.passportData.issueDate,
-    [path.personalData.birthDate],
-    (issueDate, [birthDate]) => {
-      if (!issueDate || !birthDate) return null;
+    return null;
+  });
 
-      const issue = new Date(issueDate as string);
-      const birth = new Date(birthDate as string);
+  validate(path.passportData.issueDate, (issueDate, ctx) => {
+    if (!issueDate) return null;
 
-      if (issue <= birth) {
-        return {
-          type: 'issueDateBeforeBirth',
-          message: 'Issue date must be after birth date',
-        };
-      }
+    const birthDate = ctx.form.personalData.birthDate.value.value;
+    if (!birthDate) return null;
 
-      return null;
+    const issue = new Date(issueDate);
+    const birth = new Date(birthDate);
+
+    if (issue <= birth) {
+      return {
+        code: 'issueDateBeforeBirth',
+        message: 'Issue date must be after birth date',
+      };
     }
-  );
+
+    return null;
+  });
 
   required(path.passportData.issuedBy, { message: 'Issuing authority is required' });
   minLength(path.passportData.issuedBy, 10, { message: 'Minimum 10 characters' });
@@ -458,53 +432,49 @@ pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
 ### Custom Validators
 
 ```typescript
-createValidator(
-  path.personalData.birthDate,
-  [],  // Dependencies (empty if none)
-  (birthDate) => {
-    // Validation logic
-    if (/* invalid */) {
-      return { type: 'errorType', message: 'Error message' };
-    }
-    return null;  // Valid
+validate(path.personalData.birthDate, (birthDate) => {
+  // Validation logic
+  if (/* invalid */) {
+    return { code: 'errorCode', message: 'Error message' };
   }
-);
+  return null;  // Valid
+});
 ```
 
 **Key points**:
 - Return `null` for valid values
-- Return error object `{ type, message }` for invalid values
+- Return error object `{ code, message }` for invalid values
 - First check if value exists
-- Second parameter is dependencies array
+- Use `code` property instead of `type`
 
 ### Custom Validators with Dependencies
 
 ```typescript
-createValidator(
-  path.passportData.issueDate,
-  [path.personalData.birthDate],  // ← Depends on birth date
-  (issueDate, [birthDate]) => {  // ← Receives both values
-    if (!issueDate || !birthDate) return null;
+validate(path.passportData.issueDate, (issueDate, ctx) => {
+  if (!issueDate) return null;
 
-    const issue = new Date(issueDate as string);
-    const birth = new Date(birthDate as string);
+  // Access other field values via context
+  const birthDate = ctx.form.personalData.birthDate.value.value;
+  if (!birthDate) return null;
 
-    if (issue <= birth) {
-      return {
-        type: 'issueDateBeforeBirth',
-        message: 'Issue date must be after birth date',
-      };
-    }
+  const issue = new Date(issueDate);
+  const birth = new Date(birthDate);
 
-    return null;
+  if (issue <= birth) {
+    return {
+      code: 'issueDateBeforeBirth',
+      message: 'Issue date must be after birth date',
+    };
   }
-);
+
+  return null;
+});
 ```
 
 **Dependencies**:
 - Validator re-runs when any dependency changes
+- Access other fields via `ctx.form`
 - Useful for cross-field validation
-- Receives dependency values in order
 
 ## Testing the Validation
 

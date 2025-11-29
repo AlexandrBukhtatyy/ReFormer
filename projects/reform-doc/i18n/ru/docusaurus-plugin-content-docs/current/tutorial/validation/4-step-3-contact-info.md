@@ -27,7 +27,7 @@ sidebar_position: 4
 Создайте файл валидатора для Шага 3:
 
 ```bash
-touch src/schemas/validators/steps/step-3-contact-info.validators.ts
+touch src/schemas/validators/contact-info.ts
 ```
 
 ## Реализация
@@ -36,8 +36,8 @@ touch src/schemas/validators/steps/step-3-contact-info.validators.ts
 
 Начните с валидации формата телефона и email:
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
-import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
+```typescript title="src/schemas/validators/contact-info.ts"
+import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -85,7 +85,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Добавьте валидацию для адреса регистрации (всегда обязателен):
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/contact-info.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -112,7 +112,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Добавьте условную валидацию для адреса проживания (требуется только когда отличается от регистрации):
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/contact-info.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -120,19 +120,10 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Адрес проживания (Условно обязателен)
   // ==========================================
 
-  // Город - обязателен когда sameAsRegistration false
-  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
-    message: 'Город обязателен',
-  });
-
-  // Улица - обязательна когда sameAsRegistration false
-  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
-    message: 'Улица обязательна',
-  });
-
-  // Дом - обязателен когда sameAsRegistration false
-  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
-    message: 'Номер дома обязателен',
+  applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
+    required(p.residenceAddress.city, { message: 'Город обязателен' });
+    required(p.residenceAddress.street, { message: 'Улица обязательна' });
+    required(p.residenceAddress.house, { message: 'Номер дома обязателен' });
   });
 
   // Квартира опциональна
@@ -148,8 +139,8 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Вот полный валидатор для Шага 3:
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
-import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
+```typescript title="src/schemas/validators/contact-info.ts"
+import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -248,11 +239,15 @@ phone(path.phoneMain, { message: 'Неверный формат телефона
 ### Условно обязательно
 
 ```typescript
-requiredWhen(
-  path.residenceAddress.city,
+applyWhen(
   path.sameAsRegistration, // ← Отслеживайте это поле
-  (same) => !same, // ← Условие: требуется когда false
-  { message: 'Город обязателен' }
+  (same) => !same, // ← Условие: применяется когда false
+  (p) => {
+    // ← Применяйте валидацию когда условие true
+    required(p.residenceAddress.city, { message: 'Город обязателен' });
+    required(p.residenceAddress.street, { message: 'Улица обязательна' });
+    required(p.residenceAddress.house, { message: 'Номер дома обязателен' });
+  }
 );
 ```
 
@@ -260,8 +255,8 @@ requiredWhen(
 
 1. Отслеживает поле `sameAsRegistration`
 2. Когда `sameAsRegistration` изменяется, переоценивает условие
-3. Если условие возвращает `true`, поле становится обязательным
-4. Если условие возвращает `false`, требование удаляется
+3. Если условие возвращает `true`, применяет валидацию внутри блока
+4. Если условие возвращает `false`, валидация не применяется
 
 ### Интеграция с Behaviors
 
@@ -275,12 +270,9 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === t
 disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
 
 // Валидация: Требовать адрес проживания когда отличается
-requiredWhen(
-  path.residenceAddress.city,
-  path.sameAsRegistration,
-  (same) => !same, // Требуется когда НЕ совпадает
-  { message: 'Город обязателен' }
-);
+applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
+  required(p.residenceAddress.city, { message: 'Город обязателен' });
+});
 ```
 
 Идеальная синхронизация:
@@ -381,6 +373,14 @@ email(path.email, { message: 'Неверный формат email' });
 ```typescript
 email(path.emailAdditional, { message: 'Неверный формат email' });
 // Нет required() - поле опционально
+```
+
+### Условно требуемые поля с applyWhen
+
+```typescript
+applyWhen(path.condition, (value) => value === true, (p) => {
+  required(p.field, { message: 'Поле обязательно' });
+});
 ```
 
 ### Русский почтовый код

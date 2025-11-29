@@ -26,7 +26,7 @@ sidebar_position: 7
 Создайте файл валидатора между шагами:
 
 ```bash
-touch src/schemas/validators/cross-step.validators.ts
+touch src/schemas/validators/cross-step.ts
 ```
 
 ## Реализация
@@ -35,8 +35,8 @@ touch src/schemas/validators/cross-step.validators.ts
 
 Убедитесь, что первоначальный платёж составляет минимум 20% от стоимости имущества:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
-import { createValidator, createAsyncValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/cross-step.ts"
+import { validate, validateAsync } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -57,25 +57,23 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 1. Первоначальный платёж >= 20% от имущества
   // ==========================================
-  createValidator(
-    path.initialPayment,
-    [path.propertyValue, path.loanType],
-    (initialPayment, [propertyValue, loanType]) => {
-      // Валидируйте только для ипотечных кредитов
-      if (loanType !== 'mortgage') return null;
-      if (!propertyValue || !initialPayment) return null;
+  validate(path.initialPayment, (initialPayment, ctx) => {
+    const loanType = ctx.form.loanType.value.value;
+    if (loanType !== 'mortgage') return null;
 
-      const minPayment = (propertyValue as number) * 0.2;
-      if ((initialPayment as number) < minPayment) {
-        return {
-          type: 'minInitialPayment',
-          message: `Минимальный первоначальный платёж: ${minPayment.toLocaleString()} (20% от стоимости имущества)`,
-        };
-      }
+    const propertyValue = ctx.form.propertyValue.value.value;
+    if (!propertyValue || !initialPayment) return null;
 
-      return null;
+    const minPayment = propertyValue * 0.2;
+    if (initialPayment < minPayment) {
+      return {
+        code: 'minInitialPayment',
+        message: `Минимальный первоначальный платёж: ${minPayment.toLocaleString()} (20% от стоимости имущества)`,
+      };
     }
-  );
+
+    return null;
+  });
 };
 ```
 
@@ -83,33 +81,30 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 Убедитесь, что ежемесячный платёж не превышает 50% от общего дохода домохозяйства:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
   // 2. Ежемесячный платёж <= 50% дохода
   // ==========================================
-  createValidator(
-    path.monthlyPayment,
-    [path.totalIncome, path.coBorrowersIncome],
-    (monthlyPayment, [totalIncome, coBorrowersIncome]) => {
-      const householdIncome = (totalIncome as number || 0) + (coBorrowersIncome as number || 0);
+  validate(path.monthlyPayment, (monthlyPayment, ctx) => {
+    const totalIncome = ctx.form.totalIncome.value.value || 0;
+    const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+    const householdIncome = totalIncome + coBorrowersIncome;
 
-      // Нельзя валидировать без информации о доходе
-      if (!householdIncome || !monthlyPayment) return null;
+    if (!householdIncome || !monthlyPayment) return null;
 
-      const maxPayment = householdIncome * 0.5;
-      if ((monthlyPayment as number) > maxPayment) {
-        return {
-          type: 'maxPaymentToIncome',
-          message: `Ежемесячный платёж превышает 50% дохода домохозяйства (макс: ${maxPayment.toLocaleString()})`,
-        };
-      }
-
-      return null;
+    const maxPayment = householdIncome * 0.5;
+    if (monthlyPayment > maxPayment) {
+      return {
+        code: 'maxPaymentToIncome',
+        message: `Ежемесячный платёж превышает 50% дохода домохозяйства (макс: ${maxPayment.toLocaleString()})`,
+      };
     }
-  );
+
+    return null;
+  });
 };
 ```
 
@@ -117,31 +112,29 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Убедитесь, что сумма кредита не превышает цену автомобиля:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
   // 3. Сумма кредита <= цена автомобиля
   // ==========================================
-  createValidator(
-    path.loanAmount,
-    [path.carPrice, path.loanType],
-    (loanAmount, [carPrice, loanType]) => {
-      // Валидируйте только для автокредитов
-      if (loanType !== 'car') return null;
-      if (!carPrice || !loanAmount) return null;
+  validate(path.loanAmount, (loanAmount, ctx) => {
+    const loanType = ctx.form.loanType.value.value;
+    if (loanType !== 'car') return null;
 
-      if ((loanAmount as number) > (carPrice as number)) {
-        return {
-          type: 'loanExceedsCarPrice',
-          message: 'Сумма кредита не может превышать цену автомобиля',
-        };
-      }
+    const carPrice = ctx.form.carPrice.value.value;
+    if (!carPrice || !loanAmount) return null;
 
-      return null;
+    if (loanAmount > carPrice) {
+      return {
+        code: 'loanExceedsCarPrice',
+        message: 'Сумма кредита не может превышать цену автомобиля',
+      };
     }
-  );
+
+    return null;
+  });
 };
 ```
 
@@ -149,29 +142,15 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Валидируйте остаток кредита, чтобы он не превышал оригинальную сумму:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
-  // 4. Остаток кредита <= оригинальная сумма
+  // 4. Остаток кредита <= оригинальная сумма (через validateItems)
   // ==========================================
-  createValidator(
-    path.existingLoans['*'].remainingAmount,
-    [path.existingLoans['*'].amount],
-    (remaining, [amount]) => {
-      if (!remaining || !amount) return null;
-
-      if ((remaining as number) > (amount as number)) {
-        return {
-          type: 'remainingExceedsAmount',
-          message: 'Остаток кредита не может превышать оригинальную сумму',
-        };
-      }
-
-      return null;
-    }
-  );
+  // Примечание: Это валидация уровня элемента массива, обычно выполняется
+  // в файле валидации additional-info.ts с использованием validateItems
 };
 ```
 
@@ -179,36 +158,32 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Валидируйте возраст между 18 и 70:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
-  // 5. Требования возраста (18-70)
+  // 4. Требования возраста (18-70)
   // ==========================================
-  createValidator(
-    path.age,
-    [path.personalData.birthDate],
-    (age) => {
-      if (!age) return null;
+  validate(path.age, (age) => {
+    if (age === null || age === undefined) return null;
 
-      if ((age as number) < 18) {
-        return {
-          type: 'minAge',
-          message: 'Заявитель должен быть не моложе 18 лет',
-        };
-      }
-
-      if ((age as number) > 70) {
-        return {
-          type: 'maxAge',
-          message: 'Заявитель должен быть не старше 70 лет',
-        };
-      }
-
-      return null;
+    if (age < 18) {
+      return {
+        code: 'minAge',
+        message: 'Заявитель должен быть не моложе 18 лет',
+      };
     }
-  );
+
+    if (age > 70) {
+      return {
+        code: 'maxAge',
+        message: 'Заявитель должен быть не старше 70 лет',
+      };
+    }
+
+    return null;
+  });
 };
 ```
 
@@ -216,28 +191,26 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте асинхронную валидацию для проверки ИНН:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
-  // 6. Асинхронно: Проверка ИНН
+  // 5. Асинхронно: Проверка ИНН
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.inn,
     async (inn) => {
-      // Пропустите если пусто или слишком коротко
       if (!inn || typeof inn !== 'string') return null;
       if (inn.length < 10) return null;
 
       try {
-        // Вызовите серверный API для проверки ИНН
         const response = await fetch(`/api/validate/inn?value=${inn}`);
         const result = await response.json();
 
         if (!result.valid) {
           return {
-            type: 'invalidInn',
+            code: 'invalidInn',
             message: result.message || 'Неверный ИНН',
           };
         }
@@ -245,11 +218,10 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
         return null;
       } catch (error) {
         console.error('Ошибка валидации ИНН:', error);
-        // Не ломайте валидацию на сетевых ошибках
         return null;
       }
     },
-    { debounce: 500 }  // Ждите 500ms после остановки набора текста
+    { debounce: 500 }
   );
 };
 ```
@@ -258,14 +230,14 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте асинхронную валидацию для проверки СНИЛС:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
-  // 7. Асинхронно: Проверка СНИЛС
+  // 6. Асинхронно: Проверка СНИЛС
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.snils,
     async (snils) => {
       if (!snils || typeof snils !== 'string') return null;
@@ -277,7 +249,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
         if (!result.valid) {
           return {
-            type: 'invalidSnils',
+            code: 'invalidSnils',
             message: result.message || 'Неверный СНИЛС',
           };
         }
@@ -297,19 +269,18 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Добавьте асинхронную валидацию для уникальности email:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
   // ==========================================
-  // 8. Асинхронно: Проверка уникальности email
+  // 7. Асинхронно: Проверка уникальности email
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.email,
     async (email) => {
       if (!email || typeof email !== 'string') return null;
 
-      // Проверьте базовый формат email сначала
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) return null;
 
@@ -321,7 +292,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
         if (!result.unique) {
           return {
-            type: 'emailNotUnique',
+            code: 'emailNotUnique',
             message: 'Этот email уже зарегистрирован. Используйте другой email или войдите.',
           };
         }
@@ -332,7 +303,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
         return null;
       }
     },
-    { debounce: 800 }  // Более длинный debounce для сетевых запросов
+    { debounce: 800 }
   );
 };
 ```
@@ -341,8 +312,8 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Вот полный валидатор между шагами:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
-import { createValidator, createAsyncValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/cross-step.ts"
+import { validate, validateAsync } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -420,51 +391,33 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   );
 
   // ==========================================
-  // 4. Остаток кредита <= оригинальная сумма
+  // 4. Остаток кредита <= оригинальная сумма (через validateItems)
   // ==========================================
-  createValidator(
-    path.existingLoans['*'].remainingAmount,
-    [path.existingLoans['*'].amount],
-    (remaining, [amount]) => {
-      if (!remaining || !amount) return null;
+  // Примечание: Это валидация уровня элемента массива, обычно выполняется
+  // в файле валидации additional-info.ts с использованием validateItems
 
-      if ((remaining as number) > (amount as number)) {
-        return {
-          type: 'remainingExceedsAmount',
-          message: 'Остаток кредита не может превышать оригинальную сумму',
-        };
-      }
+  // ==========================================
+  // 4. Требования возраста (18-70)
+  // ==========================================
+  validate(path.age, (age) => {
+    if (age === null || age === undefined) return null;
 
-      return null;
+    if (age < 18) {
+      return {
+        code: 'minAge',
+        message: 'Заявитель должен быть не моложе 18 лет',
+      };
     }
-  );
 
-  // ==========================================
-  // 5. Требования возраста (18-70)
-  // ==========================================
-  createValidator(
-    path.age,
-    [path.personalData.birthDate],
-    (age) => {
-      if (!age) return null;
-
-      if ((age as number) < 18) {
-        return {
-          type: 'minAge',
-          message: 'Заявитель должен быть не моложе 18 лет',
-        };
-      }
-
-      if ((age as number) > 70) {
-        return {
-          type: 'maxAge',
-          message: 'Заявитель должен быть не старше 70 лет',
-        };
-      }
-
-      return null;
+    if (age > 70) {
+      return {
+        code: 'maxAge',
+        message: 'Заявитель должен быть не старше 70 лет',
+      };
     }
-  );
+
+    return null;
+  });
 
   // ==========================================
   // 6. Асинхронно: Проверка ИНН
@@ -496,9 +449,9 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   );
 
   // ==========================================
-  // 7. Асинхронно: Проверка СНИЛС
+  // 6. Асинхронно: Проверка СНИЛС
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.snils,
     async (snils) => {
       if (!snils || typeof snils !== 'string') return null;
@@ -510,7 +463,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
         if (!result.valid) {
           return {
-            type: 'invalidSnils',
+            code: 'invalidSnils',
             message: result.message || 'Неверный СНИЛС',
           };
         }
@@ -561,35 +514,35 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 ## Как это работает
 
-### Пользовательские валидаторы с зависимостями
+### Пользовательские валидаторы с доступом к контексту
 
 ```typescript
-createValidator(
-  path.monthlyPayment,  // Поле для валидации
-  [path.totalIncome, path.coBorrowersIncome],  // Зависимости
-  (monthlyPayment, [totalIncome, coBorrowersIncome]) => {
-    // Логика валидации
-    // Возвращайте null если валидно
-    // Возвращайте { type, message } если невалидно
-  }
-);
+validate(path.monthlyPayment, (monthlyPayment, ctx) => {
+  // Получите зависимые значения через контекст
+  const totalIncome = ctx.form.totalIncome.value.value || 0;
+  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+
+  // Логика валидации
+  // Возвращайте null если валидно
+  // Возвращайте { code, message } если невалидно
+});
 ```
 
 **Ключевые моменты**:
-- Первый параметр: поле валидации
-- Второй параметр: массив зависимостей
-- Третий параметр: функция валидации
-- Валидатор переиспускается когда любая зависимость изменяется
+- Первый параметр: поле для валидации
+- Второй параметр: функция валидации с доступом к значению и контексту
+- Используйте `ctx.form` для доступа к другим полям формы
+- Валидатор переиспускается когда любое поле формы изменяется
 
 ### Асинхронные валидаторы
 
 ```typescript
-createAsyncValidator(
-  path.inn,  // Поле для валидации
+validateAsync(
+  path.inn,
   async (inn) => {
     // Асинхронная логика валидации (можно использовать fetch, promises, и т.д.)
     // Возвращайте null если валидно
-    // Возвращайте { type, message } если невалидно
+    // Возвращайте { code, message } если невалидно
   },
   { debounce: 500 }  // Опции: задержка debounce
 );
@@ -684,9 +637,9 @@ createAsyncValidator(
 
 ## Ключевые выводы
 
-1. **Пользовательские валидаторы** - Создавайте сложные бизнес-правила
-2. **Зависимости** - Валидаторы переиспускаются когда зависимости изменяются
-3. **Асинхронные валидаторы** - Делайте серверные вызовы валидации
+1. **Пользовательские валидаторы** - Создавайте сложные бизнес-правила с `validate()`
+2. **Доступ к контексту** - Используйте `ctx.form` для доступа к другим полям
+3. **Асинхронные валидаторы** - Делайте серверные вызовы валидации с `validateAsync()`
 4. **Debouncing** - Уменьшайте ненужные API вызовы
 5. **Обработка ошибок** - Грациозно обрабатывайте сетевые ошибки
 6. **Типобезопасность** - Полная поддержка TypeScript для всех валидаторов
@@ -695,14 +648,16 @@ createAsyncValidator(
 
 ### 1. Ранние возвраты
 ```typescript
-createValidator(path.field, [path.dependency], (value, [dep]) => {
+validate(path.field, (value, ctx) => {
   // Возвращайте ранее для случаев которые не нуждаются в валидации
-  if (!value || !dep) return null;
-  if (someCondition) return null;
+  if (!value) return null;
+
+  const dep = ctx.form.dependency.value.value;
+  if (!dep) return null;
 
   // Основная логика валидации
   if (invalid) {
-    return { type: 'error', message: 'Сообщение об ошибке' };
+    return { code: 'error', message: 'Сообщение об ошибке' };
   }
 
   return null;
@@ -711,7 +666,7 @@ createValidator(path.field, [path.dependency], (value, [dep]) => {
 
 ### 2. Грациозный асинхронный отказ
 ```typescript
-createAsyncValidator(path.field, async (value) => {
+validateAsync(path.field, async (value) => {
   try {
     // API вызов
   } catch (error) {
@@ -724,7 +679,7 @@ createAsyncValidator(path.field, async (value) => {
 ### 3. Ясные сообщения об ошибках
 ```typescript
 return {
-  type: 'descriptiveErrorType',
+  code: 'descriptiveErrorCode',
   message: 'Ясное, действенное сообщение об ошибке с контекстом',
 };
 ```

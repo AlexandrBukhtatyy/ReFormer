@@ -28,7 +28,7 @@ sidebar_position: 3
 Создайте файл валидатора для Шага 2:
 
 ```bash
-touch src/schemas/validators/steps/step-2-personal-info.validators.ts
+touch src/schemas/validators/personal-info.ts
 ```
 
 ## Реализация
@@ -37,8 +37,8 @@ touch src/schemas/validators/steps/step-2-personal-info.validators.ts
 
 Валидируйте имена используя паттерн кириллицы:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
-import { required, minLength, pattern, createValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/personal-info.ts"
+import { required, minLength, pattern, validate } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -90,7 +90,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Добавьте пользовательскую валидацию для даты рождения:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/personal-info.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -101,61 +101,53 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
   required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
 
   // Пользовательская: Не в будущем
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+  validate(path.personalData.birthDate, (birthDate) => {
+    if (!birthDate) return null;
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(birthDate as string);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDate',
-          message: 'Дата рождения не может быть в будущем',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        code: 'futureDate',
+        message: 'Дата рождения не может быть в будущем',
+      };
     }
-  );
+
+    return null;
+  });
 
   // Пользовательская: Возраст между 18 и 70
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+  validate(path.personalData.birthDate, (birthDate) => {
+    if (!birthDate) return null;
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
+    const date = new Date(birthDate as string);
+    const today = new Date();
 
-      let age = today.getFullYear() - date.getFullYear();
-      const monthDiff = today.getMonth() - date.getMonth();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
 
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-        age--;
-      }
-
-      if (age < 18) {
-        return {
-          type: 'underAge',
-          message: 'Заявитель должен быть не моложе 18 лет',
-        };
-      }
-
-      if (age > 70) {
-        return {
-          type: 'overAge',
-          message: 'Заявитель должен быть не старше 70 лет',
-        };
-      }
-
-      return null;
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+      age--;
     }
-  );
+
+    if (age < 18) {
+      return {
+        code: 'underAge',
+        message: 'Заявитель должен быть не моложе 18 лет',
+      };
+    }
+
+    if (age > 70) {
+      return {
+        code: 'overAge',
+        message: 'Заявитель должен быть не старше 70 лет',
+      };
+    }
+
+    return null;
+  });
 };
 ```
 
@@ -163,7 +155,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Добавьте валидацию для русского формата паспорта:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/personal-info.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -187,47 +179,42 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
   required(path.passportData.issueDate, { message: 'Дата выдачи обязательна' });
 
   // Пользовательская: Дата выдачи не в будущем
-  createValidator(
-    path.passportData.issueDate,
-    [],
-    (issueDate) => {
-      if (!issueDate) return null;
+  validate(path.passportData.issueDate, (issueDate) => {
+    if (!issueDate) return null;
 
-      const date = new Date(issueDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(issueDate as string);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDateIssue',
-          message: 'Дата выдачи не может быть в будущем',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        code: 'futureDateIssue',
+        message: 'Дата выдачи не может быть в будущем',
+      };
     }
-  );
+
+    return null;
+  });
 
   // Пользовательская: Дата выдачи должна быть после даты рождения
-  createValidator(
-    path.passportData.issueDate,
-    [path.personalData.birthDate],
-    (issueDate, [birthDate]) => {
-      if (!issueDate || !birthDate) return null;
+  validate(path.passportData.issueDate, (issueDate, ctx) => {
+    if (!issueDate) return null;
 
-      const issue = new Date(issueDate as string);
-      const birth = new Date(birthDate as string);
+    const birthDate = ctx.form.personalData.birthDate.value.value;
+    if (!birthDate) return null;
 
-      if (issue <= birth) {
-        return {
-          type: 'issueDateBeforeBirth',
-          message: 'Дата выдачи должна быть после даты рождения',
-        };
-      }
+    const issue = new Date(issueDate as string);
+    const birth = new Date(birthDate as string);
 
-      return null;
+    if (issue <= birth) {
+      return {
+        code: 'issueDateBeforeBirth',
+        message: 'Дата выдачи должна быть после даты рождения',
+      };
     }
-  );
+
+    return null;
+  });
 
   // Орган выдачи
   required(path.passportData.issuedBy, { message: 'Орган выдачи обязателен' });
@@ -239,7 +226,7 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Добавьте валидацию для российских идентификационных номеров:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
+```typescript title="src/schemas/validators/personal-info.ts"
 export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -267,8 +254,8 @@ export const step2PersonalValidation: ValidationSchemaFn<CreditApplicationForm> 
 
 Вот полный валидатор для Шага 2:
 
-```typescript title="src/schemas/validators/steps/step-2-personal-info.validators.ts"
-import { required, minLength, pattern, createValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/personal-info.ts"
+import { required, minLength, pattern, validate } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -458,53 +445,49 @@ pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
 ### Пользовательские валидаторы
 
 ```typescript
-createValidator(
-  path.personalData.birthDate,
-  [],  // Зависимости (пусто если нет)
-  (birthDate) => {
-    // Логика валидации
-    if (/* невалидно */) {
-      return { type: 'errorType', message: 'Сообщение об ошибке' };
-    }
-    return null;  // Валидно
+validate(path.personalData.birthDate, (birthDate) => {
+  // Логика валидации
+  if (/* невалидно */) {
+    return { code: 'errorType', message: 'Сообщение об ошибке' };
   }
-);
+  return null;  // Валидно
+});
 ```
 
 **Ключевые моменты**:
 - Возвращайте `null` для валидных значений
-- Возвращайте объект ошибки `{ type, message }` для невалидных значений
+- Возвращайте объект ошибки `{ code, message }` для невалидных значений
 - Сначала проверьте наличие значения
-- Второй параметр - массив зависимостей
+- Используйте `ctx` для доступа к другим полям формы
 
 ### Пользовательские валидаторы с зависимостями
 
 ```typescript
-createValidator(
-  path.passportData.issueDate,
-  [path.personalData.birthDate],  // ← Зависит от даты рождения
-  (issueDate, [birthDate]) => {  // ← Получает оба значения
-    if (!issueDate || !birthDate) return null;
+validate(path.passportData.issueDate, (issueDate, ctx) => {
+  if (!issueDate) return null;
 
-    const issue = new Date(issueDate as string);
-    const birth = new Date(birthDate as string);
+  // Получите зависимые значения через контекст
+  const birthDate = ctx.form.personalData.birthDate.value.value;
+  if (!birthDate) return null;
 
-    if (issue <= birth) {
-      return {
-        type: 'issueDateBeforeBirth',
-        message: 'Дата выдачи должна быть после даты рождения',
-      };
-    }
+  const issue = new Date(issueDate as string);
+  const birth = new Date(birthDate as string);
 
-    return null;
+  if (issue <= birth) {
+    return {
+      code: 'issueDateBeforeBirth',
+      message: 'Дата выдачи должна быть после даты рождения',
+    };
   }
-);
+
+  return null;
+});
 ```
 
 **Зависимости**:
-- Валидатор переиспускается когда изменяется любая зависимость
+- Валидатор переиспускается когда изменяется любое поле формы
+- Используйте `ctx.form` для доступа к другим полям
 - Полезна для валидации между полями
-- Получает значения зависимостей в порядке
 
 ## Тестирование валидации
 

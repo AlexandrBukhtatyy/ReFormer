@@ -27,7 +27,7 @@ Step 3 contains contact and address fields:
 Create the validator file for Step 3:
 
 ```bash
-touch src/schemas/validators/steps/step-3-contact-info.validators.ts
+touch src/schemas/validators/contact-info.ts
 ```
 
 ## Implementation
@@ -36,8 +36,8 @@ touch src/schemas/validators/steps/step-3-contact-info.validators.ts
 
 Start with phone and email format validation:
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
-import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
+```typescript title="src/schemas/validators/contact-info.ts"
+import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -85,7 +85,7 @@ Format validators like `email()` and `phone()` automatically skip empty values. 
 
 Add validation for registration address (always required):
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/contact-info.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -112,7 +112,7 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Add conditional validation for residence address (required only when different from registration):
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
+```typescript title="src/schemas/validators/contact-info.ts"
 export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -120,24 +120,12 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Residence Address (Conditionally Required)
   // ==========================================
 
-  // City - required when sameAsRegistration is false
-  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
-    message: 'City is required',
+  applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
+    required(p.residenceAddress.city, { message: 'City is required' });
+    required(p.residenceAddress.street, { message: 'Street is required' });
+    required(p.residenceAddress.house, { message: 'House number is required' });
   });
 
-  // Street - required when sameAsRegistration is false
-  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
-    message: 'Street is required',
-  });
-
-  // House - required when sameAsRegistration is false
-  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
-    message: 'House number is required',
-  });
-
-  // Apartment is optional
-
-  // Postal code (optional, but must be 6 digits if provided)
   pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
     message: 'Postal code must be 6 digits',
   });
@@ -148,8 +136,8 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
 
 Here's the complete validator for Step 3:
 
-```typescript title="src/schemas/validators/steps/step-3-contact-info.validators.ts"
-import { required, email, phone, pattern, requiredWhen } from 'reformer/validators';
+```typescript title="src/schemas/validators/contact-info.ts"
+import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -199,16 +187,10 @@ export const step3ContactValidation: ValidationSchemaFn<CreditApplicationForm> =
   // Residence Address (Conditionally Required)
   // ==========================================
 
-  requiredWhen(path.residenceAddress.city, path.sameAsRegistration, (same) => !same, {
-    message: 'City is required',
-  });
-
-  requiredWhen(path.residenceAddress.street, path.sameAsRegistration, (same) => !same, {
-    message: 'Street is required',
-  });
-
-  requiredWhen(path.residenceAddress.house, path.sameAsRegistration, (same) => !same, {
-    message: 'House number is required',
+  applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
+    required(p.residenceAddress.city, { message: 'City is required' });
+    required(p.residenceAddress.street, { message: 'Street is required' });
+    required(p.residenceAddress.house, { message: 'House number is required' });
   });
 
   pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
@@ -248,11 +230,14 @@ phone(path.phoneMain, { message: 'Invalid phone format' });
 ### Conditional Required
 
 ```typescript
-requiredWhen(
-  path.residenceAddress.city,
+applyWhen(
   path.sameAsRegistration, // ← Watch this field
-  (same) => !same, // ← Condition: required when false
-  { message: 'City is required' }
+  (same) => !same, // ← Condition: apply when false
+  (p) => {
+    required(p.residenceAddress.city, { message: 'City is required' });
+    required(p.residenceAddress.street, { message: 'Street is required' });
+    required(p.residenceAddress.house, { message: 'House number is required' });
+  }
 );
 ```
 
@@ -260,8 +245,8 @@ requiredWhen(
 
 1. Watches `sameAsRegistration` field
 2. When `sameAsRegistration` changes, re-evaluates condition
-3. If condition returns `true`, field becomes required
-4. If condition returns `false`, requirement is removed
+3. If condition returns `true`, applies validators in callback
+4. If condition returns `false`, validators are not applied
 
 ### Integration with Behaviors
 
@@ -275,12 +260,9 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === t
 disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
 
 // Validation: Require residence address when different
-requiredWhen(
-  path.residenceAddress.city,
-  path.sameAsRegistration,
-  (same) => !same, // Required when NOT same
-  { message: 'City is required' }
-);
+applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
+  required(p.residenceAddress.city, { message: 'City is required' });
+});
 ```
 
 Perfect synchronization:
@@ -363,7 +345,7 @@ The `email()` validator follows standard email format:
 
 1. **Format Validators** - Use built-in `email()` and `phone()` for formats
 2. **Separate Required** - Format validators skip empty values
-3. **Conditional Required** - Use `requiredWhen()` for dynamic requirements
+3. **Conditional Required** - Use `applyWhen()` for dynamic requirements
 4. **Works with Behaviors** - Hidden/disabled fields skip validation
 5. **Optional Validation** - Can validate format even when not required
 

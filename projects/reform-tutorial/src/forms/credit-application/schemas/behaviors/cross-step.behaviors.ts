@@ -34,10 +34,20 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
 
   // ==========================================
   // Контроль доступа по возрасту
+  // Поля кредита отключены если возраст < 18
   // ==========================================
-  disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
-  disableWhen(path.loanTerm, (form) => (form.age as number) < 18);
-  disableWhen(path.loanPurpose, (form) => (form.age as number) < 18);
+  disableWhen(path.loanAmount, (form) => {
+    const age = form.age as number | null;
+    return age !== null && age < 18;
+  });
+  disableWhen(path.loanTerm, (form) => {
+    const age = form.age as number | null;
+    return age !== null && age < 18;
+  });
+  disableWhen(path.loanPurpose, (form) => {
+    const age = form.age as number | null;
+    return age !== null && age < 18;
+  });
 
   // ==========================================
   // Аналитика

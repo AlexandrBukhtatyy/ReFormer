@@ -26,8 +26,9 @@ Benefits of separation:
 ## Implementation
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
-import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
+import type { BehaviorSchemaFn } from 'reformer/behaviors';
+import type { FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -55,7 +56,7 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
   );
 
   // Disable paymentToIncomeRatio (read-only)
-  disableWhen(path.paymentToIncomeRatio, path.paymentToIncomeRatio, () => true);
+  disableWhen(path.paymentToIncomeRatio, () => true);
 
   // ==========================================
   // 2. Revalidate Payment When Income Changes
@@ -68,24 +69,24 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
   //    Step 2: age
   //    Step 1: loan fields
   // ==========================================
-  disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanTerm, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanPurpose, path.age, (age) => (age as number) < 18);
+  disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
+  disableWhen(path.loanTerm, (form) => (form.age as number) < 18);
+  disableWhen(path.loanPurpose, (form) => (form.age as number) < 18);
 
   // ==========================================
   // 4. Analytics Tracking
   // ==========================================
-  watch(path.loanAmount, (value) => {
+  watchField(path.loanAmount, (value) => {
     console.log('Loan amount changed:', value);
     // window.analytics?.track('loan_amount_changed', { amount: value });
   });
 
-  watch(path.interestRate, (value) => {
+  watchField(path.interestRate, (value) => {
     console.log('Interest rate computed:', value);
     // window.analytics?.track('interest_rate_computed', { rate: value });
   });
 
-  watch(path.employmentStatus, (value) => {
+  watchField(path.employmentStatus, (value) => {
     console.log('Employment status changed:', value);
     // window.analytics?.track('employment_status_changed', { status: value });
   });
@@ -119,17 +120,16 @@ When income changes, we need to revalidate the payment:
 
 ```typescript
 // Validation rule (implemented in Validation section)
-createValidator(
-  path.monthlyPayment,
-  [path.totalIncome, path.coBorrowersIncome],
-  (payment, [income, coIncome]) => {
-    const total = (income || 0) + (coIncome || 0);
-    if (payment > total * 0.5) {
-      return { message: 'Payment exceeds 50% of income' };
-    }
-    return null;
+validate(path.monthlyPayment, (payment, ctx) => {
+  const totalIncome = ctx.form.totalIncome.value.value || 0;
+  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  const total = totalIncome + coBorrowersIncome;
+
+  if (payment > total * 0.5) {
+    return { code: 'maxPaymentToIncome', message: 'Payment exceeds 50% of income' };
   }
-);
+  return null;
+});
 
 // Behavior: Trigger revalidation when income changes
 revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
@@ -147,7 +147,7 @@ revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
 Prevent minors from applying for loans:
 
 ```typescript
-disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
+disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
 ```
 
 **Flow:**
@@ -164,7 +164,7 @@ This demonstrates **backward dependencies** - Step 2 data affects Step 1 UI.
 Monitor user behavior for insights:
 
 ```typescript
-watch(path.loanAmount, (value) => {
+watchField(path.loanAmount, (value) => {
   // Track loan amount changes
   window.analytics?.track('loan_amount_changed', { amount: value });
 });
@@ -183,7 +183,7 @@ In production, integrate with your analytics platform:
 ```typescript
 import { analytics } from '@/services/analytics';
 
-watch(path.loanAmount, (value) => {
+watchField(path.loanAmount, (value) => {
   analytics.track('LoanAmountChanged', {
     amount: value,
     timestamp: Date.now(),
@@ -197,8 +197,9 @@ watch(path.loanAmount, (value) => {
 ## Complete Code
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
-import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
+import type { BehaviorSchemaFn } from 'reformer/behaviors';
+import type { FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -220,26 +221,26 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
     }
   );
 
-  disableWhen(path.paymentToIncomeRatio, path.paymentToIncomeRatio, () => true);
+  disableWhen(path.paymentToIncomeRatio, () => true);
 
   // Smart Revalidation
   revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
 
   // Age-Based Access Control
-  disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanTerm, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanPurpose, path.age, (age) => (age as number) < 18);
+  disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
+  disableWhen(path.loanTerm, (form) => (form.age as number) < 18);
+  disableWhen(path.loanPurpose, (form) => (form.age as number) < 18);
 
   // Analytics Tracking
-  watch(path.loanAmount, (value) => {
+  watchField(path.loanAmount, (value) => {
     console.log('Loan amount changed:', value);
   });
 
-  watch(path.interestRate, (value) => {
+  watchField(path.interestRate, (value) => {
     console.log('Interest rate computed:', value);
   });
 
-  watch(path.employmentStatus, (value) => {
+  watchField(path.employmentStatus, (value) => {
     console.log('Employment status changed:', value);
   });
 };
@@ -299,7 +300,7 @@ Cross-step behaviors now provide:
 - **Separate cross-step behaviors** for clarity
 - **`revalidateWhen`** ensures validation stays current
 - **Backward dependencies** are possible (Step 2 → Step 1)
-- **Analytics** via `watch` for monitoring
+- **Analytics** via `watchField` for monitoring
 - **Display cross-step data** in summaries/widgets
 
 ## Next Step

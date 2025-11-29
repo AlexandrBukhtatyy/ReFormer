@@ -35,7 +35,7 @@ sidebar_position: 6
 Создайте файл валидатора для Шага 5:
 
 ```bash
-touch src/schemas/validators/steps/step-5-additional-info.validators.ts
+touch src/schemas/validators/additional-info.ts
 ```
 
 ## Реализация
@@ -44,15 +44,17 @@ touch src/schemas/validators/steps/step-5-additional-info.validators.ts
 
 Начните с валидации массива имущества:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
 import {
   required,
   min,
   minLength,
   email,
   phone,
-  arrayMinLengthWhen,
-  arrayMaxLength,
+  applyWhen,
+  notEmpty,
+  validateItems,
+  validate,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -73,42 +75,36 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив имущества
   // ==========================================
 
-  // Валидация длины массива
-  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
-    message: 'Добавьте хотя бы одно имущество',
+  applyWhen(path.hasProperty, (has) => has === true, (p) => {
+    notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
   });
 
-  arrayMaxLength(path.properties, 10, {
-    message: 'Максимум 10 имущества разрешено',
+  // Максимум 10 элементов в массиве
+  validate(path.properties, (properties) => {
+    if (!properties || properties.length <= 10) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Максимум 10 имущества разрешено',
+    };
   });
 
-  // Валидация каждого элемента имущества используя '*' wildcard
-  required(path.properties['*'].type, {
-    message: 'Тип имущества обязателен',
-  });
+  // Валидация каждого элемента массива
+  validateItems(path.properties, (itemPath) => {
+    required(itemPath.type, { message: 'Тип имущества обязателен' });
 
-  required(path.properties['*'].description, {
-    message: 'Описание имущества обязательно',
-  });
+    required(itemPath.description, { message: 'Описание имущества обязательно' });
+    minLength(itemPath.description, 10, { message: 'Минимум 10 символов для описания' });
 
-  minLength(path.properties['*'].description, 10, {
-    message: 'Минимум 10 символов для описания',
-  });
-
-  required(path.properties['*'].estimatedValue, {
-    message: 'Приблизительная стоимость обязательна',
-  });
-
-  min(path.properties['*'].estimatedValue, 0, {
-    message: 'Стоимость должна быть неотрицательной',
+    required(itemPath.estimatedValue, { message: 'Приблизительная стоимость обязательна' });
+    min(itemPath.estimatedValue, 0, { message: 'Стоимость должна быть неотрицательной' });
   });
 };
 ```
 
 :::tip Валидация элементов массива
-Используйте `'*'` wildcard для валидации всех элементов в массиве:
+Используйте `validateItems()` для валидации всех элементов в массиве:
 
-- `path.properties['*'].type` валидирует поле `type` каждого имущества
+- `validateItems(path.properties, (itemPath) => { ... })` валидирует каждый элемент
 - Валидация запускается для каждого существующего элемента массива
 - Новые элементы валидируются при добавлении
   :::
@@ -117,7 +113,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Добавьте валидацию для существующих кредитов:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -125,39 +121,32 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив существующих кредитов
   // ==========================================
 
-  // Валидация длины массива
-  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
-    message: 'Добавьте хотя бы один существующий кредит',
+  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
+    notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один существующий кредит' });
   });
 
-  arrayMaxLength(path.existingLoans, 20, {
-    message: 'Максимум 20 кредитов разрешено',
+  // Максимум 20 элементов в массиве
+  validate(path.existingLoans, (loans) => {
+    if (!loans || loans.length <= 20) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Максимум 20 кредитов разрешено',
+    };
   });
 
-  // Валидация каждого элемента кредита
-  required(path.existingLoans['*'].bank, {
-    message: 'Название банка обязательно',
-  });
+  // Валидация каждого элемента массива
+  validateItems(path.existingLoans, (itemPath) => {
+    required(itemPath.bank, { message: 'Название банка обязательно' });
 
-  required(path.existingLoans['*'].amount, {
-    message: 'Сумма кредита обязательна',
-  });
+    required(itemPath.amount, { message: 'Сумма кредита обязательна' });
+    min(itemPath.amount, 0, { message: 'Сумма должна быть неотрицательной' });
 
-  min(path.existingLoans['*'].amount, 0, {
-    message: 'Сумма должна быть неотрицательной',
-  });
+    min(itemPath.remainingAmount, 0, { message: 'Остаток должен быть неотрицательным' });
 
-  // Остаток кредита опционален, но должен быть неотрицательным если указан
-  min(path.existingLoans['*'].remainingAmount, 0, {
-    message: 'Остаток должен быть неотрицательным',
-  });
-
-  required(path.existingLoans['*'].monthlyPayment, {
-    message: 'Ежемесячный платёж обязателен',
-  });
-
-  min(path.existingLoans['*'].monthlyPayment, 0, {
-    message: 'Ежемесячный платёж должен быть неотрицательным',
+    required(itemPath.monthlyPayment, { message: 'Ежемесячный платёж обязателен' });
+    min(itemPath.monthlyPayment, 0, {
+      message: 'Ежемесячный платёж должен быть неотрицательным',
+    });
   });
 };
 ```
@@ -166,7 +155,7 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Добавьте валидацию для созаёмщиков с валидацией вложенных объектов:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
 
@@ -174,54 +163,34 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив созаёмщиков
   // ==========================================
 
-  // Валидация длины массива
-  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
-    message: 'Добавьте хотя бы одного созаёмщика',
+  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
+    notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
   });
 
-  arrayMaxLength(path.coBorrowers, 5, {
-    message: 'Максимум 5 созаёмщиков разрешено',
+  // Максимум 5 элементов в массиве
+  validate(path.coBorrowers, (coBorrowers) => {
+    if (!coBorrowers || coBorrowers.length <= 5) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Максимум 5 созаёмщиков разрешено',
+    };
   });
 
-  // Валидация вложенного объекта personalData в каждом созаёмщике
-  required(path.coBorrowers['*'].personalData.firstName, {
-    message: 'Имя обязательно',
-  });
+  // Валидация каждого элемента массива
+  validateItems(path.coBorrowers, (itemPath) => {
+    required(itemPath.personalData.firstName, { message: 'Имя обязательно' });
+    required(itemPath.personalData.lastName, { message: 'Фамилия обязательна' });
 
-  required(path.coBorrowers['*'].personalData.lastName, {
-    message: 'Фамилия обязательна',
-  });
+    required(itemPath.phone, { message: 'Номер телефона обязателен' });
+    phone(itemPath.phone, { message: 'Неверный формат телефона' });
 
-  // Валидация телефона
-  required(path.coBorrowers['*'].phone, {
-    message: 'Номер телефона обязателен',
-  });
+    required(itemPath.email, { message: 'Email обязателен' });
+    email(itemPath.email, { message: 'Неверный формат email' });
 
-  phone(path.coBorrowers['*'].phone, {
-    message: 'Неверный формат телефона',
-  });
+    required(itemPath.monthlyIncome, { message: 'Ежемесячный доход обязателен' });
+    min(itemPath.monthlyIncome, 0, { message: 'Доход должен быть неотрицательным' });
 
-  // Валидация email
-  required(path.coBorrowers['*'].email, {
-    message: 'Email обязателен',
-  });
-
-  email(path.coBorrowers['*'].email, {
-    message: 'Неверный формат email',
-  });
-
-  // Ежемесячный доход
-  required(path.coBorrowers['*'].monthlyIncome, {
-    message: 'Ежемесячный доход обязателен',
-  });
-
-  min(path.coBorrowers['*'].monthlyIncome, 0, {
-    message: 'Доход должен быть неотрицательным',
-  });
-
-  // Связь с заявителем
-  required(path.coBorrowers['*'].relationship, {
-    message: 'Связь с заявителем обязательна',
+    required(itemPath.relationship, { message: 'Связь с заявителем обязательна' });
   });
 };
 ```
@@ -230,15 +199,17 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Вот полный валидатор для Шага 5:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
 import {
   required,
   min,
   minLength,
   email,
   phone,
-  arrayMinLengthWhen,
-  arrayMaxLength,
+  applyWhen,
+  notEmpty,
+  validateItems,
+  validate,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -259,116 +230,79 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Массив имущества
   // ==========================================
 
-  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
-    message: 'Добавьте хотя бы одно имущество',
+  applyWhen(path.hasProperty, (has) => has === true, (p) => {
+    notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
   });
 
-  arrayMaxLength(path.properties, 10, {
-    message: 'Максимум 10 имущества разрешено',
+  validate(path.properties, (properties) => {
+    if (!properties || properties.length <= 10) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Максимум 10 имущества разрешено',
+    };
   });
 
-  required(path.properties['*'].type, {
-    message: 'Тип имущества обязателен',
-  });
-
-  required(path.properties['*'].description, {
-    message: 'Описание имущества обязательно',
-  });
-
-  minLength(path.properties['*'].description, 10, {
-    message: 'Минимум 10 символов для описания',
-  });
-
-  required(path.properties['*'].estimatedValue, {
-    message: 'Приблизительная стоимость обязательна',
-  });
-
-  min(path.properties['*'].estimatedValue, 0, {
-    message: 'Стоимость должна быть неотрицательной',
+  validateItems(path.properties, (itemPath) => {
+    required(itemPath.type, { message: 'Тип имущества обязателен' });
+    required(itemPath.description, { message: 'Описание имущества обязательно' });
+    minLength(itemPath.description, 10, { message: 'Минимум 10 символов для описания' });
+    required(itemPath.estimatedValue, { message: 'Приблизительная стоимость обязательна' });
+    min(itemPath.estimatedValue, 0, { message: 'Стоимость должна быть неотрицательной' });
   });
 
   // ==========================================
   // Массив существующих кредитов
   // ==========================================
 
-  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
-    message: 'Добавьте хотя бы один существующий кредит',
+  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
+    notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один существующий кредит' });
   });
 
-  arrayMaxLength(path.existingLoans, 20, {
-    message: 'Максимум 20 кредитов разрешено',
+  validate(path.existingLoans, (loans) => {
+    if (!loans || loans.length <= 20) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Максимум 20 кредитов разрешено',
+    };
   });
 
-  required(path.existingLoans['*'].bank, {
-    message: 'Название банка обязательно',
-  });
-
-  required(path.existingLoans['*'].amount, {
-    message: 'Сумма кредита обязательна',
-  });
-
-  min(path.existingLoans['*'].amount, 0, {
-    message: 'Сумма должна быть неотрицательной',
-  });
-
-  min(path.existingLoans['*'].remainingAmount, 0, {
-    message: 'Остаток должен быть неотрицательным',
-  });
-
-  required(path.existingLoans['*'].monthlyPayment, {
-    message: 'Ежемесячный платёж обязателен',
-  });
-
-  min(path.existingLoans['*'].monthlyPayment, 0, {
-    message: 'Ежемесячный платёж должен быть неотрицательным',
+  validateItems(path.existingLoans, (itemPath) => {
+    required(itemPath.bank, { message: 'Название банка обязательно' });
+    required(itemPath.amount, { message: 'Сумма кредита обязательна' });
+    min(itemPath.amount, 0, { message: 'Сумма должна быть неотрицательной' });
+    min(itemPath.remainingAmount, 0, { message: 'Остаток должен быть неотрицательным' });
+    required(itemPath.monthlyPayment, { message: 'Ежемесячный платёж обязателен' });
+    min(itemPath.monthlyPayment, 0, {
+      message: 'Ежемесячный платёж должен быть неотрицательным',
+    });
   });
 
   // ==========================================
   // Массив созаёмщиков
   // ==========================================
 
-  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
-    message: 'Добавьте хотя бы одного созаёмщика',
+  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
+    notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
   });
 
-  arrayMaxLength(path.coBorrowers, 5, {
-    message: 'Максимум 5 созаёмщиков разрешено',
+  validate(path.coBorrowers, (coBorrowers) => {
+    if (!coBorrowers || coBorrowers.length <= 5) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Максимум 5 созаёмщиков разрешено',
+    };
   });
 
-  required(path.coBorrowers['*'].personalData.firstName, {
-    message: 'Имя обязательно',
-  });
-
-  required(path.coBorrowers['*'].personalData.lastName, {
-    message: 'Фамилия обязательна',
-  });
-
-  required(path.coBorrowers['*'].phone, {
-    message: 'Номер телефона обязателен',
-  });
-
-  phone(path.coBorrowers['*'].phone, {
-    message: 'Неверный формат телефона',
-  });
-
-  required(path.coBorrowers['*'].email, {
-    message: 'Email обязателен',
-  });
-
-  email(path.coBorrowers['*'].email, {
-    message: 'Неверный формат email',
-  });
-
-  required(path.coBorrowers['*'].monthlyIncome, {
-    message: 'Ежемесячный доход обязателен',
-  });
-
-  min(path.coBorrowers['*'].monthlyIncome, 0, {
-    message: 'Доход должен быть неотрицательным',
-  });
-
-  required(path.coBorrowers['*'].relationship, {
-    message: 'Связь с заявителем обязательна',
+  validateItems(path.coBorrowers, (itemPath) => {
+    required(itemPath.personalData.firstName, { message: 'Имя обязательно' });
+    required(itemPath.personalData.lastName, { message: 'Фамилия обязательна' });
+    required(itemPath.phone, { message: 'Номер телефона обязателен' });
+    phone(itemPath.phone, { message: 'Неверный формат телефона' });
+    required(itemPath.email, { message: 'Email обязателен' });
+    email(itemPath.email, { message: 'Неверный формат email' });
+    required(itemPath.monthlyIncome, { message: 'Ежемесячный доход обязателен' });
+    min(itemPath.monthlyIncome, 0, { message: 'Доход должен быть неотрицательным' });
+    required(itemPath.relationship, { message: 'Связь с заявителем обязательна' });
   });
 };
 ```
@@ -377,53 +311,49 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 ### Валидация длины массива
 
-#### Условный минимум
+#### Условный минимум с notEmpty
 
 ```typescript
-arrayMinLengthWhen(
-  path.properties,
-  1, // Минимальная длина
-  path.hasProperty, // Поле зависимости
-  (has) => has === true, // Условие
-  { message: 'Добавьте хотя бы одно имущество' }
-);
-```
-
-- Массив должен иметь минимум 1 элемент когда условие true
-- Нет валидации когда условие false
-- Работает с behaviors, которые показывают/скрывают массивы
-
-#### Максимальная длина
-
-```typescript
-arrayMaxLength(path.properties, 10, {
-  message: 'Максимум 10 имущества разрешено',
+applyWhen(path.hasProperty, (has) => has === true, (p) => {
+  notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
 });
 ```
 
-- Всегда применяется (не условна)
+- Массив должен содержать элементы когда условие true
+- Нет валидации когда условие false
+- Работает с behaviors, которые показывают/скрывают массивы
+
+#### Максимальная длина с validate
+
+```typescript
+validate(path.properties, (properties) => {
+  if (!properties || properties.length <= 10) return null;
+  return {
+    code: 'maxArrayLength',
+    message: 'Максимум 10 имущества разрешено',
+  };
+});
+```
+
+- Проверяет длину массива
 - Предотвращает добавление больше чем разрешено элементов
 - Пользователь видит ошибку при попытке добавить слишком много элементов
 
 ### Валидация элементов массива
 
-Используйте `'*'` wildcard для валидации всех элементов массива:
+Используйте `validateItems()` для валидации всех элементов массива:
 
 ```typescript
-// Валидирует поле 'type' в каждом имущества
-required(path.properties['*'].type, {
-  message: 'Тип имущества обязателен',
-});
-
-// Валидирует поле 'description' в каждом имущества
-minLength(path.properties['*'].description, 10, {
-  message: 'Минимум 10 символов для описания',
+// Валидация каждого элемента имущества
+validateItems(path.properties, (itemPath) => {
+  required(itemPath.type, { message: 'Тип имущества обязателен' });
+  minLength(itemPath.description, 10, { message: 'Минимум 10 символов для описания' });
 });
 ```
 
 **Как это работает**:
 
-- `path.properties['*']` означает "каждый элемент в массиве properties"
+- `validateItems()` применяет валидацию к каждому элементу в массиве
 - Валидация запускается для каждого существующего элемента
 - Новые элементы валидируются при добавлении в массив
 - Удаление элементов удаляет их ошибки валидации
@@ -434,8 +364,8 @@ minLength(path.properties['*'].description, 10, {
 
 ```typescript
 // Валидирует firstName внутри personalData внутри каждого созаёмщика
-required(path.coBorrowers['*'].personalData.firstName, {
-  message: 'Имя обязательно',
+validateItems(path.coBorrowers, (itemPath) => {
+  required(itemPath.personalData.firstName, { message: 'Имя обязательно' });
 });
 ```
 
@@ -464,8 +394,8 @@ coBorrowers: [
 enableWhen(path.properties, path.hasProperty, (has) => has === true);
 
 // Валидация: Требовать минимум одно имущество когда видимо
-arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
-  message: 'Добавьте хотя бы одно имущество',
+applyWhen(path.hasProperty, (has) => has === true, (p) => {
+  notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
 });
 ```
 
@@ -521,10 +451,10 @@ arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, 
 
 ## Ключевые выводы
 
-1. **Длина массива** - Используйте `arrayMinLengthWhen()` и `arrayMaxLength()`
-2. **Валидация элементов** - Используйте `'*'` wildcard для всех элементов
+1. **Длина массива** - Используйте `notEmpty()` и `validate()` для проверки длины
+2. **Валидация элементов** - Используйте `validateItems()` для всех элементов
 3. **Вложенные объекты** - Можно валидировать глубоко вложенные поля в массивах
-4. **Условные массивы** - Массивы могут быть условно требуемы
+4. **Условные массивы** - Массивы могут быть условно требуемы с `applyWhen()`
 5. **Работает с Behaviors** - Скрытые массивы пропускают валидацию
 
 ## Распространённые паттерны
@@ -532,21 +462,27 @@ arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, 
 ### Условный массив с валидацией элементов
 
 ```typescript
-// Массив должен иметь минимум 1 элемент когда флажок true
-arrayMinLengthWhen(path.items, 1, path.hasItems, (has) => has === true, {
-  message: 'Добавьте хотя бы один элемент',
+// Массив должен содержать элементы когда флажок true
+applyWhen(path.hasItems, (has) => has === true, (p) => {
+  notEmpty(p.items, { message: 'Добавьте хотя бы один элемент' });
 });
 
 // Каждый элемент должен иметь требуемые поля
-required(path.items['*'].name, { message: 'Имя требуется' });
-min(path.items['*'].value, 0, { message: 'Значение должно быть неотрицательным' });
+validateItems(path.items, (itemPath) => {
+  required(itemPath.name, { message: 'Имя требуется' });
+  min(itemPath.value, 0, { message: 'Значение должно быть неотрицательным' });
+});
 ```
 
 ### Массив с максимальной длиной
 
 ```typescript
-arrayMaxLength(path.items, 10, {
-  message: 'Максимум 10 элементов разрешено',
+validate(path.items, (items) => {
+  if (!items || items.length <= 10) return null;
+  return {
+    code: 'maxArrayLength',
+    message: 'Максимум 10 элементов разрешено',
+  };
 });
 ```
 
@@ -554,8 +490,8 @@ arrayMaxLength(path.items, 10, {
 
 ```typescript
 // Валидируйте поля внутри вложенных объектов
-required(path.items['*'].contact.email, {
-  message: 'Email требуется',
+validateItems(path.items, (itemPath) => {
+  required(itemPath.contact.email, { message: 'Email требуется' });
 });
 ```
 

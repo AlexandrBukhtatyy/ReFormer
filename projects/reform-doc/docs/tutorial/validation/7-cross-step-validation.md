@@ -26,7 +26,7 @@ Cross-step validation enforces business rules that depend on fields from multipl
 Create the cross-step validator file:
 
 ```bash
-touch src/schemas/validators/cross-step.validators.ts
+touch src/schemas/validators/cross-step.ts
 ```
 
 ## Implementation
@@ -35,8 +35,8 @@ touch src/schemas/validators/cross-step.validators.ts
 
 Ensure down payment is at least 20% of property value:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
-import { createValidator, createAsyncValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/cross-step.ts"
+import { validate, validateAsync } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -57,25 +57,24 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 1. Down Payment >= 20% of Property Value
   // ==========================================
-  createValidator(
-    path.initialPayment,
-    [path.propertyValue, path.loanType],
-    (initialPayment, [propertyValue, loanType]) => {
-      // Only validate for mortgage loans
-      if (loanType !== 'mortgage') return null;
-      if (!propertyValue || !initialPayment) return null;
+  validate(path.initialPayment, (initialPayment, ctx) => {
+    const loanType = ctx.form.loanType.value.value;
+    // Only validate for mortgage loans
+    if (loanType !== 'mortgage') return null;
 
-      const minPayment = (propertyValue as number) * 0.2;
-      if ((initialPayment as number) < minPayment) {
-        return {
-          type: 'minInitialPayment',
-          message: `Minimum down payment: ${minPayment.toLocaleString()} (20% of property value)`,
-        };
-      }
+    const propertyValue = ctx.form.propertyValue.value.value;
+    if (!propertyValue || !initialPayment) return null;
 
-      return null;
+    const minPayment = propertyValue * 0.2;
+    if (initialPayment < minPayment) {
+      return {
+        code: 'minInitialPayment',
+        message: `Minimum down payment: ${minPayment.toLocaleString()} (20% of property value)`,
+      };
     }
-  );
+
+    return null;
+  });
 };
 ```
 
@@ -83,33 +82,31 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 Ensure monthly payment doesn't exceed 50% of total household income:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
   // ==========================================
   // 2. Monthly Payment <= 50% of Income
   // ==========================================
-  createValidator(
-    path.monthlyPayment,
-    [path.totalIncome, path.coBorrowersIncome],
-    (monthlyPayment, [totalIncome, coBorrowersIncome]) => {
-      const householdIncome = (totalIncome as number || 0) + (coBorrowersIncome as number || 0);
+  validate(path.monthlyPayment, (monthlyPayment, ctx) => {
+    const totalIncome = ctx.form.totalIncome.value.value || 0;
+    const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+    const householdIncome = totalIncome + coBorrowersIncome;
 
-      // Can't validate without income information
-      if (!householdIncome || !monthlyPayment) return null;
+    // Can't validate without income information
+    if (!householdIncome || !monthlyPayment) return null;
 
-      const maxPayment = householdIncome * 0.5;
-      if ((monthlyPayment as number) > maxPayment) {
-        return {
-          type: 'maxPaymentToIncome',
-          message: `Monthly payment exceeds 50% of household income (max: ${maxPayment.toLocaleString()})`,
-        };
-      }
-
-      return null;
+    const maxPayment = householdIncome * 0.5;
+    if (monthlyPayment > maxPayment) {
+      return {
+        code: 'maxPaymentToIncome',
+        message: `Monthly payment exceeds 50% of household income (max: ${maxPayment.toLocaleString()})`,
+      };
     }
-  );
+
+    return null;
+  });
 };
 ```
 
@@ -117,31 +114,30 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Ensure loan amount doesn't exceed car price:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
   // ==========================================
   // 3. Loan Amount <= Car Price
   // ==========================================
-  createValidator(
-    path.loanAmount,
-    [path.carPrice, path.loanType],
-    (loanAmount, [carPrice, loanType]) => {
-      // Only validate for car loans
-      if (loanType !== 'car') return null;
-      if (!carPrice || !loanAmount) return null;
+  validate(path.loanAmount, (loanAmount, ctx) => {
+    const loanType = ctx.form.loanType.value.value;
+    // Only validate for car loans
+    if (loanType !== 'car') return null;
 
-      if ((loanAmount as number) > (carPrice as number)) {
-        return {
-          type: 'loanExceedsCarPrice',
-          message: 'Loan amount cannot exceed car price',
-        };
-      }
+    const carPrice = ctx.form.carPrice.value.value;
+    if (!carPrice || !loanAmount) return null;
 
-      return null;
+    if (loanAmount > carPrice) {
+      return {
+        code: 'loanExceedsCarPrice',
+        message: 'Loan amount cannot exceed car price',
+      };
     }
-  );
+
+    return null;
+  });
 };
 ```
 
@@ -149,7 +145,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Validate remaining loan amount doesn't exceed original amount:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -179,36 +175,32 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Validate age is between 18 and 70:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
   // ==========================================
   // 5. Age Requirements (18-70)
   // ==========================================
-  createValidator(
-    path.age,
-    [path.personalData.birthDate],
-    (age) => {
-      if (!age) return null;
+  validate(path.age, (age) => {
+    if (age === null || age === undefined) return null;
 
-      if ((age as number) < 18) {
-        return {
-          type: 'minAge',
-          message: 'Applicant must be at least 18 years old',
-        };
-      }
-
-      if ((age as number) > 70) {
-        return {
-          type: 'maxAge',
-          message: 'Applicant must be 70 years old or younger',
-        };
-      }
-
-      return null;
+    if (age < 18) {
+      return {
+        code: 'minAge',
+        message: 'Applicant must be at least 18 years old',
+      };
     }
-  );
+
+    if (age > 70) {
+      return {
+        code: 'maxAge',
+        message: 'Applicant must be 70 years old or younger',
+      };
+    }
+
+    return null;
+  });
 };
 ```
 
@@ -216,14 +208,14 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add async validation for INN verification:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
   // ==========================================
   // 6. Async: INN Verification
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.inn,
     async (inn) => {
       // Skip if empty or too short
@@ -237,7 +229,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
         if (!result.valid) {
           return {
-            type: 'invalidInn',
+            code: 'invalidInn',
             message: result.message || 'Invalid INN',
           };
         }
@@ -258,14 +250,14 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add async validation for SNILS verification:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
   // ==========================================
   // 7. Async: SNILS Verification
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.snils,
     async (snils) => {
       if (!snils || typeof snils !== 'string') return null;
@@ -277,7 +269,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
         if (!result.valid) {
           return {
-            type: 'invalidSnils',
+            code: 'invalidSnils',
             message: result.message || 'Invalid SNILS',
           };
         }
@@ -297,14 +289,14 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Add async validation for email uniqueness:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
+```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
   // ==========================================
   // 8. Async: Email Uniqueness Check
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.email,
     async (email) => {
       if (!email || typeof email !== 'string') return null;
@@ -321,7 +313,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
         if (!result.unique) {
           return {
-            type: 'emailNotUnique',
+            code: 'emailNotUnique',
             message: 'This email is already registered. Use a different email or sign in.',
           };
         }
@@ -341,8 +333,8 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Here's the complete cross-step validator:
 
-```typescript title="src/schemas/validators/cross-step.validators.ts"
-import { createValidator, createAsyncValidator } from 'reformer/validators';
+```typescript title="src/schemas/validators/cross-step.ts"
+import { validate, validateAsync } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -442,29 +434,25 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 5. Age Requirements (18-70)
   // ==========================================
-  createValidator(
-    path.age,
-    [path.personalData.birthDate],
-    (age) => {
-      if (!age) return null;
+  validate(path.age, (age) => {
+    if (age === null || age === undefined) return null;
 
-      if ((age as number) < 18) {
-        return {
-          type: 'minAge',
-          message: 'Applicant must be at least 18 years old',
-        };
-      }
-
-      if ((age as number) > 70) {
-        return {
-          type: 'maxAge',
-          message: 'Applicant must be 70 years old or younger',
-        };
-      }
-
-      return null;
+    if (age < 18) {
+      return {
+        code: 'minAge',
+        message: 'Applicant must be at least 18 years old',
+      };
     }
-  );
+
+    if (age > 70) {
+      return {
+        code: 'maxAge',
+        message: 'Applicant must be 70 years old or younger',
+      };
+    }
+
+    return null;
+  });
 
   // ==========================================
   // 6. Async: INN Verification
@@ -498,7 +486,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 7. Async: SNILS Verification
   // ==========================================
-  createAsyncValidator(
+  validateAsync(
     path.snils,
     async (snils) => {
       if (!snils || typeof snils !== 'string') return null;
@@ -510,7 +498,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
         if (!result.valid) {
           return {
-            type: 'invalidSnils',
+            code: 'invalidSnils',
             message: result.message || 'Invalid SNILS',
           };
         }
@@ -564,32 +552,33 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Custom Validators with Dependencies
 
 ```typescript
-createValidator(
-  path.monthlyPayment,  // Field to validate
-  [path.totalIncome, path.coBorrowersIncome],  // Dependencies
-  (monthlyPayment, [totalIncome, coBorrowersIncome]) => {
-    // Validation logic
-    // Return null if valid
-    // Return { type, message } if invalid
-  }
-);
+validate(path.monthlyPayment, (monthlyPayment, ctx) => {
+  // Access dependencies via context
+  const totalIncome = ctx.form.totalIncome.value.value || 0;
+  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+
+  // Validation logic
+  // Return null if valid
+  // Return { code, message } if invalid
+});
 ```
 
 **Key points**:
 - First parameter: field being validated
-- Second parameter: array of dependencies
-- Third parameter: validation function
-- Validator re-runs when any dependency changes
+- Second parameter: validation function receiving value and context
+- Access other fields via `ctx.form`
+- Validator re-runs when dependencies change
+- Use `code` property instead of `type`
 
 ### Async Validators
 
 ```typescript
-createAsyncValidator(
+validateAsync(
   path.inn,  // Field to validate
   async (inn) => {
     // Async validation logic (can use fetch, promises, etc.)
     // Return null if valid
-    // Return { type, message } if invalid
+    // Return { code, message } if invalid
   },
   { debounce: 500 }  // Options: debounce delay
 );
@@ -600,6 +589,7 @@ createAsyncValidator(
 - Debouncing prevents excessive requests
 - Shows loading state while validating
 - Network errors shouldn't fail validation (return null)
+- Use `code` property instead of `type`
 
 ### Debouncing
 
@@ -695,14 +685,17 @@ For testing, create mock API endpoints:
 
 ### 1. Early Returns
 ```typescript
-createValidator(path.field, [path.dependency], (value, [dep]) => {
+validate(path.field, (value, ctx) => {
   // Return early for cases that don't need validation
-  if (!value || !dep) return null;
+  if (!value) return null;
+
+  const dep = ctx.form.dependency.value.value;
+  if (!dep) return null;
   if (someCondition) return null;
 
   // Main validation logic
   if (invalid) {
-    return { type: 'error', message: 'Error message' };
+    return { code: 'error', message: 'Error message' };
   }
 
   return null;
@@ -711,7 +704,7 @@ createValidator(path.field, [path.dependency], (value, [dep]) => {
 
 ### 2. Graceful Async Failure
 ```typescript
-createAsyncValidator(path.field, async (value) => {
+validateAsync(path.field, async (value) => {
   try {
     // API call
   } catch (error) {
@@ -724,7 +717,7 @@ createAsyncValidator(path.field, async (value) => {
 ### 3. Clear Error Messages
 ```typescript
 return {
-  type: 'descriptiveErrorType',
+  code: 'descriptiveErrorCode',
   message: 'Clear, actionable error message with context',
 };
 ```

@@ -32,7 +32,7 @@ Step 4 contains employment-related fields with conditional requirements:
 Create the validator file for Step 4:
 
 ```bash
-touch src/schemas/validators/steps/step-4-employment.validators.ts
+touch src/schemas/validators/employment.ts
 ```
 
 ## Implementation
@@ -41,8 +41,8 @@ touch src/schemas/validators/steps/step-4-employment.validators.ts
 
 Start with required fields that apply to all employment statuses:
 
-```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
-import { required, min, minLength, requiredWhen, minWhen, pattern } from 'reformer/validators';
+```typescript title="src/schemas/validators/employment.ts"
+import { required, min, pattern, applyWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -82,7 +82,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Add validation for employed individuals:
 
-```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/employment.ts"
 export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -90,36 +90,19 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // Conditional: Employed Fields
   // ==========================================
 
-  // Company name
-  requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Company name is required',
-  });
+  applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
+    required(p.companyName, { message: 'Company name is required' });
+    required(p.companyAddress, { message: 'Company address is required' });
+    required(p.position, { message: 'Position is required' });
 
-  // Company address
-  requiredWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Company address is required',
-  });
+    required(p.workExperienceCurrent, { message: 'Work experience at current job is required' });
+    min(p.workExperienceCurrent, 3, {
+      message: 'Minimum 3 months of experience at current job required',
+    });
 
-  // Position
-  requiredWhen(path.position, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Position is required',
-  });
-
-  // Current work experience (minimum 3 months at current job)
-  requiredWhen(
-    path.workExperienceCurrent,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Work experience at current job is required' }
-  );
-
-  minWhen(path.workExperienceCurrent, 3, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Minimum 3 months of experience at current job required',
-  });
-
-  // Total work experience (optional, but must be non-negative)
-  minWhen(path.workExperienceTotal, 0, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Total work experience cannot be negative',
+    min(p.workExperienceTotal, 0, {
+      message: 'Total work experience cannot be negative',
+    });
   });
 };
 ```
@@ -128,7 +111,7 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Add validation for self-employed individuals:
 
-```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
+```typescript title="src/schemas/validators/employment.ts"
 export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -136,42 +119,14 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // Conditional: Self-Employed Fields
   // ==========================================
 
-  // Business type
-  requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
-    message: 'Business type is required',
+  applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
+    required(p.businessType, { message: 'Business type is required' });
+    required(p.businessInn, { message: 'Business INN is required' });
   });
 
-  // Business INN (10 or 12 digits)
-  requiredWhen(path.businessInn, path.employmentStatus, (status) => status === 'selfEmployed', {
-    message: 'Business INN is required',
-  });
-
-  // Pattern validation only when self-employed
-  // Note: This will be checked in cross-step validation with async validator
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
   });
-
-  // Business address
-  requiredWhen(path.businessAddress, path.employmentStatus, (status) => status === 'selfEmployed', {
-    message: 'Business address is required',
-  });
-
-  // Business experience (minimum 6 months)
-  requiredWhen(
-    path.businessExperience,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business experience is required' }
-  );
-
-  minWhen(
-    path.businessExperience,
-    6,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Minimum 6 months of business experience required' }
-  );
 };
 ```
 
@@ -179,8 +134,8 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
 
 Here's the complete validator for Step 4:
 
-```typescript title="src/schemas/validators/steps/step-4-employment.validators.ts"
-import { required, min, requiredWhen, minWhen, pattern } from 'reformer/validators';
+```typescript title="src/schemas/validators/employment.ts"
+import { required, min, pattern, applyWhen } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
@@ -215,67 +170,33 @@ export const step4EmploymentValidation: ValidationSchemaFn<CreditApplicationForm
   // Conditional: Employed Fields
   // ==========================================
 
-  requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Company name is required',
-  });
+  applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
+    required(p.companyName, { message: 'Company name is required' });
+    required(p.companyAddress, { message: 'Company address is required' });
+    required(p.position, { message: 'Position is required' });
 
-  requiredWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Company address is required',
-  });
+    required(p.workExperienceCurrent, { message: 'Work experience at current job is required' });
+    min(p.workExperienceCurrent, 3, {
+      message: 'Minimum 3 months of experience at current job required',
+    });
 
-  requiredWhen(path.position, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Position is required',
-  });
-
-  requiredWhen(
-    path.workExperienceCurrent,
-    path.employmentStatus,
-    (status) => status === 'employed',
-    { message: 'Work experience at current job is required' }
-  );
-
-  minWhen(path.workExperienceCurrent, 3, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Minimum 3 months of experience at current job required',
-  });
-
-  minWhen(path.workExperienceTotal, 0, path.employmentStatus, (status) => status === 'employed', {
-    message: 'Total work experience cannot be negative',
+    min(p.workExperienceTotal, 0, {
+      message: 'Total work experience cannot be negative',
+    });
   });
 
   // ==========================================
   // Conditional: Self-Employed Fields
   // ==========================================
 
-  requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
-    message: 'Business type is required',
-  });
-
-  requiredWhen(path.businessInn, path.employmentStatus, (status) => status === 'selfEmployed', {
-    message: 'Business INN is required',
+  applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
+    required(p.businessType, { message: 'Business type is required' });
+    required(p.businessInn, { message: 'Business INN is required' });
   });
 
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
   });
-
-  requiredWhen(path.businessAddress, path.employmentStatus, (status) => status === 'selfEmployed', {
-    message: 'Business address is required',
-  });
-
-  requiredWhen(
-    path.businessExperience,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Business experience is required' }
-  );
-
-  minWhen(
-    path.businessExperience,
-    6,
-    path.employmentStatus,
-    (status) => status === 'selfEmployed',
-    { message: 'Minimum 6 months of business experience required' }
-  );
 };
 ```
 
@@ -297,28 +218,17 @@ These fields are only required for specific employment statuses:
 
 ```typescript
 // Required only when employed
-requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
-  message: 'Company name is required',
+applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
+  required(p.companyName, { message: 'Company name is required' });
+  min(p.workExperienceCurrent, 3, {
+    message: 'Minimum 3 months of experience at current job required',
+  });
 });
 
 // Required only when self-employed
-requiredWhen(path.businessType, path.employmentStatus, (status) => status === 'selfEmployed', {
-  message: 'Business type is required',
+applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
+  required(p.businessType, { message: 'Business type is required' });
 });
-```
-
-### Conditional Min Validators
-
-Minimum values that only apply under certain conditions:
-
-```typescript
-minWhen(
-  path.workExperienceCurrent,
-  3, // Minimum value
-  path.employmentStatus, // Dependency
-  (status) => status === 'employed', // Condition
-  { message: 'Minimum 3 months of experience at current job required' }
-);
 ```
 
 ### Integration with Behaviors
@@ -331,8 +241,8 @@ enableWhen(path.companyName, path.employmentStatus, (status) => status === 'empl
 enableWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
 
 // Validation: Require company fields only when employed
-requiredWhen(path.companyName, path.employmentStatus, (status) => status === 'employed', {
-  message: 'Company name is required',
+applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
+  required(p.companyName, { message: 'Company name is required' });
 });
 ```
 
@@ -405,26 +315,18 @@ Each status may have different validation requirements.
 ## Key Takeaways
 
 1. **Always Required** - Some fields required regardless of status
-2. **Conditionally Required** - Use `requiredWhen()` for status-specific fields
-3. **Conditional Min** - Use `minWhen()` for conditional thresholds
-4. **Works with Behaviors** - Hidden fields skip validation
-5. **Business Rules** - Different minimum thresholds (3 months employed, 6 months business)
+2. **Conditionally Required** - Use `applyWhen()` for status-specific fields
+3. **Works with Behaviors** - Hidden fields skip validation
+4. **Business Rules** - Different minimum thresholds (3 months employed, 6 months business)
 
 ## Common Patterns
 
 ### Required for Specific Status
 
 ```typescript
-requiredWhen(path.field, path.employmentStatus, (status) => status === 'employed', {
-  message: 'Field is required',
-});
-```
-
-### Minimum When Status Matches
-
-```typescript
-minWhen(path.field, minimumValue, path.employmentStatus, (status) => status === 'employed', {
-  message: 'Minimum value not met',
+applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
+  required(p.field, { message: 'Field is required' });
+  min(p.field, minimumValue, { message: 'Minimum value not met' });
 });
 ```
 

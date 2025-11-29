@@ -1,6 +1,6 @@
 # ResourceConfig
 
-Defined in: [core/utils/resources.ts:18](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/utils/resources.ts#L18)
+Defined in: [core/utils/resources.ts:18](https://github.com/AlexandrBukhtatyy/ReFormer/blob/c914b0e8aa05b7fd141395bf4d8c4eec038cba53/packages/reformer/src/core/utils/resources.ts#L18)
 
 ## Type Parameters
 
@@ -16,7 +16,7 @@ Defined in: [core/utils/resources.ts:18](https://github.com/AlexandrBukhtatyy/Re
 load: (params?) => Promise<ResourceResult<T>>;
 ```
 
-Defined in: [core/utils/resources.ts:20](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/utils/resources.ts#L20)
+Defined in: [core/utils/resources.ts:20](https://github.com/AlexandrBukhtatyy/ReFormer/blob/c914b0e8aa05b7fd141395bf4d8c4eec038cba53/packages/reformer/src/core/utils/resources.ts#L20)
 
 #### Parameters
 
@@ -36,4 +36,4 @@ Defined in: [core/utils/resources.ts:20](https://github.com/AlexandrBukhtatyy/Re
 type: "static" | "preload" | "partial";
 ```
 
-Defined in: [core/utils/resources.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/9fa60ced367fa684435110fffa6b324fd4b5c03c/packages/reformer/src/core/utils/resources.ts#L19)
+Defined in: [core/utils/resources.ts:19](https://github.com/AlexandrBukhtatyy/ReFormer/blob/c914b0e8aa05b7fd141395bf4d8c4eec038cba53/packages/reformer/src/core/utils/resources.ts#L19)

@@ -35,7 +35,7 @@ Step 5 contains array fields that need special validation:
 Create the validator file for Step 5:
 
 ```bash
-touch src/schemas/validators/steps/step-5-additional-info.validators.ts
+touch src/schemas/validators/additional-info.ts
 ```
 
 ## Implementation
@@ -44,18 +44,33 @@ touch src/schemas/validators/steps/step-5-additional-info.validators.ts
 
 Start with properties array validation:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
 import {
   required,
   min,
   minLength,
   email,
   phone,
-  arrayMinLengthWhen,
-  arrayMaxLength,
+  applyWhen,
+  notEmpty,
+  validateItems,
+  validate,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
+
+/**
+ * Validation for element of properties array
+ */
+const propertyValidation: ValidationSchemaFn<Property> = (path: FieldPath<Property>) => {
+  required(path.type, { message: 'Property type is required' });
+
+  required(path.description, { message: 'Property description is required' });
+  minLength(path.description, 10, { message: 'Minimum 10 characters for description' });
+
+  required(path.estimatedValue, { message: 'Estimated value is required' });
+  min(path.estimatedValue, 0, { message: 'Value must be non-negative' });
+};
 
 /**
  * Validation for Step 5: Additional Information
@@ -73,42 +88,29 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Properties Array
   // ==========================================
 
-  // Array length validation
-  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
-    message: 'Add at least one property',
+  applyWhen(path.hasProperty, (has) => has === true, (p) => {
+    notEmpty(p.properties, { message: 'Add at least one property' });
   });
 
-  arrayMaxLength(path.properties, 10, {
-    message: 'Maximum 10 properties allowed',
+  // Maximum 10 items in array
+  validate(path.properties, (properties) => {
+    if (!properties || properties.length <= 10) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Maximum 10 properties allowed',
+    };
   });
 
-  // Validate each property item using '*' wildcard
-  required(path.properties['*'].type, {
-    message: 'Property type is required',
-  });
-
-  required(path.properties['*'].description, {
-    message: 'Property description is required',
-  });
-
-  minLength(path.properties['*'].description, 10, {
-    message: 'Minimum 10 characters for description',
-  });
-
-  required(path.properties['*'].estimatedValue, {
-    message: 'Estimated value is required',
-  });
-
-  min(path.properties['*'].estimatedValue, 0, {
-    message: 'Value must be non-negative',
-  });
+  // Validate each array element
+  validateItems(path.properties, propertyValidation);
 };
 ```
 
 :::tip Array Element Validation
-Use the `'*'` wildcard to validate all elements in an array:
+Use `validateItems()` to validate all elements in an array:
 
-- `path.properties['*'].type` validates the `type` field of every property
+- Define a separate validation schema function for the array element type
+- Pass it to `validateItems()` along with the array path
 - Validation runs for each existing array element
 - New elements are validated when added
   :::
@@ -117,7 +119,22 @@ Use the `'*'` wildcard to validate all elements in an array:
 
 Add validation for existing loans:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
+/**
+ * Validation for element of existing loans array
+ */
+const existingLoanValidation: ValidationSchemaFn<ExistingLoan> = (path: FieldPath<ExistingLoan>) => {
+  required(path.bank, { message: 'Bank name is required' });
+
+  required(path.amount, { message: 'Loan amount is required' });
+  min(path.amount, 0, { message: 'Amount must be non-negative' });
+
+  min(path.remainingAmount, 0, { message: 'Remaining amount must be non-negative' });
+
+  required(path.monthlyPayment, { message: 'Monthly payment is required' });
+  min(path.monthlyPayment, 0, { message: 'Monthly payment must be non-negative' });
+};
+
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -125,40 +142,21 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Existing Loans Array
   // ==========================================
 
-  // Array length validation
-  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
-    message: 'Add at least one existing loan',
+  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
+    notEmpty(p.existingLoans, { message: 'Add at least one existing loan' });
   });
 
-  arrayMaxLength(path.existingLoans, 20, {
-    message: 'Maximum 20 loans allowed',
+  // Maximum 20 items in array
+  validate(path.existingLoans, (loans) => {
+    if (!loans || loans.length <= 20) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Maximum 20 loans allowed',
+    };
   });
 
-  // Validate each loan item
-  required(path.existingLoans['*'].bank, {
-    message: 'Bank name is required',
-  });
-
-  required(path.existingLoans['*'].amount, {
-    message: 'Loan amount is required',
-  });
-
-  min(path.existingLoans['*'].amount, 0, {
-    message: 'Amount must be non-negative',
-  });
-
-  // Remaining amount is optional, but must be non-negative if provided
-  min(path.existingLoans['*'].remainingAmount, 0, {
-    message: 'Remaining amount must be non-negative',
-  });
-
-  required(path.existingLoans['*'].monthlyPayment, {
-    message: 'Monthly payment is required',
-  });
-
-  min(path.existingLoans['*'].monthlyPayment, 0, {
-    message: 'Monthly payment must be non-negative',
-  });
+  // Validate each array element
+  validateItems(path.existingLoans, existingLoanValidation);
 };
 ```
 
@@ -166,7 +164,26 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Add validation for co-borrowers with nested object validation:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
+/**
+ * Validation for element of co-borrowers array
+ */
+const coBorrowerValidation: ValidationSchemaFn<CoBorrower> = (path: FieldPath<CoBorrower>) => {
+  required(path.personalData.firstName, { message: 'First name is required' });
+  required(path.personalData.lastName, { message: 'Last name is required' });
+
+  required(path.phone, { message: 'Phone number is required' });
+  phone(path.phone, { message: 'Invalid phone format' });
+
+  required(path.email, { message: 'Email is required' });
+  email(path.email, { message: 'Invalid email format' });
+
+  required(path.monthlyIncome, { message: 'Monthly income is required' });
+  min(path.monthlyIncome, 0, { message: 'Income must be non-negative' });
+
+  required(path.relationship, { message: 'Relationship is required' });
+};
+
 export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... previous validation ...
 
@@ -174,55 +191,21 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Co-Borrowers Array
   // ==========================================
 
-  // Array length validation
-  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
-    message: 'Add at least one co-borrower',
+  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
+    notEmpty(p.coBorrowers, { message: 'Add at least one co-borrower' });
   });
 
-  arrayMaxLength(path.coBorrowers, 5, {
-    message: 'Maximum 5 co-borrowers allowed',
+  // Maximum 5 items in array
+  validate(path.coBorrowers, (coBorrowers) => {
+    if (!coBorrowers || coBorrowers.length <= 5) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Maximum 5 co-borrowers allowed',
+    };
   });
 
-  // Validate nested personalData object within each co-borrower
-  required(path.coBorrowers['*'].personalData.firstName, {
-    message: 'First name is required',
-  });
-
-  required(path.coBorrowers['*'].personalData.lastName, {
-    message: 'Last name is required',
-  });
-
-  // Phone validation
-  required(path.coBorrowers['*'].phone, {
-    message: 'Phone number is required',
-  });
-
-  phone(path.coBorrowers['*'].phone, {
-    message: 'Invalid phone format',
-  });
-
-  // Email validation
-  required(path.coBorrowers['*'].email, {
-    message: 'Email is required',
-  });
-
-  email(path.coBorrowers['*'].email, {
-    message: 'Invalid email format',
-  });
-
-  // Monthly income
-  required(path.coBorrowers['*'].monthlyIncome, {
-    message: 'Monthly income is required',
-  });
-
-  min(path.coBorrowers['*'].monthlyIncome, 0, {
-    message: 'Income must be non-negative',
-  });
-
-  // Relationship to applicant
-  required(path.coBorrowers['*'].relationship, {
-    message: 'Relationship is required',
-  });
+  // Validate each array element
+  validateItems(path.coBorrowers, coBorrowerValidation);
 };
 ```
 
@@ -230,15 +213,17 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 Here's the complete validator for Step 5:
 
-```typescript title="src/schemas/validators/steps/step-5-additional-info.validators.ts"
+```typescript title="src/schemas/validators/additional-info.ts"
 import {
   required,
   min,
   minLength,
   email,
   phone,
-  arrayMinLengthWhen,
-  arrayMaxLength,
+  applyWhen,
+  notEmpty,
+  validateItems,
+  validate,
 } from 'reformer/validators';
 import type { ValidationSchemaFn, FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
@@ -259,117 +244,55 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
   // Properties Array
   // ==========================================
 
-  arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
-    message: 'Add at least one property',
+  applyWhen(path.hasProperty, (has) => has === true, (p) => {
+    notEmpty(p.properties, { message: 'Add at least one property' });
   });
 
-  arrayMaxLength(path.properties, 10, {
-    message: 'Maximum 10 properties allowed',
+  validate(path.properties, (properties) => {
+    if (!properties || properties.length <= 10) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Maximum 10 properties allowed',
+    };
   });
 
-  required(path.properties['*'].type, {
-    message: 'Property type is required',
-  });
-
-  required(path.properties['*'].description, {
-    message: 'Property description is required',
-  });
-
-  minLength(path.properties['*'].description, 10, {
-    message: 'Minimum 10 characters for description',
-  });
-
-  required(path.properties['*'].estimatedValue, {
-    message: 'Estimated value is required',
-  });
-
-  min(path.properties['*'].estimatedValue, 0, {
-    message: 'Value must be non-negative',
-  });
+  validateItems(path.properties, propertyValidation);
 
   // ==========================================
   // Existing Loans Array
   // ==========================================
 
-  arrayMinLengthWhen(path.existingLoans, 1, path.hasExistingLoans, (has) => has === true, {
-    message: 'Add at least one existing loan',
+  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
+    notEmpty(p.existingLoans, { message: 'Add at least one existing loan' });
   });
 
-  arrayMaxLength(path.existingLoans, 20, {
-    message: 'Maximum 20 loans allowed',
+  validate(path.existingLoans, (loans) => {
+    if (!loans || loans.length <= 20) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Maximum 20 loans allowed',
+    };
   });
 
-  required(path.existingLoans['*'].bank, {
-    message: 'Bank name is required',
-  });
-
-  required(path.existingLoans['*'].amount, {
-    message: 'Loan amount is required',
-  });
-
-  min(path.existingLoans['*'].amount, 0, {
-    message: 'Amount must be non-negative',
-  });
-
-  min(path.existingLoans['*'].remainingAmount, 0, {
-    message: 'Remaining amount must be non-negative',
-  });
-
-  required(path.existingLoans['*'].monthlyPayment, {
-    message: 'Monthly payment is required',
-  });
-
-  min(path.existingLoans['*'].monthlyPayment, 0, {
-    message: 'Monthly payment must be non-negative',
-  });
+  validateItems(path.existingLoans, existingLoanValidation);
 
   // ==========================================
   // Co-Borrowers Array
   // ==========================================
 
-  arrayMinLengthWhen(path.coBorrowers, 1, path.hasCoBorrower, (has) => has === true, {
-    message: 'Add at least one co-borrower',
+  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
+    notEmpty(p.coBorrowers, { message: 'Add at least one co-borrower' });
   });
 
-  arrayMaxLength(path.coBorrowers, 5, {
-    message: 'Maximum 5 co-borrowers allowed',
+  validate(path.coBorrowers, (coBorrowers) => {
+    if (!coBorrowers || coBorrowers.length <= 5) return null;
+    return {
+      code: 'maxArrayLength',
+      message: 'Maximum 5 co-borrowers allowed',
+    };
   });
 
-  required(path.coBorrowers['*'].personalData.firstName, {
-    message: 'First name is required',
-  });
-
-  required(path.coBorrowers['*'].personalData.lastName, {
-    message: 'Last name is required',
-  });
-
-  required(path.coBorrowers['*'].phone, {
-    message: 'Phone number is required',
-  });
-
-  phone(path.coBorrowers['*'].phone, {
-    message: 'Invalid phone format',
-  });
-
-  required(path.coBorrowers['*'].email, {
-    message: 'Email is required',
-  });
-
-  email(path.coBorrowers['*'].email, {
-    message: 'Invalid email format',
-  });
-
-  required(path.coBorrowers['*'].monthlyIncome, {
-    message: 'Monthly income is required',
-  });
-
-  min(path.coBorrowers['*'].monthlyIncome, 0, {
-    message: 'Income must be non-negative',
-  });
-
-  required(path.coBorrowers['*'].relationship, {
-    message: 'Relationship is required',
-  });
+  validateItems(path.coBorrowers, coBorrowerValidation);
 };
 ```
 
@@ -377,53 +300,53 @@ export const step5AdditionalValidation: ValidationSchemaFn<CreditApplicationForm
 
 ### Array Length Validation
 
-#### Conditional Minimum Length
+#### Conditional Not Empty
 
 ```typescript
-arrayMinLengthWhen(
-  path.properties,
-  1, // Minimum length
-  path.hasProperty, // Dependency field
-  (has) => has === true, // Condition
-  { message: 'Add at least one property' }
-);
+applyWhen(path.hasProperty, (has) => has === true, (p) => {
+  notEmpty(p.properties, { message: 'Add at least one property' });
+});
 ```
 
-- Array must have at least 1 item when condition is true
+- Array must not be empty when condition is true
 - No validation when condition is false
 - Works with behaviors that show/hide arrays
 
 #### Maximum Length
 
 ```typescript
-arrayMaxLength(path.properties, 10, {
-  message: 'Maximum 10 properties allowed',
+validate(path.properties, (properties) => {
+  if (!properties || properties.length <= 10) return null;
+  return {
+    code: 'maxArrayLength',
+    message: 'Maximum 10 properties allowed',
+  };
 });
 ```
 
-- Always enforced (not conditional)
+- Custom validation for maximum array length
 - Prevents adding more items than allowed
 - User sees error when trying to add too many items
 
 ### Array Element Validation
 
-Use `'*'` wildcard to validate all array elements:
+Use `validateItems()` to validate all array elements:
 
 ```typescript
-// Validates 'type' field in every property
-required(path.properties['*'].type, {
-  message: 'Property type is required',
-});
+// Define validation schema for array element
+const propertyValidation: ValidationSchemaFn<Property> = (path: FieldPath<Property>) => {
+  required(path.type, { message: 'Property type is required' });
+  minLength(path.description, 10, { message: 'Minimum 10 characters for description' });
+};
 
-// Validates 'description' field in every property
-minLength(path.properties['*'].description, 10, {
-  message: 'Minimum 10 characters for description',
-});
+// Apply to all items in the array
+validateItems(path.properties, propertyValidation);
 ```
 
 **How it works**:
 
-- `path.properties['*']` means "every element in properties array"
+- Define a validation schema function for the element type
+- Pass it to `validateItems()` with the array path
 - Validation runs for each existing element
 - New elements are validated when added to array
 - Removing elements removes their validation errors
@@ -433,10 +356,13 @@ minLength(path.properties['*'].description, 10, {
 Validate fields within nested objects in arrays:
 
 ```typescript
-// Validates firstName inside personalData inside each co-borrower
-required(path.coBorrowers['*'].personalData.firstName, {
-  message: 'First name is required',
-});
+const coBorrowerValidation: ValidationSchemaFn<CoBorrower> = (path: FieldPath<CoBorrower>) => {
+  // Validates firstName inside personalData inside each co-borrower
+  required(path.personalData.firstName, { message: 'First name is required' });
+  required(path.personalData.lastName, { message: 'Last name is required' });
+};
+
+validateItems(path.coBorrowers, coBorrowerValidation);
 ```
 
 **Structure**:
@@ -464,8 +390,8 @@ From Behaviors section:
 enableWhen(path.properties, path.hasProperty, (has) => has === true);
 
 // Validation: Require at least one property when visible
-arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
-  message: 'Add at least one property',
+applyWhen(path.hasProperty, (has) => has === true, (p) => {
+  notEmpty(p.properties, { message: 'Add at least one property' });
 });
 ```
 
@@ -521,10 +447,10 @@ Test these scenarios:
 
 ## Key Takeaways
 
-1. **Array Length** - Use `arrayMinLengthWhen()` and `arrayMaxLength()`
-2. **Element Validation** - Use `'*'` wildcard for all elements
+1. **Array Length** - Use `notEmpty()` and custom `validate()` for length constraints
+2. **Element Validation** - Use `validateItems()` with element validation schema
 3. **Nested Objects** - Can validate deep nested fields in arrays
-4. **Conditional Arrays** - Arrays can be conditionally required
+4. **Conditional Arrays** - Arrays can be conditionally required with `applyWhen()`
 5. **Works with Behaviors** - Hidden arrays skip validation
 
 ## Common Patterns
@@ -532,21 +458,30 @@ Test these scenarios:
 ### Conditional Array with Element Validation
 
 ```typescript
-// Array must have at least 1 item when checkbox is true
-arrayMinLengthWhen(path.items, 1, path.hasItems, (has) => has === true, {
-  message: 'Add at least one item',
+// Define element validation
+const itemValidation: ValidationSchemaFn<Item> = (path: FieldPath<Item>) => {
+  required(path.name, { message: 'Name is required' });
+  min(path.value, 0, { message: 'Value must be non-negative' });
+};
+
+// Array must not be empty when checkbox is true
+applyWhen(path.hasItems, (has) => has === true, (p) => {
+  notEmpty(p.items, { message: 'Add at least one item' });
 });
 
-// Each item must have required fields
-required(path.items['*'].name, { message: 'Name is required' });
-min(path.items['*'].value, 0, { message: 'Value must be non-negative' });
+// Validate each item
+validateItems(path.items, itemValidation);
 ```
 
 ### Array with Maximum Length
 
 ```typescript
-arrayMaxLength(path.items, 10, {
-  message: 'Maximum 10 items allowed',
+validate(path.items, (items) => {
+  if (!items || items.length <= 10) return null;
+  return {
+    code: 'maxArrayLength',
+    message: 'Maximum 10 items allowed',
+  };
 });
 ```
 
@@ -554,9 +489,11 @@ arrayMaxLength(path.items, 10, {
 
 ```typescript
 // Validate fields within nested objects
-required(path.items['*'].contact.email, {
-  message: 'Email is required',
-});
+const itemValidation: ValidationSchemaFn<Item> = (path: FieldPath<Item>) => {
+  required(path.contact.email, { message: 'Email is required' });
+};
+
+validateItems(path.items, itemValidation);
 ```
 
 ## What's Next?

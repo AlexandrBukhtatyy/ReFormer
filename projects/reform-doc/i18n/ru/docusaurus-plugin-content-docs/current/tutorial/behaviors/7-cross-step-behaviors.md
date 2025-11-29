@@ -26,8 +26,9 @@ sidebar_position: 7
 ## Реализация
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
-import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
+import type { BehaviorSchemaFn } from 'reformer/behaviors';
+import type { FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -55,7 +56,7 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
   );
 
   // Отключить paymentToIncomeRatio (только для чтения)
-  disableWhen(path.paymentToIncomeRatio, path.paymentToIncomeRatio, () => true);
+  disableWhen(path.paymentToIncomeRatio, () => true);
 
   // ==========================================
   // 2. Ревалидировать платёж при изменении дохода
@@ -68,24 +69,24 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
   //    Шаг 2: age
   //    Шаг 1: поля кредита
   // ==========================================
-  disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanTerm, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanPurpose, path.age, (age) => (age as number) < 18);
+  disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
+  disableWhen(path.loanTerm, (form) => (form.age as number) < 18);
+  disableWhen(path.loanPurpose, (form) => (form.age as number) < 18);
 
   // ==========================================
   // 4. Отслеживание аналитики
   // ==========================================
-  watch(path.loanAmount, (value) => {
+  watchField(path.loanAmount, (value) => {
     console.log('Сумма кредита изменена:', value);
     // window.analytics?.track('loan_amount_changed', { amount: value });
   });
 
-  watch(path.interestRate, (value) => {
+  watchField(path.interestRate, (value) => {
     console.log('Процентная ставка рассчитана:', value);
     // window.analytics?.track('interest_rate_computed', { rate: value });
   });
 
-  watch(path.employmentStatus, (value) => {
+  watchField(path.employmentStatus, (value) => {
     console.log('Статус занятости изменён:', value);
     // window.analytics?.track('employment_status_changed', { status: value });
   });
@@ -119,17 +120,16 @@ paymentToIncomeRatio ← totalIncome (Шаг 4)
 
 ```typescript
 // Правило валидации (реализуется в разделе Валидация)
-createValidator(
-  path.monthlyPayment,
-  [path.totalIncome, path.coBorrowersIncome],
-  (payment, [income, coIncome]) => {
-    const total = (income || 0) + (coIncome || 0);
-    if (payment > total * 0.5) {
-      return { message: 'Платёж превышает 50% дохода' };
-    }
-    return null;
+validate(path.monthlyPayment, (payment, ctx) => {
+  const totalIncome = ctx.form.totalIncome.value.value || 0;
+  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  const total = totalIncome + coBorrowersIncome;
+
+  if (payment > total * 0.5) {
+    return { code: 'maxPaymentToIncome', message: 'Платёж превышает 50% дохода' };
   }
-);
+  return null;
+});
 
 // Behavior: Запустить ревалидацию когда доход изменяется
 revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
@@ -147,7 +147,7 @@ revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
 Предотвращает подачу заявки несовершеннолетними:
 
 ```typescript
-disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
+disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
 ```
 
 **Поток:**
@@ -164,7 +164,7 @@ disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
 Мониторьте поведение пользователя для получения информации:
 
 ```typescript
-watch(path.loanAmount, (value) => {
+watchField(path.loanAmount, (value) => {
   // Отслеживаем изменения суммы кредита
   window.analytics?.track('loan_amount_changed', { amount: value });
 });
@@ -183,7 +183,7 @@ watch(path.loanAmount, (value) => {
 ```typescript
 import { analytics } from '@/services/analytics';
 
-watch(path.loanAmount, (value) => {
+watchField(path.loanAmount, (value) => {
   analytics.track('LoanAmountChanged', {
     amount: value,
     timestamp: Date.now(),
@@ -197,8 +197,9 @@ watch(path.loanAmount, (value) => {
 ## Полный код
 
 ```typescript title="reform-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
-import { computeFrom, disableWhen, revalidateWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
+import type { BehaviorSchemaFn } from 'reformer/behaviors';
+import type { FieldPath } from 'reformer';
 import type { CreditApplicationForm } from '@/types';
 
 export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -220,26 +221,26 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
     }
   );
 
-  disableWhen(path.paymentToIncomeRatio, path.paymentToIncomeRatio, () => true);
+  disableWhen(path.paymentToIncomeRatio, () => true);
 
   // Умная ревалидация
   revalidateWhen(path.monthlyPayment, [path.totalIncome, path.coBorrowersIncome]);
 
   // Контроль доступа по возрасту
-  disableWhen(path.loanAmount, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanTerm, path.age, (age) => (age as number) < 18);
-  disableWhen(path.loanPurpose, path.age, (age) => (age as number) < 18);
+  disableWhen(path.loanAmount, (form) => (form.age as number) < 18);
+  disableWhen(path.loanTerm, (form) => (form.age as number) < 18);
+  disableWhen(path.loanPurpose, (form) => (form.age as number) < 18);
 
   // Отслеживание аналитики
-  watch(path.loanAmount, (value) => {
+  watchField(path.loanAmount, (value) => {
     console.log('Сумма кредита изменена:', value);
   });
 
-  watch(path.interestRate, (value) => {
+  watchField(path.interestRate, (value) => {
     console.log('Процентная ставка рассчитана:', value);
   });
 
-  watch(path.employmentStatus, (value) => {
+  watchField(path.employmentStatus, (value) => {
     console.log('Статус занятости изменён:', value);
   });
 };
@@ -299,7 +300,7 @@ function LoanSummary({ control }: Props) {
 - **Разделяйте кросс-шаговые behaviors** для ясности
 - **`revalidateWhen`** гарантирует что валидация остаётся актуальной
 - **Обратные зависимости** возможны (Шаг 2 → Шаг 1)
-- **Аналитика** через `watch` для мониторинга
+- **Аналитика** через `watchField` для мониторинга
 - **Отображайте кросс-шаговые данные** в резюме/виджетах
 
 ## Следующий шаг
