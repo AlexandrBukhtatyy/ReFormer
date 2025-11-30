@@ -1,5 +1,5 @@
 {
-  "name": "reform",
+  "name": "reformer",
   "version": "1.0.0-beta.1",
   "description": "Reactive form state management library for React with signals-based architecture",
   "main": "dist/index.cjs.js",

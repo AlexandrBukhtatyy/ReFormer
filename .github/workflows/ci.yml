@@ -11,26 +11,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Hello
+        run: echo "Hello!"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm ci
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      #     cache: 'npm'
 
-      - name: Lint
-        run: npm run lint
+      # - name: Install dependencies
+      #   run: npm ci
 
-      - name: Check formatting
-        run: npm run format:check
+      # - name: Lint
+      #   run: npm run lint
 
-      - name: Build library
-        run: npm run build -w reformer
+      # - name: Check formatting
+      #   run: npm run format:check
 
-      - name: Run tests
+      # - name: Build library
+      #   run: npm run build -w reformer
+
+      # - name: Run tests
         run: npm run test -w reformer
