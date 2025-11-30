@@ -5,79 +5,145 @@ sidebar_label: Hooks
 
 # Hooks
 
-ReFormer provides React hooks for seamless integration.
+ReFormer provides React hooks for seamless integration with React 18+.
 
 ## useFormControl
 
-Subscribe to field state changes.
+Subscribe to all field state changes. The component re-renders only when control data actually changes.
 
 ```typescript
 import { useFormControl } from 'reformer';
 
 function TextField({ field }: { field: FieldNode<string> }) {
-  const control = useFormControl(field);
+  const { value, disabled, errors, shouldShowError } = useFormControl(field);
 
   return (
-    <input
-      value={control.value}
-      onChange={(e) => control.setValue(e.target.value)}
-      onBlur={() => control.markAsTouched()}
-      disabled={control.disabled}
-    />
-  );
-}
-```
-
-### Returned Object
-
-`useFormControl` returns the field with all reactive properties:
-
-| Property      | Type             | Description              |
-| ------------- | ---------------- | ------------------------ |
-| `value`       | `T`              | Current value            |
-| `setValue(v)` | `function`       | Update value             |
-| `valid`       | `boolean`        | Is valid                 |
-| `invalid`     | `boolean`        | Has errors               |
-| `errors`      | `object \| null` | Error object             |
-| `touched`     | `boolean`        | User interacted          |
-| `dirty`       | `boolean`        | Value changed            |
-| `disabled`    | `boolean`        | Is disabled              |
-| `visible`     | `boolean`        | Is visible               |
-| `pending`     | `boolean`        | Async validation running |
-
-### Example: Complete Field
-
-```tsx
-function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
-  const control = useFormControl(field);
-
-  if (!control.visible) return null;
-
-  return (
-    <div className="form-field">
-      <label>{label}</label>
+    <div>
       <input
-        value={control.value}
-        onChange={(e) => control.setValue(e.target.value)}
-        onBlur={() => control.markAsTouched()}
-        disabled={control.disabled}
-        className={control.invalid && control.touched ? 'error' : ''}
+        value={value}
+        onChange={(e) => field.setValue(e.target.value)}
+        onBlur={() => field.markAsTouched()}
+        disabled={disabled}
       />
-      {control.touched && control.errors?.required && (
-        <span className="error-message">This field is required</span>
+      {shouldShowError && errors.length > 0 && (
+        <span className="error">{errors[0].message}</span>
       )}
-      {control.touched && control.errors?.minLength && (
-        <span className="error-message">
-          Minimum {control.errors.minLength.required} characters
-        </span>
-      )}
-      {control.pending && <span className="loading">Validating...</span>}
     </div>
   );
 }
 ```
 
-## Using with GroupNode
+### Return Value for FieldNode
+
+| Property          | Type                     | Description                        |
+| ----------------- | ------------------------ | ---------------------------------- |
+| `value`           | `T`                      | Current value                      |
+| `valid`           | `boolean`                | Is valid                           |
+| `invalid`         | `boolean`                | Has errors                         |
+| `errors`          | `ValidationError[]`      | Array of validation errors         |
+| `touched`         | `boolean`                | User interacted with field         |
+| `disabled`        | `boolean`                | Is disabled                        |
+| `pending`         | `boolean`                | Async validation in progress       |
+| `shouldShowError` | `boolean`                | Should display error (touched + invalid) |
+| `componentProps`  | `Record<string, any>`    | Custom props for component         |
+
+### Return Value for ArrayNode
+
+| Property   | Type                | Description                  |
+| ---------- | ------------------- | ---------------------------- |
+| `value`    | `T[]`               | Current array value          |
+| `length`   | `number`            | Number of items in array     |
+| `valid`    | `boolean`           | Is valid                     |
+| `invalid`  | `boolean`           | Has errors                   |
+| `errors`   | `ValidationError[]` | Array of validation errors   |
+| `touched`  | `boolean`           | User interacted              |
+| `dirty`    | `boolean`           | Value changed from initial   |
+| `pending`  | `boolean`           | Async validation in progress |
+
+### Example: Complete Field Component
+
+```tsx
+function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
+  const { value, disabled, errors, shouldShowError, pending } = useFormControl(field);
+
+  return (
+    <div className="form-field">
+      <label>{label}</label>
+      <input
+        value={value}
+        onChange={(e) => field.setValue(e.target.value)}
+        onBlur={() => field.markAsTouched()}
+        disabled={disabled}
+      />
+      {shouldShowError && errors.length > 0 && (
+        <span className="error-message">{errors[0].message}</span>
+      )}
+      {pending && <span className="loading">Validating...</span>}
+    </div>
+  );
+}
+```
+
+---
+
+## useFormControlValue
+
+Subscribe to field value only, without tracking errors, valid, touched, etc. Use this when you need only the value for conditional rendering — it provides better performance by avoiding unnecessary re-renders.
+
+```typescript
+import { useFormControlValue } from 'reformer';
+
+function ConditionalField({
+  showWhenField,
+  field
+}: {
+  showWhenField: FieldNode<string>;
+  field: FieldNode<string>;
+}) {
+  // Re-renders only when showWhenField.value changes
+  const showWhenValue = useFormControlValue(showWhenField);
+
+  if (showWhenValue !== 'show') {
+    return null;
+  }
+
+  return <TextField field={field} />;
+}
+```
+
+### Return Value
+
+| Type | Description      |
+| ---- | ---------------- |
+| `T`  | Current value    |
+
+### When to Use
+
+Use `useFormControlValue` instead of `useFormControl` when:
+
+- You need only the value for conditional rendering
+- You want to minimize re-renders
+- You don't need validation state or other properties
+
+```tsx
+// ❌ Inefficient - re-renders on any state change
+function BadExample({ field }: { field: FieldNode<string> }) {
+  const { value } = useFormControl(field);
+  return <span>Selected: {value}</span>;
+}
+
+// ✅ Efficient - re-renders only on value change
+function GoodExample({ field }: { field: FieldNode<string> }) {
+  const value = useFormControlValue(field);
+  return <span>Selected: {value}</span>;
+}
+```
+
+---
+
+## Usage Examples
+
+### With GroupNode
 
 Access controls from GroupNode:
 
@@ -95,45 +161,46 @@ function UserForm() {
 }
 ```
 
-## Using with ArrayNode
+### With ArrayNode
 
 Render dynamic arrays:
 
 ```tsx
 function PhoneList({ array }: { array: ArrayNode<PhoneSchema> }) {
-  const control = useFormControl(array);
+  const { length } = useFormControl(array);
 
   return (
     <div>
-      {control.controls.map((phone, index) => (
+      {array.map((phone, index) => (
         <div key={phone.id}>
           <FormField field={phone.controls.type} label="Type" />
           <FormField field={phone.controls.number} label="Number" />
           <button onClick={() => array.removeAt(index)}>Remove</button>
         </div>
       ))}
-      <button onClick={() => array.push({ type: 'mobile', number: '' })}>Add Phone</button>
+      {length === 0 && <span>No phones added</span>}
+      <button onClick={() => array.push({ type: 'mobile', number: '' })}>
+        Add Phone
+      </button>
     </div>
   );
 }
 ```
 
-## Form Submission
+### Form Submission
 
 Handle form submit:
 
 ```tsx
 function ContactForm() {
   const form = useMemo(() => createContactForm(), []);
+  const { invalid } = useFormControl(form.controls.email);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Show all validation errors
     form.markAsTouched();
 
     if (form.valid) {
-      // Submit data
       console.log(form.value);
     }
   };
@@ -142,25 +209,24 @@ function ContactForm() {
     <form onSubmit={handleSubmit}>
       <FormField field={form.controls.name} label="Name" />
       <FormField field={form.controls.email} label="Email" />
-
-      <button type="submit" disabled={form.invalid}>
-        Submit
-      </button>
+      <button type="submit" disabled={invalid}>Submit</button>
     </form>
   );
 }
 ```
 
+---
+
 ## Performance
 
-`useFormControl` only re-renders when subscribed field changes:
+Both hooks use `useSyncExternalStore` for optimal React 18+ integration:
 
 ```tsx
 function Form() {
   // This component doesn't re-render on field changes
   return (
     <form>
-      <NameField /> {/* Re-renders only when name changes */}
+      <NameField />  {/* Re-renders only when name changes */}
       <EmailField /> {/* Re-renders only when email changes */}
     </form>
   );
@@ -169,5 +235,5 @@ function Form() {
 
 ## Next Steps
 
-- [Components](/docs/react/components) — Reusable form components
-- [Examples](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx) — Live playground
+- [Custom Fields](/docs/react/custom-fields) — Building custom form fields
+- [Examples](https://stackblitz.com/~/github.com/AButsai/ReFormer/tree/main/projects/react-playground) — Live playground

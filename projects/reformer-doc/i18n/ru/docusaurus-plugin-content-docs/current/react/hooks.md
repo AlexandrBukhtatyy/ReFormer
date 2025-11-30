@@ -5,77 +5,145 @@ sidebar_label: Хуки
 
 # Хуки
 
-ReFormer предоставляет React hooks для бесшовной интеграции.
+ReFormer предоставляет React хуки для бесшовной интеграции с React 18+.
 
 ## useFormControl
 
-Подписка на изменения состояния поля.
+Подписка на все изменения состояния поля. Компонент перерисовывается только когда данные контрола реально изменились.
 
 ```typescript
 import { useFormControl } from 'reformer';
 
 function TextField({ field }: { field: FieldNode<string> }) {
-  const control = useFormControl(field);
+  const { value, disabled, errors, shouldShowError } = useFormControl(field);
 
   return (
-    <input
-      value={control.value}
-      onChange={(e) => control.setValue(e.target.value)}
-      onBlur={() => control.markAsTouched()}
-      disabled={control.disabled}
-    />
-  );
-}
-```
-
-### Возвращаемый объект
-
-`useFormControl` возвращает поле со всеми реактивными свойствами:
-
-| Свойство      | Тип              | Описание                          |
-| ------------- | ---------------- | --------------------------------- |
-| `value`       | `T`              | Текущее значение                  |
-| `setValue(v)` | `function`       | Обновить значение                 |
-| `valid`       | `boolean`        | Валидно                           |
-| `invalid`     | `boolean`        | Есть ошибки                       |
-| `errors`      | `object \| null` | Объект ошибок                     |
-| `touched`     | `boolean`        | Пользователь взаимодействовал     |
-| `dirty`       | `boolean`        | Значение изменено                 |
-| `disabled`    | `boolean`        | Отключено                         |
-| `visible`     | `boolean`        | Видимо                            |
-| `pending`     | `boolean`        | Асинхронная валидация выполняется |
-
-### Пример: Полное поле
-
-```tsx
-function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
-  const control = useFormControl(field);
-
-  if (!control.visible) return null;
-
-  return (
-    <div className="form-field">
-      <label>{label}</label>
+    <div>
       <input
-        value={control.value}
-        onChange={(e) => control.setValue(e.target.value)}
-        onBlur={() => control.markAsTouched()}
-        disabled={control.disabled}
-        className={control.invalid && control.touched ? 'error' : ''}
+        value={value}
+        onChange={(e) => field.setValue(e.target.value)}
+        onBlur={() => field.markAsTouched()}
+        disabled={disabled}
       />
-      {control.touched && control.errors?.required && (
-        <span className="error-message">Это поле обязательно</span>
+      {shouldShowError && errors.length > 0 && (
+        <span className="error">{errors[0].message}</span>
       )}
-      {control.touched && control.errors?.minLength && (
-        <span className="error-message">Минимум {control.errors.minLength.required} символов</span>
-      )}
-      {control.pending && <span className="loading">Проверка...</span>}
     </div>
   );
 }
 ```
 
-## Использование с GroupNode
+### Возвращаемое значение для FieldNode
+
+| Свойство          | Тип                      | Описание                              |
+| ----------------- | ------------------------ | ------------------------------------- |
+| `value`           | `T`                      | Текущее значение                      |
+| `valid`           | `boolean`                | Валидно                               |
+| `invalid`         | `boolean`                | Есть ошибки                           |
+| `errors`          | `ValidationError[]`      | Массив ошибок валидации               |
+| `touched`         | `boolean`                | Пользователь взаимодействовал с полем |
+| `disabled`        | `boolean`                | Отключено                             |
+| `pending`         | `boolean`                | Асинхронная валидация выполняется     |
+| `shouldShowError` | `boolean`                | Показывать ошибку (touched + invalid) |
+| `componentProps`  | `Record<string, any>`    | Пользовательские пропсы для компонента |
+
+### Возвращаемое значение для ArrayNode
+
+| Свойство   | Тип                 | Описание                          |
+| ---------- | ------------------- | --------------------------------- |
+| `value`    | `T[]`               | Текущее значение массива          |
+| `length`   | `number`            | Количество элементов в массиве    |
+| `valid`    | `boolean`           | Валидно                           |
+| `invalid`  | `boolean`           | Есть ошибки                       |
+| `errors`   | `ValidationError[]` | Массив ошибок валидации           |
+| `touched`  | `boolean`           | Пользователь взаимодействовал     |
+| `dirty`    | `boolean`           | Значение изменено от начального   |
+| `pending`  | `boolean`           | Асинхронная валидация выполняется |
+
+### Пример: Полный компонент поля
+
+```tsx
+function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
+  const { value, disabled, errors, shouldShowError, pending } = useFormControl(field);
+
+  return (
+    <div className="form-field">
+      <label>{label}</label>
+      <input
+        value={value}
+        onChange={(e) => field.setValue(e.target.value)}
+        onBlur={() => field.markAsTouched()}
+        disabled={disabled}
+      />
+      {shouldShowError && errors.length > 0 && (
+        <span className="error-message">{errors[0].message}</span>
+      )}
+      {pending && <span className="loading">Проверка...</span>}
+    </div>
+  );
+}
+```
+
+---
+
+## useFormControlValue
+
+Подписка только на значение поля, без отслеживания errors, valid, touched и т.д. Используйте когда нужно только значение для условного рендеринга — это обеспечивает лучшую производительность, избегая лишних перерисовок.
+
+```typescript
+import { useFormControlValue } from 'reformer';
+
+function ConditionalField({
+  showWhenField,
+  field
+}: {
+  showWhenField: FieldNode<string>;
+  field: FieldNode<string>;
+}) {
+  // Перерисовывается только при изменении showWhenField.value
+  const showWhenValue = useFormControlValue(showWhenField);
+
+  if (showWhenValue !== 'show') {
+    return null;
+  }
+
+  return <TextField field={field} />;
+}
+```
+
+### Возвращаемое значение
+
+| Тип | Описание         |
+| --- | ---------------- |
+| `T` | Текущее значение |
+
+### Когда использовать
+
+Используйте `useFormControlValue` вместо `useFormControl` когда:
+
+- Вам нужно только значение для условного рендеринга
+- Вы хотите минимизировать перерисовки
+- Вам не нужно состояние валидации или другие свойства
+
+```tsx
+// ❌ Неэффективно - перерисовывается при любом изменении состояния
+function BadExample({ field }: { field: FieldNode<string> }) {
+  const { value } = useFormControl(field);
+  return <span>Выбрано: {value}</span>;
+}
+
+// ✅ Эффективно - перерисовывается только при изменении значения
+function GoodExample({ field }: { field: FieldNode<string> }) {
+  const value = useFormControlValue(field);
+  return <span>Выбрано: {value}</span>;
+}
+```
+
+---
+
+## Примеры использования
+
+### С GroupNode
 
 Доступ к контролам из GroupNode:
 
@@ -93,45 +161,46 @@ function UserForm() {
 }
 ```
 
-## Использование с ArrayNode
+### С ArrayNode
 
 Рендеринг динамических массивов:
 
 ```tsx
 function PhoneList({ array }: { array: ArrayNode<PhoneSchema> }) {
-  const control = useFormControl(array);
+  const { length } = useFormControl(array);
 
   return (
     <div>
-      {control.controls.map((phone, index) => (
+      {array.map((phone, index) => (
         <div key={phone.id}>
           <FormField field={phone.controls.type} label="Тип" />
           <FormField field={phone.controls.number} label="Номер" />
           <button onClick={() => array.removeAt(index)}>Удалить</button>
         </div>
       ))}
-      <button onClick={() => array.push({ type: 'mobile', number: '' })}>Добавить телефон</button>
+      {length === 0 && <span>Телефоны не добавлены</span>}
+      <button onClick={() => array.push({ type: 'mobile', number: '' })}>
+        Добавить телефон
+      </button>
     </div>
   );
 }
 ```
 
-## Отправка формы
+### Отправка формы
 
 Обработка отправки формы:
 
 ```tsx
 function ContactForm() {
   const form = useMemo(() => createContactForm(), []);
+  const { invalid } = useFormControl(form.controls.email);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Показать все ошибки валидации
     form.markAsTouched();
 
     if (form.valid) {
-      // Отправить данные
       console.log(form.value);
     }
   };
@@ -140,25 +209,24 @@ function ContactForm() {
     <form onSubmit={handleSubmit}>
       <FormField field={form.controls.name} label="Имя" />
       <FormField field={form.controls.email} label="Email" />
-
-      <button type="submit" disabled={form.invalid}>
-        Отправить
-      </button>
+      <button type="submit" disabled={invalid}>Отправить</button>
     </form>
   );
 }
 ```
 
+---
+
 ## Производительность
 
-`useFormControl` перерисовывает компонент только при изменении подписанного поля:
+Оба хука используют `useSyncExternalStore` для оптимальной интеграции с React 18+:
 
 ```tsx
 function Form() {
   // Этот компонент НЕ перерисовывается при изменении полей
   return (
     <form>
-      <NameField /> {/* Перерисовывается только при изменении name */}
+      <NameField />  {/* Перерисовывается только при изменении name */}
       <EmailField /> {/* Перерисовывается только при изменении email */}
     </form>
   );
@@ -167,5 +235,5 @@ function Form() {
 
 ## Следующие шаги
 
-- [Компоненты](/docs/react/components) — переиспользуемые компоненты форм
-- [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx) — интерактивный playground
+- [Кастомные поля](/docs/react/custom-fields) — Создание пользовательских компонентов форм
+- [Примеры](https://stackblitz.com/~/github.com/AButsai/ReFormer/tree/main/projects/react-playground) — Интерактивный playground

@@ -74,7 +74,7 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'React',
           collapsed: true,
-          items: ['react/hooks', 'react/components', 'react/custom-fields'],
+          items: ['react/hooks', 'react/custom-fields'],
         },
       ],
     },
