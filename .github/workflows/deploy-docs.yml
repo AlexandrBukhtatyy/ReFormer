@@ -33,6 +33,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
+        working-directory: projects/reformer-doc
         run: npm ci
 
       - name: Build documentation
