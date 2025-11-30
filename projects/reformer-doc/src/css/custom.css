@@ -29,34 +29,150 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
-/* API Reference page only - 4 columns layout for entity lists */
-html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
-  column-count: 4;
-  column-gap: 1rem;
+/* API Reference page - 3 columns layout for all lists */
+html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] ul {
+  column-count: 3;
+  column-gap: 2rem;
   list-style: none;
   padding-left: 0;
 }
 
-html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul li {
+html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] ul li {
   break-inside: avoid;
   padding: 0.25rem 0;
 }
 
-/* Responsive: reduce columns on smaller screens */
-@media (max-width: 1200px) {
-  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
-    column-count: 3;
-  }
+/* API Reference - Type icons before entity links (only in lists) */
+html[class*='docs-doc-id-api'] ul li a[href*='/classes/']::before,
+html[class*='docs-doc-id-api'] ul li a[href*='/functions/']::before,
+html[class*='docs-doc-id-api'] ul li a[href*='/interfaces/']::before,
+html[class*='docs-doc-id-api'] ul li a[href*='/type-aliases/']::before,
+html[class*='docs-doc-id-api'] ul li a[href*='/enumerations/']::before,
+html[class*='docs-doc-id-api'] ul li a[href*='/variables/']::before {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
-  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
+/* Class - C (blue) */
+html[class*='docs-doc-id-api'] ul li a[href*='/classes/']::before {
+  content: 'C';
+  background-color: #2563eb;
+  color: white;
+}
+
+/* Function - F (purple) */
+html[class*='docs-doc-id-api'] ul li a[href*='/functions/']::before {
+  content: 'F';
+  background-color: #9333ea;
+  color: white;
+}
+
+/* Interface - I (cyan) */
+html[class*='docs-doc-id-api'] ul li a[href*='/interfaces/']::before {
+  content: 'I';
+  background-color: #0891b2;
+  color: white;
+}
+
+/* Type Alias - T (green) */
+html[class*='docs-doc-id-api'] ul li a[href*='/type-aliases/']::before {
+  content: 'T';
+  background-color: #16a34a;
+  color: white;
+}
+
+/* Enumeration - E (orange) */
+html[class*='docs-doc-id-api'] ul li a[href*='/enumerations/']::before {
+  content: 'E';
+  background-color: #ea580c;
+  color: white;
+}
+
+/* Variable - V (pink) */
+html[class*='docs-doc-id-api'] ul li a[href*='/variables/']::before {
+  content: 'V';
+  background-color: #db2777;
+  color: white;
+}
+
+/* Make links flex to align icon and text */
+html[class*='docs-doc-id-api'] ul li a {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Responsive: reduce columns on smaller screens */
+@media (max-width: 1200px) {
+  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] ul {
     column-count: 2;
   }
 }
 
-@media (max-width: 600px) {
-  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] h2 + ul {
+@media (max-width: 768px) {
+  html[class*='docs-doc-id-api/index'] [class*='docItemContainer'] ul {
     column-count: 1;
   }
+}
+
+/* API Reference Grid Cards */
+.api-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.api-card {
+  display: block;
+  padding: 1.25rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  background: var(--ifm-background-surface-color);
+}
+
+.api-card:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  color: inherit;
+  transform: translateY(-2px);
+}
+
+.api-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.api-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.api-count {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+[data-theme='dark'] .api-card {
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .api-card p {
+  color: var(--ifm-color-emphasis-600);
 }

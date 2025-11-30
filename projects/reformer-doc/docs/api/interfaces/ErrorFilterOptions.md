@@ -1,6 +1,6 @@
 # ErrorFilterOptions
 
-Defined in: [core/types/index.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/index.ts#L66)
+Defined in: [core/types/index.ts:66](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8fb78cbcd4dc6409ef1f3e23e9b6b2b668787a30/packages/reformer/src/core/types/index.ts#L66)
 
 Опции для фильтрации ошибок в методе getErrors()
 
@@ -12,7 +12,7 @@ Defined in: [core/types/index.ts:66](https://github.com/AlexandrBukhtatyy/ReForm
 optional code: string | string[];
 ```
 
-Defined in: [core/types/index.ts:68](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/index.ts#L68)
+Defined in: [core/types/index.ts:68](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8fb78cbcd4dc6409ef1f3e23e9b6b2b668787a30/packages/reformer/src/core/types/index.ts#L68)
 
 Фильтр по коду ошибки
 
@@ -24,7 +24,7 @@ Defined in: [core/types/index.ts:68](https://github.com/AlexandrBukhtatyy/ReForm
 optional message: string;
 ```
 
-Defined in: [core/types/index.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/index.ts#L71)
+Defined in: [core/types/index.ts:71](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8fb78cbcd4dc6409ef1f3e23e9b6b2b668787a30/packages/reformer/src/core/types/index.ts#L71)
 
 Фильтр по сообщению (поддерживает частичное совпадение)
 
@@ -36,7 +36,7 @@ Defined in: [core/types/index.ts:71](https://github.com/AlexandrBukhtatyy/ReForm
 optional params: FormFields;
 ```
 
-Defined in: [core/types/index.ts:74](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/index.ts#L74)
+Defined in: [core/types/index.ts:74](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8fb78cbcd4dc6409ef1f3e23e9b6b2b668787a30/packages/reformer/src/core/types/index.ts#L74)
 
 Фильтр по параметрам ошибки
 
@@ -48,7 +48,7 @@ Defined in: [core/types/index.ts:74](https://github.com/AlexandrBukhtatyy/ReForm
 optional predicate: (error) => boolean;
 ```
 
-Defined in: [core/types/index.ts:77](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/index.ts#L77)
+Defined in: [core/types/index.ts:77](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8fb78cbcd4dc6409ef1f3e23e9b6b2b668787a30/packages/reformer/src/core/types/index.ts#L77)
 
 Кастомный предикат для фильтрации
 
