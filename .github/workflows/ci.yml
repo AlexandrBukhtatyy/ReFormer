@@ -36,4 +36,4 @@ jobs:
       #   run: npm run build -w reformer
 
       # - name: Run tests
-        run: npm run test -w reformer
+      #   run: npm run test -w reformer
