@@ -11,6 +11,10 @@ sidebar_position: 1
 
 ## Установка
 
+:::tip ВНИМАНИЕ!
+Пакет еще не опубликован в npm!
+:::
+
 ```bash
 npm install reformer
 ```
