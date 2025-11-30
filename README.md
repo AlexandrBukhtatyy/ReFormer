@@ -5,6 +5,12 @@ Reactive form state management library for React with signals-based architecture
 [![npm version](https://img.shields.io/npm/v/reform.svg)](https://www.npmjs.com/package/reform)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Links
+
+[Documentation](https://alexandrbukhtatyy.github.io/ReFormer/) - Full documentation and tutorials
+
+[Playground](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer?file=projects/react-playground/src/App.tsx) - Try ReFormer in StackBlitz
+
 ## Features
 
 - Signals-based reactive state (@preact/signals-core)
@@ -67,10 +73,6 @@ function LoginForm() {
   );
 }
 ```
-
-## Documentation
-
-Full documentation: [https://alexandrbukhtatyy.github.io/ReFormer/](https://alexandrbukhtatyy.github.io/ReFormer/)
 
 ## Monorepo Structure
 
