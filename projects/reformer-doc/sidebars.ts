@@ -29,6 +29,18 @@ const sidebars: SidebarsConfig = {
         'core-concepts/reactive-state',
         {
           type: 'category',
+          label: 'Schemas',
+          collapsed: true,
+          items: [
+            'core-concepts/schemas/overview',
+            'core-concepts/schemas/form-schema',
+            'core-concepts/schemas/validation-schema',
+            'core-concepts/schemas/behavior-schema',
+            'core-concepts/schemas/composition',
+          ],
+        },
+        {
+          type: 'category',
           label: 'Validation',
           collapsed: true,
           items: [
@@ -59,11 +71,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Patterns',
       collapsed: true,
-      items: [
-        'patterns/project-structure',
-        'patterns/reusable-schemas',
-        'patterns/form-composition',
-      ],
+      items: ['patterns/project-structure', 'patterns/openapi-generation'],
     },
     {
       type: 'category',
