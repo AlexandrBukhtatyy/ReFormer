@@ -56,7 +56,10 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "@preact/signals-core": "^1.8.0"
+    "@preact/signals-core": "^1.8.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

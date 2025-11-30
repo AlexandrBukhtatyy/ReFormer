@@ -6,7 +6,7 @@
   "description": "",
   "main": "index.js",
   "stackblitz": {
-    "startCommand": "npm install && npm run build -w reformer && npm install && npm run dev:stackblitz -w react-playground"
+    "startCommand": "npm install -w reformer && npm run build -w reformer && npm install -w react-playground && npm run dev:stackblitz -w react-playground"
   },
   "scripts": {
     "build": "npm run build --workspaces",
