@@ -22,7 +22,7 @@
     "lucide-react": "^0.553.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "reformer": "1.0.0",
+    "reformer": "1.0.0-beta.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17"
   },
