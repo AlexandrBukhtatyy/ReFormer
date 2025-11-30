@@ -1,49 +1,101 @@
-# Reform
+# API Reference
 
-Reactive form state management library for React with signals-based architecture.
+## Nodes
 
-## Installation
+- [SetValueOptions](interfaces/SetValueOptions.md)
+- [ArrayNode](classes/ArrayNode.md)
+- [FieldNode](classes/FieldNode.md)
+- [FormNode](classes/FormNode.md)
+- [GroupNode](classes/GroupNode.md)
 
-```bash
-npm install reform@beta
-```
+## Types
 
-## Features
+### Core Types
 
-- Signals-based reactive state management
-- Declarative form validation
-- Dynamic form behaviors
-- TypeScript support
-- Tree-shakeable exports
+- [FieldStatus](type-aliases/FieldStatus.md)
+- [FormValue](type-aliases/FormValue.md)
 
-## Quick Start
+### Configuration Types
 
-```tsx
-import { createForm, useFormControl } from 'reform';
+- [ArrayConfig](interfaces/ArrayConfig.md)
+- [FieldConfig](interfaces/FieldConfig.md)
+- [GroupNodeConfig](interfaces/GroupNodeConfig.md)
+- [FormSchema](type-aliases/FormSchema.md)
 
-const form = createForm({
-  schema: {
-    name: { initialValue: '' },
-    email: { initialValue: '' }
-  }
-});
+### Proxy Types
 
-function MyForm() {
-  const name = useFormControl(form.controls.name);
+- [ArrayNodeWithControls](type-aliases/ArrayNodeWithControls.md)
+- [FormNodeControls](type-aliases/FormNodeControls.md)
+- [GroupNodeWithControls](type-aliases/GroupNodeWithControls.md)
 
-  return (
-    <input
-      value={name.value}
-      onChange={(e) => name.setValue(e.target.value)}
-    />
-  );
-}
-```
+### Validation Types
 
-## Documentation
+- [ErrorFilterOptions](interfaces/ErrorFilterOptions.md)
+- [ValidationError](interfaces/ValidationError.md)
+- [AsyncValidatorFn](type-aliases/AsyncValidatorFn.md)
+- [ValidatorFn](type-aliases/ValidatorFn.md)
 
-Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer/](https://alexandrbukhtatyy.github.io/ReFormer/)
+## React Hooks
 
-## License
+- [useFormControl](functions/useFormControl.md)
+- [useFormControlValue](functions/useFormControlValue.md)
 
-MIT
+## Behaviors
+
+### Behavior Types
+
+- [BehaviorSchemaFn](type-aliases/BehaviorSchemaFn.md)
+
+## Utilities
+
+### Type Guards
+
+- [isFieldNode](functions/isFieldNode.md)
+- [isFormNode](functions/isFormNode.md)
+
+### Other
+
+- [createForm](functions/createForm.md)
+
+## Classes
+
+- [FormErrorHandler](classes/FormErrorHandler.md)
+- [NodeFactory](classes/NodeFactory.md)
+
+## Enumerations
+
+- [ErrorStrategy](enumerations/ErrorStrategy.md)
+
+## Functions
+
+- [getNodeType](functions/getNodeType.md)
+- [isArrayNode](functions/isArrayNode.md)
+- [isGroupNode](functions/isGroupNode.md)
+- [partialResource](functions/partialResource.md)
+- [preloadResource](functions/preloadResource.md)
+- [staticResource](functions/staticResource.md)
+
+## Interfaces
+
+- [FieldPathNode](interfaces/FieldPathNode.md)
+- [FormContext](interfaces/FormContext.md)
+- [ResourceConfig](interfaces/ResourceConfig.md)
+- [ResourceItem](interfaces/ResourceItem.md)
+- [ResourceLoadParams](interfaces/ResourceLoadParams.md)
+- [ResourceResult](interfaces/ResourceResult.md)
+- [ValidateAsyncOptions](interfaces/ValidateAsyncOptions.md)
+- [ValidateOptions](interfaces/ValidateOptions.md)
+- [ValidateTreeOptions](interfaces/ValidateTreeOptions.md)
+
+## Type Aliases
+
+- [ConditionFn](type-aliases/ConditionFn.md)
+- [ContextualAsyncValidatorFn](type-aliases/ContextualAsyncValidatorFn.md)
+- [ContextualValidatorFn](type-aliases/ContextualValidatorFn.md)
+- [FieldPath](type-aliases/FieldPath.md)
+- [TreeValidatorFn](type-aliases/TreeValidatorFn.md)
+- [ValidationSchemaFn](type-aliases/ValidationSchemaFn.md)
+
+## Variables
+
+- [Resources](variables/Resources.md)

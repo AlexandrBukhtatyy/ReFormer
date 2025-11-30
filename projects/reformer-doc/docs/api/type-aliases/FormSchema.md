@@ -4,7 +4,7 @@
 type FormSchema<T> = { [K in keyof T]: NonNullable<T[K]> extends string | number | boolean ? FieldConfig<T[K]> : NonNullable<T[K]> extends (infer U)[] ? U extends string | number | boolean ? FieldConfig<T[K]> : U extends Date | File | Blob | AnyFunction ? FieldConfig<T[K]> : [FormSchema<U>] : NonNullable<T[K]> extends Date | File | Blob | AnyFunction ? FieldConfig<T[K]> : FormSchema<NonNullable<T[K]>> };
 ```
 
-Defined in: [core/types/deep-schema.ts:90](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/deep-schema.ts#L90)
+Defined in: [core/types/deep-schema.ts:90](https://github.com/AlexandrBukhtatyy/ReFormer/blob/8fb78cbcd4dc6409ef1f3e23e9b6b2b668787a30/packages/reformer/src/core/types/deep-schema.ts#L90)
 
 Автоматически определяет тип схемы на основе TypeScript типа:
 - `T[] -> [FormSchema<T>]` (массив с одним элементом)
