@@ -1,0 +1,25 @@
+# ConditionFn()
+
+```ts
+type ConditionFn<T> = (value) => boolean;
+```
+
+Defined in: [core/types/validation-schema.ts:76](https://github.com/AlexandrBukhtatyy/ReFormer/blob/34c25f8a76648f468be9f6786e03e9ad735d7890/packages/reformer/src/core/types/validation-schema.ts#L76)
+
+Функция условия для applyWhen
+
+## Type Parameters
+
+### T
+
+`T`
+
+## Parameters
+
+### value
+
+`T`
+
+## Returns
+
+`boolean`

@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'projects/reform-doc/**'
+      - 'projects/reformer-doc/**'
       - 'packages/reformer/src/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
@@ -36,13 +36,13 @@ jobs:
         run: npm ci
 
       - name: Build documentation
-        working-directory: projects/reform-doc
+        working-directory: projects/reformer-doc
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: projects/reform-doc/build
+          path: projects/reformer-doc/build
 
   deploy:
     environment:
