@@ -4,135 +4,270 @@ sidebar_position: 1
 
 # Project Structure
 
-Organize your forms for scalability and maintainability.
+Organize your forms for scalability and maintainability using **colocation** — keeping related files together.
 
-## Recommended Structure
+## Recommended Structure (Colocation)
 
 ```
 src/
 ├── components/
-│   └── ui/                           # Reusable UI components
-│       ├── FormField.tsx             # Field wrapper component
-│       ├── FormArrayManager.tsx      # Dynamic array manager
-│       └── ...                       # Input, Select, Checkbox, etc.
+│   └── ui/                              # Reusable UI components
+│       ├── FormField.tsx                # Field wrapper component
+│       ├── FormArrayManager.tsx         # Dynamic array manager
+│       └── ...                          # Input, Select, Checkbox, etc.
 │
 ├── forms/
-│   └── [form-name]/                  # Form module
-│       ├── [FormName]Form.tsx        # Main form component
-│       ├── create[FormName]Form.ts   # Form factory function
+│   └── [form-name]/                     # Form module
+│       ├── type.ts                      # Main form type (combines step types)
+│       ├── schema.ts                    # Main schema (combines step schemas)
+│       ├── validators.ts                # Validators (steps + cross-step)
+│       ├── behaviors.ts                 # Behaviors (steps + cross-step)
+│       ├── [FormName]Form.tsx           # Main form component
 │       │
-│       ├── types/                    # TypeScript types
-│       │   └── [form-name].types.ts
+│       ├── steps/                       # Step modules (wizard)
+│       │   ├── loan-info/
+│       │   │   ├── type.ts              # Step-specific types
+│       │   │   ├── schema.ts            # Step schema
+│       │   │   ├── validators.ts        # Step validators
+│       │   │   ├── behaviors.ts         # Step behaviors
+│       │   │   └── BasicInfoForm.tsx    # Step component
+│       │   │
+│       │   ├── personal-info/
+│       │   │   ├── type.ts
+│       │   │   ├── schema.ts
+│       │   │   ├── validators.ts
+│       │   │   ├── behaviors.ts
+│       │   │   └── PersonalInfoForm.tsx
+│       │   │
+│       │   └── confirmation/
+│       │       ├── type.ts
+│       │       ├── schema.ts
+│       │       ├── validators.ts
+│       │       └── ConfirmationForm.tsx
 │       │
-│       ├── schemas/                  # Form schemas
-│       │   ├── [form-name].ts        # Main schema (composes others)
-│       │   └── [reusable].ts         # Reusable sub-schemas
+│       ├── sub-forms/                   # Reusable sub-form modules
+│       │   ├── address/
+│       │   │   ├── type.ts
+│       │   │   ├── schema.ts
+│       │   │   ├── validators.ts
+│       │   │   └── AddressForm.tsx
+│       │   │
+│       │   └── personal-data/
+│       │       ├── type.ts
+│       │       ├── schema.ts
+│       │       ├── validators.ts
+│       │       └── PersonalDataForm.tsx
 │       │
-│       ├── validators/               # Validation rules
-│       │   ├── [form-name].ts        # Full form validation
-│       │   └── [step-name].ts        # Step-specific validation
+│       ├── services/                    # API services
+│       │   └── api.ts
 │       │
-│       ├── behaviors/                # Form behaviors
-│       │   ├── [form-name].behaviors.ts  # Main behaviors
-│       │   └── [step-name].ts        # Step-specific behaviors
-│       │
-│       ├── steps/                    # Step components (wizard)
-│       │   ├── Step1Form.tsx
-│       │   └── Step2Form.tsx
-│       │
-│       └── sub-forms/                # Reusable sub-form components
-│           ├── AddressForm.tsx
-│           └── PersonForm.tsx
+│       └── utils/                       # Form utilities
+│           └── formTransformers.ts
 │
-└── lib/                              # Shared utilities
+└── lib/                                 # Shared utilities
+```
+
+## Key Principles
+
+### 1. Colocation
+
+Each form step and sub-form is self-contained with its own:
+- `type.ts` — TypeScript interface
+- `schema.ts` — Form schema with field configurations
+- `validators.ts` — Validation rules
+- `behaviors.ts` — Computed fields, conditional logic
+- `*Form.tsx` — React component
+
+### 2. Root Aggregators
+
+Root-level files combine all step modules:
+
+```typescript title="forms/credit-application/type.ts"
+// Re-export types from steps and sub-forms
+export type { LoanInfoStep } from './steps/loan-info/type';
+export type { PersonalInfoStep } from './steps/personal-info/type';
+export type { Address } from './sub-forms/address/type';
+
+// Main form interface
+export interface CreditApplicationForm {
+  // Step 1: Loan Info
+  loanType: LoanType;
+  loanAmount: number;
+  loanTerm: number;
+  // ... more fields from all steps
+}
+```
+
+```typescript title="forms/credit-application/schema.ts"
+import { loanInfoSchema } from './steps/loan-info/schema';
+import { personalInfoSchema } from './steps/personal-info/schema';
+
+export const creditApplicationSchema = {
+  ...loanInfoSchema,
+  ...personalInfoSchema,
+  // Computed fields at root level
+  monthlyPayment: { value: 0, disabled: true },
+};
 ```
 
 ## Key Files
 
-### Form Factory
+### Step Type
 
-Creates the form instance with schema, validation, and behaviors:
+```typescript title="forms/credit-application/steps/loan-info/type.ts"
+export type LoanType = 'consumer' | 'mortgage' | 'car';
 
-```typescript title="forms/credit-application/createCreditApplicationForm.ts"
-import { GroupNode } from 'reformer';
-import { creditApplicationSchema } from './schemas/credit-application';
-import { creditApplicationValidation } from './validators/credit-application';
-import { creditApplicationBehaviors } from './behaviors/credit-application.behaviors';
-import type { CreditApplication } from './types/credit-application.types';
-
-export function createCreditApplicationForm() {
-  return new GroupNode<CreditApplication>({
-    form: creditApplicationSchema,
-    validation: creditApplicationValidation,
-    behavior: creditApplicationBehaviors,
-  });
+export interface LoanInfoStep {
+  loanType: LoanType;
+  loanAmount: number;
+  loanTerm: number;
+  loanPurpose: string;
+  // Mortgage-specific
+  propertyValue: number;
+  initialPayment: number;
+  // Car-specific
+  carBrand: string;
+  carModel: string;
 }
 ```
 
-### Main Schema
+### Step Schema
 
-Composes reusable sub-schemas:
+```typescript title="forms/credit-application/steps/loan-info/schema.ts"
+import type { FormSchema } from 'reformer';
+import { Input, Select, Textarea } from '@/components/ui';
+import type { LoanInfoStep } from './type';
 
-```typescript title="forms/credit-application/schemas/credit-application.ts"
-import { addressSchema } from './address';
-import { personalDataSchema } from './personal-data';
-
-export const creditApplicationSchema = {
-  loanAmount: { value: 0 },
-  loanTerm: { value: 12 },
-
-  // Reusable schemas
-  personalData: personalDataSchema,
-  registrationAddress: addressSchema,
-  residenceAddress: addressSchema,
-
-  // Arrays
-  properties: [propertySchema],
+export const loanInfoSchema: FormSchema<LoanInfoStep> = {
+  loanType: {
+    value: 'consumer',
+    component: Select,
+    componentProps: {
+      label: 'Loan Type',
+      options: [
+        { value: 'consumer', label: 'Consumer' },
+        { value: 'mortgage', label: 'Mortgage' },
+        { value: 'car', label: 'Car Loan' },
+      ],
+    },
+  },
+  loanAmount: {
+    value: null,
+    component: Input,
+    componentProps: { label: 'Loan Amount', type: 'number' },
+  },
+  // ... more fields
 };
 ```
 
 ### Step Validators
 
-Organize validation by form steps:
+```typescript title="forms/credit-application/steps/loan-info/validators.ts"
+import { required, min, max, applyWhen } from 'reformer/validators';
+import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { CreditApplicationForm } from '../../type';
 
-```typescript title="forms/credit-application/validators/loan-info.ts"
-import { FieldPath } from 'reformer';
-import { required, min, max } from 'reformer/validators';
-import type { CreditApplication } from '../types/credit-application.types';
+export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
+  required(path.loanType, { message: 'Select loan type' });
+  required(path.loanAmount, { message: 'Enter loan amount' });
+  min(path.loanAmount, 50000, { message: 'Minimum 50,000' });
+  max(path.loanAmount, 10000000, { message: 'Maximum 10,000,000' });
 
-export function loanInfoValidation(path: FieldPath<CreditApplication>) {
-  required(path.loanAmount);
-  min(path.loanAmount, 50000);
-  max(path.loanAmount, 10000000);
-
-  required(path.loanTerm);
-  min(path.loanTerm, 6);
-  max(path.loanTerm, 360);
-}
+  // Conditional validation for mortgage
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (p) => {
+      required(p.propertyValue, { message: 'Enter property value' });
+      required(p.initialPayment, { message: 'Enter initial payment' });
+    }
+  );
+};
 ```
 
 ### Step Behaviors
 
-Organize behaviors by form steps:
+```typescript title="forms/credit-application/steps/loan-info/behaviors.ts"
+import { computeFrom, enableWhen, disableWhen } from 'reformer/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import type { CreditApplicationForm } from '../../type';
 
-```typescript title="forms/credit-application/behaviors/loan-info.ts"
-import { FieldPath } from 'reformer';
-import { computeFrom, enableWhen } from 'reformer/behaviors';
-import type { CreditApplication } from '../types/credit-application.types';
+export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
+  path: FieldPath<CreditApplicationForm>
+) => {
+  // Show mortgage fields only for mortgage type
+  enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage');
+  enableWhen(path.initialPayment, (form) => form.loanType === 'mortgage');
 
-export function loanInfoBehaviors(path: FieldPath<CreditApplication>) {
-  // Compute monthly payment
-  computeFrom(
-    [path.loanAmount, path.loanTerm, path.interestRate],
-    path.monthlyPayment,
-    ({ loanAmount, loanTerm, interestRate }) => {
-      const monthlyRate = interestRate / 100 / 12;
-      return (loanAmount * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -loanTerm));
+  // Compute interest rate based on loan type
+  computeFrom([path.loanType], path.interestRate, (values) => {
+    const rates = { consumer: 15, mortgage: 10, car: 12 };
+    return rates[values.loanType] || 15;
+  });
+};
+```
+
+### Root Validators (Cross-Step)
+
+```typescript title="forms/credit-application/validators.ts"
+import { validate } from 'reformer/validators';
+import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { CreditApplicationForm } from './type';
+
+// Import step validators
+import { loanValidation } from './steps/loan-info/validators';
+import { personalValidation } from './steps/personal-info/validators';
+
+// Cross-step validation
+const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  // Initial payment must be >= 20% of property value
+  validate(path.initialPayment, (value, ctx) => {
+    if (ctx.form.loanType.value.value !== 'mortgage') return null;
+    const propertyValue = ctx.form.propertyValue.value.value;
+    if (!propertyValue || !value) return null;
+    const minPayment = propertyValue * 0.2;
+    if (value < minPayment) {
+      return { code: 'minInitialPayment', message: `Minimum: ${minPayment}` };
     }
+    return null;
+  });
+};
+
+// Combine all validators
+export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  loanValidation(path);
+  personalValidation(path);
+  crossStepValidation(path);
+};
+```
+
+### Main Form Component
+
+```typescript title="forms/credit-application/CreditApplicationForm.tsx"
+import { useMemo } from 'react';
+import { createForm } from 'reformer';
+import { creditApplicationSchema } from './schema';
+import { creditApplicationBehaviors } from './behaviors';
+import { creditApplicationValidation } from './validators';
+import type { CreditApplicationForm as CreditApplicationFormType } from './type';
+
+function CreditApplicationForm() {
+  // Create form instance with useMemo for stable reference
+  const form = useMemo(
+    () =>
+      createForm<CreditApplicationFormType>({
+        form: creditApplicationSchema,
+        behavior: creditApplicationBehaviors,
+        validation: creditApplicationValidation,
+      }),
+    []
   );
 
-  // Show car fields only for auto loans
-  enableWhen(path.carInfo, (form) => form.loanType === 'auto');
+  return (
+    // ... render form steps
+  );
 }
 ```
 
@@ -148,74 +283,70 @@ forms/
     └── ContactForm.tsx     # Schema, validation, behaviors, component
 ```
 
-```typescript title="forms/contact/ContactForm.tsx"
-import { GroupNode } from 'reformer';
-import { required, email } from 'reformer/validators';
-
-interface ContactForm {
-  name: string;
-  email: string;
-  message: string;
-}
-
-const form = new GroupNode<ContactForm>({
-  form: {
-    name: { value: '' },
-    email: { value: '' },
-    message: { value: '' },
-  },
-  validation: (path) => {
-    required(path.name);
-    required(path.email);
-    email(path.email);
-    required(path.message);
-  },
-});
-
-export function ContactForm() {
-  // Component implementation
-}
-```
-
 ### Medium Form (Separated Files)
 
-Split schema, validation, and behaviors:
+Split into dedicated files:
 
 ```
 forms/
 └── registration/
-    ├── RegistrationForm.tsx
+    ├── type.ts
     ├── schema.ts
-    ├── validation.ts
-    └── behaviors.ts
+    ├── validators.ts
+    ├── behaviors.ts
+    └── RegistrationForm.tsx
 ```
 
-### Complex Multi-Step Form (Full Structure)
+### Complex Multi-Step Form (Full Colocation)
 
 Use the complete recommended structure:
 
 ```
 forms/
 └── credit-application/
+    ├── type.ts
+    ├── schema.ts
+    ├── validators.ts
+    ├── behaviors.ts
     ├── CreditApplicationForm.tsx
-    ├── createCreditApplicationForm.ts
-    ├── types/
-    ├── schemas/
-    ├── validators/
-    ├── behaviors/
     ├── steps/
-    └── sub-forms/
+    │   ├── loan-info/
+    │   ├── personal-info/
+    │   ├── contact-info/
+    │   ├── employment/
+    │   ├── additional-info/
+    │   └── confirmation/
+    ├── sub-forms/
+    │   ├── address/
+    │   ├── personal-data/
+    │   ├── passport-data/
+    │   ├── property/
+    │   ├── existing-loan/
+    │   └── co-borrower/
+    ├── services/
+    │   └── api.ts
+    └── utils/
+        └── formTransformers.ts
 ```
 
 ## Best Practices
 
 | Practice | Why |
 |----------|-----|
-| Group by form, not by type | Easier to find related files |
-| Use factory functions | Fresh form instance each time |
+| Colocation | Related files together, easy navigation |
+| Group by feature, not type | Find all step files in one place |
+| Use useMemo for form | Stable form instance per component |
 | Split validators by step | Validate only current step |
-| Extract reusable schemas | DRY, consistent validation |
-| Separate sub-form components | Reusable across steps |
+| Root aggregators | Single entry point for schema/validators/behaviors |
+| Extract sub-forms | Reuse address, personal data across forms |
+
+## Benefits of Colocation
+
+1. **Discoverability** — All related files in one folder
+2. **Maintainability** — Change one step without affecting others
+3. **Refactoring** — Move/rename entire step folders
+4. **Code Splitting** — Import only needed step validators
+5. **Team Collaboration** — Different team members work on different steps
 
 ## Next Steps
 

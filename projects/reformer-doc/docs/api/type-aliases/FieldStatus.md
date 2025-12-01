@@ -4,6 +4,6 @@
 type FieldStatus = "valid" | "invalid" | "pending" | "disabled";
 ```
 
-Defined in: [core/types/index.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/types/index.ts#L89)
+Defined in: [core/types/index.ts:89](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0ba4d0477dce65d180e9ae66a77e31ad88abc032/packages/reformer/src/core/types/index.ts#L89)
 
 Статус поля формы
