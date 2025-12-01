@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createCreditApplicationForm } from './createCreditApplicationForm';
 import {
   StepNavigation,
   type StepNavigationHandle,
@@ -7,26 +6,29 @@ import {
 } from '../../components/ui/step-navigation';
 
 // Компоненты шагов
-import { BasicInfoForm } from './steps/BasicInfoForm';
-import { PersonalInfoForm } from './steps/PersonalInfoForm';
-import { ContactInfoForm } from './steps/ContactInfoForm';
-import { EmploymentForm } from './steps/EmploymentForm';
-import { AdditionalInfoForm } from './steps/AdditionalInfoForm';
-import { ConfirmationForm } from './steps/ConfirmationForm';
+import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
+import { PersonalInfoForm } from './steps/personal-info/PersonalInfoForm';
+import { ContactInfoForm } from './steps/contact-info/ContactInfoForm';
+import { EmploymentForm } from './steps/employment/EmploymentForm';
+import { AdditionalInfoForm } from './steps/additional-info/AdditionalInfoForm';
+import { ConfirmationForm } from './steps/confirmation/ConfirmationForm';
 
 // Валидаторы по шагам
-import { loanValidation } from './schemas/validators/loan-info';
-import { personalValidation } from './schemas/validators/personal-info';
-import { contactValidation } from './schemas/validators/contact-info';
-import { employmentValidation } from './schemas/validators/employment';
-import { additionalValidation } from './schemas/validators/additional-info';
-import { creditApplicationValidation } from './schemas/validators/credit-application';
+import { loanValidation } from './steps/loan-info/validators';
+import { personalValidation } from './steps/personal-info/validators';
+import { contactValidation } from './steps/contact-info/validators';
+import { employmentValidation } from './steps/employment/validators';
+import { additionalValidation } from './steps/additional-info/validators';
+import { creditApplicationValidation } from './validators';
 
 // Сервисы для работы с API
 import { fetchApplication, saveApplication } from './services/api';
 import { serializeApplication } from './utils/formTransformers';
 
-import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application.types';
+import type { CreditApplicationForm as CreditApplicationFormType } from './type';
+import { createForm } from 'reformer';
+import { creditApplicationSchema } from './schema';
+import { creditApplicationBehaviors } from './behaviors';
 
 const STEPS = [
   { id: 1, title: 'Кредит' },
@@ -57,7 +59,15 @@ interface CreditApplicationFormProps {
 
 function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
   // Создаём экземпляр формы
-  const form = useMemo(() => createCreditApplicationForm(), []);
+  const form = useMemo(
+    () =>
+      createForm<CreditApplicationFormType>({
+        form: creditApplicationSchema,
+        behavior: creditApplicationBehaviors,
+        validation: creditApplicationValidation,
+      }),
+    []
+  );
 
   // Ref для доступа к методам навигации
   const navRef = useRef<StepNavigationHandle<CreditApplicationFormType>>(null);
