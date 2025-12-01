@@ -4,7 +4,7 @@
 function isArrayNode(value): value is ArrayNode<FormFields>;
 ```
 
-Defined in: [core/utils/type-guards.ts:150](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/utils/type-guards.ts#L150)
+Defined in: [core/utils/type-guards.ts:150](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0ba4d0477dce65d180e9ae66a77e31ad88abc032/packages/reformer/src/core/utils/type-guards.ts#L150)
 
 Проверить, является ли значение ArrayNode (массив форм)
 

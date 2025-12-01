@@ -773,4 +773,4 @@ alert('Server error');
 
 - [Validation Strategies](/docs/validation/validation-strategies) — Advanced validation patterns
 - [Custom Validators](/docs/validation/custom) — Create custom validation logic
-- [Form Composition](/docs/patterns/form-composition) — Build complex forms
+- [Schema Composition](/docs/core-concepts/schemas/composition) — Build complex forms

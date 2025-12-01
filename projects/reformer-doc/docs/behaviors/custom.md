@@ -599,4 +599,4 @@ use({
 
 - [Computed Fields](/docs/behaviors/computed) — Built-in computed behavior
 - [Conditional Logic](/docs/behaviors/conditional) — Built-in conditional behaviors
-- [Patterns: Form Composition](/docs/patterns/form-composition) — Compose complex forms
+- [Schema Composition](/docs/core-concepts/schemas/composition) — Compose complex forms

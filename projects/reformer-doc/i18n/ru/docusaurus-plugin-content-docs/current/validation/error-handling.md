@@ -774,4 +774,4 @@ alert('Ошибка сервера');
 
 - [Стратегии Валидации](/docs/validation/validation-strategies) — Продвинутые паттерны валидации
 - [Кастомные Валидаторы](/docs/validation/custom) — Создание кастомной логики валидации
-- [Композиция Форм](/docs/patterns/form-composition) — Построение сложных форм
+- [Композиция схем](/docs/core-concepts/schemas/composition) — Построение сложных форм

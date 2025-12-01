@@ -599,4 +599,4 @@ use({
 
 - [Вычисляемые Поля](/docs/behaviors/computed) — Встроенное вычисляемое поведение
 - [Условная Логика](/docs/behaviors/conditional) — Встроенные условные поведения
-- [Паттерны: Композиция Форм](/docs/patterns/form-composition) — Композиция сложных форм
+- [Композиция схем](/docs/core-concepts/schemas/composition) — Композиция сложных форм

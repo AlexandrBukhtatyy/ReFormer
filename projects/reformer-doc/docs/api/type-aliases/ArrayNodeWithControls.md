@@ -4,7 +4,7 @@
 type ArrayNodeWithControls<T> = ArrayNode<T> & object;
 ```
 
-Defined in: [core/types/group-node-proxy.ts:137](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/types/group-node-proxy.ts#L137)
+Defined in: [core/types/group-node-proxy.ts:137](https://github.com/AlexandrBukhtatyy/ReFormer/blob/0ba4d0477dce65d180e9ae66a77e31ad88abc032/packages/reformer/src/core/types/group-node-proxy.ts#L137)
 
 Комбинированный тип для ArrayNode с Proxy доступом к элементам
 

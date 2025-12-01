@@ -59,8 +59,12 @@
     "message": "Работа с данными",
     "description": "The label for category 'Working with Data' in sidebar 'docsSidebar'"
   },
+  "sidebar.docsSidebar.category.Schemas": {
+    "message": "Схемы",
+    "description": "The label for category 'Schemas' in sidebar 'docsSidebar'"
+  },
   "sidebar.docsSidebar.category.Patterns": {
-    "message": "Patterns",
+    "message": "Паттерны",
     "description": "The label for category 'Patterns' in sidebar 'docsSidebar'"
   },
   "sidebar.apiSidebar.category.Classes": {
