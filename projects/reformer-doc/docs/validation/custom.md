@@ -487,4 +487,4 @@ return { tooLong: true };
 
 - [Async Validation](/docs/validation/async) — Server-side validation
 - [Behaviors](/docs/behaviors/overview) — Reactive form logic
-- [Patterns: Reusable Schemas](/docs/patterns/reusable-schemas) — Share validators across forms
+- [Schema Composition](/docs/core-concepts/schemas/composition) — Share validators across forms

@@ -1,6 +1,6 @@
 # NodeFactory
 
-Defined in: [core/factories/node-factory.ts:44](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/factories/node-factory.ts#L44)
+Defined in: [core/factories/node-factory.ts:44](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/factories/node-factory.ts#L44)
 
 Фабрика для создания узлов формы
 
@@ -26,7 +26,7 @@ new NodeFactory(): NodeFactory;
 createNode<T>(config): FormNode<T>;
 ```
 
-Defined in: [core/factories/node-factory.ts:90](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/factories/node-factory.ts#L90)
+Defined in: [core/factories/node-factory.ts:90](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/factories/node-factory.ts#L90)
 
 Создает узел формы на основе конфигурации
 
@@ -101,7 +101,7 @@ const array2 = factory.createNode([
 extractValues(schema): unknown;
 ```
 
-Defined in: [core/factories/node-factory.ts:204](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/factories/node-factory.ts#L204)
+Defined in: [core/factories/node-factory.ts:204](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/factories/node-factory.ts#L204)
 
 Извлечь значения из схемы (рекурсивно)
 
@@ -151,7 +151,7 @@ factory.extractValues(schema);
 isArrayConfig(config): boolean;
 ```
 
-Defined in: [core/factories/node-factory.ts:276](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/factories/node-factory.ts#L276)
+Defined in: [core/factories/node-factory.ts:276](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/factories/node-factory.ts#L276)
 
 Проверяет, является ли конфиг конфигурацией массива (ArrayConfig)
 
@@ -193,7 +193,7 @@ factory.isArrayConfig({ email: { value: '' } }); // false
 isFieldConfig(config): boolean;
 ```
 
-Defined in: [core/factories/node-factory.ts:249](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/factories/node-factory.ts#L249)
+Defined in: [core/factories/node-factory.ts:249](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/factories/node-factory.ts#L249)
 
 Проверяет, является ли конфиг конфигурацией поля (FieldConfig)
 
@@ -233,7 +233,7 @@ factory.isFieldConfig(null); // false
 isGroupConfig(config): boolean;
 ```
 
-Defined in: [core/factories/node-factory.ts:307](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dc1362d11717598d8c52ddda4c24a269fc146261/packages/reformer/src/core/factories/node-factory.ts#L307)
+Defined in: [core/factories/node-factory.ts:307](https://github.com/AlexandrBukhtatyy/ReFormer/blob/dd72ad9a2510f54227bee8d21a0ffe3772504268/packages/reformer/src/core/factories/node-factory.ts#L307)
 
 Проверяет, является ли конфиг конфигурацией группы (GroupConfig)
 
