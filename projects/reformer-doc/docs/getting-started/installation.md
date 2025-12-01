@@ -11,7 +11,7 @@ sidebar_position: 1
 
 ## Install
 
-:::tip ATTENTION!
+:::caution ATTENTION!
 The package is not yet published to npm!
 :::
 
