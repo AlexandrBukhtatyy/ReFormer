@@ -44,17 +44,10 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         entryPoints: ['../../packages/reformer/src/index.ts'],
-        tsconfig: '../../packages/reformer/tsconfig.json',
+        tsconfig: '../../packages/reformer/tsconfig.typedoc.json',
         readme: 'none',
         // Сортировка: enum, interface, type-alias, class, function, variable
-        kindSortOrder: [
-          'Enum',
-          'Interface',
-          'TypeAlias',
-          'Class',
-          'Function',
-          'Variable',
-        ],
+        kindSortOrder: ['Enum', 'Interface', 'TypeAlias', 'Class', 'Function', 'Variable'],
         sortEntryPoints: false,
         sort: ['kind', 'alphabetical'],
         // Убрать префиксы "Class:", "Interface:" и дженерики из заголовков
