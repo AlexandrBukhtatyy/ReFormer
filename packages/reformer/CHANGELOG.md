@@ -19,6 +19,27 @@
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 
+# [1.0.0-beta.3](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2025-12-02)
+
+
+### Bug Fixes
+
+* **ci:** update workspace name to @reformer/core ([1548542](https://github.com/AlexandrBukhtatyy/ReFormer/commit/15485423147b34735f3022ad282b8c63dfb1c90b))
+
+
+### Features
+
+* **reformer:** rename package to @reformer/core ([61e598d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/61e598d42a4ba371101fe4e391ab2e41738de316))
+
+
+### BREAKING CHANGES
+
+* **reformer:** Package renamed to @reformer/core
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
 # 1.0.0-beta.1 (2025-12-02)
 
 
