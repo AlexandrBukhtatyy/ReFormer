@@ -1,5 +1,10 @@
 import type { ComponentType } from 'react';
-import { useFormControl, type ArrayNode, type FormFields, type GroupNodeWithControls } from 'reformer';
+import {
+  useFormControl,
+  type ArrayNode,
+  type FormFields,
+  type GroupNodeWithControls,
+} from 'reformer';
 import { Button } from '@/components/ui/button';
 
 interface FormArrayManagerProps {
@@ -13,9 +18,9 @@ interface FormArrayManagerProps {
 export function FormArrayManager({
   control,
   component: ItemComponent,
-  itemLabel = 'Item',
-  addButtonLabel = '+ Add',
-  emptyMessage = 'No items yet. Click the button above to add one.',
+  itemLabel = 'Элемент',
+  addButtonLabel = '+ Добавить',
+  emptyMessage = 'Нет элементов. Нажмите кнопку выше, чтобы добавить.',
 }: FormArrayManagerProps) {
   const { length } = useFormControl(control);
 
@@ -23,7 +28,7 @@ export function FormArrayManager({
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <span className="text-sm text-muted-foreground">
-          {length} {itemLabel}(s)
+          {length} {itemLabel}
         </span>
         <Button type="button" variant="outline" size="sm" onClick={() => control.push()}>
           {addButtonLabel}
@@ -45,7 +50,7 @@ export function FormArrayManager({
                 size="sm"
                 onClick={() => control.removeAt(index)}
               >
-                Remove
+                Удалить
               </Button>
             </div>
 

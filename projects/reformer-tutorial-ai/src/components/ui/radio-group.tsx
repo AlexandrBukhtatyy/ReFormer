@@ -1,63 +1,57 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface RadioGroupProps {
+export interface RadioOption {
+  value: string;
+  label: string;
+}
+
+export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
   className?: string;
   value?: string | null;
   onChange?: (value: string) => void;
   onBlur?: () => void;
-  options?: Array<{ value: string; label: string }>;
-  label?: string;
+  options: RadioOption[];
   disabled?: boolean;
   'data-testid'?: string;
 }
 
 const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
   (
-    {
-      className,
-      value,
-      onChange,
-      onBlur,
-      options = [],
-      label,
-      disabled,
-      'data-testid': dataTestId,
-    },
+    { className, value, onChange, onBlur, options, disabled, 'data-testid': dataTestId, ...props },
     ref
   ) => {
-    const handleChange = (newValue: string) => {
-      onChange?.(newValue);
+    const handleRadioChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChange?.(event.target.value);
     };
 
     return (
-      <div ref={ref} className={cn('space-y-2', className)} data-testid={dataTestId}>
-        {label && (
-          <label className="text-sm font-medium leading-none">{label}</label>
-        )}
-        <div className="flex flex-wrap gap-4">
-          {options.map((option) => (
-            <label
-              key={option.value}
+      <div
+        ref={ref}
+        className={cn('flex flex-col gap-2', className)}
+        data-testid={dataTestId}
+        {...props}
+      >
+        {options.map((option) => (
+          <div key={option.value} className="flex items-center gap-2">
+            <input
+              type="radio"
+              value={option.value}
+              checked={value === option.value}
+              disabled={disabled}
               className={cn(
-                'flex items-center gap-2 cursor-pointer',
-                disabled && 'cursor-not-allowed opacity-50'
+                'h-4 w-4 border-gray-300 text-primary focus:ring-2 focus:ring-primary',
+                'disabled:cursor-not-allowed disabled:opacity-50'
               )}
-            >
-              <input
-                type="radio"
-                name={dataTestId}
-                value={option.value}
-                checked={value === option.value}
-                onChange={() => handleChange(option.value)}
-                onBlur={onBlur}
-                disabled={disabled}
-                className="h-4 w-4 border-gray-300 text-primary focus:ring-2 focus:ring-primary"
-              />
-              <span className="text-sm">{option.label}</span>
+              onChange={handleRadioChange}
+              onBlur={onBlur}
+              data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
+            />
+            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              {option.label}
             </label>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     );
   }

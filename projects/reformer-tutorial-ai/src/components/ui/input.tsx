@@ -7,7 +7,7 @@ export interface InputProps
   value?: string | number | null;
   onChange?: (value: string | number | null) => void;
   onBlur?: () => void;
-  type?: 'text' | 'email' | 'number' | 'tel' | 'url' | 'password' | 'date';
+  type?: 'text' | 'email' | 'number' | 'tel' | 'url' | 'password';
   placeholder?: string;
   disabled?: boolean;
 }
@@ -22,7 +22,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           onChange?.(null);
         } else {
           const numValue = Number(newValue);
+          // Only call onChange if the value is a valid number (not NaN)
           if (!isNaN(numValue)) {
+            // Block negative values if min is 0 or positive
             const minValue = props.min !== undefined ? Number(props.min) : undefined;
             if (minValue !== undefined && minValue >= 0 && numValue < 0) {
               onChange?.(0);
@@ -39,6 +41,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputValue = React.useMemo(() => {
       if (value === null || value === undefined) return '';
       if (type === 'number' && typeof value === 'number') {
+        // Don't render NaN values in number inputs
         if (isNaN(value)) return '';
         return value.toString();
       }

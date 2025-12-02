@@ -55,6 +55,5 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
   );
 };
 
-// Don't use React.memo here - useFormControl already handles subscriptions
-// and the component needs to re-render when form state changes
-export const FormField = FormFieldComponent;
+// React.memo + useSyncExternalStore: предотвращает рендер если props не изменились
+export const FormField = React.memo(FormFieldComponent);
