@@ -1,3 +1,10 @@
+# [1.0.0-beta.5](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2025-12-02)
+
+
+### Bug Fixes
+
+* **reformer:** trigger release for readme update ([42ff1ae](https://github.com/AlexandrBukhtatyy/ReFormer/commit/42ff1aeb818b90e5adac8c1d893e7f5d47993674))
+
 # [1.0.0-beta.4](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2025-12-02)
 
 
