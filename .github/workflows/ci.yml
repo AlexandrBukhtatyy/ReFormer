@@ -31,7 +31,7 @@ jobs:
       #   run: npm run format:check
 
       - name: Build library
-        run: npm run build -w reformer
+        run: npm run build -w @reformer/core
 
       - name: Run tests
-        run: npm run test -w reformer
+        run: npm run test -w @reformer/core
