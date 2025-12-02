@@ -6,11 +6,13 @@
 
 Reactive form state management library for React with signals-based architecture.
 
-Full documentation is available at [alexandrbukhtatyy.github.io/ReFormer](https://alexandrbukhtatyy.github.io/ReFormer/)
-
-Playground:
+## Playground
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz_small.svg)](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx)
+
+## Documentation
+
+Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer/](https://alexandrbukhtatyy.github.io/ReFormer/)
 
 ## Features
 
