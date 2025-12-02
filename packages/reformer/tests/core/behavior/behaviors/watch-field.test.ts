@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { watchField } from '../../../../src/core/behavior/behaviors/watch-field';
 import type { BehaviorSchemaFn } from '../../../../src/core/behavior/types';
 import type { FieldPath } from '../../../../src/core/types';
@@ -20,7 +20,7 @@ describe('watchField behavior', () => {
     it('should call callback when field changes', async () => {
       const callback = vi.fn();
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Russia', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },
@@ -51,7 +51,7 @@ describe('watchField behavior', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let capturedContext: any = null;
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Russia', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },
@@ -76,7 +76,7 @@ describe('watchField behavior', () => {
     it('should track multiple field changes', async () => {
       const callback = vi.fn();
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: '', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },
@@ -109,7 +109,7 @@ describe('watchField behavior', () => {
     it('should call callback immediately when immediate is true', async () => {
       const callback = vi.fn();
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Russia', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },
@@ -128,7 +128,7 @@ describe('watchField behavior', () => {
     it('should call callback twice initially with immediate (sync + effect)', async () => {
       const callback = vi.fn();
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Initial', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },
@@ -152,7 +152,7 @@ describe('watchField behavior', () => {
       const countryCallback = vi.fn();
       const amountCallback = vi.fn();
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Russia', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 100, component: null as ComponentInstance },
@@ -183,7 +183,7 @@ describe('watchField behavior', () => {
     it('should stop watching after cleanup', async () => {
       const callback = vi.fn();
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Russia', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },
@@ -213,7 +213,7 @@ describe('watchField behavior', () => {
     it('should handle async callbacks', async () => {
       const results: string[] = [];
 
-      const form = makeForm<WatchForm>({
+      const form = createForm<WatchForm>({
         country: { value: 'Russia', component: null as ComponentInstance },
         city: { value: '', component: null as ComponentInstance },
         amount: { value: 0, component: null as ComponentInstance },

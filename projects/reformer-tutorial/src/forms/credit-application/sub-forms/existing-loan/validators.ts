@@ -1,5 +1,5 @@
 import { required, min } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { ExistingLoan } from './type';
 
 export const existingLoanValidation: ValidationSchemaFn<ExistingLoan> = (

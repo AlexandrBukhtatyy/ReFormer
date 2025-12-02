@@ -1,4 +1,4 @@
-import type { FieldPath, ValidationSchemaFn } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
 import {
   validate,
   validateTree,

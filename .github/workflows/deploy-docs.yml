@@ -3,7 +3,7 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - main
+      - develop
     paths:
       - 'projects/reformer-doc/**'
       - 'packages/reformer/src/**'
@@ -33,12 +33,10 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        working-directory: projects/reformer-doc
-        run: npm ci
+        run: rm package-lock.json && npm install
 
       - name: Build documentation
-        working-directory: projects/reformer-doc
-        run: npm run build
+        run: npm run build -w reformer-doc
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

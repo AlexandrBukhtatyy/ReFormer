@@ -9,7 +9,7 @@ import {
   validateItems,
   validate,
 } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 import type { Property } from '../../sub-forms/property/type';
 import type { ExistingLoan } from '../../sub-forms/existing-loan/type';

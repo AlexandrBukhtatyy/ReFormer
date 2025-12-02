@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
 import { fetchCreditApplication, fetchDictionaries, type DictionariesResponse } from '../api';
 import type { Property } from '../components/nested-forms/Property/PropertyForm';

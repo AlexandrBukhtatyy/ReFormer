@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, type GroupNodeWithControls, type FormSchema } from 'reformer';
+import { GroupNode, type GroupNodeWithControls, type FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputPassword } from '@/components/ui/input-password';
 import { InputMask } from '@/components/ui/input-mask';

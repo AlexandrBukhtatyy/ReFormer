@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 import { GroupNodeWithControls } from 'packages/reformer/dist';
 
@@ -77,7 +77,7 @@ describe('FormNode - resetToInitial()', () => {
     let form: GroupNodeWithControls<TestForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         email: { value: 'initial@mail.com', component: null as ComponentInstance },
         name: { value: 'John', component: null as ComponentInstance },
         age: { value: 25, component: null as ComponentInstance },
@@ -157,7 +157,7 @@ describe('FormNode - resetToInitial()', () => {
     let form: GroupNodeWithControls<NestedForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         user: {
           name: { value: 'Initial Name', component: null as ComponentInstance },
           email: { value: 'initial@mail.com', component: null as ComponentInstance },
@@ -272,7 +272,7 @@ describe('FormNode - resetToInitial()', () => {
         bio: string;
       }
 
-      const form = makeForm<UserForm>({
+      const form = createForm<UserForm>({
         email: { value: 'user@example.com', component: null as ComponentInstance },
         name: { value: 'John Doe', component: null as ComponentInstance },
         bio: { value: 'Initial bio', component: null as ComponentInstance },
@@ -300,7 +300,7 @@ describe('FormNode - resetToInitial()', () => {
         items: Array<{ task: string; done: boolean }>;
       }
 
-      const form = makeForm<TodoForm>({
+      const form = createForm<TodoForm>({
         title: { value: 'My TODO List', component: null as ComponentInstance },
         items: [
           {

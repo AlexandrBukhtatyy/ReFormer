@@ -1,4 +1,4 @@
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addressSchema } from '../../sub-forms/address/schema';

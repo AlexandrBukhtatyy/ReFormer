@@ -1,6 +1,6 @@
 import { enableWhen, computeFrom, disableWhen } from 'reformer/behaviors';
 import type { BehaviorSchemaFn } from 'reformer/behaviors';
-import type { FieldPath } from 'reformer';
+import type { FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 import type { CoBorrower } from '../../sub-forms/co-borrower/type';
 

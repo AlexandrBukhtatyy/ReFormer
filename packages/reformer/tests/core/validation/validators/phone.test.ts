@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { phone } from '../../../../src/core/validation/validators/phone';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -17,7 +17,7 @@ describe('phone validator', () => {
     const validPhones = ['+1234567890', '1234567890', '(123) 456-7890'];
 
     it.each(validPhones)('should pass for valid phone: %s', async (validPhone) => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: validPhone, component: null as ComponentInstance },
       });
 
@@ -32,7 +32,7 @@ describe('phone validator', () => {
     });
 
     it('should fail for invalid phone', async () => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: 'not-a-phone', component: null as ComponentInstance },
       });
 
@@ -52,7 +52,7 @@ describe('phone validator', () => {
     const validRuPhones = ['+7 900 123-45-67', '8 (900) 123-45-67', '+79001234567', '89001234567'];
 
     it.each(validRuPhones)('should pass for valid RU phone: %s', async (validPhone) => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: validPhone, component: null as ComponentInstance },
       });
 
@@ -72,7 +72,7 @@ describe('phone validator', () => {
     const validUsPhones = ['(212) 456-7890', '212-456-7890', '2124567890', '+1 212-456-7890'];
 
     it.each(validUsPhones)('should pass for valid US phone: %s', async (validPhone) => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: validPhone, component: null as ComponentInstance },
       });
 
@@ -93,7 +93,7 @@ describe('phone validator', () => {
     it.each(validIntlPhones)(
       'should pass for valid international phone: %s',
       async (validPhone) => {
-        const form = makeForm<PhoneForm>({
+        const form = createForm<PhoneForm>({
           phoneNumber: { value: validPhone, component: null as ComponentInstance },
         });
 
@@ -111,7 +111,7 @@ describe('phone validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string (use required for mandatory)', async () => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: '', component: null as ComponentInstance },
       });
 
@@ -130,7 +130,7 @@ describe('phone validator', () => {
         mobile: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         mobile: { value: null, component: null as ComponentInstance },
       });
 
@@ -147,7 +147,7 @@ describe('phone validator', () => {
 
   describe('error params', () => {
     it('should include format in error params', async () => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: 'invalid', component: null as ComponentInstance },
       });
 
@@ -162,7 +162,7 @@ describe('phone validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<PhoneForm>({
+      const form = createForm<PhoneForm>({
         phoneNumber: { value: 'invalid', component: null as ComponentInstance },
       });
 

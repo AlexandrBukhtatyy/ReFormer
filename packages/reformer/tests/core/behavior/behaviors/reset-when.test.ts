@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { resetWhen } from '../../../../src/core/behavior/behaviors/reset-when';
 import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -18,7 +18,7 @@ describe('resetWhen behavior', () => {
 
   describe('basic functionality', () => {
     it('should reset field when condition becomes true', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 0, component: null as ComponentInstance },
@@ -46,7 +46,7 @@ describe('resetWhen behavior', () => {
     });
 
     it('should not reset field when condition is false', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 0, component: null as ComponentInstance },
@@ -66,7 +66,7 @@ describe('resetWhen behavior', () => {
     });
 
     it('should reset dirty and touched flags', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 0, component: null as ComponentInstance },
@@ -101,7 +101,7 @@ describe('resetWhen behavior', () => {
 
   describe('resetValue option', () => {
     it('should reset to custom value', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 0, component: null as ComponentInstance },
@@ -133,7 +133,7 @@ describe('resetWhen behavior', () => {
         text: string;
       }
 
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         trigger: { value: false, component: null as ComponentInstance },
         text: { value: 'Hello', component: null as ComponentInstance },
       });
@@ -158,7 +158,7 @@ describe('resetWhen behavior', () => {
 
   describe('onlyIfDirty option', () => {
     it('should only reset dirty fields when onlyIfDirty is true', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 100000, component: null as ComponentInstance },
@@ -184,7 +184,7 @@ describe('resetWhen behavior', () => {
     });
 
     it('should not reset pristine fields when onlyIfDirty is true', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 100000, component: null as ComponentInstance },
@@ -212,7 +212,7 @@ describe('resetWhen behavior', () => {
 
   describe('multiple resetWhen behaviors', () => {
     it('should handle multiple resetWhen on different fields', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'consumer', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 100000, component: null as ComponentInstance },
@@ -237,7 +237,7 @@ describe('resetWhen behavior', () => {
 
   describe('cleanup', () => {
     it('should stop resetting after cleanup', async () => {
-      const form = makeForm<ResetForm>({
+      const form = createForm<ResetForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         carPrice: { value: 0, component: null as ComponentInstance },

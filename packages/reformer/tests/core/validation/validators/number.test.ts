@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { number } from '../../../../src/core/validation/validators/number';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('number validator', () => {
 
   describe('basic functionality', () => {
     it('should pass for valid number', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 42, component: null as ComponentInstance },
       });
 
@@ -30,7 +30,7 @@ describe('number validator', () => {
     });
 
     it('should pass for zero', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 0, component: null as ComponentInstance },
       });
 
@@ -45,7 +45,7 @@ describe('number validator', () => {
     });
 
     it('should pass for negative numbers', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: -10, component: null as ComponentInstance },
       });
 
@@ -60,7 +60,7 @@ describe('number validator', () => {
     });
 
     it('should pass for decimal numbers', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 3.14, component: null as ComponentInstance },
       });
 
@@ -77,7 +77,7 @@ describe('number validator', () => {
 
   describe('integer option', () => {
     it('should fail for decimal when integer is required', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 3.14, component: null as ComponentInstance },
       });
 
@@ -93,7 +93,7 @@ describe('number validator', () => {
     });
 
     it('should pass for integer when integer is required', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 42, component: null as ComponentInstance },
       });
 
@@ -110,7 +110,7 @@ describe('number validator', () => {
 
   describe('min/max options', () => {
     it('should fail when value is below min', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 5, component: null as ComponentInstance },
       });
 
@@ -126,7 +126,7 @@ describe('number validator', () => {
     });
 
     it('should fail when value exceeds max', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 150, component: null as ComponentInstance },
       });
 
@@ -142,7 +142,7 @@ describe('number validator', () => {
     });
 
     it('should pass when value is within range', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 50, component: null as ComponentInstance },
       });
 
@@ -159,7 +159,7 @@ describe('number validator', () => {
 
   describe('multipleOf option', () => {
     it('should fail when value is not multiple of specified number', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 7, component: null as ComponentInstance },
       });
 
@@ -175,7 +175,7 @@ describe('number validator', () => {
     });
 
     it('should pass when value is multiple of specified number', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 15, component: null as ComponentInstance },
       });
 
@@ -192,7 +192,7 @@ describe('number validator', () => {
 
   describe('allowNegative option', () => {
     it('should fail for negative when allowNegative is false', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: -5, component: null as ComponentInstance },
       });
 
@@ -210,7 +210,7 @@ describe('number validator', () => {
 
   describe('allowZero option', () => {
     it('should fail for zero when allowZero is false', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 0, component: null as ComponentInstance },
       });
 
@@ -232,7 +232,7 @@ describe('number validator', () => {
         quantity: number | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         quantity: { value: null, component: null as ComponentInstance },
       });
 
@@ -253,7 +253,7 @@ describe('number validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         amount: { value: 5, component: null as ComponentInstance },
       });
 

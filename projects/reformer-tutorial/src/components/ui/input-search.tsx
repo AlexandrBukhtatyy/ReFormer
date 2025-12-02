@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { SearchIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResourceConfig, ResourceItem } from 'reformer';
+import type { ResourceConfig, ResourceItem } from '@reformer/core';
 
 export interface InputSearchProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'resource'> {

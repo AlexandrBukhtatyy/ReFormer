@@ -25,7 +25,7 @@ import {
   type ArrayNodeWithControls,
   type FormFields,
   type GroupNodeWithControls,
-} from 'reformer';
+} from '@reformer/core';
 import type { ComponentType } from 'react';
 import { FormArrayManager } from '@/components/ui/FormArrayManager';
 import { Button } from '@/components/ui/button';

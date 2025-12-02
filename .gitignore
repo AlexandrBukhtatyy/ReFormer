@@ -3,5 +3,12 @@ node_modules
 test-results
 playwright-report
 .playwright-mcp
+.claude/
 
 .env
+
+# Auto-generated API documentation
+projects/reformer-doc/docs/api/
+
+# Temporary docs
+docs/_temp/

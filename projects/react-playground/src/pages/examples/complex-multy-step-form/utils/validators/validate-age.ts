@@ -2,7 +2,7 @@
  * Валидация возраста заемщика (18-70 лет)
  */
 
-import type { FormContext, ValidationError } from 'reformer';
+import type { FormContext, ValidationError } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import type { GroupNodeWithControls } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -17,7 +17,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
   let form: GroupNodeWithControls<TestForm>;
 
   beforeEach(() => {
-    form = makeForm<TestForm>({
+    form = createForm<TestForm>({
       email: { value: '', component: null as ComponentInstance },
       password: { value: '', component: null as ComponentInstance },
       age: { value: 0, component: null as ComponentInstance },
@@ -45,7 +45,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
     });
 
     it('should cleanup multiple linkFields subscriptions', () => {
-      const form2 = makeForm<TestForm>({
+      const form2 = createForm<TestForm>({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         age: { value: 0, component: null as ComponentInstance },
@@ -163,7 +163,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         };
       }
 
-      const nestedForm = makeForm<NestedForm>({
+      const nestedForm = createForm<NestedForm>({
         user: {
           profile: {
             name: { value: '', component: null as ComponentInstance },
@@ -225,7 +225,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         };
       }
 
-      const nestedForm = makeForm<NestedForm>({
+      const nestedForm = createForm<NestedForm>({
         user: {
           email: { value: '', component: null as ComponentInstance },
           profile: {
@@ -273,7 +273,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
         };
       }
 
-      const deepForm = makeForm<DeepForm>({
+      const deepForm = createForm<DeepForm>({
         level1: {
           level2: {
             level3: {
@@ -348,7 +348,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
     });
 
     it('should handle dispose() on empty form', () => {
-      const emptyForm = makeForm<Record<string, never>>({});
+      const emptyForm = createForm<Record<string, never>>({});
 
       expect(() => emptyForm.dispose()).not.toThrow();
     });

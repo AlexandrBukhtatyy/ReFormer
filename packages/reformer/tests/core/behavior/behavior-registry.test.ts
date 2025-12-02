@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { copyFrom, watchField } from '../../../src/core/behavior/behaviors';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
 import type { GroupNodeWithControls } from '../../src';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import type { FieldPath } from '../../../src/core/types';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -21,7 +21,7 @@ describe('BehaviorRegistry', () => {
   let form: GroupNodeWithControls<TestForm>;
 
   beforeEach(() => {
-    form = makeForm({
+    form = createForm({
       email: { value: '', component: null as ComponentInstance },
       copyEmail: { value: '', component: null as ComponentInstance },
       country: { value: '', component: null as ComponentInstance },

@@ -1,4 +1,4 @@
-import type { FieldPath, ValidationSchemaFn } from 'reformer';
+import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
 import { validateAsync, required, minLength, maxLength, pattern } from 'reformer/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { email } from '../../../../src/core/validation/validators/email';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -24,7 +24,7 @@ describe('email validator', () => {
     ];
 
     it.each(validEmails)('should pass for valid email: %s', async (validEmail) => {
-      const form = makeForm<EmailForm>({
+      const form = createForm<EmailForm>({
         email: { value: validEmail, component: null as ComponentInstance },
       });
 
@@ -50,7 +50,7 @@ describe('email validator', () => {
     ];
 
     it.each(invalidEmails)('should fail for invalid email: %s', async (invalidEmail) => {
-      const form = makeForm<EmailForm>({
+      const form = createForm<EmailForm>({
         email: { value: invalidEmail, component: null as ComponentInstance },
       });
 
@@ -68,7 +68,7 @@ describe('email validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string (use required for mandatory)', async () => {
-      const form = makeForm<EmailForm>({
+      const form = createForm<EmailForm>({
         email: { value: '', component: null as ComponentInstance },
       });
 
@@ -88,7 +88,7 @@ describe('email validator', () => {
         email: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         email: { value: null, component: null as ComponentInstance },
       });
 
@@ -105,7 +105,7 @@ describe('email validator', () => {
 
   describe('custom message', () => {
     it('should use custom error message', async () => {
-      const form = makeForm<EmailForm>({
+      const form = createForm<EmailForm>({
         email: { value: 'invalid', component: null as ComponentInstance },
       });
 
@@ -126,7 +126,7 @@ describe('email validator', () => {
     });
 
     it('should validate after value change', async () => {
-      const form = makeForm<EmailForm>({
+      const form = createForm<EmailForm>({
         email: { value: 'invalid', component: null as ComponentInstance },
       });
 

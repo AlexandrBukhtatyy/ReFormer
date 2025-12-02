@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, useFormControl, type GroupNodeWithControls, type FormSchema, type FieldNode, type FieldPath } from 'reformer';
+import { GroupNode, useFormControl, type GroupNodeWithControls, type FormSchema, type FieldNode, type FieldPath } from '@reformer/core';
 import { required, min, max } from 'reformer/validators';
 import {
   computeFrom,

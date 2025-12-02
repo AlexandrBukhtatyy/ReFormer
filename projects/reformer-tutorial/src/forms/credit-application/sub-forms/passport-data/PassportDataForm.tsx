@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { PassportData } from './type';
 

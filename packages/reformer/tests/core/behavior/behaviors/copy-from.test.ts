@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { copyFrom } from '../../../../src/core/behavior/behaviors/copy-from';
 import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -19,7 +19,7 @@ describe('copyFrom behavior', () => {
 
   describe('basic functionality', () => {
     it('should copy value from source to target', async () => {
-      const form = makeForm<AddressForm>({
+      const form = createForm<AddressForm>({
         sameAsRegistration: { value: true, component: null as ComponentInstance },
         registrationCity: { value: 'Moscow', component: null as ComponentInstance },
         registrationStreet: { value: '', component: null as ComponentInstance },
@@ -40,7 +40,7 @@ describe('copyFrom behavior', () => {
     });
 
     it('should update target when source changes', async () => {
-      const form = makeForm<AddressForm>({
+      const form = createForm<AddressForm>({
         sameAsRegistration: { value: true, component: null as ComponentInstance },
         registrationCity: { value: 'Moscow', component: null as ComponentInstance },
         registrationStreet: { value: '', component: null as ComponentInstance },
@@ -68,7 +68,7 @@ describe('copyFrom behavior', () => {
 
   describe('when option', () => {
     it('should only copy when condition is true', async () => {
-      const form = makeForm<AddressForm>({
+      const form = createForm<AddressForm>({
         sameAsRegistration: { value: false, component: null as ComponentInstance },
         registrationCity: { value: 'Moscow', component: null as ComponentInstance },
         registrationStreet: { value: '', component: null as ComponentInstance },
@@ -105,7 +105,7 @@ describe('copyFrom behavior', () => {
     });
 
     it('should stop copying when condition becomes false', async () => {
-      const form = makeForm<AddressForm>({
+      const form = createForm<AddressForm>({
         sameAsRegistration: { value: true, component: null as ComponentInstance },
         registrationCity: { value: 'Moscow', component: null as ComponentInstance },
         registrationStreet: { value: '', component: null as ComponentInstance },
@@ -145,7 +145,7 @@ describe('copyFrom behavior', () => {
         vatRate: number;
       }
 
-      const form = makeForm<PriceForm>({
+      const form = createForm<PriceForm>({
         netPrice: { value: 100, component: null as ComponentInstance },
         grossPrice: { value: 0, component: null as ComponentInstance },
         vatRate: { value: 20, component: null as ComponentInstance },
@@ -170,7 +170,7 @@ describe('copyFrom behavior', () => {
         displayName: string;
       }
 
-      const form = makeForm<NameForm>({
+      const form = createForm<NameForm>({
         fullName: { value: 'John Doe', component: null as ComponentInstance },
         displayName: { value: '', component: null as ComponentInstance },
       });
@@ -191,7 +191,7 @@ describe('copyFrom behavior', () => {
 
   describe('cleanup', () => {
     it('should stop copying after cleanup', async () => {
-      const form = makeForm<AddressForm>({
+      const form = createForm<AddressForm>({
         sameAsRegistration: { value: true, component: null as ComponentInstance },
         registrationCity: { value: 'Moscow', component: null as ComponentInstance },
         registrationStreet: { value: '', component: null as ComponentInstance },

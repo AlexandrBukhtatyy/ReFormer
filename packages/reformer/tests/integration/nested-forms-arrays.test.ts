@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../src/core/utils/create-form';
+import { createForm } from '../../src/core/utils/create-form';
 import { required, minLength, email } from '../../src/core/validation/validators';
 import { computeFrom, enableWhen } from '../../src/core/behavior/behaviors';
 import type { BehaviorSchemaFn } from '../../src/core/behavior/types';
@@ -27,7 +27,7 @@ describe('Integration: Nested Forms and Arrays', () => {
 
   describe('nested group validation', () => {
     it('should validate nested address fields', async () => {
-      const form = makeForm<ContactForm>({
+      const form = createForm<ContactForm>({
         name: { value: 'John Doe', component: null as ComponentInstance },
         email: { value: 'john@example.com', component: null as ComponentInstance },
         address: {
@@ -70,7 +70,7 @@ describe('Integration: Nested Forms and Arrays', () => {
     });
 
     it('should validate nested address with valid values', async () => {
-      const form = makeForm<ContactForm>({
+      const form = createForm<ContactForm>({
         name: { value: 'John Doe', component: null as ComponentInstance },
         email: { value: 'john@example.com', component: null as ComponentInstance },
         address: {
@@ -111,7 +111,7 @@ describe('Integration: Nested Forms and Arrays', () => {
 
   describe('behaviors with nested fields', () => {
     it('should enable shipping address based on checkbox', async () => {
-      const form = makeForm<ContactForm>({
+      const form = createForm<ContactForm>({
         name: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         address: {
@@ -169,7 +169,7 @@ describe('Integration: Nested Forms and Arrays', () => {
 
   describe('form with computed summary', () => {
     it('should compute tax and total from subtotal', async () => {
-      const form = makeForm<OrderWithItems>({
+      const form = createForm<OrderWithItems>({
         orderNumber: { value: 'ORD-001', component: null as ComponentInstance },
         items: [], // Empty array initially
         subtotal: { value: 100, component: null as ComponentInstance },
@@ -215,7 +215,7 @@ describe('Integration: Nested Forms and Arrays', () => {
 
   describe('form getValue and patchValue', () => {
     it('should get full form value including nested groups', async () => {
-      const form = makeForm<ContactForm>({
+      const form = createForm<ContactForm>({
         name: { value: 'Jane', component: null as ComponentInstance },
         email: { value: 'jane@test.com', component: null as ComponentInstance },
         address: {
@@ -245,7 +245,7 @@ describe('Integration: Nested Forms and Arrays', () => {
     });
 
     it('should patch nested values', async () => {
-      const form = makeForm<ContactForm>({
+      const form = createForm<ContactForm>({
         name: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         address: {
@@ -279,7 +279,7 @@ describe('Integration: Nested Forms and Arrays', () => {
 
   describe('form reset', () => {
     it('should reset form to initial values', async () => {
-      const form = makeForm<ContactForm>({
+      const form = createForm<ContactForm>({
         name: { value: 'Initial', component: null as ComponentInstance },
         email: { value: 'initial@test.com', component: null as ComponentInstance },
         address: {

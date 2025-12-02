@@ -1,4 +1,4 @@
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 import { FormField } from '@/components/ui/FormField';
 

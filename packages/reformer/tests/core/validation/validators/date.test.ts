@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { date } from '../../../../src/core/validation/validators/date';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('date validator', () => {
 
   describe('basic functionality', () => {
     it('should pass for valid date string', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: '2000-01-15', component: null as ComponentInstance },
       });
 
@@ -30,7 +30,7 @@ describe('date validator', () => {
     });
 
     it('should fail for invalid date string', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: 'not-a-date', component: null as ComponentInstance },
       });
 
@@ -52,7 +52,7 @@ describe('date validator', () => {
     }
 
     it('should pass for valid Date object', async () => {
-      const form = makeForm<DateObjectForm>({
+      const form = createForm<DateObjectForm>({
         eventDate: { value: new Date('2025-06-15'), component: null as ComponentInstance },
       });
 
@@ -69,7 +69,7 @@ describe('date validator', () => {
 
   describe('minDate option', () => {
     it('should fail when date is before minDate', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: '2020-01-01', component: null as ComponentInstance },
       });
 
@@ -85,7 +85,7 @@ describe('date validator', () => {
     });
 
     it('should pass when date is on minDate', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: '2021-01-01', component: null as ComponentInstance },
       });
 
@@ -102,7 +102,7 @@ describe('date validator', () => {
 
   describe('maxDate option', () => {
     it('should fail when date is after maxDate', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: '2025-12-31', component: null as ComponentInstance },
       });
 
@@ -123,7 +123,7 @@ describe('date validator', () => {
       const futureDate = new Date();
       futureDate.setFullYear(futureDate.getFullYear() + 1);
 
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: {
           value: futureDate.toISOString().split('T')[0],
           component: null as ComponentInstance,
@@ -147,7 +147,7 @@ describe('date validator', () => {
       const pastDate = new Date();
       pastDate.setFullYear(pastDate.getFullYear() - 1);
 
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: {
           value: pastDate.toISOString().split('T')[0],
           component: null as ComponentInstance,
@@ -172,7 +172,7 @@ describe('date validator', () => {
       const birthDate = new Date();
       birthDate.setFullYear(birthDate.getFullYear() - 10);
 
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: {
           value: birthDate.toISOString().split('T')[0],
           component: null as ComponentInstance,
@@ -195,7 +195,7 @@ describe('date validator', () => {
       const birthDate = new Date();
       birthDate.setFullYear(birthDate.getFullYear() - 20);
 
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: {
           value: birthDate.toISOString().split('T')[0],
           component: null as ComponentInstance,
@@ -215,7 +215,7 @@ describe('date validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string (use required for mandatory)', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: '', component: null as ComponentInstance },
       });
 
@@ -234,7 +234,7 @@ describe('date validator', () => {
         eventDate: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         eventDate: { value: null, component: null as ComponentInstance },
       });
 
@@ -255,7 +255,7 @@ describe('date validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<DateForm>({
+      const form = createForm<DateForm>({
         birthDate: { value: 'invalid', component: null as ComponentInstance },
       });
 

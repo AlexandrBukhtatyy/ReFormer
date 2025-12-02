@@ -19,7 +19,7 @@ sidebar_position: 1
 npm create vite@latest reformer-tutorial -- --template react-ts
 
 # Установите зависимости которые не требуют конфигурации
-npm install reformer
+npm install @reformer/core
 ```
 
 ### Установка стилей TailwindCSS

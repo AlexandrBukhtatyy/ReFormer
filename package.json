@@ -6,7 +6,7 @@
   "description": "",
   "main": "index.js",
   "stackblitz": {
-    "startCommand": "npm install -w reformer && npm run build -w reformer && npm install -w react-playground && npm run dev:stackblitz -w react-playground"
+    "startCommand": "npm install -w @reformer/core && npm run build -w @reformer/core && npm install -w react-playground && npm run dev:stackblitz -w react-playground"
   },
   "scripts": {
     "build": "npm run build --workspaces",
@@ -21,8 +21,7 @@
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
       "eslint --fix",
-      "prettier --write",
-      "git add"
+      "prettier --write"
     ]
   },
   "repository": {
@@ -41,8 +40,12 @@
     "projects/*"
   ],
   "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.56.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
@@ -54,6 +57,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "prettier": "^3.6.2",
+    "semantic-release": "^24.2.9",
     "vitest": "^4.0.8"
   },
   "dependencies": {

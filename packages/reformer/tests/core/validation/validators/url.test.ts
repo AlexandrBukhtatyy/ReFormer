@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { url } from '../../../../src/core/validation/validators/url';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -26,7 +26,7 @@ describe('url validator', () => {
     ];
 
     it.each(validUrls)('should pass for valid URL: %s', async (validUrl) => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: validUrl, component: null as ComponentInstance },
       });
 
@@ -45,7 +45,7 @@ describe('url validator', () => {
     const invalidUrls = ['not-a-url', 'ftp://invalid', 'just text', '://missing-protocol.com'];
 
     it.each(invalidUrls)('should fail for invalid URL: %s', async (invalidUrl) => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: invalidUrl, component: null as ComponentInstance },
       });
 
@@ -63,7 +63,7 @@ describe('url validator', () => {
 
   describe('requireProtocol option', () => {
     it('should fail when protocol is required but missing', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: 'example.com', component: null as ComponentInstance },
       });
 
@@ -78,7 +78,7 @@ describe('url validator', () => {
     });
 
     it('should pass when protocol is required and present', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: 'https://example.com', component: null as ComponentInstance },
       });
 
@@ -95,7 +95,7 @@ describe('url validator', () => {
 
   describe('allowedProtocols option', () => {
     it('should pass when using allowed protocol', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: 'https://example.com', component: null as ComponentInstance },
       });
 
@@ -110,7 +110,7 @@ describe('url validator', () => {
     });
 
     it('should fail when using non-allowed protocol', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: 'http://example.com', component: null as ComponentInstance },
       });
 
@@ -126,7 +126,7 @@ describe('url validator', () => {
     });
 
     it('should include allowedProtocols in error params', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: 'http://example.com', component: null as ComponentInstance },
       });
 
@@ -143,7 +143,7 @@ describe('url validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string (use required for mandatory)', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: '', component: null as ComponentInstance },
       });
 
@@ -162,7 +162,7 @@ describe('url validator', () => {
         link: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         link: { value: null, component: null as ComponentInstance },
       });
 
@@ -179,7 +179,7 @@ describe('url validator', () => {
 
   describe('custom message', () => {
     it('should use custom message', async () => {
-      const form = makeForm<UrlForm>({
+      const form = createForm<UrlForm>({
         website: { value: 'invalid', component: null as ComponentInstance },
       });
 

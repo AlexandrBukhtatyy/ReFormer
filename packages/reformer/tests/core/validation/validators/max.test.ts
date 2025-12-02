@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { max } from '../../../../src/core/validation/validators/max';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('max validator', () => {
 
   describe('basic functionality', () => {
     it('should return error when value exceeds maximum', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 25, component: null as ComponentInstance },
       });
 
@@ -32,7 +32,7 @@ describe('max validator', () => {
     });
 
     it('should pass when value equals maximum (boundary included)', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 18, component: null as ComponentInstance },
       });
 
@@ -47,7 +47,7 @@ describe('max validator', () => {
     });
 
     it('should pass when value is below maximum', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 10, component: null as ComponentInstance },
       });
 
@@ -68,7 +68,7 @@ describe('max validator', () => {
     }
 
     it('should pass for null (use required for mandatory)', async () => {
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         amount: { value: null, component: null as ComponentInstance },
       });
 
@@ -86,7 +86,7 @@ describe('max validator', () => {
 
   describe('negative numbers', () => {
     it('should work with negative maximum', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: -5, component: null as ComponentInstance },
       });
 
@@ -102,7 +102,7 @@ describe('max validator', () => {
     });
 
     it('should pass when negative value is below maximum', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: -15, component: null as ComponentInstance },
       });
 
@@ -119,7 +119,7 @@ describe('max validator', () => {
 
   describe('error params', () => {
     it('should include max value in error params', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 25, component: null as ComponentInstance },
       });
 
@@ -135,7 +135,7 @@ describe('max validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 100, component: null as ComponentInstance },
       });
 
@@ -156,7 +156,7 @@ describe('max validator', () => {
     });
 
     it('should handle zero as maximum', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 1, component: null as ComponentInstance },
       });
 
@@ -171,7 +171,7 @@ describe('max validator', () => {
     });
 
     it('should pass zero when maximum is zero', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         age: { value: 0, component: null as ComponentInstance },
       });
 

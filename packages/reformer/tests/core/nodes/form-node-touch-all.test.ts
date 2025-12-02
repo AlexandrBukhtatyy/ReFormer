@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { FieldNode } from '../../../src/core/nodes/field-node';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import type { GroupNodeWithControls } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -55,7 +55,7 @@ describe('FormNode - touchAll()', () => {
     let form: GroupNodeWithControls<SimpleForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
         age: { value: 0, component: null as ComponentInstance },
@@ -75,12 +75,12 @@ describe('FormNode - touchAll()', () => {
     });
 
     it('should be equivalent to markAsTouched', () => {
-      const form1 = makeForm({
+      const form1 = createForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
 
-      const form2 = makeForm({
+      const form2 = createForm({
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
       });
@@ -108,7 +108,7 @@ describe('FormNode - touchAll()', () => {
     let form: GroupNodeWithControls<NestedForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -227,7 +227,7 @@ describe('FormNode - touchAll()', () => {
     let form: GroupNodeWithControls<ComplexForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         user: {
           profile: {
             firstName: { value: '', component: null as ComponentInstance },
@@ -299,7 +299,7 @@ describe('FormNode - touchAll()', () => {
     let form: GroupNodeWithControls<LoginForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         email: {
           value: '',
           component: null as ComponentInstance,
@@ -370,7 +370,7 @@ describe('FormNode - touchAll()', () => {
 
   describe('Edge cases', () => {
     it('should work on empty GroupNode', () => {
-      const form = makeForm({});
+      const form = createForm({});
 
       expect(() => form.touchAll()).not.toThrow();
     });
@@ -394,7 +394,7 @@ describe('FormNode - touchAll()', () => {
         };
       }
 
-      const form = makeForm<Form>({
+      const form = createForm<Form>({
         section1: {
           field1: { value: '', component: null as ComponentInstance },
           field2: { value: '', component: null as ComponentInstance },

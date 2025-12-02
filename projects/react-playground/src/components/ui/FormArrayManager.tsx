@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { Button } from './button';
-import { useFormControl, type ArrayNode, type FormFields, type GroupNodeWithControls } from 'reformer';
+import { useFormControl, type ArrayNode, type FormFields, type GroupNodeWithControls } from '@reformer/core';
 
 interface FormArrayManagerProps {
   // ArrayProxy (из DeepFormStore)

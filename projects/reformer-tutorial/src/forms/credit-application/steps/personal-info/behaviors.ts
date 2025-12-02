@@ -1,5 +1,5 @@
 import { computeFrom, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (

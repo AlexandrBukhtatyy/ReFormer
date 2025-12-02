@@ -8,7 +8,7 @@
  * - Отправки формы
  */
 
-import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from 'reformer';
+import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from '@reformer/core';
 import { validateForm } from 'reformer/validators';
 import { useState, useCallback } from 'react';
 

@@ -8,7 +8,7 @@
  * - 8 вычисляемых полей
  */
 
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import {
   LOAN_TYPES,
   EMPLOYMENT_STATUSES,

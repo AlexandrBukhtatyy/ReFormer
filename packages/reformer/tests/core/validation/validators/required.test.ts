@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { required } from '../../../../src/core/validation/validators/required';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('required validator', () => {
     }
 
     it('should return error for empty string', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -32,7 +32,7 @@ describe('required validator', () => {
     });
 
     it('should pass for non-empty string', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'John', component: null as ComponentInstance },
       });
 
@@ -49,7 +49,7 @@ describe('required validator', () => {
 
     it('should pass for whitespace-only string', async () => {
       // Note: required does not trim whitespace
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '   ', component: null as ComponentInstance },
       });
 
@@ -71,7 +71,7 @@ describe('required validator', () => {
     }
 
     it('should return error for null', async () => {
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         data: { value: null, component: null as ComponentInstance },
       });
 
@@ -93,7 +93,7 @@ describe('required validator', () => {
     }
 
     it('should return error for false (checkbox must be checked)', async () => {
-      const form = makeForm<BooleanForm>({
+      const form = createForm<BooleanForm>({
         accepted: { value: false, component: null as ComponentInstance },
       });
 
@@ -109,7 +109,7 @@ describe('required validator', () => {
     });
 
     it('should pass for true', async () => {
-      const form = makeForm<BooleanForm>({
+      const form = createForm<BooleanForm>({
         accepted: { value: true, component: null as ComponentInstance },
       });
 
@@ -130,7 +130,7 @@ describe('required validator', () => {
     }
 
     it('should pass for zero (0 is a valid value)', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         count: { value: 0, component: null as ComponentInstance },
       });
 
@@ -145,7 +145,7 @@ describe('required validator', () => {
     });
 
     it('should pass for negative numbers', async () => {
-      const form = makeForm<NumberForm>({
+      const form = createForm<NumberForm>({
         count: { value: -5, component: null as ComponentInstance },
       });
 
@@ -166,7 +166,7 @@ describe('required validator', () => {
     }
 
     it('should use custom error message', async () => {
-      const form = makeForm<SimpleForm>({
+      const form = createForm<SimpleForm>({
         field: { value: '', component: null as ComponentInstance },
       });
 
@@ -181,7 +181,7 @@ describe('required validator', () => {
     });
 
     it('should include custom params in error', async () => {
-      const form = makeForm<SimpleForm>({
+      const form = createForm<SimpleForm>({
         field: { value: '', component: null as ComponentInstance },
       });
 
@@ -207,7 +207,7 @@ describe('required validator', () => {
     });
 
     it('should validate correctly after value change', async () => {
-      const form = makeForm<EdgeForm>({
+      const form = createForm<EdgeForm>({
         field: { value: '', component: null as ComponentInstance },
       });
 

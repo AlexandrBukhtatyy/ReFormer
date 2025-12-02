@@ -2,27 +2,30 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { ResourceConfig } from '@reformer/core';
 
-export interface SelectProps
+export interface SelectProps<T>
   extends Omit<React.ComponentProps<typeof SelectPrimitive.Root>, 'value' | 'onValueChange'> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
+  resource?: ResourceConfig<T>;
   options?: Array<{ value: string | number; label: string; group?: string }>;
   placeholder?: string;
   disabled?: boolean;
   clearable?: boolean;
-  'data-testid'?: string;
 }
 
-const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Select = React.forwardRef<HTMLButtonElement, SelectProps<any> & { 'data-testid'?: string }>(
   (
     {
       className,
       value,
       onChange,
       onBlur,
+      resource,
       options: directOptions,
       placeholder,
       disabled,
@@ -32,6 +35,33 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
     },
     ref
   ) => {
+    const [resourceOptions, setResourceOptions] = React.useState<
+      Array<{ id: string | number; label: string; value: string; group?: string }>
+    >([]);
+    const [loading, setLoading] = React.useState(false);
+
+    React.useEffect(() => {
+      if (resource) {
+        setLoading(true);
+        resource
+          .load({})
+          .then((response) => {
+            setResourceOptions(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              response.items.map((item: any) => ({
+                id: item.id,
+                label: item.label,
+                value: String(item.value),
+                group: item.group,
+              }))
+            );
+          })
+          .catch(() => setResourceOptions([]))
+          .finally(() => setLoading(false));
+      }
+    }, [resource]);
+
+    // Используем прямые опции или опции из ресурса
     const options = React.useMemo(() => {
       if (directOptions) {
         return directOptions.map((opt) => ({
@@ -41,8 +71,8 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
           group: opt.group,
         }));
       }
-      return [];
-    }, [directOptions]);
+      return resourceOptions;
+    }, [directOptions, resourceOptions]);
 
     const handleValueChange = (newValue: string) => {
       onChange?.(newValue);
@@ -59,7 +89,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
       onChange?.(null);
     };
 
-    const showClearButton = clearable && value && !disabled;
+    const showClearButton = clearable && value && !disabled && !loading;
 
     return (
       <div className="relative w-full">
@@ -68,18 +98,23 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
           value={value || ''}
           onValueChange={handleValueChange}
           onOpenChange={handleOpenChange}
-          disabled={disabled}
+          disabled={disabled || loading}
           {...props}
         >
           <SelectTrigger
             ref={ref}
             className={cn(className, showClearButton && 'pr-8')}
+            disabled={loading}
             data-testid={dataTestId}
           >
-            <SelectValue placeholder={placeholder || 'Select an option...'} />
+            <SelectValue
+              placeholder={loading ? 'Loading...' : placeholder || 'Select an option...'}
+            />
           </SelectTrigger>
           <SelectContent>
-            {options.length === 0 ? (
+            {loading ? (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</div>
+            ) : options.length === 0 ? (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">No options available</div>
             ) : (
               (() => {
@@ -110,6 +145,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
           </SelectContent>
         </SelectPrimitive.Root>
 
+        {/* Clear button */}
         {showClearButton && (
           <button
             type="button"

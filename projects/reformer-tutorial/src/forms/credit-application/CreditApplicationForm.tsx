@@ -26,7 +26,7 @@ import { fetchApplication, saveApplication } from './services/api';
 import { serializeApplication } from './utils/formTransformers';
 
 import type { CreditApplicationForm as CreditApplicationFormType } from './type';
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './schema';
 import { creditApplicationBehaviors } from './behaviors';
 

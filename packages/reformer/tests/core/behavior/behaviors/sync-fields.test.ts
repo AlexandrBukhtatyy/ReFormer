@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { syncFields } from '../../../../src/core/behavior/behaviors/sync-fields';
 import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -18,7 +18,7 @@ describe('syncFields behavior', () => {
 
   describe('basic synchronization', () => {
     it('should sync field1 to field2 on initial apply', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: 'test@example.com', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -38,7 +38,7 @@ describe('syncFields behavior', () => {
     });
 
     it('should sync field1 changes to field2', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: '', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -62,7 +62,7 @@ describe('syncFields behavior', () => {
     });
 
     it('should sync field2 changes to field1', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: '', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -87,7 +87,7 @@ describe('syncFields behavior', () => {
     });
 
     it('should prevent circular updates', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: '', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -115,7 +115,7 @@ describe('syncFields behavior', () => {
 
   describe('transform option', () => {
     it('should apply transform when syncing from field1 to field2', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: 'TEST@EXAMPLE.COM', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -139,7 +139,7 @@ describe('syncFields behavior', () => {
     it('should eventually apply transform even when changing field2 (due to bidirectional sync)', async () => {
       // When field2 changes -> field1 syncs -> effect triggers forward sync with transform
       // This is expected behavior for bidirectional sync with transform
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: '', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -170,7 +170,7 @@ describe('syncFields behavior', () => {
 
   describe('cleanup', () => {
     it('should stop syncing after cleanup', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: '', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -202,7 +202,7 @@ describe('syncFields behavior', () => {
     });
 
     it('should stop reverse sync after cleanup', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: '', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: '', component: null as ComponentInstance },
@@ -231,7 +231,7 @@ describe('syncFields behavior', () => {
 
   describe('multiple synced pairs', () => {
     it('should support multiple independent sync pairs', async () => {
-      const form = makeForm<SyncForm>({
+      const form = createForm<SyncForm>({
         email: { value: 'email@test.com', component: null as ComponentInstance },
         emailCopy: { value: '', component: null as ComponentInstance },
         primary: { value: 'primary', component: null as ComponentInstance },

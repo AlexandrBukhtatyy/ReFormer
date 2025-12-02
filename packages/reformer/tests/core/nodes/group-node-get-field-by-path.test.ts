@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { GroupNodeWithControls } from '../../../src';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - getFieldByPath()', () => {
@@ -20,7 +20,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<SimpleForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         email: { value: 'test@mail.com', component: null as ComponentInstance },
         password: { value: 'secret', component: null as ComponentInstance },
         age: { value: 25, component: null as ComponentInstance },
@@ -66,7 +66,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<NestedForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         user: {
           name: { value: 'John', component: null as ComponentInstance },
           email: { value: 'john@mail.com', component: null as ComponentInstance },
@@ -129,7 +129,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<FormWithArray>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         items: [
           {
             name: { value: 'Item 1', component: null as ComponentInstance },
@@ -208,7 +208,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<ComplexForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         contacts: [
           {
             email: { value: 'contact1@mail.com', component: null as ComponentInstance },
@@ -276,7 +276,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<SimpleForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         email: { value: 'test@mail.com', component: null as ComponentInstance },
       });
     });
@@ -326,7 +326,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<TestForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         email: { value: '', component: null as ComponentInstance },
         user: {
           name: { value: 'John', component: null as ComponentInstance },
@@ -371,7 +371,7 @@ describe('GroupNode - getFieldByPath()', () => {
     let form: GroupNodeWithControls<UserForm>;
 
     beforeEach(() => {
-      form = makeForm({
+      form = createForm({
         profile: {
           firstName: { value: 'John', component: null as ComponentInstance },
           lastName: { value: 'Doe', component: null as ComponentInstance },
