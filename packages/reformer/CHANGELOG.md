@@ -1,3 +1,10 @@
+# [1.0.0-beta.6](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-12-02)
+
+
+### Bug Fixes
+
+* **ci:** publish normal version on main ([f5ab99d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/f5ab99d9767bf2cda7c988588f76b046e4823441))
+
 # [1.0.0-beta.5](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2025-12-02)
 
 
