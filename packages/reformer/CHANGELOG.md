@@ -1,3 +1,15 @@
+# [1.0.0-beta.2](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2025-12-02)
+
+
+### Bug Fixes
+
+* **build:** edit env variable in release flow ([7fa54d4](https://github.com/AlexandrBukhtatyy/ReFormer/commit/7fa54d428d6c420b2d5d86342f2eb21194ea8941))
+* **ci:** install deps from root for docs build ([e54a427](https://github.com/AlexandrBukhtatyy/ReFormer/commit/e54a42777e28d1b020d134b052c95353bf3d1b48))
+* **ci:** regenerate lockfile for linux platform ([51cf334](https://github.com/AlexandrBukhtatyy/ReFormer/commit/51cf334140b403ee55c57d61c146eaced1d6066d))
+* **ci:** use pat token for checkout to enable push ([15de7db](https://github.com/AlexandrBukhtatyy/ReFormer/commit/15de7db9c0ff545acf218c5f1aa0d13388a1096e))
+* **deps:** use wildcard for local reformer dependency ([4a022a2](https://github.com/AlexandrBukhtatyy/ReFormer/commit/4a022a2c6d1681455911ca6b7280ed18026a2fee))
+* **docs:** use separate tsconfig for typedoc generation ([72e8be5](https://github.com/AlexandrBukhtatyy/ReFormer/commit/72e8be5c5a234b03ff8163367d528495be435f8a))
+
 # 1.0.0-beta.1 (2025-12-02)
 
 
