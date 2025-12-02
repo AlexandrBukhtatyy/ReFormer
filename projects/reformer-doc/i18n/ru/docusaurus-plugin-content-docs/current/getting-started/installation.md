@@ -11,12 +11,8 @@ sidebar_position: 1
 
 ## Установка
 
-:::caution ВНИМАНИЕ!
-Пакет еще не опубликован в npm!
-:::
-
 ```bash
-npm install reformer
+npm install @reformer/core
 ```
 
 ReFormer включает все необходимые зависимости, включая [Preact Signals Core](https://github.com/preactjs/signals/blob/main/packages/core/README.md#guide--api) для реактивности.
