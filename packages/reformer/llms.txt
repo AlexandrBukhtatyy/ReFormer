@@ -1,0 +1,847 @@
+# ReFormer
+
+> Signals-based reactive form state management library for React.
+> Built on Preact Signals Core for fine-grained reactivity with full TypeScript support.
+> Key features: type-safe schemas, declarative validation, reactive behaviors, nested forms, dynamic arrays.
+
+## Installation
+
+```bash
+npm install reformer
+```
+
+Peer dependencies:
+- React 18+ or React 19+
+- @preact/signals-core ^1.8.0
+
+## Quick Start
+
+```tsx
+import { createForm } from 'reformer';
+import { required, email, minLength } from 'reformer/validators';
+import { useFormControl } from 'reformer';
+
+// 1. Define your form type
+type ContactForm = {
+  name: string;
+  email: string;
+  message: string;
+};
+
+// 2. Create form with schema and validation
+const form = createForm<ContactForm>({
+  form: {
+    name: { value: '', component: Input, componentProps: { label: 'Name' } },
+    email: { value: '', component: Input, componentProps: { label: 'Email' } },
+    message: { value: '', component: Textarea, componentProps: { label: 'Message' } },
+  },
+  validation: (path) => {
+    required(path.name);
+    minLength(path.name, 2);
+    required(path.email);
+    email(path.email);
+    required(path.message);
+  },
+});
+
+// 3. Use in React component
+function ContactForm() {
+  const { value, errors, shouldShowError } = useFormControl(form.name);
+
+  return (
+    <input
+      value={value}
+      onChange={(e) => form.name.setValue(e.target.value)}
+      onBlur={() => form.name.markAsTouched()}
+    />
+  );
+}
+```
+
+## Architecture
+
+### Node Hierarchy
+
+ReFormer uses a tree-based node architecture:
+
+```
+GroupNode (Form)
+├── FieldNode (single values: string, number, boolean)
+├── GroupNode (nested objects)
+└── ArrayNode (dynamic arrays)
+```
+
+All nodes inherit from abstract `FormNode` base class.
+
+### Key Concepts
+
+1. **Form Schema** - Defines structure, components, and initial values
+2. **Validation Schema** - Declares validation rules (separate from structure)
+3. **Behavior Schema** - Reactive logic (computed fields, conditional visibility, sync)
+
+### Signals-based Reactivity
+
+- Uses @preact/signals-core for fine-grained reactivity
+- Only affected components re-render when values change
+- React integration via useSyncExternalStore
+
+## Form Schema
+
+### FieldConfig<T>
+
+```typescript
+interface FieldConfig<T> {
+  value: T | null;                    // Initial value
+  component: ComponentType<any>;       // React component to render
+  componentProps?: Record<string, any>; // Props passed to component
+  validators?: ValidatorFn<T>[];       // Sync validators
+  asyncValidators?: AsyncValidatorFn<T>[]; // Async validators
+  disabled?: boolean;                  // Initially disabled
+  updateOn?: 'change' | 'blur' | 'submit'; // When to validate (default: 'change')
+  debounce?: number;                   // Debounce validation in ms
+}
+```
+
+### ArrayConfig<T>
+
+Arrays use single-element tuple syntax in schema:
+
+```typescript
+interface FormType {
+  phones: { type: string; number: string }[];
+}
+
+const schema: FormSchema<FormType> = {
+  phones: [{
+    type: { value: 'mobile', component: Select },
+    number: { value: '', component: Input },
+  }],
+};
+```
+
+### Complete Schema Example
+
+```typescript
+import { createForm } from 'reformer';
+
+type UserForm = {
+  name: string;
+  email: string;
+  age: number;
+  address: {
+    street: string;
+    city: string;
+  };
+  phones: { type: string; number: string }[];
+};
+
+const form = createForm<UserForm>({
+  form: {
+    name: { value: '', component: Input },
+    email: { value: '', component: Input },
+    age: { value: 0, component: Input, componentProps: { type: 'number' } },
+    address: {
+      street: { value: '', component: Input },
+      city: { value: '', component: Input },
+    },
+    phones: [{
+      type: { value: 'mobile', component: Select },
+      number: { value: '', component: Input },
+    }],
+  },
+  validation: (path) => { /* validators */ },
+  behavior: (path) => { /* behaviors */ },
+});
+```
+
+## Node Types
+
+### FieldNode<T>
+
+Represents a single form field value.
+
+**Properties (all are Signals):**
+- `value` - Current value
+- `valid` / `invalid` - Validation state
+- `touched` / `untouched` - User interaction state
+- `dirty` / `pristine` - Value changed from initial
+- `errors` - Array of ValidationError objects
+- `shouldShowError` - true when invalid AND (touched OR dirty)
+- `disabled` - Is field disabled
+- `pending` - Async validation in progress
+- `status` - 'valid' | 'invalid' | 'pending' | 'disabled'
+- `componentProps` - Props for component
+
+**Methods:**
+- `setValue(value, options?)` - Set new value
+- `reset()` - Reset to initial value
+- `markAsTouched()` - Mark as touched
+- `markAsDirty()` - Mark as dirty
+- `disable()` / `enable()` - Toggle disabled state
+- `validate()` - Run validation
+- `getErrors(filter?)` - Get filtered errors
+
+### GroupNode<T>
+
+Groups multiple fields into an object.
+
+**Properties:**
+- `controls` - Dictionary of child nodes
+- All FormNode properties (computed from children)
+
+**Methods:**
+- `getFieldByPath(path: string)` - Get field by dot-notation path
+- `patchValue(partial)` - Update subset of fields
+- `resetAll()` - Reset all children
+- All FormNode methods
+
+**Proxy Access:**
+```typescript
+// Type-safe field access via proxy
+form.name           // FieldNode<string>
+form.address.city   // FieldNode<string>
+form.phones         // ArrayNode
+```
+
+### ArrayNode<T>
+
+Manages dynamic arrays.
+
+**Properties:**
+- `controls` - Array of GroupNode items
+- `length` - Number of items
+
+**Methods:**
+- `push(value)` - Add item to end
+- `insert(index, value)` - Insert at position
+- `removeAt(index)` - Remove at position
+- `move(from, to)` - Move item
+- `clear()` - Remove all items
+- `at(index)` - Get item at index
+
+```typescript
+// Usage
+form.phones.push({ type: 'work', number: '' });
+form.phones.removeAt(0);
+form.phones.at(0).controls.number.setValue('123-456');
+```
+
+## Validation
+
+### ValidationSchemaFn
+
+```typescript
+import { required, email, minLength, validate, validateAsync } from 'reformer/validators';
+
+const form = createForm<FormType>({
+  form: { /* schema */ },
+  validation: (path) => {
+    // Built-in validators
+    required(path.name);
+    email(path.email);
+    minLength(path.password, 8);
+
+    // Custom validator
+    validate(path.age, (value) => {
+      if (value < 18) return { code: 'tooYoung', message: 'Must be 18+' };
+      return null;
+    });
+
+    // Async validator
+    validateAsync(path.username, async (value) => {
+      const available = await checkUsername(value);
+      if (!available) return { code: 'taken', message: 'Username taken' };
+      return null;
+    }, { debounce: 500 });
+  },
+});
+```
+
+### Built-in Validators
+
+All imported from `reformer/validators`:
+
+| Validator | Usage | Description |
+|-----------|-------|-------------|
+| `required(path)` | `required(path.name)` | Non-empty value |
+| `email(path)` | `email(path.email)` | Valid email format |
+| `minLength(path, n)` | `minLength(path.name, 2)` | Minimum string length |
+| `maxLength(path, n)` | `maxLength(path.bio, 500)` | Maximum string length |
+| `min(path, n)` | `min(path.age, 18)` | Minimum number value |
+| `max(path, n)` | `max(path.qty, 100)` | Maximum number value |
+| `pattern(path, regex)` | `pattern(path.code, /^[A-Z]+$/)` | Match regex |
+| `url(path)` | `url(path.website)` | Valid URL |
+| `phone(path)` | `phone(path.phone)` | Valid phone |
+| `number(path)` | `number(path.amount)` | Must be number |
+| `date(path)` | `date(path.birthDate)` | Valid date |
+
+### Custom Validator Example
+
+```typescript
+// validators/password.ts
+export function strongPassword() {
+  return (value: string) => {
+    if (!value) return null; // Skip empty (use required() separately)
+
+    const errors: string[] = [];
+    if (!/[A-Z]/.test(value)) errors.push('uppercase');
+    if (!/[a-z]/.test(value)) errors.push('lowercase');
+    if (!/[0-9]/.test(value)) errors.push('number');
+    if (value.length < 8) errors.push('length');
+
+    if (errors.length) {
+      return { code: 'weakPassword', message: 'Password too weak', params: { missing: errors } };
+    }
+    return null;
+  };
+}
+
+// Usage
+validation: (path) => {
+  required(path.password);
+  validate(path.password, strongPassword());
+}
+```
+
+### Async Validation Example
+
+```typescript
+// Check username availability on server
+validation: (path) => {
+  required(path.username);
+
+  validateAsync(path.username, async (value, ctx) => {
+    if (!value || value.length < 3) return null;
+
+    const response = await fetch(`/api/check-username?u=${value}`);
+    const { available } = await response.json();
+
+    if (!available) {
+      return { code: 'usernameTaken', message: 'Username is already taken' };
+    }
+    return null;
+  }, { debounce: 500 });
+}
+```
+
+### Cross-field Validation
+
+```typescript
+import { validateTree } from 'reformer/validators';
+
+validation: (path) => {
+  required(path.password);
+  required(path.confirmPassword);
+
+  // Cross-field validation
+  validateTree((ctx) => {
+    const password = ctx.form.password.value.value;
+    const confirm = ctx.form.confirmPassword.value.value;
+
+    if (password && confirm && password !== confirm) {
+      return {
+        code: 'passwordMismatch',
+        message: 'Passwords do not match',
+        path: 'confirmPassword',
+      };
+    }
+    return null;
+  });
+}
+```
+
+## Behaviors
+
+Behaviors add reactive logic to forms. All imported from `reformer/behaviors`.
+
+### computeFrom
+
+Calculate field value from other fields:
+
+```typescript
+import { computeFrom } from 'reformer/behaviors';
+
+behavior: (path) => {
+  // total = price * quantity
+  computeFrom(
+    [path.price, path.quantity],  // Watch these fields
+    path.total,                    // Update this field
+    ({ price, quantity }) => price * quantity  // Compute function
+  );
+}
+```
+
+### enableWhen / disableWhen
+
+Conditional field enable/disable:
+
+```typescript
+import { enableWhen, disableWhen } from 'reformer/behaviors';
+
+behavior: (path) => {
+  // Enable discount field only when total > 500
+  enableWhen(path.discount, (form) => form.total > 500);
+
+  // Disable shipping when pickup is selected
+  disableWhen(path.shippingAddress, (form) => form.deliveryMethod === 'pickup');
+}
+```
+
+### watchField
+
+React to field changes with custom logic:
+
+```typescript
+import { watchField } from 'reformer/behaviors';
+
+behavior: (path) => {
+  // Load cities when country changes
+  watchField(path.country, async (value, ctx) => {
+    const cities = await fetchCities(value);
+    ctx.form.city.updateComponentProps({ options: cities });
+    ctx.form.city.setValue(''); // Reset city selection
+  }, { debounce: 300 });
+}
+```
+
+### copyFrom
+
+Copy values from one field/group to another:
+
+```typescript
+import { copyFrom } from 'reformer/behaviors';
+
+behavior: (path) => {
+  // Copy billing address to shipping when checkbox is checked
+  copyFrom(path.billingAddress, path.shippingAddress, {
+    when: (form) => form.sameAsShipping === true,
+    fields: 'all', // or ['street', 'city', 'zip']
+  });
+}
+```
+
+### syncFields
+
+Two-way field synchronization:
+
+```typescript
+import { syncFields } from 'reformer/behaviors';
+
+behavior: (path) => {
+  syncFields(path.field1, path.field2);
+}
+```
+
+### resetWhen
+
+Reset field when condition is met:
+
+```typescript
+import { resetWhen } from 'reformer/behaviors';
+
+behavior: (path) => {
+  // Reset city when country changes
+  resetWhen(path.city, [path.country]);
+}
+```
+
+### revalidateWhen
+
+Trigger revalidation when another field changes:
+
+```typescript
+import { revalidateWhen } from 'reformer/behaviors';
+
+behavior: (path) => {
+  // Revalidate confirmPassword when password changes
+  revalidateWhen(path.confirmPassword, [path.password]);
+}
+```
+
+### Custom Behavior
+
+Create reusable custom behaviors:
+
+```typescript
+// behaviors/auto-save.ts
+import { Behavior } from 'reformer';
+
+interface AutoSaveOptions {
+  debounce?: number;
+  onSave: (data: any) => Promise<void>;
+}
+
+export function autoSave<T>(options: AutoSaveOptions): Behavior<T> {
+  const { debounce = 1000, onSave } = options;
+  let timeoutId: NodeJS.Timeout;
+
+  return {
+    key: 'autoSave',
+    paths: [], // Empty = listen to all fields
+    run: (values, ctx) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        await onSave(ctx.form.getValue());
+      }, debounce);
+    },
+    cleanup: () => clearTimeout(timeoutId),
+  };
+}
+
+// Usage
+behaviors: (path, { use }) => [
+  use(autoSave({
+    debounce: 2000,
+    onSave: async (data) => {
+      await fetch('/api/save', { method: 'POST', body: JSON.stringify(data) });
+    },
+  })),
+];
+```
+
+## Recommended Project Structure
+
+### Form Organization (Colocation)
+
+```
+src/forms/
+├── user-profile/
+│   ├── UserProfileForm.tsx        # React component
+│   ├── type.ts                    # TypeScript interfaces
+│   ├── schema.ts                  # Form schema (createForm)
+│   ├── validators.ts              # Validation rules
+│   ├── behaviors.ts               # Reactive behaviors
+│   └── sub-forms/                 # Reusable nested schemas
+│       ├── address/
+│       │   ├── type.ts
+│       │   ├── schema.ts
+│       │   ├── validators.ts
+│       │   └── AddressForm.tsx
+```
+
+### Schema File Pattern
+
+```typescript
+// forms/user-profile/schema.ts
+import { createForm } from 'reformer';
+import { validation } from './validators';
+import { behavior } from './behaviors';
+import type { UserProfile } from './type';
+
+export const createUserProfileForm = (initial?: Partial<UserProfile>) =>
+  createForm<UserProfile>({
+    form: {
+      name: { value: initial?.name ?? '', component: Input },
+      email: { value: initial?.email ?? '', component: Input },
+      // ...
+    },
+    validation,
+    behavior,
+  });
+```
+
+### Multi-step Form Structure
+
+```
+src/forms/checkout/
+├── CheckoutForm.tsx              # Main form component
+├── type.ts                       # Combined type
+├── schema.ts                     # Combined schema
+├── validators.ts                 # Combined + cross-step validators
+├── behaviors.ts                  # Combined + cross-step behaviors
+├── steps/
+│   ├── shipping/
+│   │   ├── type.ts
+│   │   ├── schema.ts
+│   │   ├── validators.ts
+│   │   └── ShippingStep.tsx
+│   ├── payment/
+│   └── confirmation/
+└── hooks/
+    └── useCheckoutNavigation.ts
+```
+
+## React Integration
+
+### useFormControl<T>
+
+Subscribe to all field state changes:
+
+```typescript
+import { useFormControl } from 'reformer';
+
+function TextField({ field }: { field: FieldNode<string> }) {
+  const {
+    value,           // Current value
+    valid,           // Is valid
+    invalid,         // Has errors
+    errors,          // ValidationError[]
+    touched,         // User interacted
+    disabled,        // Is disabled
+    pending,         // Async validation running
+    shouldShowError, // Show error (touched && invalid)
+    componentProps,  // Custom props from schema
+  } = useFormControl(field);
+
+  return (
+    <div>
+      <input
+        value={value}
+        onChange={(e) => field.setValue(e.target.value)}
+        onBlur={() => field.markAsTouched()}
+        disabled={disabled}
+      />
+      {shouldShowError && errors[0] && (
+        <span className="error">{errors[0].message}</span>
+      )}
+    </div>
+  );
+}
+```
+
+### useFormControlValue<T>
+
+Lightweight hook - returns only value (better performance):
+
+```typescript
+import { useFormControlValue } from 'reformer';
+
+function ConditionalField({ trigger, field }) {
+  // Re-renders only when trigger value changes
+  const showField = useFormControlValue(trigger);
+
+  if (showField !== 'yes') return null;
+  return <TextField field={field} />;
+}
+```
+
+### Performance Notes
+
+- Uses `useSyncExternalStore` for React 18+ integration
+- Fine-grained updates - only affected components re-render
+- Memoized state objects prevent unnecessary re-renders
+- Use `useFormControlValue` when you only need the value
+
+## API Reference
+
+### createForm<T>(config)
+
+Creates a new form instance with type-safe proxy access.
+
+```typescript
+function createForm<T>(config: GroupNodeConfig<T>): GroupNodeWithControls<T>
+
+interface GroupNodeConfig<T> {
+  form: FormSchema<T>;
+  validation?: ValidationSchemaFn<T>;
+  behavior?: BehaviorSchemaFn<T>;
+}
+```
+
+### Node Common Properties
+
+All nodes have these Signal properties:
+- `value` - Current value
+- `valid` / `invalid` - Validation state
+- `touched` / `untouched` - Interaction state
+- `dirty` / `pristine` - Changed state
+- `status` - 'valid' | 'invalid' | 'pending' | 'disabled'
+- `disabled` - Is disabled
+- `pending` - Async validation in progress
+
+### Node Common Methods
+
+```typescript
+setValue(value: T, options?: SetValueOptions): void
+reset(): void
+markAsTouched(): void
+markAsDirty(): void
+disable(): void
+enable(): void
+validate(): Promise<void>
+getErrors(filter?: (error: ValidationError) => boolean): ValidationError[]
+```
+
+### SetValueOptions
+
+```typescript
+interface SetValueOptions {
+  emitEvent?: boolean;  // Trigger change events (default: true)
+  onlySelf?: boolean;   // Don't propagate to parent (default: false)
+}
+```
+
+### ValidationError
+
+```typescript
+interface ValidationError {
+  code: string;                    // Error identifier
+  message: string;                 // Human-readable message
+  params?: Record<string, any>;    // Additional error data
+  severity?: 'error' | 'warning';  // Severity level
+  path?: string;                   // Field path (for cross-field)
+}
+```
+
+### FieldStatus
+
+```typescript
+type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
+```
+
+### Type Guards
+
+```typescript
+import { isFieldNode, isGroupNode, isArrayNode, getNodeType } from 'reformer';
+
+if (isFieldNode(node)) { /* node is FieldNode */ }
+if (isGroupNode(node)) { /* node is GroupNode */ }
+if (isArrayNode(node)) { /* node is ArrayNode */ }
+const type = getNodeType(node); // 'field' | 'group' | 'array'
+```
+
+## Common Patterns
+
+### Multi-step Form
+
+```typescript
+function MultiStepForm() {
+  const form = useMemo(() => createCheckoutForm(), []);
+  const [step, setStep] = useState(0);
+
+  const validateStep = async () => {
+    const stepFields = getStepFields(step);
+    stepFields.forEach(f => f.markAsTouched());
+    await form.validate();
+    return stepFields.every(f => f.valid.value);
+  };
+
+  const handleNext = async () => {
+    if (await validateStep()) {
+      setStep(s => s + 1);
+    }
+  };
+
+  return (
+    <div>
+      {step === 0 && <ShippingStep form={form} />}
+      {step === 1 && <PaymentStep form={form} />}
+      {step === 2 && <ConfirmationStep form={form} />}
+
+      <button onClick={() => setStep(s => s - 1)} disabled={step === 0}>
+        Back
+      </button>
+      <button onClick={handleNext}>
+        {step === 2 ? 'Submit' : 'Next'}
+      </button>
+    </div>
+  );
+}
+```
+
+### Nested Form with Reusable Schema
+
+```typescript
+// sub-forms/address/schema.ts
+export const addressSchema = {
+  street: { value: '', component: Input, componentProps: { label: 'Street' } },
+  city: { value: '', component: Input, componentProps: { label: 'City' } },
+  zip: { value: '', component: Input, componentProps: { label: 'ZIP' } },
+};
+
+// main form
+const form = createForm<OrderForm>({
+  form: {
+    billingAddress: addressSchema,
+    shippingAddress: addressSchema,
+  },
+});
+```
+
+### Dynamic Array (Add/Remove Items)
+
+```typescript
+function PhoneList({ array }: { array: ArrayNode<Phone> }) {
+  const { length } = useFormControl(array);
+
+  return (
+    <div>
+      {array.controls.map((phone, index) => (
+        <div key={phone.id}>
+          <FormField field={phone.controls.type} />
+          <FormField field={phone.controls.number} />
+          <button onClick={() => array.removeAt(index)}>Remove</button>
+        </div>
+      ))}
+
+      <button onClick={() => array.push({ type: 'mobile', number: '' })}>
+        Add Phone
+      </button>
+    </div>
+  );
+}
+```
+
+### Conditional Fields
+
+```typescript
+behavior: (path) => {
+  // Show company fields only for business accounts
+  enableWhen(path.companyName, (form) => form.accountType === 'business');
+  enableWhen(path.taxId, (form) => form.accountType === 'business');
+
+  // Reset company fields when switching to personal
+  resetWhen(path.companyName, [path.accountType]);
+  resetWhen(path.taxId, [path.accountType]);
+}
+```
+
+## Troubleshooting / FAQ
+
+### Q: Field not updating in React?
+A: Ensure you're using `useFormControl()` hook to subscribe to changes. Direct signal access (`.value.value`) won't trigger re-renders.
+
+### Q: Validation not triggering?
+A: Check `updateOn` option in field config. Default is 'change'. For blur-triggered validation use `updateOn: 'blur'`.
+
+### Q: How to access nested field by path string?
+A: Use `form.getFieldByPath('address.city')` for dynamic string-based access. For type-safe access use proxy: `form.address.city`.
+
+### Q: TypeScript errors with schema?
+A: Ensure your type interface matches the schema structure exactly. Use `createForm<YourType>()` for proper type inference.
+
+### Q: How to reset form to initial values?
+A: Call `form.reset()` for single field or `form.resetAll()` for GroupNode to reset all children.
+
+### Q: How to get all form values?
+A: Access `form.value.value` (it's a Signal) or use `form.getValue()` method.
+
+### Q: How to programmatically set multiple values?
+A: Use `form.patchValue({ field1: 'value1', field2: 'value2' })` to update multiple fields at once.
+
+### Q: Form instance recreated on every render?
+A: Wrap `createForm()` in `useMemo()`:
+```typescript
+const form = useMemo(() => createForm<MyForm>({ form: schema }), []);
+```
+
+### Q: How to handle form submission?
+A:
+```typescript
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  form.markAsTouched(); // Show all errors
+  await form.validate(); // Run all validators
+
+  if (form.valid.value) {
+    const data = form.value.value;
+    await submitToServer(data);
+  }
+};
+```
+
+## Links
+
+- Repository: https://github.com/AlexandrBukhtatyy/ReFormer
+- Documentation: https://alexandrbukhtatyy.github.io/ReFormer/
+- Issues: https://github.com/AlexandrBukhtatyy/ReFormer/issues
