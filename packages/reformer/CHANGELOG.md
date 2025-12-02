@@ -1,3 +1,10 @@
+# [1.0.0-beta.4](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2025-12-02)
+
+
+### Bug Fixes
+
+* **ci:** update workspace references from reformer to @reformer/core ([5783108](https://github.com/AlexandrBukhtatyy/ReFormer/commit/57831083b3646d779c0acd7eecb8136d2fff39fa))
+
 # [1.0.0-beta.3](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2025-12-02)
 
 
