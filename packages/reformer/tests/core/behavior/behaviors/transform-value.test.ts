@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import {
   transformValue,
   transformers,
@@ -22,7 +22,7 @@ describe('transformValue behavior', () => {
 
   describe('basic functionality', () => {
     it('should transform value to uppercase', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: 'abc', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },
@@ -42,7 +42,7 @@ describe('transformValue behavior', () => {
     });
 
     it('should transform value when it changes', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },
@@ -70,7 +70,7 @@ describe('transformValue behavior', () => {
         text: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         text: { value: null, component: null as ComponentInstance },
       });
 
@@ -87,7 +87,7 @@ describe('transformValue behavior', () => {
     });
 
     it('should not apply transformation if value is unchanged', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: 'ABC', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },
@@ -109,7 +109,7 @@ describe('transformValue behavior', () => {
 
   describe('built-in transformers', () => {
     it('should use toLowerCase transformer', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: '', component: null as ComponentInstance },
         email: { value: 'TEST@EMAIL.COM', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },
@@ -128,7 +128,7 @@ describe('transformValue behavior', () => {
     });
 
     it('should use trim transformer', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: '', component: null as ComponentInstance },
         email: { value: '  test@email.com  ', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },
@@ -147,7 +147,7 @@ describe('transformValue behavior', () => {
     });
 
     it('should use digitsOnly transformer', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         phone: { value: '+7 (900) 123-45-67', component: null as ComponentInstance },
@@ -173,7 +173,7 @@ describe('transformValue behavior', () => {
         return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
       });
 
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: 'hELLO', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },
@@ -194,7 +194,7 @@ describe('transformValue behavior', () => {
 
   describe('cleanup', () => {
     it('should stop transforming after cleanup', async () => {
-      const form = makeForm<TransformForm>({
+      const form = createForm<TransformForm>({
         code: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         phone: { value: '', component: null as ComponentInstance },

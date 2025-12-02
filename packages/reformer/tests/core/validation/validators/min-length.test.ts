@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { minLength } from '../../../../src/core/validation/validators/min-length';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('minLength validator', () => {
 
   describe('basic functionality', () => {
     it('should return error when string is too short', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'ab', component: null as ComponentInstance },
       });
 
@@ -32,7 +32,7 @@ describe('minLength validator', () => {
     });
 
     it('should pass when string equals minimum length', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'abc', component: null as ComponentInstance },
       });
 
@@ -47,7 +47,7 @@ describe('minLength validator', () => {
     });
 
     it('should pass when string exceeds minimum length', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'abcdef', component: null as ComponentInstance },
       });
 
@@ -64,7 +64,7 @@ describe('minLength validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string (use required for mandatory)', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -84,7 +84,7 @@ describe('minLength validator', () => {
         text: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         text: { value: null, component: null as ComponentInstance },
       });
 
@@ -101,7 +101,7 @@ describe('minLength validator', () => {
 
   describe('error params', () => {
     it('should include length values in error params', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'ab', component: null as ComponentInstance },
       });
 
@@ -117,7 +117,7 @@ describe('minLength validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'a', component: null as ComponentInstance },
       });
 
@@ -138,7 +138,7 @@ describe('minLength validator', () => {
     });
 
     it('should handle minimum length of 0', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'a', component: null as ComponentInstance },
       });
 
@@ -153,7 +153,7 @@ describe('minLength validator', () => {
     });
 
     it('should handle minimum length of 1', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'a', component: null as ComponentInstance },
       });
 
@@ -168,7 +168,7 @@ describe('minLength validator', () => {
     });
 
     it('should handle whitespace-only string', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '   ', component: null as ComponentInstance },
       });
 

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { applyWhen } from '../../../../src/core/validation/core/apply-when';
 import { required } from '../../../../src/core/validation/validators/required';
 import { min } from '../../../../src/core/validation/validators/min';
@@ -18,7 +18,7 @@ describe('applyWhen', () => {
     }
 
     it('should apply nested validators when condition is true', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         type: { value: 'special', component: null as ComponentInstance },
         details: { value: '', component: null as ComponentInstance },
       });
@@ -51,7 +51,7 @@ describe('applyWhen', () => {
     }
 
     it('should NOT apply nested validators when condition is false', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         type: { value: 'normal', component: null as ComponentInstance },
         details: { value: '', component: null as ComponentInstance },
       });
@@ -85,7 +85,7 @@ describe('applyWhen', () => {
     }
 
     it('should apply all nested validators when condition is true', async () => {
-      const form = makeForm<FormWithMultipleFields>({
+      const form = createForm<FormWithMultipleFields>({
         isCompany: { value: true, component: null as ComponentInstance },
         companyName: { value: '', component: null as ComponentInstance },
         employeeCount: { value: 0, component: null as ComponentInstance },
@@ -113,7 +113,7 @@ describe('applyWhen', () => {
     });
 
     it('should skip all nested validators when condition is false', async () => {
-      const form = makeForm<FormWithMultipleFields>({
+      const form = createForm<FormWithMultipleFields>({
         isCompany: { value: false, component: null as ComponentInstance },
         companyName: { value: '', component: null as ComponentInstance },
         employeeCount: { value: 0, component: null as ComponentInstance },
@@ -149,7 +149,7 @@ describe('applyWhen', () => {
     }
 
     it('should support nested applyWhen blocks', async () => {
-      const form = makeForm<NestedConditionForm>({
+      const form = createForm<NestedConditionForm>({
         level1: { value: 'A', component: null as ComponentInstance },
         level2: { value: 'B', component: null as ComponentInstance },
         finalField: { value: '', component: null as ComponentInstance },
@@ -184,7 +184,7 @@ describe('applyWhen', () => {
       // NOTE: Current implementation only checks the innermost condition.
       // Nested conditions don't properly inherit parent conditions.
       // This test documents the actual behavior.
-      const form = makeForm<NestedConditionForm>({
+      const form = createForm<NestedConditionForm>({
         level1: { value: 'X', component: null as ComponentInstance }, // Not 'A'
         level2: { value: 'B', component: null as ComponentInstance },
         finalField: { value: '', component: null as ComponentInstance },
@@ -217,7 +217,7 @@ describe('applyWhen', () => {
     });
 
     it('should not apply if inner condition is false', async () => {
-      const form = makeForm<NestedConditionForm>({
+      const form = createForm<NestedConditionForm>({
         level1: { value: 'A', component: null as ComponentInstance },
         level2: { value: 'X', component: null as ComponentInstance }, // Not 'B'
         finalField: { value: '', component: null as ComponentInstance },
@@ -256,7 +256,7 @@ describe('applyWhen', () => {
     }
 
     it('should re-evaluate condition when trigger field changes', async () => {
-      const form = makeForm<DynamicForm>({
+      const form = createForm<DynamicForm>({
         trigger: { value: 'off', component: null as ComponentInstance },
         target: { value: '', component: null as ComponentInstance },
       });
@@ -292,7 +292,7 @@ describe('applyWhen', () => {
     }
 
     it('should handle boolean trigger field', async () => {
-      const form = makeForm<EdgeForm>({
+      const form = createForm<EdgeForm>({
         trigger: { value: true, component: null as ComponentInstance },
         field: { value: '', component: null as ComponentInstance },
       });
@@ -314,7 +314,7 @@ describe('applyWhen', () => {
     });
 
     it('should handle condition returning always true', async () => {
-      const form = makeForm<EdgeForm>({
+      const form = createForm<EdgeForm>({
         trigger: { value: false, component: null as ComponentInstance },
         field: { value: '', component: null as ComponentInstance },
       });
@@ -336,7 +336,7 @@ describe('applyWhen', () => {
     });
 
     it('should handle condition returning always false', async () => {
-      const form = makeForm<EdgeForm>({
+      const form = createForm<EdgeForm>({
         trigger: { value: true, component: null as ComponentInstance },
         field: { value: '', component: null as ComponentInstance },
       });

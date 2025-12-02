@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { computeFrom } from '../../../../src/core/behavior/behaviors/compute-from';
 import type { BehaviorSchemaFn } from '../../../../src/core/behavior/types';
 import type { FieldPath } from '../../../../src/core/types';
@@ -21,7 +21,7 @@ describe('computeFrom behavior', () => {
 
   describe('basic functionality', () => {
     it('should compute value from single source', async () => {
-      const form = makeForm<CalculatorForm>({
+      const form = createForm<CalculatorForm>({
         price: { value: 100, component: null as ComponentInstance },
         quantity: { value: 1, component: null as ComponentInstance },
         discount: { value: 0, component: null as ComponentInstance },
@@ -46,7 +46,7 @@ describe('computeFrom behavior', () => {
     });
 
     it('should compute value from multiple sources', async () => {
-      const form = makeForm<CalculatorForm>({
+      const form = createForm<CalculatorForm>({
         price: { value: 100, component: null as ComponentInstance },
         quantity: { value: 5, component: null as ComponentInstance },
         discount: { value: 0, component: null as ComponentInstance },
@@ -71,7 +71,7 @@ describe('computeFrom behavior', () => {
     });
 
     it('should recompute when source changes', async () => {
-      const form = makeForm<CalculatorForm>({
+      const form = createForm<CalculatorForm>({
         price: { value: 100, component: null as ComponentInstance },
         quantity: { value: 5, component: null as ComponentInstance },
         discount: { value: 0, component: null as ComponentInstance },
@@ -102,7 +102,7 @@ describe('computeFrom behavior', () => {
     });
 
     it('should react to any source change', async () => {
-      const form = makeForm<CalculatorForm>({
+      const form = createForm<CalculatorForm>({
         price: { value: 100, component: null as ComponentInstance },
         quantity: { value: 5, component: null as ComponentInstance },
         discount: { value: 0, component: null as ComponentInstance },
@@ -135,7 +135,7 @@ describe('computeFrom behavior', () => {
 
   describe('complex calculations', () => {
     it('should handle calculations with multiple sources and discount', async () => {
-      const form = makeForm<CalculatorForm>({
+      const form = createForm<CalculatorForm>({
         price: { value: 100, component: null as ComponentInstance },
         quantity: { value: 10, component: null as ComponentInstance },
         discount: { value: 10, component: null as ComponentInstance },
@@ -171,7 +171,7 @@ describe('computeFrom behavior', () => {
         result: number | null;
       };
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         a: { value: null, component: null as ComponentInstance },
         b: { value: 10, component: null as ComponentInstance },
         result: { value: 0, component: null as ComponentInstance },
@@ -208,7 +208,7 @@ describe('computeFrom behavior', () => {
         output: number;
       };
 
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         mode: { value: 'disabled', component: null as ComponentInstance },
         input: { value: 100, component: null as ComponentInstance },
         output: { value: 0, component: null as ComponentInstance },
@@ -239,7 +239,7 @@ describe('computeFrom behavior', () => {
 
   describe('cleanup', () => {
     it('should stop computing after cleanup', async () => {
-      const form = makeForm<CalculatorForm>({
+      const form = createForm<CalculatorForm>({
         price: { value: 100, component: null as ComponentInstance },
         quantity: { value: 5, component: null as ComponentInstance },
         discount: { value: 0, component: null as ComponentInstance },

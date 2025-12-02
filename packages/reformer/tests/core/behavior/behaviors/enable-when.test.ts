@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { enableWhen, disableWhen } from '../../../../src/core/behavior/behaviors/enable-when';
 import type { BehaviorSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -18,7 +18,7 @@ describe('enableWhen behavior', () => {
 
   describe('enableWhen', () => {
     it('should enable field when condition is true', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -38,7 +38,7 @@ describe('enableWhen behavior', () => {
     });
 
     it('should disable field when condition is false', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'consumer', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -57,7 +57,7 @@ describe('enableWhen behavior', () => {
     });
 
     it('should react to condition changes', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'consumer', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -85,7 +85,7 @@ describe('enableWhen behavior', () => {
     it.todo('should reset field when disabled with resetOnDisable option');
 
     it('should NOT reset field when disabled without resetOnDisable', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 500000, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -110,7 +110,7 @@ describe('enableWhen behavior', () => {
     });
 
     it('should work with complex conditions', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: 'employed', component: null as ComponentInstance },
@@ -140,7 +140,7 @@ describe('enableWhen behavior', () => {
 
   describe('disableWhen', () => {
     it('should disable field when condition is true', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'consumer', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -159,7 +159,7 @@ describe('enableWhen behavior', () => {
     });
 
     it('should enable field when condition is false', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -178,7 +178,7 @@ describe('enableWhen behavior', () => {
     });
 
     it('should react to condition changes', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },
@@ -206,7 +206,7 @@ describe('enableWhen behavior', () => {
 
   describe('multiple behaviors', () => {
     it('should handle multiple enableWhen on different fields', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: 'employed', component: null as ComponentInstance },
@@ -238,7 +238,7 @@ describe('enableWhen behavior', () => {
 
   describe('cleanup', () => {
     it('should stop reacting after cleanup', async () => {
-      const form = makeForm<ConditionalForm>({
+      const form = createForm<ConditionalForm>({
         loanType: { value: 'mortgage', component: null as ComponentInstance },
         propertyValue: { value: 0, component: null as ComponentInstance },
         employmentStatus: { value: '', component: null as ComponentInstance },

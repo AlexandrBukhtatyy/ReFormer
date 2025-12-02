@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import type { GroupNodeWithControls } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -19,7 +19,7 @@ describe('GroupNode - Reference Equality', () => {
   let form: GroupNodeWithControls<TestForm>;
 
   beforeEach(() => {
-    form = makeForm<TestForm>({
+    form = createForm<TestForm>({
       email: { value: 'test@mail.com', component: null as ComponentInstance },
       password: { value: 'secret', component: null as ComponentInstance },
       age: { value: 25, component: null as ComponentInstance },
@@ -179,7 +179,7 @@ describe('GroupNode - Reference Equality', () => {
     }
 
     it('should cache nested group values independently', () => {
-      const nestedForm = makeForm<NestedForm>({
+      const nestedForm = createForm<NestedForm>({
         user: {
           name: { value: 'John', component: null as ComponentInstance },
           email: { value: 'john@mail.com', component: null as ComponentInstance },
@@ -207,7 +207,7 @@ describe('GroupNode - Reference Equality', () => {
     });
 
     it('should not invalidate cache when unrelated nested field changes', () => {
-      const nestedForm = makeForm<NestedForm>({
+      const nestedForm = createForm<NestedForm>({
         user: {
           name: { value: 'John', component: null as ComponentInstance },
           email: { value: 'john@mail.com', component: null as ComponentInstance },
@@ -233,7 +233,7 @@ describe('GroupNode - Reference Equality', () => {
     it('should handle empty form', () => {
       type EmptyForm = Record<string, never>;
 
-      const emptyForm = makeForm<EmptyForm>({});
+      const emptyForm = createForm<EmptyForm>({});
 
       const value1 = emptyForm.value.value;
       const value2 = emptyForm.value.value;
@@ -247,7 +247,7 @@ describe('GroupNode - Reference Equality', () => {
         name: string;
       }
 
-      const singleForm = makeForm<SingleFieldForm>({
+      const singleForm = createForm<SingleFieldForm>({
         name: { value: 'test', component: null as ComponentInstance },
       });
 

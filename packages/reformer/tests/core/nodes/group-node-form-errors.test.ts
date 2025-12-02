@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { GroupNodeWithControls, ValidationError } from '../../../src/core/types';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Form-level Errors', () => {
@@ -19,7 +19,7 @@ describe('GroupNode - Form-level Errors', () => {
   let form: GroupNodeWithControls<TestForm>;
 
   beforeEach(() => {
-    form = makeForm<TestForm>({
+    form = createForm<TestForm>({
       email: { value: '', component: null as ComponentInstance },
       password: { value: '', component: null as ComponentInstance },
       confirmPassword: { value: '', component: null as ComponentInstance },
@@ -227,7 +227,7 @@ describe('GroupNode - Form-level Errors', () => {
     }
 
     it('should handle form-level errors in nested groups independently', () => {
-      const nestedForm = makeForm<NestedForm>({
+      const nestedForm = createForm<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },
@@ -257,7 +257,7 @@ describe('GroupNode - Form-level Errors', () => {
     });
 
     it('should clear form-level errors recursively', () => {
-      const nestedForm = makeForm<NestedForm>({
+      const nestedForm = createForm<NestedForm>({
         user: {
           name: { value: '', component: null as ComponentInstance },
           email: { value: '', component: null as ComponentInstance },

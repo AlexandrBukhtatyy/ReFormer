@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import type { ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 const requiredValidator: ValidatorFn<string> = (value: string) => {
@@ -241,7 +241,7 @@ describe('FieldNode - updateOn', () => {
         password: string;
       }
 
-      const form = makeForm<TestForm>({
+      const form = createForm<TestForm>({
         email: {
           value: '',
           component: null as ComponentInstance,

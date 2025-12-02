@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { maxLength } from '../../../../src/core/validation/validators/max-length';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('maxLength validator', () => {
 
   describe('basic functionality', () => {
     it('should return error when string exceeds maximum length', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'abcdef', component: null as ComponentInstance },
       });
 
@@ -32,7 +32,7 @@ describe('maxLength validator', () => {
     });
 
     it('should pass when string equals maximum length', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'abc', component: null as ComponentInstance },
       });
 
@@ -47,7 +47,7 @@ describe('maxLength validator', () => {
     });
 
     it('should pass when string is shorter than maximum', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'ab', component: null as ComponentInstance },
       });
 
@@ -64,7 +64,7 @@ describe('maxLength validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -83,7 +83,7 @@ describe('maxLength validator', () => {
         text: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         text: { value: null, component: null as ComponentInstance },
       });
 
@@ -100,7 +100,7 @@ describe('maxLength validator', () => {
 
   describe('error params', () => {
     it('should include length values in error params', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'abcdefgh', component: null as ComponentInstance },
       });
 
@@ -116,7 +116,7 @@ describe('maxLength validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'very long name', component: null as ComponentInstance },
       });
 
@@ -137,7 +137,7 @@ describe('maxLength validator', () => {
     });
 
     it('should handle maximum length of 0', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: 'a', component: null as ComponentInstance },
       });
 
@@ -152,7 +152,7 @@ describe('maxLength validator', () => {
     });
 
     it('should pass empty string when maximum is 0', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -167,7 +167,7 @@ describe('maxLength validator', () => {
     });
 
     it('should count whitespace as characters', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         name: { value: '    ', component: null as ComponentInstance },
       });
 

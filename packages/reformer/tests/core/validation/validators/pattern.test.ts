@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../../../src/core/utils/create-form';
+import { createForm } from '../../../../src/core/utils/create-form';
 import { pattern } from '../../../../src/core/validation/validators/pattern';
 import type { ValidationSchemaFn, FieldPath } from '../../../../src/core/types';
 import { ComponentInstance } from '../../../test-utils/types';
@@ -15,7 +15,7 @@ describe('pattern validator', () => {
 
   describe('basic functionality', () => {
     it('should return error when value does not match pattern', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'abc', component: null as ComponentInstance },
       });
 
@@ -32,7 +32,7 @@ describe('pattern validator', () => {
     });
 
     it('should pass when value matches pattern', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: '12345', component: null as ComponentInstance },
       });
 
@@ -47,7 +47,7 @@ describe('pattern validator', () => {
     });
 
     it('should pass for partial match with proper regex', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'test123', component: null as ComponentInstance },
       });
 
@@ -64,7 +64,7 @@ describe('pattern validator', () => {
 
   describe('empty values', () => {
     it('should pass for empty string (use required for mandatory)', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: '', component: null as ComponentInstance },
       });
 
@@ -83,7 +83,7 @@ describe('pattern validator', () => {
         text: string | null;
       }
 
-      const form = makeForm<NullableForm>({
+      const form = createForm<NullableForm>({
         text: { value: null, component: null as ComponentInstance },
       });
 
@@ -100,7 +100,7 @@ describe('pattern validator', () => {
 
   describe('common patterns', () => {
     it('should validate alphanumeric only', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'abc123', component: null as ComponentInstance },
       });
 
@@ -115,7 +115,7 @@ describe('pattern validator', () => {
     });
 
     it('should reject special characters when not allowed', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'abc@123', component: null as ComponentInstance },
       });
 
@@ -130,7 +130,7 @@ describe('pattern validator', () => {
     });
 
     it('should validate UUID format', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: {
           value: '550e8400-e29b-41d4-a716-446655440000',
           component: null as ComponentInstance,
@@ -151,7 +151,7 @@ describe('pattern validator', () => {
 
   describe('error params', () => {
     it('should include pattern in error params', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'invalid', component: null as ComponentInstance },
       });
 
@@ -166,7 +166,7 @@ describe('pattern validator', () => {
     });
 
     it('should use custom message', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'invalid', component: null as ComponentInstance },
       });
 
@@ -187,7 +187,7 @@ describe('pattern validator', () => {
     });
 
     it('should handle case-insensitive patterns', async () => {
-      const form = makeForm<StringForm>({
+      const form = createForm<StringForm>({
         code: { value: 'ABC', component: null as ComponentInstance },
       });
 

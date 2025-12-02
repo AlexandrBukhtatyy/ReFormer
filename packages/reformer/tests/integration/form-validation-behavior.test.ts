@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { makeForm } from '../../src/core/utils/create-form';
+import { createForm } from '../../src/core/utils/create-form';
 import { required, minLength, email } from '../../src/core/validation/validators';
 import { enableWhen, computeFrom, copyFrom, transformers } from '../../src/core/behavior/behaviors';
 import type { BehaviorSchemaFn } from '../../src/core/behavior/types';
@@ -24,7 +24,7 @@ describe('Integration: Form + Validation + Behavior', () => {
 
   describe('registration form scenario', () => {
     it('should validate all fields with initial invalid values', async () => {
-      const form = makeForm<RegistrationForm>({
+      const form = createForm<RegistrationForm>({
         username: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
@@ -58,7 +58,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     });
 
     it('should validate all fields with valid initial values', async () => {
-      const form = makeForm<RegistrationForm>({
+      const form = createForm<RegistrationForm>({
         username: { value: 'john', component: null as ComponentInstance },
         email: { value: 'john@example.com', component: null as ComponentInstance },
         password: { value: 'securepassword123', component: null as ComponentInstance },
@@ -94,7 +94,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     });
 
     it('should copy password to confirm and validate both', async () => {
-      const form = makeForm<RegistrationForm>({
+      const form = createForm<RegistrationForm>({
         username: { value: 'john', component: null as ComponentInstance },
         email: { value: 'john@test.com', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
@@ -124,7 +124,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     });
 
     it('should transform referral code to uppercase', async () => {
-      const form = makeForm<RegistrationForm>({
+      const form = createForm<RegistrationForm>({
         username: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
@@ -152,7 +152,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     });
 
     it('should enable newsletter field only when terms accepted', async () => {
-      const form = makeForm<RegistrationForm>({
+      const form = createForm<RegistrationForm>({
         username: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
         password: { value: '', component: null as ComponentInstance },
@@ -197,7 +197,7 @@ describe('Integration: Form + Validation + Behavior', () => {
 
   describe('order form with computed values', () => {
     it('should compute total from quantity, price, and discount', async () => {
-      const form = makeForm<OrderForm>({
+      const form = createForm<OrderForm>({
         quantity: { value: 2, component: null as ComponentInstance },
         unitPrice: { value: 100, component: null as ComponentInstance },
         discount: { value: 10, component: null as ComponentInstance },
@@ -240,7 +240,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     });
 
     it('should copy shipping to billing when checkbox is checked', async () => {
-      const form = makeForm<OrderForm>({
+      const form = createForm<OrderForm>({
         quantity: { value: 1, component: null as ComponentInstance },
         unitPrice: { value: 50, component: null as ComponentInstance },
         discount: { value: 0, component: null as ComponentInstance },
@@ -289,7 +289,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     }
 
     it('should compute fullName and validate it', async () => {
-      const form = makeForm<ProfileForm>({
+      const form = createForm<ProfileForm>({
         firstName: { value: 'John', component: null as ComponentInstance },
         lastName: { value: 'Doe', component: null as ComponentInstance },
         fullName: { value: '', component: null as ComponentInstance },
@@ -325,7 +325,7 @@ describe('Integration: Form + Validation + Behavior', () => {
     });
 
     it('should transform email to lowercase and validate', async () => {
-      const form = makeForm<ProfileForm>({
+      const form = createForm<ProfileForm>({
         firstName: { value: '', component: null as ComponentInstance },
         lastName: { value: '', component: null as ComponentInstance },
         fullName: { value: '', component: null as ComponentInstance },

@@ -3,7 +3,7 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - main
+      - develop
     paths:
       - 'projects/reformer-doc/**'
       - 'packages/reformer/src/**'

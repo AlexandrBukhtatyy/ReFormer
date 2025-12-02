@@ -1,11 +1,11 @@
-# Reform
+# Reformer
 
 Reactive form state management library for React with signals-based architecture.
 
 ## Installation
 
 ```bash
-npm install reform@beta
+npm install reformer@beta
 ```
 
 ## Features
@@ -19,7 +19,7 @@ npm install reform@beta
 ## Quick Start
 
 ```tsx
-import { createForm, useFormControl } from 'reform';
+import { createForm, useFormControl } from 'reformer';
 
 const form = createForm({
   schema: {

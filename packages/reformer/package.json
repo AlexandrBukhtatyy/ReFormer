@@ -2,23 +2,25 @@
   "name": "reformer",
   "version": "1.0.0-beta.1",
   "description": "Reactive form state management library for React with signals-based architecture",
-  "main": "dist/index.cjs.js",
-  "module": "dist/index.es.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./behaviors": {
-      "import": "./dist/core/behavior/index.js",
-      "types": "./dist/core/behavior/index.d.ts"
+      "types": "./dist/behaviors.d.ts",
+      "import": "./dist/behaviors.js"
     },
     "./validators": {
-      "import": "./dist/core/validation/index.js",
-      "types": "./dist/core/validation/index.d.ts"
+      "types": "./dist/validators.d.ts",
+      "import": "./dist/validators.js"
     }
   },
+  "sideEffects": false,
   "scripts": {
     "build": "vite build && tsc -p tsconfig.json",
     "dev": "vite",
@@ -28,11 +30,19 @@
   "keywords": [
     "react",
     "forms",
+    "form-validation",
     "validation",
     "state-management",
     "signals",
-    "reactive"
+    "reactive",
+    "typescript",
+    "hooks",
+    "form-builder",
+    "dynamic-forms"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "author": "Alexandr Bukhtatyy",
   "license": "MIT",
   "repository": {
@@ -57,13 +67,13 @@
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "@preact/signals-core": "^1.8.0",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@types/uuid": "^10.0.0"
+    "@preact/signals-core": "^1.8.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/utils": "^4.0.8",
     "react": "^19.2.0",

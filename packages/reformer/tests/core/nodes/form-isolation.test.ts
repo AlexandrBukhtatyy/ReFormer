@@ -13,7 +13,7 @@ import { required, email } from '../../../src/core/validation/validators';
 import { computeFrom, enableWhen } from '../../../src/core/behavior/behaviors';
 import type { ValidationSchemaFn } from '../../../src/core/types/validation-schema';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
-import { makeForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/core/utils/create-form';
 import type { GroupNodeWithControls } from '../../src';
 import type { FieldPath } from '../../../src/core/types';
 
@@ -42,13 +42,13 @@ describe('Form Isolation', () => {
       };
 
       // Создаем две формы с одинаковой структурой
-      const form1 = makeForm<TestForm>({
+      const form1 = createForm<TestForm>({
         email: { value: '', component: Input },
         name: { value: '', component: Input },
         age: { value: '', component: Input },
       });
 
-      const form2 = makeForm<TestForm>({
+      const form2 = createForm<TestForm>({
         email: { value: '', component: Input },
         name: { value: '', component: Input },
         age: { value: '', component: Input },
@@ -81,7 +81,7 @@ describe('Form Isolation', () => {
       const forms: GroupNodeWithControls<TestForm>[] = [];
 
       for (let i = 0; i < 3; i++) {
-        const form = makeForm<TestForm>({
+        const form = createForm<TestForm>({
           email: { value: '', component: Input },
           name: { value: '', component: Input },
           age: { value: '', component: Input },
@@ -154,13 +154,13 @@ describe('Form Isolation', () => {
       };
 
       // Создаем две формы
-      const form1 = makeForm<BehaviorTestForm>({
+      const form1 = createForm<BehaviorTestForm>({
         sourceField: { value: 'test', component: Input },
         targetField1: { value: '', component: Input },
         targetField2: { value: '', component: Input },
       });
 
-      const form2 = makeForm<BehaviorTestForm>({
+      const form2 = createForm<BehaviorTestForm>({
         sourceField: { value: 'test', component: Input },
         targetField1: { value: '', component: Input },
         targetField2: { value: '', component: Input },
@@ -205,13 +205,13 @@ describe('Form Isolation', () => {
       };
 
       // Создаем две формы
-      const form1 = makeForm<EnableTestForm>({
+      const form1 = createForm<EnableTestForm>({
         condition: { value: false, component: Input },
         field1: { value: '', component: Input },
         field2: { value: '', component: Input },
       });
 
-      const form2 = makeForm<EnableTestForm>({
+      const form2 = createForm<EnableTestForm>({
         condition: { value: false, component: Input },
         field1: { value: '', component: Input },
         field2: { value: '', component: Input },
@@ -257,7 +257,7 @@ describe('Form Isolation', () => {
       }
 
       // Форма 1: валидация email + behavior копирования
-      const form1 = makeForm<FullTestForm>({
+      const form1 = createForm<FullTestForm>({
         form: {
           email: { value: '', component: Input },
           confirmEmail: { value: '', component: Input },
@@ -275,7 +275,7 @@ describe('Form Isolation', () => {
       });
 
       // Форма 2: валидация confirmEmail (другое поле!)
-      const form2 = makeForm<FullTestForm>({
+      const form2 = createForm<FullTestForm>({
         form: {
           email: { value: '', component: Input },
           confirmEmail: { value: '', component: Input },
