@@ -42,15 +42,7 @@ import {
   FieldNode,
 } from '@reformer/core';
 
-// 1. Define form interface
-interface RegistrationForm {
-  username: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-// 2. Simple FormField component
+// 0. Simple FormField component
 function FormField({ label, control }: { label: string; control: FieldNode<string> }) {
   const { value, errors } = useFormControl(control);
 
@@ -67,47 +59,61 @@ function FormField({ label, control }: { label: string; control: FieldNode<strin
   );
 }
 
-// 3. Registration form component
+// 1. Define form interface
+interface RegistrationForm {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+// 2. Form schema
+const formSchema = {
+  username: { value: '' },
+  email: { value: '' },
+  password: { value: '' },
+  confirmPassword: { value: '' },
+};
+
+// 3. Validation schema
+validationSchema = (path) => {
+  required(path.username);
+
+  required(path.email);
+  email(path.email);
+
+  required(path.password);
+  required(path.confirmPassword);
+
+  // Cross-field validation: passwords must match
+  validate(path.confirmPassword, (value, ctx) => {
+    const password = ctx.form.password.value.value;
+    if (value && password && value !== password) {
+      return { code: 'mismatch', message: 'Passwords do not match' };
+    }
+    return null;
+  });
+};
+
+// 4. Behavior schema
+behavior = (path) => {
+  // Clear confirmPassword when password changes (if not empty)
+  watchField(path.password, (_, ctx) => {
+    const confirmValue = ctx.form.confirmPassword.value.value;
+    if (confirmValue) {
+      ctx.form.confirmPassword.setValue('', { emitEvent: false });
+    }
+  });
+};
+
+// 5. Registration form component
 function RegistrationFormExample() {
   const form = useMemo(
     () =>
       createForm<RegistrationForm>({
-        // Form schema
-        form: {
-          username: { value: '' },
-          email: { value: '' },
-          password: { value: '' },
-          confirmPassword: { value: '' },
-        },
-
-        // Validation schema
-        validation: (path) => {
-          required(path.username);
-          required(path.email);
-          email(path.email);
-          required(path.password);
-          required(path.confirmPassword);
-
-          // Cross-field validation: passwords must match
-          validate(path.confirmPassword, (value, ctx) => {
-            const password = ctx.form.password.value.value;
-            if (value && password && value !== password) {
-              return { code: 'mismatch', message: 'Passwords do not match' };
-            }
-            return null;
-          });
-        },
-
-        // Behavior schema
-        behavior: (path) => {
-          // Clear confirmPassword when password changes (if not empty)
-          watchField(path.password, (_, ctx) => {
-            const confirmValue = ctx.form.confirmPassword.value.value;
-            if (confirmValue) {
-              ctx.form.confirmPassword.setValue('', { emitEvent: false });
-            }
-          });
-        },
+        form: formSchema,
+        validation: validationSchema,
+        behavior: behaviorSchema,
       }),
     []
   );
