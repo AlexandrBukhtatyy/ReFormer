@@ -23,11 +23,11 @@ Thank you for your interest in contributing to Reformer! This document provides 
    ```
 4. Build the library:
    ```bash
-   npm run build -w reformer
+   npm run build -w @reformer/core
    ```
 5. Run tests:
    ```bash
-   npm run test -w reformer
+   npm run test -w @reformer/core
    ```
 
 ## Development Workflow
@@ -80,7 +80,7 @@ docs: update installation instructions
 
 1. Create a new branch from `develop`
 2. Make your changes
-3. Ensure all tests pass: `npm run test -w reformer`
+3. Ensure all tests pass: `npm run test -w @reformer/core`
 4. Ensure code is formatted: `npm run format`
 5. Push your branch and create a Pull Request to `develop`
 6. Fill in the PR template with relevant information
@@ -96,8 +96,8 @@ docs: update installation instructions
 
 - Write tests for all new features and bug fixes
 - Tests are located in `packages/reformer/tests/`
-- Run tests with `npm run test -w reformer`
-- Run tests in watch mode with `npm run test:watch -w reformer`
+- Run tests with `npm run test -w @reformer/core`
+- Run tests in watch mode with `npm run test:watch -w @reformer/core`
 
 ## Documentation
 
