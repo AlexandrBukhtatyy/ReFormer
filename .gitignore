@@ -5,3 +5,9 @@ playwright-report
 .playwright-mcp
 
 .env
+
+# Auto-generated API documentation
+projects/reformer-doc/docs/api/
+
+# Temporary docs
+docs/_temp/
