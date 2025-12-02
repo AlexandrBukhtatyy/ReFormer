@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 
 export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'none';
 

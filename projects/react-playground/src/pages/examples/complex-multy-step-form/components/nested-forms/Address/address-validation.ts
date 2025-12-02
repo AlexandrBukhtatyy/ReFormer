@@ -5,7 +5,7 @@
  * к любому полю типа Address через композицию.
  */
 
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import { required, minLength, maxLength, pattern } from 'reformer/validators';
 import type { Address } from './AddressForm';
 

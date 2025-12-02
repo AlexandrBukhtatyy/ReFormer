@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResourceConfig } from 'reformer';
+import type { ResourceConfig } from '@reformer/core';
 
 export interface SelectProps<T>
   extends Omit<React.ComponentProps<typeof SelectPrimitive.Root>, 'value' | 'onValueChange'> {

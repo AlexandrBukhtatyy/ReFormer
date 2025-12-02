@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useFormControl, type FieldNode } from 'reformer';
+import { useFormControl, type FieldNode } from '@reformer/core';
 import { Checkbox } from './checkbox';
 
 export interface FormFieldProps {

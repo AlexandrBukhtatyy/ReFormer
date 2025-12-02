@@ -1,5 +1,5 @@
 import { required, min, minLength } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { Property } from './type';
 
 export const propertyValidation: ValidationSchemaFn<Property> = (path: FieldPath<Property>) => {

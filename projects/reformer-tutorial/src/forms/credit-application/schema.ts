@@ -1,4 +1,4 @@
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import type { CreditApplicationForm } from './type';
 
 // Импорт схем из шагов

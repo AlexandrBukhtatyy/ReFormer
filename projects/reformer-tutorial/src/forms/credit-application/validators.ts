@@ -1,5 +1,5 @@
 import { validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from './type';
 
 // Импорт валидаторов шагов

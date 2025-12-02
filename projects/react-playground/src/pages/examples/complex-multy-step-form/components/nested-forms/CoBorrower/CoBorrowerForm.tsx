@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { RELATIONSHIPS } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { Select } from '@/components/ui/select';

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { GroupNodeWithControls, ValidationSchemaFn } from 'reformer';
+import type { GroupNodeWithControls, ValidationSchemaFn } from '@reformer/core';
 
 /**
  * Конфигурация multi-step формы

@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import type { PassportData } from './type';
 
 export const passportDataSchema: FormSchema<PassportData> = {

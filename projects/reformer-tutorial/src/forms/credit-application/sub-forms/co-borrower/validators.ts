@@ -1,5 +1,5 @@
 import { required, min, email, phone } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CoBorrower } from './type';
 
 export const coBorrowerValidation: ValidationSchemaFn<CoBorrower> = (

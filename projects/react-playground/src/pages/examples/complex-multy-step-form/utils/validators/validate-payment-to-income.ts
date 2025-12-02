@@ -2,7 +2,7 @@
  * Валидация платежеспособности (процент платежа от дохода <= 50%)
  */
 
-import type { FormContext, ValidationError } from 'reformer';
+import type { FormContext, ValidationError } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**

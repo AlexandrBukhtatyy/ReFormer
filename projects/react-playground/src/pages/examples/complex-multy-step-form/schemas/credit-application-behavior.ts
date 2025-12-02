@@ -51,7 +51,7 @@ import {
 // API функции из api (уровень домена)
 // ПРИМЕЧАНИЕ: fetchRegions, fetchCities теперь используются в addressBehavior
 import { fetchCarModels } from '../api';
-import type { FieldPath } from 'reformer';
+import type { FieldPath } from '@reformer/core';
 
 /**
  * Главная схема поведения формы заявки на кредит

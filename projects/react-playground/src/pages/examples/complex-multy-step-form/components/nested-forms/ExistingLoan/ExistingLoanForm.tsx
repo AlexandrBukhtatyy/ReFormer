@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { EXISTING_LOAN_TYPES } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { FormField } from '@/components/ui/form-field';

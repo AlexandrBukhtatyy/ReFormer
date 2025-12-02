@@ -4,7 +4,7 @@ import {
   type ArrayNode,
   type FormFields,
   type GroupNodeWithControls,
-} from 'reformer';
+} from '@reformer/core';
 import { Button } from '@/components/ui/button';
 
 interface FormArrayManagerProps {

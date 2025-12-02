@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { FormField } from '@/components/ui/form-field';

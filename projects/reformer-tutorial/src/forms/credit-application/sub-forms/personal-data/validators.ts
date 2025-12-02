@@ -1,5 +1,5 @@
 import { required, minLength, pattern, validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { PersonalData } from './type';
 
 export const personalDataValidation: ValidationSchemaFn<PersonalData> = (

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMemo } from 'react';
-import { createForm, useFormControl, type FieldNode } from 'reformer';
+import { createForm, useFormControl, type FieldNode } from '@reformer/core';
 import { required, email, minLength } from 'reformer/validators';
 
 // ============================================================================

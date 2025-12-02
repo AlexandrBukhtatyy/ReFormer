@@ -12,7 +12,7 @@
 
 import { watchField, type BehaviorSchemaFn } from 'reformer/behaviors';
 import type { Address } from './AddressForm';
-import type { FieldPath } from 'reformer';
+import type { FieldPath } from '@reformer/core';
 import { fetchCities } from '../../../api';
 
 /**

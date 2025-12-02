@@ -6,7 +6,7 @@
  * - PassportDataForm (паспортные данные)
  */
 
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { PersonalDataForm } from '../../nested-forms/PersonalData/PersonalDataForm';
 import { PassportDataForm } from '../../nested-forms/PassportData/PassportDataForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';

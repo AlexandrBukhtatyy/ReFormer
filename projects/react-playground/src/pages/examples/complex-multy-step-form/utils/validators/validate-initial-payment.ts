@@ -2,7 +2,7 @@
  * Валидация первоначального взноса (должен быть >= 20% от стоимости недвижимости)
  */
 
-import type { FormContext, ValidationError } from 'reformer';
+import type { FormContext, ValidationError } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**

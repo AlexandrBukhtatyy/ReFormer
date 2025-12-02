@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import type { PersonalData } from './type';
 
 export const personalDataSchema: FormSchema<PersonalData> = {

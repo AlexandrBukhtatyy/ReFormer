@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 
 /**
  * Паспортные данные (вложенная форма)

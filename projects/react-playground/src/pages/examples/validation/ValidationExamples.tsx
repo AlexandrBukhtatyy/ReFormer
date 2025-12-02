@@ -9,7 +9,7 @@ import {
   type GroupNodeWithControls,
   type FormSchema,
   type FieldPath,
-} from 'reformer';
+} from '@reformer/core';
 import {
   required,
   email,

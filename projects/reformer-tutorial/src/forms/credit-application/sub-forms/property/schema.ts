@@ -2,7 +2,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import type { Property } from './type';
 
 export const propertySchema: FormSchema<Property> = {

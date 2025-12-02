@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { GENDERS } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from 'reformer';
+import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { FormField } from '@/components/ui/form-field';

@@ -9,8 +9,8 @@
  * NOTE: Массивы будут активированы после раскомментирования в схеме
  */
 
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';

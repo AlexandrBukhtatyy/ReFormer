@@ -3,7 +3,7 @@
  * Включает синхронную и асинхронную валидацию
  */
 
-import { type FieldPath } from 'reformer';
+import { type FieldPath } from '@reformer/core';
 import { required, email, minLength, pattern, validate, validateAsync } from 'reformer/validators';
 import type { RegistrationFormData } from '../RegistrationForm';
 

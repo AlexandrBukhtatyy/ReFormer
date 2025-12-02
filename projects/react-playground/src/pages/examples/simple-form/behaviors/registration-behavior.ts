@@ -5,7 +5,7 @@
 
 import { watchField, revalidateWhen, type BehaviorSchemaFn } from 'reformer/behaviors';
 import type { RegistrationFormData } from '../RegistrationForm';
-import type { FieldPath } from 'reformer';
+import type { FieldPath } from '@reformer/core';
 
 /**
  * Behavior schema для формы регистрации

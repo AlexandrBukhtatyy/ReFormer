@@ -1,4 +1,4 @@
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { personalDataSchema } from '../../sub-forms/personal-data/schema';
 import { passportDataSchema } from '../../sub-forms/passport-data/schema';

@@ -1,6 +1,6 @@
 import { disableWhen, copyFrom } from 'reformer/behaviors';
 import type { BehaviorSchemaFn } from 'reformer/behaviors';
-import type { FieldPath } from 'reformer';
+import type { FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (

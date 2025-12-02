@@ -1,5 +1,5 @@
 import { required, pattern } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { Address } from './type';
 
 export const addressValidation: ValidationSchemaFn<Address> = (path: FieldPath<Address>) => {

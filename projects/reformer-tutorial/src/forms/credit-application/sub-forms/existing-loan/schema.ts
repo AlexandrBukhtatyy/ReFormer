@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import type { ExistingLoan } from './type';
 
 export const existingLoanSchema: FormSchema<ExistingLoan> = {

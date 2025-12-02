@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { GroupNode } from 'reformer';
+import type { GroupNode } from '@reformer/core';
 
 // Компонент отображения состояния формы (реактивный)
 // Подписывается на изменения внутри, чтобы не вызывать ре-рендер родителя

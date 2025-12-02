@@ -1,5 +1,5 @@
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
