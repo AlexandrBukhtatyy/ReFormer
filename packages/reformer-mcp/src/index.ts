@@ -25,6 +25,12 @@ import {
   getExamplesTool,
   explainErrorToolDefinition,
   explainErrorTool,
+  getFunctionSignatureToolDefinition,
+  getFunctionSignatureTool,
+  getImportsToolDefinition,
+  getImportsTool,
+  getPatternToolDefinition,
+  getPatternTool,
 } from './tools/index.js';
 
 // Prompts
@@ -66,6 +72,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       getApiToolDefinition,
       getExamplesToolDefinition,
       explainErrorToolDefinition,
+      getFunctionSignatureToolDefinition,
+      getImportsToolDefinition,
+      getPatternToolDefinition,
     ],
   };
 });
@@ -88,6 +97,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case 'explain_error':
       return await explainErrorTool(args as { error: string });
+
+    case 'get_function_signature':
+      return await getFunctionSignatureTool(args as { functionName: string });
+
+    case 'get_imports':
+      return await getImportsTool(args as { category: string });
+
+    case 'get_pattern':
+      return await getPatternTool(args as { pattern: string });
 
     default:
       throw new Error(`Unknown tool: ${name}`);

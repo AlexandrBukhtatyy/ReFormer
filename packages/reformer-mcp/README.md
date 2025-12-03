@@ -46,7 +46,10 @@ claude mcp list
 | `search_docs` | Search documentation for specific topics |
 | `get_api_reference` | Get API reference for methods/types |
 | `get_examples` | Get code examples by topic |
-| `explain_error` | Explain and troubleshoot errors |
+| `explain_error` | Explain and troubleshoot errors with examples |
+| `get_function_signature` | Get exact TypeScript signatures for functions |
+| `get_imports` | Get correct import statements by category |
+| `get_pattern` | Get usage patterns for common scenarios |
 
 ## Available Resources
 
