@@ -1,3 +1,10 @@
+# [1.0.0-beta.7](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-12-03)
+
+
+### Features
+
+* **reformer:** add uuid dependency ([c253ac3](https://github.com/AlexandrBukhtatyy/ReFormer/commit/c253ac38c05ad62ff6bf01729f5fe80aca255985))
+
 # [1.0.0-beta.6](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-12-02)
 
 
