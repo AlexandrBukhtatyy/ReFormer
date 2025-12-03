@@ -1,0 +1,55 @@
+{
+  "name": "@reformer/mcp",
+  "version": "1.0.0-beta.1",
+  "description": "MCP server for ReFormer library - provides AI assistants with ReFormer documentation and tools",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "reformer-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "reformer",
+    "claude",
+    "ai",
+    "forms",
+    "react"
+  ],
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "homepage": "https://github.com/AlexandrBukhtatyy/ReFormer/tree/main/packages/reformer-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@reformer/core": "^1.0.0-beta.1"
+  },
+  "peerDependenciesMeta": {
+    "@reformer/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
