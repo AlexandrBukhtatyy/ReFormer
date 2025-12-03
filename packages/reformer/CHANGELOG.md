@@ -1,3 +1,10 @@
+# [1.0.0-beta.8](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-12-03)
+
+
+### Features
+
+* **reformer:** add mcp server package for ai assistants ([276b76c](https://github.com/AlexandrBukhtatyy/ReFormer/commit/276b76ccbe9e083965010230eef8ae9ae81f7e3c))
+
 # [1.0.0-beta.7](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-12-03)
 
 
