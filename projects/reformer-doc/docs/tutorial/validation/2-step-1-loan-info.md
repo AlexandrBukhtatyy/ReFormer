@@ -39,15 +39,8 @@ touch src/schemas/validators/loan-info.ts
 Start with basic required fields and numeric ranges:
 
 ```typescript title="src/schemas/validators/loan-info.ts"
-import {
-  required,
-  min,
-  max,
-  minLength,
-  maxLength,
-  applyWhen,
-} from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, max, minLength, maxLength, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -104,14 +97,18 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
   // Conditional: Mortgage Fields
   // ==========================================
 
-  applyWhen(path.loanType, (loanType) => loanType === 'mortgage', (p) => {
-    required(p.propertyValue, { message: 'Property value is required for mortgage' });
-    min(p.propertyValue, 1000000, { message: 'Minimum property value: 1,000,000' });
-    max(p.propertyValue, 500000000, { message: 'Maximum property value: 500,000,000' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'mortgage',
+    (p) => {
+      required(p.propertyValue, { message: 'Property value is required for mortgage' });
+      min(p.propertyValue, 1000000, { message: 'Minimum property value: 1,000,000' });
+      max(p.propertyValue, 500000000, { message: 'Maximum property value: 500,000,000' });
 
-    required(p.initialPayment, { message: 'Initial payment is required for mortgage' });
-    min(p.initialPayment, 100000, { message: 'Minimum initial payment: 100,000' });
-  });
+      required(p.initialPayment, { message: 'Initial payment is required for mortgage' });
+      min(p.initialPayment, 100000, { message: 'Minimum initial payment: 100,000' });
+    }
+  );
 };
 ```
 
@@ -129,18 +126,22 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
 
   const currentYear = new Date().getFullYear();
 
-  applyWhen(path.loanType, (loanType) => loanType === 'car', (p) => {
-    required(p.carBrand, { message: 'Car brand is required' });
-    required(p.carModel, { message: 'Car model is required' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'car',
+    (p) => {
+      required(p.carBrand, { message: 'Car brand is required' });
+      required(p.carModel, { message: 'Car model is required' });
 
-    required(p.carYear, { message: 'Year of manufacture is required' });
-    min(p.carYear, 2000, { message: 'Car must be year 2000 or newer' });
-    max(p.carYear, currentYear + 1, { message: `Maximum year: ${currentYear + 1}` });
+      required(p.carYear, { message: 'Year of manufacture is required' });
+      min(p.carYear, 2000, { message: 'Car must be year 2000 or newer' });
+      max(p.carYear, currentYear + 1, { message: `Maximum year: ${currentYear + 1}` });
 
-    required(p.carPrice, { message: 'Car price is required' });
-    min(p.carPrice, 100000, { message: 'Minimum car price: 100,000' });
-    max(p.carPrice, 20000000, { message: 'Maximum car price: 20,000,000' });
-  });
+      required(p.carPrice, { message: 'Car price is required' });
+      min(p.carPrice, 100000, { message: 'Minimum car price: 100,000' });
+      max(p.carPrice, 20000000, { message: 'Maximum car price: 20,000,000' });
+    }
+  );
 };
 ```
 
@@ -149,15 +150,8 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
 Here's the complete validator for Step 1:
 
 ```typescript title="src/schemas/validators/loan-info.ts"
-import {
-  required,
-  min,
-  max,
-  minLength,
-  maxLength,
-  applyWhen,
-} from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, max, minLength, maxLength, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -201,32 +195,40 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Conditional: Mortgage Fields
   // ==========================================
-  applyWhen(path.loanType, (loanType) => loanType === 'mortgage', (p) => {
-    required(p.propertyValue, { message: 'Property value is required for mortgage' });
-    min(p.propertyValue, 1000000, { message: 'Minimum property value: 1,000,000' });
-    max(p.propertyValue, 500000000, { message: 'Maximum property value: 500,000,000' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'mortgage',
+    (p) => {
+      required(p.propertyValue, { message: 'Property value is required for mortgage' });
+      min(p.propertyValue, 1000000, { message: 'Minimum property value: 1,000,000' });
+      max(p.propertyValue, 500000000, { message: 'Maximum property value: 500,000,000' });
 
-    required(p.initialPayment, { message: 'Initial payment is required for mortgage' });
-    min(p.initialPayment, 100000, { message: 'Minimum initial payment: 100,000' });
-  });
+      required(p.initialPayment, { message: 'Initial payment is required for mortgage' });
+      min(p.initialPayment, 100000, { message: 'Minimum initial payment: 100,000' });
+    }
+  );
 
   // ==========================================
   // Conditional: Car Loan Fields
   // ==========================================
   const currentYear = new Date().getFullYear();
 
-  applyWhen(path.loanType, (loanType) => loanType === 'car', (p) => {
-    required(p.carBrand, { message: 'Car brand is required' });
-    required(p.carModel, { message: 'Car model is required' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'car',
+    (p) => {
+      required(p.carBrand, { message: 'Car brand is required' });
+      required(p.carModel, { message: 'Car model is required' });
 
-    required(p.carYear, { message: 'Year of manufacture is required' });
-    min(p.carYear, 2000, { message: 'Car must be year 2000 or newer' });
-    max(p.carYear, currentYear + 1, { message: `Maximum year: ${currentYear + 1}` });
+      required(p.carYear, { message: 'Year of manufacture is required' });
+      min(p.carYear, 2000, { message: 'Car must be year 2000 or newer' });
+      max(p.carYear, currentYear + 1, { message: `Maximum year: ${currentYear + 1}` });
 
-    required(p.carPrice, { message: 'Car price is required' });
-    min(p.carPrice, 100000, { message: 'Minimum car price: 100,000' });
-    max(p.carPrice, 20000000, { message: 'Maximum car price: 20,000,000' });
-  });
+      required(p.carPrice, { message: 'Car price is required' });
+      min(p.carPrice, 100000, { message: 'Minimum car price: 100,000' });
+      max(p.carPrice, 20000000, { message: 'Maximum car price: 20,000,000' });
+    }
+  );
 };
 ```
 
@@ -255,10 +257,14 @@ max(path.loanAmount, 10000000, { message: 'Maximum amount: 10,000,000' });
 ### Conditional Validators
 
 ```typescript
-applyWhen(path.loanType, (loanType) => loanType === 'mortgage', (p) => {
-  required(p.propertyValue, { message: 'Property value is required for mortgage' });
-  min(p.propertyValue, 1000000, { message: 'Minimum property value: 1,000,000' });
-});
+applyWhen(
+  path.loanType,
+  (loanType) => loanType === 'mortgage',
+  (p) => {
+    required(p.propertyValue, { message: 'Property value is required for mortgage' });
+    min(p.propertyValue, 1000000, { message: 'Minimum property value: 1,000,000' });
+  }
+);
 ```
 
 - **First argument**: Field to watch (dependency)
@@ -276,9 +282,13 @@ Remember from the Behaviors section, we have:
 enableWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
 
 // Validation only applies when visible
-applyWhen(path.loanType, (type) => type === 'mortgage', (p) => {
-  required(p.propertyValue, { message: 'Property value is required' });
-});
+applyWhen(
+  path.loanType,
+  (type) => type === 'mortgage',
+  (p) => {
+    required(p.propertyValue, { message: 'Property value is required' });
+  }
+);
 ```
 
 When `loanType` is not 'mortgage':

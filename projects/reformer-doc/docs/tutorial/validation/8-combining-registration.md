@@ -26,7 +26,7 @@ touch src/schemas/validators/credit-application.ts
 ### Implementation
 
 ```typescript title="src/schemas/validators/credit-application.ts"
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 // Import step validators
@@ -88,7 +88,7 @@ export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationFo
 Update your form creation function to include validation:
 
 ```typescript title="src/schemas/create-form.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './credit-application.schema';
 import { creditApplicationBehaviors } from '../behaviors/credit-application.behaviors';
 import { creditApplicationValidation } from '../validators/credit-application.validators';
@@ -412,7 +412,7 @@ createValidator(path.b, [path.a], (b, [a]) => {
 ### In Components
 
 ```tsx
-import { useField } from 'reformer/react';
+import { useField } from '@reformer/core/react';
 
 function FormField({ control }) {
   const field = useField(control);

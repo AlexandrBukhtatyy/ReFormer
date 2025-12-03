@@ -11,7 +11,7 @@ sidebar_position: 4
 Используйте `validate()` для инлайн кастомных валидаторов:
 
 ```typescript
-import { validate } from 'reformer/validators';
+import { validate } from '@reformer/core/validators';
 
 validation: (path) => {
   // Инлайн кастомный валидатор
@@ -21,7 +21,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 // Ошибка: { mustBeAdult: true }
 ```
 
@@ -29,7 +29,7 @@ validation: (path) => {
 
 ```typescript
 // validators/password.ts
-import { ValidatorFn } from 'reformer';
+import { ValidatorFn } from '@reformer/core';
 
 export function strongPassword(): ValidatorFn {
   return (value: string) => {
@@ -53,7 +53,7 @@ export function strongPassword(): ValidatorFn {
 }
 
 // Использование
-validate(path.password, strongPassword())
+validate(path.password, strongPassword());
 ```
 
 ## Валидатор с параметрами
@@ -69,7 +69,7 @@ export function range(min: number, max: number): ValidatorFn {
 }
 
 // Использование
-validate(path.quantity, range(1, 100))
+validate(path.quantity, range(1, 100));
 // Ошибка: { range: { min: 1, max: 100, actual: 150 } }
 ```
 
@@ -78,7 +78,7 @@ validate(path.quantity, range(1, 100))
 Доступ к состоянию формы во время валидации:
 
 ```typescript
-import { ContextualValidatorFn } from 'reformer';
+import { ContextualValidatorFn } from '@reformer/core';
 
 export function matchField(fieldName: string): ContextualValidatorFn {
   return (value, context) => {
@@ -92,7 +92,7 @@ export function matchField(fieldName: string): ContextualValidatorFn {
 }
 
 // Использование
-validate(path.confirmPassword, matchField('password'))
+validate(path.confirmPassword, matchField('password'));
 ```
 
 ## Кросс-валидация полей
@@ -113,7 +113,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 ## Валидация элементов массива
@@ -146,7 +146,7 @@ const form = new GroupNode<ContactForm>({
 Используйте `when()` для условных кастомных валидаторов:
 
 ```typescript
-import { when } from 'reformer/validators';
+import { when } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.country);
@@ -164,7 +164,7 @@ validation: (path) => {
       });
     }
   );
-}
+};
 ```
 
 ## Следующие шаги

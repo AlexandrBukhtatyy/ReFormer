@@ -17,7 +17,7 @@ Nodes are the building blocks of ReFormer forms. There are three types:
 The simplest node — holds a single value.
 
 ```typescript
-import { FieldNode } from 'reformer';
+import { FieldNode } from '@reformer/core';
 
 const name = new FieldNode({ value: '' });
 const age = new FieldNode({ value: 0 });
@@ -58,7 +58,7 @@ name.value; // 'John'
 Groups multiple fields into an object.
 
 ```typescript
-import { GroupNode } from 'reformer';
+import { GroupNode } from '@reformer/core';
 
 const form = new GroupNode({
   form: {
@@ -100,7 +100,7 @@ Inherits all FieldNode properties plus:
 Dynamic list of items.
 
 ```typescript
-import { GroupNode } from 'reformer';
+import { GroupNode } from '@reformer/core';
 
 const form = new GroupNode({
   form: {

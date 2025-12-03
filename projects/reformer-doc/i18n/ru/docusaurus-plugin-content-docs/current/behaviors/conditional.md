@@ -11,7 +11,7 @@ sidebar_position: 3
 Включать поле только когда условие истинно.
 
 ```typescript
-import { enableWhen } from 'reformer/behaviors';
+import { enableWhen } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   enableWhen(path.submitButton, () => form.controls.agreeToTerms.value === true),
@@ -37,7 +37,7 @@ const form = new GroupNode({
 Сбросить поле к начальному значению когда условие становится истинным.
 
 ```typescript
-import { resetWhen } from 'reformer/behaviors';
+import { resetWhen } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   // Сбросить детали при изменении типа

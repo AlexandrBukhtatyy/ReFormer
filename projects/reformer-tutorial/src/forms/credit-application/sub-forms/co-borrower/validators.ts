@@ -1,4 +1,4 @@
-import { required, min, email, phone } from 'reformer/validators';
+import { required, min, email, phone } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CoBorrower } from './type';
 

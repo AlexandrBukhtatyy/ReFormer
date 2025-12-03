@@ -11,7 +11,7 @@ Create reusable validators for your application.
 Use `validate()` for inline custom validators:
 
 ```typescript
-import { validate } from 'reformer/validators';
+import { validate } from '@reformer/core/validators';
 
 validation: (path) => {
   // Inline custom validator
@@ -21,7 +21,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 // Error: { mustBeAdult: true }
 ```
 
@@ -58,27 +58,33 @@ export function strongPassword() {
 }
 
 // Usage in form
-import { required } from 'reformer/validators';
+import { required } from '@reformer/core/validators';
 import { strongPassword } from './validators/password';
 
 validation: (path) => {
   required(path.password);
   validate(path.password, strongPassword());
-}
+};
 ```
 
 ### Display Specific Errors
 
 ```tsx
-{password.touched && password.errors?.noUppercase && (
-  <span className="error">Must contain uppercase letter</span>
-)}
-{password.touched && password.errors?.noNumber && (
-  <span className="error">Must contain a number</span>
-)}
-{password.touched && password.errors?.tooShort && (
-  <span className="error">Must be at least 8 characters</span>
-)}
+{
+  password.touched && password.errors?.noUppercase && (
+    <span className="error">Must contain uppercase letter</span>
+  );
+}
+{
+  password.touched && password.errors?.noNumber && (
+    <span className="error">Must contain a number</span>
+  );
+}
+{
+  password.touched && password.errors?.tooShort && (
+    <span className="error">Must be at least 8 characters</span>
+  );
+}
 ```
 
 ## Validator with Parameters
@@ -95,8 +101,8 @@ export function range(min: number, max: number) {
         range: {
           min,
           max,
-          actual: value
-        }
+          actual: value,
+        },
       };
     }
     return null;
@@ -109,17 +115,19 @@ import { range } from './validators/range';
 validation: (path) => {
   required(path.quantity);
   validate(path.quantity, range(1, 100));
-}
+};
 ```
 
 ### Error Object with Data
 
 ```tsx
-{quantity.touched && quantity.errors?.range && (
-  <span className="error">
-    Value must be between {quantity.errors.range.min} and {quantity.errors.range.max}
-  </span>
-)}
+{
+  quantity.touched && quantity.errors?.range && (
+    <span className="error">
+      Value must be between {quantity.errors.range.min} and {quantity.errors.range.max}
+    </span>
+  );
+}
 ```
 
 ## Validator with Context
@@ -146,7 +154,7 @@ validation: (path) => {
   required(path.password);
   required(path.confirmPassword);
   validate(path.confirmPassword, matchesPassword());
-}
+};
 ```
 
 ## Complex Custom Validator
@@ -161,7 +169,7 @@ export function username() {
     // Length check
     if (value.length < 3 || value.length > 20) {
       return {
-        usernameLength: { min: 3, max: 20, actual: value.length }
+        usernameLength: { min: 3, max: 20, actual: value.length },
       };
     }
 
@@ -184,7 +192,7 @@ export function username() {
 validation: (path) => {
   required(path.username);
   validate(path.username, username());
-}
+};
 ```
 
 ## Cross-Field Validation
@@ -205,7 +213,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 ## Array Item Validation
@@ -238,7 +246,7 @@ const form = new GroupNode<ContactForm>({
 Use `when()` for conditional custom validators:
 
 ```typescript
-import { when } from 'reformer/validators';
+import { when } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.country);
@@ -256,7 +264,7 @@ validation: (path) => {
       });
     }
   );
-}
+};
 ```
 
 ## Async Custom Validator
@@ -269,9 +277,7 @@ export function checkUsernameAvailability() {
     if (!value || value.length < 3) return null;
 
     try {
-      const response = await fetch(
-        `/api/check-username?username=${encodeURIComponent(value)}`
-      );
+      const response = await fetch(`/api/check-username?username=${encodeURIComponent(value)}`);
       const { available } = await response.json();
 
       if (!available) {
@@ -285,7 +291,7 @@ export function checkUsernameAvailability() {
 }
 
 // Usage
-import { validateAsync } from 'reformer/validators';
+import { validateAsync } from '@reformer/core/validators';
 
 validation: (path, { validateAsync }) => {
   required(path.username);
@@ -295,7 +301,7 @@ validation: (path, { validateAsync }) => {
   validateAsync(path.username, checkUsernameAvailability(), {
     debounce: 500,
   });
-}
+};
 ```
 
 ## Practical Examples
@@ -370,7 +376,7 @@ export function phoneNumber(countryCode: string = 'US') {
 validation: (path) => {
   required(path.phone);
   validate(path.phone, phoneNumber('US'));
-}
+};
 ```
 
 ### File Upload Validator
@@ -421,7 +427,7 @@ validation: (path) => {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
     })
   );
-}
+};
 ```
 
 ## Tips for Custom Validators
@@ -475,8 +481,8 @@ return { error: true };
 return {
   tooLong: {
     max: 100,
-    actual: value.length
-  }
+    actual: value.length,
+  },
 };
 
 // ❌ Bad - no context

@@ -26,7 +26,7 @@ touch src/schemas/validators/credit-application.ts
 ### Реализация
 
 ```typescript title="src/schemas/validators/credit-application.ts"
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 // Импортируйте валидаторы шагов
@@ -88,7 +88,7 @@ export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationFo
 Обновите функцию создания формы для включения валидации:
 
 ```typescript title="src/schemas/create-form.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './credit-application.schema';
 import { creditApplicationBehaviors } from '../behaviors/credit-application.behaviors';
 import { creditApplicationValidation } from '../validators/credit-application';
@@ -408,7 +408,7 @@ createValidator(path.b, [path.a], (b, [a]) => {
 ### В компонентах
 
 ```tsx
-import { useField } from 'reformer/react';
+import { useField } from '@reformer/core/react';
 
 function FormField({ control }) {
   const field = useField(control);

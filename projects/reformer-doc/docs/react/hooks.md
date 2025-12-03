@@ -12,7 +12,7 @@ ReFormer provides React hooks for seamless integration with React 18+.
 Subscribe to all field state changes. The component re-renders only when control data actually changes.
 
 ```typescript
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 
 function TextField({ field }: { field: FieldNode<string> }) {
   const { value, disabled, errors, shouldShowError } = useFormControl(field);
@@ -35,30 +35,30 @@ function TextField({ field }: { field: FieldNode<string> }) {
 
 ### Return Value for FieldNode
 
-| Property          | Type                     | Description                        |
-| ----------------- | ------------------------ | ---------------------------------- |
-| `value`           | `T`                      | Current value                      |
-| `valid`           | `boolean`                | Is valid                           |
-| `invalid`         | `boolean`                | Has errors                         |
-| `errors`          | `ValidationError[]`      | Array of validation errors         |
-| `touched`         | `boolean`                | User interacted with field         |
-| `disabled`        | `boolean`                | Is disabled                        |
-| `pending`         | `boolean`                | Async validation in progress       |
-| `shouldShowError` | `boolean`                | Should display error (touched + invalid) |
-| `componentProps`  | `Record<string, any>`    | Custom props for component         |
+| Property          | Type                  | Description                              |
+| ----------------- | --------------------- | ---------------------------------------- |
+| `value`           | `T`                   | Current value                            |
+| `valid`           | `boolean`             | Is valid                                 |
+| `invalid`         | `boolean`             | Has errors                               |
+| `errors`          | `ValidationError[]`   | Array of validation errors               |
+| `touched`         | `boolean`             | User interacted with field               |
+| `disabled`        | `boolean`             | Is disabled                              |
+| `pending`         | `boolean`             | Async validation in progress             |
+| `shouldShowError` | `boolean`             | Should display error (touched + invalid) |
+| `componentProps`  | `Record<string, any>` | Custom props for component               |
 
 ### Return Value for ArrayNode
 
-| Property   | Type                | Description                  |
-| ---------- | ------------------- | ---------------------------- |
-| `value`    | `T[]`               | Current array value          |
-| `length`   | `number`            | Number of items in array     |
-| `valid`    | `boolean`           | Is valid                     |
-| `invalid`  | `boolean`           | Has errors                   |
-| `errors`   | `ValidationError[]` | Array of validation errors   |
-| `touched`  | `boolean`           | User interacted              |
-| `dirty`    | `boolean`           | Value changed from initial   |
-| `pending`  | `boolean`           | Async validation in progress |
+| Property  | Type                | Description                  |
+| --------- | ------------------- | ---------------------------- |
+| `value`   | `T[]`               | Current array value          |
+| `length`  | `number`            | Number of items in array     |
+| `valid`   | `boolean`           | Is valid                     |
+| `invalid` | `boolean`           | Has errors                   |
+| `errors`  | `ValidationError[]` | Array of validation errors   |
+| `touched` | `boolean`           | User interacted              |
+| `dirty`   | `boolean`           | Value changed from initial   |
+| `pending` | `boolean`           | Async validation in progress |
 
 ### Example: Complete Field Component
 
@@ -91,7 +91,7 @@ function FormField({ field, label }: { field: FieldNode<string>; label: string }
 Subscribe to field value only, without tracking errors, valid, touched, etc. Use this when you need only the value for conditional rendering — it provides better performance by avoiding unnecessary re-renders.
 
 ```typescript
-import { useFormControlValue } from 'reformer';
+import { useFormControlValue } from '@reformer/core';
 
 function ConditionalField({
   showWhenField,
@@ -113,9 +113,9 @@ function ConditionalField({
 
 ### Return Value
 
-| Type | Description      |
-| ---- | ---------------- |
-| `T`  | Current value    |
+| Type | Description   |
+| ---- | ------------- |
+| `T`  | Current value |
 
 ### When to Use
 
@@ -179,9 +179,7 @@ function PhoneList({ array }: { array: ArrayNode<PhoneSchema> }) {
         </div>
       ))}
       {length === 0 && <span>No phones added</span>}
-      <button onClick={() => array.push({ type: 'mobile', number: '' })}>
-        Add Phone
-      </button>
+      <button onClick={() => array.push({ type: 'mobile', number: '' })}>Add Phone</button>
     </div>
   );
 }
@@ -209,7 +207,9 @@ function ContactForm() {
     <form onSubmit={handleSubmit}>
       <FormField field={form.controls.name} label="Name" />
       <FormField field={form.controls.email} label="Email" />
-      <button type="submit" disabled={invalid}>Submit</button>
+      <button type="submit" disabled={invalid}>
+        Submit
+      </button>
     </form>
   );
 }
@@ -226,7 +226,7 @@ function Form() {
   // This component doesn't re-render on field changes
   return (
     <form>
-      <NameField />  {/* Re-renders only when name changes */}
+      <NameField /> {/* Re-renders only when name changes */}
       <EmailField /> {/* Re-renders only when email changes */}
     </form>
   );

@@ -23,7 +23,7 @@ import {
   number,
   date,
   validate,
-} from 'reformer/validators';
+} from '@reformer/core/validators';
 import { Input } from '@/components/ui/input';
 import { ExampleCard } from '@/components/ui/example-card';
 import { FormField } from '@/components/ui/form-field';
@@ -174,7 +174,6 @@ function createValidationForm(): GroupNodeWithControls<ValidationDemoForm> {
     validation: validationFormValidation,
   });
 }
-
 
 export default function ValidationExamples() {
   const form = useMemo(() => createValidationForm(), []);

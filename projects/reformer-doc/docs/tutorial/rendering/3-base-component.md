@@ -177,7 +177,7 @@ Here's the complete base component:
 
 ```tsx title="src/components/CreditApplicationForm.tsx"
 import { useMemo, useState } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { createCreditApplicationForm } from './schemas/create-credit-application-form';
 import type { CreditApplicationForm } from './types';
 

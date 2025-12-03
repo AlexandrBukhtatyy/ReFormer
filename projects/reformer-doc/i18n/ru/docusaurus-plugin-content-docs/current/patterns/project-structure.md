@@ -72,6 +72,7 @@ src/
 ### 1. Колокация
 
 Каждый шаг формы и подформа самодостаточны и содержат:
+
 - `type.ts` — TypeScript интерфейс
 - `schema.ts` — Схема формы с конфигурацией полей
 - `validators.ts` — Правила валидации
@@ -134,7 +135,7 @@ export interface LoanInfoStep {
 ### Схема шага
 
 ```typescript title="forms/credit-application/steps/loan-info/schema.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select, Textarea } from '@/components/ui';
 import type { LoanInfoStep } from './type';
 
@@ -163,8 +164,8 @@ export const loanInfoSchema: FormSchema<LoanInfoStep> = {
 ### Валидаторы шага
 
 ```typescript title="forms/credit-application/steps/loan-info/validators.ts"
-import { required, min, max, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, max, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
@@ -190,8 +191,8 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Поведения шага
 
 ```typescript title="forms/credit-application/steps/loan-info/behaviors.ts"
-import { computeFrom, enableWhen, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, enableWhen, disableWhen } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
 export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -212,8 +213,8 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 ### Корневые валидаторы (кросс-шаговые)
 
 ```typescript title="forms/credit-application/validators.ts"
-import { validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { validate } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from './type';
 
 // Импорт валидаторов шагов
@@ -247,7 +248,7 @@ export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationFo
 
 ```typescript title="forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo } from 'react';
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './schema';
 import { creditApplicationBehaviors } from './behaviors';
 import { creditApplicationValidation } from './validators';
@@ -331,14 +332,14 @@ forms/
 
 ## Лучшие практики
 
-| Практика | Почему |
-|----------|--------|
-| Колокация | Связанные файлы вместе, удобная навигация |
-| Группировка по фиче, не по типу | Все файлы шага в одном месте |
-| Используйте useMemo для формы | Стабильный экземпляр формы в компоненте |
-| Разделяйте валидаторы по шагам | Валидация только текущего шага |
-| Корневые агрегаторы | Единая точка входа для схемы/валидаторов/поведений |
-| Выносите подформы | Переиспользование адреса, персональных данных между формами |
+| Практика                        | Почему                                                      |
+| ------------------------------- | ----------------------------------------------------------- |
+| Колокация                       | Связанные файлы вместе, удобная навигация                   |
+| Группировка по фиче, не по типу | Все файлы шага в одном месте                                |
+| Используйте useMemo для формы   | Стабильный экземпляр формы в компоненте                     |
+| Разделяйте валидаторы по шагам  | Валидация только текущего шага                              |
+| Корневые агрегаторы             | Единая точка входа для схемы/валидаторов/поведений          |
+| Выносите подформы               | Переиспользование адреса, персональных данных между формами |
 
 ## Преимущества колокации
 

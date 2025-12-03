@@ -26,7 +26,7 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/credit-ap
 ### Implementation
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts"
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 // Import step behaviors
@@ -88,7 +88,7 @@ export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm>
 Update your form creation function to include behaviors:
 
 ```typescript title="src/schemas/create-form.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './credit-application.schema';
 import { creditApplicationBehaviors } from '../behaviors/credit-application.behaviors';
 import type { CreditApplicationForm } from '@/types';

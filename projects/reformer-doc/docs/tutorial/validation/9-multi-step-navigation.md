@@ -38,7 +38,7 @@ We need a way to validate only specific fields per step while keeping the full v
 The `validateForm` function lets you validate a form against a specific schema:
 
 ```typescript
-import { validateForm } from 'reformer/validators';
+import { validateForm } from '@reformer/core/validators';
 
 // Validate only step 1 fields
 const isValid = await validateForm(form, loanValidation);
@@ -70,7 +70,7 @@ export { creditApplicationValidation } from './credit-application';
 Then create the step configuration:
 
 ```typescript title="src/forms/step-config.ts"
-import type { ValidationSchemaFn } from 'reformer';
+import type { ValidationSchemaFn } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 import {
@@ -113,7 +113,7 @@ export const STEP_CONFIG: StepNavigationConfig<CreditApplicationForm> = {
 
 ```typescript title="src/components/ui/step-navigation/types.ts"
 import type { ReactNode } from 'react';
-import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from 'reformer';
+import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from '@reformer/core';
 
 /**
  * Configuration for multi-step form
@@ -186,8 +186,8 @@ export interface StepNavigationProps<T extends Record<string, FormValue>> {
 
 ```typescript title="src/components/ui/step-navigation/StepNavigation.tsx"
 import { forwardRef, useImperativeHandle, useState, useCallback, useMemo } from 'react';
-import { validateForm } from 'reformer/validators';
-import type { FormValue } from 'reformer';
+import { validateForm } from '@reformer/core/validators';
+import type { FormValue } from '@reformer/core';
 import type {
   StepNavigationHandle,
   StepNavigationProps,
@@ -433,16 +433,11 @@ export function CreditApplicationForm() {
           {/* Navigation buttons */}
           <div className="flex gap-4 mt-6">
             {!state.isFirstStep && (
-              <button onClick={() => navRef.current?.goToPreviousStep()}>
-                Back
-              </button>
+              <button onClick={() => navRef.current?.goToPreviousStep()}>Back</button>
             )}
 
             {!state.isLastStep ? (
-              <button
-                onClick={() => navRef.current?.goToNextStep()}
-                disabled={state.isValidating}
-              >
+              <button onClick={() => navRef.current?.goToNextStep()} disabled={state.isValidating}>
                 {state.isValidating ? 'Validating...' : 'Next'}
               </button>
             ) : (
@@ -512,14 +507,7 @@ export function StepIndicator({
 Use it with StepNavigation:
 
 ```tsx
-const STEP_LABELS = [
-  'Loan Info',
-  'Personal',
-  'Contact',
-  'Employment',
-  'Additional',
-  'Confirm',
-];
+const STEP_LABELS = ['Loan Info', 'Personal', 'Contact', 'Employment', 'Additional', 'Confirm'];
 
 <StepNavigation ref={navRef} form={form} config={STEP_CONFIG}>
   {(state) => (
@@ -535,7 +523,7 @@ const STEP_LABELS = [
       {/* ... step content ... */}
     </>
   )}
-</StepNavigation>
+</StepNavigation>;
 ```
 
 ## API Reference
@@ -549,10 +537,10 @@ function validateForm<T extends FormFields>(
 ): Promise<boolean>;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `form` | `GroupNode<T>` | The form to validate |
-| `schema` | `ValidationSchemaFn<T>` | Validation schema to apply |
+| Parameter | Type                    | Description                |
+| --------- | ----------------------- | -------------------------- |
+| `form`    | `GroupNode<T>`          | The form to validate       |
+| `schema`  | `ValidationSchemaFn<T>` | Validation schema to apply |
 
 **Returns:** `Promise<boolean>` - `true` if valid, `false` if errors
 
@@ -560,30 +548,30 @@ function validateForm<T extends FormFields>(
 
 Methods and properties exposed via ref:
 
-| Property/Method | Type | Description |
-|----------------|------|-------------|
-| `currentStep` | `number` | Current step (1-based) |
-| `completedSteps` | `number[]` | Array of completed step numbers |
-| `isFirstStep` | `boolean` | Is on first step |
-| `isLastStep` | `boolean` | Is on last step |
-| `isValidating` | `boolean` | Validation in progress |
-| `goToNextStep()` | `Promise<boolean>` | Validate and go to next step |
-| `goToPreviousStep()` | `void` | Go to previous step |
-| `goToStep(step)` | `boolean` | Go to specific step |
-| `validateCurrentStep()` | `Promise<boolean>` | Validate current step |
-| `submit(onSubmit)` | `Promise<R \| null>` | Full validation and submit |
+| Property/Method         | Type                 | Description                     |
+| ----------------------- | -------------------- | ------------------------------- |
+| `currentStep`           | `number`             | Current step (1-based)          |
+| `completedSteps`        | `number[]`           | Array of completed step numbers |
+| `isFirstStep`           | `boolean`            | Is on first step                |
+| `isLastStep`            | `boolean`            | Is on last step                 |
+| `isValidating`          | `boolean`            | Validation in progress          |
+| `goToNextStep()`        | `Promise<boolean>`   | Validate and go to next step    |
+| `goToPreviousStep()`    | `void`               | Go to previous step             |
+| `goToStep(step)`        | `boolean`            | Go to specific step             |
+| `validateCurrentStep()` | `Promise<boolean>`   | Validate current step           |
+| `submit(onSubmit)`      | `Promise<R \| null>` | Full validation and submit      |
 
 ### `StepNavigationRenderState`
 
 State passed to children render function:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `currentStep` | `number` | Current step (1-based) |
+| Property         | Type       | Description            |
+| ---------------- | ---------- | ---------------------- |
+| `currentStep`    | `number`   | Current step (1-based) |
 | `completedSteps` | `number[]` | Completed step numbers |
-| `isFirstStep` | `boolean` | Is on first step |
-| `isLastStep` | `boolean` | Is on last step |
-| `isValidating` | `boolean` | Validation in progress |
+| `isFirstStep`    | `boolean`  | Is on first step       |
+| `isLastStep`     | `boolean`  | Is on last step        |
+| `isValidating`   | `boolean`  | Validation in progress |
 
 ## Key Patterns
 

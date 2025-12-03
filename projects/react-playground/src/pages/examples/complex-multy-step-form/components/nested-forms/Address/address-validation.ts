@@ -6,7 +6,7 @@
  */
 
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
-import { required, minLength, maxLength, pattern } from 'reformer/validators';
+import { required, minLength, maxLength, pattern } from '@reformer/core/validators';
 import type { Address } from './AddressForm';
 
 /**

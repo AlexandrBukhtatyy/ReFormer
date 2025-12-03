@@ -24,7 +24,7 @@ sidebar_position: 3
 Структура адреса используется дважды в нашей форме. Давайте выделим её:
 
 ```typescript title="src/forms/credit-application/schemas/address.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 
 export interface Address {
@@ -75,7 +75,7 @@ export const addressSchema: FormSchema<Address> = {
 Персональные данные — также распространённый паттерн:
 
 ```typescript title="src/forms/credit-application/schemas/personal-data.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, RadioGroup } from '@/components/ui';
 
 export interface PersonalData {
@@ -130,7 +130,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
 ### Схема паспортных данных
 
 ```typescript title="src/forms/credit-application/schemas/passport-data.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Textarea } from '@/components/ui';
 
 export interface PassportData {
@@ -173,7 +173,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
 ### Схема имущества (для массивов)
 
 ```typescript title="src/forms/credit-application/schemas/property.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select, Textarea, Checkbox } from '@/components/ui';
 
 export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial' | 'car' | 'other';
@@ -222,7 +222,7 @@ export const propertySchema: FormSchema<Property> = {
 ### Схема существующего кредита (для массивов)
 
 ```typescript title="src/forms/credit-application/schemas/existing-loan.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select } from '@/components/ui';
 
 export interface ExistingLoan {
@@ -279,7 +279,7 @@ export const existingLoanSchema: FormSchema<ExistingLoan> = {
 ### Схема созаёмщика (вложенная структура в массиве)
 
 ```typescript title="src/forms/credit-application/schemas/co-borrower.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select } from '@/components/ui';
 
 export interface CoBorrower {
@@ -355,7 +355,7 @@ export const coBorrowerSchema: FormSchema<CoBorrower> = {
 Теперь используем выделенные схемы в основной схеме формы:
 
 ```typescript title="src/forms/credit-application/schemas/credit-application.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 
 // Импорт переиспользуемых схем
 import { addressSchema } from './address.schema';

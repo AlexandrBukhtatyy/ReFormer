@@ -5,7 +5,7 @@
  * Применяется к каждому элементу через ArrayNode.applyValidationSchema()
  */
 
-import { createFieldPath, required, minLength, maxLength, min } from 'reformer/validators';
+import { createFieldPath, required, minLength, maxLength, min } from '@reformer/core/validators';
 import type { Property } from './PropertyForm';
 
 /**

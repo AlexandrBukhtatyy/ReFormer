@@ -4,7 +4,14 @@
  */
 
 import { type FieldPath } from '@reformer/core';
-import { required, email, minLength, pattern, validate, validateAsync } from 'reformer/validators';
+import {
+  required,
+  email,
+  minLength,
+  pattern,
+  validate,
+  validateAsync,
+} from '@reformer/core/validators';
 import type { RegistrationFormData } from '../RegistrationForm';
 
 /**
@@ -19,41 +26,51 @@ export const registrationValidation = (path: FieldPath<RegistrationFormData>) =>
   });
 
   // Async валидация уникальности username
-  validateAsync(path.username, async (value) => {
-    if (!value || value.length < 3) return null;
+  validateAsync(
+    path.username,
+    async (value) => {
+      if (!value || value.length < 3) return null;
 
-    // Задержка для имитации сетевого запроса
-    await new Promise((resolve) => setTimeout(resolve, 500));
+      // Задержка для имитации сетевого запроса
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const response = await fetch(`/api/v1/auth/check-username?username=${encodeURIComponent(value)}`);
-    const result = await response.json();
+      const response = await fetch(
+        `/api/v1/auth/check-username?username=${encodeURIComponent(value)}`
+      );
+      const result = await response.json();
 
-    if (!result.available) {
-      return { code: 'username-taken', message: result.message || 'Имя пользователя занято' };
-    }
+      if (!result.available) {
+        return { code: 'username-taken', message: result.message || 'Имя пользователя занято' };
+      }
 
-    return null;
-  }, { debounce: 500 });
+      return null;
+    },
+    { debounce: 500 }
+  );
 
   // Email валидация
   required(path.email, { message: 'Email обязателен' });
   email(path.email, { message: 'Некорректный email' });
 
   // Async валидация уникальности email
-  validateAsync(path.email, async (value) => {
-    if (!value || !value.includes('@')) return null;
+  validateAsync(
+    path.email,
+    async (value) => {
+      if (!value || !value.includes('@')) return null;
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const response = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(value)}`);
-    const result = await response.json();
+      const response = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(value)}`);
+      const result = await response.json();
 
-    if (!result.available) {
-      return { code: 'email-taken', message: result.message || 'Email уже зарегистрирован' };
-    }
+      if (!result.available) {
+        return { code: 'email-taken', message: result.message || 'Email уже зарегистрирован' };
+      }
 
-    return null;
-  }, { debounce: 500 });
+      return null;
+    },
+    { debounce: 500 }
+  );
 
   // Password - минимум 8 символов, должен содержать заглавные, строчные и цифры
   required(path.password, { message: 'Пароль обязателен' });

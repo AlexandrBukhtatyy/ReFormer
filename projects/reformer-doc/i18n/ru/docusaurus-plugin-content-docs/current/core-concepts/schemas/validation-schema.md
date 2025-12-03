@@ -15,8 +15,8 @@ type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
 Функция валидации получает типобезопасный объект `path` для объявления правил:
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { GroupNode } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -47,11 +47,11 @@ interface User {
 }
 
 validation: (path: FieldPath<User>) => {
-  required(path.name);           // ✅ Корректно
-  required(path.email);          // ✅ Корректно
-  required(path.address.city);   // ✅ Корректно - вложенный доступ
-  required(path.phone);          // ❌ Ошибка TypeScript!
-}
+  required(path.name); // ✅ Корректно
+  required(path.email); // ✅ Корректно
+  required(path.address.city); // ✅ Корректно - вложенный доступ
+  required(path.phone); // ❌ Ошибка TypeScript!
+};
 ```
 
 ### Преимущества
@@ -62,15 +62,15 @@ validation: (path: FieldPath<User>) => {
 
 ## Встроенные валидаторы
 
-| Валидатор | Описание |
-|-----------|----------|
-| `required(path.field)` | Поле должно иметь значение |
-| `email(path.field)` | Корректный формат email |
-| `minLength(path.field, n)` | Минимальная длина строки |
-| `maxLength(path.field, n)` | Максимальная длина строки |
-| `min(path.field, n)` | Минимальное числовое значение |
-| `max(path.field, n)` | Максимальное числовое значение |
-| `pattern(path.field, regex)` | Соответствие regex |
+| Валидатор                    | Описание                       |
+| ---------------------------- | ------------------------------ |
+| `required(path.field)`       | Поле должно иметь значение     |
+| `email(path.field)`          | Корректный формат email        |
+| `minLength(path.field, n)`   | Минимальная длина строки       |
+| `maxLength(path.field, n)`   | Максимальная длина строки      |
+| `min(path.field, n)`         | Минимальное числовое значение  |
+| `max(path.field, n)`         | Максимальное числовое значение |
+| `pattern(path.field, regex)` | Соответствие regex             |
 
 Полный список см. в [Встроенные валидаторы](/docs/validation/built-in).
 
@@ -79,7 +79,7 @@ validation: (path: FieldPath<User>) => {
 Применяйте валидаторы на основе условий:
 
 ```typescript
-import { when } from 'reformer/validators';
+import { when } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.email);
@@ -92,7 +92,7 @@ validation: (path) => {
       pattern(path.phone, /^\d{10}$/);
     }
   );
-}
+};
 ```
 
 ## Вложенная валидация
@@ -119,7 +119,7 @@ validation: (path) => {
   // Элементы массива (валидирует шаблон каждого элемента)
   required(path.items.product);
   min(path.items.quantity, 1);
-}
+};
 ```
 
 ## Кросс-валидация полей
@@ -127,7 +127,7 @@ validation: (path) => {
 Валидация полей относительно друг друга:
 
 ```typescript
-import { custom } from 'reformer/validators';
+import { custom } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.password);
@@ -140,7 +140,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 ## Асинхронная валидация
@@ -148,7 +148,7 @@ validation: (path) => {
 Серверная валидация:
 
 ```typescript
-import { asyncValidator } from 'reformer/validators';
+import { asyncValidator } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.username);
@@ -160,7 +160,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 Подробнее см. [Асинхронная валидация](/docs/validation/async).
@@ -170,8 +170,8 @@ validation: (path) => {
 Создавайте переиспользуемые функции валидации:
 
 ```typescript
-import { FieldPath } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { FieldPath } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 
 // Переиспользуемый набор валидации
 export function validatePerson(path: FieldPath<Person>) {

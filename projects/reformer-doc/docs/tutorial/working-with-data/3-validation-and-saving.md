@@ -29,7 +29,7 @@ if (form.valid.value) {
 Validation against a specific schema. Used for multi-step forms:
 
 ```typescript
-import { validateForm } from 'reformer';
+import { validateForm } from '@reformer/core';
 
 // Validate only current step fields
 const isValid = await validateForm(form, loanValidation);
@@ -59,10 +59,10 @@ const handleSubmit = async () => {
 
 ## Key Methods
 
-| Method                        | Purpose                 |
-| ----------------------------- | ----------------------- |
-| `validate()`                  | Trigger validation      |
-| `valid.value`                 | Check validity          |
-| `validateForm(form, schema)`  | Validate against schema |
-| `markAsTouched()`             | Show errors             |
-| `getValue()`                  | Get form values         |
+| Method                       | Purpose                 |
+| ---------------------------- | ----------------------- |
+| `validate()`                 | Trigger validation      |
+| `valid.value`                | Check validity          |
+| `validateForm(form, schema)` | Validate against schema |
+| `markAsTouched()`            | Show errors             |
+| `getValue()`                 | Get form values         |

@@ -1,4 +1,4 @@
-import { required, minLength, pattern, validate } from 'reformer/validators';
+import { required, minLength, pattern, validate } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
@@ -106,7 +106,10 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
     const birth = new Date(birthDate);
 
     if (issue <= birth) {
-      return { code: 'issueDateBeforeBirth', message: 'Дата выдачи должна быть после даты рождения' };
+      return {
+        code: 'issueDateBeforeBirth',
+        message: 'Дата выдачи должна быть после даты рождения',
+      };
     }
 
     return null;

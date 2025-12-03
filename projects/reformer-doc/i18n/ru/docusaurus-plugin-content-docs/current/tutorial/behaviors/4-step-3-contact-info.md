@@ -25,8 +25,8 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/contact-i
 ## Реализация Behaviors
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { disableWhen, disableWhen, copyTo } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -115,8 +115,8 @@ copyTo(
 ## Полный код
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { disableWhen, disableWhen, copyTo } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (

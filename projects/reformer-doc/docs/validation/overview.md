@@ -11,8 +11,8 @@ ReFormer provides declarative validation with built-in validators and support fo
 Define validation in `validation`:
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { GroupNode } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -32,7 +32,7 @@ const form = new GroupNode({
 
 ```typescript
 // Check validation state
-form.valid;   // true if all fields valid
+form.valid; // true if all fields valid
 form.invalid; // true if any field invalid
 
 // Check specific field
@@ -55,26 +55,26 @@ name.errors;
 
 ## Built-in Validators
 
-| Validator | Description | Error Key |
-|-----------|-------------|-----------|
-| `required(path.field)` | Field must have value | `required` |
-| `email(path.field)` | Valid email format | `email` |
-| `minLength(path.field, n)` | Minimum string length | `minLength` |
-| `maxLength(path.field, n)` | Maximum string length | `maxLength` |
-| `min(path.field, n)` | Minimum number value | `min` |
-| `max(path.field, n)` | Maximum number value | `max` |
-| `pattern(path.field, regex)` | Match regex pattern | `pattern` |
-| `url(path.field)` | Valid URL format | `url` |
-| `phone(path.field)` | Valid phone format | `phone` |
-| `number(path.field)` | Must be a number | `number` |
-| `date(path.field)` | Valid date | `date` |
+| Validator                    | Description           | Error Key   |
+| ---------------------------- | --------------------- | ----------- |
+| `required(path.field)`       | Field must have value | `required`  |
+| `email(path.field)`          | Valid email format    | `email`     |
+| `minLength(path.field, n)`   | Minimum string length | `minLength` |
+| `maxLength(path.field, n)`   | Maximum string length | `maxLength` |
+| `min(path.field, n)`         | Minimum number value  | `min`       |
+| `max(path.field, n)`         | Maximum number value  | `max`       |
+| `pattern(path.field, regex)` | Match regex pattern   | `pattern`   |
+| `url(path.field)`            | Valid URL format      | `url`       |
+| `phone(path.field)`          | Valid phone format    | `phone`     |
+| `number(path.field)`         | Must be a number      | `number`    |
+| `date(path.field)`           | Valid date            | `date`      |
 
 ## Conditional Validation
 
 Apply validation only when condition is met:
 
 ```typescript
-import { when } from 'reformer/validators';
+import { when } from '@reformer/core/validators';
 
 validation: (path) => {
   when(
@@ -83,12 +83,13 @@ validation: (path) => {
       required(path.phone);
     }
   );
-}
+};
 ```
 
 ## Validation Timing
 
 Validation runs automatically when:
+
 - Value changes
 - Field is touched (for display purposes)
 

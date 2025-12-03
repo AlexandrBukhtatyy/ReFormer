@@ -11,23 +11,19 @@ Automatically calculate field values from other fields.
 Calculate a field value based on one or more source fields.
 
 ```typescript
-import { computeFrom } from 'reformer/behaviors';
+import { computeFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Single source
-  computeFrom(
-    [path.price],
-    path.priceWithTax,
-    ({ price }) => price * 1.2
-  );
+  computeFrom([path.price], path.priceWithTax, ({ price }) => price * 1.2);
 
   // Multiple sources
   computeFrom(
     [path.price, path.quantity, path.discount],
     path.total,
-    ({ price, quantity, discount }) => (price * quantity) - discount
+    ({ price, quantity, discount }) => price * quantity - discount
   );
-}
+};
 ```
 
 ### Example: Full Name
@@ -40,10 +36,8 @@ const form = new GroupNode({
     fullName: { value: '' },
   },
   behavior: (path) => {
-    computeFrom(
-      [path.firstName, path.lastName],
-      path.fullName,
-      ({ firstName, lastName }) => `${firstName} ${lastName}`.trim()
+    computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+      `${firstName} ${lastName}`.trim()
     );
   },
 });
@@ -70,8 +64,7 @@ const form = new GroupNode({
       ({ principal, rate, years }) => {
         const monthlyRate = rate / 100 / 12;
         const months = years * 12;
-        return (principal * monthlyRate) /
-          (1 - Math.pow(1 + monthlyRate, -months));
+        return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
       }
     );
   },
@@ -83,22 +76,18 @@ const form = new GroupNode({
 Transform field value when it changes.
 
 ```typescript
-import { transformValue } from 'reformer/behaviors';
+import { transformValue } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Uppercase
   transformValue(path.code, (value) => value.toUpperCase());
 
   // Format phone
-  transformValue(path.phone, (value) =>
-    value.replace(/\D/g, '').slice(0, 10)
-  );
+  transformValue(path.phone, (value) => value.replace(/\D/g, '').slice(0, 10));
 
   // Clamp number
-  transformValue(path.quantity, (value) =>
-    Math.max(1, Math.min(100, value))
-  );
-}
+  transformValue(path.quantity, (value) => Math.max(1, Math.min(100, value)));
+};
 ```
 
 ### Example: Currency Input
@@ -143,10 +132,8 @@ const form = new GroupNode({
   },
   behavior: (path) => {
     // Compute shipping cost
-    computeFrom(
-      [path.shipping.method],
-      path.shipping.cost,
-      ({ method }) => method === 'express' ? 15 : 5
+    computeFrom([path.shipping.method], path.shipping.cost, ({ method }) =>
+      method === 'express' ? 15 : 5
     );
 
     // Compute total

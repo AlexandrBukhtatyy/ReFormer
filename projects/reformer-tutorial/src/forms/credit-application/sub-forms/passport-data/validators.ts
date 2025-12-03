@@ -1,4 +1,4 @@
-import { required, minLength, pattern, validate } from 'reformer/validators';
+import { required, minLength, pattern, validate } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { PassportData } from './type';
 

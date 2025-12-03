@@ -1,4 +1,4 @@
-import { required, min, max, minLength, maxLength, applyWhen } from 'reformer/validators';
+import { required, min, max, minLength, maxLength, applyWhen } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 

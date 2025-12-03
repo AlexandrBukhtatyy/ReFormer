@@ -31,8 +31,8 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/personal-
 В русских формах полное имя (ФИО) обычно форматируется как: **Фамилия Имя Отчество**.
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
-import { computeFrom, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application.types';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -176,8 +176,8 @@ fullName: {
 Вот полный файл behavior для Шага 2:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
-import { computeFrom, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application.types';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -235,7 +235,7 @@ export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/credit-application.behaviors.ts"
 import { loanBehaviorSchema } from './loan-info';
 import { personalBehaviorSchema } from './personal-info';
-import type { BehaviorSchemaFn } from 'reformer';
+import type { BehaviorSchemaFn } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application.types';
 
 export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
@@ -247,7 +247,7 @@ export const creditApplicationBehaviors: BehaviorSchemaFn<CreditApplicationForm>
 Затем используйте в создании формы:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/createCreditApplicationForm.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './schemas/credit-application';
 import { creditApplicationBehaviors } from './schemas/behaviors/credit-application.behaviors';
 import type { CreditApplicationForm } from './types/credit-application.types';
@@ -285,7 +285,7 @@ export const createCreditApplicationForm = () => {
 Эти вычисляемые поля могут быть отображены в любой части вашей формы. Например, вы можете показать их в резюме:
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/components/ApplicantSummary.tsx"
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 
 function ApplicantSummary({ control }: Props) {
   const { value: fullName } = useFormControl(control.fullName);

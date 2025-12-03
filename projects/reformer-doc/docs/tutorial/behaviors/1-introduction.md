@@ -74,7 +74,7 @@ ReFormer provides several built-in behavior functions:
 Automatically calculate field values based on other fields:
 
 ```typescript
-import { computeFrom } from 'reformer/behaviors';
+import { computeFrom } from '@reformer/core/behaviors';
 
 // Calculate total income
 computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (values) => {
@@ -89,7 +89,7 @@ computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (valu
 Show or hide fields based on conditions:
 
 ```typescript
-import { enableWhen } from 'reformer/behaviors';
+import { enableWhen } from '@reformer/core/behaviors';
 
 // Show mortgage fields only for mortgage loans
 enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
@@ -103,7 +103,7 @@ enableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === 
 Enable or disable fields based on conditions:
 
 ```typescript
-import { enableWhen, disableWhen } from 'reformer/behaviors';
+import { enableWhen, disableWhen } from '@reformer/core/behaviors';
 
 // Disable residence address when same as registration
 disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
@@ -117,7 +117,7 @@ disableWhen(path.totalIncome, path.totalIncome, () => true);
 Copy or sync values between fields:
 
 ```typescript
-import { copyTo, syncWith } from 'reformer/behaviors';
+import { copyTo, syncWith } from '@reformer/core/behaviors';
 
 // Copy registration address to residence address
 copyTo(
@@ -133,7 +133,7 @@ copyTo(
 React to field changes with custom logic:
 
 ```typescript
-import { watch } from 'reformer/behaviors';
+import { watch } from '@reformer/core/behaviors';
 
 // Clear mortgage fields when loan type changes
 watch(path.loanType, (value, { form }) => {
@@ -149,7 +149,7 @@ watch(path.loanType, (value, { form }) => {
 Trigger validation when related fields change:
 
 ```typescript
-import { revalidateWhen } from 'reformer/behaviors';
+import { revalidateWhen } from '@reformer/core/behaviors';
 
 // Revalidate monthly payment when income changes
 revalidateWhen(path.monthlyPayment, [path.totalIncome]);

@@ -12,7 +12,7 @@ Basic guide for creating custom form field components with ReFormer.
 A minimal reusable field component:
 
 ```tsx
-import { FieldNode, useFormControl } from 'reformer';
+import { FieldNode, useFormControl } from '@reformer/core';
 
 interface TextFieldProps {
   field: FieldNode<string>;
@@ -33,9 +33,7 @@ export function TextField({ field, label, type = 'text' }: TextFieldProps) {
         onBlur={() => field.markAsTouched()}
         disabled={disabled}
       />
-      {shouldShowError && errors.length > 0 && (
-        <span className="error">{errors[0].message}</span>
-      )}
+      {shouldShowError && errors.length > 0 && <span className="error">{errors[0].message}</span>}
       {pending && <span className="loading">Validating...</span>}
     </div>
   );
@@ -50,13 +48,13 @@ export function TextField({ field, label, type = 'text' }: TextFieldProps) {
 const { value, disabled, errors, shouldShowError, pending } = useFormControl(field);
 ```
 
-| Property          | Description                              |
-| ----------------- | ---------------------------------------- |
-| `value`           | Current field value                      |
-| `disabled`        | Is field disabled                        |
-| `errors`          | Array of validation errors               |
-| `shouldShowError` | Show error (field touched and invalid)   |
-| `pending`         | Async validation in progress             |
+| Property          | Description                            |
+| ----------------- | -------------------------------------- |
+| `value`           | Current field value                    |
+| `disabled`        | Is field disabled                      |
+| `errors`          | Array of validation errors             |
+| `shouldShowError` | Show error (field touched and invalid) |
+| `pending`         | Async validation in progress           |
 
 ### 2. Call Methods on the Field Node
 
@@ -78,9 +76,7 @@ field.markAsTouched();
 ### 4. Mark as Touched on Blur
 
 ```tsx
-<input
-  onBlur={() => field.markAsTouched()}
-/>
+<input onBlur={() => field.markAsTouched()} />
 ```
 
 This triggers error display after user interaction.

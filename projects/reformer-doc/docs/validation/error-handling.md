@@ -13,8 +13,8 @@ Strategies for handling and displaying validation errors effectively.
 Show errors below each field:
 
 ```tsx
-import { useFormControl } from 'reformer';
-import { FieldNode } from 'reformer';
+import { useFormControl } from '@reformer/core';
+import { FieldNode } from '@reformer/core';
 
 interface TextFieldProps {
   field: FieldNode<string>;

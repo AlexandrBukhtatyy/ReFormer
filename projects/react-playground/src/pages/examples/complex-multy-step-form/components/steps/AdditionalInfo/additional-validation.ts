@@ -1,5 +1,5 @@
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
-import { applyWhen, required, min, max, notEmpty, validateItems } from 'reformer/validators';
+import { applyWhen, required, min, max, notEmpty, validateItems } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 // Импортируем validation схемы для элементов массивов

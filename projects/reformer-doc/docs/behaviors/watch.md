@@ -11,7 +11,7 @@ React to field changes with custom logic.
 Execute callback when field value changes.
 
 ```typescript
-import { watchField } from 'reformer/behaviors';
+import { watchField } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   watchField(path.country, (newValue, oldValue) => {
@@ -58,7 +58,7 @@ behaviors: (path, ctx) => [
 Trigger field revalidation when another field changes.
 
 ```typescript
-import { revalidateWhen } from 'reformer/behaviors';
+import { revalidateWhen } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   // Revalidate confirmPassword when password changes
@@ -69,7 +69,7 @@ behaviors: (path, ctx) => [
 ### Example: Date Range
 
 ```typescript
-import { validate } from 'reformer/validators';
+import { validate } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {

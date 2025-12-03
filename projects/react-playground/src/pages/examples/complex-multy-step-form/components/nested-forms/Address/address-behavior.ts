@@ -10,7 +10,7 @@
  * - Очистку зависимых полей при изменении вышестоящих
  */
 
-import { watchField, type BehaviorSchemaFn } from 'reformer/behaviors';
+import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
 import type { Address } from './AddressForm';
 import type { FieldPath } from '@reformer/core';
 import { fetchCities } from '../../../api';

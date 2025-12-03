@@ -11,7 +11,7 @@ ReFormer использует [Preact Signals](https://preactjs.com/guide/v10/si
 Каждое свойство узла — это Signal:
 
 ```typescript
-import { FieldNode } from 'reformer';
+import { FieldNode } from '@reformer/core';
 import { effect } from '@preact/signals-react';
 
 const name = new FieldNode({ value: '' });
@@ -33,20 +33,20 @@ name.setValue('Jane'); // выводит: "Имя изменилось: Jane"
 const field = new FieldNode({ value: '' });
 
 // Значение
-field.value;      // реактивно
+field.value; // реактивно
 
 // Состояние валидации
-field.valid;      // реактивно
-field.invalid;    // реактивно
-field.errors;     // реактивно
+field.valid; // реактивно
+field.invalid; // реактивно
+field.errors; // реактивно
 
 // Состояние взаимодействия
-field.touched;    // реактивно
-field.dirty;      // реактивно
+field.touched; // реактивно
+field.dirty; // реактивно
 
 // Состояние UI
-field.disabled;   // реактивно
-field.visible;    // реактивно
+field.disabled; // реактивно
+field.visible; // реактивно
 ```
 
 ## Вычисляемые значения
@@ -78,7 +78,7 @@ form.controls.lastName.setValue('Doe');
 Хук `useFormControl` подписывается на все изменения поля:
 
 ```tsx
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 
 function Input({ field }: { field: FieldNode<string> }) {
   const control = useFormControl(field);
@@ -91,9 +91,7 @@ function Input({ field }: { field: FieldNode<string> }) {
         onChange={(e) => control.setValue(e.target.value)}
         disabled={control.disabled}
       />
-      {control.touched && control.errors?.required && (
-        <span>Обязательное поле</span>
-      )}
+      {control.touched && control.errors?.required && <span>Обязательное поле</span>}
     </div>
   );
 }

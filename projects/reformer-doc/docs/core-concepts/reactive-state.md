@@ -11,7 +11,7 @@ ReFormer uses [Preact Signals](https://preactjs.com/guide/v10/signals/) for fine
 Every node property is a Signal:
 
 ```typescript
-import { FieldNode } from 'reformer';
+import { FieldNode } from '@reformer/core';
 import { effect } from '@preact/signals-react';
 
 const name = new FieldNode({ value: '' });
@@ -33,20 +33,20 @@ All these properties are reactive:
 const field = new FieldNode({ value: '' });
 
 // Value
-field.value;      // reactive
+field.value; // reactive
 
 // Validation state
-field.valid;      // reactive
-field.invalid;    // reactive
-field.errors;     // reactive
+field.valid; // reactive
+field.invalid; // reactive
+field.errors; // reactive
 
 // Interaction state
-field.touched;    // reactive
-field.dirty;      // reactive
+field.touched; // reactive
+field.dirty; // reactive
 
 // UI state
-field.disabled;   // reactive
-field.visible;    // reactive
+field.disabled; // reactive
+field.visible; // reactive
 ```
 
 ## Computed Values
@@ -78,7 +78,7 @@ form.controls.lastName.setValue('Doe');
 The `useFormControl` hook subscribes to all field changes:
 
 ```tsx
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 
 function Input({ field }: { field: FieldNode<string> }) {
   const control = useFormControl(field);
@@ -91,9 +91,7 @@ function Input({ field }: { field: FieldNode<string> }) {
         onChange={(e) => control.setValue(e.target.value)}
         disabled={control.disabled}
       />
-      {control.touched && control.errors?.required && (
-        <span>Required</span>
-      )}
+      {control.touched && control.errors?.required && <span>Required</span>}
     </div>
   );
 }

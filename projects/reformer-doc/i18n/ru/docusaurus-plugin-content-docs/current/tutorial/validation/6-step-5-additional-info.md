@@ -55,8 +55,8 @@ import {
   notEmpty,
   validateItems,
   validate,
-} from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+} from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -75,9 +75,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Массив имущества
   // ==========================================
 
-  applyWhen(path.hasProperty, (has) => has === true, (p) => {
-    notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
-  });
+  applyWhen(
+    path.hasProperty,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
+    }
+  );
 
   // Максимум 10 элементов в массиве
   validate(path.properties, (properties) => {
@@ -121,9 +125,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Массив существующих кредитов
   // ==========================================
 
-  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
-    notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один существующий кредит' });
-  });
+  applyWhen(
+    path.hasExistingLoans,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один существующий кредит' });
+    }
+  );
 
   // Максимум 20 элементов в массиве
   validate(path.existingLoans, (loans) => {
@@ -163,9 +171,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Массив созаёмщиков
   // ==========================================
 
-  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
-    notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
-  });
+  applyWhen(
+    path.hasCoBorrower,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
+    }
+  );
 
   // Максимум 5 элементов в массиве
   validate(path.coBorrowers, (coBorrowers) => {
@@ -210,8 +222,8 @@ import {
   notEmpty,
   validateItems,
   validate,
-} from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+} from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -230,9 +242,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Массив имущества
   // ==========================================
 
-  applyWhen(path.hasProperty, (has) => has === true, (p) => {
-    notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
-  });
+  applyWhen(
+    path.hasProperty,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
+    }
+  );
 
   validate(path.properties, (properties) => {
     if (!properties || properties.length <= 10) return null;
@@ -254,9 +270,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Массив существующих кредитов
   // ==========================================
 
-  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
-    notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один существующий кредит' });
-  });
+  applyWhen(
+    path.hasExistingLoans,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один существующий кредит' });
+    }
+  );
 
   validate(path.existingLoans, (loans) => {
     if (!loans || loans.length <= 20) return null;
@@ -281,9 +301,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Массив созаёмщиков
   // ==========================================
 
-  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
-    notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
-  });
+  applyWhen(
+    path.hasCoBorrower,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
+    }
+  );
 
   validate(path.coBorrowers, (coBorrowers) => {
     if (!coBorrowers || coBorrowers.length <= 5) return null;
@@ -314,9 +338,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 #### Условный минимум с notEmpty
 
 ```typescript
-applyWhen(path.hasProperty, (has) => has === true, (p) => {
-  notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
-});
+applyWhen(
+  path.hasProperty,
+  (has) => has === true,
+  (p) => {
+    notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
+  }
+);
 ```
 
 - Массив должен содержать элементы когда условие true
@@ -394,9 +422,13 @@ coBorrowers: [
 enableWhen(path.properties, path.hasProperty, (has) => has === true);
 
 // Валидация: Требовать минимум одно имущество когда видимо
-applyWhen(path.hasProperty, (has) => has === true, (p) => {
-  notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
-});
+applyWhen(
+  path.hasProperty,
+  (has) => has === true,
+  (p) => {
+    notEmpty(p.properties, { message: 'Добавьте хотя бы одно имущество' });
+  }
+);
 ```
 
 Идеальная синхронизация! Массив скрывается/видим и требуется/опционален вместе.
@@ -463,9 +495,13 @@ applyWhen(path.hasProperty, (has) => has === true, (p) => {
 
 ```typescript
 // Массив должен содержать элементы когда флажок true
-applyWhen(path.hasItems, (has) => has === true, (p) => {
-  notEmpty(p.items, { message: 'Добавьте хотя бы один элемент' });
-});
+applyWhen(
+  path.hasItems,
+  (has) => has === true,
+  (p) => {
+    notEmpty(p.items, { message: 'Добавьте хотя бы один элемент' });
+  }
+);
 
 // Каждый элемент должен иметь требуемые поля
 validateItems(path.items, (itemPath) => {

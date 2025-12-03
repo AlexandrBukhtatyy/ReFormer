@@ -79,7 +79,7 @@ ReFormer предоставляет несколько категорий вал
 Базовая валидация для распространённых сценариев:
 
 ```typescript
-import { required, min, max, minLength, maxLength } from 'reformer/validators';
+import { required, min, max, minLength, maxLength } from '@reformer/core/validators';
 
 // Обязательное поле
 required(path.loanAmount, { message: 'Сумма кредита обязательна' });
@@ -98,7 +98,7 @@ maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символо
 Проверка распространённых форматов:
 
 ```typescript
-import { email, phone, pattern } from 'reformer/validators';
+import { email, phone, pattern } from '@reformer/core/validators';
 
 // Формат email
 email(path.email, { message: 'Неверный формат email' });
@@ -117,7 +117,7 @@ pattern(path.passportData.series, /^\d{4}$/, {
 Применение валидации на основе других полей:
 
 ```typescript
-import { requiredWhen, minWhen, maxWhen } from 'reformer/validators';
+import { requiredWhen, minWhen, maxWhen } from '@reformer/core/validators';
 
 // Обязательно при условии true
 requiredWhen(path.propertyValue, path.loanType, (loanType) => loanType === 'mortgage', {
@@ -135,7 +135,7 @@ minWhen(path.propertyValue, 1000000, path.loanType, (loanType) => loanType === '
 Валидация массивов и их элементов:
 
 ```typescript
-import { arrayMinLength, arrayMaxLength, arrayMinLengthWhen } from 'reformer/validators';
+import { arrayMinLength, arrayMaxLength, arrayMinLengthWhen } from '@reformer/core/validators';
 
 // Валидация длины массива
 arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
@@ -154,7 +154,7 @@ min(path.properties['*'].estimatedValue, 0, { message: 'Значение дол�
 Создайте свою логику валидации:
 
 ```typescript
-import { createValidator } from 'reformer/validators';
+import { createValidator } from '@reformer/core/validators';
 
 // Пользовательский валидатор с зависимостями
 createValidator(
@@ -182,7 +182,7 @@ createValidator(
 Валидация с проверками на сервере:
 
 ```typescript
-import { createAsyncValidator } from 'reformer/validators';
+import { createAsyncValidator } from '@reformer/core/validators';
 
 // Асинхронная валидация с debounce
 createAsyncValidator(

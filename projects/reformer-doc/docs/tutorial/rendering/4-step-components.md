@@ -20,7 +20,7 @@ Each step component:
 All step components follow the same pattern:
 
 ```tsx
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
@@ -45,8 +45,8 @@ export function StepName({ control }: StepProps) {
 The first step collects loan details with conditional fields:
 
 ```tsx title="src/steps/BasicInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
@@ -105,7 +105,7 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
 This step demonstrates nested form usage:
 
 ```tsx title="src/steps/PersonalInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { PersonalDataForm } from '../nested-forms/PersonalDataForm';
 import { PassportDataForm } from '../nested-forms/PassportDataForm';
@@ -150,8 +150,8 @@ export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
 Demonstrates reusing nested forms and group operations:
 
 ```tsx title="src/steps/ContactInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { AddressForm } from '../nested-forms/AddressForm';
 import type { CreditApplicationForm } from '../types';
@@ -246,8 +246,8 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
 Shows conditional sections based on employment status:
 
 ```tsx title="src/steps/EmploymentForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
@@ -316,8 +316,8 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 Demonstrates working with arrays (covered in next section):
 
 ```tsx title="src/steps/AdditionalInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { FormArraySection } from '../components/FormArraySection';
 import { PropertyForm } from '../nested-forms/PropertyForm';
@@ -396,7 +396,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 Final step with all confirmations:
 
 ```tsx title="src/steps/ConfirmationForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
@@ -458,7 +458,9 @@ Subscribe only to the fields you need:
 const { value: status } = useFormControl(control.status);
 
 // Only re-renders when status changes
-{status === 'active' && <ActiveSection />}
+{
+  status === 'active' && <ActiveSection />;
+}
 ```
 
 ### 4. Extract Reusable Patterns

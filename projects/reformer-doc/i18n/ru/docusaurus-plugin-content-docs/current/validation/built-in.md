@@ -11,7 +11,7 @@ sidebar_position: 2
 Поле должно иметь непустое значение.
 
 ```typescript
-import { required } from 'reformer/validators';
+import { required } from '@reformer/core/validators';
 
 required(path.name);
 // Ошибка: { code: 'required', message: '...' }
@@ -24,7 +24,7 @@ required(path.name);
 Корректный формат email.
 
 ```typescript
-import { email } from 'reformer/validators';
+import { email } from '@reformer/core/validators';
 
 email(path.email);
 // Ошибка: { code: 'email', message: '...' }
@@ -35,7 +35,7 @@ email(path.email);
 Ограничения длины строки.
 
 ```typescript
-import { minLength, maxLength } from 'reformer/validators';
+import { minLength, maxLength } from '@reformer/core/validators';
 
 minLength(path.name, 2);
 // Ошибка: { code: 'minLength', params: { required: 2, actual: 1 } }
@@ -49,7 +49,7 @@ maxLength(path.bio, 500);
 Ограничения числового значения.
 
 ```typescript
-import { min, max } from 'reformer/validators';
+import { min, max } from '@reformer/core/validators';
 
 min(path.age, 18);
 // Ошибка: { code: 'min', params: { min: 18, actual: 16 } }
@@ -63,7 +63,7 @@ max(path.quantity, 100);
 Соответствие регулярному выражению.
 
 ```typescript
-import { pattern } from 'reformer/validators';
+import { pattern } from '@reformer/core/validators';
 
 // Только буквы
 pattern(path.code, /^[A-Z]+$/);
@@ -79,7 +79,7 @@ pattern(path.code, /^[A-Z]+$/, 'uppercase');
 Корректный формат URL.
 
 ```typescript
-import { url } from 'reformer/validators';
+import { url } from '@reformer/core/validators';
 
 url(path.website);
 // Ошибка: { code: 'url', message: '...' }
@@ -90,7 +90,7 @@ url(path.website);
 Корректный формат телефонного номера.
 
 ```typescript
-import { phone } from 'reformer/validators';
+import { phone } from '@reformer/core/validators';
 
 phone(path.phone);
 // Ошибка: { code: 'phone', message: '...' }
@@ -101,7 +101,7 @@ phone(path.phone);
 Должно быть валидным числом.
 
 ```typescript
-import { number } from 'reformer/validators';
+import { number } from '@reformer/core/validators';
 
 number(path.amount);
 // Ошибка: { code: 'number', message: '...' }
@@ -112,7 +112,7 @@ number(path.amount);
 Корректное значение даты.
 
 ```typescript
-import { date } from 'reformer/validators';
+import { date } from '@reformer/core/validators';
 
 date(path.birthDate);
 // Ошибка: { code: 'date', message: '...' }
@@ -128,7 +128,7 @@ validation: (path) => {
   minLength(path.password, 8);
   pattern(path.password, /[A-Z]/, 'uppercase');
   pattern(path.password, /[0-9]/, 'hasNumber');
-}
+};
 ```
 
 Все валидаторы выполняются, ошибки собираются:
@@ -138,8 +138,8 @@ validation: (path) => {
 errors: [
   { code: 'minLength', params: { required: 8, actual: 3 } },
   { code: 'uppercase' },
-  { code: 'hasNumber' }
-]
+  { code: 'hasNumber' },
+];
 ```
 
 ## Следующие шаги

@@ -11,11 +11,9 @@ sidebar_position: 4
 Копирование значения из исходного поля в целевое.
 
 ```typescript
-import { copyFrom } from 'reformer/behaviors';
+import { copyFrom } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [
-  copyFrom(path.email, path.username),
-]
+behaviors: (path, ctx) => [copyFrom(path.email, path.username)];
 ```
 
 ### Пример: Одинаковый адрес
@@ -35,16 +33,12 @@ const form = new GroupNode({
   },
   behaviors: (path, ctx) => [
     // Копировать только когда checkbox отмечен
-    copyFrom(
-      path.billingAddress.street,
-      path.shippingAddress.street,
-      { when: () => form.controls.sameAsBilling.value }
-    ),
-    copyFrom(
-      path.billingAddress.city,
-      path.shippingAddress.city,
-      { when: () => form.controls.sameAsBilling.value }
-    ),
+    copyFrom(path.billingAddress.street, path.shippingAddress.street, {
+      when: () => form.controls.sameAsBilling.value,
+    }),
+    copyFrom(path.billingAddress.city, path.shippingAddress.city, {
+      when: () => form.controls.sameAsBilling.value,
+    }),
   ],
 });
 ```
@@ -55,7 +49,7 @@ const form = new GroupNode({
 behaviors: (path, ctx) => [
   // Копировать только один раз, при загрузке
   copyFrom(path.defaultEmail, path.email, { once: true }),
-]
+];
 ```
 
 ## syncFields
@@ -63,11 +57,9 @@ behaviors: (path, ctx) => [
 Двусторонняя синхронизация между полями.
 
 ```typescript
-import { syncFields } from 'reformer/behaviors';
+import { syncFields } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [
-  syncFields(path.displayName, path.username),
-]
+behaviors: (path, ctx) => [syncFields(path.displayName, path.username)];
 ```
 
 При изменении любого из полей, другое обновляется:
@@ -89,14 +81,10 @@ const form = new GroupNode({
     fahrenheit: { value: 32 },
   },
   behaviors: (path, ctx) => [
-    syncFields(
-      path.celsius,
-      path.fahrenheit,
-      {
-        toTarget: (c) => (c * 9/5) + 32,
-        toSource: (f) => (f - 32) * 5/9,
-      }
-    ),
+    syncFields(path.celsius, path.fahrenheit, {
+      toTarget: (c) => (c * 9) / 5 + 32,
+      toSource: (f) => ((f - 32) * 5) / 9,
+    }),
   ],
 });
 
@@ -113,17 +101,13 @@ form.controls.celsius.value; // 20
 
 ```typescript
 behaviors: (path, ctx) => [
-  copyFrom(
-    path.firstName,
-    path.initials,
-    {
-      transform: (firstName) => {
-        const lastName = form.controls.lastName.value;
-        return `${firstName[0]}${lastName[0]}`.toUpperCase();
-      },
-    }
-  ),
-]
+  copyFrom(path.firstName, path.initials, {
+    transform: (firstName) => {
+      const lastName = form.controls.lastName.value;
+      return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    },
+  }),
+];
 ```
 
 ## Копирование массивов
@@ -133,19 +117,14 @@ behaviors: (path, ctx) => [
 ```typescript
 const form = new GroupNode({
   form: {
-    templateEmails: [
-      { value: 'admin@example.com' },
-      { value: 'support@example.com' },
-    ],
+    templateEmails: [{ value: 'admin@example.com' }, { value: 'support@example.com' }],
     recipientEmails: [],
     useTemplate: { value: false },
   },
   behaviors: (path, ctx) => [
-    copyFrom(
-      path.templateEmails,
-      path.recipientEmails,
-      { when: () => form.controls.useTemplate.value }
-    ),
+    copyFrom(path.templateEmails, path.recipientEmails, {
+      when: () => form.controls.useTemplate.value,
+    }),
   ],
 });
 ```

@@ -1,5 +1,5 @@
-import { disableWhen, copyFrom } from 'reformer/behaviors';
-import type { BehaviorSchemaFn } from 'reformer/behaviors';
+import { disableWhen, copyFrom } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn } from '@reformer/core/behaviors';
 import type { FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 

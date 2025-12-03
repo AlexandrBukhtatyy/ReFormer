@@ -281,7 +281,7 @@ Search input with autocomplete from resource:
 import * as React from 'react';
 import { SearchIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResourceConfig, ResourceItem } from 'reformer';
+import type { ResourceConfig, ResourceItem } from '@reformer/core';
 
 export interface InputSearchProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'resource'> {
@@ -529,7 +529,7 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResourceConfig } from 'reformer';
+import type { ResourceConfig } from '@reformer/core';
 
 export interface SelectProps<T> {
   value?: string | null;

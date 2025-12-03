@@ -1,4 +1,4 @@
-import { required, pattern } from 'reformer/validators';
+import { required, pattern } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { Address } from './type';
 

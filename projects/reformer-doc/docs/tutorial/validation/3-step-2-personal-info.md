@@ -10,18 +10,18 @@ Validating names, birth date, passport, INN, and SNILS with patterns and custom 
 
 Step 2 contains personal data fields that need careful validation:
 
-| Field | Validation Rules |
-|-------|------------------|
-| `personalData.firstName` | Required, minLength 2, Cyrillic only |
-| `personalData.lastName` | Required, minLength 2, Cyrillic only |
-| `personalData.middleName` | Optional, Cyrillic only |
-| `personalData.birthDate` | Required, not in future, age 18-70 |
-| `passportData.series` | Required, exactly 4 digits |
-| `passportData.number` | Required, exactly 6 digits |
-| `passportData.issueDate` | Required, not in future, after birth date |
-| `passportData.issuedBy` | Required, minLength 10 |
-| `inn` | Required, 10 or 12 digits |
-| `snils` | Required, exactly 11 digits |
+| Field                     | Validation Rules                          |
+| ------------------------- | ----------------------------------------- |
+| `personalData.firstName`  | Required, minLength 2, Cyrillic only      |
+| `personalData.lastName`   | Required, minLength 2, Cyrillic only      |
+| `personalData.middleName` | Optional, Cyrillic only                   |
+| `personalData.birthDate`  | Required, not in future, age 18-70        |
+| `passportData.series`     | Required, exactly 4 digits                |
+| `passportData.number`     | Required, exactly 6 digits                |
+| `passportData.issueDate`  | Required, not in future, after birth date |
+| `passportData.issuedBy`   | Required, minLength 10                    |
+| `inn`                     | Required, 10 or 12 digits                 |
+| `snils`                   | Required, exactly 11 digits               |
 
 ## Creating the Validator File
 
@@ -38,8 +38,8 @@ touch src/schemas/validators/personal-info.ts
 Validate names using the Cyrillic pattern:
 
 ```typescript title="src/schemas/validators/personal-info.ts"
-import { required, minLength, pattern, validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, minLength, pattern, validate } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -81,10 +81,11 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 :::tip Pattern Validation
 The pattern `/^[А-ЯЁа-яё\s-]+$/` ensures:
+
 - Only Cyrillic letters (А-Я, а-я, Ё, ё)
 - Spaces allowed (for compound names like "Мария Анна")
 - Hyphens allowed (for names like "Иван-Павел")
-:::
+  :::
 
 ### Birth Date Validation
 
@@ -255,8 +256,8 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
 Here's the complete validator for Step 2:
 
 ```typescript title="src/schemas/validators/personal-info.ts"
-import { required, minLength, pattern, validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, minLength, pattern, validate } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -442,6 +443,7 @@ validate(path.personalData.birthDate, (birthDate) => {
 ```
 
 **Key points**:
+
 - Return `null` for valid values
 - Return error object `{ code, message }` for invalid values
 - First check if value exists
@@ -472,6 +474,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 ```
 
 **Dependencies**:
+
 - Validator re-runs when any dependency changes
 - Access other fields via `ctx.form`
 - Useful for cross-field validation
@@ -481,6 +484,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 Test these scenarios:
 
 ### Name Validation
+
 - [ ] Leave first name empty → Error shown
 - [ ] Enter first name with < 2 characters → Error shown
 - [ ] Enter first name with Latin characters → Error shown
@@ -488,6 +492,7 @@ Test these scenarios:
 - [ ] Repeat for last name
 
 ### Birth Date Validation
+
 - [ ] Leave birth date empty → Error shown
 - [ ] Enter future date → Error shown
 - [ ] Enter date that makes age < 18 → Error shown
@@ -495,6 +500,7 @@ Test these scenarios:
 - [ ] Enter valid age (18-70) → No error
 
 ### Passport Validation
+
 - [ ] Leave series empty → Error shown
 - [ ] Enter series with < 4 digits → Error shown
 - [ ] Enter series with > 4 digits → Error shown
@@ -505,6 +511,7 @@ Test these scenarios:
 - [ ] Enter issue date before birth date → Error shown
 
 ### INN and SNILS
+
 - [ ] Leave INN empty → Error shown
 - [ ] Enter INN with 9 digits → Error shown
 - [ ] Enter INN with 10 digits → No error
@@ -524,29 +531,34 @@ Test these scenarios:
 ## Common Patterns
 
 ### Cyrillic Names
+
 ```typescript
-/^[А-ЯЁа-яё\s-]+$/
+/^[А-ЯЁа-яё\s-]+$/;
 ```
 
 ### Russian Passport Series/Number
+
 ```typescript
 /^\d{4}$/  // Series: 4 digits
 /^\d{6}$/  // Number: 6 digits
 ```
 
 ### INN (Individual Taxpayer Number)
+
 ```typescript
-/^\d{10}$|^\d{12}$/  // 10 or 12 digits
+/^\d{10}$|^\d{12}$/; // 10 or 12 digits
 ```
 
 ### SNILS (Insurance Number)
+
 ```typescript
-/^\d{11}$/  // 11 digits
+/^\d{11}$/; // 11 digits
 ```
 
 ## What's Next?
 
 In the next section, we'll add validation for **Step 3: Contact Information**, including:
+
 - Email format validation
 - Phone number validation
 - Address validation (required fields)

@@ -1,5 +1,12 @@
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
-import { apply, applyWhen, validateTree, required, pattern, email } from 'reformer/validators';
+import {
+  apply,
+  applyWhen,
+  validateTree,
+  required,
+  pattern,
+  email,
+} from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 // Импортируем модульную validation схему для Address

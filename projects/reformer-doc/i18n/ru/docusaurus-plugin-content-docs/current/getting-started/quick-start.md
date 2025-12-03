@@ -81,7 +81,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
 ```tsx title="src/components/ui/FormField.tsx"
 import * as React from 'react';
-import { useFormControl, type FieldNode } from 'reformer';
+import { useFormControl, type FieldNode } from '@reformer/core';
 
 interface FormFieldProps {
   control: FieldNode<any>;
@@ -139,8 +139,8 @@ type ContactFormType = {
   :::
 
 ```typescript title="src/forms/contact-form.ts"
-import { createForm } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { createForm } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { ContactFormType } from '@/forms/contact-form.type';

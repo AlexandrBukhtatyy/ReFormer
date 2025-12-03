@@ -13,7 +13,7 @@ import {
   min,
   max,
   validateTree,
-} from 'reformer/validators';
+} from '@reformer/core/validators';
 import type { ExistingLoan } from './ExistingLoanForm';
 
 /**

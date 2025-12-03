@@ -13,8 +13,8 @@ sidebar_position: 6
 Показывайте ошибки под каждым полем:
 
 ```tsx
-import { useFormControl } from 'reformer';
-import { FieldNode } from 'reformer';
+import { useFormControl } from '@reformer/core';
+import { FieldNode } from '@reformer/core';
 
 interface TextFieldProps {
   field: FieldNode<string>;

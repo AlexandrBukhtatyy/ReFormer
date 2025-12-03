@@ -10,18 +10,18 @@ sidebar_position: 3
 
 Шаг 2 содержит личные данные, которые требуют тщательной валидации:
 
-| Поле | Правила валидации |
-|------|------------------|
-| `personalData.firstName` | Обязательно, minLength 2, только кириллица |
-| `personalData.lastName` | Обязательно, minLength 2, только кириллица |
-| `personalData.middleName` | Опционально, только кириллица |
-| `personalData.birthDate` | Обязательно, не в будущем, возраст 18-70 |
-| `passportData.series` | Обязательно, ровно 4 цифры |
-| `passportData.number` | Обязательно, ровно 6 цифр |
-| `passportData.issueDate` | Обязательно, не в будущем, после даты рождения |
-| `passportData.issuedBy` | Обязательно, minLength 10 |
-| `inn` | Обязательно, 10 или 12 цифр |
-| `snils` | Обязательно, ровно 11 цифр |
+| Поле                      | Правила валидации                              |
+| ------------------------- | ---------------------------------------------- |
+| `personalData.firstName`  | Обязательно, minLength 2, только кириллица     |
+| `personalData.lastName`   | Обязательно, minLength 2, только кириллица     |
+| `personalData.middleName` | Опционально, только кириллица                  |
+| `personalData.birthDate`  | Обязательно, не в будущем, возраст 18-70       |
+| `passportData.series`     | Обязательно, ровно 4 цифры                     |
+| `passportData.number`     | Обязательно, ровно 6 цифр                      |
+| `passportData.issueDate`  | Обязательно, не в будущем, после даты рождения |
+| `passportData.issuedBy`   | Обязательно, minLength 10                      |
+| `inn`                     | Обязательно, 10 или 12 цифр                    |
+| `snils`                   | Обязательно, ровно 11 цифр                     |
 
 ## Создание файла валидатора
 
@@ -38,8 +38,8 @@ touch src/schemas/validators/personal-info.ts
 Валидируйте имена используя паттерн кириллицы:
 
 ```typescript title="src/schemas/validators/personal-info.ts"
-import { required, minLength, pattern, validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, minLength, pattern, validate } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -81,10 +81,11 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
 :::tip Валидация паттерна
 Паттерн `/^[А-ЯЁа-яё\s-]+$/` обеспечивает:
+
 - Только буквы кириллицы (А-Я, а-я, Ё, ё)
 - Пробелы разрешены (для составных имён типа "Мария Анна")
 - Дефисы разрешены (для имён типа "Иван-Павел")
-:::
+  :::
 
 ### Валидация даты рождения
 
@@ -255,8 +256,8 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
 Вот полный валидатор для Шага 2:
 
 ```typescript title="src/schemas/validators/personal-info.ts"
-import { required, minLength, pattern, validate } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, minLength, pattern, validate } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -297,60 +298,52 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
   required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
 
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+  createValidator(path.personalData.birthDate, [], (birthDate) => {
+    if (!birthDate) return null;
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(birthDate as string);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDate',
-          message: 'Дата рождения не может быть в будущем',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        type: 'futureDate',
+        message: 'Дата рождения не может быть в будущем',
+      };
     }
-  );
 
-  createValidator(
-    path.personalData.birthDate,
-    [],
-    (birthDate) => {
-      if (!birthDate) return null;
+    return null;
+  });
 
-      const date = new Date(birthDate as string);
-      const today = new Date();
+  createValidator(path.personalData.birthDate, [], (birthDate) => {
+    if (!birthDate) return null;
 
-      let age = today.getFullYear() - date.getFullYear();
-      const monthDiff = today.getMonth() - date.getMonth();
+    const date = new Date(birthDate as string);
+    const today = new Date();
 
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-        age--;
-      }
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
 
-      if (age < 18) {
-        return {
-          type: 'underAge',
-          message: 'Заявитель должен быть не моложе 18 лет',
-        };
-      }
-
-      if (age > 70) {
-        return {
-          type: 'overAge',
-          message: 'Заявитель должен быть не старше 70 лет',
-        };
-      }
-
-      return null;
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+      age--;
     }
-  );
+
+    if (age < 18) {
+      return {
+        type: 'underAge',
+        message: 'Заявитель должен быть не моложе 18 лет',
+      };
+    }
+
+    if (age > 70) {
+      return {
+        type: 'overAge',
+        message: 'Заявитель должен быть не старше 70 лет',
+      };
+    }
+
+    return null;
+  });
 
   // ==========================================
   // Данные паспорта
@@ -368,26 +361,22 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
   required(path.passportData.issueDate, { message: 'Дата выдачи обязательна' });
 
-  createValidator(
-    path.passportData.issueDate,
-    [],
-    (issueDate) => {
-      if (!issueDate) return null;
+  createValidator(path.passportData.issueDate, [], (issueDate) => {
+    if (!issueDate) return null;
 
-      const date = new Date(issueDate as string);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const date = new Date(issueDate as string);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (date > today) {
-        return {
-          type: 'futureDateIssue',
-          message: 'Дата выдачи не может быть в будущем',
-        };
-      }
-
-      return null;
+    if (date > today) {
+      return {
+        type: 'futureDateIssue',
+        message: 'Дата выдачи не может быть в будущем',
+      };
     }
-  );
+
+    return null;
+  });
 
   createValidator(
     path.passportData.issueDate,
@@ -455,6 +444,7 @@ validate(path.personalData.birthDate, (birthDate) => {
 ```
 
 **Ключевые моменты**:
+
 - Возвращайте `null` для валидных значений
 - Возвращайте объект ошибки `{ code, message }` для невалидных значений
 - Сначала проверьте наличие значения
@@ -485,6 +475,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 ```
 
 **Зависимости**:
+
 - Валидатор переиспускается когда изменяется любое поле формы
 - Используйте `ctx.form` для доступа к другим полям
 - Полезна для валидации между полями
@@ -494,6 +485,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 Протестируйте эти сценарии:
 
 ### Валидация имён
+
 - [ ] Оставьте имя пусто → Ошибка показана
 - [ ] Введите имя с < 2 символами → Ошибка показана
 - [ ] Введите имя с латинскими буквами → Ошибка показана
@@ -501,6 +493,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 - [ ] Повторите для фамилии
 
 ### Валидация даты рождения
+
 - [ ] Оставьте дату рождения пусто → Ошибка показана
 - [ ] Введите будущую дату → Ошибка показана
 - [ ] Введите дату которая делает возраст < 18 → Ошибка показана
@@ -508,6 +501,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 - [ ] Введите валидный возраст (18-70) → Ошибки нет
 
 ### Валидация паспорта
+
 - [ ] Оставьте серию пусто → Ошибка показана
 - [ ] Введите серию с < 4 цифрами → Ошибка показана
 - [ ] Введите серию с > 4 цифрами → Ошибка показана
@@ -518,6 +512,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 - [ ] Введите дату выдачи раньше даты рождения → Ошибка показана
 
 ### ИНН и СНИЛС
+
 - [ ] Оставьте ИНН пусто → Ошибка показана
 - [ ] Введите ИНН с 9 цифрами → Ошибка показана
 - [ ] Введите ИНН с 10 цифрами → Ошибки нет
@@ -537,29 +532,34 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 ## Распространённые паттерны
 
 ### Имена на кириллице
+
 ```typescript
-/^[А-ЯЁа-яё\s-]+$/
+/^[А-ЯЁа-яё\s-]+$/;
 ```
 
 ### Русская серия/номер паспорта
+
 ```typescript
 /^\d{4}$/  // Серия: 4 цифры
 /^\d{6}$/  // Номер: 6 цифр
 ```
 
 ### ИНН (Индивидуальный номер налогоплательщика)
+
 ```typescript
-/^\d{10}$|^\d{12}$/  // 10 или 12 цифр
+/^\d{10}$|^\d{12}$/; // 10 или 12 цифр
 ```
 
 ### СНИЛС (Страховой номер)
+
 ```typescript
-/^\d{11}$/  // 11 цифр
+/^\d{11}$/; // 11 цифр
 ```
 
 ## Что дальше?
 
 В следующем разделе мы добавим валидацию для **Шага 3: Контактная информация**, включая:
+
 - Валидацию формата email
 - Валидацию номера телефона
 - Валидацию адреса (обязательные поля)

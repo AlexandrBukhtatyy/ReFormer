@@ -74,7 +74,7 @@ ReFormer предоставляет несколько встроенных фу
 Автоматически рассчитывают значения полей на основе других:
 
 ```typescript
-import { computeFrom } from 'reformer/behaviors';
+import { computeFrom } from '@reformer/core/behaviors';
 
 // Вычисляем общий доход
 computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (values) => {
@@ -89,7 +89,7 @@ computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, (valu
 Показывают или скрывают поля по условиям:
 
 ```typescript
-import { enableWhen, disableWhen } from 'reformer/behaviors';
+import { enableWhen, disableWhen } from '@reformer/core/behaviors';
 
 // Показываем поля ипотеки только для ипотечных кредитов
 enableWhen(path.propertyValue, path.loanType, (value) => value === 'mortgage');
@@ -103,7 +103,7 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value ===
 Включают или отключают поля по условиям:
 
 ```typescript
-import { enableWhen, disableWhen } from 'reformer/behaviors';
+import { enableWhen, disableWhen } from '@reformer/core/behaviors';
 
 // Отключаем адрес проживания когда совпадает с регистрацией
 disableWhen(path.residenceAddress, path.sameAsRegistration, (value) => value === true);
@@ -117,7 +117,7 @@ disableWhen(path.totalIncome, path.totalIncome, () => true);
 Копируют или синхронизируют значения между полями:
 
 ```typescript
-import { copyTo, syncWith } from 'reformer/behaviors';
+import { copyTo, syncWith } from '@reformer/core/behaviors';
 
 // Копируем адрес регистрации в адрес проживания
 copyTo(
@@ -133,7 +133,7 @@ copyTo(
 Реагируют на изменения полей с пользовательской логикой:
 
 ```typescript
-import { watch } from 'reformer/behaviors';
+import { watch } from '@reformer/core/behaviors';
 
 // Очищаем поля ипотеки при смене типа кредита
 watch(path.loanType, (value, { form }) => {
@@ -149,7 +149,7 @@ watch(path.loanType, (value, { form }) => {
 Запускают валидацию при изменении связанных полей:
 
 ```typescript
-import { revalidateWhen } from 'reformer/behaviors';
+import { revalidateWhen } from '@reformer/core/behaviors';
 
 // Ревалидируем ежемесячный платёж при изменении дохода
 revalidateWhen(path.monthlyPayment, [path.totalIncome]);

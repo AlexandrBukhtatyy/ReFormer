@@ -85,7 +85,7 @@ Address form — region, city, street, house, apartment, postal code.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/AddressForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { Address } from '../types/credit-application.types';
 
@@ -121,7 +121,7 @@ Personal data — full name, birth date, birth place, gender.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/PersonalDataForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { PersonalData } from '../types/credit-application.types';
 
@@ -157,7 +157,7 @@ Passport data — series, number, issue date, department code, issued by.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/PassportDataForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { PassportData } from '../types/credit-application.types';
 
@@ -192,7 +192,7 @@ Co-borrower data — personal data, phone, email, relationship, income.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/CoBorrowerForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { CoBorrower } from '../types/credit-application.types';
 
@@ -233,7 +233,7 @@ Property information — type, value, description, encumbrance.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/PropertyForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { Property } from '../types/credit-application.types';
 
@@ -265,7 +265,7 @@ Existing loans — bank, type, amount, remaining, payment, maturity date.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/ExistingLoanForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { ExistingLoan } from '../types/credit-application.types';
 
@@ -319,7 +319,7 @@ import {
   type ArrayNode,
   type FormFields,
   type GroupNodeWithControls,
-} from 'reformer';
+} from '@reformer/core';
 import { Button } from '@/components/ui/button';
 
 interface FormArrayManagerProps {
@@ -387,7 +387,7 @@ export function FormArrayManager({
 ### Using FormArrayManager
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx"
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import { FormArrayManager } from '@/components/forms/FormArrayManager';
 import { PropertyForm } from '../sub-forms/PropertyForm';

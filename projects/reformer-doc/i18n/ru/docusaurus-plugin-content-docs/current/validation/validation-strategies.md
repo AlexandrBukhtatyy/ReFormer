@@ -346,7 +346,7 @@ const form = new GroupNode({
 Валидация всей формы:
 
 ```typescript
-import { validateTree } from 'reformer/validators';
+import { validateTree } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {

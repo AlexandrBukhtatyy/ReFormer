@@ -8,7 +8,7 @@ import {
   minLength,
   maxLength,
   pattern,
-} from 'reformer/validators';
+} from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**

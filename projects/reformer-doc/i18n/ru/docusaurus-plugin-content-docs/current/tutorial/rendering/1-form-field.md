@@ -21,7 +21,7 @@ sidebar_position: 1
 Библиотека ReFormer предоставляет хук `useFormControl`, который извлекает реактивное состояние из `FieldNode`:
 
 ```tsx
-import { useFormControl, type FieldNode } from 'reformer';
+import { useFormControl, type FieldNode } from '@reformer/core';
 
 const { value, errors, pending, disabled, shouldShowError, componentProps } =
   useFormControl(control);
@@ -42,7 +42,7 @@ const { value, errors, pending, disabled, shouldShowError, componentProps } =
 
 ```tsx title="src/components/ui/FormField.tsx"
 import * as React from 'react';
-import { useFormControl, type FieldNode } from 'reformer';
+import { useFormControl, type FieldNode } from '@reformer/core';
 import { Checkbox } from './checkbox';
 
 export interface FormFieldProps {
@@ -107,7 +107,7 @@ import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@radix-ui/react-checkbox';
 import { useMemo } from 'react';
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 
 interface PersonalInfo {
   firstName: string;

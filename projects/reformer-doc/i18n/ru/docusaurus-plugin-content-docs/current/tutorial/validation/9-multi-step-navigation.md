@@ -38,7 +38,7 @@ createForm<CreditApplicationForm>({
 Функция `validateForm` позволяет валидировать форму по конкретной схеме:
 
 ```typescript
-import { validateForm } from 'reformer/validators';
+import { validateForm } from '@reformer/core/validators';
 
 // Валидируем только поля шага 1
 const isValid = await validateForm(form, loanValidation);
@@ -70,7 +70,7 @@ export { creditApplicationValidation } from './credit-application';
 Затем создаем конфигурацию шагов:
 
 ```typescript title="src/forms/step-config.ts"
-import type { ValidationSchemaFn } from 'reformer';
+import type { ValidationSchemaFn } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 import {
@@ -113,7 +113,7 @@ export const STEP_CONFIG: StepNavigationConfig<CreditApplicationForm> = {
 
 ```typescript title="src/components/ui/step-navigation/types.ts"
 import type { ReactNode } from 'react';
-import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from 'reformer';
+import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from '@reformer/core';
 
 /**
  * Конфигурация multi-step формы
@@ -186,8 +186,8 @@ export interface StepNavigationProps<T extends Record<string, FormValue>> {
 
 ```typescript title="src/components/ui/step-navigation/StepNavigation.tsx"
 import { forwardRef, useImperativeHandle, useState, useCallback, useMemo } from 'react';
-import { validateForm } from 'reformer/validators';
-import type { FormValue } from 'reformer';
+import { validateForm } from '@reformer/core/validators';
+import type { FormValue } from '@reformer/core';
 import type {
   StepNavigationHandle,
   StepNavigationProps,
@@ -433,16 +433,11 @@ export function CreditApplicationForm() {
           {/* Кнопки навигации */}
           <div className="flex gap-4 mt-6">
             {!state.isFirstStep && (
-              <button onClick={() => navRef.current?.goToPreviousStep()}>
-                Назад
-              </button>
+              <button onClick={() => navRef.current?.goToPreviousStep()}>Назад</button>
             )}
 
             {!state.isLastStep ? (
-              <button
-                onClick={() => navRef.current?.goToNextStep()}
-                disabled={state.isValidating}
-              >
+              <button onClick={() => navRef.current?.goToNextStep()} disabled={state.isValidating}>
                 {state.isValidating ? 'Проверка...' : 'Далее'}
               </button>
             ) : (
@@ -535,7 +530,7 @@ const STEP_LABELS = [
       {/* ... содержимое шага ... */}
     </>
   )}
-</StepNavigation>
+</StepNavigation>;
 ```
 
 ## API Reference
@@ -549,10 +544,10 @@ function validateForm<T extends FormFields>(
 ): Promise<boolean>;
 ```
 
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| `form` | `GroupNode<T>` | Форма для валидации |
-| `schema` | `ValidationSchemaFn<T>` | Схема валидации |
+| Параметр | Тип                     | Описание            |
+| -------- | ----------------------- | ------------------- |
+| `form`   | `GroupNode<T>`          | Форма для валидации |
+| `schema` | `ValidationSchemaFn<T>` | Схема валидации     |
 
 **Возвращает:** `Promise<boolean>` - `true` если валидно, `false` если есть ошибки
 
@@ -560,30 +555,30 @@ function validateForm<T extends FormFields>(
 
 Методы и свойства, доступные через ref:
 
-| Свойство/Метод | Тип | Описание |
-|----------------|-----|----------|
-| `currentStep` | `number` | Текущий шаг (1-based) |
-| `completedSteps` | `number[]` | Массив завершенных шагов |
-| `isFirstStep` | `boolean` | Первый ли это шаг |
-| `isLastStep` | `boolean` | Последний ли это шаг |
-| `isValidating` | `boolean` | Идет ли валидация |
-| `goToNextStep()` | `Promise<boolean>` | Валидировать и перейти на след. шаг |
-| `goToPreviousStep()` | `void` | Перейти на предыдущий шаг |
-| `goToStep(step)` | `boolean` | Перейти на конкретный шаг |
-| `validateCurrentStep()` | `Promise<boolean>` | Валидировать текущий шаг |
-| `submit(onSubmit)` | `Promise<R \| null>` | Полная валидация и отправка |
+| Свойство/Метод          | Тип                  | Описание                            |
+| ----------------------- | -------------------- | ----------------------------------- |
+| `currentStep`           | `number`             | Текущий шаг (1-based)               |
+| `completedSteps`        | `number[]`           | Массив завершенных шагов            |
+| `isFirstStep`           | `boolean`            | Первый ли это шаг                   |
+| `isLastStep`            | `boolean`            | Последний ли это шаг                |
+| `isValidating`          | `boolean`            | Идет ли валидация                   |
+| `goToNextStep()`        | `Promise<boolean>`   | Валидировать и перейти на след. шаг |
+| `goToPreviousStep()`    | `void`               | Перейти на предыдущий шаг           |
+| `goToStep(step)`        | `boolean`            | Перейти на конкретный шаг           |
+| `validateCurrentStep()` | `Promise<boolean>`   | Валидировать текущий шаг            |
+| `submit(onSubmit)`      | `Promise<R \| null>` | Полная валидация и отправка         |
 
 ### `StepNavigationRenderState`
 
 Состояние, передаваемое в функцию children:
 
-| Свойство | Тип | Описание |
-|----------|-----|----------|
-| `currentStep` | `number` | Текущий шаг (1-based) |
-| `completedSteps` | `number[]` | Завершенные шаги |
-| `isFirstStep` | `boolean` | Первый ли это шаг |
-| `isLastStep` | `boolean` | Последний ли это шаг |
-| `isValidating` | `boolean` | Идет ли валидация |
+| Свойство         | Тип        | Описание              |
+| ---------------- | ---------- | --------------------- |
+| `currentStep`    | `number`   | Текущий шаг (1-based) |
+| `completedSteps` | `number[]` | Завершенные шаги      |
+| `isFirstStep`    | `boolean`  | Первый ли это шаг     |
+| `isLastStep`     | `boolean`  | Последний ли это шаг  |
+| `isValidating`   | `boolean`  | Идет ли валидация     |
 
 ## Ключевые паттерны
 

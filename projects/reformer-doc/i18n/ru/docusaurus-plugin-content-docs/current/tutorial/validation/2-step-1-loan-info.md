@@ -39,8 +39,8 @@ touch src/schemas/validators/loan-info.ts
 Начните с базовых обязательных полей и числовых диапазонов:
 
 ```typescript title="src/schemas/validators/loan-info.ts"
-import { required, min, max, minLength, maxLength, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, max, minLength, maxLength, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -96,16 +96,20 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
   // ==========================================
   // Условно: Поля ипотеки
   // ==========================================
-  applyWhen(path.loanType, (loanType) => loanType === 'mortgage', (p) => {
-    // Стоимость имущества - обязательно для ипотеки
-    required(p.propertyValue, { message: 'Стоимость имущества обязательна для ипотеки' });
-    min(p.propertyValue, 1000000, { message: 'Минимальная стоимость имущества: 1 000 000' });
-    max(p.propertyValue, 500000000, { message: 'Максимальная стоимость имущества: 500 000 000' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'mortgage',
+    (p) => {
+      // Стоимость имущества - обязательно для ипотеки
+      required(p.propertyValue, { message: 'Стоимость имущества обязательна для ипотеки' });
+      min(p.propertyValue, 1000000, { message: 'Минимальная стоимость имущества: 1 000 000' });
+      max(p.propertyValue, 500000000, { message: 'Максимальная стоимость имущества: 500 000 000' });
 
-    // Первоначальный платёж - обязателен для ипотеки
-    required(p.initialPayment, { message: 'Первоначальный платёж обязателен для ипотеки' });
-    min(p.initialPayment, 100000, { message: 'Минимальный первоначальный платёж: 100 000' });
-  });
+      // Первоначальный платёж - обязателен для ипотеки
+      required(p.initialPayment, { message: 'Первоначальный платёж обязателен для ипотеки' });
+      min(p.initialPayment, 100000, { message: 'Минимальный первоначальный платёж: 100 000' });
+    }
+  );
 };
 ```
 
@@ -122,23 +126,27 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
   // ==========================================
   const currentYear = new Date().getFullYear();
 
-  applyWhen(path.loanType, (loanType) => loanType === 'car', (p) => {
-    // Марка автомобиля
-    required(p.carBrand, { message: 'Марка автомобиля обязательна' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'car',
+    (p) => {
+      // Марка автомобиля
+      required(p.carBrand, { message: 'Марка автомобиля обязательна' });
 
-    // Модель автомобиля
-    required(p.carModel, { message: 'Модель автомобиля обязательна' });
+      // Модель автомобиля
+      required(p.carModel, { message: 'Модель автомобиля обязательна' });
 
-    // Год выпуска
-    required(p.carYear, { message: 'Год выпуска обязателен' });
-    min(p.carYear, 2000, { message: 'Автомобиль должен быть 2000 года или новее' });
-    max(p.carYear, currentYear + 1, { message: `Максимальный год: ${currentYear + 1}` });
+      // Год выпуска
+      required(p.carYear, { message: 'Год выпуска обязателен' });
+      min(p.carYear, 2000, { message: 'Автомобиль должен быть 2000 года или новее' });
+      max(p.carYear, currentYear + 1, { message: `Максимальный год: ${currentYear + 1}` });
 
-    // Цена автомобиля
-    required(p.carPrice, { message: 'Цена автомобиля обязательна' });
-    min(p.carPrice, 100000, { message: 'Минимальная цена автомобиля: 100 000' });
-    max(p.carPrice, 20000000, { message: 'Максимальная цена автомобиля: 20 000 000' });
-  });
+      // Цена автомобиля
+      required(p.carPrice, { message: 'Цена автомобиля обязательна' });
+      min(p.carPrice, 100000, { message: 'Минимальная цена автомобиля: 100 000' });
+      max(p.carPrice, 20000000, { message: 'Максимальная цена автомобиля: 20 000 000' });
+    }
+  );
 };
 ```
 
@@ -147,8 +155,8 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
 Вот полный валидатор для Шага 1:
 
 ```typescript title="src/schemas/validators/loan-info.ts"
-import { required, min, max, minLength, maxLength, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, max, minLength, maxLength, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -192,32 +200,40 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Условно: Поля ипотеки
   // ==========================================
-  applyWhen(path.loanType, (loanType) => loanType === 'mortgage', (p) => {
-    required(p.propertyValue, { message: 'Стоимость имущества обязательна для ипотеки' });
-    min(p.propertyValue, 1000000, { message: 'Минимальная стоимость имущества: 1 000 000' });
-    max(p.propertyValue, 500000000, { message: 'Максимальная стоимость имущества: 500 000 000' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'mortgage',
+    (p) => {
+      required(p.propertyValue, { message: 'Стоимость имущества обязательна для ипотеки' });
+      min(p.propertyValue, 1000000, { message: 'Минимальная стоимость имущества: 1 000 000' });
+      max(p.propertyValue, 500000000, { message: 'Максимальная стоимость имущества: 500 000 000' });
 
-    required(p.initialPayment, { message: 'Первоначальный платёж обязателен для ипотеки' });
-    min(p.initialPayment, 100000, { message: 'Минимальный первоначальный платёж: 100 000' });
-  });
+      required(p.initialPayment, { message: 'Первоначальный платёж обязателен для ипотеки' });
+      min(p.initialPayment, 100000, { message: 'Минимальный первоначальный платёж: 100 000' });
+    }
+  );
 
   // ==========================================
   // Условно: Поля автокредита
   // ==========================================
   const currentYear = new Date().getFullYear();
 
-  applyWhen(path.loanType, (loanType) => loanType === 'car', (p) => {
-    required(p.carBrand, { message: 'Марка автомобиля обязательна' });
-    required(p.carModel, { message: 'Модель автомобиля обязательна' });
+  applyWhen(
+    path.loanType,
+    (loanType) => loanType === 'car',
+    (p) => {
+      required(p.carBrand, { message: 'Марка автомобиля обязательна' });
+      required(p.carModel, { message: 'Модель автомобиля обязательна' });
 
-    required(p.carYear, { message: 'Год выпуска обязателен' });
-    min(p.carYear, 2000, { message: 'Автомобиль должен быть 2000 года или новее' });
-    max(p.carYear, currentYear + 1, { message: `Максимальный год: ${currentYear + 1}` });
+      required(p.carYear, { message: 'Год выпуска обязателен' });
+      min(p.carYear, 2000, { message: 'Автомобиль должен быть 2000 года или новее' });
+      max(p.carYear, currentYear + 1, { message: `Максимальный год: ${currentYear + 1}` });
 
-    required(p.carPrice, { message: 'Цена автомобиля обязательна' });
-    min(p.carPrice, 100000, { message: 'Минимальная цена автомобиля: 100 000' });
-    max(p.carPrice, 20000000, { message: 'Максимальная цена автомобиля: 20 000 000' });
-  });
+      required(p.carPrice, { message: 'Цена автомобиля обязательна' });
+      min(p.carPrice, 100000, { message: 'Минимальная цена автомобиля: 100 000' });
+      max(p.carPrice, 20000000, { message: 'Максимальная цена автомобиля: 20 000 000' });
+    }
+  );
 };
 ```
 
@@ -271,9 +287,13 @@ applyWhen(
 enableWhen(path.propertyValue, path.loanType, (type) => type === 'mortgage');
 
 // Валидация применяется только когда условие истинно
-applyWhen(path.loanType, (type) => type === 'mortgage', (p) => {
-  required(p.propertyValue, { message: 'Стоимость имущества обязательна' });
-});
+applyWhen(
+  path.loanType,
+  (type) => type === 'mortgage',
+  (p) => {
+    required(p.propertyValue, { message: 'Стоимость имущества обязательна' });
+  }
+);
 ```
 
 Когда `loanType` не 'mortgage':

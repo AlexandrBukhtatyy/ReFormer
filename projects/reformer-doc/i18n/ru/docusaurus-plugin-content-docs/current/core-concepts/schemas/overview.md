@@ -8,16 +8,16 @@ ReFormer использует архитектуру из трёх схем дл
 
 ## Три типа схем
 
-| Схема | Назначение | Свойство |
-|-------|------------|----------|
-| **Схема формы** | Структура данных и конфигурация полей | `form` |
-| **Схема валидации** | Правила валидации | `validation` |
-| **Схема поведений** | Реактивная логика и побочные эффекты | `behavior` |
+| Схема               | Назначение                            | Свойство     |
+| ------------------- | ------------------------------------- | ------------ |
+| **Схема формы**     | Структура данных и конфигурация полей | `form`       |
+| **Схема валидации** | Правила валидации                     | `validation` |
+| **Схема поведений** | Реактивная логика и побочные эффекты  | `behavior`   |
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required, email } from 'reformer/validators';
-import { computeFrom } from 'reformer/behaviors';
+import { GroupNode } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import { computeFrom } from '@reformer/core/behaviors';
 
 const form = new GroupNode({
   // 1. Схема формы - структура
@@ -38,10 +38,8 @@ const form = new GroupNode({
 
   // 3. Схема поведений - логика
   behavior: (path) => {
-    computeFrom(
-      [path.firstName, path.lastName],
-      path.fullName,
-      ({ firstName, lastName }) => `${firstName} ${lastName}`.trim()
+    computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+      `${firstName} ${lastName}`.trim()
     );
   },
 });
@@ -104,9 +102,9 @@ describe('validatePerson', () => {
 
 ```typescript
 validation: (path) => {
-  required(path.firstName);   // ✅ TypeScript знает, что это поле существует
-  required(path.middleName);  // ❌ Ошибка: 'middleName' не существует
-}
+  required(path.firstName); // ✅ TypeScript знает, что это поле существует
+  required(path.middleName); // ❌ Ошибка: 'middleName' не существует
+};
 ```
 
 ## Структура схем

@@ -55,8 +55,8 @@ import {
   notEmpty,
   validateItems,
   validate,
-} from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+} from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -88,9 +88,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Properties Array
   // ==========================================
 
-  applyWhen(path.hasProperty, (has) => has === true, (p) => {
-    notEmpty(p.properties, { message: 'Add at least one property' });
-  });
+  applyWhen(
+    path.hasProperty,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.properties, { message: 'Add at least one property' });
+    }
+  );
 
   // Maximum 10 items in array
   validate(path.properties, (properties) => {
@@ -123,7 +127,9 @@ Add validation for existing loans:
 /**
  * Validation for element of existing loans array
  */
-const existingLoanValidation: ValidationSchemaFn<ExistingLoan> = (path: FieldPath<ExistingLoan>) => {
+const existingLoanValidation: ValidationSchemaFn<ExistingLoan> = (
+  path: FieldPath<ExistingLoan>
+) => {
   required(path.bank, { message: 'Bank name is required' });
 
   required(path.amount, { message: 'Loan amount is required' });
@@ -142,9 +148,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Existing Loans Array
   // ==========================================
 
-  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
-    notEmpty(p.existingLoans, { message: 'Add at least one existing loan' });
-  });
+  applyWhen(
+    path.hasExistingLoans,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.existingLoans, { message: 'Add at least one existing loan' });
+    }
+  );
 
   // Maximum 20 items in array
   validate(path.existingLoans, (loans) => {
@@ -191,9 +201,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Co-Borrowers Array
   // ==========================================
 
-  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
-    notEmpty(p.coBorrowers, { message: 'Add at least one co-borrower' });
-  });
+  applyWhen(
+    path.hasCoBorrower,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.coBorrowers, { message: 'Add at least one co-borrower' });
+    }
+  );
 
   // Maximum 5 items in array
   validate(path.coBorrowers, (coBorrowers) => {
@@ -224,8 +238,8 @@ import {
   notEmpty,
   validateItems,
   validate,
-} from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+} from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -244,9 +258,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Properties Array
   // ==========================================
 
-  applyWhen(path.hasProperty, (has) => has === true, (p) => {
-    notEmpty(p.properties, { message: 'Add at least one property' });
-  });
+  applyWhen(
+    path.hasProperty,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.properties, { message: 'Add at least one property' });
+    }
+  );
 
   validate(path.properties, (properties) => {
     if (!properties || properties.length <= 10) return null;
@@ -262,9 +280,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Existing Loans Array
   // ==========================================
 
-  applyWhen(path.hasExistingLoans, (has) => has === true, (p) => {
-    notEmpty(p.existingLoans, { message: 'Add at least one existing loan' });
-  });
+  applyWhen(
+    path.hasExistingLoans,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.existingLoans, { message: 'Add at least one existing loan' });
+    }
+  );
 
   validate(path.existingLoans, (loans) => {
     if (!loans || loans.length <= 20) return null;
@@ -280,9 +302,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Co-Borrowers Array
   // ==========================================
 
-  applyWhen(path.hasCoBorrower, (has) => has === true, (p) => {
-    notEmpty(p.coBorrowers, { message: 'Add at least one co-borrower' });
-  });
+  applyWhen(
+    path.hasCoBorrower,
+    (has) => has === true,
+    (p) => {
+      notEmpty(p.coBorrowers, { message: 'Add at least one co-borrower' });
+    }
+  );
 
   validate(path.coBorrowers, (coBorrowers) => {
     if (!coBorrowers || coBorrowers.length <= 5) return null;
@@ -303,9 +329,13 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 #### Conditional Not Empty
 
 ```typescript
-applyWhen(path.hasProperty, (has) => has === true, (p) => {
-  notEmpty(p.properties, { message: 'Add at least one property' });
-});
+applyWhen(
+  path.hasProperty,
+  (has) => has === true,
+  (p) => {
+    notEmpty(p.properties, { message: 'Add at least one property' });
+  }
+);
 ```
 
 - Array must not be empty when condition is true
@@ -390,9 +420,13 @@ From Behaviors section:
 enableWhen(path.properties, path.hasProperty, (has) => has === true);
 
 // Validation: Require at least one property when visible
-applyWhen(path.hasProperty, (has) => has === true, (p) => {
-  notEmpty(p.properties, { message: 'Add at least one property' });
-});
+applyWhen(
+  path.hasProperty,
+  (has) => has === true,
+  (p) => {
+    notEmpty(p.properties, { message: 'Add at least one property' });
+  }
+);
 ```
 
 Perfect synchronization! Array is hidden/visible and required/optional together.
@@ -465,9 +499,13 @@ const itemValidation: ValidationSchemaFn<Item> = (path: FieldPath<Item>) => {
 };
 
 // Array must not be empty when checkbox is true
-applyWhen(path.hasItems, (has) => has === true, (p) => {
-  notEmpty(p.items, { message: 'Add at least one item' });
-});
+applyWhen(
+  path.hasItems,
+  (has) => has === true,
+  (p) => {
+    notEmpty(p.items, { message: 'Add at least one item' });
+  }
+);
 
 // Validate each item
 validateItems(path.items, itemValidation);
