@@ -25,7 +25,7 @@ Full documentation is available at [https://alexandrbukhtatyy.github.io/ReFormer
 ## Installation
 
 ```bash
-npm install @reformer/core
+npm install @reformer/core@beta # Active development is underway, so you can try beta
 ```
 
 ## Quick Start

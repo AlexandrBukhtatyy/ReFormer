@@ -12,7 +12,7 @@ sidebar_position: 1
 ## Install
 
 ```bash
-npm install @reformer/core
+npm install @reformer/core@beta
 ```
 
 ReFormer includes all necessary dependencies, including [Preact Signals Core](https://github.com/preactjs/signals/blob/main/packages/core/README.md#guide--api) for reactivity.
