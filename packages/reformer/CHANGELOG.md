@@ -1,6 +1,5 @@
 # 1.0.0-beta.1 (2025-12-04)
 
-
 ### Bug Fixes
 
 * api reference page ([dc1362d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/dc1362d11717598d8c52ddda4c24a269fc146261))
