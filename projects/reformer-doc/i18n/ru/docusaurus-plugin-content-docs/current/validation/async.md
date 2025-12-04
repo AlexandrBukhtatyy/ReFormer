@@ -9,8 +9,8 @@ sidebar_position: 3
 ## Базовый Асинхронный Валидатор
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required } from 'reformer/validators';
+import { GroupNode } from '@reformer/core';
+import { required } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -46,7 +46,7 @@ validation: (path, { validateAsync }) => {
     },
     { debounce: 300 } // Ждать 300мс после остановки ввода
   );
-}
+};
 ```
 
 ## Состояние Загрузки
@@ -65,10 +65,7 @@ function UsernameField() {
 
   return (
     <div>
-      <input
-        value={field.value}
-        onChange={(e) => field.setValue(e.target.value)}
-      />
+      <input value={field.value} onChange={(e) => field.setValue(e.target.value)} />
       {field.pending && <span>Проверка...</span>}
       {field.errors?.usernameTaken && <span>Имя пользователя занято</span>}
     </div>
@@ -93,7 +90,7 @@ validation: (path, { validateAsync }) => {
     const { valid } = await response.json();
     return valid ? null : { emailInUse: true };
   });
-}
+};
 ```
 
 ## Комбинирование Синхронной и Асинхронной
@@ -108,7 +105,7 @@ validation: (path, { validateAsync }) => {
 
   // Асинхронно: только если синхронные валидаторы прошли
   validateAsync(path.username, checkUsernameAvailable);
-}
+};
 ```
 
 ## Следующие Шаги

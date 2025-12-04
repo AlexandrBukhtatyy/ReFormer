@@ -15,8 +15,8 @@ type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
 Функция поведений получает типобезопасный объект `path` для объявления реактивных поведений:
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { computeFrom, enableWhen } from 'reformer/behaviors';
+import { GroupNode } from '@reformer/core';
+import { computeFrom, enableWhen } from '@reformer/core/behaviors';
 
 const form = new GroupNode({
   form: {
@@ -27,11 +27,7 @@ const form = new GroupNode({
   },
   behavior: (path) => {
     // Автовычисление итога
-    computeFrom(
-      [path.price, path.quantity],
-      path.total,
-      ({ price, quantity }) => price * quantity
-    );
+    computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
 
     // Включить скидку только для крупных заказов
     enableWhen(path.discount, (form) => form.total > 500);
@@ -41,16 +37,16 @@ const form = new GroupNode({
 
 ## Доступные поведения
 
-| Поведение | Тип | Описание |
-|-----------|-----|----------|
-| `computeFrom` | Вычисляемое | Вычислить поле из других полей |
-| `transformValue` | Вычисляемое | Трансформировать значение при изменении |
-| `enableWhen` | Условное | Включить/отключить по условию |
-| `resetWhen` | Условное | Сбросить поле при выполнении условия |
-| `copyFrom` | Синхронизация | Копировать значение из другого поля |
-| `syncFields` | Синхронизация | Двусторонняя синхронизация полей |
-| `watchField` | Наблюдение | Реагировать на изменения поля |
-| `revalidateWhen` | Наблюдение | Запустить ревалидацию |
+| Поведение        | Тип           | Описание                                |
+| ---------------- | ------------- | --------------------------------------- |
+| `computeFrom`    | Вычисляемое   | Вычислить поле из других полей          |
+| `transformValue` | Вычисляемое   | Трансформировать значение при изменении |
+| `enableWhen`     | Условное      | Включить/отключить по условию           |
+| `resetWhen`      | Условное      | Сбросить поле при выполнении условия    |
+| `copyFrom`       | Синхронизация | Копировать значение из другого поля     |
+| `syncFields`     | Синхронизация | Двусторонняя синхронизация полей        |
+| `watchField`     | Наблюдение    | Реагировать на изменения поля           |
+| `revalidateWhen` | Наблюдение    | Запустить ревалидацию                   |
 
 ## Вычисляемые поведения
 
@@ -59,23 +55,19 @@ const form = new GroupNode({
 Вычисление значения поля из других полей:
 
 ```typescript
-import { computeFrom } from 'reformer/behaviors';
+import { computeFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Один источник
-  computeFrom(
-    [path.firstName],
-    path.initials,
-    ({ firstName }) => firstName.charAt(0).toUpperCase()
+  computeFrom([path.firstName], path.initials, ({ firstName }) =>
+    firstName.charAt(0).toUpperCase()
   );
 
   // Несколько источников
-  computeFrom(
-    [path.firstName, path.lastName],
-    path.fullName,
-    ({ firstName, lastName }) => `${firstName} ${lastName}`.trim()
+  computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+    `${firstName} ${lastName}`.trim()
   );
-}
+};
 ```
 
 ### transformValue
@@ -83,7 +75,7 @@ behavior: (path) => {
 Трансформация значения при изменении:
 
 ```typescript
-import { transformValue } from 'reformer/behaviors';
+import { transformValue } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Приведение к нижнему регистру
@@ -97,7 +89,7 @@ behavior: (path) => {
     }
     return value;
   });
-}
+};
 ```
 
 ## Условные поведения
@@ -107,21 +99,15 @@ behavior: (path) => {
 Включение или отключение поля по условию:
 
 ```typescript
-import { enableWhen } from 'reformer/behaviors';
+import { enableWhen } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Включить адрес доставки, если не совпадает с платёжным
-  enableWhen(
-    path.shippingAddress,
-    (form) => !form.sameAsBilling
-  );
+  enableWhen(path.shippingAddress, (form) => !form.sameAsBilling);
 
   // Включить скидку для премиум-пользователей
-  enableWhen(
-    path.discount,
-    (form) => form.userType === 'premium'
-  );
-}
+  enableWhen(path.discount, (form) => form.userType === 'premium');
+};
 ```
 
 ### resetWhen
@@ -129,15 +115,12 @@ behavior: (path) => {
 Сброс поля при выполнении условия:
 
 ```typescript
-import { resetWhen } from 'reformer/behaviors';
+import { resetWhen } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Сбросить доставку при выборе «совпадает с платёжным»
-  resetWhen(
-    path.shippingAddress,
-    (form) => form.sameAsBilling === true
-  );
-}
+  resetWhen(path.shippingAddress, (form) => form.sameAsBilling === true);
+};
 ```
 
 ## Синхронизация полей
@@ -147,16 +130,12 @@ behavior: (path) => {
 Копирование значения из другого поля:
 
 ```typescript
-import { copyFrom } from 'reformer/behaviors';
+import { copyFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Копировать платёжный адрес в доставку при установке чекбокса
-  copyFrom(
-    path.billingAddress,
-    path.shippingAddress,
-    { when: (form) => form.sameAsBilling }
-  );
-}
+  copyFrom(path.billingAddress, path.shippingAddress, { when: (form) => form.sameAsBilling });
+};
 ```
 
 ### syncFields
@@ -164,12 +143,12 @@ behavior: (path) => {
 Двусторонняя синхронизация:
 
 ```typescript
-import { syncFields } from 'reformer/behaviors';
+import { syncFields } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Синхронизация email-полей (изменение любого обновляет оба)
   syncFields(path.email, path.confirmEmail);
-}
+};
 ```
 
 ## Наблюдение за изменениями
@@ -179,16 +158,16 @@ behavior: (path) => {
 Реакция на изменения поля:
 
 ```typescript
-import { watchField } from 'reformer/behaviors';
+import { watchField } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   watchField(path.country, (value, ctx) => {
     // Загрузить регионы для выбранной страны
-    loadStates(value).then(states => {
+    loadStates(value).then((states) => {
       ctx.form.stateOptions.setValue(states);
     });
   });
-}
+};
 ```
 
 ### revalidateWhen
@@ -196,12 +175,12 @@ behavior: (path) => {
 Запуск ревалидации при изменении другого поля:
 
 ```typescript
-import { revalidateWhen } from 'reformer/behaviors';
+import { revalidateWhen } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Ревалидировать подтверждение пароля при изменении пароля
   revalidateWhen(path.password, path.confirmPassword);
-}
+};
 ```
 
 ## Извлечение наборов поведений
@@ -209,13 +188,11 @@ behavior: (path) => {
 Создавайте переиспользуемые функции поведений:
 
 ```typescript
-import { FieldPath, Behavior } from 'reformer';
-import { computeFrom, transformValue } from 'reformer/behaviors';
+import { FieldPath, Behavior } from '@reformer/core';
+import { computeFrom, transformValue } from '@reformer/core/behaviors';
 
 // Переиспользуемые поведения для адреса
-export function addressBehaviors<T extends { address: Address }>(
-  path: FieldPath<T>
-) {
+export function addressBehaviors<T extends { address: Address }>(path: FieldPath<T>) {
   // Автоформатирование почтового индекса
   transformValue(path.address.zipCode, (value) => {
     const digits = value.replace(/\D/g, '');
@@ -241,12 +218,12 @@ const form = new GroupNode({
 
 ## Поведение vs Валидация
 
-| Аспект | Валидация | Поведение |
-|--------|-----------|-----------|
-| **Назначение** | Проверка корректности | Реакция на изменения |
-| **Результат** | Ошибки | Побочные эффекты |
-| **Когда срабатывает** | После изменения значения | После изменения значения |
-| **Примеры** | Required, формат email | Вычисляемый итог, показать/скрыть |
+| Аспект                | Валидация                | Поведение                         |
+| --------------------- | ------------------------ | --------------------------------- |
+| **Назначение**        | Проверка корректности    | Реакция на изменения              |
+| **Результат**         | Ошибки                   | Побочные эффекты                  |
+| **Когда срабатывает** | После изменения значения | После изменения значения          |
+| **Примеры**           | Required, формат email   | Вычисляемый итог, показать/скрыть |
 
 ## Следующие шаги
 

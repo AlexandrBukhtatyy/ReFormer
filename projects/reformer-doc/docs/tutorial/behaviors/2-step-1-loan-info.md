@@ -32,8 +32,8 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/loan-info
 Start by importing the necessary functions and types:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, enableWhen, watch } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm, Address } from '@/types';
 
 export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -258,8 +258,8 @@ Don't use `watch` to set field values that should be derived - use `computeFrom`
 Here's the complete behavior file for Step 1:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, enableWhen, watch } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm, Address } from '@/types';
 
 export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -356,7 +356,7 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 To test these behaviors, you'll need to temporarily register them with your form. We'll cover the proper registration in a later section, but for now you can test by adding them directly:
 
 ```typescript title="src/schemas/create-form.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './credit-application.schema';
 import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
 

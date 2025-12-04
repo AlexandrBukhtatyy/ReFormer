@@ -9,7 +9,7 @@
  */
 
 import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from '@reformer/core';
-import { validateForm } from 'reformer/validators';
+import { validateForm } from '@reformer/core/validators';
 import { useState, useCallback } from 'react';
 
 /**

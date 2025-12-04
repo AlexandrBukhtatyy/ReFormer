@@ -11,7 +11,7 @@ Show, hide, enable, or disable fields based on conditions.
 Enable field only when condition is true.
 
 ```typescript
-import { enableWhen } from 'reformer/behaviors';
+import { enableWhen } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   enableWhen(path.submitButton, () => form.controls.agreeToTerms.value === true),
@@ -37,7 +37,7 @@ const form = new GroupNode({
 Reset field to initial value when condition becomes true.
 
 ```typescript
-import { resetWhen } from 'reformer/behaviors';
+import { resetWhen } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   // Reset details when type changes

@@ -38,7 +38,7 @@ export const addressSchema = {
 Создавайте общие конфигурации полей:
 
 ```typescript title="schemas/common-fields.ts"
-import { FieldConfig } from 'reformer';
+import { FieldConfig } from '@reformer/core';
 
 export const emailField = (): FieldConfig<string> => ({
   value: '',
@@ -75,7 +75,7 @@ const form = new GroupNode({
 Создавайте схемы для общих структур данных:
 
 ```typescript title="schemas/address-schema.ts"
-import { FormSchema } from 'reformer';
+import { FormSchema } from '@reformer/core';
 
 export interface Address {
   street: string;
@@ -93,7 +93,7 @@ export const addressSchema = (): FormSchema<Address> => ({
 ```
 
 ```typescript title="schemas/person-schema.ts"
-import { FormSchema } from 'reformer';
+import { FormSchema } from '@reformer/core';
 
 export interface Person {
   firstName: string;
@@ -131,8 +131,8 @@ const form = new GroupNode<UserForm>({
 Извлекайте логику валидации в функции:
 
 ```typescript title="validators/address-validators.ts"
-import { FieldPath } from 'reformer';
-import { required, pattern } from 'reformer/validators';
+import { FieldPath } from '@reformer/core';
+import { required, pattern } from '@reformer/core/validators';
 import { Address } from '../schemas/address-schema';
 
 export function validateAddress(path: FieldPath<Address>) {
@@ -145,8 +145,8 @@ export function validateAddress(path: FieldPath<Address>) {
 ```
 
 ```typescript title="validators/person-validators.ts"
-import { FieldPath } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { FieldPath } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 import { Person } from '../schemas/person-schema';
 
 export function validatePerson(path: FieldPath<Person>) {
@@ -180,8 +180,8 @@ const form = new GroupNode<UserForm>({
 Извлекайте логику поведений в функции:
 
 ```typescript title="behaviors/address-behaviors.ts"
-import { FieldPath } from 'reformer';
-import { transformValue } from 'reformer/behaviors';
+import { FieldPath } from '@reformer/core';
+import { transformValue } from '@reformer/core/behaviors';
 import { Address } from '../schemas/address-schema';
 
 export function addressBehaviors(path: FieldPath<Address>) {
@@ -226,7 +226,7 @@ modules/
 ```
 
 ```typescript title="modules/contact-info/schema.ts"
-import { FormSchema } from 'reformer';
+import { FormSchema } from '@reformer/core';
 
 export interface ContactInfo {
   email: string;
@@ -242,8 +242,8 @@ export const contactInfoSchema = (): FormSchema<ContactInfo> => ({
 ```
 
 ```typescript title="modules/contact-info/validators.ts"
-import { FieldPath } from 'reformer';
-import { required, email, pattern } from 'reformer/validators';
+import { FieldPath } from '@reformer/core';
+import { required, email, pattern } from '@reformer/core/validators';
 import { ContactInfo } from './schema';
 
 export function validateContactInfo(path: FieldPath<ContactInfo>) {
@@ -255,8 +255,8 @@ export function validateContactInfo(path: FieldPath<ContactInfo>) {
 ```
 
 ```typescript title="modules/contact-info/behaviors.ts"
-import { FieldPath } from 'reformer';
-import { transformValue } from 'reformer/behaviors';
+import { FieldPath } from '@reformer/core';
+import { transformValue } from '@reformer/core/behaviors';
 import { ContactInfo } from './schema';
 
 export function contactInfoBehaviors(path: FieldPath<ContactInfo>) {
@@ -316,9 +316,7 @@ interface PersonSchemaOptions {
   includePhone?: boolean;
 }
 
-export function createPersonSchema(
-  options: PersonSchemaOptions = {}
-): FormSchema<Person> {
+export function createPersonSchema(options: PersonSchemaOptions = {}): FormSchema<Person> {
   const schema: FormSchema<Person> = {
     firstName: { value: '' },
     lastName: { value: '' },
@@ -383,13 +381,13 @@ src/
 
 ## Лучшие практики
 
-| Практика | Почему |
-|----------|--------|
-| Используйте фабричные функции | Избежание общих ссылок |
-| Экспортируйте типы со схемами | Лучший вывод типов |
-| Объединяйте связанные схемы | Один импорт для модуля |
+| Практика                       | Почему                              |
+| ------------------------------ | ----------------------------------- |
+| Используйте фабричные функции  | Избежание общих ссылок              |
+| Экспортируйте типы со схемами  | Лучший вывод типов                  |
+| Объединяйте связанные схемы    | Один импорт для модуля              |
 | Используйте описательные имена | `validatePerson` вместо `validate1` |
-| Тестируйте схемы отдельно | Упрощение отладки |
+| Тестируйте схемы отдельно      | Упрощение отладки                   |
 
 ## Следующие шаги
 

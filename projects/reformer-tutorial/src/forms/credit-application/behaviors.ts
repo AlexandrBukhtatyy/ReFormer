@@ -1,5 +1,5 @@
-import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
-import type { BehaviorSchemaFn } from 'reformer/behaviors';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn } from '@reformer/core/behaviors';
 import type { FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from './type';
 

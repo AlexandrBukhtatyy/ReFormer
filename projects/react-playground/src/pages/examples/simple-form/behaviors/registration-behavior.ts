@@ -3,7 +3,7 @@
  * Определяет взаимодействия между полями
  */
 
-import { watchField, revalidateWhen, type BehaviorSchemaFn } from 'reformer/behaviors';
+import { watchField, revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
 import type { RegistrationFormData } from '../RegistrationForm';
 import type { FieldPath } from '@reformer/core';
 

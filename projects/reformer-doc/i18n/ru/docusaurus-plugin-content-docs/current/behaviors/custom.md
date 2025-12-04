@@ -58,7 +58,7 @@ behaviors: (path, { use }) => [
 Создавайте фабрики поведений для переиспользования в формах:
 
 ```typescript title="behaviors/auto-save.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface AutoSaveOptions {
   /**
@@ -119,7 +119,7 @@ behaviors: (path, { use }) => [
 Очищайте ресурсы при уничтожении поведения:
 
 ```typescript title="behaviors/field-focus.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface FocusFieldOptions {
   fieldName: string;
@@ -154,7 +154,7 @@ behaviors: (path, { use }) => [use(focusField({ fieldName: 'email', delay: 100 }
 Выполняйте поведение только при выполнении условия:
 
 ```typescript title="behaviors/conditional-sync.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface ConditionalSyncOptions<T> {
   condition: (form: T) => boolean;
@@ -196,7 +196,7 @@ behaviors: (path, { use }) => [
 ### Автодополнение из API
 
 ```typescript title="behaviors/auto-complete.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface AutoCompleteOptions {
   searchPath: any;
@@ -259,7 +259,7 @@ behaviors: (path, { use }) => [
 ### Клавиатурные Сокращения
 
 ```typescript title="behaviors/keyboard-shortcuts.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface KeyboardShortcut {
   key: string;
@@ -327,7 +327,7 @@ behaviors: (path, { use }) => [
 ### Отслеживание Аналитики
 
 ```typescript title="behaviors/analytics.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface AnalyticsOptions {
   trackChanges?: boolean;
@@ -387,7 +387,7 @@ behaviors: (path, { use }) => [
 ### Синхронизация с LocalStorage
 
 ```typescript title="behaviors/local-storage-sync.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface LocalStorageSyncOptions {
   key: string;
@@ -445,7 +445,7 @@ const form = new GroupNode({
 ### Отслеживание Видимости Полей
 
 ```typescript title="behaviors/visibility-watcher.ts"
-import { Behavior } from 'reformer';
+import { Behavior } from '@reformer/core';
 
 interface VisibilityWatcherOptions {
   onVisibilityChange: (fieldName: string, visible: boolean) => void;

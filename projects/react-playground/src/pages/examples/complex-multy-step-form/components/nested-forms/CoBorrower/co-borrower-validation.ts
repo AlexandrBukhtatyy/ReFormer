@@ -16,7 +16,7 @@ import {
   email,
   min,
   validateTree,
-} from 'reformer/validators';
+} from '@reformer/core/validators';
 import type { CoBorrower } from './CoBorrowerForm';
 
 /**

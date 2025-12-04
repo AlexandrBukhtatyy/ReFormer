@@ -15,8 +15,8 @@ type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
 The behavior function receives a type-safe `path` object for declaring reactive behaviors:
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { computeFrom, enableWhen } from 'reformer/behaviors';
+import { GroupNode } from '@reformer/core';
+import { computeFrom, enableWhen } from '@reformer/core/behaviors';
 
 const form = new GroupNode({
   form: {
@@ -27,11 +27,7 @@ const form = new GroupNode({
   },
   behavior: (path) => {
     // Auto-compute total
-    computeFrom(
-      [path.price, path.quantity],
-      path.total,
-      ({ price, quantity }) => price * quantity
-    );
+    computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
 
     // Enable discount only for large orders
     enableWhen(path.discount, (form) => form.total > 500);
@@ -41,16 +37,16 @@ const form = new GroupNode({
 
 ## Available Behaviors
 
-| Behavior | Purpose | Description |
-|----------|---------|-------------|
-| `computeFrom` | Computed | Calculate field from other fields |
-| `transformValue` | Computed | Transform value on change |
-| `enableWhen` | Conditional | Enable/disable based on condition |
-| `resetWhen` | Conditional | Reset field when condition met |
-| `copyFrom` | Sync | Copy value from another field |
-| `syncFields` | Sync | Two-way field synchronization |
-| `watchField` | Watch | React to field changes |
-| `revalidateWhen` | Watch | Trigger revalidation |
+| Behavior         | Purpose     | Description                       |
+| ---------------- | ----------- | --------------------------------- |
+| `computeFrom`    | Computed    | Calculate field from other fields |
+| `transformValue` | Computed    | Transform value on change         |
+| `enableWhen`     | Conditional | Enable/disable based on condition |
+| `resetWhen`      | Conditional | Reset field when condition met    |
+| `copyFrom`       | Sync        | Copy value from another field     |
+| `syncFields`     | Sync        | Two-way field synchronization     |
+| `watchField`     | Watch       | React to field changes            |
+| `revalidateWhen` | Watch       | Trigger revalidation              |
 
 ## Computed Behaviors
 
@@ -59,23 +55,19 @@ const form = new GroupNode({
 Calculate a field's value from other fields:
 
 ```typescript
-import { computeFrom } from 'reformer/behaviors';
+import { computeFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Single source
-  computeFrom(
-    [path.firstName],
-    path.initials,
-    ({ firstName }) => firstName.charAt(0).toUpperCase()
+  computeFrom([path.firstName], path.initials, ({ firstName }) =>
+    firstName.charAt(0).toUpperCase()
   );
 
   // Multiple sources
-  computeFrom(
-    [path.firstName, path.lastName],
-    path.fullName,
-    ({ firstName, lastName }) => `${firstName} ${lastName}`.trim()
+  computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+    `${firstName} ${lastName}`.trim()
   );
-}
+};
 ```
 
 ### transformValue
@@ -83,7 +75,7 @@ behavior: (path) => {
 Transform value on change:
 
 ```typescript
-import { transformValue } from 'reformer/behaviors';
+import { transformValue } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Uppercase username
@@ -97,7 +89,7 @@ behavior: (path) => {
     }
     return value;
   });
-}
+};
 ```
 
 ## Conditional Behaviors
@@ -107,21 +99,15 @@ behavior: (path) => {
 Enable or disable field based on condition:
 
 ```typescript
-import { enableWhen } from 'reformer/behaviors';
+import { enableWhen } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Enable shipping address when not same as billing
-  enableWhen(
-    path.shippingAddress,
-    (form) => !form.sameAsBilling
-  );
+  enableWhen(path.shippingAddress, (form) => !form.sameAsBilling);
 
   // Enable discount for premium users
-  enableWhen(
-    path.discount,
-    (form) => form.userType === 'premium'
-  );
-}
+  enableWhen(path.discount, (form) => form.userType === 'premium');
+};
 ```
 
 ### resetWhen
@@ -129,15 +115,12 @@ behavior: (path) => {
 Reset field when condition is met:
 
 ```typescript
-import { resetWhen } from 'reformer/behaviors';
+import { resetWhen } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Reset shipping when "same as billing" checked
-  resetWhen(
-    path.shippingAddress,
-    (form) => form.sameAsBilling === true
-  );
-}
+  resetWhen(path.shippingAddress, (form) => form.sameAsBilling === true);
+};
 ```
 
 ## Sync Behaviors
@@ -147,16 +130,12 @@ behavior: (path) => {
 Copy value from another field:
 
 ```typescript
-import { copyFrom } from 'reformer/behaviors';
+import { copyFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Copy billing to shipping when checkbox checked
-  copyFrom(
-    path.billingAddress,
-    path.shippingAddress,
-    { when: (form) => form.sameAsBilling }
-  );
-}
+  copyFrom(path.billingAddress, path.shippingAddress, { when: (form) => form.sameAsBilling });
+};
 ```
 
 ### syncFields
@@ -164,12 +143,12 @@ behavior: (path) => {
 Two-way synchronization:
 
 ```typescript
-import { syncFields } from 'reformer/behaviors';
+import { syncFields } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Sync email fields (changes in either update both)
   syncFields(path.email, path.confirmEmail);
-}
+};
 ```
 
 ## Watch Behaviors
@@ -179,16 +158,16 @@ behavior: (path) => {
 React to field changes:
 
 ```typescript
-import { watchField } from 'reformer/behaviors';
+import { watchField } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   watchField(path.country, (value, ctx) => {
     // Load states/provinces for selected country
-    loadStates(value).then(states => {
+    loadStates(value).then((states) => {
       ctx.form.stateOptions.setValue(states);
     });
   });
-}
+};
 ```
 
 ### revalidateWhen
@@ -196,12 +175,12 @@ behavior: (path) => {
 Trigger revalidation when another field changes:
 
 ```typescript
-import { revalidateWhen } from 'reformer/behaviors';
+import { revalidateWhen } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Revalidate password confirmation when password changes
   revalidateWhen(path.password, path.confirmPassword);
-}
+};
 ```
 
 ## Extracting Behavior Sets
@@ -209,13 +188,11 @@ behavior: (path) => {
 Create reusable behavior functions:
 
 ```typescript
-import { FieldPath, Behavior } from 'reformer';
-import { computeFrom, transformValue } from 'reformer/behaviors';
+import { FieldPath, Behavior } from '@reformer/core';
+import { computeFrom, transformValue } from '@reformer/core/behaviors';
 
 // Reusable behaviors for address
-export function addressBehaviors<T extends { address: Address }>(
-  path: FieldPath<T>
-) {
+export function addressBehaviors<T extends { address: Address }>(path: FieldPath<T>) {
   // Auto-format ZIP code
   transformValue(path.address.zipCode, (value) => {
     const digits = value.replace(/\D/g, '');
@@ -241,12 +218,12 @@ const form = new GroupNode({
 
 ## Behavior vs Validation
 
-| Aspect | Validation | Behavior |
-|--------|------------|----------|
-| **Purpose** | Check correctness | React to changes |
-| **Output** | Errors | Side effects |
-| **When runs** | After value change | After value change |
-| **Examples** | Required, email format | Computed total, show/hide |
+| Aspect        | Validation             | Behavior                  |
+| ------------- | ---------------------- | ------------------------- |
+| **Purpose**   | Check correctness      | React to changes          |
+| **Output**    | Errors                 | Side effects              |
+| **When runs** | After value change     | After value change        |
+| **Examples**  | Required, email format | Computed total, show/hide |
 
 ## Next Steps
 

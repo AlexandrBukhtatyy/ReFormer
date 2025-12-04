@@ -8,7 +8,7 @@ import {
   notEmpty,
   validateItems,
   validate,
-} from 'reformer/validators';
+} from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 import type { Property } from '../../sub-forms/property/type';

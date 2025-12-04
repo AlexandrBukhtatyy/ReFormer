@@ -10,16 +10,16 @@ Validating business rules that span multiple form steps with custom and async va
 
 Cross-step validation enforces business rules that depend on fields from multiple steps:
 
-| Rule | Fields Involved | Validation Type |
-|------|----------------|-----------------|
-| Down payment >= 20% of property | Step 1: `initialPayment`, `propertyValue` | Custom |
-| Monthly payment <= 50% of income | Step 1: `monthlyPayment`<br/>Step 4: `totalIncome`<br/>Step 5: `coBorrowersIncome` | Custom |
-| Loan amount <= car price | Step 1: `loanAmount`, `carPrice` | Custom |
-| Remaining loan <= original amount | Step 5: `existingLoans[*].remainingAmount`, `amount` | Custom |
-| Age 18-70 validation | Step 2: `age` (computed from `birthDate`) | Custom |
-| INN verification | Step 2: `inn` | Async |
-| SNILS verification | Step 2: `snils` | Async |
-| Email uniqueness | Step 3: `email` | Async |
+| Rule                              | Fields Involved                                                                    | Validation Type |
+| --------------------------------- | ---------------------------------------------------------------------------------- | --------------- |
+| Down payment >= 20% of property   | Step 1: `initialPayment`, `propertyValue`                                          | Custom          |
+| Monthly payment <= 50% of income  | Step 1: `monthlyPayment`<br/>Step 4: `totalIncome`<br/>Step 5: `coBorrowersIncome` | Custom          |
+| Loan amount <= car price          | Step 1: `loanAmount`, `carPrice`                                                   | Custom          |
+| Remaining loan <= original amount | Step 5: `existingLoans[*].remainingAmount`, `amount`                               | Custom          |
+| Age 18-70 validation              | Step 2: `age` (computed from `birthDate`)                                          | Custom          |
+| INN verification                  | Step 2: `inn`                                                                      | Async           |
+| SNILS verification                | Step 2: `snils`                                                                    | Async           |
+| Email uniqueness                  | Step 3: `email`                                                                    | Async           |
 
 ## Creating the Validator File
 
@@ -36,8 +36,8 @@ touch src/schemas/validators/cross-step.ts
 Ensure down payment is at least 20% of property value:
 
 ```typescript title="src/schemas/validators/cross-step.ts"
-import { validate, validateAsync } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { validate, validateAsync } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -241,7 +241,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
         return null;
       }
     },
-    { debounce: 500 }  // Wait 500ms after typing stops
+    { debounce: 500 } // Wait 500ms after typing stops
   );
 };
 ```
@@ -324,7 +324,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
         return null;
       }
     },
-    { debounce: 800 }  // Longer debounce for network requests
+    { debounce: 800 } // Longer debounce for network requests
   );
 };
 ```
@@ -334,8 +334,8 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 Here's the complete cross-step validator:
 
 ```typescript title="src/schemas/validators/cross-step.ts"
-import { validate, validateAsync } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { validate, validateAsync } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -375,7 +375,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
     path.monthlyPayment,
     [path.totalIncome, path.coBorrowersIncome],
     (monthlyPayment, [totalIncome, coBorrowersIncome]) => {
-      const householdIncome = (totalIncome as number || 0) + (coBorrowersIncome as number || 0);
+      const householdIncome = ((totalIncome as number) || 0) + ((coBorrowersIncome as number) || 0);
       if (!householdIncome || !monthlyPayment) return null;
 
       const maxPayment = householdIncome * 0.5;
@@ -564,6 +564,7 @@ validate(path.monthlyPayment, (monthlyPayment, ctx) => {
 ```
 
 **Key points**:
+
 - First parameter: field being validated
 - Second parameter: validation function receiving value and context
 - Access other fields via `ctx.form`
@@ -574,17 +575,18 @@ validate(path.monthlyPayment, (monthlyPayment, ctx) => {
 
 ```typescript
 validateAsync(
-  path.inn,  // Field to validate
+  path.inn, // Field to validate
   async (inn) => {
     // Async validation logic (can use fetch, promises, etc.)
     // Return null if valid
     // Return { code, message } if invalid
   },
-  { debounce: 500 }  // Options: debounce delay
+  { debounce: 500 } // Options: debounce delay
 );
 ```
 
 **Key features**:
+
 - Can make API calls, database queries, etc.
 - Debouncing prevents excessive requests
 - Shows loading state while validating
@@ -594,10 +596,13 @@ validateAsync(
 ### Debouncing
 
 ```typescript
-{ debounce: 500 }  // Wait 500ms after user stops typing
+{
+  debounce: 500;
+} // Wait 500ms after user stops typing
 ```
 
 **Why debounce?**:
+
 - Prevents API call on every keystroke
 - Improves user experience
 - Reduces server load
@@ -608,6 +613,7 @@ validateAsync(
 Test these scenarios:
 
 ### Down Payment Validation
+
 - [ ] Select mortgage loan type
 - [ ] Enter property value: 5,000,000
 - [ ] Enter initial payment < 1,000,000 (20%) → Error shown
@@ -615,6 +621,7 @@ Test these scenarios:
 - [ ] Switch to different loan type → Error disappears
 
 ### Monthly Payment vs Income
+
 - [ ] Enter monthly income: 100,000
 - [ ] Co-borrowers income: 50,000 (total: 150,000)
 - [ ] Monthly payment > 75,000 (50%) → Error shown
@@ -622,28 +629,33 @@ Test these scenarios:
 - [ ] Change income → Validation re-runs
 
 ### Car Loan Amount
+
 - [ ] Select car loan type
 - [ ] Enter car price: 2,000,000
 - [ ] Enter loan amount > 2,000,000 → Error shown
 - [ ] Enter loan amount <= 2,000,000 → No error
 
 ### Remaining Loan Amount
+
 - [ ] Add existing loan with amount: 500,000
 - [ ] Enter remaining amount > 500,000 → Error shown
 - [ ] Enter remaining amount <= 500,000 → No error
 
 ### Age Validation
+
 - [ ] Enter birth date that makes age < 18 → Error shown
 - [ ] Enter birth date that makes age > 70 → Error shown
 - [ ] Enter valid age (18-70) → No error
 
 ### Async: INN Verification
+
 - [ ] Enter INN → See loading indicator
 - [ ] After 500ms → API call made
 - [ ] Invalid INN → Error shown from server
 - [ ] Valid INN → No error
 
 ### Async: Email Uniqueness
+
 - [ ] Enter email → See loading indicator
 - [ ] After 800ms → API call made
 - [ ] Email already registered → Error shown
@@ -684,6 +696,7 @@ For testing, create mock API endpoints:
 ## Best Practices
 
 ### 1. Early Returns
+
 ```typescript
 validate(path.field, (value, ctx) => {
   // Return early for cases that don't need validation
@@ -703,18 +716,24 @@ validate(path.field, (value, ctx) => {
 ```
 
 ### 2. Graceful Async Failure
+
 ```typescript
-validateAsync(path.field, async (value) => {
-  try {
-    // API call
-  } catch (error) {
-    console.error('Validation error:', error);
-    return null;  // Don't fail on network errors
-  }
-}, { debounce: 500 });
+validateAsync(
+  path.field,
+  async (value) => {
+    try {
+      // API call
+    } catch (error) {
+      console.error('Validation error:', error);
+      return null; // Don't fail on network errors
+    }
+  },
+  { debounce: 500 }
+);
 ```
 
 ### 3. Clear Error Messages
+
 ```typescript
 return {
   code: 'descriptiveErrorCode',
@@ -725,6 +744,7 @@ return {
 ## What's Next?
 
 In the final section, we'll **combine all validators** and register them with the form:
+
 - Create the main validator file
 - Import all step validators
 - Register with form creation

@@ -59,7 +59,7 @@ properties: [{
 Вот полная схема, соответствующая интерфейсу `CreditApplicationForm`:
 
 ```typescript title="src/forms/credit-application/schemas/credit-application.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select, Checkbox, Textarea, RadioGroup, Select } from './components/ui';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 
@@ -748,7 +748,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
 ## Создание экземпляра формы
 
 ```typescript title="src/forms/credit-application/createCreditApplicationForm.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './schemas/credit-application.schema';
 import type { CreditApplicationForm } from './types/credit-application.types';
 

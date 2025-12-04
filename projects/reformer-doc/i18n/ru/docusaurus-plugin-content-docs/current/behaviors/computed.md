@@ -11,23 +11,19 @@ sidebar_position: 2
 Вычисление значения поля на основе одного или нескольких исходных полей.
 
 ```typescript
-import { computeFrom } from 'reformer/behaviors';
+import { computeFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Один источник
-  computeFrom(
-    [path.price],
-    path.priceWithTax,
-    ({ price }) => price * 1.2
-  );
+  computeFrom([path.price], path.priceWithTax, ({ price }) => price * 1.2);
 
   // Несколько источников
   computeFrom(
     [path.price, path.quantity, path.discount],
     path.total,
-    ({ price, quantity, discount }) => (price * quantity) - discount
+    ({ price, quantity, discount }) => price * quantity - discount
   );
-}
+};
 ```
 
 ### Пример: Полное имя
@@ -40,10 +36,8 @@ const form = new GroupNode({
     fullName: { value: '' },
   },
   behavior: (path) => {
-    computeFrom(
-      [path.firstName, path.lastName],
-      path.fullName,
-      ({ firstName, lastName }) => `${firstName} ${lastName}`.trim()
+    computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+      `${firstName} ${lastName}`.trim()
     );
   },
 });
@@ -70,8 +64,7 @@ const form = new GroupNode({
       ({ principal, rate, years }) => {
         const monthlyRate = rate / 100 / 12;
         const months = years * 12;
-        return (principal * monthlyRate) /
-          (1 - Math.pow(1 + monthlyRate, -months));
+        return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
       }
     );
   },
@@ -83,22 +76,18 @@ const form = new GroupNode({
 Трансформация значения поля при его изменении.
 
 ```typescript
-import { transformValue } from 'reformer/behaviors';
+import { transformValue } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Верхний регистр
   transformValue(path.code, (value) => value.toUpperCase());
 
   // Форматирование телефона
-  transformValue(path.phone, (value) =>
-    value.replace(/\D/g, '').slice(0, 10)
-  );
+  transformValue(path.phone, (value) => value.replace(/\D/g, '').slice(0, 10));
 
   // Ограничение числа
-  transformValue(path.quantity, (value) =>
-    Math.max(1, Math.min(100, value))
-  );
-}
+  transformValue(path.quantity, (value) => Math.max(1, Math.min(100, value)));
+};
 ```
 
 ### Пример: Ввод валюты
@@ -143,10 +132,8 @@ const form = new GroupNode({
   },
   behavior: (path) => {
     // Вычисление стоимости доставки
-    computeFrom(
-      [path.shipping.method],
-      path.shipping.cost,
-      ({ method }) => method === 'express' ? 15 : 5
+    computeFrom([path.shipping.method], path.shipping.cost, ({ method }) =>
+      method === 'express' ? 15 : 5
     );
 
     // Вычисление итога

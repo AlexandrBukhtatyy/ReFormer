@@ -10,16 +10,16 @@ sidebar_position: 7
 
 Валидация между шагами применяет бизнес-правила, которые зависят от полей нескольких шагов:
 
-| Правило | Задействованные поля | Тип валидации |
-|--------|-----------------|-----------------|
-| Первоначальный платёж >= 20% имущества | Шаг 1: `initialPayment`, `propertyValue` | Пользовательский |
-| Ежемесячный платёж <= 50% дохода | Шаг 1: `monthlyPayment`<br/>Шаг 4: `totalIncome`<br/>Шаг 5: `coBorrowersIncome` | Пользовательский |
-| Сумма кредита <= цена автомобиля | Шаг 1: `loanAmount`, `carPrice` | Пользовательский |
-| Остаток кредита <= оригинальная сумма | Шаг 5: `existingLoans[*].remainingAmount`, `amount` | Пользовательский |
-| Валидация возраста 18-70 | Шаг 2: `age` (рассчитано из `birthDate`) | Пользовательский |
-| Проверка ИНН | Шаг 2: `inn` | Асинхронный |
-| Проверка СНИЛС | Шаг 2: `snils` | Асинхронный |
-| Уникальность email | Шаг 3: `email` | Асинхронный |
+| Правило                                | Задействованные поля                                                            | Тип валидации    |
+| -------------------------------------- | ------------------------------------------------------------------------------- | ---------------- |
+| Первоначальный платёж >= 20% имущества | Шаг 1: `initialPayment`, `propertyValue`                                        | Пользовательский |
+| Ежемесячный платёж <= 50% дохода       | Шаг 1: `monthlyPayment`<br/>Шаг 4: `totalIncome`<br/>Шаг 5: `coBorrowersIncome` | Пользовательский |
+| Сумма кредита <= цена автомобиля       | Шаг 1: `loanAmount`, `carPrice`                                                 | Пользовательский |
+| Остаток кредита <= оригинальная сумма  | Шаг 5: `existingLoans[*].remainingAmount`, `amount`                             | Пользовательский |
+| Валидация возраста 18-70               | Шаг 2: `age` (рассчитано из `birthDate`)                                        | Пользовательский |
+| Проверка ИНН                           | Шаг 2: `inn`                                                                    | Асинхронный      |
+| Проверка СНИЛС                         | Шаг 2: `snils`                                                                  | Асинхронный      |
+| Уникальность email                     | Шаг 3: `email`                                                                  | Асинхронный      |
 
 ## Создание файла валидатора
 
@@ -36,8 +36,8 @@ touch src/schemas/validators/cross-step.ts
 Убедитесь, что первоначальный платёж составляет минимум 20% от стоимости имущества:
 
 ```typescript title="src/schemas/validators/cross-step.ts"
-import { validate, validateAsync } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { validate, validateAsync } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -145,7 +145,6 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 ```typescript title="src/schemas/validators/cross-step.ts"
 export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // ... предыдущая валидация ...
-
   // ==========================================
   // 4. Остаток кредита <= оригинальная сумма (через validateItems)
   // ==========================================
@@ -313,8 +312,8 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 Вот полный валидатор между шагами:
 
 ```typescript title="src/schemas/validators/cross-step.ts"
-import { validate, validateAsync } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { validate, validateAsync } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -354,7 +353,7 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
     path.monthlyPayment,
     [path.totalIncome, path.coBorrowersIncome],
     (monthlyPayment, [totalIncome, coBorrowersIncome]) => {
-      const householdIncome = (totalIncome as number || 0) + (coBorrowersIncome as number || 0);
+      const householdIncome = ((totalIncome as number) || 0) + ((coBorrowersIncome as number) || 0);
       if (!householdIncome || !monthlyPayment) return null;
 
       const maxPayment = householdIncome * 0.5;
@@ -529,6 +528,7 @@ validate(path.monthlyPayment, (monthlyPayment, ctx) => {
 ```
 
 **Ключевые моменты**:
+
 - Первый параметр: поле для валидации
 - Второй параметр: функция валидации с доступом к значению и контексту
 - Используйте `ctx.form` для доступа к другим полям формы
@@ -544,11 +544,12 @@ validateAsync(
     // Возвращайте null если валидно
     // Возвращайте { code, message } если невалидно
   },
-  { debounce: 500 }  // Опции: задержка debounce
+  { debounce: 500 } // Опции: задержка debounce
 );
 ```
 
 **Ключевые особенности**:
+
 - Можно делать API вызовы, запросы БД, и т.д.
 - Debouncing предотвращает чрезмерные запросы
 - Показывает состояние загрузки во время валидации
@@ -557,10 +558,13 @@ validateAsync(
 ### Debouncing
 
 ```typescript
-{ debounce: 500 }  // Ждите 500ms после остановки набора текста
+{
+  debounce: 500;
+} // Ждите 500ms после остановки набора текста
 ```
 
 **Почему debounce?**:
+
 - Предотвращает API вызов при каждом нажатии клавиши
 - Улучшает пользовательский опыт
 - Уменьшает нагрузку на сервер
@@ -571,6 +575,7 @@ validateAsync(
 Протестируйте эти сценарии:
 
 ### Валидация первоначального платежа
+
 - [ ] Выберите тип кредита ипотека
 - [ ] Введите стоимость имущества: 5 000 000
 - [ ] Введите первоначальный платёж < 1 000 000 (20%) → Ошибка показана
@@ -578,6 +583,7 @@ validateAsync(
 - [ ] Переключитесь на другой тип кредита → Ошибка исчезает
 
 ### Ежемесячный платёж против дохода
+
 - [ ] Введите ежемесячный доход: 100 000
 - [ ] Доход созаёмщиков: 50 000 (всего: 150 000)
 - [ ] Ежемесячный платёж > 75 000 (50%) → Ошибка показана
@@ -585,28 +591,33 @@ validateAsync(
 - [ ] Измените доход → Валидация переиспускается
 
 ### Сумма кредита на автомобиль
+
 - [ ] Выберите тип кредита автокредит
 - [ ] Введите цену автомобиля: 2 000 000
 - [ ] Введите сумму кредита > 2 000 000 → Ошибка показана
 - [ ] Введите сумму кредита <= 2 000 000 → Ошибки нет
 
 ### Остаток кредита
+
 - [ ] Добавьте существующий кредит с суммой: 500 000
 - [ ] Введите остаток > 500 000 → Ошибка показана
 - [ ] Введите остаток <= 500 000 → Ошибки нет
 
 ### Валидация возраста
+
 - [ ] Введите дату рождения которая делает возраст < 18 → Ошибка показана
 - [ ] Введите дату рождения которая делает возраст > 70 → Ошибка показана
 - [ ] Введите валидный возраст (18-70) → Ошибки нет
 
 ### Асинхронная валидация: Проверка ИНН
+
 - [ ] Введите ИНН → Видите индикатор загрузки
 - [ ] После 500ms → Сделан API вызов
 - [ ] Невалидный ИНН → Ошибка показана с сервера
 - [ ] Валидный ИНН → Ошибки нет
 
 ### Асинхронная валидация: Уникальность email
+
 - [ ] Введите email → Видите индикатор загрузки
 - [ ] После 800ms → Сделан API вызов
 - [ ] Email уже зарегистрирован → Ошибка показана
@@ -647,6 +658,7 @@ validateAsync(
 ## Лучшие практики
 
 ### 1. Ранние возвраты
+
 ```typescript
 validate(path.field, (value, ctx) => {
   // Возвращайте ранее для случаев которые не нуждаются в валидации
@@ -665,18 +677,24 @@ validate(path.field, (value, ctx) => {
 ```
 
 ### 2. Грациозный асинхронный отказ
+
 ```typescript
-validateAsync(path.field, async (value) => {
-  try {
-    // API вызов
-  } catch (error) {
-    console.error('Ошибка валидации:', error);
-    return null;  // Не ломайте на сетевых ошибках
-  }
-}, { debounce: 500 });
+validateAsync(
+  path.field,
+  async (value) => {
+    try {
+      // API вызов
+    } catch (error) {
+      console.error('Ошибка валидации:', error);
+      return null; // Не ломайте на сетевых ошибках
+    }
+  },
+  { debounce: 500 }
+);
 ```
 
 ### 3. Ясные сообщения об ошибках
+
 ```typescript
 return {
   code: 'descriptiveErrorCode',
@@ -687,6 +705,7 @@ return {
 ## Что дальше?
 
 В финальном разделе мы **объединим все валидаторы** и зарегистрируем их с формой:
+
 - Создадим основной файл валидатора
 - Импортируем все валидаторы шагов
 - Зарегистрируем с созданием формы

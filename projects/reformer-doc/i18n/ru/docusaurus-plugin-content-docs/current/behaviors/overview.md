@@ -11,8 +11,8 @@ Behaviors добавляют реактивную логику в формы: в
 Behaviors автоматически реагируют на изменения в форме:
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { computeFrom, enableWhen } from 'reformer/behaviors';
+import { GroupNode } from '@reformer/core';
+import { computeFrom, enableWhen } from '@reformer/core/behaviors';
 
 const form = new GroupNode({
   form: {

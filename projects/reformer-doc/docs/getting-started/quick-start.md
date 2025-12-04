@@ -70,7 +70,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
 ```tsx title="src/components/ui/FormField.tsx"
 import * as React from 'react';
-import { useFormControl, type FieldNode } from 'reformer';
+import { useFormControl, type FieldNode } from '@reformer/core';
 
 interface FormFieldProps {
   control: FieldNode<any>;
@@ -78,17 +78,14 @@ interface FormFieldProps {
 }
 
 export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
-  const { value, errors, disabled, shouldShowError, componentProps } =
-    useFormControl(control);
+  const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
 
   const Component = control.component;
 
   return (
     <div className={className}>
       {componentProps.label && (
-        <label className="block mb-1 text-sm font-medium">
-          {componentProps.label}
-        </label>
+        <label className="block mb-1 text-sm font-medium">{componentProps.label}</label>
       )}
 
       <Component
@@ -103,9 +100,7 @@ export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
       />
 
       {shouldShowError && (
-        <span className="text-red-500 text-sm mt-1 block">
-          {errors[0]?.message}
-        </span>
+        <span className="text-red-500 text-sm mt-1 block">{errors[0]?.message}</span>
       )}
     </div>
   );
@@ -114,11 +109,12 @@ export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
 
 :::tip Why FormField?
 `FormField` automatically:
+
 - Renders label from `componentProps`
 - Binds value to form state
 - Calls `markAsTouched()` on blur
 - Shows validation errors
-:::
+  :::
 
 ## Step 2: Define Form Interface
 
@@ -133,8 +129,8 @@ type ContactFormType = {
 ## Step 3: Create Form Definition
 
 ```typescript title="src/forms/contact-form.ts"
-import { createForm } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { createForm } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 
@@ -163,11 +159,12 @@ export const createContactForm = () =>
 ```
 
 :::info Key Points
+
 - **`createForm<T>`** — factory function with automatic typing
 - **`component`** — React component to render the field
 - **`componentProps`** — props passed to the component (label, placeholder, etc.)
 - **`validation`** — declarative validation schema
-:::
+  :::
 
 ## Step 4: Create Form Component
 
@@ -210,6 +207,7 @@ export function ContactForm() {
 ## Result
 
 You've created a form with:
+
 - ✅ TypeScript type safety
 - ✅ Declarative validation
 - ✅ Automatic error display

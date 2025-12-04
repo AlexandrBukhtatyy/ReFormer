@@ -1,4 +1,4 @@
-import { required, min, minLength } from 'reformer/validators';
+import { required, min, minLength } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { Property } from './type';
 

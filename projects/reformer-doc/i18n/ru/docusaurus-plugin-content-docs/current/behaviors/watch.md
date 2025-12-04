@@ -11,7 +11,7 @@ sidebar_position: 5
 Выполнение callback при изменении значения поля.
 
 ```typescript
-import { watchField } from 'reformer/behaviors';
+import { watchField } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   watchField(path.country, (newValue, oldValue) => {
@@ -58,7 +58,7 @@ behaviors: (path, ctx) => [
 Запуск повторной валидации поля при изменении другого поля.
 
 ```typescript
-import { revalidateWhen } from 'reformer/behaviors';
+import { revalidateWhen } from '@reformer/core/behaviors';
 
 behaviors: (path, ctx) => [
   // Перевалидировать confirmPassword при изменении password
@@ -69,7 +69,7 @@ behaviors: (path, ctx) => [
 ### Пример: Диапазон дат
 
 ```typescript
-import { validate } from 'reformer/validators';
+import { validate } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {

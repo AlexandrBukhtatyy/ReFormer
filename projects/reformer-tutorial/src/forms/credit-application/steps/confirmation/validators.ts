@@ -1,4 +1,4 @@
-import { required, minLength } from 'reformer/validators';
+import { required, minLength } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
@@ -9,8 +9,12 @@ export const confirmationValidation: ValidationSchemaFn<CreditApplicationForm> =
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Обязательные согласия
-  required(path.agreePersonalData, { message: 'Необходимо согласие на обработку персональных данных' });
-  required(path.agreeCreditHistory, { message: 'Необходимо согласие на проверку кредитной истории' });
+  required(path.agreePersonalData, {
+    message: 'Необходимо согласие на обработку персональных данных',
+  });
+  required(path.agreeCreditHistory, {
+    message: 'Необходимо согласие на проверку кредитной истории',
+  });
   required(path.agreeTerms, { message: 'Необходимо согласие с условиями кредитования' });
   required(path.confirmAccuracy, { message: 'Необходимо подтверждение достоверности данных' });
 

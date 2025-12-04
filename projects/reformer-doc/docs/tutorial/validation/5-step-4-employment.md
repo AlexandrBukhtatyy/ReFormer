@@ -42,8 +42,8 @@ touch src/schemas/validators/employment.ts
 Start with required fields that apply to all employment statuses:
 
 ```typescript title="src/schemas/validators/employment.ts"
-import { required, min, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -90,20 +90,24 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Conditional: Employed Fields
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-    required(p.companyName, { message: 'Company name is required' });
-    required(p.companyAddress, { message: 'Company address is required' });
-    required(p.position, { message: 'Position is required' });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'employed',
+    (p) => {
+      required(p.companyName, { message: 'Company name is required' });
+      required(p.companyAddress, { message: 'Company address is required' });
+      required(p.position, { message: 'Position is required' });
 
-    required(p.workExperienceCurrent, { message: 'Work experience at current job is required' });
-    min(p.workExperienceCurrent, 3, {
-      message: 'Minimum 3 months of experience at current job required',
-    });
+      required(p.workExperienceCurrent, { message: 'Work experience at current job is required' });
+      min(p.workExperienceCurrent, 3, {
+        message: 'Minimum 3 months of experience at current job required',
+      });
 
-    min(p.workExperienceTotal, 0, {
-      message: 'Total work experience cannot be negative',
-    });
-  });
+      min(p.workExperienceTotal, 0, {
+        message: 'Total work experience cannot be negative',
+      });
+    }
+  );
 };
 ```
 
@@ -119,10 +123,14 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Conditional: Self-Employed Fields
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
-    required(p.businessType, { message: 'Business type is required' });
-    required(p.businessInn, { message: 'Business INN is required' });
-  });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'selfEmployed',
+    (p) => {
+      required(p.businessType, { message: 'Business type is required' });
+      required(p.businessInn, { message: 'Business INN is required' });
+    }
+  );
 
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
@@ -135,8 +143,8 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
 Here's the complete validator for Step 4:
 
 ```typescript title="src/schemas/validators/employment.ts"
-import { required, min, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -170,29 +178,37 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Conditional: Employed Fields
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-    required(p.companyName, { message: 'Company name is required' });
-    required(p.companyAddress, { message: 'Company address is required' });
-    required(p.position, { message: 'Position is required' });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'employed',
+    (p) => {
+      required(p.companyName, { message: 'Company name is required' });
+      required(p.companyAddress, { message: 'Company address is required' });
+      required(p.position, { message: 'Position is required' });
 
-    required(p.workExperienceCurrent, { message: 'Work experience at current job is required' });
-    min(p.workExperienceCurrent, 3, {
-      message: 'Minimum 3 months of experience at current job required',
-    });
+      required(p.workExperienceCurrent, { message: 'Work experience at current job is required' });
+      min(p.workExperienceCurrent, 3, {
+        message: 'Minimum 3 months of experience at current job required',
+      });
 
-    min(p.workExperienceTotal, 0, {
-      message: 'Total work experience cannot be negative',
-    });
-  });
+      min(p.workExperienceTotal, 0, {
+        message: 'Total work experience cannot be negative',
+      });
+    }
+  );
 
   // ==========================================
   // Conditional: Self-Employed Fields
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
-    required(p.businessType, { message: 'Business type is required' });
-    required(p.businessInn, { message: 'Business INN is required' });
-  });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'selfEmployed',
+    (p) => {
+      required(p.businessType, { message: 'Business type is required' });
+      required(p.businessInn, { message: 'Business INN is required' });
+    }
+  );
 
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
@@ -218,17 +234,25 @@ These fields are only required for specific employment statuses:
 
 ```typescript
 // Required only when employed
-applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-  required(p.companyName, { message: 'Company name is required' });
-  min(p.workExperienceCurrent, 3, {
-    message: 'Minimum 3 months of experience at current job required',
-  });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'employed',
+  (p) => {
+    required(p.companyName, { message: 'Company name is required' });
+    min(p.workExperienceCurrent, 3, {
+      message: 'Minimum 3 months of experience at current job required',
+    });
+  }
+);
 
 // Required only when self-employed
-applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
-  required(p.businessType, { message: 'Business type is required' });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'selfEmployed',
+  (p) => {
+    required(p.businessType, { message: 'Business type is required' });
+  }
+);
 ```
 
 ### Integration with Behaviors
@@ -241,9 +265,13 @@ enableWhen(path.companyName, path.employmentStatus, (status) => status === 'empl
 enableWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
 
 // Validation: Require company fields only when employed
-applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-  required(p.companyName, { message: 'Company name is required' });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'employed',
+  (p) => {
+    required(p.companyName, { message: 'Company name is required' });
+  }
+);
 ```
 
 Perfect alignment! Fields are hidden/shown and required/optional in sync.
@@ -324,10 +352,14 @@ Each status may have different validation requirements.
 ### Required for Specific Status
 
 ```typescript
-applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-  required(p.field, { message: 'Field is required' });
-  min(p.field, minimumValue, { message: 'Minimum value not met' });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'employed',
+  (p) => {
+    required(p.field, { message: 'Field is required' });
+    min(p.field, minimumValue, { message: 'Minimum value not met' });
+  }
+);
 ```
 
 ### Non-Negative Optional Field

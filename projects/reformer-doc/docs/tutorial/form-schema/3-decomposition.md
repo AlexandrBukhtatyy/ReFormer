@@ -24,7 +24,7 @@ Schema decomposition solves these problems by extracting common patterns into re
 The address structure is used twice in our form. Let's extract it:
 
 ```typescript title="src/schemas/address.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 
 export interface Address {
@@ -75,7 +75,7 @@ export const addressSchema: FormSchema<Address> = {
 Personal data is also a common pattern:
 
 ```typescript title="src/schemas/personal-data.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, RadioGroup } from '@/components/ui';
 
 export interface PersonalData {
@@ -130,7 +130,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
 ### Passport Data Schema
 
 ```typescript title="src/schemas/passport-data.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Textarea } from '@/components/ui';
 
 export interface PassportData {
@@ -173,7 +173,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
 ### Property Schema (for arrays)
 
 ```typescript title="src/schemas/property.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select, Textarea, Checkbox } from '@/components/ui';
 
 export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial' | 'car' | 'other';
@@ -222,7 +222,7 @@ export const propertySchema: FormSchema<Property> = {
 ### Existing Loan Schema (for arrays)
 
 ```typescript title="src/schemas/existing-loan.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select } from '@/components/ui';
 
 export interface ExistingLoan {
@@ -279,7 +279,7 @@ export const existingLoanSchema: FormSchema<ExistingLoan> = {
 ### Co-Borrower Schema (nested structure in array)
 
 ```typescript title="src/schemas/co-borrower.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select } from '@/components/ui';
 
 export interface CoBorrower {
@@ -355,7 +355,7 @@ export const coBorrowerSchema: FormSchema<CoBorrower> = {
 Now let's use these extracted schemas in the main form schema:
 
 ```typescript title="src/schemas/credit-application.ts"
-import type { FormSchema } from 'reformer';
+import type { FormSchema } from '@reformer/core';
 import { Input, Select, Checkbox, Textarea, RadioGroup } from '@/components/ui';
 import type { CreditApplicationForm } from '../types';
 

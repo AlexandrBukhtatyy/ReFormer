@@ -37,8 +37,8 @@ touch src/schemas/validators/contact-info.ts
 Start with phone and email format validation:
 
 ```typescript title="src/schemas/validators/contact-info.ts"
-import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, email, phone, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -120,11 +120,15 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
   // Residence Address (Conditionally Required)
   // ==========================================
 
-  applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
-    required(p.residenceAddress.city, { message: 'City is required' });
-    required(p.residenceAddress.street, { message: 'Street is required' });
-    required(p.residenceAddress.house, { message: 'House number is required' });
-  });
+  applyWhen(
+    path.sameAsRegistration,
+    (same) => !same,
+    (p) => {
+      required(p.residenceAddress.city, { message: 'City is required' });
+      required(p.residenceAddress.street, { message: 'Street is required' });
+      required(p.residenceAddress.house, { message: 'House number is required' });
+    }
+  );
 
   pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
     message: 'Postal code must be 6 digits',
@@ -137,8 +141,8 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
 Here's the complete validator for Step 3:
 
 ```typescript title="src/schemas/validators/contact-info.ts"
-import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, email, phone, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -187,11 +191,15 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Residence Address (Conditionally Required)
   // ==========================================
 
-  applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
-    required(p.residenceAddress.city, { message: 'City is required' });
-    required(p.residenceAddress.street, { message: 'Street is required' });
-    required(p.residenceAddress.house, { message: 'House number is required' });
-  });
+  applyWhen(
+    path.sameAsRegistration,
+    (same) => !same,
+    (p) => {
+      required(p.residenceAddress.city, { message: 'City is required' });
+      required(p.residenceAddress.street, { message: 'Street is required' });
+      required(p.residenceAddress.house, { message: 'House number is required' });
+    }
+  );
 
   pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
     message: 'Postal code must be 6 digits',
@@ -260,9 +268,13 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === t
 disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
 
 // Validation: Require residence address when different
-applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
-  required(p.residenceAddress.city, { message: 'City is required' });
-});
+applyWhen(
+  path.sameAsRegistration,
+  (same) => !same,
+  (p) => {
+    required(p.residenceAddress.city, { message: 'City is required' });
+  }
+);
 ```
 
 Perfect synchronization:

@@ -10,14 +10,14 @@ The ReFormer library tutorial has been validated by building a complete 6-step C
 
 ### Test Results Summary
 
-| Section | Tests Passed | Tests Failed | Notes |
-|---------|-------------|--------------|-------|
-| 01-Setup & Rendering | 6/6 | 0 | All working |
-| 03-Behaviors | 13/16 | 3 | Minor selector issues |
-| 04-Validation | 0/18 | 18 | Test selectors incorrect |
-| 05-Data Flow | 10/10 | 0 | All working |
-| 06-Submission | 8/8 | 0 | All working |
-| **Total** | **37/58** | **21** | |
+| Section              | Tests Passed | Tests Failed | Notes                    |
+| -------------------- | ------------ | ------------ | ------------------------ |
+| 01-Setup & Rendering | 6/6          | 0            | All working              |
+| 03-Behaviors         | 13/16        | 3            | Minor selector issues    |
+| 04-Validation        | 0/18         | 18           | Test selectors incorrect |
+| 05-Data Flow         | 10/10        | 0            | All working              |
+| 06-Submission        | 8/8          | 0            | All working              |
+| **Total**            | **37/58**    | **21**       |                          |
 
 > **Note:** The 21 test failures are primarily due to incorrect test selectors (data-testid mismatches), not library functionality issues.
 
@@ -33,6 +33,7 @@ The form schema creation works as documented. Key findings:
 - TypeScript types are properly inferred
 
 **Files Created:**
+
 - `src/types/credit-application.types.ts`
 - `src/schemas/credit-application.schema.ts`
 - `src/forms/createCreditApplicationForm.ts`
@@ -47,6 +48,7 @@ Form rendering with React works as documented. Key findings:
 - Multi-step navigation works
 
 **Files Created:**
+
 - `src/components/ui/form-field.tsx`
 - `src/steps/BasicInfoForm.tsx`
 - `src/steps/PersonalInfoForm.tsx`
@@ -62,7 +64,7 @@ Behaviors work but have some TypeScript issues with nested paths.
 **Issues Found:**
 
 1. **Import Path Issue:**
-   - Documentation suggests: `import { computeFrom } from 'reformer/behaviors'`
+   - Documentation suggests: `import { computeFrom } from '@reformer/core/behaviors'`
    - This works correctly
 
 2. **Type Issues with Nested Paths:**
@@ -71,13 +73,19 @@ Behaviors work but have some TypeScript issues with nested paths.
    - **Workaround:** Use type assertions:
    ```typescript
    computeFrom(
-     [path.personalData.lastName, path.personalData.firstName] as unknown as FieldPathNode<CreditApplicationForm, string>[],
+     [path.personalData.lastName, path.personalData.firstName] as unknown as FieldPathNode<
+       CreditApplicationForm,
+       string
+     >[],
      path.fullName,
-     (values: unknown) => { /* ... */ }
+     (values: unknown) => {
+       /* ... */
+     }
    );
    ```
 
 **Files Created:**
+
 - `src/behaviors/steps/*.behaviors.ts`
 - `src/behaviors/credit-application.behaviors.ts`
 
@@ -88,19 +96,20 @@ Validation works but documentation has incorrect import paths.
 **Issues Found:**
 
 1. **Wrong Import Path in Documentation:**
-   - Documentation shows: `import { required } from 'reformer/validation'`
-   - Correct path: `import { required } from 'reformer/validators'`
+   - Documentation shows: `import { required } from '@reformer/core/validation'`
+   - Correct path: `import { required } from '@reformer/core/validators'`
    - **Severity:** High - prevents code from compiling
 
 2. **BehaviorSchemaFn Import:**
-   - Documentation shows: `import type { BehaviorSchemaFn } from 'reformer'`
-   - Correct: `import type { BehaviorSchemaFn } from 'reformer/behaviors'`
+   - Documentation shows: `import type { BehaviorSchemaFn } from '@reformer/core'`
+   - Correct: `import type { BehaviorSchemaFn } from '@reformer/core/behaviors'`
 
 3. **`useFormControl` Value Type:**
    - The hook returns `value` typed as `FormFields[]`
    - Need to cast: `const statusValue = employmentStatus as unknown as string;`
 
 **Files Created:**
+
 - `src/validators/steps/*.validators.ts`
 - `src/validators/credit-application.validators.ts`
 
@@ -109,12 +118,14 @@ Validation works but documentation has incorrect import paths.
 Data flow features (autosave, draft management) work as documented.
 
 **Implemented Features:**
+
 - localStorage-based draft persistence
 - Autosave with debouncing
 - Draft restoration UI
 - `form.getValue()` and `form.patchValue()` work correctly
 
 **Files Created:**
+
 - `src/services/credit-application.service.ts`
 - `src/hooks/useAutosave.ts`
 - `src/hooks/useLoadDraft.ts`
@@ -138,32 +149,38 @@ Form submission works, but documented `form.submit()` method doesn't exist.
    ```
 
 **Files Created:**
+
 - Updated `src/components/CreditApplicationForm.tsx` with submission handling
 
 ## Critical Bugs / Documentation Issues
 
 ### 1. Wrong Import Path for Validators
+
 **Severity:** High
 **Location:** Documentation throughout validation section
 **Issue:** `reformer/validation` → should be `reformer/validators`
 
 ### 2. Missing `form.submit()` Method
+
 **Severity:** Critical
 **Location:** Submission section documentation
 **Issue:** Method is documented but not implemented in the library
 **Documentation Location:** `docs/tutorial/submission/2-basic-submission.md`
 
 ### 3. BehaviorSchemaFn Export Location
+
 **Severity:** Medium
 **Issue:** Not exported from main `reformer` package
 **Workaround:** Import from `reformer/behaviors`
 
 ### 4. Type Issues with Nested Paths in Behaviors
+
 **Severity:** Medium
 **Issue:** `computeFrom()` doesn't handle nested paths well
 **Workaround:** Type assertions required
 
 ### 5. `useFormControl` Value Type
+
 **Severity:** Low
 **Issue:** Value typed as `FormFields[]` even for single fields
 **Workaround:** Cast to expected type
@@ -187,6 +204,7 @@ Form submission works, but documented `form.submit()` method doesn't exist.
 ### For Library
 
 1. **Implement `form.submit()` method:**
+
    ```typescript
    async submit<R>(callback: (validData: T) => Promise<R>): Promise<R> {
      this.touchAll();

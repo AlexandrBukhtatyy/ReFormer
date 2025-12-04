@@ -79,7 +79,7 @@ ReFormer provides several categories of validators:
 Basic validation for common scenarios:
 
 ```typescript
-import { required, min, max, minLength, maxLength } from 'reformer/validators';
+import { required, min, max, minLength, maxLength } from '@reformer/core/validators';
 
 // Required field
 required(path.loanAmount, { message: 'Loan amount is required' });
@@ -98,7 +98,7 @@ maxLength(path.loanPurpose, 500, { message: 'Maximum 500 characters' });
 Validate common formats:
 
 ```typescript
-import { email, phone, pattern } from 'reformer/validators';
+import { email, phone, pattern } from '@reformer/core/validators';
 
 // Email format
 email(path.email, { message: 'Invalid email format' });
@@ -117,7 +117,7 @@ pattern(path.passportData.series, /^\d{4}$/, {
 Apply validation based on other fields:
 
 ```typescript
-import { requiredWhen, minWhen, maxWhen } from 'reformer/validators';
+import { requiredWhen, minWhen, maxWhen } from '@reformer/core/validators';
 
 // Required when condition is true
 requiredWhen(path.propertyValue, path.loanType, (loanType) => loanType === 'mortgage', {
@@ -135,7 +135,7 @@ minWhen(path.propertyValue, 1000000, path.loanType, (loanType) => loanType === '
 Validate arrays and their elements:
 
 ```typescript
-import { arrayMinLength, arrayMaxLength, arrayMinLengthWhen } from 'reformer/validators';
+import { arrayMinLength, arrayMaxLength, arrayMinLengthWhen } from '@reformer/core/validators';
 
 // Array length validation
 arrayMinLengthWhen(path.properties, 1, path.hasProperty, (has) => has === true, {
@@ -154,7 +154,7 @@ min(path.properties['*'].estimatedValue, 0, { message: 'Value must be positive' 
 Create your own validation logic:
 
 ```typescript
-import { createValidator } from 'reformer/validators';
+import { createValidator } from '@reformer/core/validators';
 
 // Custom validator with dependencies
 createValidator(
@@ -182,7 +182,7 @@ createValidator(
 Validate with server-side checks:
 
 ```typescript
-import { createAsyncValidator } from 'reformer/validators';
+import { createAsyncValidator } from '@reformer/core/validators';
 
 // Async validation with debounce
 createAsyncValidator(

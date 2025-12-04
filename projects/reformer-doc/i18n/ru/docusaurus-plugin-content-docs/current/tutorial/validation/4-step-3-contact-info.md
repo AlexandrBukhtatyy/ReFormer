@@ -37,8 +37,8 @@ touch src/schemas/validators/contact-info.ts
 Начните с валидации формата телефона и email:
 
 ```typescript title="src/schemas/validators/contact-info.ts"
-import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, email, phone, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -120,11 +120,15 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
   // Адрес проживания (Условно обязателен)
   // ==========================================
 
-  applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
-    required(p.residenceAddress.city, { message: 'Город обязателен' });
-    required(p.residenceAddress.street, { message: 'Улица обязательна' });
-    required(p.residenceAddress.house, { message: 'Номер дома обязателен' });
-  });
+  applyWhen(
+    path.sameAsRegistration,
+    (same) => !same,
+    (p) => {
+      required(p.residenceAddress.city, { message: 'Город обязателен' });
+      required(p.residenceAddress.street, { message: 'Улица обязательна' });
+      required(p.residenceAddress.house, { message: 'Номер дома обязателен' });
+    }
+  );
 
   // Квартира опциональна
 
@@ -140,8 +144,8 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
 Вот полный валидатор для Шага 3:
 
 ```typescript title="src/schemas/validators/contact-info.ts"
-import { required, email, phone, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, email, phone, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -270,9 +274,13 @@ disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === t
 disableWhen(path.residenceAddress, path.sameAsRegistration, (same) => same === true);
 
 // Валидация: Требовать адрес проживания когда отличается
-applyWhen(path.sameAsRegistration, (same) => !same, (p) => {
-  required(p.residenceAddress.city, { message: 'Город обязателен' });
-});
+applyWhen(
+  path.sameAsRegistration,
+  (same) => !same,
+  (p) => {
+    required(p.residenceAddress.city, { message: 'Город обязателен' });
+  }
+);
 ```
 
 Идеальная синхронизация:
@@ -378,9 +386,13 @@ email(path.emailAdditional, { message: 'Неверный формат email' });
 ### Условно требуемые поля с applyWhen
 
 ```typescript
-applyWhen(path.condition, (value) => value === true, (p) => {
-  required(p.field, { message: 'Поле обязательно' });
-});
+applyWhen(
+  path.condition,
+  (value) => value === true,
+  (p) => {
+    required(p.field, { message: 'Поле обязательно' });
+  }
+);
 ```
 
 ### Русский почтовый код

@@ -19,7 +19,7 @@ Setting up a project to work with ReFormer.
 npm create vite@latest reformer-tutorial -- --template react-ts
 
 # Install dependencies that don't require configuration
-npm install @reformer/core
+npm install @reformer/core@beta
 ```
 
 ### Installing TailwindCSS

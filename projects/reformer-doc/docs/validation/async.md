@@ -9,8 +9,8 @@ Validate against server or perform expensive checks.
 ## Basic Async Validator
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required } from 'reformer/validators';
+import { GroupNode } from '@reformer/core';
+import { required } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -46,7 +46,7 @@ validation: (path, { validateAsync }) => {
     },
     { debounce: 300 } // Wait 300ms after typing stops
   );
-}
+};
 ```
 
 ## Loading State
@@ -65,10 +65,7 @@ function UsernameField() {
 
   return (
     <div>
-      <input
-        value={field.value}
-        onChange={(e) => field.setValue(e.target.value)}
-      />
+      <input value={field.value} onChange={(e) => field.setValue(e.target.value)} />
       {field.pending && <span>Checking...</span>}
       {field.errors?.usernameTaken && <span>Username taken</span>}
     </div>
@@ -93,7 +90,7 @@ validation: (path, { validateAsync }) => {
     const { valid } = await response.json();
     return valid ? null : { emailInUse: true };
   });
-}
+};
 ```
 
 ## Combining Sync and Async
@@ -108,7 +105,7 @@ validation: (path, { validateAsync }) => {
 
   // Async: only runs if sync validators pass
   validateAsync(path.username, checkUsernameAvailable);
-}
+};
 ```
 
 ## Next Steps

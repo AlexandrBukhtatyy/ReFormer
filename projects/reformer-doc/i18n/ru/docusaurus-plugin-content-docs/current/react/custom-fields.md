@@ -12,7 +12,7 @@ sidebar_label: Кастомные поля
 Минимальный переиспользуемый компонент поля:
 
 ```tsx
-import { FieldNode, useFormControl } from 'reformer';
+import { FieldNode, useFormControl } from '@reformer/core';
 
 interface TextFieldProps {
   field: FieldNode<string>;
@@ -33,9 +33,7 @@ export function TextField({ field, label, type = 'text' }: TextFieldProps) {
         onBlur={() => field.markAsTouched()}
         disabled={disabled}
       />
-      {shouldShowError && errors.length > 0 && (
-        <span className="error">{errors[0].message}</span>
-      )}
+      {shouldShowError && errors.length > 0 && <span className="error">{errors[0].message}</span>}
       {pending && <span className="loading">Проверка...</span>}
     </div>
   );
@@ -50,13 +48,13 @@ export function TextField({ field, label, type = 'text' }: TextFieldProps) {
 const { value, disabled, errors, shouldShowError, pending } = useFormControl(field);
 ```
 
-| Свойство          | Описание                                    |
-| ----------------- | ------------------------------------------- |
-| `value`           | Текущее значение поля                       |
-| `disabled`        | Поле отключено                              |
-| `errors`          | Массив ошибок валидации                     |
-| `shouldShowError` | Показывать ошибку (поле touched и invalid)  |
-| `pending`         | Асинхронная валидация выполняется           |
+| Свойство          | Описание                                   |
+| ----------------- | ------------------------------------------ |
+| `value`           | Текущее значение поля                      |
+| `disabled`        | Поле отключено                             |
+| `errors`          | Массив ошибок валидации                    |
+| `shouldShowError` | Показывать ошибку (поле touched и invalid) |
+| `pending`         | Асинхронная валидация выполняется          |
 
 ### 2. Вызывайте методы на FieldNode
 
@@ -78,9 +76,7 @@ field.markAsTouched();
 ### 4. Отмечайте как touched на blur
 
 ```tsx
-<input
-  onBlur={() => field.markAsTouched()}
-/>
+<input onBlur={() => field.markAsTouched()} />
 ```
 
 Это включает отображение ошибок после взаимодействия пользователя.

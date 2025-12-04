@@ -26,9 +26,9 @@ Benefits of separation:
 ## Implementation
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
-import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
-import type { BehaviorSchemaFn } from 'reformer/behaviors';
-import type { FieldPath } from 'reformer';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn } from '@reformer/core/behaviors';
+import type { FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -197,9 +197,9 @@ watchField(path.loanAmount, (value) => {
 ## Complete Code
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/cross-step.behaviors.ts"
-import { computeFrom, disableWhen, revalidateWhen, watchField } from 'reformer/behaviors';
-import type { BehaviorSchemaFn } from 'reformer/behaviors';
-import type { FieldPath } from 'reformer';
+import { computeFrom, disableWhen, revalidateWhen, watchField } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn } from '@reformer/core/behaviors';
+import type { FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -251,7 +251,7 @@ export const crossStepBehaviorsSchema: BehaviorSchemaFn<CreditApplicationForm> =
 Show the payment-to-income ratio in a summary widget:
 
 ```tsx title="src/components/LoanSummary.tsx"
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 
 function LoanSummary({ control }: Props) {
   const { value: monthlyPayment } = useFormControl(control.monthlyPayment);

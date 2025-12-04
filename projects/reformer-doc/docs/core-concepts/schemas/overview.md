@@ -8,16 +8,16 @@ ReFormer uses a three-schema architecture to separate concerns and enable maximu
 
 ## The Three Schemas
 
-| Schema | Purpose | Property |
-|--------|---------|----------|
-| **Form Schema** | Data structure and field configuration | `form` |
-| **Validation Schema** | Validation rules | `validation` |
-| **Behavior Schema** | Reactive logic and side effects | `behavior` |
+| Schema                | Purpose                                | Property     |
+| --------------------- | -------------------------------------- | ------------ |
+| **Form Schema**       | Data structure and field configuration | `form`       |
+| **Validation Schema** | Validation rules                       | `validation` |
+| **Behavior Schema**   | Reactive logic and side effects        | `behavior`   |
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required, email } from 'reformer/validators';
-import { computeFrom } from 'reformer/behaviors';
+import { GroupNode } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import { computeFrom } from '@reformer/core/behaviors';
 
 const form = new GroupNode({
   // 1. Form Schema - structure
@@ -38,10 +38,8 @@ const form = new GroupNode({
 
   // 3. Behavior Schema - logic
   behavior: (path) => {
-    computeFrom(
-      [path.firstName, path.lastName],
-      path.fullName,
-      ({ firstName, lastName }) => `${firstName} ${lastName}`.trim()
+    computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+      `${firstName} ${lastName}`.trim()
     );
   },
 });
@@ -104,9 +102,9 @@ All three schemas use `FieldPath<T>` for compile-time type checking:
 
 ```typescript
 validation: (path) => {
-  required(path.firstName);   // ✅ TypeScript knows this exists
-  required(path.middleName);  // ❌ Error: 'middleName' doesn't exist
-}
+  required(path.firstName); // ✅ TypeScript knows this exists
+  required(path.middleName); // ❌ Error: 'middleName' doesn't exist
+};
 ```
 
 ## Schema Structure

@@ -1,5 +1,4 @@
-# 1.0.0 (2025-12-02)
-
+# 1.0.0-beta.1 (2025-12-04)
 
 ### Bug Fixes
 
@@ -9,7 +8,9 @@
 * behaviour examples ([4306199](https://github.com/AlexandrBukhtatyy/ReFormer/commit/430619960b22a67e8fa16431157604c5811cc4cc))
 * build ([8869bd6](https://github.com/AlexandrBukhtatyy/ReFormer/commit/8869bd66f427bfd37c844c8b41fe43adf0441ce2))
 * **build:** edit env variable in release flow ([7fa54d4](https://github.com/AlexandrBukhtatyy/ReFormer/commit/7fa54d428d6c420b2d5d86342f2eb21194ea8941))
+* bump react and react-dom ([b484128](https://github.com/AlexandrBukhtatyy/ReFormer/commit/b4841289c3e1a682ac669c249edbeacce6c40b07))
 * **ci:** install deps from root for docs build ([e54a427](https://github.com/AlexandrBukhtatyy/ReFormer/commit/e54a42777e28d1b020d134b052c95353bf3d1b48))
+* **ci:** publish normal version on main ([f5ab99d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/f5ab99d9767bf2cda7c988588f76b046e4823441))
 * **ci:** regenerate lockfile for linux platform ([51cf334](https://github.com/AlexandrBukhtatyy/ReFormer/commit/51cf334140b403ee55c57d61c146eaced1d6066d))
 * **ci:** update workspace name to @reformer/core ([1548542](https://github.com/AlexandrBukhtatyy/ReFormer/commit/15485423147b34735f3022ad282b8c63dfb1c90b))
 * **ci:** update workspace references from reformer to @reformer/core ([5783108](https://github.com/AlexandrBukhtatyy/ReFormer/commit/57831083b3646d779c0acd7eecb8136d2fff39fa))
@@ -85,6 +86,9 @@
 * make baseUrl for e2e setable ([3f7e524](https://github.com/AlexandrBukhtatyy/ReFormer/commit/3f7e5248947e5bf92db4214cac3ea1698c76847f))
 * new dependencies after code generation ([004c1ff](https://github.com/AlexandrBukhtatyy/ReFormer/commit/004c1ffc7ad7a532d48a1818bbddff4ad2796ac4))
 * prepear to ci/cd ([34c25f8](https://github.com/AlexandrBukhtatyy/ReFormer/commit/34c25f8a76648f468be9f6786e03e9ad735d7890))
+* **reformer:** add mcp server package for ai assistants ([276b76c](https://github.com/AlexandrBukhtatyy/ReFormer/commit/276b76ccbe9e083965010230eef8ae9ae81f7e3c))
+* **reformer:** add mcp tools for function signatures, imports, and patterns ([9b27512](https://github.com/AlexandrBukhtatyy/ReFormer/commit/9b2751257a230b4958f9bbcd74d89ab419805edf))
+* **reformer:** add uuid dependency ([c253ac3](https://github.com/AlexandrBukhtatyy/ReFormer/commit/c253ac38c05ad62ff6bf01729f5fe80aca255985))
 * **reformer:** rename package to @reformer/core ([61e598d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/61e598d42a4ba371101fe4e391ab2e41738de316))
 * update doc, tutorial, rename projects and add readme ([879eda5](https://github.com/AlexandrBukhtatyy/ReFormer/commit/879eda5634f56d8996953a2f89d452f0f16f1017))
 * use msw middleware for stackblitz ([290605b](https://github.com/AlexandrBukhtatyy/ReFormer/commit/290605b62e041036b13c2f1b5b875576d2e74e2a))
@@ -97,6 +101,34 @@
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
+
+# [1.0.0-beta.9](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.8...v1.0.0-beta.9) (2025-12-03)
+
+
+### Features
+
+* **reformer:** add mcp tools for function signatures, imports, and patterns ([9b27512](https://github.com/AlexandrBukhtatyy/ReFormer/commit/9b2751257a230b4958f9bbcd74d89ab419805edf))
+
+# [1.0.0-beta.8](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-12-03)
+
+
+### Features
+
+* **reformer:** add mcp server package for ai assistants ([276b76c](https://github.com/AlexandrBukhtatyy/ReFormer/commit/276b76ccbe9e083965010230eef8ae9ae81f7e3c))
+
+# [1.0.0-beta.7](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-12-03)
+
+
+### Features
+
+* **reformer:** add uuid dependency ([c253ac3](https://github.com/AlexandrBukhtatyy/ReFormer/commit/c253ac38c05ad62ff6bf01729f5fe80aca255985))
+
+# [1.0.0-beta.6](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-12-02)
+
+
+### Bug Fixes
+
+* **ci:** publish normal version on main ([f5ab99d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/f5ab99d9767bf2cda7c988588f76b046e4823441))
 
 # [1.0.0-beta.5](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2025-12-02)
 

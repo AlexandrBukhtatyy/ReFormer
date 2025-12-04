@@ -42,8 +42,8 @@ touch src/schemas/validators/employment.ts
 Начните с требуемых полей, которые применяются ко всем статусам занятости:
 
 ```typescript title="src/schemas/validators/employment.ts"
-import { required, min, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -90,20 +90,24 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Условно: Поля работающих
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-    required(p.companyName, { message: 'Название компании обязательно' });
-    required(p.companyAddress, { message: 'Адрес компании обязателен' });
-    required(p.position, { message: 'Должность обязательна' });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'employed',
+    (p) => {
+      required(p.companyName, { message: 'Название компании обязательно' });
+      required(p.companyAddress, { message: 'Адрес компании обязателен' });
+      required(p.position, { message: 'Должность обязательна' });
 
-    required(p.workExperienceCurrent, { message: 'Стаж работы на текущем месте обязателен' });
-    min(p.workExperienceCurrent, 3, {
-      message: 'Минимум 3 месяца опыта на текущем месте требуется',
-    });
+      required(p.workExperienceCurrent, { message: 'Стаж работы на текущем месте обязателен' });
+      min(p.workExperienceCurrent, 3, {
+        message: 'Минимум 3 месяца опыта на текущем месте требуется',
+      });
 
-    min(p.workExperienceTotal, 0, {
-      message: 'Общий стаж не может быть отрицательным',
-    });
-  });
+      min(p.workExperienceTotal, 0, {
+        message: 'Общий стаж не может быть отрицательным',
+      });
+    }
+  );
 };
 ```
 
@@ -119,10 +123,14 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Условно: Поля самозанятых
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
-    required(p.businessType, { message: 'Тип бизнеса обязателен' });
-    required(p.businessInn, { message: 'ИНН бизнеса обязателен' });
-  });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'selfEmployed',
+    (p) => {
+      required(p.businessType, { message: 'Тип бизнеса обязателен' });
+      required(p.businessInn, { message: 'ИНН бизнеса обязателен' });
+    }
+  );
 
   // Валидация паттерна для ИНН бизнеса
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
@@ -136,8 +144,8 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
 Вот полный валидатор для Шага 4:
 
 ```typescript title="src/schemas/validators/employment.ts"
-import { required, min, pattern, applyWhen } from 'reformer/validators';
-import type { ValidationSchemaFn, FieldPath } from 'reformer';
+import { required, min, pattern, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 /**
@@ -171,29 +179,37 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Условно: Поля работающих
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-    required(p.companyName, { message: 'Название компании обязательно' });
-    required(p.companyAddress, { message: 'Адрес компании обязателен' });
-    required(p.position, { message: 'Должность обязательна' });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'employed',
+    (p) => {
+      required(p.companyName, { message: 'Название компании обязательно' });
+      required(p.companyAddress, { message: 'Адрес компании обязателен' });
+      required(p.position, { message: 'Должность обязательна' });
 
-    required(p.workExperienceCurrent, { message: 'Стаж работы на текущем месте обязателен' });
-    min(p.workExperienceCurrent, 3, {
-      message: 'Минимум 3 месяца опыта на текущем месте требуется',
-    });
+      required(p.workExperienceCurrent, { message: 'Стаж работы на текущем месте обязателен' });
+      min(p.workExperienceCurrent, 3, {
+        message: 'Минимум 3 месяца опыта на текущем месте требуется',
+      });
 
-    min(p.workExperienceTotal, 0, {
-      message: 'Общий стаж не может быть отрицательным',
-    });
-  });
+      min(p.workExperienceTotal, 0, {
+        message: 'Общий стаж не может быть отрицательным',
+      });
+    }
+  );
 
   // ==========================================
   // Условно: Поля самозанятых
   // ==========================================
 
-  applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
-    required(p.businessType, { message: 'Тип бизнеса обязателен' });
-    required(p.businessInn, { message: 'ИНН бизнеса обязателен' });
-  });
+  applyWhen(
+    path.employmentStatus,
+    (status) => status === 'selfEmployed',
+    (p) => {
+      required(p.businessType, { message: 'Тип бизнеса обязателен' });
+      required(p.businessInn, { message: 'ИНН бизнеса обязателен' });
+    }
+  );
 
   pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
     message: 'ИНН бизнеса должен быть 10 или 12 цифр',
@@ -219,17 +235,25 @@ min(path.monthlyIncome, 10000, { message: 'Минимальный ежемеся
 
 ```typescript
 // Применяется только при работе
-applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-  required(p.companyName, { message: 'Название компании обязательно' });
-  min(p.workExperienceCurrent, 3, {
-    message: 'Минимум 3 месяца опыта на текущем месте требуется',
-  });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'employed',
+  (p) => {
+    required(p.companyName, { message: 'Название компании обязательно' });
+    min(p.workExperienceCurrent, 3, {
+      message: 'Минимум 3 месяца опыта на текущем месте требуется',
+    });
+  }
+);
 
 // Применяется только при самозанятости
-applyWhen(path.employmentStatus, (status) => status === 'selfEmployed', (p) => {
-  required(p.businessType, { message: 'Тип бизнеса обязателен' });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'selfEmployed',
+  (p) => {
+    required(p.businessType, { message: 'Тип бизнеса обязателен' });
+  }
+);
 ```
 
 ### Интеграция с Behaviors
@@ -242,9 +266,13 @@ enableWhen(path.companyName, path.employmentStatus, (status) => status === 'empl
 enableWhen(path.companyAddress, path.employmentStatus, (status) => status === 'employed');
 
 // Валидация: Требовать поля компании только при работе
-applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-  required(p.companyName, { message: 'Название компании обязательно' });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'employed',
+  (p) => {
+    required(p.companyName, { message: 'Название компании обязательно' });
+  }
+);
 ```
 
 Идеальное выравнивание! Поля скрываются/показываются и требуются/опциональны в синхронизации.
@@ -326,10 +354,14 @@ type EmploymentStatus =
 ### Условная валидация с applyWhen
 
 ```typescript
-applyWhen(path.employmentStatus, (status) => status === 'employed', (p) => {
-  required(p.field, { message: 'Поле требуется' });
-  min(p.field, minimumValue, { message: 'Минимальное значение не достигнуто' });
-});
+applyWhen(
+  path.employmentStatus,
+  (status) => status === 'employed',
+  (p) => {
+    required(p.field, { message: 'Поле требуется' });
+    min(p.field, minimumValue, { message: 'Минимальное значение не достигнуто' });
+  }
+);
 ```
 
 ### Неотрицательное опциональное поле

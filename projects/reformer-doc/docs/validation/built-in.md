@@ -11,7 +11,7 @@ All validators are imported from `reformer/validators`.
 Field must have a non-empty value.
 
 ```typescript
-import { required } from 'reformer/validators';
+import { required } from '@reformer/core/validators';
 
 required(path.name);
 // Error: { code: 'required', message: '...' }
@@ -24,7 +24,7 @@ Empty values: `''`, `null`, `undefined`, `[]`
 Valid email format.
 
 ```typescript
-import { email } from 'reformer/validators';
+import { email } from '@reformer/core/validators';
 
 email(path.email);
 // Error: { code: 'email', message: '...' }
@@ -35,7 +35,7 @@ email(path.email);
 String length constraints.
 
 ```typescript
-import { minLength, maxLength } from 'reformer/validators';
+import { minLength, maxLength } from '@reformer/core/validators';
 
 minLength(path.name, 2);
 // Error: { code: 'minLength', params: { required: 2, actual: 1 } }
@@ -49,7 +49,7 @@ maxLength(path.bio, 500);
 Number value constraints.
 
 ```typescript
-import { min, max } from 'reformer/validators';
+import { min, max } from '@reformer/core/validators';
 
 min(path.age, 18);
 // Error: { code: 'min', params: { min: 18, actual: 16 } }
@@ -63,7 +63,7 @@ max(path.quantity, 100);
 Match regex pattern.
 
 ```typescript
-import { pattern } from 'reformer/validators';
+import { pattern } from '@reformer/core/validators';
 
 // Only letters
 pattern(path.code, /^[A-Z]+$/);
@@ -79,7 +79,7 @@ pattern(path.code, /^[A-Z]+$/, 'uppercase');
 Valid URL format.
 
 ```typescript
-import { url } from 'reformer/validators';
+import { url } from '@reformer/core/validators';
 
 url(path.website);
 // Error: { code: 'url', message: '...' }
@@ -90,7 +90,7 @@ url(path.website);
 Valid phone number format.
 
 ```typescript
-import { phone } from 'reformer/validators';
+import { phone } from '@reformer/core/validators';
 
 phone(path.phone);
 // Error: { code: 'phone', message: '...' }
@@ -101,7 +101,7 @@ phone(path.phone);
 Must be a valid number.
 
 ```typescript
-import { number } from 'reformer/validators';
+import { number } from '@reformer/core/validators';
 
 number(path.amount);
 // Error: { code: 'number', message: '...' }
@@ -112,7 +112,7 @@ number(path.amount);
 Valid date value.
 
 ```typescript
-import { date } from 'reformer/validators';
+import { date } from '@reformer/core/validators';
 
 date(path.birthDate);
 // Error: { code: 'date', message: '...' }
@@ -128,7 +128,7 @@ validation: (path) => {
   minLength(path.password, 8);
   pattern(path.password, /[A-Z]/, 'uppercase');
   pattern(path.password, /[0-9]/, 'hasNumber');
-}
+};
 ```
 
 All validators run, errors are collected:
@@ -138,8 +138,8 @@ All validators run, errors are collected:
 errors: [
   { code: 'minLength', params: { required: 8, actual: 3 } },
   { code: 'uppercase' },
-  { code: 'hasNumber' }
-]
+  { code: 'hasNumber' },
+];
 ```
 
 ## Next Steps

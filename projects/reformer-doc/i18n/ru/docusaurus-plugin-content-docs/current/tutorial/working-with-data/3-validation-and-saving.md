@@ -29,7 +29,7 @@ if (form.valid.value) {
 Валидация по конкретной схеме. Используется для multi-step форм:
 
 ```typescript
-import { validateForm } from 'reformer';
+import { validateForm } from '@reformer/core';
 
 // Валидация только полей текущего шага
 const isValid = await validateForm(form, loanValidation);
@@ -59,10 +59,10 @@ const handleSubmit = async () => {
 
 ## Ключевые методы
 
-| Метод                         | Назначение              |
-| ----------------------------- | ----------------------- |
-| `validate()`                  | Запуск валидации        |
-| `valid.value`                 | Проверка валидности     |
-| `validateForm(form, schema)`  | Валидация по схеме      |
-| `markAsTouched()`             | Показать ошибки         |
-| `getValue()`                  | Получить значения формы |
+| Метод                        | Назначение              |
+| ---------------------------- | ----------------------- |
+| `validate()`                 | Запуск валидации        |
+| `valid.value`                | Проверка валидности     |
+| `validateForm(form, schema)` | Валидация по схеме      |
+| `markAsTouched()`            | Показать ошибки         |
+| `getValue()`                 | Получить значения формы |

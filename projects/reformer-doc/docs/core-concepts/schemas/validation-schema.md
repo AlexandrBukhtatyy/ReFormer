@@ -15,8 +15,8 @@ type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
 The validation function receives a type-safe `path` object for declaring validation rules:
 
 ```typescript
-import { GroupNode } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { GroupNode } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -47,11 +47,11 @@ interface User {
 }
 
 validation: (path: FieldPath<User>) => {
-  required(path.name);           // ✅ Valid
-  required(path.email);          // ✅ Valid
-  required(path.address.city);   // ✅ Valid - nested access
-  required(path.phone);          // ❌ TypeScript error!
-}
+  required(path.name); // ✅ Valid
+  required(path.email); // ✅ Valid
+  required(path.address.city); // ✅ Valid - nested access
+  required(path.phone); // ❌ TypeScript error!
+};
 ```
 
 ### Benefits
@@ -62,15 +62,15 @@ validation: (path: FieldPath<User>) => {
 
 ## Built-in Validators
 
-| Validator | Description |
-|-----------|-------------|
-| `required(path.field)` | Field must have value |
-| `email(path.field)` | Valid email format |
-| `minLength(path.field, n)` | Minimum string length |
-| `maxLength(path.field, n)` | Maximum string length |
-| `min(path.field, n)` | Minimum number |
-| `max(path.field, n)` | Maximum number |
-| `pattern(path.field, regex)` | Match regex |
+| Validator                    | Description           |
+| ---------------------------- | --------------------- |
+| `required(path.field)`       | Field must have value |
+| `email(path.field)`          | Valid email format    |
+| `minLength(path.field, n)`   | Minimum string length |
+| `maxLength(path.field, n)`   | Maximum string length |
+| `min(path.field, n)`         | Minimum number        |
+| `max(path.field, n)`         | Maximum number        |
+| `pattern(path.field, regex)` | Match regex           |
 
 See [Built-in Validators](/docs/validation/built-in) for full list.
 
@@ -79,7 +79,7 @@ See [Built-in Validators](/docs/validation/built-in) for full list.
 Apply validators based on conditions:
 
 ```typescript
-import { when } from 'reformer/validators';
+import { when } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.email);
@@ -92,7 +92,7 @@ validation: (path) => {
       pattern(path.phone, /^\d{10}$/);
     }
   );
-}
+};
 ```
 
 ## Nested Validation
@@ -119,7 +119,7 @@ validation: (path) => {
   // Array items (validates each item's template)
   required(path.items.product);
   min(path.items.quantity, 1);
-}
+};
 ```
 
 ## Cross-Field Validation
@@ -127,7 +127,7 @@ validation: (path) => {
 Validate fields against each other:
 
 ```typescript
-import { custom } from 'reformer/validators';
+import { custom } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.password);
@@ -140,7 +140,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 ## Async Validation
@@ -148,7 +148,7 @@ validation: (path) => {
 Server-side validation:
 
 ```typescript
-import { asyncValidator } from 'reformer/validators';
+import { asyncValidator } from '@reformer/core/validators';
 
 validation: (path) => {
   required(path.username);
@@ -160,7 +160,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 See [Async Validation](/docs/validation/async) for details.
@@ -170,8 +170,8 @@ See [Async Validation](/docs/validation/async) for details.
 Create reusable validation functions:
 
 ```typescript
-import { FieldPath } from 'reformer';
-import { required, email, minLength } from 'reformer/validators';
+import { FieldPath } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 
 // Reusable validation set
 export function validatePerson(path: FieldPath<Person>) {

@@ -1,6 +1,6 @@
 {
   "name": "@reformer/core",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "Reactive form state management library for React with signals-based architecture",
   "type": "module",
   "main": "./dist/index.js",
@@ -60,14 +60,15 @@
     "dist",
     "README.md",
     "LICENSE",
-    "llms.txt"
+    "LLMs.txt"
   ],
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "@preact/signals-core": "^1.8.0"
+    "@preact/signals-core": "^1.8.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
@@ -76,8 +77,8 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/utils": "^4.0.8",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
     "vite-plugin-dts": "^4.5.4",

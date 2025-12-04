@@ -31,8 +31,8 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/personal-
 In Russian forms, the full name (ФИО) is typically formatted as: **Фамилия Имя Отчество** (Last First Middle).
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
-import { computeFrom, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm, PersonalData } from '@/types';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -172,8 +172,8 @@ However, using `disableWhen` keeps all behaviors centralized and makes them easi
 Here's the complete behavior file for Step 2:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/personal-info.ts"
-import { computeFrom, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, disableWhen } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm, PersonalData } from '@/types';
 
 export const personalBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -261,7 +261,7 @@ export function createCreditApplicationForm() {
 These computed fields can be displayed anywhere in your form. For example, you might show them in a summary:
 
 ```tsx title="src/components/ApplicantSummary.tsx"
-import { useFormControl } from 'reformer';
+import { useFormControl } from '@reformer/core';
 
 function ApplicantSummary({ control }: Props) {
   const { value: fullName } = useFormControl(control.fullName);

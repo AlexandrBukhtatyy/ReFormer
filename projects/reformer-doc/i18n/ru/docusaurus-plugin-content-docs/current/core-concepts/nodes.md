@@ -17,7 +17,7 @@ Nodes — это строительные блоки форм ReFormer. Суще
 Простейший узел — хранит одно значение.
 
 ```typescript
-import { FieldNode } from 'reformer';
+import { FieldNode } from '@reformer/core';
 
 const name = new FieldNode({ value: '' });
 const age = new FieldNode({ value: 0 });
@@ -58,7 +58,7 @@ name.value; // 'John'
 Группирует несколько полей в объект.
 
 ```typescript
-import { GroupNode } from 'reformer';
+import { GroupNode } from '@reformer/core';
 
 const form = new GroupNode({
   form: {
@@ -100,7 +100,7 @@ form.value;
 Динамический список элементов.
 
 ```typescript
-import { GroupNode } from 'reformer';
+import { GroupNode } from '@reformer/core';
 
 const form = new GroupNode({
   form: {

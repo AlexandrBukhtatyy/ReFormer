@@ -18,8 +18,8 @@ sidebar_position: 5
 ## Реализация
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/employment.ts"
-import { enableWhen, watch, computeFrom, disableWhen } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { enableWhen, watch, computeFrom, disableWhen } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const employmentBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (

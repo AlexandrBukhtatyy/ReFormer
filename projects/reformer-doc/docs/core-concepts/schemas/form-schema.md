@@ -11,7 +11,7 @@ Form Schema defines the structure of your form data and field configuration.
 `FormSchema<T>` automatically maps your TypeScript interface to field configurations:
 
 ```typescript
-import { FormSchema, GroupNode } from 'reformer';
+import { FormSchema, GroupNode } from '@reformer/core';
 
 interface User {
   name: string;
@@ -32,13 +32,13 @@ const form = new GroupNode<User>({ form: schema });
 
 `FormSchema<T>` uses these rules to determine field types:
 
-| TypeScript Type | Schema Type | Example |
-|-----------------|-------------|---------|
-| `string`, `number`, `boolean` | `FieldConfig<T>` | `name: { value: '' }` |
-| `Date`, `File`, `Blob` | `FieldConfig<T>` | `date: { value: null }` |
-| Nested object | `FormSchema<T>` | `address: { city: {...} }` |
-| Array of objects | `[FormSchema<T>]` | `items: [{ name: {...} }]` |
-| Array of primitives | `FieldConfig<T[]>` | `tags: { value: [] }` |
+| TypeScript Type               | Schema Type        | Example                    |
+| ----------------------------- | ------------------ | -------------------------- |
+| `string`, `number`, `boolean` | `FieldConfig<T>`   | `name: { value: '' }`      |
+| `Date`, `File`, `Blob`        | `FieldConfig<T>`   | `date: { value: null }`    |
+| Nested object                 | `FormSchema<T>`    | `address: { city: {...} }` |
+| Array of objects              | `[FormSchema<T>]`  | `items: [{ name: {...} }]` |
+| Array of primitives           | `FieldConfig<T[]>` | `tags: { value: [] }`      |
 
 ### Primitives
 
@@ -50,9 +50,9 @@ interface BasicForm {
 }
 
 const schema: FormSchema<BasicForm> = {
-  name: { value: '' },        // FieldConfig<string>
-  age: { value: 0 },          // FieldConfig<number>
-  active: { value: false },   // FieldConfig<boolean>
+  name: { value: '' }, // FieldConfig<string>
+  age: { value: 0 }, // FieldConfig<number>
+  active: { value: false }, // FieldConfig<boolean>
 };
 ```
 
@@ -71,7 +71,8 @@ interface WithAddress {
 
 const schema: FormSchema<WithAddress> = {
   name: { value: '' },
-  address: {                   // FormSchema<Address>
+  address: {
+    // FormSchema<Address>
     street: { value: '' },
     city: { value: '' },
   },
@@ -93,10 +94,13 @@ interface WithItems {
 
 const schema: FormSchema<WithItems> = {
   title: { value: '' },
-  items: [{                    // [FormSchema<Item>]
-    name: { value: '' },
-    price: { value: 0 },
-  }],
+  items: [
+    {
+      // [FormSchema<Item>]
+      name: { value: '' },
+      price: { value: 0 },
+    },
+  ],
 };
 ```
 
@@ -106,10 +110,10 @@ Each field uses `FieldConfig<T>`:
 
 ```typescript
 interface FieldConfig<T> {
-  value: T | null;              // Initial value (required)
-  disabled?: boolean;           // Field disabled state
-  updateOn?: 'change' | 'blur' | 'submit';  // When to update
-  debounce?: number;            // Debounce for async validation (ms)
+  value: T | null; // Initial value (required)
+  disabled?: boolean; // Field disabled state
+  updateOn?: 'change' | 'blur' | 'submit'; // When to update
+  debounce?: number; // Debounce for async validation (ms)
 }
 ```
 
@@ -144,8 +148,8 @@ interface Profile {
 
 const schema: FormSchema<Profile> = {
   name: { value: '' },
-  bio: { value: '' },        // Use empty string for optional string
-  avatar: { value: null },   // Use null for optional File
+  bio: { value: '' }, // Use empty string for optional string
+  avatar: { value: null }, // Use null for optional File
 };
 ```
 
@@ -177,11 +181,13 @@ const orderSchema: FormSchema<Order> = {
     email: { value: '' },
     phone: { value: '' },
   },
-  items: [{
-    product: { value: '' },
-    quantity: { value: 1 },
-    price: { value: 0 },
-  }],
+  items: [
+    {
+      product: { value: '' },
+      quantity: { value: 1 },
+      price: { value: 0 },
+    },
+  ],
   shipping: {
     address: { value: '' },
     city: { value: '' },
@@ -206,10 +212,10 @@ const form = new GroupNode({
 });
 
 // TypeScript knows:
-form.value.name;              // string
-form.value.age;               // number
-form.controls.name;           // FieldNode<string>
-form.controls.age;            // FieldNode<number>
+form.value.name; // string
+form.value.age; // number
+form.controls.name; // FieldNode<string>
+form.controls.age; // FieldNode<number>
 ```
 
 ## Next Steps

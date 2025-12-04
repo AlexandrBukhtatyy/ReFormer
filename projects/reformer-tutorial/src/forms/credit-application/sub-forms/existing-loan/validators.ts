@@ -1,4 +1,4 @@
-import { required, min } from 'reformer/validators';
+import { required, min } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { ExistingLoan } from './type';
 

@@ -20,7 +20,7 @@ sidebar_position: 4
 Все компоненты шагов следуют одному паттерну:
 
 ```tsx
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
@@ -45,8 +45,8 @@ export function StepName({ control }: StepProps) {
 Первый шаг собирает данные о кредите с условными полями:
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/BasicInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 
@@ -105,7 +105,7 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
 Этот шаг демонстрирует использование вложенных форм:
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/PersonalInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 // TODO: Реализуем на следующем этапе документации
@@ -151,8 +151,8 @@ export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
 Демонстрирует переиспользование вложенных форм и операции с группами:
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/ContactInfoForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 // TODO: Реализуем на следующем этапе документации
@@ -248,8 +248,8 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
 Показывает условные секции на основе статуса занятости:
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/EmploymentForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 
@@ -320,8 +320,8 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 Демонстрирует работу с массивами (рассматривается в следующем разделе):
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx
-import type { GroupNodeWithControls } from 'reformer';
-import { useFormControl } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 
@@ -402,7 +402,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 Финальный шаг со всеми согласиями:
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/ConfirmationForm.tsx"
-import type { GroupNodeWithControls } from 'reformer';
+import type { GroupNodeWithControls } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application.types';
 import { FormField } from '@/components/ui/FormField';
 

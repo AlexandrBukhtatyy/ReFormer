@@ -4,8 +4,15 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, useFormControl, type GroupNodeWithControls, type FormSchema, type FieldNode, type FieldPath } from '@reformer/core';
-import { required, min, max } from 'reformer/validators';
+import {
+  GroupNode,
+  useFormControl,
+  type GroupNodeWithControls,
+  type FormSchema,
+  type FieldNode,
+  type FieldPath,
+} from '@reformer/core';
+import { required, min, max } from '@reformer/core/validators';
 import {
   computeFrom,
   enableWhen,
@@ -16,8 +23,8 @@ import {
   resetWhen,
   syncFields,
   revalidateWhen,
-  type BehaviorSchemaFn
-} from 'reformer/behaviors';
+  type BehaviorSchemaFn,
+} from '@reformer/core/behaviors';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -306,13 +313,7 @@ function TextField({
 }
 
 // Компонент чекбокса
-function CheckboxField({
-  control,
-  label,
-}: {
-  control: FieldNode<boolean>;
-  label: string;
-}) {
+function CheckboxField({ control, label }: { control: FieldNode<boolean>; label: string }) {
   const { value, disabled } = useFormControl(control);
 
   return (
@@ -374,9 +375,7 @@ export default function BehaviorsExamples() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-2">Примеры поведений (Behaviors)</h2>
-      <p className="text-gray-600 mb-6">
-        Демонстрация реактивных поведений ReFormer
-      </p>
+      <p className="text-gray-600 mb-6">Демонстрация реактивных поведений ReFormer</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* ComputeFrom Example */}
@@ -436,9 +435,7 @@ export default function BehaviorsExamples() {
 )`}
         >
           <CheckboxField control={form.hasDiscount} label="Применить скидку" />
-          {hasDiscount && (
-            <NumberField control={form.discountPercent} label="Процент скидки" />
-          )}
+          {hasDiscount && <NumberField control={form.discountPercent} label="Процент скидки" />}
         </ExampleCard>
 
         {/* DisableWhen Example */}
@@ -501,9 +498,7 @@ export default function BehaviorsExamples() {
             label="Отслеживаемое поле"
             placeholder="Введите что-нибудь..."
           />
-          <p className="text-xs text-gray-500 mt-2">
-            Смотрите консоль браузера для логов
-          </p>
+          <p className="text-xs text-gray-500 mt-2">Смотрите консоль браузера для логов</p>
         </ExampleCard>
 
         {/* TransformValue Example */}
@@ -549,9 +544,7 @@ export default function BehaviorsExamples() {
               placeholder="0000 0000 0000 0000"
             />
           )}
-          {paymentType === 'cash' && (
-            <p className="text-sm text-gray-500">Номер карты сброшен</p>
-          )}
+          {paymentType === 'cash' && <p className="text-sm text-gray-500">Номер карты сброшен</p>}
         </ExampleCard>
 
         {/* SyncFields Example */}
@@ -564,11 +557,7 @@ export default function BehaviorsExamples() {
   path.syncField2
 )`}
         >
-          <TextField
-            control={form.syncField1}
-            label="Поле 1"
-            placeholder="Введите текст..."
-          />
+          <TextField control={form.syncField1} label="Поле 1" placeholder="Введите текст..." />
           <TextField
             control={form.syncField2}
             label="Поле 2 (синхронизировано)"

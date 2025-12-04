@@ -1,4 +1,4 @@
-import { computeFrom, disableWhen } from 'reformer/behaviors';
+import { computeFrom, disableWhen } from '@reformer/core/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 

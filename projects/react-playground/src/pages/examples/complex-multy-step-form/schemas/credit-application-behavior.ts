@@ -29,7 +29,7 @@ import {
   // apply is temporarily unused while debugging cycle detection issues
   // apply,
   type BehaviorSchemaFn,
-} from 'reformer/behaviors';
+} from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 // Импортируем модульные behavior схемы

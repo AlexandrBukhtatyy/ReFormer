@@ -32,8 +32,8 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/loan-info
 Начнём с импорта необходимых функций и типов:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, enableWhen, watch } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm, Address } from '@/types';
 
 export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -258,8 +258,8 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path
 Вот полный файл behavior для Шага 1:
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/loan-info.ts"
-import { computeFrom, enableWhen, watch } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { computeFrom, enableWhen, watch } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm, Address } from '@/types';
 
 export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -356,7 +356,7 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 Для тестирования этих behaviors нужно временно зарегистрировать их в форме. Мы рассмотрим правильную регистрацию в следующем разделе, но пока можете протестировать, добавив их напрямую:
 
 ```typescript title="src/schemas/create-form.ts"
-import { createForm } from 'reformer';
+import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './credit-application.schema';
 import { loanBehaviorSchema } from '../behaviors/steps/step-1-loan-info.behaviors';
 

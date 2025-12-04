@@ -1,10 +1,6 @@
 import { forwardRef, useImperativeHandle, useState, useCallback, useMemo } from 'react';
-import { validateForm } from 'reformer/validators';
-import type {
-  StepNavigationHandle,
-  StepNavigationProps,
-  StepNavigationRenderState,
-} from './types';
+import { validateForm } from '@reformer/core/validators';
+import type { StepNavigationHandle, StepNavigationProps, StepNavigationRenderState } from './types';
 
 /**
  * StepNavigation - компонент навигации по шагам с валидацией
@@ -87,7 +83,15 @@ function StepNavigationInner<T extends Record<string, any>>(
     }
 
     return true;
-  }, [validateCurrentStep, currentStep, completedSteps, config.totalSteps, form, onStepChange, scrollToTop]);
+  }, [
+    validateCurrentStep,
+    currentStep,
+    completedSteps,
+    config.totalSteps,
+    form,
+    onStepChange,
+    scrollToTop,
+  ]);
 
   const goToPreviousStep = useCallback(() => {
     if (currentStep > 1) {

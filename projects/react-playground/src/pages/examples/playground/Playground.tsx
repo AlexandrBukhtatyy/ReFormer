@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useMemo } from 'react';
 import { createForm, useFormControl, type FieldNode } from '@reformer/core';
-import { required, email, minLength } from 'reformer/validators';
+import { required, email, minLength } from '@reformer/core/validators';
 
 // ============================================================================
 // Шаг 1: Компоненты для полей
@@ -29,6 +29,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     />
   )
 );
+Input.displayName = 'Input';
 
 interface TextareaProps {
   value?: string;
@@ -52,6 +53,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     />
   )
 );
+Textarea.displayName = 'Textarea';
 
 // ============================================================================
 // Универсальный компонент FormField

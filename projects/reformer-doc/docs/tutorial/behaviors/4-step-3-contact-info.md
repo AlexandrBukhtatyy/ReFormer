@@ -25,8 +25,8 @@ touch reformer-tutorial/src/forms/credit-application/schemas/behaviors/contact-i
 ## Implementing the Behaviors
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { disableWhen, disableWhen, copyTo } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
@@ -115,8 +115,8 @@ For addresses, `copyTo` is correct because we don't want changes to `residenceAd
 ## Complete Code
 
 ```typescript title="reformer-tutorial/src/forms/credit-application/schemas/behaviors/contact-info.ts"
-import { disableWhen, disableWhen, copyTo } from 'reformer/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from 'reformer';
+import { disableWhen, disableWhen, copyTo } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '@/types';
 
 export const contactBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
