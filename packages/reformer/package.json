@@ -1,6 +1,6 @@
 {
   "name": "@reformer/core",
-  "version": "1.0.0-beta.1",
+  "version": "1.1.0",
   "description": "Reactive form state management library for React with signals-based architecture",
   "type": "module",
   "main": "./dist/index.js",

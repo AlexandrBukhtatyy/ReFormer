@@ -1,3 +1,18 @@
+# [1.1.0](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0...v1.1.0) (2025-12-04)
+
+
+### Bug Fixes
+
+* bump react and react-dom ([b484128](https://github.com/AlexandrBukhtatyy/ReFormer/commit/b4841289c3e1a682ac669c249edbeacce6c40b07))
+* **ci:** publish normal version on main ([f5ab99d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/f5ab99d9767bf2cda7c988588f76b046e4823441))
+
+
+### Features
+
+* **reformer:** add mcp server package for ai assistants ([276b76c](https://github.com/AlexandrBukhtatyy/ReFormer/commit/276b76ccbe9e083965010230eef8ae9ae81f7e3c))
+* **reformer:** add mcp tools for function signatures, imports, and patterns ([9b27512](https://github.com/AlexandrBukhtatyy/ReFormer/commit/9b2751257a230b4958f9bbcd74d89ab419805edf))
+* **reformer:** add uuid dependency ([c253ac3](https://github.com/AlexandrBukhtatyy/ReFormer/commit/c253ac38c05ad62ff6bf01729f5fe80aca255985))
+
 # 1.0.0-beta.1 (2025-12-04)
 
 ### Bug Fixes
