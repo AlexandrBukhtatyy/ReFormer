@@ -1,3 +1,10 @@
+# [1.0.0-beta.9](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.8...v1.0.0-beta.9) (2025-12-03)
+
+
+### Features
+
+* **reformer:** add mcp tools for function signatures, imports, and patterns ([9b27512](https://github.com/AlexandrBukhtatyy/ReFormer/commit/9b2751257a230b4958f9bbcd74d89ab419805edf))
+
 # [1.0.0-beta.8](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-12-03)
 
 
