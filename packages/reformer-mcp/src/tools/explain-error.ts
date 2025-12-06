@@ -138,6 +138,142 @@ const errorPatterns: Array<{
     solution:
       'Use `array.at(index)` to safely access array items. Check `array.length` before accessing elements. Remember that array indices are 0-based.',
   },
+
+  // New patterns for common issues
+  {
+    pattern: /cycle.*detected|cycl.*depend/i,
+    explanation:
+      'Using apply() in behavior schema to compose nested behaviors causes circular dependency detection. This is a known limitation of behavior composition.',
+    solution:
+      'Do NOT use apply() for behavior composition. Instead, inline the nested behaviors directly or create a setup function that you call in the main behavior schema.',
+    example: {
+      wrong: `// In main behavior schema
+apply(addressBehavior, path.registrationAddress);`,
+      correct: `// Create a setup function instead
+export const setupAddressBehavior = (path, ctx) => {
+  watchField(path.region, async (region, ctx) => {
+    // ... behavior logic
+  }, { immediate: false });
+};
+
+// In main behavior schema
+setupAddressBehavior(path.registrationAddress, ctx);`,
+    },
+  },
+  {
+    pattern: /maximum.*call.*stack|stack.*overflow|infinite.*loop/i,
+    explanation:
+      'Infinite loop in watchField or effect. Usually caused by setting a value that triggers the same watcher again without proper guards.',
+    solution:
+      'Add guard clauses to prevent unnecessary updates. Check if the new value is different from the current value before setting. Use `immediate: false` option.',
+    example: {
+      wrong: `watchField(path.field, (value, ctx) => {
+  // This causes infinite loop!
+  ctx.form.field.setValue(value.toUpperCase());
+});`,
+      correct: `watchField(path.field, (value, ctx) => {
+  const upper = value?.toUpperCase() || '';
+  // Guard: only update if different
+  if (ctx.form.transformedField.value.value !== upper) {
+    ctx.form.transformedField.setValue(upper);
+  }
+}, { immediate: false });`,
+    },
+  },
+  {
+    pattern: /immediate.*false|initialization.*loop|runs.*on.*init/i,
+    explanation:
+      'watchField callback runs during form initialization, causing unexpected behavior or errors when accessing fields that are not yet fully initialized.',
+    solution:
+      'Add `{ immediate: false }` option to watchField to skip the initial execution. Also add null checks for fields.',
+    example: {
+      wrong: `watchField(path.checkbox, (checked, ctx) => {
+  if (!checked) ctx.form.items.clear(); // May fail on init!
+});`,
+      correct: `watchField(
+  path.checkbox,
+  (checked, ctx) => {
+    if (!checked && ctx.form.items) {
+      ctx.form.items.clear();
+    }
+  },
+  { immediate: false }
+);`,
+    },
+  },
+  {
+    pattern: /Type.*undefined.*not assignable|undefined.*is not assignable/i,
+    explanation:
+      'TypeScript error when a value might be undefined but the target type does not accept undefined.',
+    solution:
+      'Update your type definitions to use `T | undefined` for optional values, or add null checks before assignment.',
+    example: {
+      wrong: `interface Form {
+  amount: number; // Required - but might receive undefined
+}`,
+      correct: `interface Form {
+  amount: number | undefined; // Accepts undefined
+  // or
+  amount?: number; // Optional property
+}`,
+    },
+  },
+  {
+    pattern: /async.*error.*silent|promise.*rejection|unhandled.*rejection/i,
+    explanation:
+      'Async errors in watchField callbacks are silently swallowed unless properly handled. This makes debugging difficult.',
+    solution:
+      'Always wrap async operations in try-catch inside watchField callbacks. Log errors and provide fallback behavior.',
+    example: {
+      wrong: `watchField(path.region, async (region, ctx) => {
+  const { data } = await fetchCities(region); // Error is silent!
+  ctx.form.city.updateComponentProps({ options: data });
+}, { immediate: false });`,
+      correct: `watchField(path.region, async (region, ctx) => {
+  if (!region) return;
+
+  try {
+    const { data } = await fetchCities(region);
+    ctx.form.city.updateComponentProps({ options: data });
+  } catch (error) {
+    console.error('Failed to fetch cities:', error);
+    ctx.form.city.updateComponentProps({ options: [] });
+  }
+}, { immediate: false, debounce: 300 });`,
+    },
+  },
+  {
+    pattern: /debounce|too.*many.*requests|api.*spam/i,
+    explanation:
+      'watchField fires on every keystroke by default, causing excessive API calls when used with async operations.',
+    solution:
+      'Add `debounce` option to watchField to limit how often the callback is executed. Typical values are 300-500ms.',
+    example: {
+      wrong: `watchField(path.searchQuery, async (query, ctx) => {
+  const results = await search(query); // Fires on every keystroke!
+}, { immediate: false });`,
+      correct: `watchField(path.searchQuery, async (query, ctx) => {
+  if (!query || query.length < 3) return;
+  const results = await search(query);
+}, { immediate: false, debounce: 300 }); // Wait 300ms after last change`,
+    },
+  },
+  {
+    pattern: /queueMicrotask|timing.*issue|race.*condition/i,
+    explanation:
+      'Timing issues when multiple behaviors depend on each other or when accessing form state during initialization.',
+    solution:
+      'Use `queueMicrotask` to defer execution until the current synchronous code completes. Or use `immediate: false` on watchField.',
+    example: {
+      wrong: `// Direct access during init may have stale data
+const value = ctx.form.field.value.value;`,
+      correct: `// Defer to next microtask
+queueMicrotask(() => {
+  const value = ctx.form.field.value.value;
+  // Now the value is up to date
+});`,
+    },
+  },
 ];
 
 export async function explainErrorTool(args: {

@@ -45,6 +45,10 @@ import {
   getManageBehaviorPrompt,
   debugFormPromptDefinition,
   getDebugFormPrompt,
+  generateStepFormPromptDefinition,
+  getGenerateStepFormPrompt,
+  generateArrayFormPromptDefinition,
+  getGenerateArrayFormPrompt,
 } from './prompts/index.js';
 
 // Server instance
@@ -191,6 +195,8 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
       manageValidationPromptDefinition,
       manageBehaviorPromptDefinition,
       debugFormPromptDefinition,
+      generateStepFormPromptDefinition,
+      generateArrayFormPromptDefinition,
     ],
   };
 });
@@ -213,6 +219,12 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 
     case 'debug-form':
       return getDebugFormPrompt(args as { code: string });
+
+    case 'generate-step-form':
+      return getGenerateStepFormPrompt(args as { description: string; steps?: string });
+
+    case 'generate-array-form':
+      return getGenerateArrayFormPrompt(args as { description: string; arrays?: string });
 
     default:
       throw new Error(`Unknown prompt: ${name}`);

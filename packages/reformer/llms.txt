@@ -29,7 +29,7 @@ maxLength(path, length: number, options?: { message?: string })
 email(path, options?: { message?: string })
 validate(path, validator: (value) => ValidationError | null)
 validateTree(validator: (ctx) => ValidationError | null)
-when(condition: (form) => boolean, validatorsFn: () => void)
+applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
 ```
 
 ### Behaviors
@@ -38,8 +38,15 @@ when(condition: (form) => boolean, validatorsFn: () => void)
 enableWhen(path, condition: (form) => boolean, options?: { resetOnDisable?: boolean })
 disableWhen(path, condition: (form) => boolean)
 computeFrom(sourcePaths[], targetPath, compute: (values) => result)
-watchField(path, callback: (value, ctx) => void)
+watchField(path, callback: (value, ctx: BehaviorContext) => void)
 copyFrom(sourcePath, targetPath, options?: { when?, fields?, transform? })
+
+// BehaviorContext interface:
+interface BehaviorContext<TForm> {
+  form: TForm;                                    // Current form state
+  setFieldValue: (path, value) => void;          // Set field value
+  getFieldValue: (path) => unknown;              // Get field value
+}
 ```
 
 ## 3. COMMON PATTERNS
@@ -141,7 +148,7 @@ import type {
 import { createForm, useFormControl } from '@reformer/core';
 
 // Validators - from /validators submodule
-import { required, min, max, email, validate, when } from '@reformer/core/validators';
+import { required, min, max, email, validate, applyWhen } from '@reformer/core/validators';
 
 // Behaviors - from /behaviors submodule
 import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/behaviors';
@@ -169,10 +176,248 @@ interface MyForm {
     city: string;
   };
 
-  // Arrays
+  // Arrays - use tuple format for schema
   items: Array<{
     id: string;
     name: string;
   }>;
 }
 ```
+
+## 8. CREATEFORM API
+
+```typescript
+// Full config with behavior and validation
+const form = createForm<MyForm>({
+  form: formSchema,              // Required: form schema
+  behavior: behaviorSchema,      // Optional: behavior rules
+  validation: validationSchema,  // Optional: validation rules
+});
+
+// Legacy format (schema only)
+const form = createForm<MyForm>(formSchema);
+
+// Form schema example
+const formSchema: FormSchema<MyForm> = {
+  name: '',
+  email: '',
+  address: {
+    street: '',
+    city: '',
+  },
+  // Arrays use tuple format
+  items: [{ id: '', name: '' }] as [{ id: string; name: string }],
+};
+```
+
+## 9. ARRAY SCHEMA FORMAT
+
+```typescript
+// ✅ CORRECT - use tuple format for arrays
+const schema = {
+  items: [itemSchema] as [typeof itemSchema],
+  properties: [propertySchema] as [typeof propertySchema],
+};
+
+// ❌ WRONG - object format is NOT supported
+const schema = {
+  items: { schema: itemSchema, initialItems: [] }, // This will NOT work
+};
+```
+
+## 10. ASYNC WATCHFIELD (CRITICALLY IMPORTANT)
+
+```typescript
+// ✅ CORRECT - async watchField with ALL safeguards
+watchField(
+  path.parentField,
+  async (value, ctx) => {
+    if (!value) return;  // Guard clause
+
+    try {
+      const { data } = await fetchData(value);
+      ctx.form.dependentField.updateComponentProps({ options: data });
+    } catch (error) {
+      console.error('Failed:', error);
+      ctx.form.dependentField.updateComponentProps({ options: [] });
+    }
+  },
+  { immediate: false, debounce: 300 }  // REQUIRED options
+);
+
+// ❌ WRONG - missing safeguards
+watchField(path.field, async (value, ctx) => {
+  const { data } = await fetchData(value);  // Will fail silently!
+});
+```
+
+### Required Options for async watchField:
+- `immediate: false` - prevents execution during initialization
+- `debounce: 300` - prevents excessive API calls (300-500ms recommended)
+- Guard clause - skip if value is empty
+- try-catch - handle errors explicitly
+
+## 11. ARRAY CLEANUP PATTERN
+
+```typescript
+// ✅ CORRECT - cleanup array when checkbox unchecked
+watchField(
+  path.hasItems,
+  (hasItems, ctx) => {
+    if (!hasItems && ctx.form.items) {
+      ctx.form.items.clear();
+    }
+  },
+  { immediate: false }
+);
+
+// ❌ WRONG - no immediate: false, no null check
+watchField(path.hasItems, (hasItems, ctx) => {
+  if (!hasItems) ctx.form.items.clear();  // May crash on init!
+});
+```
+
+## 12. MULTI-STEP FORM VALIDATION
+
+```typescript
+// Step-specific validation schemas
+const step1Validation: ValidationSchemaFn<Form> = (path) => {
+  required(path.loanType);
+  required(path.loanAmount);
+};
+
+const step2Validation: ValidationSchemaFn<Form> = (path) => {
+  required(path.personalData.firstName);
+  required(path.personalData.lastName);
+};
+
+// STEP_VALIDATIONS map for useStepForm hook
+export const STEP_VALIDATIONS = {
+  1: step1Validation,
+  2: step2Validation,
+};
+
+// Full validation (combines all steps)
+export const fullValidation: ValidationSchemaFn<Form> = (path) => {
+  step1Validation(path);
+  step2Validation(path);
+};
+```
+
+## 13. ⚠️ EXTENDED COMMON MISTAKES
+
+### Behavior Composition (Cycle Error)
+
+```typescript
+// ❌ WRONG - apply() in behavior causes "Cycle detected"
+const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
+  apply(addressBehavior, path.address);  // WILL FAIL!
+};
+
+// ✅ CORRECT - inline or use setup function
+const setupAddressBehavior = (path: FieldPath<Address>) => {
+  watchField(path.region, async (region, ctx) => {
+    // ...
+  }, { immediate: false });
+};
+
+const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
+  setupAddressBehavior(path.address);  // Works!
+};
+```
+
+### Infinite Loop in watchField
+
+```typescript
+// ❌ WRONG - causes infinite loop
+watchField(path.field, (value, ctx) => {
+  ctx.form.field.setValue(value.toUpperCase());  // Loop!
+});
+
+// ✅ CORRECT - write to different field OR add guard
+watchField(path.input, (value, ctx) => {
+  const upper = value?.toUpperCase() || '';
+  if (ctx.form.display.value.value !== upper) {
+    ctx.form.display.setValue(upper);
+  }
+}, { immediate: false });
+```
+
+### validateTree Typing
+
+```typescript
+// ❌ WRONG - implicit any
+validateTree((ctx) => { ... });
+
+// ✅ CORRECT - explicit typing
+validateTree((ctx: { form: MyForm }) => {
+  if (ctx.form.field1 > ctx.form.field2) {
+    return { code: 'error', message: 'Invalid' };
+  }
+  return null;
+});
+```
+
+## 14. PROJECT STRUCTURE (COLOCATION)
+
+```
+src/
+├── components/ui/                    # Reusable UI components
+│   ├── FormField.tsx
+│   └── FormArrayManager.tsx
+│
+├── forms/
+│   └── [form-name]/                  # Form module
+│       ├── type.ts                   # Main form type
+│       ├── schema.ts                 # Main schema
+│       ├── validators.ts             # Validators
+│       ├── behaviors.ts              # Behaviors
+│       ├── [FormName]Form.tsx        # Main component
+│       │
+│       ├── steps/                    # Multi-step wizard
+│       │   ├── loan-info/
+│       │   │   ├── type.ts
+│       │   │   ├── schema.ts
+│       │   │   ├── validators.ts
+│       │   │   ├── behaviors.ts
+│       │   │   └── LoanInfoForm.tsx
+│       │   └── ...
+│       │
+│       └── sub-forms/                # Reusable sub-forms
+│           ├── address/
+│           └── personal-data/
+```
+
+### Key Files
+
+```typescript
+// forms/credit-application/type.ts
+export type { LoanInfoStep } from './steps/loan-info/type';
+export interface CreditApplicationForm {
+  loanType: LoanType;
+  loanAmount: number;
+  // ...
+}
+
+// forms/credit-application/schema.ts
+import { loanInfoSchema } from './steps/loan-info/schema';
+export const creditApplicationSchema = {
+  ...loanInfoSchema,
+  monthlyPayment: { value: 0, disabled: true },
+};
+
+// forms/credit-application/validators.ts
+import { loanValidation } from './steps/loan-info/validators';
+export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
+  loanValidation(path);
+  // Cross-step validation...
+};
+```
+
+### Scaling
+
+| Complexity | Structure |
+|------------|-----------|
+| Simple | Single file: `ContactForm.tsx` |
+| Medium | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
+| Complex | Full colocation with `steps/` and `sub-forms/` |

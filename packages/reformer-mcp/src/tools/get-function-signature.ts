@@ -436,6 +436,438 @@ watchField(path.personalData.lastName, (_, ctx) => {
     ],
     examples: ['syncFields([path.email, path.confirmEmail])'],
   },
+  applyWhen: {
+    name: 'applyWhen',
+    module: '@reformer/core/validators',
+    signature:
+      'applyWhen<T, V>(fieldPath: FieldPathNode<T, V>, condition: (fieldValue: V) => boolean, validatorsFn: (path: FieldPath<T>) => void): void',
+    parameters: [
+      {
+        name: 'fieldPath',
+        type: 'FieldPathNode<T, V>',
+        required: true,
+        description: 'Path to the field that controls the condition',
+      },
+      {
+        name: 'condition',
+        type: '(fieldValue: V) => boolean',
+        required: true,
+        description: 'Function that returns true when validators should apply',
+      },
+      {
+        name: 'validatorsFn',
+        type: '(path: FieldPath<T>) => void',
+        required: true,
+        description: 'Function that registers conditional validators',
+      },
+    ],
+    examples: [
+      `applyWhen(
+  path.hasAddress,
+  (hasAddress) => hasAddress === true,
+  (p) => {
+    required(p.address.street);
+    required(p.address.city);
+  }
+)`,
+      `// Conditional validation based on enum
+applyWhen(
+  path.loanType,
+  (type) => type === 'mortgage',
+  (p) => {
+    required(p.mortgageDetails.propertyValue);
+    min(p.mortgageDetails.downPayment, 20000);
+  }
+)`,
+    ],
+  },
+
+  // Array methods
+  clear: {
+    name: 'clear',
+    module: '@reformer/core',
+    signature: 'ArrayNode<T>.clear(): void',
+    parameters: [],
+    returns: 'void',
+    examples: [
+      `// Clear all items from array
+form.items.clear();`,
+      `// Clear array when checkbox unchecked
+watchField(
+  path.hasItems,
+  (hasItems, ctx) => {
+    if (!hasItems && ctx.form.items) {
+      ctx.form.items.clear();
+    }
+  },
+  { immediate: false }
+);`,
+    ],
+    commonMistakes: [
+      {
+        wrong: `watchField(path.hasItems, (hasItems, ctx) => {
+  if (!hasItems) ctx.form.items.clear(); // May crash on init!
+});`,
+        correct: `watchField(
+  path.hasItems,
+  (hasItems, ctx) => {
+    if (!hasItems && ctx.form.items) {
+      ctx.form.items.clear();
+    }
+  },
+  { immediate: false }
+);`,
+        explanation:
+          'Always use immediate: false and null check when clearing arrays in watchField to prevent initialization issues',
+      },
+    ],
+  },
+  push: {
+    name: 'push',
+    module: '@reformer/core',
+    signature: 'ArrayNode<T>.push(item: T): void',
+    parameters: [
+      {
+        name: 'item',
+        type: 'T',
+        required: true,
+        description: 'Item to add to the end of the array',
+      },
+    ],
+    returns: 'void',
+    examples: [
+      `// Add new item to array
+form.products.push({ name: '', price: 0, quantity: 1 });`,
+      `// Add item with default values
+const defaultProduct = { name: '', price: 0, quantity: 1 };
+form.products.push(defaultProduct);`,
+    ],
+  },
+  removeAt: {
+    name: 'removeAt',
+    module: '@reformer/core',
+    signature: 'ArrayNode<T>.removeAt(index: number): void',
+    parameters: [
+      {
+        name: 'index',
+        type: 'number',
+        required: true,
+        description: 'Zero-based index of the item to remove',
+      },
+    ],
+    returns: 'void',
+    examples: [
+      `// Remove item at specific index
+form.products.removeAt(index);`,
+      `// In array item component
+<button onClick={() => form.products.removeAt(index)}>
+  Remove
+</button>`,
+    ],
+  },
+  at: {
+    name: 'at',
+    module: '@reformer/core',
+    signature: 'ArrayNode<T>.at(index: number): GroupNodeWithControls<T> | undefined',
+    parameters: [
+      {
+        name: 'index',
+        type: 'number',
+        required: true,
+        description: 'Zero-based index of the item to access',
+      },
+    ],
+    returns: 'GroupNodeWithControls<T> | undefined',
+    examples: [
+      `// Access specific array item
+const firstProduct = form.products.at(0);
+if (firstProduct) {
+  console.log(firstProduct.name.value.value);
+}`,
+    ],
+  },
+  map: {
+    name: 'map',
+    module: '@reformer/core',
+    signature:
+      'ArrayNode<T>.map<R>(callback: (item: GroupNodeWithControls<T>, index: number) => R): R[]',
+    parameters: [
+      {
+        name: 'callback',
+        type: '(item: GroupNodeWithControls<T>, index: number) => R',
+        required: true,
+        description: 'Function to execute for each array item',
+      },
+    ],
+    returns: 'R[]',
+    examples: [
+      `// Render array items
+{form.products.map((item, index) => (
+  <ProductItem
+    key={item.id}
+    control={item}
+    index={index}
+    onRemove={() => form.products.removeAt(index)}
+  />
+))}`,
+    ],
+    commonMistakes: [
+      {
+        wrong: `{form.products.map((item, index) => (
+  <ProductItem key={index} ... />
+))}`,
+        correct: `{form.products.map((item, index) => (
+  <ProductItem key={item.id} ... />
+))}`,
+        explanation: 'Use item.id as key, not index. Each array item has a stable id property.',
+      },
+    ],
+  },
+  length: {
+    name: 'length',
+    module: '@reformer/core',
+    signature: 'ArrayNode<T>.length: number',
+    parameters: [],
+    returns: 'number',
+    examples: [
+      `// Check array length
+if (form.products.length === 0) {
+  console.log('No products');
+}`,
+      `// Disable remove button for single item
+<button
+  disabled={form.products.length <= 1}
+  onClick={() => form.products.removeAt(index)}
+>
+  Remove
+</button>`,
+    ],
+  },
+
+  // Field methods
+  updateComponentProps: {
+    name: 'updateComponentProps',
+    module: '@reformer/core',
+    signature: 'FieldNode<T>.updateComponentProps(props: Partial<ComponentProps>): void',
+    parameters: [
+      {
+        name: 'props',
+        type: 'Partial<ComponentProps>',
+        required: true,
+        description: 'Props to merge with existing component props (e.g., options for select)',
+      },
+    ],
+    returns: 'void',
+    examples: [
+      `// Update select options dynamically
+watchField(
+  path.region,
+  async (region, ctx) => {
+    if (!region) return;
+
+    try {
+      const { data } = await fetchCities(region);
+      ctx.form.city.updateComponentProps({ options: data });
+    } catch (error) {
+      console.error('Failed to fetch cities:', error);
+      ctx.form.city.updateComponentProps({ options: [] });
+    }
+  },
+  { immediate: false, debounce: 300 }
+);`,
+    ],
+    commonMistakes: [
+      {
+        wrong: `watchField(path.region, async (region, ctx) => {
+  const { data } = await fetchCities(region);
+  ctx.form.city.updateComponentProps({ options: data });
+});`,
+        correct: `watchField(
+  path.region,
+  async (region, ctx) => {
+    if (!region) return;
+    try {
+      const { data } = await fetchCities(region);
+      ctx.form.city.updateComponentProps({ options: data });
+    } catch (error) {
+      ctx.form.city.updateComponentProps({ options: [] });
+    }
+  },
+  { immediate: false, debounce: 300 }
+);`,
+        explanation:
+          'Always use immediate: false, debounce, guard clause, and try-catch with async operations',
+      },
+    ],
+  },
+  setValue: {
+    name: 'setValue',
+    module: '@reformer/core',
+    signature: 'FieldNode<T>.setValue(value: T): void',
+    parameters: [
+      {
+        name: 'value',
+        type: 'T',
+        required: true,
+        description: 'New value to set for the field',
+      },
+    ],
+    returns: 'void',
+    examples: [
+      `// Set field value programmatically
+form.email.setValue('user@example.com');`,
+      `// Reset field to default
+form.status.setValue('pending');`,
+    ],
+  },
+  markAsTouched: {
+    name: 'markAsTouched',
+    module: '@reformer/core',
+    signature: 'FieldNode<T>.markAsTouched(): void',
+    parameters: [],
+    returns: 'void',
+    examples: [
+      `// Mark field as touched to show validation errors
+form.email.markAsTouched();`,
+      `// Mark all fields as touched before submit
+const markAllTouched = (node: FormNode) => {
+  if ('markAsTouched' in node) {
+    node.markAsTouched();
+  }
+  // Recursively mark children
+};`,
+    ],
+  },
+  reset: {
+    name: 'reset',
+    module: '@reformer/core',
+    signature: 'FormNode.reset(): void',
+    parameters: [],
+    returns: 'void',
+    examples: [
+      `// Reset entire form to initial values
+form.reset();`,
+      `// Reset specific field group
+form.address.reset();`,
+    ],
+  },
+
+  // Form methods
+  validate: {
+    name: 'validate',
+    module: '@reformer/core',
+    signature: 'Form<T>.validate(): Promise<boolean>',
+    parameters: [],
+    returns: 'Promise<boolean>',
+    examples: [
+      `// Validate form before submit
+const handleSubmit = async () => {
+  await form.validate();
+  if (form.valid.value) {
+    // Submit form data
+    const data = form.toJSON();
+    await submitForm(data);
+  }
+};`,
+    ],
+  },
+  toJSON: {
+    name: 'toJSON',
+    module: '@reformer/core',
+    signature: 'Form<T>.toJSON(): T',
+    parameters: [],
+    returns: 'T',
+    examples: [
+      `// Get form data as plain object
+const data = form.toJSON();
+console.log(data);`,
+      `// Submit form data
+const handleSubmit = async () => {
+  await form.validate();
+  if (form.valid.value) {
+    await api.post('/submit', form.toJSON());
+  }
+};`,
+    ],
+  },
+
+  // Hooks
+  useFormControl: {
+    name: 'useFormControl',
+    module: '@reformer/core',
+    signature:
+      'useFormControl<T>(field: FieldNode<T>): { value: T; error: ValidationError | null; touched: boolean; disabled: boolean }',
+    parameters: [
+      {
+        name: 'field',
+        type: 'FieldNode<T>',
+        required: true,
+        description: 'Field node to subscribe to',
+      },
+    ],
+    returns: '{ value: T; error: ValidationError | null; touched: boolean; disabled: boolean }',
+    examples: [
+      `const { value, error, touched } = useFormControl(form.email);`,
+      `// With type assertion for complex fields
+const { value } = useFormControl(form.loanType as FieldNode<LoanType>);`,
+    ],
+    commonMistakes: [
+      {
+        wrong: `// Direct signal access - won't trigger re-render
+const value = form.email.value.value;`,
+        correct: `// Hook subscription - triggers re-render
+const { value } = useFormControl(form.email);`,
+        explanation:
+          'Always use useFormControl hook to subscribe to field changes. Direct signal access will not trigger React re-renders.',
+      },
+    ],
+  },
+  useStepForm: {
+    name: 'useStepForm',
+    module: '@reformer/core',
+    signature:
+      'useStepForm<T>(form: Form<T>, options: StepFormOptions<T>): StepFormResult',
+    parameters: [
+      {
+        name: 'form',
+        type: 'Form<T>',
+        required: true,
+        description: 'Form instance',
+      },
+      {
+        name: 'options',
+        type: '{ stepSchemas: Record<number, ValidationSchemaFn<T>>; totalSteps: number }',
+        required: true,
+        description: 'Configuration with step validation schemas',
+      },
+    ],
+    returns:
+      '{ currentStep: number; nextStep: () => void; prevStep: () => void; validateCurrentStep: () => Promise<boolean>; isFirstStep: boolean; isLastStep: boolean; goToStep: (step: number) => void }',
+    examples: [
+      `const STEP_VALIDATIONS = {
+  1: step1Validation,
+  2: step2Validation,
+  3: step3Validation,
+};
+
+const {
+  currentStep,
+  nextStep,
+  prevStep,
+  validateCurrentStep,
+  isFirstStep,
+  isLastStep,
+} = useStepForm(form, {
+  stepSchemas: STEP_VALIDATIONS,
+  totalSteps: 3,
+});
+
+const handleNext = async () => {
+  const isValid = await validateCurrentStep();
+  if (isValid) nextStep();
+};`,
+    ],
+  },
 };
 
 export async function getFunctionSignatureTool(args: {
