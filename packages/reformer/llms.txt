@@ -6,7 +6,7 @@
 
 | What                                                                                        | Where                       |
 | ------------------------------------------------------------------------------------------- | --------------------------- |
-| `createForm`, `useFormControl`, `useFormControlValue`                                       | `@reformer/core`            |
+| `createForm`, `useFormControl`, `useFormControlValue`, `validateForm`                       | `@reformer/core`            |
 | `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `GroupNodeWithControls`, `FieldNode` | `@reformer/core`            |
 | `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
@@ -22,6 +22,26 @@
 - Optional numbers: `number | undefined` (NOT `null`)
 - Optional strings: `string` (empty string by default)
 - Do NOT add `[key: string]: unknown` to form interfaces
+
+### React Hooks Comparison (CRITICALLY IMPORTANT)
+
+| Hook | Return Type | Subscribes To | Use Case |
+|------|-------------|---------------|----------|
+| `useFormControl(field)` | `{ value, errors, disabled, touched, ... }` | All signals | Full field state, form inputs |
+| `useFormControlValue(field)` | `T` (value directly) | Only value signal | Conditional rendering |
+
+⚠️ **CRITICAL**: Do NOT destructure `useFormControlValue`! It returns `T` directly, NOT `{ value: T }`.
+
+```typescript
+// ❌ WRONG - will always be undefined!
+const { value: loanType } = useFormControlValue(control.loanType);
+
+// ✅ CORRECT
+const loanType = useFormControlValue(control.loanType);
+
+// ✅ CORRECT - useFormControl returns object, destructuring OK
+const { value, errors, disabled } = useFormControl(control.loanType);
+```
 
 ## 2. API SIGNATURES
 
@@ -89,7 +109,7 @@ transformers.trim, transformers.toUpperCase, transformers.toLowerCase, transform
 interface BehaviorContext<TForm> {
   form: GroupNodeWithControls<TForm>;            // Form proxy with typed field access
   setFieldValue: (path: string, value: any) => void;
-  getFieldValue: (path: string) => unknown;
+  // ⚠️ To READ field values, use: ctx.form.fieldName.value.value
 }
 ```
 
@@ -120,6 +140,35 @@ const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 ```
 
 ## 4. ⚠️ COMMON MISTAKES
+
+### useFormControlValue (CRITICAL)
+
+```typescript
+// ❌ WRONG - useFormControlValue returns T directly, NOT { value: T }
+const { value: loanType } = useFormControlValue(control.loanType);
+// Result: loanType is ALWAYS undefined! Conditional rendering will fail.
+
+// ✅ CORRECT
+const loanType = useFormControlValue(control.loanType);
+
+// ✅ ALSO CORRECT - useFormControl returns object
+const { value, errors } = useFormControl(control.loanType);
+```
+
+### Reading Field Values in BehaviorContext (CRITICAL)
+
+```typescript
+// ❌ WRONG - getFieldValue does NOT exist!
+watchField(path.amount, (amount, ctx) => {
+  const rate = ctx.getFieldValue('rate'); // ERROR: Property 'getFieldValue' does not exist
+});
+
+// ✅ CORRECT - use ctx.form.fieldName.value.value
+watchField(path.amount, (amount, ctx) => {
+  const rate = ctx.form.rate.value.value;  // Read via signal
+  ctx.setFieldValue('total', amount * rate);
+});
+```
 
 ### Validators
 
@@ -642,3 +691,193 @@ const schema: FormSchema<MyForm> = {
   },
 };
 ```
+
+## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
+
+### Why .value.value?
+
+ReFormer uses `@preact/signals-core` for reactivity:
+- `field.value` → `Signal<T>` (reactive container)
+- `field.value.value` → `T` (actual value)
+- `field.getValue()` → `T` (shorthand method, non-reactive)
+
+```typescript
+// Reading values in different contexts:
+
+// In React components - use hooks
+const { value } = useFormControl(control.email);     // Object with value
+const email = useFormControlValue(control.email);    // Value directly
+
+// In BehaviorContext (watchField, etc.)
+watchField(path.firstName, (firstName, ctx) => {
+  // ⚠️ ctx.form is typed as the PARENT GROUP of the watched field!
+  // For path.nested.field: ctx.form = NestedType, NOT RootForm!
+
+  const lastName = ctx.form.lastName.value.value;  // Read sibling field
+
+  // Use setFieldValue with full path for root-level fields
+  ctx.setFieldValue('fullName', `${firstName} ${lastName}`);
+});
+
+// Direct access on form controls
+form.email.value.value;           // Read current value
+form.address.city.value.value;    // Read nested value
+```
+
+### Reading Nested Values in watchField
+
+```typescript
+// ⚠️ IMPORTANT: ctx.form type depends on the watched path!
+
+// Watching root-level field
+watchField(path.loanAmount, (amount, ctx) => {
+  // ctx.form is MyForm - can access all fields
+  const rate = ctx.form.interestRate.value.value;
+  ctx.setFieldValue('monthlyPayment', amount * rate / 12);
+});
+
+// Watching nested field
+watchField(path.personalData.lastName, (lastName, ctx) => {
+  // ctx.form is PersonalData, NOT MyForm!
+  const firstName = ctx.form.firstName.value.value;   // ✅ Works
+  const middleName = ctx.form.middleName.value.value; // ✅ Works
+
+  // For root-level field, use setFieldValue with full path
+  ctx.setFieldValue('fullName', `${lastName} ${firstName}`);
+});
+```
+
+## 17. COMPUTE FROM vs WATCH FIELD
+
+### computeFrom - Same Nesting Level Only
+
+```typescript
+// ✅ Works: all source fields and target at same level
+computeFrom(
+  [path.price, path.quantity],
+  path.total,
+  ({ price, quantity }) => (price || 0) * (quantity || 0)
+);
+
+// ✅ Works: all nested at same level
+computeFrom(
+  [path.address.houseNumber, path.address.streetName],
+  path.address.fullAddress,
+  ({ houseNumber, streetName }) => `${houseNumber} ${streetName}`
+);
+
+// ❌ FAILS: different nesting levels
+computeFrom(
+  [path.nested.price, path.nested.quantity],
+  path.rootTotal,  // Different level - won't work!
+  ...
+);
+```
+
+### watchField - Any Level
+
+```typescript
+// ✅ Works for cross-level computation
+watchField(path.nested.price, (price, ctx) => {
+  const quantity = ctx.form.quantity.value.value;  // Sibling in nested
+  ctx.setFieldValue('rootTotal', price * quantity); // Full path to root
+});
+
+// ✅ Works for multiple dependencies
+watchField(path.loanAmount, (amount, ctx) => {
+  const term = ctx.form.loanTerm.value.value;
+  const rate = ctx.form.interestRate.value.value;
+
+  if (amount && term && rate) {
+    const monthly = calculateMonthlyPayment(amount, term, rate);
+    ctx.setFieldValue('monthlyPayment', monthly);
+  }
+});
+```
+
+### Rule of Thumb
+
+| Scenario | Use |
+|----------|-----|
+| All fields share same parent | `computeFrom` (simpler, auto-cleanup) |
+| Fields at different levels | `watchField` (more flexible) |
+| Multiple dependencies | `watchField` |
+| Async computation | `watchField` with async callback |
+
+## 18. ARRAY OPERATIONS
+
+### Array Methods
+
+```typescript
+// Add items
+form.items.push({ name: '', price: 0 });           // Add to end
+form.items.insert(0, { name: '', price: 0 });      // Insert at index
+
+// Remove items
+form.items.removeAt(index);                         // Remove by index
+form.items.clear();                                 // Remove all items
+
+// Reorder
+form.items.move(fromIndex, toIndex);                // Move item
+
+// Access
+form.items.length.value;                            // Current length (Signal)
+form.items.map((item, index) => ...);               // Iterate items
+form.items.at(index);                               // Get item at index
+```
+
+### Rendering Arrays
+
+```tsx
+function ItemsList({ form }: { form: GroupNodeWithControls<MyForm> }) {
+  const { length } = useFormControl(form.items);
+
+  return (
+    <div>
+      {form.items.map((item, index) => (
+        // item is GroupNode (sub-form) - each field is a control
+        <div key={item.id || index}>
+          <FormField control={item.name} />
+          <FormField control={item.price} />
+          <button onClick={() => form.items.removeAt(index)}>Remove</button>
+        </div>
+      ))}
+
+      {length === 0 && <p>No items yet</p>}
+
+      <button onClick={() => form.items.push({ name: '', price: 0 })}>
+        Add Item
+      </button>
+    </div>
+  );
+}
+```
+
+### Array Cross-Validation
+
+```typescript
+// Validate uniqueness across array items
+validateTree((ctx: { form: MyForm }) => {
+  const items = ctx.form.items;
+  const names = items.map(item => item.name.value.value);
+  const uniqueNames = new Set(names);
+
+  if (names.length !== uniqueNames.size) {
+    return { code: 'duplicate', message: 'Item names must be unique' };
+  }
+  return null;
+}, { targetField: 'items' });
+
+// Validate sum of percentages
+validateTree((ctx: { form: MyForm }) => {
+  const items = ctx.form.items;
+  const totalPercent = items.reduce(
+    (sum, item) => sum + (item.percentage.value.value || 0),
+    0
+  );
+
+  if (Math.abs(totalPercent - 100) > 0.01) {
+    return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
+  }
+  return null;
+}, { targetField: 'items' });

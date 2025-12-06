@@ -11,3 +11,6 @@ export type { SetValueOptions } from './core/nodes/form-node';
 export { useFormControl, useFormControlValue } from './hooks/useFormControl';
 
 export type { BehaviorSchemaFn } from './core/behavior/types';
+
+// Utility for multi-step form validation
+export { validateForm } from './core/validation/validate-form';
