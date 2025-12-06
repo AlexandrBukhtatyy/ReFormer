@@ -39,7 +39,7 @@
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "peerDependencies": {
-    "@reformer/core": "^1.0.0-beta.1"
+    "@reformer/core": ">=1.0.0-beta.1"
   },
   "peerDependenciesMeta": {
     "@reformer/core": {
