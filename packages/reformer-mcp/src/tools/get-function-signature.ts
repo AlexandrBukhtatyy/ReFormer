@@ -868,6 +868,158 @@ const handleNext = async () => {
 };`,
     ],
   },
+
+  // Additional validators
+  pattern: {
+    name: 'pattern',
+    module: '@reformer/core/validators',
+    signature: 'pattern(path: FieldPathNode<T, string>, regex: RegExp, options?: { message?: string }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, string>', required: true, description: 'Path to the string field' },
+      { name: 'regex', type: 'RegExp', required: true, description: 'Regular expression to match against' },
+      { name: 'options', type: '{ message?: string }', required: false, description: 'Validation options with custom message' },
+    ],
+    examples: [
+      `pattern(path.phone, /^\\+7\\d{10}$/, { message: 'Invalid phone format' });`,
+      `pattern(path.zipCode, /^\\d{5}(-\\d{4})?$/, { message: 'Invalid ZIP code' });`,
+    ],
+  },
+  url: {
+    name: 'url',
+    module: '@reformer/core/validators',
+    signature: 'url(path: FieldPathNode<T, string>, options?: { message?: string }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, string>', required: true, description: 'Path to the URL field' },
+      { name: 'options', type: '{ message?: string }', required: false, description: 'Validation options' },
+    ],
+    examples: [
+      `url(path.website, { message: 'Please enter a valid URL' });`,
+    ],
+  },
+  phone: {
+    name: 'phone',
+    module: '@reformer/core/validators',
+    signature: 'phone(path: FieldPathNode<T, string>, options?: { message?: string; format?: PhoneFormat }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, string>', required: true, description: 'Path to the phone field' },
+      { name: 'options', type: '{ message?: string; format?: PhoneFormat }', required: false, description: 'Validation options with optional format' },
+    ],
+    examples: [
+      `phone(path.mobile, { message: 'Invalid phone number' });`,
+      `phone(path.mobile, { format: 'RU', message: 'Invalid Russian phone' });`,
+    ],
+  },
+  number: {
+    name: 'number',
+    module: '@reformer/core/validators',
+    signature: 'number(path: FieldPathNode<T, string | number>, options?: { message?: string }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, string | number>', required: true, description: 'Path to the field' },
+      { name: 'options', type: '{ message?: string }', required: false, description: 'Validation options' },
+    ],
+    examples: [
+      `number(path.amount, { message: 'Must be a valid number' });`,
+    ],
+  },
+  date: {
+    name: 'date',
+    module: '@reformer/core/validators',
+    signature: 'date(path: FieldPathNode<T, string | Date>, options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, string | Date>', required: true, description: 'Path to the date field' },
+      { name: 'options', type: '{ message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean }', required: false, description: 'Validation options with age and date restrictions' },
+    ],
+    examples: [
+      `date(path.birthDate, { minAge: 18, message: 'Must be 18 or older' });`,
+      `date(path.startDate, { noPast: true, message: 'Date cannot be in the past' });`,
+      `date(path.endDate, { noFuture: true });`,
+    ],
+  },
+  notEmpty: {
+    name: 'notEmpty',
+    module: '@reformer/core/validators',
+    signature: 'notEmpty(path: FieldPathNode<T, T[]>, options?: { message?: string }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, T[]>', required: true, description: 'Path to the array field' },
+      { name: 'options', type: '{ message?: string }', required: false, description: 'Validation options' },
+    ],
+    examples: [
+      `notEmpty(path.contacts, { message: 'Add at least one contact' });`,
+      `// With conditional validation
+applyWhen(
+  path.hasItems,
+  (hasItems) => hasItems === true,
+  (p) => {
+    notEmpty(p.items, { message: 'Items required' });
+  }
+);`,
+    ],
+  },
+  validateItems: {
+    name: 'validateItems',
+    module: '@reformer/core/validators',
+    signature: 'validateItems<T>(arrayPath: FieldPathNode<Form, T[]>, itemValidatorsFn: (itemPath: FieldPath<T>) => void): void',
+    parameters: [
+      { name: 'arrayPath', type: 'FieldPathNode<Form, T[]>', required: true, description: 'Path to the array field' },
+      { name: 'itemValidatorsFn', type: '(itemPath: FieldPath<T>) => void', required: true, description: 'Function that registers validators for each array item' },
+    ],
+    examples: [
+      `validateItems(path.contacts, (itemPath) => {
+  required(itemPath.name, { message: 'Name required' });
+  email(itemPath.email, { message: 'Invalid email' });
+});`,
+    ],
+  },
+
+  // Additional behaviors
+  resetWhen: {
+    name: 'resetWhen',
+    module: '@reformer/core/behaviors',
+    signature: 'resetWhen(path: FieldPathNode<T, V>, condition: (form: T) => boolean, options?: { toValue?: V }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, V>', required: true, description: 'Path to the field to reset' },
+      { name: 'condition', type: '(form: T) => boolean', required: true, description: 'Condition when to reset' },
+      { name: 'options', type: '{ toValue?: V }', required: false, description: 'Options with optional reset value' },
+    ],
+    examples: [
+      `resetWhen(path.city, (form) => form.country !== previousCountry);`,
+      `resetWhen(path.amount, (form) => form.type === 'free', { toValue: 0 });`,
+    ],
+  },
+  revalidateWhen: {
+    name: 'revalidateWhen',
+    module: '@reformer/core/behaviors',
+    signature: 'revalidateWhen(triggerPath: FieldPathNode<T, V1>, targetPath: FieldPathNode<T, V2>): void',
+    parameters: [
+      { name: 'triggerPath', type: 'FieldPathNode<T, V1>', required: true, description: 'Path to field that triggers revalidation' },
+      { name: 'targetPath', type: 'FieldPathNode<T, V2>', required: true, description: 'Path to field to revalidate' },
+    ],
+    examples: [
+      `// Revalidate confirmPassword when password changes
+revalidateWhen(path.password, path.confirmPassword);`,
+      `// Revalidate endDate when startDate changes
+revalidateWhen(path.startDate, path.endDate);`,
+    ],
+  },
+  transformValue: {
+    name: 'transformValue',
+    module: '@reformer/core/behaviors',
+    signature: 'transformValue(path: FieldPathNode<T, V>, transformer: (value: V) => V, options?: { on?: "change" | "blur" }): void',
+    parameters: [
+      { name: 'path', type: 'FieldPathNode<T, V>', required: true, description: 'Path to the field' },
+      { name: 'transformer', type: '(value: V) => V', required: true, description: 'Function to transform the value' },
+      { name: 'options', type: '{ on?: "change" | "blur" }', required: false, description: 'When to apply transform' },
+    ],
+    examples: [
+      `// Transform to uppercase on blur
+transformValue(path.code, (v) => v?.toUpperCase() || '', { on: 'blur' });`,
+      `// Using built-in transformers
+import { transformers } from '@reformer/core/behaviors';
+
+transformValue(path.email, transformers.trim);
+transformValue(path.name, transformers.toUpperCase);`,
+    ],
+  },
 };
 
 export async function getFunctionSignatureTool(args: {

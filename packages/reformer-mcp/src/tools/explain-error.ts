@@ -274,6 +274,125 @@ queueMicrotask(() => {
 });`,
     },
   },
+
+  // FormSchema errors
+  {
+    pattern: /property.*value.*missing|missing.*property.*value/i,
+    explanation:
+      'FormSchema requires every field to have a `value` property. You cannot use simple values like `{ name: "" }`.',
+    solution:
+      'Every field must have `{ value, component, componentProps? }` structure.',
+    example: {
+      wrong: `const schema = {
+  name: '',
+  email: '',
+};`,
+      correct: `const schema: FormSchema<MyForm> = {
+  name: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Name' },
+  },
+  email: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Email' },
+  },
+};`,
+    },
+  },
+  {
+    pattern: /property.*component.*missing|missing.*property.*component/i,
+    explanation:
+      'FormSchema requires every field to have a `component` property - a React component for rendering.',
+    solution:
+      'Add a `component` property pointing to a React component (Input, Select, Checkbox, etc.).',
+    example: {
+      wrong: `const schema = {
+  name: { value: '' },
+};`,
+      correct: `import { Input } from '@/components/ui';
+
+const schema: FormSchema<MyForm> = {
+  name: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Name' },
+  },
+};`,
+    },
+  },
+
+  // Non-existent API errors
+  {
+    pattern: /'when'.*not.*exported|when.*does.*not.*exist|cannot.*find.*when/i,
+    explanation:
+      'The function `when()` does not exist in @reformer/core/validators. It was replaced with `applyWhen()`.',
+    solution:
+      'Use `applyWhen(fieldPath, condition, validatorsFn)` instead of `when(condition, validatorsFn)`.',
+    example: {
+      wrong: `import { when } from '@reformer/core/validators';
+
+when((form) => form.type === 'business', () => {
+  required(path.companyName);
+});`,
+      correct: `import { applyWhen } from '@reformer/core/validators';
+
+applyWhen(
+  path.type,
+  (type) => type === 'business',
+  (p) => {
+    required(p.companyName);
+  }
+);`,
+    },
+  },
+  {
+    pattern: /'useForm'.*not.*exported|useForm.*does.*not.*exist|cannot.*find.*useForm/i,
+    explanation:
+      'The hook `useForm` does not exist in @reformer/core. Use `createForm()` function instead.',
+    solution:
+      'Use `createForm<MyForm>({ form, validation, behavior })` to create a form instance.',
+    example: {
+      wrong: `import { useForm } from '@reformer/core';
+
+const form = useForm<MyForm>(schema);`,
+      correct: `import { createForm } from '@reformer/core';
+
+const form = useMemo(
+  () => createForm<MyForm>({
+    form: schema,
+    validation: validationSchema,
+    behavior: behaviorSchema,
+  }),
+  []
+);`,
+    },
+  },
+  {
+    pattern: /'FieldSchema'.*not.*exported|FieldSchema.*does.*not.*exist|cannot.*find.*FieldSchema/i,
+    explanation:
+      'The type `FieldSchema` does not exist in @reformer/core. Use `FieldConfig<T>` instead.',
+    solution:
+      'Import `FieldConfig<T>` from @reformer/core for individual field configuration type.',
+    example: {
+      wrong: `import type { FieldSchema } from '@reformer/core';`,
+      correct: `import type { FieldConfig, FormSchema } from '@reformer/core';`,
+    },
+  },
+  {
+    pattern: /'FormFields'.*not.*exported|FormFields.*does.*not.*exist/i,
+    explanation:
+      'The type `FormFields` does not exist in @reformer/core. Use `FieldNode<T>` for field nodes.',
+    solution:
+      'Import `FieldNode<T>` from @reformer/core for typed field access.',
+    example: {
+      wrong: `import type { FormFields } from '@reformer/core';`,
+      correct: `import type { FieldNode } from '@reformer/core';
+
+const { value } = useFormControl(form.name as FieldNode<string>);`,
+    },
+  },
 ];
 
 export async function explainErrorTool(args: {

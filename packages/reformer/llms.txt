@@ -6,9 +6,16 @@
 
 | What                                                                                        | Where                       |
 | ------------------------------------------------------------------------------------------- | --------------------------- |
+| `createForm`, `useFormControl`, `useFormControlValue`                                       | `@reformer/core`            |
 | `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `GroupNodeWithControls`, `FieldNode` | `@reformer/core`            |
-| `required`, `min`, `max`, `minLength`, `email`, `validate`, `validateTree`                  | `@reformer/core/validators` |
-| `computeFrom`, `enableWhen`, `disableWhen`, `copyFrom`, `watchField`                        | `@reformer/core/behaviors`  |
+| `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
+| `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
+| `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |
+| `validate`, `validateAsync`, `validateTree`, `applyWhen`                                    | `@reformer/core/validators` |
+| `notEmpty`, `validateItems`                                                                 | `@reformer/core/validators` |
+| `computeFrom`, `enableWhen`, `disableWhen`, `watchField`, `copyFrom`                        | `@reformer/core/behaviors`  |
+| `resetWhen`, `revalidateWhen`, `syncFields`                                                 | `@reformer/core/behaviors`  |
+| `transformValue`, `transformers`                                                            | `@reformer/core/behaviors`  |
 
 ### Type Values
 
@@ -21,31 +28,68 @@
 ### Validators
 
 ```typescript
+// Basic validators
 required(path, options?: { message?: string })
 min(path, value: number, options?: { message?: string })
 max(path, value: number, options?: { message?: string })
 minLength(path, length: number, options?: { message?: string })
 maxLength(path, length: number, options?: { message?: string })
 email(path, options?: { message?: string })
-validate(path, validator: (value) => ValidationError | null)
-validateTree(validator: (ctx) => ValidationError | null)
+
+// Additional validators
+pattern(path, regex: RegExp, options?: { message?: string })
+url(path, options?: { message?: string })
+phone(path, options?: { message?: string; format?: PhoneFormat })
+number(path, options?: { message?: string })
+date(path, options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
+
+// Custom validators
+validate(path, validator: (value, ctx) => ValidationError | null)
+validateAsync(path, validator: async (value, ctx) => ValidationError | null)
+validateTree(validator: (ctx) => ValidationError | null, options?: { targetField?: string })
+
+// Conditional validation
 applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
+
+// Array validators
+notEmpty(path, options?: { message?: string })
+validateItems(arrayPath, itemValidatorsFn: (itemPath) => void)
 ```
 
 ### Behaviors
 
 ```typescript
+// Enable/disable fields conditionally
 enableWhen(path, condition: (form) => boolean, options?: { resetOnDisable?: boolean })
 disableWhen(path, condition: (form) => boolean)
-computeFrom(sourcePaths[], targetPath, compute: (values) => result)
-watchField(path, callback: (value, ctx: BehaviorContext) => void)
-copyFrom(sourcePath, targetPath, options?: { when?, fields?, transform? })
+
+// Computed fields (same nesting level)
+computeFrom(sourcePaths[], targetPath, compute: (values) => result, options?: { debounce?: number; condition?: (form) => boolean })
+
+// Watch field changes
+watchField(path, callback: (value, ctx: BehaviorContext) => void, options?: { immediate?: boolean; debounce?: number })
+
+// Copy values between fields
+copyFrom(sourcePath, targetPath, options?: { when?: (form) => boolean; fields?: string[]; transform?: (value) => value })
+
+// Reset field when condition met
+resetWhen(path, condition: (form) => boolean, options?: { toValue?: any })
+
+// Re-validate when another field changes
+revalidateWhen(triggerPath, targetPath)
+
+// Sync multiple fields
+syncFields(paths[], options?: { bidirectional?: boolean })
+
+// Transform values
+transformValue(path, transformer: (value) => value, options?: { on?: 'change' | 'blur' })
+transformers.trim, transformers.toUpperCase, transformers.toLowerCase, transformers.toNumber
 
 // BehaviorContext interface:
 interface BehaviorContext<TForm> {
-  form: TForm;                                    // Current form state
-  setFieldValue: (path, value) => void;          // Set field value
-  getFieldValue: (path) => unknown;              // Get field value
+  form: GroupNodeWithControls<TForm>;            // Form proxy with typed field access
+  setFieldValue: (path: string, value: any) => void;
+  getFieldValue: (path: string) => unknown;
 }
 ```
 
@@ -184,30 +228,119 @@ interface MyForm {
 }
 ```
 
-## 8. CREATEFORM API
+## 8. FORMSCHEMA FORMAT (CRITICALLY IMPORTANT)
+
+⚠️ **Every field MUST have `value` and `component` properties!**
+
+### FieldConfig Interface
+
+```typescript
+interface FieldConfig<T> {
+  value: T | null;              // Initial value (REQUIRED)
+  component: ComponentType;     // React component (REQUIRED)
+  componentProps?: object;      // Props passed to component
+  disabled?: boolean;           // Disable field initially
+  validators?: ValidatorFn[];   // Sync validators
+  asyncValidators?: AsyncValidatorFn[]; // Async validators
+  updateOn?: 'change' | 'blur' | 'submit';
+  debounce?: number;
+}
+```
+
+### Primitive Fields
+
+```typescript
+import { Input, Select, Checkbox } from '@/components/ui';
+
+const schema: FormSchema<MyForm> = {
+  // String field
+  name: {
+    value: '',                    // Initial value (REQUIRED)
+    component: Input,             // React component (REQUIRED)
+    componentProps: {
+      label: 'Name',
+      placeholder: 'Enter name',
+    },
+  },
+
+  // Number field (optional)
+  age: {
+    value: undefined,             // Use undefined, NOT null
+    component: Input,
+    componentProps: { type: 'number', label: 'Age' },
+  },
+
+  // Boolean field
+  agree: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to terms' },
+  },
+
+  // Enum/Select field
+  status: {
+    value: 'active',
+    component: Select,
+    componentProps: {
+      label: 'Status',
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+      ],
+    },
+  },
+};
+```
+
+### Nested Objects
+
+```typescript
+const schema: FormSchema<MyForm> = {
+  address: {
+    street: { value: '', component: Input, componentProps: { label: 'Street' } },
+    city: { value: '', component: Input, componentProps: { label: 'City' } },
+    zip: { value: '', component: Input, componentProps: { label: 'ZIP' } },
+  },
+};
+```
+
+### Arrays (Tuple Format)
+
+```typescript
+const itemSchema = {
+  id: { value: '', component: Input, componentProps: { label: 'ID' } },
+  name: { value: '', component: Input, componentProps: { label: 'Name' } },
+};
+
+const schema: FormSchema<MyForm> = {
+  items: [itemSchema],  // Array with ONE template item
+};
+```
+
+### ❌ WRONG - This will NOT compile
+
+```typescript
+// Missing value and component - TypeScript will error!
+const schema = {
+  name: '',           // ❌ Wrong
+  email: '',          // ❌ Wrong
+};
+```
+
+### createForm API
 
 ```typescript
 // Full config with behavior and validation
 const form = createForm<MyForm>({
-  form: formSchema,              // Required: form schema
+  form: formSchema,              // Required: form schema with FieldConfig
   behavior: behaviorSchema,      // Optional: behavior rules
   validation: validationSchema,  // Optional: validation rules
 });
 
-// Legacy format (schema only)
-const form = createForm<MyForm>(formSchema);
-
-// Form schema example
-const formSchema: FormSchema<MyForm> = {
-  name: '',
-  email: '',
-  address: {
-    street: '',
-    city: '',
-  },
-  // Arrays use tuple format
-  items: [{ id: '', name: '' }] as [{ id: string; name: string }],
-};
+// Access form controls
+form.name.setValue('John');
+form.address.city.value.value; // Get current value
+form.items.push({ id: '1', name: 'Item' }); // Array operations
 ```
 
 ## 9. ARRAY SCHEMA FORMAT
@@ -421,3 +554,53 @@ export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
 | Simple | Single file: `ContactForm.tsx` |
 | Medium | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
 | Complex | Full colocation with `steps/` and `sub-forms/` |
+
+## 15. NON-EXISTENT API (DO NOT USE)
+
+⚠️ **The following APIs do NOT exist in @reformer/core:**
+
+| ❌ Wrong | ✅ Correct | Notes |
+|----------|-----------|-------|
+| `useForm` | `createForm` | There is no useForm hook |
+| `FieldSchema` | `FieldConfig<T>` | Type for individual field config |
+| `when()` | `applyWhen()` | Conditional validation function |
+| `FormFields` | `FieldNode<T>` | Type for field nodes |
+
+### Common Import Errors
+
+```typescript
+// ❌ WRONG - These do NOT exist
+import { useForm } from '@reformer/core';           // NO!
+import { when } from '@reformer/core/validators';   // NO!
+import type { FieldSchema } from '@reformer/core';  // NO!
+import type { FormFields } from '@reformer/core';   // NO!
+
+// ✅ CORRECT
+import { createForm, useFormControl } from '@reformer/core';
+import { applyWhen } from '@reformer/core/validators';
+import type { FieldConfig, FieldNode } from '@reformer/core';
+```
+
+### FormSchema Common Mistakes
+
+```typescript
+// ❌ WRONG - Simple values don't work
+const schema = {
+  name: '',           // Missing { value, component }
+  email: '',          // Missing { value, component }
+};
+
+// ✅ CORRECT - Every field needs value and component
+const schema: FormSchema<MyForm> = {
+  name: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Name' },
+  },
+  email: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Email', type: 'email' },
+  },
+};
+```

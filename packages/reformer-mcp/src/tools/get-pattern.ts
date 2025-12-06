@@ -102,10 +102,11 @@ enableWhen(
 
 // In validation - only validate when enabled
 validation: (path) => {
-  when(
-    (form) => form.loanType === 'mortgage',
-    () => {
-      required(path.mortgageDetails.propertyValue);
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (p) => {
+      required(p.mortgageDetails.propertyValue);
     }
   );
 }`,
@@ -115,8 +116,8 @@ validation: (path) => {
   'conditional-validation': {
     name: 'Conditional Validation',
     description: 'Apply validation rules only when conditions are met',
-    solution: 'Use when() wrapper for conditional validators',
-    code: `import { required, when, min } from '@reformer/core/validators';
+    solution: 'Use applyWhen() for conditional validators',
+    code: `import { required, applyWhen, min } from '@reformer/core/validators';
 import type { ValidationSchemaFn } from '@reformer/core';
 
 const validation: ValidationSchemaFn<MyForm> = (path) => {
@@ -124,19 +125,21 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
   required(path.email);
 
   // Required only when hasPhone is true
-  when(
-    (form) => form.hasPhone === true,
-    () => {
-      required(path.phone);
+  applyWhen(
+    path.hasPhone,
+    (hasPhone) => hasPhone === true,
+    (p) => {
+      required(p.phone);
     }
   );
 
   // Validate age only for specific countries
-  when(
-    (form) => form.country === 'US',
-    () => {
-      required(path.age);
-      min(path.age, 21, { message: 'Must be 21+ in the US' });
+  applyWhen(
+    path.country,
+    (country) => country === 'US',
+    (p) => {
+      required(p.age);
+      min(p.age, 21, { message: 'Must be 21+ in the US' });
     }
   );
 };`,
@@ -354,34 +357,44 @@ form.contacts.push({
   expiry: string;
 }
 
+// Step-specific validation schemas
+const step1Validation: ValidationSchemaFn<MultiStepForm> = (path) => {
+  required(path.name);
+  email(path.email);
+};
+
+const step2Validation: ValidationSchemaFn<MultiStepForm> = (path) => {
+  required(path.address);
+  required(path.city);
+};
+
+const step3Validation: ValidationSchemaFn<MultiStepForm> = (path) => {
+  required(path.cardNumber);
+  required(path.expiry);
+};
+
+// STEP_VALIDATIONS map for useStepForm hook
+const STEP_VALIDATIONS = {
+  1: step1Validation,
+  2: step2Validation,
+  3: step3Validation,
+};
+
 const form = createForm<MultiStepForm>({
   form: {
-    currentStep: { value: 1 },
-    name: { value: '' },
-    email: { value: '' },
-    address: { value: '' },
-    city: { value: '' },
-    cardNumber: { value: '' },
-    expiry: { value: '' },
+    currentStep: { value: 1, component: Input },
+    name: { value: '', component: Input },
+    email: { value: '', component: Input },
+    address: { value: '', component: Input },
+    city: { value: '', component: Input },
+    cardNumber: { value: '', component: Input },
+    expiry: { value: '', component: Input },
   },
+  // Full validation combines all steps
   validation: (path) => {
-    // Step 1 validation
-    when((form) => form.currentStep >= 1, () => {
-      required(path.name);
-      email(path.email);
-    });
-
-    // Step 2 validation
-    when((form) => form.currentStep >= 2, () => {
-      required(path.address);
-      required(path.city);
-    });
-
-    // Step 3 validation
-    when((form) => form.currentStep >= 3, () => {
-      required(path.cardNumber);
-      required(path.expiry);
-    });
+    step1Validation(path);
+    step2Validation(path);
+    step3Validation(path);
   },
 });
 
@@ -934,6 +947,140 @@ forms/
         └── formTransformers.ts`,
     relatedPatterns: ['multi-step', 'nested-form-composition', 'multi-step-validation'],
   },
+
+  'form-schema': {
+    name: 'Correct FormSchema Format',
+    description: 'Define form schema with required value and component properties',
+    problem:
+      'Using simple values like { name: "" } causes TypeScript errors. FormSchema requires FieldConfig structure with value and component.',
+    solution: 'Every field must have { value, component, componentProps? }',
+    code: `import { Input, Select, Checkbox } from '@/components/ui';
+import type { FormSchema } from '@reformer/core';
+
+// ❌ WRONG - This will NOT compile
+const wrongSchema = {
+  name: '',           // Missing { value, component }
+  email: '',          // Missing { value, component }
+};
+
+// ✅ CORRECT - Every field needs value and component
+const schema: FormSchema<MyForm> = {
+  // String field
+  name: {
+    value: '',                    // Initial value (REQUIRED)
+    component: Input,             // React component (REQUIRED)
+    componentProps: {
+      label: 'Name',
+      placeholder: 'Enter name',
+    },
+  },
+
+  // Number field (use undefined for optional)
+  age: {
+    value: undefined,             // Use undefined, NOT null
+    component: Input,
+    componentProps: { type: 'number', label: 'Age' },
+  },
+
+  // Boolean field
+  agree: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to terms' },
+  },
+
+  // Enum/Select field
+  status: {
+    value: 'active',
+    component: Select,
+    componentProps: {
+      label: 'Status',
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+      ],
+    },
+  },
+
+  // Nested object
+  address: {
+    street: { value: '', component: Input, componentProps: { label: 'Street' } },
+    city: { value: '', component: Input, componentProps: { label: 'City' } },
+  },
+
+  // Array (tuple format with one template item)
+  items: [{
+    id: { value: '', component: Input },
+    name: { value: '', component: Input },
+  }],
+};`,
+    relatedPatterns: ['form-types', 'nested-forms'],
+  },
+
+  'array-validation': {
+    name: 'Array Field Validation',
+    description: 'Validate array fields using notEmpty and validateItems',
+    problem:
+      'Array fields need special validation: checking if array is not empty and validating each item',
+    solution: 'Use notEmpty() for required arrays, validateItems() for item validation',
+    code: `import { notEmpty, validateItems, required, email, applyWhen } from '@reformer/core/validators';
+import type { ValidationSchemaFn } from '@reformer/core';
+
+interface MyForm {
+  hasContacts: boolean;
+  contacts: Array<{
+    name: string;
+    email: string;
+    phone?: string;
+  }>;
+}
+
+const validation: ValidationSchemaFn<MyForm> = (path) => {
+  // Conditional: validate array only when checkbox is checked
+  applyWhen(
+    path.hasContacts,
+    (hasContacts) => hasContacts === true,
+    (p) => {
+      // Array must have at least one item
+      notEmpty(p.contacts, { message: 'Add at least one contact' });
+
+      // Validate each item in array
+      validateItems(p.contacts, (itemPath) => {
+        required(itemPath.name, { message: 'Contact name is required' });
+        email(itemPath.email, { message: 'Invalid email format' });
+      });
+    }
+  );
+};
+
+// ===== Array Operations =====
+
+// Add new item
+form.contacts.push({
+  name: { value: '', component: Input },
+  email: { value: '', component: Input },
+  phone: { value: '', component: Input },
+});
+
+// Remove item at index
+form.contacts.removeAt(index);
+
+// Clear all items
+form.contacts.clear();
+
+// Get array length
+const count = form.contacts.length;
+
+// Render items (use item.id as key, not index!)
+{form.contacts.map((item, index) => (
+  <ContactItem
+    key={item.id}  // ✅ Use item.id, NOT index
+    control={item}
+    onRemove={() => form.contacts.removeAt(index)}
+  />
+))}`,
+    relatedPatterns: ['array-cleanup', 'conditional-validation', 'form-schema'],
+  },
 };
 
 // Pattern aliases for flexible matching
@@ -973,6 +1120,17 @@ const patternAliases: Record<string, string> = {
   'sub-form': 'nested-form-composition',
   'reusable-form': 'nested-form-composition',
   'cycle-detected': 'nested-form-composition',
+  // FormSchema aliases
+  schema: 'form-schema',
+  'field-config': 'form-schema',
+  'formschema-format': 'form-schema',
+  'schema-format': 'form-schema',
+  'value-component': 'form-schema',
+  // Array validation aliases
+  'validate-array': 'array-validation',
+  'notempty': 'array-validation',
+  'validateitems': 'array-validation',
+  'array-items': 'array-validation',
   // Project structure aliases
   structure: 'project-structure',
   'folder-structure': 'project-structure',
