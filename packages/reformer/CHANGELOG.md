@@ -1,3 +1,21 @@
+# [1.1.0-beta.1](https://github.com/AlexandrBukhtatyy/ReFormer/compare/v1.0.0...v1.1.0-beta.1) (2025-12-06)
+
+
+### Bug Fixes
+
+* add .npmrc with legacy-peer-deps to fix CI npm resolution ([35b3cfc](https://github.com/AlexandrBukhtatyy/ReFormer/commit/35b3cfce39d0134acd1cb6ddc51867bf6a7995a1))
+* bump react and react-dom ([b484128](https://github.com/AlexandrBukhtatyy/ReFormer/commit/b4841289c3e1a682ac669c249edbeacce6c40b07))
+* **ci:** publish normal version on main ([f5ab99d](https://github.com/AlexandrBukhtatyy/ReFormer/commit/f5ab99d9767bf2cda7c988588f76b046e4823441))
+* **reformer-mcp:** relax peerDependency version constraint ([9f10d03](https://github.com/AlexandrBukhtatyy/ReFormer/commit/9f10d0365f890d3f546b961f2108123804c06b74))
+
+
+### Features
+
+* **reformer-mcp:** improve MCP server for better form generation ([94d1aba](https://github.com/AlexandrBukhtatyy/ReFormer/commit/94d1aba5fb939ba9b2b7ff90363c82addcfd6c27))
+* **reformer:** add mcp server package for ai assistants ([276b76c](https://github.com/AlexandrBukhtatyy/ReFormer/commit/276b76ccbe9e083965010230eef8ae9ae81f7e3c))
+* **reformer:** add mcp tools for function signatures, imports, and patterns ([9b27512](https://github.com/AlexandrBukhtatyy/ReFormer/commit/9b2751257a230b4958f9bbcd74d89ab419805edf))
+* **reformer:** add uuid dependency ([c253ac3](https://github.com/AlexandrBukhtatyy/ReFormer/commit/c253ac38c05ad62ff6bf01729f5fe80aca255985))
+
 # 1.0.0-beta.1 (2025-12-04)
 
 ### Bug Fixes
