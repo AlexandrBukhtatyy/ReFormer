@@ -753,8 +753,8 @@ form.address.reset();`,
   },
 
   // Form methods
-  validate: {
-    name: 'validate',
+  'Form.validate': {
+    name: 'Form.validate',
     module: '@reformer/core',
     signature: 'Form<T>.validate(): Promise<boolean>',
     parameters: [],
