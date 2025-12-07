@@ -43,6 +43,78 @@ const loanType = useFormControlValue(control.loanType);
 const { value, errors, disabled } = useFormControl(control.loanType);
 ```
 
+## 1.5 QUICK START - Minimal Working Form
+
+```typescript
+import { createForm, useFormControl } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import type { GroupNodeWithControls } from '@reformer/core';
+
+// 1. Define form type
+interface ContactForm {
+  name: string;
+  email: string;
+}
+
+// 2. Create form schema with validation
+const form = createForm<ContactForm>({
+  form: {
+    name: { value: '', component: Input },
+    email: { value: '', component: Input },
+  },
+  validation: (path) => {
+    required(path.name, { message: 'Name is required' });
+    required(path.email, { message: 'Email is required' });
+    email(path.email, { message: 'Invalid email format' });
+  },
+});
+
+// 3. Use in React component
+function ContactFormComponent() {
+  const nameCtrl = useFormControl(form.name);
+  const emailCtrl = useFormControl(form.email);
+
+  const handleSubmit = async () => {
+    await form.submit((values) => {
+      console.log('Form submitted:', values);
+    });
+  };
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <div>
+        <input
+          value={nameCtrl.value}
+          onChange={(e) => form.name.setValue(e.target.value)}
+          disabled={nameCtrl.disabled}
+        />
+        {nameCtrl.errors.map((err) => <span key={err.code}>{err.message}</span>)}
+      </div>
+      <div>
+        <input
+          value={emailCtrl.value}
+          onChange={(e) => form.email.setValue(e.target.value)}
+          disabled={emailCtrl.disabled}
+        />
+        {emailCtrl.errors.map((err) => <span key={err.code}>{err.message}</span>)}
+      </div>
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+
+// 4. Pass form to child components via props (NOT context!)
+interface FormStepProps {
+  form: GroupNodeWithControls<ContactForm>;
+}
+
+function FormStep({ form }: FormStepProps) {
+  // Access form fields directly
+  const { value } = useFormControl(form.name);
+  return <div>Name: {value}</div>;
+}
+```
+
 ## 2. API SIGNATURES
 
 ### Validators
@@ -68,8 +140,47 @@ validate(path, validator: (value, ctx) => ValidationError | null)
 validateAsync(path, validator: async (value, ctx) => ValidationError | null)
 validateTree(validator: (ctx) => ValidationError | null, options?: { targetField?: string })
 
-// Conditional validation
+// Conditional validation (3 arguments!)
 applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
+
+// ⚠️ applyWhen Examples - CRITICALLY IMPORTANT
+// applyWhen takes 3 arguments: triggerField, condition, validators
+
+// Example 1: Simple condition
+applyWhen(
+  path.loanType,                    // 1st: field to watch
+  (type) => type === 'mortgage',    // 2nd: condition on field value
+  (p) => {                          // 3rd: validators to apply
+    required(p.propertyValue);
+    min(p.propertyValue, 100000);
+  }
+);
+
+// Example 2: Nested field as trigger
+applyWhen(
+  path.address.country,
+  (country) => country === 'US',
+  (p) => {
+    required(p.address.state);
+    pattern(p.address.zip, /^\d{5}(-\d{4})?$/);
+  }
+);
+
+// Example 3: Boolean trigger
+applyWhen(
+  path.hasInsurance,
+  (has) => has === true,
+  (p) => {
+    required(p.insuranceCompany);
+    required(p.policyNumber);
+  }
+);
+
+// ❌ WRONG - only 2 arguments (React Hook Form pattern)
+applyWhen(
+  (form) => form.loanType === 'mortgage',  // WRONG!
+  () => { required(path.propertyValue); }
+);
 
 // Array validators
 notEmpty(path, options?: { message?: string })
@@ -392,6 +503,25 @@ form.address.city.value.value; // Get current value
 form.items.push({ id: '1', name: 'Item' }); // Array operations
 ```
 
+### ⚠️ createForm Returns a Proxy
+
+```typescript
+// createForm() returns GroupNodeWithControls<T> (a Proxy wrapper around GroupNode)
+// This enables type-safe field access:
+const form = createForm<MyForm>({...});
+
+form.email           // FieldNode<string> - TypeScript knows the type!
+form.address.city    // FieldNode<string> - nested access works
+form.items.at(0)     // GroupNodeWithControls<ItemType> - array items
+
+// ⚠️ IMPORTANT: Proxy doesn't pass instanceof checks!
+// Use type guards instead:
+import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
+
+if (isFieldNode(node)) { /* ... */ }   // ✅ Works with Proxy
+if (node instanceof FieldNode) { /* ... */ } // ❌ Fails with Proxy!
+```
+
 ## 9. ARRAY SCHEMA FORMAT
 
 **Array items are sub-forms!** Each array element is a complete sub-form with its own fields, validation, and behavior.
@@ -522,6 +652,61 @@ export const fullValidation: ValidationSchemaFn<Form> = (path) => {
   step1Validation(path);
   step2Validation(path);
 };
+
+// Using validateForm() for step validation
+import { validateForm } from '@reformer/core';
+
+const goToNextStep = async () => {
+  const currentValidation = STEP_VALIDATIONS[currentStep];
+  const isValid = await validateForm(form, currentValidation);
+
+  if (!isValid) {
+    form.markAsTouched();  // Show errors on current step fields
+    return;
+  }
+
+  setCurrentStep(currentStep + 1);
+};
+
+// Full form submit with all validations
+const handleSubmit = async () => {
+  const isValid = await validateForm(form, fullValidation);
+
+  if (isValid) {
+    await form.submit(onSubmit);
+  }
+};
+```
+
+### Multi-Step Component Example
+
+```tsx
+function MultiStepForm() {
+  const [step, setStep] = useState(1);
+
+  const nextStep = async () => {
+    const validation = STEP_VALIDATIONS[step];
+    if (await validateForm(form, validation)) {
+      setStep(step + 1);
+    } else {
+      form.markAsTouched();
+    }
+  };
+
+  return (
+    <div>
+      {step === 1 && <Step1Fields form={form} />}
+      {step === 2 && <Step2Fields form={form} />}
+
+      <button onClick={() => setStep(step - 1)} disabled={step === 1}>
+        Back
+      </button>
+      <button onClick={step === 2 ? handleSubmit : nextStep}>
+        {step === 2 ? 'Submit' : 'Next'}
+      </button>
+    </div>
+  );
+}
 ```
 
 ## 13. ⚠️ EXTENDED COMMON MISTAKES
@@ -642,6 +827,123 @@ export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
 | Medium | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
 | Complex | Full colocation with `steps/` and `sub-forms/` |
 
+## 14.5 UI COMPONENT PATTERNS
+
+ReFormer does NOT provide UI components - you create them yourself or use a UI library.
+
+### Generic FormField Component
+
+```tsx
+import type { FieldNode } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
+
+interface FormFieldProps<T> {
+  control: FieldNode<T>;
+  label?: string;
+  type?: 'text' | 'email' | 'number' | 'password';
+  placeholder?: string;
+}
+
+function FormField<T extends string | number>({
+  control,
+  label,
+  type = 'text',
+  placeholder
+}: FormFieldProps<T>) {
+  const { value, errors, disabled, touched } = useFormControl(control);
+  const showError = touched && errors.length > 0;
+
+  return (
+    <div className="form-field">
+      {label && <label>{label}</label>}
+      <input
+        type={type}
+        value={value ?? ''}
+        onChange={(e) => {
+          const val = type === 'number'
+            ? Number(e.target.value) as T
+            : e.target.value as T;
+          control.setValue(val);
+        }}
+        onBlur={() => control.markAsTouched()}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={showError ? 'error' : ''}
+      />
+      {showError && (
+        <span className="error-message">{errors[0].message}</span>
+      )}
+    </div>
+  );
+}
+
+// Usage
+<FormField control={form.email} label="Email" type="email" />
+<FormField control={form.age} label="Age" type="number" />
+```
+
+### FormField for Select
+
+```tsx
+interface SelectFieldProps<T extends string> {
+  control: FieldNode<T>;
+  label?: string;
+  options: Array<{ value: T; label: string }>;
+}
+
+function SelectField<T extends string>({
+  control,
+  label,
+  options
+}: SelectFieldProps<T>) {
+  const { value, errors, disabled, touched } = useFormControl(control);
+
+  return (
+    <div className="form-field">
+      {label && <label>{label}</label>}
+      <select
+        value={value}
+        onChange={(e) => control.setValue(e.target.value as T)}
+        disabled={disabled}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {touched && errors[0] && (
+        <span className="error-message">{errors[0].message}</span>
+      )}
+    </div>
+  );
+}
+```
+
+### Integration with UI Libraries
+
+```tsx
+// With shadcn/ui
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+function ShadcnFormField({ control, label }: FormFieldProps<string>) {
+  const { value, errors, disabled } = useFormControl(control);
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input
+        value={value}
+        onChange={(e) => control.setValue(e.target.value)}
+        disabled={disabled}
+      />
+      {errors[0] && <p className="text-red-500">{errors[0].message}</p>}
+    </div>
+  );
+}
+```
+
 ## 15. NON-EXISTENT API (DO NOT USE)
 
 ⚠️ **The following APIs do NOT exist in @reformer/core:**
@@ -652,6 +954,13 @@ export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
 | `FieldSchema` | `FieldConfig<T>` | Type for individual field config |
 | `when()` | `applyWhen()` | Conditional validation function |
 | `FormFields` | `FieldNode<T>` | Type for field nodes |
+| `FormInstance<T>` | `GroupNodeWithControls<T>` | Form type for component props |
+| `useArrayField()` | `form.items.push/map/removeAt` | Use ArrayNode methods directly |
+| `FormProvider` | `<Component form={form} />` | Pass form via props, no context |
+| `formState` | `form.valid`, `form.dirty`, etc. | Separate signals on form |
+| `control` prop | Not needed | Form IS the control |
+| `register('field')` | `useFormControl(form.field)` | Type-safe field access |
+| `getFieldValue()` | `ctx.form.field.value.value` | Read via signals |
 
 ### Common Import Errors
 
@@ -691,6 +1000,89 @@ const schema: FormSchema<MyForm> = {
   },
 };
 ```
+
+## 15.5 REACT HOOK FORM MIGRATION
+
+If you're familiar with React Hook Form, here's how to translate patterns to ReFormer:
+
+| React Hook Form | ReFormer | Notes |
+|-----------------|----------|-------|
+| `const { register, handleSubmit } = useForm()` | `const form = createForm({...})` | Call OUTSIDE component |
+| `register('fieldName')` | `useFormControl(form.fieldName)` | Returns control object |
+| `watch('fieldName')` | `useFormControlValue(form.fieldName)` | Returns value directly (NOT `{ value }`) |
+| `setValue('field', value)` | `form.field.setValue(value)` | Direct method call |
+| `getValues('field')` | `form.field.value.value` | Signal-based |
+| `formState.errors` | `useFormControl(form.field).errors` | Per-field errors array |
+| `formState.isValid` | `form.valid.value` | Signal |
+| `formState.isDirty` | `form.dirty.value` | Signal |
+| `handleSubmit(onSubmit)` | `form.submit(onSubmit)` | Built-in validation |
+| `<FormProvider form={...}>` | `<Component form={form} />` | Props, NOT context |
+| `useFormContext()` | Not needed | Pass form via props |
+| `useFieldArray({ name: 'items' })` | `form.items` (ArrayNode) | Direct array access |
+| `fields.map((field, index) => ...)` | `form.items.map((item, index) => ...)` | item is sub-form |
+| `append(data)` | `form.items.push(data)` | Add item |
+| `remove(index)` | `form.items.removeAt(index)` | Remove item |
+| `control` prop | Not needed | Form IS the control |
+
+### Key Differences
+
+1. **No Provider/Context** - Pass form directly via props
+   ```typescript
+   // ❌ React Hook Form pattern - doesn't exist in ReFormer
+   <FormProvider form={form}>
+     <NestedComponent />
+   </FormProvider>
+
+   // ✅ ReFormer pattern - pass via props
+   <NestedComponent form={form} />
+   ```
+
+2. **Form Creation Location** - Create outside component
+   ```typescript
+   // ❌ WRONG - creates new form on every render
+   function MyComponent() {
+     const form = createForm({...});
+   }
+
+   // ✅ CORRECT - create once, outside component
+   const form = createForm({...});
+   function MyComponent() {
+     const ctrl = useFormControl(form.name);
+   }
+   ```
+
+3. **Type-Safe Field Access** - No string paths
+   ```typescript
+   // React Hook Form
+   register('user.address.city')
+
+   // ReFormer - fully typed
+   form.user.address.city.setValue('New York')
+   ```
+
+4. **Array Items are Sub-Forms**
+   ```typescript
+   // React Hook Form
+   fields.map((field, index) => (
+     <input {...register(`items.${index}.name`)} />
+   ))
+
+   // ReFormer - each item is a typed GroupNode
+   form.items.map((item, index) => (
+     <FormField control={item.name} />  // item.name is FieldNode
+   ))
+   ```
+
+5. **Reading Values in Behaviors**
+   ```typescript
+   // React Hook Form
+   watch('fieldName')
+
+   // ReFormer in watchField callback
+   watchField(path.trigger, (value, ctx) => {
+     const other = ctx.form.otherField.value.value;  // Signal access
+   });
+   ```
 
 ## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
@@ -806,6 +1198,25 @@ watchField(path.loanAmount, (amount, ctx) => {
 
 ## 18. ARRAY OPERATIONS
 
+### ⚠️ Array Access - CRITICAL
+
+```typescript
+// ❌ WRONG - bracket notation does NOT work!
+const first = form.items[0];        // undefined or error
+const second = form.items[1];       // undefined or error
+
+// ✅ CORRECT - use .at() method
+const first = form.items.at(0);     // GroupNodeWithControls<ItemType> | undefined
+const second = form.items.at(1);    // GroupNodeWithControls<ItemType> | undefined
+
+// ✅ CORRECT - iterate with map (most common pattern)
+form.items.map((item, index) => {
+  // item is fully typed GroupNode
+  item.name.setValue('New Name');
+  item.price.value.value;  // read value
+});
+```
+
 ### Array Methods
 
 ```typescript
@@ -820,10 +1231,10 @@ form.items.clear();                                 // Remove all items
 // Reorder
 form.items.move(fromIndex, toIndex);                // Move item
 
-// Access
+// Access (use .at(), NOT brackets!)
 form.items.length.value;                            // Current length (Signal)
 form.items.map((item, index) => ...);               // Iterate items
-form.items.at(index);                               // Get item at index
+form.items.at(index);                               // Get item at index (NOT items[index]!)
 ```
 
 ### Rendering Arrays
