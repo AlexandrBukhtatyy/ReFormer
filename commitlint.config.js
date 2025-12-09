@@ -26,7 +26,6 @@ export default {
         'react-playground',
         'react-playground-e2e',
         'reformer-tutorial',
-        'reformer-tutorial-ai',
         'docs',
         'ci',
         'deps',
