@@ -55,29 +55,80 @@ const form = new GroupNode({
 - **Схема валидации**: «Корректны ли данные?»
 - **Схема поведений**: «Как данные должны реагировать на изменения?»
 
-### Переиспользование
+### Переиспользование и декомпозиция
 
-Каждую схему можно извлечь и переиспользовать независимо:
+Каждую схему можно декомпозировать на переиспользуемые части и комбинировать с помощью функции `apply`:
 
 ```typescript
-// Переиспользуемый набор валидации
-export function validatePerson(path: FieldPath<Person>) {
-  required(path.firstName);
-  required(path.lastName);
-  email(path.email);
-}
+import { apply, required } from '@reformer/core/validators';
+import { apply as applyBehavior, watchField } from '@reformer/core/behaviors';
 
-// Использование в нескольких формах
-const form1 = new GroupNode({
-  form: { person: personSchema() },
-  validation: (path) => validatePerson(path.person),
+// 1. Переиспользуемая схема формы (всегда используйте фабричные функции!)
+const addressSchema = (): FormSchema<Address> => ({
+  street: { value: '' },
+  city: { value: '' },
+  zipCode: { value: '' },
 });
 
-const form2 = new GroupNode({
-  form: { user: personSchema() },
-  validation: (path) => validatePerson(path.user),
+// 2. Переиспользуемая схема валидации
+const addressValidation: ValidationSchemaFn<Address> = (path) => {
+  required(path.street);
+  required(path.city);
+  required(path.zipCode);
+};
+
+// 3. Переиспользуемая схема поведений
+const addressBehavior: BehaviorSchemaFn<Address> = (path) => {
+  watchField(path.zipCode, (value, ctx) => {
+    // Форматирование индекса
+  });
+};
+
+// Композиция в формы с помощью apply()
+const orderForm = new GroupNode<OrderForm>({
+  form: {
+    billingAddress: addressSchema(),
+    shippingAddress: addressSchema(),
+  },
+  validation: (path) => {
+    // Применяем одну валидацию к нескольким полям
+    apply([path.billingAddress, path.shippingAddress], addressValidation);
+  },
+  behavior: (path) => {
+    // Применяем одно поведение к нескольким полям
+    applyBehavior([path.billingAddress, path.shippingAddress], addressBehavior);
+  },
 });
 ```
+
+Функция `apply` поддерживает гибкую композицию:
+
+```typescript
+// Одно поле + одна схема
+apply(path.address, addressValidation);
+
+// Несколько полей + одна схема
+apply([path.billingAddress, path.shippingAddress], addressValidation);
+
+// Одно поле + несколько схем
+apply(path.email, [requiredValidation, emailValidation]);
+
+// Несколько полей + несколько схем
+apply([path.email, path.phone], [requiredValidation, formatValidation]);
+```
+
+:::tip Фабричные функции
+Всегда используйте функции, возвращающие схемы (`addressSchema()`), а не прямые объекты. Это гарантирует, что каждая форма получит свой собственный экземпляр и избежит багов с разделяемым состоянием.
+:::
+
+**Преимущества декомпозиции:**
+
+- **DRY** — Пишем один раз, используем везде
+- **Консистентность** — Одинаковые правила во всех формах
+- **Поддерживаемость** — Обновляем в одном месте
+- **Тестируемость** — Тестируем каждую часть изолированно
+
+Подробнее см. [Композиция](./composition).
 
 ### Тестируемость
 
