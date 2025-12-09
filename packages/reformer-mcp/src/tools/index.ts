@@ -1,11 +1,14 @@
-export { getDocsToolDefinition, getDocsTool } from './get-docs.js';
-export { searchDocsToolDefinition, searchDocsTool } from './search-docs.js';
-export { getApiToolDefinition, getApiTool } from './get-api.js';
-export { getExamplesToolDefinition, getExamplesTool } from './get-examples.js';
+// Core tools
 export { explainErrorToolDefinition, explainErrorTool } from './explain-error.js';
-export {
-  getFunctionSignatureToolDefinition,
-  getFunctionSignatureTool,
-} from './get-function-signature.js';
-export { getImportsToolDefinition, getImportsTool } from './get-imports.js';
 export { getPatternToolDefinition, getPatternTool } from './get-pattern.js';
+
+// Tools for quality form generation
+export {
+  getRecommendedStructureToolDefinition,
+  getRecommendedStructureTool,
+} from './get-recommended-structure.js';
+export { generateTypesToolDefinition, generateTypesTool } from './generate-types.js';
+export { generateSchemaToolDefinition, generateSchemaTool } from './generate-schema.js';
+export { generateValidationToolDefinition, generateValidationTool } from './generate-validation.js';
+export { generateBehaviorToolDefinition, generateBehaviorTool } from './generate-behavior.js';
+export { checkCodeToolDefinition, checkCodeTool } from './check-code.js';

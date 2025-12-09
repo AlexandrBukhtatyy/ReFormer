@@ -15,22 +15,24 @@ import { getFullDocs, getSection, getExamples } from './utils/docs-parser.js';
 
 // Tools
 import {
-  getDocsToolDefinition,
-  getDocsTool,
-  searchDocsToolDefinition,
-  searchDocsTool,
-  getApiToolDefinition,
-  getApiTool,
-  getExamplesToolDefinition,
-  getExamplesTool,
+  // Core tools
   explainErrorToolDefinition,
   explainErrorTool,
-  getFunctionSignatureToolDefinition,
-  getFunctionSignatureTool,
-  getImportsToolDefinition,
-  getImportsTool,
   getPatternToolDefinition,
   getPatternTool,
+  // Tools for quality form generation
+  getRecommendedStructureToolDefinition,
+  getRecommendedStructureTool,
+  generateTypesToolDefinition,
+  generateTypesTool,
+  generateSchemaToolDefinition,
+  generateSchemaTool,
+  generateValidationToolDefinition,
+  generateValidationTool,
+  generateBehaviorToolDefinition,
+  generateBehaviorTool,
+  checkCodeToolDefinition,
+  checkCodeTool,
 } from './tools/index.js';
 
 // Prompts
@@ -71,14 +73,16 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
-      getDocsToolDefinition,
-      searchDocsToolDefinition,
-      getApiToolDefinition,
-      getExamplesToolDefinition,
+      // Core tools
       explainErrorToolDefinition,
-      getFunctionSignatureToolDefinition,
-      getImportsToolDefinition,
       getPatternToolDefinition,
+      // Tools for quality form generation
+      getRecommendedStructureToolDefinition,
+      generateTypesToolDefinition,
+      generateSchemaToolDefinition,
+      generateValidationToolDefinition,
+      generateBehaviorToolDefinition,
+      checkCodeToolDefinition,
     ],
   };
 });
@@ -87,29 +91,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   switch (name) {
-    case 'get_reformer_docs':
-      return await getDocsTool();
-
-    case 'search_docs':
-      return await searchDocsTool(args as { query: string });
-
-    case 'get_api_reference':
-      return await getApiTool(args as { method?: string });
-
-    case 'get_examples':
-      return await getExamplesTool(args as { topic?: string });
-
+    // Core tools
     case 'explain_error':
       return await explainErrorTool(args as { error: string });
 
-    case 'get_function_signature':
-      return await getFunctionSignatureTool(args as { functionName: string });
-
-    case 'get_imports':
-      return await getImportsTool(args as { category: string });
-
     case 'get_pattern':
       return await getPatternTool(args as { pattern: string });
+
+    // Tools for quality form generation
+    case 'get_recommended_structure':
+      return await getRecommendedStructureTool(args as { complexity: string });
+
+    case 'generate_types':
+      return await generateTypesTool(args as { formDescription?: string });
+
+    case 'generate_schema':
+      return await generateSchemaTool(args as { formType?: string });
+
+    case 'generate_validation':
+      return await generateValidationTool(args as { validationType?: string });
+
+    case 'generate_behavior':
+      return await generateBehaviorTool(args as { behaviorType?: string });
+
+    case 'check_code':
+      return await checkCodeTool(args as { code: string });
 
     default:
       throw new Error(`Unknown tool: ${name}`);
