@@ -84,6 +84,64 @@ const RULES = [
     correct: 'enableWhen(path.field, condition, { resetOnDisable: true })',
     reason: 'Resetting disabled fields prevents stale data in hidden fields.',
   },
+  {
+    rule: 'Prefix unused callback parameters with underscore',
+    wrong: 'watchField(path.a, (value, ctx) => { /* value not used */ ctx.setFieldValue(...) })',
+    correct: 'watchField(path.a, (_value, ctx) => { ctx.setFieldValue(...) })',
+    reason:
+      'TypeScript strict mode requires unused variables to be prefixed with _. Avoids TS6133 error.',
+  },
+  {
+    rule: 'Use consistent rounding for computed percentages',
+    wrong: 'Math.round(ratio * 10) / 100  // Inconsistent!',
+    correct: 'Math.round(ratio * 100) / 100  // Always round to 2 decimal places',
+    reason: 'Inconsistent rounding formulas cause incorrect calculations.',
+  },
+  {
+    rule: 'Use DOUBLE .value.value to access field values in BehaviorContext (CRITICAL!)',
+    wrong: `watchField(path.field, (_value, ctx) => {
+  const income = ctx.form.monthlyIncome.value;  // Returns Signal, NOT value!
+});`,
+    correct: `watchField(path.field, (_value, ctx) => {
+  const income = ctx.form.monthlyIncome.value.value;  // Gets actual value
+});`,
+    reason:
+      'In BehaviorContext, ctx.form.field.value returns FieldNode (signal). Second .value gets the actual primitive value. This is DIFFERENT from ValidationContext which uses single .value!',
+  },
+  {
+    rule: 'Generate behaviors for sameAs* flags to copy field groups',
+    wrong: '// No behavior for sameAsRegistration checkbox',
+    correct: `watchField(path.sameAsRegistration, (value, ctx) => {
+  if (value) {
+    const source = ctx.form.registrationAddress.value.value;
+    ctx.setFieldValue("residenceAddress.region", source.region);
+    ctx.setFieldValue("residenceAddress.city", source.city);
+    // ... all fields
+  }
+});`,
+    reason:
+      'sameAs* checkboxes in specs require copying all fields from source group to target group.',
+  },
+  {
+    rule: 'Clear dependent fields when parent changes (cascading reset)',
+    wrong: '// Region changes but city keeps old invalid value',
+    correct: `watchField(path.region, (_value, ctx) => {
+  ctx.setFieldValue("city", "");  // Clear city when region changes
+});`,
+    reason:
+      'Hierarchical fields (region→city, brand→model) need cascading resets to avoid invalid combinations.',
+  },
+  {
+    rule: 'Sync address fields when sameAs flag is true AND source changes',
+    wrong: '// Only copy on checkbox change, ignore source field changes',
+    correct: `watchField(path.registrationAddress, (value, ctx) => {
+  if (ctx.form.sameAsRegistration.value.value && value) {
+    ctx.setFieldValue("residenceAddress.region", value.region);
+    // ... sync all fields
+  }
+});`,
+    reason: 'When sameAs is true, changes to source must propagate to target in real-time.',
+  },
 ];
 
 const EXAMPLES = {
@@ -272,6 +330,65 @@ export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
   });
 };`,
 
+  addressSync: `import type { BehaviorSchemaFn } from '@reformer/core';
+import { watchField } from '@reformer/core/behaviors';
+import type { FormWithAddresses } from './type';
+
+// Pattern: sameAs* checkbox + address synchronization + cascading reset
+export const addressSyncBehavior: BehaviorSchemaFn<FormWithAddresses> = (path) => {
+  // 1. Copy registration → residence when sameAsRegistration becomes true
+  watchField(path.sameAsRegistration, (value, ctx) => {
+    if (value) {
+      const reg = ctx.form.registrationAddress.value.value;
+      if (reg) {
+        ctx.setFieldValue("residenceAddress.region", reg.region || "");
+        ctx.setFieldValue("residenceAddress.city", reg.city || "");
+        ctx.setFieldValue("residenceAddress.street", reg.street || "");
+        ctx.setFieldValue("residenceAddress.house", reg.house || "");
+        ctx.setFieldValue("residenceAddress.apartment", reg.apartment || "");
+        ctx.setFieldValue("residenceAddress.postalCode", reg.postalCode || "");
+      }
+    } else {
+      // Clear residence address when switching to manual input
+      ctx.setFieldValue("residenceAddress.region", "");
+      ctx.setFieldValue("residenceAddress.city", "");
+      ctx.setFieldValue("residenceAddress.street", "");
+      ctx.setFieldValue("residenceAddress.house", "");
+      ctx.setFieldValue("residenceAddress.apartment", "");
+      ctx.setFieldValue("residenceAddress.postalCode", "");
+    }
+  });
+
+  // 2. Sync addresses when registration changes (if sameAsRegistration is true)
+  watchField(path.registrationAddress, (value, ctx) => {
+    if (ctx.form.sameAsRegistration.value.value && value) {
+      ctx.setFieldValue("residenceAddress.region", value.region || "");
+      ctx.setFieldValue("residenceAddress.city", value.city || "");
+      ctx.setFieldValue("residenceAddress.street", value.street || "");
+      ctx.setFieldValue("residenceAddress.house", value.house || "");
+      ctx.setFieldValue("residenceAddress.apartment", value.apartment || "");
+      ctx.setFieldValue("residenceAddress.postalCode", value.postalCode || "");
+    }
+  });
+
+  // 3. Cascading reset: clear city when region changes
+  watchField(path.registrationAddress.region, (_value, ctx) => {
+    ctx.setFieldValue("registrationAddress.city", "");
+  });
+
+  watchField(path.residenceAddress.region, (_value, ctx) => {
+    // Only reset if not synced with registration
+    if (!ctx.form.sameAsRegistration.value.value) {
+      ctx.setFieldValue("residenceAddress.city", "");
+    }
+  });
+
+  // 4. Clear car model when brand changes (another cascading example)
+  watchField(path.carBrand, (_value, ctx) => {
+    ctx.setFieldValue("carModel", "");
+  });
+};`,
+
   complex: `import type { BehaviorSchemaFn, WatchContext } from '@reformer/core';
 import { computeFrom, watchField, enableWhen } from '@reformer/core/behaviors';
 import type { LoanApplicationForm } from './type';
@@ -442,6 +559,10 @@ export const myFormBehavior: BehaviorSchemaFn<MyForm> = (path) => {
     response += `### Sync and Copy Fields\n\n\`\`\`typescript\n${EXAMPLES.sync}\n\`\`\`\n\n`;
   }
 
+  if (!type || type === 'address' || type === 'address-sync' || type === 'cascading') {
+    response += `### Address Synchronization & Cascading Reset\n\n\`\`\`typescript\n${EXAMPLES.addressSync}\n\`\`\`\n\n`;
+  }
+
   if (!type || type === 'complex') {
     response += `### Complex Form Behaviors\n\n\`\`\`typescript\n${EXAMPLES.complex}\n\`\`\`\n\n`;
   }
@@ -475,6 +596,37 @@ watchField(path.a, (_, ctx) => {
 enableWhen(path.field, condition);
 // ✅ CORRECT: Reset hidden fields
 enableWhen(path.field, condition, { resetOnDisable: true });
+
+// ❌ WRONG: Unused parameter without underscore prefix (causes TS6133)
+watchField(path.a, (value, ctx) => {
+  // value is not used - TypeScript error!
+  ctx.setFieldValue('b', ctx.form.c.value);
+});
+// ✅ CORRECT: Prefix unused params with underscore
+watchField(path.a, (_value, ctx) => {
+  ctx.setFieldValue('b', ctx.form.c.value);
+});
+
+// ❌ WRONG: Inconsistent rounding formulas
+Math.round(ratio * 10) / 100;   // Wrong!
+Math.round(ratio * 100) / 10;   // Wrong!
+// ✅ CORRECT: Consistent formula for 2 decimal places
+Math.round(ratio * 100) / 100;  // Correct for percentage
+
+// ❌ WRONG: Single .value in BehaviorContext (returns Signal, NOT value!)
+watchField(path.a, (_value, ctx) => {
+  const income = ctx.form.monthlyIncome.value;  // This is a Signal object!
+  ctx.setFieldValue('b', income * 2);  // Will fail or produce NaN!
+});
+// ✅ CORRECT: Double .value.value in BehaviorContext
+watchField(path.a, (_value, ctx) => {
+  const income = ctx.form.monthlyIncome.value.value;  // Gets actual number
+  ctx.setFieldValue('b', income * 2);  // Works correctly
+});
+
+// ⚠️ IMPORTANT: BehaviorContext vs ValidationContext are DIFFERENT!
+// - BehaviorContext: ctx.form.field.value.value (double .value)
+// - ValidationContext: ctx.form.field.value (single .value)
 \`\`\`\n\n`;
 
   response += `## Decision Guide: computeFrom vs watchField\n\n`;

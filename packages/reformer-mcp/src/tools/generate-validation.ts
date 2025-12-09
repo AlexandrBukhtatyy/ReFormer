@@ -78,14 +78,21 @@ const RULES = [
     rule: 'Use ctx.form for cross-field validation',
     wrong: 'validate(path.confirm, (value) => value !== password ? error : null)',
     correct:
-      'validate(path.confirm, (value, ctx) => value !== ctx.form.password.value.value ? error : null)',
-    reason: 'Access other fields via ctx.form proxy.',
+      'validate(path.confirm, (value, ctx) => value !== ctx.form.password.value ? error : null)',
+    reason: 'Access other fields via ctx.form.fieldName.value (single .value, not double!).',
   },
   {
     rule: 'Use when() for conditional validation',
     wrong: 'if (form.type === "business") required(path.companyName)',
     correct: 'when((form) => form.type === "business", () => { required(path.companyName) })',
     reason: 'when() ensures validators are applied reactively.',
+  },
+  {
+    rule: 'Use single .value to access field values (NOT double .value.value)',
+    wrong: 'const val = ctx.form.fieldName.value.value;',
+    correct: 'const val = ctx.form.fieldName.value;',
+    reason:
+      'ctx.form.fieldName.value already returns the field value. Double .value.value causes runtime error "Cannot read properties of undefined".',
   },
 ];
 
@@ -164,7 +171,7 @@ export const registrationValidation: ValidationSchemaFn<RegistrationForm> = (pat
 
   // Cross-field validation: passwords must match
   validate(path.confirmPassword, (value, ctx) => {
-    const password = ctx.form.password.value.value;
+    const password = ctx.form.password.value;  // Single .value, NOT .value.value!
 
     // Skip if either is empty
     if (!value || !password) return null;
@@ -180,7 +187,7 @@ export const registrationValidation: ValidationSchemaFn<RegistrationForm> = (pat
 
   // Date range validation
   validate(path.endDate, (value, ctx) => {
-    const startDate = ctx.form.startDate.value.value;
+    const startDate = ctx.form.startDate.value;  // Single .value
 
     if (!value || !startDate) return null;
 
@@ -195,7 +202,7 @@ export const registrationValidation: ValidationSchemaFn<RegistrationForm> = (pat
 
   // Amount validation based on another field
   validate(path.initialPayment, (value, ctx) => {
-    const propertyValue = ctx.form.propertyValue.value.value;
+    const propertyValue = ctx.form.propertyValue.value;  // Single .value
 
     if (!value || !propertyValue) return null;
 
@@ -463,8 +470,13 @@ required(path.email, { message: 'Email is required' });
 
 // ❌ WRONG: Direct field comparison
 validate(path.confirm, (v) => v !== password ? err : null);
-// ✅ CORRECT: Use ctx.form
-validate(path.confirm, (v, ctx) => v !== ctx.form.password.value.value ? err : null);
+// ✅ CORRECT: Use ctx.form (single .value!)
+validate(path.confirm, (v, ctx) => v !== ctx.form.password.value ? err : null);
+
+// ❌ WRONG: Double .value.value (causes runtime error)
+const val = ctx.form.field.value.value;
+// ✅ CORRECT: Single .value
+const val = ctx.form.field.value;
 
 // ❌ WRONG: Imperative condition
 if (form.type === 'x') required(path.y);

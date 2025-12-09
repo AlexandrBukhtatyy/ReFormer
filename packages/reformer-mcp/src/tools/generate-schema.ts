@@ -36,6 +36,80 @@ const COMPONENT_MAPPING = [
   { type: 'File', component: 'FileInput', props: "{ label: '...', accept: 'image/*' }" },
 ];
 
+// Справочник стандартных масок для документов РФ
+const RF_DOCUMENT_MASKS = {
+  phone: {
+    mask: '+7 (999) 999-99-99',
+    placeholder: '+7 (___) ___-__-__',
+    description: 'Телефон РФ (11 цифр)',
+  },
+  innPerson: {
+    mask: '999999999999',
+    placeholder: '123456789012',
+    description: 'ИНН физлица (12 цифр)',
+  },
+  innCompany: {
+    mask: '9999999999',
+    placeholder: '1234567890',
+    description: 'ИНН юрлица (10 цифр)',
+  },
+  snils: {
+    mask: '999-999-999 99',
+    placeholder: '123-456-789 01',
+    description: 'СНИЛС (11 цифр)',
+  },
+  postalCode: {
+    mask: '999999',
+    placeholder: '123456',
+    description: 'Почтовый индекс РФ (6 цифр)',
+  },
+  passportSeries: {
+    mask: '99 99',
+    placeholder: '00 00',
+    description: 'Серия паспорта (4 цифры)',
+  },
+  passportNumber: {
+    mask: '999999',
+    placeholder: '123456',
+    description: 'Номер паспорта (6 цифр)',
+  },
+  departmentCode: {
+    mask: '999-999',
+    placeholder: '123-456',
+    description: 'Код подразделения (6 цифр)',
+  },
+  smsCode: {
+    mask: '999999',
+    placeholder: '123456',
+    description: 'SMS-код подтверждения (6 цифр)',
+  },
+  smsCode4: {
+    mask: '9999',
+    placeholder: '1234',
+    description: 'SMS-код подтверждения (4 цифры)',
+  },
+};
+
+const REACT_RULES = [
+  {
+    rule: 'createForm returns GroupNodeWithControls directly (NOT an object with .controls)',
+    wrong: `const form = createForm<MyForm>({...});
+<MyComponent control={form.controls} />  // undefined!`,
+    correct: `const form = createForm<MyForm>({...});
+<MyComponent control={form} />  // Correct!`,
+    reason: 'createForm() returns a Proxy that IS the controls. There is no .controls property.',
+  },
+  {
+    rule: 'Use useFormControlValue hook for reactive rendering in React',
+    wrong: `{control.loanType.value === 'mortgage' && <MortgageFields />}`,
+    correct: `import { useFormControlValue } from "@reformer/core";
+const loanType = useFormControlValue(control.loanType);
+{loanType === 'mortgage' && <MortgageFields />}`,
+    reason:
+      'control.field.value returns a Signal object, not the actual value. useFormControlValue subscribes to changes and triggers re-render.',
+  },
+];
+
 const RULES = [
   {
     rule: 'Every field must have a `value` property',
@@ -429,6 +503,52 @@ export const myFormSchema: FormSchema<MyForm> = {
   response += `### Form with Arrays\n\n\`\`\`typescript\n${EXAMPLES.withArrays}\n\`\`\`\n\n`;
   response += `### Form with Computed Fields\n\n\`\`\`typescript\n${EXAMPLES.withComputed}\n\`\`\`\n\n`;
 
+  // RF Document Masks
+  response += `## Стандартные маски для документов РФ\n\n`;
+  response += `При генерации форм для российских документов используйте эти маски:\n\n`;
+  response += `| Документ | Маска | Placeholder | Описание |\n`;
+  response += `|----------|-------|-------------|----------|\n`;
+  for (const [key, value] of Object.entries(RF_DOCUMENT_MASKS)) {
+    response += `| ${key} | \`${value.mask}\` | \`${value.placeholder}\` | ${value.description} |\n`;
+  }
+  response += `\n`;
+
+  response += `### Пример использования масок\n\n`;
+  response += `\`\`\`typescript
+// ИНН физлица (12 цифр)
+inn: {
+  value: '',
+  component: InputMask,
+  componentProps: {
+    label: 'ИНН',
+    mask: '999999999999',
+    placeholder: '123456789012',
+  },
+},
+
+// ИНН юрлица (10 цифр)
+companyInn: {
+  value: null,
+  component: InputMask,
+  componentProps: {
+    label: 'ИНН компании',
+    mask: '9999999999',
+    placeholder: '1234567890',
+  },
+},
+
+// Почтовый индекс (6 цифр)
+postalCode: {
+  value: '',
+  component: InputMask,
+  componentProps: {
+    label: 'Индекс',
+    mask: '999999',
+    placeholder: '123456',
+  },
+},
+\`\`\`\n\n`;
+
   // Common mistakes
   response += `## Common Mistakes\n\n`;
   response += `\`\`\`typescript
@@ -446,6 +566,79 @@ contacts: { value: [], component: ContactList }
 
 // ❌ WRONG: Editable computed field
 total: { value: 0, component: Input }  // Should be disabled
+
+// ❌ WRONG: Incomplete mask for INN (should be 12 digits for person)
+inn: { mask: '999999' }  // Missing 6 digits!
+
+// ❌ WRONG: Incomplete mask for phone
+phone: { mask: '+7 (999) 999-99-9' }  // Missing last digit!
+
+// ❌ WRONG: Postal code with 5 digits (RF uses 6)
+postalCode: { mask: '99999' }  // Should be '999999'
+\`\`\`\n\n`;
+
+  // React usage rules
+  response += `## React Usage (CRITICAL!)\n\n`;
+  for (const r of REACT_RULES) {
+    response += `### ${r.rule}\n\n`;
+    response += `**Why:** ${r.reason}\n\n`;
+    response += `\`\`\`typescript\n`;
+    response += `// ❌ Wrong\n${r.wrong}\n\n`;
+    response += `// ✅ Correct\n${r.correct}\n`;
+    response += `\`\`\`\n\n`;
+  }
+
+  response += `### Complete React Component Example\n\n`;
+  response += `\`\`\`typescript
+import { useMemo } from "react";
+import { createForm, useFormControlValue } from "@reformer/core";
+import type { GroupNodeWithControls } from "@reformer/core";
+import { FormField } from "./FormField";
+import { schema } from "./schema";
+import { validation } from "./validation";
+import { behavior } from "./behaviors";
+import type { MyForm } from "./types";
+
+// Create form instance (outside component or in useMemo)
+const form = createForm<MyForm>({ form: schema, validation, behavior });
+
+// Step component with conditional rendering
+interface StepProps {
+  control: GroupNodeWithControls<MyForm>;
+}
+
+export function MyStep({ control }: StepProps) {
+  // ✅ Use hook for reactive value access
+  const loanType = useFormControlValue(control.loanType);
+  const showDetails = useFormControlValue(control.showDetails);
+
+  return (
+    <div>
+      <FormField control={control.loanType} />
+
+      {/* ✅ Conditional rendering with hook value */}
+      {loanType === 'mortgage' && (
+        <div>
+          <FormField control={control.propertyValue} />
+        </div>
+      )}
+
+      {showDetails && (
+        <FormField control={control.details} />
+      )}
+    </div>
+  );
+}
+
+// Main form component
+export function MyFormComponent() {
+  const formInstance = useMemo(() => form, []);
+
+  return (
+    // ✅ Pass form directly, NOT form.controls
+    <MyStep control={formInstance} />
+  );
+}
 \`\`\`\n\n`;
 
   response += `## Next Steps\n\n`;

@@ -279,6 +279,180 @@ const rules = [
       return null;
     },
   },
+
+  // createForm API misuse
+  {
+    check: (code: string) => {
+      if (/form(?:Instance)?\.controls\b/.test(code)) {
+        return {
+          severity: 'error' as const,
+          code: 'createForm-controls',
+          message: 'Using .controls on createForm result - this returns undefined',
+          fix: `createForm() returns GroupNodeWithControls<T> directly (a Proxy), NOT an object with .controls property.\n\nChange:\nconst form = createForm<MyForm>({...});\n<MyComponent control={form.controls} />  // undefined!\n\nTo:\nconst form = createForm<MyForm>({...});\n<MyComponent control={form} />  // Correct`,
+        };
+      }
+      return null;
+    },
+  },
+
+  // useFormControlValue requirement for reactive rendering
+  {
+    check: (code: string) => {
+      // Check for direct .value access in JSX-like context
+      if (
+        /\{.*control\.\w+\.value\s*===/.test(code) ||
+        /\{.*control\.\w+\.value\s*!==/.test(code)
+      ) {
+        return {
+          severity: 'error' as const,
+          code: 'missing-useFormControlValue',
+          message: 'Reading control.field.value directly in JSX - not reactive',
+          fix: `Use useFormControlValue hook for reactive rendering in React:\n\n// Wrong (not reactive):\n{control.loanType.value === 'mortgage' && <Fields />}\n\n// Correct:\nimport { useFormControlValue } from "@reformer/core";\nconst loanType = useFormControlValue(control.loanType);\n{loanType === 'mortgage' && <Fields />}`,
+        };
+      }
+      return null;
+    },
+  },
+
+  // Double .value.value in ValidationContext (WRONG)
+  {
+    check: (code: string) => {
+      // Look for ValidationSchemaFn context and double .value.value
+      if (/ValidationSchemaFn|validation.*=.*\(path\)/.test(code)) {
+        if (/ctx\.form\.\w+\.value\.value/.test(code)) {
+          return {
+            severity: 'error' as const,
+            code: 'double-value-in-validation',
+            message: 'Using double .value.value in ValidationContext - should be single .value',
+            fix: `In ValidationContext, use single .value to access field values:\n\n// Wrong:\nconst val = ctx.form.fieldName.value.value;\n\n// Correct:\nconst val = ctx.form.fieldName.value;`,
+          };
+        }
+      }
+      return null;
+    },
+  },
+
+  // Single .value in BehaviorContext (WRONG - should be double)
+  {
+    check: (code: string) => {
+      // Look for BehaviorSchemaFn context and single .value (not followed by another .value)
+      if (/BehaviorSchemaFn|behavior.*=.*\(path\)|watchField/.test(code)) {
+        // Match ctx.form.field.value that is NOT followed by .value
+        const matches = code.match(/ctx\.form\.\w+(?:\.\w+)*\.value(?!\s*\.value)/g);
+        if (matches) {
+          // Filter out false positives (like ctx.form.field.value.value which would match partially)
+          const problematic = matches.filter((m) => {
+            const idx = code.indexOf(m);
+            const nextChar = code[idx + m.length];
+            return nextChar !== '.';
+          });
+          if (problematic.length > 0) {
+            return {
+              severity: 'error' as const,
+              code: 'single-value-in-behavior',
+              message: 'Using single .value in BehaviorContext - should be double .value.value',
+              fix: `In BehaviorContext (watchField callbacks), use double .value.value:\n\n// Wrong (returns Signal object):\nconst val = ctx.form.fieldName.value;\n\n// Correct (returns actual value):\nconst val = ctx.form.fieldName.value.value;\n\nNOTE: This is DIFFERENT from ValidationContext which uses single .value!`,
+            };
+          }
+        }
+      }
+      return null;
+    },
+  },
+
+  // Incomplete Russian document masks
+  {
+    check: (code: string) => {
+      // INN mask checks
+      const innMatch = code.match(/inn[^:]*:\s*\{[^}]*mask:\s*['"](\d+)['"]/i);
+      if (innMatch) {
+        const digits = innMatch[1].replace(/9/g, '').length === 0 ? innMatch[1].length : 0;
+        if (digits > 0 && digits !== 10 && digits !== 12) {
+          return {
+            severity: 'error' as const,
+            code: 'invalid-inn-mask',
+            message: `INN mask has ${digits} digits - should be 10 (company) or 12 (person)`,
+            fix: `Russian INN masks:\n- Personal INN: "999999999999" (12 digits)\n- Company INN: "9999999999" (10 digits)`,
+          };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    check: (code: string) => {
+      // Phone mask checks - looking for incomplete phone masks
+      const phoneMatch = code.match(
+        /phone[^:]*:\s*\{[^}]*mask:\s*['"]\+7\s*\(\d+\)\s*\d+-\d+-(\d+)['"]/i
+      );
+      if (phoneMatch && phoneMatch[1].length < 2) {
+        return {
+          severity: 'error' as const,
+          code: 'incomplete-phone-mask',
+          message: 'Phone mask is incomplete - missing digits at the end',
+          fix: `Russian phone mask should be:\nmask: "+7 (999) 999-99-99"\n\nNot:\nmask: "+7 (999) 999-99-9"  // Missing last digit!`,
+        };
+      }
+      return null;
+    },
+  },
+  {
+    check: (code: string) => {
+      // Postal code mask checks
+      const postalMatch = code.match(/postal[^:]*:\s*\{[^}]*mask:\s*['"](\d+)['"]/i);
+      if (postalMatch) {
+        const digits = postalMatch[1].replace(/9/g, '').length === 0 ? postalMatch[1].length : 0;
+        if (digits > 0 && digits !== 6) {
+          return {
+            severity: 'error' as const,
+            code: 'invalid-postal-mask',
+            message: `Postal code mask has ${digits} digits - should be 6 for Russia`,
+            fix: `Russian postal code mask:\nmask: "999999"  // 6 digits\nplaceholder: "000000"`,
+          };
+        }
+      }
+      return null;
+    },
+  },
+  {
+    check: (code: string) => {
+      // SMS code mask checks
+      const smsMatch = code.match(
+        /(?:sms|code|verification)[^:]*:\s*\{[^}]*mask:\s*['"](\d+)['"]/i
+      );
+      if (smsMatch) {
+        const digits = smsMatch[1].replace(/9/g, '').length === 0 ? smsMatch[1].length : 0;
+        if (digits > 0 && digits < 6) {
+          return {
+            severity: 'warning' as const,
+            code: 'short-sms-mask',
+            message: `SMS/verification code mask has ${digits} digits - typically 6`,
+            fix: `Standard SMS verification code is usually 6 digits:\nmask: "999999"`,
+          };
+        }
+      }
+      return null;
+    },
+  },
+
+  // Inconsistent rounding formulas
+  {
+    check: (code: string) => {
+      // Look for rounding patterns that don't follow Math.round(x * 100) / 100
+      if (
+        /Math\.round\([^)]+\*\s*10\s*\)\s*\/\s*100/.test(code) ||
+        /Math\.round\([^)]+\*\s*100\s*\)\s*\/\s*10(?!0)/.test(code)
+      ) {
+        return {
+          severity: 'warning' as const,
+          code: 'inconsistent-rounding',
+          message: 'Inconsistent rounding formula detected',
+          fix: `Use consistent rounding for percentages and decimals:\n\n// Wrong:\nMath.round(ratio * 10) / 100\nMath.round(ratio * 100) / 10\n\n// Correct (2 decimal places):\nMath.round(ratio * 100) / 100`,
+        };
+      }
+      return null;
+    },
+  },
 ];
 
 function analyzeCode(code: string): QualityReport {
@@ -402,8 +576,10 @@ export async function checkCodeTool(args: {
   response += `- **Import paths**: Validators from \`/validators\`, behaviors from \`/behaviors\`\n`;
   response += `- **Types**: \`undefined\` not \`null\`, no index signatures\n`;
   response += `- **Schema**: Every field has \`value\` property\n`;
-  response += `- **Validation**: Options object not string, return null for valid\n`;
-  response += `- **Behaviors**: No nested watchField, use watchField for cross-level\n`;
+  response += `- **Validation**: Options object not string, return null for valid, single \`.value\`\n`;
+  response += `- **Behaviors**: No nested watchField, double \`.value.value\` for field access\n`;
+  response += `- **React**: Use \`useFormControlValue\` hook, no \`.controls\` on createForm result\n`;
+  response += `- **Masks**: INN (10/12 digits), phone (10 digits), postal (6 digits)\n`;
 
   return {
     content: [{ type: 'text', text: response }],
