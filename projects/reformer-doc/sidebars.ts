@@ -87,6 +87,7 @@ const sidebars: SidebarsConfig = {
       ],
     },
   ],
+  mcpSidebar: ['mcp/overview', 'mcp/quick-start', 'mcp/tools', 'mcp/prompts', 'mcp/examples'],
   apiSidebar: [
     {
       type: 'doc',

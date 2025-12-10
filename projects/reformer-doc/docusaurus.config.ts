@@ -128,6 +128,12 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          type: 'docSidebar',
+          sidebarId: 'mcpSidebar',
+          position: 'left',
+          label: 'MCP',
+        },
+        {
           to: '/docs/api',
           position: 'left',
           label: 'API',
