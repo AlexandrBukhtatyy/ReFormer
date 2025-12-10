@@ -11,8 +11,10 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
-        validators: resolve(__dirname, 'src/core/validation/index.ts'),
-        behaviors: resolve(__dirname, 'src/core/behavior/index.ts'),
+        // Re-export files that import from index to ensure single module instance
+        // This prevents static registry isolation (BehaviorRegistry.contextStack, ValidationRegistry.registryStack)
+        validators: resolve(__dirname, 'src/validators.ts'),
+        behaviors: resolve(__dirname, 'src/behaviors.ts'),
       },
       formats: ['es'],
     },
