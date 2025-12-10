@@ -22,7 +22,8 @@
     "claude",
     "ai",
     "forms",
-    "react"
+    "react",
+    "model-context-protocol"
   ],
   "author": "Alexandr Bukhtatyy",
   "license": "MIT",
