@@ -45,13 +45,9 @@ const validation: ValidationSchemaFn<RegistrationForm> = (v) => ({
   password: v.field(required(), minLength(8)),
   confirmPassword: v.field(
     required(),
-    validate((value, form) =>
-      value === form.password.value || 'Passwords do not match'
-    )
+    validate((value, form) => value === form.password.value || 'Passwords do not match')
   ),
-  agreeToTerms: v.field(
-    validate((value) => value === true || 'Agreement is required')
-  ),
+  agreeToTerms: v.field(validate((value) => value === true || 'Agreement is required')),
 });
 ```
 
@@ -85,7 +81,7 @@ const validation: ValidationSchemaFn<OrderForm> = (v) => ({
   phone: v.field(
     required(),
     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, {
-      message: 'Format: +7 (XXX) XXX-XX-XX'
+      message: 'Format: +7 (XXX) XXX-XX-XX',
     })
   ),
   deliveryDate: v.field(
@@ -133,10 +129,7 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
   items: b.array({
     // Subtotal for each item
     subtotal: b.field(
-      computeFrom(
-        ['quantity', 'price'],
-        (quantity, price) => (quantity ?? 0) * (price ?? 0)
-      )
+      computeFrom(['quantity', 'price'], (quantity, price) => (quantity ?? 0) * (price ?? 0))
     ),
   }),
   // Total sum
@@ -147,19 +140,9 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
     )
   ),
   // Discount
-  discount: b.field(
-    computeFrom(
-      ['total'],
-      (total) => total > 10000 ? total * 0.1 : 0
-    )
-  ),
+  discount: b.field(computeFrom(['total'], (total) => (total > 10000 ? total * 0.1 : 0))),
   // Final total with discount
-  finalTotal: b.field(
-    computeFrom(
-      ['total', 'discount'],
-      (total, discount) => total - discount
-    )
-  ),
+  finalTotal: b.field(computeFrom(['total', 'discount'], (total, discount) => total - discount)),
 });
 ```
 
@@ -257,7 +240,7 @@ The form should:
 **What happens:**
 
 1. AI reads the specification and analyzes requirements
-2. Calls `get_recommended_structure` to determine file structure:
+2. Calls `get_recommended_structure` to determine file structure (MCP provides several schemes, selection depends on form complexity):
 
 ```
 forms/
@@ -278,154 +261,15 @@ forms/
 
 3. Generates types via `generate_types`:
 
-```typescript
-interface InsuranceApplicationForm {
-  // Step 1: Personal
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  birthDate: string;
-  age: number; // computed
+4. Creates form schema via `generate_schema`:
 
-  // Step 2: Contact
-  phone: string;
-  email: string;
-  address: string;
+5. Generates validation schema for each step via `generate_validation`:
 
-  // Step 3: Vehicle
-  vehicleMake: string;
-  vehicleModel: string;
-  vehicleYear: number;
-  licensePlate: string;
-  vin: string;
+6. Generates behavior schema (computed fields, conditions) via `generate_behavior`:
 
-  // Step 4: Insurance
-  insuranceType: 'osago' | 'kasko' | 'full';
-  startDate: string;
-  endDate: string; // computed
-  period: 3 | 6 | 12;
+7. Checks code via `check_code` and fixes errors
 
-  // Step 5: Payment
-  paymentMethod: 'card' | 'bank' | 'cash';
-  cardNumber?: string;
-
-  // Step 6: Documents
-  passportScan: File | null;
-  vehicleRegistration: File | null;
-  driverLicense: File | null;
-}
-```
-
-4. Creates step-by-step schema via `generate_schema`:
-
-```typescript
-import { FormSchemaFn } from '@reformer/core';
-
-export const formSchema: FormSchemaFn<InsuranceApplicationForm> = (f) => ({
-  // Step 1
-  lastName: f.control(''),
-  firstName: f.control(''),
-  middleName: f.control(''),
-  birthDate: f.control(''),
-  age: f.control(0),
-
-  // ... remaining fields
-});
-```
-
-5. Generates validation for each step via `generate_validation`:
-
-```typescript
-// validation/step1-personal.ts
-export const step1Validation: ValidationSchemaFn<InsuranceApplicationForm> = (v) => ({
-  lastName: v.field(required(), minLength(2)),
-  firstName: v.field(required(), minLength(2)),
-  birthDate: v.field(
-    required(),
-    validate((value) => {
-      const age = calculateAge(value);
-      return age >= 18 || 'Minimum age is 18 years';
-    })
-  ),
-});
-```
-
-6. Generates behaviors (computed fields, conditions) via `generate_behavior`:
-
-```typescript
-import { computeFrom, showWhen } from '@reformer/core/behaviors';
-
-export const behaviorSchema: BehaviorSchemaFn<InsuranceApplicationForm> = (b) => ({
-  // Computed age
-  age: b.field(
-    computeFrom(['birthDate'], (birthDate) => calculateAge(birthDate))
-  ),
-
-  // End date = start date + period
-  endDate: b.field(
-    computeFrom(['startDate', 'period'], (startDate, period) => {
-      if (!startDate) return '';
-      const date = new Date(startDate);
-      date.setMonth(date.getMonth() + period);
-      return date.toISOString().split('T')[0];
-    })
-  ),
-
-  // Card number visible only when paying by card
-  cardNumber: b.field(
-    showWhen((form) => form.paymentMethod.value === 'card')
-  ),
-});
-```
-
-7. Creates component with `useStepForm`:
-
-```tsx
-import { useStepForm } from '@reformer/react';
-
-export const InsuranceApplicationForm = () => {
-  const form = useMemo(() => createForm<InsuranceApplicationForm>({
-    form: formSchema,
-    validation: mergeValidation(
-      step1Validation,
-      step2Validation,
-      // ...
-    ),
-    behavior: behaviorSchema,
-  }), []);
-
-  const { currentStep, next, prev, canGoNext, canGoPrev } = useStepForm(form, {
-    steps: [
-      { fields: ['lastName', 'firstName', 'middleName', 'birthDate'] },
-      { fields: ['phone', 'email', 'address'] },
-      { fields: ['vehicleMake', 'vehicleModel', 'vehicleYear', 'licensePlate', 'vin'] },
-      { fields: ['insuranceType', 'startDate', 'period'] },
-      { fields: ['paymentMethod', 'cardNumber'] },
-      { fields: ['passportScan', 'vehicleRegistration', 'driverLicense'] },
-    ],
-  });
-
-  return (
-    <form>
-      <StepIndicator current={currentStep} total={6} />
-
-      {currentStep === 0 && <Step1Personal form={form} />}
-      {currentStep === 1 && <Step2Contact form={form} />}
-      {/* ... */}
-
-      <div className="navigation">
-        <button onClick={prev} disabled={!canGoPrev}>Back</button>
-        <button onClick={next} disabled={!canGoNext}>
-          {currentStep === 5 ? 'Submit' : 'Next'}
-        </button>
-      </div>
-    </form>
-  );
-};
-```
-
-8. Checks code via `check_code` and fixes errors
-9. Runs `npm run build` to verify compilation
+8. Runs `npm run build` to verify compilation
 
 **Result:**
 
@@ -442,11 +286,13 @@ export const InsuranceApplicationForm = () => {
 ### Be Specific
 
 ❌ Bad:
+
 ```
 Make a form
 ```
 
 ✅ Good:
+
 ```
 Create an order form with fields: Full name, phone, email, delivery address.
 Phone in +7 format. Email required. Address minimum 10 characters.
