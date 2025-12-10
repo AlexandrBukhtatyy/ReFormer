@@ -227,6 +227,216 @@ const MyForm = () => {
 
 ---
 
+## Scenario 5: Create Form from Specification
+
+**Task:** Create a complex multi-step form based on a requirements document.
+
+**Request to AI:**
+
+```
+Create a form based on the specification spec/insurance-application-form.md
+
+Use the reformer MCP server for:
+1. Getting project structure (get_recommended_structure)
+2. Generating types (generate_types)
+3. Generating schema (generate_schema)
+4. Generating validation (generate_validation)
+5. Generating behaviors (generate_behavior)
+6. Checking code (check_code)
+7. Verifying code compilation (npm run build)
+
+The form should:
+- Be multi-step (6 steps)
+- Have separate validation files for each step
+- Use useStepForm for navigation
+- Support computed fields (endDate, age, experience)
+- Have conditional field visibility
+- Compile without errors
+```
+
+**What happens:**
+
+1. AI reads the specification and analyzes requirements
+2. Calls `get_recommended_structure` to determine file structure:
+
+```
+forms/
+└── insurance-application/
+    ├── types.ts
+    ├── schema.ts
+    ├── validation/
+    │   ├── index.ts
+    │   ├── step1-personal.ts
+    │   ├── step2-contact.ts
+    │   ├── step3-vehicle.ts
+    │   ├── step4-insurance.ts
+    │   ├── step5-payment.ts
+    │   └── step6-documents.ts
+    ├── behaviors.ts
+    └── InsuranceApplicationForm.tsx
+```
+
+3. Generates types via `generate_types`:
+
+```typescript
+interface InsuranceApplicationForm {
+  // Step 1: Personal
+  lastName: string;
+  firstName: string;
+  middleName: string;
+  birthDate: string;
+  age: number; // computed
+
+  // Step 2: Contact
+  phone: string;
+  email: string;
+  address: string;
+
+  // Step 3: Vehicle
+  vehicleMake: string;
+  vehicleModel: string;
+  vehicleYear: number;
+  licensePlate: string;
+  vin: string;
+
+  // Step 4: Insurance
+  insuranceType: 'osago' | 'kasko' | 'full';
+  startDate: string;
+  endDate: string; // computed
+  period: 3 | 6 | 12;
+
+  // Step 5: Payment
+  paymentMethod: 'card' | 'bank' | 'cash';
+  cardNumber?: string;
+
+  // Step 6: Documents
+  passportScan: File | null;
+  vehicleRegistration: File | null;
+  driverLicense: File | null;
+}
+```
+
+4. Creates step-by-step schema via `generate_schema`:
+
+```typescript
+import { FormSchemaFn } from '@reformer/core';
+
+export const formSchema: FormSchemaFn<InsuranceApplicationForm> = (f) => ({
+  // Step 1
+  lastName: f.control(''),
+  firstName: f.control(''),
+  middleName: f.control(''),
+  birthDate: f.control(''),
+  age: f.control(0),
+
+  // ... remaining fields
+});
+```
+
+5. Generates validation for each step via `generate_validation`:
+
+```typescript
+// validation/step1-personal.ts
+export const step1Validation: ValidationSchemaFn<InsuranceApplicationForm> = (v) => ({
+  lastName: v.field(required(), minLength(2)),
+  firstName: v.field(required(), minLength(2)),
+  birthDate: v.field(
+    required(),
+    validate((value) => {
+      const age = calculateAge(value);
+      return age >= 18 || 'Minimum age is 18 years';
+    })
+  ),
+});
+```
+
+6. Generates behaviors (computed fields, conditions) via `generate_behavior`:
+
+```typescript
+import { computeFrom, showWhen } from '@reformer/core/behaviors';
+
+export const behaviorSchema: BehaviorSchemaFn<InsuranceApplicationForm> = (b) => ({
+  // Computed age
+  age: b.field(
+    computeFrom(['birthDate'], (birthDate) => calculateAge(birthDate))
+  ),
+
+  // End date = start date + period
+  endDate: b.field(
+    computeFrom(['startDate', 'period'], (startDate, period) => {
+      if (!startDate) return '';
+      const date = new Date(startDate);
+      date.setMonth(date.getMonth() + period);
+      return date.toISOString().split('T')[0];
+    })
+  ),
+
+  // Card number visible only when paying by card
+  cardNumber: b.field(
+    showWhen((form) => form.paymentMethod.value === 'card')
+  ),
+});
+```
+
+7. Creates component with `useStepForm`:
+
+```tsx
+import { useStepForm } from '@reformer/react';
+
+export const InsuranceApplicationForm = () => {
+  const form = useMemo(() => createForm<InsuranceApplicationForm>({
+    form: formSchema,
+    validation: mergeValidation(
+      step1Validation,
+      step2Validation,
+      // ...
+    ),
+    behavior: behaviorSchema,
+  }), []);
+
+  const { currentStep, next, prev, canGoNext, canGoPrev } = useStepForm(form, {
+    steps: [
+      { fields: ['lastName', 'firstName', 'middleName', 'birthDate'] },
+      { fields: ['phone', 'email', 'address'] },
+      { fields: ['vehicleMake', 'vehicleModel', 'vehicleYear', 'licensePlate', 'vin'] },
+      { fields: ['insuranceType', 'startDate', 'period'] },
+      { fields: ['paymentMethod', 'cardNumber'] },
+      { fields: ['passportScan', 'vehicleRegistration', 'driverLicense'] },
+    ],
+  });
+
+  return (
+    <form>
+      <StepIndicator current={currentStep} total={6} />
+
+      {currentStep === 0 && <Step1Personal form={form} />}
+      {currentStep === 1 && <Step2Contact form={form} />}
+      {/* ... */}
+
+      <div className="navigation">
+        <button onClick={prev} disabled={!canGoPrev}>Back</button>
+        <button onClick={next} disabled={!canGoNext}>
+          {currentStep === 5 ? 'Submit' : 'Next'}
+        </button>
+      </div>
+    </form>
+  );
+};
+```
+
+8. Checks code via `check_code` and fixes errors
+9. Runs `npm run build` to verify compilation
+
+**Result:**
+
+- Fully typed multi-step form
+- Separate validation per step
+- Automatic calculations (age, end date)
+- Conditional field visibility
+- Step navigation with validation
+
+---
+
 ## Tips for Working with AI
 
 ### Be Specific
