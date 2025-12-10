@@ -5,20 +5,9 @@ import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { Select } from '@/components/ui/select';
 import { FormField } from '@/components/ui/form-field';
+import type { CoBorrower } from './types';
 
-export interface CoBorrower {
-  id?: string;
-  personalData: {
-    lastName: string;
-    firstName: string;
-    middleName: string;
-    birthDate: string;
-  };
-  phone: string;
-  email: string;
-  relationship: string;
-  monthlyIncome: number;
-}
+export type { CoBorrower } from './types';
 
 export const coBorrowersFormSchema: FormSchema<CoBorrower> = {
   personalData: {

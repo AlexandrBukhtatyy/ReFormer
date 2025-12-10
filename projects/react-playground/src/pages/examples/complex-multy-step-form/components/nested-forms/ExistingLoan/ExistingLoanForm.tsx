@@ -4,16 +4,9 @@ import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { FormField } from '@/components/ui/form-field';
+import type { ExistingLoan } from './types';
 
-export interface ExistingLoan {
-  id?: string;
-  bank: string;
-  type: string;
-  amount: number;
-  remainingAmount: number;
-  monthlyPayment: number;
-  maturityDate: string;
-}
+export type { ExistingLoan } from './types';
 
 export const existingLoansFormSchema: FormSchema<ExistingLoan> = {
   bank: {

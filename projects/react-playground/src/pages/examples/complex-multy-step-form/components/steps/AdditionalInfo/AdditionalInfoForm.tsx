@@ -10,7 +10,7 @@
  */
 
 import type { GroupNodeWithControls } from '@reformer/core';
-import { useFormControl } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
@@ -23,9 +23,9 @@ interface AdditionalInfoFormProps {
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
-  const { value: hasProperty } = useFormControl(control.hasProperty);
-  const { value: hasExistingLoans } = useFormControl(control.hasExistingLoans);
-  const { value: hasCoBorrower } = useFormControl(control.hasCoBorrower);
+  const hasProperty = useFormControlValue(control.hasProperty) as boolean;
+  const hasExistingLoans = useFormControlValue(control.hasExistingLoans) as boolean;
+  const hasCoBorrower = useFormControlValue(control.hasCoBorrower) as boolean;
 
   return (
     <div className="space-y-6" data-testid="step-additional-info">

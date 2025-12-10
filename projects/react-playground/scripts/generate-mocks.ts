@@ -160,6 +160,8 @@ ${paramsCode}    const result = ${resolverCall};
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from OpenAPI spec via scripts/generate-mocks.ts
  */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { http, HttpResponse } from 'msw';
 import * as resolvers from '../resolvers';
@@ -216,6 +218,8 @@ function generateViteRoutes(routes: RouteInfo[]): string {
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from OpenAPI spec via scripts/generate-mocks.ts
  */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import type { IncomingMessage } from 'http';
 import * as resolvers from '../resolvers';

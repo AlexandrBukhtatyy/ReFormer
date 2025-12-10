@@ -201,7 +201,7 @@ export default function ValidationExamples() {
   message: 'Это поле обязательно'
 })`}
         >
-          <FormField control={form.requiredField} form={form} />
+          <FormField control={form.requiredField} />
         </ExampleCard>
 
         <ExampleCard
@@ -213,7 +213,7 @@ email(path.emailField, {
   message: 'Введите корректный email'
 })`}
         >
-          <FormField control={form.emailField} form={form} />
+          <FormField control={form.emailField} />
         </ExampleCard>
 
         <ExampleCard
@@ -224,7 +224,7 @@ email(path.emailField, {
   message: 'Минимум 5 символов'
 })`}
         >
-          <FormField control={form.minLengthField} form={form} />
+          <FormField control={form.minLengthField} />
         </ExampleCard>
 
         <ExampleCard
@@ -235,7 +235,7 @@ email(path.emailField, {
   message: 'Максимум 10 символов'
 })`}
         >
-          <FormField control={form.maxLengthField} form={form} />
+          <FormField control={form.maxLengthField} />
         </ExampleCard>
 
         <ExampleCard
@@ -246,7 +246,7 @@ email(path.emailField, {
   message: 'Минимум 10'
 })`}
         >
-          <FormField control={form.minField} form={form} />
+          <FormField control={form.minField} />
         </ExampleCard>
 
         <ExampleCard
@@ -257,7 +257,7 @@ email(path.emailField, {
   message: 'Максимум 100'
 })`}
         >
-          <FormField control={form.maxField} form={form} />
+          <FormField control={form.maxField} />
         </ExampleCard>
 
         <ExampleCard
@@ -268,7 +268,7 @@ email(path.emailField, {
   message: 'Только буквы'
 })`}
         >
-          <FormField control={form.patternField} form={form} />
+          <FormField control={form.patternField} />
         </ExampleCard>
 
         <ExampleCard
@@ -279,7 +279,7 @@ email(path.emailField, {
   message: 'Введите корректный URL'
 })`}
         >
-          <FormField control={form.urlField} form={form} />
+          <FormField control={form.urlField} />
         </ExampleCard>
 
         <ExampleCard
@@ -291,7 +291,7 @@ email(path.emailField, {
   message: 'Введите российский номер'
 })`}
         >
-          <FormField control={form.phoneField} form={form} />
+          <FormField control={form.phoneField} />
         </ExampleCard>
 
         <ExampleCard
@@ -304,7 +304,7 @@ email(path.emailField, {
   max: 100
 })`}
         >
-          <FormField control={form.numberField} form={form} />
+          <FormField control={form.numberField} />
         </ExampleCard>
 
         <ExampleCard
@@ -316,7 +316,7 @@ email(path.emailField, {
   message: 'Дата не может быть в будущем'
 })`}
         >
-          <FormField control={form.dateField} form={form} />
+          <FormField control={form.dateField} />
         </ExampleCard>
 
         <ExampleCard
@@ -333,7 +333,7 @@ email(path.emailField, {
   return null;
 })`}
         >
-          <FormField control={form.customField} form={form} />
+          <FormField control={form.customField} />
         </ExampleCard>
       </div>
 

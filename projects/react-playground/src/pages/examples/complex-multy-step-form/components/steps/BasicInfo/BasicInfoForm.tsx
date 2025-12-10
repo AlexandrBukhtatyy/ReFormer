@@ -1,14 +1,14 @@
 import type { GroupNodeWithControls } from '@reformer/core';
-import { useFormControl } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
-import type { CreditApplicationForm } from '../../../types/credit-application';
+import type { CreditApplicationForm, LoanType } from '../../../types/credit-application';
 
 interface BasicInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
 }
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {
-  const { value: loanType } = useFormControl(control.loanType);
+  const loanType = useFormControlValue(control.loanType) as LoanType;
 
   return (
     <div className="space-y-6" data-testid="step-basic-info">

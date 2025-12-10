@@ -3,18 +3,9 @@ import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { FormField } from '@/components/ui/form-field';
+import type { Address } from './types';
 
-/**
- * Адрес (вложенная форма)
- */
-export interface Address {
-  region: string;
-  city: string;
-  street: string;
-  house: string;
-  apartment?: string;
-  postalCode: string;
-}
+export type { Address } from './types';
 
 /**
  * Переиспользуемая схема формы

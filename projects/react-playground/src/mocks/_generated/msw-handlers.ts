@@ -3,6 +3,8 @@
  * Generated from OpenAPI spec via scripts/generate-mocks.ts
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { http, HttpResponse } from 'msw';
 import * as resolvers from '../resolvers';
 
@@ -97,5 +99,5 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 });
     }
     return HttpResponse.json(result.body, { status: result.status });
-  })
+  }),
 ];

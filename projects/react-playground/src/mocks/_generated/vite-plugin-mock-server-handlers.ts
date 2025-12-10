@@ -3,6 +3,8 @@
  * Generated from OpenAPI spec via scripts/generate-mocks.ts
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import type { IncomingMessage } from 'http';
 import * as resolvers from '../resolvers';
 
@@ -103,5 +105,5 @@ export const routes = [
       const body = await readBody(req);
       return resolvers.registerUser(body);
     },
-  }
+  },
 ];

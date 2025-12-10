@@ -4,18 +4,9 @@ import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { FormField } from '@/components/ui/form-field';
+import type { PersonalData } from './types';
 
-/**
- * Личные данные
- */
-export interface PersonalData {
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  birthDate: string;
-  birthPlace: string;
-  gender: 'male' | 'female';
-}
+export type { PersonalData } from './types';
 
 /**
  * Схема формы с личными данными
