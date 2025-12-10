@@ -1,6 +1,6 @@
 # @reformer/mcp
 
-MCP (Model Context Protocol) server for the ReFormer form library. Provides AI assistants like Claude with comprehensive context about ReFormer to help with form development.
+MCP (Model Context Protocol) server for the ReFormer form library. Provides AI assistants like Claude with comprehensive documentation and tools for ReFormer form development.
 
 ## Features
 
