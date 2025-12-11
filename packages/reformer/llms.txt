@@ -1,6 +1,6 @@
 # ReFormer - LLM Integration Guide
 
-## 1. QUICK REFERENCE
+## 1. API Reference
 
 ### Imports (CRITICALLY IMPORTANT)
 
@@ -30,16 +30,16 @@
 | `useFormControl(field)` | `{ value, errors, disabled, touched, ... }` | All signals | Full field state, form inputs |
 | `useFormControlValue(field)` | `T` (value directly) | Only value signal | Conditional rendering |
 
-⚠️ **CRITICAL**: Do NOT destructure `useFormControlValue`! It returns `T` directly, NOT `{ value: T }`.
+**CRITICAL**: Do NOT destructure `useFormControlValue`! It returns `T` directly, NOT `{ value: T }`.
 
 ```typescript
-// ❌ WRONG - will always be undefined!
+// WRONG - will always be undefined!
 const { value: loanType } = useFormControlValue(control.loanType);
 
-// ✅ CORRECT
+// CORRECT
 const loanType = useFormControlValue(control.loanType);
 
-// ✅ CORRECT - useFormControl returns object, destructuring OK
+// CORRECT - useFormControl returns object, destructuring OK
 const { value, errors, disabled } = useFormControl(control.loanType);
 ```
 
@@ -143,7 +143,7 @@ validateTree(validator: (ctx) => ValidationError | null, options?: { targetField
 // Conditional validation (3 arguments!)
 applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
 
-// ⚠️ applyWhen Examples - CRITICALLY IMPORTANT
+// applyWhen Examples - CRITICALLY IMPORTANT
 // applyWhen takes 3 arguments: triggerField, condition, validators
 
 // Example 1: Simple condition
@@ -176,7 +176,7 @@ applyWhen(
   }
 );
 
-// ❌ WRONG - only 2 arguments (React Hook Form pattern)
+// WRONG - only 2 arguments (React Hook Form pattern)
 applyWhen(
   (form) => form.loanType === 'mortgage',  // WRONG!
   () => { required(path.propertyValue); }
@@ -220,7 +220,7 @@ transformers.trim, transformers.toUpperCase, transformers.toLowerCase, transform
 interface BehaviorContext<TForm> {
   form: GroupNodeWithControls<TForm>;            // Form proxy with typed field access
   setFieldValue: (path: string, value: any) => void;
-  // ⚠️ To READ field values, use: ctx.form.fieldName.value.value
+  // To READ field values, use: ctx.form.fieldName.value.value
 }
 ```
 
@@ -250,31 +250,31 @@ watchField(path.nested.field, (value, ctx) => {
 const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 ```
 
-## 4. ⚠️ COMMON MISTAKES
+## 4. COMMON MISTAKES
 
 ### useFormControlValue (CRITICAL)
 
 ```typescript
-// ❌ WRONG - useFormControlValue returns T directly, NOT { value: T }
+// WRONG - useFormControlValue returns T directly, NOT { value: T }
 const { value: loanType } = useFormControlValue(control.loanType);
 // Result: loanType is ALWAYS undefined! Conditional rendering will fail.
 
-// ✅ CORRECT
+// CORRECT
 const loanType = useFormControlValue(control.loanType);
 
-// ✅ ALSO CORRECT - useFormControl returns object
+// ALSO CORRECT - useFormControl returns object
 const { value, errors } = useFormControl(control.loanType);
 ```
 
 ### Reading Field Values in BehaviorContext (CRITICAL)
 
 ```typescript
-// ❌ WRONG - getFieldValue does NOT exist!
+// WRONG - getFieldValue does NOT exist!
 watchField(path.amount, (amount, ctx) => {
   const rate = ctx.getFieldValue('rate'); // ERROR: Property 'getFieldValue' does not exist
 });
 
-// ✅ CORRECT - use ctx.form.fieldName.value.value
+// CORRECT - use ctx.form.fieldName.value.value
 watchField(path.amount, (amount, ctx) => {
   const rate = ctx.form.rate.value.value;  // Read via signal
   ctx.setFieldValue('total', amount * rate);
@@ -284,21 +284,21 @@ watchField(path.amount, (amount, ctx) => {
 ### Validators
 
 ```typescript
-// ❌ WRONG
+// WRONG
 required(path.email, 'Email is required');
 
-// ✅ CORRECT
+// CORRECT
 required(path.email, { message: 'Email is required' });
 ```
 
 ### Types
 
 ```typescript
-// ❌ WRONG
+// WRONG
 amount: number | null;
 [key: string]: unknown;
 
-// ✅ CORRECT
+// CORRECT
 amount: number | undefined;
 // No index signature
 ```
@@ -306,10 +306,10 @@ amount: number | undefined;
 ### computeFrom
 
 ```typescript
-// ❌ WRONG - different nesting levels
+// WRONG - different nesting levels
 computeFrom([path.nested.a, path.nested.b], path.root, ...)
 
-// ✅ CORRECT - use watchField
+// CORRECT - use watchField
 watchField(path.nested.a, (_, ctx) => {
   ctx.setFieldValue('root', computed);
 });
@@ -318,10 +318,10 @@ watchField(path.nested.a, (_, ctx) => {
 ### Imports
 
 ```typescript
-// ❌ WRONG - types are not in submodules
+// WRONG - types are not in submodules
 import { ValidationSchemaFn } from '@reformer/core/validators';
 
-// ✅ CORRECT - types from main module
+// CORRECT - types from main module
 import type { ValidationSchemaFn } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
 ```
@@ -361,7 +361,7 @@ import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/be
 ## 7. FORM TYPE DEFINITION
 
 ```typescript
-// ✅ CORRECT form type definition
+// CORRECT form type definition
 interface MyForm {
   // Required fields
   name: string;
@@ -390,7 +390,7 @@ interface MyForm {
 
 ## 8. FORMSCHEMA FORMAT (CRITICALLY IMPORTANT)
 
-⚠️ **Every field MUST have `value` and `component` properties!**
+**Every field MUST have `value` and `component` properties!**
 
 ### FieldConfig Interface
 
@@ -477,13 +477,13 @@ const schema: FormSchema<MyForm> = {
 };
 ```
 
-### ❌ WRONG - This will NOT compile
+### WRONG - This will NOT compile
 
 ```typescript
 // Missing value and component - TypeScript will error!
 const schema = {
-  name: '',           // ❌ Wrong
-  email: '',          // ❌ Wrong
+  name: '',           // Wrong
+  email: '',          // Wrong
 };
 ```
 
@@ -503,7 +503,7 @@ form.address.city.value.value; // Get current value
 form.items.push({ id: '1', name: 'Item' }); // Array operations
 ```
 
-### ⚠️ createForm Returns a Proxy
+### createForm Returns a Proxy
 
 ```typescript
 // createForm() returns GroupNodeWithControls<T> (a Proxy wrapper around GroupNode)
@@ -514,12 +514,12 @@ form.email           // FieldNode<string> - TypeScript knows the type!
 form.address.city    // FieldNode<string> - nested access works
 form.items.at(0)     // GroupNodeWithControls<ItemType> - array items
 
-// ⚠️ IMPORTANT: Proxy doesn't pass instanceof checks!
+// IMPORTANT: Proxy doesn't pass instanceof checks!
 // Use type guards instead:
 import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
 
-if (isFieldNode(node)) { /* ... */ }   // ✅ Works with Proxy
-if (node instanceof FieldNode) { /* ... */ } // ❌ Fails with Proxy!
+if (isFieldNode(node)) { /* ... */ }   // Works with Proxy
+if (node instanceof FieldNode) { /* ... */ } // Fails with Proxy!
 ```
 
 ## 9. ARRAY SCHEMA FORMAT
@@ -527,7 +527,7 @@ if (node instanceof FieldNode) { /* ... */ } // ❌ Fails with Proxy!
 **Array items are sub-forms!** Each array element is a complete sub-form with its own fields, validation, and behavior.
 
 ```typescript
-// ✅ CORRECT - use tuple format for arrays
+// CORRECT - use tuple format for arrays
 // The template item defines the sub-form schema for each array element
 const itemSchema = {
   id: { value: '', component: Input },
@@ -548,7 +548,7 @@ form.items.map((item) => {
 ```
 
 ```typescript
-// ❌ WRONG - object format is NOT supported
+// WRONG - object format is NOT supported
 const schema = {
   items: { schema: itemSchema, initialItems: [] }, // This will NOT work
 };
@@ -578,7 +578,7 @@ validateItems(path.items, (itemPath) => {
 ## 10. ASYNC WATCHFIELD (CRITICALLY IMPORTANT)
 
 ```typescript
-// ✅ CORRECT - async watchField with ALL safeguards
+// CORRECT - async watchField with ALL safeguards
 watchField(
   path.parentField,
   async (value, ctx) => {
@@ -595,7 +595,7 @@ watchField(
   { immediate: false, debounce: 300 }  // REQUIRED options
 );
 
-// ❌ WRONG - missing safeguards
+// WRONG - missing safeguards
 watchField(path.field, async (value, ctx) => {
   const { data } = await fetchData(value);  // Will fail silently!
 });
@@ -610,7 +610,7 @@ watchField(path.field, async (value, ctx) => {
 ## 11. ARRAY CLEANUP PATTERN
 
 ```typescript
-// ✅ CORRECT - cleanup array when checkbox unchecked
+// CORRECT - cleanup array when checkbox unchecked
 watchField(
   path.hasItems,
   (hasItems, ctx) => {
@@ -621,7 +621,7 @@ watchField(
   { immediate: false }
 );
 
-// ❌ WRONG - no immediate: false, no null check
+// WRONG - no immediate: false, no null check
 watchField(path.hasItems, (hasItems, ctx) => {
   if (!hasItems) ctx.form.items.clear();  // May crash on init!
 });
@@ -709,17 +709,17 @@ function MultiStepForm() {
 }
 ```
 
-## 13. ⚠️ EXTENDED COMMON MISTAKES
+## 13. EXTENDED COMMON MISTAKES
 
 ### Behavior Composition (Cycle Error)
 
 ```typescript
-// ❌ WRONG - apply() in behavior causes "Cycle detected"
+// WRONG - apply() in behavior causes "Cycle detected"
 const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
   apply(addressBehavior, path.address);  // WILL FAIL!
 };
 
-// ✅ CORRECT - inline or use setup function
+// CORRECT - inline or use setup function
 const setupAddressBehavior = (path: FieldPath<Address>) => {
   watchField(path.region, async (region, ctx) => {
     // ...
@@ -734,12 +734,12 @@ const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
 ### Infinite Loop in watchField
 
 ```typescript
-// ❌ WRONG - causes infinite loop
+// WRONG - causes infinite loop
 watchField(path.field, (value, ctx) => {
   ctx.form.field.setValue(value.toUpperCase());  // Loop!
 });
 
-// ✅ CORRECT - write to different field OR add guard
+// CORRECT - write to different field OR add guard
 watchField(path.input, (value, ctx) => {
   const upper = value?.toUpperCase() || '';
   if (ctx.form.display.value.value !== upper) {
@@ -751,10 +751,10 @@ watchField(path.input, (value, ctx) => {
 ### validateTree Typing
 
 ```typescript
-// ❌ WRONG - implicit any
+// WRONG - implicit any
 validateTree((ctx) => { ... });
 
-// ✅ CORRECT - explicit typing
+// CORRECT - explicit typing
 validateTree((ctx: { form: MyForm }) => {
   if (ctx.form.field1 > ctx.form.field2) {
     return { code: 'error', message: 'Invalid' };
@@ -946,9 +946,9 @@ function ShadcnFormField({ control, label }: FormFieldProps<string>) {
 
 ## 15. NON-EXISTENT API (DO NOT USE)
 
-⚠️ **The following APIs do NOT exist in @reformer/core:**
+**The following APIs do NOT exist in @reformer/core:**
 
-| ❌ Wrong | ✅ Correct | Notes |
+| Wrong | Correct | Notes |
 |----------|-----------|-------|
 | `useForm` | `createForm` | There is no useForm hook |
 | `FieldSchema` | `FieldConfig<T>` | Type for individual field config |
@@ -965,13 +965,13 @@ function ShadcnFormField({ control, label }: FormFieldProps<string>) {
 ### Common Import Errors
 
 ```typescript
-// ❌ WRONG - These do NOT exist
+// WRONG - These do NOT exist
 import { useForm } from '@reformer/core';           // NO!
 import { when } from '@reformer/core/validators';   // NO!
 import type { FieldSchema } from '@reformer/core';  // NO!
 import type { FormFields } from '@reformer/core';   // NO!
 
-// ✅ CORRECT
+// CORRECT
 import { createForm, useFormControl } from '@reformer/core';
 import { applyWhen } from '@reformer/core/validators';
 import type { FieldConfig, FieldNode } from '@reformer/core';
@@ -980,13 +980,13 @@ import type { FieldConfig, FieldNode } from '@reformer/core';
 ### FormSchema Common Mistakes
 
 ```typescript
-// ❌ WRONG - Simple values don't work
+// WRONG - Simple values don't work
 const schema = {
   name: '',           // Missing { value, component }
   email: '',          // Missing { value, component }
 };
 
-// ✅ CORRECT - Every field needs value and component
+// CORRECT - Every field needs value and component
 const schema: FormSchema<MyForm> = {
   name: {
     value: '',
@@ -1028,23 +1028,23 @@ If you're familiar with React Hook Form, here's how to translate patterns to ReF
 
 1. **No Provider/Context** - Pass form directly via props
    ```typescript
-   // ❌ React Hook Form pattern - doesn't exist in ReFormer
+   // React Hook Form pattern - doesn't exist in ReFormer
    <FormProvider form={form}>
      <NestedComponent />
    </FormProvider>
 
-   // ✅ ReFormer pattern - pass via props
+   // ReFormer pattern - pass via props
    <NestedComponent form={form} />
    ```
 
 2. **Form Creation Location** - Create outside component
    ```typescript
-   // ❌ WRONG - creates new form on every render
+   // WRONG - creates new form on every render
    function MyComponent() {
      const form = createForm({...});
    }
 
-   // ✅ CORRECT - create once, outside component
+   // CORRECT - create once, outside component
    const form = createForm({...});
    function MyComponent() {
      const ctrl = useFormControl(form.name);
@@ -1089,9 +1089,9 @@ If you're familiar with React Hook Form, here's how to translate patterns to ReF
 ### Why .value.value?
 
 ReFormer uses `@preact/signals-core` for reactivity:
-- `field.value` → `Signal<T>` (reactive container)
-- `field.value.value` → `T` (actual value)
-- `field.getValue()` → `T` (shorthand method, non-reactive)
+- `field.value` -> `Signal<T>` (reactive container)
+- `field.value.value` -> `T` (actual value)
+- `field.getValue()` -> `T` (shorthand method, non-reactive)
 
 ```typescript
 // Reading values in different contexts:
@@ -1102,7 +1102,7 @@ const email = useFormControlValue(control.email);    // Value directly
 
 // In BehaviorContext (watchField, etc.)
 watchField(path.firstName, (firstName, ctx) => {
-  // ⚠️ ctx.form is typed as the PARENT GROUP of the watched field!
+  // ctx.form is typed as the PARENT GROUP of the watched field!
   // For path.nested.field: ctx.form = NestedType, NOT RootForm!
 
   const lastName = ctx.form.lastName.value.value;  // Read sibling field
@@ -1119,7 +1119,7 @@ form.address.city.value.value;    // Read nested value
 ### Reading Nested Values in watchField
 
 ```typescript
-// ⚠️ IMPORTANT: ctx.form type depends on the watched path!
+// IMPORTANT: ctx.form type depends on the watched path!
 
 // Watching root-level field
 watchField(path.loanAmount, (amount, ctx) => {
@@ -1131,8 +1131,8 @@ watchField(path.loanAmount, (amount, ctx) => {
 // Watching nested field
 watchField(path.personalData.lastName, (lastName, ctx) => {
   // ctx.form is PersonalData, NOT MyForm!
-  const firstName = ctx.form.firstName.value.value;   // ✅ Works
-  const middleName = ctx.form.middleName.value.value; // ✅ Works
+  const firstName = ctx.form.firstName.value.value;   // Works
+  const middleName = ctx.form.middleName.value.value; // Works
 
   // For root-level field, use setFieldValue with full path
   ctx.setFieldValue('fullName', `${lastName} ${firstName}`);
@@ -1144,21 +1144,21 @@ watchField(path.personalData.lastName, (lastName, ctx) => {
 ### computeFrom - Same Nesting Level Only
 
 ```typescript
-// ✅ Works: all source fields and target at same level
+// Works: all source fields and target at same level
 computeFrom(
   [path.price, path.quantity],
   path.total,
   ({ price, quantity }) => (price || 0) * (quantity || 0)
 );
 
-// ✅ Works: all nested at same level
+// Works: all nested at same level
 computeFrom(
   [path.address.houseNumber, path.address.streetName],
   path.address.fullAddress,
   ({ houseNumber, streetName }) => `${houseNumber} ${streetName}`
 );
 
-// ❌ FAILS: different nesting levels
+// FAILS: different nesting levels
 computeFrom(
   [path.nested.price, path.nested.quantity],
   path.rootTotal,  // Different level - won't work!
@@ -1169,13 +1169,13 @@ computeFrom(
 ### watchField - Any Level
 
 ```typescript
-// ✅ Works for cross-level computation
+// Works for cross-level computation
 watchField(path.nested.price, (price, ctx) => {
   const quantity = ctx.form.quantity.value.value;  // Sibling in nested
   ctx.setFieldValue('rootTotal', price * quantity); // Full path to root
 });
 
-// ✅ Works for multiple dependencies
+// Works for multiple dependencies
 watchField(path.loanAmount, (amount, ctx) => {
   const term = ctx.form.loanTerm.value.value;
   const rate = ctx.form.interestRate.value.value;
@@ -1198,18 +1198,18 @@ watchField(path.loanAmount, (amount, ctx) => {
 
 ## 18. ARRAY OPERATIONS
 
-### ⚠️ Array Access - CRITICAL
+### Array Access - CRITICAL
 
 ```typescript
-// ❌ WRONG - bracket notation does NOT work!
+// WRONG - bracket notation does NOT work!
 const first = form.items[0];        // undefined or error
 const second = form.items[1];       // undefined or error
 
-// ✅ CORRECT - use .at() method
+// CORRECT - use .at() method
 const first = form.items.at(0);     // GroupNodeWithControls<ItemType> | undefined
 const second = form.items.at(1);    // GroupNodeWithControls<ItemType> | undefined
 
-// ✅ CORRECT - iterate with map (most common pattern)
+// CORRECT - iterate with map (most common pattern)
 form.items.map((item, index) => {
   // item is fully typed GroupNode
   item.name.setValue('New Name');
@@ -1292,3 +1292,4 @@ validateTree((ctx: { form: MyForm }) => {
   }
   return null;
 }, { targetField: 'items' });
+```
