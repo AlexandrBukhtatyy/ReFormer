@@ -20,8 +20,12 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import type { ValidatorRegistration, ValidationError } from '../types';
-import { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';
-import { isFieldNode } from '../utils/type-guards';
+import {
+  ValidationContextImpl,
+  TreeValidationContextImpl,
+  ArrayValidationContextImpl,
+} from './validation-context';
+import { isFieldNode, isArrayNode } from '../utils/type-guards';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
@@ -119,17 +123,26 @@ export class ValidationApplicator<T> {
         continue;
       }
 
-      // Валидация работает только с FieldNode
-      if (!isFieldNode(control)) {
+      // Валидация работает с FieldNode и ArrayNode
+      if (!isFieldNode(control) && !isArrayNode(control)) {
         if (process.env.NODE_ENV !== 'production') {
-          console.warn(`Validation can only run on FieldNode, skipping ${fieldPath}`);
+          console.warn(`Validation can only run on FieldNode or ArrayNode, skipping ${fieldPath}`);
         }
         continue;
       }
 
       const errors: ValidationError[] = [];
+
+      // Создаем контекст в зависимости от типа ноды
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const context = new ValidationContextImpl(this.form, fieldPath as any, control);
+      let context: any;
+      if (isArrayNode(control)) {
+        // Для ArrayNode получаем значение через getValue()
+        const arrayValue = control.getValue();
+        context = new ArrayValidationContextImpl(this.form, fieldPath as keyof T, arrayValue);
+      } else {
+        context = new ValidationContextImpl(this.form, fieldPath as keyof T, control);
+      }
 
       // Выполнение валидаторов с учетом условий
       for (const registration of fieldValidators) {
@@ -167,7 +180,7 @@ export class ValidationApplicator<T> {
         }
       }
 
-      // Установка ошибок на поле
+      // Установка ошибок на ноду
       if (errors.length > 0) {
         control.setErrors(errors);
       } else {

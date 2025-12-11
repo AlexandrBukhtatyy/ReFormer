@@ -20,7 +20,7 @@
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
-      "eslint --fix",
+      "eslint --fix --ignore-pattern '**/src/mocks/_generated/**'",
       "prettier --write"
     ]
   },

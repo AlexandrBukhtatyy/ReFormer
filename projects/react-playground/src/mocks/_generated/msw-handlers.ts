@@ -2,7 +2,8 @@
  * AUTO-GENERATED FILE - DO NOT EDIT
  * Generated from OpenAPI spec via scripts/generate-mocks.ts
  */
-
+// @ts-nocheck
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { http, HttpResponse } from 'msw';

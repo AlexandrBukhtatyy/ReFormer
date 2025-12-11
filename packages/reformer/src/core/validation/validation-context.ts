@@ -91,3 +91,50 @@ export class TreeValidationContextImpl<TForm> implements FormContext<TForm> {
     }
   }
 }
+
+// ============================================================================
+// Array Validation Context (для валидации ArrayNode)
+// ============================================================================
+
+/**
+ * Реализация контекста валидации для ArrayNode
+ * Позволяет валидаторам типа notEmpty работать с массивами
+ */
+export class ArrayValidationContextImpl<TForm, TItem> implements FormContext<TForm> {
+  private _form: GroupNode<TForm>;
+  private arrayValue: TItem[];
+
+  /**
+   * Форма с типизированным Proxy-доступом к полям
+   */
+  public readonly form: GroupNodeWithControls<TForm>;
+
+  constructor(form: GroupNode<TForm>, _fieldKey: keyof TForm, arrayValue: TItem[]) {
+    this._form = form;
+    this.arrayValue = arrayValue;
+
+    // Получаем Proxy для типизированного доступа
+    this.form = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
+      ._proxyInstance || form.getProxy()) as GroupNodeWithControls<TForm>;
+  }
+
+  /**
+   * Получить текущее значение массива (для валидатора)
+   * @internal
+   */
+  value(): TItem[] {
+    return this.arrayValue;
+  }
+
+  /**
+   * Безопасно установить значение поля по строковому пути
+   * Автоматически использует emitEvent: false для предотвращения циклов
+   */
+  setFieldValue(path: string, value: unknown): void {
+    const node = this._form.getFieldByPath(path);
+    if (node && isFormNode(node)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      node.setValue(value as any, { emitEvent: false });
+    }
+  }
+}

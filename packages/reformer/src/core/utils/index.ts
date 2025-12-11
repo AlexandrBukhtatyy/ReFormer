@@ -5,6 +5,7 @@
  */
 
 export { FieldPathNavigator, type PathSegment } from './field-path-navigator';
+export { createFieldPath, extractPath, extractKey, toFieldPath } from './field-path';
 export { SubscriptionManager } from './subscription-manager';
 export { getCurrentValidationRegistry, getCurrentBehaviorRegistry } from './registry-helpers';
 export { RegistryStack } from './registry-stack';
