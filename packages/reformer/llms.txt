@@ -197,8 +197,8 @@ disableWhen(path, condition: (form) => boolean)
 // Computed fields (same nesting level)
 computeFrom(sourcePaths[], targetPath, compute: (values) => result, options?: { debounce?: number; condition?: (form) => boolean })
 
-// Watch field changes
-watchField(path, callback: (value, ctx: BehaviorContext) => void, options?: { immediate?: boolean; debounce?: number })
+// Watch field changes (ALWAYS use { immediate: false } to prevent cycle detection!)
+watchField(path, callback: (value, ctx: BehaviorContext) => void, options: { immediate: false; debounce?: number })
 
 // Copy values between fields
 copyFrom(sourcePath, targetPath, options?: { when?: (form) => boolean; fields?: string[]; transform?: (value) => value })
@@ -206,8 +206,8 @@ copyFrom(sourcePath, targetPath, options?: { when?: (form) => boolean; fields?: 
 // Reset field when condition met
 resetWhen(path, condition: (form) => boolean, options?: { toValue?: any })
 
-// Re-validate when another field changes
-revalidateWhen(triggerPath, targetPath)
+// Re-validate target field when any trigger changes
+revalidateWhen(targetPath, triggerPaths[], options?: { debounce?: number })
 
 // Sync multiple fields
 syncFields(paths[], options?: { bidirectional?: boolean })
@@ -241,7 +241,7 @@ enableWhen(path.mortgageFields, (form) => form.loanType === 'mortgage', {
 // Use watchField instead:
 watchField(path.nested.field, (value, ctx) => {
   ctx.setFieldValue('rootField', computedValue);
-});
+}, { immediate: false });
 ```
 
 ### Type-Safe useFormControl
@@ -891,11 +891,7 @@ interface SelectFieldProps<T extends string> {
   options: Array<{ value: T; label: string }>;
 }
 
-function SelectField<T extends string>({
-  control,
-  label,
-  options
-}: SelectFieldProps<T>) {
+function SelectField<T extends string>({ control, label, options }: SelectFieldProps<T>) {
   const { value, errors, disabled, touched } = useFormControl(control);
 
   return (
@@ -912,9 +908,7 @@ function SelectField<T extends string>({
           </option>
         ))}
       </select>
-      {touched && errors[0] && (
-        <span className="error-message">{errors[0].message}</span>
-      )}
+      {touched && errors[0] && <span className="error-message">{errors[0].message}</span>}
     </div>
   );
 }
@@ -933,11 +927,7 @@ function ShadcnFormField({ control, label }: FormFieldProps<string>) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Input
-        value={value}
-        onChange={(e) => control.setValue(e.target.value)}
-        disabled={disabled}
-      />
+      <Input value={value} onChange={(e) => control.setValue(e.target.value)} disabled={disabled} />
       {errors[0] && <p className="text-red-500">{errors[0].message}</p>}
     </div>
   );
@@ -1001,89 +991,6 @@ const schema: FormSchema<MyForm> = {
 };
 ```
 
-## 15.5 REACT HOOK FORM MIGRATION
-
-If you're familiar with React Hook Form, here's how to translate patterns to ReFormer:
-
-| React Hook Form | ReFormer | Notes |
-|-----------------|----------|-------|
-| `const { register, handleSubmit } = useForm()` | `const form = createForm({...})` | Call OUTSIDE component |
-| `register('fieldName')` | `useFormControl(form.fieldName)` | Returns control object |
-| `watch('fieldName')` | `useFormControlValue(form.fieldName)` | Returns value directly (NOT `{ value }`) |
-| `setValue('field', value)` | `form.field.setValue(value)` | Direct method call |
-| `getValues('field')` | `form.field.value.value` | Signal-based |
-| `formState.errors` | `useFormControl(form.field).errors` | Per-field errors array |
-| `formState.isValid` | `form.valid.value` | Signal |
-| `formState.isDirty` | `form.dirty.value` | Signal |
-| `handleSubmit(onSubmit)` | `form.submit(onSubmit)` | Built-in validation |
-| `<FormProvider form={...}>` | `<Component form={form} />` | Props, NOT context |
-| `useFormContext()` | Not needed | Pass form via props |
-| `useFieldArray({ name: 'items' })` | `form.items` (ArrayNode) | Direct array access |
-| `fields.map((field, index) => ...)` | `form.items.map((item, index) => ...)` | item is sub-form |
-| `append(data)` | `form.items.push(data)` | Add item |
-| `remove(index)` | `form.items.removeAt(index)` | Remove item |
-| `control` prop | Not needed | Form IS the control |
-
-### Key Differences
-
-1. **No Provider/Context** - Pass form directly via props
-   ```typescript
-   // React Hook Form pattern - doesn't exist in ReFormer
-   <FormProvider form={form}>
-     <NestedComponent />
-   </FormProvider>
-
-   // ReFormer pattern - pass via props
-   <NestedComponent form={form} />
-   ```
-
-2. **Form Creation Location** - Create outside component
-   ```typescript
-   // WRONG - creates new form on every render
-   function MyComponent() {
-     const form = createForm({...});
-   }
-
-   // CORRECT - create once, outside component
-   const form = createForm({...});
-   function MyComponent() {
-     const ctrl = useFormControl(form.name);
-   }
-   ```
-
-3. **Type-Safe Field Access** - No string paths
-   ```typescript
-   // React Hook Form
-   register('user.address.city')
-
-   // ReFormer - fully typed
-   form.user.address.city.setValue('New York')
-   ```
-
-4. **Array Items are Sub-Forms**
-   ```typescript
-   // React Hook Form
-   fields.map((field, index) => (
-     <input {...register(`items.${index}.name`)} />
-   ))
-
-   // ReFormer - each item is a typed GroupNode
-   form.items.map((item, index) => (
-     <FormField control={item.name} />  // item.name is FieldNode
-   ))
-   ```
-
-5. **Reading Values in Behaviors**
-   ```typescript
-   // React Hook Form
-   watch('fieldName')
-
-   // ReFormer in watchField callback
-   watchField(path.trigger, (value, ctx) => {
-     const other = ctx.form.otherField.value.value;  // Signal access
-   });
-   ```
-
 ## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
 ### Why .value.value?
@@ -1109,7 +1016,7 @@ watchField(path.firstName, (firstName, ctx) => {
 
   // Use setFieldValue with full path for root-level fields
   ctx.setFieldValue('fullName', `${firstName} ${lastName}`);
-});
+}, { immediate: false });  // REQUIRED to prevent cycle detection!
 
 // Direct access on form controls
 form.email.value.value;           // Read current value
@@ -1126,7 +1033,7 @@ watchField(path.loanAmount, (amount, ctx) => {
   // ctx.form is MyForm - can access all fields
   const rate = ctx.form.interestRate.value.value;
   ctx.setFieldValue('monthlyPayment', amount * rate / 12);
-});
+}, { immediate: false });
 
 // Watching nested field
 watchField(path.personalData.lastName, (lastName, ctx) => {
@@ -1136,7 +1043,7 @@ watchField(path.personalData.lastName, (lastName, ctx) => {
 
   // For root-level field, use setFieldValue with full path
   ctx.setFieldValue('fullName', `${lastName} ${firstName}`);
-});
+}, { immediate: false });
 ```
 
 ## 17. COMPUTE FROM vs WATCH FIELD
@@ -1173,7 +1080,7 @@ computeFrom(
 watchField(path.nested.price, (price, ctx) => {
   const quantity = ctx.form.quantity.value.value;  // Sibling in nested
   ctx.setFieldValue('rootTotal', price * quantity); // Full path to root
-});
+}, { immediate: false });  // REQUIRED!
 
 // Works for multiple dependencies
 watchField(path.loanAmount, (amount, ctx) => {
@@ -1184,7 +1091,7 @@ watchField(path.loanAmount, (amount, ctx) => {
     const monthly = calculateMonthlyPayment(amount, term, rate);
     ctx.setFieldValue('monthlyPayment', monthly);
   }
-});
+}, { immediate: false });  // REQUIRED!
 ```
 
 ### Rule of Thumb

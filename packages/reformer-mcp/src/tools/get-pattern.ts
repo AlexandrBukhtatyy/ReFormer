@@ -38,17 +38,17 @@ computeFrom(
   ({ lastName, firstName }) => \`\${lastName} \${firstName}\`
 );
 
-// ✅ Solution: Use watchField
+// ✅ Solution: Use watchField with { immediate: false }
 import { watchField } from '@reformer/core/behaviors';
 
 // Watch each source field
 watchField(path.personalData.lastName, (_value, ctx) => {
   updateFullName(ctx);
-});
+}, { immediate: false });  // REQUIRED to prevent cycle detection!
 
 watchField(path.personalData.firstName, (_value, ctx) => {
   updateFullName(ctx);
-});
+}, { immediate: false });
 
 function updateFullName(ctx: WatchContext<MyForm>) {
   const lastName = ctx.form.personalData.lastName.value.value || '';
@@ -116,7 +116,8 @@ validation: (path) => {
   'conditional-validation': {
     name: 'Conditional Validation',
     description: 'Apply validation rules only when conditions are met',
-    solution: 'Use applyWhen() for conditional validators',
+    solution:
+      'Use applyWhen() for conditional validators (3 arguments: triggerField, condition, validators)',
     code: `import { required, applyWhen, min } from '@reformer/core/validators';
 import type { ValidationSchemaFn } from '@reformer/core';
 
@@ -125,10 +126,11 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
   required(path.email);
 
   // Required only when hasPhone is true
+  // applyWhen takes 3 args: triggerField, condition on field value, validators
   applyWhen(
-    path.hasPhone,
-    (hasPhone) => hasPhone === true,
-    (p) => {
+    path.hasPhone,                     // 1st: field to watch
+    (hasPhone) => hasPhone === true,   // 2nd: condition on field value
+    (p) => {                           // 3rd: validators to apply (p is path!)
       required(p.phone);
     }
   );
@@ -149,41 +151,36 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
   'cross-validation': {
     name: 'Cross-Field Validation',
     description: 'Validate one field based on another field value',
-    solution: 'Use validateTree for cross-field validation',
-    code: `import { validateTree, required } from '@reformer/core/validators';
+    solution: 'Use validateTree for cross-field validation - returns error or null',
+    code: `import { validateTree, required, validate } from '@reformer/core/validators';
 import type { ValidationSchemaFn } from '@reformer/core';
 
 const validation: ValidationSchemaFn<MyForm> = (path) => {
   required(path.password);
   required(path.confirmPassword);
 
-  // Cross-field validation
-  validateTree((ctx) => {
-    const password = ctx.form.password.value.value;
-    const confirm = ctx.form.confirmPassword.value.value;
+  // Cross-field validation using validate() with ctx
+  // (preferred for single field validation)
+  validate(path.confirmPassword, (value, ctx) => {
+    const password = ctx.form.password.value;  // single .value in validation!
 
-    if (password && confirm && password !== confirm) {
-      ctx.setError('confirmPassword', {
-        key: 'passwordMismatch',
-        message: 'Passwords do not match',
-      });
+    if (password && value && password !== value) {
+      return { code: 'passwordMismatch', message: 'Passwords do not match' };
     }
     return null;
   });
 
-  // Date range validation
-  validateTree((ctx) => {
-    const start = ctx.form.startDate.value.value;
-    const end = ctx.form.endDate.value.value;
+  // Cross-field validation using validateTree()
+  // (returns error directly, use targetField option to specify where error appears)
+  validateTree((ctx: { form: MyForm }) => {
+    const start = ctx.form.startDate.value;
+    const end = ctx.form.endDate.value;
 
     if (start && end && new Date(start) > new Date(end)) {
-      ctx.setError('endDate', {
-        key: 'dateRange',
-        message: 'End date must be after start date',
-      });
+      return { code: 'dateRange', message: 'End date must be after start date' };
     }
     return null;
-  });
+  }, { targetField: 'endDate' });  // Error appears on endDate field
 };`,
     relatedPatterns: ['conditional-validation'],
   },
@@ -276,9 +273,9 @@ const updateTotal = (ctx: WatchContext<MyForm>) => {
   ctx.setFieldValue('total', total);
 };
 
-watchField(path.price, (_, ctx) => updateTotal(ctx));
-watchField(path.quantity, (_, ctx) => updateTotal(ctx));
-watchField(path.discount, (_, ctx) => updateTotal(ctx));
+watchField(path.price, (_, ctx) => updateTotal(ctx), { immediate: false });
+watchField(path.quantity, (_, ctx) => updateTotal(ctx), { immediate: false });
+watchField(path.discount, (_, ctx) => updateTotal(ctx), { immediate: false });
 
 // Option 2: For same-level fields, use computeFrom
 computeFrom(
@@ -619,8 +616,7 @@ watchField(
   'multi-step-validation': {
     name: 'Multi-Step Form with Separate Validations',
     description: 'Create multi-step form with per-step validation schemas',
-    problem:
-      'Using single validation schema makes it hard to validate only current step fields',
+    problem: 'Using single validation schema makes it hard to validate only current step fields',
     solution: 'Create separate validation schemas per step and use STEP_VALIDATIONS map',
     code: `import type { ValidationSchemaFn } from '@reformer/core';
 import { required, email, min, pattern } from '@reformer/core/validators';
@@ -1128,8 +1124,8 @@ const patternAliases: Record<string, string> = {
   'value-component': 'form-schema',
   // Array validation aliases
   'validate-array': 'array-validation',
-  'notempty': 'array-validation',
-  'validateitems': 'array-validation',
+  notempty: 'array-validation',
+  validateitems: 'array-validation',
   'array-items': 'array-validation',
   // Project structure aliases
   structure: 'project-structure',

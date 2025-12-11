@@ -23,7 +23,7 @@ watchField(path.firstName, (firstName, ctx) => {
 
   // Use setFieldValue with full path for root-level fields
   ctx.setFieldValue('fullName', `${firstName} ${lastName}`);
-});
+}, { immediate: false });  // REQUIRED to prevent cycle detection!
 
 // Direct access on form controls
 form.email.value.value;           // Read current value
@@ -40,7 +40,7 @@ watchField(path.loanAmount, (amount, ctx) => {
   // ctx.form is MyForm - can access all fields
   const rate = ctx.form.interestRate.value.value;
   ctx.setFieldValue('monthlyPayment', amount * rate / 12);
-});
+}, { immediate: false });
 
 // Watching nested field
 watchField(path.personalData.lastName, (lastName, ctx) => {
@@ -50,5 +50,5 @@ watchField(path.personalData.lastName, (lastName, ctx) => {
 
   // For root-level field, use setFieldValue with full path
   ctx.setFieldValue('fullName', `${lastName} ${firstName}`);
-});
+}, { immediate: false });
 ```

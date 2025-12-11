@@ -82,10 +82,12 @@ const RULES = [
     reason: 'Access other fields via ctx.form.fieldName.value (single .value, not double!).',
   },
   {
-    rule: 'Use when() for conditional validation',
+    rule: 'Use applyWhen() for conditional validation (3 arguments!)',
     wrong: 'if (form.type === "business") required(path.companyName)',
-    correct: 'when((form) => form.type === "business", () => { required(path.companyName) })',
-    reason: 'when() ensures validators are applied reactively.',
+    correct:
+      'applyWhen(path.type, (type) => type === "business", (p) => { required(p.companyName) })',
+    reason:
+      'applyWhen() takes 3 args: triggerField, condition on field value, validators function.',
   },
   {
     rule: 'Use single .value to access field values (NOT double .value.value)',
@@ -218,7 +220,7 @@ export const registrationValidation: ValidationSchemaFn<RegistrationForm> = (pat
 };`,
 
   conditional: `import type { ValidationSchemaFn } from '@reformer/core';
-import { required, when, min, email } from '@reformer/core/validators';
+import { required, applyWhen, min, email } from '@reformer/core/validators';
 import type { ApplicationForm } from './type';
 
 export const applicationValidation: ValidationSchemaFn<ApplicationForm> = (path) => {
@@ -227,39 +229,44 @@ export const applicationValidation: ValidationSchemaFn<ApplicationForm> = (path)
   required(path.applicationType);
 
   // Conditional: only for business applications
-  when(
-    (form) => form.applicationType === 'business',
-    () => {
-      required(path.companyName, { message: 'Company name is required for business applications' });
-      required(path.taxId, { message: 'Tax ID is required for business applications' });
+  // applyWhen takes 3 args: triggerField, condition, validators
+  applyWhen(
+    path.applicationType,
+    (type) => type === 'business',
+    (p) => {
+      required(p.companyName, { message: 'Company name is required for business applications' });
+      required(p.taxId, { message: 'Tax ID is required for business applications' });
     }
   );
 
   // Conditional: only for individual applications
-  when(
-    (form) => form.applicationType === 'individual',
-    () => {
-      required(path.socialSecurityNumber);
-      required(path.birthDate);
+  applyWhen(
+    path.applicationType,
+    (type) => type === 'individual',
+    (p) => {
+      required(p.socialSecurityNumber);
+      required(p.birthDate);
     }
   );
 
   // Conditional: validate additionalIncome only if hasAdditionalIncome is true
-  when(
-    (form) => form.hasAdditionalIncome === true,
-    () => {
-      required(path.additionalIncomeSource, { message: 'Please specify income source' });
-      min(path.additionalIncomeAmount, 1, { message: 'Amount must be greater than 0' });
+  applyWhen(
+    path.hasAdditionalIncome,
+    (has) => has === true,
+    (p) => {
+      required(p.additionalIncomeSource, { message: 'Please specify income source' });
+      min(p.additionalIncomeAmount, 1, { message: 'Amount must be greater than 0' });
     }
   );
 
   // Conditional: mortgage-specific validation
-  when(
-    (form) => form.loanType === 'mortgage',
-    () => {
-      required(path.propertyAddress);
-      required(path.propertyValue);
-      required(path.downPayment);
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (p) => {
+      required(p.propertyAddress);
+      required(p.propertyValue);
+      required(p.downPayment);
     }
   );
 };`,
@@ -324,7 +331,7 @@ export const registrationValidation: ValidationSchemaFn<RegistrationForm> = (pat
 };`,
 
   stepByStep: `import type { ValidationSchemaFn } from '@reformer/core';
-import { required, when, email } from '@reformer/core/validators';
+import { required, applyWhen, email } from '@reformer/core/validators';
 import type { MultiStepForm } from './type';
 
 // Step 1 validation
@@ -354,11 +361,12 @@ export const multiStepValidation: ValidationSchemaFn<MultiStepForm> = (path) => 
   step3Validation(path);
 };
 
-// Alternative: validate based on current step
-export const currentStepValidation: ValidationSchemaFn<MultiStepForm> = (path) => {
-  when((form) => form.currentStep >= 1, () => step1Validation(path));
-  when((form) => form.currentStep >= 2, () => step2Validation(path));
-  when((form) => form.currentStep >= 3, () => step3Validation(path));
+// Step-specific validation using STEP_VALIDATIONS map
+// (recommended approach for multi-step forms)
+export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<MultiStepForm>> = {
+  1: step1Validation,
+  2: step2Validation,
+  3: step3Validation,
 };`,
 };
 
@@ -371,7 +379,7 @@ export async function generateValidationTool(args: {
   response += `## Template\n\n`;
   response += `\`\`\`typescript
 import type { ValidationSchemaFn } from '@reformer/core';
-import { required, email, min, max, minLength, maxLength, pattern, validate, when, validateAsync } from '@reformer/core/validators';
+import { required, email, min, max, minLength, maxLength, pattern, validate, applyWhen, validateAsync } from '@reformer/core/validators';
 import type { MyForm } from './type';
 
 export const myFormValidation: ValidationSchemaFn<MyForm> = (path) => {
@@ -395,11 +403,12 @@ export const myFormValidation: ValidationSchemaFn<MyForm> = (path) => {
     return null;
   });
 
-  // Conditional validation
-  when(
-    (form) => form.type === 'special',
-    () => {
-      required(path.specialField);
+  // Conditional validation (3 arguments!)
+  applyWhen(
+    path.type,                          // 1st: field to watch
+    (type) => type === 'special',       // 2nd: condition on field value
+    (p) => {                            // 3rd: validators to apply
+      required(p.specialField);
     }
   );
 
@@ -480,8 +489,8 @@ const val = ctx.form.field.value;
 
 // ❌ WRONG: Imperative condition
 if (form.type === 'x') required(path.y);
-// ✅ CORRECT: Use when()
-when((f) => f.type === 'x', () => required(path.y));
+// ✅ CORRECT: Use applyWhen() with 3 arguments
+applyWhen(path.type, (t) => t === 'x', (p) => required(p.y));
 
 // ❌ WRONG: Forgot null return
 validate(path.field, (v) => { if (bad) return error; });

@@ -41,23 +41,40 @@ ${validationExamples}
 
 ## Available Validators
 
-### Built-in Validators (from 'reformer/validators')
-- \`required(path)\` - Non-empty value
-- \`email(path)\` - Valid email format
-- \`minLength(path, n)\` - Minimum string length
-- \`maxLength(path, n)\` - Maximum string length
-- \`min(path, n)\` - Minimum number value
-- \`max(path, n)\` - Maximum number value
-- \`pattern(path, regex)\` - Match regex
-- \`url(path)\` - Valid URL
-- \`phone(path)\` - Valid phone number
-- \`number(path)\` - Must be a number
-- \`date(path)\` - Valid date
+### Built-in Validators (from '@reformer/core/validators')
+- \`required(path, options?)\` - Non-empty value
+- \`email(path, options?)\` - Valid email format
+- \`minLength(path, n, options?)\` - Minimum string length
+- \`maxLength(path, n, options?)\` - Maximum string length
+- \`min(path, n, options?)\` - Minimum number value
+- \`max(path, n, options?)\` - Maximum number value
+- \`pattern(path, regex, options?)\` - Match regex
+- \`url(path, options?)\` - Valid URL
+- \`phone(path, options?)\` - Valid phone number
+- \`number(path, options?)\` - Must be a number
+- \`date(path, options?)\` - Valid date
+
+### Array Validators
+- \`notEmpty(path, options?)\` - Array must have at least one item
+- \`validateItems(arrayPath, itemValidatorsFn)\` - Validate each array item
 
 ### Custom Validators
-- \`validate(path, fn)\` - Custom sync validator
+- \`validate(path, fn)\` - Custom sync validator (fn receives value and ctx)
 - \`validateAsync(path, fn, options?)\` - Custom async validator
-- \`validateTree(fn)\` - Cross-field validation
+- \`validateTree(fn, options?)\` - Cross-field validation (returns error or null)
+
+### Conditional Validators (IMPORTANT - 3 arguments!)
+- \`applyWhen(triggerPath, condition, validatorsFn)\` - Apply validators conditionally
+\`\`\`typescript
+// Example: require companyName only when type is 'business'
+applyWhen(
+  path.type,                      // 1st: field to watch
+  (type) => type === 'business',  // 2nd: condition on field value
+  (p) => {                        // 3rd: validators to apply
+    required(p.companyName);
+  }
+);
+\`\`\`
 
 ---
 

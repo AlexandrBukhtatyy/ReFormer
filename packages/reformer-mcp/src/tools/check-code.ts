@@ -35,7 +35,7 @@ const rules = [
   {
     pattern: /import\s+\{[^}]*\}\s+from\s+['"]@reformer\/core['"]/,
     antiPattern:
-      /import\s+\{[^}]*(required|email|min|max|minLength|maxLength|pattern|validate|when|validateAsync)[^}]*\}\s+from\s+['"]@reformer\/core['"]/,
+      /import\s+\{[^}]*(required|email|min|max|minLength|maxLength|pattern|validate|applyWhen|validateAsync)[^}]*\}\s+from\s+['"]@reformer\/core['"]/,
     check: (code: string) => {
       const match = code.match(/import\s+\{([^}]*)\}\s+from\s+['"]@reformer\/core['"]/g);
       if (!match) return null;
@@ -48,9 +48,11 @@ const rules = [
         'maxLength',
         'pattern',
         'validate',
-        'when',
+        'applyWhen',
         'validateAsync',
         'validateTree',
+        'notEmpty',
+        'validateItems',
       ];
       for (const m of match) {
         for (const v of validators) {

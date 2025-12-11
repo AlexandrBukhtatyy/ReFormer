@@ -32,7 +32,7 @@ computeFrom(
 watchField(path.nested.price, (price, ctx) => {
   const quantity = ctx.form.quantity.value.value;  // Sibling in nested
   ctx.setFieldValue('rootTotal', price * quantity); // Full path to root
-});
+}, { immediate: false });  // REQUIRED!
 
 // Works for multiple dependencies
 watchField(path.loanAmount, (amount, ctx) => {
@@ -43,7 +43,7 @@ watchField(path.loanAmount, (amount, ctx) => {
     const monthly = calculateMonthlyPayment(amount, term, rate);
     ctx.setFieldValue('monthlyPayment', monthly);
   }
-});
+}, { immediate: false });  // REQUIRED!
 ```
 
 ### Rule of Thumb

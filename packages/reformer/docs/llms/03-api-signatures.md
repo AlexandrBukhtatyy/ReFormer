@@ -83,8 +83,8 @@ disableWhen(path, condition: (form) => boolean)
 // Computed fields (same nesting level)
 computeFrom(sourcePaths[], targetPath, compute: (values) => result, options?: { debounce?: number; condition?: (form) => boolean })
 
-// Watch field changes
-watchField(path, callback: (value, ctx: BehaviorContext) => void, options?: { immediate?: boolean; debounce?: number })
+// Watch field changes (ALWAYS use { immediate: false } to prevent cycle detection!)
+watchField(path, callback: (value, ctx: BehaviorContext) => void, options: { immediate: false; debounce?: number })
 
 // Copy values between fields
 copyFrom(sourcePath, targetPath, options?: { when?: (form) => boolean; fields?: string[]; transform?: (value) => value })
@@ -92,8 +92,8 @@ copyFrom(sourcePath, targetPath, options?: { when?: (form) => boolean; fields?: 
 // Reset field when condition met
 resetWhen(path, condition: (form) => boolean, options?: { toValue?: any })
 
-// Re-validate when another field changes
-revalidateWhen(triggerPath, targetPath)
+// Re-validate target field when any trigger changes
+revalidateWhen(targetPath, triggerPaths[], options?: { debounce?: number })
 
 // Sync multiple fields
 syncFields(paths[], options?: { bidirectional?: boolean })

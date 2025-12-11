@@ -59,12 +59,13 @@ disableWhen(path.shipping, (form) => form.deliveryMethod === 'pickup');
 \`\`\`
 
 ### watchField
-React to field changes:
+React to field changes (ALWAYS use { immediate: false }!):
 \`\`\`typescript
 watchField(path.country, async (value, ctx) => {
+  if (!value) return;  // Guard clause
   const cities = await fetchCities(value);
   ctx.form.city.updateComponentProps({ options: cities });
-}, { debounce: 300 });
+}, { immediate: false, debounce: 300 });  // immediate: false is REQUIRED!
 \`\`\`
 
 ### copyFrom
@@ -85,13 +86,14 @@ syncFields(path.field1, path.field2);
 ### resetWhen
 Reset field when condition is met:
 \`\`\`typescript
-resetWhen(path.city, [path.country]);
+resetWhen(path.city, (form) => form.country === '', { toValue: '' });
 \`\`\`
 
 ### revalidateWhen
-Trigger revalidation:
+Re-validate target field when trigger fields change:
 \`\`\`typescript
-revalidateWhen(path.confirmPassword, [path.password]);
+// Signature: revalidateWhen(targetPath, triggerPaths[])
+revalidateWhen(path.confirmPassword, [path.password]);  // Re-validate confirmPassword when password changes
 \`\`\`
 
 ---
