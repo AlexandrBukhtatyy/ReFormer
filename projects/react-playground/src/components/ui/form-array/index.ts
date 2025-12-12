@@ -1,0 +1,33 @@
+// Main compound component
+export { FormArray } from './FormArray';
+export type { FormArrayHandle } from './FormArray';
+
+// Sub-components (also available as FormArray.List, etc.)
+export { FormArrayList } from './FormArrayList';
+export { FormArrayAddButton } from './FormArrayAddButton';
+export { FormArrayRemoveButton } from './FormArrayRemoveButton';
+export { FormArrayEmpty } from './FormArrayEmpty';
+export { FormArrayCount } from './FormArrayCount';
+export { FormArrayItemIndex } from './FormArrayItemIndex';
+
+// Context and hooks
+export {
+  FormArrayContext,
+  FormArrayItemContext,
+  useFormArrayContext,
+  useFormArrayItemContext,
+} from './FormArrayContext';
+
+// Types
+export type {
+  FormArrayRootProps,
+  FormArrayListProps,
+  FormArrayItemRenderProps,
+  FormArrayAddButtonProps,
+  FormArrayRemoveButtonProps,
+  FormArrayEmptyProps,
+  FormArrayCountProps,
+  FormArrayItemIndexProps,
+} from './types';
+
+export type { FormArrayContextValue, FormArrayItemContextValue } from './FormArrayContext';
