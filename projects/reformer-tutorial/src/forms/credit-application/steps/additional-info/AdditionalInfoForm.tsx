@@ -1,11 +1,12 @@
 import type { GroupNodeWithControls } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
+import { FormArray } from '@reformer/ui/form-array';
 import type { CreditApplicationForm } from '../../type';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../../sub-forms/property/PropertyForm';
 import { ExistingLoanForm } from '../../sub-forms/existing-loan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../sub-forms/co-borrower/CoBorrowerForm';
-import { FormArrayManager } from '@/components/ui/FormArrayManager';
+import { Button } from '@/components/ui/button';
 
 interface AdditionalInfoFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
@@ -34,12 +35,40 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       <div className="space-y-4">
         <FormField control={control.hasProperty} />
         {hasProperty && (
-          <FormArrayManager
-            itemLabel="Имущество"
-            control={control.properties}
-            component={PropertyForm}
-            addButtonLabel="+ Добавить имущество"
-          />
+          <FormArray.Root control={control.properties}>
+            <div className="flex justify-between items-center">
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Имущество</span>
+                )}
+              />
+              <FormArray.AddButton asChild>
+                <Button type="button" variant="outline" size="sm">
+                  + Добавить имущество
+                </Button>
+              </FormArray.AddButton>
+            </div>
+
+            <FormArray.List>
+              {({ control: itemControl, index, remove }) => (
+                <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium text-gray-900">Имущество #{index + 1}</h4>
+                    <Button type="button" variant="destructive" size="sm" onClick={remove}>
+                      Удалить
+                    </Button>
+                  </div>
+                  <PropertyForm control={itemControl} />
+                </div>
+              )}
+            </FormArray.List>
+
+            <FormArray.Empty>
+              <div className="p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center text-gray-500">
+                Нет имущества. Нажмите кнопку выше, чтобы добавить.
+              </div>
+            </FormArray.Empty>
+          </FormArray.Root>
         )}
       </div>
 
@@ -47,12 +76,42 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       <div className="space-y-4">
         <FormField control={control.hasExistingLoans} />
         {hasExistingLoans && (
-          <FormArrayManager
-            itemLabel="Существующие кредиты"
-            control={control.existingLoans}
-            component={ExistingLoanForm}
-            addButtonLabel="+ Добавить кредит"
-          />
+          <FormArray.Root control={control.existingLoans}>
+            <div className="flex justify-between items-center">
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">
+                    {count} Существующие кредиты
+                  </span>
+                )}
+              />
+              <FormArray.AddButton asChild>
+                <Button type="button" variant="outline" size="sm">
+                  + Добавить кредит
+                </Button>
+              </FormArray.AddButton>
+            </div>
+
+            <FormArray.List>
+              {({ control: itemControl, index, remove }) => (
+                <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium text-gray-900">Кредит #{index + 1}</h4>
+                    <Button type="button" variant="destructive" size="sm" onClick={remove}>
+                      Удалить
+                    </Button>
+                  </div>
+                  <ExistingLoanForm control={itemControl} />
+                </div>
+              )}
+            </FormArray.List>
+
+            <FormArray.Empty>
+              <div className="p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center text-gray-500">
+                Нет кредитов. Нажмите кнопку выше, чтобы добавить.
+              </div>
+            </FormArray.Empty>
+          </FormArray.Root>
         )}
       </div>
 
@@ -60,12 +119,40 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       <div className="space-y-4">
         <FormField control={control.hasCoBorrower} />
         {hasCoBorrower && (
-          <FormArrayManager
-            itemLabel="Созаёмщики"
-            control={control.coBorrowers}
-            component={CoBorrowerForm}
-            addButtonLabel="+ Добавить созаёмщика"
-          />
+          <FormArray.Root control={control.coBorrowers}>
+            <div className="flex justify-between items-center">
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+                )}
+              />
+              <FormArray.AddButton asChild>
+                <Button type="button" variant="outline" size="sm">
+                  + Добавить созаёмщика
+                </Button>
+              </FormArray.AddButton>
+            </div>
+
+            <FormArray.List>
+              {({ control: itemControl, index, remove }) => (
+                <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium text-gray-900">Созаёмщик #{index + 1}</h4>
+                    <Button type="button" variant="destructive" size="sm" onClick={remove}>
+                      Удалить
+                    </Button>
+                  </div>
+                  <CoBorrowerForm control={itemControl} />
+                </div>
+              )}
+            </FormArray.List>
+
+            <FormArray.Empty>
+              <div className="p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center text-gray-500">
+                Нет созаёмщиков. Нажмите кнопку выше, чтобы добавить.
+              </div>
+            </FormArray.Empty>
+          </FormArray.Root>
         )}
       </div>
     </div>
