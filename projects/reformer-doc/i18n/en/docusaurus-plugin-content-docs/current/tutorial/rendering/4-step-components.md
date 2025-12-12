@@ -311,9 +311,9 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 }
 ```
 
-## Шаг 5: Дополнительная информация
+## Step 5: Additional Information
 
-Демонстрирует работу с массивами через `FormArray` из `@reformer/ui`:
+Demonstrates working with arrays using `FormArray` from `@reformer/ui`:
 
 ```tsx title="src/steps/AdditionalInfoForm.tsx"
 import type { GroupNodeWithControls } from '@reformer/core';
@@ -337,11 +337,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">Дополнительная информация</h2>
+      <h2 className="text-xl font-bold">Additional Information</h2>
 
-      {/* Общая информация */}
+      {/* General information */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Общие сведения</h3>
+        <h3 className="text-lg font-semibold">General Information</h3>
         <FormField control={control.maritalStatus} />
         <div className="grid grid-cols-2 gap-4">
           <FormField control={control.dependents} />
@@ -349,18 +349,18 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         </div>
       </div>
 
-      {/* Массив имущества */}
+      {/* Property array */}
       <div className="space-y-4">
         <FormField control={control.hasProperty} />
         {hasProperty && (
           <FormArray.Root control={control.properties}>
             <div className="flex justify-between items-center">
               <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Имущество</span>
+                <span className="text-sm text-muted-foreground">{count} Property</span>
               )} />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
-                  + Добавить имущество
+                  + Add property
                 </Button>
               </FormArray.AddButton>
             </div>
@@ -369,9 +369,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
               {({ control: itemControl, index, remove }) => (
                 <div className="p-4 bg-white rounded-lg border shadow-sm">
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium">Имущество #{index + 1}</h4>
+                    <h4 className="font-medium">Property #{index + 1}</h4>
                     <Button variant="destructive" size="sm" onClick={remove}>
-                      Удалить
+                      Remove
                     </Button>
                   </div>
                   <PropertyForm control={itemControl} />
@@ -381,25 +381,25 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
             <FormArray.Empty>
               <div className="p-6 bg-gray-50 border-dashed border rounded-lg text-center text-gray-500">
-                Нет имущества. Нажмите кнопку выше, чтобы добавить.
+                No property. Click the button above to add.
               </div>
             </FormArray.Empty>
           </FormArray.Root>
         )}
       </div>
 
-      {/* Массив существующих кредитов */}
+      {/* Existing loans array */}
       <div className="space-y-4">
         <FormField control={control.hasExistingLoans} />
         {hasExistingLoans && (
           <FormArray.Root control={control.existingLoans}>
             <div className="flex justify-between items-center">
               <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Существующие кредиты</span>
+                <span className="text-sm text-muted-foreground">{count} Existing loans</span>
               )} />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
-                  + Добавить кредит
+                  + Add loan
                 </Button>
               </FormArray.AddButton>
             </div>
@@ -408,9 +408,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
               {({ control: itemControl, index, remove }) => (
                 <div className="p-4 bg-white rounded-lg border shadow-sm">
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium">Кредит #{index + 1}</h4>
+                    <h4 className="font-medium">Loan #{index + 1}</h4>
                     <Button variant="destructive" size="sm" onClick={remove}>
-                      Удалить
+                      Remove
                     </Button>
                   </div>
                   <ExistingLoanForm control={itemControl} />
@@ -420,25 +420,25 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
             <FormArray.Empty>
               <div className="p-6 bg-gray-50 border-dashed border rounded-lg text-center text-gray-500">
-                Нет кредитов. Нажмите кнопку выше, чтобы добавить.
+                No loans. Click the button above to add.
               </div>
             </FormArray.Empty>
           </FormArray.Root>
         )}
       </div>
 
-      {/* Массив созаёмщиков */}
+      {/* Co-borrowers array */}
       <div className="space-y-4">
         <FormField control={control.hasCoBorrower} />
         {hasCoBorrower && (
           <FormArray.Root control={control.coBorrowers}>
             <div className="flex justify-between items-center">
               <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+                <span className="text-sm text-muted-foreground">{count} Co-borrowers</span>
               )} />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
-                  + Добавить созаёмщика
+                  + Add co-borrower
                 </Button>
               </FormArray.AddButton>
             </div>
@@ -447,9 +447,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
               {({ control: itemControl, index, remove }) => (
                 <div className="p-4 bg-white rounded-lg border shadow-sm">
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium">Созаёмщик #{index + 1}</h4>
+                    <h4 className="font-medium">Co-borrower #{index + 1}</h4>
                     <Button variant="destructive" size="sm" onClick={remove}>
-                      Удалить
+                      Remove
                     </Button>
                   </div>
                   <CoBorrowerForm control={itemControl} />
@@ -459,7 +459,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
             <FormArray.Empty>
               <div className="p-6 bg-gray-50 border-dashed border rounded-lg text-center text-gray-500">
-                Нет созаёмщиков. Нажмите кнопку выше, чтобы добавить.
+                No co-borrowers. Click the button above to add.
               </div>
             </FormArray.Empty>
           </FormArray.Root>
@@ -470,9 +470,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 }
 ```
 
-## Шаг 6: Подтверждение
+## Step 6: Confirmation
 
-Финальный шаг со всеми подтверждениями:
+Final step with all confirmations:
 
 ```tsx title="src/steps/ConfirmationForm.tsx"
 import type { GroupNodeWithControls } from '@reformer/core';

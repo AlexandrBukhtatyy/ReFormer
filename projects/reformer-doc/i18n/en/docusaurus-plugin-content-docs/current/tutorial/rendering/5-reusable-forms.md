@@ -295,28 +295,28 @@ const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {
 export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 ```
 
-## Работа с массивами
+## Working with Arrays
 
-### Операции с массивами
+### Array Operations
 
-`ArrayNodeWithControls` предоставляет следующие операции:
+`ArrayNodeWithControls` provides the following operations:
 
-| Метод             | Описание                                          |
+| Method            | Description                                       |
 | ----------------- | ------------------------------------------------- |
-| `push()`          | Добавить элемент с дефолтными значениями из схемы |
-| `removeAt(index)` | Удалить элемент по индексу                        |
-| `map(callback)`   | Итерация по элементам массива                     |
-| `length`          | Получить текущую длину массива                    |
+| `push()`          | Add element with default values from schema       |
+| `removeAt(index)` | Remove element by index                           |
+| `map(callback)`   | Iterate over array elements                       |
+| `length`          | Get current array length                          |
 
-### FormArray из @reformer/ui
+### FormArray from @reformer/ui
 
-Пакет `@reformer/ui` предоставляет `FormArray` — headless compound component для управления массивами форм:
+The `@reformer/ui` package provides `FormArray` — a headless compound component for managing form arrays:
 
 ```bash
 npm install @reformer/ui
 ```
 
-#### Базовое использование
+#### Basic Usage
 
 ```tsx
 import { FormArray } from '@reformer/ui/form-array';
@@ -324,45 +324,45 @@ import { Button } from '@/components/ui/button';
 
 <FormArray.Root control={form.items}>
   <FormArray.Empty>
-    <p>Пока нет элементов</p>
+    <p>No items yet</p>
   </FormArray.Empty>
 
   <FormArray.List>
     {({ control, index, remove }) => (
       <div key={control.id}>
-        <h4>Элемент #{index + 1}</h4>
+        <h4>Item #{index + 1}</h4>
         <ItemForm control={control} />
-        <button onClick={remove}>Удалить</button>
+        <button onClick={remove}>Remove</button>
       </div>
     )}
   </FormArray.List>
 
-  <FormArray.AddButton>Добавить элемент</FormArray.AddButton>
+  <FormArray.AddButton>Add item</FormArray.AddButton>
 </FormArray.Root>
 ```
 
-#### Субкомпоненты
+#### Sub-components
 
-| Компонент              | Props                        | Назначение                           |
+| Component              | Props                        | Purpose                              |
 | ---------------------- | ---------------------------- | ------------------------------------ |
-| `FormArray.Root`       | `control: ArrayNode<T>`      | Провайдер контекста                  |
-| `FormArray.List`       | `children: (item) => Node`   | Итерация с render props              |
-| `FormArray.AddButton`  | `initialValue?: Partial<T>`  | Добавить новый элемент               |
-| `FormArray.Empty`      | `children: ReactNode`        | Показать когда массив пустой         |
-| `FormArray.Count`      | `render?: (count) => Node`   | Отображение количества               |
+| `FormArray.Root`       | `control: ArrayNode<T>`      | Context provider                     |
+| `FormArray.List`       | `children: (item) => Node`   | Iteration with render props          |
+| `FormArray.AddButton`  | `initialValue?: Partial<T>`  | Add new element                      |
+| `FormArray.Empty`      | `children: ReactNode`        | Show when array is empty             |
+| `FormArray.Count`      | `render?: (count) => Node`   | Display count                        |
 
-#### Render Props в List
+#### Render Props in List
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: GroupNodeWithControls<T>;  // Контрол элемента
-  index: number;                       // Индекс (с 0)
-  id: string | number;                 // Уникальный ключ
-  remove: () => void;                  // Удалить этот элемент
+  control: GroupNodeWithControls<T>;  // Item control
+  index: number;                       // Index (from 0)
+  id: string | number;                 // Unique key
+  remove: () => void;                  // Remove this item
 }
 ```
 
-### Использование FormArray в AdditionalInfoForm
+### Using FormArray in AdditionalInfoForm
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx"
 import { useFormControlValue } from '@reformer/core';
@@ -383,11 +383,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         <FormArray.Root control={control.properties}>
           <div className="flex justify-between items-center">
             <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Имущество</span>
+              <span className="text-sm text-muted-foreground">{count} Property</span>
             )} />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
-                + Добавить имущество
+                + Add property
               </Button>
             </FormArray.AddButton>
           </div>
@@ -396,9 +396,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
             {({ control: itemControl, index, remove }) => (
               <div className="p-4 bg-white rounded-lg border shadow-sm">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium">Имущество #{index + 1}</h4>
+                  <h4 className="font-medium">Property #{index + 1}</h4>
                   <Button variant="destructive" size="sm" onClick={remove}>
-                    Удалить
+                    Remove
                   </Button>
                 </div>
                 <PropertyForm control={itemControl} />
@@ -408,7 +408,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
           <FormArray.Empty>
             <div className="p-6 bg-gray-50 border-dashed border rounded-lg text-center text-gray-500">
-              Нет имущества. Нажмите кнопку выше, чтобы добавить.
+              No property. Click the button above to add.
             </div>
           </FormArray.Empty>
         </FormArray.Root>
@@ -419,11 +419,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         <FormArray.Root control={control.coBorrowers}>
           <div className="flex justify-between items-center">
             <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+              <span className="text-sm text-muted-foreground">{count} Co-borrowers</span>
             )} />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
-                + Добавить созаёмщика
+                + Add co-borrower
               </Button>
             </FormArray.AddButton>
           </div>
@@ -432,9 +432,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
             {({ control: itemControl, index, remove }) => (
               <div className="p-4 bg-white rounded-lg border shadow-sm">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium">Созаёмщик #{index + 1}</h4>
+                  <h4 className="font-medium">Co-borrower #{index + 1}</h4>
                   <Button variant="destructive" size="sm" onClick={remove}>
-                    Удалить
+                    Remove
                   </Button>
                 </div>
                 <CoBorrowerForm control={itemControl} />
@@ -444,7 +444,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 
           <FormArray.Empty>
             <div className="p-6 bg-gray-50 border-dashed border rounded-lg text-center text-gray-500">
-              Нет созаёмщиков. Нажмите кнопку выше, чтобы добавить.
+              No co-borrowers. Click the button above to add.
             </div>
           </FormArray.Empty>
         </FormArray.Root>
@@ -454,9 +454,9 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 }
 ```
 
-### Хук useFormArray
+### useFormArray Hook
 
-Для полной кастомизации без compound components:
+For full customization without compound components:
 
 ```tsx
 import { useFormArray } from '@reformer/ui/form-array';
@@ -466,25 +466,25 @@ function CustomList({ control }) {
 
   return (
     <div>
-      <span>Всего: {length}</span>
+      <span>Total: {length}</span>
       {items.map(({ control, id, remove }) => (
         <div key={id}>
           <ItemForm control={control} />
           <button onClick={remove}>X</button>
         </div>
       ))}
-      {isEmpty && <p>Пусто</p>}
-      <button onClick={() => add()}>Добавить</button>
+      {isEmpty && <p>Empty</p>}
+      <button onClick={() => add()}>Add</button>
     </div>
   );
 }
 ```
 
-## Лучшие практики
+## Best Practices
 
-### 1. Всегда используйте memo()
+### 1. Always Use memo()
 
-Оборачивайте вложенные компоненты форм в `memo` для предотвращения лишних ре-рендеров:
+Wrap nested form components in `memo` to prevent unnecessary re-renders:
 
 ```tsx
 const AddressFormComponent = ({ control }: AddressFormProps) => { ... };
@@ -492,7 +492,7 @@ const AddressFormComponent = ({ control }: AddressFormProps) => { ... };
 export const AddressForm = memo(AddressFormComponent);
 ```
 
-### 2. Типизируйте Props через GroupNodeWithControls
+### 2. Type Props via GroupNodeWithControls
 
 ```tsx
 interface MyFormProps {

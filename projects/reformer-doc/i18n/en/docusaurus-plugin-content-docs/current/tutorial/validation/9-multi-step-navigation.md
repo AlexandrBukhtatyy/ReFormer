@@ -2,55 +2,55 @@
 sidebar_position: 9
 ---
 
-# Навигация в многошаговых формах
+# Multi-Step Form Navigation
 
-Использование компонента `FormNavigation` из `@reformer/ui` для многошагового мастера форм с пошаговой валидацией.
+Using the `FormNavigation` component from `@reformer/ui` for multi-step form wizard with step-by-step validation.
 
-## Обзор
+## Overview
 
-В многошаговых формах нам нужно:
+In multi-step forms we need to:
 
-1. **Валидировать только текущий шаг** — не показывать ошибки для полей будущих шагов
-2. **Сохранять полную валидацию** — для финальной отправки
-3. **Отслеживать завершённые шаги** — разрешать навигацию только к посещённым шагам
-4. **Предоставлять методы навигации** — Далее, Назад, Перейти к шагу
+1. **Validate only the current step** — don't show errors for fields on future steps
+2. **Preserve full validation** — for final submission
+3. **Track completed steps** — allow navigation only to visited steps
+4. **Provide navigation methods** — Next, Back, Go to step
 
-Пакет `@reformer/ui` предоставляет `FormNavigation` — headless compound component, который обрабатывает всю эту логику.
+The `@reformer/ui` package provides `FormNavigation` — a headless compound component that handles all this logic.
 
-## Установка
+## Installation
 
 ```bash
 npm install @reformer/ui
 ```
 
-## Проблема
+## The Problem
 
-При регистрации валидации при создании формы:
+When registering validation at form creation:
 
 ```typescript
 createForm<CreditApplicationForm>({
   schema: creditApplicationSchema,
   behavior: creditApplicationBehaviors,
-  validation: creditApplicationValidation, // Полная валидация
+  validation: creditApplicationValidation, // Full validation
 });
 ```
 
-Вызов `form.validate()` валидирует **все поля**, включая те, что на шагах, до которых пользователь ещё не дошёл.
+Calling `form.validate()` validates **all fields**, including those on steps the user hasn't reached yet.
 
-Нам нужен способ валидировать только определённые поля на каждом шаге, сохраняя полную валидацию для финальной отправки.
+We need a way to validate only specific fields on each step while preserving full validation for final submission.
 
-## Решение: FormNavigation
+## Solution: FormNavigation
 
-`FormNavigation` из `@reformer/ui` предоставляет:
+`FormNavigation` from `@reformer/ui` provides:
 
-- **Пошаговую валидацию** через `validateForm` внутри
-- **Отслеживание прогресса** с завершёнными шагами
-- **Headless compound components** для гибкого UI
-- **Ref handle** для программной навигации
+- **Step-by-step validation** via `validateForm` internally
+- **Progress tracking** with completed steps
+- **Headless compound components** for flexible UI
+- **Ref handle** for programmatic navigation
 
-## Конфигурация шагов
+## Step Configuration
 
-Сначала определите схемы валидации для каждого шага:
+First, define validation schemas for each step:
 
 ```typescript title="src/forms/credit-application/steps/*/validators.ts"
 export { loanValidation } from './loan-info/validators';
@@ -60,16 +60,16 @@ export { employmentValidation } from './employment/validators';
 export { additionalValidation } from './additional-info/validators';
 ```
 
-Затем определите метаданные шагов:
+Then define step metadata:
 
 ```typescript title="src/forms/credit-application/CreditApplicationForm.tsx"
 const STEPS = [
-  { number: 1, title: 'Кредит', icon: '💰' },
-  { number: 2, title: 'Личные данные', icon: '👤' },
-  { number: 3, title: 'Контакты', icon: '📞' },
-  { number: 4, title: 'Занятость', icon: '💼' },
-  { number: 5, title: 'Дополнительно', icon: '📋' },
-  { number: 6, title: 'Подтверждение', icon: '✅' },
+  { number: 1, title: 'Loan', icon: '💰' },
+  { number: 2, title: 'Personal Data', icon: '👤' },
+  { number: 3, title: 'Contacts', icon: '📞' },
+  { number: 4, title: 'Employment', icon: '💼' },
+  { number: 5, title: 'Additional', icon: '📋' },
+  { number: 6, title: 'Confirmation', icon: '✅' },
 ];
 
 const STEP_VALIDATIONS = {
@@ -78,20 +78,20 @@ const STEP_VALIDATIONS = {
   3: contactValidation,
   4: employmentValidation,
   5: additionalValidation,
-  // Шаг 6 — подтверждение, валидация не нужна
+  // Step 6 — confirmation, no validation needed
 };
 ```
 
-## Использование FormNavigation
+## Using FormNavigation
 
-### Базовая структура
+### Basic Structure
 
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
 import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
 
-// Компоненты шагов
+// Step components
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
 import { PersonalInfoForm } from './steps/personal-info/PersonalInfoForm';
 import { ContactInfoForm } from './steps/contact-info/ContactInfoForm';
@@ -99,7 +99,7 @@ import { EmploymentForm } from './steps/employment/EmploymentForm';
 import { AdditionalInfoForm } from './steps/additional-info/AdditionalInfoForm';
 import { ConfirmationForm } from './steps/confirmation/ConfirmationForm';
 
-// Валидаторы
+// Validators
 import { creditApplicationValidation } from './validators';
 
 function CreditApplicationForm() {
@@ -115,7 +115,7 @@ function CreditApplicationForm() {
     []
   );
 
-  // Конфигурация навигации
+  // Navigation configuration
   const navConfig = useMemo(
     () => ({
       stepValidations: STEP_VALIDATIONS,
@@ -131,13 +131,13 @@ function CreditApplicationForm() {
     });
 
     if (result) {
-      alert('Заявка отправлена!');
+      alert('Application submitted!');
     }
   };
 
   return (
     <FormNavigation ref={navRef} form={form} config={navConfig}>
-      {/* Compound components здесь */}
+      {/* Compound components here */}
     </FormNavigation>
   );
 }
@@ -145,7 +145,7 @@ function CreditApplicationForm() {
 
 ### FormNavigation.Indicator
 
-Headless индикатор шагов с render props:
+Headless step indicator with render props:
 
 ```tsx
 <FormNavigation.Indicator steps={STEPS}>
@@ -174,27 +174,27 @@ Headless индикатор шагов с render props:
 
 **Render props:**
 
-| Свойство       | Тип                          | Описание                      |
+| Property       | Type                         | Description                   |
 | -------------- | ---------------------------- | ----------------------------- |
-| `steps`        | `StepWithState[]`            | Шаги с вычисленным состоянием |
-| `goToStep`     | `(step: number) => boolean`  | Перейти к шагу                |
-| `currentStep`  | `number`                     | Номер текущего шага           |
-| `totalSteps`   | `number`                     | Общее количество шагов        |
+| `steps`        | `StepWithState[]`            | Steps with computed state     |
+| `goToStep`     | `(step: number) => boolean`  | Navigate to step              |
+| `currentStep`  | `number`                     | Current step number           |
+| `totalSteps`   | `number`                     | Total number of steps         |
 
-**Состояние шага:**
+**Step state:**
 
-| Свойство      | Тип       | Описание                        |
+| Property      | Type      | Description                     |
 | ------------- | --------- | ------------------------------- |
-| `number`      | `number`  | Номер шага (с 1)                |
-| `title`       | `string`  | Заголовок шага                  |
-| `icon`        | `string?` | Иконка (опционально)            |
-| `isCurrent`   | `boolean` | Текущий шаг                     |
-| `isCompleted` | `boolean` | Завершён                        |
-| `canNavigate` | `boolean` | Можно перейти к этому шагу      |
+| `number`      | `number`  | Step number (from 1)            |
+| `title`       | `string`  | Step title                      |
+| `icon`        | `string?` | Icon (optional)                 |
+| `isCurrent`   | `boolean` | Is current step                 |
+| `isCompleted` | `boolean` | Is completed                    |
+| `canNavigate` | `boolean` | Can navigate to this step       |
 
 ### FormNavigation.Step
 
-Рендерит компонент, когда шаг активен:
+Renders component when step is active:
 
 ```tsx
 <div className="bg-white p-8 rounded-lg shadow-md">
@@ -207,11 +207,11 @@ Headless индикатор шагов с render props:
 </div>
 ```
 
-Шаги рендерятся по порядку — первый `Step` это шаг 1, второй — шаг 2 и т.д. Отображается только текущий шаг.
+Steps render in order — first `Step` is step 1, second is step 2, etc. Only the current step is displayed.
 
 ### FormNavigation.Actions
 
-Headless кнопки навигации с render props:
+Headless navigation buttons with render props:
 
 ```tsx
 <FormNavigation.Actions onSubmit={handleSubmit}>
@@ -222,16 +222,16 @@ Headless кнопки навигации с render props:
         disabled={isFirstStep || prev.disabled}
         variant="secondary"
       >
-        Назад
+        Back
       </Button>
 
       {!isLastStep ? (
         <Button onClick={next.onClick} disabled={next.disabled}>
-          {isValidating ? 'Проверка...' : 'Далее'}
+          {isValidating ? 'Validating...' : 'Next'}
         </Button>
       ) : (
         <Button onClick={submit.onClick} disabled={submit.disabled}>
-          {submit.isSubmitting ? 'Отправка...' : 'Отправить'}
+          {submit.isSubmitting ? 'Submitting...' : 'Submit'}
         </Button>
       )}
     </div>
@@ -241,30 +241,30 @@ Headless кнопки навигации с render props:
 
 **Render props:**
 
-| Свойство       | Тип                 | Описание                       |
-| -------------- | ------------------- | ------------------------------ |
-| `prev`         | `ButtonProps`       | Props кнопки "Назад"           |
-| `next`         | `ButtonProps`       | Props кнопки "Далее"           |
-| `submit`       | `SubmitButtonProps` | Props кнопки "Отправить"       |
-| `isFirstStep`  | `boolean`           | На первом шаге                 |
-| `isLastStep`   | `boolean`           | На последнем шаге              |
-| `isValidating` | `boolean`           | Валидация в процессе           |
+| Property       | Type                | Description              |
+| -------------- | ------------------- | ------------------------ |
+| `prev`         | `ButtonProps`       | "Back" button props      |
+| `next`         | `ButtonProps`       | "Next" button props      |
+| `submit`       | `SubmitButtonProps` | "Submit" button props    |
+| `isFirstStep`  | `boolean`           | On first step            |
+| `isLastStep`   | `boolean`           | On last step             |
+| `isValidating` | `boolean`           | Validation in progress   |
 
 ### FormNavigation.Progress
 
-Headless отображение прогресса:
+Headless progress display:
 
 ```tsx
 <FormNavigation.Progress>
   {({ current, total, percent }) => (
     <div className="mt-4 text-center text-sm text-gray-600">
-      Шаг {current} из {total} • {percent}% завершено
+      Step {current} of {total} • {percent}% complete
     </div>
   )}
 </FormNavigation.Progress>
 ```
 
-## Полный пример
+## Full Example
 
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
@@ -272,15 +272,15 @@ import { createForm } from '@reformer/core';
 import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
 import { Button } from '@/components/ui/button';
 
-// Импорты шагов и валидаторов...
+// Step and validator imports...
 
 const STEPS = [
-  { number: 1, title: 'Кредит', icon: '💰' },
-  { number: 2, title: 'Личные данные', icon: '👤' },
-  { number: 3, title: 'Контакты', icon: '📞' },
-  { number: 4, title: 'Занятость', icon: '💼' },
-  { number: 5, title: 'Дополнительно', icon: '📋' },
-  { number: 6, title: 'Подтверждение', icon: '✅' },
+  { number: 1, title: 'Loan', icon: '💰' },
+  { number: 2, title: 'Personal Data', icon: '👤' },
+  { number: 3, title: 'Contacts', icon: '📞' },
+  { number: 4, title: 'Employment', icon: '💼' },
+  { number: 5, title: 'Additional', icon: '📋' },
+  { number: 6, title: 'Confirmation', icon: '✅' },
 ];
 
 const STEP_VALIDATIONS = {
@@ -315,18 +315,18 @@ function CreditApplicationForm() {
   const submitApplication = async () => {
     const result = await navRef.current?.submit(async (values) => {
       const response = await saveApplication(values);
-      alert(`Заявка отправлена! ID: ${response.id}`);
+      alert(`Application submitted! ID: ${response.id}`);
       return response;
     });
 
     if (!result) {
-      alert('Пожалуйста, исправьте ошибки в форме');
+      alert('Please fix the errors in the form');
     }
   };
 
   return (
     <FormNavigation ref={navRef} form={form} config={navConfig}>
-      {/* Индикатор шагов */}
+      {/* Step indicator */}
       <FormNavigation.Indicator steps={STEPS}>
         {({ steps, goToStep }) => (
           <div className="flex justify-between mb-4">
@@ -352,7 +352,7 @@ function CreditApplicationForm() {
         )}
       </FormNavigation.Indicator>
 
-      {/* Контент шага */}
+      {/* Step content */}
       <div className="bg-white p-8 rounded-lg shadow-md">
         <FormNavigation.Step component={BasicInfoForm} control={form} />
         <FormNavigation.Step component={PersonalInfoForm} control={form} />
@@ -362,7 +362,7 @@ function CreditApplicationForm() {
         <FormNavigation.Step component={ConfirmationForm} control={form} />
       </div>
 
-      {/* Кнопки навигации */}
+      {/* Navigation buttons */}
       <FormNavigation.Actions onSubmit={submitApplication}>
         {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
           <div className="flex justify-between mt-6">
@@ -371,27 +371,27 @@ function CreditApplicationForm() {
               disabled={isFirstStep || prev.disabled}
               variant="secondary"
             >
-              Назад
+              Back
             </Button>
 
             {!isLastStep ? (
               <Button onClick={next.onClick} disabled={next.disabled}>
-                {isValidating ? 'Проверка...' : 'Далее'}
+                {isValidating ? 'Validating...' : 'Next'}
               </Button>
             ) : (
               <Button onClick={submit.onClick} disabled={submit.disabled}>
-                {submit.isSubmitting ? 'Отправка...' : 'Отправить заявку'}
+                {submit.isSubmitting ? 'Submitting...' : 'Submit Application'}
               </Button>
             )}
           </div>
         )}
       </FormNavigation.Actions>
 
-      {/* Прогресс */}
+      {/* Progress */}
       <FormNavigation.Progress>
         {({ current, total, percent }) => (
           <div className="mt-4 text-center text-sm text-gray-600">
-            Шаг {current} из {total} • {percent}% завершено
+            Step {current} of {total} • {percent}% complete
           </div>
         )}
       </FormNavigation.Progress>
@@ -402,49 +402,49 @@ function CreditApplicationForm() {
 export default CreditApplicationForm;
 ```
 
-## Программная навигация
+## Programmatic Navigation
 
-Используйте ref handle для внешнего управления:
+Use the ref handle for external control:
 
 ```tsx
 const navRef = useRef<FormNavigationHandle<MyForm>>(null);
 
-// Программная навигация
+// Programmatic navigation
 navRef.current?.goToStep(2);
 navRef.current?.goToNextStep();
 navRef.current?.goToPreviousStep();
 
-// Отправка с валидацией
+// Submit with validation
 const result = await navRef.current?.submit(async (values) => {
   return api.submit(values);
 });
 ```
 
-### API FormNavigationHandle
+### FormNavigationHandle API
 
-| Свойство/Метод       | Тип                  | Описание                     |
+| Property/Method      | Type                 | Description                  |
 | -------------------- | -------------------- | ---------------------------- |
-| `currentStep`        | `number`             | Текущий шаг (с 1)            |
-| `completedSteps`     | `number[]`           | Завершённые шаги             |
-| `isFirstStep`        | `boolean`            | На первом шаге               |
-| `isLastStep`         | `boolean`            | На последнем шаге            |
-| `isValidating`       | `boolean`            | Валидация в процессе         |
-| `goToNextStep()`     | `Promise<boolean>`   | Валидация и переход далее    |
-| `goToPreviousStep()` | `void`               | Переход назад                |
-| `goToStep(step)`     | `boolean`            | Переход к шагу               |
-| `submit(onSubmit)`   | `Promise<R \| null>` | Полная валидация и отправка  |
+| `currentStep`        | `number`             | Current step (from 1)        |
+| `completedSteps`     | `number[]`           | Completed steps              |
+| `isFirstStep`        | `boolean`            | On first step                |
+| `isLastStep`         | `boolean`            | On last step                 |
+| `isValidating`       | `boolean`            | Validation in progress       |
+| `goToNextStep()`     | `Promise<boolean>`   | Validate and go next         |
+| `goToPreviousStep()` | `void`               | Go back                      |
+| `goToStep(step)`     | `boolean`            | Go to step                   |
+| `submit(onSubmit)`   | `Promise<R \| null>` | Full validation and submit   |
 
-## Ключевые преимущества
+## Key Benefits
 
-1. **Headless** — полный контроль над UI, любые стили
-2. **Compound Components** — декларативный, композируемый API
-3. **Render Props** — доступ ко всему состоянию для кастомного рендеринга
-4. **Type Safety** — полная поддержка TypeScript с дженериками
-5. **Переиспользуемость** — работает с любой формой с пошаговой валидацией
+1. **Headless** — full UI control, any styles
+2. **Compound Components** — declarative, composable API
+3. **Render Props** — access to all state for custom rendering
+4. **Type Safety** — full TypeScript support with generics
+5. **Reusability** — works with any form with step-by-step validation
 
-## Что дальше?
+## What's Next?
 
-Теперь, когда навигация готова, следующие разделы охватывают:
+Now that navigation is ready, the following sections cover:
 
-- **Работа с данными** — загрузка, сохранение и сброс данных формы
-- **Отправка** — обработка отправки формы, ошибок и повторов
+- **Working with Data** — loading, saving, and resetting form data
+- **Submission** — handling form submission, errors, and retries
