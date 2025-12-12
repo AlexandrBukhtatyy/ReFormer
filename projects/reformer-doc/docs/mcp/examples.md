@@ -4,11 +4,9 @@ sidebar_position: 5
 
 # Примеры использования
 
-Пошаговые сценарии работы с @reformer/mcp.
+Сценарии работы с AI при подключённом @reformer/mcp.
 
-## Сценарий 1: Создание формы с нуля
-
-**Задача:** Создать форму регистрации пользователя.
+## Сценарий 1: Создание формы
 
 **Запрос к AI:**
 
@@ -20,10 +18,11 @@ sidebar_position: 5
 - Чекбокс согласия с условиями
 ```
 
-**Что происходит:**
+**Что получите:**
 
-1. AI вызывает `get_recommended_structure` для определения структуры
-2. Генерирует TypeScript интерфейс:
+AI использует документацию ReFormer и создаст:
+
+1. TypeScript интерфейс:
 
 ```typescript
 interface RegistrationForm {
@@ -34,8 +33,9 @@ interface RegistrationForm {
 }
 ```
 
-3. Создаёт схему формы с компонентами
-4. Добавляет валидацию:
+2. Схему формы с компонентами
+
+3. Валидацию:
 
 ```typescript
 import { required, email, minLength, validate } from '@reformer/core/validators';
@@ -51,13 +51,11 @@ const validation: ValidationSchemaFn<RegistrationForm> = (v) => ({
 });
 ```
 
-5. Проверяет код через `check_code`
+4. React-компонент с хуками
 
 ---
 
 ## Сценарий 2: Добавление валидации
-
-**Задача:** Добавить валидацию к существующей форме.
 
 **Запрос к AI:**
 
@@ -68,11 +66,7 @@ const validation: ValidationSchemaFn<RegistrationForm> = (v) => ({
 - Если deliveryType === "express", то поле deliveryTime обязательное
 ```
 
-**Что происходит:**
-
-1. AI анализирует текущий код
-2. Использует `generate_validation` для получения правил
-3. Генерирует валидацию:
+**Что получите:**
 
 ```typescript
 import { required, pattern, validate, when } from '@reformer/core/validators';
@@ -104,9 +98,7 @@ const validation: ValidationSchemaFn<OrderForm> = (v) => ({
 
 ---
 
-## Сценарий 3: Настройка вычисляемых полей
-
-**Задача:** Добавить автоматический расчёт в форму заказа.
+## Сценарий 3: Вычисляемые поля
 
 **Запрос к AI:**
 
@@ -117,31 +109,24 @@ const validation: ValidationSchemaFn<OrderForm> = (v) => ({
 - Скидку 10% если общий итог больше 10000
 ```
 
-**Что происходит:**
-
-1. AI использует `generate_behavior` для получения паттернов
-2. Генерирует поведения:
+**Что получите:**
 
 ```typescript
 import { computeFrom } from '@reformer/core/behaviors';
 
 const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
   items: b.array({
-    // Сумма для каждого товара
     subtotal: b.field(
       computeFrom(['quantity', 'price'], (quantity, price) => (quantity ?? 0) * (price ?? 0))
     ),
   }),
-  // Общий итог
   total: b.field(
     computeFrom(
       ['items'],
       (items) => items?.reduce((sum, item) => sum + (item.subtotal ?? 0), 0) ?? 0
     )
   ),
-  // Скидка
   discount: b.field(computeFrom(['total'], (total) => (total > 10000 ? total * 0.1 : 0))),
-  // Итого со скидкой
   finalTotal: b.field(computeFrom(['total', 'discount'], (total, discount) => total - discount)),
 });
 ```
@@ -149,8 +134,6 @@ const behavior: BehaviorSchemaFn<OrderForm> = (b) => ({
 ---
 
 ## Сценарий 4: Отладка проблемы
-
-**Задача:** Понять почему не работает валидация.
 
 **Запрос к AI:**
 
@@ -174,15 +157,14 @@ const MyForm = () => {
 };
 ```
 
-**Что происходит:**
+**Что получите:**
 
-1. AI использует `check_code` для анализа
-2. Находит проблемы:
-   - Нет `useMemo` для `createForm`
-   - Нет вызова `markAsTouched` при blur
-   - Нет отображения ошибок
+AI найдёт проблемы:
+- Нет `useMemo` для `createForm`
+- Нет вызова `markAsTouched` при blur
+- Нет отображения ошибок
 
-3. Предлагает исправление:
+И предложит исправление:
 
 ```typescript
 const MyForm = () => {
@@ -210,74 +192,23 @@ const MyForm = () => {
 
 ---
 
-## Сценарий 5: Создание формы по спецификации
+## Сценарий 5: Вопросы по API
 
-**Задача:** Создать сложную пошаговую форму на основе документа с требованиями.
-
-**Запрос к AI:**
+**Запросы к AI:**
 
 ```
-Создай форму на основе спецификации spec/insurance-application-form.md
-
-Используй MCP сервер reformer для:
-1. Получения структуры проекта (get_recommended_structure)
-2. Генерации типов (generate_types)
-3. Генерации схемы (generate_schema)
-4. Генерации валидации (generate_validation)
-5. Генерации поведений (generate_behavior)
-6. Проверки кода (check_code)
-7. Проверки компиляции кода (npm run build)
-
-Форма должна:
-- Быть пошаговой (6 шагов)
-- Иметь отдельные файлы валидации для каждого шага
-- Использовать useStepForm для навигации
-- Поддерживать вычисляемые поля (endDate, age, experience)
-- Иметь условную видимость полей
-- Компилироваться без ошибок
+Какие валидаторы есть в ReFormer из коробки?
 ```
 
-**Что происходит:**
-
-1. AI читает спецификацию и анализирует требования
-2. Вызывает `get_recommended_structure` для определения структуры файлов (MCP определяет несколько схем от сложности формы зависит какую выбирет):
-
 ```
-forms/
-└── insurance-application/
-    ├── types.ts
-    ├── schema.ts
-    ├── validation/
-    │   ├── index.ts
-    │   ├── step1-personal.ts
-    │   ├── step2-contact.ts
-    │   ├── step3-vehicle.ts
-    │   ├── step4-insurance.ts
-    │   ├── step5-payment.ts
-    │   └── step6-documents.ts
-    ├── behaviors.ts
-    └── InsuranceApplicationForm.tsx
+Как работает поведение watchField?
 ```
 
-3. Генерирует типы через `generate_types`:
+```
+Как сделать асинхронную валидацию?
+```
 
-4. Создаёт схему формы через `generate_schema`:
-
-5. Генерирует схему валидации для каждого шага через `generate_validation`:
-
-6. Генерирует схему поведения (вычисляемые поля, условия) через `generate_behavior`:
-
-7. Проверяет код через `check_code` и исправляет ошибки
-
-8. Запускает `npm run build` для проверки компиляции
-
-**Результат:**
-
-- Полностью типизированная пошаговая форма
-- Раздельная валидация по шагам
-- Автоматические вычисления (возраст, дата окончания)
-- Условная видимость полей
-- Навигация между шагами с валидацией
+AI ответит на основе актуальной документации ReFormer.
 
 ---
 

@@ -1,7 +1,7 @@
 import { getTroubleshooting, getSection } from '../utils/docs-parser.js';
 
-export const debugFormPromptDefinition = {
-  name: 'debug-form',
+export const debugPromptDefinition = {
+  name: 'debug',
   description:
     'Help debug issues with a ReFormer form. Analyzes code and provides solutions for common problems.',
   arguments: [
@@ -13,7 +13,7 @@ export const debugFormPromptDefinition = {
   ],
 };
 
-export function getDebugFormPrompt(args: { code: string }): {
+export function getDebugPrompt(args: { code: string }): {
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
 } {
   const { code } = args;
