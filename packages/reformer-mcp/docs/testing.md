@@ -14,6 +14,9 @@ npm install -g @modelcontextprotocol/inspector
 
 # Run with the server
 npx mcp-inspector node ./dist/index.js
+
+# Run with debug mode enabled
+REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
 ```
 
 This opens a web interface where you can:
@@ -44,7 +47,7 @@ claude
 Example test queries:
 - "What is ReFormer?"
 - "Show me how to create a form with validation"
-- "Search for ArrayNode documentation"
+- "How do I use ArrayNode?"
 
 ### 3. Manual Testing
 
@@ -62,75 +65,37 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
 
 ### Tools
 
-#### get_reformer_docs
+#### report_issue
 ```json
 {
   "jsonrpc": "2.0",
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "get_reformer_docs",
-    "arguments": {}
+    "name": "report_issue",
+    "arguments": {
+      "error": "Form recreates on every render",
+      "solution": "Wrap createForm in useMemo",
+      "category": "react"
+    }
   }
 }
 ```
-Expected: Full documentation text
+Expected: Confirmation message with file path
 
-#### search_docs
+#### debug (Debug Mode Only)
 ```json
 {
   "jsonrpc": "2.0",
   "id": 2,
   "method": "tools/call",
   "params": {
-    "name": "search_docs",
-    "arguments": { "query": "validation" }
+    "name": "debug",
+    "arguments": {}
   }
 }
 ```
-Expected: Sections containing "validation"
-
-#### get_api_reference
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "tools/call",
-  "params": {
-    "name": "get_api_reference",
-    "arguments": { "method": "createForm" }
-  }
-}
-```
-Expected: API docs for createForm
-
-#### get_examples
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 4,
-  "method": "tools/call",
-  "params": {
-    "name": "get_examples",
-    "arguments": { "topic": "validation" }
-  }
-}
-```
-Expected: Validation examples
-
-#### explain_error
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 5,
-  "method": "tools/call",
-  "params": {
-    "name": "explain_error",
-    "arguments": { "error": "field not updating" }
-  }
-}
-```
-Expected: Explanation and solution
+Expected: Debug information (only works with REFORMER_DEBUG=true)
 
 ### Resources
 
@@ -138,22 +103,32 @@ Expected: Explanation and solution
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 6,
+  "id": 3,
   "method": "resources/list"
 }
 ```
-Expected: List of 3 resources
+Expected: List of 4 resources (docs, api, examples, troubleshooting)
 
 #### Read resource
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 7,
+  "id": 4,
   "method": "resources/read",
   "params": { "uri": "reformer://docs" }
 }
 ```
 Expected: Documentation content
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/read",
+  "params": { "uri": "reformer://troubleshooting" }
+}
+```
+Expected: Troubleshooting content
 
 ### Prompts
 
@@ -161,25 +136,25 @@ Expected: Documentation content
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 8,
+  "id": 6,
   "method": "prompts/list"
 }
 ```
-Expected: List of 5 prompts
+Expected: Empty list (or 1 prompt in debug mode)
 
-#### Get prompt
+#### Get debug prompt (Debug Mode Only)
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 9,
+  "id": 7,
   "method": "prompts/get",
   "params": {
-    "name": "reformer-help",
-    "arguments": { "question": "How do I validate an email?" }
+    "name": "debug",
+    "arguments": { "code": "const form = createForm<T>({...})" }
   }
 }
 ```
-Expected: Prompt with documentation context
+Expected: Prompt with documentation context (only works with REFORMER_DEBUG=true)
 
 ## Viewing Logs
 
@@ -209,6 +184,13 @@ tail -f ~/.config/Claude/logs/mcp.log
 - Verify server is registered (`claude mcp list`)
 - Check MCP logs for errors
 - Restart Claude Code
+
+### Debug features not available
+- Ensure `REFORMER_DEBUG=true` is set
+- Re-register server with environment variable:
+  ```bash
+  claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node ./dist/index.js
+  ```
 
 ### Documentation not found
 - Ensure @reformer/core is installed or

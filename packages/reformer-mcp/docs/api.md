@@ -4,105 +4,43 @@ Complete API documentation for the ReFormer MCP server.
 
 ## Tools
 
-### get_reformer_docs
+### report_issue
 
-Get the complete ReFormer documentation.
+Report an issue encountered while working with ReFormer and its solution.
 
-**Parameters:** None
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `error` | string | Yes | The error message or problem description |
+| `solution` | string | Yes | The solution or fix that resolved the issue |
+| `code` | string | No | The problematic code snippet |
+| `category` | string | No | Category: `schema`, `validation`, `behavior`, `react`, `types`, `other` |
 
-**Returns:** Full documentation text in markdown format
+**Returns:** Confirmation of successful report
 
 **Example:**
-```typescript
-// In Claude Code, this is called automatically when asking about ReFormer
+```json
+{
+  "error": "Form recreates on every render causing undefined controls",
+  "solution": "Wrap createForm in useMemo",
+  "category": "react"
+}
 ```
 
+**Storage:** Reports are saved to `~/.reformer/issues.jsonl` in JSONL format.
+
 ---
 
-### search_docs
+### debug (Debug Mode Only)
 
-Search ReFormer documentation for specific topics.
+Debug tool for MCP server development. Only available when `REFORMER_DEBUG=true`.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `query` | string | Yes | Search term to find in documentation |
+| `section` | string | No | Optional section to return |
 
-**Returns:** Matching sections from documentation
-
-**Example queries:**
-- "validation"
-- "ArrayNode"
-- "useFormControl"
-- "behaviors"
-
----
-
-### get_api_reference
-
-Get API reference for ReFormer methods and types.
-
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `method` | string | No | Specific method/type to look up |
-
-**Returns:**
-- If `method` provided: Documentation for that method
-- If not provided: Full API reference section
-
-**Example methods:**
-- "createForm"
-- "FieldNode"
-- "GroupNode"
-- "ArrayNode"
-- "useFormControl"
-- "useFormControlValue"
-
----
-
-### get_examples
-
-Get code examples from ReFormer documentation.
-
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `topic` | string | No | Topic to get examples for |
-
-**Supported topics:**
-- `validation` - Validation examples
-- `behavior` / `behaviors` - Behavior examples
-- `array` / `arrays` - Array handling examples
-- `form` - Form schema examples
-- `react` - React integration examples
-- `hook` / `hooks` - React hooks examples
-
-**Returns:** Code examples for the specified topic
-
----
-
-### explain_error
-
-Explain a ReFormer error or issue.
-
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `error` | string | Yes | Error message or issue description |
-
-**Returns:**
-- Problem explanation
-- Solution
-- Related documentation
-
-**Recognized error patterns:**
-- Field not updating / not re-rendering
-- Validation not triggering
-- TypeScript type errors
-- Form recreated every render
-- Cannot read property / undefined
-- Array index out of bounds
+**Returns:** Debug information and documentation stats
 
 ---
 
@@ -151,103 +89,60 @@ Code examples from documentation.
 
 **MIME Type:** `text/markdown`
 
-**Content:** First 10 code blocks from documentation
+**Content:** Code examples from documentation
+
+---
+
+### reformer://troubleshooting
+
+Common problems and solutions.
+
+**MIME Type:** `text/markdown`
+
+**Content:** Troubleshooting guide for common ReFormer issues
+
+---
+
+### reformer://debug (Debug Mode Only)
+
+Debug information for MCP server development.
+
+**MIME Type:** `text/markdown`
+
+**Content:** Debug stats and information
 
 ---
 
 ## Prompts
 
-### reformer-help
+### debug (Debug Mode Only)
 
-Get help with ReFormer library.
+Analyze ReFormer form code for issues. Only available when `REFORMER_DEBUG=true`.
 
 **Arguments:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `question` | string | Yes | Question about ReFormer |
+| `code` | string | Yes | ReFormer form code to analyze |
 
-**Behavior:**
-- Includes full documentation as context
-- Provides accurate answers based on documentation
-- Includes code examples where appropriate
+**Returns:** Analysis with documentation context
 
 ---
 
-### create-form
+## Debug Mode
 
-Generate a ReFormer form from description.
+To enable debug features, set the environment variable:
 
-**Arguments:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `description` | string | Yes | Description of the form to create |
+```bash
+REFORMER_DEBUG=true node dist/index.js
+```
 
-**Generated output:**
-1. TypeScript type definition
-2. Form schema with `createForm<T>()`
-3. Validation rules
-4. React component with hooks
+Or when registering with Claude Code:
 
----
+```bash
+claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /path/to/dist/index.js
+```
 
-### manage-validation
-
-Add, modify, or remove validation rules.
-
-**Arguments:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `task` | string | Yes | Validation task description |
-
-**Capabilities:**
-- Add built-in validators (required, email, minLength, etc.)
-- Create custom sync validators
-- Create async validators
-- Set up cross-field validation
-- Remove existing validators
-
----
-
-### manage-behavior
-
-Add, modify, or remove reactive behaviors.
-
-**Arguments:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `task` | string | Yes | Behavior task description |
-
-**Capabilities:**
-- computeFrom - Calculated fields
-- enableWhen / disableWhen - Conditional fields
-- watchField - React to changes
-- copyFrom - Copy values between fields
-- syncFields - Two-way sync
-- resetWhen - Conditional reset
-- revalidateWhen - Trigger revalidation
-
----
-
-### debug-form
-
-Help debug issues with a ReFormer form.
-
-**Arguments:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `code` | string | Yes | Form code that has issues |
-
-**Analysis performed:**
-- Identify issues and anti-patterns
-- Explain root causes
-- Provide fixed code
-- Suggest best practices
-
-**Common checks:**
-- useMemo for createForm
-- useFormControl usage
-- Type/schema matching
-- Validator imports
-- markAsTouched on blur
-- Validation before submission
-- Signal access patterns
+Debug mode enables:
+- `debug` tool
+- `debug` prompt
+- `reformer://debug` resource

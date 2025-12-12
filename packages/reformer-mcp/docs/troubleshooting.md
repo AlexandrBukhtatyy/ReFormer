@@ -137,6 +137,31 @@ claude mcp remove reformer
 claude mcp add --transport stdio reformer -- node ./dist/index.js
 ```
 
+## Debug Mode Issues
+
+### Debug features not available
+
+**Symptoms:** `debug` tool/prompt not appearing
+
+**Cause:** `REFORMER_DEBUG` environment variable not set
+
+**Solution:**
+```bash
+# Re-register with debug mode
+claude mcp remove reformer
+claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node ./dist/index.js
+```
+
+### Testing debug features locally
+
+```bash
+# Run with debug mode
+REFORMER_DEBUG=true node dist/index.js
+
+# Or with MCP Inspector
+REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
+```
+
 ## Development Issues
 
 ### TypeScript compilation errors

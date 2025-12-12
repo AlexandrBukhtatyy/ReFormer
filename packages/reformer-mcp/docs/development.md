@@ -12,18 +12,11 @@ packages/reformer-mcp/
 │   ├── index.ts           # Server entry point
 │   ├── tools/             # MCP tools
 │   │   ├── index.ts
-│   │   ├── get-docs.ts
-│   │   ├── search-docs.ts
-│   │   ├── get-api.ts
-│   │   ├── get-examples.ts
-│   │   └── explain-error.ts
+│   │   ├── debug.ts       # Debug tool (REFORMER_DEBUG only)
+│   │   └── report-issue.ts # Issue reporting tool
 │   ├── prompts/           # MCP prompts
 │   │   ├── index.ts
-│   │   ├── help.ts
-│   │   ├── create-form.ts
-│   │   ├── manage-validation.ts
-│   │   ├── manage-behavior.ts
-│   │   └── debug-form.ts
+│   │   └── debug.ts       # Debug prompt (REFORMER_DEBUG only)
 │   └── utils/
 │       └── docs-parser.ts # Documentation parser
 ├── docs/
@@ -64,6 +57,19 @@ const server = new Server(
   { name: 'reformer-mcp', version: '1.0.0' },
   { capabilities: { tools: {}, resources: {}, prompts: {} } }
 );
+```
+
+### Feature Flags
+
+Debug features are hidden behind the `REFORMER_DEBUG` environment variable:
+
+```typescript
+const isDebugMode = process.env.REFORMER_DEBUG === 'true';
+
+// Only expose debug tools in debug mode
+if (isDebugMode) {
+  tools.push(debugToolDefinition);
+}
 ```
 
 ### Tools
@@ -174,6 +180,20 @@ export function getMyPrompt() {
 2. Export from `src/prompts/index.ts`
 3. Register in `src/index.ts`
 
+## Debug Mode
+
+Enable debug mode for development:
+
+```bash
+REFORMER_DEBUG=true node dist/index.js
+```
+
+Or with MCP Inspector:
+
+```bash
+REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
+```
+
 ## Debugging
 
 ### Logging
@@ -204,3 +224,4 @@ tail -f ~/.config/Claude/logs/mcp.log
 3. **Handle errors gracefully** - Return helpful error messages
 4. **Keep responses concise** - Large responses slow down Claude
 5. **Cache when possible** - Documentation doesn't change often
+6. **Use feature flags** - Hide debug/development features from production
