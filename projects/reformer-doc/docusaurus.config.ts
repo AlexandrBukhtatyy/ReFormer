@@ -52,7 +52,7 @@ const config: Config = {
         sort: ['kind', 'alphabetical'],
         // Убрать префиксы "Class:", "Interface:" и дженерики из заголовков
         pageTitleTemplates: {
-          index: 'API Reference',
+          index: 'Core API Reference',
           // Функция удаляет дженерики: FormNode<T> -> FormNode
           member: (args: { name: string }) =>
             args.name.replace(/\\<[^>]*\\>/g, '').replace(/<[^>]*>/g, ''),
@@ -142,7 +142,7 @@ const config: Config = {
         {
           to: '/docs/api',
           position: 'left',
-          label: 'API',
+          label: 'Core API',
         },
         {
           href: 'https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx',
@@ -175,7 +175,7 @@ const config: Config = {
               to: '/docs/ui-kit/overview',
             },
             {
-              label: 'API Reference',
+              label: 'Core API Reference',
               to: '/docs/api',
             },
           ],

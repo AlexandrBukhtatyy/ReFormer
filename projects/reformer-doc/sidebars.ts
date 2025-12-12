@@ -93,7 +93,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'doc',
       id: 'api/index',
-      label: 'API Reference',
+      label: 'Core API Reference',
     },
     {
       type: 'category',
