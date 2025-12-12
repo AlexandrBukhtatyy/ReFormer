@@ -37,6 +37,46 @@ watchField(path.input, (value, ctx) => {
 }, { immediate: false });
 ```
 
+### Multiple Watchers on Same Field (Cycle Error)
+
+```typescript
+// WRONG - multiple watchers on insuranceType + missing { immediate: false }
+watchField(path.insuranceType, (_, ctx) => {
+  ctx.form.vehicle.vin.disable();
+  ctx.form.vehicle.vin.setValue('');
+});  // NO OPTIONS - BAD!
+watchField(path.insuranceType, (_, ctx) => {
+  ctx.form.property.type.disable();  // CYCLE!
+});  // NO OPTIONS - BAD!
+
+// CORRECT - consolidate into ONE watcher with guards AND { immediate: false }
+watchField(path.insuranceType, (_, ctx) => {
+  const type = ctx.form.insuranceType.value.value;
+  const isVehicle = type === 'casco';
+
+  // Guard: only disable if not already disabled
+  if (!isVehicle && !ctx.form.vehicle.vin.disabled.value) {
+    ctx.form.vehicle.vin.disable();
+  }
+  // Guard: only setValue if value differs
+  if (!isVehicle && ctx.form.vehicle.vin.getValue() !== '') {
+    ctx.form.vehicle.vin.setValue('');
+  }
+  // Arrays: compare by length, not reference
+  if (!isVehicle) {
+    const drivers = ctx.form.drivers.getValue();
+    if (Array.isArray(drivers) && drivers.length > 0) {
+      ctx.form.drivers.setValue([]);
+    }
+  }
+}, { immediate: false });  // REQUIRED!
+
+// BEST - use enableWhen instead of watchField
+enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOnDisable: true });
+```
+
+See `22-cycle-detection.md` for complete pattern.
+
 ### validateTree Typing
 
 ```typescript

@@ -7,3 +7,4 @@
 | `FormFields[]` instead of concrete type                | Type inference issue           | Use `as FieldNode<T>`             |
 | `Type 'X' is missing properties from type 'Y'`         | Cross-level computeFrom        | Use watchField instead            |
 | `Module has no exported member`                        | Wrong import source            | Types from core, functions from submodules |
+| `Cycle detected`                                       | Multiple watchers on same field calling disable/setValue | See 22-cycle-detection.md |
