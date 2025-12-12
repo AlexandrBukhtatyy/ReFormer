@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { FormFields, ArrayNode } from '@reformer/core';
-import type { FormArrayItem } from '@/hooks/useFormArray';
+import type { FormArrayItem } from './useFormArray';
 
 /**
  * Context value for FormArray compound component

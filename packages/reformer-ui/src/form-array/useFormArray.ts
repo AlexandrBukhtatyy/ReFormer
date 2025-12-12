@@ -78,7 +78,6 @@ export function useFormArray<T extends FormFields>(control: ArrayNode<T>): UseFo
 
   // Memoize items array - recalculates when length changes
   // Length is intentionally in deps to trigger recalculation when array changes
-
   const items = useMemo(
     () =>
       control.map((itemControl, index) => ({

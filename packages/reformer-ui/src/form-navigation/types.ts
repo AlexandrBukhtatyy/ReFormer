@@ -70,37 +70,3 @@ export interface FormNavigationProps<T extends Record<string, any>> {
   /** Scroll to top on step change */
   scrollToTop?: boolean;
 }
-
-// ============================================================================
-// Legacy type aliases for backward compatibility
-// ============================================================================
-
-/** @deprecated Use FormNavigationConfig instead */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type StepNavigationConfig<T extends Record<string, any>> = FormNavigationConfig<T> & {
-  /** @deprecated totalSteps is now inferred from children count */
-  totalSteps?: number;
-};
-
-/** @deprecated Use FormNavigationHandle instead */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type StepNavigationHandle<T extends Record<string, any>> = FormNavigationHandle<T>;
-
-/** @deprecated Render state is no longer used with compound components */
-export interface StepNavigationRenderState {
-  currentStep: number;
-  completedSteps: number[];
-  isFirstStep: boolean;
-  isLastStep: boolean;
-  isValidating: boolean;
-}
-
-/** @deprecated Use FormNavigationProps instead */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface StepNavigationProps<T extends Record<string, any>> {
-  form: GroupNodeWithControls<T>;
-  config: StepNavigationConfig<T>;
-  children: (state: StepNavigationRenderState) => React.ReactNode;
-  onStepChange?: (step: number) => void;
-  scrollToTop?: boolean;
-}

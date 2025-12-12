@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, ElementType } from 'react';
 import type { ArrayNode, FormFields, GroupNodeWithControls } from '@reformer/core';
 
 /**
@@ -20,7 +20,7 @@ export interface FormArrayListProps<T extends FormFields> {
   /** Optional className for the list container */
   className?: string;
   /** Optional element type for the container (default: 'div') */
-  as?: keyof JSX.IntrinsicElements;
+  as?: ElementType;
 }
 
 /**
@@ -45,7 +45,7 @@ export interface FormArrayAddButtonProps extends Omit<
   'onClick'
 > {
   /** Initial value for the new item */
-  initialValue?: Record<string, unknown>;
+  initialValue?: Partial<FormFields>;
   /** Custom render function for the button */
   asChild?: boolean;
 }

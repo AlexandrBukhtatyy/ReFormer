@@ -37,14 +37,3 @@ export type {
   FormNavigationProgressProps,
   FormNavigationProgressRenderProps,
 } from './FormNavigationProgress';
-
-// Types - Legacy aliases (deprecated)
-export type {
-  StepNavigationHandle,
-  StepNavigationProps,
-  StepNavigationConfig,
-  StepNavigationRenderState,
-} from './types';
-
-// Legacy export (deprecated) - use FormNavigation instead
-export { FormNavigation as StepNavigation } from './FormNavigation';

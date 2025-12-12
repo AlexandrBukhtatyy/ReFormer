@@ -10,6 +10,10 @@ export { FormArrayEmpty } from './FormArrayEmpty';
 export { FormArrayCount } from './FormArrayCount';
 export { FormArrayItemIndex } from './FormArrayItemIndex';
 
+// Hook
+export { useFormArray } from './useFormArray';
+export type { FormArrayItem, UseFormArrayReturn } from './useFormArray';
+
 // Context and hooks
 export {
   FormArrayContext,

@@ -24,7 +24,7 @@
 
 import type { ArrayNodeWithControls, FormFields, GroupNodeWithControls } from '@reformer/core';
 import type { ComponentType } from 'react';
-import { FormArray } from '@/components/ui/form-array';
+import { FormArray } from '@reformer/ui/form-array';
 
 interface FormArraySectionProps<T extends object> {
   /** Заголовок секции */

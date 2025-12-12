@@ -24,7 +24,7 @@ import creditApplicationValidation, {
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
-import { FormNavigation, type FormNavigationHandle } from '@/components/ui/form-navigation';
+import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
 import { Button } from '@/components/ui/button';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
 

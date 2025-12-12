@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import type { FormFields, GroupNodeWithControls } from '@reformer/core';
-import { useFormArray } from '@/hooks/useFormArray';
+import { useFormArray } from './useFormArray';
 import { FormArrayContext } from './FormArrayContext';
 import { FormArrayList } from './FormArrayList';
 import { FormArrayAddButton } from './FormArrayAddButton';
@@ -88,7 +88,6 @@ function FormArrayRootInner<T extends FormFields>(
 }
 
 // Typed forwardRef for generic component
-
 const FormArrayRoot = forwardRef(FormArrayRootInner) as <T extends FormFields>(
   props: FormArrayRootProps<T> & { ref?: React.ForwardedRef<FormArrayHandle<T>> }
 ) => React.ReactElement;
@@ -111,28 +110,28 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * all the form array state and actions internally.
  *
  * ## Features
- * - **Headless** - полная свобода в построении UI
- * - **Compound Components** - декларативный API через вложенные компоненты
- * - **External Control** - управление извне через ref (useImperativeHandle)
- * - **Type Safe** - полная типизация для TypeScript
+ * - **Headless** - complete freedom in building UI
+ * - **Compound Components** - declarative API via nested components
+ * - **External Control** - control from outside via ref (useImperativeHandle)
+ * - **Type Safe** - full TypeScript support
  *
  * ## Sub-components
- * - `FormArray.Root` - провайдер контекста, принимает ref для внешнего управления
- * - `FormArray.List` - итерация по элементам массива
- * - `FormArray.AddButton` - кнопка добавления элемента
- * - `FormArray.RemoveButton` - кнопка удаления (внутри List)
- * - `FormArray.Empty` - контент для пустого состояния
- * - `FormArray.Count` - отображение количества элементов
- * - `FormArray.ItemIndex` - отображение индекса элемента (внутри List)
+ * - `FormArray.Root` - context provider, accepts ref for external control
+ * - `FormArray.List` - iterates over array items
+ * - `FormArray.AddButton` - button to add item
+ * - `FormArray.RemoveButton` - button to remove item (inside List)
+ * - `FormArray.Empty` - content for empty state
+ * - `FormArray.Count` - display item count
+ * - `FormArray.ItemIndex` - display item index (inside List)
  *
  * ## FormArrayHandle API (ref)
- * - `add(value?)` - добавить элемент в конец
- * - `insert(index, value?)` - вставить элемент в позицию
- * - `removeAt(index)` - удалить элемент по индексу
- * - `clear()` - очистить массив
- * - `at(index)` - получить контрол элемента по индексу
- * - `length` - текущее количество элементов
- * - `isEmpty` - флаг пустого массива
+ * - `add(value?)` - add item to the end
+ * - `insert(index, value?)` - insert item at position
+ * - `removeAt(index)` - remove item by index
+ * - `clear()` - clear array
+ * - `at(index)` - get item control by index
+ * - `length` - current item count
+ * - `isEmpty` - empty array flag
  *
  * @example Basic usage
  * ```tsx
@@ -166,18 +165,18 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * @example External control via ref
  * ```tsx
  * import { useRef } from 'react';
- * import { FormArray, FormArrayHandle } from '@/components/ui/form-array';
+ * import { FormArray, FormArrayHandle } from '@reformer/ui/form-array';
  *
  * function PropertiesManager() {
  *   const arrayRef = useRef<FormArrayHandle<Property>>(null);
  *
- *   // Программное управление извне
+ *   // Programmatic control from outside
  *   const handleAddApartment = () => {
  *     arrayRef.current?.add({ type: 'apartment', estimatedValue: 0 });
  *   };
  *
  *   const handleClearAll = () => {
- *     if (confirm('Удалить все элементы?')) {
+ *     if (confirm('Delete all items?')) {
  *       arrayRef.current?.clear();
  *     }
  *   };
@@ -195,10 +194,10 @@ type FormArrayComponent = typeof FormArrayRoot & {
  *   return (
  *     <div>
  *       <div className="toolbar">
- *         <button onClick={handleAddApartment}>+ Квартира</button>
- *         <button onClick={handleInsertAtStart}>Вставить в начало</button>
- *         <button onClick={handleRemoveFirst}>Удалить первый</button>
- *         <button onClick={handleClearAll}>Очистить всё</button>
+ *         <button onClick={handleAddApartment}>+ Apartment</button>
+ *         <button onClick={handleInsertAtStart}>Insert at start</button>
+ *         <button onClick={handleRemoveFirst}>Remove first</button>
+ *         <button onClick={handleClearAll}>Clear all</button>
  *       </div>
  *
  *       <FormArray.Root ref={arrayRef} control={form.properties}>
@@ -213,7 +212,7 @@ type FormArrayComponent = typeof FormArrayRoot & {
  *
  * @example Using useFormArray hook for full customization
  * ```tsx
- * import { useFormArray } from '@/hooks/useFormArray';
+ * import { useFormArray } from '@reformer/ui/form-array';
  *
  * function CustomArrayUI() {
  *   const { items, add, isEmpty, length } = useFormArray(form.properties);
