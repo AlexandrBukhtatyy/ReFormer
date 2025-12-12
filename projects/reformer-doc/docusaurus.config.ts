@@ -129,6 +129,12 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
+          sidebarId: 'uiSidebar',
+          position: 'left',
+          label: 'UI-Kit',
+        },
+        {
+          type: 'docSidebar',
           sidebarId: 'mcpSidebar',
           position: 'left',
           label: 'MCP',
@@ -163,6 +169,10 @@ const config: Config = {
             {
               label: 'Getting Started',
               to: '/docs/getting-started/installation',
+            },
+            {
+              label: 'UI-Kit',
+              to: '/docs/ui-kit/overview',
             },
             {
               label: 'API Reference',

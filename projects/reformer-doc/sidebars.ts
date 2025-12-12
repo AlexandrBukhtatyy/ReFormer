@@ -88,6 +88,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
   mcpSidebar: ['mcp/overview', 'mcp/quick-start', 'mcp/tools', 'mcp/prompts', 'mcp/examples'],
+  uiSidebar: ['ui-kit/overview', 'ui-kit/form-array', 'ui-kit/form-navigation'],
   apiSidebar: [
     {
       type: 'doc',
