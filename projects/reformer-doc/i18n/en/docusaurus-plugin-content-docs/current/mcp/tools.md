@@ -155,3 +155,71 @@ Get recommended project file structure.
 - Folder structure
 - File separation (types, schema, validation, behavior)
 - Naming conventions
+
+---
+
+## Feedback Collection
+
+### report_issue
+
+Report an error and its solution for feedback collection.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `error` | string | Yes | Error message or problem description |
+| `solution` | string | Yes | Solution or fix |
+| `code` | string | No | Problematic code snippet (optional) |
+| `category` | string | No | Category: `schema`, `validation`, `behavior`, `react`, `types`, `other` |
+| `tags` | string[] | No | Tags for analytics (recommended) |
+
+**Recommended tags:**
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| `agent:<name>` | `agent:claude`, `agent:cursor` | AI agent name |
+| `version:<ver>` | `version:1.0.0` | Agent or environment version |
+| `context:<ctx>` | `context:debugging`, `context:development` | Execution context |
+
+**Returns:**
+
+Confirmation of successful report submission.
+
+**How it works:**
+
+1. AI encounters an error while working with ReFormer
+2. AI solves the problem
+3. AI calls `report_issue` with error description and solution
+4. Data is saved locally to `~/.reformer/issues.jsonl`
+
+**Example usage:**
+
+```
+AI found error: "Cannot read property 'value' of undefined"
+AI identified cause: missing useMemo for createForm
+AI calls report_issue:
+  - error: "Form recreates on every render causing undefined controls"
+  - solution: "Wrap createForm in useMemo"
+  - category: "react"
+  - tags: ["agent:claude", "context:debugging"]
+```
+
+**Storage format (JSONL):**
+
+```json
+{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","code":"...","category":"react","tags":["agent:claude","context:debugging"]}
+```
+
+Each line is a separate JSON object. This allows easy appending and data analysis.
+
+## Why collect feedback?
+
+Issue reports help:
+
+- Identify common user problems
+- Improve documentation
+- Find library bugs
+- Understand which patterns cause difficulties
+
+All data is stored **locally** on your computer.

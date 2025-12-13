@@ -18,6 +18,15 @@ MCP-сервер предоставляет инструменты, которы
 | `solution` | string | Да | Решение или исправление |
 | `code` | string | Нет | Проблемный код (опционально) |
 | `category` | string | Нет | Категория: `schema`, `validation`, `behavior`, `react`, `types`, `other` |
+| `tags` | string[] | Нет | Теги для аналитики (рекомендуется указывать) |
+
+**Рекомендуемые теги:**
+
+| Формат | Пример | Описание |
+|--------|--------|----------|
+| `agent:<name>` | `agent:claude`, `agent:cursor` | Имя AI-агента |
+| `version:<ver>` | `version:1.0.0` | Версия агента или среды |
+| `context:<ctx>` | `context:debugging`, `context:development` | Контекст выполнения |
 
 **Что возвращает:**
 
@@ -39,12 +48,13 @@ AI вызывает report_issue:
   - error: "Form recreates on every render causing undefined controls"
   - solution: "Wrap createForm in useMemo"
   - category: "react"
+  - tags: ["agent:claude", "context:debugging"]
 ```
 
 **Формат хранения (JSONL):**
 
 ```json
-{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","code":"...","category":"react"}
+{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","code":"...","category":"react","tags":["agent:claude","context:debugging"]}
 ```
 
 Каждая строка — отдельный JSON-объект. Это позволяет легко дописывать новые записи и анализировать данные.
