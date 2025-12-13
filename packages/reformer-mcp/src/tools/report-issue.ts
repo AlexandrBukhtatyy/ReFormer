@@ -26,6 +26,12 @@ export const reportIssueToolDefinition = {
         enum: ['schema', 'validation', 'behavior', 'react', 'types', 'other'],
         description: 'Category of the issue',
       },
+      tags: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional tags for analytics. Recommended tags: agent:<name> (e.g., agent:claude, agent:cursor), version:<ver>, context:<ctx> (e.g., context:debugging, context:development)',
+      },
     },
     required: ['error', 'solution'],
   },
@@ -36,12 +42,13 @@ interface ReportIssueArgs {
   solution: string;
   code?: string;
   category?: 'schema' | 'validation' | 'behavior' | 'react' | 'types' | 'other';
+  tags?: string[];
 }
 
 export async function reportIssueTool(args: ReportIssueArgs): Promise<{
   content: Array<{ type: 'text'; text: string }>;
 }> {
-  const { error, solution, code, category } = args;
+  const { error, solution, code, category, tags } = args;
 
   // Create directory if not exists
   const reformerDir = join(homedir(), '.reformer');
@@ -56,6 +63,7 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     solution,
     code: code || null,
     category: category || 'other',
+    tags: tags || [],
   };
 
   // Append to JSONL file
