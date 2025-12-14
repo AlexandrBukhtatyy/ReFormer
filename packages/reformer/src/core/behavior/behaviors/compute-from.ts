@@ -67,11 +67,6 @@ export function computeFrom<TForm, TTarget>(
       // Читаем значения всех source полей (создает зависимость)
       const sourceValues = sourceNodes.map((node) => node.value.value);
 
-      // ВАЖНО: Также читаем текущее значение target (создает зависимость)
-      // Это позволяет эффекту перезапуститься когда patchValue перезаписывает
-      // вычисленное значение некорректным значением из API
-      const currentTargetValue = targetNode.value.value;
-
       withDebounce(() => {
         // Проверка условия
         if (condition) {
@@ -91,8 +86,11 @@ export function computeFrom<TForm, TTarget>(
         // Вычисляем новое значение
         const computedValue = computeFn(sourceValuesObject as TForm);
 
+        // Читаем текущее значение target БЕЗ создания зависимости через peek()
+        // Это предотвращает бесконечный цикл: effect зависит только от sources
+        const currentTargetValue = targetNode.value.peek();
+
         // Устанавливаем значение только если оно отличается от текущего
-        // Это предотвращает бесконечные циклы (эффект зависит от target)
         if (currentTargetValue !== computedValue) {
           // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
           queueMicrotask(() => {
