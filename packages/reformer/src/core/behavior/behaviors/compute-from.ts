@@ -64,8 +64,13 @@ export function computeFrom<TForm, TTarget>(
     if (sourceNodes.length === 0) return null;
 
     return effect(() => {
-      // Читаем значения всех source полей
+      // Читаем значения всех source полей (создает зависимость)
       const sourceValues = sourceNodes.map((node) => node.value.value);
+
+      // ВАЖНО: Также читаем текущее значение target (создает зависимость)
+      // Это позволяет эффекту перезапуститься когда patchValue перезаписывает
+      // вычисленное значение некорректным значением из API
+      const currentTargetValue = targetNode.value.value;
 
       withDebounce(() => {
         // Проверка условия
@@ -86,9 +91,15 @@ export function computeFrom<TForm, TTarget>(
         // Вычисляем новое значение
         const computedValue = computeFn(sourceValuesObject as TForm);
 
-        // Устанавливаем значение без триггера событий
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        targetNode.setValue(computedValue as any, { emitEvent: false });
+        // Устанавливаем значение только если оно отличается от текущего
+        // Это предотвращает бесконечные циклы (эффект зависит от target)
+        if (currentTargetValue !== computedValue) {
+          // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+          queueMicrotask(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            targetNode.setValue(computedValue as any, { emitEvent: false });
+          });
+        }
       });
     });
   };

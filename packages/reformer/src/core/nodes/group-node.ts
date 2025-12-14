@@ -11,7 +11,7 @@
  * @group Nodes
  */
 
-import { effect } from '@preact/signals-core';
+import { effect, batch } from '@preact/signals-core';
 import type { ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import type {
@@ -270,13 +270,18 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   patchValue(value: Partial<T>): void {
-    for (const [key, fieldValue] of Object.entries(value)) {
-      const field = this.fieldRegistry.get(key as keyof T);
-      if (field && fieldValue !== undefined) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        field.setValue(fieldValue as any);
+    // Используем batch чтобы все обновления происходили атомарно
+    // и effects (включая computeFrom) срабатывали только после
+    // установки всех значений
+    batch(() => {
+      for (const [key, fieldValue] of Object.entries(value)) {
+        const field = this.fieldRegistry.get(key as keyof T);
+        if (field && fieldValue !== undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          field.setValue(fieldValue as any);
+        }
       }
-    }
+    });
   }
 
   /**
