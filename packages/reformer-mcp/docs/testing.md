@@ -76,7 +76,12 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
     "arguments": {
       "error": "Form recreates on every render",
       "solution": "Wrap createForm in useMemo",
-      "category": "react"
+      "tags": ["category:react", "agent:claude"],
+      "context": {
+        "examples": [
+          { "description": "Correct usage", "code": "const form = useMemo(() => createForm(...), []);" }
+        ]
+      }
     }
   }
 }

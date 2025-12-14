@@ -45,8 +45,8 @@ Allows AI assistants to report issues encountered while working with ReFormer an
 **Parameters:**
 - `error` (required) - The error message or problem description
 - `solution` (required) - The solution or fix that resolved the issue
-- `code` (optional) - The problematic code snippet
-- `category` (optional) - Category: `schema`, `validation`, `behavior`, `react`, `types`, `other`
+- `tags` (optional) - Tags for categorization (e.g., `category:behavior`, `agent:claude`, `severity:critical`)
+- `context` (optional) - Additional context with `examples`, `relatedFiles`, `notes`
 
 ## Available Resources
 

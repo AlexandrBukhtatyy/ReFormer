@@ -17,38 +17,66 @@ export const reportIssueToolDefinition = {
         type: 'string',
         description: 'The solution or fix that resolved the issue',
       },
-      code: {
-        type: 'string',
-        description: 'The problematic code snippet (optional)',
-      },
-      category: {
-        type: 'string',
-        enum: ['schema', 'validation', 'behavior', 'react', 'types', 'other'],
-        description: 'Category of the issue',
-      },
       tags: {
         type: 'array',
         items: { type: 'string' },
         description:
-          'Optional tags for analytics. Recommended tags: agent:<name> (e.g., agent:claude, agent:cursor), version:<ver>, context:<ctx> (e.g., context:debugging, context:development)',
+          'Tags for categorization and analytics. Recommended: category:<type> (schema, validation, behavior, react, types, other), agent:<name> (claude, cursor), severity:<level> (critical, major, minor)',
+      },
+      context: {
+        type: 'object',
+        description: 'Additional context for the issue',
+        properties: {
+          examples: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                description: { type: 'string' },
+                code: { type: 'string' },
+              },
+              required: ['description', 'code'],
+            },
+            description: 'Code examples showing wrong/correct approaches',
+          },
+          relatedFiles: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Paths to related files',
+          },
+          notes: {
+            type: 'string',
+            description: 'Additional notes or observations',
+          },
+        },
       },
     },
     required: ['error', 'solution'],
   },
 };
 
+interface ContextExample {
+  description: string;
+  code: string;
+}
+
+interface ReportIssueContext {
+  examples?: ContextExample[];
+  relatedFiles?: string[];
+  notes?: string;
+}
+
 interface ReportIssueArgs {
   error: string;
   solution: string;
-  code?: string;
-  category?: 'schema' | 'validation' | 'behavior' | 'react' | 'types' | 'other';
   tags?: string[];
+  context?: ReportIssueContext;
 }
 
 export async function reportIssueTool(args: ReportIssueArgs): Promise<{
   content: Array<{ type: 'text'; text: string }>;
 }> {
-  const { error, solution, code, category, tags } = args;
+  const { error, solution, tags, context } = args;
 
   // Create directory if not exists
   const reformerDir = join(homedir(), '.reformer');
@@ -61,20 +89,23 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     timestamp: new Date().toISOString(),
     error,
     solution,
-    code: code || null,
-    category: category || 'other',
     tags: tags || [],
+    context: context || null,
   };
 
   // Append to JSONL file
   const issuesFile = join(reformerDir, 'issues.jsonl');
   appendFileSync(issuesFile, JSON.stringify(issue) + '\n', 'utf-8');
 
+  // Extract category from tags for display
+  const categoryTag = tags?.find((t) => t.startsWith('category:'));
+  const category = categoryTag ? categoryTag.split(':')[1] : 'unknown';
+
   return {
     content: [
       {
         type: 'text',
-        text: `Issue reported successfully.\n\nCategory: ${issue.category}\nStored in: ${issuesFile}`,
+        text: `Issue reported successfully.\n\nCategory: ${category}\nTags: ${(tags || []).join(', ') || 'none'}\nStored in: ${issuesFile}`,
       },
     ],
   };

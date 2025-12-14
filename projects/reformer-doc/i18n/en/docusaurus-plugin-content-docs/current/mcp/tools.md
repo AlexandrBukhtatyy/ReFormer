@@ -170,17 +170,26 @@ Report an error and its solution for feedback collection.
 |-----------|------|----------|-------------|
 | `error` | string | Yes | Error message or problem description |
 | `solution` | string | Yes | Solution or fix |
-| `code` | string | No | Problematic code snippet (optional) |
-| `category` | string | No | Category: `schema`, `validation`, `behavior`, `react`, `types`, `other` |
-| `tags` | string[] | No | Tags for analytics (recommended) |
+| `tags` | string[] | No | Tags for categorization and analytics |
+| `context` | object | No | Additional context (see below) |
+
+**Structure of `context`:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `examples` | array | Code examples with descriptions |
+| `examples[].description` | string | Example description |
+| `examples[].code` | string | Example code |
+| `relatedFiles` | string[] | Paths to related files |
+| `notes` | string | Additional notes |
 
 **Recommended tags:**
 
 | Format | Example | Description |
 |--------|---------|-------------|
+| `category:<type>` | `category:behavior`, `category:validation` | Category: schema, validation, behavior, react, types, other |
 | `agent:<name>` | `agent:claude`, `agent:cursor` | AI agent name |
-| `version:<ver>` | `version:1.0.0` | Agent or environment version |
-| `context:<ctx>` | `context:debugging`, `context:development` | Execution context |
+| `severity:<level>` | `severity:critical`, `severity:minor` | Issue severity |
 
 **Returns:**
 
@@ -196,19 +205,25 @@ Confirmation of successful report submission.
 **Example usage:**
 
 ```
-AI found error: "Cannot read property 'value' of undefined"
-AI identified cause: missing useMemo for createForm
+AI found error: "Cycle detected in computeFrom"
+AI identified cause: effect depends on target field
 AI calls report_issue:
-  - error: "Form recreates on every render causing undefined controls"
-  - solution: "Wrap createForm in useMemo"
-  - category: "react"
-  - tags: ["agent:claude", "context:debugging"]
+  - error: "Infinite loop in computeFrom when effect depends on target"
+  - solution: "Use peek() instead of .value to read target without dependency"
+  - tags: ["category:behavior", "agent:claude", "severity:critical"]
+  - context:
+      examples:
+        - description: "Wrong - creates dependency"
+          code: "const current = targetNode.value.value;"
+        - description: "Correct - no dependency"
+          code: "const current = targetNode.value.peek();"
+      relatedFiles: ["packages/reformer/src/core/behavior/behaviors/compute-from.ts"]
 ```
 
 **Storage format (JSONL):**
 
 ```json
-{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","code":"...","category":"react","tags":["agent:claude","context:debugging"]}
+{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","tags":["category:behavior"],"context":{"examples":[...],"notes":"..."}}
 ```
 
 Each line is a separate JSON object. This allows easy appending and data analysis.

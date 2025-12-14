@@ -16,17 +16,26 @@ MCP-сервер предоставляет инструменты, которы
 |----------|-----|--------------|----------|
 | `error` | string | Да | Описание ошибки или проблемы |
 | `solution` | string | Да | Решение или исправление |
-| `code` | string | Нет | Проблемный код (опционально) |
-| `category` | string | Нет | Категория: `schema`, `validation`, `behavior`, `react`, `types`, `other` |
-| `tags` | string[] | Нет | Теги для аналитики (рекомендуется указывать) |
+| `tags` | string[] | Нет | Теги для категоризации и аналитики |
+| `context` | object | Нет | Дополнительный контекст (см. ниже) |
+
+**Структура `context`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `examples` | array | Примеры кода с описанием |
+| `examples[].description` | string | Описание примера |
+| `examples[].code` | string | Код примера |
+| `relatedFiles` | string[] | Пути к связанным файлам |
+| `notes` | string | Дополнительные заметки |
 
 **Рекомендуемые теги:**
 
 | Формат | Пример | Описание |
 |--------|--------|----------|
+| `category:<type>` | `category:behavior`, `category:validation` | Категория: schema, validation, behavior, react, types, other |
 | `agent:<name>` | `agent:claude`, `agent:cursor` | Имя AI-агента |
-| `version:<ver>` | `version:1.0.0` | Версия агента или среды |
-| `context:<ctx>` | `context:debugging`, `context:development` | Контекст выполнения |
+| `severity:<level>` | `severity:critical`, `severity:minor` | Критичность проблемы |
 
 **Что возвращает:**
 
@@ -42,19 +51,25 @@ MCP-сервер предоставляет инструменты, которы
 **Пример использования AI:**
 
 ```
-AI обнаружил ошибку: "Cannot read property 'value' of undefined"
-AI определил причину: отсутствие useMemo для createForm
+AI обнаружил ошибку: "Cycle detected in computeFrom"
+AI определил причину: effect зависит от target поля
 AI вызывает report_issue:
-  - error: "Form recreates on every render causing undefined controls"
-  - solution: "Wrap createForm in useMemo"
-  - category: "react"
-  - tags: ["agent:claude", "context:debugging"]
+  - error: "Infinite loop in computeFrom when effect depends on target"
+  - solution: "Use peek() instead of .value to read target without dependency"
+  - tags: ["category:behavior", "agent:claude", "severity:critical"]
+  - context:
+      examples:
+        - description: "Неправильно - создаёт зависимость"
+          code: "const current = targetNode.value.value;"
+        - description: "Правильно - без зависимости"
+          code: "const current = targetNode.value.peek();"
+      relatedFiles: ["packages/reformer/src/core/behavior/behaviors/compute-from.ts"]
 ```
 
 **Формат хранения (JSONL):**
 
 ```json
-{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","code":"...","category":"react","tags":["agent:claude","context:debugging"]}
+{"timestamp":"2025-01-15T10:30:00Z","error":"...","solution":"...","tags":["category:behavior"],"context":{"examples":[...],"notes":"..."}}
 ```
 
 Каждая строка — отдельный JSON-объект. Это позволяет легко дописывать новые записи и анализировать данные.

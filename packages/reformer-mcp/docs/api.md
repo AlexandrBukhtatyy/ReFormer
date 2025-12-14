@@ -13,17 +13,24 @@ Report an issue encountered while working with ReFormer and its solution.
 |------|------|----------|-------------|
 | `error` | string | Yes | The error message or problem description |
 | `solution` | string | Yes | The solution or fix that resolved the issue |
-| `code` | string | No | The problematic code snippet |
-| `category` | string | No | Category: `schema`, `validation`, `behavior`, `react`, `types`, `other` |
+| `tags` | string[] | No | Tags for categorization (e.g., `category:behavior`, `agent:claude`, `severity:critical`) |
+| `context` | object | No | Additional context with `examples`, `relatedFiles`, `notes` |
 
 **Returns:** Confirmation of successful report
 
 **Example:**
 ```json
 {
-  "error": "Form recreates on every render causing undefined controls",
-  "solution": "Wrap createForm in useMemo",
-  "category": "react"
+  "error": "Infinite loop in computeFrom when effect depends on target",
+  "solution": "Use peek() instead of .value to read target without dependency",
+  "tags": ["category:behavior", "agent:claude", "severity:critical"],
+  "context": {
+    "examples": [
+      { "description": "Wrong", "code": "const v = targetNode.value.value;" },
+      { "description": "Correct", "code": "const v = targetNode.value.peek();" }
+    ],
+    "relatedFiles": ["packages/reformer/src/core/behavior/behaviors/compute-from.ts"]
+  }
 }
 ```
 
