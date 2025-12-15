@@ -1,6 +1,6 @@
 {
   "name": "@reformer/ui",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Headless UI components for @reformer/core - form arrays, multi-step wizards, and more",
   "type": "module",
   "main": "./dist/index.js",
@@ -63,7 +63,7 @@
     "llms.txt"
   ],
   "peerDependencies": {
-    "@reformer/core": "^1.1.0-beta.*",
+    "@reformer/core": ">=1.1.0-beta.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },
