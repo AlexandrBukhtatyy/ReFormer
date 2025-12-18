@@ -14,6 +14,9 @@ import { FormNavigationStep } from './FormNavigationStep';
 import { FormNavigationIndicator } from './FormNavigationIndicator';
 import { FormNavigationActions } from './FormNavigationActions';
 import { FormNavigationProgress } from './FormNavigationProgress';
+import { FormNavigationPrev } from './FormNavigationPrev';
+import { FormNavigationNext } from './FormNavigationNext';
+import { FormNavigationSubmit } from './FormNavigationSubmit';
 import type { FormNavigationHandle, FormNavigationProps } from './types';
 
 /**
@@ -350,6 +353,10 @@ type FormNavigationComponent = typeof FormNavigationBase & {
   Indicator: typeof FormNavigationIndicator;
   Actions: typeof FormNavigationActions;
   Progress: typeof FormNavigationProgress;
+  // Action button components
+  Prev: typeof FormNavigationPrev;
+  Next: typeof FormNavigationNext;
+  Submit: typeof FormNavigationSubmit;
 };
 
 export const FormNavigation = FormNavigationBase as FormNavigationComponent;
@@ -357,3 +364,7 @@ FormNavigation.Step = FormNavigationStep;
 FormNavigation.Indicator = FormNavigationIndicator;
 FormNavigation.Actions = FormNavigationActions;
 FormNavigation.Progress = FormNavigationProgress;
+// Action button components
+FormNavigation.Prev = FormNavigationPrev;
+FormNavigation.Next = FormNavigationNext;
+FormNavigation.Submit = FormNavigationSubmit;

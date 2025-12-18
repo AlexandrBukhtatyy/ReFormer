@@ -4,8 +4,17 @@ export { FormNavigation } from './FormNavigation';
 // Sub-components (also available as FormNavigation.Step, etc.)
 export { FormNavigationStep } from './FormNavigationStep';
 export { FormNavigationIndicator } from './FormNavigationIndicator';
-export { FormNavigationActions } from './FormNavigationActions';
+export { FormNavigationActions, useFormNavigationActions } from './FormNavigationActions';
 export { FormNavigationProgress } from './FormNavigationProgress';
+
+// Action button components (also available as FormNavigation.Prev, etc.)
+export { FormNavigationPrev } from './FormNavigationPrev';
+export { FormNavigationNext } from './FormNavigationNext';
+export { FormNavigationSubmit } from './FormNavigationSubmit';
+
+// Slot utility for asChild pattern
+export { Slot } from './Slot';
+export type { SlotProps } from './Slot';
 
 // Context and hook
 export { useFormNavigation, FormNavigationContext } from './FormNavigationContext';
@@ -24,13 +33,18 @@ export type {
   FormNavigationIndicatorRenderProps,
 } from './FormNavigationIndicator';
 
-// Types - Actions (headless)
+// Types - Actions (headless + compound)
 export type {
   FormNavigationActionsProps,
   FormNavigationActionsRenderProps,
   FormNavigationButtonProps,
-  FormNavigationSubmitProps,
+  FormNavigationSubmitProps as FormNavigationSubmitRenderProps,
 } from './FormNavigationActions';
+
+// Types - Action buttons
+export type { FormNavigationPrevProps } from './FormNavigationPrev';
+export type { FormNavigationNextProps } from './FormNavigationNext';
+export type { FormNavigationSubmitProps } from './FormNavigationSubmit';
 
 // Types - Progress (headless)
 export type {

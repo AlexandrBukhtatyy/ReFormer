@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { useFormNavigation } from './FormNavigationContext';
 
 /**
@@ -40,31 +40,74 @@ export interface FormNavigationActionsRenderProps {
 }
 
 /**
+ * Render function type for headless mode
+ */
+type RenderFunction = (props: FormNavigationActionsRenderProps) => ReactNode;
+
+/**
  * Props for FormNavigation.Actions component
  */
 export interface FormNavigationActionsProps {
   /** Submit handler (called on last step) */
   onSubmit?: () => void | Promise<void>;
-  /** Render function for custom UI */
-  children: (props: FormNavigationActionsRenderProps) => ReactNode;
+  /** Children: render function (headless) or ReactNode (compound components) */
+  children: ReactNode | RenderFunction;
+  /** Optional className for wrapper (compound mode only) */
+  className?: string;
+  /** Optional style for wrapper (compound mode only) */
+  style?: CSSProperties;
+}
+
+// ============================================================================
+// Actions Context (for compound components mode)
+// ============================================================================
+
+interface FormNavigationActionsContextValue {
+  onSubmit?: () => void | Promise<void>;
+}
+
+const FormNavigationActionsContext = createContext<FormNavigationActionsContextValue | null>(null);
+
+/**
+ * Hook to access Actions context (onSubmit handler)
+ *
+ * Must be used within FormNavigation.Actions component.
+ * Used internally by FormNavigation.Submit.
+ */
+export function useFormNavigationActions(): FormNavigationActionsContextValue {
+  const context = useContext(FormNavigationActionsContext);
+  if (!context) {
+    throw new Error(
+      'FormNavigation.Prev/Next/Submit must be used within FormNavigation.Actions. ' +
+        'Wrap your navigation buttons with <FormNavigation.Actions>.'
+    );
+  }
+  return context;
+}
+
+// ============================================================================
+// Type Guard
+// ============================================================================
+
+function isRenderFunction(children: ReactNode | RenderFunction): children is RenderFunction {
+  return typeof children === 'function';
 }
 
 /**
- * FormNavigation.Actions - Headless component for navigation buttons
+ * FormNavigation.Actions - Container for navigation buttons
  *
- * Provides all necessary props and state for building custom navigation UI.
- * No default UI - you build exactly what you need.
+ * Supports two modes:
  *
- * ## Render Props
- * - `prev` - props for Previous button (`onClick`, `disabled`)
- * - `next` - props for Next button (`onClick`, `disabled`)
- * - `submit` - props for Submit button (`onClick`, `disabled`, `isSubmitting`)
- * - `isFirstStep` - hide prev button on first step
- * - `isLastStep` - show submit instead of next on last step
- * - `isValidating` - show loading state during validation
- * - `isSubmitting` - show loading state during submission
+ * ## 1. Compound Components Mode (recommended for simple cases)
+ * ```tsx
+ * <FormNavigation.Actions onSubmit={handleSubmit}>
+ *   <FormNavigation.Prev>Back</FormNavigation.Prev>
+ *   <FormNavigation.Next>Next</FormNavigation.Next>
+ *   <FormNavigation.Submit loadingText="Submitting...">Submit</FormNavigation.Submit>
+ * </FormNavigation.Actions>
+ * ```
  *
- * @example Basic usage
+ * ## 2. Render Props Mode (for complex/custom layouts)
  * ```tsx
  * <FormNavigation.Actions onSubmit={handleSubmit}>
  *   {({ prev, next, submit, isFirstStep, isLastStep }) => (
@@ -89,65 +132,66 @@ export interface FormNavigationActionsProps {
  * </FormNavigation.Actions>
  * ```
  *
- * @example With custom button component
- * ```tsx
- * <FormNavigation.Actions onSubmit={handleSubmit}>
- *   {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
- *     <ActionBar>
- *       <ActionBar.Left>
- *         {!isFirstStep && <IconButton icon="arrow-left" {...prev} />}
- *       </ActionBar.Left>
- *       <ActionBar.Right>
- *         {isLastStep ? (
- *           <PrimaryButton {...submit} loading={submit.isSubmitting}>
- *             Submit Application
- *           </PrimaryButton>
- *         ) : (
- *           <PrimaryButton {...next} loading={isValidating}>
- *             Continue
- *           </PrimaryButton>
- *         )}
- *       </ActionBar.Right>
- *     </ActionBar>
- *   )}
- * </FormNavigation.Actions>
- * ```
+ * ## Render Props (headless mode)
+ * - `prev` - props for Previous button (`onClick`, `disabled`)
+ * - `next` - props for Next button (`onClick`, `disabled`)
+ * - `submit` - props for Submit button (`onClick`, `disabled`, `isSubmitting`)
+ * - `isFirstStep` - hide prev button on first step
+ * - `isLastStep` - show submit instead of next on last step
+ * - `isValidating` - show loading state during validation
+ * - `isSubmitting` - show loading state during submission
  */
-export function FormNavigationActions({ onSubmit, children }: FormNavigationActionsProps) {
-  // Runtime check for headless API
-  if (typeof children !== 'function') {
-    throw new Error(
-      'FormNavigation.Actions requires children as a render function. ' +
-        'Example: <FormNavigation.Actions>{({ prev, next }) => <YourUI />}</FormNavigation.Actions>'
-    );
-  }
-
+export function FormNavigationActions({
+  onSubmit,
+  children,
+  className,
+  style,
+}: FormNavigationActionsProps) {
   const { isFirstStep, isLastStep, isValidating, isSubmitting, goToNextStep, goToPreviousStep } =
     useFormNavigation();
 
-  const isDisabled = isValidating || isSubmitting;
+  // Always create context value (hooks must be called unconditionally)
+  const actionsContextValue = useMemo(() => ({ onSubmit }), [onSubmit]);
 
-  const renderProps: FormNavigationActionsRenderProps = {
-    prev: {
-      onClick: goToPreviousStep,
-      disabled: isDisabled,
-    },
-    next: {
-      onClick: () => goToNextStep(),
-      disabled: isDisabled,
-    },
-    submit: {
-      onClick: () => onSubmit?.(),
-      disabled: isDisabled,
+  // Render props mode (backward compatible)
+  if (isRenderFunction(children)) {
+    const isDisabled = isValidating || isSubmitting;
+
+    const renderProps: FormNavigationActionsRenderProps = {
+      prev: {
+        onClick: goToPreviousStep,
+        disabled: isDisabled,
+      },
+      next: {
+        onClick: () => goToNextStep(),
+        disabled: isDisabled,
+      },
+      submit: {
+        onClick: () => onSubmit?.(),
+        disabled: isDisabled,
+        isSubmitting,
+      },
+      isFirstStep,
+      isLastStep,
+      isValidating,
       isSubmitting,
-    },
-    isFirstStep,
-    isLastStep,
-    isValidating,
-    isSubmitting,
-  };
+    };
 
-  return <>{children(renderProps)}</>;
+    return <>{children(renderProps)}</>;
+  }
+
+  // Compound components mode
+  return (
+    <FormNavigationActionsContext.Provider value={actionsContextValue}>
+      {className || style ? (
+        <div className={className} style={style}>
+          {children}
+        </div>
+      ) : (
+        <>{children}</>
+      )}
+    </FormNavigationActionsContext.Provider>
+  );
 }
 
 FormNavigationActions.displayName = 'FormNavigation.Actions';
