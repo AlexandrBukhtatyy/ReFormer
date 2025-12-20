@@ -1,4 +1,11 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import {
+  forwardRef,
+  cloneElement,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type ReactElement,
+} from 'react';
 import { Slot } from './Slot';
 import { useFormNavigation } from './FormNavigationContext';
 import { useFormNavigationActions } from './FormNavigationActions';
@@ -59,8 +66,18 @@ export const FormNavigationSubmit = forwardRef<HTMLButtonElement, FormNavigation
 
     const Comp = asChild ? Slot : 'button';
 
-    // Show loadingText during submission if provided
-    const content = isSubmitting && loadingText ? loadingText : children;
+    // Determine what content to show
+    const showLoading = isSubmitting && loadingText;
+
+    // For asChild mode with loadingText: clone the child element with new content
+    // The Slot expects a single React element, not a string
+    let slotChildren = children;
+    if (asChild && showLoading && isValidElement(children)) {
+      slotChildren = cloneElement(children as ReactElement, {}, loadingText);
+    }
+
+    // For non-asChild mode, just swap the content
+    const content = asChild ? slotChildren : showLoading ? loadingText : children;
 
     return (
       <Comp

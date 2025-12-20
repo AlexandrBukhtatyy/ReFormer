@@ -11,8 +11,8 @@
  * @group Nodes
  */
 
-import { effect, batch } from '@preact/signals-core';
-import type { ReadonlySignal } from '@preact/signals-core';
+import { signal, computed, effect, batch } from '@preact/signals-core';
+import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import type {
   ValidationError,
@@ -29,14 +29,11 @@ import { createFieldPath } from '../validation';
 import { ValidationApplicator } from '../validation/validation-applicator';
 import type { BehaviorSchemaFn } from '../behavior/types';
 import { BehaviorRegistry } from '../behavior/behavior-registry';
-import { BehaviorApplicator } from '../behavior/behavior-applicator';
+import { createFieldPath as createBehaviorFieldPath } from '../behavior/create-field-path';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validation/validation-registry';
-import { FieldRegistry } from './group-node/field-registry';
-import { ProxyBuilder } from './group-node/proxy-builder';
-import { StateManager } from './group-node/state-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -86,78 +83,61 @@ export class GroupNode<T> extends FormNode<T> {
   public id = uuidv4();
 
   /**
-   * Реестр полей формы
-   * Использует FieldRegistry для инкапсуляции логики управления коллекцией полей
+   * Коллекция полей формы (упрощённый Map вместо FieldRegistry)
    */
-  private fieldRegistry: FieldRegistry<T>;
-
-  /**
-   * Строитель Proxy для типобезопасного доступа к полям
-   * Использует ProxyBuilder для создания Proxy с расширенной функциональностью
-   */
-  private proxyBuilder: ProxyBuilder<T>;
-
-  /**
-   * Менеджер состояния формы
-   * Инкапсулирует всю логику создания и управления сигналами состояния
-   * Извлечен из GroupNode для соблюдения SRP
-   */
-  private stateManager: StateManager<T>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly _fields = new Map<keyof T, FormNode<any>>();
 
   /**
    * Менеджер подписок для централизованного cleanup
-   * Использует SubscriptionManager вместо массива для управления подписками
    */
   private disposers = new SubscriptionManager();
 
   /**
    * Ссылка на Proxy-инстанс для использования в BehaviorContext
-   * Устанавливается в конструкторе до применения behavior schema
    */
   private _proxyInstance?: GroupNodeWithControls<T>;
 
   /**
    * Навигатор для работы с путями к полям
-   * Использует композицию вместо дублирования логики парсинга путей
    */
   private readonly pathNavigator = new FieldPathNavigator();
 
   /**
    * Фабрика для создания узлов формы
-   * Использует композицию для централизованного создания FieldNode/GroupNode/ArrayNode
    */
   private readonly nodeFactory = new NodeFactory();
 
   /**
    * Реестр валидаторов для этой формы
-   * Использует композицию вместо глобального Singleton
-   * Обеспечивает полную изоляцию форм друг от друга
    */
   private readonly validationRegistry = new ValidationRegistry();
 
   /**
    * Реестр behaviors для этой формы
-   * Использует композицию вместо глобального Singleton
-   * Обеспечивает полную изоляцию форм друг от друга
    */
   private readonly behaviorRegistry = new BehaviorRegistry();
 
   /**
    * Аппликатор для применения валидаторов к форме
-   * Извлечен из GroupNode для соблюдения SRP
-   * Использует композицию для управления процессом валидации
    */
   private readonly validationApplicator = new ValidationApplicator(this);
 
-  /**
-   * Аппликатор для применения behavior схемы к форме
-   * Извлечен из GroupNode для соблюдения SRP
-   * Использует композицию для управления процессом применения behaviors
-   */
-  private readonly behaviorApplicator = new BehaviorApplicator(this, this.behaviorRegistry);
+  // ============================================================================
+  // Приватные сигналы состояния (inline из StateManager)
+  // ============================================================================
+
+  /** Флаг отправки формы */
+  private readonly _submitting: Signal<boolean> = signal(false);
+
+  /** Флаг disabled состояния */
+  private readonly _disabled: Signal<boolean> = signal(false);
+
+  /** Form-level validation errors */
+  private readonly _formErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
 
   // ============================================================================
-  // Публичные computed signals (делегированы в StateManager)
+  // Публичные computed signals
   // ============================================================================
 
   public readonly value: ReadonlySignal<T>;
@@ -187,10 +167,6 @@ export class GroupNode<T> extends FormNode<T> {
   constructor(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>) {
     super();
 
-    // Инициализация модулей для управления полями и прокси
-    this.fieldRegistry = new FieldRegistry<T>();
-    this.proxyBuilder = new ProxyBuilder<T>(this.fieldRegistry);
-
     // Определяем, что передано: schema или config
     const isConfig = 'form' in schemaOrConfig;
     const formSchema = isConfig
@@ -204,31 +180,72 @@ export class GroupNode<T> extends FormNode<T> {
     // Создать поля из схемы с поддержкой вложенности
     for (const [key, config] of Object.entries(formSchema)) {
       const node = this.createNode(config);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.fieldRegistry.set(key as keyof T, node as any);
+      this._fields.set(key as keyof T, node);
     }
 
-    //  Создать менеджер состояния (инкапсулирует всю логику сигналов)
-    // StateManager создает все computed signals на основе fieldRegistry
-    this.stateManager = new StateManager<T>(this.fieldRegistry);
+    // ========================================================================
+    // Создание computed signals (inline из StateManager)
+    // ========================================================================
 
-    //  Делегировать публичные свойства в StateManager
-    this.value = this.stateManager.value;
-    this.valid = this.stateManager.valid;
-    this.invalid = this.stateManager.invalid;
-    this.touched = this.stateManager.touched;
-    this.dirty = this.stateManager.dirty;
-    this.pending = this.stateManager.pending;
-    this.errors = this.stateManager.errors;
-    this.status = this.stateManager.status;
-    this.submitting = this.stateManager.submitting;
+    // Computed signal для значения формы
+    this.value = computed(() => {
+      const result = {} as T;
+      this._fields.forEach((field, key) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        result[key] = field.value.value as any;
+      });
+      return result;
+    });
 
-    // Создать Proxy для прямого доступа к полям
-    // Используем ProxyBuilder для создания Proxy с расширенной функциональностью
-    const proxy = this.proxyBuilder.build(this);
+    // Computed signal для валидности формы
+    this.valid = computed(() => {
+      if (this._formErrors.value.length > 0) return false;
+      return Array.from(this._fields.values()).every((field) => field.valid.value);
+    });
 
-    //  Сохраняем Proxy-инстанс перед применением схем
-    // Это позволяет BehaviorContext получить доступ к прокси через formNode
+    // Computed signal для невалидности
+    this.invalid = computed(() => !this.valid.value);
+
+    // Computed signal для pending состояния
+    this.pending = computed(() =>
+      Array.from(this._fields.values()).some((field) => field.pending.value)
+    );
+
+    // Computed signal для touched состояния
+    this.touched = computed(() =>
+      Array.from(this._fields.values()).some((field) => field.touched.value)
+    );
+
+    // Computed signal для dirty состояния
+    this.dirty = computed(() =>
+      Array.from(this._fields.values()).some((field) => field.dirty.value)
+    );
+
+    // Computed signal для ошибок (form-level + field-level)
+    this.errors = computed(() => {
+      const allErrors: ValidationError[] = [...this._formErrors.value];
+      this._fields.forEach((field) => {
+        allErrors.push(...field.errors.value);
+      });
+      return allErrors;
+    });
+
+    // Computed signal для статуса формы
+    this.status = computed(() => {
+      if (this._disabled.value) return 'disabled';
+      if (this.pending.value) return 'pending';
+      if (this.invalid.value) return 'invalid';
+      return 'valid';
+    });
+
+    // Computed signal для submitting
+    this.submitting = computed(() => this._submitting.value);
+
+    // ========================================================================
+    // Создание Proxy (inline из ProxyBuilder)
+    // ========================================================================
+
+    const proxy = this.buildProxy();
     this._proxyInstance = proxy;
 
     // Применяем схемы, если они переданы (новый API)
@@ -239,10 +256,69 @@ export class GroupNode<T> extends FormNode<T> {
       this.applyValidationSchema(validationSchema);
     }
 
-    //  ВАЖНО: Возвращаем Proxy для прямого доступа к полям
-    // Это позволяет писать form.email вместо form.controls.email
-    // Используем GroupNodeWithControls для правильной типизации вложенных форм и массивов
+    // Возвращаем Proxy для прямого доступа к полям (form.email вместо form.getField('email'))
     return proxy as GroupNodeWithControls<T>;
+  }
+
+  // ============================================================================
+  // Приватный метод для создания Proxy (inline из ProxyBuilder)
+  // ============================================================================
+
+  /**
+   * Создать Proxy для типобезопасного доступа к полям
+   */
+  private buildProxy(): GroupNodeWithControls<T> {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
+
+    return new Proxy(this, {
+      get: (target, prop: string | symbol) => {
+        // Приоритет 1: Собственные свойства и методы GroupNode
+        if (prop in target) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (target as any)[prop];
+        }
+        // Приоритет 2: Поля формы
+        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
+          return self._fields.get(prop as keyof T);
+        }
+        return undefined;
+      },
+
+      set: (target, prop: string | symbol, value: unknown) => {
+        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              `[GroupNode] Cannot set field "${prop}" directly. Use .setValue() or .patchValue() instead.`
+            );
+          }
+          return false;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (target as any)[prop] = value;
+        return true;
+      },
+
+      has: (target, prop: string | symbol) => {
+        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
+          return true;
+        }
+        return prop in target;
+      },
+
+      ownKeys: (target) => {
+        const nodeKeys = Reflect.ownKeys(target);
+        const fieldKeys = Array.from(self._fields.keys()) as (string | symbol)[];
+        return [...new Set([...nodeKeys, ...fieldKeys])];
+      },
+
+      getOwnPropertyDescriptor: (target, prop) => {
+        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
+          return { enumerable: true, configurable: true };
+        }
+        return Reflect.getOwnPropertyDescriptor(target, prop);
+      },
+    }) as GroupNodeWithControls<T>;
   }
 
   // ============================================================================
@@ -251,7 +327,7 @@ export class GroupNode<T> extends FormNode<T> {
 
   getValue(): T {
     const result = {} as T;
-    this.fieldRegistry.forEach((field, key) => {
+    this._fields.forEach((field, key) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result[key] = field.getValue() as any;
     });
@@ -261,7 +337,7 @@ export class GroupNode<T> extends FormNode<T> {
   setValue(value: T, options?: SetValueOptions): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const [key, fieldValue] of Object.entries(value as any)) {
-      const field = this.fieldRegistry.get(key as keyof T);
+      const field = this._fields.get(key as keyof T);
       if (field) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         field.setValue(fieldValue as any, options);
@@ -271,11 +347,9 @@ export class GroupNode<T> extends FormNode<T> {
 
   patchValue(value: Partial<T>): void {
     // Используем batch чтобы все обновления происходили атомарно
-    // и effects (включая computeFrom) срабатывали только после
-    // установки всех значений
     batch(() => {
       for (const [key, fieldValue] of Object.entries(value)) {
-        const field = this.fieldRegistry.get(key as keyof T);
+        const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           field.setValue(fieldValue as any);
@@ -302,7 +376,7 @@ export class GroupNode<T> extends FormNode<T> {
    * ```
    */
   reset(value?: T): void {
-    this.fieldRegistry.forEach((field, key) => {
+    this._fields.forEach((field, key) => {
       const resetValue = value?.[key];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       field.reset(resetValue as any);
@@ -311,33 +385,9 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Сбросить форму к исходным значениям (initialValues)
-   *
-   * @remarks
-   * Рекурсивно вызывает resetToInitial() для всех полей формы.
-   * Более явный способ сброса к начальным значениям по сравнению с reset()
-   *
-   * Полезно когда:
-   * - Пользователь нажал "Cancel" - полная отмена изменений
-   * - Форма была изменена через reset(newValues), но нужно вернуться к самому началу
-   * - Явное намерение показать "отмена всех изменений"
-   *
-   * @example
-   * ```typescript
-   * const form = new GroupNode({
-   *   email: { value: 'initial@mail.com', component: Input },
-   *   name: { value: 'John', component: Input }
-   * });
-   *
-   * form.email.setValue('changed@mail.com');
-   * form.reset({ email: 'temp@mail.com', name: 'Jane' });
-   * console.log(form.getValue()); // { email: 'temp@mail.com', name: 'Jane' }
-   *
-   * form.resetToInitial();
-   * console.log(form.getValue()); // { email: 'initial@mail.com', name: 'John' }
-   * ```
    */
   resetToInitial(): void {
-    this.fieldRegistry.forEach((field) => {
+    this._fields.forEach((field) => {
       if ('resetToInitial' in field && typeof field.resetToInitial === 'function') {
         field.resetToInitial();
       } else {
@@ -347,85 +397,50 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   async validate(): Promise<boolean> {
-    // Шаг 0: Очищаем ошибки перед валидацией (для корректной работы ValidationSchema)
+    // Очищаем ошибки перед валидацией
     this.clearErrors();
 
-    // Шаг 1: Валидация всех полей
-    await Promise.all(Array.from(this.fieldRegistry.values()).map((field) => field.validate()));
+    // Валидация всех полей
+    await Promise.all(Array.from(this._fields.values()).map((field) => field.validate()));
 
-    // Шаг 2: Применение contextual валидаторов из validation schema
-    // Используем локальный реестр вместо глобального
+    // Применение contextual валидаторов из validation schema
     const validators = this.validationRegistry.getValidators();
     if (validators && validators.length > 0) {
       await this.applyContextualValidators(validators);
     }
 
     // Проверяем, все ли поля валидны
-    return Array.from(this.fieldRegistry.values()).every((field) => field.valid.value);
+    return Array.from(this._fields.values()).every((field) => field.valid.value);
   }
 
   /**
    * Установить form-level validation errors
-   * Используется для server-side validation или кросс-полевых ошибок
-   *
-   * @param errors - массив ошибок уровня формы
-   *
-   * @example
-   * ```typescript
-   * // Server-side validation после submit
-   * try {
-   *   await api.createUser(form.getValue());
-   * } catch (error) {
-   *   form.setErrors([
-   *     { code: 'duplicate_email', message: 'Email уже используется' }
-   *   ]);
-   * }
-   * ```
    */
   setErrors(errors: ValidationError[]): void {
-    this.stateManager.setFormErrors(errors);
+    this._formErrors.value = errors;
   }
 
   /**
    * Очистить все errors (form-level + field-level)
    */
   clearErrors(): void {
-    // Очищаем form-level errors
-    this.stateManager.clearFormErrors();
-
-    // Очищаем field-level errors
-    this.fieldRegistry.forEach((field) => field.clearErrors());
+    this._formErrors.value = [];
+    this._fields.forEach((field) => field.clearErrors());
   }
 
   /**
    * Получить поле по ключу
-   *
-   * Публичный метод для доступа к полю из fieldRegistry
-   *
-   * @param key - Ключ поля
-   * @returns FormNode или undefined, если поле не найдено
-   *
-   * @example
-   * ```typescript
-   * const emailField = form.getField('email');
-   * if (emailField) {
-   *   console.log(emailField.value.value);
-   * }
-   * ```
    */
   getField<K extends keyof T>(key: K): FormNode<T[K]> | undefined {
-    return this.fieldRegistry.get(key);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this._fields.get(key) as any;
   }
 
   /**
-   * Получить Map всех полей формы
-   *
-   * Используется в FieldPathNavigator для навигации по полям
-   *
-   * @returns Map полей формы
+   * Получить Map всех полей формы (для совместимости)
    */
-  get fields(): FieldRegistry<T> {
-    return this.fieldRegistry;
+  get fields(): Map<keyof T, FormNode<FormValue>> {
+    return this._fields;
   }
 
   /**
@@ -460,61 +475,29 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Получить все поля формы как итератор
-   *
-   * Предоставляет доступ к внутренним полям для валидации и других операций
-   *
-   * @returns Итератор по всем полям формы
-   *
-   * @example
-   * ```typescript
-   * // Валидация всех полей
-   * await Promise.all(
-   *   Array.from(form.getAllFields()).map(field => field.validate())
-   * );
-   * ```
    */
   getAllFields(): IterableIterator<FormNode<FormValue>> {
-    return this.fieldRegistry.values();
+    return this._fields.values();
   }
 
   // ============================================================================
   // Protected hooks (Template Method pattern)
   // ============================================================================
 
-  /**
-   * Hook: вызывается после markAsTouched()
-   *
-   * Для GroupNode: рекурсивно помечаем все дочерние поля как touched
-   */
   protected onMarkAsTouched(): void {
-    this.fieldRegistry.forEach((field) => field.markAsTouched());
+    this._fields.forEach((field) => field.markAsTouched());
   }
 
-  /**
-   * Hook: вызывается после markAsUntouched()
-   *
-   * Для GroupNode: рекурсивно помечаем все дочерние поля как untouched
-   */
   protected onMarkAsUntouched(): void {
-    this.fieldRegistry.forEach((field) => field.markAsUntouched());
+    this._fields.forEach((field) => field.markAsUntouched());
   }
 
-  /**
-   * Hook: вызывается после markAsDirty()
-   *
-   * Для GroupNode: рекурсивно помечаем все дочерние поля как dirty
-   */
   protected onMarkAsDirty(): void {
-    this.fieldRegistry.forEach((field) => field.markAsDirty());
+    this._fields.forEach((field) => field.markAsDirty());
   }
 
-  /**
-   * Hook: вызывается после markAsPristine()
-   *
-   * Для GroupNode: рекурсивно помечаем все дочерние поля как pristine
-   */
   protected onMarkAsPristine(): void {
-    this.fieldRegistry.forEach((field) => field.markAsPristine());
+    this._fields.forEach((field) => field.markAsPristine());
   }
 
   // ============================================================================
@@ -523,7 +506,6 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Отправить форму
-   * Валидирует форму и вызывает onSubmit если форма валидна
    */
   async submit<R>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> {
     this.markAsTouched();
@@ -533,12 +515,12 @@ export class GroupNode<T> extends FormNode<T> {
       return null;
     }
 
-    this.stateManager.setSubmitting(true);
+    this._submitting.value = true;
     try {
       const result = await onSubmit(this.getValue());
       return result;
     } finally {
-      this.stateManager.setSubmitting(false);
+      this._submitting.value = false;
     }
   }
 
@@ -565,44 +547,20 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Применить behavior schema к форме
-   *
-   * ✅ РЕФАКТОРИНГ: Делегирование BehaviorApplicator (SRP)
-   *
-   * Логика применения behavior схемы извлечена в BehaviorApplicator для:
-   * - Соблюдения Single Responsibility Principle
-   * - Уменьшения размера GroupNode (~50 строк)
-   * - Улучшения тестируемости
-   * - Консистентности с ValidationApplicator
-   *
-   * @param schemaFn Функция описания поведения формы
    * @returns Функция cleanup для отписки от всех behaviors
-   *
-   * @example
-   * ```typescript
-   * import { copyFrom, enableWhen, computeFrom } from '@/lib/forms/core/behaviors';
-   *
-   * const behaviorSchema: BehaviorSchemaFn<MyForm> = (path) => {
-   *   copyFrom(path.residenceAddress, path.registrationAddress, {
-   *     when: (form) => form.sameAsRegistration === true
-   *   });
-   *
-   *   enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage');
-   *
-   *   computeFrom(
-   *     path.initialPayment,
-   *     [path.propertyValue],
-   *     (propertyValue) => propertyValue ? propertyValue * 0.2 : null
-   *   );
-   * };
-   *
-   * const cleanup = form.applyBehaviorSchema(behaviorSchema);
-   *
-   * // Cleanup при unmount
-   * useEffect(() => cleanup, []);
-   * ```
    */
   applyBehaviorSchema(schemaFn: BehaviorSchemaFn<T>): () => void {
-    return this.behaviorApplicator.apply(schemaFn);
+    this.behaviorRegistry.beginRegistration();
+
+    try {
+      const path = createBehaviorFieldPath<T>();
+      schemaFn(path);
+      const result = this.behaviorRegistry.endRegistration(this.getProxy());
+      return result.cleanup;
+    } catch (error) {
+      console.error('Error applying behavior schema:', error);
+      throw error;
+    }
   }
 
   /**
@@ -726,37 +684,14 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Связывает два поля: при изменении source автоматически обновляется target
-   * Поддерживает опциональную трансформацию значения
-   *
-   * @param sourceKey - Ключ поля-источника
-   * @param targetKey - Ключ поля-цели
-   * @param transform - Опциональная функция трансформации значения
-   * @returns Функция отписки для cleanup
-   *
-   * @example
-   * ```typescript
-   * // Автоматический расчет минимального взноса от стоимости недвижимости
-   * const dispose = form.linkFields(
-   *   'propertyValue',
-   *   'initialPayment',
-   *   (propertyValue) => propertyValue ? propertyValue * 0.2 : null
-   * );
-   *
-   * // При изменении propertyValue → автоматически обновится initialPayment
-   * form.propertyValue.setValue(1000000);
-   * // initialPayment станет 200000
-   *
-   * // Cleanup
-   * useEffect(() => dispose, []);
-   * ```
    */
   linkFields<K1 extends keyof T, K2 extends keyof T>(
     sourceKey: K1,
     targetKey: K2,
     transform?: (value: T[K1]) => T[K2]
   ): () => void {
-    const sourceField = this.fieldRegistry.get(sourceKey);
-    const targetField = this.fieldRegistry.get(targetKey);
+    const sourceField = this._fields.get(sourceKey);
+    const targetField = this._fields.get(targetKey);
 
     if (!sourceField || !targetField) {
       if (import.meta.env.DEV) {
@@ -764,19 +699,17 @@ export class GroupNode<T> extends FormNode<T> {
           `GroupNode.linkFields: field "${String(sourceKey)}" or "${String(targetKey)}" not found`
         );
       }
-      return () => {}; // noop
+      return () => {};
     }
 
     const dispose = effect(() => {
       const sourceValue = sourceField.value.value;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transformedValue = transform ? transform(sourceValue as any) : (sourceValue as any);
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       targetField.setValue(transformedValue as any, { emitEvent: false });
     });
 
-    // Регистрируем через SubscriptionManager и возвращаем unsubscribe
     const key = `linkFields-${Date.now()}-${Math.random()}`;
     return this.disposers.add(key, dispose);
   }
@@ -834,51 +767,26 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Hook: вызывается после disable()
-   *
-   * Для GroupNode: рекурсивно отключаем все дочерние поля
    */
   protected onDisable(): void {
-    // Синхронизируем disabled signal через StateManager
-    this.stateManager.setDisabled(true);
-
-    this.fieldRegistry.forEach((field) => {
-      field.disable();
-    });
+    this._disabled.value = true;
+    this._fields.forEach((field) => field.disable());
   }
 
   /**
    * Hook: вызывается после enable()
-   *
-   * Для GroupNode: рекурсивно включаем все дочерние поля
    */
   protected onEnable(): void {
-    // Синхронизируем disabled signal через StateManager
-    this.stateManager.setDisabled(false);
-
-    this.fieldRegistry.forEach((field) => {
-      field.enable();
-    });
+    this._disabled.value = false;
+    this._fields.forEach((field) => field.enable());
   }
 
   /**
    * Очистить все ресурсы узла
-   * Рекурсивно очищает все subscriptions и дочерние узлы
-   *
-   * @example
-   * ```typescript
-   * useEffect(() => {
-   *   return () => {
-   *     form.dispose();
-   *   };
-   * }, []);
-   * ```
    */
   dispose(): void {
-    // Очищаем все subscriptions через SubscriptionManager
     this.disposers.dispose();
-
-    // Рекурсивно очищаем дочерние узлы
-    this.fieldRegistry.forEach((field) => {
+    this._fields.forEach((field) => {
       if ('dispose' in field && typeof field.dispose === 'function') {
         field.dispose();
       }

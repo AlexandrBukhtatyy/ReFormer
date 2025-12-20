@@ -2,8 +2,8 @@
  * CreditApplicationForm
  *
  * Использует:
- * - FormNavigation компонент с compound component API для multi-step формы
- * - Actions с compound components (Prev, Next, Submit) вместо render props
+ * - FormNavigation компонент для multi-step формы
+ * - Actions с render props для навигационных кнопок
  * - Headless компоненты (Indicator, Progress) с render props
  * - GroupNode для вложенных форм и массивов
  * - validateForm для валидации по шагам
@@ -158,18 +158,31 @@ function CreditApplicationForm() {
           <FormNavigation.Step component={ConfirmationForm} control={form} />
         </div>
 
-        {/* Кнопки навигации (compound components API) */}
-        <FormNavigation.Actions onSubmit={submitApplication} className="flex gap-4 mt-8">
-          <FormNavigation.Prev asChild data-testid="btn-previous">
-            <Button>← Назад</Button>
-          </FormNavigation.Prev>
-          <div className="flex-1" />
-          <FormNavigation.Next asChild data-testid="btn-next">
-            <Button>Далее →</Button>
-          </FormNavigation.Next>
-          <FormNavigation.Submit asChild loadingText="Отправка..." data-testid="btn-submit">
-            <Button>Отправить заявку</Button>
-          </FormNavigation.Submit>
+        {/* Кнопки навигации (render props API) */}
+        <FormNavigation.Actions onSubmit={submitApplication}>
+          {({ prev, next, submit, isFirstStep, isLastStep, isValidating, isSubmitting }) => (
+            <div className="flex gap-4 mt-8">
+              {!isFirstStep && (
+                <Button onClick={prev.onClick} disabled={prev.disabled} data-testid="btn-previous">
+                  ← Назад
+                </Button>
+              )}
+              <div className="flex-1" />
+              {!isLastStep ? (
+                <Button onClick={next.onClick} disabled={next.disabled} data-testid="btn-next">
+                  {isValidating ? 'Проверка...' : 'Далее →'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={submit.onClick}
+                  disabled={submit.disabled}
+                  data-testid="btn-submit"
+                >
+                  {isSubmitting ? 'Отправка...' : 'Отправить заявку'}
+                </Button>
+              )}
+            </div>
+          )}
         </FormNavigation.Actions>
 
         {/* Информация о прогрессе (headless) */}
