@@ -1,365 +1,106 @@
-import { useCallback, useRef } from 'react';
-import { useSyncExternalStore } from 'use-sync-external-store/shim';
-import { effect } from '@preact/signals-core';
+import { useCallback } from 'react';
 import type { FieldNode } from '../core/nodes/field-node';
 import type { ArrayNode } from '../core/nodes/array-node';
 import type { FormValue, ValidationError, FormFields } from '../core/types';
+import type { FieldControlState, ArrayControlState } from './types';
+import {
+  useSignalSubscription,
+  type SignalConfig,
+  type ExtractSignalValues,
+} from './useSignalSubscription';
 
-// ============================================================================
-// Утилиты для сравнения
-// ============================================================================
+/** @internal */
+function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T> {
+  const signals = {
+    value: control.value,
+    disabled: control.disabled,
+    errors: control.errors,
+    pending: control.pending,
+    valid: control.valid,
+    invalid: control.invalid,
+    touched: control.touched,
+    shouldShowError: control.shouldShowError,
+    componentProps: control.componentProps,
+  };
 
-/**
- * Shallow сравнение массивов по содержимому
- * Возвращает true если массивы равны (одинаковые элементы в том же порядке)
- * @internal
- */
-function shallowArrayEqual<T>(a: T[], b: T[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
+  const configs: SignalConfig<keyof typeof signals>[] = [
+    { key: 'value' },
+    { key: 'disabled' },
+    { key: 'errors', useShallowArrayEqual: true },
+    { key: 'pending' },
+    { key: 'valid' },
+    { key: 'invalid' },
+    { key: 'touched' },
+    { key: 'shouldShowError' },
+    { key: 'componentProps' },
+  ];
 
-// ============================================================================
-// Типы возвращаемых значений
-// ============================================================================
-
-/**
- * @internal
- */
-interface FieldControlState<T> {
-  value: T;
-  pending: boolean;
-  disabled: boolean;
-  errors: ValidationError[];
-  valid: boolean;
-  invalid: boolean;
-  touched: boolean;
-  shouldShowError: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  componentProps: Record<string, any>;
-}
-
-/**
- * @internal
- */
-interface ArrayControlState<T> {
-  value: T[];
-  length: number;
-  pending: boolean;
-  errors: ValidationError[];
-  valid: boolean;
-  invalid: boolean;
-  touched: boolean;
-  dirty: boolean;
-}
-
-// ============================================================================
-// Внутренние хуки для каждого типа контрола
-// ============================================================================
-
-/**
- * Внутренний хук для FieldNode с использованием useSyncExternalStore
- * @internal
- */
-function useFieldControl<T extends FormValue>(
-  control: FieldNode<T>
-): FieldControlState<T> {
-  // Кеш для предотвращения лишних ре-рендеров
-  const cacheRef = useRef<{
-    snapshot: FieldControlState<T> | null;
-    // Кешируем ссылки на объекты для сравнения
-    value: T;
-    errors: ValidationError[];
-    componentProps: Record<string, unknown>;
-    disabled: boolean;
-    pending: boolean;
-    valid: boolean;
-    invalid: boolean;
-    touched: boolean;
-    shouldShowError: boolean;
-  }>({
-    snapshot: null,
-    value: control.value.value,
-    errors: control.errors.value,
-    componentProps: control.componentProps.value,
-    disabled: control.disabled.value,
-    pending: control.pending.value,
-    valid: control.valid.value,
-    invalid: control.invalid.value,
-    touched: control.touched.value,
-    shouldShowError: control.shouldShowError.value,
-  });
-
-  // Функция подписки - использует effect для отслеживания всех сигналов
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      // Используем effect который автоматически отслеживает все читаемые сигналы
-      // effect НЕ вызывает callback сразу, только при изменениях
-      let isFirstRun = true;
-
-      const dispose = effect(() => {
-        // Читаем все сигналы чтобы effect их отслеживал
-        control.value.value;
-        control.disabled.value;
-        control.errors.value;
-        control.pending.value;
-        control.valid.value;
-        control.invalid.value;
-        control.touched.value;
-        control.shouldShowError.value;
-        control.componentProps.value;
-
-        // Пропускаем первый вызов (при создании effect)
-        if (isFirstRun) {
-          isFirstRun = false;
-          return;
-        }
-
-        // Уведомляем React об изменении
-        onStoreChange();
-      });
-
-      return dispose;
-    },
-    [control]
+  const buildSnapshot = useCallback(
+    (values: ExtractSignalValues<typeof signals>): FieldControlState<T> => ({
+      value: values.value as T,
+      pending: values.pending as boolean,
+      disabled: values.disabled as boolean,
+      errors: values.errors as ValidationError[],
+      valid: values.valid as boolean,
+      invalid: values.invalid as boolean,
+      touched: values.touched as boolean,
+      shouldShowError: values.shouldShowError as boolean,
+      componentProps: values.componentProps as Record<string, unknown>,
+    }),
+    []
   );
 
-  // Функция получения текущего состояния
-  const getSnapshot = useCallback((): FieldControlState<T> => {
-    const cache = cacheRef.current;
-
-    // Получаем текущие значения из сигналов
-    const currentValue = control.value.value;
-    const currentErrors = control.errors.value;
-    const currentComponentProps = control.componentProps.value;
-    const currentDisabled = control.disabled.value;
-    const currentPending = control.pending.value;
-    const currentValid = control.valid.value;
-    const currentInvalid = control.invalid.value;
-    const currentTouched = control.touched.value;
-    const currentShouldShowError = control.shouldShowError.value;
-
-    // Проверяем, изменилось ли что-то
-    // Используем shallowArrayEqual для errors т.к. валидация может создавать новые массивы
-    const hasChanged =
-      cache.value !== currentValue ||
-      !shallowArrayEqual(cache.errors, currentErrors) ||
-      cache.componentProps !== currentComponentProps ||
-      cache.disabled !== currentDisabled ||
-      cache.pending !== currentPending ||
-      cache.valid !== currentValid ||
-      cache.invalid !== currentInvalid ||
-      cache.touched !== currentTouched ||
-      cache.shouldShowError !== currentShouldShowError;
-
-    // Если ничего не изменилось, возвращаем кешированный snapshot
-    if (!hasChanged && cache.snapshot) {
-      return cache.snapshot;
-    }
-
-    // Обновляем кеш
-    cache.value = currentValue;
-    cache.errors = currentErrors;
-    cache.componentProps = currentComponentProps;
-    cache.disabled = currentDisabled;
-    cache.pending = currentPending;
-    cache.valid = currentValid;
-    cache.invalid = currentInvalid;
-    cache.touched = currentTouched;
-    cache.shouldShowError = currentShouldShowError;
-
-    // Создаём новый snapshot
-    cache.snapshot = {
-      value: currentValue,
-      pending: currentPending,
-      disabled: currentDisabled,
-      errors: currentErrors,
-      valid: currentValid,
-      invalid: currentInvalid,
-      touched: currentTouched,
-      shouldShowError: currentShouldShowError,
-      componentProps: currentComponentProps,
-    };
-
-    return cache.snapshot;
-  }, [control]);
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useSignalSubscription(signals, configs, buildSnapshot);
 }
 
-/**
- * Внутренний хук для ArrayNode с использованием useSyncExternalStore
- * @internal
- */
-function useArrayControl<T extends FormFields>(
-  control: ArrayNode<T>
-): ArrayControlState<T> {
-  // Кеш для предотвращения лишних ре-рендеров
-  const cacheRef = useRef<{
-    snapshot: ArrayControlState<T> | null;
-    value: T[];
-    length: number;
-    errors: ValidationError[];
-    pending: boolean;
-    valid: boolean;
-    invalid: boolean;
-    touched: boolean;
-    dirty: boolean;
-  }>({
-    snapshot: null,
-    value: control.value.value,
-    length: control.length.value,
-    errors: control.errors.value,
-    pending: control.pending.value,
-    valid: control.valid.value,
-    invalid: control.invalid.value,
-    touched: control.touched.value,
-    dirty: control.dirty.value,
-  });
+/** @internal */
+function useArrayControl<T extends FormFields>(control: ArrayNode<T>): ArrayControlState<T> {
+  const signals = {
+    value: control.value,
+    length: control.length,
+    errors: control.errors,
+    pending: control.pending,
+    valid: control.valid,
+    invalid: control.invalid,
+    touched: control.touched,
+    dirty: control.dirty,
+  };
 
-  // Функция подписки
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      let isFirstRun = true;
+  const configs: SignalConfig<keyof typeof signals>[] = [
+    { key: 'value' },
+    { key: 'length' },
+    { key: 'errors', useShallowArrayEqual: true },
+    { key: 'pending' },
+    { key: 'valid' },
+    { key: 'invalid' },
+    { key: 'touched' },
+    { key: 'dirty' },
+  ];
 
-      const dispose = effect(() => {
-        // Читаем все сигналы
-        control.value.value;
-        control.length.value;
-        control.errors.value;
-        control.pending.value;
-        control.valid.value;
-        control.invalid.value;
-        control.touched.value;
-        control.dirty.value;
-
-        if (isFirstRun) {
-          isFirstRun = false;
-          return;
-        }
-
-        onStoreChange();
-      });
-
-      return dispose;
-    },
-    [control]
+  const buildSnapshot = useCallback(
+    (values: ExtractSignalValues<typeof signals>): ArrayControlState<T> => ({
+      value: values.value as T[],
+      length: values.length as number,
+      pending: values.pending as boolean,
+      errors: values.errors as ValidationError[],
+      valid: values.valid as boolean,
+      invalid: values.invalid as boolean,
+      touched: values.touched as boolean,
+      dirty: values.dirty as boolean,
+    }),
+    []
   );
 
-  // Функция получения текущего состояния
-  const getSnapshot = useCallback((): ArrayControlState<T> => {
-    const cache = cacheRef.current;
-
-    const currentValue = control.value.value;
-    const currentLength = control.length.value;
-    const currentErrors = control.errors.value;
-    const currentPending = control.pending.value;
-    const currentValid = control.valid.value;
-    const currentInvalid = control.invalid.value;
-    const currentTouched = control.touched.value;
-    const currentDirty = control.dirty.value;
-
-    const hasChanged =
-      cache.value !== currentValue ||
-      cache.length !== currentLength ||
-      !shallowArrayEqual(cache.errors, currentErrors) ||
-      cache.pending !== currentPending ||
-      cache.valid !== currentValid ||
-      cache.invalid !== currentInvalid ||
-      cache.touched !== currentTouched ||
-      cache.dirty !== currentDirty;
-
-    if (!hasChanged && cache.snapshot) {
-      return cache.snapshot;
-    }
-
-    cache.value = currentValue;
-    cache.length = currentLength;
-    cache.errors = currentErrors;
-    cache.pending = currentPending;
-    cache.valid = currentValid;
-    cache.invalid = currentInvalid;
-    cache.touched = currentTouched;
-    cache.dirty = currentDirty;
-
-    cache.snapshot = {
-      value: currentValue,
-      length: currentLength,
-      pending: currentPending,
-      errors: currentErrors,
-      valid: currentValid,
-      invalid: currentInvalid,
-      touched: currentTouched,
-      dirty: currentDirty,
-    };
-
-    return cache.snapshot;
-  }, [control]);
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useSignalSubscription(signals, configs, buildSnapshot);
 }
 
-// ============================================================================
-// Хук для получения только значения (без подписки на другие сигналы)
-// ============================================================================
-
 /**
- * Хук для получения только значения поля без подписки на errors, valid и т.д.
- * Используйте когда нужно только значение для условного рендеринга.
+ * React-хук для подписки на состояние {@link ArrayNode}.
  *
- * @group React Hooks
- */
-export function useFormControlValue<T extends FormValue>(control: FieldNode<T>): T {
-  const cacheRef = useRef<{ value: T; snapshot: T }>({
-    value: control.value.value,
-    snapshot: control.value.value,
-  });
-
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      let isFirstRun = true;
-
-      const dispose = effect(() => {
-        control.value.value; // Подписываемся ТОЛЬКО на value
-
-        if (isFirstRun) {
-          isFirstRun = false;
-          return;
-        }
-
-        onStoreChange();
-      });
-
-      return dispose;
-    },
-    [control]
-  );
-
-  const getSnapshot = useCallback((): T => {
-    const currentValue = control.value.value;
-
-    if (cacheRef.current.value === currentValue) {
-      return cacheRef.current.snapshot;
-    }
-
-    cacheRef.current.value = currentValue;
-    cacheRef.current.snapshot = currentValue;
-    return currentValue;
-  }, [control]);
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
-
-// ============================================================================
-// Перегрузки функции
-// ============================================================================
-
-/**
- * Хук для работы с ArrayNode - возвращает состояние массива с подписками на сигналы
+ * @typeParam T - Тип элемента массива
+ * @param control - ArrayNode или undefined
+ * @returns Состояние массива {@link ArrayControlState}
+ *
  * @group React Hooks
  */
 export function useFormControl<T extends FormFields>(
@@ -367,52 +108,241 @@ export function useFormControl<T extends FormFields>(
 ): ArrayControlState<T>;
 
 /**
- * Хук для работы с FieldNode - возвращает состояние поля с подписками на сигналы
+ * React-хук для подписки на состояние {@link FieldNode}.
+ *
+ * @typeParam T - Тип значения поля
+ * @param control - FieldNode для подписки
+ * @returns Состояние поля {@link FieldControlState}
+ *
  * @group React Hooks
  */
 export function useFormControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T>;
 
 /**
- * Хук для работы с FieldNode или ArrayNode - возвращает состояние с подписками на сигналы
+ * React-хук для подписки на состояние формы (FieldNode или ArrayNode).
  *
- * Использует useSyncExternalStore для оптимальной интеграции с React 18+.
- * Компонент ре-рендерится только когда реально изменились данные контрола.
+ * Обеспечивает реактивную связь между состоянием формы и React-компонентами.
+ * Использует `useSyncExternalStore` для оптимальной интеграции с React 18+
+ * и Concurrent Mode.
+ *
+ * ## Основные возможности
+ *
+ * - **Автоматическая подписка** на все сигналы контрола
+ * - **Оптимизация ре-рендеров** - компонент обновляется только при реальных изменениях
+ * - **Поддержка SSR** через `useSyncExternalStore`
+ * - **Типобезопасность** - возвращаемый тип зависит от типа контрола
+ *
+ * ## Когда использовать
+ *
+ * Используйте `useFormControl` когда компоненту нужен доступ к нескольким
+ * свойствам состояния (value, errors, touched и т.д.).
+ *
+ * Для подписки только на значение используйте {@link useFormControlValue} -
+ * это предотвратит лишние ре-рендеры при изменении других свойств.
+ *
+ * @typeParam T - Тип значения (для FieldNode) или элемента (для ArrayNode)
+ * @param control - FieldNode, ArrayNode или undefined
+ * @returns Объект состояния {@link FieldControlState} или {@link ArrayControlState}
+ *
+ * @example Текстовое поле с валидацией
+ * ```tsx
+ * import { useFormControl } from '@reformer/core';
+ * import type { FieldNode } from '@reformer/core';
+ *
+ * interface TextFieldProps {
+ *   control: FieldNode<string>;
+ *   label: string;
+ * }
+ *
+ * function TextField({ control, label }: TextFieldProps) {
+ *   const {
+ *     value,
+ *     disabled,
+ *     shouldShowError,
+ *     errors,
+ *     pending
+ *   } = useFormControl(control);
+ *
+ *   return (
+ *     <div className="field">
+ *       <label>{label}</label>
+ *
+ *       <div className="input-wrapper">
+ *         <input
+ *           type="text"
+ *           value={value}
+ *           disabled={disabled}
+ *           onChange={e => control.setValue(e.target.value)}
+ *           onBlur={() => control.markAsTouched()}
+ *           aria-invalid={shouldShowError}
+ *         />
+ *         {pending && <Spinner />}
+ *       </div>
+ *
+ *       {shouldShowError && errors[0] && (
+ *         <span className="error" role="alert">
+ *           {errors[0].message}
+ *         </span>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example Checkbox с использованием componentProps
+ * ```tsx
+ * interface CheckboxProps {
+ *   control: FieldNode<boolean>;
+ * }
+ *
+ * function Checkbox({ control }: CheckboxProps) {
+ *   const { value, disabled, componentProps } = useFormControl(control);
+ *
+ *   return (
+ *     <label className="checkbox">
+ *       <input
+ *         type="checkbox"
+ *         checked={value}
+ *         disabled={disabled}
+ *         onChange={e => control.setValue(e.target.checked)}
+ *       />
+ *       <span>{componentProps.label}</span>
+ *       {componentProps.hint && (
+ *         <small>{componentProps.hint}</small>
+ *       )}
+ *     </label>
+ *   );
+ * }
+ *
+ * // Использование
+ * control.setComponentProps({
+ *   label: 'Accept terms and conditions',
+ *   hint: 'Required to continue'
+ * });
+ * ```
+ *
+ * @example Select с динамическими опциями
+ * ```tsx
+ * interface SelectProps {
+ *   control: FieldNode<string>;
+ * }
+ *
+ * function Select({ control }: SelectProps) {
+ *   const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
+ *   const options = componentProps.options as Array<{ value: string; label: string }>;
+ *
+ *   return (
+ *     <div>
+ *       <select
+ *         value={value}
+ *         disabled={disabled}
+ *         onChange={e => control.setValue(e.target.value)}
+ *         onBlur={() => control.markAsTouched()}
+ *       >
+ *         <option value="">Select...</option>
+ *         {options?.map(opt => (
+ *           <option key={opt.value} value={opt.value}>
+ *             {opt.label}
+ *           </option>
+ *         ))}
+ *       </select>
+ *       {shouldShowError && <span className="error">{errors[0]?.message}</span>}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example Динамический массив элементов
+ * ```tsx
+ * interface Address {
+ *   street: string;
+ *   city: string;
+ * }
+ *
+ * interface AddressListProps {
+ *   control: ArrayNode<Address>;
+ * }
+ *
+ * function AddressList({ control }: AddressListProps) {
+ *   const { length, valid, dirty, errors } = useFormControl(control);
+ *
+ *   const handleAdd = () => {
+ *     control.push({ street: '', city: '' });
+ *   };
+ *
+ *   const handleRemove = (index: number) => {
+ *     control.remove(index);
+ *   };
+ *
+ *   return (
+ *     <div className="address-list">
+ *       <div className="header">
+ *         <h3>Addresses ({length})</h3>
+ *         {dirty && <span className="badge">Modified</span>}
+ *       </div>
+ *
+ *       {errors.length > 0 && (
+ *         <div className="array-errors">
+ *           {errors.map((e, i) => <p key={i}>{e.message}</p>)}
+ *         </div>
+ *       )}
+ *
+ *       {control.map((item, index) => (
+ *         <AddressItem
+ *           key={item.id}
+ *           control={item}
+ *           onRemove={() => handleRemove(index)}
+ *         />
+ *       ))}
+ *
+ *       {length === 0 && (
+ *         <p className="empty">No addresses added yet</p>
+ *       )}
+ *
+ *       <button
+ *         onClick={handleAdd}
+ *         disabled={length >= 5}
+ *       >
+ *         Add Address
+ *       </button>
+ *
+ *       {!valid && (
+ *         <p className="warning">Please fix errors before submitting</p>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example Условный рендеринг с undefined
+ * ```tsx
+ * interface FormProps {
+ *   optionalField?: ArrayNode<string>;
+ * }
+ *
+ * function Form({ optionalField }: FormProps) {
+ *   // При undefined возвращается дефолтное состояние
+ *   const { length } = useFormControl(optionalField);
+ *
+ *   if (!optionalField) {
+ *     return null;
+ *   }
+ *
+ *   return <div>Items: {length}</div>;
+ * }
+ * ```
+ *
+ * @see {@link useFormControlValue} - для подписки только на значение
+ * @see {@link FieldControlState} - тип состояния для FieldNode
+ * @see {@link ArrayControlState} - тип состояния для ArrayNode
  *
  * @group React Hooks
- *
- * @example FieldNode
- * ```tsx
- * const { value, errors, componentProps } = useFormControl(control);
- *
- * return (
- *   <div>
- *     <input value={value} onChange={e => control.setValue(e.target.value)} />
- *     {errors.length > 0 && <span>{errors[0].message}</span>}
- *   </div>
- * );
- * ```
- *
- * @example ArrayNode
- * ```tsx
- * const { length } = useFormControl(arrayControl);
- *
- * return (
- *   <div>
- *     {arrayControl.map((item, index) => (
- *       <ItemComponent key={item.id || index} control={item} />
- *     ))}
- *     {length === 0 && <span>Список пуст</span>}
- *   </div>
- * );
- * ```
  */
 export function useFormControl(
   control: FieldNode<FormValue> | ArrayNode<FormFields> | undefined
 ): FieldControlState<FormValue> | ArrayControlState<FormFields> {
-  // Определяем тип контрола по наличию специфичных свойств
   const isArrayNode = control && 'length' in control && 'map' in control;
 
-  // Для undefined контрола возвращаем дефолтное состояние
   if (!control) {
     return {
       value: [],

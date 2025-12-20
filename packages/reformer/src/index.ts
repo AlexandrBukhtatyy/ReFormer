@@ -8,7 +8,9 @@ export { GroupNode } from './core/nodes/group-node';
 export { ArrayNode } from './core/nodes/array-node';
 export type { SetValueOptions } from './core/nodes/form-node';
 
-export { useFormControl, useFormControlValue } from './hooks/useFormControl';
+export { useFormControl } from './hooks/useFormControl';
+export { useFormControlValue } from './hooks/useFormControlValue';
+export type { FieldControlState, ArrayControlState } from './hooks/types';
 
 export type { BehaviorSchemaFn } from './core/behavior/types';
 
