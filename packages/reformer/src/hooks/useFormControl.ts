@@ -1,4 +1,5 @@
-import { useSyncExternalStore, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
+import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { effect } from '@preact/signals-core';
 import type { FieldNode } from '../core/nodes/field-node';
 import type { ArrayNode } from '../core/nodes/array-node';
