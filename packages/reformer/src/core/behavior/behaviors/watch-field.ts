@@ -49,9 +49,12 @@ export function watchField<TForm, TField>(
     if (!node) return null;
 
     // Вызвать сразу если immediate: true
+    // queueMicrotask предотвращает "Cycle detected" - выходит из контекста effect
     if (immediate) {
-      const value = node.value.value as TField;
-      callback(value, context);
+      queueMicrotask(() => {
+        const value = node.value.value as TField;
+        callback(value, context);
+      });
     }
 
     return effect(() => {

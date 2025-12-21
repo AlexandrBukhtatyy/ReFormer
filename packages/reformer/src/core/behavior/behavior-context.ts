@@ -7,6 +7,7 @@
 import type { GroupNode } from '../nodes/group-node';
 import type { GroupNodeWithControls } from '../types/group-node-proxy';
 import type { FormContext } from '../types/form-context';
+import type { FieldPathNode } from '../types/field-path';
 
 /**
  * Реализация BehaviorContext (FormContext)
@@ -33,12 +34,17 @@ export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
   }
 
   /**
-   * Безопасно установить значение поля по строковому пути
+   * Безопасно установить значение поля по строковому пути или FieldPath
    *
    * Автоматически использует emitEvent: false для предотвращения циклов
+   *
+   * @param path - Строковый путь к полю или FieldPath объект
+   * @param value - Новое значение
    */
-  setFieldValue(path: string, value: unknown): void {
-    const node = this._form.getFieldByPath(path);
+  setFieldValue(path: string | FieldPathNode<TForm, unknown>, value: unknown): void {
+    // Преобразуем FieldPath в строку если необходимо
+    const pathStr = typeof path === 'string' ? path : path.toString();
+    const node = this._form.getFieldByPath(pathStr);
     if (node) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       node.setValue(value as any, { emitEvent: false });

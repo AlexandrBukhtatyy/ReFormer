@@ -5,7 +5,7 @@
  * - serialize: Форма → API (при сохранении)
  */
 
-import type { CreditApplicationForm } from '@/forms/credit-application/types/credit-application.types';
+import type { CreditApplicationForm } from '@/forms/credit-application/type';
 import type { ApiApplicationData } from '@/forms/credit-application/services/api';
 
 /**

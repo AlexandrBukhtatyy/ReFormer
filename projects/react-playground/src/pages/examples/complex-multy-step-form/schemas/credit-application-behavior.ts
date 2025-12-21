@@ -75,13 +75,13 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // ===================================================================
 
   // Копирование адреса регистрации → адрес проживания
-  copyFrom(path.residenceAddress, path.registrationAddress, {
+  copyFrom(path.registrationAddress, path.residenceAddress, {
     when: (form) => form.sameAsRegistration === true,
     fields: 'all',
   });
 
   // Копирование основного email → дополнительный email
-  copyFrom(path.emailAdditional, path.email, {
+  copyFrom(path.email, path.emailAdditional, {
     when: (form) => form.sameEmail === true,
   });
 

@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  StepNavigation,
-  type StepNavigationHandle,
-  type StepNavigationConfig,
-} from '../../components/ui/step-navigation';
+import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
 
 // Компоненты шагов
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
@@ -29,28 +25,25 @@ import type { CreditApplicationForm as CreditApplicationFormType } from './type'
 import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './schema';
 import { creditApplicationBehaviors } from './behaviors';
+import { Button } from '@/components/ui/button';
 
 const STEPS = [
-  { id: 1, title: 'Кредит' },
-  { id: 2, title: 'Личные данные' },
-  { id: 3, title: 'Контакты' },
-  { id: 4, title: 'Занятость' },
-  { id: 5, title: 'Дополнительно' },
-  { id: 6, title: 'Подтверждение' },
+  { number: 1, title: 'Кредит', icon: '💰' },
+  { number: 2, title: 'Личные данные', icon: '👤' },
+  { number: 3, title: 'Контакты', icon: '📞' },
+  { number: 4, title: 'Занятость', icon: '💼' },
+  { number: 5, title: 'Дополнительно', icon: '📋' },
+  { number: 6, title: 'Подтверждение', icon: '✅' },
 ];
 
 // Конфигурация валидации по шагам
-const STEP_CONFIG: StepNavigationConfig<CreditApplicationFormType> = {
-  totalSteps: 6,
-  stepValidations: {
-    1: loanValidation,
-    2: personalValidation,
-    3: contactValidation,
-    4: employmentValidation,
-    5: additionalValidation,
-    // Шаг 6 (подтверждение) - без валидации, только просмотр
-  },
-  fullValidation: creditApplicationValidation,
+const STEP_VALIDATIONS = {
+  1: loanValidation,
+  2: personalValidation,
+  3: contactValidation,
+  4: employmentValidation,
+  5: additionalValidation,
+  // Шаг 6 (подтверждение) - без валидации, только просмотр
 };
 
 interface CreditApplicationFormProps {
@@ -58,6 +51,9 @@ interface CreditApplicationFormProps {
 }
 
 function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
+  // Ref для доступа к методам навигации
+  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+
   // Создаём экземпляр формы
   const form = useMemo(
     () =>
@@ -69,23 +65,18 @@ function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
     []
   );
 
-  // Ref для доступа к методам навигации
-  const navRef = useRef<StepNavigationHandle<CreditApplicationFormType>>(null);
+  // Конфигурация навигации
+  const navConfig = useMemo(
+    () => ({
+      stepValidations: STEP_VALIDATIONS,
+      fullValidation: creditApplicationValidation,
+    }),
+    []
+  );
 
-  // Отправка формы
-  const handleSubmit = async (values: CreditApplicationFormType) => {
-    try {
-      // Преобразование данных формы в формат API
-      const apiData = serializeApplication(values);
-
-      // Отправка на сервер через API сервис
-      const result = await saveApplication(apiData);
-
-      alert(`Заявка отправлена! ID: ${result.id}`);
-    } catch (error) {
-      console.error('Ошибка отправки:', error);
-    }
-  };
+  // ============================================================================
+  // Загрузка данных
+  // ============================================================================
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,93 +102,119 @@ function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
     loadApplication();
   }, [form, applicationId]);
 
+  // ============================================================================
+  // Отправка формы
+  // ============================================================================
+
+  const submitApplication = async () => {
+    const result = await navRef.current?.submit(async (values: CreditApplicationFormType) => {
+      // Преобразование данных формы в формат API
+      const apiData = serializeApplication(values);
+
+      // Отправка на сервер через API сервис
+      const response = await saveApplication(apiData);
+
+      alert(`Заявка отправлена! ID: ${response.id}`);
+      return response;
+    });
+
+    if (!result) {
+      alert('Пожалуйста, исправьте ошибки в форме');
+    }
+  };
+
+  // ============================================================================
+  // Рендер: Загрузка
+  // ============================================================================
+
   if (isLoading) {
     return <div>Загрузка заявки...</div>;
   }
+
+  // ============================================================================
+  // Рендер: Ошибка
+  // ============================================================================
 
   if (error) {
     return <div className="error">{error}</div>;
   }
 
+  // ============================================================================
+  // Рендер: Форма с headless compound components
+  // ============================================================================
+
   return (
-    <StepNavigation ref={navRef} form={form} config={STEP_CONFIG}>
-      {({ currentStep, completedSteps, isFirstStep, isLastStep, isValidating }) => (
-        <div>
-          {/* Индикатор шагов */}
+    <FormNavigation ref={navRef} form={form} config={navConfig}>
+      {/* Индикатор шагов (headless) */}
+      <FormNavigation.Indicator steps={STEPS}>
+        {({ steps, goToStep }) => (
           <div className="flex justify-between mb-4">
-            {STEPS.map((step) => {
-              const isCompleted = completedSteps.includes(step.id);
-              const isCurrent = currentStep === step.id;
-              const canNavigate = step.id === 1 || completedSteps.includes(step.id - 1);
-
-              return (
-                <button
-                  key={step.id}
-                  onClick={() => navRef.current?.goToStep(step.id)}
-                  disabled={!canNavigate}
-                  className={`px-4 py-2 rounded transition-colors ${
-                    isCurrent
-                      ? 'bg-blue-600 text-white'
-                      : isCompleted
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                        : canNavigate
-                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {step.id}. {step.title}
-                </button>
-              );
-            })}
+            {steps.map((step) => (
+              <button
+                key={step.number}
+                onClick={() => step.canNavigate && goToStep(step.number)}
+                disabled={!step.canNavigate}
+                className={`px-4 py-2 rounded transition-colors ${
+                  step.isCurrent
+                    ? 'bg-blue-600 text-white'
+                    : step.isCompleted
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : step.canNavigate
+                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {step.isCompleted ? '✓' : step.icon} {step.title}
+              </button>
+            ))}
           </div>
+        )}
+      </FormNavigation.Indicator>
 
-          {/* Содержимое текущего шага */}
-          <div className="bg-white p-8 rounded-lg shadow-md">
-            {currentStep === 1 && <BasicInfoForm control={form} />}
-            {currentStep === 2 && <PersonalInfoForm control={form} />}
-            {currentStep === 3 && <ContactInfoForm control={form} />}
-            {currentStep === 4 && <EmploymentForm control={form} />}
-            {currentStep === 5 && <AdditionalInfoForm control={form} />}
-            {currentStep === 6 && <ConfirmationForm control={form} />}
-          </div>
+      {/* Форма текущего шага */}
+      <div className="bg-white p-8 rounded-lg shadow-md">
+        <FormNavigation.Step component={BasicInfoForm} control={form} />
+        <FormNavigation.Step component={PersonalInfoForm} control={form} />
+        <FormNavigation.Step component={ContactInfoForm} control={form} />
+        <FormNavigation.Step component={EmploymentForm} control={form} />
+        <FormNavigation.Step component={AdditionalInfoForm} control={form} />
+        <FormNavigation.Step component={ConfirmationForm} control={form} />
+      </div>
 
-          {/* Кнопки навигации */}
+      {/* Кнопки навигации (headless) */}
+      <FormNavigation.Actions onSubmit={submitApplication}>
+        {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
           <div className="flex justify-between mt-6">
-            <button
-              onClick={() => navRef.current?.goToPreviousStep()}
-              disabled={isFirstStep || isValidating}
-              className="px-6 py-2 bg-gray-300 rounded disabled:opacity-50 hover:bg-gray-400 transition-colors"
+            <Button
+              onClick={prev.onClick}
+              disabled={isFirstStep || prev.disabled}
+              variant="secondary"
             >
               Назад
-            </button>
+            </Button>
 
             {!isLastStep ? (
-              <button
-                onClick={() => navRef.current?.goToNextStep()}
-                disabled={isValidating}
-                className="px-6 py-2 bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700 transition-colors"
-              >
+              <Button onClick={next.onClick} disabled={next.disabled}>
                 {isValidating ? 'Проверка...' : 'Далее'}
-              </button>
+              </Button>
             ) : (
-              <button
-                onClick={() => navRef.current?.submit(handleSubmit)}
-                disabled={isValidating}
-                className="px-6 py-2 bg-green-600 text-white rounded disabled:opacity-50 hover:bg-green-700 transition-colors"
-              >
-                {isValidating ? 'Проверка...' : 'Отправить заявку'}
-              </button>
+              <Button onClick={submit.onClick} disabled={submit.disabled} variant="default">
+                {submit.isSubmitting ? 'Отправка...' : 'Отправить заявку'}
+              </Button>
             )}
           </div>
+        )}
+      </FormNavigation.Actions>
 
-          {/* Информация о прогрессе */}
+      {/* Информация о прогрессе (headless) */}
+      <FormNavigation.Progress>
+        {({ current, total, percent }) => (
           <div className="mt-4 text-center text-sm text-gray-600">
-            Шаг {currentStep} из {STEP_CONFIG.totalSteps} •{' '}
-            {Math.round((currentStep / STEP_CONFIG.totalSteps) * 100)}% завершено
+            Шаг {current} из {total} • {percent}% завершено
           </div>
-        </div>
-      )}
-    </StepNavigation>
+        )}
+      </FormNavigation.Progress>
+    </FormNavigation>
   );
 }
 

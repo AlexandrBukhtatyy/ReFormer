@@ -36,11 +36,11 @@
  * @module validation
  */
 
-import { GroupNode } from '../nodes/group-node';
-import { FieldNode } from '../nodes/field-node';
-import { ArrayNode } from '../nodes/array-node';
+import type { FieldNode } from '../nodes/field-node';
 import { FormNode } from '../nodes/form-node';
+import { GroupNode } from '../nodes/group-node';
 import type { ValidationSchemaFn, ValidatorRegistration, FormFields, FormValue } from '../types';
+import { isFieldNode, isGroupNode, isArrayNode } from '../utils/type-guards';
 import { ValidationRegistry } from './validation-registry';
 import { createFieldPath } from './field-path';
 
@@ -55,15 +55,17 @@ import { createFieldPath } from './field-path';
  * @returns Массив всех FieldNode в дереве
  */
 function collectAllFieldNodes(node: FormNode<FormValue>): FieldNode<FormValue>[] {
-  if (node instanceof FieldNode) {
+  // Используем duck-typing вместо instanceof для поддержки Proxy (GroupNodeWithControls)
+  // Proxy не проходит проверку instanceof, но type guards работают корректно
+  if (isFieldNode(node)) {
     return [node];
   }
 
-  if (node instanceof GroupNode) {
+  if (isGroupNode(node)) {
     return Array.from(node.getAllFields()).flatMap(collectAllFieldNodes);
   }
 
-  if (node instanceof ArrayNode) {
+  if (isArrayNode(node)) {
     // items приватный, используем публичный метод map()
     return node.map((item) => collectAllFieldNodes(item)).flat();
   }

@@ -2,14 +2,16 @@
  * CreditApplicationForm
  *
  * Использует:
- * - useStepForm хук для управления multi-step формой
+ * - FormNavigation компонент для multi-step формы
+ * - Actions с render props для навигационных кнопок
+ * - Headless компоненты (Indicator, Progress) с render props
  * - GroupNode для вложенных форм и массивов
  * - validateForm для валидации по шагам
  * - useLoadCreditApplication для загрузки данных
  * - Полную типизацию TypeScript
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { createCreditApplicationForm } from './schemas/create-credit-application-form';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
@@ -17,31 +19,34 @@ import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm'
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import { STEPS, TOTAL_STEPS } from './constants/credit-application';
+import { STEPS } from './constants/credit-application';
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
-import { useStepForm } from '@/components/ui/form-navigation/hooks';
-import { StepIndicator } from '@/components/ui/form-navigation/StepIndicator';
-import { NavigationButtons } from '@/components/ui/form-navigation/NavigationButtons';
+import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
 import { Button } from '@/components/ui/button';
+import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
 
 // ============================================================================
 // Компонент формы
 // ============================================================================
 function CreditApplicationForm() {
+  // Ref для доступа к методам навигации
+  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+
   //  Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
   const form = useMemo(() => createCreditApplicationForm(), []);
 
-  //  Используем новый хук useStepForm
-  const { currentStep, completedSteps, goToNextStep, goToPreviousStep, goToStep, submit } =
-    useStepForm(form, {
-      totalSteps: 6,
-      stepSchemas: STEP_VALIDATIONS,
-      fullSchema: creditApplicationValidation,
-    });
+  // Конфигурация навигации (totalSteps вычисляется автоматически из Step children)
+  const navConfig = useMemo(
+    () => ({
+      stepValidations: STEP_VALIDATIONS,
+      fullValidation: creditApplicationValidation,
+    }),
+    []
+  );
 
   // ============================================================================
   // Загрузка данных
@@ -55,7 +60,7 @@ function CreditApplicationForm() {
   // ============================================================================
 
   const submitApplication = async () => {
-    const result = await submit(async (values) => {
+    const result = await navRef.current?.submit(async (values: CreditApplicationFormType) => {
       // Отправляем данные на сервер через API
       const response = await submitCreditApplication(values);
 
@@ -109,43 +114,86 @@ function CreditApplicationForm() {
   }
 
   // ============================================================================
-  // Рендер: Форма
+  // Рендер: Форма с headless compound components
   // ============================================================================
   return (
     <div className="w-full">
-      {/* Индикатор шагов */}
-      <StepIndicator
-        steps={STEPS}
-        currentStep={currentStep}
-        completedSteps={completedSteps}
-        onStepClick={goToStep}
-      />
+      <FormNavigation ref={navRef} form={form} config={navConfig}>
+        {/* Индикатор шагов (headless) */}
+        <FormNavigation.Indicator steps={STEPS}>
+          {({ steps, goToStep }) => (
+            <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg mb-8">
+              {steps.map((step, index) => (
+                <div key={step.number} className="flex items-center flex-1">
+                  <div
+                    className={`flex items-center gap-2 p-3 rounded-lg transition-all cursor-pointer
+                      ${step.isCurrent ? 'bg-blue-500 text-white' : ''}
+                      ${step.isCompleted && !step.isCurrent ? 'text-green-500' : ''}
+                      ${step.canNavigate ? 'hover:bg-gray-200' : 'cursor-not-allowed opacity-50'}
+                    `}
+                    onClick={() => step.canNavigate && goToStep(step.number)}
+                  >
+                    <div className="text-2xl">{step.isCompleted ? '✓' : step.icon}</div>
+                    <div className="text-xs font-medium">{step.title}</div>
+                    <div className="text-xs opacity-70">{step.number}</div>
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div
+                      className={`flex-1 h-0.5 mx-2 ${step.isCompleted ? 'bg-green-500' : 'bg-gray-300'}`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </FormNavigation.Indicator>
 
-      {/* Форма текущего шага */}
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        {currentStep === 1 && <BasicInfoForm control={form} />}
-        {currentStep === 2 && <PersonalInfoForm control={form} />}
-        {currentStep === 3 && <ContactInfoForm control={form} />}
-        {currentStep === 4 && <EmploymentForm control={form} />}
-        {currentStep === 5 && <AdditionalInfoForm control={form} />}
-        {currentStep === 6 && <ConfirmationForm control={form} />}
-      </div>
+        {/* Форма текущего шага */}
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <FormNavigation.Step component={BasicInfoForm} control={form} />
+          <FormNavigation.Step component={PersonalInfoForm} control={form} />
+          <FormNavigation.Step component={ContactInfoForm} control={form} />
+          <FormNavigation.Step component={EmploymentForm} control={form} />
+          <FormNavigation.Step component={AdditionalInfoForm} control={form} />
+          <FormNavigation.Step component={ConfirmationForm} control={form} />
+        </div>
 
-      {/* Кнопки навигации */}
-      <NavigationButtons
-        currentStep={currentStep}
-        totalSteps={TOTAL_STEPS}
-        isSubmitting={form.submitting.value}
-        onNext={goToNextStep}
-        onPrevious={goToPreviousStep}
-        onSubmit={submitApplication}
-      />
+        {/* Кнопки навигации (render props API) */}
+        <FormNavigation.Actions onSubmit={submitApplication}>
+          {({ prev, next, submit, isFirstStep, isLastStep, isValidating, isSubmitting }) => (
+            <div className="flex gap-4 mt-8">
+              {!isFirstStep && (
+                <Button onClick={prev.onClick} disabled={prev.disabled} data-testid="btn-previous">
+                  ← Назад
+                </Button>
+              )}
+              <div className="flex-1" />
+              {!isLastStep ? (
+                <Button onClick={next.onClick} disabled={next.disabled} data-testid="btn-next">
+                  {isValidating ? 'Проверка...' : 'Далее →'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={submit.onClick}
+                  disabled={submit.disabled}
+                  data-testid="btn-submit"
+                >
+                  {isSubmitting ? 'Отправка...' : 'Отправить заявку'}
+                </Button>
+              )}
+            </div>
+          )}
+        </FormNavigation.Actions>
 
-      {/* Информация о прогрессе */}
-      <div className="mt-4 text-center text-sm text-gray-600">
-        Шаг {currentStep} из {TOTAL_STEPS} • {Math.round((currentStep / TOTAL_STEPS) * 100)}%
-        завершено
-      </div>
+        {/* Информация о прогрессе (headless) */}
+        <FormNavigation.Progress>
+          {({ current, total, percent }) => (
+            <div className="text-center text-sm text-gray-600 mt-4">
+              Шаг {current} из {total} • {percent}% завершено
+            </div>
+          )}
+        </FormNavigation.Progress>
+      </FormNavigation>
     </div>
   );
 }

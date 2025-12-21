@@ -4,17 +4,9 @@ import { InputMask } from '@/components/ui/input-mask';
 import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
 import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { PassportData } from './types';
 
-/**
- * Паспортные данные (вложенная форма)
- */
-export interface PassportData {
-  series: string;
-  number: string;
-  issueDate: string;
-  issuedBy: string;
-  departmentCode: string;
-}
+export type { PassportData } from './types';
 
 export const passportDataSchema: FormSchema<PassportData> = {
   series: {

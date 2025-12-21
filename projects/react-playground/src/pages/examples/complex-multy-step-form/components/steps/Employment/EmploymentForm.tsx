@@ -1,14 +1,14 @@
 import type { GroupNodeWithControls } from '@reformer/core';
-import { useFormControl } from '@reformer/core';
+import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
-import type { CreditApplicationForm } from '../../../types/credit-application';
+import type { CreditApplicationForm, EmploymentStatus } from '../../../types/credit-application';
 
 interface EmploymentFormProps {
   control: GroupNodeWithControls<CreditApplicationForm>;
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {
-  const { value: employmentStatus } = useFormControl(control.employmentStatus);
+  const employmentStatus = useFormControlValue(control.employmentStatus) as EmploymentStatus;
 
   return (
     <div className="space-y-6" data-testid="step-employment">

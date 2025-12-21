@@ -62,7 +62,7 @@ claude mcp list
 
 ## Using the Server
 
-Once registered, Claude will automatically have access to ReFormer tools and knowledge.
+Once registered, Claude will automatically have access to ReFormer documentation and tools.
 
 ### Example: Ask about ReFormer
 
@@ -72,7 +72,7 @@ Simply ask Claude:
 How do I create a form with validation in ReFormer?
 ```
 
-Claude will use the `get_reformer_docs` tool to fetch documentation and provide accurate answers.
+Claude will use the documentation resources to provide accurate answers.
 
 ### Example: Generate a form
 
@@ -80,7 +80,7 @@ Claude will use the `get_reformer_docs` tool to fetch documentation and provide 
 Create a user registration form with email, password, and confirm password fields
 ```
 
-Claude can use the `create-form` prompt to generate complete form code.
+Claude uses the documentation to generate complete form code.
 
 ### Example: Debug an issue
 
@@ -88,31 +88,20 @@ Claude can use the `create-form` prompt to generate complete form code.
 Why is my form field not updating when I type?
 ```
 
-Claude will use the documentation and `explain_error` tool to help troubleshoot.
+Claude will use the documentation to help troubleshoot.
 
 ## Available Capabilities
 
 ### Tools
 
-- `get_reformer_docs` - Complete documentation
-- `search_docs` - Search for specific topics
-- `get_api_reference` - API details for methods
-- `get_examples` - Code examples
-- `explain_error` - Error explanations
+- `report_issue` - Report errors and solutions for feedback collection
 
 ### Resources
 
 - `reformer://docs` - Full documentation
 - `reformer://api` - API reference
 - `reformer://examples` - Code examples
-
-### Prompts
-
-- `reformer-help` - General help
-- `create-form` - Form generation
-- `manage-validation` - Validation management
-- `manage-behavior` - Behavior management
-- `debug-form` - Form debugging
+- `reformer://troubleshooting` - Common problems and solutions
 
 ## Next Steps
 

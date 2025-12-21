@@ -14,7 +14,7 @@ import { computeFrom, enableWhen } from '../../../src/core/behavior/behaviors';
 import type { ValidationSchemaFn } from '../../../src/core/types/validation-schema';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
 import { createForm } from '../../../src/core/utils/create-form';
-import type { GroupNodeWithControls } from '../../src';
+import type { GroupNodeWithControls } from '../../../src/core/types/group-node-proxy';
 import type { FieldPath } from '../../../src/core/types';
 
 // Mock компонент для тестов
@@ -124,7 +124,7 @@ describe('Form Isolation', () => {
   });
 
   describe('BehaviorRegistry Isolation', () => {
-    it('должен изолировать behaviors между двумя формами', () => {
+    it('должен изолировать behaviors между двумя формами', async () => {
       interface BehaviorTestForm {
         sourceField: string;
         targetField1: string;
@@ -173,6 +173,9 @@ describe('Form Isolation', () => {
       // Изменяем sourceField в обеих формах
       form1.sourceField.setValue('value1');
       form2.sourceField.setValue('value2');
+
+      // Ждем выполнения microtask (computeFrom использует queueMicrotask)
+      await new Promise((r) => setTimeout(r, 10));
 
       // Форма 1: только targetField1 должен быть обновлен
       expect(form1.targetField1.value.value).toBe('Copy1: value1');
@@ -308,6 +311,9 @@ describe('Form Isolation', () => {
 
       form2.email.setValue('test2@mail.com');
       form2.autoFill.setValue(true);
+
+      // Ждем выполнения microtask (computeFrom использует queueMicrotask)
+      await new Promise((r) => setTimeout(r, 10));
 
       // Форма 1: confirmEmail обновляется
       expect(form1.confirmEmail.value.value).toBe('test@mail.com');

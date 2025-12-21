@@ -5,16 +5,9 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
 import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { Property } from './types';
 
-export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'none';
-
-export interface Property {
-  id?: string;
-  type: PropertyType;
-  description: string;
-  estimatedValue: number;
-  hasEncumbrance: boolean;
-}
+export type { Property, PropertyType } from './types';
 
 export const propertyFormSchema: FormSchema<Property> = {
   type: {

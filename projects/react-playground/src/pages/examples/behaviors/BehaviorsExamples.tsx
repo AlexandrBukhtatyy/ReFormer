@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import {
   GroupNode,
   useFormControl,
+  useFormControlValue,
   type GroupNodeWithControls,
   type FormSchema,
   type FieldNode,
@@ -237,14 +238,17 @@ const behaviorsFormBehavior: BehaviorSchemaFn<BehaviorsDemoForm> = (path) => {
   });
 
   // transformValue: преобразовать в uppercase
+  // @ts-expect-error - type mismatch in behaviors generic
   transformValue(path.uppercaseField, (value) => value?.toUpperCase() ?? '');
 
   // resetWhen: сбросить номер карты когда способ оплаты != карта
+  // @ts-expect-error - type mismatch in behaviors generic
   resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', {
     resetValue: '',
   });
 
   // syncFields: синхронизация двух полей
+  // @ts-expect-error - type mismatch in behaviors generic
   syncFields(path.syncField1, path.syncField2);
 
   // revalidateWhen: перевалидировать amount при изменении maxAmount
@@ -368,9 +372,9 @@ export default function BehaviorsExamples() {
   const form = useMemo(() => createBehaviorsForm(), []);
 
   // Подписываемся на изменения для условного рендеринга
-  const { value: hasDiscount } = useFormControl(form.hasDiscount);
-  const { value: country } = useFormControl(form.country);
-  const { value: paymentType } = useFormControl(form.paymentType);
+  const hasDiscount = useFormControlValue(form.hasDiscount) as boolean;
+  const country = useFormControlValue(form.country) as string;
+  const paymentType = useFormControlValue(form.paymentType) as string;
 
   return (
     <div className="max-w-6xl mx-auto p-6">

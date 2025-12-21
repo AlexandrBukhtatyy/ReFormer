@@ -24,6 +24,7 @@
  */
 
 import type { GroupNodeWithControls } from './group-node-proxy';
+import type { FieldPathNode } from './field-path';
 
 /**
  * Единый контекст для работы с формой
@@ -66,21 +67,26 @@ export interface FormContext<TForm> {
   readonly form: GroupNodeWithControls<TForm>;
 
   /**
-   * Безопасно установить значение поля по строковому пути
+   * Безопасно установить значение поля по строковому пути или FieldPath
    *
    * Автоматически использует `emitEvent: false` для предотвращения
    * бесконечных циклов в behavior схемах.
    *
-   * @param path - Путь к полю (например, "address.city", "items[0].name")
+   * @param path - Путь к полю (строка или FieldPath)
    * @param value - Новое значение
    *
    * @example
    * ```typescript
-   * // Сброс города при смене страны
+   * // Сброс города при смене страны (строковый путь)
    * watchField(path.country, (country, ctx) => {
    *   ctx.setFieldValue('city', null);
    * });
+   *
+   * // Использование FieldPath напрямую (более типобезопасно)
+   * watchField(path.country, (country, ctx) => {
+   *   ctx.setFieldValue(path.city, null);
+   * });
    * ```
    */
-  setFieldValue(path: string, value: unknown): void;
+  setFieldValue(path: string | FieldPathNode<TForm, unknown>, value: unknown): void;
 }

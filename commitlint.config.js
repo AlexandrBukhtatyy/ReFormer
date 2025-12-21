@@ -23,10 +23,11 @@ export default {
       'always',
       [
         'reformer',
+        'reformer-ui',
+        'reformer-mcp',
         'react-playground',
         'react-playground-e2e',
         'reformer-tutorial',
-        'reformer-tutorial-ai',
         'docs',
         'ci',
         'deps',

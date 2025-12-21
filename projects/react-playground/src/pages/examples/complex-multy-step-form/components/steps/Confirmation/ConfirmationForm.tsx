@@ -1,4 +1,4 @@
-import type { GroupNodeWithControls } from '@reformer/core';
+import { useFormControlValue, type GroupNodeWithControls } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
@@ -7,6 +7,10 @@ interface ConfirmationFormProps {
 }
 
 export function ConfirmationForm({ control }: ConfirmationFormProps) {
+  // Use hooks to get reactive values for display
+  const interestRate = useFormControlValue(control.interestRate) as number;
+  const monthlyPayment = useFormControlValue(control.monthlyPayment) as number;
+
   return (
     <div className="space-y-6" data-testid="step-confirmation">
       <h2 className="text-xl font-bold" data-testid="step-heading">
@@ -20,7 +24,7 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
           </p>
         </div>
 
-        {control.monthlyPayment.value > 30000 && (
+        {monthlyPayment > 30000 && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-800">
               <b>Внимание!</b> Ежемесячный платеж превышает 30 000 Руб.
@@ -34,7 +38,7 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div>
-              <b>Процентная ставка:</b> {control.interestRate.value}
+              <b>Процентная ставка:</b> {interestRate}%
             </div>
             <span className="text-xs text-gray-500">
               зависит от типа кредита, региона, наличия имущества
@@ -42,7 +46,7 @@ export function ConfirmationForm({ control }: ConfirmationFormProps) {
           </div>
           <div>
             <div>
-              <b>Ежемесячный платеж:</b> {control.monthlyPayment.value}
+              <b>Ежемесячный платеж:</b> {monthlyPayment.toLocaleString('ru-RU')} ₽
             </div>
             <span className="text-xs text-gray-500">
               вычисляется по формуле аннуитетного платежа

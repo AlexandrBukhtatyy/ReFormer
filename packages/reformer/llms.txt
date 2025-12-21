@@ -1,14 +1,21 @@
 # ReFormer - LLM Integration Guide
 
-## 1. QUICK REFERENCE
+## 1. API Reference
 
 ### Imports (CRITICALLY IMPORTANT)
 
 | What                                                                                        | Where                       |
 | ------------------------------------------------------------------------------------------- | --------------------------- |
+| `createForm`, `useFormControl`, `useFormControlValue`, `validateForm`                       | `@reformer/core`            |
 | `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `GroupNodeWithControls`, `FieldNode` | `@reformer/core`            |
-| `required`, `min`, `max`, `minLength`, `email`, `validate`, `validateTree`                  | `@reformer/core/validators` |
-| `computeFrom`, `enableWhen`, `disableWhen`, `copyFrom`, `watchField`                        | `@reformer/core/behaviors`  |
+| `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
+| `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
+| `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |
+| `validate`, `validateAsync`, `validateTree`, `applyWhen`                                    | `@reformer/core/validators` |
+| `notEmpty`, `validateItems`                                                                 | `@reformer/core/validators` |
+| `computeFrom`, `enableWhen`, `disableWhen`, `watchField`, `copyFrom`                        | `@reformer/core/behaviors`  |
+| `resetWhen`, `revalidateWhen`, `syncFields`                                                 | `@reformer/core/behaviors`  |
+| `transformValue`, `transformers`                                                            | `@reformer/core/behaviors`  |
 
 ### Type Values
 
@@ -16,30 +23,205 @@
 - Optional strings: `string` (empty string by default)
 - Do NOT add `[key: string]: unknown` to form interfaces
 
+### React Hooks Comparison (CRITICALLY IMPORTANT)
+
+| Hook | Return Type | Subscribes To | Use Case |
+|------|-------------|---------------|----------|
+| `useFormControl(field)` | `{ value, errors, disabled, touched, ... }` | All signals | Full field state, form inputs |
+| `useFormControlValue(field)` | `T` (value directly) | Only value signal | Conditional rendering |
+
+**CRITICAL**: Do NOT destructure `useFormControlValue`! It returns `T` directly, NOT `{ value: T }`.
+
+```typescript
+// WRONG - will always be undefined!
+const { value: loanType } = useFormControlValue(control.loanType);
+
+// CORRECT
+const loanType = useFormControlValue(control.loanType);
+
+// CORRECT - useFormControl returns object, destructuring OK
+const { value, errors, disabled } = useFormControl(control.loanType);
+```
+
+## 1.5 QUICK START - Minimal Working Form
+
+```typescript
+import { createForm, useFormControl } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import type { GroupNodeWithControls } from '@reformer/core';
+
+// 1. Define form type
+interface ContactForm {
+  name: string;
+  email: string;
+}
+
+// 2. Create form schema with validation
+const form = createForm<ContactForm>({
+  form: {
+    name: { value: '', component: Input },
+    email: { value: '', component: Input },
+  },
+  validation: (path) => {
+    required(path.name, { message: 'Name is required' });
+    required(path.email, { message: 'Email is required' });
+    email(path.email, { message: 'Invalid email format' });
+  },
+});
+
+// 3. Use in React component
+function ContactFormComponent() {
+  const nameCtrl = useFormControl(form.name);
+  const emailCtrl = useFormControl(form.email);
+
+  const handleSubmit = async () => {
+    await form.submit((values) => {
+      console.log('Form submitted:', values);
+    });
+  };
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <div>
+        <input
+          value={nameCtrl.value}
+          onChange={(e) => form.name.setValue(e.target.value)}
+          disabled={nameCtrl.disabled}
+        />
+        {nameCtrl.errors.map((err) => <span key={err.code}>{err.message}</span>)}
+      </div>
+      <div>
+        <input
+          value={emailCtrl.value}
+          onChange={(e) => form.email.setValue(e.target.value)}
+          disabled={emailCtrl.disabled}
+        />
+        {emailCtrl.errors.map((err) => <span key={err.code}>{err.message}</span>)}
+      </div>
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+
+// 4. Pass form to child components via props (NOT context!)
+interface FormStepProps {
+  form: GroupNodeWithControls<ContactForm>;
+}
+
+function FormStep({ form }: FormStepProps) {
+  // Access form fields directly
+  const { value } = useFormControl(form.name);
+  return <div>Name: {value}</div>;
+}
+```
+
 ## 2. API SIGNATURES
 
 ### Validators
 
 ```typescript
+// Basic validators
 required(path, options?: { message?: string })
 min(path, value: number, options?: { message?: string })
 max(path, value: number, options?: { message?: string })
 minLength(path, length: number, options?: { message?: string })
 maxLength(path, length: number, options?: { message?: string })
 email(path, options?: { message?: string })
-validate(path, validator: (value) => ValidationError | null)
-validateTree(validator: (ctx) => ValidationError | null)
-when(condition: (form) => boolean, validatorsFn: () => void)
+
+// Additional validators
+pattern(path, regex: RegExp, options?: { message?: string })
+url(path, options?: { message?: string })
+phone(path, options?: { message?: string; format?: PhoneFormat })
+number(path, options?: { message?: string })
+date(path, options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
+
+// Custom validators
+validate(path, validator: (value, ctx) => ValidationError | null)
+validateAsync(path, validator: async (value, ctx) => ValidationError | null)
+validateTree(validator: (ctx) => ValidationError | null, options?: { targetField?: string })
+
+// Conditional validation (3 arguments!)
+applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
+
+// applyWhen Examples - CRITICALLY IMPORTANT
+// applyWhen takes 3 arguments: triggerField, condition, validators
+
+// Example 1: Simple condition
+applyWhen(
+  path.loanType,                    // 1st: field to watch
+  (type) => type === 'mortgage',    // 2nd: condition on field value
+  (p) => {                          // 3rd: validators to apply
+    required(p.propertyValue);
+    min(p.propertyValue, 100000);
+  }
+);
+
+// Example 2: Nested field as trigger
+applyWhen(
+  path.address.country,
+  (country) => country === 'US',
+  (p) => {
+    required(p.address.state);
+    pattern(p.address.zip, /^\d{5}(-\d{4})?$/);
+  }
+);
+
+// Example 3: Boolean trigger
+applyWhen(
+  path.hasInsurance,
+  (has) => has === true,
+  (p) => {
+    required(p.insuranceCompany);
+    required(p.policyNumber);
+  }
+);
+
+// WRONG - only 2 arguments (React Hook Form pattern)
+applyWhen(
+  (form) => form.loanType === 'mortgage',  // WRONG!
+  () => { required(path.propertyValue); }
+);
+
+// Array validators
+notEmpty(path, options?: { message?: string })
+validateItems(arrayPath, itemValidatorsFn: (itemPath) => void)
 ```
 
 ### Behaviors
 
 ```typescript
+// Enable/disable fields conditionally
 enableWhen(path, condition: (form) => boolean, options?: { resetOnDisable?: boolean })
 disableWhen(path, condition: (form) => boolean)
-computeFrom(sourcePaths[], targetPath, compute: (values) => result)
-watchField(path, callback: (value, ctx) => void)
-copyFrom(sourcePath, targetPath, options?: { when?, fields?, transform? })
+
+// Computed fields (same nesting level)
+computeFrom(sourcePaths[], targetPath, compute: (values) => result, options?: { debounce?: number; condition?: (form) => boolean })
+
+// Watch field changes (ALWAYS use { immediate: false } to prevent cycle detection!)
+watchField(path, callback: (value, ctx: BehaviorContext) => void, options: { immediate: false; debounce?: number })
+
+// Copy values between fields
+copyFrom(sourcePath, targetPath, options?: { when?: (form) => boolean; fields?: string[]; transform?: (value) => value })
+
+// Reset field when condition met
+resetWhen(path, condition: (form) => boolean, options?: { toValue?: any })
+
+// Re-validate target field when any trigger changes
+revalidateWhen(targetPath, triggerPaths[], options?: { debounce?: number })
+
+// Sync multiple fields
+syncFields(paths[], options?: { bidirectional?: boolean })
+
+// Transform values
+transformValue(path, transformer: (value) => value, options?: { on?: 'change' | 'blur' })
+transformers.trim, transformers.toUpperCase, transformers.toLowerCase, transformers.toNumber
+
+// BehaviorContext interface:
+interface BehaviorContext<TForm> {
+  form: GroupNodeWithControls<TForm>;            // Form proxy with typed field access
+  setFieldValue: (path: string, value: any) => void;
+  // To READ field values, use: ctx.form.fieldName.value.value
+}
 ```
 
 ## 3. COMMON PATTERNS
@@ -59,7 +241,7 @@ enableWhen(path.mortgageFields, (form) => form.loanType === 'mortgage', {
 // Use watchField instead:
 watchField(path.nested.field, (value, ctx) => {
   ctx.setFieldValue('rootField', computedValue);
-});
+}, { immediate: false });
 ```
 
 ### Type-Safe useFormControl
@@ -68,26 +250,84 @@ watchField(path.nested.field, (value, ctx) => {
 const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 ```
 
-## 4. ⚠️ COMMON MISTAKES
+### Validation Priority (IMPORTANT)
+
+**Always prefer built-in validators over custom ones:**
+
+```typescript
+// 1. BEST: Use built-in validators when available
+required(path.email);
+email(path.email);
+min(path.age, 18);
+minLength(path.password, 8);
+pattern(path.phone, /^\+7\d{10}$/);
+
+// 2. GOOD: Use validate() only when no built-in validator exists
+validate(path.customField, (value, ctx) => {
+  // Custom logic that can't be expressed with built-in validators
+  if (customCondition(value)) {
+    return { code: 'custom', message: 'Custom error' };
+  }
+  return null;
+});
+
+// 3. WRONG: Don't recreate built-in validators
+validate(path.email, (value) => {
+  if (!value) return { code: 'required', message: 'Required' };  // Use required() instead!
+  if (!value.includes('@')) return { code: 'email', message: 'Invalid' };  // Use email() instead!
+  return null;
+});
+```
+
+## 4. COMMON MISTAKES
+
+### useFormControlValue (CRITICAL)
+
+```typescript
+// WRONG - useFormControlValue returns T directly, NOT { value: T }
+const { value: loanType } = useFormControlValue(control.loanType);
+// Result: loanType is ALWAYS undefined! Conditional rendering will fail.
+
+// CORRECT
+const loanType = useFormControlValue(control.loanType);
+
+// ALSO CORRECT - useFormControl returns object
+const { value, errors } = useFormControl(control.loanType);
+```
+
+### Reading Field Values in BehaviorContext (CRITICAL)
+
+```typescript
+// WRONG - getFieldValue does NOT exist!
+watchField(path.amount, (amount, ctx) => {
+  const rate = ctx.getFieldValue('rate'); // ERROR: Property 'getFieldValue' does not exist
+});
+
+// CORRECT - use ctx.form.fieldName.value.value
+watchField(path.amount, (amount, ctx) => {
+  const rate = ctx.form.rate.value.value;  // Read via signal
+  ctx.setFieldValue('total', amount * rate);
+});
+```
 
 ### Validators
 
 ```typescript
-// ❌ WRONG
+// WRONG
 required(path.email, 'Email is required');
 
-// ✅ CORRECT
+// CORRECT
 required(path.email, { message: 'Email is required' });
 ```
 
 ### Types
 
 ```typescript
-// ❌ WRONG
+// WRONG
 amount: number | null;
 [key: string]: unknown;
 
-// ✅ CORRECT
+// CORRECT
 amount: number | undefined;
 // No index signature
 ```
@@ -95,10 +335,10 @@ amount: number | undefined;
 ### computeFrom
 
 ```typescript
-// ❌ WRONG - different nesting levels
+// WRONG - different nesting levels
 computeFrom([path.nested.a, path.nested.b], path.root, ...)
 
-// ✅ CORRECT - use watchField
+// CORRECT - use watchField
 watchField(path.nested.a, (_, ctx) => {
   ctx.setFieldValue('root', computed);
 });
@@ -107,10 +347,10 @@ watchField(path.nested.a, (_, ctx) => {
 ### Imports
 
 ```typescript
-// ❌ WRONG - types are not in submodules
+// WRONG - types are not in submodules
 import { ValidationSchemaFn } from '@reformer/core/validators';
 
-// ✅ CORRECT - types from main module
+// CORRECT - types from main module
 import type { ValidationSchemaFn } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
 ```
@@ -124,6 +364,7 @@ import { required, email } from '@reformer/core/validators';
 | `FormFields[]` instead of concrete type                | Type inference issue           | Use `as FieldNode<T>`             |
 | `Type 'X' is missing properties from type 'Y'`         | Cross-level computeFrom        | Use watchField instead            |
 | `Module has no exported member`                        | Wrong import source            | Types from core, functions from submodules |
+| `Cycle detected`                                       | Multiple watchers on same field calling disable/setValue | See 22-cycle-detection.md |
 
 ## 6. COMPLETE IMPORT EXAMPLE
 
@@ -141,7 +382,7 @@ import type {
 import { createForm, useFormControl } from '@reformer/core';
 
 // Validators - from /validators submodule
-import { required, min, max, email, validate, when } from '@reformer/core/validators';
+import { required, min, max, email, validate, applyWhen } from '@reformer/core/validators';
 
 // Behaviors - from /behaviors submodule
 import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/behaviors';
@@ -150,7 +391,7 @@ import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/be
 ## 7. FORM TYPE DEFINITION
 
 ```typescript
-// ✅ CORRECT form type definition
+// CORRECT form type definition
 interface MyForm {
   // Required fields
   name: string;
@@ -169,10 +410,1030 @@ interface MyForm {
     city: string;
   };
 
-  // Arrays
+  // Arrays - use tuple format for schema
   items: Array<{
     id: string;
     name: string;
   }>;
 }
+```
+
+## 8. FORMSCHEMA FORMAT (CRITICALLY IMPORTANT)
+
+**Every field MUST have `value` and `component` properties!**
+
+### FieldConfig Interface
+
+```typescript
+interface FieldConfig<T> {
+  value: T | null;              // Initial value (REQUIRED)
+  component: ComponentType;     // React component (REQUIRED)
+  componentProps?: object;      // Props passed to component
+  disabled?: boolean;           // Disable field initially
+  validators?: ValidatorFn[];   // Sync validators
+  asyncValidators?: AsyncValidatorFn[]; // Async validators
+  updateOn?: 'change' | 'blur' | 'submit';
+  debounce?: number;
+}
+```
+
+### Primitive Fields
+
+```typescript
+import { Input, Select, Checkbox } from '@/components/ui';
+
+const schema: FormSchema<MyForm> = {
+  // String field
+  name: {
+    value: '',                    // Initial value (REQUIRED)
+    component: Input,             // React component (REQUIRED)
+    componentProps: {
+      label: 'Name',
+      placeholder: 'Enter name',
+    },
+  },
+
+  // Number field (optional)
+  age: {
+    value: undefined,             // Use undefined, NOT null
+    component: Input,
+    componentProps: { type: 'number', label: 'Age' },
+  },
+
+  // Boolean field
+  agree: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'I agree to terms' },
+  },
+
+  // Enum/Select field
+  status: {
+    value: 'active',
+    component: Select,
+    componentProps: {
+      label: 'Status',
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+      ],
+    },
+  },
+};
+```
+
+### Nested Objects
+
+```typescript
+const schema: FormSchema<MyForm> = {
+  address: {
+    street: { value: '', component: Input, componentProps: { label: 'Street' } },
+    city: { value: '', component: Input, componentProps: { label: 'City' } },
+    zip: { value: '', component: Input, componentProps: { label: 'ZIP' } },
+  },
+};
+```
+
+### Arrays (Tuple Format)
+
+```typescript
+const itemSchema = {
+  id: { value: '', component: Input, componentProps: { label: 'ID' } },
+  name: { value: '', component: Input, componentProps: { label: 'Name' } },
+};
+
+const schema: FormSchema<MyForm> = {
+  items: [itemSchema],  // Array with ONE template item
+};
+```
+
+### WRONG - This will NOT compile
+
+```typescript
+// Missing value and component - TypeScript will error!
+const schema = {
+  name: '',           // Wrong
+  email: '',          // Wrong
+};
+```
+
+### createForm API
+
+```typescript
+// Full config with behavior and validation
+const form = createForm<MyForm>({
+  form: formSchema,              // Required: form schema with FieldConfig
+  behavior: behaviorSchema,      // Optional: behavior rules
+  validation: validationSchema,  // Optional: validation rules
+});
+
+// Access form controls
+form.name.setValue('John');
+form.address.city.value.value; // Get current value
+form.items.push({ id: '1', name: 'Item' }); // Array operations
+```
+
+### createForm Returns a Proxy
+
+```typescript
+// createForm() returns GroupNodeWithControls<T> (a Proxy wrapper around GroupNode)
+// This enables type-safe field access:
+const form = createForm<MyForm>({...});
+
+form.email           // FieldNode<string> - TypeScript knows the type!
+form.address.city    // FieldNode<string> - nested access works
+form.items.at(0)     // GroupNodeWithControls<ItemType> - array items
+
+// IMPORTANT: Proxy doesn't pass instanceof checks!
+// Use type guards instead:
+import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
+
+if (isFieldNode(node)) { /* ... */ }   // Works with Proxy
+if (node instanceof FieldNode) { /* ... */ } // Fails with Proxy!
+```
+
+## 9. ARRAY SCHEMA FORMAT
+
+**Array items are sub-forms!** Each array element is a complete sub-form with its own fields, validation, and behavior.
+
+```typescript
+// CORRECT - use tuple format for arrays
+// The template item defines the sub-form schema for each array element
+const itemSchema = {
+  id: { value: '', component: Input },
+  name: { value: '', component: Input },
+  price: { value: 0, component: Input, componentProps: { type: 'number' } },
+};
+
+const schema: FormSchema<MyForm> = {
+  items: [itemSchema],  // Array of sub-forms
+};
+
+// Each array item is a GroupNode (sub-form) with its own controls:
+form.items.map((item) => {
+  // item is a sub-form (GroupNode) - access fields like nested form
+  item.name.setValue('New Name');
+  item.price.value.value;  // Get current value
+});
+```
+
+```typescript
+// WRONG - object format is NOT supported
+const schema = {
+  items: { schema: itemSchema, initialItems: [] }, // This will NOT work
+};
+```
+
+### Array Item as Sub-Form
+
+```typescript
+// Validation for array items (each item is a sub-form)
+validateItems(path.items, (itemPath) => {
+  // itemPath provides paths to sub-form fields
+  required(itemPath.name);
+  min(itemPath.price, 0);
+});
+
+// Render array items - each item is a sub-form
+{form.items.map((item, index) => (
+  <div key={item.id}>
+    {/* item is a sub-form - use FormField for each field */}
+    <FormField control={item.name} />
+    <FormField control={item.price} />
+    <button onClick={() => form.items.removeAt(index)}>Remove</button>
+  </div>
+))}
+```
+
+## 10. ASYNC WATCHFIELD (CRITICALLY IMPORTANT)
+
+```typescript
+// CORRECT - async watchField with ALL safeguards
+watchField(
+  path.parentField,
+  async (value, ctx) => {
+    if (!value) return;  // Guard clause
+
+    try {
+      const { data } = await fetchData(value);
+      ctx.form.dependentField.updateComponentProps({ options: data });
+    } catch (error) {
+      console.error('Failed:', error);
+      ctx.form.dependentField.updateComponentProps({ options: [] });
+    }
+  },
+  { immediate: false, debounce: 300 }  // REQUIRED options
+);
+
+// WRONG - missing safeguards
+watchField(path.field, async (value, ctx) => {
+  const { data } = await fetchData(value);  // Will fail silently!
+});
+```
+
+### Required Options for async watchField:
+- `immediate: false` - prevents execution during initialization
+- `debounce: 300` - prevents excessive API calls (300-500ms recommended)
+- Guard clause - skip if value is empty
+- try-catch - handle errors explicitly
+
+## 11. ARRAY CLEANUP PATTERN
+
+```typescript
+// CORRECT - cleanup array when checkbox unchecked
+watchField(
+  path.hasItems,
+  (hasItems, ctx) => {
+    if (!hasItems && ctx.form.items) {
+      ctx.form.items.clear();
+    }
+  },
+  { immediate: false }
+);
+
+// WRONG - no immediate: false, no null check
+watchField(path.hasItems, (hasItems, ctx) => {
+  if (!hasItems) ctx.form.items.clear();  // May crash on init!
+});
+```
+
+## 12. MULTI-STEP FORM VALIDATION
+
+```typescript
+// Step-specific validation schemas
+const step1Validation: ValidationSchemaFn<Form> = (path) => {
+  required(path.loanType);
+  required(path.loanAmount);
+};
+
+const step2Validation: ValidationSchemaFn<Form> = (path) => {
+  required(path.personalData.firstName);
+  required(path.personalData.lastName);
+};
+
+// STEP_VALIDATIONS map for useStepForm hook
+export const STEP_VALIDATIONS = {
+  1: step1Validation,
+  2: step2Validation,
+};
+
+// Full validation (combines all steps)
+export const fullValidation: ValidationSchemaFn<Form> = (path) => {
+  step1Validation(path);
+  step2Validation(path);
+};
+
+// Using validateForm() for step validation
+import { validateForm } from '@reformer/core';
+
+const goToNextStep = async () => {
+  const currentValidation = STEP_VALIDATIONS[currentStep];
+  const isValid = await validateForm(form, currentValidation);
+
+  if (!isValid) {
+    form.markAsTouched();  // Show errors on current step fields
+    return;
+  }
+
+  setCurrentStep(currentStep + 1);
+};
+
+// Full form submit with all validations
+const handleSubmit = async () => {
+  const isValid = await validateForm(form, fullValidation);
+
+  if (isValid) {
+    await form.submit(onSubmit);
+  }
+};
+```
+
+### Multi-Step Component Example
+
+```tsx
+function MultiStepForm() {
+  const [step, setStep] = useState(1);
+
+  const nextStep = async () => {
+    const validation = STEP_VALIDATIONS[step];
+    if (await validateForm(form, validation)) {
+      setStep(step + 1);
+    } else {
+      form.markAsTouched();
+    }
+  };
+
+  return (
+    <div>
+      {step === 1 && <Step1Fields form={form} />}
+      {step === 2 && <Step2Fields form={form} />}
+
+      <button onClick={() => setStep(step - 1)} disabled={step === 1}>
+        Back
+      </button>
+      <button onClick={step === 2 ? handleSubmit : nextStep}>
+        {step === 2 ? 'Submit' : 'Next'}
+      </button>
+    </div>
+  );
+}
+```
+
+## 13. EXTENDED COMMON MISTAKES
+
+### Behavior Composition (Cycle Error)
+
+```typescript
+// WRONG - apply() in behavior causes "Cycle detected"
+const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
+  apply(addressBehavior, path.address);  // WILL FAIL!
+};
+
+// CORRECT - inline or use setup function
+const setupAddressBehavior = (path: FieldPath<Address>) => {
+  watchField(path.region, async (region, ctx) => {
+    // ...
+  }, { immediate: false });
+};
+
+const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
+  setupAddressBehavior(path.address);  // Works!
+};
+```
+
+### Infinite Loop in watchField
+
+```typescript
+// WRONG - causes infinite loop
+watchField(path.field, (value, ctx) => {
+  ctx.form.field.setValue(value.toUpperCase());  // Loop!
+});
+
+// CORRECT - write to different field OR add guard
+watchField(path.input, (value, ctx) => {
+  const upper = value?.toUpperCase() || '';
+  if (ctx.form.display.value.value !== upper) {
+    ctx.form.display.setValue(upper);
+  }
+}, { immediate: false });
+```
+
+### Multiple Watchers on Same Field (Cycle Error)
+
+```typescript
+// WRONG - multiple watchers on insuranceType + missing { immediate: false }
+watchField(path.insuranceType, (_, ctx) => {
+  ctx.form.vehicle.vin.disable();
+  ctx.form.vehicle.vin.setValue('');
+});  // NO OPTIONS - BAD!
+watchField(path.insuranceType, (_, ctx) => {
+  ctx.form.property.type.disable();  // CYCLE!
+});  // NO OPTIONS - BAD!
+
+// CORRECT - consolidate into ONE watcher with guards AND { immediate: false }
+watchField(path.insuranceType, (_, ctx) => {
+  const type = ctx.form.insuranceType.value.value;
+  const isVehicle = type === 'casco';
+
+  // Guard: only disable if not already disabled
+  if (!isVehicle && !ctx.form.vehicle.vin.disabled.value) {
+    ctx.form.vehicle.vin.disable();
+  }
+  // Guard: only setValue if value differs
+  if (!isVehicle && ctx.form.vehicle.vin.getValue() !== '') {
+    ctx.form.vehicle.vin.setValue('');
+  }
+  // Arrays: compare by length, not reference
+  if (!isVehicle) {
+    const drivers = ctx.form.drivers.getValue();
+    if (Array.isArray(drivers) && drivers.length > 0) {
+      ctx.form.drivers.setValue([]);
+    }
+  }
+}, { immediate: false });  // REQUIRED!
+
+// BEST - use enableWhen instead of watchField
+enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOnDisable: true });
+```
+
+See `22-cycle-detection.md` for complete pattern.
+
+### validateTree Typing
+
+```typescript
+// WRONG - implicit any
+validateTree((ctx) => { ... });
+
+// CORRECT - explicit typing
+validateTree((ctx: { form: MyForm }) => {
+  if (ctx.form.field1 > ctx.form.field2) {
+    return { code: 'error', message: 'Invalid' };
+  }
+  return null;
+});
+```
+
+## 14. PROJECT STRUCTURE (COLOCATION)
+
+```
+src/
+├── components/ui/                    # Reusable UI components
+│   ├── FormField.tsx
+│   └── FormArrayManager.tsx
+│
+├── forms/
+│   └── [form-name]/                  # Form module
+│       ├── type.ts                   # Main form type
+│       ├── schema.ts                 # Main schema
+│       ├── validators.ts             # Validators
+│       ├── behaviors.ts              # Behaviors
+│       ├── [FormName]Form.tsx        # Main component
+│       │
+│       ├── steps/                    # Multi-step wizard
+│       │   ├── loan-info/
+│       │   │   ├── type.ts
+│       │   │   ├── schema.ts
+│       │   │   ├── validators.ts
+│       │   │   ├── behaviors.ts
+│       │   │   └── LoanInfoForm.tsx
+│       │   └── ...
+│       │
+│       └── sub-forms/                # Reusable sub-forms
+│           ├── address/
+│           └── personal-data/
+```
+
+### Key Files
+
+```typescript
+// forms/credit-application/type.ts
+export type { LoanInfoStep } from './steps/loan-info/type';
+export interface CreditApplicationForm {
+  loanType: LoanType;
+  loanAmount: number;
+  // ...
+}
+
+// forms/credit-application/schema.ts
+import { loanInfoSchema } from './steps/loan-info/schema';
+export const creditApplicationSchema = {
+  ...loanInfoSchema,
+  monthlyPayment: { value: 0, disabled: true },
+};
+
+// forms/credit-application/validators.ts
+import { loanValidation } from './steps/loan-info/validators';
+export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
+  loanValidation(path);
+  // Cross-step validation...
+};
+```
+
+### Scaling
+
+| Complexity | Structure |
+|------------|-----------|
+| Simple | Single file: `ContactForm.tsx` |
+| Medium | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
+| Complex | Full colocation with `steps/` and `sub-forms/` |
+
+## 14.5 UI COMPONENT PATTERNS
+
+ReFormer does NOT provide UI components - you create them yourself or use a UI library.
+
+### Generic FormField Component
+
+```tsx
+import type { FieldNode } from '@reformer/core';
+import { useFormControl } from '@reformer/core';
+
+interface FormFieldProps<T> {
+  control: FieldNode<T>;
+  label?: string;
+  type?: 'text' | 'email' | 'number' | 'password';
+  placeholder?: string;
+}
+
+function FormField<T extends string | number>({
+  control,
+  label,
+  type = 'text',
+  placeholder
+}: FormFieldProps<T>) {
+  const { value, errors, disabled, touched } = useFormControl(control);
+  const showError = touched && errors.length > 0;
+
+  return (
+    <div className="form-field">
+      {label && <label>{label}</label>}
+      <input
+        type={type}
+        value={value ?? ''}
+        onChange={(e) => {
+          const val = type === 'number'
+            ? Number(e.target.value) as T
+            : e.target.value as T;
+          control.setValue(val);
+        }}
+        onBlur={() => control.markAsTouched()}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={showError ? 'error' : ''}
+      />
+      {showError && (
+        <span className="error-message">{errors[0].message}</span>
+      )}
+    </div>
+  );
+}
+
+// Usage
+<FormField control={form.email} label="Email" type="email" />
+<FormField control={form.age} label="Age" type="number" />
+```
+
+### FormField for Select
+
+```tsx
+interface SelectFieldProps<T extends string> {
+  control: FieldNode<T>;
+  label?: string;
+  options: Array<{ value: T; label: string }>;
+}
+
+function SelectField<T extends string>({ control, label, options }: SelectFieldProps<T>) {
+  const { value, errors, disabled, touched } = useFormControl(control);
+
+  return (
+    <div className="form-field">
+      {label && <label>{label}</label>}
+      <select
+        value={value}
+        onChange={(e) => control.setValue(e.target.value as T)}
+        disabled={disabled}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {touched && errors[0] && <span className="error-message">{errors[0].message}</span>}
+    </div>
+  );
+}
+```
+
+### Integration with UI Libraries
+
+```tsx
+// With shadcn/ui
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+function ShadcnFormField({ control, label }: FormFieldProps<string>) {
+  const { value, errors, disabled } = useFormControl(control);
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => control.setValue(e.target.value)} disabled={disabled} />
+      {errors[0] && <p className="text-red-500">{errors[0].message}</p>}
+    </div>
+  );
+}
+```
+
+## 15. NON-EXISTENT API (DO NOT USE)
+
+**The following APIs do NOT exist in @reformer/core:**
+
+| Wrong | Correct | Notes |
+|----------|-----------|-------|
+| `useForm` | `createForm` | There is no useForm hook |
+| `FieldSchema` | `FieldConfig<T>` | Type for individual field config |
+| `when()` | `applyWhen()` | Conditional validation function |
+| `FormFields` | `FieldNode<T>` | Type for field nodes |
+| `FormInstance<T>` | `GroupNodeWithControls<T>` | Form type for component props |
+| `useArrayField()` | `form.items.push/map/removeAt` | Use ArrayNode methods directly |
+| `FormProvider` | `<Component form={form} />` | Pass form via props, no context |
+| `formState` | `form.valid`, `form.dirty`, etc. | Separate signals on form |
+| `control` prop | Not needed | Form IS the control |
+| `register('field')` | `useFormControl(form.field)` | Type-safe field access |
+| `getFieldValue()` | `ctx.form.field.value.value` | Read via signals |
+
+### Common Import Errors
+
+```typescript
+// WRONG - These do NOT exist
+import { useForm } from '@reformer/core';           // NO!
+import { when } from '@reformer/core/validators';   // NO!
+import type { FieldSchema } from '@reformer/core';  // NO!
+import type { FormFields } from '@reformer/core';   // NO!
+
+// CORRECT
+import { createForm, useFormControl } from '@reformer/core';
+import { applyWhen } from '@reformer/core/validators';
+import type { FieldConfig, FieldNode } from '@reformer/core';
+```
+
+### FormSchema Common Mistakes
+
+```typescript
+// WRONG - Simple values don't work
+const schema = {
+  name: '',           // Missing { value, component }
+  email: '',          // Missing { value, component }
+};
+
+// CORRECT - Every field needs value and component
+const schema: FormSchema<MyForm> = {
+  name: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Name' },
+  },
+  email: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Email', type: 'email' },
+  },
+};
+```
+
+## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
+
+### Why .value.value?
+
+ReFormer uses `@preact/signals-core` for reactivity:
+- `field.value` -> `Signal<T>` (reactive container)
+- `field.value.value` -> `T` (actual value)
+- `field.getValue()` -> `T` (shorthand method, non-reactive)
+
+```typescript
+// Reading values in different contexts:
+
+// In React components - use hooks
+const { value } = useFormControl(control.email);     // Object with value
+const email = useFormControlValue(control.email);    // Value directly
+
+// In BehaviorContext (watchField, etc.)
+watchField(path.firstName, (firstName, ctx) => {
+  // ctx.form is typed as the PARENT GROUP of the watched field!
+  // For path.nested.field: ctx.form = NestedType, NOT RootForm!
+
+  const lastName = ctx.form.lastName.value.value;  // Read sibling field
+
+  // Use setFieldValue with full path for root-level fields
+  ctx.setFieldValue('fullName', `${firstName} ${lastName}`);
+}, { immediate: false });  // REQUIRED to prevent cycle detection!
+
+// Direct access on form controls
+form.email.value.value;           // Read current value
+form.address.city.value.value;    // Read nested value
+```
+
+### Reading Nested Values in watchField
+
+```typescript
+// IMPORTANT: ctx.form type depends on the watched path!
+
+// Watching root-level field
+watchField(path.loanAmount, (amount, ctx) => {
+  // ctx.form is MyForm - can access all fields
+  const rate = ctx.form.interestRate.value.value;
+  ctx.setFieldValue('monthlyPayment', amount * rate / 12);
+}, { immediate: false });
+
+// Watching nested field
+watchField(path.personalData.lastName, (lastName, ctx) => {
+  // ctx.form is PersonalData, NOT MyForm!
+  const firstName = ctx.form.firstName.value.value;   // Works
+  const middleName = ctx.form.middleName.value.value; // Works
+
+  // For root-level field, use setFieldValue with full path
+  ctx.setFieldValue('fullName', `${lastName} ${firstName}`);
+}, { immediate: false });
+```
+
+## 17. COMPUTE FROM vs WATCH FIELD
+
+### computeFrom - Same Nesting Level Only
+
+```typescript
+// Works: all source fields and target at same level
+computeFrom(
+  [path.price, path.quantity],
+  path.total,
+  ({ price, quantity }) => (price || 0) * (quantity || 0)
+);
+
+// Works: all nested at same level
+computeFrom(
+  [path.address.houseNumber, path.address.streetName],
+  path.address.fullAddress,
+  ({ houseNumber, streetName }) => `${houseNumber} ${streetName}`
+);
+
+// FAILS: different nesting levels
+computeFrom(
+  [path.nested.price, path.nested.quantity],
+  path.rootTotal,  // Different level - won't work!
+  ...
+);
+```
+
+### watchField - Any Level
+
+```typescript
+// Works for cross-level computation
+watchField(path.nested.price, (price, ctx) => {
+  const quantity = ctx.form.quantity.value.value;  // Sibling in nested
+  ctx.setFieldValue('rootTotal', price * quantity); // Full path to root
+}, { immediate: false });  // REQUIRED!
+
+// Works for multiple dependencies
+watchField(path.loanAmount, (amount, ctx) => {
+  const term = ctx.form.loanTerm.value.value;
+  const rate = ctx.form.interestRate.value.value;
+
+  if (amount && term && rate) {
+    const monthly = calculateMonthlyPayment(amount, term, rate);
+    ctx.setFieldValue('monthlyPayment', monthly);
+  }
+}, { immediate: false });  // REQUIRED!
+```
+
+### Rule of Thumb
+
+| Scenario | Use |
+|----------|-----|
+| All fields share same parent | `computeFrom` (simpler, auto-cleanup) |
+| Fields at different levels | `watchField` (more flexible) |
+| Multiple dependencies | `watchField` |
+| Async computation | `watchField` with async callback |
+
+## 18. ARRAY OPERATIONS
+
+### Array Access - CRITICAL
+
+```typescript
+// WRONG - bracket notation does NOT work!
+const first = form.items[0];        // undefined or error
+const second = form.items[1];       // undefined or error
+
+// CORRECT - use .at() method
+const first = form.items.at(0);     // GroupNodeWithControls<ItemType> | undefined
+const second = form.items.at(1);    // GroupNodeWithControls<ItemType> | undefined
+
+// CORRECT - iterate with map (most common pattern)
+form.items.map((item, index) => {
+  // item is fully typed GroupNode
+  item.name.setValue('New Name');
+  item.price.value.value;  // read value
+});
+```
+
+### Array Methods
+
+```typescript
+// Add items
+form.items.push({ name: '', price: 0 });           // Add to end
+form.items.insert(0, { name: '', price: 0 });      // Insert at index
+
+// Remove items
+form.items.removeAt(index);                         // Remove by index
+form.items.clear();                                 // Remove all items
+
+// Reorder
+form.items.move(fromIndex, toIndex);                // Move item
+
+// Access (use .at(), NOT brackets!)
+form.items.length.value;                            // Current length (Signal)
+form.items.map((item, index) => ...);               // Iterate items
+form.items.at(index);                               // Get item at index (NOT items[index]!)
+```
+
+### Rendering Arrays
+
+```tsx
+function ItemsList({ form }: { form: GroupNodeWithControls<MyForm> }) {
+  const { length } = useFormControl(form.items);
+
+  return (
+    <div>
+      {form.items.map((item, index) => (
+        // item is GroupNode (sub-form) - each field is a control
+        <div key={item.id || index}>
+          <FormField control={item.name} />
+          <FormField control={item.price} />
+          <button onClick={() => form.items.removeAt(index)}>Remove</button>
+        </div>
+      ))}
+
+      {length === 0 && <p>No items yet</p>}
+
+      <button onClick={() => form.items.push({ name: '', price: 0 })}>
+        Add Item
+      </button>
+    </div>
+  );
+}
+```
+
+### Array Cross-Validation
+
+```typescript
+// Validate uniqueness across array items
+validateTree((ctx: { form: MyForm }) => {
+  const items = ctx.form.items;
+  const names = items.map(item => item.name.value.value);
+  const uniqueNames = new Set(names);
+
+  if (names.length !== uniqueNames.size) {
+    return { code: 'duplicate', message: 'Item names must be unique' };
+  }
+  return null;
+}, { targetField: 'items' });
+
+// Validate sum of percentages
+validateTree((ctx: { form: MyForm }) => {
+  const items = ctx.form.items;
+  const totalPercent = items.reduce(
+    (sum, item) => sum + (item.percentage.value.value || 0),
+    0
+  );
+
+  if (Math.abs(totalPercent - 100) > 0.01) {
+    return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
+  }
+  return null;
+}, { targetField: 'items' });
+```
+
+## Cycle Detection Prevention Checklist
+
+**ALWAYS follow these rules to prevent "Cycle detected" error:**
+
+1. ✅ **ONE watchField per trigger field** - consolidate all logic into single handler
+2. ✅ **ALWAYS use `{ immediate: false }`** - required option for watchField
+3. ✅ **Guard all disable/enable calls** - check `field.disabled.value` before calling
+4. ✅ **Guard all setValue calls** - only call if value actually differs
+5. ✅ **Arrays: compare by length** - `[] !== []` is always true, use `.length`
+6. ✅ **Prefer enableWhen over watchField** - for simple enable/disable logic
+
+---
+
+## Cycle Detected Error
+
+### Problem
+
+Error `Cycle detected` occurs when reactive system detects circular dependency during field updates.
+
+### Root Cause
+
+Multiple `watchField` handlers on the same field (e.g., `path.insuranceType`) each calling `disable()` and `setValue()` creates reactive cycles:
+
+```typescript
+// WRONG - Multiple watchers on same field + missing { immediate: false }
+watchField(path.insuranceType, (_, ctx) => {
+  // Handler 1: vehicle fields
+  if (!isVehicle) {
+    ctx.form.vehicle.vin.disable();
+    ctx.form.vehicle.vin.setValue('');
+  }
+});  // NO OPTIONS - BAD!
+
+watchField(path.insuranceType, (_, ctx) => {
+  // Handler 2: property fields - CAUSES CYCLE!
+  if (!isProperty) {
+    ctx.form.property.type.disable();
+    ctx.form.property.type.setValue('');
+  }
+});  // NO OPTIONS - BAD!
+
+// More watchers on same field = more cycles
+```
+
+### Solution
+
+1. **Consolidate all watchers for same field into ONE handler**
+2. **Check state before calling disable/enable/setValue**
+3. **ALWAYS add `{ immediate: false }` option**
+
+```typescript
+// CORRECT - Single consolidated watcher with guards AND { immediate: false }
+watchField(path.insuranceType, (_value, ctx) => {
+  const insuranceType = ctx.form.insuranceType.value.value;
+  const isVehicle = insuranceType === 'casco' || insuranceType === 'osago';
+  const isProperty = insuranceType === 'property';
+
+  // Helper: check if array value needs update (compare by length, not reference)
+  const needsValueUpdate = <T>(current: T, defaultVal: T): boolean => {
+    if (Array.isArray(current) && Array.isArray(defaultVal)) {
+      return current.length !== defaultVal.length;
+    }
+    return current !== defaultVal;
+  };
+
+  // Helper: disable only if not already disabled, setValue only if different
+  const disableAndReset = <T>(
+    field: { disable: () => void; setValue: (v: T) => void; getValue: () => T; disabled: { value: boolean } } | undefined,
+    defaultValue: T
+  ) => {
+    if (field) {
+      if (!field.disabled.value) {
+        field.disable();
+      }
+      if (needsValueUpdate(field.getValue(), defaultValue)) {
+        field.setValue(defaultValue);
+      }
+    }
+  };
+
+  const enableField = (field: { enable: () => void; disabled: { value: boolean } } | undefined) => {
+    if (field && field.disabled.value) {
+      field.enable();
+    }
+  };
+
+  // --- All vehicle fields in one place ---
+  if (isVehicle) {
+    enableField(ctx.form.vehicle.vin);
+    enableField(ctx.form.vehicle.brand);
+  } else {
+    disableAndReset(ctx.form.vehicle.vin, '');
+    disableAndReset(ctx.form.vehicle.brand, '');
+  }
+
+  // --- All property fields in one place ---
+  if (isProperty) {
+    enableField(ctx.form.property.type);
+  } else {
+    disableAndReset(ctx.form.property.type, '');
+  }
+
+  // --- Arrays: compare by length ---
+  if (isVehicle) {
+    enableField(ctx.form.drivers);
+  } else {
+    disableAndReset(ctx.form.drivers, []); // Won't call setValue if already empty
+  }
+}, { immediate: false });  // REQUIRED!
+```
+
+### Prefer Built-in Behaviors
+
+**Instead of complex watchField with guards, use built-in behaviors when possible:**
+
+```typescript
+// ❌ COMPLEX - watchField with manual guards (error-prone)
+watchField(path.insuranceType, (_value, ctx) => {
+  const isVehicle = ctx.form.insuranceType.value.value === 'casco';
+  if (isVehicle) {
+    if (ctx.form.vehicle.vin.disabled.value) ctx.form.vehicle.vin.enable();
+  } else {
+    if (!ctx.form.vehicle.vin.disabled.value) ctx.form.vehicle.vin.disable();
+    if (ctx.form.vehicle.vin.getValue() !== '') ctx.form.vehicle.vin.setValue('');
+  }
+}, { immediate: false });
+
+// ✅ SIMPLE - enableWhen with resetOnDisable (recommended)
+enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOnDisable: true });
+enableWhen(path.vehicle.brand, (form) => form.insuranceType === 'casco', { resetOnDisable: true });
+```
+
+### Key Rules
+
+1. **ONE watcher per trigger field** - consolidate all logic for `insuranceType` into single `watchField`
+2. **ALWAYS use `{ immediate: false }`** - prevents execution during initialization
+3. **Guard disable()** - only call if `!field.disabled.value`
+4. **Guard enable()** - only call if `field.disabled.value`
+5. **Guard setValue()** - only call if value actually differs
+6. **Arrays special case** - compare by `.length`, not by reference (`[] !== []` is always true)
+
+### Other Watchers
+
+For watchers on different fields (e.g., `path.health.isSmoker`), apply same guards:
+
+```typescript
+watchField(path.health.isSmoker, (_value, ctx) => {
+  const isSmoker = ctx.form.health.isSmoker.value.value;
+  const smokingYearsField = ctx.form.health.smokingYears;
+
+  if (smokingYearsField) {
+    if (isSmoker) {
+      if (smokingYearsField.disabled.value) {
+        smokingYearsField.enable();
+      }
+    } else {
+      if (!smokingYearsField.disabled.value) {
+        smokingYearsField.disable();
+      }
+      if (smokingYearsField.getValue() !== null) {
+        smokingYearsField.setValue(null);
+      }
+    }
+  }
+}, { immediate: false });  // REQUIRED!
 ```

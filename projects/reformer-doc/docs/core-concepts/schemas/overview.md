@@ -55,29 +55,80 @@ Each schema has a single responsibility:
 - **Validation Schema**: "Is the data correct?"
 - **Behavior Schema**: "How should data react to changes?"
 
-### Reusability
+### Reusability & Decomposition
 
-Each schema can be extracted and reused independently:
+Each schema can be decomposed into reusable parts and combined using the `apply` function:
 
 ```typescript
-// Reusable validation set
-export function validatePerson(path: FieldPath<Person>) {
-  required(path.firstName);
-  required(path.lastName);
-  email(path.email);
-}
+import { apply, required } from '@reformer/core/validators';
+import { apply as applyBehavior, watchField } from '@reformer/core/behaviors';
 
-// Use in multiple forms
-const form1 = new GroupNode({
-  form: { person: personSchema() },
-  validation: (path) => validatePerson(path.person),
+// 1. Reusable form schema (always use factory functions!)
+const addressSchema = (): FormSchema<Address> => ({
+  street: { value: '' },
+  city: { value: '' },
+  zipCode: { value: '' },
 });
 
-const form2 = new GroupNode({
-  form: { user: personSchema() },
-  validation: (path) => validatePerson(path.user),
+// 2. Reusable validation schema
+const addressValidation: ValidationSchemaFn<Address> = (path) => {
+  required(path.street);
+  required(path.city);
+  required(path.zipCode);
+};
+
+// 3. Reusable behavior schema
+const addressBehavior: BehaviorSchemaFn<Address> = (path) => {
+  watchField(path.zipCode, (value, ctx) => {
+    // Format ZIP code
+  });
+};
+
+// Compose into forms using apply()
+const orderForm = new GroupNode<OrderForm>({
+  form: {
+    billingAddress: addressSchema(),
+    shippingAddress: addressSchema(),
+  },
+  validation: (path) => {
+    // Apply same validation to multiple fields
+    apply([path.billingAddress, path.shippingAddress], addressValidation);
+  },
+  behavior: (path) => {
+    // Apply same behavior to multiple fields
+    applyBehavior([path.billingAddress, path.shippingAddress], addressBehavior);
+  },
 });
 ```
+
+The `apply` function supports flexible composition:
+
+```typescript
+// Single field + single schema
+apply(path.address, addressValidation);
+
+// Multiple fields + single schema
+apply([path.billingAddress, path.shippingAddress], addressValidation);
+
+// Single field + multiple schemas
+apply(path.email, [requiredValidation, emailValidation]);
+
+// Multiple fields + multiple schemas
+apply([path.email, path.phone], [requiredValidation, formatValidation]);
+```
+
+:::tip Factory Functions
+Always use functions that return schemas (`addressSchema()`) instead of direct objects. This ensures each form gets its own instance and avoids shared state bugs.
+:::
+
+**Benefits of decomposition:**
+
+- **DRY** — Write once, use everywhere
+- **Consistency** — Same rules across all forms
+- **Maintainability** — Update in one place
+- **Testing** — Test each part in isolation
+
+See [Composition](./composition) for complete patterns and best practices.
 
 ### Testability
 

@@ -1,12 +1,6 @@
 # @reformer/mcp
 
-MCP (Model Context Protocol) server for the ReFormer form library. Provides AI assistants like Claude with comprehensive context about ReFormer to help with form development.
-
-## Features
-
-- **Tools**: Get documentation, search, API reference, examples, error explanations
-- **Resources**: Access full docs, API reference, and code examples
-- **Prompts**: Pre-built templates for form creation, validation, behaviors, and debugging
+MCP (Model Context Protocol) server for the ReFormer form library. Provides AI assistants with ReFormer documentation and development tools.
 
 ## Installation
 
@@ -42,32 +36,26 @@ claude mcp list
 
 | Tool | Description |
 |------|-------------|
-| `get_reformer_docs` | Get complete ReFormer documentation |
-| `search_docs` | Search documentation for specific topics |
-| `get_api_reference` | Get API reference for methods/types |
-| `get_examples` | Get code examples by topic |
-| `explain_error` | Explain and troubleshoot errors with examples |
-| `get_function_signature` | Get exact TypeScript signatures for functions |
-| `get_imports` | Get correct import statements by category |
-| `get_pattern` | Get usage patterns for common scenarios |
+| `report_issue` | Report an issue and its solution for feedback collection |
+
+### report_issue
+
+Allows AI assistants to report issues encountered while working with ReFormer and their solutions. Reports are stored locally in `~/.reformer/issues.jsonl` for analysis.
+
+**Parameters:**
+- `error` (required) - The error message or problem description
+- `solution` (required) - The solution or fix that resolved the issue
+- `tags` (optional) - Tags for categorization (e.g., `category:behavior`, `agent:claude`, `severity:critical`)
+- `context` (optional) - Additional context with `examples`, `relatedFiles`, `notes`
 
 ## Available Resources
 
 | URI | Description |
 |-----|-------------|
-| `reformer://docs` | Full documentation |
-| `reformer://api` | API reference section |
+| `reformer://docs` | Full ReFormer documentation |
+| `reformer://api` | API reference |
 | `reformer://examples` | Code examples |
-
-## Available Prompts
-
-| Prompt | Description |
-|--------|-------------|
-| `reformer-help` | Answer questions about ReFormer |
-| `create-form` | Generate form schema from description |
-| `manage-validation` | Add/modify/remove validation |
-| `manage-behavior` | Add/modify/remove behaviors |
-| `debug-form` | Debug form issues |
+| `reformer://troubleshooting` | Common problems and solutions |
 
 ## Development
 
@@ -86,31 +74,37 @@ npm run build
 node dist/index.js
 ```
 
+## Debug Mode
+
+For debugging the MCP server, enable debug mode with the `REFORMER_DEBUG` environment variable:
+
+```bash
+REFORMER_DEBUG=true node dist/index.js
+```
+
+This enables debug-only features:
+
+| Type | Name | Description |
+|------|------|-------------|
+| Tool | `debug` | Debug tool for testing |
+| Resource | `reformer://debug` | Debug information |
+| Prompt | `debug` | Analyze ReFormer form code |
+
 ## Testing
 
 ### Using MCP Inspector
 
 ```bash
 npm install -g @modelcontextprotocol/inspector
-npx mcp-inspector node ./dist/index.js
+REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
 ```
 
 ### In Claude Code
 
 ```bash
-# Register local build
-claude mcp add --transport stdio reformer -- node /path/to/reformer-mcp/dist/index.js
-
-# Test by asking Claude about ReFormer
+# Register local build with debug mode
+claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /path/to/reformer-mcp/dist/index.js
 ```
-
-## Documentation
-
-- [Getting Started](./docs/getting-started.md)
-- [Development Guide](./docs/development.md)
-- [Testing Guide](./docs/testing.md)
-- [API Reference](./docs/api.md)
-- [Troubleshooting](./docs/troubleshooting.md)
 
 ## License
 

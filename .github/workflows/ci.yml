@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
   pull_request:
     branches: [main]
 
@@ -30,8 +30,11 @@ jobs:
       # - name: Check formatting
       #   run: npm run format:check
 
-      - name: Build library
+      - name: Build @reformer/core
         run: npm run build -w @reformer/core
 
-      - name: Run tests
+      - name: Run @reformer/core tests
         run: npm run test -w @reformer/core
+
+      - name: Build @reformer/ui
+        run: npm run build -w @reformer/ui
