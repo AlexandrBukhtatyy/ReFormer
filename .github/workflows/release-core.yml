@@ -40,6 +40,9 @@ jobs:
       - name: Run tests
         run: npm run test -w @reformer/core
 
+      - name: Fetch git notes
+        run: git fetch origin refs/notes/semantic-release:refs/notes/semantic-release || true
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
