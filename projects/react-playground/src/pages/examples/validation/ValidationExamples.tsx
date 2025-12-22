@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, type FormProxy, type FormSchema, type FieldPath } from '@reformer/core';
+import { createForm, type FormProxy, type FormSchema, type FieldPath } from '@reformer/core';
 import {
   required,
   email,
@@ -164,7 +164,7 @@ const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
 };
 
 function createValidationForm(): FormProxy<ValidationDemoForm> {
-  return new GroupNode<ValidationDemoForm>({
+  return createForm<ValidationDemoForm>({
     form: validationFormSchema,
     validation: validationFormValidation,
   });

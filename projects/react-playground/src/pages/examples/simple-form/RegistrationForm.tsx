@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, type FormProxy, type FormSchema } from '@reformer/core';
+import { createForm, type FormProxy, type FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputPassword } from '@/components/ui/input-password';
 import { InputMask } from '@/components/ui/input-mask';
@@ -102,13 +102,11 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
 
 // Фабрика для создания формы
 function createRegistrationForm(): FormProxy<RegistrationFormData> {
-  const form = new GroupNode<RegistrationFormData>({
+  const form = createForm<RegistrationFormData>({
     form: registrationFormSchema,
     validation: registrationValidation,
+    behavior: registrationBehavior,
   });
-
-  // Применяем behavior для связанных полей
-  form.applyBehaviorSchema(registrationBehavior);
 
   return form;
 }

@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import {
-  GroupNode,
+  createForm,
   useFormControl,
   useFormControlValue,
   type FormProxy,
@@ -256,7 +256,7 @@ const behaviorsFormBehavior: BehaviorSchemaFn<BehaviorsDemoForm> = (path) => {
 };
 
 function createBehaviorsForm(): FormProxy<BehaviorsDemoForm> {
-  return new GroupNode<BehaviorsDemoForm>({
+  return createForm<BehaviorsDemoForm>({
     form: behaviorsFormSchema,
     validation: behaviorsFormValidation,
     behavior: behaviorsFormBehavior,
