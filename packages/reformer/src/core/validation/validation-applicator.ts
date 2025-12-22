@@ -181,16 +181,14 @@ export class ValidationApplicator<T> {
       }
 
       // Установка ошибок на ноду
+      // Contextual validators полностью управляют ошибками полей, для которых они зарегистрированы
       if (errors.length > 0) {
         control.setErrors(errors);
       } else {
-        // Очистить ошибки, если они были contextual
-        if (
-          control.errors.value.length > 0 &&
-          !control.errors.value.some((e) => e.code !== 'contextual')
-        ) {
-          control.clearErrors();
-        }
+        // Если contextual validators прошли без ошибок, очищаем ошибки поля
+        // Это обеспечивает консистентное поведение: setErrors() и clearErrors()
+        // одинаково управляют состоянием ошибок
+        control.clearErrors();
       }
     }
   }
