@@ -1,4 +1,4 @@
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormArray } from '@reformer/ui/form-array';
 import type { CreditApplicationForm } from '../../type';
@@ -9,7 +9,7 @@ import { CoBorrowerForm } from '../../sub-forms/co-borrower/CoBorrowerForm';
 import { Button } from '@/components/ui/button';
 
 interface AdditionalInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {

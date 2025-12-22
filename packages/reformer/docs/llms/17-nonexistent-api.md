@@ -8,7 +8,7 @@
 | `FieldSchema` | `FieldConfig<T>` | Type for individual field config |
 | `when()` | `applyWhen()` | Conditional validation function |
 | `FormFields` | `FieldNode<T>` | Type for field nodes |
-| `FormInstance<T>` | `GroupNodeWithControls<T>` | Form type for component props |
+| `FormInstance<T>` | `FormProxy<T>` | Form type for component props |
 | `useArrayField()` | `form.items.push/map/removeAt` | Use ArrayNode methods directly |
 | `FormProvider` | `<Component form={form} />` | Pass form via props, no context |
 | `formState` | `form.valid`, `form.dirty`, etc. | Separate signals on form |

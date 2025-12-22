@@ -7,7 +7,7 @@
 | What                                                                                        | Where                       |
 | ------------------------------------------------------------------------------------------- | --------------------------- |
 | `createForm`, `useFormControl`, `useFormControlValue`, `validateForm`                       | `@reformer/core`            |
-| `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `GroupNodeWithControls`, `FieldNode` | `@reformer/core`            |
+| `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `FormProxy`, `FieldNode` | `@reformer/core`            |
 | `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
 | `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |
@@ -48,7 +48,7 @@ const { value, errors, disabled } = useFormControl(control.loanType);
 ```typescript
 import { createForm, useFormControl } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 
 // 1. Define form type
 interface ContactForm {
@@ -105,7 +105,7 @@ function ContactFormComponent() {
 
 // 4. Pass form to child components via props (NOT context!)
 interface FormStepProps {
-  form: GroupNodeWithControls<ContactForm>;
+  form: FormProxy<ContactForm>;
 }
 
 function FormStep({ form }: FormStepProps) {
@@ -218,7 +218,7 @@ transformers.trim, transformers.toUpperCase, transformers.toLowerCase, transform
 
 // BehaviorContext interface:
 interface BehaviorContext<TForm> {
-  form: GroupNodeWithControls<TForm>;            // Form proxy with typed field access
+  form: FormProxy<TForm>;            // Form proxy with typed field access
   setFieldValue: (path: string, value: any) => void;
   // To READ field values, use: ctx.form.fieldName.value.value
 }
@@ -374,7 +374,7 @@ import type {
   ValidationSchemaFn,
   BehaviorSchemaFn,
   FieldPath,
-  GroupNodeWithControls,
+  FormProxy,
   FieldNode,
 } from '@reformer/core';
 
@@ -536,13 +536,13 @@ form.items.push({ id: '1', name: 'Item' }); // Array operations
 ### createForm Returns a Proxy
 
 ```typescript
-// createForm() returns GroupNodeWithControls<T> (a Proxy wrapper around GroupNode)
+// createForm() returns FormProxy<T> (a Proxy wrapper around GroupNode)
 // This enables type-safe field access:
 const form = createForm<MyForm>({...});
 
 form.email           // FieldNode<string> - TypeScript knows the type!
 form.address.city    // FieldNode<string> - nested access works
-form.items.at(0)     // GroupNodeWithControls<ItemType> - array items
+form.items.at(0)     // FormProxy<ItemType> - array items
 
 // IMPORTANT: Proxy doesn't pass instanceof checks!
 // Use type guards instead:
@@ -1014,7 +1014,7 @@ function ShadcnFormField({ control, label }: FormFieldProps<string>) {
 | `FieldSchema` | `FieldConfig<T>` | Type for individual field config |
 | `when()` | `applyWhen()` | Conditional validation function |
 | `FormFields` | `FieldNode<T>` | Type for field nodes |
-| `FormInstance<T>` | `GroupNodeWithControls<T>` | Form type for component props |
+| `FormInstance<T>` | `FormProxy<T>` | Form type for component props |
 | `useArrayField()` | `form.items.push/map/removeAt` | Use ArrayNode methods directly |
 | `FormProvider` | `<Component form={form} />` | Pass form via props, no context |
 | `formState` | `form.valid`, `form.dirty`, etc. | Separate signals on form |
@@ -1183,8 +1183,8 @@ const first = form.items[0];        // undefined or error
 const second = form.items[1];       // undefined or error
 
 // CORRECT - use .at() method
-const first = form.items.at(0);     // GroupNodeWithControls<ItemType> | undefined
-const second = form.items.at(1);    // GroupNodeWithControls<ItemType> | undefined
+const first = form.items.at(0);     // FormProxy<ItemType> | undefined
+const second = form.items.at(1);    // FormProxy<ItemType> | undefined
 
 // CORRECT - iterate with map (most common pattern)
 form.items.map((item, index) => {
@@ -1217,7 +1217,7 @@ form.items.at(index);                               // Get item at index (NOT it
 ### Rendering Arrays
 
 ```tsx
-function ItemsList({ form }: { form: GroupNodeWithControls<MyForm> }) {
+function ItemsList({ form }: { form: FormProxy<MyForm> }) {
   const { length } = useFormControl(form.items);
 
   return (

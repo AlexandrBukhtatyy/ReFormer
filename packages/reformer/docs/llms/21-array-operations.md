@@ -8,8 +8,8 @@ const first = form.items[0];        // undefined or error
 const second = form.items[1];       // undefined or error
 
 // CORRECT - use .at() method
-const first = form.items.at(0);     // GroupNodeWithControls<ItemType> | undefined
-const second = form.items.at(1);    // GroupNodeWithControls<ItemType> | undefined
+const first = form.items.at(0);     // FormProxy<ItemType> | undefined
+const second = form.items.at(1);    // FormProxy<ItemType> | undefined
 
 // CORRECT - iterate with map (most common pattern)
 form.items.map((item, index) => {
@@ -42,7 +42,7 @@ form.items.at(index);                               // Get item at index (NOT it
 ### Rendering Arrays
 
 ```tsx
-function ItemsList({ form }: { form: GroupNodeWithControls<MyForm> }) {
+function ItemsList({ form }: { form: FormProxy<MyForm> }) {
   const { length } = useFormControl(form.items);
 
   return (

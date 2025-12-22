@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { GroupNodeWithControls, ValidationError } from '../../../src/core/types';
+import type { FormProxy, ValidationError } from '../../../src/core/types';
 import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -16,7 +16,7 @@ describe('GroupNode - Form-level Errors', () => {
     confirmPassword: string;
   }
 
-  let form: GroupNodeWithControls<TestForm>;
+  let form: FormProxy<TestForm>;
 
   beforeEach(() => {
     form = createForm<TestForm>({

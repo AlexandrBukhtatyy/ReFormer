@@ -14,7 +14,7 @@ import { computeFrom, enableWhen } from '../../../src/core/behavior/behaviors';
 import type { ValidationSchemaFn } from '../../../src/core/types/validation-schema';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
 import { createForm } from '../../../src/core/utils/create-form';
-import type { GroupNodeWithControls } from '../../../src/core/types/group-node-proxy';
+import type { FormProxy } from '../../../src/core/types/form-proxy';
 import type { FieldPath } from '../../../src/core/types';
 
 // Mock компонент для тестов
@@ -78,7 +78,7 @@ describe('Form Isolation', () => {
     it('должен поддерживать одновременное создание форм', async () => {
       // Создаем 3 формы ПОСЛЕДОВАТЕЛЬНО (не одновременно)
       // чтобы избежать race conditions в context stack
-      const forms: GroupNodeWithControls<TestForm>[] = [];
+      const forms: FormProxy<TestForm>[] = [];
 
       for (let i = 0; i < 3; i++) {
         const form = createForm<TestForm>({

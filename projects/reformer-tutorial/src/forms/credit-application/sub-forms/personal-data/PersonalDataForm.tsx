@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { PersonalData } from './type';
 
 interface PersonalDataFormProps {
-  control: GroupNodeWithControls<PersonalData>;
+  control: FormProxy<PersonalData>;
 }
 
 const PersonalDataFormComponent = ({ control }: PersonalDataFormProps) => {

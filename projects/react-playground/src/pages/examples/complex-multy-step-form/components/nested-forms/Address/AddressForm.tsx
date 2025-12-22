@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { FormSchema, FormProxy } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { FormField } from '@/components/ui/form-field';
@@ -69,7 +69,7 @@ export const addressFormSchema: FormSchema<Address> = {
 
 interface AddressFormProps {
   // GroupProxy для вложенной формы address (используем any для обхода ограничений TypeScript)
-  control: GroupNodeWithControls<Address>;
+  control: FormProxy<Address>;
   /** Префикс для testId (например: 'registrationAddress' или 'residenceAddress') */
   testIdPrefix: string;
 }

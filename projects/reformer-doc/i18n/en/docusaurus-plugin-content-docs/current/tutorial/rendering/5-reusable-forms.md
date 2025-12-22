@@ -24,14 +24,14 @@ This pattern is essential for:
 
 The nested forms pattern consists of three parts:
 
-1. **Props interface** — defines `control` type via `GroupNodeWithControls<T>`
+1. **Props interface** — defines `control` type via `FormProxy<T>`
 2. **Component** — responsible only for field layout using `FormField`
 3. **Memoization** — wrap in `memo()` to prevent unnecessary re-renders
 
 ```tsx
 // 1. Props interface
 interface MyFormProps {
-  control: GroupNodeWithControls<MyType>;
+  control: FormProxy<MyType>;
 }
 
 // 2. Component
@@ -85,12 +85,12 @@ Address form — region, city, street, house, apartment, postal code.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/AddressForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { Address } from '../types/credit-application.types';
 
 interface AddressFormProps {
-  control: GroupNodeWithControls<Address>;
+  control: FormProxy<Address>;
 }
 
 const AddressFormComponent = ({ control }: AddressFormProps) => {
@@ -121,12 +121,12 @@ Personal data — full name, birth date, birth place, gender.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/PersonalDataForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { PersonalData } from '../types/credit-application.types';
 
 interface PersonalDataFormProps {
-  control: GroupNodeWithControls<PersonalData>;
+  control: FormProxy<PersonalData>;
 }
 
 const PersonalDataFormComponent = ({ control }: PersonalDataFormProps) => {
@@ -157,12 +157,12 @@ Passport data — series, number, issue date, department code, issued by.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/PassportDataForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { PassportData } from '../types/credit-application.types';
 
 interface PassportDataFormProps {
-  control: GroupNodeWithControls<PassportData>;
+  control: FormProxy<PassportData>;
 }
 
 const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {
@@ -192,12 +192,12 @@ Co-borrower data — personal data, phone, email, relationship, income.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/CoBorrowerForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { CoBorrower } from '../types/credit-application.types';
 
 interface CoBorrowerFormProps {
-  control: GroupNodeWithControls<CoBorrower>;
+  control: FormProxy<CoBorrower>;
 }
 
 const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {
@@ -233,12 +233,12 @@ Property information — type, value, description, encumbrance.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/PropertyForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { Property } from '../types/credit-application.types';
 
 interface PropertyFormProps {
-  control: GroupNodeWithControls<Property>;
+  control: FormProxy<Property>;
 }
 
 const PropertyFormComponent = ({ control }: PropertyFormProps) => {
@@ -265,12 +265,12 @@ Existing loans — bank, type, amount, remaining, payment, maturity date.
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/sub-forms/ExistingLoanForm.tsx"
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { ExistingLoan } from '../types/credit-application.types';
 
 interface ExistingLoanFormProps {
-  control: GroupNodeWithControls<ExistingLoan>;
+  control: FormProxy<ExistingLoan>;
 }
 
 const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {
@@ -299,7 +299,7 @@ export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 
 ### Array Operations
 
-`ArrayNodeWithControls` provides the following operations:
+`FormArrayProxy` provides the following operations:
 
 | Method            | Description                                       |
 | ----------------- | ------------------------------------------------- |
@@ -355,7 +355,7 @@ import { Button } from '@/components/ui/button';
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: GroupNodeWithControls<T>;  // Item control
+  control: FormProxy<T>;  // Item control
   index: number;                       // Index (from 0)
   id: string | number;                 // Unique key
   remove: () => void;                  // Remove this item
@@ -492,11 +492,11 @@ const AddressFormComponent = ({ control }: AddressFormProps) => { ... };
 export const AddressForm = memo(AddressFormComponent);
 ```
 
-### 2. Type Props via GroupNodeWithControls
+### 2. Type Props via FormProxy
 
 ```tsx
 interface MyFormProps {
-  control: GroupNodeWithControls<MyType>;
+  control: FormProxy<MyType>;
 }
 ```
 

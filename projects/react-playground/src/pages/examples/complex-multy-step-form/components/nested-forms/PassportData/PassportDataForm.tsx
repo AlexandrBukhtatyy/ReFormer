@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { FormSchema, FormProxy } from '@reformer/core';
 import type { PassportData } from './types';
 
 export type { PassportData } from './types';
@@ -61,7 +61,7 @@ export const passportDataSchema: FormSchema<PassportData> = {
 
 interface PassportDataFormProps {
   // GroupProxy для вложенной формы passportData (используем any для обхода ограничений TypeScript)
-  control: GroupNodeWithControls<PassportData>;
+  control: FormProxy<PassportData>;
 }
 
 const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {

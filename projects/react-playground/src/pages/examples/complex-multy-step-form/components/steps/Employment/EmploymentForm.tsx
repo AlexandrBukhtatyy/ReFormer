@@ -1,10 +1,10 @@
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm, EmploymentStatus } from '../../../types/credit-application';
 
 interface EmploymentFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {

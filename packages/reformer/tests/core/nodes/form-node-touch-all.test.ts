@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { FieldNode } from '../../../src/core/nodes/field-node';
 import { createForm } from '../../../src/core/utils/create-form';
-import type { GroupNodeWithControls } from '../../../src';
+import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('FormNode - touchAll()', () => {
@@ -52,7 +52,7 @@ describe('FormNode - touchAll()', () => {
       age: number;
     }
 
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -105,7 +105,7 @@ describe('FormNode - touchAll()', () => {
       };
     }
 
-    let form: GroupNodeWithControls<NestedForm>;
+    let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -224,7 +224,7 @@ describe('FormNode - touchAll()', () => {
       };
     }
 
-    let form: GroupNodeWithControls<ComplexForm>;
+    let form: FormProxy<ComplexForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -296,7 +296,7 @@ describe('FormNode - touchAll()', () => {
       password: string;
     }
 
-    let form: GroupNodeWithControls<LoginForm>;
+    let form: FormProxy<LoginForm>;
 
     beforeEach(() => {
       form = createForm({

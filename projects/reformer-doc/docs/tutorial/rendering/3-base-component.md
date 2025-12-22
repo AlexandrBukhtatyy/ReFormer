@@ -119,7 +119,7 @@ Each step component receives the entire form as a `control` prop:
 
 ```tsx
 interface StepProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 function BasicInfoForm({ control }: StepProps) {
@@ -177,7 +177,7 @@ Here's the complete base component:
 
 ```tsx title="src/components/CreditApplicationForm.tsx"
 import { useMemo, useState } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { createCreditApplicationForm } from './schemas/create-credit-application-form';
 import type { CreditApplicationForm } from './types';
 

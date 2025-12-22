@@ -1,5 +1,5 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ArrayNode, FormFields, GroupNodeWithControls } from '@reformer/core';
+import type { ArrayNode, FormFields, FormProxy } from '@reformer/core';
 
 /**
  * Props for FormArray.Root component
@@ -28,7 +28,7 @@ export interface FormArrayListProps<T extends FormFields> {
  */
 export interface FormArrayItemRenderProps<T extends FormFields> {
   /** The form control for this item */
-  control: GroupNodeWithControls<T>;
+  control: FormProxy<T>;
   /** Zero-based index of the item */
   index: number;
   /** Unique identifier for React key */

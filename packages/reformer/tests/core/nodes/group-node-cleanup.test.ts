@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createForm } from '../../../src/core/utils/create-form';
-import type { GroupNodeWithControls } from '../../../src';
+import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - Cleanup (dispose)', () => {
@@ -14,7 +14,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
     age: number;
   }
 
-  let form: GroupNodeWithControls<TestForm>;
+  let form: FormProxy<TestForm>;
 
   beforeEach(() => {
     form = createForm<TestForm>({

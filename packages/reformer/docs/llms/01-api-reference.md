@@ -5,7 +5,7 @@
 | What                                                                                        | Where                       |
 | ------------------------------------------------------------------------------------------- | --------------------------- |
 | `createForm`, `useFormControl`, `useFormControlValue`, `validateForm`                       | `@reformer/core`            |
-| `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `GroupNodeWithControls`, `FieldNode` | `@reformer/core`            |
+| `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `FormProxy`, `FieldNode` | `@reformer/core`            |
 | `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
 | `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |

@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormNavigation } from './FormNavigationContext';
 
 /**
@@ -8,10 +8,10 @@ import { useFormNavigation } from './FormNavigationContext';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormNavigationStepProps<T extends Record<string, any>> {
   /** Component to render for this step */
-  component: ComponentType<{ control: GroupNodeWithControls<T> } & Record<string, unknown>>;
+  component: ComponentType<{ control: FormProxy<T> } & Record<string, unknown>>;
 
   /** Form control to pass to the component */
-  control: GroupNodeWithControls<T>;
+  control: FormProxy<T>;
 
   /** Any additional props to pass to the component */
   [key: string]: unknown;

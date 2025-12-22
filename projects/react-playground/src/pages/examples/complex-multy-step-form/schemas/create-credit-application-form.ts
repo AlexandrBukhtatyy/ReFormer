@@ -12,7 +12,7 @@
  * - Поддержка вложенных форм и массивов
  */
 
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { GroupNode } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
 
@@ -26,7 +26,7 @@ import creditApplicationValidation from './credit-application-validation';
  *
  * @returns GroupNode с применёнными схемами form, behavior и validation
  */
-export const createCreditApplicationForm = (): GroupNodeWithControls<CreditApplicationForm> => {
+export const createCreditApplicationForm = (): FormProxy<CreditApplicationForm> => {
   const form = new GroupNode<CreditApplicationForm>({
     form: creditApplicationSchema,
     behavior: creditApplicationBehavior,

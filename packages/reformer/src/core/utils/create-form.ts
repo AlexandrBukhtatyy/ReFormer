@@ -2,14 +2,14 @@
  * Фабричная функция для создания формы с правильной типизацией
  *
  * Решает проблему с типизацией конструктора GroupNode, который возвращает
- * Proxy (GroupNodeWithControls), но TypeScript не может это вывести автоматически.
+ * Proxy (FormProxy), но TypeScript не может это вывести автоматически.
  *
  * @group Utilities
  *
  * @example
  * ```typescript
  * // Вместо:
- * const form: GroupNodeWithControls<MyForm> = new GroupNode<MyForm>(config);
+ * const form: FormProxy<MyForm> = new GroupNode<MyForm>(config);
  *
  * // Используйте:
  * const form = createForm<MyForm>(config);
@@ -17,7 +17,7 @@
  */
 
 import { GroupNode } from '../nodes/group-node';
-import type { GroupNodeWithControls, GroupNodeConfig, FormSchema } from '../types';
+import type { FormProxy, GroupNodeConfig, FormSchema } from '../types';
 
 /**
  * Создать форму с полной конфигурацией (form, behavior, validation)
@@ -46,7 +46,7 @@ import type { GroupNodeWithControls, GroupNodeConfig, FormSchema } from '../type
  * form.email.setValue('test@mail.com');
  * ```
  */
-export function createForm<T>(config: GroupNodeConfig<T>): GroupNodeWithControls<T>;
+export function createForm<T>(config: GroupNodeConfig<T>): FormProxy<T>;
 
 /**
  * Создать форму только со схемой полей (обратная совместимость)
@@ -62,13 +62,11 @@ export function createForm<T>(config: GroupNodeConfig<T>): GroupNodeWithControls
  * });
  * ```
  */
-export function createForm<T>(schema: FormSchema<T>): GroupNodeWithControls<T>;
+export function createForm<T>(schema: FormSchema<T>): FormProxy<T>;
 
 /**
  * Реализация фабричной функции
  */
-export function createForm<T>(
-  schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>
-): GroupNodeWithControls<T> {
+export function createForm<T>(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>): FormProxy<T> {
   return new GroupNode<T>(schemaOrConfig as GroupNodeConfig<T>);
 }

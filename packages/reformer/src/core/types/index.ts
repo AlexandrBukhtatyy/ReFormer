@@ -125,14 +125,10 @@ export type { FormSchema, ArrayConfig } from './deep-schema';
 export type { FormContext } from './form-context';
 
 // ============================================================================
-// Re-exports from group-node-proxy (Typed Proxy Access)
+// Re-exports from form-proxy (Typed Proxy Access)
 // ============================================================================
 
-export type {
-  FormNodeControls,
-  GroupNodeWithControls,
-  ArrayNodeWithControls,
-} from './group-node-proxy';
+export type { FormControlsProxy, FormProxy, FormArrayProxy } from './form-proxy';
 
 // ============================================================================
 // GroupNode Configuration (with schemas)

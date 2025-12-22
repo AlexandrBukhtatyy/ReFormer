@@ -113,7 +113,7 @@ export const STEP_CONFIG: StepNavigationConfig<CreditApplicationForm> = {
 
 ```typescript title="src/components/ui/step-navigation/types.ts"
 import type { ReactNode } from 'react';
-import type { GroupNodeWithControls, ValidationSchemaFn, FormValue } from '@reformer/core';
+import type { FormProxy, ValidationSchemaFn, FormValue } from '@reformer/core';
 
 /**
  * Конфигурация multi-step формы
@@ -174,7 +174,7 @@ export interface StepNavigationRenderState {
  * Props для компонента StepNavigation
  */
 export interface StepNavigationProps<T extends Record<string, FormValue>> {
-  form: GroupNodeWithControls<T>;
+  form: FormProxy<T>;
   config: StepNavigationConfig<T>;
   children: (state: StepNavigationRenderState) => ReactNode;
   onStepChange?: (step: number) => void;

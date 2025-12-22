@@ -8,7 +8,7 @@ import {
   GroupNode,
   useFormControl,
   useFormControlValue,
-  type GroupNodeWithControls,
+  type FormProxy,
   type FormSchema,
   type FieldNode,
   type FieldPath,
@@ -255,7 +255,7 @@ const behaviorsFormBehavior: BehaviorSchemaFn<BehaviorsDemoForm> = (path) => {
   revalidateWhen(path.amount, [path.maxAmount]);
 };
 
-function createBehaviorsForm(): GroupNodeWithControls<BehaviorsDemoForm> {
+function createBehaviorsForm(): FormProxy<BehaviorsDemoForm> {
   return new GroupNode<BehaviorsDemoForm>({
     form: behaviorsFormSchema,
     validation: behaviorsFormValidation,

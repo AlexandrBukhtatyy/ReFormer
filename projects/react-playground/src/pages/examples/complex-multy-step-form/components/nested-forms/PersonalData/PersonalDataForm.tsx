@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { GENDERS } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { FormSchema, FormProxy } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { FormField } from '@/components/ui/form-field';
@@ -69,7 +69,7 @@ export const personalDataSchema: FormSchema<PersonalData> = {
 
 interface PersonalDataFormProps {
   // GroupProxy для вложенной формы personalData (используем any для обхода ограничений TypeScript)
-  control: GroupNodeWithControls<PersonalData>;
+  control: FormProxy<PersonalData>;
 }
 
 const PersonalDataFormComponent = ({ control }: PersonalDataFormProps) => {

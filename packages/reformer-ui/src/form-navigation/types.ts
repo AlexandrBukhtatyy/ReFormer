@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { GroupNodeWithControls, ValidationSchemaFn } from '@reformer/core';
+import type { FormProxy, ValidationSchemaFn } from '@reformer/core';
 
 /**
  * Configuration for multi-step form navigation
@@ -56,7 +56,7 @@ export interface FormNavigationHandle<T extends Record<string, any>> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormNavigationProps<T extends Record<string, any>> {
   /** Form instance */
-  form: GroupNodeWithControls<T>;
+  form: FormProxy<T>;
 
   /** Step configuration (validation schemas) */
   config: FormNavigationConfig<T>;

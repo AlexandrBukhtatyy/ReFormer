@@ -4,7 +4,7 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import type { FieldNode } from '../nodes/field-node';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FormProxy } from '../types/form-proxy';
 import type { FormContext } from '../types/form-context';
 import { isFormNode } from '../utils/type-guards';
 
@@ -23,15 +23,15 @@ export class ValidationContextImpl<TForm, TField> implements FormContext<TForm> 
   /**
    * Форма с типизированным Proxy-доступом к полям
    */
-  public readonly form: GroupNodeWithControls<TForm>;
+  public readonly form: FormProxy<TForm>;
 
   constructor(form: GroupNode<TForm>, _fieldKey: keyof TForm, control: FieldNode<TField>) {
     this._form = form;
     this.control = control;
 
     // Получаем Proxy для типизированного доступа
-    this.form = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
-      ._proxyInstance || form.getProxy()) as GroupNodeWithControls<TForm>;
+    this.form = ((form as unknown as { _proxyInstance?: FormProxy<TForm> })._proxyInstance ||
+      form.getProxy()) as FormProxy<TForm>;
   }
 
   /**
@@ -69,14 +69,14 @@ export class TreeValidationContextImpl<TForm> implements FormContext<TForm> {
   /**
    * Форма с типизированным Proxy-доступом к полям
    */
-  public readonly form: GroupNodeWithControls<TForm>;
+  public readonly form: FormProxy<TForm>;
 
   constructor(form: GroupNode<TForm>) {
     this._form = form;
 
     // Получаем Proxy для типизированного доступа
-    this.form = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
-      ._proxyInstance || form.getProxy()) as GroupNodeWithControls<TForm>;
+    this.form = ((form as unknown as { _proxyInstance?: FormProxy<TForm> })._proxyInstance ||
+      form.getProxy()) as FormProxy<TForm>;
   }
 
   /**
@@ -107,15 +107,15 @@ export class ArrayValidationContextImpl<TForm, TItem> implements FormContext<TFo
   /**
    * Форма с типизированным Proxy-доступом к полям
    */
-  public readonly form: GroupNodeWithControls<TForm>;
+  public readonly form: FormProxy<TForm>;
 
   constructor(form: GroupNode<TForm>, _fieldKey: keyof TForm, arrayValue: TItem[]) {
     this._form = form;
     this.arrayValue = arrayValue;
 
     // Получаем Proxy для типизированного доступа
-    this.form = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
-      ._proxyInstance || form.getProxy()) as GroupNodeWithControls<TForm>;
+    this.form = ((form as unknown as { _proxyInstance?: FormProxy<TForm> })._proxyInstance ||
+      form.getProxy()) as FormProxy<TForm>;
   }
 
   /**

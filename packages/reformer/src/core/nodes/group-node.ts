@@ -24,7 +24,7 @@ import type {
   FormValue,
   ArrayNodeLike,
 } from '../types';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FormProxy } from '../types/form-proxy';
 import { createFieldPath } from '../validation';
 import { ValidationApplicator } from '../validation/validation-applicator';
 import type { BehaviorSchemaFn } from '../behavior/types';
@@ -96,7 +96,7 @@ export class GroupNode<T> extends FormNode<T> {
   /**
    * Ссылка на Proxy-инстанс для использования в BehaviorContext
    */
-  private _proxyInstance?: GroupNodeWithControls<T>;
+  private _proxyInstance?: FormProxy<T>;
 
   /**
    * Навигатор для работы с путями к полям
@@ -257,7 +257,7 @@ export class GroupNode<T> extends FormNode<T> {
     }
 
     // Возвращаем Proxy для прямого доступа к полям (form.email вместо form.getField('email'))
-    return proxy as GroupNodeWithControls<T>;
+    return proxy as FormProxy<T>;
   }
 
   // ============================================================================
@@ -267,7 +267,7 @@ export class GroupNode<T> extends FormNode<T> {
   /**
    * Создать Proxy для типобезопасного доступа к полям
    */
-  private buildProxy(): GroupNodeWithControls<T> {
+  private buildProxy(): FormProxy<T> {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
 
@@ -318,7 +318,7 @@ export class GroupNode<T> extends FormNode<T> {
         }
         return Reflect.getOwnPropertyDescriptor(target, prop);
       },
-    }) as GroupNodeWithControls<T>;
+    }) as FormProxy<T>;
   }
 
   // ============================================================================
@@ -469,8 +469,8 @@ export class GroupNode<T> extends FormNode<T> {
    * console.log(proxy.email.value); // Прямой доступ к полю
    * ```
    */
-  getProxy(): GroupNodeWithControls<T> {
-    return (this._proxyInstance || this) as GroupNodeWithControls<T>;
+  getProxy(): FormProxy<T> {
+    return (this._proxyInstance || this) as FormProxy<T>;
   }
 
   /**

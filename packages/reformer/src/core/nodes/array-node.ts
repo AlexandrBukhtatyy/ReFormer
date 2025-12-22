@@ -21,7 +21,7 @@ import type {
   FormFields,
 } from '../types';
 import type { FormSchema } from '../types/deep-schema';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FormProxy } from '../types/form-proxy';
 import { SubscriptionManager } from '../utils/subscription-manager';
 
 /**
@@ -189,8 +189,8 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * @param index - Индекс элемента
    * @returns Типизированный GroupNode или undefined если индекс вне границ
    */
-  at(index: number): GroupNodeWithControls<T> | undefined {
-    return this.items.value[index] as GroupNodeWithControls<T> | undefined;
+  at(index: number): FormProxy<T> | undefined {
+    return this.items.value[index] as FormProxy<T> | undefined;
   }
 
   // ============================================================================
@@ -341,9 +341,9 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * Итерировать по элементам массива
    * @param callback - Функция, вызываемая для каждого элемента с типизированным GroupNode
    */
-  forEach(callback: (item: GroupNodeWithControls<T>, index: number) => void): void {
+  forEach(callback: (item: FormProxy<T>, index: number) => void): void {
     this.items.value.forEach((item, index) => {
-      callback(item as GroupNodeWithControls<T>, index);
+      callback(item as FormProxy<T>, index);
     });
   }
 
@@ -352,9 +352,9 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * @param callback - Функция преобразования с типизированным GroupNode
    * @returns Новый массив результатов
    */
-  map<R>(callback: (item: GroupNodeWithControls<T>, index: number) => R): R[] {
+  map<R>(callback: (item: FormProxy<T>, index: number) => R): R[] {
     return this.items.value.map((item, index) => {
-      return callback(item as GroupNodeWithControls<T>, index);
+      return callback(item as FormProxy<T>, index);
     });
   }
 

@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { ExistingLoan } from './type';
 
 interface ExistingLoanFormProps {
-  control: GroupNodeWithControls<ExistingLoan>;
+  control: FormProxy<ExistingLoan>;
 }
 
 const ExistingLoanFormComponent = ({ control }: ExistingLoanFormProps) => {

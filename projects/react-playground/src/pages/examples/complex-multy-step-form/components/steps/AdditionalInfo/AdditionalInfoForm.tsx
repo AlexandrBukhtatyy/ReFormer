@@ -9,7 +9,7 @@
  * NOTE: Массивы будут активированы после раскомментирования в схеме
  */
 
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
@@ -19,7 +19,7 @@ import { FormArraySection } from '../../FormArraySection';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface AdditionalInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
