@@ -19,7 +19,13 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
-import type { ValidatorRegistration, ValidationError } from '../types';
+import type {
+  ValidatorRegistration,
+  ValidationError,
+  TreeValidatorFn,
+  ContextualValidatorFn,
+  ContextualAsyncValidatorFn,
+} from '../types';
 import {
   ValidationContextImpl,
   TreeValidationContextImpl,
@@ -159,12 +165,15 @@ export class ValidationApplicator<T> {
         try {
           let error: ValidationError | null = null;
           const value = context.value();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const validator = registration.validator as any;
 
           if (registration.type === 'sync') {
+            const validator = registration.validator as ContextualValidatorFn<unknown, unknown>;
             error = validator(value, context);
           } else if (registration.type === 'async') {
+            const validator = registration.validator as ContextualAsyncValidatorFn<
+              unknown,
+              unknown
+            >;
             error = await validator(value, context);
           }
 
@@ -220,16 +229,15 @@ export class ValidationApplicator<T> {
           continue;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const error = (registration.validator as any)(context);
+        const validator = registration.validator as TreeValidatorFn<unknown>;
+        const error = validator(context);
         if (error && registration.options && 'targetField' in registration.options) {
           const targetField = registration.options.targetField;
           if (targetField) {
             const targetControl = this.form.getFieldByPath(String(targetField));
             if (targetControl && isFieldNode(targetControl)) {
               const existingErrors = targetControl.errors.value;
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              targetControl.setErrors([...existingErrors, error] as any);
+              targetControl.setErrors([...existingErrors, error]);
             }
           }
         }
