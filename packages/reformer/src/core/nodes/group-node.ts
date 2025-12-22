@@ -246,8 +246,10 @@ export class GroupNode<T> extends FormNode<T> {
     // Создание Proxy (inline из ProxyBuilder)
     // ========================================================================
 
-    const proxy = this.buildProxy();
-    this._proxyInstance = proxy;
+    // Proxy создаётся и кэшируется для последующего доступа через getProxy()
+    // BREAKING CHANGE v2.0: Конструктор больше НЕ возвращает Proxy
+    // Используйте createForm() для получения FormProxy с прямым доступом к полям
+    this._proxyInstance = this.buildProxy();
 
     // Применяем схемы, если они переданы (новый API)
     if (behaviorSchema) {
@@ -257,8 +259,8 @@ export class GroupNode<T> extends FormNode<T> {
       this.applyValidationSchema(validationSchema);
     }
 
-    // Возвращаем Proxy для прямого доступа к полям (form.email вместо form.getField('email'))
-    return proxy as FormProxy<T>;
+    // Конструктор возвращает this (стандартное поведение)
+    // Для Proxy-доступа к полям используйте createForm() или getProxy()
   }
 
   // ============================================================================
@@ -281,7 +283,16 @@ export class GroupNode<T> extends FormNode<T> {
         }
         // Приоритет 2: Поля формы
         if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          return self._fields.get(prop as keyof T);
+          const field = self._fields.get(prop as keyof T);
+          // Если поле - вложенный GroupNode, возвращаем его proxy для цепочки доступа
+          // Например: form.address.city (address - GroupNode, city - FieldNode)
+          if (
+            field &&
+            typeof (field as unknown as { getProxy?: () => unknown }).getProxy === 'function'
+          ) {
+            return (field as unknown as { getProxy: () => unknown }).getProxy();
+          }
+          return field;
         }
         return undefined;
       },

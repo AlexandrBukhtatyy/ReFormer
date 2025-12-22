@@ -1,18 +1,20 @@
 /**
  * Фабричная функция для создания формы с правильной типизацией
  *
- * Решает проблему с типизацией конструктора GroupNode, который возвращает
- * Proxy (FormProxy), но TypeScript не может это вывести автоматически.
+ * Это рекомендуемый способ создания форм в ReFormer v2.0+.
+ * Создаёт GroupNode и возвращает его Proxy для типобезопасного доступа к полям.
  *
  * @group Utilities
  *
  * @example
  * ```typescript
- * // Вместо:
- * const form: FormProxy<MyForm> = new GroupNode<MyForm>(config);
- *
- * // Используйте:
+ * // Рекомендуемый способ:
  * const form = createForm<MyForm>(config);
+ * form.email.setValue('test@mail.com');  // Типобезопасный доступ к полям
+ *
+ * // Если нужен именно GroupNode instance:
+ * const groupNode = new GroupNode<MyForm>(config);
+ * const proxy = groupNode.getProxy();  // Явно получаем Proxy
  * ```
  */
 
@@ -68,5 +70,6 @@ export function createForm<T>(schema: FormSchema<T>): FormProxy<T>;
  * Реализация фабричной функции
  */
 export function createForm<T>(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>): FormProxy<T> {
-  return new GroupNode<T>(schemaOrConfig as GroupNodeConfig<T>);
+  const groupNode = new GroupNode<T>(schemaOrConfig as GroupNodeConfig<T>);
+  return groupNode.getProxy();
 }

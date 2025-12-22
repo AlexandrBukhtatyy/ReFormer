@@ -22,7 +22,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createForm } from '../../../src/core/utils/create-form';
-import { GroupNode } from '../../../src/core/nodes/group-node';
 import type { FormProxy, FormSchema, ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -87,14 +86,14 @@ describe('GroupNode', () => {
 
   describe('Initialization', () => {
     it('should create from simple schema', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.email).toBeDefined();
       expect(form.password).toBeDefined();
     });
 
     it('should create with new API (GroupNodeConfig)', () => {
-      const form = new GroupNode<SimpleForm>({
+      const form = createForm<SimpleForm>({
         form: simpleSchema,
       });
 
@@ -103,7 +102,7 @@ describe('GroupNode', () => {
     });
 
     it('should create with nested groups', () => {
-      const form = new GroupNode(nestedSchema);
+      const form = createForm(nestedSchema);
 
       expect(form.name).toBeDefined();
       expect(form.address).toBeDefined();
@@ -112,7 +111,7 @@ describe('GroupNode', () => {
     });
 
     it('should return Proxy from constructor', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       // Proxy позволяет обращаться к полям напрямую
       expect(form.email.value.value).toBe('');
@@ -125,14 +124,14 @@ describe('GroupNode', () => {
         password: { value: 'secret', component: null as ComponentInstance },
       };
 
-      const form = new GroupNode(schemaWithValues);
+      const form = createForm(schemaWithValues);
 
       expect(form.email.value.value).toBe('test@mail.com');
       expect(form.password.value.value).toBe('secret');
     });
 
     it('should initialize with valid status', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.valid.value).toBe(true);
       expect(form.invalid.value).toBe(false);
@@ -140,31 +139,31 @@ describe('GroupNode', () => {
     });
 
     it('should initialize with touched = false', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.touched.value).toBe(false);
     });
 
     it('should initialize with dirty = false', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.dirty.value).toBe(false);
     });
 
     it('should initialize with pending = false', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.pending.value).toBe(false);
     });
 
     it('should initialize with submitting = false', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.submitting.value).toBe(false);
     });
 
     it('should initialize with empty errors', () => {
-      const form = new GroupNode(simpleSchema);
+      const form = createForm(simpleSchema);
 
       expect(form.errors.value).toEqual([]);
     });

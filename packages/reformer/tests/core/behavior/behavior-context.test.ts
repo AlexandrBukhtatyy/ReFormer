@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { BehaviorContextImpl } from '../../../src/core/behavior/behavior-context';
-import { GroupNode } from '../../../src/core/nodes/group-node';
+import { createForm } from '../../../src/core/utils/create-form';
 
 // Mock Input component for tests
 const Input = () => null;
@@ -20,7 +20,7 @@ interface TestForm {
 
 describe('BehaviorContext', () => {
   const createTestForm = () => {
-    return new GroupNode<TestForm>({
+    return createForm<TestForm>({
       form: {
         name: { value: 'John', component: Input },
         email: { value: 'john@test.com', component: Input },

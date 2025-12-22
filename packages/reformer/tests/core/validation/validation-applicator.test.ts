@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { ValidationApplicator } from '../../../src/core/validation/validation-applicator';
-import { GroupNode } from '../../../src/core/nodes/group-node';
+import { createForm } from '../../../src/core/utils/create-form';
 import type {
   FormSchema,
   ValidatorRegistration,
@@ -111,7 +111,7 @@ describe('ValidationApplicator', () => {
 
   describe('Sync Validators', () => {
     it('should apply sync validator and set error', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const validators: ValidatorRegistration[] = [
@@ -129,7 +129,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should clear errors when sync validator passes', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       // First set an error
@@ -153,7 +153,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should apply multiple sync validators to same field', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.email.setValue('ab'); // short but not empty
@@ -186,7 +186,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should apply validators to different fields', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const validators: ValidatorRegistration[] = [
@@ -215,7 +215,7 @@ describe('ValidationApplicator', () => {
 
   describe('Async Validators', () => {
     it('should apply async validator and set error', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.email.setValue('taken@test.com');
@@ -235,7 +235,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should clear errors when async validator passes', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.email.setValue('available@test.com');
@@ -254,7 +254,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should combine sync and async validators', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.email.setValue('taken@test.com');
@@ -287,7 +287,7 @@ describe('ValidationApplicator', () => {
 
   describe('Nested Field Paths', () => {
     it('should validate nested field by path', async () => {
-      const form = new GroupNode(createNestedSchema());
+      const form = createForm(createNestedSchema());
       const applicator = new ValidationApplicator(form);
 
       const validators: ValidatorRegistration[] = [
@@ -305,7 +305,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should validate multiple nested fields', async () => {
-      const form = new GroupNode(createNestedSchema());
+      const form = createForm(createNestedSchema());
       const applicator = new ValidationApplicator(form);
 
       const validators: ValidatorRegistration[] = [
@@ -334,7 +334,7 @@ describe('ValidationApplicator', () => {
 
   describe('Conditional Validators', () => {
     it('should apply validator when condition is true', async () => {
-      const form = new GroupNode(createConditionalSchema());
+      const form = createForm(createConditionalSchema());
       const applicator = new ValidationApplicator(form);
 
       form.hasAddress.setValue(true);
@@ -358,7 +358,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should skip validator when condition is false', async () => {
-      const form = new GroupNode(createConditionalSchema());
+      const form = createForm(createConditionalSchema());
       const applicator = new ValidationApplicator(form);
 
       form.hasAddress.setValue(false);
@@ -382,7 +382,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should apply validator with nested condition field', async () => {
-      const form = new GroupNode(createNestedSchema());
+      const form = createForm(createNestedSchema());
       const applicator = new ValidationApplicator(form);
 
       form.address.country.setValue('USA');
@@ -411,7 +411,7 @@ describe('ValidationApplicator', () => {
 
   describe('Tree Validators', () => {
     it('should apply tree validator and set error on targetField', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.password.setValue('password123');
@@ -441,7 +441,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should not set error when tree validator passes', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.password.setValue('password123');
@@ -470,7 +470,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should apply conditional tree validator', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.password.setValue('password123');
@@ -503,7 +503,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should skip tree validator when condition is false', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       // password is empty, so condition fails
@@ -536,7 +536,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should append tree validator error to existing errors', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.password.setValue('password123');
@@ -578,7 +578,7 @@ describe('ValidationApplicator', () => {
 
   describe('Error Handling', () => {
     it('should handle sync validator throwing error', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const throwingValidator: ContextualValidatorFn<unknown, string> = () => {
@@ -598,7 +598,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should handle async validator throwing error', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const throwingAsyncValidator: ContextualAsyncValidatorFn<unknown, string> = async () => {
@@ -618,7 +618,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should handle tree validator throwing error', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const throwingTreeValidator: TreeValidatorFn<SimpleForm> = () => {
@@ -645,14 +645,14 @@ describe('ValidationApplicator', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty validators array', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       await expect(applicator.apply([])).resolves.not.toThrow();
     });
 
     it('should handle non-existent field path gracefully', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       // Suppress console.warn for this test
@@ -678,7 +678,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should handle non-existent condition field', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const validators: ValidatorRegistration[] = [
@@ -701,7 +701,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should handle tree validator without targetField', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       const treeValidator: TreeValidatorFn<SimpleForm> = () => {
@@ -728,7 +728,7 @@ describe('ValidationApplicator', () => {
 
   describe('ValidationContext Integration', () => {
     it('should provide form access through context', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.email.setValue('test@test.com');
@@ -757,7 +757,7 @@ describe('ValidationApplicator', () => {
     });
 
     it('should allow setFieldValue through context', async () => {
-      const form = new GroupNode(createSimpleSchema());
+      const form = createForm(createSimpleSchema());
       const applicator = new ValidationApplicator(form);
 
       form.email.setValue('uppercase@TEST.COM');

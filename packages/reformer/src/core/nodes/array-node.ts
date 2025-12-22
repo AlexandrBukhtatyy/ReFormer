@@ -194,10 +194,13 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
   /**
    * Получить элемент по индексу
    * @param index - Индекс элемента
-   * @returns Типизированный GroupNode или undefined если индекс вне границ
+   * @returns Типизированный GroupNode proxy или undefined если индекс вне границ
    */
   at(index: number): FormProxy<T> | undefined {
-    return this.items.value[index] as FormProxy<T> | undefined;
+    const item = this.items.value[index];
+    if (!item) return undefined;
+    // Возвращаем proxy для доступа к полям элемента
+    return (item as unknown as { getProxy: () => FormProxy<T> }).getProxy();
   }
 
   // ============================================================================
@@ -370,22 +373,24 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
 
   /**
    * Итерировать по элементам массива
-   * @param callback - Функция, вызываемая для каждого элемента с типизированным GroupNode
+   * @param callback - Функция, вызываемая для каждого элемента с типизированным GroupNode proxy
    */
   forEach(callback: (item: FormProxy<T>, index: number) => void): void {
     this.items.value.forEach((item, index) => {
-      callback(item as FormProxy<T>, index);
+      const proxy = (item as unknown as { getProxy: () => FormProxy<T> }).getProxy();
+      callback(proxy, index);
     });
   }
 
   /**
    * Маппинг элементов массива
-   * @param callback - Функция преобразования с типизированным GroupNode
+   * @param callback - Функция преобразования с типизированным GroupNode proxy
    * @returns Новый массив результатов
    */
   map<R>(callback: (item: FormProxy<T>, index: number) => R): R[] {
     return this.items.value.map((item, index) => {
-      return callback(item as FormProxy<T>, index);
+      const proxy = (item as unknown as { getProxy: () => FormProxy<T> }).getProxy();
+      return callback(proxy, index);
     });
   }
 

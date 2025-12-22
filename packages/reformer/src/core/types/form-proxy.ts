@@ -16,7 +16,7 @@
  *   items: Array<{ title: string }>;
  * }
  *
- * const form: FormProxy<MyForm> = new GroupNode(schema);
+ * const form = createForm<MyForm>(schema);
  *
  * //  TypeScript знает, что это FieldNode<string>
  * form.name.setValue('John');
@@ -88,7 +88,7 @@ export type FormControlsProxy<T> = {
  *   };
  * }
  *
- * const form: FormProxy<UserForm> = new GroupNode(schema);
+ * const form = createForm<UserForm>(schema);
  *
  * // Доступ к методам GroupNode
  * await form.validate();

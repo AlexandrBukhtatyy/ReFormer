@@ -25,7 +25,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should return false for GroupNode', () => {
-      const group = new GroupNode({
+      const group = createForm({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -57,7 +57,7 @@ describe('FormNode Type Guards', () => {
 
   describe('isGroupNode()', () => {
     it('should return true for GroupNode', () => {
-      const group = new GroupNode({
+      const group = createForm({
         name: { value: '', component: null as ComponentInstance },
         email: { value: '', component: null as ComponentInstance },
       });
@@ -83,7 +83,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should allow TypeScript type narrowing', () => {
-      const group = new GroupNode({
+      const group = createForm({
         name: { value: 'John', component: null as ComponentInstance },
       });
 
@@ -115,7 +115,7 @@ describe('FormNode Type Guards', () => {
     });
 
     it('should return false for GroupNode', () => {
-      const group = new GroupNode({
+      const group = createForm({
         name: { value: '', component: null as ComponentInstance },
       });
 
@@ -181,7 +181,7 @@ describe('FormNode Type Guards', () => {
     it('should handle type guards in conditional logic', () => {
       const nodes: Array<FieldNode<unknown> | GroupNode<unknown> | ArrayNode<unknown>> = [
         new FieldNode({ value: 'test', component: null as ComponentInstance }),
-        new GroupNode({ name: { value: '', component: null as ComponentInstance } }),
+        createForm({ name: { value: '', component: null as ComponentInstance } }),
         new ArrayNode({ name: { value: '', component: null as ComponentInstance } }),
       ];
 
@@ -264,7 +264,7 @@ describe('FormNode Type Guards', () => {
       }
 
       const field = new FieldNode({ value: 'test', component: null as ComponentInstance });
-      const group = new GroupNode({ name: { value: '', component: null as ComponentInstance } });
+      const group = createForm({ name: { value: '', component: null as ComponentInstance } });
       const array = new ArrayNode({ name: { value: '', component: null as ComponentInstance } });
 
       expect(processNode(field)).toBe('field');
