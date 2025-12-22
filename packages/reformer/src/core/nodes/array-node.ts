@@ -57,6 +57,9 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    */
   private disposers = new SubscriptionManager();
 
+  /** Array-level validation errors (e.g., "минимум 1 элемент") */
+  private readonly _arrayErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
+
   // ============================================================================
   // Приватные поля для сохранения схем
   // ============================================================================
@@ -102,7 +105,10 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
 
     this.value = computed(() => this.items.value.map((item) => item.value.value as T));
 
-    this.valid = computed(() => this.items.value.every((item) => item.valid.value));
+    this.valid = computed(() => {
+      if (this._arrayErrors.value.length > 0) return false;
+      return this.items.value.every((item) => item.valid.value);
+    });
 
     this.invalid = computed(() => !this.valid.value);
 
@@ -113,7 +119,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     this.dirty = computed(() => this.items.value.some((item) => item.dirty.value));
 
     this.errors = computed(() => {
-      const allErrors: ValidationError[] = [];
+      const allErrors: ValidationError[] = [...this._arrayErrors.value];
       this.items.value.forEach((item) => {
         allErrors.push(...item.errors.value);
       });
@@ -241,6 +247,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * ```
    */
   reset(values?: T[]): void {
+    this._arrayErrors.value = [];
     this.clear();
     if (values) {
       values.forEach((value) => this.push(value));
@@ -276,6 +283,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * ```
    */
   resetToInitial(): void {
+    this._arrayErrors.value = [];
     this.clear();
     this.initialItems.forEach((value) => this.push(value));
   }
@@ -285,12 +293,34 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     return results.every(Boolean);
   }
 
-  setErrors(_errors: ValidationError[]): void {
-    // ArrayNode level errors - можно реализовать позже
-    // Пока просто игнорируем
+  /**
+   * Установить array-level validation errors
+   *
+   * @param errors - Массив ошибок валидации уровня массива
+   *
+   * @example
+   * ```typescript
+   * arrayNode.setErrors([{
+   *   code: 'minItems',
+   *   message: 'Минимум 1 элемент обязателен',
+   * }]);
+   * ```
+   */
+  setErrors(errors: ValidationError[]): void {
+    this._arrayErrors.value = errors;
   }
 
+  /**
+   * Очистить все errors (array-level + item-level)
+   *
+   * @example
+   * ```typescript
+   * arrayNode.clearErrors();
+   * console.log(arrayNode.errors.value); // []
+   * ```
+   */
   clearErrors(): void {
+    this._arrayErrors.value = [];
     this.items.value.forEach((item) => item.clearErrors());
   }
 

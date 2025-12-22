@@ -532,6 +532,83 @@ describe('ArrayNode', () => {
       expect(arrayNode.at(0)?.errors.value.length).toBe(0);
       expect(arrayNode.at(1)?.errors.value.length).toBe(0);
     });
+
+    it('should set array-level errors via setErrors', () => {
+      arrayNode.push({ title: 'Item 1', price: 100 });
+
+      expect(arrayNode.errors.value.length).toBe(0);
+      expect(arrayNode.valid.value).toBe(true);
+
+      arrayNode.setErrors([{ code: 'minItems', message: 'Минимум 2 элемента' }]);
+
+      expect(arrayNode.errors.value.length).toBe(1);
+      expect(arrayNode.errors.value[0].code).toBe('minItems');
+      expect(arrayNode.valid.value).toBe(false);
+      expect(arrayNode.invalid.value).toBe(true);
+    });
+
+    it('should combine array-level and item-level errors', async () => {
+      const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
+        required(path.title, { message: 'Title is required' });
+      };
+
+      arrayNode.applyValidationSchema(validationSchema);
+      arrayNode.push({ title: '', price: 100 });
+
+      // Set array-level error
+      arrayNode.setErrors([{ code: 'minItems', message: 'Минимум 2 элемента' }]);
+
+      // Validate to get item-level error
+      await arrayNode.validate();
+
+      // Should have both errors
+      expect(arrayNode.errors.value.length).toBe(2);
+      expect(arrayNode.errors.value.some((e) => e.code === 'minItems')).toBe(true);
+      expect(arrayNode.errors.value.some((e) => e.code === 'required')).toBe(true);
+    });
+
+    it('should clear array-level errors when clearErrors is called', () => {
+      arrayNode.push({ title: 'Item 1', price: 100 });
+
+      arrayNode.setErrors([{ code: 'minItems', message: 'Минимум 2 элемента' }]);
+
+      expect(arrayNode.errors.value.length).toBe(1);
+
+      arrayNode.clearErrors();
+
+      expect(arrayNode.errors.value.length).toBe(0);
+      expect(arrayNode.valid.value).toBe(true);
+    });
+
+    it('should clear array-level errors on reset', () => {
+      arrayNode.push({ title: 'Item 1', price: 100 });
+      arrayNode.setErrors([{ code: 'minItems', message: 'Минимум 2 элемента' }]);
+
+      expect(arrayNode.errors.value.length).toBe(1);
+
+      arrayNode.reset();
+
+      expect(arrayNode.errors.value.length).toBe(0);
+    });
+
+    it('should clear array-level errors on resetToInitial', () => {
+      const arrayWithInitial = new ArrayNode<ItemForm>(
+        {
+          title: { value: '', component: null as ComponentInstance },
+          price: { value: 0, component: null as ComponentInstance },
+        },
+        [{ title: 'Initial', price: 100 }]
+      );
+
+      arrayWithInitial.setErrors([{ code: 'minItems', message: 'Минимум 2 элемента' }]);
+
+      expect(arrayWithInitial.errors.value.length).toBe(1);
+
+      arrayWithInitial.resetToInitial();
+
+      expect(arrayWithInitial.errors.value.length).toBe(0);
+      expect(arrayWithInitial.length.value).toBe(1);
+    });
   });
 
   describe('Initial items', () => {
