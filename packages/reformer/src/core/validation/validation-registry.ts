@@ -147,12 +147,16 @@ export class ValidationRegistry {
     ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
 
     // Сохраняем валидаторы в локальном состоянии
+    // Применение валидаторов происходит в GroupNode.validate() через ValidationApplicator
     this.validators = context.getValidators();
 
-    // Применяем валидаторы к полям
-    this.applyValidators(form, this.validators);
+    // Логируем количество зарегистрированных валидаторов (только в DEV)
+    if (import.meta.env.DEV) {
+      console.log(`Registered ${this.validators.length} validators for GroupNode`);
+    }
 
     // Применяем array-items validators к ArrayNode элементам
+    // (это нужно сделать сразу, чтобы схемы применились к дочерним элементам)
     this.applyArrayItemValidators(form, this.validators);
   }
 
@@ -303,36 +307,6 @@ export class ValidationRegistry {
    */
   getValidators(): ValidatorRegistration[] {
     return this.validators;
-  }
-
-  /**
-   * Применить зарегистрированные валидаторы к GroupNode
-   * @private
-   */
-  private applyValidators<T extends FormFields>(
-    form: GroupNode<T>,
-    validators: ValidatorRegistration[]
-  ): void {
-    // Группируем валидаторы по полям
-    const validatorsByField = new Map<string, ValidatorRegistration[]>();
-
-    for (const registration of validators) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (registration.type === 'tree' || (registration as any).type === 'array-items') {
-        // Tree и array-items валидаторы обрабатываются отдельно
-        continue;
-      }
-
-      const existing = validatorsByField.get(registration.fieldPath) || [];
-      existing.push(registration);
-      validatorsByField.set(registration.fieldPath, existing);
-    }
-
-    // Валидаторы сохранены в локальном массиве this.validators
-    // Они будут применяться при вызове GroupNode.validate()
-    if (import.meta.env.DEV) {
-      console.log(`Registered ${validators.length} validators for GroupNode`);
-    }
   }
 
   /**
