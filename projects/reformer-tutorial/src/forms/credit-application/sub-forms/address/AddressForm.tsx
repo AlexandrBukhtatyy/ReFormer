@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/FormField';
 import type { Address } from './type';
 
 interface AddressFormProps {
-  control: GroupNodeWithControls<Address>;
+  control: FormProxy<Address>;
 }
 
 const AddressFormComponent = ({ control }: AddressFormProps) => {

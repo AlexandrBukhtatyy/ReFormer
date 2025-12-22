@@ -1,5 +1,5 @@
 /**
- * Типы для Proxy-доступа к полям GroupNode
+ * Типы для Proxy-доступа к полям формы
  *
  * Решает проблему типизации, когда GroupNode<T> использует Proxy для прямого доступа к полям.
  * TypeScript не может автоматически определить правильные типы для вложенных форм и массивов.
@@ -16,7 +16,7 @@
  *   items: Array<{ title: string }>;
  * }
  *
- * const form: GroupNodeWithControls<MyForm> = new GroupNode(schema);
+ * const form: FormProxy<MyForm> = new GroupNode(schema);
  *
  * //  TypeScript знает, что это FieldNode<string>
  * form.name.setValue('John');
@@ -43,9 +43,9 @@ type ArrayNode<_T> = any;
  * Мапит тип модели данных T на правильные типы узлов формы
  *
  * Рекурсивно определяет типы узлов на основе структуры данных:
- * - `T[K] extends Array<infer U>` где U - объект → `ArrayNodeWithControls<U>`
+ * - `T[K] extends Array<infer U>` где U - объект → `FormArrayProxy<U>`
  * - `T[K] extends Array<infer U>` где U - примитив → `FieldNode<T[K]>` (массив как обычное поле)
- * - `T[K] extends object` → `GroupNodeWithControls<T[K]>` (вложенная форма с типизацией)
+ * - `T[K] extends object` → `FormProxy<T[K]>` (вложенная форма с типизацией)
  * - `T[K]` примитив → `FieldNode<T[K]>` (простое поле)
  *
  * Использует NonNullable для правильной обработки опциональных полей
@@ -55,15 +55,15 @@ type ArrayNode<_T> = any;
  *
  * @template T - Тип модели данных формы
  */
-export type FormNodeControls<T> = {
+export type FormControlsProxy<T> = {
   [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
     ? U extends FormFields
-      ? ArrayNodeWithControls<U> // Массив объектов → ArrayNodeWithControls
+      ? FormArrayProxy<U> // Массив объектов → FormArrayProxy
       : FieldNode<T[K]> // Массив примитивов → FieldNode
     : NonNullable<T[K]> extends FormFields
       ? NonNullable<T[K]> extends Date | File | Blob
         ? FieldNode<T[K]> // Специальные объекты → FieldNode
-        : GroupNodeWithControls<NonNullable<T[K]>> // Обычный объект → GroupNodeWithControls (рекурсивно!)
+        : FormProxy<NonNullable<T[K]>> // Обычный объект → FormProxy (рекурсивно!)
       : FieldNode<T[K]>; // Примитивные типы → FieldNode
 };
 
@@ -88,7 +88,7 @@ export type FormNodeControls<T> = {
  *   };
  * }
  *
- * const form: GroupNodeWithControls<UserForm> = new GroupNode(schema);
+ * const form: FormProxy<UserForm> = new GroupNode(schema);
  *
  * // Доступ к методам GroupNode
  * await form.validate();
@@ -100,7 +100,7 @@ export type FormNodeControls<T> = {
  * form.profile.name.setValue('John');
  * ```
  */
-export type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
+export type FormProxy<T> = GroupNode<T> & FormControlsProxy<T>;
 
 /**
  * Комбинированный тип для ArrayNode с Proxy доступом к элементам
@@ -119,7 +119,7 @@ export type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
  *   completed: boolean;
  * }
  *
- * const todos: ArrayNodeWithControls<TodoItem> = new ArrayNode(schema);
+ * const todos: FormArrayProxy<TodoItem> = new ArrayNode(schema);
  *
  * // Доступ к методам ArrayNode
  * todos.push({ title: 'New todo', completed: false });
@@ -134,20 +134,20 @@ export type GroupNodeWithControls<T> = GroupNode<T> & FormNodeControls<T>;
  * });
  * ```
  */
-export type ArrayNodeWithControls<T extends FormFields> = ArrayNode<T> & {
+export type FormArrayProxy<T extends FormFields> = ArrayNode<T> & {
   /**
    * Безопасный доступ к элементу массива по индексу
    * Возвращает GroupNode с типизированными полями или undefined
    */
-  at(index: number): GroupNodeWithControls<T> | undefined;
+  at(index: number): FormProxy<T> | undefined;
 
   /**
    * Итерация по элементам массива с типизированными элементами
    */
-  forEach(callback: (item: GroupNodeWithControls<T>, index: number) => void): void;
+  forEach(callback: (item: FormProxy<T>, index: number) => void): void;
 
   /**
    * Маппинг элементов массива с типизированными элементами
    */
-  map<R>(callback: (item: GroupNodeWithControls<T>, index: number) => R): R[];
+  map<R>(callback: (item: FormProxy<T>, index: number) => R): R[];
 };

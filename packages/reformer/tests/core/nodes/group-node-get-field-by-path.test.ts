@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { GroupNodeWithControls } from '../../../src';
+import type { FormProxy } from '../../../src';
 import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -17,7 +17,7 @@ describe('GroupNode - getFieldByPath()', () => {
       age: number;
     }
 
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -63,7 +63,7 @@ describe('GroupNode - getFieldByPath()', () => {
       };
     }
 
-    let form: GroupNodeWithControls<NestedForm>;
+    let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -126,7 +126,7 @@ describe('GroupNode - getFieldByPath()', () => {
       items: ItemForm[];
     }
 
-    let form: GroupNodeWithControls<FormWithArray>;
+    let form: FormProxy<FormWithArray>;
 
     beforeEach(() => {
       form = createForm({
@@ -205,7 +205,7 @@ describe('GroupNode - getFieldByPath()', () => {
       contacts: ContactForm[];
     }
 
-    let form: GroupNodeWithControls<ComplexForm>;
+    let form: FormProxy<ComplexForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -273,7 +273,7 @@ describe('GroupNode - getFieldByPath()', () => {
       email: string;
     }
 
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -323,7 +323,7 @@ describe('GroupNode - getFieldByPath()', () => {
       items: Array<{ title: string }>;
     }
 
-    let form: GroupNodeWithControls<TestForm>;
+    let form: FormProxy<TestForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -368,7 +368,7 @@ describe('GroupNode - getFieldByPath()', () => {
       };
     }
 
-    let form: GroupNodeWithControls<UserForm>;
+    let form: FormProxy<UserForm>;
 
     beforeEach(() => {
       form = createForm({

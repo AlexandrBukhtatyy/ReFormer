@@ -1,10 +1,10 @@
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm, LoanType } from '../../../types/credit-application';
 
 interface BasicInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {

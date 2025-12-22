@@ -9,7 +9,7 @@ import { FieldNode } from '../../../src/core/nodes/field-node';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import { createForm } from '../../../src/core/utils/create-form';
 import { ComponentInstance } from '../../test-utils/types';
-import { GroupNodeWithControls } from 'packages/reformer/dist';
+import type { FormProxy } from '../../../src';
 
 describe('FormNode - resetToInitial()', () => {
   describe('FieldNode', () => {
@@ -74,7 +74,7 @@ describe('FormNode - resetToInitial()', () => {
       age: number;
     }
 
-    let form: GroupNodeWithControls<TestForm>;
+    let form: FormProxy<TestForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -154,7 +154,7 @@ describe('FormNode - resetToInitial()', () => {
       };
     }
 
-    let form: GroupNodeWithControls<NestedForm>;
+    let form: FormProxy<NestedForm>;
 
     beforeEach(() => {
       form = createForm({

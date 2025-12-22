@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 
 /**
  * Context value for FormNavigation
@@ -33,7 +33,7 @@ export interface FormNavigationContextValue<T extends Record<string, any>> {
   isSubmitting: boolean;
 
   /** Form instance */
-  form: GroupNodeWithControls<T>;
+  form: FormProxy<T>;
 
   // ============================================================================
   // Navigation Methods

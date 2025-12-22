@@ -1,4 +1,4 @@
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 import { FormField } from '@/components/ui/FormField';
 import { PersonalDataForm } from '../../sub-forms/personal-data/PersonalDataForm';
@@ -6,7 +6,7 @@ import { PassportDataForm } from '../../sub-forms/passport-data/PassportDataForm
 import { memo } from 'react';
 
 interface PersonalInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function PersonalInfoFormComponent({ control }: PersonalInfoFormProps) {

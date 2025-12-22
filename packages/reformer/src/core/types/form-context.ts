@@ -23,7 +23,7 @@
  * ```
  */
 
-import type { GroupNodeWithControls } from './group-node-proxy';
+import type { FormProxy } from './form-proxy';
 import type { FieldPathNode } from './field-path';
 
 /**
@@ -64,7 +64,7 @@ export interface FormContext<TForm> {
    * ctx.form.items.clear()
    * ```
    */
-  readonly form: GroupNodeWithControls<TForm>;
+  readonly form: FormProxy<TForm>;
 
   /**
    * Безопасно установить значение поля по строковому пути или FieldPath

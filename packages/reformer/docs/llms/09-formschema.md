@@ -116,13 +116,13 @@ form.items.push({ id: '1', name: 'Item' }); // Array operations
 ### createForm Returns a Proxy
 
 ```typescript
-// createForm() returns GroupNodeWithControls<T> (a Proxy wrapper around GroupNode)
+// createForm() returns FormProxy<T> (a Proxy wrapper around GroupNode)
 // This enables type-safe field access:
 const form = createForm<MyForm>({...});
 
 form.email           // FieldNode<string> - TypeScript knows the type!
 form.address.city    // FieldNode<string> - nested access works
-form.items.at(0)     // GroupNodeWithControls<ItemType> - array items
+form.items.at(0)     // FormProxy<ItemType> - array items
 
 // IMPORTANT: Proxy doesn't pass instanceof checks!
 // Use type guards instead:

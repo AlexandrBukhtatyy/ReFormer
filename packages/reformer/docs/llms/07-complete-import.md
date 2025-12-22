@@ -6,7 +6,7 @@ import type {
   ValidationSchemaFn,
   BehaviorSchemaFn,
   FieldPath,
-  GroupNodeWithControls,
+  FormProxy,
   FieldNode,
 } from '@reformer/core';
 

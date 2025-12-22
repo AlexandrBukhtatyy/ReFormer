@@ -104,7 +104,7 @@ transformers.trim, transformers.toUpperCase, transformers.toLowerCase, transform
 
 // BehaviorContext interface:
 interface BehaviorContext<TForm> {
-  form: GroupNodeWithControls<TForm>;            // Form proxy with typed field access
+  form: FormProxy<TForm>;            // Form proxy with typed field access
   setFieldValue: (path: string, value: any) => void;
   // To READ field values, use: ctx.form.fieldName.value.value
 }

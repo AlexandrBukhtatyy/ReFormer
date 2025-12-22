@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle } from 'react';
-import type { FormFields, GroupNodeWithControls } from '@reformer/core';
+import type { FormFields, FormProxy } from '@reformer/core';
 import { useFormArray } from './useFormArray';
 import { FormArrayContext } from './FormArrayContext';
 import { FormArrayList } from './FormArrayList';
@@ -27,7 +27,7 @@ export interface FormArrayHandle<T extends FormFields> {
   /** Whether the array is empty */
   isEmpty: boolean;
   /** Get item control at specific index */
-  at: (index: number) => GroupNodeWithControls<T> | undefined;
+  at: (index: number) => FormProxy<T> | undefined;
 }
 
 /**

@@ -22,7 +22,7 @@
  * ```
  */
 
-import type { ArrayNodeWithControls, FormFields, GroupNodeWithControls } from '@reformer/core';
+import type { FormArrayProxy, FormFields, FormProxy } from '@reformer/core';
 import type { ComponentType } from 'react';
 import { FormArray } from '@reformer/ui/form-array';
 
@@ -31,10 +31,10 @@ interface FormArraySectionProps<T extends object> {
   title: string;
 
   /** ArrayNode контроллер */
-  control: ArrayNodeWithControls<FormFields> | undefined;
+  control: FormArrayProxy<FormFields> | undefined;
 
   /** Компонент элемента массива */
-  itemComponent: ComponentType<{ control: GroupNodeWithControls<T> }>;
+  itemComponent: ComponentType<{ control: FormProxy<T> }>;
 
   /** Метка для элемента */
   itemLabel: string;
@@ -88,7 +88,7 @@ export function FormArraySection<T extends object>({
                   Удалить
                 </FormArray.RemoveButton>
               </div>
-              <ItemComponent control={itemControl as GroupNodeWithControls<T>} />
+              <ItemComponent control={itemControl as FormProxy<T>} />
             </div>
           )}
         </FormArray.List>

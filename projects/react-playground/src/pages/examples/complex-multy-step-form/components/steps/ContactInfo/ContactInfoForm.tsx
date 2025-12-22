@@ -7,7 +7,7 @@
  * - Условное отображение вложенных форм
  */
 
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
@@ -15,7 +15,7 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 import { Button } from '@/components/ui/button';
 
 interface ContactInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function ContactInfoForm({ control }: ContactInfoFormProps) {

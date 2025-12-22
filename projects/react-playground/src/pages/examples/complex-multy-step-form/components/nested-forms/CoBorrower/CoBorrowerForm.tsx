@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { RELATIONSHIPS } from '../../../constants/credit-application';
-import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { FormSchema, FormProxy } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputMask } from '@/components/ui/input-mask';
 import { Select } from '@/components/ui/select';
@@ -86,7 +86,7 @@ export const coBorrowersFormSchema: FormSchema<CoBorrower> = {
 
 interface CoBorrowerFormProps {
   // GroupProxy для элемента массива coBorrowers
-  control: GroupNodeWithControls<CoBorrower>;
+  control: FormProxy<CoBorrower>;
 }
 
 const CoBorrowerFormComponent = ({ control }: CoBorrowerFormProps) => {

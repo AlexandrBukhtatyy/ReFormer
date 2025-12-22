@@ -2,7 +2,7 @@
  * Unit tests for validateForm - multi-step form validation
  *
  * Key test scenarios:
- * - validateForm works with Proxy (GroupNodeWithControls)
+ * - validateForm works with Proxy (FormProxy)
  * - Multi-step validation applies only specified validators
  * - Nested groups and arrays are traversed correctly
  */
@@ -17,7 +17,7 @@ import type { ValidationSchemaFn, FieldPath } from '../../../src/core/types';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('validateForm', () => {
-  describe('works with Proxy (GroupNodeWithControls)', () => {
+  describe('works with Proxy (FormProxy)', () => {
     interface SimpleForm {
       name: string;
       email: string;
@@ -29,7 +29,7 @@ describe('validateForm', () => {
         email: { value: '', component: null as ComponentInstance },
       });
 
-      // createForm returns GroupNodeWithControls (Proxy over GroupNode)
+      // createForm returns FormProxy (Proxy over GroupNode)
       // This test verifies that validateForm works with Proxy
       const validation: ValidationSchemaFn<SimpleForm> = (path: FieldPath<SimpleForm>) => {
         required(path.name, { message: 'Name is required' });
@@ -85,7 +85,7 @@ describe('validateForm', () => {
       required(path.lastName);
     };
 
-    const step3Validation: ValidationSchemaFn<MultiStepForm> = (path) => {
+    const _step3Validation: ValidationSchemaFn<MultiStepForm> = (path) => {
       required(path.accountNumber);
     };
 

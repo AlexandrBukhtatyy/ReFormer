@@ -23,12 +23,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createForm } from '../../../src/core/utils/create-form';
 import { GroupNode } from '../../../src/core/nodes/group-node';
-import type {
-  GroupNodeWithControls,
-  FormSchema,
-  ValidatorFn,
-  AsyncValidatorFn,
-} from '../../../src/core/types';
+import type { FormProxy, FormSchema, ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
 import { ComponentInstance } from '../../test-utils/types';
 
 // ============================================================================
@@ -180,7 +175,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('Proxy Field Access', () => {
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm(simpleSchema);
@@ -223,7 +218,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('getValue / setValue / patchValue', () => {
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm(simpleSchema);
@@ -310,7 +305,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('reset / resetToInitial', () => {
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm({
@@ -399,7 +394,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('Aggregated State', () => {
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm(simpleSchema);
@@ -482,7 +477,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('State Methods (cascading)', () => {
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm(simpleSchema);
@@ -548,7 +543,7 @@ describe('GroupNode', () => {
   // ==========================================================================
 
   describe('enable / disable', () => {
-    let form: GroupNodeWithControls<SimpleForm>;
+    let form: FormProxy<SimpleForm>;
 
     beforeEach(() => {
       form = createForm(simpleSchema);

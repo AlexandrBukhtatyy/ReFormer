@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, type GroupNodeWithControls, type FormSchema } from '@reformer/core';
+import { GroupNode, type FormProxy, type FormSchema } from '@reformer/core';
 import { Input } from '@/components/ui/input';
 import { InputPassword } from '@/components/ui/input-password';
 import { InputMask } from '@/components/ui/input-mask';
@@ -101,7 +101,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
 };
 
 // Фабрика для создания формы
-function createRegistrationForm(): GroupNodeWithControls<RegistrationFormData> {
+function createRegistrationForm(): FormProxy<RegistrationFormData> {
   const form = new GroupNode<RegistrationFormData>({
     form: registrationFormSchema,
     validation: registrationValidation,

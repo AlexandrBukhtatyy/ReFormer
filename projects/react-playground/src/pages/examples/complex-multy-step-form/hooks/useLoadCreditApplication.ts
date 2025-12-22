@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
 import { fetchCreditApplication, fetchDictionaries, type DictionariesResponse } from '../api';
 import type { Property } from '../components/nested-forms/Property/PropertyForm';
@@ -27,7 +27,7 @@ export interface LoadingState {
 // Функция заполнения формы данными полученными от сервера - маппинг данных
 // ============================================================================
 const patchFormValue = (
-  form: GroupNodeWithControls<CreditApplicationForm>,
+  form: FormProxy<CreditApplicationForm>,
   data: Partial<CreditApplicationForm>,
   dictionaries: DictionariesResponse
 ) => {
@@ -45,13 +45,13 @@ const patchFormValue = (
   // всех реактивных эффектов от patchValue и избежать "Cycle detected"
   queueMicrotask(() => {
     // Обновляем опции городов для адреса регистрации
-    // registrationAddress - это GroupNodeWithControls<Address> с полем city
+    // registrationAddress - это FormProxy<Address> с полем city
     form.registrationAddress.city.updateComponentProps({
       options: dictionaries.cities,
     });
 
     // Обновляем опции городов для адреса проживания
-    // residenceAddress - это тоже GroupNodeWithControls<Address>
+    // residenceAddress - это тоже FormProxy<Address>
     form.residenceAddress?.city.updateComponentProps({
       options: dictionaries.cities,
     });
@@ -59,7 +59,7 @@ const patchFormValue = (
     // Обновляем опции типов имущества для всех элементов массива properties
     // properties - это ArrayNode<Property>
     // forEach возвращает GroupNode элементы, а не значения
-    form.properties?.forEach((propertyNode: GroupNodeWithControls<Property>) => {
+    form.properties?.forEach((propertyNode: FormProxy<Property>) => {
       propertyNode.type.updateComponentProps({
         options: dictionaries.propertyTypes,
       });
@@ -68,7 +68,7 @@ const patchFormValue = (
     // Обновляем опции банков для всех элементов массива existingLoans
     // existingLoans - это ArrayNode<ExistingLoan>
     // forEach возвращает GroupNode элементы, а не значения
-    form.existingLoans?.forEach((loanNode: GroupNodeWithControls<ExistingLoan>) => {
+    form.existingLoans?.forEach((loanNode: FormProxy<ExistingLoan>) => {
       loanNode.bank.updateComponentProps({
         options: dictionaries.banks,
       });
@@ -81,7 +81,7 @@ const patchFormValue = (
 // ============================================================================
 
 export const useLoadCreditApplication = (
-  form: GroupNodeWithControls<CreditApplicationForm>,
+  form: FormProxy<CreditApplicationForm>,
   applicationId: string | null
 ) => {
   const [loadingState, setLoadingState] = useState<LoadingState>({

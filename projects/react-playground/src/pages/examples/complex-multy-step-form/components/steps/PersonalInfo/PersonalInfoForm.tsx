@@ -6,14 +6,14 @@
  * - PassportDataForm (паспортные данные)
  */
 
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { PersonalDataForm } from '../../nested-forms/PersonalData/PersonalDataForm';
 import { PassportDataForm } from '../../nested-forms/PassportData/PassportDataForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import { FormField } from '@/components/ui/form-field';
 
 interface PersonalInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function PersonalInfoForm({ control }: PersonalInfoFormProps) {

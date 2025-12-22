@@ -6,7 +6,7 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import type { FormContext } from '../types/form-context';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FormProxy } from '../types/form-proxy';
 
 /**
  * Базовая реализация FormContext
@@ -19,15 +19,15 @@ export class FormContextImpl<TForm> implements FormContext<TForm> {
   /**
    * Форма с типизированным Proxy-доступом к полям
    */
-  public readonly form: GroupNodeWithControls<TForm>;
+  public readonly form: FormProxy<TForm>;
 
   protected readonly _groupNode: GroupNode<TForm>;
 
   constructor(groupNode: GroupNode<TForm>) {
     this._groupNode = groupNode;
     // Используем _proxyInstance если доступен, иначе fallback
-    this.form = ((groupNode as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
-      ._proxyInstance || groupNode.getProxy()) as GroupNodeWithControls<TForm>;
+    this.form = ((groupNode as unknown as { _proxyInstance?: FormProxy<TForm> })._proxyInstance ||
+      groupNode.getProxy()) as FormProxy<TForm>;
   }
 
   /**

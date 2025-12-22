@@ -20,12 +20,12 @@ Each step component:
 All step components follow the same pattern:
 
 ```tsx
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
 interface StepProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function StepName({ control }: StepProps) {
@@ -45,13 +45,13 @@ export function StepName({ control }: StepProps) {
 The first step collects loan details with conditional fields:
 
 ```tsx title="src/steps/BasicInfoForm.tsx"
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
 interface BasicInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function BasicInfoForm({ control }: BasicInfoFormProps) {
@@ -105,14 +105,14 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
 This step demonstrates nested form usage:
 
 ```tsx title="src/steps/PersonalInfoForm.tsx"
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { PersonalDataForm } from '../nested-forms/PersonalDataForm';
 import { PassportDataForm } from '../nested-forms/PassportDataForm';
 import type { CreditApplicationForm } from '../types';
 
 interface PersonalInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
@@ -150,14 +150,14 @@ export function PersonalInfoForm({ control }: PersonalInfoFormProps) {
 Demonstrates reusing nested forms and group operations:
 
 ```tsx title="src/steps/ContactInfoForm.tsx"
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { AddressForm } from '../nested-forms/AddressForm';
 import type { CreditApplicationForm } from '../types';
 
 interface ContactInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function ContactInfoForm({ control }: ContactInfoFormProps) {
@@ -246,13 +246,13 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
 Shows conditional sections based on employment status:
 
 ```tsx title="src/steps/EmploymentForm.tsx"
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
 interface EmploymentFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function EmploymentForm({ control }: EmploymentFormProps) {
@@ -316,7 +316,7 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 Demonstrates working with arrays using `FormArray` from `@reformer/ui`:
 
 ```tsx title="src/steps/AdditionalInfoForm.tsx"
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormArray } from '@reformer/ui/form-array';
 import { FormField } from '@/components/ui/FormField';
@@ -327,7 +327,7 @@ import { Button } from '@/components/ui/button';
 import type { CreditApplicationForm } from '../types';
 
 interface AdditionalInfoFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
@@ -475,12 +475,12 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 Final step with all confirmations:
 
 ```tsx title="src/steps/ConfirmationForm.tsx"
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../types';
 
 interface ConfirmationFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function ConfirmationForm({ control }: ConfirmationFormProps) {

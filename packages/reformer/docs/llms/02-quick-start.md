@@ -3,7 +3,7 @@
 ```typescript
 import { createForm, useFormControl } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
-import type { GroupNodeWithControls } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 
 // 1. Define form type
 interface ContactForm {
@@ -60,7 +60,7 @@ function ContactFormComponent() {
 
 // 4. Pass form to child components via props (NOT context!)
 interface FormStepProps {
-  form: GroupNodeWithControls<ContactForm>;
+  form: FormProxy<ContactForm>;
 }
 
 function FormStep({ form }: FormStepProps) {

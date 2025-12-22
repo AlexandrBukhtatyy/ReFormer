@@ -55,7 +55,7 @@ import { createFieldPath } from './field-path';
  * @returns Массив всех FieldNode в дереве
  */
 function collectAllFieldNodes(node: FormNode<FormValue>): FieldNode<FormValue>[] {
-  // Используем duck-typing вместо instanceof для поддержки Proxy (GroupNodeWithControls)
+  // Используем duck-typing вместо instanceof для поддержки Proxy (FormProxy)
   // Proxy не проходит проверку instanceof, но type guards работают корректно
   if (isFieldNode(node)) {
     return [node];

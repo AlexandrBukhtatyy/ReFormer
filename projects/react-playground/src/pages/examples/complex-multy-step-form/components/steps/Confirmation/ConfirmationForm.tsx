@@ -1,9 +1,9 @@
-import { useFormControlValue, type GroupNodeWithControls } from '@reformer/core';
+import { useFormControlValue, type FormProxy } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface ConfirmationFormProps {
-  control: GroupNodeWithControls<CreditApplicationForm>;
+  control: FormProxy<CreditApplicationForm>;
 }
 
 export function ConfirmationForm({ control }: ConfirmationFormProps) {

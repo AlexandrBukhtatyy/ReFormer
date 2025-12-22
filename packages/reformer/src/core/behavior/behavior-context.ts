@@ -5,7 +5,7 @@
  */
 
 import type { GroupNode } from '../nodes/group-node';
-import type { GroupNodeWithControls } from '../types/group-node-proxy';
+import type { FormProxy } from '../types/form-proxy';
 import type { FormContext } from '../types/form-context';
 import type { FieldPathNode } from '../types/field-path';
 
@@ -20,15 +20,15 @@ export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
   /**
    * Форма с типизированным Proxy-доступом к полям
    */
-  public readonly form: GroupNodeWithControls<TForm>;
+  public readonly form: FormProxy<TForm>;
 
   private _form: GroupNode<TForm>;
 
   constructor(form: GroupNode<TForm>) {
     this._form = form;
     // Используем _proxyInstance если доступен, иначе fallback на form
-    const proxy = ((form as unknown as { _proxyInstance?: GroupNodeWithControls<TForm> })
-      ._proxyInstance || form) as GroupNodeWithControls<TForm>;
+    const proxy = ((form as unknown as { _proxyInstance?: FormProxy<TForm> })._proxyInstance ||
+      form) as FormProxy<TForm>;
 
     this.form = proxy;
   }

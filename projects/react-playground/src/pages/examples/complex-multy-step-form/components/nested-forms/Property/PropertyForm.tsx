@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { memo } from 'react';
-import type { FormSchema, GroupNodeWithControls } from '@reformer/core';
+import type { FormSchema, FormProxy } from '@reformer/core';
 import type { Property } from './types';
 
 export type { Property, PropertyType } from './types';
@@ -57,7 +57,7 @@ export const propertyFormSchema: FormSchema<Property> = {
 
 interface PropertyFormProps {
   // GroupProxy для элемента массива properties
-  control: GroupNodeWithControls<Property>;
+  control: FormProxy<Property>;
 }
 
 const PropertyFormComponent = ({ control }: PropertyFormProps) => {

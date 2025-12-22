@@ -42,7 +42,7 @@ import { FormArray } from '@reformer/ui/form-array';
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: GroupNodeWithControls<T>;  // Form control for item
+  control: FormProxy<T>;  // Form control for item
   index: number;                       // Zero-based index
   id: string | number;                 // Unique key
   remove: () => void;                  // Remove this item
@@ -77,7 +77,7 @@ interface FormArrayHandle<T> {
   removeAt: (index: number) => void;
   length: number;
   isEmpty: boolean;
-  at: (index: number) => GroupNodeWithControls<T> | undefined;
+  at: (index: number) => FormProxy<T> | undefined;
 }
 ```
 

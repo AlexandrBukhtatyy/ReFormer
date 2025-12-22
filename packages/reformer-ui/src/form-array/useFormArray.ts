@@ -1,17 +1,12 @@
 import { useMemo } from 'react';
-import {
-  useFormControl,
-  type ArrayNode,
-  type FormFields,
-  type GroupNodeWithControls,
-} from '@reformer/core';
+import { useFormControl, type ArrayNode, type FormFields, type FormProxy } from '@reformer/core';
 
 /**
  * Represents a single item in a form array with its control, index, and actions
  */
 export interface FormArrayItem<T extends FormFields> {
   /** The form control for this item */
-  control: GroupNodeWithControls<T>;
+  control: FormProxy<T>;
   /** Zero-based index of the item in the array */
   index: number;
   /** Unique identifier for React key (uses internal id or falls back to index) */
