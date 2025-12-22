@@ -991,7 +991,10 @@ describe('FieldNode', () => {
 
       await field.validate();
 
-      expect(asyncValidatorFn).toHaveBeenCalledWith('valid');
+      expect(asyncValidatorFn).toHaveBeenCalledWith(
+        'valid',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
     });
   });
 

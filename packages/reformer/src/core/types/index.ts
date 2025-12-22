@@ -39,11 +39,49 @@ export type UnknownFormValue = unknown;
 export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
 
 /**
- * Асинхронная функция валидации
+ * Опции для асинхронного валидатора
  * @group Types
  * @category Validation Types
  */
-export type AsyncValidatorFn<T = FormValue> = (value: T) => Promise<ValidationError | null>;
+export interface AsyncValidatorOptions {
+  /**
+   * AbortSignal для отмены валидации
+   * Позволяет отменить асинхронную операцию при новой валидации
+   */
+  signal?: AbortSignal;
+}
+
+/**
+ * Асинхронная функция валидации
+ *
+ * @param value - Значение для валидации
+ * @param options - Опции валидации (опционально)
+ * @returns Promise с ошибкой валидации или null если значение валидно
+ *
+ * @example
+ * ```typescript
+ * // Простой валидатор (без поддержки отмены)
+ * const emailExists: AsyncValidatorFn<string> = async (value) => {
+ *   const exists = await checkEmail(value);
+ *   return exists ? { code: 'exists', message: 'Email already exists' } : null;
+ * };
+ *
+ * // Валидатор с поддержкой отмены
+ * const emailExistsAbortable: AsyncValidatorFn<string> = async (value, options) => {
+ *   const exists = await fetch(`/api/check-email?email=${value}`, {
+ *     signal: options?.signal // Передаём signal в fetch для отмены запроса
+ *   });
+ *   return exists ? { code: 'exists', message: 'Email already exists' } : null;
+ * };
+ * ```
+ *
+ * @group Types
+ * @category Validation Types
+ */
+export type AsyncValidatorFn<T = FormValue> = (
+  value: T,
+  options?: AsyncValidatorOptions
+) => Promise<ValidationError | null>;
 
 /**
  * Ошибка валидации

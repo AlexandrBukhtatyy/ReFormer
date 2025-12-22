@@ -241,6 +241,77 @@ describe('FieldNode - Cleanup (dispose)', () => {
       // The important part is that dispose() clears the timer
       expect(() => fieldWithDebounce.dispose()).not.toThrow();
     });
+
+    it('should resolve pending debounce promise on dispose (prevent memory leak)', async () => {
+      const fieldWithDebounce = new FieldNode({
+        value: '',
+        component: null as ComponentInstance,
+        asyncValidators: [
+          async () => {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            return null;
+          },
+        ],
+        debounce: 500,
+      });
+
+      fieldWithDebounce.setValue('test');
+      const validatePromise = fieldWithDebounce.validate();
+
+      // Dispose во время debounce (до того как таймер сработает)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      fieldWithDebounce.dispose();
+
+      // Промис должен resolve(false), а не зависнуть навсегда
+      const result = await Promise.race([
+        validatePromise,
+        new Promise<string>((resolve) => setTimeout(() => resolve('timeout'), 200)),
+      ]);
+
+      // Если промис resolve'ится корректно - получим false
+      // Если промис зависает - получим 'timeout'
+      expect(result).toBe(false);
+    });
+
+    it('should abort async validation on dispose', async () => {
+      let wasAborted = false;
+
+      const fieldWithAsync = new FieldNode({
+        value: '',
+        component: null as ComponentInstance,
+        asyncValidators: [
+          async (_value, options) => {
+            try {
+              await new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(resolve, 500);
+                options?.signal?.addEventListener('abort', () => {
+                  clearTimeout(timeout);
+                  wasAborted = true;
+                  reject(new DOMException('Aborted', 'AbortError'));
+                });
+              });
+              return null;
+            } catch (e) {
+              if (e instanceof DOMException && e.name === 'AbortError') {
+                throw e;
+              }
+              return null;
+            }
+          },
+        ],
+      });
+
+      fieldWithAsync.setValue('test');
+      const validatePromise = fieldWithAsync.validate();
+
+      // Dispose через 50ms (валидация ещё выполняется)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      fieldWithAsync.dispose();
+
+      await validatePromise;
+
+      expect(wasAborted).toBe(true);
+    });
   });
 
   describe('edge cases', () => {
