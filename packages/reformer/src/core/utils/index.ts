@@ -14,3 +14,4 @@ export { Debouncer } from './debounce';
 export { FormErrorHandler, ErrorStrategy } from './error-handler';
 export { createForm } from './create-form';
 export * from './resources';
+export { uniqueId } from './unique-id';

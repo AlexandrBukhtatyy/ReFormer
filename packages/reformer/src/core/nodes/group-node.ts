@@ -26,6 +26,7 @@ import type {
 } from '../types';
 import type { FormProxy } from '../types/form-proxy';
 import { createFieldPath } from '../validation';
+import { uniqueId } from '../utils/unique-id';
 import { ValidationApplicator } from '../validation/validation-applicator';
 import type { BehaviorSchemaFn } from '../behavior/types';
 import { BehaviorRegistry } from '../behavior/behavior-registry';
@@ -710,7 +711,7 @@ export class GroupNode<T> extends FormNode<T> {
       targetField.setValue(transformedValue as any, { emitEvent: false });
     });
 
-    const key = `linkFields-${Date.now()}-${Math.random()}`;
+    const key = uniqueId('linkFields');
     return this.disposers.add(key, dispose);
   }
 
@@ -761,7 +762,7 @@ export class GroupNode<T> extends FormNode<T> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watchField-${Date.now()}-${Math.random()}`;
+    const key = uniqueId('watchField');
     return this.disposers.add(key, dispose);
   }
 

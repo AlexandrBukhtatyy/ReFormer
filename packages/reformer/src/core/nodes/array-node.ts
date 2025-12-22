@@ -13,6 +13,7 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import { GroupNode } from './group-node';
+import { uniqueId } from '../utils/unique-id';
 import type {
   FieldStatus,
   ValidationError,
@@ -519,7 +520,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watchItems-${Date.now()}-${Math.random()}`;
+    const key = uniqueId('watchItems');
     return this.disposers.add(key, dispose);
   }
 
@@ -552,7 +553,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watchLength-${Date.now()}-${Math.random()}`;
+    const key = uniqueId('watchLength');
     return this.disposers.add(key, dispose);
   }
 

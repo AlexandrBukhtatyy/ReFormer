@@ -13,6 +13,7 @@ import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
 import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
 import { SubscriptionManager } from '../utils/subscription-manager';
+import { uniqueId } from '../utils/unique-id';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
@@ -541,7 +542,7 @@ export class FieldNode<T> extends FormNode<T> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watch-${Date.now()}-${Math.random()}`;
+    const key = uniqueId('watch');
     return this.disposers.add(key, dispose);
   }
 
@@ -584,7 +585,7 @@ export class FieldNode<T> extends FormNode<T> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `computeFrom-${Date.now()}-${Math.random()}`;
+    const key = uniqueId('computeFrom');
     return this.disposers.add(key, dispose);
   }
 
