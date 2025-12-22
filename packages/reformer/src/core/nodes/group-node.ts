@@ -348,12 +348,14 @@ export class GroupNode<T> extends FormNode<T> {
 
   patchValue(value: Partial<T>): void {
     // Используем batch чтобы все обновления происходили атомарно
+    // emitEvent: false предотвращает N валидаций при обновлении N полей
+    // Валидация НЕ запускается автоматически - вызовите validate() если нужно
     batch(() => {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          field.setValue(fieldValue as any);
+          field.setValue(fieldValue as any, { emitEvent: false });
         }
       }
     });
