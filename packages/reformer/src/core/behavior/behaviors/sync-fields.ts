@@ -52,9 +52,12 @@ export function syncFields<TForm extends FormFields, T extends FormValue>(
 
       withDebounce(() => {
         isUpdating = true;
-        const finalValue = transform ? transform(sourceValue) : sourceValue;
-        targetNode.setValue(finalValue as FormValue, { emitEvent: false });
-        isUpdating = false;
+        try {
+          const finalValue = transform ? transform(sourceValue) : sourceValue;
+          targetNode.setValue(finalValue as FormValue, { emitEvent: false });
+        } finally {
+          isUpdating = false;
+        }
       });
     });
 
@@ -65,9 +68,12 @@ export function syncFields<TForm extends FormFields, T extends FormValue>(
 
       withDebounce(() => {
         isUpdating = true;
-        // Обратная синхронизация (без трансформации)
-        sourceNode.setValue(targetValue, { emitEvent: false });
-        isUpdating = false;
+        try {
+          // Обратная синхронизация (без трансформации)
+          sourceNode.setValue(targetValue, { emitEvent: false });
+        } finally {
+          isUpdating = false;
+        }
       });
     });
 
