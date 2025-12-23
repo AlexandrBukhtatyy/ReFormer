@@ -26,12 +26,12 @@ describe('FieldNode - Cleanup (dispose)', () => {
 
       // Initial call
       expect(callback).toHaveBeenCalledTimes(1);
-      expect(callback).toHaveBeenCalledWith('');
+      expect(callback).toHaveBeenCalledWith('', expect.any(AbortSignal));
 
       // Change value
       field.setValue('test');
       expect(callback).toHaveBeenCalledTimes(2);
-      expect(callback).toHaveBeenCalledWith('test');
+      expect(callback).toHaveBeenCalledWith('test', expect.any(AbortSignal));
 
       // Dispose
       field.dispose();

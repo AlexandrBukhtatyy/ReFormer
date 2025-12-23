@@ -7,21 +7,42 @@
  *
  * @example
  * ```typescript
- * const key1 = uniqueId('watch'); // "watch-1"
- * const key2 = uniqueId('watch'); // "watch-2"
- * const key3 = uniqueId('effect'); // "effect-3"
+ * const key1 = uniqueId(SubscriptionKey.Watch); // "watch-1"
+ * const key2 = uniqueId(SubscriptionKey.Watch); // "watch-2"
+ * const key3 = uniqueId(SubscriptionKey.ComputeFrom); // "computeFrom-3"
  * ```
  */
+
+/**
+ * Типобезопасные ключи для подписок
+ * Используются с uniqueId() для генерации уникальных идентификаторов
+ */
+export const SubscriptionKey = {
+  /** FieldNode.watch() */
+  Watch: 'watch',
+  /** FieldNode.computeFrom() */
+  ComputeFrom: 'computeFrom',
+  /** GroupNode.linkFields() */
+  LinkFields: 'linkFields',
+  /** GroupNode.watchField() */
+  WatchField: 'watchField',
+  /** ArrayNode.watchItems() */
+  WatchItems: 'watchItems',
+  /** ArrayNode.watchLength() */
+  WatchLength: 'watchLength',
+} as const;
+
+export type SubscriptionKeyType = (typeof SubscriptionKey)[keyof typeof SubscriptionKey];
 
 let counter = 0;
 
 /**
  * Генерирует уникальный идентификатор с указанным префиксом
  *
- * @param prefix - Префикс для идентификатора
+ * @param prefix - Префикс для идентификатора (используйте SubscriptionKey)
  * @returns Уникальный идентификатор в формате `${prefix}-${counter}`
  */
-export function uniqueId(prefix: string): string {
+export function uniqueId(prefix: SubscriptionKeyType): string {
   return `${prefix}-${++counter}`;
 }
 

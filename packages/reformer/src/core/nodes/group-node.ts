@@ -26,7 +26,7 @@ import type {
 } from '../types';
 import type { FormProxy } from '../types/form-proxy';
 import { createFieldPath } from '../validation';
-import { uniqueId } from '../utils/unique-id';
+import { uniqueId, SubscriptionKey } from '../utils/unique-id';
 import { ValidationApplicator } from '../validation/validation-applicator';
 import type { BehaviorSchemaFn } from '../behavior/types';
 import { BehaviorRegistry } from '../behavior/behavior-registry';
@@ -35,6 +35,7 @@ import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validation/validation-registry';
+import { createAggregateSignals } from '../utils/aggregate-signals';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -185,10 +186,10 @@ export class GroupNode<T> extends FormNode<T> {
     }
 
     // ========================================================================
-    // Создание computed signals (inline из StateManager)
+    // Создание computed signals через createAggregateSignals
     // ========================================================================
 
-    // Computed signal для значения формы
+    // Computed signal для значения формы (специфичен для GroupNode)
     this.value = computed(() => {
       const result = {} as T;
       this._fields.forEach((field, key) => {
@@ -198,48 +199,22 @@ export class GroupNode<T> extends FormNode<T> {
       return result;
     });
 
-    // Computed signal для валидности формы
-    this.valid = computed(() => {
-      if (this._formErrors.value.length > 0) return false;
-      return Array.from(this._fields.values()).every((field) => field.valid.value);
+    // Агрегированные signals через общую утилиту
+    const aggregateSignals = createAggregateSignals({
+      getChildren: () => Array.from(this._fields.values()),
+      ownErrors: this._formErrors,
+      disabled: this._disabled,
     });
 
-    // Computed signal для невалидности
-    this.invalid = computed(() => !this.valid.value);
+    this.valid = aggregateSignals.valid;
+    this.invalid = aggregateSignals.invalid;
+    this.pending = aggregateSignals.pending;
+    this.touched = aggregateSignals.touched;
+    this.dirty = aggregateSignals.dirty;
+    this.errors = aggregateSignals.errors;
+    this.status = aggregateSignals.status;
 
-    // Computed signal для pending состояния
-    this.pending = computed(() =>
-      Array.from(this._fields.values()).some((field) => field.pending.value)
-    );
-
-    // Computed signal для touched состояния
-    this.touched = computed(() =>
-      Array.from(this._fields.values()).some((field) => field.touched.value)
-    );
-
-    // Computed signal для dirty состояния
-    this.dirty = computed(() =>
-      Array.from(this._fields.values()).some((field) => field.dirty.value)
-    );
-
-    // Computed signal для ошибок (form-level + field-level)
-    this.errors = computed(() => {
-      const allErrors: ValidationError[] = [...this._formErrors.value];
-      this._fields.forEach((field) => {
-        allErrors.push(...field.errors.value);
-      });
-      return allErrors;
-    });
-
-    // Computed signal для статуса формы
-    this.status = computed(() => {
-      if (this._disabled.value) return 'disabled';
-      if (this.pending.value) return 'pending';
-      if (this.invalid.value) return 'invalid';
-      return 'valid';
-    });
-
-    // Computed signal для submitting
+    // Computed signal для submitting (специфичен для GroupNode)
     this.submitting = computed(() => this._submitting.value);
 
     // ========================================================================
@@ -708,12 +683,8 @@ export class GroupNode<T> extends FormNode<T> {
     const targetField = this._fields.get(targetKey);
 
     if (!sourceField || !targetField) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          `GroupNode.linkFields: field "${String(sourceKey)}" or "${String(targetKey)}" not found`
-        );
-      }
-      return () => {};
+      const missingField = !sourceField ? sourceKey : targetKey;
+      throw new Error(`GroupNode.linkFields: field "${String(missingField)}" not found`);
     }
 
     const dispose = effect(() => {
@@ -724,7 +695,7 @@ export class GroupNode<T> extends FormNode<T> {
       targetField.setValue(transformedValue as any, { emitEvent: false });
     });
 
-    const key = uniqueId('linkFields');
+    const key = uniqueId(SubscriptionKey.LinkFields);
     return this.disposers.add(key, dispose);
   }
 
@@ -762,10 +733,7 @@ export class GroupNode<T> extends FormNode<T> {
     const field = this.getFieldByPath(fieldPath as string);
 
     if (!field) {
-      if (import.meta.env.DEV) {
-        console.warn(`GroupNode.watchField: field "${fieldPath}" not found`);
-      }
-      return () => {}; // noop
+      throw new Error(`GroupNode.watchField: field "${fieldPath}" not found`);
     }
 
     const dispose = effect(() => {
@@ -775,7 +743,7 @@ export class GroupNode<T> extends FormNode<T> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = uniqueId('watchField');
+    const key = uniqueId(SubscriptionKey.WatchField);
     return this.disposers.add(key, dispose);
   }
 

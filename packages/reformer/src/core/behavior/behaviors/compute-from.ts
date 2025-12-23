@@ -64,8 +64,9 @@ export function computeFrom<TForm, TTarget>(
     if (sourceNodes.length === 0) return null;
 
     return effect(() => {
-      // Читаем значения всех source полей (создает зависимость)
-      const sourceValues = sourceNodes.map((node) => node.value.value);
+      // Читаем значения всех source полей для создания зависимости
+      // (effect будет перезапускаться при изменении любого из них)
+      sourceNodes.forEach((node) => node.value.value);
 
       withDebounce(() => {
         // Проверка условия
@@ -74,13 +75,18 @@ export function computeFrom<TForm, TTarget>(
           if (!condition(formValue)) return;
         }
 
+        // Читаем СВЕЖИЕ значения внутри debounce callback
+        // Это решает race condition: если источники изменились за время debounce,
+        // мы используем актуальные значения, а не устаревшие
+        const freshSourceValues = sourceNodes.map((node) => node.value.value);
+
         // Создаем объект с именами полей для computeFn
         // computeFn ожидает объект вида { fieldName: value, ... }
         const sourceValuesObject: Record<string, unknown> = {};
         sources.forEach((source, index) => {
           // Извлекаем имя поля из пути (последний сегмент)
           const fieldName = source.__path.split('.').pop() || source.__path;
-          sourceValuesObject[fieldName] = sourceValues[index];
+          sourceValuesObject[fieldName] = freshSourceValues[index];
         });
 
         // Вычисляем новое значение
