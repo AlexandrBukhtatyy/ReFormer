@@ -55,22 +55,25 @@ export function copyFrom<TForm, TSource, TTarget>(
       if (!targetNode) return;
 
       // Копирование
-      if (fields === 'all' || !fields) {
-        targetNode.setValue(value, { emitEvent: false });
-      } else {
-        // Частичное копирование для групп
-        const patch: Record<string, unknown> = {};
-        fields.forEach((key) => {
-          if (sourceValue && typeof sourceValue === 'object') {
+      // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+      queueMicrotask(() => {
+        if (fields === 'all' || !fields) {
+          targetNode.setValue(value, { emitEvent: false });
+        } else {
+          // Частичное копирование для групп
+          const patch: Record<string, unknown> = {};
+          fields.forEach((key) => {
+            if (sourceValue && typeof sourceValue === 'object') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              patch[key as string] = (sourceValue as any)[key];
+            }
+          });
+          if ('patchValue' in targetNode) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            patch[key as string] = (sourceValue as any)[key];
+            (targetNode as any).patchValue(patch);
           }
-        });
-        if ('patchValue' in targetNode) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (targetNode as any).patchValue(patch);
         }
-      }
+      });
     },
     { debounce }
   );

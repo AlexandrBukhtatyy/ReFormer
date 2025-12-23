@@ -52,12 +52,15 @@ export function syncFields<TForm extends FormFields, T extends FormValue>(
 
       withDebounce(() => {
         isUpdating = true;
-        try {
-          const finalValue = transform ? transform(sourceValue) : sourceValue;
-          targetNode.setValue(finalValue as FormValue, { emitEvent: false });
-        } finally {
-          isUpdating = false;
-        }
+        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+        queueMicrotask(() => {
+          try {
+            const finalValue = transform ? transform(sourceValue) : sourceValue;
+            targetNode.setValue(finalValue as FormValue, { emitEvent: false });
+          } finally {
+            isUpdating = false;
+          }
+        });
       });
     });
 
@@ -68,12 +71,15 @@ export function syncFields<TForm extends FormFields, T extends FormValue>(
 
       withDebounce(() => {
         isUpdating = true;
-        try {
-          // Обратная синхронизация (без трансформации)
-          sourceNode.setValue(targetValue, { emitEvent: false });
-        } finally {
-          isUpdating = false;
-        }
+        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+        queueMicrotask(() => {
+          try {
+            // Обратная синхронизация (без трансформации)
+            sourceNode.setValue(targetValue, { emitEvent: false });
+          } finally {
+            isUpdating = false;
+          }
+        });
       });
     });
 

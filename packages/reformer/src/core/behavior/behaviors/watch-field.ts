@@ -61,7 +61,11 @@ export function watchField<TForm, TField>(
       const value = node.value.value as TField;
 
       withDebounce(() => {
-        callback(value, context);
+        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+        // Это позволяет callback-ам модифицировать сигналы (reset, setValue, etc.)
+        queueMicrotask(() => {
+          callback(value, context);
+        });
       });
     });
   };

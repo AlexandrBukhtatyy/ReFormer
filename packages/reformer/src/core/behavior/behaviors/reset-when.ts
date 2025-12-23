@@ -75,12 +75,15 @@ export function resetWhen<TForm extends FormFields>(
             return;
           }
 
-          // Сбрасываем значение
-          targetNode.setValue(resetValue);
+          // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+          queueMicrotask(() => {
+            // Сбрасываем значение
+            targetNode.setValue(resetValue);
 
-          // Сбрасываем флаги dirty и touched
-          targetNode.markAsPristine();
-          targetNode.markAsUntouched();
+            // Сбрасываем флаги dirty и touched
+            targetNode.markAsPristine();
+            targetNode.markAsUntouched();
+          });
         }
       });
     });

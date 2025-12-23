@@ -50,14 +50,17 @@ export function enableWhen<TForm>(
       withDebounce(() => {
         const shouldEnable = condition(formValue);
 
-        if (shouldEnable) {
-          targetNode.enable();
-        } else {
-          targetNode.disable();
-          if (resetOnDisable) {
-            targetNode.reset();
+        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+        queueMicrotask(() => {
+          if (shouldEnable) {
+            targetNode.enable();
+          } else {
+            targetNode.disable();
+            if (resetOnDisable) {
+              targetNode.reset();
+            }
           }
-        }
+        });
       });
     });
   };
