@@ -36,7 +36,6 @@ import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validation/validation-registry';
 import { createAggregateSignals } from '../utils/aggregate-signals';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * GroupNode - узел для группы полей
@@ -82,7 +81,7 @@ export class GroupNode<T> extends FormNode<T> {
   // ============================================================================
   // Приватные поля
   // ============================================================================
-  public id = uuidv4();
+  public id = crypto.randomUUID();
 
   /**
    * Коллекция полей формы (упрощённый Map вместо FieldRegistry)
