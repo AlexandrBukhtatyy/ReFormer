@@ -26,7 +26,17 @@ export default defineConfig({
         'validators/url': resolve(__dirname, 'src/core/validation/validators/url.ts'),
         'validators/phone': resolve(__dirname, 'src/core/validation/validators/phone.ts'),
         'validators/number': resolve(__dirname, 'src/core/validation/validators/number.ts'),
-        'validators/date': resolve(__dirname, 'src/core/validation/validators/date.ts'),
+        // Date validators (atomic)
+        'validators/is-date': resolve(__dirname, 'src/core/validation/validators/is-date.ts'),
+        'validators/min-date': resolve(__dirname, 'src/core/validation/validators/min-date.ts'),
+        'validators/max-date': resolve(__dirname, 'src/core/validation/validators/max-date.ts'),
+        'validators/past-date': resolve(__dirname, 'src/core/validation/validators/past-date.ts'),
+        'validators/future-date': resolve(
+          __dirname,
+          'src/core/validation/validators/future-date.ts'
+        ),
+        'validators/min-age': resolve(__dirname, 'src/core/validation/validators/min-age.ts'),
+        'validators/max-age': resolve(__dirname, 'src/core/validation/validators/max-age.ts'),
         // Granular behavior exports for tree-shaking
         'behaviors/copy-from': resolve(__dirname, 'src/core/behavior/behaviors/copy-from.ts'),
         'behaviors/enable-when': resolve(__dirname, 'src/core/behavior/behaviors/enable-when.ts'),
