@@ -12,7 +12,7 @@
 
 import type { FieldPathNode, FieldPath } from '../../types';
 import type { ValidationSchemaFn } from '../../types/validation-schema';
-import { toFieldPath } from '../field-path';
+import { toFieldPath } from '../../utils/field-path';
 
 // ============================================================================
 // apply - Применение validation схемы к полям

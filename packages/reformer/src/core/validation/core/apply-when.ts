@@ -5,7 +5,7 @@
  * @category Core Functions
  */
 
-import { extractPath, createFieldPath } from '../field-path';
+import { extractPath, createFieldPath } from '../../utils/field-path';
 import type { FieldPath } from '../../types/field-path';
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
 import type { ConditionFn } from '../../types/validation-schema';

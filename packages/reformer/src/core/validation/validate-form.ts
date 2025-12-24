@@ -42,7 +42,7 @@ import { GroupNode } from '../nodes/group-node';
 import type { ValidationSchemaFn, ValidatorRegistration, FormFields, FormValue } from '../types';
 import { isFieldNode, isGroupNode, isArrayNode } from '../utils/type-guards';
 import { ValidationRegistry } from './validation-registry';
-import { createFieldPath } from './field-path';
+import { createFieldPath } from '../utils/field-path';
 
 /**
  * Рекурсивно собирает все FieldNode из дерева формы
