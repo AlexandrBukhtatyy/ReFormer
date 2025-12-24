@@ -36,6 +36,7 @@ import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validation/validation-registry';
 import { createAggregateSignals } from '../utils/aggregate-signals';
+import { buildFormProxy } from '../utils/form-proxy-builder';
 
 /**
  * GroupNode - узел для группы полей
@@ -111,13 +112,15 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Реестр валидаторов для этой формы
+   * Может быть инжектирован через config._validationRegistry для тестирования
    */
-  private readonly validationRegistry = new ValidationRegistry();
+  private readonly validationRegistry: ValidationRegistry;
 
   /**
    * Реестр behaviors для этой формы
+   * Может быть инжектирован через config._behaviorRegistry для тестирования
    */
-  private readonly behaviorRegistry = new BehaviorRegistry();
+  private readonly behaviorRegistry: BehaviorRegistry;
 
   /**
    * Аппликатор для применения валидаторов к форме
@@ -170,6 +173,7 @@ export class GroupNode<T> extends FormNode<T> {
 
     // Определяем, что передано: schema или config
     const isConfig = 'form' in schemaOrConfig;
+    const config = isConfig ? (schemaOrConfig as GroupNodeConfig<T>) : undefined;
     const formSchema = isConfig
       ? (schemaOrConfig as GroupNodeConfig<T>).form
       : (schemaOrConfig as FormSchema<T>);
@@ -178,9 +182,15 @@ export class GroupNode<T> extends FormNode<T> {
       ? (schemaOrConfig as GroupNodeConfig<T>).validation
       : undefined;
 
+    // Инициализация реестров (с поддержкой DI для тестирования)
+    this.validationRegistry =
+      (config?._validationRegistry as ValidationRegistry) ?? new ValidationRegistry();
+    this.behaviorRegistry =
+      (config?._behaviorRegistry as BehaviorRegistry) ?? new BehaviorRegistry();
+
     // Создать поля из схемы с поддержкой вложенности
-    for (const [key, config] of Object.entries(formSchema)) {
-      const node = this.createNode(config);
+    for (const [key, fieldConfig] of Object.entries(formSchema)) {
+      const node = this.createNode(fieldConfig);
       this._fields.set(key as keyof T, node);
     }
 
@@ -238,73 +248,15 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   // ============================================================================
-  // Приватный метод для создания Proxy (inline из ProxyBuilder)
+  // Приватный метод для создания Proxy
   // ============================================================================
 
   /**
    * Создать Proxy для типобезопасного доступа к полям
+   * @see buildFormProxy
    */
   private buildProxy(): FormProxy<T> {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-
-    return new Proxy(this, {
-      get: (target, prop: string | symbol) => {
-        // Приоритет 1: Собственные свойства и методы GroupNode
-        if (prop in target) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (target as any)[prop];
-        }
-        // Приоритет 2: Поля формы
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          const field = self._fields.get(prop as keyof T);
-          // Если поле - вложенный GroupNode, возвращаем его proxy для цепочки доступа
-          // Например: form.address.city (address - GroupNode, city - FieldNode)
-          if (
-            field &&
-            typeof (field as unknown as { getProxy?: () => unknown }).getProxy === 'function'
-          ) {
-            return (field as unknown as { getProxy: () => unknown }).getProxy();
-          }
-          return field;
-        }
-        return undefined;
-      },
-
-      set: (target, prop: string | symbol, value: unknown) => {
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          if (import.meta.env.DEV) {
-            console.warn(
-              `[GroupNode] Cannot set field "${prop}" directly. Use .setValue() or .patchValue() instead.`
-            );
-          }
-          return false;
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (target as any)[prop] = value;
-        return true;
-      },
-
-      has: (target, prop: string | symbol) => {
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          return true;
-        }
-        return prop in target;
-      },
-
-      ownKeys: (target) => {
-        const nodeKeys = Reflect.ownKeys(target);
-        const fieldKeys = Array.from(self._fields.keys()) as (string | symbol)[];
-        return [...new Set([...nodeKeys, ...fieldKeys])];
-      },
-
-      getOwnPropertyDescriptor: (target, prop) => {
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          return { enumerable: true, configurable: true };
-        }
-        return Reflect.getOwnPropertyDescriptor(target, prop);
-      },
-    }) as FormProxy<T>;
+    return buildFormProxy(this, this._fields as Map<keyof T, FormNode<unknown>>);
   }
 
   // ============================================================================

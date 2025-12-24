@@ -192,6 +192,20 @@ export interface GroupNodeConfig<T> {
 
   /** Схема валидации (required, email, minLength и т.д.) */
   validation?: ValidationSchemaFn<T>;
+
+  /**
+   * Опциональный ValidationRegistry для dependency injection
+   * Используется для тестирования с mock-реестрами
+   * @internal
+   */
+  _validationRegistry?: unknown;
+
+  /**
+   * Опциональный BehaviorRegistry для dependency injection
+   * Используется для тестирования с mock-реестрами
+   * @internal
+   */
+  _behaviorRegistry?: unknown;
 }
 
 // ============================================================================
