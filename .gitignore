@@ -3,7 +3,7 @@ node_modules
 test-results
 playwright-report
 .playwright-mcp
-.claude/
+.claude/settings.local.json
 
 .env
 

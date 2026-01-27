@@ -1,0 +1,26 @@
+{
+  "plansDirectory": "./docs/plans",
+  "language": "russian",
+  "alwaysThinkingEnabled": true,
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": ["Bash(npm:*)", "Bash(git:*)", "Edit(src/**)", "Bash(bd:*)", "mcp__playwright__*"],
+    "deny": ["Read(.env*)", "Read(**/credentials*)"]
+  },
+  "env": {
+    "ENABLE_TOOL_SEARCH": "auto:5",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80"
+  },
+  "autoUpdatesChannel": "stable",
+  "cleanupPeriodDays": 14,
+  "attribution": {
+    "commit": "Co-Authored-By: Claude <noreply@anthropic.com>",
+    "pr": ""
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "respectGitignore": true
+}
