@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../types';
 
 /**
@@ -49,9 +50,9 @@ export function watchField<TForm, TField>(
     if (!node) return null;
 
     // Вызвать сразу если immediate: true
-    // queueMicrotask предотвращает "Cycle detected" - выходит из контекста effect
+    // runOutsideEffect предотвращает "Cycle detected" - выходит из контекста effect
     if (immediate) {
-      queueMicrotask(() => {
+      runOutsideEffect(() => {
         const value = node.value.value as TField;
         callback(value, context);
       });
@@ -61,11 +62,9 @@ export function watchField<TForm, TField>(
       const value = node.value.value as TField;
 
       withDebounce(() => {
-        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
+        // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
         // Это позволяет callback-ам модифицировать сигналы (reset, setValue, etc.)
-        queueMicrotask(() => {
-          callback(value, context);
-        });
+        runOutsideEffect(() => callback(value, context));
       });
     });
   };

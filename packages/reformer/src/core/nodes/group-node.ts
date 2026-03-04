@@ -227,13 +227,10 @@ export class GroupNode<T> extends FormNode<T> {
     this.submitting = computed(() => this._submitting.value);
 
     // ========================================================================
-    // Создание Proxy (inline из ProxyBuilder)
+    // Lazy Proxy Initialization
     // ========================================================================
-
-    // Proxy создаётся и кэшируется для последующего доступа через getProxy()
-    // BREAKING CHANGE v2.0: Конструктор больше НЕ возвращает Proxy
-    // Используйте createForm() для получения FormProxy с прямым доступом к полям
-    this._proxyInstance = this.buildProxy();
+    // Proxy создаётся лениво при первом вызове getProxy()
+    // Это улучшает производительность для форм, где proxy не используется напрямую
 
     // Применяем схемы, если они переданы (новый API)
     if (behaviorSchema) {
@@ -410,7 +407,11 @@ export class GroupNode<T> extends FormNode<T> {
    * ```
    */
   getProxy(): FormProxy<T> {
-    return (this._proxyInstance || this) as FormProxy<T>;
+    // Lazy initialization: создаём proxy только при первом обращении
+    if (!this._proxyInstance) {
+      this._proxyInstance = this.buildProxy();
+    }
+    return this._proxyInstance;
   }
 
   /**

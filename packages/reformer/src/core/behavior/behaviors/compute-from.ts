@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
 
 /**
@@ -98,8 +99,8 @@ export function computeFrom<TForm, TTarget>(
 
         // Устанавливаем значение только если оно отличается от текущего
         if (currentTargetValue !== computedValue) {
-          // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
-          queueMicrotask(() => {
+          // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+          runOutsideEffect(() => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             targetNode.setValue(computedValue as any, { emitEvent: false });
           });

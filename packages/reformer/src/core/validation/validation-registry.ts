@@ -1,6 +1,9 @@
 /**
  * ValidationRegistry - система регистрации и применения валидаторов
  *
+ * Наследует AbstractRegistry для унификации логики стека регистрации.
+ * Использует внутренний contextStack для управления condition blocks.
+ *
  * Работает как стек контекстов:
  * 1. При вызове validation schema функции создается новый контекст
  * 2. Все вызовы validate(), applyWhen() и т.д. регистрируют валидаторы в текущем контексте
@@ -9,6 +12,8 @@
 
 import type { GroupNode } from '../nodes/group-node';
 import { FormFields } from '../types';
+import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
+import { AbstractRegistry } from '../utils/abstract-registry';
 import type {
   ValidatorRegistration,
   ContextualValidatorFn,
@@ -19,10 +24,10 @@ import type {
   ValidateAsyncOptions,
   ValidateTreeOptions,
 } from '../types/validation-schema';
-import { RegistryStack } from '../utils/registry-stack';
 
 /**
  * Контекст регистрации валидаторов
+ * Управляет condition stack для условных валидаторов
  */
 class RegistrationContext {
   private validators: ValidatorRegistration[] = [];
@@ -69,10 +74,9 @@ class RegistrationContext {
  * Каждый экземпляр GroupNode создает собственный реестр (композиция).
  * Устраняет race conditions и изолирует формы друг от друга.
  *
- * Context stack используется для tracking текущего активного реестра:
- * - beginRegistration() помещает this в global stack
- * - endRegistration() извлекает из global stack
- * - getCurrent() возвращает текущий активный реестр
+ * Наследует AbstractRegistry для унификации:
+ * - Управления global stack
+ * - Template methods begin/end registration
  *
  * @example
  * ```typescript
@@ -87,14 +91,11 @@ class RegistrationContext {
  * }
  * ```
  */
-export class ValidationRegistry {
-  /**
-   * Global stack активных реестров
-   * Используется для изоляции форм друг от друга
-   */
-  private static registryStack = new RegistryStack<ValidationRegistry>();
-
+export class ValidationRegistry extends AbstractRegistry<ValidatorRegistration> {
+  /** Внутренний стек контекстов для управления condition blocks */
   private contextStack: RegistrationContext[] = [];
+
+  /** Финальные валидаторы после завершения регистрации */
   private validators: ValidatorRegistration[] = [];
 
   /**
@@ -114,19 +115,23 @@ export class ValidationRegistry {
    * ```
    */
   static getCurrent(): ValidationRegistry | null {
-    return ValidationRegistry.registryStack.getCurrent();
+    return AbstractRegistry.getCurrentFromStack(ValidationRegistry);
   }
 
   /**
    * Начать регистрацию валидаторов для формы
    *
    * Помещает this в global stack для изоляции форм
+   * Создает новый RegistrationContext для condition management
    */
   beginRegistration(): RegistrationContext {
+    // Вызываем базовый метод для управления global stack
+    super.beginRegistration();
+
+    // Создаем новый контекст для condition management
     const context = new RegistrationContext();
     this.contextStack.push(context);
-    // Помещаем this в global stack для tracking текущего активного реестра
-    ValidationRegistry.registryStack.push(this);
+
     return context;
   }
 
@@ -143,8 +148,8 @@ export class ValidationRegistry {
       throw new Error('No active registration context');
     }
 
-    // Извлекаем из global stack с проверкой
-    ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
+    // Завершаем регистрацию и извлекаем из стека
+    this.completeRegistration('ValidationRegistry');
 
     // Сохраняем валидаторы в локальном состоянии
     // Применение валидаторов происходит в GroupNode.validate() через ValidationApplicator
@@ -172,10 +177,8 @@ export class ValidationRegistry {
       throw new Error('No active registration context to cancel');
     }
 
-    // Извлекаем из global stack с проверкой
-    ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
-
-    // Просто выбрасываем контекст без сохранения
+    // Используем базовый метод для отмены
+    super.cancelRegistration('ValidationRegistry');
   }
 
   /**
@@ -338,8 +341,12 @@ export class ValidationRegistry {
         if (import.meta.env.DEV) {
           console.log(`Applied validation schema to ArrayNode: ${registration.fieldPath}`);
         }
-      } else if (import.meta.env.DEV) {
-        console.warn(`Field ${registration.fieldPath} is not an ArrayNode or doesn't exist`);
+      } else {
+        FormErrorHandler.handle(
+          new Error(`Field ${registration.fieldPath} is not an ArrayNode or doesn't exist`),
+          'ValidationRegistry.applyArrayItemValidators',
+          ErrorStrategy.LOG
+        );
       }
     }
   }

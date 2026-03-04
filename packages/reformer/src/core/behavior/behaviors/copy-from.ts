@@ -8,6 +8,7 @@
 
 import type { FieldPathNode } from '../../types';
 import type { CopyFromOptions } from '../types';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import { watchField } from './watch-field';
 
 /**
@@ -55,8 +56,8 @@ export function copyFrom<TForm, TSource, TTarget>(
       if (!targetNode) return;
 
       // Копирование
-      // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
-      queueMicrotask(() => {
+      // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+      runOutsideEffect(() => {
         if (fields === 'all' || !fields) {
           targetNode.setValue(value, { emitEvent: false });
         } else {

@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { SyncFieldsOptions, BehaviorHandlerFn } from '../types';
 
 /**
@@ -52,8 +53,8 @@ export function syncFields<TForm extends FormFields, T extends FormValue>(
 
       withDebounce(() => {
         isUpdating = true;
-        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
-        queueMicrotask(() => {
+        // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+        runOutsideEffect(() => {
           try {
             const finalValue = transform ? transform(sourceValue) : sourceValue;
             targetNode.setValue(finalValue as FormValue, { emitEvent: false });
@@ -71,8 +72,8 @@ export function syncFields<TForm extends FormFields, T extends FormValue>(
 
       withDebounce(() => {
         isUpdating = true;
-        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
-        queueMicrotask(() => {
+        // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+        runOutsideEffect(() => {
           try {
             // Обратная синхронизация (без трансформации)
             sourceNode.setValue(targetValue, { emitEvent: false });

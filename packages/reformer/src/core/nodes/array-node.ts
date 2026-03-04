@@ -144,11 +144,13 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    */
   removeAt(index: number): void {
     if (index < 0 || index >= this.items.value.length) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          `ArrayNode: index ${index} out of bounds (length: ${this.items.value.length})`
-        );
-      }
+      FormErrorHandler.handle(
+        new Error(
+          `ArrayNode.removeAt: index ${index} out of bounds (length: ${this.items.value.length})`
+        ),
+        'ArrayNode.removeAt',
+        ErrorStrategy.LOG
+      );
       return;
     }
 
@@ -171,11 +173,13 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    */
   insert(index: number, initialValue?: Partial<T>): void {
     if (index < 0 || index > this.items.value.length) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          `ArrayNode: index ${index} out of bounds (length: ${this.items.value.length})`
-        );
-      }
+      FormErrorHandler.handle(
+        new Error(
+          `ArrayNode.insert: index ${index} out of bounds (length: ${this.items.value.length})`
+        ),
+        'ArrayNode.insert',
+        ErrorStrategy.LOG
+      );
       return;
     }
 

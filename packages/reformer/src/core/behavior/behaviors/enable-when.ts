@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
 /**
@@ -50,8 +51,8 @@ export function enableWhen<TForm>(
       withDebounce(() => {
         const shouldEnable = condition(formValue);
 
-        // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
-        queueMicrotask(() => {
+        // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+        runOutsideEffect(() => {
           if (shouldEnable) {
             targetNode.enable();
           } else {

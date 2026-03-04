@@ -1,19 +1,19 @@
 /**
  * BehaviorRegistry - регистрация и управление behavior схемами
  *
- * Аналогично ValidationRegistry, но для реактивного поведения форм
+ * Наследует AbstractRegistry для унификации логики стека регистрации
  */
 
 import type { GroupNode } from '../nodes/group-node';
 import type { BehaviorHandlerFn, BehaviorOptions } from './types';
 import { BehaviorContextImpl } from './behavior-context';
-import { RegistryStack } from '../utils/registry-stack';
+import { AbstractRegistry } from '../utils/abstract-registry';
 import { FormFields } from '../types';
 
 /**
  * Зарегистрированный behavior с опциями
  */
-interface RegisteredBehavior {
+export interface RegisteredBehavior {
   /** Handler функция behavior */
   handler: BehaviorHandlerFn<FormFields>;
   /** Debounce в миллисекундах */
@@ -26,10 +26,9 @@ interface RegisteredBehavior {
  * Каждый экземпляр GroupNode создает собственный реестр (композиция).
  * Устраняет race conditions и изолирует формы друг от друга.
  *
- * Context stack используется для tracking текущего активного реестра:
- * - beginRegistration() помещает this в stack
- * - endRegistration() извлекает из stack
- * - getCurrent() возвращает текущий активный реестр
+ * Наследует AbstractRegistry для унификации:
+ * - Управления global stack
+ * - Template methods begin/end registration
  *
  * @example
  * ```typescript
@@ -44,16 +43,7 @@ interface RegisteredBehavior {
  * }
  * ```
  */
-export class BehaviorRegistry {
-  /**
-   * Stack активных контекстов регистрации
-   * Используется для изоляции форм друг от друга
-   */
-  private static contextStack = new RegistryStack<BehaviorRegistry>();
-
-  private registrations: RegisteredBehavior[] = [];
-  private isRegistering = false;
-
+export class BehaviorRegistry extends AbstractRegistry<RegisteredBehavior> {
   /**
    * Получить текущий активный реестр из context stack
    *
@@ -71,20 +61,7 @@ export class BehaviorRegistry {
    * ```
    */
   static getCurrent(): BehaviorRegistry | null {
-    return BehaviorRegistry.contextStack.getCurrent();
-  }
-
-  /**
-   * Начать регистрацию behaviors
-   * Вызывается перед применением схемы
-   *
-   * Помещает this в context stack для изоляции форм
-   */
-  beginRegistration(): void {
-    this.isRegistering = true;
-    this.registrations = [];
-    // Помещаем this в stack для tracking текущего активного реестра
-    BehaviorRegistry.contextStack.push(this);
+    return AbstractRegistry.getCurrentFromStack(BehaviorRegistry);
   }
 
   /**
@@ -101,7 +78,7 @@ export class BehaviorRegistry {
    * ```
    */
   register<T extends FormFields>(handler: BehaviorHandlerFn<T>, options?: BehaviorOptions): void {
-    if (!this.isRegistering) {
+    if (!this.isActive()) {
       if (import.meta.env.DEV) {
         throw new Error('BehaviorRegistry: call beginRegistration() before registering behaviors');
       }
@@ -120,19 +97,13 @@ export class BehaviorRegistry {
    * Завершить регистрацию и применить behaviors к форме
    * Создает effect подписки для всех зарегистрированных behaviors
    *
-   * Извлекает this из context stack
-   *
    * @param form - GroupNode формы
    * @returns Количество зарегистрированных behaviors и функция cleanup
    */
   endRegistration<T extends FormFields>(
     form: GroupNode<T>
   ): { count: number; cleanup: () => void } {
-    this.isRegistering = false;
-
-    // Извлекаем из stack с проверкой
-    BehaviorRegistry.contextStack.verify(this, 'BehaviorRegistry');
-
+    const count = this.registrations.length;
     const context = new BehaviorContextImpl(form);
     const disposeCallbacks: Array<() => void> = [];
 
@@ -144,15 +115,15 @@ export class BehaviorRegistry {
       }
     }
 
+    // Завершаем регистрацию и извлекаем из стека
+    this.completeRegistration('BehaviorRegistry');
+
     // Функция cleanup для отписки от всех effects
     const cleanup = () => {
       disposeCallbacks.forEach((dispose) => dispose());
     };
 
-    return {
-      count: this.registrations.length,
-      cleanup,
-    };
+    return { count, cleanup };
   }
 
   /**

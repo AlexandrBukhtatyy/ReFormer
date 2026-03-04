@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { BehaviorHandlerFn } from '../types';
 
 /**
@@ -75,8 +76,8 @@ export function resetWhen<TForm extends FormFields>(
             return;
           }
 
-          // queueMicrotask выходит из контекста effect, предотвращая "Cycle detected"
-          queueMicrotask(() => {
+          // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+          runOutsideEffect(() => {
             // Сбрасываем значение
             targetNode.setValue(resetValue);
 
