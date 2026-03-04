@@ -30,13 +30,13 @@ import { uniqueId, SubscriptionKey } from '../utils/unique-id';
 import { ValidationApplicator } from '../validation/validation-applicator';
 import type { BehaviorSchemaFn } from '../behavior/types';
 import { BehaviorRegistry } from '../behavior/behavior-registry';
-import { createFieldPath as createBehaviorFieldPath } from '../behavior/create-field-path';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validation/validation-registry';
 import { createAggregateSignals } from '../utils/aggregate-signals';
 import { buildFormProxy } from '../utils/form-proxy-builder';
+import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../utils/form-submitter';
 
 /**
  * GroupNode - узел для группы полей
@@ -131,8 +131,9 @@ export class GroupNode<T> extends FormNode<T> {
   // Приватные сигналы состояния (inline из StateManager)
   // ============================================================================
 
-  /** Флаг отправки формы */
-  private readonly _submitting: Signal<boolean> = signal(false);
+  /** Управление отправкой формы */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly formSubmitter: FormSubmitter<any>;
 
   /** Флаг disabled состояния */
   private readonly _disabled: Signal<boolean> = signal(false);
@@ -170,6 +171,10 @@ export class GroupNode<T> extends FormNode<T> {
 
   constructor(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>) {
     super();
+
+    // Инициализация FormSubmitter (должна быть первой, т.к. submitting сигнал используется ниже)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.formSubmitter = new FormSubmitter(this as any);
 
     // Определяем, что передано: schema или config
     const isConfig = 'form' in schemaOrConfig;
@@ -223,8 +228,8 @@ export class GroupNode<T> extends FormNode<T> {
     this.errors = aggregateSignals.errors;
     this.status = aggregateSignals.status;
 
-    // Computed signal для submitting (специфичен для GroupNode)
-    this.submitting = computed(() => this._submitting.value);
+    // Делегирование submitting к FormSubmitter
+    this.submitting = this.formSubmitter.submitting;
 
     // ========================================================================
     // Lazy Proxy Initialization
@@ -447,22 +452,30 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Отправить форму
+   *
+   * @param onSubmit - Callback для отправки данных
+   * @param options - Опции submit (skipValidation, skipTouch)
+   * @returns Результат от onSubmit или null если валидация не пройдена
    */
-  async submit<R>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> {
-    this.markAsTouched();
+  async submit<R>(
+    onSubmit: (values: T) => Promise<R> | R,
+    options?: SubmitOptions
+  ): Promise<R | null> {
+    return this.formSubmitter.submit(onSubmit, options);
+  }
 
-    const isValid = await this.validate();
-    if (!isValid) {
-      return null;
-    }
-
-    this._submitting.value = true;
-    try {
-      const result = await onSubmit(this.getValue());
-      return result;
-    } finally {
-      this._submitting.value = false;
-    }
+  /**
+   * Отправить форму с расширенным результатом
+   *
+   * @param onSubmit - Callback для отправки данных
+   * @param options - Опции submit
+   * @returns Объект SubmitResult с данными, статусом и возможной ошибкой
+   */
+  async submitWithResult<R>(
+    onSubmit: (values: T) => Promise<R> | R,
+    options?: SubmitOptions
+  ): Promise<SubmitResult<R>> {
+    return this.formSubmitter.submitWithResult(onSubmit, options);
   }
 
   /**
@@ -494,7 +507,7 @@ export class GroupNode<T> extends FormNode<T> {
     this.behaviorRegistry.beginRegistration();
 
     try {
-      const path = createBehaviorFieldPath<T>();
+      const path = createFieldPath<T>();
       schemaFn(path);
       const result = this.behaviorRegistry.endRegistration(this.getProxy());
       return result.cleanup;

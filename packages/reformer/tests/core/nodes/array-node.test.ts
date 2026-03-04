@@ -63,13 +63,13 @@ describe('ArrayNode', () => {
     it('should not remove item with invalid index', () => {
       arrayNode.push({ title: 'Item 1', price: 100 });
 
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       arrayNode.removeAt(-1);
       arrayNode.removeAt(10);
 
       expect(arrayNode.length.value).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
     });
 
     it('should insert item at specific index', () => {
@@ -105,13 +105,13 @@ describe('ArrayNode', () => {
     it('should not insert item with invalid index', () => {
       arrayNode.push({ title: 'Item 1', price: 100 });
 
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       arrayNode.insert(-1, { title: 'Invalid', price: 0 });
       arrayNode.insert(10, { title: 'Invalid', price: 0 });
 
       expect(arrayNode.length.value).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
     });
 
     it('should clear all items', () => {

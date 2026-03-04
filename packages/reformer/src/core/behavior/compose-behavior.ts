@@ -10,7 +10,7 @@
  */
 
 import type { FieldPath, FieldPathNode, FormFields, FormValue } from '../types';
-import { createFieldPath } from './create-field-path';
+import { createFieldPath } from '../utils/field-path';
 import { watchField } from './behaviors/watch-field';
 import type { BehaviorSchemaFn } from './types';
 

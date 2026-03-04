@@ -11,10 +11,17 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
-import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
+import type {
+  FieldConfig,
+  FieldStatus,
+  ValidationError,
+  ValidatorFn,
+  AsyncValidatorFn,
+} from '../types';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { uniqueId, SubscriptionKey } from '../utils/unique-id';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
+import { FormStatusMachine } from '../utils/status-machine';
 
 /**
  * FieldNode - узел для отдельного поля формы
@@ -41,20 +48,30 @@ export class FieldNode<T> extends FormNode<T> {
 
   private _value: Signal<T>;
   private _errors: Signal<ValidationError[]>;
-  // _touched, _dirty, _status наследуются от FormNode (protected)
-  private _pending: Signal<boolean>;
+  // _touched, _dirty наследуются от FormNode (protected)
+  // _status управляется через statusMachine
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _componentProps: Signal<Record<string, any>>;
+
+  /**
+   * State machine для управления статусом поля
+   * Централизует логику переходов между valid/invalid/pending/disabled
+   */
+  private readonly statusMachine: FormStatusMachine;
 
   // ============================================================================
   // Публичные computed signals
   // ============================================================================
 
   public readonly value: ReadonlySignal<T>;
+  // valid, invalid, pending, status, disabled берутся из statusMachine
   public readonly valid: ReadonlySignal<boolean>;
   public readonly invalid: ReadonlySignal<boolean>;
-  // touched, dirty, status наследуются от FormNode
   public readonly pending: ReadonlySignal<boolean>;
+  // Override status и disabled из базового класса
+  public override readonly status: ReadonlySignal<FieldStatus>;
+  public override readonly disabled: ReadonlySignal<boolean>;
+  // touched, dirty наследуются от FormNode
   public readonly errors: ReadonlySignal<ValidationError[]>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public readonly componentProps: ReadonlySignal<Record<string, any>>;
@@ -113,25 +130,27 @@ export class FieldNode<T> extends FormNode<T> {
     // Инициализация приватных сигналов
     this._value = signal(config.value as T);
     this._errors = signal<ValidationError[]>([]);
-    // _touched, _dirty, _status инициализируются в FormNode
-    this._pending = signal(false);
+    // _touched, _dirty инициализируются в FormNode
     this._componentProps = signal(config.componentProps || {});
 
-    // Установка начального статуса если поле отключено
-    if (config.disabled) {
-      this._status.value = 'disabled';
-    }
+    // Инициализация state machine для управления статусом
+    // Начальный статус: disabled если config.disabled, иначе valid
+    this.statusMachine = new FormStatusMachine(config.disabled ? 'disabled' : 'valid');
 
     // Создание computed signals
     this.value = computed(() => this._value.value);
-    this.valid = computed(() => this._status.value === 'valid');
-    this.invalid = computed(() => this._status.value === 'invalid');
-    // touched, dirty, status создаются в FormNode
-    this.pending = computed(() => this._pending.value);
+    // Статусные signals - создаём computed мосты к statusMachine
+    // для избежания потенциальных циклических зависимостей
+    this.valid = computed(() => this.statusMachine.valid.value);
+    this.invalid = computed(() => this.statusMachine.invalid.value);
+    this.pending = computed(() => this.statusMachine.pending.value);
+    this.status = computed(() => this.statusMachine.status.value);
+    this.disabled = computed(() => this.statusMachine.disabled.value);
+    // touched, dirty создаются в FormNode
     this.errors = computed(() => this._errors.value);
     this.componentProps = computed(() => this._componentProps.value);
     this.shouldShowError = computed(
-      () => this._status.value === 'invalid' && (this._touched.value || this._dirty.value)
+      () => this.statusMachine.invalid.value && (this._touched.value || this._dirty.value)
     );
   }
 
@@ -204,7 +223,8 @@ export class FieldNode<T> extends FormNode<T> {
     this._errors.value = [];
     this._touched.value = false;
     this._dirty.value = false;
-    this._status.value = 'valid';
+    // Сбрасываем статус через statusMachine
+    this.statusMachine.setErrors(false);
   }
 
   /**
@@ -371,7 +391,7 @@ export class FieldNode<T> extends FormNode<T> {
 
     if (syncErrors.length > 0) {
       this._errors.value = syncErrors;
-      this._status.value = 'invalid';
+      this.statusMachine.setErrors(true);
       return false;
     }
 
@@ -381,8 +401,8 @@ export class FieldNode<T> extends FormNode<T> {
         return false;
       }
 
-      this._pending.value = true;
-      this._status.value = 'pending';
+      // Начинаем асинхронную валидацию через statusMachine
+      this.statusMachine.startValidation();
 
       try {
         // Выполняем все async валидаторы параллельно
@@ -424,12 +444,11 @@ export class FieldNode<T> extends FormNode<T> {
           return false;
         }
 
-        this._pending.value = false;
-
         const asyncErrors = asyncResults.filter(Boolean) as ValidationError[];
         if (asyncErrors.length > 0) {
           this._errors.value = asyncErrors;
-          this._status.value = 'invalid';
+          // Завершаем валидацию с ошибками
+          this.statusMachine.completeValidation(true);
           return false;
         }
       } catch (error) {
@@ -453,7 +472,8 @@ export class FieldNode<T> extends FormNode<T> {
 
     if (hasOwnValidators) {
       this._errors.value = [];
-      this._status.value = 'valid';
+      // Завершаем валидацию успешно
+      this.statusMachine.completeValidation(false);
     }
 
     return this._errors.value.length === 0;
@@ -461,12 +481,12 @@ export class FieldNode<T> extends FormNode<T> {
 
   setErrors(errors: ValidationError[]): void {
     this._errors.value = errors;
-    this._status.value = errors.length > 0 ? 'invalid' : 'valid';
+    this.statusMachine.setErrors(errors.length > 0);
   }
 
   clearErrors(): void {
     this._errors.value = [];
-    this._status.value = 'valid';
+    this.statusMachine.setErrors(false);
   }
 
   // ============================================================================
@@ -487,18 +507,21 @@ export class FieldNode<T> extends FormNode<T> {
   /**
    * Hook: вызывается после disable()
    *
-   * Для FieldNode: очищаем ошибки валидации
+   * Для FieldNode: синхронизируем statusMachine и очищаем ошибки
    */
   protected onDisable(): void {
+    this.statusMachine.disable();
     this._errors.value = [];
   }
 
   /**
    * Hook: вызывается после enable()
    *
-   * Для FieldNode: запускаем валидацию
+   * Для FieldNode: синхронизируем statusMachine и запускаем валидацию
    */
   protected onEnable(): void {
+    // enable() определит статус (valid/invalid) на основе ошибок после валидации
+    this.statusMachine.enable(this._errors.value.length > 0);
     this.validate();
   }
 
