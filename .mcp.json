@@ -3,6 +3,10 @@
     "reformer": {
       "command": "node",
       "args": ["./packages/reformer-mcp/dist/index.js"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
     }
   }
 }
