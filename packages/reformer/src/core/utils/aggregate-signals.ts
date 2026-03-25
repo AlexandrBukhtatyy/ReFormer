@@ -83,10 +83,11 @@ export interface AggregateSignalsOptions<T> {
 export function createAggregateSignals<T>(options: AggregateSignalsOptions<T>): AggregateSignals {
   const { getChildren, ownErrors, disabled } = options;
 
-  // valid: нет собственных ошибок И все дочерние валидны
+  // valid: нет собственных ошибок И все активные (не disabled) дочерние валидны
+  // disabled поля игнорируются при подсчёте валидности
   const valid = computed(() => {
     if (ownErrors.value.length > 0) return false;
-    return getChildren().every((child) => child.valid.value);
+    return getChildren().every((child) => child.disabled.value || child.valid.value);
   });
 
   // invalid: инверсия valid
