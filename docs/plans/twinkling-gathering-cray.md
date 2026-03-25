@@ -4,45 +4,40 @@
 
 **Цель:** Разделить ответственности в формах ReFormer.
 
-**Принятые решения:**
-- **RenderSchema = функция** `(path) => RenderNode` возвращает **объект**
-- **Узел имеет только 2 свойства:** `component` и `componentProps`
-- `component` может быть: FieldPathNode (поле формы) или React компонент (Box, Section, etc.)
-- ModelSchema содержит все свойства компонентов (component, componentProps, label, placeholder)
-- **Вся стилизация через atomic CSS в `className`**
+**Зафиксированные решения:**
+
+| Аспект | Решение |
+|--------|---------|
+| API | `RenderSchemaFn<T> = (path) => RenderNode<T>` |
+| Структура узла | `{ component, componentProps }` |
+| Типизация | Union types: `FieldNode \| ContainerNode \| ArrayNode` |
+| Массивы | Компонент `FormArray` с `array` и `renderItem` |
+| Wrapper полей | `wrapper` prop (по умолчанию `'div'`) |
+| Стилизация | Atomic CSS через `className` |
+| JSON-сериализация | Да (функции только для `hidden`) |
 
 ---
 
 ## Архитектура
 
-### Разделение ответственностей
-
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         ModelSchema                              │
-│  (ЧТО отображать - описание полей)                              │
-├─────────────────────────────────────────────────────────────────┤
-│  • value - начальное значение                                   │
-│  • component - React компонент (Input, Select, etc.)            │
-│  • componentProps - label, placeholder, options и т.д.          │
-│  • disabled, updateOn, debounce - поведение поля                │
+│  (Описание полей: value, component, componentProps, label)      │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                        RenderSchema                              │
-│  (КАК и ГДЕ отображать - структура страницы)                    │
+│  (Структура страницы: дерево узлов с component + componentProps)│
 ├─────────────────────────────────────────────────────────────────┤
-│  • component - FieldPathNode или React компонент                │
-│  • componentProps:                                              │
-│    - className - atomic CSS (grid, gap, span)                   │
-│    - children - вложенные узлы                                  │
-│    - hidden - функция условия скрытия                           │
-│    - любые props для компонента                                 │
+│  • FieldRenderNode   - поле формы (path.fieldName)              │
+│  • ContainerRenderNode - контейнер (Box, Section, Collapsible)  │
+│  • ArrayRenderNode   - массив (FormArray + renderItem)          │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FormRenderer                              │
-│  (Рекурсивный рендеринг дерева)                                 │
+│  (Рекурсивный рендеринг дерева узлов)                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,11 +45,9 @@
 
 ## Типы
 
-### RenderSchema (функциональный подход)
-
 ```typescript
 // ============================================================================
-// RENDER SCHEMA FUNCTION
+// RENDER SCHEMA
 // ============================================================================
 
 type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
@@ -68,7 +61,7 @@ type RenderNode<T> =
   | ContainerRenderNode<T>
   | ArrayRenderNode<T>;
 
-/** Узел для поля формы */
+/** Поле формы */
 interface FieldRenderNode<T> {
   component: FieldPathNode<T, any>;
   componentProps?: {
@@ -78,18 +71,18 @@ interface FieldRenderNode<T> {
   };
 }
 
-/** Узел-контейнер (Box, Section, Collapsible) */
+/** Контейнер (Box, Section, Collapsible) */
 interface ContainerRenderNode<T> {
   component: ComponentType<any>;
   componentProps?: {
     className?: string;
     children?: RenderNode<T>[];
     hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-    [key: string]: any;  // title, collapsible, etc.
+    [key: string]: any;  // title, defaultOpen, etc.
   };
 }
 
-/** Узел для массива */
+/** Массив */
 interface ArrayRenderNode<T> {
   component: typeof FormArray;
   componentProps: {
@@ -101,93 +94,44 @@ interface ArrayRenderNode<T> {
 }
 
 // ============================================================================
-// TYPE ALIASES
+// FORM RENDERER
 // ============================================================================
 
-type ModelSchema<T> = FormSchema<T>;
-```
-
-### FormRenderer Props
-
-```typescript
 interface FormRendererProps<T> {
-  /** Экземпляр формы (GroupNode) */
   form: FormProxy<T>;
-
-  /** Функция рендеринга */
   render: RenderSchemaFn<T>;
 }
 ```
 
 ---
 
-## Примеры использования
+## Примеры
 
-### Базовый пример
+### Базовый
 
 ```typescript
-interface CreditForm {
-  loanType: string;
-  loanAmount: number;
-  loanTerm: number;
-  propertyValue: number;
-  initialPayment: number;
-  carBrand: string;
-  carModel: string;
-}
-
-// ModelSchema - полное описание полей (как сейчас)
-const modelSchema: ModelSchema<CreditForm> = {
-  loanType: {
-    value: 'consumer',
-    component: Select,
-    componentProps: {
-      label: 'Тип кредита',
-      placeholder: 'Выберите тип',
-      options: [
-        { value: 'consumer', label: 'Потребительский' },
-        { value: 'mortgage', label: 'Ипотека' },
-        { value: 'car', label: 'Автокредит' },
-      ],
-    },
-  },
-  loanAmount: {
-    value: null,
-    component: Input,
-    componentProps: {
-      label: 'Сумма кредита',
-      type: 'number',
-    },
-  },
-  // ... остальные поля
-};
-
-// RenderSchema - функция с type-safe path, возвращает ОБЪЕКТ
 const renderSchema: RenderSchemaFn<CreditForm> = (path) => ({
-  component: Box,  // или 'div'
+  component: Box,
   componentProps: {
     className: 'flex flex-col gap-6',
     children: [
-      // Секция с информацией о кредите
       {
         component: Section,
         componentProps: {
           title: 'Информация о кредите',
           className: 'grid grid-cols-2 gap-4',
           children: [
-            { component: path.loanType, componentProps: { className: 'col-span-2', wrapper: 'div' } },
+            { component: path.loanType, componentProps: { className: 'col-span-2' } },
             { component: path.loanAmount },
             { component: path.loanTerm },
           ],
         },
       },
-
-      // Секция ипотеки (показывается условно)
       {
         component: Section,
         componentProps: {
           title: 'Параметры ипотеки',
-          className: 'flex flex-col gap-3 p-4 bg-gray-50 rounded',
+          className: 'flex flex-col gap-3',
           hidden: (form) => form.loanType.value.value !== 'mortgage',
           children: [
             { component: path.propertyValue },
@@ -195,156 +139,26 @@ const renderSchema: RenderSchemaFn<CreditForm> = (path) => ({
           ],
         },
       },
-
-      // Секция автокредита
-      {
-        component: Section,
-        componentProps: {
-          title: 'Параметры автокредита',
-          className: 'grid grid-cols-2 gap-3',
-          hidden: (form) => form.loanType.value.value !== 'car',
-          children: [
-            { component: path.carBrand },
-            {
-              component: path.carModel,
-              componentProps: {
-                hidden: (form) => !form.carBrand.value.value,
-              },
-            },
-          ],
-        },
-      },
-    ],
-  },
-});
-
-// Использование
-const form = createForm({ form: modelSchema });
-
-function CreditApplication() {
-  return <FormRenderer form={form} render={renderSchema} />;
-}
-```
-
-### Пример с вложенными полями
-
-```typescript
-interface AddressForm {
-  personalInfo: {
-    firstName: string;
-    lastName: string;
-  };
-  address: {
-    city: string;
-    street: string;
-    building: string;
-  };
-}
-
-const renderSchema: RenderSchemaFn<AddressForm> = (path) => ({
-  component: Box,
-  componentProps: {
-    className: 'flex flex-col gap-6',
-    children: [
-      {
-        component: Section,
-        componentProps: {
-          title: 'Личные данные',
-          className: 'grid grid-cols-2 gap-4',
-          children: [
-            { component: path.personalInfo.firstName },
-            { component: path.personalInfo.lastName },
-          ],
-        },
-      },
-      {
-        component: Section,
-        componentProps: {
-          title: 'Адрес',
-          className: 'grid grid-cols-3 gap-4',
-          children: [
-            { component: path.address.city },
-            { component: path.address.street, componentProps: { className: 'col-span-2' } },
-            { component: path.address.building },
-          ],
-        },
-      },
     ],
   },
 });
 ```
 
-### Пример с collapsible секциями
+### С массивами
 
 ```typescript
-const renderSchema: RenderSchemaFn<ExtendedForm> = (path) => ({
-  component: Box,
-  componentProps: {
-    className: 'flex flex-col gap-6',
-    children: [
-      {
-        component: Section,
-        componentProps: {
-          title: 'Основная информация',
-          className: 'flex flex-col gap-3',
-          children: [
-            { component: path.name },
-            { component: path.email },
-            { component: path.phone },
-          ],
-        },
-      },
-      {
-        component: Collapsible,  // отдельный компонент для сворачивания
-        componentProps: {
-          title: 'Дополнительная информация',
-          defaultOpen: false,
-          className: 'flex flex-col gap-3',
-          children: [
-            { component: path.company },
-            { component: path.position },
-            { component: path.website },
-          ],
-        },
-      },
-    ],
-  },
-});
-```
-
-### Пример с массивами
-
-```typescript
-interface OrderForm {
-  customer: string;
-  items: Array<{
-    product: string;
-    quantity: number;
-    price: number;
-  }>;
-}
-
 const renderSchema: RenderSchemaFn<OrderForm> = (path) => ({
   component: Box,
   componentProps: {
     className: 'flex flex-col gap-6',
     children: [
+      { component: path.customer },
       {
-        component: Section,
-        componentProps: {
-          title: 'Заказчик',
-          children: [
-            { component: path.customer },
-          ],
-        },
-      },
-      // Массив товаров
-      {
-        component: FormArray,  // специальный компонент для массивов
+        component: FormArray,
         componentProps: {
           array: path.items,
           className: 'flex flex-col gap-4',
-          itemRender: (itemPath, index) => ({
+          renderItem: (itemPath, index) => ({
             component: Box,
             componentProps: {
               className: 'grid grid-cols-3 gap-2 p-3 border rounded',
@@ -362,6 +176,19 @@ const renderSchema: RenderSchemaFn<OrderForm> = (path) => ({
 });
 ```
 
+### С wrapper
+
+```typescript
+// Кастомный wrapper для поля
+{
+  component: path.email,
+  componentProps: {
+    wrapper: 'span',  // или CustomFieldWrapper
+    className: 'col-span-2'
+  }
+}
+```
+
 ---
 
 ## Реализация
@@ -369,67 +196,54 @@ const renderSchema: RenderSchemaFn<OrderForm> = (path) => ({
 ### Структура файлов
 
 ```
-packages/reformer/src/
-├── core/
-│   ├── types/
-│   │   ├── render-schema.ts      # RenderSchemaFn, RenderNode
-│   │   └── index.ts              # + export render types
-│   └── render/
-│       ├── index.ts              # public exports
-│       ├── form-renderer.tsx     # FormRenderer component
-│       ├── render-node.tsx       # RenderNode component (recursive)
-│       ├── utils.ts              # isFieldPath
-│       └── components/
-│           ├── box.tsx           # простой контейнер (div)
-│           ├── section.tsx       # секция с title
-│           ├── collapsible.tsx   # сворачиваемая секция
-│           └── form-array.tsx    # рендеринг массива
-└── index.ts                      # + export FormRenderer, Box, Section, etc.
+packages/reformer/src/core/render/
+├── index.ts              # exports
+├── types.ts              # RenderSchemaFn, RenderNode, etc.
+├── form-renderer.tsx     # FormRenderer
+├── render-node.tsx       # RenderNodeComponent (recursive)
+├── utils.ts              # isFieldNode, isArrayNode, isContainerNode
+└── components/
+    ├── box.tsx           # div wrapper
+    ├── section.tsx       # section с title
+    ├── collapsible.tsx   # сворачиваемая секция
+    └── form-array.tsx    # рендеринг массива
 ```
 
-### Ключевые функции
+### Type guards
 
 ```typescript
-// utils.ts
-
-/** Type guard для FieldRenderNode */
 function isFieldNode<T>(node: RenderNode<T>): node is FieldRenderNode<T> {
-  return node.component && typeof node.component === 'object' && '__fieldPath' in node.component;
+  return typeof node.component === 'object' && '__fieldPath' in node.component;
 }
 
-/** Type guard для ArrayRenderNode */
 function isArrayNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T> {
   return node.component === FormArray;
 }
 
-/** Type guard для ContainerRenderNode */
 function isContainerNode<T>(node: RenderNode<T>): node is ContainerRenderNode<T> {
   return typeof node.component === 'function' && node.component !== FormArray;
 }
 ```
 
-### FormRenderer (псевдокод)
+### FormRenderer
 
 ```typescript
 function FormRenderer<T>({ form, render }: FormRendererProps<T>) {
   const path = createFieldPath<T>();
   const rootNode = render(path);
-
   return <RenderNodeComponent node={rootNode} form={form} path={path} />;
 }
 
-function RenderNodeComponent<T>({ node, form, path }: RenderNodeProps<T>) {
+function RenderNodeComponent<T>({ node, form, path }: Props<T>) {
   const { componentProps = {} } = node;
-  const { hidden } = componentProps;
 
-  // Проверяем hidden
-  if (hidden?.(form, path)) return null;
+  // hidden check
+  if (componentProps.hidden?.(form, path)) return null;
 
-  // FieldRenderNode - поле формы
+  // FieldRenderNode
   if (isFieldNode(node)) {
     const { className, wrapper: Wrapper = 'div' } = componentProps;
     const fieldNode = getFieldByPathNode(form, node.component);
-
     return (
       <Wrapper className={className}>
         <FormField control={fieldNode} />
@@ -437,20 +251,18 @@ function RenderNodeComponent<T>({ node, form, path }: RenderNodeProps<T>) {
     );
   }
 
-  // ArrayRenderNode - массив
+  // ArrayRenderNode
   if (isArrayNode(node)) {
     const { array, className, renderItem } = componentProps;
     const arrayNode = getFieldByPathNode(form, array);
-
     return (
       <div className={className}>
         {arrayNode.controls.map((item, index) => {
           const itemPath = createFieldPath<any>();
-          const itemNode = renderItem(itemPath, index);
           return (
             <RenderNodeComponent
               key={index}
-              node={itemNode}
+              node={renderItem(itemPath, index)}
               form={item}
               path={itemPath}
             />
@@ -460,16 +272,17 @@ function RenderNodeComponent<T>({ node, form, path }: RenderNodeProps<T>) {
     );
   }
 
-  // ContainerRenderNode - контейнер (Box, Section, Collapsible)
+  // ContainerRenderNode
   if (isContainerNode(node)) {
-    const { children, ...restProps } = componentProps;
+    const { children, hidden, ...restProps } = componentProps;
     const Component = node.component;
-
-    const renderedChildren = children?.map((child, index) => (
-      <RenderNodeComponent key={index} node={child} form={form} path={path} />
-    ));
-
-    return <Component {...restProps}>{renderedChildren}</Component>;
+    return (
+      <Component {...restProps}>
+        {children?.map((child, i) => (
+          <RenderNodeComponent key={i} node={child} form={form} path={path} />
+        ))}
+      </Component>
+    );
   }
 
   return null;
@@ -480,135 +293,30 @@ function RenderNodeComponent<T>({ node, form, path }: RenderNodeProps<T>) {
 
 ## План реализации
 
-### Фаза 1: Типы и утилиты
-- [ ] Создать `render-schema.ts` с типами (RenderSchemaFn, RenderNode)
-- [ ] Реализовать `utils.ts` (isFieldPath)
-- [ ] Добавить экспорты в index.ts
+### Фаза 1: Типы
+- [x] `types.ts` - RenderSchemaFn, RenderNode (union), FieldRenderNode, ContainerRenderNode, ArrayRenderNode
+- [x] `utils.ts` - type guards (isFieldRenderNode, isArrayRenderNode, isContainerRenderNode)
 
-### Фаза 2: FormRenderer и RenderNode
-- [ ] Реализовать `FormRenderer` компонент
-- [ ] Реализовать `RenderNode` (рекурсивный рендеринг)
+### Фаза 2: FormRenderer
+- [x] `form-renderer.tsx` - FormRenderer компонент
+- [x] `render-node.tsx` - RenderNodeComponent (рекурсивный)
 
-### Фаза 3: Layout компоненты
-- [ ] `Box` - простой контейнер
-- [ ] `Section` - секция с заголовком
-- [ ] `Collapsible` - сворачиваемая секция
-- [ ] `FormArray` - рендеринг массивов
+### Фаза 3: Компоненты
+- [x] `box.tsx` - простой div
+- [x] `section.tsx` - секция с title
+- [x] `collapsible.tsx` - сворачиваемая секция
+- [x] `form-array.tsx` - рендеринг массивов
 
-### Фаза 4: Примеры
-- [ ] Пример в playground: credit-application с RenderSchema
-- [ ] Пример с массивами
-
----
-
-## Оценка и рекомендации
-
-### Зафиксированные решения
-
-| Проблема | Решение |
-|----------|---------|
-| **Verbosity** | Оставить `componentProps` - единообразие важнее |
-| **FormArray** | Явный компонент `FormArray` с `array` и `renderItem` props |
-| **Type safety** | Union types сразу: `FieldNode \| ContainerNode \| ArrayNode` |
-| **Wrapper** | Добавить `wrapper` prop для полей |
-| **JSON-сериализация** | Да, функции только для `hidden` |
-
-### Финальная структура типов
-
-```typescript
-// ============================================================================
-// RENDER NODE - дискриминированный union
-// ============================================================================
-
-type RenderNode<T> =
-  | FieldRenderNode<T>
-  | ContainerRenderNode<T>
-  | ArrayRenderNode<T>;
-
-/** Узел для поля формы */
-interface FieldRenderNode<T> {
-  component: FieldPathNode<T, any>;
-  componentProps?: {
-    className?: string;
-    wrapper?: ElementType;  // 'div' | 'span' | CustomWrapper
-    hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-  };
-}
-
-/** Узел-контейнер (Box, Section, Collapsible) */
-interface ContainerRenderNode<T> {
-  component: ComponentType<any>;
-  componentProps?: {
-    className?: string;
-    children?: RenderNode<T>[];
-    hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-    // + любые props компонента (title, collapsible, etc.)
-    [key: string]: any;
-  };
-}
-
-/** Узел для массива */
-interface ArrayRenderNode<T> {
-  component: typeof FormArray;
-  componentProps: {
-    array: FieldPathNode<T, any[]>;
-    className?: string;
-    renderItem: (itemPath: FieldPath<any>, index: number) => RenderNode<any>;
-    hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-  };
-}
-```
+### Фаза 4: Интеграция
+- [x] Экспорты в index.ts
+- [x] Пример в playground (`projects/react-playground/src/pages/examples/render-schema/`)
 
 ---
 
-## Принятые решения по открытым вопросам
+## Верификация
 
-### ArrayNode в layout
-**Решение:** Компонент `FormArray` с `itemRender`
-
-```typescript
-{
-  component: FormArray,
-  componentProps: {
-    array: path.contacts,
-    className: 'flex flex-col gap-4',
-    itemRender: (itemPath, index) => ({
-      component: Box,
-      componentProps: {
-        className: 'p-3 border rounded',
-        children: [
-          { component: itemPath.name },
-          { component: itemPath.phone },
-        ],
-      },
-    }),
-  },
-}
-```
-
-### Responsive layout
-**Решение:** Через atomic CSS классы
-
-```typescript
-{
-  component: Box,
-  componentProps: {
-    className: 'grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4',
-    children: [
-      { component: path.name },
-      { component: path.email },
-    ],
-  },
-}
-```
-
-### Секции и Collapsible
-**Решение:** Обычные React компоненты
-
-```typescript
-// Секция с заголовком
-{ component: Section, componentProps: { title: 'Заголовок', children: [...] } }
-
-// Сворачиваемая секция
-{ component: Collapsible, componentProps: { title: 'Заголовок', defaultOpen: false, children: [...] } }
-```
+1. Создать тестовую форму с RenderSchema
+2. Проверить рендеринг полей, секций, массивов
+3. Проверить hidden условия
+4. Проверить wrapper prop
+5. TypeScript - нет ошибок типизации

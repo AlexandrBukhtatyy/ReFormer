@@ -5,8 +5,15 @@ import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import Playground from './pages/examples/playground/Playground';
+import RenderSchemaExample from './pages/examples/render-schema/RenderSchemaExample';
 
-type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'playground';
+type ExamplePage =
+  | 'simple'
+  | 'validation'
+  | 'behaviors'
+  | 'complex'
+  | 'playground'
+  | 'render-schema';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -38,6 +45,12 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/playground',
     title: 'Песочница',
     description: 'Страница для эксперементов',
+  },
+  {
+    id: 'render-schema',
+    path: '/examples/render-schema',
+    title: 'RenderSchema',
+    description: 'Декларативное описание структуры формы',
   },
 ];
 
@@ -110,6 +123,7 @@ function Layout() {
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/playground" element={<Playground />} />
+          <Route path="/examples/render-schema" element={<RenderSchemaExample />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

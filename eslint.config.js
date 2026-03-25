@@ -1,48 +1,15 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import prettierPlugin from 'eslint-plugin-prettier'; // <-- импорт через ESM
-import reactHooks from 'eslint-plugin-react-hooks';
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: { extends: ['eslint:recommended'] },
-});
-
-export default [
-  ...compat.extends('plugin:react/recommended'),
-  ...compat.extends('plugin:@typescript-eslint/recommended'),
+export default defineConfig([
+  globalIgnores(['**/dist', '**/node_modules', '**/coverage']),
   {
-    ignores: ['**/dist/**', '**/build/**', '**/node_modules/**', '**/.docusaurus/**', '*.log'],
-  },
-  {
-    plugins: {
-      prettier: prettierPlugin, // подключаем плагин через import
-      'react-hooks': reactHooks,
-    },
+    files: ['**/*.{js,ts,jsx,tsx}'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
     rules: {
-      'prettier/prettier': 'error',
-      'react/react-in-jsx-scope': 'off',
-      ...reactHooks.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
-        },
-      ],
-    },
-    files: ['**/*.js', '**/*.ts', '**/*.jsx', '**/*.tsx'],
-    languageOptions: {
-      parserOptions: {
-        ecmaVersion: 2022,
-        sourceType: 'module',
-        ecmaFeatures: { jsx: true },
-      },
+      // Disable react/no-unescaped-entities as it conflicts with JSX attributes
+      'react/no-unescaped-entities': 'off',
     },
   },
-];
+]);
