@@ -44,7 +44,12 @@ export type {
   ArrayRenderNode,
   ArrayRenderNodeProps,
   FormRendererProps,
+  FieldWrapperProps,
   ContainerComponentProps,
+  // Array UI Config types
+  ArrayUIHeaderConfig,
+  ArrayUIEmptyConfig,
+  ArrayUIItemConfig,
 } from './types';
 
 // Components

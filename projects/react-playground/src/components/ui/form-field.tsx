@@ -7,19 +7,47 @@ export interface FormFieldProps {
   control: FieldNode<any>;
   className?: string;
   testId?: string;
+  /** Дочерний элемент (input) - для использования с RenderSchema fieldWrapper */
+  children?: React.ReactNode;
 }
 
-const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId }) => {
+const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId, children }) => {
   const { value, errors, pending, disabled, shouldShowError, componentProps } =
     useFormControl(control);
 
-  const Component = control.component;
-  const isCheckbox = control.component === Checkbox;
-  // Конвертируем null/undefined в безопасные значения
-  const safeValue = value ?? (isCheckbox ? false : '');
-
   // Используем переданный testId или componentProps.testId или 'unknown'
   const fieldTestId = testId ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
+
+  // Если children переданы (используется как fieldWrapper), рендерим их
+  // Иначе рендерим control.component напрямую (для обратной совместимости)
+  const isCheckbox = control.component === Checkbox;
+
+  const renderInput = () => {
+    if (children) {
+      return children;
+    }
+
+    // Обратная совместимость: рендерим control.component напрямую
+    const Component = control.component;
+    const safeValue = value ?? (isCheckbox ? false : '');
+
+    return (
+      <Component
+        {...componentProps}
+        value={safeValue}
+        onChange={(e: unknown) => {
+          const newValue = isCheckbox
+            ? e
+            : ((e as { target?: { value?: unknown } })?.target?.value ?? e);
+          control.setValue(newValue);
+        }}
+        onBlur={() => control.markAsTouched()}
+        disabled={disabled}
+        aria-invalid={shouldShowError}
+        data-testid={`input-${fieldTestId}`}
+      />
+    );
+  };
 
   return (
     <div className={className} data-testid={`field-${fieldTestId}`}>
@@ -29,24 +57,7 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
         </label>
       )}
 
-      <Component
-        {...componentProps}
-        value={safeValue}
-        onChange={(e: unknown) => {
-          // Для чекбоксов e - это boolean напрямую
-          // Для обычных input e - это event с target.value
-          const newValue = isCheckbox
-            ? e
-            : ((e as { target?: { value?: unknown } })?.target?.value ?? e);
-          control.setValue(newValue);
-        }}
-        onBlur={() => {
-          control.markAsTouched();
-        }}
-        disabled={disabled}
-        aria-invalid={shouldShowError}
-        data-testid={`input-${fieldTestId}`}
-      />
+      {renderInput()}
 
       {shouldShowError && (
         <span className="text-red-500 text-sm mt-1 block" data-testid={`error-${fieldTestId}`}>
@@ -59,13 +70,12 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
   );
 };
 
-// Мемоизируем компонент, чтобы предотвратить ререндер при изменении других полей
-// Компонент ререндерится только если изменился control, className или testId
+// Мемоизируем компонент
 export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {
-  // Возвращаем true, если пропсы НЕ изменились (пропустить ререндер)
   return (
     prevProps.control === nextProps.control &&
     prevProps.className === nextProps.className &&
-    prevProps.testId === nextProps.testId
+    prevProps.testId === nextProps.testId &&
+    prevProps.children === nextProps.children
   );
 });

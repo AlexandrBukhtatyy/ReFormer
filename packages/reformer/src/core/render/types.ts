@@ -7,9 +7,63 @@
  * @module core/render/types
  */
 
-import type { ComponentType, ElementType } from 'react';
+import type { ComponentType, ElementType, ReactNode } from 'react';
 import type { FieldPath, FieldPathNode, FormProxy } from '../types';
-import type { FormArray } from './components/form-array';
+import type { FormArray, FormArrayProps } from './components/form-array';
+
+// ============================================================================
+// ARRAY UI CONFIG - конфигурация UI для массивов
+// ============================================================================
+
+/**
+ * Конфигурация заголовка массива
+ */
+export interface ArrayUIHeaderConfig {
+  /** Заголовок секции */
+  title?: string;
+  /** CSS класс заголовка */
+  titleClassName?: string;
+  /** Текст/содержимое кнопки добавления */
+  addButton?: ReactNode;
+  /** CSS класс кнопки добавления */
+  addButtonClassName?: string;
+  /** CSS класс контейнера заголовка */
+  className?: string;
+}
+
+/**
+ * Конфигурация пустого состояния массива
+ */
+export interface ArrayUIEmptyConfig {
+  /** Основное сообщение */
+  message: ReactNode;
+  /** Дополнительная подсказка */
+  hint?: ReactNode;
+  /** CSS класс контейнера */
+  className?: string;
+  /** CSS класс подсказки */
+  hintClassName?: string;
+}
+
+/**
+ * Конфигурация элемента массива
+ */
+export interface ArrayUIItemConfig {
+  /** CSS класс обёртки элемента */
+  wrapper?: string;
+  /** Показывать индекс элемента */
+  showIndex?: boolean;
+  /** Метка перед индексом (например "Адрес") */
+  indexLabel?: string;
+  /** CSS класс индекса */
+  indexClassName?: string;
+  /** Текст/содержимое кнопки удаления */
+  removeButton?: ReactNode;
+  /** CSS класс кнопки удаления */
+  removeButtonClassName?: string;
+  /** CSS класс заголовка элемента (контейнер индекса и кнопки удаления) */
+  headerClassName?: string;
+}
 
 // ============================================================================
 // RENDER SCHEMA
@@ -67,6 +121,16 @@ export interface FieldRenderNodeProps<T> {
 
   /** Условие скрытия поля */
   hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+
+  /**
+   * Компонент-обёртка для этого поля (переопределяет глобальный fieldWrapper)
+   *
+   * @example
+   * ```typescript
+   * { component: path.email, componentProps: { fieldWrapper: CustomFieldWrapper } }
+   * ```
+   */
+  fieldWrapper?: ComponentType<FieldWrapperProps>;
 }
 
 /**
@@ -141,13 +205,15 @@ export interface ContainerRenderNode<T> {
 
 /**
  * Props для ArrayRenderNode
+ *
+ * Расширяет FormArrayProps с точной типизацией для array и renderItem.
  */
-export interface ArrayRenderNodeProps<T, TItem = unknown> {
+export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
+  FormArrayProps,
+  'array' | 'renderItem' | 'hidden'
+> {
   /** Ссылка на массив (path.items) */
   array: FieldPathNode<T, TItem[], unknown>;
-
-  /** CSS класс для контейнера массива */
-  className?: string;
 
   /** Функция рендеринга элемента массива */
   renderItem: (itemPath: FieldPath<TItem>, index: number) => RenderNode<TItem>;
@@ -165,7 +231,7 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> {
  *   component: FormArray,
  *   componentProps: {
  *     array: path.items,
- *     className: 'flex flex-col gap-4',
+ *     className: 'bg-white p-4 rounded-lg shadow',
  *     renderItem: (itemPath, index) => ({
  *       component: Box,
  *       componentProps: {
@@ -177,6 +243,10 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> {
  *         ],
  *       },
  *     }),
+ *     // UI конфигурация (props из FormArrayProps)
+ *     header: { title: 'Товары', addButton: '+ Добавить' },
+ *     empty: { message: 'Нет товаров' },
+ *     item: { removeButton: 'Удалить', showIndex: true },
  *   },
  * }
  * ```
@@ -194,6 +264,21 @@ export interface ArrayRenderNode<T> {
 // ============================================================================
 
 /**
+ * Props для компонента-обёртки поля
+ *
+ * Обёртка получает control и рендерит label, input и errors.
+ */
+export interface FieldWrapperProps {
+  /** Контрол поля */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  control: any;
+  /** CSS класс */
+  className?: string;
+  /** Дочерний элемент (отрендеренный input) */
+  children: React.ReactNode;
+}
+
+/**
  * Props для FormRenderer
  */
 export interface FormRendererProps<T> {
@@ -202,6 +287,23 @@ export interface FormRendererProps<T> {
 
   /** Функция создания RenderSchema */
   render: RenderSchemaFn<T>;
+
+  /**
+   * Компонент-обёртка для полей (опционально)
+   *
+   * Если указан, каждое поле будет обёрнуто этим компонентом.
+   * Обёртка отвечает за рендеринг label, errors и т.д.
+   *
+   * @example
+   * ```tsx
+   * <FormRenderer
+   *   form={form}
+   *   render={renderSchema}
+   *   fieldWrapper={FormField}
+   * />
+   * ```
+   */
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }
 
 // ============================================================================

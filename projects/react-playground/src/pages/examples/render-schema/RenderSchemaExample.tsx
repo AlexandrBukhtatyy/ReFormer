@@ -2,91 +2,22 @@ import * as React from 'react';
 import { useMemo } from 'react';
 import {
   createForm,
-  useFormControl,
   FormRenderer,
   Box,
   Section,
   Collapsible,
+  FormArray,
   type RenderSchemaFn,
-  type FieldNode,
-  type FormProxy,
+  type RenderNode,
+  type FieldPath,
 } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormField } from '@/components/ui/form-field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
-// ============================================================================
-// Компоненты для полей
-// ============================================================================
-
-interface InputProps {
-  control: FieldNode<string>;
-  value?: string;
-  errors?: Array<{ message: string }>;
-  disabled?: boolean;
-  shouldShowError?: boolean;
-  componentProps?: Record<string, unknown>;
-}
-
-const Input: React.FC<InputProps> = ({ control, componentProps = {} }) => {
-  const { value, errors, disabled, shouldShowError } = useFormControl(control);
-
-  return (
-    <div>
-      {componentProps.label && (
-        <label className="block mb-1 text-sm font-medium text-gray-700">
-          {componentProps.label as string}
-        </label>
-      )}
-      <input
-        type="text"
-        value={(value as string) ?? ''}
-        onChange={(e) => control.setValue(e.target.value)}
-        onBlur={() => control.markAsTouched()}
-        placeholder={componentProps.placeholder as string}
-        disabled={disabled}
-        className="border rounded px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      />
-      {shouldShowError && errors[0] && (
-        <span className="text-red-500 text-sm mt-1 block">{errors[0].message}</span>
-      )}
-    </div>
-  );
-};
-
-interface TextareaProps {
-  control: FieldNode<string>;
-  value?: string;
-  errors?: Array<{ message: string }>;
-  disabled?: boolean;
-  shouldShowError?: boolean;
-  componentProps?: Record<string, unknown>;
-}
-
-const Textarea: React.FC<TextareaProps> = ({ control, componentProps = {} }) => {
-  const { value, errors, disabled, shouldShowError } = useFormControl(control);
-
-  return (
-    <div>
-      {componentProps.label && (
-        <label className="block mb-1 text-sm font-medium text-gray-700">
-          {componentProps.label as string}
-        </label>
-      )}
-      <textarea
-        value={(value as string) ?? ''}
-        onChange={(e) => control.setValue(e.target.value)}
-        onBlur={() => control.markAsTouched()}
-        placeholder={componentProps.placeholder as string}
-        disabled={disabled}
-        rows={4}
-        className="border rounded px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      />
-      {shouldShowError && errors[0] && (
-        <span className="text-red-500 text-sm mt-1 block">{errors[0].message}</span>
-      )}
-    </div>
-  );
-};
+// FormField как обёртка для полей (передаётся в FormRenderer)
+// Компонент Input/Textarea берётся из FieldNode.component
 
 // ============================================================================
 // Типы формы
@@ -194,7 +125,7 @@ const createContactForm = () =>
   });
 
 // ============================================================================
-// RenderSchema - структура страницы (без массива)
+// RenderSchema - структура страницы (полностью декларативно)
 // ============================================================================
 
 const renderSchema: RenderSchemaFn<ContactForm> = (path) => ({
@@ -284,92 +215,57 @@ const renderSchema: RenderSchemaFn<ContactForm> = (path) => ({
           children: [{ component: path.notes }],
         },
       },
-    ],
+
+      // Секция: Адреса (полностью декларативно через FormArray с ui)
+      {
+        component: FormArray,
+        componentProps: {
+          array: path.addresses,
+          className: 'bg-white p-4 rounded-lg shadow',
+
+          // Структура элемента массива
+          renderItem: (itemPath: FieldPath<Address>) => ({
+            component: Box,
+            componentProps: {
+              className: 'grid grid-cols-3 gap-4',
+              children: [
+                { component: itemPath.city },
+                { component: itemPath.street },
+                { component: itemPath.zipCode },
+              ],
+            },
+          }),
+
+          // UI конфигурация (напрямую в componentProps)
+          header: {
+            title: 'Адреса',
+            className: 'flex justify-between items-center mb-4',
+            titleClassName: 'text-lg font-semibold text-gray-800',
+            addButton: '+ Добавить адрес',
+            addButtonClassName:
+              'px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors',
+          },
+          empty: {
+            message: 'Адреса не добавлены',
+            hint: 'Нажмите кнопку выше, чтобы добавить адрес',
+            className:
+              'text-gray-500 text-center py-4 border-2 border-dashed border-gray-200 rounded-lg',
+            hintClassName: 'text-sm mt-1',
+          },
+          item: {
+            wrapper: 'p-4 border border-gray-200 rounded-lg bg-gray-50 mb-4',
+            headerClassName: 'flex justify-between items-center mb-2',
+            showIndex: true,
+            indexLabel: 'Адрес',
+            indexClassName: 'text-sm text-gray-600',
+            removeButton: 'Удалить',
+            removeButtonClassName: 'text-red-500 hover:text-red-700 text-sm',
+          },
+        },
+      },
+    ] as RenderNode<ContactForm>[],
   },
 });
-
-// ============================================================================
-// RenderSchema для элемента адреса
-// ============================================================================
-
-const addressItemRenderSchema: RenderSchemaFn<Address> = (path) => ({
-  component: Box,
-  componentProps: {
-    className: 'grid grid-cols-3 gap-4',
-    children: [{ component: path.city }, { component: path.street }, { component: path.zipCode }],
-  },
-});
-
-// ============================================================================
-// Компонент секции с массивом адресов (используя @reformer/ui)
-// ============================================================================
-
-interface AddressesSectionProps {
-  form: ReturnType<typeof createContactForm>;
-}
-
-const AddressesSection: React.FC<AddressesSectionProps> = ({ form }) => {
-  return (
-    <section className="bg-white p-4 rounded-lg shadow">
-      <FormArray.Root control={form.addresses}>
-        {/* Заголовок с кнопкой добавления */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">
-            Адреса (<FormArray.Count />)
-          </h3>
-          <FormArray.AddButton className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Добавить адрес
-          </FormArray.AddButton>
-        </div>
-
-        {/* Пустое состояние */}
-        <FormArray.Empty>
-          <p className="text-gray-500 text-sm italic py-4 text-center border-2 border-dashed border-gray-200 rounded-lg">
-            Адреса не добавлены. Нажмите "Добавить адрес" чтобы начать.
-          </p>
-        </FormArray.Empty>
-
-        {/* Список адресов */}
-        <FormArray.List className="space-y-4">
-          {({ control }: { control: FormProxy<Address> }) => (
-            <div className="relative p-4 border border-gray-200 rounded-lg bg-gray-50 group">
-              {/* Заголовок элемента с кнопкой удаления */}
-              <div className="absolute top-2 right-2 flex items-center gap-2">
-                <span className="text-xs text-gray-400">
-                  #<FormArray.ItemIndex offset={1} />
-                </span>
-                <FormArray.RemoveButton
-                  className="p-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 rounded"
-                  title="Удалить адрес"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </FormArray.RemoveButton>
-              </div>
-
-              {/* Поля адреса через FormRenderer */}
-              <FormRenderer form={control} render={addressItemRenderSchema} />
-            </div>
-          )}
-        </FormArray.List>
-      </FormArray.Root>
-    </section>
-  );
-};
 
 // ============================================================================
 // Компонент формы
@@ -391,13 +287,8 @@ function ContactFormWithRenderSchema() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl">
-      {/* Основные поля через RenderSchema */}
-      <FormRenderer form={form} render={renderSchema} />
-
-      {/* Массив адресов - отдельный компонент с @reformer/ui */}
-      <div className="mt-6">
-        <AddressesSection form={form} />
-      </div>
+      {/* Вся форма через RenderSchema с глобальной обёрткой для полей */}
+      <FormRenderer form={form} render={renderSchema} fieldWrapper={FormField} />
 
       <div className="mt-6 flex gap-4">
         <button
@@ -456,28 +347,22 @@ export default function RenderSchemaExample() {
             </li>
           </ul>
 
-          <h3 className="text-md font-semibold mt-4 mb-2">Массивы через @reformer/ui:</h3>
+          <h3 className="text-md font-semibold mt-4 mb-2">Массивы в RenderSchema:</h3>
           <ul className="list-disc list-inside text-gray-600 space-y-1">
             <li>
-              <code className="bg-gray-100 px-1">FormArray.Root</code> — контекст для массива
+              <code className="bg-gray-100 px-1">FormArray</code> — компонент для массивов
             </li>
             <li>
-              <code className="bg-gray-100 px-1">FormArray.List</code> — итерация по элементам
+              <code className="bg-gray-100 px-1">renderItem</code> — декларативное описание элемента
             </li>
             <li>
-              <code className="bg-gray-100 px-1">FormArray.AddButton</code> — кнопка добавления
+              <code className="bg-gray-100 px-1">header</code> — заголовок и кнопка добавления
             </li>
             <li>
-              <code className="bg-gray-100 px-1">FormArray.RemoveButton</code> — кнопка удаления
+              <code className="bg-gray-100 px-1">empty</code> — пустое состояние
             </li>
             <li>
-              <code className="bg-gray-100 px-1">FormArray.Empty</code> — пустое состояние
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">FormArray.Count</code> — счётчик элементов
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">FormArray.ItemIndex</code> — индекс элемента
+              <code className="bg-gray-100 px-1">item</code> — обёртка элемента и кнопка удаления
             </li>
           </ul>
         </div>

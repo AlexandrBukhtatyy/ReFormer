@@ -63,9 +63,16 @@ import { RenderNodeComponent } from './render-node';
  * }
  * ```
  */
-export function FormRenderer<T>({ form, render }: FormRendererProps<T>): ReactNode {
+export function FormRenderer<T>({ form, render, fieldWrapper }: FormRendererProps<T>): ReactNode {
   const path = createFieldPath<T>();
   const rootNode = render(path);
 
-  return <RenderNodeComponent node={rootNode} form={form as FormProxy<T>} path={path} />;
+  return (
+    <RenderNodeComponent
+      node={rootNode}
+      form={form as FormProxy<T>}
+      path={path}
+      fieldWrapper={fieldWrapper}
+    />
+  );
 }

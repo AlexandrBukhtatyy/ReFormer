@@ -8,6 +8,7 @@
  */
 
 import type { ReactNode } from 'react';
+import type { ArrayUIHeaderConfig, ArrayUIEmptyConfig, ArrayUIItemConfig } from '../types';
 
 /**
  * Props компонента FormArray
@@ -20,6 +21,24 @@ export interface FormArrayProps {
   className?: string;
   /** Дочерние элементы (рендерятся RenderNodeComponent) */
   children?: ReactNode;
+
+  /** Ссылка на массив (path.items) - типизируется через ArrayRenderNodeProps */
+  array?: unknown;
+
+  /** Функция рендеринга элемента - типизируется через ArrayRenderNodeProps */
+  renderItem?: unknown;
+
+  /** Условие скрытия массива */
+  hidden?: unknown;
+
+  /** Конфигурация заголовка с кнопкой добавления */
+  header?: ArrayUIHeaderConfig;
+
+  /** Конфигурация пустого состояния */
+  empty?: ArrayUIEmptyConfig;
+
+  /** Конфигурация элемента массива */
+  item?: ArrayUIItemConfig;
 }
 
 /**
