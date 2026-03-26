@@ -11,6 +11,7 @@ export type { SetValueOptions } from './core/nodes/form-node';
 
 export { useFormControl } from './hooks/useFormControl';
 export { useFormControlValue } from './hooks/useFormControlValue';
+export { useArrayLength } from './hooks/useArrayLength';
 export type { FieldControlState, ArrayControlState } from './hooks/types';
 
 export type { BehaviorSchemaFn } from './core/behavior/types';

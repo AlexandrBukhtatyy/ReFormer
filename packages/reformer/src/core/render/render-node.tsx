@@ -10,6 +10,7 @@ import type { ArrayNode } from '../nodes/array-node';
 import type { FormProxy, FieldPath, FormFields } from '../types';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { useFormControl } from '../../hooks/useFormControl';
+import { useArrayLength } from '../../hooks/useArrayLength';
 import { createFieldPath, extractPath } from '../utils/field-path';
 import type {
   RenderNode,
@@ -114,8 +115,8 @@ function ArrayRenderer<T, TItem>({
   item?: ArrayUIItemConfig;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
-  // Подписка на изменения массива - вызывает ре-рендер при push/removeAt
-  const { length } = useFormControl(arrayNode);
+  // Подписка только на length - не вызывает ре-рендер при изменении вложенных полей
+  const length = useArrayLength(arrayNode);
 
   const isEmpty = length === 0;
 
