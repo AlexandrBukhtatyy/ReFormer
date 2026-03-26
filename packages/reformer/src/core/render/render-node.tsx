@@ -4,7 +4,7 @@
  * @module core/render/render-node
  */
 
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import type { FieldNode } from '../nodes/field-node';
 import type { ArrayNode } from '../nodes/array-node';
 import type { FormProxy, FieldPath, FormFields } from '../types';
@@ -47,17 +47,19 @@ const navigator = new FieldPathNavigator();
  * Если указан fieldWrapper, поле оборачивается им для рендеринга
  * label, errors и т.д.
  */
-function FieldRenderer({
-  fieldNode,
-  className,
-  wrapper: Wrapper = 'div',
-  fieldWrapper: FieldWrapper,
-}: {
+interface FieldRendererProps {
   fieldNode: FieldNode<unknown>;
   className?: string;
   wrapper?: React.ElementType;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
-}): ReactNode {
+}
+
+const FieldRenderer = memo(function FieldRenderer({
+  fieldNode,
+  className,
+  wrapper: Wrapper = 'div',
+  fieldWrapper: FieldWrapper,
+}: FieldRendererProps): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const state = useFormControl(fieldNode as FieldNode<any>);
   const Component = fieldNode.component;
@@ -87,7 +89,7 @@ function FieldRenderer({
   );
 
   return content;
-}
+});
 
 /**
  * Компонент рендеринга массива
