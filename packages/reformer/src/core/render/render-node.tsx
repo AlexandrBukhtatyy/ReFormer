@@ -62,13 +62,20 @@ function FieldRenderer({
   const state = useFormControl(fieldNode as FieldNode<any>);
   const Component = fieldNode.component;
 
-  // Handlers для UI компонентов, которые ожидают onChange/onBlur
+  // Только props для UI компонента (без state props которые не должны попадать в DOM)
+  const inputProps = {
+    value: state.value,
+    disabled: state.disabled,
+    ...state.componentProps,
+  };
+
+  // Handlers для UI компонентов
   const handlers = {
     onChange: (value: unknown) => fieldNode.setValue(value),
     onBlur: () => fieldNode.markAsTouched(),
   };
 
-  const input = <Component control={fieldNode} {...state} {...handlers} />;
+  const input = <Component control={fieldNode} {...inputProps} {...handlers} />;
 
   // Если есть fieldWrapper, оборачиваем им
   const content = FieldWrapper ? (
