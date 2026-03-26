@@ -216,27 +216,37 @@ const renderSchema: RenderSchemaFn<ContactForm> = (path) => ({
         },
       },
 
-      // Секция: Адреса (полностью декларативно через FormArray с ui)
+      // Секция: Адреса (полностью декларативно через FormArray)
       {
         component: FormArray,
         componentProps: {
           array: path.addresses,
           className: 'bg-white p-4 rounded-lg shadow',
 
-          // Структура элемента массива
-          renderItem: (itemPath: FieldPath<Address>) => ({
-            component: Box,
-            componentProps: {
-              className: 'grid grid-cols-3 gap-4',
-              children: [
-                { component: itemPath.city },
-                { component: itemPath.street },
-                { component: itemPath.zipCode },
-              ],
-            },
-          }),
+          // Всё про элемент массива в одном объекте
+          renderItem: {
+            render: (itemPath: FieldPath<Address>) => ({
+              component: Box,
+              componentProps: {
+                className: 'grid grid-cols-3 gap-4',
+                children: [
+                  { component: itemPath.city },
+                  { component: itemPath.street },
+                  { component: itemPath.zipCode },
+                ],
+              },
+            }),
+            // UI конфигурация элемента
+            wrapper: 'p-4 border border-gray-200 rounded-lg bg-gray-50 mb-4',
+            headerClassName: 'flex justify-between items-center mb-2',
+            showIndex: true,
+            indexLabel: 'Адрес',
+            indexClassName: 'text-sm text-gray-600',
+            removeButton: 'Удалить',
+            removeButtonClassName: 'text-red-500 hover:text-red-700 text-sm',
+          },
 
-          // UI конфигурация (напрямую в componentProps)
+          // Array-level UI
           header: {
             title: 'Адреса',
             className: 'flex justify-between items-center mb-4',
@@ -251,15 +261,6 @@ const renderSchema: RenderSchemaFn<ContactForm> = (path) => ({
             className:
               'text-gray-500 text-center py-4 border-2 border-dashed border-gray-200 rounded-lg',
             hintClassName: 'text-sm mt-1',
-          },
-          item: {
-            wrapper: 'p-4 border border-gray-200 rounded-lg bg-gray-50 mb-4',
-            headerClassName: 'flex justify-between items-center mb-2',
-            showIndex: true,
-            indexLabel: 'Адрес',
-            indexClassName: 'text-sm text-gray-600',
-            removeButton: 'Удалить',
-            removeButtonClassName: 'text-red-500 hover:text-red-700 text-sm',
           },
         },
       },

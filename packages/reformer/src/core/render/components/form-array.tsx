@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { ArrayUIHeaderConfig, ArrayUIEmptyConfig, ArrayUIItemConfig } from '../types';
+import type { ArrayUIHeaderConfig, ArrayUIEmptyConfig } from '../types';
 
 /**
  * Props компонента FormArray
@@ -36,9 +36,6 @@ export interface FormArrayProps {
 
   /** Конфигурация пустого состояния */
   empty?: ArrayUIEmptyConfig;
-
-  /** Конфигурация элемента массива */
-  item?: ArrayUIItemConfig;
 }
 
 /**

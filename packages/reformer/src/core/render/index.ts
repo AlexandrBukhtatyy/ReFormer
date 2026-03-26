@@ -49,7 +49,7 @@ export type {
   // Array UI Config types
   ArrayUIHeaderConfig,
   ArrayUIEmptyConfig,
-  ArrayUIItemConfig,
+  ArrayRenderItemConfig,
 } from './types';
 
 // Components

@@ -46,9 +46,14 @@ export interface ArrayUIEmptyConfig {
 }
 
 /**
- * Конфигурация элемента массива
+ * Конфигурация рендеринга элемента массива
+ *
+ * Объединяет функцию рендеринга контента и UI конфигурацию элемента.
  */
-export interface ArrayUIItemConfig {
+export interface ArrayRenderItemConfig<TItem> {
+  /** Функция рендеринга контента элемента */
+  render: (itemPath: FieldPath<TItem>, index: number) => RenderNode<TItem>;
+
   /** CSS класс обёртки элемента */
   wrapper?: string;
   /** Показывать индекс элемента */
@@ -210,13 +215,13 @@ export interface ContainerRenderNode<T> {
  */
 export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
   FormArrayProps,
-  'array' | 'renderItem' | 'hidden'
+  'array' | 'renderItem' | 'hidden' | 'item'
 > {
   /** Ссылка на массив (path.items) */
   array: FieldPathNode<T, TItem[], unknown>;
 
-  /** Функция рендеринга элемента массива */
-  renderItem: (itemPath: FieldPath<TItem>, index: number) => RenderNode<TItem>;
+  /** Конфигурация элемента массива (функция рендеринга + UI) */
+  renderItem: ArrayRenderItemConfig<TItem>;
 
   /** Условие скрытия массива */
   hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
@@ -232,21 +237,24 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
  *   componentProps: {
  *     array: path.items,
  *     className: 'bg-white p-4 rounded-lg shadow',
- *     renderItem: (itemPath, index) => ({
- *       component: Box,
- *       componentProps: {
- *         className: 'grid grid-cols-3 gap-2',
- *         children: [
- *           { component: itemPath.product },
- *           { component: itemPath.quantity },
- *           { component: itemPath.price },
- *         ],
- *       },
- *     }),
- *     // UI конфигурация (props из FormArrayProps)
+ *     renderItem: {
+ *       render: (itemPath, index) => ({
+ *         component: Box,
+ *         componentProps: {
+ *           className: 'grid grid-cols-3 gap-2',
+ *           children: [
+ *             { component: itemPath.product },
+ *             { component: itemPath.quantity },
+ *             { component: itemPath.price },
+ *           ],
+ *         },
+ *       }),
+ *       wrapper: 'p-4 border rounded mb-4',
+ *       showIndex: true,
+ *       removeButton: 'Удалить',
+ *     },
  *     header: { title: 'Товары', addButton: '+ Добавить' },
  *     empty: { message: 'Нет товаров' },
- *     item: { removeButton: 'Удалить', showIndex: true },
  *   },
  * }
  * ```

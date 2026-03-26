@@ -14,10 +14,9 @@ import { useArrayLength } from '../../hooks/useArrayLength';
 import { createFieldPath, extractPath } from '../utils/field-path';
 import type {
   RenderNode,
-  ArrayRenderNodeProps,
   ArrayUIHeaderConfig,
   ArrayUIEmptyConfig,
-  ArrayUIItemConfig,
+  ArrayRenderItemConfig,
   FieldWrapperProps,
 } from './types';
 import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
@@ -98,27 +97,37 @@ const FieldRenderer = memo(function FieldRenderer({
  * Выделен в отдельный компонент для корректного использования хуков.
  * Подписывается на изменения длины массива через useFormControl.
  */
-function ArrayRenderer<T, TItem>({
+function ArrayRenderer<TItem>({
   arrayNode,
   className,
   renderItem,
   header,
   empty,
-  item,
   fieldWrapper,
 }: {
   arrayNode: ArrayNode<FormFields>;
   className?: string;
-  renderItem: ArrayRenderNodeProps<T, TItem>['renderItem'];
+  renderItem: ArrayRenderItemConfig<TItem>;
   header?: ArrayUIHeaderConfig;
   empty?: ArrayUIEmptyConfig;
-  item?: ArrayUIItemConfig;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   // Подписка только на length - не вызывает ре-рендер при изменении вложенных полей
   const length = useArrayLength(arrayNode);
 
   const isEmpty = length === 0;
+
+  // Деструктурируем item-конфиг из renderItem
+  const {
+    render,
+    wrapper,
+    showIndex,
+    indexLabel,
+    indexClassName,
+    headerClassName,
+    removeButton,
+    removeButtonClassName,
+  } = renderItem;
 
   return (
     <div className={className}>
@@ -151,25 +160,25 @@ function ArrayRenderer<T, TItem>({
       {arrayNode.map((arrayItem: FormProxy<any>, index: number) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const itemPath = createFieldPath<any>();
-        const itemNode = renderItem(itemPath, index);
+        const itemNode = render(itemPath, index);
 
         return (
-          <div key={arrayItem.id ?? index} className={item?.wrapper}>
+          <div key={arrayItem.id ?? index} className={wrapper}>
             {/* Item header with index and remove */}
-            {(item?.showIndex || item?.removeButton) && (
-              <div className={item?.headerClassName}>
-                {item?.showIndex && (
-                  <span className={item?.indexClassName}>
-                    {item.indexLabel ? `${item.indexLabel} #${index + 1}` : `#${index + 1}`}
+            {(showIndex || removeButton) && (
+              <div className={headerClassName}>
+                {showIndex && (
+                  <span className={indexClassName}>
+                    {indexLabel ? `${indexLabel} #${index + 1}` : `#${index + 1}`}
                   </span>
                 )}
-                {item?.removeButton && (
+                {removeButton && (
                   <button
                     type="button"
                     onClick={() => arrayNode.removeAt(index)}
-                    className={item.removeButtonClassName}
+                    className={removeButtonClassName}
                   >
-                    {item.removeButton}
+                    {removeButton}
                   </button>
                 )}
               </div>
@@ -240,7 +249,7 @@ export function RenderNodeComponent<T>({
   // ArrayRenderNode - массив
   // ========================================
   if (isArrayRenderNode(node)) {
-    const { array, className, renderItem, header, empty, item } = node.componentProps;
+    const { array, className, renderItem, header, empty } = node.componentProps;
     const arrayPath = extractPath(array);
     const arrayNode = navigator.getNodeByPath(form, arrayPath) as ArrayNode<FormFields> | null;
 
@@ -256,7 +265,6 @@ export function RenderNodeComponent<T>({
         renderItem={renderItem}
         header={header}
         empty={empty}
-        item={item}
         fieldWrapper={fieldWrapper}
       />
     );
