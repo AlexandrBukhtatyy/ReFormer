@@ -7,68 +7,9 @@
  * @module core/render/types
  */
 
-import type { ComponentType, ElementType, ReactNode } from 'react';
+import type { ComponentType, ElementType } from 'react';
 import type { FieldPath, FieldPathNode, FormProxy } from '../types';
 import type { FormArray, FormArrayProps } from './components/form-array';
-
-// ============================================================================
-// ARRAY UI CONFIG - конфигурация UI для массивов
-// ============================================================================
-
-/**
- * Конфигурация заголовка массива
- */
-export interface ArrayUIHeaderConfig {
-  /** Заголовок секции */
-  title?: string;
-  /** CSS класс заголовка */
-  titleClassName?: string;
-  /** Текст/содержимое кнопки добавления */
-  addButton?: ReactNode;
-  /** CSS класс кнопки добавления */
-  addButtonClassName?: string;
-  /** CSS класс контейнера заголовка */
-  className?: string;
-}
-
-/**
- * Конфигурация пустого состояния массива
- */
-export interface ArrayUIEmptyConfig {
-  /** Основное сообщение */
-  message: ReactNode;
-  /** Дополнительная подсказка */
-  hint?: ReactNode;
-  /** CSS класс контейнера */
-  className?: string;
-  /** CSS класс подсказки */
-  hintClassName?: string;
-}
-
-/**
- * Конфигурация рендеринга элемента массива
- *
- * Объединяет функцию рендеринга контента и UI конфигурацию элемента.
- */
-export interface ArrayRenderItemConfig<TItem> {
-  /** Функция рендеринга контента элемента */
-  render: (itemPath: FieldPath<TItem>, index: number) => RenderNode<TItem>;
-
-  /** CSS класс обёртки элемента */
-  wrapper?: string;
-  /** Показывать индекс элемента */
-  showIndex?: boolean;
-  /** Метка перед индексом (например "Адрес") */
-  indexLabel?: string;
-  /** CSS класс индекса */
-  indexClassName?: string;
-  /** Текст/содержимое кнопки удаления */
-  removeButton?: ReactNode;
-  /** CSS класс кнопки удаления */
-  removeButtonClassName?: string;
-  /** CSS класс заголовка элемента (контейнер индекса и кнопки удаления) */
-  headerClassName?: string;
-}
 
 // ============================================================================
 // SELECTOR TYPES - для декларативного FormArray
@@ -252,28 +193,18 @@ export interface ContainerRenderNode<T> {
 /**
  * Props для ArrayRenderNode
  *
- * Поддерживает два режима:
- * 1. Legacy: renderItem + header + empty конфиги
- * 2. Selector-based: children с селекторами (header, empty, item, footer)
+ * Использует selector-based API с children для полной гибкости.
+ * Каждый child определяет свою часть через selector: 'header', 'empty', 'item', 'footer'.
  */
 export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
   FormArrayProps,
-  'array' | 'renderItem' | 'hidden' | 'item' | 'children'
+  'array' | 'hidden' | 'children'
 > {
   /** Ссылка на массив (path.items) */
   array: FieldPathNode<T, TItem[], unknown>;
 
-  /**
-   * Legacy: Конфигурация элемента массива (функция рендеринга + UI)
-   * Используется если children не указан
-   */
-  renderItem?: ArrayRenderItemConfig<TItem>;
-
-  /**
-   * Selector-based: Дочерние узлы с селекторами
-   * Используется вместо renderItem/header/empty для полного контроля
-   */
-  children?: SelectorRenderNode<T, TItem>[];
+  /** Дочерние узлы с селекторами (header, empty, item, footer) */
+  children: SelectorRenderNode<T, TItem>[];
 
   /** Условие скрытия массива */
   hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
@@ -289,24 +220,34 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
  *   componentProps: {
  *     array: path.items,
  *     className: 'bg-white p-4 rounded-lg shadow',
- *     renderItem: {
- *       render: (itemPath, index) => ({
+ *     children: [
+ *       { selector: 'header', component: HeaderComponent },
+ *       { selector: 'empty', component: EmptyComponent },
+ *       {
+ *         selector: 'item',
  *         component: Box,
  *         componentProps: {
- *           className: 'grid grid-cols-3 gap-2',
+ *           className: 'p-4 border rounded mb-4',
  *           children: [
- *             { component: itemPath.product },
- *             { component: itemPath.quantity },
- *             { component: itemPath.price },
+ *             { selector: 'item:header', component: ItemHeader },
+ *             {
+ *               selector: 'item:content',
+ *               render: (itemPath) => ({
+ *                 component: Box,
+ *                 componentProps: {
+ *                   className: 'grid grid-cols-3 gap-2',
+ *                   children: [
+ *                     { component: itemPath.product },
+ *                     { component: itemPath.quantity },
+ *                     { component: itemPath.price },
+ *                   ],
+ *                 },
+ *               }),
+ *             },
  *           ],
  *         },
- *       }),
- *       wrapper: 'p-4 border rounded mb-4',
- *       showIndex: true,
- *       removeButton: 'Удалить',
- *     },
- *     header: { title: 'Товары', addButton: '+ Добавить' },
- *     empty: { message: 'Нет товаров' },
+ *       },
+ *     ],
  *   },
  * }
  * ```

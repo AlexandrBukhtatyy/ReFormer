@@ -8,7 +8,6 @@
  */
 
 import type { ReactNode } from 'react';
-import type { ArrayUIHeaderConfig, ArrayUIEmptyConfig } from '../types';
 
 /**
  * Props компонента FormArray
@@ -25,17 +24,8 @@ export interface FormArrayProps {
   /** Ссылка на массив (path.items) - типизируется через ArrayRenderNodeProps */
   array?: unknown;
 
-  /** Функция рендеринга элемента - типизируется через ArrayRenderNodeProps */
-  renderItem?: unknown;
-
   /** Условие скрытия массива */
   hidden?: unknown;
-
-  /** Конфигурация заголовка с кнопкой добавления */
-  header?: ArrayUIHeaderConfig;
-
-  /** Конфигурация пустого состояния */
-  empty?: ArrayUIEmptyConfig;
 }
 
 /**
@@ -45,7 +35,7 @@ export interface FormArrayProps {
  * дискриминатор типа в RenderSchema для определения ArrayRenderNode.
  *
  * Фактический рендеринг массива выполняется в RenderNodeComponent,
- * который итерирует по элементам массива и вызывает renderItem.
+ * который использует selector-based children для определения частей массива.
  *
  * @example
  * ```typescript
@@ -53,14 +43,17 @@ export interface FormArrayProps {
  *   component: FormArray,
  *   componentProps: {
  *     array: path.items,
- *     renderItem: (itemPath) => ({
- *       component: Box,
- *       componentProps: {
- *         children: [
- *           { component: itemPath.name },
- *         ],
+ *     children: [
+ *       { selector: 'header', component: HeaderComponent },
+ *       { selector: 'empty', component: EmptyComponent },
+ *       {
+ *         selector: 'item',
+ *         render: (itemPath) => ({
+ *           component: Box,
+ *           componentProps: { children: [{ component: itemPath.name }] },
+ *         }),
  *       },
- *     }),
+ *     ],
  *   },
  * }
  * ```

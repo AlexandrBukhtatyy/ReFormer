@@ -46,10 +46,6 @@ export type {
   FormRendererProps,
   FieldWrapperProps,
   ContainerComponentProps,
-  // Array UI Config types
-  ArrayUIHeaderConfig,
-  ArrayUIEmptyConfig,
-  ArrayRenderItemConfig,
   // Selector types
   FormArraySelector,
   SelectorRenderNode,
