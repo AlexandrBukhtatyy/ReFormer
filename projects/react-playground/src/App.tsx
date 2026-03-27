@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
+import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer';
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
@@ -12,6 +13,7 @@ type ExamplePage =
   | 'validation'
   | 'behaviors'
   | 'complex'
+  | 'complex-renderer'
   | 'playground'
   | 'render-schema';
 
@@ -27,6 +29,12 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/complex',
     title: 'Комплексная форма',
     description: 'Многошаговая форма кредитной заявки',
+  },
+  {
+    id: 'complex-renderer',
+    path: '/examples/complex-renderer',
+    title: 'Комплексная (Renderer)',
+    description: 'Та же форма через renderSchema API',
   },
   {
     id: 'validation',
@@ -122,6 +130,7 @@ function Layout() {
           <Route path="/examples/validation" element={<ValidationExamples />} />
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
+          <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/playground" element={<Playground />} />
           <Route path="/examples/render-schema" element={<RenderSchemaExample />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />

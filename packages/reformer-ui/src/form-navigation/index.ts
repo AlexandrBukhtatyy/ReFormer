@@ -1,6 +1,13 @@
 // Main compound component
 export { FormNavigation } from './FormNavigation';
 
+// Navigation renderer for RenderSchema
+export { NavigationRenderer, type NavigationRendererProps } from './NavigationRenderer';
+export {
+  FormRendererWithNavigation,
+  type FormRendererWithNavigationProps,
+} from './FormRendererWithNavigation';
+
 // Sub-components (also available as FormNavigation.Step, etc.)
 export { FormNavigationStep } from './FormNavigationStep';
 export { FormNavigationIndicator } from './FormNavigationIndicator';

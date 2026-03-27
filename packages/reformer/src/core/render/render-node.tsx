@@ -13,7 +13,12 @@ import { useFormControl } from '../../hooks/useFormControl';
 import { useArrayLength } from '../../hooks/useArrayLength';
 import { createFieldPath, extractPath } from '../utils/field-path';
 import type { RenderNode, SelectorRenderNode, FormArraySelector, FieldWrapperProps } from './types';
-import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
+import {
+  isFieldRenderNode,
+  isArrayRenderNode,
+  isContainerRenderNode,
+  isNavigationRenderNode,
+} from './utils';
 import {
   FormArrayContext,
   FormArrayItemContext,
@@ -382,6 +387,19 @@ export function RenderNodeComponent<T>({
         fieldWrapper={fieldWrapper}
       />
     );
+  }
+
+  // ========================================
+  // NavigationRenderNode - multi-step навигация
+  // ========================================
+  if (isNavigationRenderNode(node)) {
+    // NavigationRenderNode требует FormNavigation из @reformer/ui
+    // Используйте FormRendererWithNavigation из @reformer/ui для рендеринга форм с навигацией
+    console.warn(
+      '[RenderSchema] NavigationRenderNode detected. ' +
+        'Use FormRendererWithNavigation from @reformer/ui to render forms with navigation.'
+    );
+    return null;
   }
 
   // ========================================

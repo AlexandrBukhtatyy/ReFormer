@@ -46,9 +46,16 @@ export type {
   FormRendererProps,
   FieldWrapperProps,
   ContainerComponentProps,
-  // Selector types
+  // Array selector types
   FormArraySelector,
   SelectorRenderNode,
+  // Navigation types
+  FormNavigationSelector,
+  NavigationStepConfig,
+  NavigationComponentProps,
+  NavigationSelectorRenderNode,
+  NavigationRenderNodeProps,
+  NavigationRenderNode,
 } from './types';
 
 // FormArray Context
@@ -73,4 +80,9 @@ export { Collapsible, type CollapsibleProps } from './components/collapsible';
 export { FormArray, type FormArrayProps } from './components/form-array';
 
 // Utils
-export { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
+export {
+  isFieldRenderNode,
+  isArrayRenderNode,
+  isContainerRenderNode,
+  isNavigationRenderNode,
+} from './utils';
