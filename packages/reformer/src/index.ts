@@ -12,6 +12,7 @@ export type { SetValueOptions } from './core/nodes/form-node';
 export { useFormControl } from './hooks/useFormControl';
 export { useFormControlValue } from './hooks/useFormControlValue';
 export { useArrayLength } from './hooks/useArrayLength';
+export { useHiddenCondition } from './hooks/useHiddenCondition';
 export type { FieldControlState, ArrayControlState } from './hooks/types';
 
 export type { BehaviorSchemaFn } from './core/behavior/types';

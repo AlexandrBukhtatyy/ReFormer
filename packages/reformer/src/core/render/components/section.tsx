@@ -12,6 +12,8 @@ import type { ReactNode } from 'react';
 export interface SectionProps {
   /** Заголовок секции */
   title?: string;
+  /** HTML элемент для заголовка (h1-h6). По умолчанию h3 */
+  titleAs?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
   /** CSS класс для контейнера */
   className?: string;
   /** CSS класс для заголовка */
@@ -41,10 +43,16 @@ export interface SectionProps {
  * }
  * ```
  */
-export function Section({ title, className, titleClassName, children }: SectionProps): ReactNode {
+export function Section({
+  title,
+  titleAs: TitleTag = 'h3',
+  className,
+  titleClassName,
+  children,
+}: SectionProps): ReactNode {
   return (
     <section className={className}>
-      {title && <h3 className={titleClassName}>{title}</h3>}
+      {title && <TitleTag className={titleClassName}>{title}</TitleTag>}
       {children}
     </section>
   );

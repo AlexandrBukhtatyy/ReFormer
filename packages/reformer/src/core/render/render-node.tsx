@@ -11,6 +11,7 @@ import type { FormProxy, FieldPath, FormFields } from '../types';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { useFormControl } from '../../hooks/useFormControl';
 import { useArrayLength } from '../../hooks/useArrayLength';
+import { useHiddenCondition } from '../../hooks/useHiddenCondition';
 import { createFieldPath, extractPath } from '../utils/field-path';
 import type { RenderNode, SelectorRenderNode, FormArraySelector, FieldWrapperProps } from './types';
 import {
@@ -332,10 +333,16 @@ export function RenderNodeComponent<T>({
 }: RenderNodeComponentProps<T>): ReactNode {
   const { componentProps = {} } = node;
 
-  // Проверка условия hidden
+  // Проверка условия hidden (реактивная через хук)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hidden = (componentProps as any).hidden;
-  if (typeof hidden === 'function' && hidden(form, path)) {
+  const hiddenFn = (componentProps as any).hidden;
+  const isHidden = useHiddenCondition(
+    typeof hiddenFn === 'function' ? hiddenFn : undefined,
+    form,
+    path
+  );
+
+  if (isHidden) {
     return null;
   }
 
