@@ -50,7 +50,21 @@ export type {
   ArrayUIHeaderConfig,
   ArrayUIEmptyConfig,
   ArrayRenderItemConfig,
+  // Selector types
+  FormArraySelector,
+  SelectorRenderNode,
 } from './types';
+
+// FormArray Context
+export {
+  FormArrayContext,
+  FormArrayItemContext,
+  useFormArrayContext,
+  useFormArrayItemContext,
+  type FormArrayContextValue,
+  type FormArrayItemContextValue,
+  type FormArrayItem,
+} from './components/form-array-context';
 
 // Components
 export { FormRenderer } from './form-renderer';

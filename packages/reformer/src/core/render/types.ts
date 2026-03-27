@@ -71,6 +71,47 @@ export interface ArrayRenderItemConfig<TItem> {
 }
 
 // ============================================================================
+// SELECTOR TYPES - для декларативного FormArray
+// ============================================================================
+
+/**
+ * Доступные селекторы для FormArray
+ */
+export type FormArraySelector =
+  | 'header'
+  | 'empty'
+  | 'item'
+  | 'item:header'
+  | 'item:content'
+  | 'item:footer'
+  | 'footer';
+
+/**
+ * Узел с селектором для FormArray
+ *
+ * Позволяет декларативно определять части FormArray через селекторы.
+ */
+export interface SelectorRenderNode<T, TItem = unknown> {
+  /** Селектор определяет где будет отрендерен этот узел */
+  selector: FormArraySelector;
+
+  /** React-компонент для рендеринга */
+  component?: ComponentType<ContainerComponentProps>;
+
+  /** Props для компонента */
+  componentProps?: ContainerRenderNodeProps<T> & {
+    /** Вложенные узлы с селекторами */
+    children?: SelectorRenderNode<T, TItem>[];
+  };
+
+  /**
+   * Функция рендеринга для item:content
+   * Получает путь к элементу и индекс
+   */
+  render?: (itemPath: FieldPath<TItem>, index: number) => RenderNode<TItem>;
+}
+
+// ============================================================================
 // RENDER SCHEMA
 // ============================================================================
 
@@ -211,17 +252,28 @@ export interface ContainerRenderNode<T> {
 /**
  * Props для ArrayRenderNode
  *
- * Расширяет FormArrayProps с точной типизацией для array и renderItem.
+ * Поддерживает два режима:
+ * 1. Legacy: renderItem + header + empty конфиги
+ * 2. Selector-based: children с селекторами (header, empty, item, footer)
  */
 export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
   FormArrayProps,
-  'array' | 'renderItem' | 'hidden' | 'item'
+  'array' | 'renderItem' | 'hidden' | 'item' | 'children'
 > {
   /** Ссылка на массив (path.items) */
   array: FieldPathNode<T, TItem[], unknown>;
 
-  /** Конфигурация элемента массива (функция рендеринга + UI) */
-  renderItem: ArrayRenderItemConfig<TItem>;
+  /**
+   * Legacy: Конфигурация элемента массива (функция рендеринга + UI)
+   * Используется если children не указан
+   */
+  renderItem?: ArrayRenderItemConfig<TItem>;
+
+  /**
+   * Selector-based: Дочерние узлы с селекторами
+   * Используется вместо renderItem/header/empty для полного контроля
+   */
+  children?: SelectorRenderNode<T, TItem>[];
 
   /** Условие скрытия массива */
   hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;

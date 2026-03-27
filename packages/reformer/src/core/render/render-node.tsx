@@ -4,7 +4,7 @@
  * @module core/render/render-node
  */
 
-import { memo, type ReactNode } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import type { FieldNode } from '../nodes/field-node';
 import type { ArrayNode } from '../nodes/array-node';
 import type { FormProxy, FieldPath, FormFields } from '../types';
@@ -17,9 +17,17 @@ import type {
   ArrayUIHeaderConfig,
   ArrayUIEmptyConfig,
   ArrayRenderItemConfig,
+  SelectorRenderNode,
+  FormArraySelector,
   FieldWrapperProps,
 } from './types';
 import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
+import {
+  FormArrayContext,
+  FormArrayItemContext,
+  type FormArrayContextValue,
+  type FormArrayItemContextValue,
+} from './components/form-array-context';
 
 /**
  * Props для RenderNodeComponent
@@ -92,14 +100,26 @@ const FieldRenderer = memo(function FieldRenderer({
 });
 
 /**
+ * Резолвит селектор из массива children
+ */
+function resolveSelector<T, TItem>(
+  children: SelectorRenderNode<T, TItem>[] | undefined,
+  selector: FormArraySelector
+): SelectorRenderNode<T, TItem> | undefined {
+  return children?.find((child) => child.selector === selector);
+}
+
+/**
  * Компонент рендеринга массива
  *
- * Выделен в отдельный компонент для корректного использования хуков.
- * Подписывается на изменения длины массива через useFormControl.
+ * Поддерживает два режима:
+ * 1. Legacy: renderItem + header + empty конфиги
+ * 2. Selector-based: children с селекторами (header, empty, item, footer)
  */
 function ArrayRenderer<TItem>({
   arrayNode,
   className,
+  children,
   renderItem,
   header,
   empty,
@@ -107,92 +127,289 @@ function ArrayRenderer<TItem>({
 }: {
   arrayNode: ArrayNode<FormFields>;
   className?: string;
-  renderItem: ArrayRenderItemConfig<TItem>;
+  children?: SelectorRenderNode<unknown, TItem>[];
+  renderItem?: ArrayRenderItemConfig<TItem>;
   header?: ArrayUIHeaderConfig;
   empty?: ArrayUIEmptyConfig;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   // Подписка только на length - не вызывает ре-рендер при изменении вложенных полей
   const length = useArrayLength(arrayNode);
-
   const isEmpty = length === 0;
 
-  // Деструктурируем item-конфиг из renderItem
-  const {
-    render,
-    wrapper,
-    showIndex,
-    indexLabel,
-    indexClassName,
-    headerClassName,
-    removeButton,
-    removeButtonClassName,
-  } = renderItem;
+  // Определяем режим: selector-based или legacy
+  const useSelectorAPI = children && children.length > 0;
+
+  // Резолвим селекторы
+  const headerNode = useSelectorAPI ? resolveSelector(children, 'header') : null;
+  const emptyNode = useSelectorAPI ? resolveSelector(children, 'empty') : null;
+  const itemNode = useSelectorAPI ? resolveSelector(children, 'item') : null;
+  const footerNode = useSelectorAPI ? resolveSelector(children, 'footer') : null;
+
+  // Создаём items для контекста
+  const items = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return arrayNode.map((itemControl: FormProxy<any>, index: number) => ({
+      control: itemControl,
+      index,
+      id: itemControl.id ?? index,
+      remove: () => arrayNode.removeAt(index),
+    }));
+  }, [arrayNode, length]);
+
+  // Контекст массива
+  const arrayContextValue: FormArrayContextValue = useMemo(
+    () => ({
+      items,
+      length,
+      isEmpty,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      add: (value?: any) => arrayNode.push(value ?? {}),
+      clear: () => arrayNode.clear(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      insert: (index: number, value?: any) => arrayNode.insert(index, value),
+      control: arrayNode,
+    }),
+    [items, length, isEmpty, arrayNode]
+  );
+
+  // Legacy режим
+  if (!useSelectorAPI && renderItem) {
+    const {
+      render,
+      wrapper,
+      showIndex,
+      indexLabel,
+      indexClassName,
+      headerClassName,
+      removeButton,
+      removeButtonClassName,
+    } = renderItem;
+
+    return (
+      <FormArrayContext.Provider value={arrayContextValue}>
+        <div className={className}>
+          {/* Header с title и add button */}
+          {header && (
+            <div className={header.className}>
+              {header.title && <h3 className={header.titleClassName}>{header.title}</h3>}
+              {header.addButton && (
+                <button
+                  type="button"
+                  onClick={() => arrayNode.push({})}
+                  className={header.addButtonClassName}
+                >
+                  {header.addButton}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {isEmpty && empty && (
+            <div className={empty.className}>
+              <div>{empty.message}</div>
+              {empty.hint && <div className={empty.hintClassName}>{empty.hint}</div>}
+            </div>
+          )}
+
+          {/* Items */}
+          {items.map(({ control: arrayItem, index, id, remove }) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const itemPath = createFieldPath<any>();
+            const itemRenderNode = render(itemPath, index);
+
+            const itemContextValue: FormArrayItemContextValue = {
+              control: arrayItem,
+              index,
+              id,
+              remove,
+            };
+
+            return (
+              <FormArrayItemContext.Provider key={id} value={itemContextValue}>
+                <div className={wrapper}>
+                  {/* Item header with index and remove */}
+                  {(showIndex || removeButton) && (
+                    <div className={headerClassName}>
+                      {showIndex && (
+                        <span className={indexClassName}>
+                          {indexLabel ? `${indexLabel} #${index + 1}` : `#${index + 1}`}
+                        </span>
+                      )}
+                      {removeButton && (
+                        <button type="button" onClick={remove} className={removeButtonClassName}>
+                          {removeButton}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <RenderNodeComponent
+                    node={itemRenderNode}
+                    form={arrayItem}
+                    path={itemPath}
+                    fieldWrapper={fieldWrapper}
+                  />
+                </div>
+              </FormArrayItemContext.Provider>
+            );
+          })}
+        </div>
+      </FormArrayContext.Provider>
+    );
+  }
+
+  // Selector-based режим
+  return (
+    <FormArrayContext.Provider value={arrayContextValue}>
+      <div className={className}>
+        {/* Header */}
+        {headerNode && <SelectorNodeRenderer node={headerNode} fieldWrapper={fieldWrapper} />}
+
+        {/* Empty state */}
+        {isEmpty && emptyNode && (
+          <SelectorNodeRenderer node={emptyNode} fieldWrapper={fieldWrapper} />
+        )}
+
+        {/* Items */}
+        {!isEmpty &&
+          items.map(({ control: arrayItem, index, id, remove }) => {
+            const itemContextValue: FormArrayItemContextValue = {
+              control: arrayItem,
+              index,
+              id,
+              remove,
+            };
+
+            return (
+              <FormArrayItemContext.Provider key={id} value={itemContextValue}>
+                {itemNode && (
+                  <ItemSelectorRenderer
+                    node={itemNode}
+                    item={arrayItem}
+                    index={index}
+                    fieldWrapper={fieldWrapper}
+                  />
+                )}
+              </FormArrayItemContext.Provider>
+            );
+          })}
+
+        {/* Footer */}
+        {footerNode && <SelectorNodeRenderer node={footerNode} fieldWrapper={fieldWrapper} />}
+      </div>
+    </FormArrayContext.Provider>
+  );
+}
+
+/**
+ * Рендерит SelectorRenderNode (header, empty, footer)
+ */
+function SelectorNodeRenderer<T, TItem>({
+  node,
+  fieldWrapper,
+}: {
+  node: SelectorRenderNode<T, TItem>;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
+  const Component = node.component;
+  if (!Component) return null;
+
+  const { children: selectorChildren, ...restProps } = node.componentProps || {};
+
+  // Рендерим children если они есть (могут быть RenderNode или SelectorRenderNode)
+  const renderedChildren = selectorChildren?.map((child, idx) => {
+    // Если это SelectorRenderNode с вложенным селектором - пропускаем (они для item)
+    if ('selector' in child && (child.selector as string).startsWith('item:')) {
+      return null;
+    }
+    // Если у child есть component - это RenderNode
+    if ('component' in child && child.component) {
+      return (
+        <RenderNodeComponent
+          key={idx}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          node={child as RenderNode<any>}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          form={{} as FormProxy<any>}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          path={createFieldPath<any>()}
+          fieldWrapper={fieldWrapper}
+        />
+      );
+    }
+    return null;
+  });
+
+  return <Component {...restProps}>{renderedChildren}</Component>;
+}
+
+/**
+ * Рендерит item с поддержкой вложенных селекторов (item:header, item:content, item:footer)
+ */
+function ItemSelectorRenderer<T, TItem>({
+  node,
+  item,
+  index,
+  fieldWrapper,
+}: {
+  node: SelectorRenderNode<T, TItem>;
+  item: FormProxy<unknown>;
+  index: number;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
+  const Component = node.component;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const itemPath = createFieldPath<any>();
+
+  const { children: selectorChildren, ...restProps } = node.componentProps || {};
+
+  // Ищем вложенные селекторы
+  const itemHeaderNode = selectorChildren?.find(
+    (c) => 'selector' in c && c.selector === 'item:header'
+  ) as SelectorRenderNode<T, TItem> | undefined;
+
+  const itemContentNode = selectorChildren?.find(
+    (c) => 'selector' in c && c.selector === 'item:content'
+  ) as SelectorRenderNode<T, TItem> | undefined;
+
+  const itemFooterNode = selectorChildren?.find(
+    (c) => 'selector' in c && c.selector === 'item:footer'
+  ) as SelectorRenderNode<T, TItem> | undefined;
+
+  // Рендерим content через render функцию
+  const contentElement = itemContentNode?.render ? (
+    <RenderNodeComponent
+      node={itemContentNode.render(itemPath, index)}
+      form={item}
+      path={itemPath}
+      fieldWrapper={fieldWrapper}
+    />
+  ) : node.render ? (
+    <RenderNodeComponent
+      node={node.render(itemPath, index)}
+      form={item}
+      path={itemPath}
+      fieldWrapper={fieldWrapper}
+    />
+  ) : null;
+
+  // Если нет Component, рендерим только content
+  if (!Component) {
+    return contentElement;
+  }
 
   return (
-    <div className={className}>
-      {/* Header с title и add button */}
-      {header && (
-        <div className={header.className}>
-          {header.title && <h3 className={header.titleClassName}>{header.title}</h3>}
-          {header.addButton && (
-            <button
-              type="button"
-              onClick={() => arrayNode.push({})}
-              className={header.addButtonClassName}
-            >
-              {header.addButton}
-            </button>
-          )}
-        </div>
-      )}
+    <Component {...restProps}>
+      {/* Item header */}
+      {itemHeaderNode && <SelectorNodeRenderer node={itemHeaderNode} fieldWrapper={fieldWrapper} />}
 
-      {/* Empty state */}
-      {isEmpty && empty && (
-        <div className={empty.className}>
-          <div>{empty.message}</div>
-          {empty.hint && <div className={empty.hintClassName}>{empty.hint}</div>}
-        </div>
-      )}
+      {/* Item content */}
+      {contentElement}
 
-      {/* Items */}
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      {arrayNode.map((arrayItem: FormProxy<any>, index: number) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const itemPath = createFieldPath<any>();
-        const itemNode = render(itemPath, index);
-
-        return (
-          <div key={arrayItem.id ?? index} className={wrapper}>
-            {/* Item header with index and remove */}
-            {(showIndex || removeButton) && (
-              <div className={headerClassName}>
-                {showIndex && (
-                  <span className={indexClassName}>
-                    {indexLabel ? `${indexLabel} #${index + 1}` : `#${index + 1}`}
-                  </span>
-                )}
-                {removeButton && (
-                  <button
-                    type="button"
-                    onClick={() => arrayNode.removeAt(index)}
-                    className={removeButtonClassName}
-                  >
-                    {removeButton}
-                  </button>
-                )}
-              </div>
-            )}
-            <RenderNodeComponent
-              node={itemNode}
-              form={arrayItem}
-              path={itemPath}
-              fieldWrapper={fieldWrapper}
-            />
-          </div>
-        );
-      })}
-    </div>
+      {/* Item footer */}
+      {itemFooterNode && <SelectorNodeRenderer node={itemFooterNode} fieldWrapper={fieldWrapper} />}
+    </Component>
   );
 }
 
@@ -249,7 +466,7 @@ export function RenderNodeComponent<T>({
   // ArrayRenderNode - массив
   // ========================================
   if (isArrayRenderNode(node)) {
-    const { array, className, renderItem, header, empty } = node.componentProps;
+    const { array, className, renderItem, header, empty, children } = node.componentProps;
     const arrayPath = extractPath(array);
     const arrayNode = navigator.getNodeByPath(form, arrayPath) as ArrayNode<FormFields> | null;
 
@@ -262,6 +479,8 @@ export function RenderNodeComponent<T>({
       <ArrayRenderer
         arrayNode={arrayNode}
         className={className}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        children={children as SelectorRenderNode<unknown, any>[] | undefined}
         renderItem={renderItem}
         header={header}
         empty={empty}
