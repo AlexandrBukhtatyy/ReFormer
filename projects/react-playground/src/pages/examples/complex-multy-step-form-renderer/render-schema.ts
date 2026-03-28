@@ -32,7 +32,7 @@ import {
   CoBorrowerArrayHeader,
   CoBorrowerArrayEmpty,
   CoBorrowerItemHeader,
-} from './components/FormArrayComponents';
+} from '../complex-multy-step-form/components/ui/FormArrayComponents';
 import {
   ConfirmationInfoBlock,
   HighPaymentWarning,
