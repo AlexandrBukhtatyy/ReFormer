@@ -11,7 +11,7 @@
 import type { ReactNode } from 'react';
 import { useFormNavigation } from '@reformer/ui/form-navigation';
 import { Button } from '@/components/ui/button';
-import type { CreditApplicationForm } from '../../complex-multy-step-form/types/credit-application';
+import type { CreditApplicationForm } from '../../types/credit-application';
 
 interface ResidenceAddressSectionProps {
   /** CSS классы */

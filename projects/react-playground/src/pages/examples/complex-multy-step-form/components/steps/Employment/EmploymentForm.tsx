@@ -2,6 +2,7 @@ import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import type { CreditApplicationForm, EmploymentStatus } from '../../../types/credit-application';
+import { UnemployedWarning } from '../../ui/UnemployedWarning';
 
 interface EmploymentFormProps {
   control: FormProxy<CreditApplicationForm>;
@@ -59,14 +60,7 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
         </div>
       )}
 
-      {employmentStatus === 'unemployed' && (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md mt-6">
-          <p className="text-sm text-yellow-800">
-            Обратите внимание: для получения кредита без подтвержденного дохода могут потребоваться
-            дополнительные документы и поручители.
-          </p>
-        </div>
-      )}
+      {employmentStatus === 'unemployed' && <UnemployedWarning className={'mt-6'} />}
     </div>
   );
 }

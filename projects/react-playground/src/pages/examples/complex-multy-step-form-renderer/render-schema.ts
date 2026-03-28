@@ -17,11 +17,11 @@ import creditApplicationValidation, {
 } from '../complex-multy-step-form/schemas/credit-application-validation';
 import { submitCreditApplication } from '../complex-multy-step-form/api';
 import { CreditApplicationWizard } from './components/CreditApplicationWizard';
-import { StepIndicator } from './components/StepIndicator';
-import { NavigationActions } from './components/NavigationActions';
-import { NavigationProgress } from './components/NavigationProgress';
-import { ResidenceAddressSection } from './components/ResidenceAddressSection';
-import { UnemployedWarning } from './components/UnemployedWarning';
+import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
+import { NavigationActions } from '../complex-multy-step-form/components/ui/NavigationActions';
+import { NavigationProgress } from '../complex-multy-step-form/components/ui/NavigationProgress';
+import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
+import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
 import {
   PropertyArrayHeader,
   PropertyArrayEmpty,
@@ -40,7 +40,7 @@ import {
   SubmitWarning,
   NextStepsInfo,
   ElectronicSignatureHint,
-} from './components/ConfirmationComponents';
+} from '../complex-multy-step-form/components/ui/ConfirmationComponents';
 
 /**
  * Обработчик отправки формы
@@ -494,7 +494,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 {
                   component: UnemployedWarning,
                   componentProps: {
-                    className: 'p-4 bg-yellow-50 border border-yellow-200 rounded-md mt-6',
+                    className: 'mt-6',
                     hidden: (form) => form.employmentStatus.value.value !== 'unemployed',
                   },
                 },
@@ -781,13 +781,13 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   componentProps: {
                     className: 'space-y-4',
                     children: [
-                      { component: ConfirmationInfoBlock, componentProps: {} },
-                      { component: HighPaymentWarning, componentProps: {} },
+                      { component: ConfirmationInfoBlock },
+                      { component: HighPaymentWarning },
                     ],
                   },
                 },
                 // Секция "Итого"
-                { component: LoanSummarySection, componentProps: {} },
+                { component: LoanSummarySection },
                 // Обязательные согласия
                 {
                   component: Section,
@@ -821,14 +821,14 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                     className: 'space-y-4',
                     children: [
                       { component: path.electronicSignature },
-                      { component: ElectronicSignatureHint, componentProps: {} },
+                      { component: ElectronicSignatureHint },
                     ],
                   },
                 },
                 // Предупреждение
-                { component: SubmitWarning, componentProps: {} },
+                { component: SubmitWarning },
                 // Что будет дальше
-                { component: NextStepsInfo, componentProps: {} },
+                { component: NextStepsInfo },
               ],
             },
           },

@@ -6,6 +6,7 @@
 
 import type { FC } from 'react';
 import type { FormNavigationProgressRenderProps } from '@reformer/ui/form-navigation';
+import { combineClasses } from '@/utils/combine-classes';
 
 interface NavigationProgressProps extends FormNavigationProgressRenderProps {
   className?: string;
@@ -17,8 +18,9 @@ export const NavigationProgress: FC<NavigationProgressProps> = ({
   percent,
   className,
 }) => {
+  const classes = combineClasses('text-center text-sm text-gray-600', className);
   return (
-    <div className={`text-sm text-gray-600 ${className || ''}`}>
+    <div className={classes}>
       Шаг {current} из {total} • {percent}% завершено
     </div>
   );

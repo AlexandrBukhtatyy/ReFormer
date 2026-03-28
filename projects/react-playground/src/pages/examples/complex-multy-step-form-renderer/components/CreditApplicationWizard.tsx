@@ -20,9 +20,9 @@ import {
   type FormNavigationConfig,
 } from '@reformer/ui/form-navigation';
 import type { CreditApplicationForm } from '../../complex-multy-step-form/types/credit-application';
-import { StepIndicator } from './StepIndicator';
-import { NavigationActions } from './NavigationActions';
-import { NavigationProgress } from './NavigationProgress';
+import { StepIndicator } from '../../complex-multy-step-form/components/ui/StepIndicator';
+import { NavigationActions } from '../../complex-multy-step-form/components/ui/NavigationActions';
+import { NavigationProgress } from '../../complex-multy-step-form/components/ui/NavigationProgress';
 
 /**
  * Props для CreditApplicationWizard
