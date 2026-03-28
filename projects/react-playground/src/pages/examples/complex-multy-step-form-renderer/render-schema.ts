@@ -7,16 +7,16 @@
 
 import type { RenderSchemaFn, RenderNode, FieldPath } from '@reformer/core';
 import { Box, Section, FormArray } from '@reformer/core';
-import { FormNavigation } from '@reformer/ui/form-navigation';
+import { Step } from '@reformer/ui/form-navigation';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import type { Property } from '../complex-multy-step-form/components/nested-forms/Property/types';
 import type { ExistingLoan } from '../complex-multy-step-form/components/nested-forms/ExistingLoan/types';
 import type { CoBorrower } from '../complex-multy-step-form/components/nested-forms/CoBorrower/types';
-import { STEPS } from '../complex-multy-step-form/constants/credit-application';
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from '../complex-multy-step-form/schemas/credit-application-validation';
 import { submitCreditApplication } from '../complex-multy-step-form/api';
+import { CreditApplicationWizard } from './components/CreditApplicationWizard';
 import { StepIndicator } from './components/StepIndicator';
 import { NavigationActions } from './components/NavigationActions';
 import { NavigationProgress } from './components/NavigationProgress';
@@ -58,21 +58,20 @@ async function handleSubmit(values: CreditApplicationForm): Promise<void> {
  * RenderSchema для кредитной заявки
  *
  * Структура:
- * - NavigationRenderNode (корень)
+ * - CreditApplicationWizard (корень) - пользовательский wizard-компонент
  *   - indicator: StepIndicator
- *   - step:1-6: содержимое шагов
+ *   - step:1-6: содержимое шагов (с title/icon в componentProps)
  *   - actions: NavigationActions
  *   - progress: NavigationProgress
  */
 export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm> = (path) => ({
-  component: FormNavigation,
+  component: CreditApplicationWizard,
   componentProps: {
-    steps: STEPS,
     stepValidations: STEP_VALIDATIONS,
     fullValidation: creditApplicationValidation,
     onSubmit: handleSubmit,
     className: 'bg-white p-8 rounded-lg shadow-md',
-    children: [
+    items: [
       // ========================================
       // Индикатор шагов
       // ========================================
@@ -87,6 +86,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       // ========================================
       {
         selector: 'step:1',
+        component: Step,
+        componentProps: { title: 'Кредит', icon: '💰' },
         children: [
           {
             component: Box,
@@ -155,6 +156,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       // ========================================
       {
         selector: 'step:2',
+        component: Step,
+        componentProps: { title: 'Данные', icon: '👤' },
         children: [
           {
             component: Section,
@@ -258,6 +261,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       // ========================================
       {
         selector: 'step:3',
+        component: Step,
+        componentProps: { title: 'Контакты', icon: '📞' },
         children: [
           {
             component: Section,
@@ -382,6 +387,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       // ========================================
       {
         selector: 'step:4',
+        component: Step,
+        componentProps: { title: 'Работа', icon: '💼' },
         children: [
           {
             component: Section,
@@ -502,6 +509,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       // ========================================
       {
         selector: 'step:5',
+        component: Step,
+        componentProps: { title: 'Доп. инфо', icon: '📋' },
         children: [
           {
             component: Section,
@@ -755,6 +764,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       // ========================================
       {
         selector: 'step:6',
+        component: Step,
+        componentProps: { title: 'Подтверждение', icon: '✓' },
         children: [
           {
             component: Section,

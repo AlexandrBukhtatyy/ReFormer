@@ -9,6 +9,7 @@ import type { FormProxy } from '../types';
 import { createFieldPath } from '../utils/field-path';
 import type { FormRendererProps } from './types';
 import { RenderNodeComponent } from './render-node';
+import { RenderContextProvider } from './render-context';
 
 /**
  * FormRenderer - рендеринг формы на основе RenderSchema
@@ -68,11 +69,13 @@ export function FormRenderer<T>({ form, render, fieldWrapper }: FormRendererProp
   const rootNode = render(path);
 
   return (
-    <RenderNodeComponent
-      node={rootNode}
-      form={form as FormProxy<T>}
-      path={path}
-      fieldWrapper={fieldWrapper}
-    />
+    <RenderContextProvider value={{ form, path, fieldWrapper }}>
+      <RenderNodeComponent
+        node={rootNode}
+        form={form as FormProxy<T>}
+        path={path}
+        fieldWrapper={fieldWrapper}
+      />
+    </RenderContextProvider>
   );
 }

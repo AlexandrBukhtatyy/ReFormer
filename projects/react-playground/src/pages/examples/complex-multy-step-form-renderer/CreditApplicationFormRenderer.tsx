@@ -5,7 +5,7 @@
  * Демонстрирует полностью декларативный подход к описанию сложных multi-step форм.
  *
  * Использует:
- * - FormRendererWithNavigation для рендеринга NavigationRenderNode
+ * - FormRenderer с пользовательским CreditApplicationWizard компонентом
  * - Единую renderSchema для всей формы (включая навигацию)
  * - Переиспользует типы, схему, валидацию и API из complex-multy-step-form
  */
@@ -13,7 +13,7 @@
 import { useMemo } from 'react';
 import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/create-credit-application-form';
 import { useLoadCreditApplication } from '../complex-multy-step-form/hooks/useLoadCreditApplication';
-import { FormRendererWithNavigation } from '@reformer/ui/form-navigation';
+import { FormRenderer } from '@reformer/core';
 import { FormField } from '@/components/ui/form-field';
 import { Button } from '@/components/ui/button';
 import { creditApplicationRenderSchema } from './render-schema';
@@ -52,14 +52,10 @@ function CreditApplicationFormRenderer() {
     );
   }
 
-  // Рендер: Форма через FormRendererWithNavigation
+  // Рендер: Форма через FormRenderer с CreditApplicationWizard
   return (
     <div className="w-full">
-      <FormRendererWithNavigation
-        form={form}
-        render={creditApplicationRenderSchema}
-        fieldWrapper={FormField}
-      />
+      <FormRenderer form={form} render={creditApplicationRenderSchema} fieldWrapper={FormField} />
     </div>
   );
 }

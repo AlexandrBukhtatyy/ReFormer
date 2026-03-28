@@ -4,13 +4,7 @@
  * @module core/render/utils
  */
 
-import type {
-  RenderNode,
-  FieldRenderNode,
-  ContainerRenderNode,
-  ArrayRenderNode,
-  NavigationRenderNode,
-} from './types';
+import type { RenderNode, FieldRenderNode, ContainerRenderNode, ArrayRenderNode } from './types';
 import { FormArray } from './components/form-array';
 
 /**
@@ -72,37 +66,5 @@ export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNo
  * ```
  */
 export function isContainerRenderNode<T>(node: RenderNode<T>): node is ContainerRenderNode<T> {
-  return (
-    typeof node.component === 'function' &&
-    node.component !== FormArray &&
-    !isNavigationRenderNode(node)
-  );
-}
-
-/**
- * Type guard для NavigationRenderNode
- *
- * Проверяет, что узел является FormNavigation для multi-step формы.
- * Идентифицируется по наличию `steps` и `children` с селекторами в componentProps.
- *
- * @example
- * ```typescript
- * if (isNavigationRenderNode(node)) {
- *   // node.componentProps.steps, node.componentProps.children
- * }
- * ```
- */
-export function isNavigationRenderNode<T>(node: RenderNode<T>): node is NavigationRenderNode<T> {
-  const props = node.componentProps as NavigationRenderNode<T>['componentProps'] | undefined;
-  if (!props) return false;
-
-  // Проверяем наличие steps и children с селекторами
-  return (
-    Array.isArray(props.steps) &&
-    Array.isArray(props.children) &&
-    props.children.length > 0 &&
-    typeof props.children[0] === 'object' &&
-    props.children[0] !== null &&
-    'selector' in props.children[0]
-  );
+  return typeof node.component === 'function' && node.component !== FormArray;
 }

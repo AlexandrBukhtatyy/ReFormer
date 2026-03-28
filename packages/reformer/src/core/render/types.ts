@@ -85,17 +85,12 @@ export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
 /**
  * Узел рендеринга формы
  *
- * Дискриминированный union из четырёх типов узлов:
+ * Дискриминированный union из трёх типов узлов:
  * - FieldRenderNode - поле формы
- * - ContainerRenderNode - контейнер (Box, Section, etc.)
+ * - ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
  * - ArrayRenderNode - рендеринг массива элементов
- * - NavigationRenderNode - multi-step навигация
  */
-export type RenderNode<T> =
-  | FieldRenderNode<T>
-  | ContainerRenderNode<T>
-  | ArrayRenderNode<T>
-  | NavigationRenderNode<T>;
+export type RenderNode<T> = FieldRenderNode<T> | ContainerRenderNode<T> | ArrayRenderNode<T>;
 
 // ============================================================================
 // FIELD RENDER NODE
@@ -263,145 +258,6 @@ export interface ArrayRenderNode<T> {
 
   /** Props для FormArray */
   componentProps: ArrayRenderNodeProps<T>;
-}
-
-// ============================================================================
-// NAVIGATION RENDER NODE
-// ============================================================================
-
-/**
- * Доступные селекторы для FormNavigation
- *
- * - 'indicator' - индикатор шагов (заголовки, иконки, номера)
- * - 'step:N' - содержимое шага N (step:1, step:2, ...)
- * - 'actions' - кнопки навигации (Назад, Далее, Отправить)
- * - 'progress' - информация о прогрессе (шаг X из Y)
- */
-export type FormNavigationSelector = 'indicator' | `step:${number}` | 'actions' | 'progress';
-
-/**
- * Конфигурация шага для индикатора
- */
-export interface NavigationStepConfig {
-  /** Номер шага (1-based) */
-  number: number;
-  /** Заголовок шага */
-  title: string;
-  /** Иконка шага (emoji или текст) */
-  icon?: string;
-}
-
-/**
- * Props для компонентов indicator/actions/progress
- */
-export interface NavigationComponentProps {
-  /** CSS класс */
-  className?: string;
-  /** Дочерние элементы */
-  children?: React.ReactNode;
-  /** Произвольные дополнительные props */
-  [key: string]: unknown;
-}
-
-/**
- * Узел с селектором для FormNavigation
- *
- * @example
- * ```typescript
- * // Индикатор шагов
- * { selector: 'indicator', component: StepIndicator }
- *
- * // Содержимое шага
- * {
- *   selector: 'step:1',
- *   children: [
- *     { component: path.firstName },
- *     { component: path.lastName },
- *   ]
- * }
- *
- * // Кнопки навигации
- * { selector: 'actions', component: NavigationActions }
- * ```
- */
-export interface NavigationSelectorRenderNode<T> {
-  /** Селектор определяет где будет отрендерен этот узел */
-  selector: FormNavigationSelector;
-
-  /** React-компонент (для indicator/actions/progress) */
-  component?: React.ComponentType<NavigationComponentProps>;
-
-  /** Props для компонента */
-  componentProps?: ContainerRenderNodeProps<T>;
-
-  /** Дочерние узлы для step:N (поля формы) */
-  children?: RenderNode<T>[];
-}
-
-/**
- * Props для NavigationRenderNode
- */
-export interface NavigationRenderNodeProps<T> {
-  /** Конфигурация шагов (для индикатора) */
-  steps: NavigationStepConfig[];
-
-  /** Валидация по шагам (1-based) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stepValidations?: Record<number, any>;
-
-  /** Полная валидация при отправке */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fullValidation?: any;
-
-  /** Дочерние узлы с селекторами */
-  children: NavigationSelectorRenderNode<T>[];
-
-  /** Callback при отправке */
-  onSubmit?: (values: T) => Promise<void> | void;
-
-  /** Callback при смене шага */
-  onStepChange?: (step: number) => void;
-
-  /** Прокрутка вверх при смене шага */
-  scrollToTop?: boolean;
-
-  /** CSS класс для контейнера шагов */
-  className?: string;
-
-  /** Условие скрытия */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-}
-
-/**
- * Узел рендеринга multi-step навигации
- *
- * @example
- * ```typescript
- * const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
- *   component: FormNavigation,
- *   componentProps: {
- *     steps: STEPS,
- *     stepValidations: STEP_VALIDATIONS,
- *     fullValidation: myValidation,
- *     onSubmit: handleSubmit,
- *     children: [
- *       { selector: 'indicator', component: StepIndicator },
- *       { selector: 'step:1', children: [{ component: path.email }] },
- *       { selector: 'step:2', children: [{ component: path.password }] },
- *       { selector: 'actions', component: NavigationActions },
- *       { selector: 'progress', component: NavigationProgress },
- *     ],
- *   },
- * });
- * ```
- */
-export interface NavigationRenderNode<T> {
-  /** Компонент FormNavigation (маркер типа) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: any; // typeof FormNavigation - будет проверяться через isNavigationRenderNode
-
-  /** Props для FormNavigation */
-  componentProps: NavigationRenderNodeProps<T>;
 }
 
 // ============================================================================

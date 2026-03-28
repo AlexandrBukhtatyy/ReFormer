@@ -1,12 +1,19 @@
 // Main compound component
 export { FormNavigation } from './FormNavigation';
 
-// Navigation renderer for RenderSchema
-export { NavigationRenderer, type NavigationRendererProps } from './NavigationRenderer';
+// Step marker component for wizard schemas
+export { Step, type StepProps } from './Step';
+
+// Wizard selector utilities
 export {
-  FormRendererWithNavigation,
-  type FormRendererWithNavigationProps,
-} from './FormRendererWithNavigation';
+  useNavigationSelectors,
+  parseStepNumber,
+  type WizardSelector,
+  type WizardSelectorNode,
+  type WizardComponentProps,
+  type StepMetadata,
+  type ParsedWizardSelectors,
+} from './useNavigationSelectors';
 
 // Sub-components (also available as FormNavigation.Step, etc.)
 export { FormNavigationStep } from './FormNavigationStep';
