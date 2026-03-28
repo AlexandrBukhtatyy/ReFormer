@@ -17,9 +17,12 @@ interface ArrayHeaderProps {
   className?: string;
 }
 
-// Стиль кнопок как в оригинальной форме (bg-primary)
-const primaryButtonClassName =
+// Общие стили для FormArray компонентов (экспортируются для переиспользования)
+export const primaryButtonClassName =
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
+
+export const emptyStateClassName =
+  'p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600';
 
 export function ArrayHeader({
   title,
@@ -55,7 +58,7 @@ interface ArrayEmptyProps {
 export function ArrayEmpty({
   message,
   hint,
-  className = 'p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600',
+  className = emptyStateClassName,
 }: ArrayEmptyProps): ReactNode {
   return (
     <div className={className}>

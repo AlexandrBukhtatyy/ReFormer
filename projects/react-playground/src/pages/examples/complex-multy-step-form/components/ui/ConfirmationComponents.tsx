@@ -1,7 +1,8 @@
 /**
- * Компоненты для Шага 6 (Подтверждение) в RenderSchema
+ * Компоненты для Шага 6 (Подтверждение)
  *
- * Компоненты для отображения информационных блоков, итогов и предупреждений.
+ * Презентационные компоненты для отображения информационных блоков, итогов и предупреждений.
+ * Используются как в ConfirmationForm (с пропами), так и в RenderSchema (с useFormNavigation).
  */
 
 import type { ReactNode } from 'react';
@@ -25,13 +26,15 @@ export function ConfirmationInfoBlock(): ReactNode {
 }
 
 // ============================================================================
-// Предупреждение о высоком платеже (оранжевый)
+// Предупреждение о высоком платеже (красный)
 // ============================================================================
 
-export function HighPaymentWarning(): ReactNode {
-  const { form } = useFormNavigation<CreditApplicationForm>();
-  const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
+interface HighPaymentWarningBaseProps {
+  monthlyPayment: number;
+}
 
+/** Презентационный компонент - принимает данные как пропы */
+export function HighPaymentWarningBase({ monthlyPayment }: HighPaymentWarningBaseProps): ReactNode {
   if (monthlyPayment <= 30000) {
     return null;
   }
@@ -45,15 +48,27 @@ export function HighPaymentWarning(): ReactNode {
   );
 }
 
+/** Версия с useFormNavigation для RenderSchema */
+export function HighPaymentWarning(): ReactNode {
+  const { form } = useFormNavigation<CreditApplicationForm>();
+  const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
+  return <HighPaymentWarningBase monthlyPayment={monthlyPayment} />;
+}
+
 // ============================================================================
 // Секция "Итого" с расчётами
 // ============================================================================
 
-export function LoanSummarySection(): ReactNode {
-  const { form } = useFormNavigation<CreditApplicationForm>();
-  const interestRate = useFormControlValue(form.interestRate) as number;
-  const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
+interface LoanSummarySectionBaseProps {
+  interestRate: number;
+  monthlyPayment: number;
+}
 
+/** Презентационный компонент - принимает данные как пропы */
+export function LoanSummarySectionBase({
+  interestRate,
+  monthlyPayment,
+}: LoanSummarySectionBaseProps): ReactNode {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Итого</h3>
@@ -77,13 +92,25 @@ export function LoanSummarySection(): ReactNode {
   );
 }
 
+/** Версия с useFormNavigation для RenderSchema */
+export function LoanSummarySection(): ReactNode {
+  const { form } = useFormNavigation<CreditApplicationForm>();
+  const interestRate = useFormControlValue(form.interestRate) as number;
+  const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
+  return <LoanSummarySectionBase interestRate={interestRate} monthlyPayment={monthlyPayment} />;
+}
+
 // ============================================================================
 // Предупреждение перед отправкой (желтый)
 // ============================================================================
 
-export function SubmitWarning(): ReactNode {
+interface SubmitWarningProps {
+  className?: string;
+}
+
+export function SubmitWarning({ className = 'mt-6' }: SubmitWarningProps): ReactNode {
   return (
-    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md mt-6">
+    <div className={`p-4 bg-yellow-50 border border-yellow-200 rounded-md ${className}`}>
       <p className="text-sm text-yellow-800">
         <strong>Внимание!</strong> После нажатия кнопки &quot;Отправить заявку&quot; вы
         подтверждаете достоверность предоставленной информации и согласие c условиями кредитования.

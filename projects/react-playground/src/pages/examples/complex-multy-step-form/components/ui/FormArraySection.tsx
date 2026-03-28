@@ -25,6 +25,7 @@
 import type { FormArrayProxy, FormFields, FormProxy } from '@reformer/core';
 import type { ComponentType } from 'react';
 import { FormArray } from '@reformer/ui/form-array';
+import { primaryButtonClassName, emptyStateClassName } from './FormArrayComponents';
 
 interface FormArraySectionProps<T extends object> {
   /** Заголовок секции */
@@ -72,7 +73,7 @@ export function FormArraySection<T extends object>({
       <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <FormArray.AddButton className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+          <FormArray.AddButton className={primaryButtonClassName}>
             {addButtonLabel}
           </FormArray.AddButton>
         </div>
@@ -84,7 +85,7 @@ export function FormArraySection<T extends object>({
                 <h4 className="font-medium">
                   {itemLabel} #{index + 1}
                 </h4>
-                <FormArray.RemoveButton className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+                <FormArray.RemoveButton className={primaryButtonClassName}>
                   Удалить
                 </FormArray.RemoveButton>
               </div>
@@ -94,7 +95,7 @@ export function FormArraySection<T extends object>({
         </FormArray.List>
 
         <FormArray.Empty>
-          <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
+          <div className={emptyStateClassName}>
             {emptyMessage}
             {emptyMessageHint && (
               <div className="mt-2 text-xs text-gray-500">{emptyMessageHint}</div>
