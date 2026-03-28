@@ -5,13 +5,12 @@
  * - Копировать данные из адреса регистрации
  * - Очистить адрес проживания
  *
- * Использует useFormNavigation для доступа к form.
+ * Использует useAddressCopy хук для логики копирования.
  */
 
 import type { ReactNode } from 'react';
-import { useFormNavigation } from '@reformer/ui/form-navigation';
 import { Button } from '@/components/ui/button';
-import type { CreditApplicationForm } from '../../types/credit-application';
+import { useAddressCopy } from './useAddressCopy';
 
 interface ResidenceAddressSectionProps {
   /** CSS классы */
@@ -32,18 +31,7 @@ export function ResidenceAddressSection({
   className = 'space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200',
   children,
 }: ResidenceAddressSectionProps): ReactNode {
-  const { form } = useFormNavigation<CreditApplicationForm>();
-
-  // Копировать адрес регистрации в адрес проживания
-  const copyRegistrationAddress = () => {
-    const regAddress = form.registrationAddress?.getValue();
-    form.residenceAddress?.setValue(regAddress);
-  };
-
-  // Очистить адрес проживания
-  const clearResidenceAddress = () => {
-    form.residenceAddress?.reset();
-  };
+  const { copyRegistrationAddress, clearResidenceAddress } = useAddressCopy();
 
   return (
     <div className={className}>
