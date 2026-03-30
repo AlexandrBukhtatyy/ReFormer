@@ -16,7 +16,7 @@ import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from '../complex-multy-step-form/schemas/credit-application-validation';
 import { submitCreditApplication } from '../complex-multy-step-form/api';
-import { CreditApplicationWizard } from './components/CreditApplicationWizard';
+import { CreditApplicationWizard } from './CreditApplicationWizard';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
 import { NavigationActions } from '../complex-multy-step-form/components/ui/NavigationActions';
 import { NavigationProgress } from '../complex-multy-step-form/components/ui/NavigationProgress';
