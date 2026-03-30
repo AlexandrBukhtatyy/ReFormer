@@ -3,9 +3,14 @@
  *
  * Использует headless-примитивы из @reformer/ui и контекст рендеринга из @reformer/core.
  * Может использоваться в RenderSchema как обычный ContainerRenderNode.
+ *
+ * Компонент устанавливает __selfManagedChildren = true, чтобы RenderNodeComponent
+ * передавал children как сырые RenderNode[], а не рендерил их самостоятельно.
+ * Дочерние узлы идентифицируются по полю selector на уровне ContainerRenderNode.
  */
 
 import { type ReactNode } from 'react';
+import type React from 'react';
 import {
   useRenderContext,
   RenderNodeComponent,
@@ -13,26 +18,28 @@ import {
   type FormProxy,
   type FieldPath,
 } from '@reformer/core';
-import {
-  FormNavigation,
-  useNavigationSelectors,
-  type WizardSelectorNode,
-  type FormNavigationConfig,
-} from '@reformer/ui/form-navigation';
+import { FormNavigation, type FormNavigationConfig } from '@reformer/ui/form-navigation';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
 import { NavigationActions } from '../complex-multy-step-form/components/ui/NavigationActions';
 import { NavigationProgress } from '../complex-multy-step-form/components/ui/NavigationProgress';
 
-/**
- * Props для CreditApplicationWizard
- *
- * Использует `items` вместо `children` для selector-based узлов,
- * чтобы избежать конфликта с типом ContainerRenderNodeProps.
- */
+interface WizardNodeProps {
+  title?: string;
+  icon?: string;
+  className?: string;
+  [key: string]: unknown;
+}
+
+interface WizardRenderNode {
+  selector?: string;
+  component: React.ComponentType<WizardNodeProps>;
+  componentProps?: WizardNodeProps;
+}
+
 interface CreditApplicationWizardProps {
-  /** Selector-based items (indicator, step:N, actions, progress) */
-  items?: WizardSelectorNode<CreditApplicationForm>[];
+  /** Selector-based children (indicator, step:N, actions, progress) */
+  children?: WizardRenderNode[];
   /** Валидация по шагам */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stepValidations?: Record<number, any>;
@@ -47,39 +54,12 @@ interface CreditApplicationWizardProps {
   scrollToTop?: boolean;
   /** CSS класс для контейнера шагов */
   className?: string;
-  /** React children (для совместимости с ContainerComponentProps) */
-  children?: React.ReactNode;
 }
 
-/**
- * CreditApplicationWizard - wizard-компонент для кредитной заявки
- *
- * @example
- * ```tsx
- * // В схеме
- * {
- *   component: CreditApplicationWizard,
- *   componentProps: {
- *     stepValidations: STEP_VALIDATIONS,
- *     fullValidation: creditApplicationValidation,
- *     onSubmit: handleSubmit,
- *     className: 'bg-white p-8 rounded-lg shadow-md',
- *     children: [
- *       { selector: 'indicator', component: StepIndicator },
- *       {
- *         selector: 'step:1',
- *         component: Step,
- *         componentProps: { title: 'Кредит', icon: '💰' },
- *         children: [...]
- *       },
- *       { selector: 'actions', component: NavigationActions },
- *     ],
- *   },
- * }
- * ```
- */
+const parseStepNum = (selector: string) => parseInt(selector.split(':')[1], 10);
+
 export function CreditApplicationWizard({
-  items = [],
+  children = [],
   stepValidations,
   fullValidation,
   onSubmit,
@@ -87,17 +67,36 @@ export function CreditApplicationWizard({
   scrollToTop = true,
   className,
 }: CreditApplicationWizardProps): ReactNode {
-  // Получаем контекст рендеринга из FormRenderer
   const { form, path, fieldWrapper } = useRenderContext<CreditApplicationForm>();
 
-  // Парсим selector-based items
-  const { indicator, stepNodes, steps, actions, progress } = useNavigationSelectors(items);
+  // Разбираем RenderNode[] по полю selector
+  const indicatorNode = children.find((c) => c.selector === 'indicator');
+  const stepNodes = children
+    .filter((c) => typeof c.selector === 'string' && c.selector.startsWith('step:'))
+    .sort((a, b) => parseStepNum(a.selector!) - parseStepNum(b.selector!));
+  const actionsNode = children.find((c) => c.selector === 'actions');
+  const progressNode = children.find((c) => c.selector === 'progress');
 
-  // Конфигурация навигации
+  // Метаданные шагов из componentProps
+  const steps = stepNodes.map((node) => ({
+    number: parseStepNum(node.selector!),
+    title: node.componentProps?.title || `Step ${parseStepNum(node.selector!)}`,
+    icon: node.componentProps?.icon,
+  }));
+
   const config: FormNavigationConfig<CreditApplicationForm> = {
     stepValidations: stepValidations || {},
     fullValidation: fullValidation || (() => ({})),
   };
+
+  const renderNode = (node: WizardRenderNode) => (
+    <RenderNodeComponent
+      node={node as RenderNode<CreditApplicationForm>}
+      form={form as FormProxy<CreditApplicationForm>}
+      path={path as FieldPath<CreditApplicationForm>}
+      fieldWrapper={fieldWrapper}
+    />
+  );
 
   return (
     <FormNavigation
@@ -107,11 +106,12 @@ export function CreditApplicationWizard({
       scrollToTop={scrollToTop}
     >
       {/* Indicator */}
-      {indicator && (
+      {indicatorNode && (
         <FormNavigation.Indicator steps={steps}>
           {(indicatorProps) => {
-            const IndicatorComponent = indicator.component || StepIndicator;
-            const { className: indicatorClassName, ...restProps } = indicator.componentProps || {};
+            const IndicatorComponent = indicatorNode.component || StepIndicator;
+            const { className: indicatorClassName, ...restProps } =
+              indicatorNode.componentProps || {};
             return (
               <IndicatorComponent
                 className={indicatorClassName}
@@ -126,26 +126,16 @@ export function CreditApplicationWizard({
       {/* Steps */}
       <div className={className}>
         {stepNodes.map((stepNode) => (
-          <FormNavigation.Step key={stepNode.selector}>
-            {stepNode.children?.map((child, i) => (
-              <RenderNodeComponent
-                key={i}
-                node={child as RenderNode<CreditApplicationForm>}
-                form={form as FormProxy<CreditApplicationForm>}
-                path={path as FieldPath<CreditApplicationForm>}
-                fieldWrapper={fieldWrapper}
-              />
-            ))}
-          </FormNavigation.Step>
+          <FormNavigation.Step key={stepNode.selector}>{renderNode(stepNode)}</FormNavigation.Step>
         ))}
       </div>
 
       {/* Actions */}
-      {actions && (
-        <FormNavigation.Actions onSubmit={onSubmit}>
+      {actionsNode && (
+        <FormNavigation.Actions onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}>
           {(actionsProps) => {
-            const ActionsComponent = actions.component || NavigationActions;
-            const { className: actionsClassName, ...restProps } = actions.componentProps || {};
+            const ActionsComponent = actionsNode.component || NavigationActions;
+            const { className: actionsClassName, ...restProps } = actionsNode.componentProps || {};
             return (
               <ActionsComponent className={actionsClassName} {...restProps} {...actionsProps} />
             );
@@ -154,11 +144,12 @@ export function CreditApplicationWizard({
       )}
 
       {/* Progress */}
-      {progress && (
+      {progressNode && (
         <FormNavigation.Progress>
           {(progressProps) => {
-            const ProgressComponent = progress.component || NavigationProgress;
-            const { className: progressClassName, ...restProps } = progress.componentProps || {};
+            const ProgressComponent = progressNode.component || NavigationProgress;
+            const { className: progressClassName, ...restProps } =
+              progressNode.componentProps || {};
             return (
               <ProgressComponent className={progressClassName} {...restProps} {...progressProps} />
             );
@@ -170,3 +161,5 @@ export function CreditApplicationWizard({
 }
 
 CreditApplicationWizard.displayName = 'CreditApplicationWizard';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(CreditApplicationWizard as any).__selfManagedChildren = true;

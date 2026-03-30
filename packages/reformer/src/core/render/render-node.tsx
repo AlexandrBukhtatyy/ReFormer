@@ -397,10 +397,23 @@ export function RenderNodeComponent<T>({
   if (isContainerRenderNode(node)) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { children, hidden: _hidden, ...restProps } = node.componentProps || {};
-    const Component = node.component;
+    const { selector, component: Component } = node;
+
+    // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
+    // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((Component as any).__selfManagedChildren === true) {
+      return (
+        <Component
+          {...(selector !== undefined ? { selector } : {})}
+          {...restProps}
+          children={children}
+        />
+      );
+    }
 
     return (
-      <Component {...restProps}>
+      <Component {...(selector !== undefined ? { selector } : {})} {...restProps}>
         {children?.map((child, i) => (
           <RenderNodeComponent
             key={i}

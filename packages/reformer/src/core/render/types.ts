@@ -179,8 +179,12 @@ export interface ContainerRenderNodeProps<T> {
  * ```
  */
 export interface ContainerRenderNode<T> {
-  /** React-компонент контейнера */
-  component: ComponentType<ContainerComponentProps>;
+  /** Slot-идентификатор для составных компонентов (например, wizard) */
+  selector?: string;
+
+  /** React-компонент контейнера (любой React-компонент; конкретные пропы описываются в componentProps) */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
 
   /** Props для компонента */
   componentProps?: ContainerRenderNodeProps<T>;

@@ -71,7 +71,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
     fullValidation: creditApplicationValidation,
     onSubmit: handleSubmit,
     className: 'bg-white p-8 rounded-lg shadow-md',
-    items: [
+    children: [
       // ========================================
       // Индикатор шагов
       // ========================================
@@ -87,68 +87,71 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       {
         selector: 'step:1',
         component: Step,
-        componentProps: { title: 'Кредит', icon: '💰' },
-        children: [
-          {
-            component: Box,
-            componentProps: {
-              className: 'space-y-6',
-              children: [
-                // Заголовок
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Основная информация о кредите',
-                    titleAs: 'h2',
-                    titleClassName: 'text-xl font-bold',
-                    className: 'space-y-6',
-                    children: [
-                      { component: path.loanType },
-                      { component: path.loanAmount },
-                      { component: path.loanTerm },
-                      { component: path.loanPurpose },
-                    ],
+        componentProps: {
+          title: 'Кредит',
+          icon: '💰',
+          children: [
+            {
+              component: Box,
+              componentProps: {
+                className: 'space-y-6',
+                children: [
+                  // Заголовок
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Основная информация о кредите',
+                      titleAs: 'h2',
+                      titleClassName: 'text-xl font-bold',
+                      className: 'space-y-6',
+                      children: [
+                        { component: path.loanType },
+                        { component: path.loanAmount },
+                        { component: path.loanTerm },
+                        { component: path.loanPurpose },
+                      ],
+                    },
                   },
-                },
-                // Секция для ипотеки
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Информация о недвижимости',
-                    titleClassName: 'text-lg font-semibold mt-4',
-                    className: 'space-y-4',
-                    hidden: (form) => form.loanType.value.value !== 'mortgage',
-                    children: [
-                      { component: path.propertyValue },
-                      { component: path.initialPayment },
-                    ],
+                  // Секция для ипотеки
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Информация о недвижимости',
+                      titleClassName: 'text-lg font-semibold mt-4',
+                      className: 'space-y-4',
+                      hidden: (form) => form.loanType.value.value !== 'mortgage',
+                      children: [
+                        { component: path.propertyValue },
+                        { component: path.initialPayment },
+                      ],
+                    },
                   },
-                },
-                // Секция для автокредита
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Информация об автомобиле',
-                    titleClassName: 'text-lg font-semibold mt-4',
-                    className: 'space-y-4',
-                    hidden: (form) => form.loanType.value.value !== 'car',
-                    children: [
-                      { component: path.carBrand },
-                      { component: path.carModel },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [{ component: path.carYear }, { component: path.carPrice }],
+                  // Секция для автокредита
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Информация об автомобиле',
+                      titleClassName: 'text-lg font-semibold mt-4',
+                      className: 'space-y-4',
+                      hidden: (form) => form.loanType.value.value !== 'car',
+                      children: [
+                        { component: path.carBrand },
+                        { component: path.carModel },
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [{ component: path.carYear }, { component: path.carPrice }],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-              ],
+                ],
+              },
             },
-          },
-        ] as RenderNode<CreditApplicationForm>[],
+          ] as RenderNode<CreditApplicationForm>[],
+        },
       },
 
       // ========================================
@@ -157,103 +160,106 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       {
         selector: 'step:2',
         component: Step,
-        componentProps: { title: 'Данные', icon: '👤' },
-        children: [
-          {
-            component: Section,
-            componentProps: {
-              title: 'Персональные данные',
-              titleAs: 'h2',
-              titleClassName: 'text-xl font-bold',
-              className: 'space-y-6',
-              children: [
-                // Личные данные
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Личные данные',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-4',
-                    children: [
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-3 gap-4',
-                          children: [
-                            { component: path.personalData.lastName },
-                            { component: path.personalData.firstName },
-                            { component: path.personalData.middleName },
-                          ],
+        componentProps: {
+          title: 'Данные',
+          icon: '👤',
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Персональные данные',
+                titleAs: 'h2',
+                titleClassName: 'text-xl font-bold',
+                className: 'space-y-6',
+                children: [
+                  // Личные данные
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Личные данные',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-4',
+                      children: [
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-3 gap-4',
+                            children: [
+                              { component: path.personalData.lastName },
+                              { component: path.personalData.firstName },
+                              { component: path.personalData.middleName },
+                            ],
+                          },
                         },
-                      },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.personalData.birthDate },
-                            { component: path.personalData.gender },
-                          ],
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.personalData.birthDate },
+                              { component: path.personalData.gender },
+                            ],
+                          },
                         },
-                      },
-                      { component: path.personalData.birthPlace },
-                    ],
+                        { component: path.personalData.birthPlace },
+                      ],
+                    },
                   },
-                },
-                // Паспортные данные
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Паспортные данные',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-4',
-                    children: [
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.passportData.series },
-                            { component: path.passportData.number },
-                          ],
+                  // Паспортные данные
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Паспортные данные',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-4',
+                      children: [
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.passportData.series },
+                              { component: path.passportData.number },
+                            ],
+                          },
                         },
-                      },
-                      { component: path.passportData.issuedBy },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.passportData.issueDate },
-                            { component: path.passportData.departmentCode },
-                          ],
+                        { component: path.passportData.issuedBy },
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.passportData.issueDate },
+                              { component: path.passportData.departmentCode },
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-                // ИНН и СНИЛС
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Дополнительные документы',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-4',
-                    children: [
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [{ component: path.inn }, { component: path.snils }],
+                  // ИНН и СНИЛС
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Дополнительные документы',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-4',
+                      children: [
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [{ component: path.inn }, { component: path.snils }],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-              ],
+                ],
+              },
             },
-          },
-        ] as RenderNode<CreditApplicationForm>[],
+          ] as RenderNode<CreditApplicationForm>[],
+        },
       },
 
       // ========================================
@@ -262,124 +268,127 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       {
         selector: 'step:3',
         component: Step,
-        componentProps: { title: 'Контакты', icon: '📞' },
-        children: [
-          {
-            component: Section,
-            componentProps: {
-              title: 'Контактная информация',
-              titleAs: 'h2',
-              titleClassName: 'text-xl font-bold',
-              className: 'space-y-6',
-              children: [
-                // Контакты (телефоны и email в одной секции)
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Контакты',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-4',
-                    children: [
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.phoneMain },
-                            { component: path.phoneAdditional },
-                          ],
+        componentProps: {
+          title: 'Контакты',
+          icon: '📞',
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Контактная информация',
+                titleAs: 'h2',
+                titleClassName: 'text-xl font-bold',
+                className: 'space-y-6',
+                children: [
+                  // Контакты (телефоны и email в одной секции)
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Контакты',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-4',
+                      children: [
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.phoneMain },
+                              { component: path.phoneAdditional },
+                            ],
+                          },
                         },
-                      },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.email },
-                            { component: path.emailAdditional },
-                          ],
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.email },
+                              { component: path.emailAdditional },
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-                // Адрес регистрации
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Адрес регистрации',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-4',
-                    children: [
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.registrationAddress.region },
-                            { component: path.registrationAddress.city },
-                          ],
+                  // Адрес регистрации
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Адрес регистрации',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-4',
+                      children: [
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.registrationAddress.region },
+                              { component: path.registrationAddress.city },
+                            ],
+                          },
                         },
-                      },
-                      { component: path.registrationAddress.street },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-3 gap-4',
-                          children: [
-                            { component: path.registrationAddress.house },
-                            { component: path.registrationAddress.apartment },
-                            { component: path.registrationAddress.postalCode },
-                          ],
+                        { component: path.registrationAddress.street },
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-3 gap-4',
+                            children: [
+                              { component: path.registrationAddress.house },
+                              { component: path.registrationAddress.apartment },
+                              { component: path.registrationAddress.postalCode },
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-                // Флаг совпадения адресов
-                { component: path.sameAsRegistration },
-                // Адрес проживания (со специальной стилизацией и кнопками)
-                {
-                  component: Box,
-                  componentProps: {
-                    hidden: (form) => form.sameAsRegistration.value.value === true,
-                    children: [
-                      {
-                        component: ResidenceAddressSection,
-                        componentProps: {
-                          children: [
-                            {
-                              component: Box,
-                              componentProps: {
-                                className: 'grid grid-cols-2 gap-4',
-                                children: [
-                                  { component: path.residenceAddress.region },
-                                  { component: path.residenceAddress.city },
-                                ],
+                  // Флаг совпадения адресов
+                  { component: path.sameAsRegistration },
+                  // Адрес проживания (со специальной стилизацией и кнопками)
+                  {
+                    component: Box,
+                    componentProps: {
+                      hidden: (form) => form.sameAsRegistration.value.value === true,
+                      children: [
+                        {
+                          component: ResidenceAddressSection,
+                          componentProps: {
+                            children: [
+                              {
+                                component: Box,
+                                componentProps: {
+                                  className: 'grid grid-cols-2 gap-4',
+                                  children: [
+                                    { component: path.residenceAddress.region },
+                                    { component: path.residenceAddress.city },
+                                  ],
+                                },
                               },
-                            },
-                            { component: path.residenceAddress.street },
-                            {
-                              component: Box,
-                              componentProps: {
-                                className: 'grid grid-cols-3 gap-4',
-                                children: [
-                                  { component: path.residenceAddress.house },
-                                  { component: path.residenceAddress.apartment },
-                                  { component: path.residenceAddress.postalCode },
-                                ],
+                              { component: path.residenceAddress.street },
+                              {
+                                component: Box,
+                                componentProps: {
+                                  className: 'grid grid-cols-3 gap-4',
+                                  children: [
+                                    { component: path.residenceAddress.house },
+                                    { component: path.residenceAddress.apartment },
+                                    { component: path.residenceAddress.postalCode },
+                                  ],
+                                },
                               },
-                            },
-                          ],
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-              ],
+                ],
+              },
             },
-          },
-        ] as RenderNode<CreditApplicationForm>[],
+          ] as RenderNode<CreditApplicationForm>[],
+        },
       },
 
       // ========================================
@@ -388,120 +397,123 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       {
         selector: 'step:4',
         component: Step,
-        componentProps: { title: 'Работа', icon: '💼' },
-        children: [
-          {
-            component: Section,
-            componentProps: {
-              title: 'Информация о занятости',
-              titleAs: 'h2',
-              titleClassName: 'text-xl font-bold',
-              className: 'space-y-6',
-              children: [
-                // Статус занятости
-                {
-                  component: Box,
-                  componentProps: {
-                    className: 'space-y-4',
-                    children: [{ component: path.employmentStatus }],
+        componentProps: {
+          title: 'Работа',
+          icon: '💼',
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Информация о занятости',
+                titleAs: 'h2',
+                titleClassName: 'text-xl font-bold',
+                className: 'space-y-6',
+                children: [
+                  // Статус занятости
+                  {
+                    component: Box,
+                    componentProps: {
+                      className: 'space-y-4',
+                      children: [{ component: path.employmentStatus }],
+                    },
                   },
-                },
-                // Информация о работодателе (для employed)
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Информация о работодателе',
-                    titleClassName: 'text-lg font-semibold mt-6',
-                    className: 'space-y-4',
-                    hidden: (form) => form.employmentStatus.value.value !== 'employed',
-                    children: [
-                      { component: path.companyName },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.companyInn },
-                            { component: path.companyPhone },
-                          ],
+                  // Информация о работодателе (для employed)
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Информация о работодателе',
+                      titleClassName: 'text-lg font-semibold mt-6',
+                      className: 'space-y-4',
+                      hidden: (form) => form.employmentStatus.value.value !== 'employed',
+                      children: [
+                        { component: path.companyName },
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.companyInn },
+                              { component: path.companyPhone },
+                            ],
+                          },
                         },
-                      },
-                      { component: path.companyAddress },
-                      // Должность и стаж
-                      {
-                        component: Section,
-                        componentProps: {
-                          title: 'Должность и стаж',
-                          titleClassName: 'text-lg font-semibold mt-6',
-                          className: 'space-y-4',
-                          children: [
-                            { component: path.position },
-                            {
-                              component: Box,
-                              componentProps: {
-                                className: 'grid grid-cols-2 gap-4',
-                                children: [
-                                  { component: path.workExperienceTotal },
-                                  { component: path.workExperienceCurrent },
-                                ],
+                        { component: path.companyAddress },
+                        // Должность и стаж
+                        {
+                          component: Section,
+                          componentProps: {
+                            title: 'Должность и стаж',
+                            titleClassName: 'text-lg font-semibold mt-6',
+                            className: 'space-y-4',
+                            children: [
+                              { component: path.position },
+                              {
+                                component: Box,
+                                componentProps: {
+                                  className: 'grid grid-cols-2 gap-4',
+                                  children: [
+                                    { component: path.workExperienceTotal },
+                                    { component: path.workExperienceCurrent },
+                                  ],
+                                },
                               },
-                            },
-                          ],
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-                // Информация о бизнесе (для selfEmployed)
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Информация о бизнесе',
-                    titleClassName: 'text-lg font-semibold mt-6',
-                    className: 'space-y-4',
-                    hidden: (form) => form.employmentStatus.value.value !== 'selfEmployed',
-                    children: [
-                      { component: path.businessType },
-                      { component: path.businessInn },
-                      { component: path.businessActivity },
-                    ],
+                  // Информация о бизнесе (для selfEmployed)
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Информация о бизнесе',
+                      titleClassName: 'text-lg font-semibold mt-6',
+                      className: 'space-y-4',
+                      hidden: (form) => form.employmentStatus.value.value !== 'selfEmployed',
+                      children: [
+                        { component: path.businessType },
+                        { component: path.businessInn },
+                        { component: path.businessActivity },
+                      ],
+                    },
                   },
-                },
-                // Доход (показывается когда не unemployed)
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Доход',
-                    titleClassName: 'text-lg font-semibold mt-6',
-                    className: 'space-y-4',
-                    hidden: (form) => form.employmentStatus.value.value === 'unemployed',
-                    children: [
-                      { component: path.monthlyIncome },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [
-                            { component: path.additionalIncome },
-                            { component: path.additionalIncomeSource },
-                          ],
+                  // Доход (показывается когда не unemployed)
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Доход',
+                      titleClassName: 'text-lg font-semibold mt-6',
+                      className: 'space-y-4',
+                      hidden: (form) => form.employmentStatus.value.value === 'unemployed',
+                      children: [
+                        { component: path.monthlyIncome },
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.additionalIncome },
+                              { component: path.additionalIncomeSource },
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-                // Предупреждение для безработных
-                {
-                  component: UnemployedWarning,
-                  componentProps: {
-                    className: 'mt-6',
-                    hidden: (form) => form.employmentStatus.value.value !== 'unemployed',
+                  // Предупреждение для безработных
+                  {
+                    component: UnemployedWarning,
+                    componentProps: {
+                      className: 'mt-6',
+                      hidden: (form) => form.employmentStatus.value.value !== 'unemployed',
+                    },
                   },
-                },
-              ],
+                ],
+              },
             },
-          },
-        ] as RenderNode<CreditApplicationForm>[],
+          ] as RenderNode<CreditApplicationForm>[],
+        },
       },
 
       // ========================================
@@ -510,253 +522,259 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       {
         selector: 'step:5',
         component: Step,
-        componentProps: { title: 'Доп. инфо', icon: '📋' },
-        children: [
-          {
-            component: Section,
-            componentProps: {
-              title: 'Дополнительная информация',
-              titleAs: 'h2',
-              titleClassName: 'text-xl font-bold',
-              className: 'space-y-6',
-              children: [
-                // Общая информация
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Общая информация',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-4',
-                    children: [
-                      { component: path.maritalStatus },
-                      {
-                        component: Box,
-                        componentProps: {
-                          className: 'grid grid-cols-2 gap-4',
-                          children: [{ component: path.dependents }, { component: path.education }],
+        componentProps: {
+          title: 'Доп. инфо',
+          icon: '📋',
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Дополнительная информация',
+                titleAs: 'h2',
+                titleClassName: 'text-xl font-bold',
+                className: 'space-y-6',
+                children: [
+                  // Общая информация
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Общая информация',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-4',
+                      children: [
+                        { component: path.maritalStatus },
+                        {
+                          component: Box,
+                          componentProps: {
+                            className: 'grid grid-cols-2 gap-4',
+                            children: [
+                              { component: path.dependents },
+                              { component: path.education },
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-                // Имущество
-                {
-                  component: Section,
-                  componentProps: {
-                    className: 'space-y-4',
-                    children: [
-                      { component: path.hasProperty },
-                      {
-                        component: FormArray,
-                        componentProps: {
-                          array: path.properties,
-                          className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                          hidden: (form) => !form.hasProperty.value.value,
-                          children: [
-                            {
-                              selector: 'header',
-                              component: PropertyArrayHeader,
-                            },
-                            {
-                              selector: 'empty',
-                              component: PropertyArrayEmpty,
-                            },
-                            {
-                              selector: 'item',
-                              component: Box,
-                              componentProps: {
-                                className: 'mb-4 p-4 bg-white rounded border',
-                                children: [
-                                  {
-                                    selector: 'item:header',
-                                    component: PropertyItemHeader,
-                                  },
-                                  {
-                                    selector: 'item:content',
-                                    render: (itemPath: FieldPath<Property>) => ({
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'space-y-3',
-                                        children: [
-                                          { component: itemPath.type },
-                                          { component: itemPath.description },
-                                          { component: itemPath.estimatedValue },
-                                          { component: itemPath.hasEncumbrance },
-                                        ],
-                                      },
-                                    }),
-                                  },
-                                ],
+                  // Имущество
+                  {
+                    component: Section,
+                    componentProps: {
+                      className: 'space-y-4',
+                      children: [
+                        { component: path.hasProperty },
+                        {
+                          component: FormArray,
+                          componentProps: {
+                            array: path.properties,
+                            className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
+                            hidden: (form) => !form.hasProperty.value.value,
+                            children: [
+                              {
+                                selector: 'header',
+                                component: PropertyArrayHeader,
                               },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                // Существующие кредиты
-                {
-                  component: Section,
-                  componentProps: {
-                    className: 'space-y-4',
-                    children: [
-                      { component: path.hasExistingLoans },
-                      {
-                        component: FormArray,
-                        componentProps: {
-                          array: path.existingLoans,
-                          className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                          hidden: (form) => !form.hasExistingLoans.value.value,
-                          children: [
-                            {
-                              selector: 'header',
-                              component: ExistingLoanArrayHeader,
-                            },
-                            {
-                              selector: 'empty',
-                              component: ExistingLoanArrayEmpty,
-                            },
-                            {
-                              selector: 'item',
-                              component: Box,
-                              componentProps: {
-                                className: 'mb-4 p-4 bg-white rounded border',
-                                children: [
-                                  {
-                                    selector: 'item:header',
-                                    component: ExistingLoanItemHeader,
-                                  },
-                                  {
-                                    selector: 'item:content',
-                                    render: (itemPath: FieldPath<ExistingLoan>) => ({
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'space-y-3',
-                                        children: [
-                                          { component: itemPath.bank },
-                                          { component: itemPath.type },
-                                          {
-                                            component: Box,
-                                            componentProps: {
-                                              className: 'grid grid-cols-2 gap-4',
-                                              children: [
-                                                { component: itemPath.amount },
-                                                { component: itemPath.remainingAmount },
-                                              ],
-                                            },
-                                          },
-                                          {
-                                            component: Box,
-                                            componentProps: {
-                                              className: 'grid grid-cols-2 gap-4',
-                                              children: [
-                                                { component: itemPath.monthlyPayment },
-                                                { component: itemPath.maturityDate },
-                                              ],
-                                            },
-                                          },
-                                        ],
-                                      },
-                                    }),
-                                  },
-                                ],
+                              {
+                                selector: 'empty',
+                                component: PropertyArrayEmpty,
                               },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                // Созаёмщики
-                {
-                  component: Section,
-                  componentProps: {
-                    className: 'space-y-4',
-                    children: [
-                      { component: path.hasCoBorrower },
-                      {
-                        component: FormArray,
-                        componentProps: {
-                          array: path.coBorrowers,
-                          className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                          hidden: (form) => !form.hasCoBorrower.value.value,
-                          children: [
-                            {
-                              selector: 'header',
-                              component: CoBorrowerArrayHeader,
-                            },
-                            {
-                              selector: 'empty',
-                              component: CoBorrowerArrayEmpty,
-                            },
-                            {
-                              selector: 'item',
-                              component: Box,
-                              componentProps: {
-                                className: 'mb-4 p-4 bg-white rounded border',
-                                children: [
-                                  {
-                                    selector: 'item:header',
-                                    component: CoBorrowerItemHeader,
-                                  },
-                                  {
-                                    selector: 'item:content',
-                                    render: (itemPath: FieldPath<CoBorrower>) => ({
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'space-y-3',
-                                        children: [
-                                          {
-                                            component: Box,
-                                            componentProps: {
-                                              className: 'grid grid-cols-3 gap-4',
-                                              children: [
-                                                { component: itemPath.personalData.lastName },
-                                                { component: itemPath.personalData.firstName },
-                                                { component: itemPath.personalData.middleName },
-                                              ],
-                                            },
-                                          },
-                                          { component: itemPath.personalData.birthDate },
-                                          {
-                                            component: Box,
-                                            componentProps: {
-                                              className: 'grid grid-cols-2 gap-4',
-                                              children: [
-                                                { component: itemPath.phone },
-                                                { component: itemPath.email },
-                                              ],
-                                            },
-                                          },
-                                          {
-                                            component: Box,
-                                            componentProps: {
-                                              className: 'grid grid-cols-2 gap-4',
-                                              children: [
-                                                { component: itemPath.relationship },
-                                                { component: itemPath.monthlyIncome },
-                                              ],
-                                            },
-                                          },
-                                        ],
-                                      },
-                                    }),
-                                  },
-                                ],
+                              {
+                                selector: 'item',
+                                component: Box,
+                                componentProps: {
+                                  className: 'mb-4 p-4 bg-white rounded border',
+                                  children: [
+                                    {
+                                      selector: 'item:header',
+                                      component: PropertyItemHeader,
+                                    },
+                                    {
+                                      selector: 'item:content',
+                                      render: (itemPath: FieldPath<Property>) => ({
+                                        component: Box,
+                                        componentProps: {
+                                          className: 'space-y-3',
+                                          children: [
+                                            { component: itemPath.type },
+                                            { component: itemPath.description },
+                                            { component: itemPath.estimatedValue },
+                                            { component: itemPath.hasEncumbrance },
+                                          ],
+                                        },
+                                      }),
+                                    },
+                                  ],
+                                },
                               },
-                            },
-                          ],
+                            ],
+                          },
                         },
-                      },
-                    ],
+                      ],
+                    },
                   },
-                },
-              ],
+                  // Существующие кредиты
+                  {
+                    component: Section,
+                    componentProps: {
+                      className: 'space-y-4',
+                      children: [
+                        { component: path.hasExistingLoans },
+                        {
+                          component: FormArray,
+                          componentProps: {
+                            array: path.existingLoans,
+                            className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
+                            hidden: (form) => !form.hasExistingLoans.value.value,
+                            children: [
+                              {
+                                selector: 'header',
+                                component: ExistingLoanArrayHeader,
+                              },
+                              {
+                                selector: 'empty',
+                                component: ExistingLoanArrayEmpty,
+                              },
+                              {
+                                selector: 'item',
+                                component: Box,
+                                componentProps: {
+                                  className: 'mb-4 p-4 bg-white rounded border',
+                                  children: [
+                                    {
+                                      selector: 'item:header',
+                                      component: ExistingLoanItemHeader,
+                                    },
+                                    {
+                                      selector: 'item:content',
+                                      render: (itemPath: FieldPath<ExistingLoan>) => ({
+                                        component: Box,
+                                        componentProps: {
+                                          className: 'space-y-3',
+                                          children: [
+                                            { component: itemPath.bank },
+                                            { component: itemPath.type },
+                                            {
+                                              component: Box,
+                                              componentProps: {
+                                                className: 'grid grid-cols-2 gap-4',
+                                                children: [
+                                                  { component: itemPath.amount },
+                                                  { component: itemPath.remainingAmount },
+                                                ],
+                                              },
+                                            },
+                                            {
+                                              component: Box,
+                                              componentProps: {
+                                                className: 'grid grid-cols-2 gap-4',
+                                                children: [
+                                                  { component: itemPath.monthlyPayment },
+                                                  { component: itemPath.maturityDate },
+                                                ],
+                                              },
+                                            },
+                                          ],
+                                        },
+                                      }),
+                                    },
+                                  ],
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                    },
+                  },
+                  // Созаёмщики
+                  {
+                    component: Section,
+                    componentProps: {
+                      className: 'space-y-4',
+                      children: [
+                        { component: path.hasCoBorrower },
+                        {
+                          component: FormArray,
+                          componentProps: {
+                            array: path.coBorrowers,
+                            className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
+                            hidden: (form) => !form.hasCoBorrower.value.value,
+                            children: [
+                              {
+                                selector: 'header',
+                                component: CoBorrowerArrayHeader,
+                              },
+                              {
+                                selector: 'empty',
+                                component: CoBorrowerArrayEmpty,
+                              },
+                              {
+                                selector: 'item',
+                                component: Box,
+                                componentProps: {
+                                  className: 'mb-4 p-4 bg-white rounded border',
+                                  children: [
+                                    {
+                                      selector: 'item:header',
+                                      component: CoBorrowerItemHeader,
+                                    },
+                                    {
+                                      selector: 'item:content',
+                                      render: (itemPath: FieldPath<CoBorrower>) => ({
+                                        component: Box,
+                                        componentProps: {
+                                          className: 'space-y-3',
+                                          children: [
+                                            {
+                                              component: Box,
+                                              componentProps: {
+                                                className: 'grid grid-cols-3 gap-4',
+                                                children: [
+                                                  { component: itemPath.personalData.lastName },
+                                                  { component: itemPath.personalData.firstName },
+                                                  { component: itemPath.personalData.middleName },
+                                                ],
+                                              },
+                                            },
+                                            { component: itemPath.personalData.birthDate },
+                                            {
+                                              component: Box,
+                                              componentProps: {
+                                                className: 'grid grid-cols-2 gap-4',
+                                                children: [
+                                                  { component: itemPath.phone },
+                                                  { component: itemPath.email },
+                                                ],
+                                              },
+                                            },
+                                            {
+                                              component: Box,
+                                              componentProps: {
+                                                className: 'grid grid-cols-2 gap-4',
+                                                children: [
+                                                  { component: itemPath.relationship },
+                                                  { component: itemPath.monthlyIncome },
+                                                ],
+                                              },
+                                            },
+                                          ],
+                                        },
+                                      }),
+                                    },
+                                  ],
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
             },
-          },
-        ] as RenderNode<CreditApplicationForm>[],
+          ] as RenderNode<CreditApplicationForm>[],
+        },
       },
 
       // ========================================
@@ -765,74 +783,77 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
       {
         selector: 'step:6',
         component: Step,
-        componentProps: { title: 'Подтверждение', icon: '✓' },
-        children: [
-          {
-            component: Section,
-            componentProps: {
-              title: 'Подтверждение и согласия',
-              titleAs: 'h2',
-              titleClassName: 'text-xl font-bold',
-              className: 'space-y-6',
-              children: [
-                // Информационные блоки
-                {
-                  component: Box,
-                  componentProps: {
-                    className: 'space-y-4',
-                    children: [
-                      { component: ConfirmationInfoBlock },
-                      { component: HighPaymentWarning },
-                    ],
+        componentProps: {
+          title: 'Подтверждение',
+          icon: '✓',
+          children: [
+            {
+              component: Section,
+              componentProps: {
+                title: 'Подтверждение и согласия',
+                titleAs: 'h2',
+                titleClassName: 'text-xl font-bold',
+                className: 'space-y-6',
+                children: [
+                  // Информационные блоки
+                  {
+                    component: Box,
+                    componentProps: {
+                      className: 'space-y-4',
+                      children: [
+                        { component: ConfirmationInfoBlock },
+                        { component: HighPaymentWarning },
+                      ],
+                    },
                   },
-                },
-                // Секция "Итого"
-                { component: LoanSummarySection },
-                // Обязательные согласия
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Обязательные согласия',
-                    titleClassName: 'text-lg font-semibold',
-                    className: 'space-y-3',
-                    children: [
-                      { component: path.agreePersonalData },
-                      { component: path.agreeCreditHistory },
-                      { component: path.agreeTerms },
-                      { component: path.confirmAccuracy },
-                    ],
+                  // Секция "Итого"
+                  { component: LoanSummarySection },
+                  // Обязательные согласия
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Обязательные согласия',
+                      titleClassName: 'text-lg font-semibold',
+                      className: 'space-y-3',
+                      children: [
+                        { component: path.agreePersonalData },
+                        { component: path.agreeCreditHistory },
+                        { component: path.agreeTerms },
+                        { component: path.confirmAccuracy },
+                      ],
+                    },
                   },
-                },
-                // Опциональные согласия
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Опциональные согласия',
-                    titleClassName: 'text-lg font-semibold mt-6',
-                    children: [{ component: path.agreeMarketing }],
+                  // Опциональные согласия
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Опциональные согласия',
+                      titleClassName: 'text-lg font-semibold mt-6',
+                      children: [{ component: path.agreeMarketing }],
+                    },
                   },
-                },
-                // Электронная подпись
-                {
-                  component: Section,
-                  componentProps: {
-                    title: 'Электронная подпись',
-                    titleClassName: 'text-lg font-semibold mt-6',
-                    className: 'space-y-4',
-                    children: [
-                      { component: path.electronicSignature },
-                      { component: ElectronicSignatureHint },
-                    ],
+                  // Электронная подпись
+                  {
+                    component: Section,
+                    componentProps: {
+                      title: 'Электронная подпись',
+                      titleClassName: 'text-lg font-semibold mt-6',
+                      className: 'space-y-4',
+                      children: [
+                        { component: path.electronicSignature },
+                        { component: ElectronicSignatureHint },
+                      ],
+                    },
                   },
-                },
-                // Предупреждение
-                { component: SubmitWarning },
-                // Что будет дальше
-                { component: NextStepsInfo },
-              ],
+                  // Предупреждение
+                  { component: SubmitWarning },
+                  // Что будет дальше
+                  { component: NextStepsInfo },
+                ],
+              },
             },
-          },
-        ] as RenderNode<CreditApplicationForm>[],
+          ] as RenderNode<CreditApplicationForm>[],
+        },
       },
 
       // ========================================
