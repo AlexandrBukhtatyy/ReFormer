@@ -130,7 +130,7 @@ export interface FieldRenderNodeProps {
  */
 export interface FieldRenderNode<T> {
   /** Ссылка на поле формы (path.fieldName) */
-  component: FieldPathNode<T, unknown, unknown>;
+  component: FieldPathNode<unknown, unknown, unknown>;
 
   /** Условие скрытия узла */
   hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
