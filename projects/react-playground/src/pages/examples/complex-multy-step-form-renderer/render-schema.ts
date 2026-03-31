@@ -349,8 +349,8 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Адрес проживания (со специальной стилизацией и кнопками)
                   {
                     component: Box,
+                    hidden: (form) => form.sameAsRegistration.value.value === true,
                     componentProps: {
-                      hidden: (form) => form.sameAsRegistration.value.value === true,
                       children: [
                         {
                           component: ResidenceAddressSection,
@@ -420,11 +420,11 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Информация о работодателе (для employed)
                   {
                     component: Section,
+                    hidden: (form) => form.employmentStatus.value.value !== 'employed',
                     componentProps: {
                       title: 'Информация о работодателе',
                       titleClassName: 'text-lg font-semibold mt-6',
                       className: 'space-y-4',
-                      hidden: (form) => form.employmentStatus.value.value !== 'employed',
                       children: [
                         { component: path.companyName },
                         {
@@ -466,11 +466,11 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Информация о бизнесе (для selfEmployed)
                   {
                     component: Section,
+                    hidden: (form) => form.employmentStatus.value.value !== 'selfEmployed',
                     componentProps: {
                       title: 'Информация о бизнесе',
                       titleClassName: 'text-lg font-semibold mt-6',
                       className: 'space-y-4',
-                      hidden: (form) => form.employmentStatus.value.value !== 'selfEmployed',
                       children: [
                         { component: path.businessType },
                         { component: path.businessInn },
@@ -481,11 +481,11 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Доход (показывается когда не unemployed)
                   {
                     component: Section,
+                    hidden: (form) => form.employmentStatus.value.value === 'unemployed',
                     componentProps: {
                       title: 'Доход',
                       titleClassName: 'text-lg font-semibold mt-6',
                       className: 'space-y-4',
-                      hidden: (form) => form.employmentStatus.value.value === 'unemployed',
                       children: [
                         { component: path.monthlyIncome },
                         {
@@ -504,9 +504,9 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Предупреждение для безработных
                   {
                     component: UnemployedWarning,
+                    hidden: (form) => form.employmentStatus.value.value !== 'unemployed',
                     componentProps: {
                       className: 'mt-6',
-                      hidden: (form) => form.employmentStatus.value.value !== 'unemployed',
                     },
                   },
                 ],
@@ -565,10 +565,10 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                         { component: path.hasProperty },
                         {
                           component: FormArray,
+                          hidden: (form) => !form.hasProperty.value.value,
                           componentProps: {
                             array: path.properties,
                             className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                            hidden: (form) => !form.hasProperty.value.value,
                             children: [
                               {
                                 selector: 'header',
@@ -621,10 +621,10 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                         { component: path.hasExistingLoans },
                         {
                           component: FormArray,
+                          hidden: (form) => !form.hasExistingLoans.value.value,
                           componentProps: {
                             array: path.existingLoans,
                             className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                            hidden: (form) => !form.hasExistingLoans.value.value,
                             children: [
                               {
                                 selector: 'header',
@@ -695,10 +695,10 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                         { component: path.hasCoBorrower },
                         {
                           component: FormArray,
+                          hidden: (form) => !form.hasCoBorrower.value.value,
                           componentProps: {
                             array: path.coBorrowers,
                             className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                            hidden: (form) => !form.hasCoBorrower.value.value,
                             children: [
                               {
                                 selector: 'header',

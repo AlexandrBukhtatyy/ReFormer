@@ -23,9 +23,6 @@ export interface FormArrayProps {
 
   /** Ссылка на массив (path.items) - типизируется через ArrayRenderNodeProps */
   array?: unknown;
-
-  /** Условие скрытия массива */
-  hidden?: unknown;
 }
 
 /**
