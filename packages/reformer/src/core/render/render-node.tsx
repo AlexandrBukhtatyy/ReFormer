@@ -326,16 +326,8 @@ export function RenderNodeComponent<T>({
   path,
   fieldWrapper,
 }: RenderNodeComponentProps<T>): ReactNode {
-  const { componentProps = {} } = node;
-
   // Проверка условия hidden (реактивная через хук)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hiddenFn = (componentProps as any).hidden;
-  const isHidden = useHiddenCondition(
-    typeof hiddenFn === 'function' ? hiddenFn : undefined,
-    form,
-    path
-  );
+  const isHidden = useHiddenCondition(node.hidden, form, path);
 
   if (isHidden) {
     return null;
@@ -395,16 +387,17 @@ export function RenderNodeComponent<T>({
   // ContainerRenderNode - контейнер
   // ========================================
   if (isContainerRenderNode(node)) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { children, hidden: _hidden, ...restProps } = node.componentProps || {};
+    const { children, ...restProps } = node.componentProps || {};
     const { selector, component: Component } = node;
 
     // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((Component as any).__selfManagedChildren === true) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SelfManagedComponent = Component as React.ComponentType<any>;
       return (
-        <Component
+        <SelfManagedComponent
           {...(selector !== undefined ? { selector } : {})}
           {...restProps}
           children={children}

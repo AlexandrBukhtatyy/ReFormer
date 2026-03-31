@@ -115,11 +115,11 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Секция для ипотеки
                   {
                     component: Section,
+                    hidden: (form) => form.loanType.value.value !== 'mortgage',
                     componentProps: {
                       title: 'Информация о недвижимости',
                       titleClassName: 'text-lg font-semibold mt-4',
                       className: 'space-y-4',
-                      hidden: (form) => form.loanType.value.value !== 'mortgage',
                       children: [
                         { component: path.propertyValue },
                         { component: path.initialPayment },
@@ -129,11 +129,11 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   // Секция для автокредита
                   {
                     component: Section,
+                    hidden: (form) => form.loanType.value.value !== 'car',
                     componentProps: {
                       title: 'Информация об автомобиле',
                       titleClassName: 'text-lg font-semibold mt-4',
                       className: 'space-y-4',
-                      hidden: (form) => form.loanType.value.value !== 'car',
                       children: [
                         { component: path.carBrand },
                         { component: path.carModel },
@@ -150,7 +150,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] as RenderNode<CreditApplicationForm>[],
+          ] satisfies RenderNode<CreditApplicationForm>[],
         },
       },
 
@@ -258,7 +258,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] as RenderNode<CreditApplicationForm>[],
+          ] satisfies RenderNode<CreditApplicationForm>[],
         },
       },
 
@@ -387,7 +387,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] as RenderNode<CreditApplicationForm>[],
+          ] satisfies RenderNode<CreditApplicationForm>[],
         },
       },
 
@@ -512,7 +512,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] as RenderNode<CreditApplicationForm>[],
+          ] satisfies RenderNode<CreditApplicationForm>[],
         },
       },
 
@@ -773,7 +773,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] as RenderNode<CreditApplicationForm>[],
+          ] satisfies RenderNode<CreditApplicationForm>[],
         },
       },
 
@@ -852,7 +852,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] as RenderNode<CreditApplicationForm>[],
+          ] satisfies RenderNode<CreditApplicationForm>[],
         },
       },
 
@@ -873,6 +873,6 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
         component: NavigationProgress,
         componentProps: { className: 'mt-4 text-center' },
       },
-    ],
+    ] as unknown as RenderNode<CreditApplicationForm>[],
   },
 });

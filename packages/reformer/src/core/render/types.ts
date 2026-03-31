@@ -99,15 +99,12 @@ export type RenderNode<T> = FieldRenderNode<T> | ContainerRenderNode<T> | ArrayR
 /**
  * Props для FieldRenderNode
  */
-export interface FieldRenderNodeProps<T> {
+export interface FieldRenderNodeProps {
   /** CSS класс для wrapper элемента */
   className?: string;
 
   /** Wrapper элемент (по умолчанию 'div') */
   wrapper?: ElementType;
-
-  /** Условие скрытия поля */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 
   /**
    * Компонент-обёртка для этого поля (переопределяет глобальный fieldWrapper)
@@ -135,8 +132,11 @@ export interface FieldRenderNode<T> {
   /** Ссылка на поле формы (path.fieldName) */
   component: FieldPathNode<T, unknown, unknown>;
 
+  /** Условие скрытия узла */
+  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+
   /** Props для рендеринга поля */
-  componentProps?: FieldRenderNodeProps<T>;
+  componentProps?: FieldRenderNodeProps;
 }
 
 // ============================================================================
@@ -152,9 +152,6 @@ export interface ContainerRenderNodeProps<T> {
 
   /** Дочерние узлы */
   children?: RenderNode<T>[];
-
-  /** Условие скрытия контейнера */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 
   /** Произвольные props для компонента контейнера */
   [key: string]: unknown;
@@ -182,9 +179,11 @@ export interface ContainerRenderNode<T> {
   /** Slot-идентификатор для составных компонентов (например, wizard) */
   selector?: string;
 
-  /** React-компонент контейнера (любой React-компонент; конкретные пропы описываются в componentProps) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: ComponentType<any>;
+  /** React-компонент контейнера */
+  component: ComponentType<ContainerComponentProps>;
+
+  /** Условие скрытия узла */
+  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 
   /** Props для компонента */
   componentProps?: ContainerRenderNodeProps<T>;
@@ -209,9 +208,6 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
 
   /** Дочерние узлы с селекторами (header, empty, item, footer) */
   children: SelectorRenderNode<T, TItem>[];
-
-  /** Условие скрытия массива */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 }
 
 /**
@@ -259,6 +255,9 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
 export interface ArrayRenderNode<T> {
   /** Компонент FormArray */
   component: typeof FormArray;
+
+  /** Условие скрытия узла */
+  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 
   /** Props для FormArray */
   componentProps: ArrayRenderNodeProps<T>;

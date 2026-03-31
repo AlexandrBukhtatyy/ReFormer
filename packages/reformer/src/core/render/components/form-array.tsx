@@ -61,3 +61,10 @@ export interface FormArrayProps {
 export function FormArray({ className, children }: FormArrayProps): ReactNode {
   return <div className={className}>{children}</div>;
 }
+
+/**
+ * Уникальный маркер для TypeScript-дискриминации ArrayRenderNode.
+ * Без него Box/Section структурно совместимы с typeof FormArray (все props optional),
+ * что мешает TypeScript правильно определять union-член при contextual typing.
+ */
+FormArray.__isFormArray = true as const;
