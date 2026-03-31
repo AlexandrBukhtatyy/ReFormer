@@ -39,7 +39,7 @@ interface WizardRenderNode {
 
 interface CreditApplicationWizardProps {
   /** Selector-based children (indicator, step:N, actions, progress) */
-  children?: WizardRenderNode[];
+  children?: ReactNode;
   /** Валидация по шагам */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stepValidations?: Record<number, any>;
@@ -59,7 +59,7 @@ interface CreditApplicationWizardProps {
 const parseStepNum = (selector: string) => parseInt(selector.split(':')[1], 10);
 
 export function CreditApplicationWizard({
-  children = [],
+  children: childrenProp,
   stepValidations,
   fullValidation,
   onSubmit,
@@ -67,6 +67,7 @@ export function CreditApplicationWizard({
   scrollToTop = true,
   className,
 }: CreditApplicationWizardProps): ReactNode {
+  const children = (childrenProp as WizardRenderNode[] | undefined) ?? [];
   const { form, path, fieldWrapper } = useRenderContext<CreditApplicationForm>();
 
   // Разбираем RenderNode[] по полю selector

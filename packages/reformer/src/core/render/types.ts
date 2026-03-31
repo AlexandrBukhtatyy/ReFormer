@@ -40,7 +40,7 @@ export interface SelectorRenderNode<T, TItem = unknown> {
   component?: ComponentType<ContainerComponentProps>;
 
   /** Props для компонента */
-  componentProps?: ContainerRenderNodeProps<T> & {
+  componentProps?: Omit<ContainerRenderNodeProps<T>, 'children'> & {
     /** Вложенные узлы с селекторами */
     children?: SelectorRenderNode<T, TItem>[];
   };
@@ -90,7 +90,8 @@ export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
  * - ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
  * - ArrayRenderNode - рендеринг массива элементов
  */
-export type RenderNode<T> = FieldRenderNode<T> | ContainerRenderNode<T> | ArrayRenderNode<T>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RenderNode<T> = FieldRenderNode<T> | ContainerRenderNode<T> | ArrayRenderNode<T, any>;
 
 // ============================================================================
 // FIELD RENDER NODE
@@ -252,7 +253,7 @@ export interface ArrayRenderNodeProps<T, TItem = unknown> extends Omit<
  * }
  * ```
  */
-export interface ArrayRenderNode<T> {
+export interface ArrayRenderNode<T, TItem = unknown> {
   /** Компонент FormArray */
   component: typeof FormArray;
 
@@ -260,7 +261,7 @@ export interface ArrayRenderNode<T> {
   hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 
   /** Props для FormArray */
-  componentProps: ArrayRenderNodeProps<T>;
+  componentProps: ArrayRenderNodeProps<T, TItem>;
 }
 
 // ============================================================================
