@@ -150,7 +150,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] satisfies RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
 
@@ -258,7 +258,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] satisfies RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
 
@@ -341,7 +341,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                             ],
                           },
                         },
-                      ] satisfies RenderNode<CreditApplicationForm>[],
+                      ],
                     },
                   },
                   // Флаг совпадения адресов
@@ -378,7 +378,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                                   ],
                                 },
                               },
-                            ] satisfies RenderNode<CreditApplicationForm>[],
+                            ],
                           },
                         },
                       ],
@@ -387,7 +387,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] satisfies RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
 
@@ -512,7 +512,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] satisfies RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
 
@@ -773,7 +773,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] satisfies RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
 
@@ -852,7 +852,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 ],
               },
             },
-          ] satisfies RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
 
