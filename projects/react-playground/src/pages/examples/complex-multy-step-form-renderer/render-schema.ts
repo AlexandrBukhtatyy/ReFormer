@@ -561,45 +561,45 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   componentProps: {
                     array: path.properties,
                     className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                  },
-                  children: [
-                    {
-                      selector: 'header',
-                      component: PropertyArrayHeader,
-                    },
-                    {
-                      selector: 'empty',
-                      component: PropertyArrayEmpty,
-                    },
-                    {
-                      selector: 'item',
-                      component: Box,
-                      componentProps: {
-                        className: 'mb-4 p-4 bg-white rounded border',
+                    children: [
+                      {
+                        selector: 'header',
+                        component: PropertyArrayHeader,
                       },
-                      children: [
-                        {
-                          selector: 'item:header',
-                          component: PropertyItemHeader,
-                        },
-                        {
-                          selector: 'item:content',
-                          render: (itemPath: FieldPath<Property>) => ({
-                            component: Box,
-                            componentProps: {
-                              className: 'space-y-3',
+                      {
+                        selector: 'empty',
+                        component: PropertyArrayEmpty,
+                      },
+                      {
+                        selector: 'item',
+                        component: Box,
+                        componentProps: {
+                          className: 'mb-4 p-4 bg-white rounded border',
+                          children: [
+                            {
+                              selector: 'item:header',
+                              component: PropertyItemHeader,
                             },
-                            children: [
-                              { component: itemPath.type },
-                              { component: itemPath.description },
-                              { component: itemPath.estimatedValue },
-                              { component: itemPath.hasEncumbrance },
-                            ],
-                          }),
+                            {
+                              selector: 'item:content',
+                              render: (itemPath: FieldPath<Property>) => ({
+                                component: Box,
+                                componentProps: {
+                                  className: 'space-y-3',
+                                },
+                                children: [
+                                  { component: itemPath.type },
+                                  { component: itemPath.description },
+                                  { component: itemPath.estimatedValue },
+                                  { component: itemPath.hasEncumbrance },
+                                ],
+                              }),
+                            },
+                          ],
                         },
-                      ],
-                    },
-                  ],
+                      },
+                    ],
+                  },
                 },
               ],
             },
@@ -618,63 +618,63 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   componentProps: {
                     array: path.existingLoans,
                     className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                  },
-                  children: [
-                    {
-                      selector: 'header',
-                      component: ExistingLoanArrayHeader,
-                    },
-                    {
-                      selector: 'empty',
-                      component: ExistingLoanArrayEmpty,
-                    },
-                    {
-                      selector: 'item',
-                      component: Box,
-                      componentProps: {
-                        className: 'mb-4 p-4 bg-white rounded border',
+                    children: [
+                      {
+                        selector: 'header',
+                        component: ExistingLoanArrayHeader,
                       },
-                      children: [
-                        {
-                          selector: 'item:header',
-                          component: ExistingLoanItemHeader,
-                        },
-                        {
-                          selector: 'item:content',
-                          render: (itemPath: FieldPath<ExistingLoan>) => ({
-                            component: Box,
-                            componentProps: {
-                              className: 'space-y-3',
+                      {
+                        selector: 'empty',
+                        component: ExistingLoanArrayEmpty,
+                      },
+                      {
+                        selector: 'item',
+                        component: Box,
+                        componentProps: {
+                          className: 'mb-4 p-4 bg-white rounded border',
+                          children: [
+                            {
+                              selector: 'item:header',
+                              component: ExistingLoanItemHeader,
                             },
-                            children: [
-                              { component: itemPath.bank },
-                              { component: itemPath.type },
-                              {
+                            {
+                              selector: 'item:content',
+                              render: (itemPath: FieldPath<ExistingLoan>) => ({
                                 component: Box,
                                 componentProps: {
-                                  className: 'grid grid-cols-2 gap-4',
+                                  className: 'space-y-3',
                                 },
                                 children: [
-                                  { component: itemPath.amount },
-                                  { component: itemPath.remainingAmount },
+                                  { component: itemPath.bank },
+                                  { component: itemPath.type },
+                                  {
+                                    component: Box,
+                                    componentProps: {
+                                      className: 'grid grid-cols-2 gap-4',
+                                    },
+                                    children: [
+                                      { component: itemPath.amount },
+                                      { component: itemPath.remainingAmount },
+                                    ],
+                                  },
+                                  {
+                                    component: Box,
+                                    componentProps: {
+                                      className: 'grid grid-cols-2 gap-4',
+                                    },
+                                    children: [
+                                      { component: itemPath.monthlyPayment },
+                                      { component: itemPath.maturityDate },
+                                    ],
+                                  },
                                 ],
-                              },
-                              {
-                                component: Box,
-                                componentProps: {
-                                  className: 'grid grid-cols-2 gap-4',
-                                },
-                                children: [
-                                  { component: itemPath.monthlyPayment },
-                                  { component: itemPath.maturityDate },
-                                ],
-                              },
-                            ],
-                          }),
+                              }),
+                            },
+                          ],
                         },
-                      ],
-                    },
-                  ],
+                      },
+                    ],
+                  },
                 },
               ],
             },
@@ -693,73 +693,73 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                   componentProps: {
                     array: path.coBorrowers,
                     className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                  },
-                  children: [
-                    {
-                      selector: 'header',
-                      component: CoBorrowerArrayHeader,
-                    },
-                    {
-                      selector: 'empty',
-                      component: CoBorrowerArrayEmpty,
-                    },
-                    {
-                      selector: 'item',
-                      component: Box,
-                      componentProps: {
-                        className: 'mb-4 p-4 bg-white rounded border',
+                    children: [
+                      {
+                        selector: 'header',
+                        component: CoBorrowerArrayHeader,
                       },
-                      children: [
-                        {
-                          selector: 'item:header',
-                          component: CoBorrowerItemHeader,
-                        },
-                        {
-                          selector: 'item:content',
-                          render: (itemPath: FieldPath<CoBorrower>) => ({
-                            component: Box,
-                            componentProps: {
-                              className: 'space-y-3',
+                      {
+                        selector: 'empty',
+                        component: CoBorrowerArrayEmpty,
+                      },
+                      {
+                        selector: 'item',
+                        component: Box,
+                        componentProps: {
+                          className: 'mb-4 p-4 bg-white rounded border',
+                          children: [
+                            {
+                              selector: 'item:header',
+                              component: CoBorrowerItemHeader,
                             },
-                            children: [
-                              {
+                            {
+                              selector: 'item:content',
+                              render: (itemPath: FieldPath<CoBorrower>) => ({
                                 component: Box,
                                 componentProps: {
-                                  className: 'grid grid-cols-3 gap-4',
+                                  className: 'space-y-3',
                                 },
                                 children: [
-                                  { component: itemPath.personalData.lastName },
-                                  { component: itemPath.personalData.firstName },
-                                  { component: itemPath.personalData.middleName },
+                                  {
+                                    component: Box,
+                                    componentProps: {
+                                      className: 'grid grid-cols-3 gap-4',
+                                    },
+                                    children: [
+                                      { component: itemPath.personalData.lastName },
+                                      { component: itemPath.personalData.firstName },
+                                      { component: itemPath.personalData.middleName },
+                                    ],
+                                  },
+                                  { component: itemPath.personalData.birthDate },
+                                  {
+                                    component: Box,
+                                    componentProps: {
+                                      className: 'grid grid-cols-2 gap-4',
+                                    },
+                                    children: [
+                                      { component: itemPath.phone },
+                                      { component: itemPath.email },
+                                    ],
+                                  },
+                                  {
+                                    component: Box,
+                                    componentProps: {
+                                      className: 'grid grid-cols-2 gap-4',
+                                    },
+                                    children: [
+                                      { component: itemPath.relationship },
+                                      { component: itemPath.monthlyIncome },
+                                    ],
+                                  },
                                 ],
-                              },
-                              { component: itemPath.personalData.birthDate },
-                              {
-                                component: Box,
-                                componentProps: {
-                                  className: 'grid grid-cols-2 gap-4',
-                                },
-                                children: [
-                                  { component: itemPath.phone },
-                                  { component: itemPath.email },
-                                ],
-                              },
-                              {
-                                component: Box,
-                                componentProps: {
-                                  className: 'grid grid-cols-2 gap-4',
-                                },
-                                children: [
-                                  { component: itemPath.relationship },
-                                  { component: itemPath.monthlyIncome },
-                                ],
-                              },
-                            ],
-                          }),
+                              }),
+                            },
+                          ],
                         },
-                      ],
-                    },
-                  ],
+                      },
+                    ],
+                  },
                 },
               ],
             },
