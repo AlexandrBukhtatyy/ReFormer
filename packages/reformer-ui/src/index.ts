@@ -14,7 +14,7 @@ export {
   FormArrayItemContext,
   useFormArrayContext,
   useFormArrayItemContext,
-} from './form-array';
+} from './components/form-array';
 
 export type {
   FormArrayHandle,
@@ -30,7 +30,7 @@ export type {
   FormArrayItemIndexProps,
   FormArrayContextValue,
   FormArrayItemContextValue,
-} from './form-array';
+} from './components/form-array';
 
 // ============================================================================
 // FormNavigation - Headless compound component for multi-step form wizards
@@ -43,7 +43,7 @@ export {
   FormNavigationProgress,
   useFormNavigation,
   FormNavigationContext,
-} from './form-navigation';
+} from './components/form-navigation';
 
 export type {
   FormNavigationHandle,
@@ -61,4 +61,4 @@ export type {
   FormNavigationSubmitProps,
   FormNavigationProgressProps,
   FormNavigationProgressRenderProps,
-} from './form-navigation';
+} from './components/form-navigation';
