@@ -12,6 +12,13 @@ import type { FieldPath, FieldPathNode, FormProxy } from '../types';
 import type { FormArray, FormArrayProps } from './components/form-array';
 
 // ============================================================================
+// BASE TYPES
+// ============================================================================
+
+/** Условие скрытия узла */
+type HiddenCondition<T> = (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+
+// ============================================================================
 // SELECTOR TYPES - для декларативного FormArray
 // ============================================================================
 
@@ -36,11 +43,14 @@ export interface SelectorRenderNode<T, TItem = unknown> {
   /** Селектор определяет где будет отрендерен этот узел */
   selector: FormArraySelector;
 
+  /** Условие скрытия узла */
+  hidden?: HiddenCondition<T>;
+
   /** React-компонент для рендеринга */
   component?: ComponentType<ContainerComponentProps>;
 
   /** Props для компонента */
-  componentProps?: Omit<ContainerRenderNodeProps<T>, 'children'> & {
+  componentProps?: ContainerRenderNodeProps & {
     /** Вложенные узлы с селекторами */
     children?: SelectorRenderNode<T, TItem>[];
   };
@@ -133,11 +143,11 @@ export interface FieldRenderNode<T> {
   /** Ссылка на поле формы (path.fieldName) */
   component: FieldPathNode<unknown, unknown, unknown>;
 
-  /** Условие скрытия узла */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-
   /** Props для рендеринга поля */
   componentProps?: FieldRenderNodeProps;
+
+  /** Условие скрытия узла */
+  hidden?: HiddenCondition<T>;
 }
 
 // ============================================================================
@@ -146,13 +156,13 @@ export interface FieldRenderNode<T> {
 
 /**
  * Props для ContainerRenderNode
+ *
+ * Произвольные props для компонента-контейнера.
+ * Дочерние узлы задаются через `ContainerRenderNode.children`, а не здесь.
  */
-export interface ContainerRenderNodeProps<T> {
+export interface ContainerRenderNodeProps {
   /** CSS класс для контейнера */
   className?: string;
-
-  /** Дочерние узлы */
-  children?: RenderNode<T>[];
 
   /** Произвольные props для компонента контейнера */
   [key: string]: unknown;
@@ -181,13 +191,22 @@ export interface ContainerRenderNode<T> {
   selector?: string;
 
   /** React-компонент контейнера */
-  component: ComponentType<ContainerComponentProps>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
 
   /** Условие скрытия узла */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+  hidden?: HiddenCondition<T>;
 
-  /** Props для компонента */
-  componentProps?: ContainerRenderNodeProps<T>;
+  /**
+   * Дочерние узлы рендеринга.
+   *
+   * Вынесены на уровень узла (а не в componentProps), чтобы TypeScript мог
+   * однозначно вывести тип `T` в `hidden` на любой глубине вложенности.
+   */
+  children?: RenderNode<T>[];
+
+  /** Props для компонента-контейнера (className, title и т.д.) */
+  componentProps?: ContainerRenderNodeProps;
 }
 
 // ============================================================================
@@ -258,7 +277,7 @@ export interface ArrayRenderNode<T, TItem = unknown> {
   component: typeof FormArray;
 
   /** Условие скрытия узла */
-  hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+  hidden?: HiddenCondition<T>;
 
   /** Props для FormArray */
   componentProps: ArrayRenderNodeProps<T, TItem>;

@@ -387,8 +387,8 @@ export function RenderNodeComponent<T>({
   // ContainerRenderNode - контейнер
   // ========================================
   if (isContainerRenderNode(node)) {
-    const { children, ...restProps } = node.componentProps || {};
-    const { selector, component: Component } = node;
+    const { selector, component: Component, children } = node;
+    const restProps = node.componentProps || {};
 
     // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
