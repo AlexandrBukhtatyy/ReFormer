@@ -5,7 +5,7 @@
  */
 
 import type { RenderNode, FieldRenderNode, ContainerRenderNode, ArrayRenderNode } from './types';
-import { FormArray } from './components/form-array';
+import { FormArray } from '../components/form-array';
 
 /**
  * Type guard для FieldRenderNode

@@ -21,7 +21,7 @@ import {
   FormArrayItemContext,
   type FormArrayContextValue,
   type FormArrayItemContextValue,
-} from './components/form-array-context';
+} from '../components/form-array-context';
 
 /**
  * Props для RenderNodeComponent

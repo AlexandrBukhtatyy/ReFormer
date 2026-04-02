@@ -1,7 +1,6 @@
 export * from './core/types';
 export * from './core/factories';
 export * from './core/utils';
-export * from '../../reformer-renderer-react/src';
 
 export { FormNode } from './core/nodes/form-node';
 export { FieldNode } from './core/nodes/field-node';

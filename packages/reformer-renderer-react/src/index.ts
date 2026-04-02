@@ -49,7 +49,7 @@ export type {
   // Array selector types
   FormArraySelector,
   SelectorRenderNode,
-} from './types';
+} from './core/types';
 
 // FormArray Context
 export {
@@ -63,11 +63,11 @@ export {
 } from './components/form-array-context';
 
 // Components
-export { FormRenderer } from './form-renderer';
-export { RenderNodeComponent } from './render-node';
+export { FormRenderer } from './core/form-renderer';
+export { RenderNodeComponent } from './core/render-node';
 
 // Render Context
-export { useRenderContext, type RenderContextValue } from './render-context';
+export { useRenderContext, type RenderContextValue } from './core/render-context';
 
 // Container components
 export { Box, type BoxProps } from './components/box';
@@ -76,4 +76,4 @@ export { Collapsible, type CollapsibleProps } from './components/collapsible';
 export { FormArray, type FormArrayProps } from './components/form-array';
 
 // Utils
-export { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
+export { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './core/utils';

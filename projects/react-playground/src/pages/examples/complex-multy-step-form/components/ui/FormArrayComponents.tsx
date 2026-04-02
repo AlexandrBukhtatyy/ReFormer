@@ -5,7 +5,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { useFormArrayContext, useFormArrayItemContext } from '@reformer/core';
+import { useFormArrayContext, useFormArrayItemContext } from '@reformer/renderer-react';
 
 // ============================================================================
 // Array Header - заголовок с кнопкой "Добавить"

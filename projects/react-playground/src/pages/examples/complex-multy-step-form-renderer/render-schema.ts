@@ -5,8 +5,9 @@
  * Переиспользует типы, валидацию и поведение из complex-multy-step-form.
  */
 
-import type { RenderSchemaFn, RenderNode, FieldPath, FormProxy } from '@reformer/core';
-import { Box, Section, FormArray } from '@reformer/core';
+import type { FieldPath, FormProxy } from '@reformer/core';
+import type { RenderSchemaFn, RenderNode } from '@reformer/renderer-react';
+import { Box, Section, FormArray } from '@reformer/renderer-react';
 import { Step } from '@reformer/ui/form-navigation';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import type { Property } from '../complex-multy-step-form/components/nested-forms/Property/types';

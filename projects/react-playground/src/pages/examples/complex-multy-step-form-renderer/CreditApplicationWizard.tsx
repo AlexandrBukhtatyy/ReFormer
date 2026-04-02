@@ -11,13 +11,8 @@
 
 import { type ReactNode } from 'react';
 import type React from 'react';
-import {
-  useRenderContext,
-  RenderNodeComponent,
-  type RenderNode,
-  type FormProxy,
-  type FieldPath,
-} from '@reformer/core';
+import { type FormProxy, type FieldPath } from '@reformer/core';
+import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import { FormNavigation, type FormNavigationConfig } from '@reformer/ui/form-navigation';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useMemo } from 'react';
+import { createForm, type FieldPath } from '@reformer/core';
 import {
-  createForm,
   FormRenderer,
   Box,
   Section,
@@ -9,8 +9,7 @@ import {
   FormArray,
   type RenderSchemaFn,
   type RenderNode,
-  type FieldPath,
-} from '@reformer/core';
+} from '@reformer/renderer-react';
 import { required, email, minLength } from '@reformer/core/validators';
 import {
   FormArrayAddButton,
@@ -18,7 +17,7 @@ import {
   FormArrayItemIndex,
   FormArrayEmpty,
 } from '@reformer/ui/form-array';
-import type { SelectorRenderNode } from '@reformer/core';
+import type { SelectorRenderNode } from '@reformer/renderer-react';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
