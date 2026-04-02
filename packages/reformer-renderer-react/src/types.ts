@@ -4,11 +4,11 @@
  * RenderSchema отвечает только за layout и условия отображения,
  * а не за конфигурацию полей (это делает ModelSchema).
  *
- * @module core/render/types
+ * @module reformer/renderer-react/types
  */
 
 import type { ComponentType, ElementType } from 'react';
-import type { FieldPath, FieldPathNode, FormProxy } from '../types';
+import type { FieldPath, FieldPathNode, FormProxy } from '@reformer/core';
 import type { FormArray, FormArrayProps } from './components/form-array';
 
 // ============================================================================

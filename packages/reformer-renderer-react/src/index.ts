@@ -1,64 +1,79 @@
-// ============================================================================
-// FormArray - Headless compound component for managing form arrays
-// ============================================================================
+/**
+ * RenderSchema - декларативное описание структуры страницы формы
+ *
+ * RenderSchema отвечает за layout и условия отображения полей,
+ * а ModelSchema — за конфигурацию самих полей.
+ *
+ * @module reformer/renderer-react
+ *
+ * @example
+ * ```tsx
+ * import { FormRenderer, Box, Section, type RenderSchemaFn } from '@reformer/core';
+ *
+ * const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
+ *   component: Box,
+ *   componentProps: {
+ *     className: 'flex flex-col gap-6',
+ *     children: [
+ *       {
+ *         component: Section,
+ *         componentProps: {
+ *           title: 'Личные данные',
+ *           children: [
+ *             { component: path.firstName },
+ *             { component: path.lastName },
+ *           ],
+ *         },
+ *       },
+ *     ],
+ *   },
+ * });
+ *
+ * <FormRenderer form={form} render={renderSchema} />
+ * ```
+ */
+
+// Types
+export type {
+  RenderSchemaFn,
+  RenderNode,
+  FieldRenderNode,
+  FieldRenderNodeProps,
+  ContainerRenderNode,
+  ContainerRenderNodeProps,
+  ArrayRenderNode,
+  ArrayRenderNodeProps,
+  FormRendererProps,
+  FieldWrapperProps,
+  ContainerComponentProps,
+  // Array selector types
+  FormArraySelector,
+  SelectorRenderNode,
+} from './types';
+
+// FormArray Context
 export {
-  FormArray,
-  FormArrayList,
-  FormArrayAddButton,
-  FormArrayRemoveButton,
-  FormArrayEmpty,
-  FormArrayCount,
-  FormArrayItemIndex,
-  useFormArray,
   FormArrayContext,
   FormArrayItemContext,
   useFormArrayContext,
   useFormArrayItemContext,
-} from './components/form-array';
+  type FormArrayContextValue,
+  type FormArrayItemContextValue,
+  type FormArrayItem,
+} from './components/form-array-context';
 
-export type {
-  FormArrayHandle,
-  FormArrayItem,
-  UseFormArrayReturn,
-  FormArrayRootProps,
-  FormArrayListProps,
-  FormArrayItemRenderProps,
-  FormArrayAddButtonProps,
-  FormArrayRemoveButtonProps,
-  FormArrayEmptyProps,
-  FormArrayCountProps,
-  FormArrayItemIndexProps,
-  FormArrayContextValue,
-  FormArrayItemContextValue,
-} from './components/form-array';
+// Components
+export { FormRenderer } from './form-renderer';
+export { RenderNodeComponent } from './render-node';
 
-// ============================================================================
-// FormNavigation - Headless compound component for multi-step form wizards
-// ============================================================================
-export {
-  FormNavigation,
-  FormNavigationStep,
-  FormNavigationIndicator,
-  FormNavigationActions,
-  FormNavigationProgress,
-  useFormNavigation,
-  FormNavigationContext,
-} from './components/form-navigation';
+// Render Context
+export { useRenderContext, type RenderContextValue } from './render-context';
 
-export type {
-  FormNavigationHandle,
-  FormNavigationProps,
-  FormNavigationConfig,
-  FormNavigationStepProps,
-  FormNavigationContextValue,
-  FormNavigationIndicatorProps,
-  FormNavigationIndicatorStep,
-  FormNavigationIndicatorStepWithState,
-  FormNavigationIndicatorRenderProps,
-  FormNavigationActionsProps,
-  FormNavigationActionsRenderProps,
-  FormNavigationButtonProps,
-  FormNavigationSubmitProps,
-  FormNavigationProgressProps,
-  FormNavigationProgressRenderProps,
-} from './components/form-navigation';
+// Container components
+export { Box, type BoxProps } from './components/box';
+export { Section, type SectionProps } from './components/section';
+export { Collapsible, type CollapsibleProps } from './components/collapsible';
+export { FormArray, type FormArrayProps } from './components/form-array';
+
+// Utils
+export { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';

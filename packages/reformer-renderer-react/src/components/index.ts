@@ -1,7 +1,7 @@
 /**
  * Компоненты для RenderSchema
  *
- * @module core/render/components
+ * @module reformer/renderer-react/components
  */
 
 export { Box, type BoxProps } from './box';

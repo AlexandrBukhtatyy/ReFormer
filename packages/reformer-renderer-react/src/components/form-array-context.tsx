@@ -3,12 +3,12 @@
  *
  * Этот контекст определён в core и используется как reformer/core, так и reformer-ui.
  *
- * @module core/render/components/form-array-context
+ * @module reformer/renderer-react/components/form-array-context
  */
 
 import { createContext, useContext } from 'react';
-import type { ArrayNode } from '../../nodes/array-node';
-import type { FormProxy, FormFields } from '../../types';
+import type { ArrayNode } from '@reformer/core';
+import type { FormProxy, FormFields } from '@reformer/core';
 
 /**
  * Представляет элемент массива с контролом, индексом и действиями

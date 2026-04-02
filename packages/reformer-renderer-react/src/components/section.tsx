@@ -1,7 +1,7 @@
 /**
  * Section - секция с заголовком для RenderSchema
  *
- * @module core/render/components/section
+ * @module reformer/renderer-react/components/section
  */
 
 import type { ReactNode } from 'react';

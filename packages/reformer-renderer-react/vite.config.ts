@@ -12,8 +12,8 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
-        'form-array': resolve(__dirname, 'src/components/form-array/index.ts'),
-        'form-navigation': resolve(__dirname, 'src/components/form-navigation/index.ts'),
+        // 'form-array': resolve(__dirname, 'src/components/form-array/index.ts'),
+        // 'form-navigation': resolve(__dirname, 'src/components/form-navigation/index.ts'),
       },
       formats: ['es'],
     },

@@ -1,12 +1,12 @@
 /**
  * FormRenderer - компонент для декларативного рендеринга формы
  *
- * @module core/render/form-renderer
+ * @module reformer/renderer-react/form-renderer
  */
 
 import type { ReactNode } from 'react';
-import type { FormProxy } from '../types';
-import { createFieldPath } from '../utils/field-path';
+import type { FormProxy } from '@reformer/core';
+import { createFieldPath } from '@reformer/core';
 import type { FormRendererProps } from './types';
 import { RenderNodeComponent } from './render-node';
 import { RenderContextProvider } from './render-context';

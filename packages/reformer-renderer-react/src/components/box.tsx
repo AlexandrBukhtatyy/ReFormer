@@ -1,7 +1,7 @@
 /**
  * Box - простой div-контейнер для RenderSchema
  *
- * @module core/render/components/box
+ * @module reformer/renderer-react/components/box
  */
 
 import type { ReactNode } from 'react';

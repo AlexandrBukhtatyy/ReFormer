@@ -4,11 +4,11 @@
  * Позволяет компонентам-контейнерам (например, wizard) получить доступ к контексту
  * рендеринга для рекурсивного рендеринга вложенных узлов.
  *
- * @module core/render/render-context
+ * @module reformer/renderer-react/render-context
  */
 
 import { createContext, useContext, type ReactNode, type ComponentType } from 'react';
-import type { FormProxy, FieldPath } from '../types';
+import type { FormProxy, FieldPath } from '@reformer/core';
 import type { FieldWrapperProps } from './types';
 
 /**

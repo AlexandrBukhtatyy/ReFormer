@@ -1,18 +1,19 @@
 /**
  * RenderNodeComponent - рекурсивный рендеринг узлов RenderSchema
  *
- * @module core/render/render-node
+ * @module reformer/renderer-react/render-node
  */
 
 import { memo, useMemo, type ReactNode } from 'react';
-import type { FieldNode } from '../nodes/field-node';
-import type { ArrayNode } from '../nodes/array-node';
-import type { FormProxy, FieldPath, FormFields } from '../types';
-import { FieldPathNavigator } from '../utils/field-path-navigator';
-import { useFormControl } from '../../hooks/useFormControl';
-import { useArrayLength } from '../../hooks/useArrayLength';
-import { useHiddenCondition } from '../../hooks/useHiddenCondition';
-import { createFieldPath, extractPath } from '../utils/field-path';
+import type { FieldNode, ArrayNode, FormProxy, FieldPath, FormFields } from '@reformer/core';
+import {
+  FieldPathNavigator,
+  useFormControl,
+  useArrayLength,
+  useHiddenCondition,
+  createFieldPath,
+  extractPath,
+} from '@reformer/core';
 import type { RenderNode, SelectorRenderNode, FormArraySelector, FieldWrapperProps } from './types';
 import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
 import {

@@ -1,7 +1,7 @@
 /**
  * Утилиты для RenderSchema
  *
- * @module core/render/utils
+ * @module reformer/renderer-react/utils
  */
 
 import type { RenderNode, FieldRenderNode, ContainerRenderNode, ArrayRenderNode } from './types';

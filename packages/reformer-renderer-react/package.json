@@ -1,5 +1,5 @@
 {
-  "name": "@reformer-renderer-react",
+  "name": "@reformer/renderer-react",
   "version": "1.0.0-beta.2",
   "description": "UI renderer for @reformer/core",
   "type": "module",

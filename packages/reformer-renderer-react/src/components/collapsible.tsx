@@ -1,7 +1,7 @@
 /**
  * Collapsible - сворачиваемая секция для RenderSchema
  *
- * @module core/render/components/collapsible
+ * @module reformer/renderer-react/components/collapsible
  */
 
 import { useState, type ReactNode } from 'react';

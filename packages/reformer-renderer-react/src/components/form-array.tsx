@@ -4,7 +4,7 @@
  * Используется как маркер типа в ArrayRenderNode.
  * Фактический рендеринг массива выполняется в RenderNodeComponent.
  *
- * @module core/render/components/form-array
+ * @module reformer/renderer-react/components/form-array
  */
 
 import type { ReactNode } from 'react';
