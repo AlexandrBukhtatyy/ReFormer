@@ -7,6 +7,11 @@ export default defineConfig([
   {
     files: ['**/*.{js,ts,jsx,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       // Disable react/no-unescaped-entities as it conflicts with JSX attributes
       'react/no-unescaped-entities': 'off',
