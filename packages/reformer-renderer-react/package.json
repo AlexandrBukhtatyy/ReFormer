@@ -1,0 +1,82 @@
+{
+  "name": "@reformer-renderer-react",
+  "version": "1.0.0-beta.2",
+  "description": "UI renderer for @reformer/core",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./form-array": {
+      "types": "./dist/form-array.d.ts",
+      "import": "./dist/form-array.js"
+    },
+    "./form-navigation": {
+      "types": "./dist/form-navigation.d.ts",
+      "import": "./dist/form-navigation.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "generate:llms": "npx tsx scripts/generate-llms.ts",
+    "build": "npm run generate:llms && vite build && tsc -p tsconfig.json",
+    "build:stackblitz": "vite build && tsc -p tsconfig.json",
+    "dev": "vite",
+    "test": "vitest",
+    "test:watch": "vitest watch"
+  },
+  "keywords": [
+    "react",
+    "forms",
+    "reformer",
+    "renderer",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-renderer-react"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt"
+  ],
+  "peerDependencies": {
+    "@reformer/core": ">=1.1.0-beta.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@reformer/core": "*",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/utils": "^4.0.8",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}
