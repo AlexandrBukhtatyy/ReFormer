@@ -1,12 +1,7 @@
 import * as React from 'react';
 import { useMemo } from 'react';
 import { createForm, type FieldPath } from '@reformer/core';
-import {
-  FormRenderer,
-  FormArray,
-  type RenderSchemaFn,
-  type RenderNode,
-} from '@reformer/renderer-react';
+import { FormRenderer, type RenderSchemaFn, type RenderNode } from '@reformer/renderer-react';
 import { required, email, minLength } from '@reformer/core/validators';
 import {
   FormArrayAddButton,
@@ -21,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Box } from '@/components/ui/box';
 import { Section } from '@/components/ui/section';
 import { Collapsible } from '@/components/ui/collapsible';
+import { FormArray } from '../../../components/ui/form-array';
 
 // ============================================================================
 // Компоненты для selector-based FormArray

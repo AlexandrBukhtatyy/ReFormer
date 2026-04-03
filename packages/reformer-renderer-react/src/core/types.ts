@@ -9,7 +9,10 @@
 
 import type { ComponentType, ElementType } from 'react';
 import type { FieldPath, FieldPathNode, FormProxy } from '@reformer/core';
-import type { FormArray, FormArrayProps } from '../components/form-array';
+import type {
+  FormArray,
+  FormArrayProps,
+} from '../../../../projects/react-playground/src/components/ui/form-array';
 
 // ============================================================================
 // BASE TYPES

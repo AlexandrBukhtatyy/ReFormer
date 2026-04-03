@@ -69,8 +69,5 @@ export { RenderNodeComponent } from './core/render-node';
 // Render Context
 export { useRenderContext, type RenderContextValue } from './core/render-context';
 
-// Container components
-export { FormArray, type FormArrayProps } from './components/form-array';
-
 // Utils
 export { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './core/utils';

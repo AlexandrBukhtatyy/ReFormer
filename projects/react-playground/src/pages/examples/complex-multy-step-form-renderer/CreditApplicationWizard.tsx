@@ -16,8 +16,8 @@ import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reforme
 import { FormWizard, type FormWizardConfig } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
-import { NavigationActions } from '../complex-multy-step-form/components/ui/FormWizardActions';
-import { NavigationProgress } from '../complex-multy-step-form/components/ui/FormWizardProgress';
+import { FormWizardActions } from '../complex-multy-step-form/components/ui/FormWizardActions';
+import { FormWizardProgress } from '../complex-multy-step-form/components/ui/FormWizardProgress';
 
 interface WizardNodeProps {
   title?: string;
@@ -129,7 +129,7 @@ export function CreditApplicationWizard({
       {actionsNode && (
         <FormWizard.Actions onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}>
           {(actionsProps) => {
-            const ActionsComponent = actionsNode.component || NavigationActions;
+            const ActionsComponent = actionsNode.component || FormWizardActions;
             const { className: actionsClassName, ...restProps } = actionsNode.componentProps || {};
             return (
               <ActionsComponent className={actionsClassName} {...restProps} {...actionsProps} />
@@ -142,7 +142,7 @@ export function CreditApplicationWizard({
       {progressNode && (
         <FormWizard.Progress>
           {(progressProps) => {
-            const ProgressComponent = progressNode.component || NavigationProgress;
+            const ProgressComponent = progressNode.component || FormWizardProgress;
             const { className: progressClassName, ...restProps } =
               progressNode.componentProps || {};
             return (

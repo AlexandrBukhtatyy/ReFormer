@@ -15,10 +15,10 @@ Headless UI components for @reformer/core forms.
 
 ## Components
 
-| Component | Purpose |
-|-----------|---------|
-| `FormArray` | Manage dynamic form arrays |
-| `FormWizard` | Multi-step form wizard |
+| Component    | Purpose                    |
+| ------------ | -------------------------- |
+| `FormArray`  | Manage dynamic form arrays |
+| `FormWizard` | Multi-step form wizard     |
 
 ## Installation
 
@@ -171,26 +171,22 @@ const config = {
     {({ prev, next, submit, isFirstStep, isLastStep }) => (
       <div>
         {!isFirstStep && <button {...prev}>Back</button>}
-        {!isLastStep ? (
-          <button {...next}>Next</button>
-        ) : (
-          <button {...submit}>Submit</button>
-        )}
+        {!isLastStep ? <button {...next}>Next</button> : <button {...submit}>Submit</button>}
       </div>
     )}
   </FormWizard.Actions>
-</FormWizard>
+</FormWizard>;
 ```
 
 ## Sub-components
 
-| Component | Purpose |
-|-----------|---------|
-| `FormWizard` | Root provider |
-| `FormWizard.Step` | Renders component when step is current |
-| `FormWizard.Indicator` | Headless step indicator (render props) |
-| `FormWizard.Actions` | Headless navigation buttons (render props) |
-| `FormWizard.Progress` | Headless progress display (render props) |
+| Component              | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `FormWizard`           | Root provider                              |
+| `FormWizard.Step`      | Renders component when step is current     |
+| `FormWizard.Indicator` | Headless step indicator (render props)     |
+| `FormWizard.Actions`   | Headless navigation buttons (render props) |
+| `FormWizard.Progress`  | Headless progress display (render props)   |
 
 ## FormWizard.Indicator
 
@@ -217,7 +213,7 @@ const config = {
 
 ```typescript
 interface FormWizardIndicatorStep {
-  number: number;   // 1-based step number
+  number: number; // 1-based step number
   title: string;
   icon?: string;
 }
@@ -326,7 +322,7 @@ const result = await navRef.current?.submit(async (values) => {
 
 <FormWizard ref={navRef} form={form} config={config}>
   ...
-</FormWizard>
+</FormWizard>;
 ```
 
 ## Configuration
@@ -339,5 +335,6 @@ interface FormWizardConfig<T> {
 ```
 
 Validation happens automatically:
+
 - On `next.onClick`: validates current step
 - On `submit.onClick`: validates entire form

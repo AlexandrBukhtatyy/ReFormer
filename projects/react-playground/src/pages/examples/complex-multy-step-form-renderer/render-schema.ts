@@ -7,7 +7,6 @@
 
 import type { FieldPath, FormProxy } from '@reformer/core';
 import type { RenderSchemaFn, RenderNode } from '@reformer/renderer-react';
-import { Box, Section, FormArray } from '@reformer/renderer-react';
 import { Step } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import type { Property } from '../complex-multy-step-form/components/nested-forms/Property/types';
@@ -19,8 +18,8 @@ import creditApplicationValidation, {
 import { submitCreditApplication } from '../complex-multy-step-form/api';
 import { CreditApplicationWizard } from './CreditApplicationWizard';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
-import { NavigationActions } from '../complex-multy-step-form/components/ui/FormWizardActions';
-import { NavigationProgress } from '../complex-multy-step-form/components/ui/FormWizardProgress';
+import { FormWizardActions } from '../complex-multy-step-form/components/ui/FormWizardActions';
+import { FormWizardProgress } from '../complex-multy-step-form/components/ui/FormWizardProgress';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
 import {
@@ -42,6 +41,9 @@ import {
   NextStepsInfo,
   ElectronicSignatureHint,
 } from '../complex-multy-step-form/components/ui/ConfirmationComponents';
+import { Section } from '@/components/ui/section';
+import { Box } from '@/components/ui/box';
+import { FormArray } from '../../../components/ui/form-array';
 
 /**
  * Обработчик отправки формы
@@ -62,8 +64,8 @@ async function handleSubmit(values: CreditApplicationForm): Promise<void> {
  * - CreditApplicationWizard (корень) - пользовательский wizard-компонент
  *   - indicator: StepIndicator
  *   - step:1-6: содержимое шагов (с title/icon в componentProps)
- *   - actions: NavigationActions
- *   - progress: NavigationProgress
+ *   - actions: FormWizardActions
+ *   - progress: FormWizardProgress
  */
 export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm> = (path) => ({
   component: CreditApplicationWizard,
@@ -850,7 +852,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
     // ========================================
     {
       selector: 'actions',
-      component: NavigationActions,
+      component: FormWizardActions,
       componentProps: { className: 'mt-8' },
     },
 
@@ -859,7 +861,7 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
     // ========================================
     {
       selector: 'progress',
-      component: NavigationProgress,
+      component: FormWizardProgress,
       componentProps: { className: 'mt-4 text-center' },
     },
   ] as unknown as RenderNode<CreditApplicationForm>[],

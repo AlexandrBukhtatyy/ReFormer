@@ -4,17 +4,6 @@ export { FormWizard } from './FormWizard';
 // Step marker component for wizard schemas
 export { Step, type StepProps } from './Step';
 
-// Wizard selector utilities
-export {
-  useFormWizardSelectors,
-  parseStepNumber,
-  type WizardSelector,
-  type WizardSelectorNode,
-  type WizardComponentProps,
-  type StepMetadata,
-  type ParsedWizardSelectors,
-} from './useFormWizardSelectors';
-
 // Sub-components (also available as FormWizard.Step, etc.)
 export { FormWizardStep } from './FormWizardStep';
 export { FormWizardIndicator } from './FormWizardIndicator';
