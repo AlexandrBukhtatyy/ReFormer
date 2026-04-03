@@ -1,11 +1,11 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Slot } from './Slot';
-import { useFormNavigation } from './FormNavigationContext';
+import { useFormWizard } from './FormWizardContext';
 
 /**
- * Props for FormNavigation.Prev component
+ * Props for FormWizard.Prev component
  */
-export interface FormNavigationPrevProps extends Omit<
+export interface FormWizardPrevProps extends Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -18,30 +18,30 @@ export interface FormNavigationPrevProps extends Omit<
 }
 
 /**
- * FormNavigation.Prev - Previous step button component
+ * FormWizard.Prev - Previous step button component
  *
  * Renders a button that navigates to the previous step.
  * Automatically disabled on the first step, during validation, or during submission.
  *
  * @example Basic usage
  * ```tsx
- * <FormNavigation.Actions>
- *   <FormNavigation.Prev>Back</FormNavigation.Prev>
- * </FormNavigation.Actions>
+ * <FormWizard.Actions>
+ *   <FormWizard.Prev>Back</FormWizard.Prev>
+ * </FormWizard.Actions>
  * ```
  *
  * @example With custom button (asChild)
  * ```tsx
- * <FormNavigation.Prev asChild>
+ * <FormWizard.Prev asChild>
  *   <MyButton variant="ghost">
  *     <ArrowLeft /> Back
  *   </MyButton>
- * </FormNavigation.Prev>
+ * </FormWizard.Prev>
  * ```
  */
-export const FormNavigationPrev = forwardRef<HTMLButtonElement, FormNavigationPrevProps>(
+export const FormWizardPrev = forwardRef<HTMLButtonElement, FormWizardPrevProps>(
   ({ children, asChild = false, disabled: disabledProp, ...props }, ref) => {
-    const { goToPreviousStep, isFirstStep, isValidating, isSubmitting } = useFormNavigation();
+    const { goToPreviousStep, isFirstStep, isValidating, isSubmitting } = useFormWizard();
 
     // Merge disabled states (OR logic)
     const isAutoDisabled = isFirstStep || isValidating || isSubmitting;
@@ -64,4 +64,4 @@ export const FormNavigationPrev = forwardRef<HTMLButtonElement, FormNavigationPr
   }
 );
 
-FormNavigationPrev.displayName = 'FormNavigation.Prev';
+FormWizardPrev.displayName = 'FormWizard.Prev';

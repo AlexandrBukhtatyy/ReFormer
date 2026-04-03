@@ -6,7 +6,7 @@ import type { FormProxy, ValidationSchemaFn } from '@reformer/core';
  * Note: totalSteps is inferred from children count
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FormNavigationConfig<T extends Record<string, any>> {
+export interface FormWizardConfig<T extends Record<string, any>> {
   /** Validation schemas per step (1-based indexing) */
   stepValidations: Record<number, ValidationSchemaFn<T>>;
 
@@ -15,10 +15,10 @@ export interface FormNavigationConfig<T extends Record<string, any>> {
 }
 
 /**
- * Handle for external access to FormNavigation methods via ref
+ * Handle for external access to FormWizard methods via ref
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FormNavigationHandle<T extends Record<string, any>> {
+export interface FormWizardHandle<T extends Record<string, any>> {
   /** Current step (1-based) */
   currentStep: number;
 
@@ -51,15 +51,15 @@ export interface FormNavigationHandle<T extends Record<string, any>> {
 }
 
 /**
- * Props for FormNavigation component
+ * Props for FormWizard component
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FormNavigationProps<T extends Record<string, any>> {
+export interface FormWizardProps<T extends Record<string, any>> {
   /** Form instance */
   form: FormProxy<T>;
 
   /** Step configuration (validation schemas) */
-  config: FormNavigationConfig<T>;
+  config: FormWizardConfig<T>;
 
   /** Children (Step components, Indicator, Actions, Progress, or any ReactNode) */
   children: ReactNode;

@@ -9,18 +9,18 @@ import {
   cloneElement,
 } from 'react';
 import { validateForm } from '@reformer/core/validators';
-import { FormNavigationContext } from './FormNavigationContext';
-import { FormNavigationStep } from './FormNavigationStep';
-import { FormNavigationIndicator } from './FormNavigationIndicator';
-import { FormNavigationActions } from './FormNavigationActions';
-import { FormNavigationProgress } from './FormNavigationProgress';
-import { FormNavigationPrev } from './FormNavigationPrev';
-import { FormNavigationNext } from './FormNavigationNext';
-import { FormNavigationSubmit } from './FormNavigationSubmit';
-import type { FormNavigationHandle, FormNavigationProps } from './types';
+import { FormWizardContext } from './FormWizardContext';
+import { FormWizardStep } from './FormWizardStep';
+import { FormWizardIndicator } from './FormWizardIndicator';
+import { FormWizardActions } from './FormWizardActions';
+import { FormWizardProgress } from './FormWizardProgress';
+import { FormWizardPrev } from './FormWizardPrev';
+import { FormWizardNext } from './FormWizardNext';
+import { FormWizardSubmit } from './FormWizardSubmit';
+import type { FormWizardHandle, FormWizardProps } from './types';
 
 /**
- * FormNavigation - Headless compound component for multi-step form navigation
+ * FormWizard - Headless compound component for multi-step form navigation
  *
  * Uses Ref Handle Pattern to expose navigation methods via ref.
  * Encapsulates all validation and step transition logic.
@@ -28,18 +28,18 @@ import type { FormNavigationHandle, FormNavigationProps } from './types';
  *
  * @example Basic usage
  * ```tsx
- * const navRef = useRef<FormNavigationHandle<MyForm>>(null);
+ * const navRef = useRef<FormWizardHandle<MyForm>>(null);
  *
- * <FormNavigation ref={navRef} form={form} config={config}>
- *   <FormNavigation.Step component={Step1} control={form} />
- *   <FormNavigation.Step component={Step2} control={form} />
- * </FormNavigation>
+ * <FormWizard ref={navRef} form={form} config={config}>
+ *   <FormWizard.Step component={Step1} control={form} />
+ *   <FormWizard.Step component={Step2} control={form} />
+ * </FormWizard>
  * ```
  *
  * @example Full example with headless components
  * ```tsx
- * <FormNavigation ref={navRef} form={form} config={config}>
- *   <FormNavigation.Indicator steps={STEPS}>
+ * <FormWizard ref={navRef} form={form} config={config}>
+ *   <FormWizard.Indicator steps={STEPS}>
  *     {({ steps, goToStep }) => (
  *       <nav className="stepper">
  *         {steps.map(step => (
@@ -49,39 +49,39 @@ import type { FormNavigationHandle, FormNavigationProps } from './types';
  *         ))}
  *       </nav>
  *     )}
- *   </FormNavigation.Indicator>
+ *   </FormWizard.Indicator>
  *
- *   <FormNavigation.Step component={Step1} control={form} />
- *   <FormNavigation.Step component={Step2} control={form} />
+ *   <FormWizard.Step component={Step1} control={form} />
+ *   <FormWizard.Step component={Step2} control={form} />
  *
- *   <FormNavigation.Actions onSubmit={handleSubmit}>
+ *   <FormWizard.Actions onSubmit={handleSubmit}>
  *     {({ prev, next, submit, isFirstStep, isLastStep }) => (
  *       <div className="actions">
  *         {!isFirstStep && <Button {...prev}>Back</Button>}
  *         {!isLastStep ? <Button {...next}>Next</Button> : <Button {...submit}>Submit</Button>}
  *       </div>
  *     )}
- *   </FormNavigation.Actions>
+ *   </FormWizard.Actions>
  *
- *   <FormNavigation.Progress>
+ *   <FormWizard.Progress>
  *     {({ current, total, percent }) => (
  *       <span>Step {current}/{total} ({percent}%)</span>
  *     )}
- *   </FormNavigation.Progress>
- * </FormNavigation>
+ *   </FormWizard.Progress>
+ * </FormWizard>
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function FormNavigationInner<T extends Record<string, any>>(
-  { form, config, children, onStepChange, scrollToTop = true }: FormNavigationProps<T>,
-  ref: React.ForwardedRef<FormNavigationHandle<T>>
+function FormWizardInner<T extends Record<string, any>>(
+  { form, config, children, onStepChange, scrollToTop = true }: FormWizardProps<T>,
+  ref: React.ForwardedRef<FormWizardHandle<T>>
 ) {
   // Recursively count Step children for totalSteps (supports Steps inside wrapper divs)
   const countSteps = (node: React.ReactNode): number => {
     let count = 0;
     Children.forEach(node, (child) => {
       if (isValidElement(child)) {
-        if (child.type === FormNavigationStep) {
+        if (child.type === FormWizardStep) {
           count += 1;
         } else {
           const childProps = child.props as { children?: React.ReactNode };
@@ -306,7 +306,7 @@ function FormNavigationInner<T extends Record<string, any>>(
 
       const childProps = child.props as { children?: React.ReactNode };
 
-      if (child.type === FormNavigationStep) {
+      if (child.type === FormWizardStep) {
         stepIndexCounter += 1;
         return cloneElement(child as React.ReactElement<Record<string, unknown>>, {
           ...childProps,
@@ -335,36 +335,36 @@ function FormNavigationInner<T extends Record<string, any>>(
   const childrenWithIndices = processChildren(children);
 
   return (
-    <FormNavigationContext.Provider value={contextValue}>
+    <FormWizardContext.Provider value={contextValue}>
       {childrenWithIndices}
-    </FormNavigationContext.Provider>
+    </FormWizardContext.Provider>
   );
 }
 
 // Typed forwardRef for generic component
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FormNavigationBase = forwardRef(FormNavigationInner) as <T extends Record<string, any>>(
-  props: FormNavigationProps<T> & { ref?: React.ForwardedRef<FormNavigationHandle<T>> }
+const FormWizardBase = forwardRef(FormWizardInner) as <T extends Record<string, any>>(
+  props: FormWizardProps<T> & { ref?: React.ForwardedRef<FormWizardHandle<T>> }
 ) => React.ReactElement;
 
 // Create compound component with all sub-components attached
-type FormNavigationComponent = typeof FormNavigationBase & {
-  Step: typeof FormNavigationStep;
-  Indicator: typeof FormNavigationIndicator;
-  Actions: typeof FormNavigationActions;
-  Progress: typeof FormNavigationProgress;
+type FormWizardComponent = typeof FormWizardBase & {
+  Step: typeof FormWizardStep;
+  Indicator: typeof FormWizardIndicator;
+  Actions: typeof FormWizardActions;
+  Progress: typeof FormWizardProgress;
   // Action button components
-  Prev: typeof FormNavigationPrev;
-  Next: typeof FormNavigationNext;
-  Submit: typeof FormNavigationSubmit;
+  Prev: typeof FormWizardPrev;
+  Next: typeof FormWizardNext;
+  Submit: typeof FormWizardSubmit;
 };
 
-export const FormNavigation = FormNavigationBase as FormNavigationComponent;
-FormNavigation.Step = FormNavigationStep;
-FormNavigation.Indicator = FormNavigationIndicator;
-FormNavigation.Actions = FormNavigationActions;
-FormNavigation.Progress = FormNavigationProgress;
+export const FormWizard = FormWizardBase as FormWizardComponent;
+FormWizard.Step = FormWizardStep;
+FormWizard.Indicator = FormWizardIndicator;
+FormWizard.Actions = FormWizardActions;
+FormWizard.Progress = FormWizardProgress;
 // Action button components
-FormNavigation.Prev = FormNavigationPrev;
-FormNavigation.Next = FormNavigationNext;
-FormNavigation.Submit = FormNavigationSubmit;
+FormWizard.Prev = FormWizardPrev;
+FormWizard.Next = FormWizardNext;
+FormWizard.Submit = FormWizardSubmit;

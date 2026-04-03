@@ -271,7 +271,7 @@ graph TB
 
     subgraph "@reformer/ui"
         FormArray[FormArray]
-        FormNavigation[FormNavigation]
+        FormWizard[FormWizard]
     end
 
     subgraph "Schema Adapters"
@@ -299,7 +299,7 @@ graph TB
 
     FormArray --> ArrayNode
     FormArray --> GroupNode
-    FormNavigation --> GroupNode
+    FormWizard --> GroupNode
 
     useFormControl --> FieldNode
     useFormControl --> ArrayNode

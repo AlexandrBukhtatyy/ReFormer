@@ -33,32 +33,32 @@ export type {
 } from './components/form-array';
 
 // ============================================================================
-// FormNavigation - Headless compound component for multi-step form wizards
+// FormWizard - Headless compound component for multi-step form wizards
 // ============================================================================
 export {
-  FormNavigation,
-  FormNavigationStep,
-  FormNavigationIndicator,
-  FormNavigationActions,
-  FormNavigationProgress,
-  useFormNavigation,
-  FormNavigationContext,
-} from './components/form-navigation';
+  FormWizard,
+  FormWizardStep,
+  FormWizardIndicator,
+  FormWizardActions,
+  FormWizardProgress,
+  useFormWizard,
+  FormWizardContext,
+} from './components/form-wizard';
 
 export type {
-  FormNavigationHandle,
-  FormNavigationProps,
-  FormNavigationConfig,
-  FormNavigationStepProps,
-  FormNavigationContextValue,
-  FormNavigationIndicatorProps,
-  FormNavigationIndicatorStep,
-  FormNavigationIndicatorStepWithState,
-  FormNavigationIndicatorRenderProps,
-  FormNavigationActionsProps,
-  FormNavigationActionsRenderProps,
-  FormNavigationButtonProps,
-  FormNavigationSubmitProps,
-  FormNavigationProgressProps,
-  FormNavigationProgressRenderProps,
-} from './components/form-navigation';
+  FormWizardHandle,
+  FormWizardProps,
+  FormWizardConfig,
+  FormWizardStepProps,
+  FormWizardContextValue,
+  FormWizardIndicatorProps,
+  FormWizardIndicatorStep,
+  FormWizardIndicatorStepWithState,
+  FormWizardIndicatorRenderProps,
+  FormWizardActionsProps,
+  FormWizardActionsRenderProps,
+  FormWizardButtonProps,
+  FormWizardSubmitProps,
+  FormWizardProgressProps,
+  FormWizardProgressRenderProps,
+} from './components/form-wizard';

@@ -13,11 +13,11 @@ Reactive form state management library for React with signals-based architecture
 
 ## Packages
 
-| Package | Description | Version |
-|---------|-------------|---------|
-| [@reformer/core](./packages/reformer) | Core form state management | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
-| [@reformer/ui](./packages/reformer-ui) | Headless UI components (FormArray, FormNavigation) | [![npm](https://img.shields.io/npm/v/@reformer/ui.svg)](https://www.npmjs.com/package/@reformer/ui) |
-| [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp) |
+| Package                                  | Description                                    | Version                                                                                                 |
+| ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [@reformer/core](./packages/reformer)    | Core form state management                     | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
+| [@reformer/ui](./packages/reformer-ui)   | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/ui.svg)](https://www.npmjs.com/package/@reformer/ui)     |
+| [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants                   | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)   |
 
 ## Features
 
@@ -120,7 +120,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 ## Behaviors
@@ -130,9 +130,7 @@ import { computeFrom, enableWhen, watchField } from '@reformer/core';
 
 behavior: (path) => {
   // Computed field
-  computeFrom([path.price, path.quantity], path.total,
-    ({ price, quantity }) => price * quantity
-  );
+  computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
 
   // Conditional enable/disable
   enableWhen(path.shipping, (form) => form.needsShipping);
@@ -141,7 +139,7 @@ behavior: (path) => {
   watchField(path.country, (value, ctx) => {
     ctx.form.state.setValue('');
   });
-}
+};
 ```
 
 ## Headless UI Components
@@ -162,27 +160,27 @@ import { FormArray } from '@reformer/ui/form-array';
     )}
   </FormArray.List>
   <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
-### FormNavigation (Multi-step Wizard)
+### FormWizard (Multi-step Wizard)
 
 ```tsx
-import { FormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard } from '@reformer/ui/form-wizard';
 
-<FormNavigation form={form} config={config}>
-  <FormNavigation.Step component={Step1} control={form} />
-  <FormNavigation.Step component={Step2} control={form} />
+<FormWizard form={form} config={config}>
+  <FormWizard.Step component={Step1} control={form} />
+  <FormWizard.Step component={Step2} control={form} />
 
-  <FormNavigation.Actions onSubmit={handleSubmit}>
+  <FormWizard.Actions onSubmit={handleSubmit}>
     {({ prev, next, submit, isLastStep }) => (
       <>
         <button {...prev}>Back</button>
         {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
       </>
     )}
-  </FormNavigation.Actions>
-</FormNavigation>
+  </FormWizard.Actions>
+</FormWizard>;
 ```
 
 ## MCP Server (AI Integration)
@@ -194,6 +192,7 @@ npm install -g @reformer/mcp
 ```
 
 Add to your Claude config:
+
 ```json
 {
   "mcpServers": {

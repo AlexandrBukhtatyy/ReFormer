@@ -1,16 +1,16 @@
 /**
  * StepIndicator - компонент индикатора шагов для renderSchema
  *
- * Получает props от FormNavigation.Indicator через render props.
+ * Получает props от FormWizard.Indicator через render props.
  */
 
 import type { FC } from 'react';
 import type {
-  FormNavigationIndicatorStepWithState,
-  FormNavigationIndicatorRenderProps,
-} from '@reformer/ui/form-navigation';
+  FormWizardIndicatorStepWithState,
+  FormWizardIndicatorRenderProps,
+} from '@reformer/ui/form-wizard';
 
-interface StepIndicatorProps extends FormNavigationIndicatorRenderProps {
+interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
   className?: string;
 }
 
@@ -19,7 +19,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({ steps, goToStep, classNa
     <div
       className={`flex items-center justify-between p-4 bg-gray-100 rounded-lg ${className || ''}`}
     >
-      {steps.map((step: FormNavigationIndicatorStepWithState, index: number) => (
+      {steps.map((step: FormWizardIndicatorStepWithState, index: number) => (
         <div key={step.number} className="flex items-center flex-1">
           <div
             className={`flex items-center gap-2 p-3 rounded-lg transition-all cursor-pointer

@@ -15,10 +15,10 @@ sidebar_position: 1
 
 ## Компоненты
 
-| Компонент | Назначение |
-|-----------|------------|
-| [`FormArray`](./form-array) | Управление динамическими массивами форм |
-| [`FormNavigation`](./form-navigation) | Multi-step wizard для форм |
+| Компонент                     | Назначение                              |
+| ----------------------------- | --------------------------------------- |
+| [`FormArray`](./form-array)   | Управление динамическими массивами форм |
+| [`FormWizard`](./form-wizard) | Multi-step wizard для форм              |
 
 ## Установка
 
@@ -30,11 +30,11 @@ npm install @reformer/ui @reformer/core
 
 ```typescript
 // Все компоненты
-import { FormArray, FormNavigation } from '@reformer/ui';
+import { FormArray, FormWizard } from '@reformer/ui';
 
 // Tree-shaking (рекомендуется)
 import { FormArray, useFormArray } from '@reformer/ui/form-array';
-import { FormNavigation, useFormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard, useFormWizard } from '@reformer/ui/form-wizard';
 ```
 
 ## Почему Headless?

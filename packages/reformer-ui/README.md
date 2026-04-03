@@ -41,21 +41,21 @@ import { FormArray } from '@reformer/ui/form-array';
   </FormArray.List>
 
   <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
-### FormNavigation
+### FormWizard
 
 Build multi-step form wizards with validation.
 
 ```tsx
-import { FormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard } from '@reformer/ui/form-wizard';
 
-<FormNavigation form={form} config={config}>
-  <FormNavigation.Indicator steps={STEPS}>
+<FormWizard form={form} config={config}>
+  <FormWizard.Indicator steps={STEPS}>
     {({ steps, goToStep }) => (
       <nav>
-        {steps.map(step => (
+        {steps.map((step) => (
           <button
             key={step.number}
             onClick={() => goToStep(step.number)}
@@ -66,24 +66,20 @@ import { FormNavigation } from '@reformer/ui/form-navigation';
         ))}
       </nav>
     )}
-  </FormNavigation.Indicator>
+  </FormWizard.Indicator>
 
-  <FormNavigation.Step component={Step1} control={form} />
-  <FormNavigation.Step component={Step2} control={form} />
+  <FormWizard.Step component={Step1} control={form} />
+  <FormWizard.Step component={Step2} control={form} />
 
-  <FormNavigation.Actions onSubmit={handleSubmit}>
+  <FormWizard.Actions onSubmit={handleSubmit}>
     {({ prev, next, submit, isFirstStep, isLastStep }) => (
       <div>
         {!isFirstStep && <button {...prev}>Back</button>}
-        {!isLastStep ? (
-          <button {...next}>Next</button>
-        ) : (
-          <button {...submit}>Submit</button>
-        )}
+        {!isLastStep ? <button {...next}>Next</button> : <button {...submit}>Submit</button>}
       </div>
     )}
-  </FormNavigation.Actions>
-</FormNavigation>
+  </FormWizard.Actions>
+</FormWizard>;
 ```
 
 ## Hooks
@@ -92,7 +88,7 @@ For full customization, use the hooks directly:
 
 ```tsx
 import { useFormArray } from '@reformer/ui/form-array';
-import { useFormNavigation } from '@reformer/ui/form-navigation';
+import { useFormWizard } from '@reformer/ui/form-wizard';
 ```
 
 ## License

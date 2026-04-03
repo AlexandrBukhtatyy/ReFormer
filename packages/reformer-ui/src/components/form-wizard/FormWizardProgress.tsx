@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import { useFormNavigation } from './FormNavigationContext';
+import { useFormWizard } from './FormWizardContext';
 
 /**
  * Render props passed to children function
  */
-export interface FormNavigationProgressRenderProps {
+export interface FormWizardProgressRenderProps {
   /** Current step number (1-based) */
   current: number;
   /** Total number of steps */
@@ -20,15 +20,15 @@ export interface FormNavigationProgressRenderProps {
 }
 
 /**
- * Props for FormNavigation.Progress component
+ * Props for FormWizard.Progress component
  */
-export interface FormNavigationProgressProps {
+export interface FormWizardProgressProps {
   /** Render function for custom UI */
-  children: (props: FormNavigationProgressRenderProps) => ReactNode;
+  children: (props: FormWizardProgressRenderProps) => ReactNode;
 }
 
 /**
- * FormNavigation.Progress - Headless component for progress display
+ * FormWizard.Progress - Headless component for progress display
  *
  * Provides progress data for building custom progress indicators.
  * No default UI - you build exactly what you need.
@@ -43,18 +43,18 @@ export interface FormNavigationProgressProps {
  *
  * @example Simple text progress
  * ```tsx
- * <FormNavigation.Progress>
+ * <FormWizard.Progress>
  *   {({ current, total, percent }) => (
  *     <div className="text-sm text-gray-600">
  *       Step {current} of {total} ({percent}% complete)
  *     </div>
  *   )}
- * </FormNavigation.Progress>
+ * </FormWizard.Progress>
  * ```
  *
  * @example Progress bar
  * ```tsx
- * <FormNavigation.Progress>
+ * <FormWizard.Progress>
  *   {({ percent, current, total }) => (
  *     <div className="space-y-2">
  *       <div className="flex justify-between text-sm">
@@ -69,30 +69,30 @@ export interface FormNavigationProgressProps {
  *       </div>
  *     </div>
  *   )}
- * </FormNavigation.Progress>
+ * </FormWizard.Progress>
  * ```
  *
  * @example Circular progress
  * ```tsx
- * <FormNavigation.Progress>
+ * <FormWizard.Progress>
  *   {({ percent }) => (
  *     <CircularProgress value={percent} />
  *   )}
- * </FormNavigation.Progress>
+ * </FormWizard.Progress>
  * ```
  */
-export function FormNavigationProgress({ children }: FormNavigationProgressProps) {
+export function FormWizardProgress({ children }: FormWizardProgressProps) {
   // Runtime check for headless API
   if (typeof children !== 'function') {
     throw new Error(
-      'FormNavigation.Progress requires children as a render function. ' +
-        'Example: <FormNavigation.Progress>{({ current, total }) => <YourUI />}</FormNavigation.Progress>'
+      'FormWizard.Progress requires children as a render function. ' +
+        'Example: <FormWizard.Progress>{({ current, total }) => <YourUI />}</FormWizard.Progress>'
     );
   }
 
-  const { currentStep, totalSteps, completedSteps, isFirstStep, isLastStep } = useFormNavigation();
+  const { currentStep, totalSteps, completedSteps, isFirstStep, isLastStep } = useFormWizard();
 
-  const renderProps: FormNavigationProgressRenderProps = {
+  const renderProps: FormWizardProgressRenderProps = {
     current: currentStep,
     total: totalSteps,
     percent: Math.round((currentStep / totalSteps) * 100),
@@ -104,4 +104,4 @@ export function FormNavigationProgress({ children }: FormNavigationProgressProps
   return <>{children(renderProps)}</>;
 }
 
-FormNavigationProgress.displayName = 'FormNavigation.Progress';
+FormWizardProgress.displayName = 'FormWizard.Progress';

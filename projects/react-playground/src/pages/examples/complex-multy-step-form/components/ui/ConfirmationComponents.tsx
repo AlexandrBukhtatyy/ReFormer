@@ -2,12 +2,12 @@
  * Компоненты для Шага 6 (Подтверждение)
  *
  * Презентационные компоненты для отображения информационных блоков, итогов и предупреждений.
- * Используются как в ConfirmationForm (с пропами), так и в RenderSchema (с useFormNavigation).
+ * Используются как в ConfirmationForm (с пропами), так и в RenderSchema (с useFormWizard).
  */
 
 import type { ReactNode } from 'react';
 import { useFormControlValue } from '@reformer/core';
-import { useFormNavigation } from '@reformer/ui/form-navigation';
+import { useFormWizard } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 // ============================================================================
@@ -48,9 +48,9 @@ export function HighPaymentWarningBase({ monthlyPayment }: HighPaymentWarningBas
   );
 }
 
-/** Версия с useFormNavigation для RenderSchema */
+/** Версия с useFormWizard для RenderSchema */
 export function HighPaymentWarning(): ReactNode {
-  const { form } = useFormNavigation<CreditApplicationForm>();
+  const { form } = useFormWizard<CreditApplicationForm>();
   const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
   return <HighPaymentWarningBase monthlyPayment={monthlyPayment} />;
 }
@@ -92,9 +92,9 @@ export function LoanSummarySectionBase({
   );
 }
 
-/** Версия с useFormNavigation для RenderSchema */
+/** Версия с useFormWizard для RenderSchema */
 export function LoanSummarySection(): ReactNode {
-  const { form } = useFormNavigation<CreditApplicationForm>();
+  const { form } = useFormWizard<CreditApplicationForm>();
   const interestRate = useFormControlValue(form.interestRate) as number;
   const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
   return <LoanSummarySectionBase interestRate={interestRate} monthlyPayment={monthlyPayment} />;

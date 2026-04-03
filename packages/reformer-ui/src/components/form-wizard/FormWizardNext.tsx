@@ -1,11 +1,11 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Slot } from './Slot';
-import { useFormNavigation } from './FormNavigationContext';
+import { useFormWizard } from './FormWizardContext';
 
 /**
- * Props for FormNavigation.Next component
+ * Props for FormWizard.Next component
  */
-export interface FormNavigationNextProps extends Omit<
+export interface FormWizardNextProps extends Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -18,30 +18,30 @@ export interface FormNavigationNextProps extends Omit<
 }
 
 /**
- * FormNavigation.Next - Next step button component
+ * FormWizard.Next - Next step button component
  *
  * Renders a button that validates current step and navigates to the next.
  * Automatically disabled on the last step, during validation, or during submission.
  *
  * @example Basic usage
  * ```tsx
- * <FormNavigation.Actions>
- *   <FormNavigation.Next>Continue</FormNavigation.Next>
- * </FormNavigation.Actions>
+ * <FormWizard.Actions>
+ *   <FormWizard.Next>Continue</FormWizard.Next>
+ * </FormWizard.Actions>
  * ```
  *
  * @example With custom button (asChild)
  * ```tsx
- * <FormNavigation.Next asChild>
+ * <FormWizard.Next asChild>
  *   <MyButton variant="primary">
  *     Next <ArrowRight />
  *   </MyButton>
- * </FormNavigation.Next>
+ * </FormWizard.Next>
  * ```
  */
-export const FormNavigationNext = forwardRef<HTMLButtonElement, FormNavigationNextProps>(
+export const FormWizardNext = forwardRef<HTMLButtonElement, FormWizardNextProps>(
   ({ children, asChild = false, disabled: disabledProp, ...props }, ref) => {
-    const { goToNextStep, isLastStep, isValidating, isSubmitting } = useFormNavigation();
+    const { goToNextStep, isLastStep, isValidating, isSubmitting } = useFormWizard();
 
     // Merge disabled states (OR logic)
     const isAutoDisabled = isLastStep || isValidating || isSubmitting;
@@ -64,4 +64,4 @@ export const FormNavigationNext = forwardRef<HTMLButtonElement, FormNavigationNe
   }
 );
 
-FormNavigationNext.displayName = 'FormNavigation.Next';
+FormWizardNext.displayName = 'FormWizard.Next';

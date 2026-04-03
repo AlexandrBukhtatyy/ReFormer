@@ -52,7 +52,7 @@ export function RenderContextProvider<T>({
  *   const { form, path, fieldWrapper } = useRenderContext();
  *
  *   return (
- *     <FormNavigation form={form}>
+ *     <FormWizard form={form}>
  *       {children.map(child => (
  *         <RenderNodeComponent
  *           node={child}
@@ -61,7 +61,7 @@ export function RenderContextProvider<T>({
  *           fieldWrapper={fieldWrapper}
  *         />
  *       ))}
- *     </FormNavigation>
+ *     </FormWizard>
  *   );
  * }
  * ```

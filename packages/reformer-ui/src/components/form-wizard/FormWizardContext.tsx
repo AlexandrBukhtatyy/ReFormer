@@ -2,11 +2,11 @@ import { createContext, useContext } from 'react';
 import type { FormProxy } from '@reformer/core';
 
 /**
- * Context value for FormNavigation
+ * Context value for FormWizard
  * Shares navigation state and methods with child components
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FormNavigationContextValue<T extends Record<string, any>> {
+export interface FormWizardContextValue<T extends Record<string, any>> {
   // ============================================================================
   // State
   // ============================================================================
@@ -51,24 +51,24 @@ export interface FormNavigationContextValue<T extends Record<string, any>> {
 
 // Using any for flexibility since context will be typed at usage site
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const FormNavigationContext = createContext<FormNavigationContextValue<any> | null>(null);
+export const FormWizardContext = createContext<FormWizardContextValue<any> | null>(null);
 
 /**
- * Hook to access FormNavigation context
+ * Hook to access FormWizard context
  *
  * @example
  * ```tsx
  * function MyStepComponent() {
- *   const { currentStep, isLastStep } = useFormNavigation();
+ *   const { currentStep, isLastStep } = useFormWizard();
  *   // ...
  * }
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useFormNavigation<T extends Record<string, any>>(): FormNavigationContextValue<T> {
-  const context = useContext(FormNavigationContext);
+export function useFormWizard<T extends Record<string, any>>(): FormWizardContextValue<T> {
+  const context = useContext(FormWizardContext);
   if (!context) {
-    throw new Error('useFormNavigation must be used within FormNavigation');
+    throw new Error('useFormWizard must be used within FormWizard');
   }
-  return context as FormNavigationContextValue<T>;
+  return context as FormWizardContextValue<T>;
 }

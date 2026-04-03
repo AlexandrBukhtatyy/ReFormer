@@ -13,7 +13,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
         'form-array': resolve(__dirname, 'src/components/form-array/index.ts'),
-        'form-navigation': resolve(__dirname, 'src/components/form-navigation/index.ts'),
+        'form-wizard': resolve(__dirname, 'src/components/form-wizard/index.ts'),
       },
       formats: ['es'],
     },

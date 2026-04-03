@@ -13,7 +13,7 @@ import { type ReactNode } from 'react';
 import type React from 'react';
 import { type FormProxy, type FieldPath } from '@reformer/core';
 import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import { FormNavigation, type FormNavigationConfig } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardConfig } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
 import { NavigationActions } from '../complex-multy-step-form/components/ui/NavigationActions';
@@ -79,7 +79,7 @@ export function CreditApplicationWizard({
     icon: node.componentProps?.icon,
   }));
 
-  const config: FormNavigationConfig<CreditApplicationForm> = {
+  const config: FormWizardConfig<CreditApplicationForm> = {
     stepValidations: stepValidations || {},
     fullValidation: fullValidation || (() => ({})),
   };
@@ -94,7 +94,7 @@ export function CreditApplicationWizard({
   );
 
   return (
-    <FormNavigation
+    <FormWizard
       form={form as FormProxy<CreditApplicationForm>}
       config={config}
       onStepChange={onStepChange}
@@ -102,7 +102,7 @@ export function CreditApplicationWizard({
     >
       {/* Indicator */}
       {indicatorNode && (
-        <FormNavigation.Indicator steps={steps}>
+        <FormWizard.Indicator steps={steps}>
           {(indicatorProps) => {
             const IndicatorComponent = indicatorNode.component || StepIndicator;
             const { className: indicatorClassName, ...restProps } =
@@ -115,19 +115,19 @@ export function CreditApplicationWizard({
               />
             );
           }}
-        </FormNavigation.Indicator>
+        </FormWizard.Indicator>
       )}
 
       {/* Steps */}
       <div className={className}>
         {stepNodes.map((stepNode) => (
-          <FormNavigation.Step key={stepNode.selector}>{renderNode(stepNode)}</FormNavigation.Step>
+          <FormWizard.Step key={stepNode.selector}>{renderNode(stepNode)}</FormWizard.Step>
         ))}
       </div>
 
       {/* Actions */}
       {actionsNode && (
-        <FormNavigation.Actions onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}>
+        <FormWizard.Actions onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}>
           {(actionsProps) => {
             const ActionsComponent = actionsNode.component || NavigationActions;
             const { className: actionsClassName, ...restProps } = actionsNode.componentProps || {};
@@ -135,12 +135,12 @@ export function CreditApplicationWizard({
               <ActionsComponent className={actionsClassName} {...restProps} {...actionsProps} />
             );
           }}
-        </FormNavigation.Actions>
+        </FormWizard.Actions>
       )}
 
       {/* Progress */}
       {progressNode && (
-        <FormNavigation.Progress>
+        <FormWizard.Progress>
           {(progressProps) => {
             const ProgressComponent = progressNode.component || NavigationProgress;
             const { className: progressClassName, ...restProps } =
@@ -149,9 +149,9 @@ export function CreditApplicationWizard({
               <ProgressComponent className={progressClassName} {...restProps} {...progressProps} />
             );
           }}
-        </FormNavigation.Progress>
+        </FormWizard.Progress>
       )}
-    </FormNavigation>
+    </FormWizard>
   );
 }
 

@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import { useFormNavigation } from './FormNavigationContext';
+import { useFormWizard } from './FormWizardContext';
 
 /**
  * Step definition for the indicator
  */
-export interface FormNavigationIndicatorStep {
+export interface FormWizardIndicatorStep {
   /** Step number (1-based) */
   number: number;
   /** Step title/label */
@@ -16,7 +16,7 @@ export interface FormNavigationIndicatorStep {
 /**
  * Enriched step with state information
  */
-export interface FormNavigationIndicatorStepWithState extends FormNavigationIndicatorStep {
+export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorStep {
   /** Whether this is the current step */
   isCurrent: boolean;
   /** Whether this step is completed */
@@ -28,9 +28,9 @@ export interface FormNavigationIndicatorStepWithState extends FormNavigationIndi
 /**
  * Render props passed to children function
  */
-export interface FormNavigationIndicatorRenderProps {
+export interface FormWizardIndicatorRenderProps {
   /** Steps with their current state */
-  steps: FormNavigationIndicatorStepWithState[];
+  steps: FormWizardIndicatorStepWithState[];
   /** Navigate to a specific step */
   goToStep: (step: number) => boolean;
   /** Current step number */
@@ -42,17 +42,17 @@ export interface FormNavigationIndicatorRenderProps {
 }
 
 /**
- * Props for FormNavigation.Indicator component
+ * Props for FormWizard.Indicator component
  */
-export interface FormNavigationIndicatorProps {
+export interface FormWizardIndicatorProps {
   /** Step definitions */
-  steps: FormNavigationIndicatorStep[];
+  steps: FormWizardIndicatorStep[];
   /** Render function for custom UI */
-  children: (props: FormNavigationIndicatorRenderProps) => ReactNode;
+  children: (props: FormWizardIndicatorRenderProps) => ReactNode;
 }
 
 /**
- * FormNavigation.Indicator - Headless component for step indicator
+ * FormWizard.Indicator - Headless component for step indicator
  *
  * Provides step data with state for building custom step indicators.
  * No default UI - you build exactly what you need.
@@ -66,7 +66,7 @@ export interface FormNavigationIndicatorProps {
  *
  * @example Basic stepper
  * ```tsx
- * <FormNavigation.Indicator steps={STEPS}>
+ * <FormWizard.Indicator steps={STEPS}>
  *   {({ steps, goToStep }) => (
  *     <nav className="flex gap-2">
  *       {steps.map((step) => (
@@ -86,12 +86,12 @@ export interface FormNavigationIndicatorProps {
  *       ))}
  *     </nav>
  *   )}
- * </FormNavigation.Indicator>
+ * </FormWizard.Indicator>
  * ```
  *
  * @example With progress line
  * ```tsx
- * <FormNavigation.Indicator steps={STEPS}>
+ * <FormWizard.Indicator steps={STEPS}>
  *   {({ steps, goToStep }) => (
  *     <div className="flex items-center">
  *       {steps.map((step, index) => (
@@ -110,28 +110,28 @@ export interface FormNavigationIndicatorProps {
  *       ))}
  *     </div>
  *   )}
- * </FormNavigation.Indicator>
+ * </FormWizard.Indicator>
  * ```
  */
-export function FormNavigationIndicator({ steps, children }: FormNavigationIndicatorProps) {
+export function FormWizardIndicator({ steps, children }: FormWizardIndicatorProps) {
   // Runtime check for headless API
   if (typeof children !== 'function') {
     throw new Error(
-      'FormNavigation.Indicator requires children as a render function. ' +
-        'Example: <FormNavigation.Indicator steps={STEPS}>{({ steps }) => <YourUI />}</FormNavigation.Indicator>'
+      'FormWizard.Indicator requires children as a render function. ' +
+        'Example: <FormWizard.Indicator steps={STEPS}>{({ steps }) => <YourUI />}</FormWizard.Indicator>'
     );
   }
 
-  const { currentStep, totalSteps, completedSteps, goToStep } = useFormNavigation();
+  const { currentStep, totalSteps, completedSteps, goToStep } = useFormWizard();
 
-  const stepsWithState: FormNavigationIndicatorStepWithState[] = steps.map((step) => ({
+  const stepsWithState: FormWizardIndicatorStepWithState[] = steps.map((step) => ({
     ...step,
     isCurrent: currentStep === step.number,
     isCompleted: completedSteps.includes(step.number),
     canNavigate: step.number === 1 || completedSteps.includes(step.number - 1),
   }));
 
-  const renderProps: FormNavigationIndicatorRenderProps = {
+  const renderProps: FormWizardIndicatorRenderProps = {
     steps: stepsWithState,
     goToStep,
     currentStep,
@@ -142,4 +142,4 @@ export function FormNavigationIndicator({ steps, children }: FormNavigationIndic
   return <>{children(renderProps)}</>;
 }
 
-FormNavigationIndicator.displayName = 'FormNavigation.Indicator';
+FormWizardIndicator.displayName = 'FormWizard.Indicator';

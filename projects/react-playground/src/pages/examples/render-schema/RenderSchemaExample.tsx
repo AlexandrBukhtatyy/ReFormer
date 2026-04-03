@@ -3,9 +3,6 @@ import { useMemo } from 'react';
 import { createForm, type FieldPath } from '@reformer/core';
 import {
   FormRenderer,
-  Box,
-  Section,
-  Collapsible,
   FormArray,
   type RenderSchemaFn,
   type RenderNode,
@@ -21,6 +18,9 @@ import type { SelectorRenderNode } from '@reformer/renderer-react';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Box } from '@/components/ui/box';
+import { Section } from '@/components/ui/section';
+import { Collapsible } from '@/components/ui/collapsible';
 
 // ============================================================================
 // Компоненты для selector-based FormArray

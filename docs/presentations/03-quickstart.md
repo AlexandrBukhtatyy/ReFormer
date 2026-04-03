@@ -36,14 +36,14 @@ const form = createForm<LoginForm>({
   form: {
     email: { value: '' },
     password: { value: '' },
-    rememberMe: { value: false }
+    rememberMe: { value: false },
   },
   validation: (path) => {
     required(path.email);
     email(path.email);
     required(path.password);
     minLength(path.password, 8);
-  }
+  },
 });
 ```
 
@@ -73,6 +73,7 @@ function EmailInput() {
 ```
 
 **Key properties:**
+
 - `value` - current field value
 - `setValue(value)` - update the value
 - `errors` - array of validation errors
@@ -87,9 +88,21 @@ function EmailInput() {
 
 ```typescript
 import {
-  required, email, url, phone, pattern,
-  min, max, minLength, maxLength, number,
-  isDate, minDate, maxDate, pastDate, futureDate
+  required,
+  email,
+  url,
+  phone,
+  pattern,
+  min,
+  max,
+  minLength,
+  maxLength,
+  number,
+  isDate,
+  minDate,
+  maxDate,
+  pastDate,
+  futureDate,
 } from '@reformer/core/validators';
 
 validation: (path) => {
@@ -99,7 +112,7 @@ validation: (path) => {
   pattern(path.phone, /^\+7\d{10}$/);
   min(path.age, 18);
   maxDate(path.birthDate, new Date());
-}
+};
 ```
 
 ### Custom Validation
@@ -117,14 +130,18 @@ validation: (path) => {
   });
 
   // Async validation
-  validateAsync(path.email, async (ctx) => {
-    const exists = await checkEmailExists(ctx.value());
-    if (exists) {
-      return { code: 'taken', message: 'Email already registered' };
-    }
-    return null;
-  }, { debounce: 500 });
-}
+  validateAsync(
+    path.email,
+    async (ctx) => {
+      const exists = await checkEmailExists(ctx.value());
+      if (exists) {
+        return { code: 'taken', message: 'Email already registered' };
+      }
+      return null;
+    },
+    { debounce: 500 }
+  );
+};
 ```
 
 ### Cross-field Validation
@@ -133,13 +150,16 @@ validation: (path) => {
 import { validateTree } from '@reformer/core/validators';
 
 validation: (path) => {
-  validateTree((ctx) => {
-    if (ctx.form.password.value !== ctx.form.confirmPassword.value) {
-      return { code: 'mismatch', message: 'Passwords must match' };
-    }
-    return null;
-  }, { targetField: 'confirmPassword' });
-}
+  validateTree(
+    (ctx) => {
+      if (ctx.form.password.value !== ctx.form.confirmPassword.value) {
+        return { code: 'mismatch', message: 'Passwords must match' };
+      }
+      return null;
+    },
+    { targetField: 'confirmPassword' }
+  );
+};
 ```
 
 ---
@@ -153,19 +173,13 @@ import { computeFrom } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // total = price * quantity
-  computeFrom(
-    [path.price, path.quantity],
-    path.total,
-    (values) => values.price * values.quantity
-  );
+  computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity);
 
   // fullName = firstName + lastName
-  computeFrom(
-    [path.firstName, path.lastName],
-    path.fullName,
-    (v) => `${v.firstName} ${v.lastName}`.trim()
+  computeFrom([path.firstName, path.lastName], path.fullName, (v) =>
+    `${v.firstName} ${v.lastName}`.trim()
   );
-}
+};
 ```
 
 ### Conditional Fields
@@ -176,12 +190,12 @@ import { enableWhen, disableWhen } from '@reformer/core/behaviors';
 behavior: (path) => {
   // Show spouse info only if married
   enableWhen(path.spouseInfo, (form) => form.maritalStatus === 'married', {
-    resetOnDisable: true  // Clear values when disabled
+    resetOnDisable: true, // Clear values when disabled
   });
 
   // Disable field under condition
   disableWhen(path.manualAddress, (form) => form.useAutoAddress === true);
-}
+};
 ```
 
 ### Watch Field Changes
@@ -191,14 +205,18 @@ import { watchField } from '@reformer/core/behaviors';
 
 behavior: (path) => {
   // Load cities when country changes
-  watchField(path.country, async (country, ctx) => {
-    if (!country) return;
+  watchField(
+    path.country,
+    async (country, ctx) => {
+      if (!country) return;
 
-    const cities = await fetchCities(country);
-    ctx.form.city.updateComponentProps({ options: cities });
-    ctx.setFieldValue('city', '');  // Reset city
-  }, { debounce: 300 });
-}
+      const cities = await fetchCities(country);
+      ctx.form.city.updateComponentProps({ options: cities });
+      ctx.setFieldValue('city', ''); // Reset city
+    },
+    { debounce: 300 }
+  );
+};
 ```
 
 ### Copy Values
@@ -209,9 +227,9 @@ import { copyFrom } from '@reformer/core/behaviors';
 behavior: (path) => {
   // Copy billing address to shipping when checkbox is checked
   copyFrom(path.billingAddress, path.shippingAddress, {
-    when: (form) => form.sameAsBilling === true
+    when: (form) => form.sameAsBilling === true,
   });
-}
+};
 ```
 
 ---
@@ -258,10 +276,11 @@ function OrderItems() {
 ```
 
 **Programmatic control:**
+
 ```typescript
 form.items.push({ name: '', price: 0, qty: 1 });
 form.items.removeAt(0);
-form.items.at(0);  // Access item by index
+form.items.at(0); // Access item by index
 form.items.clear();
 ```
 
@@ -270,29 +289,29 @@ form.items.clear();
 ## 7. Multi-step Forms
 
 ```typescript
-import { FormNavigation } from '@reformer/ui';
+import { FormWizard } from '@reformer/ui';
 
 function WizardForm() {
   return (
-    <FormNavigation.Root
+    <FormWizard.Root
       steps={['Personal Info', 'Address', 'Review']}
       validateOnNext={true}
     >
-      <FormNavigation.Indicator />
+      <FormWizard.Indicator />
 
-      <FormNavigation.Step index={0}>
+      <FormWizard.Step index={0}>
         <PersonalInfoStep />
-      </FormNavigation.Step>
+      </FormWizard.Step>
 
-      <FormNavigation.Step index={1}>
+      <FormWizard.Step index={1}>
         <AddressStep />
-      </FormNavigation.Step>
+      </FormWizard.Step>
 
-      <FormNavigation.Step index={2}>
+      <FormWizard.Step index={2}>
         <ReviewStep />
-      </FormNavigation.Step>
+      </FormWizard.Step>
 
-      <FormNavigation.Actions>
+      <FormWizard.Actions>
         {({ prev, next, isFirst, isLast, submit }) => (
           <>
             {!isFirst && <button onClick={prev}>Back</button>}
@@ -300,8 +319,8 @@ function WizardForm() {
             {isLast && <button onClick={submit}>Submit</button>}
           </>
         )}
-      </FormNavigation.Actions>
-    </FormNavigation.Root>
+      </FormWizard.Actions>
+    </FormWizard.Root>
   );
 }
 ```
@@ -381,7 +400,7 @@ import { apply } from '@reformer/core/validators';
 validation: (path) => {
   apply(path.homeAddress, addressValidation);
   apply(path.workAddress, addressValidation);
-}
+};
 ```
 
 ---
@@ -400,12 +419,12 @@ type MyFormType = {
 };
 
 // Paths are fully typed
-form.email;              // FieldNode<string>
-form.address;            // GroupNode<Address>
-form.address.city;       // FieldNode<string>
-form.items;              // ArrayNode<Item[]>
-form.items.at(0);        // GroupNode<Item>
-form.items.at(0).name;   // FieldNode<string>
+form.email; // FieldNode<string>
+form.address; // GroupNode<Address>
+form.address.city; // FieldNode<string>
+form.items; // ArrayNode<Item[]>
+form.items.at(0); // GroupNode<Item>
+form.items.at(0).name; // FieldNode<string>
 ```
 
 ---

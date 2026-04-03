@@ -4,7 +4,7 @@ sidebar_position: 9
 
 # Multi-Step Form Navigation
 
-Using the `FormNavigation` component from `@reformer/ui` for multi-step form wizard with step-by-step validation.
+Using the `FormWizard` component from `@reformer/ui` for multi-step form wizard with step-by-step validation.
 
 ## Overview
 
@@ -15,7 +15,7 @@ In multi-step forms we need to:
 3. **Track completed steps** — allow navigation only to visited steps
 4. **Provide navigation methods** — Next, Back, Go to step
 
-The `@reformer/ui` package provides `FormNavigation` — a headless compound component that handles all this logic.
+The `@reformer/ui` package provides `FormWizard` — a headless compound component that handles all this logic.
 
 ## Installation
 
@@ -39,9 +39,9 @@ Calling `form.validate()` validates **all fields**, including those on steps the
 
 We need a way to validate only specific fields on each step while preserving full validation for final submission.
 
-## Solution: FormNavigation
+## Solution: FormWizard
 
-`FormNavigation` from `@reformer/ui` provides:
+`FormWizard` from `@reformer/ui` provides:
 
 - **Step-by-step validation** via `validateForm` internally
 - **Progress tracking** with completed steps
@@ -82,14 +82,14 @@ const STEP_VALIDATIONS = {
 };
 ```
 
-## Using FormNavigation
+## Using FormWizard
 
 ### Basic Structure
 
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
 
 // Step components
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
@@ -103,7 +103,7 @@ import { ConfirmationForm } from './steps/confirmation/ConfirmationForm';
 import { creditApplicationValidation } from './validators';
 
 function CreditApplicationForm() {
-  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+  const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
   const form = useMemo(
     () =>
@@ -136,19 +136,19 @@ function CreditApplicationForm() {
   };
 
   return (
-    <FormNavigation ref={navRef} form={form} config={navConfig}>
+    <FormWizard ref={navRef} form={form} config={navConfig}>
       {/* Compound components here */}
-    </FormNavigation>
+    </FormWizard>
   );
 }
 ```
 
-### FormNavigation.Indicator
+### FormWizard.Indicator
 
 Headless step indicator with render props:
 
 ```tsx
-<FormNavigation.Indicator steps={STEPS}>
+<FormWizard.Indicator steps={STEPS}>
   {({ steps, goToStep }) => (
     <div className="flex justify-between mb-4">
       {steps.map((step) => (
@@ -169,59 +169,55 @@ Headless step indicator with render props:
       ))}
     </div>
   )}
-</FormNavigation.Indicator>
+</FormWizard.Indicator>
 ```
 
 **Render props:**
 
-| Property       | Type                         | Description                   |
-| -------------- | ---------------------------- | ----------------------------- |
-| `steps`        | `StepWithState[]`            | Steps with computed state     |
-| `goToStep`     | `(step: number) => boolean`  | Navigate to step              |
-| `currentStep`  | `number`                     | Current step number           |
-| `totalSteps`   | `number`                     | Total number of steps         |
+| Property      | Type                        | Description               |
+| ------------- | --------------------------- | ------------------------- |
+| `steps`       | `StepWithState[]`           | Steps with computed state |
+| `goToStep`    | `(step: number) => boolean` | Navigate to step          |
+| `currentStep` | `number`                    | Current step number       |
+| `totalSteps`  | `number`                    | Total number of steps     |
 
 **Step state:**
 
-| Property      | Type      | Description                     |
-| ------------- | --------- | ------------------------------- |
-| `number`      | `number`  | Step number (from 1)            |
-| `title`       | `string`  | Step title                      |
-| `icon`        | `string?` | Icon (optional)                 |
-| `isCurrent`   | `boolean` | Is current step                 |
-| `isCompleted` | `boolean` | Is completed                    |
-| `canNavigate` | `boolean` | Can navigate to this step       |
+| Property      | Type      | Description               |
+| ------------- | --------- | ------------------------- |
+| `number`      | `number`  | Step number (from 1)      |
+| `title`       | `string`  | Step title                |
+| `icon`        | `string?` | Icon (optional)           |
+| `isCurrent`   | `boolean` | Is current step           |
+| `isCompleted` | `boolean` | Is completed              |
+| `canNavigate` | `boolean` | Can navigate to this step |
 
-### FormNavigation.Step
+### FormWizard.Step
 
 Renders component when step is active:
 
 ```tsx
 <div className="bg-white p-8 rounded-lg shadow-md">
-  <FormNavigation.Step component={BasicInfoForm} control={form} />
-  <FormNavigation.Step component={PersonalInfoForm} control={form} />
-  <FormNavigation.Step component={ContactInfoForm} control={form} />
-  <FormNavigation.Step component={EmploymentForm} control={form} />
-  <FormNavigation.Step component={AdditionalInfoForm} control={form} />
-  <FormNavigation.Step component={ConfirmationForm} control={form} />
+  <FormWizard.Step component={BasicInfoForm} control={form} />
+  <FormWizard.Step component={PersonalInfoForm} control={form} />
+  <FormWizard.Step component={ContactInfoForm} control={form} />
+  <FormWizard.Step component={EmploymentForm} control={form} />
+  <FormWizard.Step component={AdditionalInfoForm} control={form} />
+  <FormWizard.Step component={ConfirmationForm} control={form} />
 </div>
 ```
 
 Steps render in order — first `Step` is step 1, second is step 2, etc. Only the current step is displayed.
 
-### FormNavigation.Actions
+### FormWizard.Actions
 
 Headless navigation buttons with render props:
 
 ```tsx
-<FormNavigation.Actions onSubmit={handleSubmit}>
+<FormWizard.Actions onSubmit={handleSubmit}>
   {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
     <div className="flex justify-between mt-6">
-      <Button
-        onClick={prev.onClick}
-        disabled={isFirstStep || prev.disabled}
-        variant="secondary"
-      >
+      <Button onClick={prev.onClick} disabled={isFirstStep || prev.disabled} variant="secondary">
         Back
       </Button>
 
@@ -236,32 +232,32 @@ Headless navigation buttons with render props:
       )}
     </div>
   )}
-</FormNavigation.Actions>
+</FormWizard.Actions>
 ```
 
 **Render props:**
 
-| Property       | Type                | Description              |
-| -------------- | ------------------- | ------------------------ |
-| `prev`         | `ButtonProps`       | "Back" button props      |
-| `next`         | `ButtonProps`       | "Next" button props      |
-| `submit`       | `SubmitButtonProps` | "Submit" button props    |
-| `isFirstStep`  | `boolean`           | On first step            |
-| `isLastStep`   | `boolean`           | On last step             |
-| `isValidating` | `boolean`           | Validation in progress   |
+| Property       | Type                | Description            |
+| -------------- | ------------------- | ---------------------- |
+| `prev`         | `ButtonProps`       | "Back" button props    |
+| `next`         | `ButtonProps`       | "Next" button props    |
+| `submit`       | `SubmitButtonProps` | "Submit" button props  |
+| `isFirstStep`  | `boolean`           | On first step          |
+| `isLastStep`   | `boolean`           | On last step           |
+| `isValidating` | `boolean`           | Validation in progress |
 
-### FormNavigation.Progress
+### FormWizard.Progress
 
 Headless progress display:
 
 ```tsx
-<FormNavigation.Progress>
+<FormWizard.Progress>
   {({ current, total, percent }) => (
     <div className="mt-4 text-center text-sm text-gray-600">
       Step {current} of {total} • {percent}% complete
     </div>
   )}
-</FormNavigation.Progress>
+</FormWizard.Progress>
 ```
 
 ## Full Example
@@ -269,7 +265,7 @@ Headless progress display:
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
 import { Button } from '@/components/ui/button';
 
 // Step and validator imports...
@@ -292,7 +288,7 @@ const STEP_VALIDATIONS = {
 };
 
 function CreditApplicationForm() {
-  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+  const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
   const form = useMemo(
     () =>
@@ -325,9 +321,9 @@ function CreditApplicationForm() {
   };
 
   return (
-    <FormNavigation ref={navRef} form={form} config={navConfig}>
+    <FormWizard ref={navRef} form={form} config={navConfig}>
       {/* Step indicator */}
-      <FormNavigation.Indicator steps={STEPS}>
+      <FormWizard.Indicator steps={STEPS}>
         {({ steps, goToStep }) => (
           <div className="flex justify-between mb-4">
             {steps.map((step) => (
@@ -350,20 +346,20 @@ function CreditApplicationForm() {
             ))}
           </div>
         )}
-      </FormNavigation.Indicator>
+      </FormWizard.Indicator>
 
       {/* Step content */}
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <FormNavigation.Step component={BasicInfoForm} control={form} />
-        <FormNavigation.Step component={PersonalInfoForm} control={form} />
-        <FormNavigation.Step component={ContactInfoForm} control={form} />
-        <FormNavigation.Step component={EmploymentForm} control={form} />
-        <FormNavigation.Step component={AdditionalInfoForm} control={form} />
-        <FormNavigation.Step component={ConfirmationForm} control={form} />
+        <FormWizard.Step component={BasicInfoForm} control={form} />
+        <FormWizard.Step component={PersonalInfoForm} control={form} />
+        <FormWizard.Step component={ContactInfoForm} control={form} />
+        <FormWizard.Step component={EmploymentForm} control={form} />
+        <FormWizard.Step component={AdditionalInfoForm} control={form} />
+        <FormWizard.Step component={ConfirmationForm} control={form} />
       </div>
 
       {/* Navigation buttons */}
-      <FormNavigation.Actions onSubmit={submitApplication}>
+      <FormWizard.Actions onSubmit={submitApplication}>
         {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
           <div className="flex justify-between mt-6">
             <Button
@@ -385,17 +381,17 @@ function CreditApplicationForm() {
             )}
           </div>
         )}
-      </FormNavigation.Actions>
+      </FormWizard.Actions>
 
       {/* Progress */}
-      <FormNavigation.Progress>
+      <FormWizard.Progress>
         {({ current, total, percent }) => (
           <div className="mt-4 text-center text-sm text-gray-600">
             Step {current} of {total} • {percent}% complete
           </div>
         )}
-      </FormNavigation.Progress>
-    </FormNavigation>
+      </FormWizard.Progress>
+    </FormWizard>
   );
 }
 
@@ -407,7 +403,7 @@ export default CreditApplicationForm;
 Use the ref handle for external control:
 
 ```tsx
-const navRef = useRef<FormNavigationHandle<MyForm>>(null);
+const navRef = useRef<FormWizardHandle<MyForm>>(null);
 
 // Programmatic navigation
 navRef.current?.goToStep(2);
@@ -420,19 +416,19 @@ const result = await navRef.current?.submit(async (values) => {
 });
 ```
 
-### FormNavigationHandle API
+### FormWizardHandle API
 
-| Property/Method      | Type                 | Description                  |
-| -------------------- | -------------------- | ---------------------------- |
-| `currentStep`        | `number`             | Current step (from 1)        |
-| `completedSteps`     | `number[]`           | Completed steps              |
-| `isFirstStep`        | `boolean`            | On first step                |
-| `isLastStep`         | `boolean`            | On last step                 |
-| `isValidating`       | `boolean`            | Validation in progress       |
-| `goToNextStep()`     | `Promise<boolean>`   | Validate and go next         |
-| `goToPreviousStep()` | `void`               | Go back                      |
-| `goToStep(step)`     | `boolean`            | Go to step                   |
-| `submit(onSubmit)`   | `Promise<R \| null>` | Full validation and submit   |
+| Property/Method      | Type                 | Description                |
+| -------------------- | -------------------- | -------------------------- |
+| `currentStep`        | `number`             | Current step (from 1)      |
+| `completedSteps`     | `number[]`           | Completed steps            |
+| `isFirstStep`        | `boolean`            | On first step              |
+| `isLastStep`         | `boolean`            | On last step               |
+| `isValidating`       | `boolean`            | Validation in progress     |
+| `goToNextStep()`     | `Promise<boolean>`   | Validate and go next       |
+| `goToPreviousStep()` | `void`               | Go back                    |
+| `goToStep(step)`     | `boolean`            | Go to step                 |
+| `submit(onSubmit)`   | `Promise<R \| null>` | Full validation and submit |
 
 ## Key Benefits
 

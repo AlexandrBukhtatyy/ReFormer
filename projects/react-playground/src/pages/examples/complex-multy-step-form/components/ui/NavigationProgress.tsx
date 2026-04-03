@@ -1,14 +1,14 @@
 /**
  * NavigationProgress - компонент прогресса для renderSchema
  *
- * Получает props от FormNavigation.Progress через render props.
+ * Получает props от FormWizard.Progress через render props.
  */
 
 import type { FC } from 'react';
-import type { FormNavigationProgressRenderProps } from '@reformer/ui/form-navigation';
+import type { FormWizardProgressRenderProps } from '@reformer/ui/form-wizard';
 import { combineClasses } from '@/utils/combine-classes';
 
-interface NavigationProgressProps extends FormNavigationProgressRenderProps {
+interface NavigationProgressProps extends FormWizardProgressRenderProps {
   className?: string;
 }
 

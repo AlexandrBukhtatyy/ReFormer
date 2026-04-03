@@ -11,10 +11,10 @@
 
 ## Components
 
-| Component | Purpose |
-|-----------|---------|
-| `FormArray` | Manage dynamic form arrays |
-| `FormNavigation` | Multi-step form wizard |
+| Component    | Purpose                    |
+| ------------ | -------------------------- |
+| `FormArray`  | Manage dynamic form arrays |
+| `FormWizard` | Multi-step form wizard     |
 
 ## Installation
 
@@ -26,9 +26,9 @@ npm install @reformer/ui @reformer/core
 
 ```typescript
 // All components
-import { FormArray, FormNavigation } from '@reformer/ui';
+import { FormArray, FormWizard } from '@reformer/ui';
 
 // Tree-shaking (recommended)
 import { FormArray, useFormArray } from '@reformer/ui/form-array';
-import { FormNavigation, useFormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard, useFormWizard } from '@reformer/ui/form-wizard';
 ```

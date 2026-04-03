@@ -7,13 +7,13 @@ import {
   type ReactElement,
 } from 'react';
 import { Slot } from './Slot';
-import { useFormNavigation } from './FormNavigationContext';
-import { useFormNavigationActions } from './FormNavigationActions';
+import { useFormWizard } from './FormWizardContext';
+import { useFormWizardActions } from './FormWizardActions';
 
 /**
- * Props for FormNavigation.Submit component
+ * Props for FormWizard.Submit component
  */
-export interface FormNavigationSubmitProps extends Omit<
+export interface FormWizardSubmitProps extends Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -28,7 +28,7 @@ export interface FormNavigationSubmitProps extends Omit<
 }
 
 /**
- * FormNavigation.Submit - Form submission button component
+ * FormWizard.Submit - Form submission button component
  *
  * Renders a button that submits the form on the last step.
  * Automatically disabled when not on the last step, during validation, or during submission.
@@ -36,29 +36,29 @@ export interface FormNavigationSubmitProps extends Omit<
  *
  * @example Basic usage
  * ```tsx
- * <FormNavigation.Actions onSubmit={handleSubmit}>
- *   <FormNavigation.Submit>Submit</FormNavigation.Submit>
- * </FormNavigation.Actions>
+ * <FormWizard.Actions onSubmit={handleSubmit}>
+ *   <FormWizard.Submit>Submit</FormWizard.Submit>
+ * </FormWizard.Actions>
  * ```
  *
  * @example With loading text
  * ```tsx
- * <FormNavigation.Submit loadingText="Submitting...">
+ * <FormWizard.Submit loadingText="Submitting...">
  *   Submit Application
- * </FormNavigation.Submit>
+ * </FormWizard.Submit>
  * ```
  *
  * @example With custom button (asChild)
  * ```tsx
- * <FormNavigation.Submit asChild loadingText={<Spinner />}>
+ * <FormWizard.Submit asChild loadingText={<Spinner />}>
  *   <MyButton variant="success">Complete</MyButton>
- * </FormNavigation.Submit>
+ * </FormWizard.Submit>
  * ```
  */
-export const FormNavigationSubmit = forwardRef<HTMLButtonElement, FormNavigationSubmitProps>(
+export const FormWizardSubmit = forwardRef<HTMLButtonElement, FormWizardSubmitProps>(
   ({ children, asChild = false, disabled: disabledProp, loadingText, ...props }, ref) => {
-    const { isLastStep, isValidating, isSubmitting } = useFormNavigation();
-    const { onSubmit } = useFormNavigationActions();
+    const { isLastStep, isValidating, isSubmitting } = useFormWizard();
+    const { onSubmit } = useFormWizardActions();
 
     // Merge disabled states (OR logic)
     const isAutoDisabled = !isLastStep || isValidating || isSubmitting;
@@ -95,4 +95,4 @@ export const FormNavigationSubmit = forwardRef<HTMLButtonElement, FormNavigation
   }
 );
 
-FormNavigationSubmit.displayName = 'FormNavigation.Submit';
+FormWizardSubmit.displayName = 'FormWizard.Submit';

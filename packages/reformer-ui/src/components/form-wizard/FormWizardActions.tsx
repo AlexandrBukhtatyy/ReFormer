@@ -1,10 +1,10 @@
 import { createContext, useContext, useMemo, type CSSProperties, type ReactNode } from 'react';
-import { useFormNavigation } from './FormNavigationContext';
+import { useFormWizard } from './FormWizardContext';
 
 /**
  * Props for a navigation button (prev/next)
  */
-export interface FormNavigationButtonProps {
+export interface FormWizardButtonProps {
   /** Click handler */
   onClick: () => void;
   /** Whether the button is disabled */
@@ -14,7 +14,7 @@ export interface FormNavigationButtonProps {
 /**
  * Props for the submit button
  */
-export interface FormNavigationSubmitProps extends FormNavigationButtonProps {
+export interface FormWizardSubmitProps extends FormWizardButtonProps {
   /** Whether form is currently submitting */
   isSubmitting: boolean;
 }
@@ -22,13 +22,13 @@ export interface FormNavigationSubmitProps extends FormNavigationButtonProps {
 /**
  * Render props passed to children function
  */
-export interface FormNavigationActionsRenderProps {
+export interface FormWizardActionsRenderProps {
   /** Props for the "Previous" button */
-  prev: FormNavigationButtonProps;
+  prev: FormWizardButtonProps;
   /** Props for the "Next" button */
-  next: FormNavigationButtonProps;
+  next: FormWizardButtonProps;
   /** Props for the "Submit" button */
-  submit: FormNavigationSubmitProps;
+  submit: FormWizardSubmitProps;
   /** Whether current step is the first step */
   isFirstStep: boolean;
   /** Whether current step is the last step */
@@ -42,12 +42,12 @@ export interface FormNavigationActionsRenderProps {
 /**
  * Render function type for headless mode
  */
-type RenderFunction = (props: FormNavigationActionsRenderProps) => ReactNode;
+type RenderFunction = (props: FormWizardActionsRenderProps) => ReactNode;
 
 /**
- * Props for FormNavigation.Actions component
+ * Props for FormWizard.Actions component
  */
-export interface FormNavigationActionsProps {
+export interface FormWizardActionsProps {
   /** Submit handler (called on last step) */
   onSubmit?: () => void | Promise<void>;
   /** Children: render function (headless) or ReactNode (compound components) */
@@ -62,24 +62,24 @@ export interface FormNavigationActionsProps {
 // Actions Context (for compound components mode)
 // ============================================================================
 
-interface FormNavigationActionsContextValue {
+interface FormWizardActionsContextValue {
   onSubmit?: () => void | Promise<void>;
 }
 
-const FormNavigationActionsContext = createContext<FormNavigationActionsContextValue | null>(null);
+const FormWizardActionsContext = createContext<FormWizardActionsContextValue | null>(null);
 
 /**
  * Hook to access Actions context (onSubmit handler)
  *
- * Must be used within FormNavigation.Actions component.
- * Used internally by FormNavigation.Submit.
+ * Must be used within FormWizard.Actions component.
+ * Used internally by FormWizard.Submit.
  */
-export function useFormNavigationActions(): FormNavigationActionsContextValue {
-  const context = useContext(FormNavigationActionsContext);
+export function useFormWizardActions(): FormWizardActionsContextValue {
+  const context = useContext(FormWizardActionsContext);
   if (!context) {
     throw new Error(
-      'FormNavigation.Prev/Next/Submit must be used within FormNavigation.Actions. ' +
-        'Wrap your navigation buttons with <FormNavigation.Actions>.'
+      'FormWizard.Prev/Next/Submit must be used within FormWizard.Actions. ' +
+        'Wrap your navigation buttons with <FormWizard.Actions>.'
     );
   }
   return context;
@@ -94,22 +94,22 @@ function isRenderFunction(children: ReactNode | RenderFunction): children is Ren
 }
 
 /**
- * FormNavigation.Actions - Container for navigation buttons
+ * FormWizard.Actions - Container for navigation buttons
  *
  * Supports two modes:
  *
  * ## 1. Compound Components Mode (recommended for simple cases)
  * ```tsx
- * <FormNavigation.Actions onSubmit={handleSubmit}>
- *   <FormNavigation.Prev>Back</FormNavigation.Prev>
- *   <FormNavigation.Next>Next</FormNavigation.Next>
- *   <FormNavigation.Submit loadingText="Submitting...">Submit</FormNavigation.Submit>
- * </FormNavigation.Actions>
+ * <FormWizard.Actions onSubmit={handleSubmit}>
+ *   <FormWizard.Prev>Back</FormWizard.Prev>
+ *   <FormWizard.Next>Next</FormWizard.Next>
+ *   <FormWizard.Submit loadingText="Submitting...">Submit</FormWizard.Submit>
+ * </FormWizard.Actions>
  * ```
  *
  * ## 2. Render Props Mode (for complex/custom layouts)
  * ```tsx
- * <FormNavigation.Actions onSubmit={handleSubmit}>
+ * <FormWizard.Actions onSubmit={handleSubmit}>
  *   {({ prev, next, submit, isFirstStep, isLastStep }) => (
  *     <div className="flex justify-between">
  *       {!isFirstStep && (
@@ -129,7 +129,7 @@ function isRenderFunction(children: ReactNode | RenderFunction): children is Ren
  *       )}
  *     </div>
  *   )}
- * </FormNavigation.Actions>
+ * </FormWizard.Actions>
  * ```
  *
  * ## Render Props (headless mode)
@@ -141,14 +141,14 @@ function isRenderFunction(children: ReactNode | RenderFunction): children is Ren
  * - `isValidating` - show loading state during validation
  * - `isSubmitting` - show loading state during submission
  */
-export function FormNavigationActions({
+export function FormWizardActions({
   onSubmit,
   children,
   className,
   style,
-}: FormNavigationActionsProps) {
+}: FormWizardActionsProps) {
   const { isFirstStep, isLastStep, isValidating, isSubmitting, goToNextStep, goToPreviousStep } =
-    useFormNavigation();
+    useFormWizard();
 
   // Always create context value (hooks must be called unconditionally)
   const actionsContextValue = useMemo(() => ({ onSubmit }), [onSubmit]);
@@ -157,7 +157,7 @@ export function FormNavigationActions({
   if (isRenderFunction(children)) {
     const isDisabled = isValidating || isSubmitting;
 
-    const renderProps: FormNavigationActionsRenderProps = {
+    const renderProps: FormWizardActionsRenderProps = {
       prev: {
         onClick: goToPreviousStep,
         disabled: isDisabled,
@@ -182,7 +182,7 @@ export function FormNavigationActions({
 
   // Compound components mode
   return (
-    <FormNavigationActionsContext.Provider value={actionsContextValue}>
+    <FormWizardActionsContext.Provider value={actionsContextValue}>
       {className || style ? (
         <div className={className} style={style}>
           {children}
@@ -190,8 +190,8 @@ export function FormNavigationActions({
       ) : (
         <>{children}</>
       )}
-    </FormNavigationActionsContext.Provider>
+    </FormWizardActionsContext.Provider>
   );
 }
 
-FormNavigationActions.displayName = 'FormNavigation.Actions';
+FormWizardActions.displayName = 'FormWizard.Actions';

@@ -1,16 +1,16 @@
 import type { ComponentType, ReactNode } from 'react';
 import type { FormProxy } from '@reformer/core';
-import { useFormNavigation } from './FormNavigationContext';
+import { useFormWizard } from './FormWizardContext';
 
 /**
- * Props for FormNavigation.Step component
+ * Props for FormWizard.Step component
  *
  * Supports two usage patterns:
- * 1. Component-based: `<FormNavigation.Step component={Step1} control={form} />`
- * 2. Children-based: `<FormNavigation.Step>{children}</FormNavigation.Step>`
+ * 1. Component-based: `<FormWizard.Step component={Step1} control={form} />`
+ * 2. Children-based: `<FormWizard.Step>{children}</FormWizard.Step>`
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FormNavigationStepProps<T extends Record<string, any>> {
+export interface FormWizardStepProps<T extends Record<string, any>> {
   /** Component to render for this step (legacy API) */
   component?: ComponentType<{ control: FormProxy<T> } & Record<string, unknown>>;
 
@@ -25,49 +25,49 @@ export interface FormNavigationStepProps<T extends Record<string, any>> {
 }
 
 /**
- * Internal props that include the step index (set by parent FormNavigation)
+ * Internal props that include the step index (set by parent FormWizard)
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export interface FormNavigationStepInternalProps<
+export interface FormWizardStepInternalProps<
   T extends Record<string, any>,
-> extends FormNavigationStepProps<T> {
-  /** Step index (1-based), set internally by FormNavigation */
+> extends FormWizardStepProps<T> {
+  /** Step index (1-based), set internally by FormWizard */
   _stepIndex?: number;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
- * FormNavigation.Step - renders a step component when it's the current step
+ * FormWizard.Step - renders a step component when it's the current step
  *
  * @example Component-based (legacy)
  * ```tsx
- * <FormNavigation ref={navRef} form={form} config={config}>
- *   <FormNavigation.Step component={Step1} control={form} />
- *   <FormNavigation.Step component={Step2} control={form} extraProp="value" />
- * </FormNavigation>
+ * <FormWizard ref={navRef} form={form} config={config}>
+ *   <FormWizard.Step component={Step1} control={form} />
+ *   <FormWizard.Step component={Step2} control={form} extraProp="value" />
+ * </FormWizard>
  * ```
  *
  * @example Children-based (new)
  * ```tsx
- * <FormNavigation form={form} config={config}>
- *   <FormNavigation.Step>
+ * <FormWizard form={form} config={config}>
+ *   <FormWizard.Step>
  *     <RenderNodeComponent node={step1Content} ... />
- *   </FormNavigation.Step>
- *   <FormNavigation.Step>
+ *   </FormWizard.Step>
+ *   <FormWizard.Step>
  *     <RenderNodeComponent node={step2Content} ... />
- *   </FormNavigation.Step>
- * </FormNavigation>
+ *   </FormWizard.Step>
+ * </FormWizard>
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function FormNavigationStep<T extends Record<string, any>>({
+export function FormWizardStep<T extends Record<string, any>>({
   component: Component,
   control,
   children,
   _stepIndex,
   ...restProps
-}: FormNavigationStepInternalProps<T>) {
-  const { currentStep } = useFormNavigation<T>();
+}: FormWizardStepInternalProps<T>) {
+  const { currentStep } = useFormWizard<T>();
 
   // Only render if this is the current step
   if (_stepIndex === undefined || currentStep !== _stepIndex) {
@@ -89,4 +89,4 @@ export function FormNavigationStep<T extends Record<string, any>>({
 }
 
 // Display name for debugging
-FormNavigationStep.displayName = 'FormNavigation.Step';
+FormWizardStep.displayName = 'FormWizard.Step';

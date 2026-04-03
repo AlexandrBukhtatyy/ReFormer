@@ -55,7 +55,7 @@
     - Signal subscription optimization
 
 11. **Headless UI Components**
-    - FormArray, FormNavigation
+    - FormArray, FormWizard
     - Compound components pattern
 
 12. **Data Flow**
@@ -89,7 +89,7 @@
    - computeFrom, enableWhen, watchField
 
 6. **Headless UI**
-   - FormArray, FormNavigation
+   - FormArray, FormWizard
 
 7. **Performance**
    - Fine-grained reactivity
@@ -113,15 +113,20 @@
 **Структура:**
 
 1. **Installation**
+
    ```bash
    npm install @reformer/core @reformer/ui
    ```
 
 2. **Базовая форма**
+
    ```typescript
    const form = createForm<LoginForm>({
      form: { email: { value: '' }, password: { value: '' } },
-     validation: (path) => { required(path.email); required(path.password); }
+     validation: (path) => {
+       required(path.email);
+       required(path.password);
+     },
    });
    ```
 
@@ -141,7 +146,7 @@
    - FormArray.Root, List, AddButton
 
 7. **Multi-step Forms**
-   - FormNavigation component
+   - FormWizard component
 
 8. **Best Practices**
    - useMemo для createForm
@@ -179,12 +184,12 @@
 
 ## Сводная таблица
 
-| Вариант | Аудитория | Формат | Объем | Время |
-|---------|-----------|--------|-------|-------|
-| 1. Техническая | Senior Dev | Slides + Code | 12-15 | 30-45 мин |
-| 2. Обзорная | Tech Leads | Slides | 8-10 | 15-20 мин |
-| 3. Quick Start | Новые пользователи | Markdown | 6-8 стр | 10-15 мин |
-| 4. Визуальная | Архитекторы | Diagrams | 6-8 | Reference |
+| Вариант        | Аудитория          | Формат        | Объем   | Время     |
+| -------------- | ------------------ | ------------- | ------- | --------- |
+| 1. Техническая | Senior Dev         | Slides + Code | 12-15   | 30-45 мин |
+| 2. Обзорная    | Tech Leads         | Slides        | 8-10    | 15-20 мин |
+| 3. Quick Start | Новые пользователи | Markdown      | 6-8 стр | 10-15 мин |
+| 4. Визуальная  | Архитекторы        | Diagrams      | 6-8     | Reference |
 
 ---
 
@@ -201,6 +206,7 @@
 ## Verification
 
 После создания презентации:
+
 1. Проверить все code snippets на актуальность
 2. Убедиться, что диаграммы соответствуют текущей архитектуре
 3. Протестировать примеры кода из Quick Start

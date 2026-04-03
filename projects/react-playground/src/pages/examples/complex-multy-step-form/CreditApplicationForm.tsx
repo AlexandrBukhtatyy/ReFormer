@@ -2,7 +2,7 @@
  * CreditApplicationForm
  *
  * Использует:
- * - FormNavigation компонент для multi-step формы
+ * - FormWizard компонент для multi-step формы
  * - Actions с render props для навигационных кнопок
  * - Headless компоненты (Indicator, Progress) с render props
  * - GroupNode для вложенных форм и массивов
@@ -25,7 +25,7 @@ import creditApplicationValidation, {
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
-import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
 import { NavigationProgress } from './components/ui/NavigationProgress';
 import { StepIndicator } from './components/ui/StepIndicator';
@@ -38,7 +38,7 @@ import { ErrorState } from './components/ui/ErrorState';
 // ============================================================================
 function CreditApplicationForm() {
   // Ref для доступа к методам навигации
-  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+  const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
   //  Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
   const form = useMemo(() => createCreditApplicationForm(), []);
@@ -99,32 +99,32 @@ function CreditApplicationForm() {
   // ============================================================================
   return (
     <div className="w-full">
-      <FormNavigation ref={navRef} form={form} config={navConfig}>
+      <FormWizard ref={navRef} form={form} config={navConfig}>
         {/* Индикатор шагов (headless) */}
-        <FormNavigation.Indicator steps={STEPS}>
+        <FormWizard.Indicator steps={STEPS}>
           {(indicatorProps) => <StepIndicator {...indicatorProps} className="mb-8"></StepIndicator>}
-        </FormNavigation.Indicator>
+        </FormWizard.Indicator>
 
         {/* Форма текущего шага */}
         <div className="bg-white p-8 rounded-lg shadow-md">
-          <FormNavigation.Step component={BasicInfoForm} control={form} />
-          <FormNavigation.Step component={PersonalInfoForm} control={form} />
-          <FormNavigation.Step component={ContactInfoForm} control={form} />
-          <FormNavigation.Step component={EmploymentForm} control={form} />
-          <FormNavigation.Step component={AdditionalInfoForm} control={form} />
-          <FormNavigation.Step component={ConfirmationForm} control={form} />
+          <FormWizard.Step component={BasicInfoForm} control={form} />
+          <FormWizard.Step component={PersonalInfoForm} control={form} />
+          <FormWizard.Step component={ContactInfoForm} control={form} />
+          <FormWizard.Step component={EmploymentForm} control={form} />
+          <FormWizard.Step component={AdditionalInfoForm} control={form} />
+          <FormWizard.Step component={ConfirmationForm} control={form} />
         </div>
 
         {/* Кнопки навигации (render props API) */}
-        <FormNavigation.Actions onSubmit={submitApplication}>
+        <FormWizard.Actions onSubmit={submitApplication}>
           {(actionsProps) => <NavigationActions {...actionsProps} className="mt-8" />}
-        </FormNavigation.Actions>
+        </FormWizard.Actions>
 
         {/* Информация о прогрессе (headless) */}
-        <FormNavigation.Progress>
+        <FormWizard.Progress>
           {(progressProps) => <NavigationProgress {...progressProps} className={'mt-4'} />}
-        </FormNavigation.Progress>
-      </FormNavigation>
+        </FormWizard.Progress>
+      </FormWizard>
     </div>
   );
 }

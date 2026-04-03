@@ -6,6 +6,7 @@ title: ReFormer - Overview for Tech Leads
 ---
 
 # ReFormer
+
 ## Modern Form State Management
 
 Signals-based | TypeScript-first | React 16.8-19
@@ -31,9 +32,15 @@ Signals-based | TypeScript-first | React 16.8-19
 
 ```typescript
 const form = createForm<MyForm>({
-  form: { /* field configuration */ },
-  validation: (path) => { /* validation rules */ },
-  behavior: (path) => { /* reactive behaviors */ }
+  form: {
+    /* field configuration */
+  },
+  validation: (path) => {
+    /* validation rules */
+  },
+  behavior: (path) => {
+    /* reactive behaviors */
+  },
 });
 ```
 
@@ -43,27 +50,29 @@ Clean separation of concerns, full type safety.
 
 # Key Features
 
-| Feature | Description |
-|---------|-------------|
-| **Signals** | Fine-grained reactivity, minimal re-renders |
-| **TypeScript** | Full inference, type-safe paths |
-| **Validation** | 15+ built-in validators, async support |
-| **Behaviors** | Computed fields, conditional logic |
-| **Multi-step** | Built-in wizard navigation |
-| **Schema adapters** | Zod, Yup, Valibot integration |
+| Feature             | Description                                 |
+| ------------------- | ------------------------------------------- |
+| **Signals**         | Fine-grained reactivity, minimal re-renders |
+| **TypeScript**      | Full inference, type-safe paths             |
+| **Validation**      | 15+ built-in validators, async support      |
+| **Behaviors**       | Computed fields, conditional logic          |
+| **Multi-step**      | Built-in wizard navigation                  |
+| **Schema adapters** | Zod, Yup, Valibot integration               |
 
 ---
 
 # Validation System
 
 **Built-in validators:**
+
 ```typescript
-required, email, url, phone, pattern
-min, max, minLength, maxLength, number
-isDate, minDate, maxDate, pastDate, futureDate, minAge, maxAge
+(required, email, url, phone, pattern);
+(min, max, minLength, maxLength, number);
+(isDate, minDate, maxDate, pastDate, futureDate, minAge, maxAge);
 ```
 
 **Schema adapters:**
+
 ```typescript
 import { zod } from '@reformer/zod';
 import { yup } from '@reformer/yup';
@@ -71,7 +80,7 @@ import { valibot } from '@reformer/valibot';
 
 validation: (path) => {
   zod(path.email, z.string().email());
-}
+};
 ```
 
 ---
@@ -81,19 +90,17 @@ validation: (path) => {
 ```typescript
 behavior: (path) => {
   // Computed fields
-  computeFrom([path.price, path.qty], path.total,
-    (v) => v.price * v.qty);
+  computeFrom([path.price, path.qty], path.total, (v) => v.price * v.qty);
 
   // Conditional fields
-  enableWhen(path.spouseInfo,
-    (form) => form.married === true);
+  enableWhen(path.spouseInfo, (form) => form.married === true);
 
   // Side effects
   watchField(path.country, async (country, ctx) => {
     const cities = await fetchCities(country);
     ctx.form.city.updateComponentProps({ options: cities });
   });
-}
+};
 ```
 
 ---
@@ -101,6 +108,7 @@ behavior: (path) => {
 # Headless UI Components
 
 **FormArray** - Dynamic lists:
+
 ```typescript
 <FormArray.Root control={form.items}>
   <FormArray.List>{(item) => <ItemRow item={item} />}</FormArray.List>
@@ -108,13 +116,14 @@ behavior: (path) => {
 </FormArray.Root>
 ```
 
-**FormNavigation** - Multi-step wizards:
+**FormWizard** - Multi-step wizards:
+
 ```typescript
-<FormNavigation.Root steps={['Personal', 'Address', 'Review']}>
-  <FormNavigation.Indicator />
-  <FormNavigation.Step>{/* content */}</FormNavigation.Step>
-  <FormNavigation.Actions />
-</FormNavigation.Root>
+<FormWizard.Root steps={['Personal', 'Address', 'Review']}>
+  <FormWizard.Indicator />
+  <FormWizard.Step>{/* content */}</FormWizard.Step>
+  <FormWizard.Actions />
+</FormWizard.Root>
 ```
 
 ---
@@ -122,12 +131,14 @@ behavior: (path) => {
 # Performance
 
 **Fine-grained reactivity:**
+
 - Only changed fields re-render
 - No full form re-renders on each keystroke
 - Debounced async validation
 - Lazy proxy initialization
 
 **Tree-shakeable:**
+
 - Import only what you need
 - Modular validator imports
 - Separate UI package
@@ -136,14 +147,14 @@ behavior: (path) => {
 
 # Comparison
 
-| Feature | ReFormer | React Hook Form | Formik |
-|---------|:--------:|:---------------:|:------:|
-| Signals-based reactivity | Yes | No | No |
-| Built-in behaviors | Yes | No | No |
-| Built-in multi-step | Yes | No | No |
-| Schema adapters | Zod/Yup/Valibot | Zod/Yup | Yup |
-| TypeScript inference | Excellent | Good | Basic |
-| Headless UI | Yes | No | No |
+| Feature                  |    ReFormer     | React Hook Form | Formik |
+| ------------------------ | :-------------: | :-------------: | :----: |
+| Signals-based reactivity |       Yes       |       No        |   No   |
+| Built-in behaviors       |       Yes       |       No        |   No   |
+| Built-in multi-step      |       Yes       |       No        |   No   |
+| Schema adapters          | Zod/Yup/Valibot |     Zod/Yup     |  Yup   |
+| TypeScript inference     |    Excellent    |      Good       | Basic  |
+| Headless UI              |       Yes       |       No        |   No   |
 
 ---
 
@@ -159,6 +170,7 @@ behavior: (path) => {
 ```
 
 **Dependencies:**
+
 - `@preact/signals-core` - reactivity
 - `use-sync-external-store` - React integration
 
@@ -177,13 +189,13 @@ import { required, email } from '@reformer/core/validators';
 const form = createForm<LoginForm>({
   form: {
     email: { value: '' },
-    password: { value: '' }
+    password: { value: '' },
   },
   validation: (path) => {
     required(path.email);
     email(path.email);
     required(path.password);
-  }
+  },
 });
 ```
 
@@ -201,6 +213,7 @@ const form = createForm<LoginForm>({
 - Framework-agnostic UI
 
 **Perfect for:**
+
 - Large enterprise forms
 - Multi-step wizards
 - Dynamic form builders

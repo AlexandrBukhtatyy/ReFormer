@@ -1,11 +1,11 @@
-# FormNavigation
+# FormWizard
 
 Headless compound component for multi-step form wizards.
 
 ## Basic Usage
 
 ```tsx
-import { FormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard } from '@reformer/ui/form-wizard';
 
 const config = {
   stepValidations: {
@@ -15,39 +15,35 @@ const config = {
   fullValidation: fullFormSchema,
 };
 
-<FormNavigation form={form} config={config}>
-  <FormNavigation.Step component={Step1Form} control={form} />
-  <FormNavigation.Step component={Step2Form} control={form} />
+<FormWizard form={form} config={config}>
+  <FormWizard.Step component={Step1Form} control={form} />
+  <FormWizard.Step component={Step2Form} control={form} />
 
-  <FormNavigation.Actions onSubmit={handleSubmit}>
+  <FormWizard.Actions onSubmit={handleSubmit}>
     {({ prev, next, submit, isFirstStep, isLastStep }) => (
       <div>
         {!isFirstStep && <button {...prev}>Back</button>}
-        {!isLastStep ? (
-          <button {...next}>Next</button>
-        ) : (
-          <button {...submit}>Submit</button>
-        )}
+        {!isLastStep ? <button {...next}>Next</button> : <button {...submit}>Submit</button>}
       </div>
     )}
-  </FormNavigation.Actions>
-</FormNavigation>
+  </FormWizard.Actions>
+</FormWizard>;
 ```
 
 ## Sub-components
 
-| Component | Purpose |
-|-----------|---------|
-| `FormNavigation` | Root provider |
-| `FormNavigation.Step` | Renders component when step is current |
-| `FormNavigation.Indicator` | Headless step indicator (render props) |
-| `FormNavigation.Actions` | Headless navigation buttons (render props) |
-| `FormNavigation.Progress` | Headless progress display (render props) |
+| Component              | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `FormWizard`           | Root provider                              |
+| `FormWizard.Step`      | Renders component when step is current     |
+| `FormWizard.Indicator` | Headless step indicator (render props)     |
+| `FormWizard.Actions`   | Headless navigation buttons (render props) |
+| `FormWizard.Progress`  | Headless progress display (render props)   |
 
-## FormNavigation.Indicator
+## FormWizard.Indicator
 
 ```tsx
-<FormNavigation.Indicator steps={STEPS}>
+<FormWizard.Indicator steps={STEPS}>
   {({ steps, goToStep, currentStep }) => (
     <nav>
       {steps.map((step) => (
@@ -62,14 +58,14 @@ const config = {
       ))}
     </nav>
   )}
-</FormNavigation.Indicator>
+</FormWizard.Indicator>
 ```
 
 ### Step Definition
 
 ```typescript
-interface FormNavigationIndicatorStep {
-  number: number;   // 1-based step number
+interface FormWizardIndicatorStep {
+  number: number; // 1-based step number
   title: string;
   icon?: string;
 }
@@ -78,15 +74,15 @@ interface FormNavigationIndicatorStep {
 ### Render Props
 
 ```typescript
-interface FormNavigationIndicatorRenderProps {
-  steps: FormNavigationIndicatorStepWithState[];
+interface FormWizardIndicatorRenderProps {
+  steps: FormWizardIndicatorStepWithState[];
   goToStep: (step: number) => boolean;
   currentStep: number;
   totalSteps: number;
   completedSteps: number[];
 }
 
-interface FormNavigationIndicatorStepWithState {
+interface FormWizardIndicatorStepWithState {
   number: number;
   title: string;
   icon?: string;
@@ -96,10 +92,10 @@ interface FormNavigationIndicatorStepWithState {
 }
 ```
 
-## FormNavigation.Actions
+## FormWizard.Actions
 
 ```tsx
-<FormNavigation.Actions onSubmit={handleSubmit}>
+<FormWizard.Actions onSubmit={handleSubmit}>
   {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
     <div>
       {!isFirstStep && (
@@ -118,13 +114,13 @@ interface FormNavigationIndicatorStepWithState {
       )}
     </div>
   )}
-</FormNavigation.Actions>
+</FormWizard.Actions>
 ```
 
 ### Render Props
 
 ```typescript
-interface FormNavigationActionsRenderProps {
+interface FormWizardActionsRenderProps {
   prev: { onClick: () => void; disabled: boolean };
   next: { onClick: () => void; disabled: boolean };
   submit: { onClick: () => void; disabled: boolean; isSubmitting: boolean };
@@ -135,23 +131,23 @@ interface FormNavigationActionsRenderProps {
 }
 ```
 
-## FormNavigation.Progress
+## FormWizard.Progress
 
 ```tsx
-<FormNavigation.Progress>
+<FormWizard.Progress>
   {({ current, total, percent }) => (
     <div>
       Step {current} of {total} ({percent}%)
       <div style={{ width: `${percent}%` }} />
     </div>
   )}
-</FormNavigation.Progress>
+</FormWizard.Progress>
 ```
 
 ### Render Props
 
 ```typescript
-interface FormNavigationProgressRenderProps {
+interface FormWizardProgressRenderProps {
   current: number;
   total: number;
   percent: number;
@@ -164,7 +160,7 @@ interface FormNavigationProgressRenderProps {
 ## External Control via Ref
 
 ```tsx
-const navRef = useRef<FormNavigationHandle<FormType>>(null);
+const navRef = useRef<FormWizardHandle<FormType>>(null);
 
 // Programmatic navigation
 navRef.current?.goToStep(2);
@@ -176,20 +172,21 @@ const result = await navRef.current?.submit(async (values) => {
   return api.submit(values);
 });
 
-<FormNavigation ref={navRef} form={form} config={config}>
+<FormWizard ref={navRef} form={form} config={config}>
   ...
-</FormNavigation>
+</FormWizard>;
 ```
 
 ## Configuration
 
 ```typescript
-interface FormNavigationConfig<T> {
+interface FormWizardConfig<T> {
   stepValidations: Record<number, ValidationSchemaFn<T>>;
   fullValidation: ValidationSchemaFn<T>;
 }
 ```
 
 Validation happens automatically:
+
 - On `next.onClick`: validates current step
 - On `submit.onClick`: validates entire form

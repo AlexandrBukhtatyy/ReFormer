@@ -5,7 +5,7 @@
  * Фактический рендеринг выполняется wizard-компонентом, который извлекает
  * метаданные из componentProps.
  *
- * @module form-navigation/Step
+ * @module form-wizard/Step
  *
  * @example
  * ```tsx
@@ -42,7 +42,7 @@ export interface StepProps {
  * Step - маркер-компонент для wizard-схемы
  *
  * Компонент просто рендерит children. Метаданные (title, icon) извлекаются
- * wizard-компонентом из componentProps через useNavigationSelectors.
+ * wizard-компонентом из componentProps через useFormWizardSelectors.
  */
 export function Step({ children }: StepProps): ReactNode {
   return <>{children}</>;

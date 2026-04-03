@@ -15,9 +15,9 @@
       "types": "./dist/form-array.d.ts",
       "import": "./dist/form-array.js"
     },
-    "./form-navigation": {
-      "types": "./dist/form-navigation.d.ts",
-      "import": "./dist/form-navigation.js"
+    "./form-wizard": {
+      "types": "./dist/form-wizard.d.ts",
+      "import": "./dist/form-wizard.js"
     }
   },
   "sideEffects": false,

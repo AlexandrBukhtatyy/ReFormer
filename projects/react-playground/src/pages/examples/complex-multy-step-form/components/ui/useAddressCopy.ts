@@ -6,7 +6,7 @@
  * - Очистка адреса проживания
  */
 
-import { useFormNavigation } from '@reformer/ui/form-navigation';
+import { useFormWizard } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 interface UseAddressCopyResult {
@@ -28,7 +28,7 @@ interface UseAddressCopyResult {
  * ```
  */
 export function useAddressCopy(): UseAddressCopyResult {
-  const { form } = useFormNavigation<CreditApplicationForm>();
+  const { form } = useFormWizard<CreditApplicationForm>();
 
   const copyRegistrationAddress = () => {
     const regAddress = form.registrationAddress?.getValue();

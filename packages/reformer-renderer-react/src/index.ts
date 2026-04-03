@@ -70,9 +70,6 @@ export { RenderNodeComponent } from './core/render-node';
 export { useRenderContext, type RenderContextValue } from './core/render-context';
 
 // Container components
-export { Box, type BoxProps } from './components/box';
-export { Section, type SectionProps } from './components/section';
-export { Collapsible, type CollapsibleProps } from './components/collapsible';
 export { FormArray, type FormArrayProps } from './components/form-array';
 
 // Utils
