@@ -16,8 +16,8 @@ import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reforme
 import { FormWizard, type FormWizardConfig } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
-import { NavigationActions } from '../complex-multy-step-form/components/ui/NavigationActions';
-import { NavigationProgress } from '../complex-multy-step-form/components/ui/NavigationProgress';
+import { NavigationActions } from '../complex-multy-step-form/components/ui/FormWizardActions';
+import { NavigationProgress } from '../complex-multy-step-form/components/ui/FormWizardProgress';
 
 interface WizardNodeProps {
   title?: string;

@@ -27,9 +27,9 @@ import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
-import { NavigationProgress } from './components/ui/NavigationProgress';
+import { FormWizardProgress } from './components/ui/FormWizardProgress';
 import { StepIndicator } from './components/ui/StepIndicator';
-import { NavigationActions } from './components/ui/NavigationActions';
+import { FormWizardActions } from './components/ui/FormWizardActions';
 import { LoadingState } from './components/ui/LoadingState';
 import { ErrorState } from './components/ui/ErrorState';
 
@@ -117,12 +117,12 @@ function CreditApplicationForm() {
 
         {/* Кнопки навигации (render props API) */}
         <FormWizard.Actions onSubmit={submitApplication}>
-          {(actionsProps) => <NavigationActions {...actionsProps} className="mt-8" />}
+          {(actionsProps) => <FormWizardActions {...actionsProps} className="mt-8" />}
         </FormWizard.Actions>
 
         {/* Информация о прогрессе (headless) */}
         <FormWizard.Progress>
-          {(progressProps) => <NavigationProgress {...progressProps} className={'mt-4'} />}
+          {(progressProps) => <FormWizardProgress {...progressProps} className={'mt-4'} />}
         </FormWizard.Progress>
       </FormWizard>
     </div>

@@ -1,5 +1,5 @@
 /**
- * NavigationActions - компонент кнопок навигации для renderSchema
+ * FormWizardActions - компонент кнопок навигации для renderSchema
  *
  * Получает props от FormWizard.Actions через render props.
  */
@@ -8,11 +8,11 @@ import type { FC } from 'react';
 import type { FormWizardActionsRenderProps } from '@reformer/ui/form-wizard';
 import { Button } from '@/components/ui/button';
 
-interface NavigationActionsProps extends FormWizardActionsRenderProps {
+interface FormWizardActionsProps extends FormWizardActionsRenderProps {
   className?: string;
 }
 
-export const NavigationActions: FC<NavigationActionsProps> = ({
+export const FormWizardActions: FC<FormWizardActionsProps> = ({
   prev,
   next,
   submit,

@@ -19,8 +19,8 @@ import creditApplicationValidation, {
 import { submitCreditApplication } from '../complex-multy-step-form/api';
 import { CreditApplicationWizard } from './CreditApplicationWizard';
 import { StepIndicator } from '../complex-multy-step-form/components/ui/StepIndicator';
-import { NavigationActions } from '../complex-multy-step-form/components/ui/NavigationActions';
-import { NavigationProgress } from '../complex-multy-step-form/components/ui/NavigationProgress';
+import { NavigationActions } from '../complex-multy-step-form/components/ui/FormWizardActions';
+import { NavigationProgress } from '../complex-multy-step-form/components/ui/FormWizardProgress';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
 import {
