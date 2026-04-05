@@ -62,7 +62,7 @@ export interface FormWizardProps<T extends Record<string, any>> {
   config: FormWizardConfig<T>;
 
   /** Children (Step components, Indicator, Actions, Progress, or any ReactNode) */
-  children: ReactNode;
+  children?: ReactNode;
 
   /** Callback when step changes */
   onStepChange?: (step: number) => void;

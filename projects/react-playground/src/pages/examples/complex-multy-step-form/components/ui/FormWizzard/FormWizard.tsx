@@ -13,7 +13,7 @@ import { FormWizardActions } from './FormWizardActions';
 // @ts-expect-error - type mismatch in behaviors generic
 type FormValue = Record<string, unknown>;
 
-interface FormWizardProps<T extends FormValue> extends FormWizardHeadlessProps<T> {
+export interface FormWizardProps<T extends FormValue> extends FormWizardHeadlessProps<T> {
   className?: string;
   steps: FormWizardIndicatorStep[];
   onSubmit: FormWizardActionsProps['onSubmit'];
@@ -37,9 +37,17 @@ function FormWizardInner<T extends FormValue>(
 
         {/* Форма текущего шага */}
         <div className="bg-white p-8 rounded-lg shadow-md">
-          {props.steps.map((step) => (
-            <FormWizardHeadless.Step component={step.component} control={props.form} />
-          ))}
+          {props.steps.map((step) =>
+            typeof step.component === 'function' ? (
+              <FormWizardHeadless.Step
+                key={step.number}
+                component={step.component}
+                control={props.form}
+              />
+            ) : (
+              <FormWizardHeadless.Step key={step.number}>{step.component}</FormWizardHeadless.Step>
+            )
+          )}
         </div>
 
         {/* Кнопки навигации (render props API) */}

@@ -12,12 +12,14 @@ export interface FormWizardIndicatorStep {
   title: string;
   /** Optional icon */
   icon?: string;
-  /** Component to render for this step (legacy API) */
-  component?: ComponentType<
-    {
-      control: FormProxy<unknown>;
-    } & Record<string, unknown>
-  >;
+  /** Component to render for this step, or a ReactNode (pre-rendered element) */
+  component?:
+    | ComponentType<
+        {
+          control: FormProxy<unknown>;
+        } & Record<string, unknown>
+      >
+    | ReactNode;
 }
 
 /**
