@@ -38,6 +38,7 @@ function FormWizardInner<T extends FormValue>(
         {/* Форма текущего шага */}
         <div className="bg-white p-8 rounded-lg shadow-md">
           {props.steps.map((step) =>
+            // FIXME: В компонент передаются типа разные вещи из за чего возникают ошибки - нужно пофиксить (конкретно в рендерере компонент оборачивается в RenderNode)
             typeof step.component === 'function' ? (
               <FormWizardHeadless.Step
                 key={step.number}
