@@ -16,20 +16,9 @@ import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from '../complex-multy-step-form/schemas/credit-application-validation';
 import { submitCreditApplication } from '../complex-multy-step-form/api';
-import { RendererFormWizard } from './RendererFormWizard';
+import { RendererFormWizard } from '../complex-multy-step-form/components/ui/FormWizzard/RendererFormWizard';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
-import {
-  PropertyArrayHeader,
-  PropertyArrayEmpty,
-  PropertyItemHeader,
-  ExistingLoanArrayHeader,
-  ExistingLoanArrayEmpty,
-  ExistingLoanItemHeader,
-  CoBorrowerArrayHeader,
-  CoBorrowerArrayEmpty,
-  CoBorrowerItemHeader,
-} from '../complex-multy-step-form/components/ui/FormArrayComponents';
 import {
   ConfirmationInfoBlock,
   HighPaymentWarning,
@@ -40,7 +29,7 @@ import {
 } from '../complex-multy-step-form/components/ui/ConfirmationComponents';
 import { Section } from '@/components/ui/section';
 import { Box } from '@/components/ui/box';
-import { FormArray } from '../../../components/ui/form-array';
+import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
 
 /**
  * Обработчик отправки формы
@@ -541,50 +530,30 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 children: [
                   { component: path.hasProperty },
                   {
-                    component: FormArray,
+                    component: RendererFormArraySection,
                     hidden: (form: FormProxy<CreditApplicationForm>) =>
                       !form.hasProperty.value.value,
                     componentProps: {
+                      title: 'Имущество',
                       array: path.properties,
-                      className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                      children: [
-                        {
-                          selector: 'header',
-                          component: PropertyArrayHeader,
+                      itemLabel: (
+                        _: FormProxy<CreditApplicationForm['properties'][0]>,
+                        index: number
+                      ) => `Имущество #${index + 1}`,
+                      addButtonLabel: '+ Добавить имущество',
+                      emptyMessage: 'Нажмите "Добавить имущество" для добавления информации',
+                      itemComponent: (itemPath: FieldPath<Property>) => ({
+                        component: Box,
+                        componentProps: {
+                          className: 'space-y-3',
                         },
-                        {
-                          selector: 'empty',
-                          component: PropertyArrayEmpty,
-                        },
-                        {
-                          selector: 'item',
-                          component: Box,
-                          componentProps: {
-                            className: 'mb-4 p-4 bg-white rounded border',
-                            children: [
-                              {
-                                selector: 'item:header',
-                                component: PropertyItemHeader,
-                              },
-                              {
-                                selector: 'item:content',
-                                render: (itemPath: FieldPath<Property>) => ({
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'space-y-3',
-                                  },
-                                  children: [
-                                    { component: itemPath.type },
-                                    { component: itemPath.description },
-                                    { component: itemPath.estimatedValue },
-                                    { component: itemPath.hasEncumbrance },
-                                  ],
-                                }),
-                              },
-                            ],
-                          },
-                        },
-                      ],
+                        children: [
+                          { component: itemPath.type },
+                          { component: itemPath.description },
+                          { component: itemPath.estimatedValue },
+                          { component: itemPath.hasEncumbrance },
+                        ],
+                      }),
                     },
                   },
                 ],
@@ -598,68 +567,48 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 children: [
                   { component: path.hasExistingLoans },
                   {
-                    component: FormArray,
+                    component: RendererFormArraySection,
                     hidden: (form: FormProxy<CreditApplicationForm>) =>
                       !form.hasExistingLoans.value.value,
                     componentProps: {
+                      title: 'Существующие кредиты',
                       array: path.existingLoans,
-                      className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                      children: [
-                        {
-                          selector: 'header',
-                          component: ExistingLoanArrayHeader,
+                      itemLabel: (
+                        _: FormProxy<CreditApplicationForm['existingLoans'][0]>,
+                        index: number
+                      ) => `Имущество #${index + 1}`,
+                      addButtonLabel: '+ Добавить кредит',
+                      emptyMessage: 'Нажмите "Добавить кредит" для добавления информации',
+                      itemComponent: (itemPath: FieldPath<ExistingLoan>) => ({
+                        component: Box,
+                        componentProps: {
+                          className: 'space-y-3',
                         },
-                        {
-                          selector: 'empty',
-                          component: ExistingLoanArrayEmpty,
-                        },
-                        {
-                          selector: 'item',
-                          component: Box,
-                          componentProps: {
-                            className: 'mb-4 p-4 bg-white rounded border',
+                        children: [
+                          { component: itemPath.bank },
+                          { component: itemPath.type },
+                          {
+                            component: Box,
+                            componentProps: {
+                              className: 'grid grid-cols-2 gap-4',
+                            },
                             children: [
-                              {
-                                selector: 'item:header',
-                                component: ExistingLoanItemHeader,
-                              },
-                              {
-                                selector: 'item:content',
-                                render: (itemPath: FieldPath<ExistingLoan>) => ({
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'space-y-3',
-                                  },
-                                  children: [
-                                    { component: itemPath.bank },
-                                    { component: itemPath.type },
-                                    {
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'grid grid-cols-2 gap-4',
-                                      },
-                                      children: [
-                                        { component: itemPath.amount },
-                                        { component: itemPath.remainingAmount },
-                                      ],
-                                    },
-                                    {
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'grid grid-cols-2 gap-4',
-                                      },
-                                      children: [
-                                        { component: itemPath.monthlyPayment },
-                                        { component: itemPath.maturityDate },
-                                      ],
-                                    },
-                                  ],
-                                }),
-                              },
+                              { component: itemPath.amount },
+                              { component: itemPath.remainingAmount },
                             ],
                           },
-                        },
-                      ],
+                          {
+                            component: Box,
+                            componentProps: {
+                              className: 'grid grid-cols-2 gap-4',
+                            },
+                            children: [
+                              { component: itemPath.monthlyPayment },
+                              { component: itemPath.maturityDate },
+                            ],
+                          },
+                        ],
+                      }),
                     },
                   },
                 ],
@@ -673,78 +622,59 @@ export const creditApplicationRenderSchema: RenderSchemaFn<CreditApplicationForm
                 children: [
                   { component: path.hasCoBorrower },
                   {
-                    component: FormArray,
+                    component: RendererFormArraySection,
                     hidden: (form: FormProxy<CreditApplicationForm>) =>
                       !form.hasCoBorrower.value.value,
                     componentProps: {
+                      title: 'Созаемщики',
                       array: path.coBorrowers,
-                      className: 'p-4 bg-gray-50 rounded-lg border border-gray-200',
-                      children: [
-                        {
-                          selector: 'header',
-                          component: CoBorrowerArrayHeader,
+                      itemLabel: (
+                        _: FormProxy<CreditApplicationForm['coBorrowers'][0]>,
+                        index: number
+                      ) => `Созаемщик #${index + 1}`,
+                      addButtonLabel: '+ Добавить созаемщика',
+                      emptyMessage: 'Нажмите "Добавить созаемщика" для добавления информации',
+                      emptyMessageHint: 'CoBorrowerForm поддерживает вложенную группу personalData',
+                      itemComponent: (itemPath: FieldPath<CoBorrower>) => ({
+                        component: Box,
+                        componentProps: {
+                          className: 'space-y-3',
                         },
-                        {
-                          selector: 'empty',
-                          component: CoBorrowerArrayEmpty,
-                        },
-                        {
-                          selector: 'item',
-                          component: Box,
-                          componentProps: {
-                            className: 'mb-4 p-4 bg-white rounded border',
+                        children: [
+                          {
+                            component: Box,
+                            componentProps: {
+                              className: 'grid grid-cols-3 gap-4',
+                            },
                             children: [
-                              {
-                                selector: 'item:header',
-                                component: CoBorrowerItemHeader,
-                              },
-                              {
-                                selector: 'item:content',
-                                render: (itemPath: FieldPath<CoBorrower>) => ({
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'space-y-3',
-                                  },
-                                  children: [
-                                    {
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'grid grid-cols-3 gap-4',
-                                      },
-                                      children: [
-                                        { component: itemPath.personalData.lastName },
-                                        { component: itemPath.personalData.firstName },
-                                        { component: itemPath.personalData.middleName },
-                                      ],
-                                    },
-                                    { component: itemPath.personalData.birthDate },
-                                    {
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'grid grid-cols-2 gap-4',
-                                      },
-                                      children: [
-                                        { component: itemPath.phone },
-                                        { component: itemPath.email },
-                                      ],
-                                    },
-                                    {
-                                      component: Box,
-                                      componentProps: {
-                                        className: 'grid grid-cols-2 gap-4',
-                                      },
-                                      children: [
-                                        { component: itemPath.relationship },
-                                        { component: itemPath.monthlyIncome },
-                                      ],
-                                    },
-                                  ],
-                                }),
-                              },
+                              { component: itemPath.personalData.lastName },
+                              { component: itemPath.personalData.firstName },
+                              { component: itemPath.personalData.middleName },
                             ],
                           },
-                        },
-                      ],
+                          { component: itemPath.personalData.birthDate },
+                          {
+                            component: Box,
+                            componentProps: {
+                              className: 'grid grid-cols-2 gap-4',
+                            },
+                            children: [
+                              { component: itemPath.phone },
+                              { component: itemPath.email },
+                            ],
+                          },
+                          {
+                            component: Box,
+                            componentProps: {
+                              className: 'grid grid-cols-2 gap-4',
+                            },
+                            children: [
+                              { component: itemPath.relationship },
+                              { component: itemPath.monthlyIncome },
+                            ],
+                          },
+                        ],
+                      }),
                     },
                   },
                 ],

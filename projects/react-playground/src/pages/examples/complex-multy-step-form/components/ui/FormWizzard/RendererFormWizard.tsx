@@ -12,14 +12,11 @@
 import { type ReactNode } from 'react';
 import { type FormProxy, type FieldPath } from '@reformer/core';
 import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
-import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import {
-  FormWizard,
-  type FormWizardProps,
-} from '../complex-multy-step-form/components/ui/FormWizzard/FormWizard';
+import type { CreditApplicationForm } from '../../../types/credit-application';
+import { FormWizard, type FormWizardProps } from './FormWizard';
 import type { FormWizardConfig } from '@reformer/ui/form-wizard';
 
-export function RendererFormWizard({
+export function RendererFormWizard<T extends Record<string, unknown>>({
   steps = [],
   stepValidations,
   fullValidation,
@@ -27,10 +24,10 @@ export function RendererFormWizard({
   onStepChange,
   scrollToTop = true,
   className,
-}: FormWizardProps<CreditApplicationForm>): ReactNode {
-  const { form, path, fieldWrapper } = useRenderContext<CreditApplicationForm>();
+}: FormWizardProps<T>): ReactNode {
+  const { form, path, fieldWrapper } = useRenderContext<T>();
 
-  const config: FormWizardConfig<CreditApplicationForm> = {
+  const config: FormWizardConfig<T> = {
     stepValidations: stepValidations || {},
     fullValidation: fullValidation || (() => ({})),
   };
@@ -43,8 +40,9 @@ export function RendererFormWizard({
       config={config}
       onStepChange={onStepChange}
       scrollToTop={scrollToTop}
-      steps={steps.map((step) => ({
+      steps={steps.map((step, index) => ({
         ...step.componentProps,
+        number: index + 1,
         component: (
           <RenderNodeComponent
             node={step as RenderNode<CreditApplicationForm>}

@@ -25,9 +25,9 @@
 import type { FormArrayProxy, FormFields, FormProxy } from '@reformer/core';
 import type { ComponentType } from 'react';
 import { FormArray } from '@reformer/ui/form-array';
-import { primaryButtonClassName, emptyStateClassName } from './FormArrayComponents';
+import { primaryButtonClassName, emptyStateClassName } from '../FormArrayComponents';
 
-interface FormArraySectionProps<T extends object> {
+export interface FormArraySectionProps<T extends object> {
   /** Заголовок секции */
   title: string;
 
@@ -38,7 +38,7 @@ interface FormArraySectionProps<T extends object> {
   itemComponent: ComponentType<{ control: FormProxy<T> }>;
 
   /** Метка для элемента */
-  itemLabel: string;
+  itemLabel: string | ((control: FormProxy<T>, index: number) => string);
 
   /** Текст кнопки добавления */
   addButtonLabel: string;
@@ -46,11 +46,11 @@ interface FormArraySectionProps<T extends object> {
   /** Сообщение при пустом массиве */
   emptyMessage: string;
 
-  /** Флаг отображения секции */
-  hasItems: boolean;
-
   /** Дополнительное сообщение под emptyMessage (опционально) */
   emptyMessageHint?: string;
+
+  /** Условие видимости секции (если false — секция скрыта) */
+  hasItems?: boolean;
 }
 
 export function FormArraySection<T extends object>({
@@ -60,13 +60,15 @@ export function FormArraySection<T extends object>({
   itemLabel,
   addButtonLabel,
   emptyMessage,
-  hasItems,
   emptyMessageHint,
+  hasItems,
 }: FormArraySectionProps<T>) {
-  // Не показываем секцию, если hasItems === false или control не определён
-  if (!hasItems || !control) {
-    return null;
-  }
+  if (hasItems === false) return null;
+  const getItemLabel = (control: FormProxy<T>, index: number) => {
+    return typeof itemLabel === 'function'
+      ? itemLabel(control, index)
+      : `${itemLabel} #${index + 1}`;
+  };
 
   return (
     <FormArray.Root control={control}>
@@ -82,9 +84,7 @@ export function FormArraySection<T extends object>({
           {({ control: itemControl, index }) => (
             <div className="mb-4 p-4 bg-white rounded border">
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium">
-                  {itemLabel} #{index + 1}
-                </h4>
+                <h4 className="font-medium">{getItemLabel(itemControl, index)}</h4>
                 <FormArray.RemoveButton className={primaryButtonClassName}>
                   Удалить
                 </FormArray.RemoveButton>
