@@ -19,19 +19,25 @@ import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm'
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import { STEPS } from './constants/credit-application';
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from './schemas/credit-application-validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
-import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
-import { FormWizardProgress } from './components/ui/FormWizardProgress';
-import { StepIndicator } from './components/ui/StepIndicator';
-import { FormWizardActions } from './components/ui/FormWizardActions';
 import { LoadingState } from './components/ui/LoadingState';
 import { ErrorState } from './components/ui/ErrorState';
+import { FormWizard } from './components/ui/FormWizzard/FormWizard';
+import type { FormWizardHandle, FormWizardIndicatorStep } from '@reformer/ui/form-wizard';
+
+export const STEPS: FormWizardIndicatorStep[] = [
+  { number: 1, title: 'Кредит', icon: '💰', component: BasicInfoForm },
+  { number: 2, title: 'Данные', icon: '👤', component: PersonalInfoForm },
+  { number: 3, title: 'Контакты', icon: '📞', component: ContactInfoForm },
+  { number: 4, title: 'Работа', icon: '💼', component: EmploymentForm },
+  { number: 5, title: 'Доп. инфо', icon: '📋', component: AdditionalInfoForm },
+  { number: 6, title: 'Подтверждение', icon: '✓', component: ConfirmationForm },
+];
 
 // ============================================================================
 // Компонент формы
@@ -99,32 +105,13 @@ function CreditApplicationForm() {
   // ============================================================================
   return (
     <div className="w-full">
-      <FormWizard ref={navRef} form={form} config={navConfig}>
-        {/* Индикатор шагов (headless) */}
-        <FormWizard.Indicator steps={STEPS}>
-          {(indicatorProps) => <StepIndicator {...indicatorProps} className="mb-8"></StepIndicator>}
-        </FormWizard.Indicator>
-
-        {/* Форма текущего шага */}
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <FormWizard.Step component={BasicInfoForm} control={form} />
-          <FormWizard.Step component={PersonalInfoForm} control={form} />
-          <FormWizard.Step component={ContactInfoForm} control={form} />
-          <FormWizard.Step component={EmploymentForm} control={form} />
-          <FormWizard.Step component={AdditionalInfoForm} control={form} />
-          <FormWizard.Step component={ConfirmationForm} control={form} />
-        </div>
-
-        {/* Кнопки навигации (render props API) */}
-        <FormWizard.Actions onSubmit={submitApplication}>
-          {(actionsProps) => <FormWizardActions {...actionsProps} className="mt-8" />}
-        </FormWizard.Actions>
-
-        {/* Информация о прогрессе (headless) */}
-        <FormWizard.Progress>
-          {(progressProps) => <FormWizardProgress {...progressProps} className={'mt-4'} />}
-        </FormWizard.Progress>
-      </FormWizard>
+      <FormWizard
+        ref={navRef}
+        form={form}
+        config={navConfig}
+        steps={STEPS}
+        onSubmit={submitApplication}
+      />
     </div>
   );
 }
