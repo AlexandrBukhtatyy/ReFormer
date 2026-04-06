@@ -4,7 +4,6 @@ import { extractPath, createFieldPath, FieldPathNavigator } from '@reformer/core
 import { FormArray } from '@reformer/ui/form-array';
 import { RenderNodeComponent, useRenderContext } from '@reformer/renderer-react';
 import type { RenderNode } from '@reformer/renderer-react';
-import { primaryButtonClassName, emptyStateClassName } from '../FormArrayComponents';
 
 const navigator = new FieldPathNavigator();
 
@@ -30,7 +29,8 @@ export function RendererFormArraySection<T extends object>({
   itemComponent,
 }: RendererFormArraySectionProps<T>): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { form, fieldWrapper } = useRenderContext<any>();
+  const { form, settings } = useRenderContext<any>();
+  const fieldWrapper = settings?.fieldWrapper;
 
   const arrayPath = extractPath(array);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,7 +49,7 @@ export function RendererFormArraySection<T extends object>({
       <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <FormArray.AddButton className={primaryButtonClassName}>
+          <FormArray.AddButton className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
             {addButtonLabel}
           </FormArray.AddButton>
         </div>
@@ -64,7 +64,7 @@ export function RendererFormArraySection<T extends object>({
                   <h4 className="font-medium">
                     {getItemLabel(itemControl as FormProxy<T>, index)}
                   </h4>
-                  <FormArray.RemoveButton className={primaryButtonClassName}>
+                  <FormArray.RemoveButton className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
                     Удалить
                   </FormArray.RemoveButton>
                 </div>
@@ -80,7 +80,7 @@ export function RendererFormArraySection<T extends object>({
         </FormArray.List>
 
         <FormArray.Empty>
-          <div className={emptyStateClassName}>
+          <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
             {emptyMessage}
             {emptyMessageHint && (
               <div className="mt-2 text-xs text-gray-500">{emptyMessageHint}</div>

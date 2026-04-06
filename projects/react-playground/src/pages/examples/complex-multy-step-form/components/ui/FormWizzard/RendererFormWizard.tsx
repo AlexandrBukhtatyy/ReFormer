@@ -25,7 +25,8 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
   scrollToTop = true,
   className,
 }: FormWizardProps<T>): ReactNode {
-  const { form, path, fieldWrapper } = useRenderContext<T>();
+  const { form, path, settings } = useRenderContext<T>();
+  const fieldWrapper = settings?.fieldWrapper;
 
   const config: FormWizardConfig<T> = {
     stepValidations: stepValidations || {},

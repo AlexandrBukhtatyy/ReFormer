@@ -4,25 +4,17 @@
  * @module reformer/renderer-react/render-node
  */
 
-import { memo, useMemo, type ReactNode } from 'react';
-import type { FieldNode, ArrayNode, FormProxy, FieldPath, FormFields } from '@reformer/core';
+import { memo, type ReactNode } from 'react';
+import type { FieldNode, FormProxy, FieldPath } from '@reformer/core';
 import {
   FieldPathNavigator,
   useFormControl,
-  useArrayLength,
   useHiddenCondition,
-  createFieldPath,
   extractPath,
 } from '@reformer/core';
-import type { RenderNode, SelectorRenderNode, FormArraySelector, FieldWrapperProps } from './types';
-import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
+import type { RenderNode, FieldWrapperProps } from './types';
+import { isFieldRenderNode, isContainerRenderNode } from './utils';
 import { useRenderContext } from './render-context';
-import {
-  FormArrayContext,
-  FormArrayItemContext,
-  type FormArrayContextValue,
-  type FormArrayItemContextValue,
-} from '../components/form-array-context';
 
 /**
  * Props для RenderNodeComponent
@@ -34,6 +26,13 @@ interface RenderNodeComponentProps<T> {
   form: FormProxy<T>;
   /** Текущий FieldPath (для hidden условий) */
   path: FieldPath<T>;
+  /**
+   * Компонент-обёртка для полей (опционально).
+   * Переопределяет глобальный fieldWrapper из settings.
+   * Используется в user-space компонентах (RendererFormArraySection, RendererFormWizard и т.д.)
+   * при рендеринге дочерних узлов с нестандартным контекстом формы.
+   */
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }
 
 /** Navigator для получения узлов по пути */
@@ -93,220 +92,21 @@ const FieldRenderer = memo(function FieldRenderer({
 });
 
 /**
- * Резолвит селектор из массива children
- */
-function resolveSelector<T, TItem>(
-  children: SelectorRenderNode<T, TItem>[] | undefined,
-  selector: FormArraySelector
-): SelectorRenderNode<T, TItem> | undefined {
-  return children?.find((child) => child.selector === selector);
-}
-
-/**
- * Компонент рендеринга массива
- *
- * Использует selector-based API с children для определения частей массива:
- * - header: заголовок и кнопка добавления
- * - empty: пустое состояние
- * - item: элемент массива (с вложенными item:header, item:content, item:footer)
- * - footer: футер массива
- */
-function ArrayRenderer<TItem>({
-  arrayNode,
-  className,
-  children,
-}: {
-  arrayNode: ArrayNode<FormFields>;
-  className?: string;
-  children: SelectorRenderNode<unknown, TItem>[];
-}): ReactNode {
-  // Подписка только на length - не вызывает ре-рендер при изменении вложенных полей
-  const length = useArrayLength(arrayNode);
-  const isEmpty = length === 0;
-
-  // Резолвим селекторы
-  const headerNode = resolveSelector(children, 'header');
-  const emptyNode = resolveSelector(children, 'empty');
-  const itemNode = resolveSelector(children, 'item');
-  const footerNode = resolveSelector(children, 'footer');
-
-  // Создаём items для контекста
-  const items = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return arrayNode.map((itemControl: FormProxy<any>, index: number) => ({
-      control: itemControl,
-      index,
-      id: itemControl.id ?? index,
-      remove: () => arrayNode.removeAt(index),
-    }));
-  }, [arrayNode, length]);
-
-  // Контекст массива
-  const arrayContextValue: FormArrayContextValue = useMemo(
-    () => ({
-      items,
-      length,
-      isEmpty,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      add: (value?: any) => arrayNode.push(value ?? {}),
-      clear: () => arrayNode.clear(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      insert: (index: number, value?: any) => arrayNode.insert(index, value),
-      control: arrayNode,
-    }),
-    [items, length, isEmpty, arrayNode]
-  );
-
-  return (
-    <FormArrayContext.Provider value={arrayContextValue}>
-      <div className={className}>
-        {/* Header */}
-        {headerNode && <SelectorNodeRenderer node={headerNode} />}
-
-        {/* Empty state */}
-        {isEmpty && emptyNode && <SelectorNodeRenderer node={emptyNode} />}
-
-        {/* Items */}
-        {!isEmpty &&
-          items.map(({ control: arrayItem, index, id, remove }) => {
-            const itemContextValue: FormArrayItemContextValue = {
-              control: arrayItem,
-              index,
-              id,
-              remove,
-            };
-
-            return (
-              <FormArrayItemContext.Provider key={id} value={itemContextValue}>
-                {itemNode && (
-                  <ItemSelectorRenderer node={itemNode} item={arrayItem} index={index} />
-                )}
-              </FormArrayItemContext.Provider>
-            );
-          })}
-
-        {/* Footer */}
-        {footerNode && <SelectorNodeRenderer node={footerNode} />}
-      </div>
-    </FormArrayContext.Provider>
-  );
-}
-
-/**
- * Рендерит SelectorRenderNode (header, empty, footer)
- */
-function SelectorNodeRenderer<T, TItem>({
-  node,
-}: {
-  node: SelectorRenderNode<T, TItem>;
-}): ReactNode {
-  const Component = node.component;
-  if (!Component) return null;
-
-  const { children: selectorChildren, ...restProps } = node.componentProps || {};
-
-  // Рендерим children если они есть (могут быть RenderNode или SelectorRenderNode)
-  const renderedChildren = selectorChildren?.map((child, idx) => {
-    // Если это SelectorRenderNode с вложенным селектором - пропускаем (они для item)
-    if ('selector' in child && (child.selector as string).startsWith('item:')) {
-      return null;
-    }
-    // Если у child есть component - это RenderNode
-    if ('component' in child && child.component) {
-      return (
-        <RenderNodeComponent
-          key={idx}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          node={child as RenderNode<any>}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          form={{} as FormProxy<any>}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          path={createFieldPath<any>()}
-        />
-      );
-    }
-    return null;
-  });
-
-  return <Component {...restProps}>{renderedChildren}</Component>;
-}
-
-/**
- * Рендерит item с поддержкой вложенных селекторов (item:header, item:content, item:footer)
- */
-function ItemSelectorRenderer<T, TItem>({
-  node,
-  item,
-  index,
-}: {
-  node: SelectorRenderNode<T, TItem>;
-  item: FormProxy<unknown>;
-  index: number;
-}): ReactNode {
-  const Component = node.component;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const itemPath = createFieldPath<any>();
-
-  const { children: selectorChildren, ...restProps } = node.componentProps || {};
-
-  // Ищем вложенные селекторы
-  const itemHeaderNode = selectorChildren?.find(
-    (c) => 'selector' in c && c.selector === 'item:header'
-  ) as SelectorRenderNode<T, TItem> | undefined;
-
-  const itemContentNode = selectorChildren?.find(
-    (c) => 'selector' in c && c.selector === 'item:content'
-  ) as SelectorRenderNode<T, TItem> | undefined;
-
-  const itemFooterNode = selectorChildren?.find(
-    (c) => 'selector' in c && c.selector === 'item:footer'
-  ) as SelectorRenderNode<T, TItem> | undefined;
-
-  // Рендерим content через render функцию
-  const contentElement = itemContentNode?.render ? (
-    <RenderNodeComponent
-      node={itemContentNode.render(itemPath, index)}
-      form={item}
-      path={itemPath}
-    />
-  ) : node.render ? (
-    <RenderNodeComponent node={node.render(itemPath, index)} form={item} path={itemPath} />
-  ) : null;
-
-  // Если нет Component, рендерим только content
-  if (!Component) {
-    return contentElement;
-  }
-
-  return (
-    <Component {...restProps}>
-      {/* Item header */}
-      {itemHeaderNode && <SelectorNodeRenderer node={itemHeaderNode} />}
-
-      {/* Item content */}
-      {contentElement}
-
-      {/* Item footer */}
-      {itemFooterNode && <SelectorNodeRenderer node={itemFooterNode} />}
-    </Component>
-  );
-}
-
-/**
  * RenderNodeComponent - рекурсивный рендеринг узла RenderSchema
  *
  * Определяет тип узла и рендерит соответствующим образом:
  * - FieldRenderNode → компонент поля с wrapper
- * - ArrayRenderNode → итерация по элементам массива
  * - ContainerRenderNode → контейнер с дочерними узлами
  */
 export function RenderNodeComponent<T>({
   node,
   form,
   path,
+  fieldWrapper: fieldWrapperProp,
 }: RenderNodeComponentProps<T>): ReactNode {
   const { settings } = useRenderContext();
-  const fieldWrapper = settings?.fieldWrapper;
+  // prop имеет приоритет над глобальным settings (для user-space компонентов с вложенными формами)
+  const fieldWrapper = fieldWrapperProp ?? settings?.fieldWrapper;
 
   // Проверка условия hidden (реактивная через хук)
   const isHidden = useHiddenCondition(node.hidden, form, path);
@@ -337,29 +137,6 @@ export function RenderNodeComponent<T>({
         className={className}
         wrapper={wrapper}
         fieldWrapper={effectiveWrapper}
-      />
-    );
-  }
-
-  // ========================================
-  // ArrayRenderNode - массив
-  // ========================================
-  if (isArrayRenderNode(node)) {
-    const { array, className, children } = node.componentProps;
-    const arrayPath = extractPath(array);
-    const arrayNode = navigator.getNodeByPath(form, arrayPath) as ArrayNode<FormFields> | null;
-
-    if (!arrayNode || !arrayNode.map) {
-      console.warn(`[RenderSchema] Array not found: ${arrayPath}`);
-      return null;
-    }
-
-    return (
-      <ArrayRenderer
-        arrayNode={arrayNode}
-        className={className}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        children={children as SelectorRenderNode<unknown, any>[]}
       />
     );
   }

@@ -41,27 +41,11 @@ export type {
   FieldRenderNodeProps,
   ContainerRenderNode,
   ContainerRenderNodeProps,
-  ArrayRenderNode,
-  ArrayRenderNodeProps,
   FormRendererProps,
   RendererSettings,
   FieldWrapperProps,
   ContainerComponentProps,
-  // Array selector types
-  FormArraySelector,
-  SelectorRenderNode,
 } from './core/types';
-
-// FormArray Context
-export {
-  FormArrayContext,
-  FormArrayItemContext,
-  useFormArrayContext,
-  useFormArrayItemContext,
-  type FormArrayContextValue,
-  type FormArrayItemContextValue,
-  type FormArrayItem,
-} from './components/form-array-context';
 
 // Components
 export { FormRenderer } from './core/form-renderer';
@@ -71,4 +55,4 @@ export { RenderNodeComponent } from './core/render-node';
 export { useRenderContext, type RenderContextValue } from './core/render-context';
 
 // Utils
-export { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './core/utils';
+export { isFieldRenderNode, isContainerRenderNode } from './core/utils';

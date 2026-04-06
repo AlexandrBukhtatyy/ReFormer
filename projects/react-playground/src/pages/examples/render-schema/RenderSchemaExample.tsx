@@ -1,67 +1,16 @@
 import * as React from 'react';
 import { useMemo } from 'react';
-import { createForm, type FieldPath } from '@reformer/core';
+import { createForm } from '@reformer/core';
 import { FormRenderer, type RenderSchemaFn, type RenderNode } from '@reformer/renderer-react';
 import { required, email, minLength } from '@reformer/core/validators';
-import {
-  FormArrayAddButton,
-  FormArrayRemoveButton,
-  FormArrayItemIndex,
-  FormArrayEmpty,
-} from '@reformer/ui/form-array';
-import type { SelectorRenderNode } from '@reformer/renderer-react';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Box } from '@/components/ui/box';
 import { Section } from '@/components/ui/section';
 import { Collapsible } from '@/components/ui/collapsible';
-import { FormArray } from '../../../components/ui/form-array';
-
-// ============================================================================
-// Компоненты для selector-based FormArray
-// ============================================================================
-
-/**
- * Header секции адресов - использует FormArrayAddButton из контекста
- */
-const AddressArrayHeader: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={className}>
-    <h3 className="text-lg font-semibold text-gray-800">Адреса</h3>
-    <FormArrayAddButton className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
-      + Добавить адрес
-    </FormArrayAddButton>
-  </div>
-);
-
-/**
- * Пустое состояние массива адресов
- */
-const AddressArrayEmpty: React.FC<{ className?: string }> = ({ className }) => (
-  <FormArrayEmpty>
-    <div className={className}>
-      <div>Адреса не добавлены</div>
-      <div className="text-sm mt-1">Нажмите кнопку выше, чтобы добавить адрес</div>
-    </div>
-  </FormArrayEmpty>
-);
-
-/**
- * Header элемента массива с индексом и кнопкой удаления
- */
-const AddressItemHeader: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={className}>
-    <span className="text-sm text-gray-600">
-      Адрес #<FormArrayItemIndex />
-    </span>
-    <FormArrayRemoveButton className="text-red-500 hover:text-red-700 text-sm">
-      Удалить
-    </FormArrayRemoveButton>
-  </div>
-);
-
-// FormField как обёртка для полей (передаётся в FormRenderer)
-// Компонент Input/Textarea берётся из FieldNode.component
+import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
+import type { FieldPath } from '@reformer/core';
 
 // ============================================================================
 // Типы формы
@@ -135,7 +84,6 @@ const createContactForm = () =>
           placeholder: 'Любая дополнительная информация...',
         },
       },
-      // Массив адресов
       addresses: [
         {
           city: {
@@ -260,68 +208,27 @@ const renderSchema: RenderSchemaFn<ContactForm> = (path) => ({
         },
       },
 
-      // Секция: Адреса (selector-based API для полной гибкости)
+      // Секция: Адреса
       {
-        component: FormArray,
+        component: RendererFormArraySection,
         componentProps: {
+          title: 'Адреса',
           array: path.addresses,
-          className: 'bg-white p-4 rounded-lg shadow',
-
-          // Selector-based children - каждый элемент определяет свою часть массива
-          children: [
-            // Header с заголовком и кнопкой добавления
-            {
-              selector: 'header',
-              component: AddressArrayHeader,
-              componentProps: {
-                className: 'flex justify-between items-center mb-4',
-              },
-            },
-
-            // Пустое состояние
-            {
-              selector: 'empty',
-              component: AddressArrayEmpty,
-              componentProps: {
-                className:
-                  'text-gray-500 text-center py-4 border-2 border-dashed border-gray-200 rounded-lg',
-              },
-            },
-
-            // Элемент массива с вложенными селекторами
-            {
-              selector: 'item',
+          itemLabel: (_: unknown, index: number) => `Адрес #${index + 1}`,
+          addButtonLabel: '+ Добавить адрес',
+          emptyMessage: 'Адреса не добавлены. Нажмите кнопку выше, чтобы добавить адрес.',
+          itemComponent: (itemPath: FieldPath<Address>) =>
+            ({
               component: Box,
               componentProps: {
-                className: 'p-4 border border-gray-200 rounded-lg bg-gray-50 mb-4',
+                className: 'grid grid-cols-3 gap-4',
                 children: [
-                  // Header элемента с индексом и кнопкой удаления
-                  {
-                    selector: 'item:header',
-                    component: AddressItemHeader,
-                    componentProps: {
-                      className: 'flex justify-between items-center mb-2',
-                    },
-                  },
-                  // Контент элемента - сами поля
-                  {
-                    selector: 'item:content',
-                    render: (itemPath: FieldPath<Address>) => ({
-                      component: Box,
-                      componentProps: {
-                        className: 'grid grid-cols-3 gap-4',
-                        children: [
-                          { component: itemPath.city },
-                          { component: itemPath.street },
-                          { component: itemPath.zipCode },
-                        ],
-                      },
-                    }),
-                  },
+                  { component: itemPath.city },
+                  { component: itemPath.street },
+                  { component: itemPath.zipCode },
                 ],
               },
-            },
-          ] as SelectorRenderNode<ContactForm, Address>[],
+            }) as RenderNode<Address>,
         },
       },
     ] as RenderNode<ContactForm>[],
@@ -348,8 +255,7 @@ function ContactFormWithRenderSchema() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl">
-      {/* Вся форма через RenderSchema с глобальной обёрткой для полей */}
-      <FormRenderer form={form} render={renderSchema} fieldWrapper={FormField} />
+      <FormRenderer form={form} render={renderSchema} settings={{ fieldWrapper: FormField }} />
 
       <div className="mt-6 flex gap-4">
         <button
@@ -381,7 +287,8 @@ export default function RenderSchemaExample() {
         <h1 className="text-2xl font-bold mb-2 text-gray-800">RenderSchema Example</h1>
         <p className="text-gray-600 mb-6">
           Декларативное описание структуры формы через RenderSchema. Включает динамический массив
-          адресов с использованием <code className="bg-gray-200 px-1">@reformer/ui</code>.
+          адресов с использованием{' '}
+          <code className="bg-gray-200 px-1">RendererFormArraySection</code>.
         </p>
 
         <ContactFormWithRenderSchema />
@@ -408,52 +315,15 @@ export default function RenderSchemaExample() {
             </li>
           </ul>
 
-          <h3 className="text-md font-semibold mt-4 mb-2">
-            Массивы в RenderSchema (Selector API):
-          </h3>
+          <h3 className="text-md font-semibold mt-4 mb-2">Массивы в RenderSchema:</h3>
           <ul className="list-disc list-inside text-gray-600 space-y-1">
             <li>
-              <code className="bg-gray-100 px-1">FormArray</code> — компонент для массивов
+              <code className="bg-gray-100 px-1">RendererFormArraySection</code> — компонент для
+              массивов (использует контекст рендерера)
             </li>
             <li>
-              <code className="bg-gray-100 px-1">selector: &apos;header&apos;</code> — заголовок и
-              кнопка добавления
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">selector: &apos;empty&apos;</code> — пустое
-              состояние
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">selector: &apos;item&apos;</code> — обёртка
-              элемента
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">selector: &apos;item:header&apos;</code> —
-              заголовок элемента (индекс, кнопка удаления)
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">selector: &apos;item:content&apos;</code> — контент
-              элемента (поля формы)
-            </li>
-          </ul>
-
-          <h3 className="text-md font-semibold mt-4 mb-2">Marker-компоненты (@reformer/ui):</h3>
-          <ul className="list-disc list-inside text-gray-600 space-y-1">
-            <li>
-              <code className="bg-gray-100 px-1">FormArrayAddButton</code> — кнопка добавления
-              (использует контекст)
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">FormArrayRemoveButton</code> — кнопка удаления
-              элемента
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">FormArrayItemIndex</code> — индекс текущего
-              элемента
-            </li>
-            <li>
-              <code className="bg-gray-100 px-1">FormArrayEmpty</code> — условный рендер при пустом
-              массиве
+              <code className="bg-gray-100 px-1">itemComponent</code> — функция, возвращающая{' '}
+              <code className="bg-gray-100 px-1">RenderNode</code> для каждого элемента
             </li>
           </ul>
         </div>
