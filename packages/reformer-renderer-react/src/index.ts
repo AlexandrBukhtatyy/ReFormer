@@ -44,6 +44,7 @@ export type {
   ArrayRenderNode,
   ArrayRenderNodeProps,
   FormRendererProps,
+  RendererSettings,
   FieldWrapperProps,
   ContainerComponentProps,
   // Array selector types

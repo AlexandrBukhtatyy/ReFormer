@@ -14,7 +14,13 @@ import {
   createFieldPath,
   extractPath,
 } from '@reformer/core';
-import type { RenderNode, SelectorRenderNode, FormArraySelector, FieldWrapperProps } from './types';
+import type {
+  RenderNode,
+  SelectorRenderNode,
+  FormArraySelector,
+  FieldWrapperProps,
+  RendererSettings,
+} from './types';
 import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
 import {
   FormArrayContext,
@@ -33,8 +39,8 @@ interface RenderNodeComponentProps<T> {
   form: FormProxy<T>;
   /** Текущий FieldPath (для hidden условий) */
   path: FieldPath<T>;
-  /** Компонент-обёртка для полей */
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /** Настройки рендерера */
+  settings?: RendererSettings;
 }
 
 /** Navigator для получения узлов по пути */
@@ -234,7 +240,7 @@ function SelectorNodeRenderer<T, TItem>({
           form={{} as FormProxy<any>}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           path={createFieldPath<any>()}
-          fieldWrapper={fieldWrapper}
+          settings={fieldWrapper ? { fieldWrapper } : undefined}
         />
       );
     }
@@ -278,19 +284,20 @@ function ItemSelectorRenderer<T, TItem>({
   ) as SelectorRenderNode<T, TItem> | undefined;
 
   // Рендерим content через render функцию
+  const fieldWrapperSettings = fieldWrapper ? { fieldWrapper } : undefined;
   const contentElement = itemContentNode?.render ? (
     <RenderNodeComponent
       node={itemContentNode.render(itemPath, index)}
       form={item}
       path={itemPath}
-      fieldWrapper={fieldWrapper}
+      settings={fieldWrapperSettings}
     />
   ) : node.render ? (
     <RenderNodeComponent
       node={node.render(itemPath, index)}
       form={item}
       path={itemPath}
-      fieldWrapper={fieldWrapper}
+      settings={fieldWrapperSettings}
     />
   ) : null;
 
@@ -325,8 +332,10 @@ export function RenderNodeComponent<T>({
   node,
   form,
   path,
-  fieldWrapper,
+  settings,
 }: RenderNodeComponentProps<T>): ReactNode {
+  const fieldWrapper = settings?.fieldWrapper;
+
   // Проверка условия hidden (реактивная через хук)
   const isHidden = useHiddenCondition(node.hidden, form, path);
 
@@ -409,13 +418,7 @@ export function RenderNodeComponent<T>({
     return (
       <Component {...(selector !== undefined ? { selector } : {})} {...restProps}>
         {children?.map((child, i) => (
-          <RenderNodeComponent
-            key={i}
-            node={child}
-            form={form}
-            path={path}
-            fieldWrapper={fieldWrapper}
-          />
+          <RenderNodeComponent key={i} node={child} form={form} path={path} settings={settings} />
         ))}
       </Component>
     );

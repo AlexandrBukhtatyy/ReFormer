@@ -1,5 +1,5 @@
 /**
- * RenderContext - контекст для передачи form/path/fieldWrapper в пользовательские компоненты
+ * RenderContext - контекст для передачи form/path/settings в пользовательские компоненты
  *
  * Позволяет компонентам-контейнерам (например, wizard) получить доступ к контексту
  * рендеринга для рекурсивного рендеринга вложенных узлов.
@@ -7,9 +7,9 @@
  * @module reformer/renderer-react/render-context
  */
 
-import { createContext, useContext, type ReactNode, type ComponentType } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import type { FormProxy, FieldPath } from '@reformer/core';
-import type { FieldWrapperProps } from './types';
+import type { RendererSettings } from './types';
 
 /**
  * Значение контекста рендеринга
@@ -19,8 +19,8 @@ export interface RenderContextValue<T = unknown> {
   form: FormProxy<T>;
   /** Корневой FieldPath */
   path: FieldPath<T>;
-  /** Компонент-обёртка для полей */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
+  /** Настройки рендерера */
+  settings?: RendererSettings;
 }
 
 const RenderContext = createContext<RenderContextValue | null>(null);
@@ -44,12 +44,12 @@ export function RenderContextProvider<T>({
  * Хук для получения контекста рендеринга
  *
  * Используется в пользовательских компонентах-контейнерах для доступа
- * к form, path и fieldWrapper.
+ * к form, path и settings.
  *
  * @example
  * ```tsx
  * function MyWizard({ children }) {
- *   const { form, path, fieldWrapper } = useRenderContext();
+ *   const { form, path, settings } = useRenderContext();
  *
  *   return (
  *     <FormWizard form={form}>
@@ -58,7 +58,7 @@ export function RenderContextProvider<T>({
  *           node={child}
  *           form={form}
  *           path={path}
- *           fieldWrapper={fieldWrapper}
+ *           settings={settings}
  *         />
  *       ))}
  *     </FormWizard>

@@ -306,6 +306,19 @@ export interface FieldWrapperProps {
 }
 
 /**
+ * Настройки рендерера формы
+ */
+export interface RendererSettings {
+  /**
+   * Компонент-обёртка для полей (опционально)
+   *
+   * Если указан, каждое поле будет обёрнуто этим компонентом.
+   * Обёртка отвечает за рендеринг label, errors и т.д.
+   */
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}
+
+/**
  * Props для FormRenderer
  */
 export interface FormRendererProps<T> {
@@ -316,21 +329,18 @@ export interface FormRendererProps<T> {
   render: RenderSchemaFn<T>;
 
   /**
-   * Компонент-обёртка для полей (опционально)
-   *
-   * Если указан, каждое поле будет обёрнуто этим компонентом.
-   * Обёртка отвечает за рендеринг label, errors и т.д.
+   * Настройки рендерера
    *
    * @example
    * ```tsx
    * <FormRenderer
    *   form={form}
    *   render={renderSchema}
-   *   fieldWrapper={FormField}
+   *   settings={{ fieldWrapper: FormField }}
    * />
    * ```
    */
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  settings?: RendererSettings;
 }
 
 // ============================================================================

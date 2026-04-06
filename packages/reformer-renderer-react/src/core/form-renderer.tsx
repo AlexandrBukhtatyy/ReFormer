@@ -24,32 +24,32 @@ import { RenderContextProvider } from './render-context';
  *   component: Box,
  *   componentProps: {
  *     className: 'flex flex-col gap-6',
- *     children: [
- *       {
- *         component: Section,
- *         componentProps: {
- *           title: 'Личные данные',
- *           className: 'grid grid-cols-2 gap-4',
- *           children: [
- *             { component: path.firstName },
- *             { component: path.lastName },
- *             { component: path.email, componentProps: { className: 'col-span-2' } },
- *           ],
- *         },
- *       },
- *       {
- *         component: Section,
- *         componentProps: {
- *           title: 'Адрес',
- *           hidden: (form) => !form.needsAddress.value.value,
- *           children: [
- *             { component: path.address.city },
- *             { component: path.address.street },
- *           ],
- *         },
- *       },
- *     ],
  *   },
+ *   children: [
+ *     {
+ *       component: Section,
+ *       componentProps: {
+ *         title: 'Личные данные',
+ *         className: 'grid grid-cols-2 gap-4',
+ *       },
+ *       children: [
+ *         { component: path.firstName },
+ *         { component: path.lastName },
+ *         { component: path.email, componentProps: { className: 'col-span-2' } },
+ *       ],
+ *     },
+ *     {
+ *       component: Section,
+ *       componentProps: {
+ *         title: 'Адрес',
+ *         hidden: (form) => !form.needsAddress.value.value,
+ *       },
+ *       children: [
+ *         { component: path.address.city },
+ *         { component: path.address.street },
+ *       ],
+ *     },
+ *   ],
  * });
  *
  * function MyFormPage() {
@@ -64,17 +64,17 @@ import { RenderContextProvider } from './render-context';
  * }
  * ```
  */
-export function FormRenderer<T>({ form, render, fieldWrapper }: FormRendererProps<T>): ReactNode {
+export function FormRenderer<T>({ form, render, settings }: FormRendererProps<T>): ReactNode {
   const path = createFieldPath<T>();
   const rootNode = render(path);
 
   return (
-    <RenderContextProvider value={{ form, path, fieldWrapper }}>
+    <RenderContextProvider value={{ form, path, settings }}>
       <RenderNodeComponent
         node={rootNode}
         form={form as FormProxy<T>}
         path={path}
-        fieldWrapper={fieldWrapper}
+        settings={settings}
       />
     </RenderContextProvider>
   );
