@@ -99,8 +99,8 @@
   "sideEffects": false,
   "scripts": {
     "generate:llms": "npx tsx scripts/generate-llms.ts",
-    "build": "npm run generate:llms && vite build && tsc -p tsconfig.json",
-    "build:stackblitz": "vite build && tsc -p tsconfig.json",
+    "build": "npm run generate:llms && vite build",
+    "build:stackblitz": "vite build",
     "dev": "vite",
     "test": "vitest",
     "test:watch": "vitest watch"

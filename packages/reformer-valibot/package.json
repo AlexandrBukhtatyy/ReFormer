@@ -14,7 +14,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.json",
+    "build": "vite build",
     "dev": "vite",
     "test": "vitest",
     "test:watch": "vitest watch"
