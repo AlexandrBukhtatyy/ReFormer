@@ -14,14 +14,9 @@ import {
   createFieldPath,
   extractPath,
 } from '@reformer/core';
-import type {
-  RenderNode,
-  SelectorRenderNode,
-  FormArraySelector,
-  FieldWrapperProps,
-  RendererSettings,
-} from './types';
+import type { RenderNode, SelectorRenderNode, FormArraySelector, FieldWrapperProps } from './types';
 import { isFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './utils';
+import { useRenderContext } from './render-context';
 import {
   FormArrayContext,
   FormArrayItemContext,
@@ -39,8 +34,6 @@ interface RenderNodeComponentProps<T> {
   form: FormProxy<T>;
   /** Текущий FieldPath (для hidden условий) */
   path: FieldPath<T>;
-  /** Настройки рендерера */
-  settings?: RendererSettings;
 }
 
 /** Navigator для получения узлов по пути */
@@ -122,12 +115,10 @@ function ArrayRenderer<TItem>({
   arrayNode,
   className,
   children,
-  fieldWrapper,
 }: {
   arrayNode: ArrayNode<FormFields>;
   className?: string;
   children: SelectorRenderNode<unknown, TItem>[];
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   // Подписка только на length - не вызывает ре-рендер при изменении вложенных полей
   const length = useArrayLength(arrayNode);
@@ -170,12 +161,10 @@ function ArrayRenderer<TItem>({
     <FormArrayContext.Provider value={arrayContextValue}>
       <div className={className}>
         {/* Header */}
-        {headerNode && <SelectorNodeRenderer node={headerNode} fieldWrapper={fieldWrapper} />}
+        {headerNode && <SelectorNodeRenderer node={headerNode} />}
 
         {/* Empty state */}
-        {isEmpty && emptyNode && (
-          <SelectorNodeRenderer node={emptyNode} fieldWrapper={fieldWrapper} />
-        )}
+        {isEmpty && emptyNode && <SelectorNodeRenderer node={emptyNode} />}
 
         {/* Items */}
         {!isEmpty &&
@@ -190,19 +179,14 @@ function ArrayRenderer<TItem>({
             return (
               <FormArrayItemContext.Provider key={id} value={itemContextValue}>
                 {itemNode && (
-                  <ItemSelectorRenderer
-                    node={itemNode}
-                    item={arrayItem}
-                    index={index}
-                    fieldWrapper={fieldWrapper}
-                  />
+                  <ItemSelectorRenderer node={itemNode} item={arrayItem} index={index} />
                 )}
               </FormArrayItemContext.Provider>
             );
           })}
 
         {/* Footer */}
-        {footerNode && <SelectorNodeRenderer node={footerNode} fieldWrapper={fieldWrapper} />}
+        {footerNode && <SelectorNodeRenderer node={footerNode} />}
       </div>
     </FormArrayContext.Provider>
   );
@@ -213,10 +197,8 @@ function ArrayRenderer<TItem>({
  */
 function SelectorNodeRenderer<T, TItem>({
   node,
-  fieldWrapper,
 }: {
   node: SelectorRenderNode<T, TItem>;
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   const Component = node.component;
   if (!Component) return null;
@@ -240,7 +222,6 @@ function SelectorNodeRenderer<T, TItem>({
           form={{} as FormProxy<any>}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           path={createFieldPath<any>()}
-          settings={fieldWrapper ? { fieldWrapper } : undefined}
         />
       );
     }
@@ -257,12 +238,10 @@ function ItemSelectorRenderer<T, TItem>({
   node,
   item,
   index,
-  fieldWrapper,
 }: {
   node: SelectorRenderNode<T, TItem>;
   item: FormProxy<unknown>;
   index: number;
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   const Component = node.component;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -284,21 +263,14 @@ function ItemSelectorRenderer<T, TItem>({
   ) as SelectorRenderNode<T, TItem> | undefined;
 
   // Рендерим content через render функцию
-  const fieldWrapperSettings = fieldWrapper ? { fieldWrapper } : undefined;
   const contentElement = itemContentNode?.render ? (
     <RenderNodeComponent
       node={itemContentNode.render(itemPath, index)}
       form={item}
       path={itemPath}
-      settings={fieldWrapperSettings}
     />
   ) : node.render ? (
-    <RenderNodeComponent
-      node={node.render(itemPath, index)}
-      form={item}
-      path={itemPath}
-      settings={fieldWrapperSettings}
-    />
+    <RenderNodeComponent node={node.render(itemPath, index)} form={item} path={itemPath} />
   ) : null;
 
   // Если нет Component, рендерим только content
@@ -309,13 +281,13 @@ function ItemSelectorRenderer<T, TItem>({
   return (
     <Component {...restProps}>
       {/* Item header */}
-      {itemHeaderNode && <SelectorNodeRenderer node={itemHeaderNode} fieldWrapper={fieldWrapper} />}
+      {itemHeaderNode && <SelectorNodeRenderer node={itemHeaderNode} />}
 
       {/* Item content */}
       {contentElement}
 
       {/* Item footer */}
-      {itemFooterNode && <SelectorNodeRenderer node={itemFooterNode} fieldWrapper={fieldWrapper} />}
+      {itemFooterNode && <SelectorNodeRenderer node={itemFooterNode} />}
     </Component>
   );
 }
@@ -332,8 +304,8 @@ export function RenderNodeComponent<T>({
   node,
   form,
   path,
-  settings,
 }: RenderNodeComponentProps<T>): ReactNode {
+  const { settings } = useRenderContext();
   const fieldWrapper = settings?.fieldWrapper;
 
   // Проверка условия hidden (реактивная через хук)
@@ -388,7 +360,6 @@ export function RenderNodeComponent<T>({
         className={className}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         children={children as SelectorRenderNode<unknown, any>[]}
-        fieldWrapper={fieldWrapper}
       />
     );
   }
@@ -418,7 +389,7 @@ export function RenderNodeComponent<T>({
     return (
       <Component {...(selector !== undefined ? { selector } : {})} {...restProps}>
         {children?.map((child, i) => (
-          <RenderNodeComponent key={i} node={child} form={form} path={path} settings={settings} />
+          <RenderNodeComponent key={i} node={child} form={form} path={path} />
         ))}
       </Component>
     );

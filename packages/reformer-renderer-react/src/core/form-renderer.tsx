@@ -70,12 +70,7 @@ export function FormRenderer<T>({ form, render, settings }: FormRendererProps<T>
 
   return (
     <RenderContextProvider value={{ form, path, settings }}>
-      <RenderNodeComponent
-        node={rootNode}
-        form={form as FormProxy<T>}
-        path={path}
-        settings={settings}
-      />
+      <RenderNodeComponent node={rootNode} form={form as FormProxy<T>} path={path} />
     </RenderContextProvider>
   );
 }
