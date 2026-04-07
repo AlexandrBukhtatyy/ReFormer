@@ -10,15 +10,13 @@ import { FormWizardProgress } from './FormWizardProgress';
 import { StepIndicator } from './StepIndicator';
 import { FormWizardActions } from './FormWizardActions';
 
-type FormValue = Record<string, unknown>;
-
-export interface FormWizardProps<T extends FormValue> extends FormWizardHeadlessProps<T> {
+export interface FormWizardProps<T extends object> extends FormWizardHeadlessProps<T> {
   className?: string;
   steps: FormWizardIndicatorStep[];
   onSubmit: FormWizardActionsProps['onSubmit'];
 }
 
-function FormWizardInner<T extends FormValue>(
+function FormWizardInner<T extends object>(
   props: FormWizardProps<T>,
   ref: ForwardedRef<FormWizardHandle<T>>
 ) {
@@ -64,6 +62,6 @@ function FormWizardInner<T extends FormValue>(
   );
 }
 
-export const FormWizard = forwardRef(FormWizardInner) as <T extends FormValue>(
+export const FormWizard = forwardRef(FormWizardInner) as <T extends object>(
   props: FormWizardProps<T> & { ref?: React.Ref<FormWizardHandle<T>> }
 ) => React.ReactElement | null;
