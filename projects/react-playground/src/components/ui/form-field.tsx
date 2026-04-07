@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { useFormControl, type FieldNode } from '@reformer/core';
+import { type FieldNode } from '@reformer/core';
+import { useFormField } from '@reformer/cdk/form-field';
 import { Checkbox } from './checkbox';
 
 export interface FormFieldProps {
@@ -12,38 +13,31 @@ export interface FormFieldProps {
 }
 
 const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId, children }) => {
-  const { value, errors, pending, disabled, shouldShowError, componentProps } =
-    useFormControl(control);
+  const { labelProps, controlProps, errorProps, state } = useFormField(control);
 
-  // Используем переданный testId или componentProps.testId или 'unknown'
-  const fieldTestId = testId ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
-
-  // Если children переданы (используется как fieldWrapper), рендерим их
-  // Иначе рендерим control.component напрямую (для обратной совместимости)
+  const fieldTestId = testId ?? (state.componentProps as { testId?: string })?.testId ?? 'unknown';
   const isCheckbox = control.component === Checkbox;
+  const safeValue = state.value ?? (isCheckbox ? false : '');
 
   const renderInput = () => {
     if (children) {
+      // fieldWrapper mode: children — уже отрендеренный input из RenderSchema
       return children;
     }
 
-    // Обратная совместимость: рендерим control.component напрямую
-    const Component = control.component;
-    const safeValue = value ?? (isCheckbox ? false : '');
+    const Component = control.component as React.ComponentType<Record<string, unknown>>;
 
     return (
       <Component
-        {...componentProps}
+        {...(state.componentProps as Record<string, unknown>)}
+        id={controlProps.id}
+        aria-labelledby={controlProps['aria-labelledby']}
+        aria-invalid={controlProps['aria-invalid']}
+        aria-errormessage={controlProps['aria-errormessage']}
         value={safeValue}
-        onChange={(e: unknown) => {
-          const newValue = isCheckbox
-            ? e
-            : ((e as { target?: { value?: unknown } })?.target?.value ?? e);
-          control.setValue(newValue);
-        }}
-        onBlur={() => control.markAsTouched()}
-        disabled={disabled}
-        aria-invalid={shouldShowError}
+        onChange={controlProps.onChange}
+        onBlur={controlProps.onBlur}
+        disabled={state.isDisabled}
         data-testid={`input-${fieldTestId}`}
       />
     );
@@ -51,26 +45,33 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
 
   return (
     <div className={className} data-testid={`field-${fieldTestId}`}>
-      {componentProps.label && !isCheckbox && (
-        <label className="block mb-1 text-sm font-medium" data-testid={`label-${fieldTestId}`}>
-          {componentProps.label}
+      {state.label && !isCheckbox && (
+        <label
+          {...labelProps}
+          className="block mb-1 text-sm font-medium"
+          data-testid={`label-${fieldTestId}`}
+        >
+          {state.label}
         </label>
       )}
 
       {renderInput()}
 
-      {shouldShowError && (
-        <span className="text-red-500 text-sm mt-1 block" data-testid={`error-${fieldTestId}`}>
-          {errors[0]?.message}
+      {state.shouldShowError && (
+        <span
+          {...errorProps}
+          className="text-red-500 text-sm mt-1 block"
+          data-testid={`error-${fieldTestId}`}
+        >
+          {state.error}
         </span>
       )}
 
-      {pending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
+      {state.isPending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
     </div>
   );
 };
 
-// Мемоизируем компонент
 export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {
   return (
     prevProps.control === nextProps.control &&
