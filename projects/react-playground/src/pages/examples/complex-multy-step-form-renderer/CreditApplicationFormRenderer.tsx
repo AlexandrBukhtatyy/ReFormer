@@ -37,7 +37,11 @@ function CreditApplicationFormRenderer() {
   // Рендер: Форма через FormRenderer с CreditApplicationWizard
   return (
     <div className="w-full">
-      <FormRenderer form={form} render={creditApplicationRenderSchema} fieldWrapper={FormField} />
+      <FormRenderer
+        form={form}
+        render={creditApplicationRenderSchema}
+        settings={{ fieldWrapper: FormField }}
+      />
     </div>
   );
 }
