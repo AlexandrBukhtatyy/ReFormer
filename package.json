@@ -66,6 +66,8 @@
     "vitest": "^4.0.8"
   },
   "dependencies": {
+    "@emnapi/core": "1.9.2",
+    "@emnapi/runtime": "1.9.2",
     "@napi-rs/wasm-runtime": "1.1.2",
     "@tailwindcss/vite": "^4.1.17",
     "napi-wasm": "1.1.3",
