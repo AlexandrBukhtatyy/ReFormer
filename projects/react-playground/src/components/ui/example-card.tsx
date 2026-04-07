@@ -118,22 +118,6 @@ export function ExampleCard({
 
         {/* Buttons */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Copy button - only visible in code mode */}
-          {showCode && (
-            <button
-              onClick={handleCopy}
-              className={cn(
-                'p-1.5 rounded transition-colors',
-                copied
-                  ? 'bg-green-100 text-green-600'
-                  : 'hover:bg-gray-200 text-gray-600 hover:text-gray-800'
-              )}
-              title={copied ? 'Скопировано!' : 'Копировать код'}
-            >
-              {copied ? <CheckIcon /> : <CopyIcon />}
-            </button>
-          )}
-
           {/* Toggle view/code button */}
           <button
             onClick={toggleView}
@@ -152,9 +136,23 @@ export function ExampleCard({
 
       {/* Content */}
       {showCode ? (
-        <pre className="text-xs bg-gray-800 text-green-400 p-3 rounded overflow-x-auto whitespace-pre-wrap">
-          {code}
-        </pre>
+        <div className="relative">
+          <pre className="text-xs bg-gray-800 text-green-400 p-3 pr-10 rounded overflow-x-auto whitespace-pre">
+            {code}
+          </pre>
+          <button
+            onClick={handleCopy}
+            className={cn(
+              'absolute top-2 right-2 p-1.5 rounded transition-colors',
+              copied
+                ? 'bg-green-700 text-green-300'
+                : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200'
+            )}
+            title={copied ? 'Скопировано!' : 'Копировать код'}
+          >
+            {copied ? <CheckIcon /> : <CopyIcon />}
+          </button>
+        </div>
       ) : (
         <div className="mt-4">{children}</div>
       )}

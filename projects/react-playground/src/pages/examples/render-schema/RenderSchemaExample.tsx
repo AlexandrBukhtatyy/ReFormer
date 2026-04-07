@@ -122,117 +122,107 @@ const createContactForm = () =>
 
 const renderSchema: RenderSchemaFn<ContactForm> = (path) => ({
   component: Box,
-  componentProps: {
-    className: 'flex flex-col gap-6',
-    children: [
-      // Секция: Личные данные
-      {
-        component: Section,
-        componentProps: {
-          title: 'Личные данные',
-          className: 'bg-white p-4 rounded-lg shadow',
-          titleClassName: 'text-lg font-semibold text-gray-800 mb-4',
-          children: [
-            {
-              component: Box,
-              componentProps: {
-                className: 'grid grid-cols-2 gap-4',
-                children: [{ component: path.firstName }, { component: path.lastName }],
-              },
-            },
-          ],
-        },
+  componentProps: { className: 'flex flex-col gap-6' },
+  children: [
+    // Секция: Личные данные
+    {
+      component: Section,
+      componentProps: {
+        title: 'Личные данные',
+        className: 'bg-white p-4 rounded-lg shadow',
+        titleClassName: 'text-lg font-semibold text-gray-800 mb-4',
       },
+      children: [
+        {
+          component: Box,
+          componentProps: { className: 'grid grid-cols-2 gap-4' },
+          children: [{ component: path.firstName }, { component: path.lastName }],
+        },
+      ],
+    },
 
-      // Секция: Контактная информация
-      {
-        component: Section,
-        componentProps: {
-          title: 'Контактная информация',
-          className: 'bg-white p-4 rounded-lg shadow',
-          titleClassName: 'text-lg font-semibold text-gray-800 mb-4',
-          children: [
-            {
-              component: Box,
-              componentProps: {
-                className: 'grid grid-cols-2 gap-4',
-                children: [{ component: path.email }, { component: path.phone }],
-              },
-            },
-          ],
-        },
+    // Секция: Контактная информация
+    {
+      component: Section,
+      componentProps: {
+        title: 'Контактная информация',
+        className: 'bg-white p-4 rounded-lg shadow',
+        titleClassName: 'text-lg font-semibold text-gray-800 mb-4',
       },
+      children: [
+        {
+          component: Box,
+          componentProps: { className: 'grid grid-cols-2 gap-4' },
+          children: [{ component: path.email }, { component: path.phone }],
+        },
+      ],
+    },
 
-      // Секция: Рабочая информация (сворачиваемая)
-      {
-        component: Collapsible,
-        componentProps: {
-          title: 'Рабочая информация (опционально)',
-          defaultOpen: false,
-          className: 'bg-white p-4 rounded-lg shadow',
-          titleClassName: 'text-lg font-semibold text-gray-800 cursor-pointer hover:text-blue-600',
-          contentClassName: 'mt-4',
-          children: [
-            {
-              component: Box,
-              componentProps: {
-                className: 'grid grid-cols-2 gap-4',
-                children: [{ component: path.company }, { component: path.position }],
-              },
-            },
-          ],
-        },
+    // Секция: Рабочая информация (сворачиваемая)
+    {
+      component: Collapsible,
+      componentProps: {
+        title: 'Рабочая информация (опционально)',
+        defaultOpen: false,
+        className: 'bg-white p-4 rounded-lg shadow',
+        titleClassName: 'text-lg font-semibold text-gray-800 cursor-pointer hover:text-blue-600',
+        contentClassName: 'mt-4',
       },
+      children: [
+        {
+          component: Box,
+          componentProps: { className: 'grid grid-cols-2 gap-4' },
+          children: [{ component: path.company }, { component: path.position }],
+        },
+      ],
+    },
 
-      // Секция: Сообщение
-      {
-        component: Section,
-        componentProps: {
-          title: 'Сообщение',
-          className: 'bg-white p-4 rounded-lg shadow',
-          titleClassName: 'text-lg font-semibold text-gray-800 mb-4',
-          children: [{ component: path.message }],
-        },
+    // Секция: Сообщение
+    {
+      component: Section,
+      componentProps: {
+        title: 'Сообщение',
+        className: 'bg-white p-4 rounded-lg shadow',
+        titleClassName: 'text-lg font-semibold text-gray-800 mb-4',
       },
+      children: [{ component: path.message }],
+    },
 
-      // Секция: Заметки (сворачиваемая)
-      {
-        component: Collapsible,
-        componentProps: {
-          title: 'Дополнительные заметки',
-          defaultOpen: false,
-          className: 'bg-white p-4 rounded-lg shadow',
-          titleClassName: 'text-lg font-semibold text-gray-800 cursor-pointer hover:text-blue-600',
-          contentClassName: 'mt-4',
-          children: [{ component: path.notes }],
-        },
+    // Секция: Заметки (сворачиваемая)
+    {
+      component: Collapsible,
+      componentProps: {
+        title: 'Дополнительные заметки',
+        defaultOpen: false,
+        className: 'bg-white p-4 rounded-lg shadow',
+        titleClassName: 'text-lg font-semibold text-gray-800 cursor-pointer hover:text-blue-600',
+        contentClassName: 'mt-4',
       },
+      children: [{ component: path.notes }],
+    },
 
-      // Секция: Адреса
-      {
-        component: RendererFormArraySection,
-        componentProps: {
-          title: 'Адреса',
-          array: path.addresses,
-          itemLabel: (_: unknown, index: number) => `Адрес #${index + 1}`,
-          addButtonLabel: '+ Добавить адрес',
-          emptyMessage: 'Адреса не добавлены. Нажмите кнопку выше, чтобы добавить адрес.',
-          itemComponent: (itemPath: FieldPath<Address>) =>
-            ({
-              component: Box,
-              componentProps: {
-                className: 'grid grid-cols-3 gap-4',
-                children: [
-                  { component: itemPath.city },
-                  { component: itemPath.street },
-                  { component: itemPath.zipCode },
-                ],
-              },
-            }) as RenderNode<Address>,
-        },
+    // Секция: Адреса
+    {
+      component: RendererFormArraySection,
+      componentProps: {
+        title: 'Адреса',
+        array: path.addresses,
+        itemLabel: (_: unknown, index: number) => `Адрес #${index + 1}`,
+        addButtonLabel: '+ Добавить адрес',
+        emptyMessage: 'Адреса не добавлены. Нажмите кнопку выше, чтобы добавить адрес.',
+        itemComponent: (itemPath: FieldPath<Address>) =>
+          ({
+            component: Box,
+            componentProps: { className: 'grid grid-cols-3 gap-4' },
+            children: [
+              { component: itemPath.city },
+              { component: itemPath.street },
+              { component: itemPath.zipCode },
+            ],
+          }) as RenderNode<Address>,
       },
-    ] as RenderNode<ContactForm>[],
-  },
+    },
+  ] as RenderNode<ContactForm>[],
 });
 
 // ============================================================================
@@ -254,7 +244,7 @@ function ContactFormWithRenderSchema() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl">
+    <form onSubmit={handleSubmit} className="w-full">
       <FormRenderer form={form} render={renderSchema} settings={{ fieldWrapper: FormField }} />
 
       <div className="mt-6 flex gap-4">
