@@ -308,18 +308,18 @@ export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 | `map(callback)`   | Итерация по элементам массива                     |
 | `length`          | Получить текущую длину массива                    |
 
-### FormArray из @reformer/ui
+### FormArray из @reformer/cdk
 
-Пакет `@reformer/ui` предоставляет `FormArray` — headless compound component для управления массивами форм:
+Пакет `@reformer/cdk` предоставляет `FormArray` — headless compound component для управления массивами форм:
 
 ```bash
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 #### Базовое использование
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { Button } from '@/components/ui/button';
 
 <FormArray.Root control={form.items}>
@@ -366,7 +366,7 @@ interface FormArrayItemRenderProps<T> {
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx"
 import { useFormControlValue } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../sub-forms/property/PropertyForm';
 import { CoBorrowerForm } from '../sub-forms/co-borrower/CoBorrowerForm';
@@ -459,7 +459,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 Для полной кастомизации без compound components:
 
 ```tsx
-import { useFormArray } from '@reformer/ui/form-array';
+import { useFormArray } from '@reformer/cdk/form-array';
 
 function CustomList({ control }) {
   const { items, add, isEmpty, length } = useFormArray(control);

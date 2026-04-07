@@ -1,6 +1,6 @@
 # Overview
 
-`@reformer/ui` provides headless UI components for `@reformer/core` forms.
+`@reformer/cdk` provides headless UI components for `@reformer/core` forms.
 
 ## Key Concepts
 
@@ -19,16 +19,16 @@
 ## Installation
 
 ```bash
-npm install @reformer/ui @reformer/core
+npm install @reformer/cdk @reformer/core
 ```
 
 ## Import Patterns
 
 ```typescript
 // All components
-import { FormArray, FormWizard } from '@reformer/ui';
+import { FormArray, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
-import { FormArray, useFormArray } from '@reformer/ui/form-array';
-import { FormWizard, useFormWizard } from '@reformer/ui/form-wizard';
+import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 ```

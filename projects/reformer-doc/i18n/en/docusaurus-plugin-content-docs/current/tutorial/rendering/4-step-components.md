@@ -313,12 +313,12 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 
 ## Step 5: Additional Information
 
-Demonstrates working with arrays using `FormArray` from `@reformer/ui`:
+Demonstrates working with arrays using `FormArray` from `@reformer/cdk`:
 
 ```tsx title="src/steps/AdditionalInfoForm.tsx"
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../sub-forms/property/PropertyForm';
 import { ExistingLoanForm } from '../sub-forms/existing-loan/ExistingLoanForm';

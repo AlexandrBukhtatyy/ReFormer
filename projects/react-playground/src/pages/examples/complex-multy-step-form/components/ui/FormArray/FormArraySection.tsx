@@ -24,7 +24,7 @@
 
 import type { FormArrayProxy, FormFields, FormProxy } from '@reformer/core';
 import type { ComponentType } from 'react';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 
 export interface FormArraySectionProps<T extends object> {
   /** Заголовок секции */

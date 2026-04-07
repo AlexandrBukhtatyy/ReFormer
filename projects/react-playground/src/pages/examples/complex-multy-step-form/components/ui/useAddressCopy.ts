@@ -6,7 +6,7 @@
  * - Очистка адреса проживания
  */
 
-import { useFormWizard } from '@reformer/ui/form-wizard';
+import { useFormWizard } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 interface UseAddressCopyResult {

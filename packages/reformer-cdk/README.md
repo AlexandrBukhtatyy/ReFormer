@@ -1,4 +1,4 @@
-# @reformer/ui
+# @reformer/cdk
 
 Headless UI components for `@reformer/core` - build accessible, fully customizable form interfaces.
 
@@ -13,7 +13,7 @@ Headless UI components for `@reformer/core` - build accessible, fully customizab
 ## Installation
 
 ```bash
-npm install @reformer/ui @reformer/core
+npm install @reformer/cdk @reformer/core
 ```
 
 ## Components
@@ -23,7 +23,7 @@ npm install @reformer/ui @reformer/core
 Manage dynamic form arrays with add/remove functionality.
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 
 <FormArray.Root control={form.items}>
   <FormArray.Empty>
@@ -49,7 +49,7 @@ import { FormArray } from '@reformer/ui/form-array';
 Build multi-step form wizards with validation.
 
 ```tsx
-import { FormWizard } from '@reformer/ui/form-wizard';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
 <FormWizard form={form} config={config}>
   <FormWizard.Indicator steps={STEPS}>
@@ -87,8 +87,8 @@ import { FormWizard } from '@reformer/ui/form-wizard';
 For full customization, use the hooks directly:
 
 ```tsx
-import { useFormArray } from '@reformer/ui/form-array';
-import { useFormWizard } from '@reformer/ui/form-wizard';
+import { useFormArray } from '@reformer/cdk/form-array';
+import { useFormWizard } from '@reformer/cdk/form-wizard';
 ```
 
 ## License

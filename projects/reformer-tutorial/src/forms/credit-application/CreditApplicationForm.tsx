@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 // Компоненты шагов
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';

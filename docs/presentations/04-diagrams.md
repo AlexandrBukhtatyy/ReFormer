@@ -269,7 +269,7 @@ graph TB
         end
     end
 
-    subgraph "@reformer/ui"
+    subgraph "@reformer/cdk"
         FormArray[FormArray]
         FormWizard[FormWizard]
     end

@@ -36,5 +36,5 @@ jobs:
       - name: Run @reformer/core tests
         run: npm run test -w @reformer/core
 
-      - name: Build @reformer/ui
-        run: npm run build -w @reformer/ui
+      - name: Build @reformer/cdk
+        run: npm run build -w @reformer/cdk

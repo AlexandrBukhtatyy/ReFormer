@@ -5,7 +5,7 @@ Headless compound component for managing form arrays.
 ## Basic Usage
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 
 <FormArray.Root control={form.items}>
   <FormArray.Empty>
@@ -53,7 +53,7 @@ interface FormArrayItemRenderProps<T> {
 
 ```tsx
 import { useRef } from 'react';
-import { FormArray, FormArrayHandle } from '@reformer/ui/form-array';
+import { FormArray, FormArrayHandle } from '@reformer/cdk/form-array';
 
 const arrayRef = useRef<FormArrayHandle<ItemType>>(null);
 
@@ -86,7 +86,7 @@ interface FormArrayHandle<T> {
 For full customization without compound components:
 
 ```tsx
-import { useFormArray } from '@reformer/ui/form-array';
+import { useFormArray } from '@reformer/cdk/form-array';
 
 function CustomList() {
   const { items, add, isEmpty, length } = useFormArray(form.items);

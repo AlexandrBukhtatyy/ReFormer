@@ -28,7 +28,7 @@ import type { CreditApplicationForm as CreditApplicationFormType } from './types
 import { LoadingState } from './components/ui/LoadingState';
 import { ErrorState } from './components/ui/ErrorState';
 import { FormWizard } from './components/ui/FormWizzard/FormWizard';
-import type { FormWizardHandle, FormWizardIndicatorStep } from '@reformer/ui/form-wizard';
+import type { FormWizardHandle, FormWizardIndicatorStep } from '@reformer/cdk/form-wizard';
 
 export const STEPS: FormWizardIndicatorStep[] = [
   { number: 1, title: 'Кредит', icon: '💰', component: BasicInfoForm },

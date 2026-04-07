@@ -16,7 +16,7 @@ Reactive form state management library for React with signals-based architecture
 | Package                                  | Description                                    | Version                                                                                                 |
 | ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | [@reformer/core](./packages/reformer)    | Core form state management                     | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
-| [@reformer/ui](./packages/reformer-ui)   | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/ui.svg)](https://www.npmjs.com/package/@reformer/ui)     |
+| [@reformer/cdk](./packages/reformer-cdk)   | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)     |
 | [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants                   | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)   |
 
 ## Features
@@ -38,7 +38,7 @@ Reactive form state management library for React with signals-based architecture
 npm install @reformer/core
 
 # Optional: Headless UI components
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 ## Quick Start
@@ -147,7 +147,7 @@ behavior: (path) => {
 ### FormArray
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 
 <FormArray.Root control={form.items}>
   <FormArray.Empty>No items</FormArray.Empty>
@@ -166,7 +166,7 @@ import { FormArray } from '@reformer/ui/form-array';
 ### FormWizard (Multi-step Wizard)
 
 ```tsx
-import { FormWizard } from '@reformer/ui/form-wizard';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
 <FormWizard form={form} config={config}>
   <FormWizard.Step component={Step1} control={form} />

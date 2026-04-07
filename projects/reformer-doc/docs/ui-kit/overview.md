@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Обзор
 
-`@reformer/ui` — библиотека headless UI компонентов для работы с формами `@reformer/core`.
+`@reformer/cdk` — библиотека headless UI компонентов для работы с формами `@reformer/core`.
 
 ## Ключевые концепции
 
@@ -23,18 +23,18 @@ sidebar_position: 1
 ## Установка
 
 ```bash
-npm install @reformer/ui @reformer/core
+npm install @reformer/cdk @reformer/core
 ```
 
 ## Импорты
 
 ```typescript
 // Все компоненты
-import { FormArray, FormWizard } from '@reformer/ui';
+import { FormArray, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (рекомендуется)
-import { FormArray, useFormArray } from '@reformer/ui/form-array';
-import { FormWizard, useFormWizard } from '@reformer/ui/form-wizard';
+import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 ```
 
 ## Почему Headless?

@@ -165,7 +165,7 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * @example External control via ref
  * ```tsx
  * import { useRef } from 'react';
- * import { FormArray, FormArrayHandle } from '@reformer/ui/form-array';
+ * import { FormArray, FormArrayHandle } from '@reformer/cdk/form-array';
  *
  * function PropertiesManager() {
  *   const arrayRef = useRef<FormArrayHandle<Property>>(null);
@@ -212,7 +212,7 @@ type FormArrayComponent = typeof FormArrayRoot & {
  *
  * @example Using useFormArray hook for full customization
  * ```tsx
- * import { useFormArray } from '@reformer/ui/form-array';
+ * import { useFormArray } from '@reformer/cdk/form-array';
  *
  * function CustomArrayUI() {
  *   const { items, add, isEmpty, length } = useFormArray(form.properties);

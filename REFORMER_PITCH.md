@@ -369,7 +369,7 @@ function WizardForm() {
 
 ```tsx
 // ✅ ReFormer — встроенный FormWizard
-import { FormWizard } from '@reformer/ui/form-wizard';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
 // Валидация по шагам
 const STEP_VALIDATIONS = {

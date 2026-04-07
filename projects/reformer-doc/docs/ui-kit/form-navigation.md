@@ -9,7 +9,7 @@ Headless compound component для multi-step form wizard.
 ## Базовое использование
 
 ```tsx
-import { FormWizard } from '@reformer/ui/form-wizard';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
 const config = {
   stepValidations: {

@@ -5,7 +5,7 @@
  */
 
 import type { FC } from 'react';
-import type { FormWizardProgressRenderProps } from '@reformer/ui/form-wizard';
+import type { FormWizardProgressRenderProps } from '@reformer/cdk/form-wizard';
 import { combineClasses } from '@/utils/combine-classes';
 
 interface FormWizardProgressProps extends FormWizardProgressRenderProps {

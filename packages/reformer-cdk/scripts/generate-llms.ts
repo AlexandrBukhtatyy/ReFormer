@@ -20,7 +20,7 @@ const __dirname = dirname(__filename);
 const DOCS_DIR = join(__dirname, '../docs/llms');
 const OUTPUT_FILE = join(__dirname, '../llms.txt');
 
-const HEADER = `# @reformer/ui - LLM Integration Guide
+const HEADER = `# @reformer/cdk - LLM Integration Guide
 
 Headless UI components for @reformer/core forms.
 

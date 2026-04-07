@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ArrayNode, FieldPath, FormProxy } from '@reformer/core';
 import { extractPath, createFieldPath, FieldPathNavigator } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { RenderNodeComponent, useRenderContext } from '@reformer/renderer-react';
 import type { RenderNode } from '@reformer/renderer-react';
 

@@ -162,7 +162,7 @@ behavior: (path) => {
 
 ```
 @reformer/core      Core library (required)
-@reformer/ui        Headless UI components
+@reformer/cdk        Headless UI components
 @reformer/zod       Zod schema adapter
 @reformer/yup       Yup schema adapter
 @reformer/valibot   Valibot schema adapter

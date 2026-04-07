@@ -1,6 +1,6 @@
 {
   "branches": ["main", { "name": "develop", "prerelease": "beta" }],
-  "tagFormat": "ui-v${version}",
+  "tagFormat": "cdk-v${version}",
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",

@@ -4,7 +4,7 @@ sidebar_position: 9
 
 # Навигация в многошаговых формах
 
-Использование компонента `FormWizard` из `@reformer/ui` для многошагового мастера форм с пошаговой валидацией.
+Использование компонента `FormWizard` из `@reformer/cdk` для многошагового мастера форм с пошаговой валидацией.
 
 ## Обзор
 
@@ -15,12 +15,12 @@ sidebar_position: 9
 3. **Отслеживать завершённые шаги** — разрешать навигацию только к посещённым шагам
 4. **Предоставлять методы навигации** — Далее, Назад, Перейти к шагу
 
-Пакет `@reformer/ui` предоставляет `FormWizard` — headless compound component, который обрабатывает всю эту логику.
+Пакет `@reformer/cdk` предоставляет `FormWizard` — headless compound component, который обрабатывает всю эту логику.
 
 ## Установка
 
 ```bash
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 ## Проблема
@@ -41,7 +41,7 @@ createForm<CreditApplicationForm>({
 
 ## Решение: FormWizard
 
-`FormWizard` из `@reformer/ui` предоставляет:
+`FormWizard` из `@reformer/cdk` предоставляет:
 
 - **Пошаговую валидацию** через `validateForm` внутри
 - **Отслеживание прогресса** с завершёнными шагами
@@ -89,7 +89,7 @@ const STEP_VALIDATIONS = {
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 // Компоненты шагов
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
@@ -265,7 +265,7 @@ Headless отображение прогресса:
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { Button } from '@/components/ui/button';
 
 // Импорты шагов и валидаторов...

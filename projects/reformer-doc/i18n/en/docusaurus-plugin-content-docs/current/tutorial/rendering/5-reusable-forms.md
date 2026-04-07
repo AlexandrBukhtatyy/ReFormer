@@ -308,18 +308,18 @@ export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 | `map(callback)`   | Iterate over array elements                       |
 | `length`          | Get current array length                          |
 
-### FormArray from @reformer/ui
+### FormArray from @reformer/cdk
 
-The `@reformer/ui` package provides `FormArray` — a headless compound component for managing form arrays:
+The `@reformer/cdk` package provides `FormArray` — a headless compound component for managing form arrays:
 
 ```bash
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 #### Basic Usage
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { Button } from '@/components/ui/button';
 
 <FormArray.Root control={form.items}>
@@ -366,7 +366,7 @@ interface FormArrayItemRenderProps<T> {
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx"
 import { useFormControlValue } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../sub-forms/property/PropertyForm';
 import { CoBorrowerForm } from '../sub-forms/co-borrower/CoBorrowerForm';
@@ -459,7 +459,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 For full customization without compound components:
 
 ```tsx
-import { useFormArray } from '@reformer/ui/form-array';
+import { useFormArray } from '@reformer/cdk/form-array';
 
 function CustomList({ control }) {
   const { items, add, isEmpty, length } = useFormArray(control);

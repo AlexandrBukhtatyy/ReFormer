@@ -5,12 +5,11 @@ import {
   type FormWizardHandle,
   type FormWizardProps as FormWizardHeadlessProps,
   type FormWizardIndicatorStep,
-} from '@reformer/ui/form-wizard';
+} from '@reformer/cdk/form-wizard';
 import { FormWizardProgress } from './FormWizardProgress';
 import { StepIndicator } from './StepIndicator';
 import { FormWizardActions } from './FormWizardActions';
 
-// @ts-expect-error - type mismatch in behaviors generic
 type FormValue = Record<string, unknown>;
 
 export interface FormWizardProps<T extends FormValue> extends FormWizardHeadlessProps<T> {

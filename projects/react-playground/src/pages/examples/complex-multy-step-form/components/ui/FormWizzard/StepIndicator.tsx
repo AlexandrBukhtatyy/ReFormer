@@ -8,7 +8,7 @@ import type { FC } from 'react';
 import type {
   FormWizardIndicatorStepWithState,
   FormWizardIndicatorRenderProps,
-} from '@reformer/ui/form-wizard';
+} from '@reformer/cdk/form-wizard';
 
 interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
   className?: string;

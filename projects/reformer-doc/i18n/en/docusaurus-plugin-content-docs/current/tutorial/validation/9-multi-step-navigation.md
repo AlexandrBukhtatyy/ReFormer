@@ -4,7 +4,7 @@ sidebar_position: 9
 
 # Multi-Step Form Navigation
 
-Using the `FormWizard` component from `@reformer/ui` for multi-step form wizard with step-by-step validation.
+Using the `FormWizard` component from `@reformer/cdk` for multi-step form wizard with step-by-step validation.
 
 ## Overview
 
@@ -15,12 +15,12 @@ In multi-step forms we need to:
 3. **Track completed steps** — allow navigation only to visited steps
 4. **Provide navigation methods** — Next, Back, Go to step
 
-The `@reformer/ui` package provides `FormWizard` — a headless compound component that handles all this logic.
+The `@reformer/cdk` package provides `FormWizard` — a headless compound component that handles all this logic.
 
 ## Installation
 
 ```bash
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 ## The Problem
@@ -41,7 +41,7 @@ We need a way to validate only specific fields on each step while preserving ful
 
 ## Solution: FormWizard
 
-`FormWizard` from `@reformer/ui` provides:
+`FormWizard` from `@reformer/cdk` provides:
 
 - **Step-by-step validation** via `validateForm` internally
 - **Progress tracking** with completed steps
@@ -89,7 +89,7 @@ const STEP_VALIDATIONS = {
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 // Step components
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
@@ -265,7 +265,7 @@ Headless progress display:
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormWizard, type FormWizardHandle } from '@reformer/ui/form-wizard';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { Button } from '@/components/ui/button';
 
 // Step and validator imports...

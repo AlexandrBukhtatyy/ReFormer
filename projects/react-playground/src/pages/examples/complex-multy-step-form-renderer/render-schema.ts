@@ -7,7 +7,7 @@
 
 import type { FieldPath, FormProxy } from '@reformer/core';
 import type { RenderSchemaFn, RenderNode } from '@reformer/renderer-react';
-import { Step } from '@reformer/ui/form-wizard';
+import { Step } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import type { Property } from '../complex-multy-step-form/components/nested-forms/Property/types';
 import type { ExistingLoan } from '../complex-multy-step-form/components/nested-forms/ExistingLoan/types';

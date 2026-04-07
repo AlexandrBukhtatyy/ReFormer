@@ -10,7 +10,7 @@ A practical guide to get started with ReFormer in 10 minutes.
 npm install @reformer/core
 
 # Optional: UI components
-npm install @reformer/ui
+npm install @reformer/cdk
 
 # Optional: Schema adapters
 npm install @reformer/zod   # or @reformer/yup or @reformer/valibot
@@ -237,7 +237,7 @@ behavior: (path) => {
 ## 6. Dynamic Arrays
 
 ```typescript
-import { FormArray } from '@reformer/ui';
+import { FormArray } from '@reformer/cdk';
 
 interface OrderForm {
   items: Array<{ name: string; price: number; qty: number }>;
@@ -289,7 +289,7 @@ form.items.clear();
 ## 7. Multi-step Forms
 
 ```typescript
-import { FormWizard } from '@reformer/ui';
+import { FormWizard } from '@reformer/cdk';
 
 function WizardForm() {
   return (

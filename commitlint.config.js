@@ -24,7 +24,7 @@ export default {
       [
         'reformer',
         'reformer-renderer-react',
-        'reformer-ui',
+        'reformer-cdk',
         'reformer-mcp',
         'react-playground',
         'react-playground-e2e',
