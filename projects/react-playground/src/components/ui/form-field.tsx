@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { type FieldNode } from '@reformer/core';
-import { useFormField } from '@reformer/cdk/form-field';
+import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/form-field';
 import { Checkbox } from './checkbox';
 
 export interface FormFieldProps {
@@ -12,63 +12,63 @@ export interface FormFieldProps {
   children?: React.ReactNode;
 }
 
-const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId, children }) => {
-  const { labelProps, controlProps, errorProps, state } = useFormField(control);
+interface FormFieldInnerProps {
+  className?: string;
+  testIdProp?: string;
+  isCheckbox: boolean;
+  customChildren?: React.ReactNode;
+}
 
-  const fieldTestId = testId ?? (state.componentProps as { testId?: string })?.testId ?? 'unknown';
-  const isCheckbox = control.component === Checkbox;
-  const safeValue = state.value ?? (isCheckbox ? false : '');
-
-  const renderInput = () => {
-    if (children) {
-      // fieldWrapper mode: children — уже отрендеренный input из RenderSchema
-      return children;
-    }
-
-    const Component = control.component as React.ComponentType<Record<string, unknown>>;
-
-    return (
-      <Component
-        {...(state.componentProps as Record<string, unknown>)}
-        id={controlProps.id}
-        aria-labelledby={controlProps['aria-labelledby']}
-        aria-invalid={controlProps['aria-invalid']}
-        aria-errormessage={controlProps['aria-errormessage']}
-        value={safeValue}
-        onChange={controlProps.onChange}
-        onBlur={controlProps.onBlur}
-        disabled={state.isDisabled}
-        data-testid={`input-${fieldTestId}`}
-      />
-    );
-  };
+/**
+ * Inner component reads context provided by CdkFormField.Root.
+ * Needed to access componentProps for testId fallback and pending state.
+ */
+function FormFieldInner({
+  className,
+  testIdProp,
+  isCheckbox,
+  customChildren,
+}: FormFieldInnerProps) {
+  const { componentProps, pending } = useFormFieldContext();
+  const testId = testIdProp ?? (componentProps as { testId?: string })?.testId ?? 'unknown';
 
   return (
-    <div className={className} data-testid={`field-${fieldTestId}`}>
-      {state.label && !isCheckbox && (
-        <label
-          {...labelProps}
+    <div className={className} data-testid={`field-${testId}`}>
+      {!isCheckbox && (
+        <CdkFormField.Label
           className="block mb-1 text-sm font-medium"
-          data-testid={`label-${fieldTestId}`}
-        >
-          {state.label}
-        </label>
+          data-testid={`label-${testId}`}
+        />
       )}
 
-      {renderInput()}
-
-      {state.shouldShowError && (
-        <span
-          {...errorProps}
-          className="text-red-500 text-sm mt-1 block"
-          data-testid={`error-${fieldTestId}`}
-        >
-          {state.error}
-        </span>
+      {customChildren ? (
+        <CdkFormField.Control asChild>{customChildren}</CdkFormField.Control>
+      ) : (
+        <CdkFormField.Control data-testid={`input-${testId}`} />
       )}
 
-      {state.isPending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
+      <CdkFormField.Error
+        className="text-red-500 text-sm mt-1 block"
+        data-testid={`error-${testId}`}
+      />
+
+      {pending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
     </div>
+  );
+}
+
+const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, testId, children }) => {
+  const isCheckbox = control.component === Checkbox;
+
+  return (
+    <CdkFormField.Root control={control}>
+      <FormFieldInner
+        className={className}
+        testIdProp={testId}
+        isCheckbox={isCheckbox}
+        customChildren={children}
+      />
+    </CdkFormField.Root>
   );
 };
 
