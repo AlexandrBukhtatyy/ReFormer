@@ -14,6 +14,7 @@ export default defineConfig({
         index: resolve(__dirname, 'src/index.ts'),
         'form-array': resolve(__dirname, 'src/components/form-array/index.ts'),
         'form-wizard': resolve(__dirname, 'src/components/form-wizard/index.ts'),
+        'form-field': resolve(__dirname, 'src/components/form-field/index.ts'),
       },
       formats: ['es'],
     },

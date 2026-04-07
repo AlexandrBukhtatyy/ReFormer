@@ -18,6 +18,10 @@
     "./form-wizard": {
       "types": "./dist/form-wizard.d.ts",
       "import": "./dist/form-wizard.js"
+    },
+    "./form-field": {
+      "types": "./dist/form-field.d.ts",
+      "import": "./dist/form-field.js"
     }
   },
   "sideEffects": false,

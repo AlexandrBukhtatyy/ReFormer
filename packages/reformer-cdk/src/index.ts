@@ -33,6 +33,37 @@ export type {
 } from './components/form-array';
 
 // ============================================================================
+// FormField - Headless compound component for accessible form field anatomy
+// ============================================================================
+export {
+  FormField,
+  FormFieldRoot,
+  FormFieldLabel,
+  FormFieldControl,
+  FormFieldError,
+  FormFieldDescription,
+  useFormField,
+  FormFieldContext,
+  useFormFieldContext,
+} from './components/form-field';
+
+export type {
+  FormFieldIds,
+  FormFieldContextValue,
+  FormFieldRootProps,
+  FormFieldLabelProps,
+  FormFieldControlProps,
+  FormFieldErrorProps,
+  FormFieldDescriptionProps,
+  UseFormFieldReturn,
+  UseFormFieldState,
+  UseFormFieldLabelProps,
+  UseFormFieldControlProps,
+  UseFormFieldErrorProps,
+  UseFormFieldDescriptionProps,
+} from './components/form-field';
+
+// ============================================================================
 // FormWizard - Headless compound component for multi-step form wizards
 // ============================================================================
 export {
