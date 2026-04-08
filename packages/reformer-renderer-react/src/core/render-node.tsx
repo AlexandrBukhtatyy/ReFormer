@@ -15,6 +15,7 @@ import {
 import type { RenderNode, FieldWrapperProps } from './types';
 import { isFieldRenderNode, isContainerRenderNode } from './utils';
 import { useRenderContext } from './render-context';
+import { useOptionalSignalValue, type RenderNodeOverrides } from './render-schema-proxy';
 
 /**
  * Props для RenderNodeComponent
@@ -108,8 +109,15 @@ export function RenderNodeComponent<T>({
   // prop имеет приоритет над глобальным settings (для user-space компонентов с вложенными формами)
   const fieldWrapper = fieldWrapperProp ?? settings?.fieldWrapper;
 
-  // Проверка условия hidden (реактивная через хук)
-  const isHidden = useHiddenCondition(node.hidden, form, path);
+  // Читаем сигналы переопределений (если нода создана через createRenderSchema)
+  const overrides = node as unknown as RenderNodeOverrides;
+  const hiddenOverride = useOptionalSignalValue(overrides.__hiddenOverride);
+  const propsOverride = useOptionalSignalValue(overrides.__propsOverride);
+
+  // Реактивная проверка условия hidden из схемы
+  const isHiddenByCondition = useHiddenCondition(node.hidden, form, path);
+  // Переопределение имеет приоритет: null/undefined = переопределение не задано
+  const isHidden = hiddenOverride != null ? hiddenOverride : isHiddenByCondition;
 
   if (isHidden) {
     return null;
@@ -146,7 +154,9 @@ export function RenderNodeComponent<T>({
   // ========================================
   if (isContainerRenderNode(node)) {
     const { selector, component: Component, children } = node;
-    const restProps = node.componentProps || {};
+    const baseProps = node.componentProps || {};
+    // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
+    const effectiveProps = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
 
     // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
@@ -157,14 +167,14 @@ export function RenderNodeComponent<T>({
       return (
         <SelfManagedComponent
           {...(selector !== undefined ? { selector } : {})}
-          {...restProps}
+          {...effectiveProps}
           children={children}
         />
       );
     }
 
     return (
-      <Component {...(selector !== undefined ? { selector } : {})} {...restProps}>
+      <Component {...(selector !== undefined ? { selector } : {})} {...effectiveProps}>
         {children?.map((child, i) => (
           <RenderNodeComponent key={i} node={child} form={form} path={path} />
         ))}

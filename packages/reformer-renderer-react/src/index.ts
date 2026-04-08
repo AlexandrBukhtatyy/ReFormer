@@ -56,3 +56,11 @@ export { useRenderContext, type RenderContextValue } from './core/render-context
 
 // Utils
 export { isFieldRenderNode, isContainerRenderNode } from './core/utils';
+
+// Programmatic render schema control
+export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-proxy';
+export type {
+  RenderSchemaProxy,
+  RenderNodeControl,
+  RenderNodeOverrides,
+} from './core/render-schema-proxy';
