@@ -4,12 +4,18 @@
  * @module reformer/renderer-react/form-renderer
  */
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import type { FormProxy } from '@reformer/core';
 import { createFieldPath } from '@reformer/core';
 import type { FormRendererProps } from './types';
 import { RenderNodeComponent } from './render-node';
 import { RenderContextProvider } from './render-context';
+import { isRenderSchemaProxy, RenderSchemaOverrideContext } from './render-schema-proxy';
+import {
+  buildRenderBehavior,
+  RenderBehaviorContext,
+  RenderBehaviorEffects,
+} from './render-behavior';
 
 /**
  * FormRenderer - рендеринг формы на основе RenderSchema
@@ -64,13 +70,41 @@ import { RenderContextProvider } from './render-context';
  * }
  * ```
  */
-export function FormRenderer<T>({ form, render, settings }: FormRendererProps<T>): ReactNode {
+export function FormRenderer<T>({
+  form,
+  render,
+  settings,
+  renderBehavior,
+}: FormRendererProps<T>): ReactNode {
   const path = createFieldPath<T>();
   const rootNode = render(path);
+  // Conditions are stable — recalculate only when renderBehavior reference changes
+  const behaviorResult = useMemo(() => buildRenderBehavior(renderBehavior), [renderBehavior]);
 
-  return (
+  let inner: ReactNode = (
     <RenderContextProvider value={{ form, path, settings }}>
+      {behaviorResult && behaviorResult.effects.length > 0 && (
+        <RenderBehaviorEffects form={form} effects={behaviorResult.effects} />
+      )}
       <RenderNodeComponent node={rootNode} form={form as FormProxy<T>} path={path} />
     </RenderContextProvider>
   );
+
+  if (behaviorResult) {
+    inner = (
+      <RenderBehaviorContext.Provider value={behaviorResult.conditions}>
+        {inner}
+      </RenderBehaviorContext.Provider>
+    );
+  }
+
+  if (isRenderSchemaProxy(render)) {
+    return (
+      <RenderSchemaOverrideContext.Provider value={render.__overrideMaps}>
+        {inner}
+      </RenderSchemaOverrideContext.Provider>
+    );
+  }
+
+  return inner;
 }

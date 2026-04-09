@@ -9,7 +9,7 @@
  * Дочерние узлы идентифицируются по полю selector на уровне ContainerRenderNode.
  */
 
-import { type ReactNode } from 'react';
+import { type ReactNode, type Ref } from 'react';
 import { type FormProxy, type FieldPath } from '@reformer/core';
 import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import type { CreditApplicationForm } from '../../../types/credit-application';
@@ -18,6 +18,7 @@ import type {
   FormWizardConfig,
   FormWizardActionsProps,
   FormWizardIndicatorStep,
+  FormWizardHandle,
 } from '@reformer/cdk/form-wizard';
 
 type RendererStep = FormWizardIndicatorStep & {
@@ -25,6 +26,8 @@ type RendererStep = FormWizardIndicatorStep & {
 };
 
 interface RendererFormWizardProps<T extends Record<string, unknown>> {
+  // React 19: ref как обычный prop
+  ref?: Ref<FormWizardHandle<T>>;
   steps?: RendererStep[];
   stepValidations?: FormWizardConfig<T>['stepValidations'];
   fullValidation?: FormWizardConfig<T>['fullValidation'];
@@ -35,6 +38,7 @@ interface RendererFormWizardProps<T extends Record<string, unknown>> {
 }
 
 export function RendererFormWizard<T extends Record<string, unknown>>({
+  ref,
   steps = [],
   stepValidations,
   fullValidation,
@@ -53,7 +57,7 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
 
   return (
     <FormWizard
-      // ref={navRef}
+      ref={ref}
       className={className}
       form={form}
       config={config}

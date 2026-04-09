@@ -5,16 +5,40 @@
  * с FormRenderer и добавляет API .node(selector) для императивного управления
  * видимостью и пропсами нод через Preact-сигналы.
  *
+ * Переопределения хранятся в Map-ах и передаются вниз через React-контекст.
+ * Компоненты подписываются на версионный сигнал — он инкрементируется при
+ * любом изменении переопределений, после чего каждый RenderNodeComponent
+ * перечитывает своё значение из Map по selector.
+ *
  * @module reformer/renderer-react/render-schema-proxy
  */
 
-import { useCallback } from 'react';
+import { createRef, createContext, useContext, useCallback } from 'react';
 import { useSyncExternalStore } from 'react';
+import type { RefObject } from 'react';
 import { signal, type Signal } from '@preact/signals-core';
-import type { RenderSchemaFn, RenderNode, ContainerRenderNode } from './types';
-import { isContainerRenderNode } from './utils';
+import type { RenderSchemaFn } from './types';
 
 const PROXY_MARKER = Symbol('RenderSchemaProxy');
+
+// ============================================================
+// Override maps context
+// ============================================================
+
+export interface RenderSchemaOverrideMaps {
+  hiddenOverrides: Map<string, boolean | null>;
+  propsOverrides: Map<string, Record<string, unknown> | null>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  refRegistry: Map<string, RefObject<any>>;
+  /** Инкрементируется при любом изменении — все подписчики перечитывают свои значения */
+  version: Signal<number>;
+}
+
+/**
+ * React-контекст с картами переопределений.
+ * Предоставляется FormRenderer когда render является RenderSchemaProxy.
+ */
+export const RenderSchemaOverrideContext = createContext<RenderSchemaOverrideMaps | null>(null);
 
 // ============================================================
 // Public types
@@ -33,6 +57,12 @@ export interface RenderNodeControl {
   patchProps(partial: Record<string, unknown>): this;
   /** Убрать переопределение пропсов — восстанавливает исходные componentProps из схемы */
   resetProps(): this;
+  /**
+   * Получить React ref на компонент с данным selector.
+   * Ref создаётся один раз (idempotent) и передаётся в компонент через render-node.
+   * Компонент должен поддерживать ref (forwardRef или React 19 ref prop).
+   */
+  getRef<H>(): RefObject<H>;
 }
 
 /**
@@ -43,17 +73,9 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
   [PROXY_MARKER]: true;
   /** Получить контроллер ноды по selector */
   node(selector: string): RenderNodeControl;
+  /** @internal — карты переопределений для передачи через контекст */
+  __overrideMaps: RenderSchemaOverrideMaps;
 };
-
-/**
- * @internal
- * Расширение RenderNode с прикреплёнными сигналами переопределений.
- * Устанавливается в applyOverrides при вызове проксированной схемы.
- */
-export interface RenderNodeOverrides {
-  __hiddenOverride?: Signal<boolean | null>;
-  __propsOverride?: Signal<Record<string, unknown> | null>;
-}
 
 // ============================================================
 // Public API
@@ -77,73 +99,60 @@ export function isRenderSchemaProxy<T>(fn: RenderSchemaFn<T>): fn is RenderSchem
  *   ]
  * }));
  *
- * // Программное управление
  * schema.node('extra-section').setHidden(true);
  * schema.node('extra-section').patchProps({ title: 'Новый заголовок' });
  * schema.node('extra-section').resetHidden();
  *
- * // Передаётся в FormRenderer без изменений
  * <FormRenderer form={form} render={schema} />
  * ```
  */
 export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<T> {
-  const hiddenOverrides = new Map<string, Signal<boolean | null>>();
-  const propsOverrides = new Map<string, Signal<Record<string, unknown> | null>>();
+  const hiddenOverrides = new Map<string, boolean | null>();
+  const propsOverrides = new Map<string, Record<string, unknown> | null>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const refRegistry = new Map<string, RefObject<any>>();
+  const version = signal(0);
 
-  function getHiddenSignal(selector: string): Signal<boolean | null> {
-    if (!hiddenOverrides.has(selector)) {
-      hiddenOverrides.set(selector, signal(null));
-    }
-    return hiddenOverrides.get(selector)!;
-  }
+  const overrideMaps: RenderSchemaOverrideMaps = {
+    hiddenOverrides,
+    propsOverrides,
+    refRegistry,
+    version,
+  };
 
-  function getPropsSignal(selector: string): Signal<Record<string, unknown> | null> {
-    if (!propsOverrides.has(selector)) {
-      propsOverrides.set(selector, signal(null));
-    }
-    return propsOverrides.get(selector)!;
-  }
+  const proxyFn = fn as RenderSchemaProxy<T>;
 
-  /**
-   * Рекурсивно прикрепляет сигналы переопределений к нодам.
-   * Значения сигналов НЕ читаются здесь — только ссылки прикрепляются.
-   * Фактические значения читаются в RenderNodeComponent через useOptionalSignalValue.
-   */
-  function applyOverrides(node: RenderNode<T>): RenderNode<T> & RenderNodeOverrides {
-    if (!isContainerRenderNode(node)) return node;
-
-    const { selector } = node;
-    const withOverrides: ContainerRenderNode<T> & RenderNodeOverrides = {
-      ...node,
-      __hiddenOverride: selector ? getHiddenSignal(selector) : undefined,
-      __propsOverride: selector ? getPropsSignal(selector) : undefined,
-      children: node.children?.map(applyOverrides),
-    };
-
-    return withOverrides;
-  }
-
-  const proxyFn = ((path) => applyOverrides(fn(path))) as RenderSchemaProxy<T>;
-
-  Object.assign(proxyFn, { [PROXY_MARKER]: true });
+  Object.assign(proxyFn, {
+    [PROXY_MARKER]: true,
+    __overrideMaps: overrideMaps,
+  });
 
   proxyFn.node = (selector: string): RenderNodeControl => ({
     setHidden(value: boolean) {
-      getHiddenSignal(selector).value = value;
+      hiddenOverrides.set(selector, value);
+      version.value++;
       return this;
     },
     resetHidden() {
-      getHiddenSignal(selector).value = null;
+      hiddenOverrides.delete(selector);
+      version.value++;
       return this;
     },
     patchProps(partial: Record<string, unknown>) {
-      const sig = getPropsSignal(selector);
-      sig.value = { ...sig.value, ...partial };
+      propsOverrides.set(selector, { ...(propsOverrides.get(selector) ?? {}), ...partial });
+      version.value++;
       return this;
     },
     resetProps() {
-      getPropsSignal(selector).value = null;
+      propsOverrides.delete(selector);
+      version.value++;
       return this;
+    },
+    getRef<H>(): RefObject<H> {
+      if (!refRegistry.has(selector)) {
+        refRegistry.set(selector, createRef<H>());
+      }
+      return refRegistry.get(selector) as RefObject<H>;
     },
   });
 
@@ -151,24 +160,42 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
 }
 
 // ============================================================
-// Internal hook
+// Internal hooks
 // ============================================================
 
 /**
  * @internal
- * Подписывается на Preact-сигнал и возвращает его текущее значение.
- * Если сигнал не передан (undefined) — возвращает undefined без подписки.
- *
- * Хук всегда вызывается (не нарушает Rules of Hooks).
- * Условная логика — только внутри колбэков useSyncExternalStore.
+ * Читает переопределение hidden для данного selector.
+ * Подписывается на версионный сигнал — при любом изменении переопределений
+ * перечитывает значение из Map. Если selector не задан или переопределения нет — null.
  */
-export function useOptionalSignalValue<T>(sig: Signal<T> | undefined): T | undefined {
+export function useHiddenOverride(selector: string | undefined): boolean | null {
+  const maps = useContext(RenderSchemaOverrideContext);
+
   return useSyncExternalStore(
     useCallback(
-      (onStoreChange: () => void) => (sig ? sig.subscribe(onStoreChange) : () => {}),
-      [sig]
+      (onStoreChange: () => void) => (maps ? maps.version.subscribe(onStoreChange) : () => {}),
+      [maps]
     ),
-    () => sig?.value,
-    () => sig?.value
+    () => (selector && maps ? (maps.hiddenOverrides.get(selector) ?? null) : null),
+    () => (selector && maps ? (maps.hiddenOverrides.get(selector) ?? null) : null)
+  );
+}
+
+/**
+ * @internal
+ * Читает переопределение props для данного selector.
+ * Подписывается на версионный сигнал — аналогично useHiddenOverride.
+ */
+export function usePropsOverride(selector: string | undefined): Record<string, unknown> | null {
+  const maps = useContext(RenderSchemaOverrideContext);
+
+  return useSyncExternalStore(
+    useCallback(
+      (onStoreChange: () => void) => (maps ? maps.version.subscribe(onStoreChange) : () => {}),
+      [maps]
+    ),
+    () => (selector && maps ? (maps.propsOverrides.get(selector) ?? null) : null),
+    () => (selector && maps ? (maps.propsOverrides.get(selector) ?? null) : null)
   );
 }

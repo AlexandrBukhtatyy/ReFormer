@@ -15,7 +15,13 @@ import {
 import type { RenderNode, FieldWrapperProps } from './types';
 import { isFieldRenderNode, isContainerRenderNode } from './utils';
 import { useRenderContext } from './render-context';
-import { useOptionalSignalValue, type RenderNodeOverrides } from './render-schema-proxy';
+import { useContext } from 'react';
+import {
+  useHiddenOverride,
+  usePropsOverride,
+  RenderSchemaOverrideContext,
+} from './render-schema-proxy';
+import { useRenderHiddenCondition } from './render-behavior';
 
 /**
  * Props для RenderNodeComponent
@@ -109,15 +115,22 @@ export function RenderNodeComponent<T>({
   // prop имеет приоритет над глобальным settings (для user-space компонентов с вложенными формами)
   const fieldWrapper = fieldWrapperProp ?? settings?.fieldWrapper;
 
-  // Читаем сигналы переопределений (если нода создана через createRenderSchema)
-  const overrides = node as unknown as RenderNodeOverrides;
-  const hiddenOverride = useOptionalSignalValue(overrides.__hiddenOverride);
-  const propsOverride = useOptionalSignalValue(overrides.__propsOverride);
-
-  // Реактивная проверка условия hidden из схемы
-  const isHiddenByCondition = useHiddenCondition(node.hidden, form, path);
-  // Переопределение имеет приоритет: null/undefined = переопределение не задано
-  const isHidden = hiddenOverride != null ? hiddenOverride : isHiddenByCondition;
+  // selector теперь доступен на обоих типах нод (FieldRenderNode и ContainerRenderNode)
+  const { selector } = node;
+  // Программное переопределение (createRenderSchema) — наивысший приоритет
+  const hiddenOverride = useHiddenOverride(selector);
+  const propsOverride = usePropsOverride(selector);
+  // Ref из registry (если зарегистрирован через schema.node(selector).getRef())
+  const overrideMaps = useContext(RenderSchemaOverrideContext);
+  const nodeRef =
+    selector && overrideMaps?.refRegistry.has(selector)
+      ? overrideMaps.refRegistry.get(selector)
+      : undefined;
+  // Декларативное поведение (renderBehavior) — средний приоритет
+  const behaviorCondition = useRenderHiddenCondition(selector);
+  const isHiddenByBehavior = useHiddenCondition(behaviorCondition, form, path);
+  // Итоговое: override > behavior > видимо по умолчанию
+  const isHidden = hiddenOverride != null ? hiddenOverride : isHiddenByBehavior;
 
   if (isHidden) {
     return null;
@@ -168,13 +181,18 @@ export function RenderNodeComponent<T>({
         <SelfManagedComponent
           {...(selector !== undefined ? { selector } : {})}
           {...effectiveProps}
+          {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
           children={children}
         />
       );
     }
 
     return (
-      <Component {...(selector !== undefined ? { selector } : {})} {...effectiveProps}>
+      <Component
+        {...(selector !== undefined ? { selector } : {})}
+        {...effectiveProps}
+        {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+      >
         {children?.map((child, i) => (
           <RenderNodeComponent key={i} node={child} form={form} path={path} />
         ))}

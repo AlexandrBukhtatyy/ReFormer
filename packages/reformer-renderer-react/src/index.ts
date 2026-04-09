@@ -59,8 +59,14 @@ export { isFieldRenderNode, isContainerRenderNode } from './core/utils';
 
 // Programmatic render schema control
 export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-proxy';
+export type { RenderSchemaProxy, RenderNodeControl } from './core/render-schema-proxy';
+
+// Declarative render behavior
+export { RenderBehaviorContext } from './core/render-behavior';
 export type {
-  RenderSchemaProxy,
-  RenderNodeControl,
-  RenderNodeOverrides,
-} from './core/render-schema-proxy';
+  RenderBehaviorFn,
+  RenderBehaviorBuilder,
+  RenderHiddenCondition,
+  RenderBehaviorEffectFn,
+  RenderBehaviorResult,
+} from './core/render-behavior';
