@@ -232,6 +232,7 @@ function FormWizardInner<T extends Record<string, any>>(
   useImperativeHandle(
     ref,
     () => ({
+      form,
       currentStep,
       completedSteps,
       validateCurrentStep,
@@ -244,6 +245,7 @@ function FormWizardInner<T extends Record<string, any>>(
       isValidating,
     }),
     [
+      form,
       currentStep,
       completedSteps,
       validateCurrentStep,

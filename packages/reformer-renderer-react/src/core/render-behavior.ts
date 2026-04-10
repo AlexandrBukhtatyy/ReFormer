@@ -1,163 +1,174 @@
 /**
- * RenderBehaviorFn — декларативное поведение схемы рендера
+ * RenderBehaviorFn — поведение схемы рендера через standalone helpers
  *
- * Разделяет layout (RenderSchemaFn) и поведение (когда скрывать ноды).
- * Поведение объявляется отдельной функцией и передаётся в FormRenderer
- * через проп renderBehavior.
+ * Контракт аналогичен BehaviorSchemaFn из @reformer/core:
+ * функция принимает schema и вызывает вспомогательные функции.
  *
- * Условия хранятся в Map<selector, conditionFn> и передаются через
- * React-контекст. RenderNodeComponent читает условие для своего selector
- * через useRenderHiddenCondition и подписывается на сигналы формы
- * через useHiddenCondition.
+ * Форма больше не передаётся напрямую — она читается через ref компонента
+ * (например, FormWizardHandle.form). Условия реактивны через Preact computed().
  *
  * @module reformer/renderer-react/render-behavior
  */
 
-import { createContext, useContext, useEffect } from 'react';
-import { effect } from '@preact/signals-core';
-import type { FormProxy, FieldPath } from '@reformer/core';
+import { useCallback, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+import { computed, effect } from '@preact/signals-core';
+import type { RenderSchemaProxy, RenderNodeControl } from './render-schema-proxy';
 
 // ============================================================================
 // Public types
 // ============================================================================
 
-/** Условие скрытия ноды — чистая функция, реактивно вычисляется через useHiddenCondition */
-export type RenderHiddenCondition<T> = (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-
-/**
- * Реактивный side-effect — перезапускается при изменении любого сигнала формы,
- * прочитанного внутри fn. Может вернуть функцию очистки.
- */
-export type RenderBehaviorEffectFn<T> = (form: FormProxy<T>) => void | (() => void);
-
-/**
- * Билдер поведений — передаётся в RenderBehaviorFn.
- */
-export interface RenderBehaviorBuilder<T> {
-  /**
-   * Объявить условие скрытия для ноды с данным selector.
-   * Условие реактивно — пересчитывается при изменении любого поля формы.
-   */
-  hideWhen(selector: string, condition: RenderHiddenCondition<T>): void;
-  /**
-   * Зарегистрировать реактивный side-effect.
-   * fn вызывается при монтировании и перезапускается автоматически
-   * при изменении любого сигнала формы, прочитанного внутри fn.
-   *
-   * Используй closure над RenderSchemaProxy для доступа к ref-ам компонентов:
-   * @example
-   * ```typescript
-   * const schema = createRenderSchema(fn);
-   * const behavior: RenderBehaviorFn<T> = (b) => {
-   *   b.effect((form) => {
-   *     const wizard = schema.node('wizard').getRef<FormWizardHandle<T>>();
-   *     if (form.someFlag.value.value) wizard.current?.goToNextStep();
-   *   });
-   * };
-   * ```
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effect(fn: RenderBehaviorEffectFn<any>): void;
-}
-
 /**
  * Функция-схема поведения рендера.
  * Аналог BehaviorSchemaFn из @reformer/core, но для видимости нод.
  *
+ * Принимает схему и вызывает standalone-хелперы (hideWhen, renderEffect).
+ * Форма читается через ref wizard-компонента: `schema.node('wizard').getRef().current?.form`.
+ *
  * @example
  * ```typescript
- * const renderBehavior: RenderBehaviorFn<MyForm> = (b) => {
- *   b.hideWhen('mortgage-section', (form) => form.loanType.value.value !== 'mortgage');
- *   b.hideWhen('employer-section', (form) => form.employment.value.value !== 'employed');
- * };
+ * const behavior: RenderBehaviorFn<MyForm> = (schema) => {
+ *   const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
  *
- * <FormRenderer form={form} render={schema} renderBehavior={renderBehavior} />
+ *   hideWhen(schema.node('mortgage-section'), () =>
+ *     wizardRef.current?.form.loanType.value.value !== 'mortgage'
+ *   );
+ *
+ *   renderEffect(schema, () => {
+ *     const form = wizardRef.current?.form;
+ *     if (form?.loanType.value.value === 'mortgage') {
+ *       wizardRef.current?.goToStep(1);
+ *     }
+ *   });
+ * };
  * ```
  */
-export type RenderBehaviorFn<T> = (builder: RenderBehaviorBuilder<T>) => void;
+export type RenderBehaviorFn<T> = (schema: RenderSchemaProxy<T>) => void;
 
 // ============================================================================
-// Context
+// Standalone helpers
 // ============================================================================
 
 /**
- * React-контекст с Map условий скрытия: selector → conditionFn.
- * Предоставляется FormRenderer когда передан renderBehavior.
+ * Объявить условие скрытия для ноды.
+ *
+ * Условие реактивно — пересчитывается при изменении любого Preact-сигнала,
+ * прочитанного внутри conditionFn (в т.ч. сигналов формы через ref).
+ *
+ * @example
+ * ```typescript
+ * const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
+ * hideWhen(schema.node('mortgage-section'), () =>
+ *   wizardRef.current?.form.loanType.value.value !== 'mortgage'
+ * );
+ * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const RenderBehaviorContext = createContext<Map<string, RenderHiddenCondition<any>> | null>(
-  null
-);
+export function hideWhen(node: RenderNodeControl, conditionFn: () => boolean): void {
+  node.__overrideMaps.conditionRegistry.set(node.__selector, conditionFn);
+}
+
+/**
+ * Зарегистрировать колбэк на проп-событие компонента.
+ *
+ * Позволяет объявить обработчики (onSubmit, onChange и т.п.) в behavior
+ * вместо жёсткого указания в componentProps схемы.
+ * Колбэк получает ровно те же аргументы, что и оригинальный проп компонента.
+ *
+ * @example
+ * ```typescript
+ * onComponentEvent(
+ *   schema.node('wizard'),
+ *   'onSubmit',
+ *   async (values: MyForm) => {
+ *     await submitForm(values);
+ *   }
+ * );
+ * ```
+ */
+
+export function onComponentEvent(
+  node: RenderNodeControl,
+  event: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: (...args: any[]) => any
+): void {
+  const { callbackRegistry } = node.__overrideMaps;
+  if (!callbackRegistry.has(node.__selector)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    callbackRegistry.set(node.__selector, new Map<string, (...args: any[]) => any>());
+  }
+  callbackRegistry.get(node.__selector)!.set(event, handler);
+}
+
+/**
+ * Зарегистрировать реактивный side-effect.
+ *
+ * effectFn оборачивается в Preact effect() — автоматически перезапускается
+ * при изменении любого сигнала, прочитанного внутри effectFn.
+ * Может вернуть функцию очистки.
+ *
+ * @example
+ * ```typescript
+ * const wizardRef = schema.node('wizard').getRef<FormWizardHandle<MyForm>>();
+ * renderEffect(schema, () => {
+ *   const form = wizardRef.current?.form;
+ *   if (form?.loanType.value.value === 'mortgage') {
+ *     wizardRef.current?.goToStep(1);
+ *   }
+ * });
+ * ```
+ */
+
+export function renderEffect<T>(
+  schema: RenderSchemaProxy<T>,
+  effectFn: () => void | (() => void)
+): void {
+  schema.__overrideMaps.effectRegistry.push(effectFn);
+}
 
 // ============================================================================
-// Internal helpers
+// Internal hooks
 // ============================================================================
 
-export interface RenderBehaviorResult {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  conditions: Map<string, RenderHiddenCondition<any>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effects: RenderBehaviorEffectFn<any>[];
+/**
+ * @internal
+ * Подписывается на реактивное условие через Preact computed().
+ * При изменении любого сигнала формы, прочитанного внутри fn, компонент перерендерится.
+ */
+export function useCondition(fn: (() => boolean) | undefined): boolean {
+  const getSnapshot = useCallback(() => fn?.() ?? false, [fn]);
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (!fn) return () => {};
+      const c = computed(fn);
+      return c.subscribe(notify);
+    },
+    [fn]
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 /**
  * @internal
- * Выполняет RenderBehaviorFn через билдер и возвращает conditions + effects.
- * Вызывается из FormRenderer (через useMemo).
- */
-export function buildRenderBehavior<T>(
-  fn: RenderBehaviorFn<T> | undefined
-): RenderBehaviorResult | null {
-  if (!fn) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const conditions = new Map<string, RenderHiddenCondition<any>>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const effects: RenderBehaviorEffectFn<any>[] = [];
-  fn({
-    hideWhen: (selector, condition) => conditions.set(selector, condition),
-    effect: (effectFn) => effects.push(effectFn),
-  });
-  return { conditions, effects };
-}
-
-/**
- * @internal
- * Монтирует реактивные effects из RenderBehaviorFn.
+ * Монтирует реактивные effects из effectRegistry.
  * Каждый effect оборачивается в Preact effect() — автоматически перезапускается
- * при изменении любого сигнала формы, прочитанного внутри fn.
+ * при изменении любого сигнала, прочитанного внутри effectFn.
  */
-export function RenderBehaviorEffects<T>({
-  form,
-  effects,
+export function RenderBehaviorEffects({
+  effectRegistry,
 }: {
-  form: FormProxy<T>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  effects: RenderBehaviorEffectFn<any>[];
+  effectRegistry: Array<() => void | (() => void)>;
 }): null {
   useEffect(() => {
-    const disposes = effects.map((effectFn) =>
+    const disposes = effectRegistry.map((effectFn) =>
       effect(() => {
-        const cleanup = effectFn(form);
-        // Preact effect не поддерживает возврат функции очистки напрямую,
-        // поэтому cleanup вызывается при следующем запуске через закрытие
+        const cleanup = effectFn();
         return typeof cleanup === 'function' ? cleanup : undefined;
       })
     );
     return () => disposes.forEach((dispose) => dispose());
-  }, [form]); // effects стабилен — buildRenderBehavior вызывается через useMemo
+  }, []); // effectRegistry стабилен — создаётся один раз при createRenderSchema
 
   return null;
-}
-
-/**
- * @internal
- * Читает условие скрытия для данного selector из RenderBehaviorContext.
- * Условия статичны — нет нужды в useSyncExternalStore.
- */
-export function useRenderHiddenCondition<T>(
-  selector: string | undefined
-): RenderHiddenCondition<T> | undefined {
-  const conditions = useContext(RenderBehaviorContext);
-  if (!selector || !conditions) return undefined;
-  return conditions.get(selector) as RenderHiddenCondition<T> | undefined;
 }

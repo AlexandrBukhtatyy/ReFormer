@@ -5,17 +5,7 @@ import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-f
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-import Playground from './pages/examples/playground/Playground';
-import RenderSchemaExample from './pages/examples/render-schema/RenderSchemaExample';
-
-type ExamplePage =
-  | 'simple'
-  | 'validation'
-  | 'behaviors'
-  | 'complex'
-  | 'complex-renderer'
-  | 'playground'
-  | 'render-schema';
+type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'complex-renderer';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -46,19 +36,7 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     id: 'behaviors',
     path: '/examples/behaviors',
     title: 'Поведения',
-    description: 'computeFrom, enableWhen и условная логика',
-  },
-  {
-    id: 'playground',
-    path: '/examples/playground',
-    title: 'Песочница',
-    description: 'Страница для эксперементов',
-  },
-  {
-    id: 'render-schema',
-    path: '/examples/render-schema',
-    title: 'RenderSchema',
-    description: 'Декларативное описание структуры формы',
+    description: 'Реактивное поведение через декларативный подход',
   },
 ];
 
@@ -131,8 +109,6 @@ function Layout() {
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
-          <Route path="/examples/playground" element={<Playground />} />
-          <Route path="/examples/render-schema" element={<RenderSchemaExample />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

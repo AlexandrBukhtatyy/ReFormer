@@ -195,6 +195,13 @@ export default function RegistrationForm() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Состояние формы */}
+      <div className="flex-1 p-6 bg-white rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
+
+        <FormStateDisplay form={form} />
 
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
           <h3 className="font-semibold mb-2">💡 Подсказки для тестирования:</h3>
@@ -211,12 +218,6 @@ export default function RegistrationForm() {
             </li>
           </ul>
         </div>
-      </div>
-
-      {/* Состояние формы */}
-      <div className="flex-1 p-6 bg-white rounded-lg shadow">
-        <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
-        <FormStateDisplay form={form} />
       </div>
     </div>
   );

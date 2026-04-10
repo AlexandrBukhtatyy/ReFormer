@@ -1,42 +1,81 @@
 /**
  * Поведение схемы рендера кредитной заявки
  *
- * Условия видимости нод вынесены отдельно от layout-схемы (render-schema.ts).
- * Каждая нода идентифицируется через selector.
+ * Условия видимости нод и реактивные эффекты вынесены отдельно от layout-схемы.
+ * Форма читается через ref wizard-компонента (FormWizardHandle.form).
  */
 
-import type { RenderBehaviorFn } from '@reformer/renderer-react';
+import {
+  hideWhen,
+  renderEffect,
+  onComponentEvent,
+  type RenderBehaviorFn,
+} from '@reformer/renderer-react';
+import type { FormProxy } from '@reformer/core';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
-import { creditApplicationRenderSchema as schema } from './render-schema';
+import { submitCreditApplication } from '../complex-multy-step-form/api';
 
-export const creditApplicationRenderBehavior: RenderBehaviorFn<CreditApplicationForm> = (b) => {
-  // ── Реактивный эффект: навигация wizard через ref ────────────────────────
-  // При смене типа кредита на "ипотека" — переходим на первый шаг,
-  // чтобы пользователь увидел появившуюся секцию с данными о недвижимости.
-  b.effect((form) => {
+/**
+ * Фабрика поведения: принимает form напрямую, чтобы Preact computed()
+ * мог корректно трекать сигналы формы — без зависимости от ref wizard-а,
+ * который null в момент первого запуска computed при mount.
+ */
+export function createCreditApplicationRenderBehavior(
+  form: FormProxy<CreditApplicationForm>
+): RenderBehaviorFn<CreditApplicationForm> {
+  return (schema) => {
     const wizardRef = schema.node('wizard').getRef<FormWizardHandle<CreditApplicationForm>>();
-    const loanType = form.loanType.value.value;
-    if (loanType === 'mortgage') {
-      wizardRef.current?.goToStep(1);
-    }
-  });
 
-  // ── Шаг 1: тип кредита ──────────────────────────────────────────────────
-  b.hideWhen('mortgage-section', (form) => form.loanType.value.value !== 'mortgage');
-  b.hideWhen('car-section', (form) => form.loanType.value.value !== 'car');
+    // ── Реактивный эффект: навигация wizard через ref ────────────────────────
+    // useEffect запускается после mount — wizardRef.current уже доступен.
+    renderEffect(schema, () => {
+      if (form.loanType.value.value === 'mortgage') {
+        wizardRef.current?.goToStep(1);
+      }
+    });
 
-  // ── Шаг 3: адреса ───────────────────────────────────────────────────────
-  b.hideWhen('residence-address-section', (form) => form.sameAsRegistration.value.value === true);
+    // ── Шаг 1: тип кредита ──────────────────────────────────────────────────
+    hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
+    hideWhen(schema.node('car-section'), () => form.loanType.value.value !== 'car');
 
-  // ── Шаг 4: занятость ────────────────────────────────────────────────────
-  b.hideWhen('employer-section', (form) => form.employmentStatus.value.value !== 'employed');
-  b.hideWhen('business-section', (form) => form.employmentStatus.value.value !== 'selfEmployed');
-  b.hideWhen('income-section', (form) => form.employmentStatus.value.value === 'unemployed');
-  b.hideWhen('unemployed-warning', (form) => form.employmentStatus.value.value !== 'unemployed');
+    // ── Шаг 3: адреса ───────────────────────────────────────────────────────
+    hideWhen(
+      schema.node('residence-address-section'),
+      () => form.sameAsRegistration.value.value === true
+    );
 
-  // ── Шаг 5: дополнительные секции ────────────────────────────────────────
-  b.hideWhen('properties-array', (form) => !form.hasProperty.value.value);
-  b.hideWhen('existing-loans-array', (form) => !form.hasExistingLoans.value.value);
-  b.hideWhen('co-borrowers-array', (form) => !form.hasCoBorrower.value.value);
-};
+    // ── Шаг 4: занятость ────────────────────────────────────────────────────
+    hideWhen(
+      schema.node('employer-section'),
+      () => form.employmentStatus.value.value !== 'employed'
+    );
+    hideWhen(
+      schema.node('business-section'),
+      () => form.employmentStatus.value.value !== 'selfEmployed'
+    );
+    hideWhen(
+      schema.node('income-section'),
+      () => form.employmentStatus.value.value === 'unemployed'
+    );
+    hideWhen(
+      schema.node('unemployed-warning'),
+      () => form.employmentStatus.value.value !== 'unemployed'
+    );
+
+    // ── Шаг 5: дополнительные секции ────────────────────────────────────────
+    hideWhen(schema.node('properties-array'), () => !form.hasProperty.value.value);
+    hideWhen(schema.node('existing-loans-array'), () => !form.hasExistingLoans.value.value);
+    hideWhen(schema.node('co-borrowers-array'), () => !form.hasCoBorrower.value.value);
+
+    // ── Шаг 6: отправка формы ───────────────────────────────────────────────
+    onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditApplicationForm) => {
+      const response = await submitCreditApplication(values);
+      if (response.status === 200 || response.status === 201) {
+        alert(`Заявка успешно отправлена! ID: ${response.data.id}`);
+      } else {
+        throw new Error('Ошибка отправки заявки');
+      }
+    });
+  };
+}

@@ -19,6 +19,9 @@ export interface FormWizardConfig<T extends Record<string, any>> {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormWizardHandle<T extends Record<string, any>> {
+  /** Form instance — используется в RenderBehaviorFn для доступа к форме через ref */
+  form: FormProxy<T>;
+
   /** Current step (1-based) */
   currentStep: number;
 

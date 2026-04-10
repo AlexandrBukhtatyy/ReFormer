@@ -4,14 +4,24 @@
  * Использует headless-примитивы из @reformer/cdk и контекст рендеринга из @reformer/core.
  * Может использоваться в RenderSchema как обычный ContainerRenderNode.
  *
+ * Форма передаётся через componentProps (не через useRenderContext):
+ * ```typescript
+ * componentProps: { form, steps: [...] }
+ * ```
+ * Компонент предоставляет RenderContextProvider для дочерних нод.
+ *
  * Компонент устанавливает __selfManagedChildren = true, чтобы RenderNodeComponent
  * передавал children как сырые RenderNode[], а не рендерил их самостоятельно.
- * Дочерние узлы идентифицируются по полю selector на уровне ContainerRenderNode.
  */
 
 import { type ReactNode, type Ref } from 'react';
-import { type FormProxy, type FieldPath } from '@reformer/core';
-import { useRenderContext, RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
+import { createFieldPath, type FormProxy, type FieldPath } from '@reformer/core';
+import {
+  useRenderContext,
+  RenderContextProvider,
+  RenderNodeComponent,
+  type RenderNode,
+} from '@reformer/renderer-react';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import { FormWizard } from './FormWizard';
 import type {
@@ -28,6 +38,8 @@ type RendererStep = FormWizardIndicatorStep & {
 interface RendererFormWizardProps<T extends Record<string, unknown>> {
   // React 19: ref как обычный prop
   ref?: Ref<FormWizardHandle<T>>;
+  /** Форма — передаётся через componentProps в render-schema */
+  form: FormProxy<T>;
   steps?: RendererStep[];
   stepValidations?: FormWizardConfig<T>['stepValidations'];
   fullValidation?: FormWizardConfig<T>['fullValidation'];
@@ -39,6 +51,7 @@ interface RendererFormWizardProps<T extends Record<string, unknown>> {
 
 export function RendererFormWizard<T extends Record<string, unknown>>({
   ref,
+  form,
   steps = [],
   stepValidations,
   fullValidation,
@@ -47,7 +60,8 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
   scrollToTop = true,
   className,
 }: RendererFormWizardProps<T>): ReactNode {
-  const { form, path, settings } = useRenderContext<T>();
+  const { settings } = useRenderContext();
+  const path = createFieldPath<T>();
   const fieldWrapper = settings?.fieldWrapper;
 
   const config: FormWizardConfig<T> = {
@@ -56,28 +70,30 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
   };
 
   return (
-    <FormWizard
-      ref={ref}
-      className={className}
-      form={form}
-      config={config}
-      onStepChange={onStepChange}
-      scrollToTop={scrollToTop}
-      steps={steps.map((step, index) => ({
-        ...step,
-        ...(step.componentProps ?? {}),
-        number: index + 1,
-        component: (
-          <RenderNodeComponent
-            node={step as RenderNode<CreditApplicationForm>}
-            form={form as FormProxy<CreditApplicationForm>}
-            path={path as FieldPath<CreditApplicationForm>}
-            fieldWrapper={fieldWrapper}
-          />
-        ),
-      }))}
-      onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}
-    />
+    <RenderContextProvider value={{ form, path, settings }}>
+      <FormWizard
+        ref={ref}
+        className={className}
+        form={form}
+        config={config}
+        onStepChange={onStepChange}
+        scrollToTop={scrollToTop}
+        steps={steps.map((step, index) => ({
+          ...step,
+          ...(step.componentProps ?? {}),
+          number: index + 1,
+          component: (
+            <RenderNodeComponent
+              node={step as RenderNode<CreditApplicationForm>}
+              form={form as FormProxy<CreditApplicationForm>}
+              path={path as FieldPath<CreditApplicationForm>}
+              fieldWrapper={fieldWrapper}
+            />
+          ),
+        }))}
+        onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}
+      />
+    </RenderContextProvider>
   );
 }
 

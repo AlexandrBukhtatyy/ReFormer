@@ -30,6 +30,13 @@ export interface RenderSchemaOverrideMaps {
   propsOverrides: Map<string, Record<string, unknown> | null>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   refRegistry: Map<string, RefObject<any>>;
+  /** Условия скрытия нод: selector → conditionFn (реактивная, без form) */
+  conditionRegistry: Map<string, () => boolean>;
+  /** Реактивные side-effects: [] → (заполняется через renderEffect) */
+  effectRegistry: Array<() => void | (() => void)>;
+  /** Колбэки на пропсы компонентов: selector → { eventName → handler } */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  callbackRegistry: Map<string, Map<string, (...args: any[]) => any>>;
   /** Инкрементируется при любом изменении — все подписчики перечитывают свои значения */
   version: Signal<number>;
 }
@@ -63,6 +70,10 @@ export interface RenderNodeControl {
    * Компонент должен поддерживать ref (forwardRef или React 19 ref prop).
    */
   getRef<H>(): RefObject<H>;
+  /** @internal — selector этой ноды (используется standalone helpers hideWhen/renderEffect) */
+  __selector: string;
+  /** @internal — override maps схемы (используется standalone helpers) */
+  __overrideMaps: RenderSchemaOverrideMaps;
 }
 
 /**
@@ -111,12 +122,19 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
   const propsOverrides = new Map<string, Record<string, unknown> | null>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const refRegistry = new Map<string, RefObject<any>>();
+  const conditionRegistry = new Map<string, () => boolean>();
+  const effectRegistry: Array<() => void | (() => void)> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const callbackRegistry = new Map<string, Map<string, (...args: any[]) => any>>();
   const version = signal(0);
 
   const overrideMaps: RenderSchemaOverrideMaps = {
     hiddenOverrides,
     propsOverrides,
     refRegistry,
+    conditionRegistry,
+    effectRegistry,
+    callbackRegistry,
     version,
   };
 
@@ -154,6 +172,8 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
       }
       return refRegistry.get(selector) as RefObject<H>;
     },
+    __selector: selector,
+    __overrideMaps: overrideMaps,
   });
 
   return proxyFn;

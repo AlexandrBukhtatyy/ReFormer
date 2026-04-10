@@ -52,7 +52,11 @@ export { FormRenderer } from './core/form-renderer';
 export { RenderNodeComponent } from './core/render-node';
 
 // Render Context
-export { useRenderContext, type RenderContextValue } from './core/render-context';
+export {
+  useRenderContext,
+  RenderContextProvider,
+  type RenderContextValue,
+} from './core/render-context';
 
 // Utils
 export { isFieldRenderNode, isContainerRenderNode } from './core/utils';
@@ -62,11 +66,5 @@ export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-pr
 export type { RenderSchemaProxy, RenderNodeControl } from './core/render-schema-proxy';
 
 // Declarative render behavior
-export { RenderBehaviorContext } from './core/render-behavior';
-export type {
-  RenderBehaviorFn,
-  RenderBehaviorBuilder,
-  RenderHiddenCondition,
-  RenderBehaviorEffectFn,
-  RenderBehaviorResult,
-} from './core/render-behavior';
+export { hideWhen, renderEffect, onComponentEvent } from './core/render-behavior';
+export type { RenderBehaviorFn } from './core/render-behavior';

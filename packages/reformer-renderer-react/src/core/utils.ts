@@ -24,7 +24,7 @@ import type { RenderNode, FieldRenderNode, ContainerRenderNode } from './types';
  * }
  * ```
  */
-export function isFieldRenderNode<T>(node: RenderNode<T>): node is FieldRenderNode<T> {
+export function isFieldRenderNode<T>(node: RenderNode<T>): node is FieldRenderNode {
   if (node.component == null || typeof node.component !== 'object') {
     return false;
   }

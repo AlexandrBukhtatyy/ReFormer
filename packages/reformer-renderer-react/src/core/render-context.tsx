@@ -15,10 +15,10 @@ import type { RendererSettings } from './types';
  * Значение контекста рендеринга
  */
 export interface RenderContextValue<T = unknown> {
-  /** Proxy формы */
-  form: FormProxy<T>;
-  /** Корневой FieldPath */
-  path: FieldPath<T>;
+  /** Proxy формы (опционально — может быть предоставлена wizard-компонентом через props) */
+  form?: FormProxy<T>;
+  /** Корневой FieldPath (опционально) */
+  path?: FieldPath<T>;
   /** Настройки рендерера */
   settings?: RendererSettings;
 }

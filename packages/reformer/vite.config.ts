@@ -56,7 +56,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['react', 'react-dom'],
+      external: ['react', 'react-dom', '@preact/signals-core'],
       output: {
         entryFileNames: '[name].js',
       },

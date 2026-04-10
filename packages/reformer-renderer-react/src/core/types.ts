@@ -8,14 +8,7 @@
  */
 
 import type { ComponentType, ElementType } from 'react';
-import type { FieldPath, FieldPathNode, FormProxy } from '@reformer/core';
-
-// ============================================================================
-// BASE TYPES
-// ============================================================================
-
-/** Условие скрытия узла */
-type HiddenCondition<T> = (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+import type { FieldPath, FieldPathNode } from '@reformer/core';
 
 // ============================================================================
 // RENDER SCHEMA
@@ -54,7 +47,7 @@ export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
  * - FieldRenderNode - поле формы
  * - ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
  */
-export type RenderNode<T> = FieldRenderNode<T> | ContainerRenderNode<T>;
+export type RenderNode<T> = FieldRenderNode | ContainerRenderNode<T>;
 
 // ============================================================================
 // FIELD RENDER NODE
@@ -90,17 +83,21 @@ export interface FieldRenderNodeProps {
  * ```typescript
  * { component: path.email }
  * { component: path.email, componentProps: { className: 'col-span-2' } }
+ * { selector: 'email-field', component: path.email }  // selector для renderBehavior
  * ```
  */
-export interface FieldRenderNode<T> {
+export interface FieldRenderNode {
+  /**
+   * Идентификатор узла для renderBehavior (b.hideWhen).
+   * Необязателен — нужен только если к полю привязано поведение.
+   */
+  selector?: string;
+
   /** Ссылка на поле формы (path.fieldName) */
   component: FieldPathNode<unknown, unknown, unknown>;
 
   /** Props для рендеринга поля */
   componentProps?: FieldRenderNodeProps;
-
-  /** Условие скрытия узла */
-  hidden?: HiddenCondition<T>;
 }
 
 // ============================================================================
@@ -140,22 +137,17 @@ export interface ContainerRenderNodeProps {
  * ```
  */
 export interface ContainerRenderNode<T> {
-  /** Slot-идентификатор для составных компонентов (например, wizard) */
+  /**
+   * Идентификатор узла — используется составными компонентами (wizard, tabs)
+   * и renderBehavior (b.hideWhen).
+   */
   selector?: string;
 
   /** React-компонент контейнера */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<any>;
 
-  /** Условие скрытия узла */
-  hidden?: HiddenCondition<T>;
-
-  /**
-   * Дочерние узлы рендеринга.
-   *
-   * Вынесены на уровень узла (а не в componentProps), чтобы TypeScript мог
-   * однозначно вывести тип `T` в `hidden` на любой глубине вложенности.
-   */
+  /** Дочерние узлы рендеринга */
   children?: RenderNode<T>[];
 
   /** Props для компонента-контейнера (className, title и т.д.) */
@@ -198,10 +190,7 @@ export interface RendererSettings {
  * Props для FormRenderer
  */
 export interface FormRendererProps<T> {
-  /** Proxy формы (результат createForm) */
-  form: FormProxy<T>;
-
-  /** Функция создания RenderSchema */
+  /** Функция создания RenderSchema (или RenderSchemaProxy из createRenderSchema) */
   render: RenderSchemaFn<T>;
 
   /**
@@ -209,11 +198,7 @@ export interface FormRendererProps<T> {
    *
    * @example
    * ```tsx
-   * <FormRenderer
-   *   form={form}
-   *   render={renderSchema}
-   *   settings={{ fieldWrapper: FormField }}
-   * />
+   * <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
    * ```
    */
   settings?: RendererSettings;

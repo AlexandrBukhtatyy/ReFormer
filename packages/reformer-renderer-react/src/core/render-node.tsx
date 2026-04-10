@@ -6,12 +6,7 @@
 
 import { memo, type ReactNode } from 'react';
 import type { FieldNode, FormProxy, FieldPath } from '@reformer/core';
-import {
-  FieldPathNavigator,
-  useFormControl,
-  useHiddenCondition,
-  extractPath,
-} from '@reformer/core';
+import { FieldPathNavigator, useFormControl, extractPath } from '@reformer/core';
 import type { RenderNode, FieldWrapperProps } from './types';
 import { isFieldRenderNode, isContainerRenderNode } from './utils';
 import { useRenderContext } from './render-context';
@@ -21,7 +16,7 @@ import {
   usePropsOverride,
   RenderSchemaOverrideContext,
 } from './render-schema-proxy';
-import { useRenderHiddenCondition } from './render-behavior';
+import { useCondition } from './render-behavior';
 
 /**
  * Props для RenderNodeComponent
@@ -29,10 +24,10 @@ import { useRenderHiddenCondition } from './render-behavior';
 interface RenderNodeComponentProps<T> {
   /** Узел для рендеринга */
   node: RenderNode<T>;
-  /** Proxy формы */
-  form: FormProxy<T>;
-  /** Текущий FieldPath (для hidden условий) */
-  path: FieldPath<T>;
+  /** Proxy формы (опционально — предоставляется wizard-компонентом через props или контекст) */
+  form?: FormProxy<T>;
+  /** Текущий FieldPath (опционально) */
+  path?: FieldPath<T>;
   /**
    * Компонент-обёртка для полей (опционально).
    * Переопределяет глобальный fieldWrapper из settings.
@@ -126,9 +121,9 @@ export function RenderNodeComponent<T>({
     selector && overrideMaps?.refRegistry.has(selector)
       ? overrideMaps.refRegistry.get(selector)
       : undefined;
-  // Декларативное поведение (renderBehavior) — средний приоритет
-  const behaviorCondition = useRenderHiddenCondition(selector);
-  const isHiddenByBehavior = useHiddenCondition(behaviorCondition, form, path);
+  // Декларативное поведение (hideWhen) — средний приоритет
+  const conditionFn = selector ? overrideMaps?.conditionRegistry.get(selector) : undefined;
+  const isHiddenByBehavior = useCondition(conditionFn);
   // Итоговое: override > behavior > видимо по умолчанию
   const isHidden = hiddenOverride != null ? hiddenOverride : isHiddenByBehavior;
 
@@ -140,6 +135,12 @@ export function RenderNodeComponent<T>({
   // FieldRenderNode - поле формы
   // ========================================
   if (isFieldRenderNode(node)) {
+    if (!form) {
+      console.warn(
+        '[RenderSchema] Field node rendered without form — pass form via wizard componentProps'
+      );
+      return null;
+    }
     const fieldPath = extractPath(node.component);
     const fieldNode = navigator.getNodeByPath(form, fieldPath) as FieldNode<unknown> | null;
 
@@ -169,7 +170,11 @@ export function RenderNodeComponent<T>({
     const { selector, component: Component, children } = node;
     const baseProps = node.componentProps || {};
     // Применяем переопределение пропсов (если задано через schema.node(selector).patchProps())
-    const effectiveProps = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
+    const propsPatched = propsOverride != null ? { ...baseProps, ...propsOverride } : baseProps;
+    // Колбэки из callbackRegistry (onComponentEvent) — наивысший приоритет среди prop-overrides
+    const callbackMap = selector ? overrideMaps?.callbackRegistry.get(selector) : undefined;
+    const callbackOverrides = callbackMap ? Object.fromEntries(callbackMap) : {};
+    const effectiveProps = callbackMap ? { ...propsPatched, ...callbackOverrides } : propsPatched;
 
     // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
