@@ -82,7 +82,7 @@ export const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> =
       {
         id: '1',
         bank: 'Сбербанк',
-        type: 'Потребительский кредит',
+        type: 'consumer',
         amount: 500000,
         remainingAmount: 200000,
         monthlyPayment: 15000,
@@ -101,7 +101,7 @@ export const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> =
         },
         phone: '+7 (999) 888-77-66',
         email: 'maria.ivanova@example.com',
-        relationship: 'Супруга',
+        relationship: 'spouse',
         monthlyIncome: 100000,
       },
     ],
