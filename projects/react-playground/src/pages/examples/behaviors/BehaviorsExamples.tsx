@@ -388,10 +388,10 @@ export default function BehaviorsExamples() {
           description="Автоматический расчет: Итого = Цена × Количество"
           bgColor="bg-white"
           code={`computeFrom(
-  [path.price, path.quantity],
-  path.total,
-  (values) => values.price * values.quantity
-)`}
+            [path.price, path.quantity],
+            path.total,
+            (values) => values.price * values.quantity
+          )`}
         >
           <div className="grid grid-cols-3 gap-4">
             <NumberField control={form.price} label="Цена" />
@@ -406,10 +406,10 @@ export default function BehaviorsExamples() {
           description="Поле города активно только если выбрана страна"
           bgColor="bg-white"
           code={`enableWhen(
-  path.city,
-  (form) => Boolean(form.country),
-  { resetOnDisable: true }
-)`}
+            path.city,
+            (form) => Boolean(form.country),
+            { resetOnDisable: true }
+          )`}
         >
           <SelectField
             control={form.country}
@@ -433,10 +433,10 @@ export default function BehaviorsExamples() {
           description="Поле скидки активно только если включен чекбокс"
           bgColor="bg-white"
           code={`enableWhen(
-  path.discountPercent,
-  (form) => form.hasDiscount === true,
-  { resetOnDisable: true }
-)`}
+            path.discountPercent,
+            (form) => form.hasDiscount === true,
+            { resetOnDisable: true }
+          )`}
         >
           <CheckboxField control={form.hasDiscount} label="Применить скидку" />
           {hasDiscount && <NumberField control={form.discountPercent} label="Процент скидки" />}
@@ -448,9 +448,9 @@ export default function BehaviorsExamples() {
           description="Поле блокируется при подтверждении"
           bgColor="bg-white"
           code={`disableWhen(
-  path.editableField,
-  (form) => form.isConfirmed === true
-)`}
+            path.editableField,
+            (form) => form.isConfirmed === true
+          )`}
         >
           <TextField
             control={form.editableField}
@@ -466,10 +466,10 @@ export default function BehaviorsExamples() {
           description="Копирование адреса доставки в адрес оплаты"
           bgColor="bg-white"
           code={`copyFrom(
-  path.shippingAddress,
-  path.billingAddress,
-  { when: (form) => form.useShippingAsBilling }
-)`}
+            path.shippingAddress,
+            path.billingAddress,
+            { when: (form) => form.useShippingAsBilling }
+          )`}
         >
           <TextField
             control={form.shippingAddress}
@@ -490,12 +490,12 @@ export default function BehaviorsExamples() {
           description="Отслеживание изменений поля с callback"
           bgColor="bg-white"
           code={`watchField(
-  path.watchedField,
-  (value, ctx) => {
-    console.log('Новое значение:', value);
-    // Можно делать API запросы, обновлять UI...
-  }
-)`}
+            path.watchedField,
+            (value, ctx) => {
+              console.log('Новое значение:', value);
+              // Можно делать API запросы, обновлять UI...
+            }
+          )`}
         >
           <TextField
             control={form.watchedField}
@@ -511,9 +511,9 @@ export default function BehaviorsExamples() {
           description="Автоматическое преобразование текста в uppercase"
           bgColor="bg-white"
           code={`transformValue(
-  path.uppercaseField,
-  (value) => value?.toUpperCase() ?? ''
-)`}
+            path.uppercaseField,
+            (value) => value?.toUpperCase() ?? ''
+          )`}
         >
           <TextField
             control={form.uppercaseField}
@@ -528,10 +528,10 @@ export default function BehaviorsExamples() {
           description="Сброс поля при смене условия"
           bgColor="bg-white"
           code={`resetWhen(
-  path.cardNumber,
-  (form) => form.paymentType !== 'card',
-  { resetValue: '' }
-)`}
+            path.cardNumber,
+            (form) => form.paymentType !== 'card',
+            { resetValue: '' }
+          )`}
         >
           <SelectField
             control={form.paymentType}
@@ -557,9 +557,9 @@ export default function BehaviorsExamples() {
           description="Двусторонняя синхронизация полей"
           bgColor="bg-white"
           code={`syncFields(
-  path.syncField1,
-  path.syncField2
-)`}
+            path.syncField1,
+            path.syncField2
+          )`}
         >
           <TextField control={form.syncField1} label="Поле 1" placeholder="Введите текст..." />
           <TextField
@@ -575,10 +575,10 @@ export default function BehaviorsExamples() {
           description="Перевалидация при изменении зависимого поля"
           bgColor="bg-white"
           code={`revalidateWhen(
-  path.amount,
-  [path.maxAmount],
-  { debounce: 300 }
-)`}
+            path.amount,
+            [path.maxAmount],
+            { debounce: 300 }
+          )`}
         >
           <NumberField control={form.maxAmount} label="Макс. сумма" />
           <NumberField control={form.amount} label="Сумма (валидация: <= макс.)" />
