@@ -1,6 +1,12 @@
 /**
  * Тестовые данные для E2E тестов формы заявки на кредит
  * Данные взяты из спецификации spec/test-cases-credit-form.md
+ *
+ * ВАЖНО: Для создания тестовых данных с модификаторами рекомендуется
+ * использовать Data Builders из ./builders/
+ *
+ * @see ./builders/credit-form.builder.ts - Builder для кредитной формы
+ * @see ./builders/registration.builder.ts - Builder для формы регистрации
  */
 
 // ============================================================================
@@ -282,3 +288,57 @@ export const COMPLETE_FORM_DATA = {
   additional: ADDITIONAL_INFO,
   smsCode: VALID_SMS_CODE,
 };
+
+// ============================================================================
+// Утилиты для генерации тестовых данных
+// ============================================================================
+
+/**
+ * Генерирует уникальный email на основе timestamp
+ */
+export const generateUniqueEmail = (prefix = 'test'): string =>
+  `${prefix}.${Date.now()}@example.com`;
+
+/**
+ * Генерирует уникальный телефон
+ */
+export const generateUniquePhone = (): string => {
+  const randomDigits = Math.floor(Math.random() * 10000000)
+    .toString()
+    .padStart(7, '0');
+  return `+7 (999) ${randomDigits.slice(0, 3)}-${randomDigits.slice(3, 5)}-${randomDigits.slice(5, 7)}`;
+};
+
+/**
+ * Генерирует дату рождения для указанного возраста
+ */
+export const generateBirthDateForAge = (age: number): string => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - age);
+  return date.toISOString().split('T')[0];
+};
+
+/**
+ * Генерирует случайный ИНН (12 цифр для физлица)
+ */
+export const generateRandomInn = (): string => {
+  return Array.from({ length: 12 }, () =>
+    Math.floor(Math.random() * 10)
+  ).join('');
+};
+
+/**
+ * Генерирует случайный СНИЛС
+ */
+export const generateRandomSnils = (): string => {
+  const digits = Array.from({ length: 11 }, () =>
+    Math.floor(Math.random() * 10)
+  ).join('');
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 9)} ${digits.slice(9, 11)}`;
+};
+
+// ============================================================================
+// Реэкспорт builders для удобства
+// ============================================================================
+
+export { creditFormBuilder, registrationBuilder } from './builders';

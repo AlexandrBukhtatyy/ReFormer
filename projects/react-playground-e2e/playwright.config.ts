@@ -24,6 +24,8 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
+  /* Expect timeout */
+  expect: { timeout: 5000 },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
@@ -35,40 +37,50 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    // Complex Form - Chromium
     {
-      name: 'chromium',
+      name: 'complex-multy-step-form',
+      testDir: './tests/complex-multy-step-form',
+      use: { ...devices['Desktop Chrome'] },
+      metadata: { basePath: '/examples/complex', variant: 'compound' },
+    },
+    {
+      name: 'complex-multy-step-form-renderer',
+      testDir: './tests/complex-multy-step-form',
+      use: { ...devices['Desktop Chrome'] },
+      metadata: { basePath: '/examples/complex-renderer', variant: 'renderer' },
+    },
+    // Cross-browser for @critical
+    {
+      name: 'complex-form:firefox',
+      testDir: './tests/complex-multy-step-form',
+      grep: /@critical/,
+      use: { ...devices['Desktop Firefox'] },
+      metadata: { basePath: '/examples/complex', variant: 'compound' },
+    },
+    {
+      name: 'complex-form:webkit',
+      testDir: './tests/complex-multy-step-form',
+      grep: /@critical/,
+      use: { ...devices['Desktop Safari'] },
+      metadata: { basePath: '/examples/complex', variant: 'compound' },
+    },
+    // Other pages
+    {
+      name: 'simple-form',
+      testDir: './tests/simple-form',
       use: { ...devices['Desktop Chrome'] },
     },
-
     {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      name: 'validation',
+      testDir: './tests/validation',
+      use: { ...devices['Desktop Chrome'] },
     },
-
     {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      name: 'behaviors',
+      testDir: './tests/behaviors',
+      use: { ...devices['Desktop Chrome'] },
     },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
   ],
 
   /* Run your local dev server before starting the tests */

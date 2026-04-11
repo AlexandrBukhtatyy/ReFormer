@@ -1,33 +1,69 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 
-/**
- * Page Object Model для формы заявки на кредит
- * Использует data-testid селекторы для стабильности тестов
- */
-export class CreditFormPage {
-  readonly page: Page;
-  readonly baseUrl = '/examples/complex';
+// ============================================================================
+// Types
+// ============================================================================
 
-  // Навигация
+export type FormVariant = 'compound' | 'renderer';
+
+export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
+export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
+export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
+export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
+export type Gender = 'male' | 'female';
+
+export interface CreditFormPageOptions {
+  basePath?: string;
+  variant?: FormVariant;
+}
+
+// ============================================================================
+// BasePage (inline for now, can be extracted later)
+// ============================================================================
+
+abstract class BasePage {
+  readonly page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
+}
+
+// ============================================================================
+// CreditFormPage - Page Object Model for Credit Application Form
+// ============================================================================
+
+/**
+ * Page Object Model for Credit Application Form
+ * Supports both compound and renderer variants
+ * Uses data-testid selectors for test stability
+ */
+export class CreditFormPage extends BasePage {
+  readonly variant: FormVariant;
+  readonly basePath: string;
+
+  // Navigation buttons
   readonly nextButton: Locator;
   readonly prevButton: Locator;
   readonly submitButton: Locator;
   readonly stepIndicator: Locator;
 
-  // Ошибки
+  // Error tracking
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];
 
-  constructor(page: Page) {
-    this.page = page;
+  constructor(page: Page, options?: CreditFormPageOptions) {
+    super(page);
+    this.basePath = options?.basePath ?? '/examples/complex';
+    this.variant = options?.variant ?? 'compound';
 
-    // Кнопки навигации (используем data-testid)
+    // Navigation buttons (use data-testid)
     this.nextButton = page.locator('[data-testid="btn-next"]');
     this.prevButton = page.locator('[data-testid="btn-previous"]');
     this.submitButton = page.locator('[data-testid="btn-submit"]');
     this.stepIndicator = page.locator('[class*="step"]');
 
-    // Отслеживание ошибок
+    // Error tracking
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         this.consoleErrors.push(msg.text());
@@ -40,45 +76,57 @@ export class CreditFormPage {
   }
 
   // ============================================================================
-  // Селекторы по data-testid
+  // Variant Helpers
   // ============================================================================
 
-  /** Получить поле (контейнер) по testid */
+  isRenderer(): boolean {
+    return this.variant === 'renderer';
+  }
+
+  isCompound(): boolean {
+    return this.variant === 'compound';
+  }
+
+  // ============================================================================
+  // Selectors by data-testid
+  // ============================================================================
+
+  /** Get field container by testid */
   field(testId: string): Locator {
     return this.page.locator(`[data-testid="field-${testId}"]`);
   }
 
-  /** Получить input по testid */
+  /** Get input by testid */
   input(testId: string): Locator {
     return this.page.locator(`[data-testid="input-${testId}"]`);
   }
 
-  /** Получить label по testid */
+  /** Get label by testid */
   label(testId: string): Locator {
     return this.page.locator(`[data-testid="label-${testId}"]`);
   }
 
-  /** Получить сообщение об ошибке по testid */
+  /** Get error message by testid */
   error(testId: string): Locator {
     return this.page.locator(`[data-testid="error-${testId}"]`);
   }
 
   // ============================================================================
-  // Навигация
+  // Navigation
   // ============================================================================
 
   async goto() {
-    await this.page.goto(this.baseUrl);
+    await this.page.goto(this.basePath);
     await this.page.waitForLoadState('networkidle');
     await this.waitForFormReady();
   }
 
   async waitForFormReady() {
-    // Ждём пока форма загрузится (исчезнет индикатор загрузки)
+    // Wait for loading indicator to disappear
     await this.page
       .waitForSelector('text=Загрузка данных...', { state: 'hidden', timeout: 10000 })
       .catch(() => {});
-    // Ждём появления заголовка первого шага
+    // Wait for first step heading to appear
     await expect(
       this.page.getByRole('heading', { name: /основная информация о кредите/i })
     ).toBeVisible({ timeout: 10000 });
@@ -86,7 +134,7 @@ export class CreditFormPage {
 
   async goToNextStep() {
     await this.nextButton.click();
-    await this.page.waitForTimeout(300); // Даём время на переход
+    await this.page.waitForTimeout(300);
   }
 
   async goToPreviousStep() {
@@ -95,7 +143,6 @@ export class CreditFormPage {
   }
 
   async goToStep(stepNumber: number) {
-    // Клик по индикатору шага (если разрешено)
     const stepButton = this.page
       .locator(`[class*="step"]`)
       .filter({ hasText: String(stepNumber) })
@@ -116,11 +163,11 @@ export class CreditFormPage {
   }
 
   // ============================================================================
-  // Шаг 1: Основная информация о кредите
+  // Step 1: Basic Loan Information
   // ============================================================================
 
-  async selectLoanType(type: 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing') {
-    const labels: Record<string, string> = {
+  async selectLoanType(type: LoanType) {
+    const labels: Record<LoanType, string> = {
       consumer: 'Потребительский кредит',
       mortgage: 'Ипотека',
       car: 'Автокредит',
@@ -144,12 +191,16 @@ export class CreditFormPage {
     await this.input('loanPurpose').fill(purpose);
   }
 
-  // Поля ипотеки
+  // Mortgage specific fields
   async fillPropertyValue(value: number) {
     await this.input('propertyValue').fill(String(value));
   }
 
-  // Поля автокредита
+  async fillInitialPayment(amount: number) {
+    await this.input('initialPayment').fill(String(amount));
+  }
+
+  // Car loan specific fields
   async fillCarBrand(brand: string) {
     await this.input('carBrand').fill(brand);
   }
@@ -168,7 +219,7 @@ export class CreditFormPage {
   }
 
   // ============================================================================
-  // Шаг 2: Персональные данные (вложенная форма personalData)
+  // Step 2: Personal Data (nested form personalData)
   // ============================================================================
 
   async fillLastName(lastName: string) {
@@ -187,8 +238,7 @@ export class CreditFormPage {
     await this.input('personalData-birthDate').fill(date);
   }
 
-  async selectGender(gender: 'male' | 'female') {
-    // RadioGroup имеет data-testid на каждом radio: input-personalData-gender-male/female
+  async selectGender(gender: Gender) {
     await this.page.locator(`[data-testid="input-personalData-gender-${gender}"]`).click();
   }
 
@@ -196,7 +246,7 @@ export class CreditFormPage {
     await this.input('personalData-birthPlace').fill(place);
   }
 
-  // Паспортные данные (вложенная форма passportData)
+  // Passport data (nested form passportData)
   async fillPassportSeries(series: string) {
     await this.input('passportData-series').fill(series);
   }
@@ -226,17 +276,26 @@ export class CreditFormPage {
   }
 
   // ============================================================================
-  // Шаг 3: Контактная информация
+  // Step 3: Contact Information
   // ============================================================================
 
   async fillPhone(phone: string) {
     await this.input('phoneMain').fill(phone);
   }
 
+  async fillPhoneAdditional(phone: string) {
+    await this.input('phoneAdditional').fill(phone);
+  }
+
   async fillEmail(email: string) {
     await this.input('email').fill(email);
   }
 
+  async fillEmailAdditional(email: string) {
+    await this.input('emailAdditional').fill(email);
+  }
+
+  // Registration Address
   async fillRegion(region: string) {
     await this.input('registrationAddress-region').fill(region);
   }
@@ -261,14 +320,44 @@ export class CreditFormPage {
     await this.input('registrationAddress-postalCode').fill(code);
   }
 
+  async toggleSameAsRegistration(enable: boolean) {
+    const checkbox = this.input('sameAsRegistration');
+    const isChecked = await checkbox.isChecked();
+    if (isChecked !== enable) {
+      await checkbox.click();
+    }
+  }
+
+  // Residence Address (when different from registration)
+  async fillResidenceRegion(region: string) {
+    await this.input('residenceAddress-region').fill(region);
+  }
+
+  async fillResidenceCity(city: string) {
+    await this.input('residenceAddress-city').fill(city);
+  }
+
+  async fillResidenceStreet(street: string) {
+    await this.input('residenceAddress-street').fill(street);
+  }
+
+  async fillResidenceHouse(house: string) {
+    await this.input('residenceAddress-house').fill(house);
+  }
+
+  async fillResidenceApartment(apartment: string) {
+    await this.input('residenceAddress-apartment').fill(apartment);
+  }
+
+  async fillResidencePostalCode(code: string) {
+    await this.input('residenceAddress-postalCode').fill(code);
+  }
+
   // ============================================================================
-  // Шаг 4: Занятость и доход
+  // Step 4: Employment and Income
   // ============================================================================
 
-  async selectEmploymentStatus(
-    status: 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student'
-  ) {
-    // RadioGroup имеет data-testid на каждом radio: input-employmentStatus-{value}
+  async selectEmploymentStatus(status: EmploymentStatus) {
     await this.page.locator(`[data-testid="input-employmentStatus-${status}"]`).click();
   }
 
@@ -300,6 +389,10 @@ export class CreditFormPage {
     await this.input('additionalIncome').fill(String(income));
   }
 
+  async fillAdditionalIncomeSource(source: string) {
+    await this.input('additionalIncomeSource').fill(source);
+  }
+
   async fillWorkExperience(months: number) {
     await this.input('workExperienceTotal').fill(String(months));
   }
@@ -308,12 +401,24 @@ export class CreditFormPage {
     await this.input('workExperienceCurrent').fill(String(months));
   }
 
+  // Self-employed specific fields
+  async fillBusinessType(type: string) {
+    await this.input('businessType').fill(type);
+  }
+
+  async fillBusinessInn(inn: string) {
+    await this.input('businessInn').fill(inn);
+  }
+
+  async fillBusinessActivity(activity: string) {
+    await this.input('businessActivity').fill(activity);
+  }
+
   // ============================================================================
-  // Шаг 5: Дополнительная информация
+  // Step 5: Additional Information
   // ============================================================================
 
-  async selectMaritalStatus(status: 'single' | 'married' | 'divorced' | 'widowed') {
-    // RadioGroup имеет data-testid на каждом radio: input-maritalStatus-{value}
+  async selectMaritalStatus(status: MaritalStatus) {
     await this.page.locator(`[data-testid="input-maritalStatus-${status}"]`).click();
   }
 
@@ -321,8 +426,8 @@ export class CreditFormPage {
     await this.input('dependents').fill(String(count));
   }
 
-  async selectEducation(education: 'secondary' | 'specialized' | 'higher' | 'postgraduate') {
-    const labels: Record<string, string> = {
+  async selectEducation(education: EducationLevel) {
+    const labels: Record<EducationLevel, string> = {
       secondary: 'Среднее',
       specialized: 'Среднее специальное',
       higher: 'Высшее',
@@ -357,6 +462,7 @@ export class CreditFormPage {
     }
   }
 
+  // Property array methods
   async addProperty() {
     await this.page.getByRole('button', { name: /добавить имущество/i }).click();
   }
@@ -368,8 +474,32 @@ export class CreditFormPage {
     await deleteButtons.nth(index).click();
   }
 
+  // Existing loans array methods
+  async addExistingLoan() {
+    await this.page.getByRole('button', { name: /добавить кредит/i }).click();
+  }
+
+  async removeExistingLoan(index: number) {
+    const deleteButtons = this.page
+      .locator('[class*="loan"]')
+      .getByRole('button', { name: /удалить/i });
+    await deleteButtons.nth(index).click();
+  }
+
+  // Co-borrower array methods
+  async addCoBorrower() {
+    await this.page.getByRole('button', { name: /добавить созаемщика/i }).click();
+  }
+
+  async removeCoBorrower(index: number) {
+    const deleteButtons = this.page
+      .locator('[class*="coborrower"]')
+      .getByRole('button', { name: /удалить/i });
+    await deleteButtons.nth(index).click();
+  }
+
   // ============================================================================
-  // Шаг 6: Подтверждение
+  // Step 6: Confirmation
   // ============================================================================
 
   async acceptPersonalDataAgreement() {
@@ -384,12 +514,20 @@ export class CreditFormPage {
     await this.input('agreeTerms').check();
   }
 
+  async acceptAccuracyConfirmation() {
+    await this.input('confirmAccuracy').check();
+  }
+
+  async acceptMarketingAgreement() {
+    await this.input('agreeMarketing').check();
+  }
+
   async fillSmsCode(code: string) {
     await this.input('electronicSignature').fill(code);
   }
 
   // ============================================================================
-  // Утилиты и проверки
+  // Assertions and Checks
   // ============================================================================
 
   async expectStepHeading(heading: string | RegExp) {
@@ -426,6 +564,10 @@ export class CreditFormPage {
     await expect(this.input(fieldTestId)).toBeDisabled();
   }
 
+  async expectFieldEnabled(fieldTestId: string) {
+    await expect(this.input(fieldTestId)).toBeEnabled();
+  }
+
   async expectSuccessMessage() {
     await expect(this.page.getByText(/заявка успешно отправлена/i)).toBeVisible();
   }
@@ -447,11 +589,11 @@ export class CreditFormPage {
   }
 
   // ============================================================================
-  // Хелперы для заполнения шагов
+  // Step Filling Helpers
   // ============================================================================
 
   /**
-   * Заполнить шаг 1 (основная информация о кредите) - потребительский кредит
+   * Fill Step 1 (Basic loan info) - Consumer loan
    */
   async fillStep1ConsumerLoan(options?: {
     loanAmount?: number;
@@ -464,96 +606,215 @@ export class CreditFormPage {
   }
 
   /**
-   * Заполнить шаг 2 (персональные данные)
+   * Fill Step 1 (Basic loan info) - Mortgage
    */
-  async fillStep2PersonalData() {
-    await this.fillLastName('Иванов');
-    await this.fillFirstName('Иван');
-    await this.fillMiddleName('Иванович');
-    await this.fillBirthDate('1990-05-15');
-    await this.selectGender('male');
-    await this.fillBirthPlace('г. Москва');
-    await this.fillPassportSeries('45 06');
-    await this.fillPassportNumber('123456');
-    await this.fillPassportIssuedBy('ОВД Центрального района г. Москвы');
-    await this.fillPassportIssuedDate('2010-06-20');
-    await this.fillPassportCode('770-001');
-    await this.fillInn('123456789012');
-    await this.fillSnils('123-456-789 01');
+  async fillStep1Mortgage(options?: {
+    propertyValue?: number;
+    initialPayment?: number;
+    loanAmount?: number;
+    loanTerm?: number;
+  }) {
+    await this.selectLoanType('mortgage');
+    await this.fillPropertyValue(options?.propertyValue ?? 5000000);
+    await this.fillInitialPayment(options?.initialPayment ?? 1000000);
+    await this.fillLoanAmount(options?.loanAmount ?? 4000000);
+    await this.fillLoanTerm(options?.loanTerm ?? 240);
   }
 
   /**
-   * Заполнить шаг 3 (контактная информация)
+   * Fill Step 1 (Basic loan info) - Car loan
    */
-  async fillStep3ContactInfo() {
-    await this.fillPhone('+7 (999) 123-45-67');
-    await this.fillEmail('ivanov@example.com');
-    await this.fillRegion('Московская область');
-    await this.fillCity('Москва');
-    await this.fillStreet('Тверская');
-    await this.fillHouse('1');
-    await this.fillApartment('10');
-    await this.fillPostalCode('123456');
+  async fillStep1CarLoan(options?: {
+    carBrand?: string;
+    carYear?: number;
+    carPrice?: number;
+    loanAmount?: number;
+    loanTerm?: number;
+  }) {
+    await this.selectLoanType('car');
+    await this.fillCarBrand(options?.carBrand ?? 'Toyota');
+    await this.fillCarYear(options?.carYear ?? 2023);
+    await this.fillCarPrice(options?.carPrice ?? 3000000);
+    await this.fillLoanAmount(options?.loanAmount ?? 2500000);
+    await this.fillLoanTerm(options?.loanTerm ?? 60);
   }
 
   /**
-   * Пройти через шаги 1-3 с заполнением данных
+   * Fill Step 2 (Personal data)
+   */
+  async fillStep2PersonalData(options?: {
+    lastName?: string;
+    firstName?: string;
+    middleName?: string;
+    birthDate?: string;
+    gender?: Gender;
+    birthPlace?: string;
+    passportSeries?: string;
+    passportNumber?: string;
+    passportIssuedBy?: string;
+    passportIssuedDate?: string;
+    passportCode?: string;
+    inn?: string;
+    snils?: string;
+  }) {
+    await this.fillLastName(options?.lastName ?? 'Иванов');
+    await this.fillFirstName(options?.firstName ?? 'Иван');
+    await this.fillMiddleName(options?.middleName ?? 'Иванович');
+    await this.fillBirthDate(options?.birthDate ?? '1990-05-15');
+    await this.selectGender(options?.gender ?? 'male');
+    await this.fillBirthPlace(options?.birthPlace ?? 'г. Москва');
+    await this.fillPassportSeries(options?.passportSeries ?? '45 06');
+    await this.fillPassportNumber(options?.passportNumber ?? '123456');
+    await this.fillPassportIssuedBy(options?.passportIssuedBy ?? 'ОВД Центрального района г. Москвы');
+    await this.fillPassportIssuedDate(options?.passportIssuedDate ?? '2010-06-20');
+    await this.fillPassportCode(options?.passportCode ?? '770-001');
+    await this.fillInn(options?.inn ?? '123456789012');
+    await this.fillSnils(options?.snils ?? '123-456-789 01');
+  }
+
+  /**
+   * Fill Step 3 (Contact information)
+   */
+  async fillStep3ContactInfo(options?: {
+    phone?: string;
+    email?: string;
+    region?: string;
+    city?: string;
+    street?: string;
+    house?: string;
+    apartment?: string;
+    postalCode?: string;
+  }) {
+    await this.fillPhone(options?.phone ?? '+7 (999) 123-45-67');
+    await this.fillEmail(options?.email ?? 'ivanov@example.com');
+    await this.fillRegion(options?.region ?? 'Московская область');
+    await this.fillCity(options?.city ?? 'Москва');
+    await this.fillStreet(options?.street ?? 'Тверская');
+    await this.fillHouse(options?.house ?? '1');
+    await this.fillApartment(options?.apartment ?? '10');
+    await this.fillPostalCode(options?.postalCode ?? '123456');
+  }
+
+  /**
+   * Fill Step 4 (Employment) - Employed
+   */
+  async fillStep4Employment(options?: {
+    companyName?: string;
+    companyInn?: string;
+    companyPhone?: string;
+    companyAddress?: string;
+    position?: string;
+    workExperience?: number;
+    currentJobExperience?: number;
+    monthlyIncome?: number;
+    additionalIncome?: number;
+  }) {
+    await this.selectEmploymentStatus('employed');
+    await this.fillCompanyName(options?.companyName ?? 'ООО Тестовая компания');
+    await this.fillCompanyInn(options?.companyInn ?? '1234567890');
+    await this.fillCompanyPhone(options?.companyPhone ?? '+7 (999) 111-22-33');
+    await this.fillCompanyAddress(options?.companyAddress ?? 'г. Москва, ул. Тестовая, д. 1');
+    await this.fillPosition(options?.position ?? 'Менеджер');
+    await this.fillWorkExperience(options?.workExperience ?? 60);
+    await this.fillCurrentJobExperience(options?.currentJobExperience ?? 24);
+    await this.fillMonthlyIncome(options?.monthlyIncome ?? 150000);
+    await this.fillAdditionalIncome(options?.additionalIncome ?? 0);
+  }
+
+  /**
+   * Fill Step 4 (Employment) - Self-employed
+   */
+  async fillStep4SelfEmployed(options?: {
+    businessType?: string;
+    businessInn?: string;
+    businessActivity?: string;
+    monthlyIncome?: number;
+    additionalIncome?: number;
+  }) {
+    await this.selectEmploymentStatus('selfEmployed');
+    await this.fillBusinessType(options?.businessType ?? 'ИП');
+    await this.fillBusinessInn(options?.businessInn ?? '123456789012');
+    await this.fillBusinessActivity(options?.businessActivity ?? 'Консалтинг');
+    await this.fillMonthlyIncome(options?.monthlyIncome ?? 200000);
+    await this.fillAdditionalIncome(options?.additionalIncome ?? 0);
+  }
+
+  /**
+   * Fill Step 5 (Additional information)
+   */
+  async fillStep5AdditionalInfo(options?: {
+    maritalStatus?: MaritalStatus;
+    dependents?: number;
+    education?: EducationLevel;
+    hasProperty?: boolean;
+    hasLoans?: boolean;
+    hasCoBorrower?: boolean;
+  }) {
+    await this.selectMaritalStatus(options?.maritalStatus ?? 'married');
+    await this.fillDependents(options?.dependents ?? 1);
+    await this.selectEducation(options?.education ?? 'higher');
+    await this.toggleHasProperty(options?.hasProperty ?? false);
+    await this.toggleHasLoans(options?.hasLoans ?? false);
+    await this.toggleAddCoBorrower(options?.hasCoBorrower ?? false);
+  }
+
+  /**
+   * Fill Step 6 (Confirmation)
+   */
+  async fillStep6Confirmation(options?: { smsCode?: string; acceptMarketing?: boolean }) {
+    await this.acceptPersonalDataAgreement();
+    await this.acceptCreditHistoryAgreement();
+    await this.acceptTermsAgreement();
+    await this.acceptAccuracyConfirmation();
+    if (options?.acceptMarketing) {
+      await this.acceptMarketingAgreement();
+    }
+    await this.fillSmsCode(options?.smsCode ?? '123456');
+  }
+
+  // ============================================================================
+  // Navigation Helpers
+  // ============================================================================
+
+  /**
+   * Navigate through steps 1-3 with data filling
    */
   async fillAndNavigateToStep4() {
-    // Шаг 1
+    // Step 1
     await this.fillStep1ConsumerLoan();
     await this.goToNextStep();
 
-    // Шаг 2
+    // Step 2
     await this.fillStep2PersonalData();
     await this.goToNextStep();
 
-    // Шаг 3
+    // Step 3
     await this.fillStep3ContactInfo();
     await this.goToNextStep();
   }
 
   /**
-   * Заполнить шаг 4 (занятость и доход) - работающий
-   */
-  async fillStep4Employment() {
-    await this.selectEmploymentStatus('employed');
-    await this.fillCompanyName('ООО Тестовая компания');
-    await this.fillCompanyInn('1234567890');
-    await this.fillCompanyPhone('+7 (999) 111-22-33');
-    await this.fillCompanyAddress('г. Москва, ул. Тестовая, д. 1');
-    await this.fillPosition('Менеджер');
-    await this.fillWorkExperience(60);
-    await this.fillCurrentJobExperience(24);
-    await this.fillMonthlyIncome(150000);
-    await this.fillAdditionalIncome(0);
-  }
-
-  /**
-   * Заполнить шаг 5 (дополнительная информация)
-   */
-  async fillStep5AdditionalInfo() {
-    await this.selectMaritalStatus('married');
-    await this.fillDependents(1);
-    await this.selectEducation('higher');
-    await this.toggleHasProperty(false);
-    await this.toggleHasLoans(false);
-    await this.toggleAddCoBorrower(false);
-  }
-
-  /**
-   * Пройти через шаги 1-5 с заполнением данных
+   * Navigate through steps 1-5 with data filling
    */
   async fillAndNavigateToStep6() {
-    // Шаги 1-3
+    // Steps 1-3
     await this.fillAndNavigateToStep4();
 
-    // Шаг 4
+    // Step 4
     await this.fillStep4Employment();
     await this.goToNextStep();
 
-    // Шаг 5
+    // Step 5
     await this.fillStep5AdditionalInfo();
     await this.goToNextStep();
+  }
+
+  /**
+   * Complete full form flow (Consumer Loan Happy Path)
+   */
+  async completeConsumerLoanHappyPath() {
+    await this.fillAndNavigateToStep6();
+    await this.fillStep6Confirmation();
+    await this.submitForm();
   }
 }
