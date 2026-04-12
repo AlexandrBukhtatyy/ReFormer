@@ -76,7 +76,7 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
     });
   });
 
-  test.skip('HP-002: Ипотека - полное заполнение', async ({ creditForm }) => {
+  test('HP-002: Ипотека - полное заполнение', async ({ creditForm }) => {
     await test.step('Открываем форму', async () => {
       await creditForm.goto();
     });
@@ -115,9 +115,11 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       await creditForm.fillCompanyPhone('+7 (999) 111-22-33');
       await creditForm.fillCompanyAddress('г. Москва, ул. Деловая, д. 1, офис 100');
       await creditForm.fillPosition('Руководитель отдела');
-      await creditForm.fillWorkExperience(120);
+      // Валидация ограничивает стаж до 60 месяцев
+      await creditForm.fillWorkExperience(60);
       await creditForm.fillCurrentJobExperience(48);
       await creditForm.fillMonthlyIncome(300000); // Высокий доход для ипотеки
+      await creditForm.fillAdditionalIncome(0);
       await creditForm.goToNextStep();
     });
 
@@ -209,7 +211,7 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
     });
   });
 
-  test.skip('HP-004: Рефинансирование - полное заполнение', async ({ creditForm }) => {
+  test('HP-004: Рефинансирование - полное заполнение', async ({ creditForm }) => {
     await test.step('Открываем форму и заполняем шаг 1', async () => {
       await creditForm.goto();
       await creditForm.selectLoanType('refinancing');
@@ -240,8 +242,8 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       await creditForm.toggleHasLoans(true);
       await creditForm.page.getByRole('button', { name: /добавить кредит/i }).click();
       // Заполняем информацию о существующем кредите
-      await creditForm.input('existingLoan-bankName').first().fill('Сбербанк');
-      await creditForm.input('existingLoan-loanType').first().click();
+      await creditForm.input('existingLoan-bank').first().fill('Сбербанк');
+      await creditForm.input('existingLoan-type').first().click();
       await creditForm.page.getByRole('option', { name: /потребительский/i }).click();
       await creditForm.input('existingLoan-remainingAmount').first().fill('500000');
       await creditForm.input('existingLoan-monthlyPayment').first().fill('15000');

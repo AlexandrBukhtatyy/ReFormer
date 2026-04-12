@@ -428,7 +428,8 @@ export class CreditFormPage extends BasePage {
   // ============================================================================
 
   async selectMaritalStatus(status: MaritalStatus) {
-    // maritalStatus uses RadioGroup - click on the specific radio button
+    // maritalStatus uses RadioGroup - FormField passes data-testid="input-maritalStatus" to RadioGroup
+    // RadioGroup then generates: data-testid="input-maritalStatus-{value}"
     await this.page.locator(`[data-testid="input-maritalStatus-${status}"]`).click();
   }
 
