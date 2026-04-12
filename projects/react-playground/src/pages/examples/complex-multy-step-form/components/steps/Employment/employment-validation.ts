@@ -48,11 +48,11 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
       required(path.workExperienceTotal, { message: 'Укажите общий стаж работы' });
       min(path.workExperienceTotal, 0, { message: 'Стаж не может быть отрицательным' });
-      max(path.workExperienceTotal, 60, { message: 'Максимальный стаж: 60 лет' });
+      max(path.workExperienceTotal, 720, { message: 'Максимальный стаж: 60 лет (720 месяцев)' });
 
       required(path.workExperienceCurrent, { message: 'Укажите стаж на текущем месте' });
       min(path.workExperienceCurrent, 0, { message: 'Стаж не может быть отрицательным' });
-      max(path.workExperienceCurrent, 60, { message: 'Максимальный стаж: 60 лет' });
+      max(path.workExperienceCurrent, 720, { message: 'Максимальный стаж: 60 лет (720 месяцев)' });
 
       // Cross-field: стаж на текущем месте не больше общего стажа
       validateTree<CreditApplicationForm>(

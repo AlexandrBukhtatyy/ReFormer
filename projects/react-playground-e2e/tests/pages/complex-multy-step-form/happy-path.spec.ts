@@ -115,8 +115,7 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       await creditForm.fillCompanyPhone('+7 (999) 111-22-33');
       await creditForm.fillCompanyAddress('г. Москва, ул. Деловая, д. 1, офис 100');
       await creditForm.fillPosition('Руководитель отдела');
-      // Валидация ограничивает стаж до 60 месяцев
-      await creditForm.fillWorkExperience(60);
+      await creditForm.fillWorkExperience(120); // 10 лет общего стажа
       await creditForm.fillCurrentJobExperience(48);
       await creditForm.fillMonthlyIncome(300000); // Высокий доход для ипотеки
       await creditForm.fillAdditionalIncome(0);
