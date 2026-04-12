@@ -13,12 +13,9 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
     await creditForm.goto();
   });
 
-  // TODO: Real WCAG violations that need component fixes:
-  // 1. button-name: Radix Select triggers don't have accessible text (need aria-label)
-  // 2. color-contrast: Navigation links and step indicators have insufficient contrast
-  // Track fix in: components/ui/select.tsx, components/Navigation.tsx, components/StepIndicator.tsx
+  // Fixed: Added aria-label to Select, improved color contrast (bg-blue-700)
   test.describe('A11Y-001: No Critical WCAG Violations', () => {
-    test.skip('A11Y-001-A: Step 1 - Basic Info has no critical violations', async ({
+    test('A11Y-001-A: Step 1 - Basic Info has no critical violations', async ({
       page,
       creditForm,
     }) => {
@@ -31,7 +28,7 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test.skip('A11Y-001-B: Step 2 - Personal Data has no critical violations', async ({
+    test('A11Y-001-B: Step 2 - Personal Data has no critical violations', async ({
       page,
       creditForm,
     }) => {

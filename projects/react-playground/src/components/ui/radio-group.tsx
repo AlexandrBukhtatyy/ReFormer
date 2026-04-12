@@ -32,26 +32,33 @@ const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
         data-testid={dataTestId}
         {...props}
       >
-        {options.map((option) => (
-          <div key={option.value} className="flex items-center gap-2">
-            <input
-              type="radio"
-              value={option.value}
-              checked={value === option.value}
-              disabled={disabled}
-              className={cn(
-                'h-4 w-4 border-gray-300 text-primary focus:ring-2 focus:ring-primary',
-                'disabled:cursor-not-allowed disabled:opacity-50'
-              )}
-              onChange={handleRadioChange}
-              onBlur={onBlur}
-              data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
-            />
-            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              {option.label}
-            </label>
-          </div>
-        ))}
+        {options.map((option) => {
+          const inputId = dataTestId ? `${dataTestId}-${option.value}` : `radio-${option.value}`;
+          return (
+            <div key={option.value} className="flex items-center gap-2">
+              <input
+                type="radio"
+                id={inputId}
+                value={option.value}
+                checked={value === option.value}
+                disabled={disabled}
+                className={cn(
+                  'h-4 w-4 border-gray-300 text-primary focus:ring-2 focus:ring-primary',
+                  'disabled:cursor-not-allowed disabled:opacity-50'
+                )}
+                onChange={handleRadioChange}
+                onBlur={onBlur}
+                data-testid={dataTestId ? `input-${dataTestId}-${option.value}` : undefined}
+              />
+              <label
+                htmlFor={inputId}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                {option.label}
+              </label>
+            </div>
+          );
+        })}
       </div>
     );
   }

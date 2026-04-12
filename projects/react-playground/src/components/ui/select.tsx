@@ -178,6 +178,7 @@ function SelectTrigger({
   className,
   size = 'default',
   children,
+  'aria-label': ariaLabel,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: 'sm' | 'default';
@@ -186,6 +187,7 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
+      aria-label={ariaLabel || 'Select an option'}
       className={cn(
         'h-9 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs transition-colors',
         '!bg-white !text-black',
