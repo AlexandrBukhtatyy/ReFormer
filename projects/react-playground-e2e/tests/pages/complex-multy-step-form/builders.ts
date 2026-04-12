@@ -8,7 +8,7 @@ import type {
   PassportData,
   AddressData,
   EmploymentData,
-} from '../test-data';
+} from './test-data';
 
 // ============================================================================
 // Типы для Builder

@@ -3,7 +3,12 @@
  * These scenarios encapsulate common test flows that can be used across different test files
  */
 
-import { CreditFormPage, type Gender, type MaritalStatus, type EducationLevel } from '../../pages/CreditFormPage';
+import {
+  CreditFormPage,
+  type Gender,
+  type MaritalStatus,
+  type EducationLevel,
+} from './credit-form-page.pom';
 
 // ============================================================================
 // Types for Scenario Data
@@ -187,10 +192,7 @@ export async function fillStep2PersonalDataFemale(form: CreditFormPage) {
 /**
  * Fill Step 3 Contact Information
  */
-export async function fillStep3ContactInfo(
-  form: CreditFormPage,
-  contactData?: ContactDataInput
-) {
+export async function fillStep3ContactInfo(form: CreditFormPage, contactData?: ContactDataInput) {
   await form.fillPhone(contactData?.phone ?? '+7 (999) 123-45-67');
   await form.fillEmail(contactData?.email ?? 'ivanov@example.com');
   await form.fillRegion(contactData?.region ?? 'Московская область');
@@ -290,10 +292,7 @@ export async function fillStep4Retired(
 /**
  * Fill Step 5 Additional Information - Simple (no property, no loans, no co-borrower)
  */
-export async function fillStep5Simple(
-  form: CreditFormPage,
-  additionalInfo?: AdditionalInfoInput
-) {
+export async function fillStep5Simple(form: CreditFormPage, additionalInfo?: AdditionalInfoInput) {
   await form.selectMaritalStatus(additionalInfo?.maritalStatus ?? 'married');
   await form.fillDependents(additionalInfo?.dependents ?? 1);
   await form.selectEducation(additionalInfo?.education ?? 'higher');

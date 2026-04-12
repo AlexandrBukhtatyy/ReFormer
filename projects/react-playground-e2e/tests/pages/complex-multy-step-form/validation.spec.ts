@@ -8,8 +8,8 @@
  * - Кросс-полевая валидация
  */
 
-import { test, expect } from '../shared/test-factory';
-import { INVALID_DATA, VALID_SMS_CODE } from '../fixtures/test-data';
+import { test, expect } from '../../shared/test-factory';
+import { INVALID_DATA, VALID_SMS_CODE } from './test-data';
 
 test.describe('Validation', { tag: ['@validation'] }, () => {
   test.describe('VAL-001: Обязательные поля', () => {
@@ -168,11 +168,7 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       // Заполняем данные с датой рождения < 18 лет назад
       const today = new Date();
-      const youngBirthDate = new Date(
-        today.getFullYear() - 17,
-        today.getMonth(),
-        today.getDate()
-      );
+      const youngBirthDate = new Date(today.getFullYear() - 17, today.getMonth(), today.getDate());
       const formattedDate = youngBirthDate.toISOString().split('T')[0];
 
       await creditForm.fillLastName('Иванов');

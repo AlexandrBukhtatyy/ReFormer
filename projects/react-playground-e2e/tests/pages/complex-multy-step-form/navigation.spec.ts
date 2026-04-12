@@ -8,7 +8,7 @@
  * - Индикатор шагов
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Navigation', { tag: ['@navigation'] }, () => {
   test.describe('NAV-001: Переход вперед', () => {
@@ -222,7 +222,10 @@ test.describe('Navigation', { tag: ['@navigation'] }, () => {
       // Проверяем наличие всех номеров шагов в индикаторе
       for (let i = 1; i <= 6; i++) {
         await expect(
-          creditForm.page.locator(`[class*="step"]`).filter({ hasText: String(i) }).first()
+          creditForm.page
+            .locator(`[class*="step"]`)
+            .filter({ hasText: String(i) })
+            .first()
         ).toBeVisible();
       }
     });
@@ -298,9 +301,7 @@ test.describe('Navigation', { tag: ['@navigation'] }, () => {
   });
 
   test.describe('NAV-005: Состояние кнопок навигации', () => {
-    test('NAV-005-A: На первом шаге отображается только кнопка "Далее"', async ({
-      creditForm,
-    }) => {
+    test('NAV-005-A: На первом шаге отображается только кнопка "Далее"', async ({ creditForm }) => {
       await creditForm.goto();
 
       await expect(creditForm.nextButton).toBeVisible();
@@ -321,9 +322,7 @@ test.describe('Navigation', { tag: ['@navigation'] }, () => {
       await expect(creditForm.prevButton).toBeEnabled();
     });
 
-    test('NAV-005-C: На последнем шаге отображается кнопка "Отправить"', async ({
-      creditForm,
-    }) => {
+    test('NAV-005-C: На последнем шаге отображается кнопка "Отправить"', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep6();
 

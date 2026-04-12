@@ -5,8 +5,8 @@
  * @tag @a11y
  */
 
-import { test, expect } from '../shared/test-factory';
-import { checkA11y, checkWcag21AA, createA11yReport } from '../shared/a11y';
+import { test, expect } from '../../shared/test-factory';
+import { checkA11y, checkWcag21AA, createA11yReport } from '../../shared/a11y';
 
 test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
   test.beforeEach(async ({ creditForm }) => {
@@ -14,10 +14,15 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
   });
 
   test.describe('A11Y-001: No Critical WCAG Violations', () => {
-    test('A11Y-001-A: Step 1 - Basic Info has no critical violations', async ({ page, creditForm }) => {
+    test('A11Y-001-A: Step 1 - Basic Info has no critical violations', async ({
+      page,
+      creditForm,
+    }) => {
       await test.step('Check accessibility on Step 1', async () => {
         const violations = await checkA11y(page);
-        const critical = violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+        const critical = violations.filter(
+          (v) => v.impact === 'critical' || v.impact === 'serious'
+        );
         expect(critical).toHaveLength(0);
       });
     });
@@ -36,7 +41,9 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
 
       await test.step('Check accessibility on Step 2', async () => {
         const violations = await checkA11y(page);
-        const critical = violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+        const critical = violations.filter(
+          (v) => v.impact === 'critical' || v.impact === 'serious'
+        );
         expect(critical).toHaveLength(0);
       });
     });
@@ -127,14 +134,19 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       await test.step('Check for aria-live on error container', async () => {
         await creditForm.goToNextStep();
 
-        const liveRegion = page.locator('[aria-live="polite"], [aria-live="assertive"], [role="alert"]');
+        const liveRegion = page.locator(
+          '[aria-live="polite"], [aria-live="assertive"], [role="alert"]'
+        );
         const count = await liveRegion.count();
         // At least one live region should exist for error announcements
         expect(count).toBeGreaterThanOrEqual(0); // Soft check - depends on implementation
       });
     });
 
-    test('A11Y-003-C: Required fields are marked with aria-required', async ({ page, creditForm }) => {
+    test('A11Y-003-C: Required fields are marked with aria-required', async ({
+      page,
+      creditForm,
+    }) => {
       await test.step('Check aria-required on required fields', async () => {
         const requiredInputs = page.locator('[aria-required="true"], [required]');
         const count = await requiredInputs.count();
@@ -180,7 +192,9 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
 
     test('A11Y-004-C: Step indicator is accessible', async ({ page }) => {
       await test.step('Check step indicator accessibility', async () => {
-        const stepIndicator = page.locator('[data-testid="step-indicator"], [role="progressbar"], [role="navigation"]');
+        const stepIndicator = page.locator(
+          '[data-testid="step-indicator"], [role="progressbar"], [role="navigation"]'
+        );
         const count = await stepIndicator.count();
 
         if (count > 0) {
@@ -210,7 +224,9 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
 
     test('A11Y-005-B: Custom controls are keyboard operable', async ({ page }) => {
       await test.step('Check select components', async () => {
-        const selects = page.locator('select:visible, [role="listbox"]:visible, [role="combobox"]:visible');
+        const selects = page.locator(
+          'select:visible, [role="listbox"]:visible, [role="combobox"]:visible'
+        );
         const count = await selects.count();
 
         for (let i = 0; i < Math.min(count, 5); i++) {
@@ -224,7 +240,10 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
   });
 
   test.describe('A11Y-006: Color and Contrast', () => {
-    test('A11Y-006-A: Error states are not conveyed by color alone', async ({ page, creditForm }) => {
+    test('A11Y-006-A: Error states are not conveyed by color alone', async ({
+      page,
+      creditForm,
+    }) => {
       await test.step('Trigger error and check indicators', async () => {
         await creditForm.goToNextStep();
 

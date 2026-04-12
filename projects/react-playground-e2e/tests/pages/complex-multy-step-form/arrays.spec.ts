@@ -8,7 +8,7 @@
  * - Лимиты массивов
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Arrays', { tag: ['@arrays'] }, () => {
   test.describe('ARR-001: Добавление созаемщика', () => {
@@ -96,7 +96,10 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await expect(creditForm.page.locator('text=/созаемщик.*#1/i')).toBeVisible();
 
       // Удаляем созаемщика
-      await creditForm.page.getByRole('button', { name: /удалить/i }).first().click();
+      await creditForm.page
+        .getByRole('button', { name: /удалить/i })
+        .first()
+        .click();
 
       // Созаемщик удален, появляется empty state
       await expect(creditForm.page.locator('text=/созаемщик.*#1/i')).not.toBeVisible();
@@ -146,7 +149,10 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await expect(creditForm.page.locator('text=/имущество.*#2/i')).toBeVisible();
 
       // Удаляем первый
-      await creditForm.page.getByRole('button', { name: /удалить/i }).first().click();
+      await creditForm.page
+        .getByRole('button', { name: /удалить/i })
+        .first()
+        .click();
 
       // Должен остаться один (нумерация обновится)
       await expect(creditForm.page.locator('text=/имущество.*#1/i')).toBeVisible();
@@ -164,7 +170,10 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.page.getByRole('button', { name: /добавить кредит/i }).click();
       await expect(creditForm.page.locator('text=/кредит.*#1/i')).toBeVisible();
 
-      await creditForm.page.getByRole('button', { name: /удалить/i }).first().click();
+      await creditForm.page
+        .getByRole('button', { name: /удалить/i })
+        .first()
+        .click();
       await expect(creditForm.page.locator('text=/кредит.*#1/i')).not.toBeVisible();
     });
   });
@@ -321,9 +330,7 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleHasProperty(true);
 
       // Проверяем empty state
-      await expect(
-        creditForm.page.locator('text=/нажмите.*добавить.*имущество/i')
-      ).toBeVisible();
+      await expect(creditForm.page.locator('text=/нажмите.*добавить.*имущество/i')).toBeVisible();
 
       // После добавления элемента empty state исчезает
       await creditForm.page.getByRole('button', { name: /добавить имущество/i }).click();
@@ -332,10 +339,11 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       ).not.toBeVisible();
 
       // После удаления элемента empty state появляется снова
-      await creditForm.page.getByRole('button', { name: /удалить/i }).first().click();
-      await expect(
-        creditForm.page.locator('text=/нажмите.*добавить.*имущество/i')
-      ).toBeVisible();
+      await creditForm.page
+        .getByRole('button', { name: /удалить/i })
+        .first()
+        .click();
+      await expect(creditForm.page.locator('text=/нажмите.*добавить.*имущество/i')).toBeVisible();
     });
   });
 

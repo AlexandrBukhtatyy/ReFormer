@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { SimpleFormPage } from '../pages/SimpleFormPage';
+import { SimpleFormPage } from './simple-form-page.pom';
 
 test.describe('Registration Form', () => {
   let formPage: SimpleFormPage;

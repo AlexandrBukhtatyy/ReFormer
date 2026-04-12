@@ -8,7 +8,7 @@
  * - Память и утечки
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Performance', { tag: ['@performance'] }, () => {
   test.describe('PERF-001: Время загрузки страницы', () => {
@@ -145,7 +145,10 @@ test.describe('Performance', { tag: ['@performance'] }, () => {
       }
 
       for (let i = 0; i < 5; i++) {
-        await creditForm.page.getByRole('button', { name: /удалить/i }).first().click();
+        await creditForm.page
+          .getByRole('button', { name: /удалить/i })
+          .first()
+          .click();
       }
 
       expect(creditForm.hasNoStackOverflow()).toBe(true);
@@ -162,9 +165,7 @@ test.describe('Performance', { tag: ['@performance'] }, () => {
       expect(creditForm.hasNoErrors()).toBe(true);
     });
 
-    test('PERF-004-B: Нет ошибок в консоли при полном заполнении формы', async ({
-      creditForm,
-    }) => {
+    test('PERF-004-B: Нет ошибок в консоли при полном заполнении формы', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep6();
 

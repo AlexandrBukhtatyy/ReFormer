@@ -8,7 +8,7 @@
  * - Динамические лимиты
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
   test.describe('DEP-001: Загрузка городов по региону', () => {

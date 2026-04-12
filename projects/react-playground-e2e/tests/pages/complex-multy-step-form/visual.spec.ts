@@ -5,7 +5,7 @@
  * @tag @visual
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
   test.describe('VIS-001: Screenshot Each Step', () => {

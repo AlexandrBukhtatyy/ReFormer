@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ValidationPage } from '../pages/ValidationPage';
+import { ValidationPage } from './validation-page.pom';
 
 test.describe('Validation Examples', () => {
   let validationPage: ValidationPage;

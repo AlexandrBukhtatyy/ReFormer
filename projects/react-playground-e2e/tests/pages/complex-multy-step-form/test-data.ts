@@ -1,12 +1,8 @@
 /**
  * Тестовые данные для E2E тестов формы заявки на кредит
- * Данные взяты из спецификации spec/test-cases-credit-form.md
  *
  * ВАЖНО: Для создания тестовых данных с модификаторами рекомендуется
- * использовать Data Builders из ./builders/
- *
- * @see ./builders/credit-form.builder.ts - Builder для кредитной формы
- * @see ./builders/registration.builder.ts - Builder для формы регистрации
+ * использовать Data Builders из ./builders.ts
  */
 
 // ============================================================================
@@ -341,4 +337,4 @@ export const generateRandomSnils = (): string => {
 // Реэкспорт builders для удобства
 // ============================================================================
 
-export { creditFormBuilder, registrationBuilder } from './builders';
+export { creditFormBuilder } from './builders';

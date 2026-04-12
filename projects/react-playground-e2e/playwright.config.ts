@@ -40,27 +40,27 @@ export default defineConfig({
     // Complex Form - Chromium
     {
       name: 'complex-multy-step-form',
-      testDir: './tests/complex-multy-step-form',
+      testDir: './tests/pages/complex-multy-step-form',
       use: { ...devices['Desktop Chrome'] },
       metadata: { basePath: '/examples/complex', variant: 'compound' },
     },
     {
       name: 'complex-multy-step-form-renderer',
-      testDir: './tests/complex-multy-step-form',
+      testDir: './tests/pages/complex-multy-step-form',
       use: { ...devices['Desktop Chrome'] },
       metadata: { basePath: '/examples/complex-renderer', variant: 'renderer' },
     },
     // Cross-browser for @critical
     {
       name: 'complex-form:firefox',
-      testDir: './tests/complex-multy-step-form',
+      testDir: './tests/pages/complex-multy-step-form',
       grep: /@critical/,
       use: { ...devices['Desktop Firefox'] },
       metadata: { basePath: '/examples/complex', variant: 'compound' },
     },
     {
       name: 'complex-form:webkit',
-      testDir: './tests/complex-multy-step-form',
+      testDir: './tests/pages/complex-multy-step-form',
       grep: /@critical/,
       use: { ...devices['Desktop Safari'] },
       metadata: { basePath: '/examples/complex', variant: 'compound' },
@@ -68,17 +68,17 @@ export default defineConfig({
     // Other pages
     {
       name: 'simple-form',
-      testDir: './tests/simple-form',
+      testDir: './tests/pages/simple-form',
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'validation',
-      testDir: './tests/validation',
+      testDir: './tests/pages/validation',
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'behaviors',
-      testDir: './tests/behaviors',
+      testDir: './tests/pages/behaviors',
       use: { ...devices['Desktop Chrome'] },
     },
   ],

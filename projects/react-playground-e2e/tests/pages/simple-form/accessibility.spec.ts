@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { SimpleFormPage } from '../pages/SimpleFormPage';
+import { SimpleFormPage } from './simple-form-page.pom';
 
 test.describe('Registration Form Accessibility', () => {
   let formPage: SimpleFormPage;
@@ -227,10 +227,7 @@ test.describe('Registration Form Accessibility', () => {
 
   test.describe('Input Placeholders', () => {
     test('should have helpful placeholder text', async () => {
-      await expect(formPage.usernameInput).toHaveAttribute(
-        'placeholder',
-        /логин|латиница/i
-      );
+      await expect(formPage.usernameInput).toHaveAttribute('placeholder', /логин|латиница/i);
       await expect(formPage.emailInput).toHaveAttribute('placeholder', /email/i);
       await expect(formPage.phoneInput).toHaveAttribute('placeholder', /\+7/);
     });

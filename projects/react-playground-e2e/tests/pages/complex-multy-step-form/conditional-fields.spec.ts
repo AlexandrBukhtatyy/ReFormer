@@ -8,7 +8,7 @@
  * - Копирование адреса
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Conditional Fields', { tag: ['@conditional'] }, () => {
   test.describe('COND-001: Поля для ипотеки', () => {
@@ -366,9 +366,7 @@ test.describe('Conditional Fields', { tag: ['@conditional'] }, () => {
 
       await creditForm.toggleHasLoans(true);
 
-      await expect(
-        creditForm.page.getByRole('button', { name: /добавить кредит/i })
-      ).toBeVisible();
+      await expect(creditForm.page.getByRole('button', { name: /добавить кредит/i })).toBeVisible();
     });
 
     test('COND-005-C: Секция созаемщиков появляется при включении чекбокса', async ({

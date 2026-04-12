@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { BehaviorsPage } from '../pages/BehaviorsPage';
+import { BehaviorsPage } from './behaviors-page.pom';
 
 test.describe('Behaviors Examples', () => {
   let behaviorsPage: BehaviorsPage;

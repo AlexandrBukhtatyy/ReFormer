@@ -11,7 +11,7 @@
  * - Доход созаемщиков
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 
 test.describe('Computed Fields', { tag: ['@computed'] }, () => {
   test.describe('COMP-001: Ежемесячный платеж', () => {

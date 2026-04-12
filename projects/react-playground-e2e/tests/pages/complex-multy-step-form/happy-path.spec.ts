@@ -6,13 +6,13 @@
  * и успешно отправить заявку.
  */
 
-import { test, expect } from '../shared/test-factory';
+import { test, expect } from '../../shared/test-factory';
 import {
   CONSUMER_LOAN_DATA,
   MORTGAGE_LOAN_DATA,
   CAR_LOAN_DATA,
   VALID_SMS_CODE,
-} from '../fixtures/test-data';
+} from './test-data';
 
 test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
   test('HP-001: Потребительский кредит - полное заполнение', async ({ creditForm }) => {

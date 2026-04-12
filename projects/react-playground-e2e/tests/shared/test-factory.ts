@@ -1,5 +1,5 @@
 import { test as base, type Page, type Route } from '@playwright/test';
-import { CreditFormPage } from '../pages/CreditFormPage';
+import { CreditFormPage } from '../pages/complex-multy-step-form/credit-form-page.pom';
 
 /**
  * Project metadata interface for type safety
@@ -30,9 +30,15 @@ export interface MockApisFixture {
     options?: { status?: number; delay?: number }
   ) => Promise<void>;
   /** Mock form submission endpoint */
-  mockSubmission: (response?: unknown, options?: { status?: number; delay?: number }) => Promise<void>;
+  mockSubmission: (
+    response?: unknown,
+    options?: { status?: number; delay?: number }
+  ) => Promise<void>;
   /** Mock validation endpoint */
-  mockValidation: (response?: unknown, options?: { status?: number; delay?: number }) => Promise<void>;
+  mockValidation: (
+    response?: unknown,
+    options?: { status?: number; delay?: number }
+  ) => Promise<void>;
   /** Get all mocked routes */
   getMockedRoutes: () => Route[];
 }
