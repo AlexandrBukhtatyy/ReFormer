@@ -4,6 +4,7 @@
  */
 
 import { type Page, type Route } from '@playwright/test';
+import type { PersonalData, PassportData, AddressData } from './test-data';
 
 // ============================================================================
 // Types - Dictionaries
@@ -28,32 +29,6 @@ export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinanci
 export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
-
-export interface PersonalData {
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  birthDate: string;
-  gender: 'male' | 'female';
-  birthPlace: string;
-}
-
-export interface PassportData {
-  series: string;
-  number: string;
-  issueDate: string;
-  issuedBy: string;
-  departmentCode: string;
-}
-
-export interface Address {
-  region: string;
-  city: string;
-  street: string;
-  house: string;
-  apartment: string;
-  postalCode: string;
-}
 
 export interface Property {
   type: string;
@@ -93,9 +68,9 @@ export interface CreditApplicationMock {
   phoneAdditional?: string;
   email: string;
   emailAdditional?: string;
-  registrationAddress: Address;
+  registrationAddress: AddressData;
   sameAsRegistration: boolean;
-  residenceAddress?: Address;
+  residenceAddress?: AddressData;
   employmentStatus: EmploymentStatus;
   companyName?: string;
   companyInn?: string;
@@ -218,9 +193,9 @@ export const MOCK_CREDIT_APPLICATION_1: Partial<CreditApplicationMock> = {
   passportData: {
     series: '45 06',
     number: '123456',
-    issueDate: '2010-06-20',
     issuedBy: 'ОВД Центрального района г. Москвы',
-    departmentCode: '770-001',
+    issuedDate: '2010-06-20',
+    code: '770-001',
   },
   inn: '123456789012',
   snils: '123-456-789 01',
@@ -268,9 +243,9 @@ export const MOCK_CREDIT_APPLICATION_2: Partial<CreditApplicationMock> = {
   passportData: {
     series: '40 15',
     number: '654321',
-    issueDate: '2015-04-10',
     issuedBy: 'УФМС России по г. Санкт-Петербургу',
-    departmentCode: '780-002',
+    issuedDate: '2015-04-10',
+    code: '780-002',
   },
   inn: '782512345678',
   snils: '987-654-321 00',
@@ -313,9 +288,9 @@ export const MOCK_EMPTY_APPLICATION: Partial<CreditApplicationMock> = {
   passportData: {
     series: '',
     number: '',
-    issueDate: '',
     issuedBy: '',
-    departmentCode: '',
+    issuedDate: '',
+    code: '',
   },
   inn: '',
   snils: '',
