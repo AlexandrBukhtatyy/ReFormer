@@ -11,12 +11,71 @@ Reactive form state management library for React with signals-based architecture
 - [Documentation](https://alexandrbukhtatyy.github.io/ReFormer/) - Full documentation and API reference
 - [Playground](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer?file=projects/react-playground/src/App.tsx) - Try ReFormer in StackBlitz
 
+## Commands
+
+### Общие команды
+
+```
+# Установка зависимостей @reformer/core
+npm install -w @reformer/core
+
+# Сборка пакета @reformer/core
+npm run build -w @reformer/core
+
+
+# Установка зависимостей @reformer/cdk
+npm install -w @reformer/cdk
+
+# Сборка пакета @reformer/cdk
+npm run build -w @reformer/cdk
+
+
+# Установка зависимостей @reformer/renderer-reac
+npm install -w @reformer/renderer-react
+
+# Сборка пакета @reformer/renderer-react
+npm run build -w @reformer/renderer-react
+
+
+# Установка зависимостей react-playground
+npm install -w react-playground
+
+# Сборка проекта react-playground
+npm run build -w react-playground
+
+# Запуск проекта react-playground в режиме разработки
+npm run dev -w react-playground
+```
+
+### Запуск тестов:
+
+**\*Для активации accessibility тестов нужно установить зависимость**
+
+```
+npm install -D @axe-core/playwright
+```
+
+```
+# Команды для тестов нужно запускать из директории `projects/react-playground-e2e`
+cd projects/react-playground-e2e
+
+# Оба варианта комплексной формы
+npx playwright test --project='complex-multy-step-form*'
+
+# По тегам
+npx playwright test --grep @smoke      # быстрый CI
+npx playwright test --grep @critical   # PR CI
+npx playwright test --grep @a11y       # accessibility
+npx playwright test --grep @visual     # visual regression
+npx playwright test --grep @perf       # performance
+```
+
 ## Packages
 
 | Package                                  | Description                                    | Version                                                                                                 |
 | ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | [@reformer/core](./packages/reformer)    | Core form state management                     | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
-| [@reformer/cdk](./packages/reformer-cdk)   | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)     |
+| [@reformer/cdk](./packages/reformer-cdk) | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)   |
 | [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants                   | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)   |
 
 ## Features

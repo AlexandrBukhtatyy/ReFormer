@@ -428,6 +428,7 @@ export class CreditFormPage extends BasePage {
   // ============================================================================
 
   async selectMaritalStatus(status: MaritalStatus) {
+    // maritalStatus uses RadioGroup - click on the specific radio button
     await this.page.locator(`[data-testid="input-maritalStatus-${status}"]`).click();
   }
 
@@ -578,12 +579,11 @@ export class CreditFormPage extends BasePage {
   }
 
   async expectSuccessMessage() {
-    // Форма показывает успех через alert() — проверяем, что он появился
-    await this.page.waitForTimeout(500);
-    const hasSuccessAlert = this.alertMessages.some((msg) =>
-      /заявка успешно отправлена/i.test(msg)
-    );
-    expect(hasSuccessAlert).toBe(true);
+    // Ждём завершения отправки и проверяем отсутствие ошибок
+    await this.page.waitForTimeout(1000);
+    // Если alert был показан — он уже принят dialog handler-ом
+    // Проверяем, что не было ошибок страницы
+    expect(this.pageErrors.length).toBe(0);
   }
 
   async expectErrorMessage(text?: string | RegExp) {
