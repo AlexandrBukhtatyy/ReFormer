@@ -104,19 +104,14 @@ function createMockApis(page: Page): MockApisFixture {
  */
 export const test = base.extend<TestFixtures>({
   /**
-   * Credit form page object with basePath from project metadata
+   * Credit form page object with basePath and variant from project metadata
    */
   creditForm: async ({ page }, use, testInfo) => {
     const metadata = getProjectMetadata(testInfo);
-    const creditForm = new CreditFormPage(page);
-
-    // Override baseUrl if basePath is specified in project metadata
-    if (metadata.basePath) {
-      Object.defineProperty(creditForm, 'baseUrl', {
-        value: metadata.basePath,
-        writable: false,
-      });
-    }
+    const creditForm = new CreditFormPage(page, {
+      basePath: metadata.basePath,
+      variant: metadata.variant,
+    });
 
     await use(creditForm);
   },

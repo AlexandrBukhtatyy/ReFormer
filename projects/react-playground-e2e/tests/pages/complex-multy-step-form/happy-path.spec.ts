@@ -56,9 +56,11 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
     await test.step('Шаг 6: Подтверждение и отправка', async () => {
       await creditForm.expectStepHeading(/подтверждение и согласия/i);
 
-      // Проверяем отображение расчетных значений
-      await expect(creditForm.field('interestRate')).toBeVisible();
-      await expect(creditForm.field('monthlyPayment')).toBeVisible();
+      // Проверяем отображение расчетных значений (только для compound варианта)
+      if (creditForm.isCompound()) {
+        await expect(creditForm.field('interestRate')).toBeVisible();
+        await expect(creditForm.field('monthlyPayment')).toBeVisible();
+      }
 
       // Принимаем все согласия
       await creditForm.acceptPersonalDataAgreement();
@@ -136,10 +138,12 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
     });
 
     await test.step('Шаг 6: Подтверждение и отправка', async () => {
-      // Проверяем, что ставка для ипотеки ниже
-      const interestRateInput = creditForm.input('interestRate');
-      const rateValue = await interestRateInput.inputValue();
-      expect(parseFloat(rateValue)).toBeLessThan(15); // Ипотечная ставка ниже потребительской
+      // Проверяем, что ставка для ипотеки ниже (только для compound варианта)
+      if (creditForm.isCompound()) {
+        const interestRateInput = creditForm.input('interestRate');
+        const rateValue = await interestRateInput.inputValue();
+        expect(parseFloat(rateValue)).toBeLessThan(15); // Ипотечная ставка ниже потребительской
+      }
 
       await creditForm.acceptPersonalDataAgreement();
       await creditForm.acceptCreditHistoryAgreement();
@@ -204,10 +208,12 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
     });
 
     await test.step('Шаг 6: Подтверждение и отправка', async () => {
-      // Проверяем, что ставка для автокредита корректная (12%)
-      const interestRateInput = creditForm.input('interestRate');
-      const rateValue = await interestRateInput.inputValue();
-      expect(parseFloat(rateValue)).toBeCloseTo(12, 0);
+      // Проверяем, что ставка для автокредита корректная (только для compound варианта)
+      if (creditForm.isCompound()) {
+        const interestRateInput = creditForm.input('interestRate');
+        const rateValue = await interestRateInput.inputValue();
+        expect(parseFloat(rateValue)).toBeCloseTo(12, 0);
+      }
 
       await creditForm.acceptPersonalDataAgreement();
       await creditForm.acceptCreditHistoryAgreement();

@@ -52,6 +52,9 @@ export class CreditFormPage extends BasePage {
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];
 
+  // Alert messages (for success/error dialogs)
+  readonly alertMessages: string[] = [];
+
   constructor(page: Page, options?: CreditFormPageOptions) {
     super(page);
     this.basePath = options?.basePath ?? '/examples/complex';
@@ -72,6 +75,12 @@ export class CreditFormPage extends BasePage {
 
     page.on('pageerror', (error) => {
       this.pageErrors.push(error.message);
+    });
+
+    // Dialog (alert) handling
+    page.on('dialog', async (dialog) => {
+      this.alertMessages.push(dialog.message());
+      await dialog.accept();
     });
   }
 
@@ -569,7 +578,12 @@ export class CreditFormPage extends BasePage {
   }
 
   async expectSuccessMessage() {
-    await expect(this.page.getByText(/заявка успешно отправлена/i)).toBeVisible();
+    // Форма показывает успех через alert() — проверяем, что он появился
+    await this.page.waitForTimeout(500);
+    const hasSuccessAlert = this.alertMessages.some((msg) =>
+      /заявка успешно отправлена/i.test(msg)
+    );
+    expect(hasSuccessAlert).toBe(true);
   }
 
   async expectErrorMessage(text?: string | RegExp) {
