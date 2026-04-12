@@ -61,7 +61,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.selectLoanType('consumer');
       await creditForm.fillLoanAmount(500000);
       await creditForm.fillLoanTerm(24);
-      await creditForm.selectLoanPurpose('purchase');
+      await creditForm.fillLoanPurpose('purchase');
       await creditForm.goToNextStep();
       await page.waitForLoadState('networkidle');
 
@@ -77,13 +77,13 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.selectLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('purchase');
         await creditForm.goToNextStep();
 
         // Fill Step 2 minimum data
-        await creditForm.fillPersonalDataLastName('Иванов');
-        await creditForm.fillPersonalDataFirstName('Иван');
-        await creditForm.fillPersonalDataBirthDate('1990-01-15');
+        await creditForm.fillLastName('Иванов');
+        await creditForm.fillFirstName('Иван');
+        await creditForm.fillBirthDate('1990-01-15');
         await creditForm.goToNextStep();
       });
 
@@ -99,15 +99,15 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.selectLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('purchase');
         await creditForm.goToNextStep();
 
-        await creditForm.fillPersonalDataLastName('Иванов');
-        await creditForm.fillPersonalDataFirstName('Иван');
-        await creditForm.fillPersonalDataBirthDate('1990-01-15');
+        await creditForm.fillLastName('Иванов');
+        await creditForm.fillFirstName('Иван');
+        await creditForm.fillBirthDate('1990-01-15');
         await creditForm.goToNextStep();
 
-        await creditForm.fillPhoneMain('+7 (999) 123-45-67');
+        await creditForm.fillPhone('+7 (999) 123-45-67');
         await creditForm.fillEmail('test@example.com');
         await creditForm.goToNextStep();
       });
@@ -251,15 +251,15 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.selectLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('purchase');
         await creditForm.goToNextStep();
 
-        await creditForm.fillPersonalDataLastName('Иванов');
-        await creditForm.fillPersonalDataFirstName('Иван');
-        await creditForm.fillPersonalDataBirthDate('1990-01-15');
+        await creditForm.fillLastName('Иванов');
+        await creditForm.fillFirstName('Иван');
+        await creditForm.fillBirthDate('1990-01-15');
         await creditForm.goToNextStep();
 
-        await creditForm.fillPhoneMain('+7 (999) 123-45-67');
+        await creditForm.fillPhone('+7 (999) 123-45-67');
         await creditForm.fillEmail('test@example.com');
         await creditForm.goToNextStep();
 
@@ -280,15 +280,15 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.selectLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('purchase');
         await creditForm.goToNextStep();
 
-        await creditForm.fillPersonalDataLastName('Иванов');
-        await creditForm.fillPersonalDataFirstName('Иван');
-        await creditForm.fillPersonalDataBirthDate('1990-01-15');
+        await creditForm.fillLastName('Иванов');
+        await creditForm.fillFirstName('Иван');
+        await creditForm.fillBirthDate('1990-01-15');
         await creditForm.goToNextStep();
 
-        await creditForm.fillPhoneMain('+7 (999) 123-45-67');
+        await creditForm.fillPhone('+7 (999) 123-45-67');
         await creditForm.fillEmail('test@example.com');
         await creditForm.goToNextStep();
 

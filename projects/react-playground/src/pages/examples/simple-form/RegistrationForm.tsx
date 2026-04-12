@@ -39,6 +39,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Имя пользователя',
       placeholder: 'Введите логин (только латиница)',
+      testId: 'username',
     },
   },
   email: {
@@ -48,6 +49,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
       label: 'Email',
       placeholder: 'your@email.com',
       type: 'email',
+      testId: 'email',
     },
   },
   password: {
@@ -56,6 +58,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Пароль',
       placeholder: 'Минимум 8 символов',
+      testId: 'password',
     },
   },
   confirmPassword: {
@@ -64,6 +67,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Подтвердите пароль',
       placeholder: 'Повторите пароль',
+      testId: 'confirmPassword',
     },
   },
   fullName: {
@@ -72,6 +76,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Полное имя',
       placeholder: 'Иван Иванов',
+      testId: 'fullName',
     },
   },
   phone: {
@@ -81,6 +86,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
       label: 'Телефон',
       placeholder: '+7 (999) 123-45-67',
       mask: '+7 (999) 999-99-99',
+      testId: 'phone',
     },
   },
   captcha: {
@@ -89,6 +95,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Введите captcha',
       placeholder: 'Подсказка: ABC123',
+      testId: 'captcha',
     },
   },
   acceptTerms: {
@@ -96,6 +103,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     component: Checkbox,
     componentProps: {
       label: 'Я принимаю условия использования',
+      testId: 'acceptTerms',
     },
   },
 };

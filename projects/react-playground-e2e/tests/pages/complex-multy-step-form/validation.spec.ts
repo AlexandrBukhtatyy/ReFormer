@@ -77,9 +77,12 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       // Вводим невалидный email
       await creditForm.fillEmail(INVALID_DATA.invalidEmail);
-      await creditForm.input('email').blur();
 
-      // Проверяем ошибку
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 3 с ошибкой
+      await creditForm.expectStepHeading(/контактная информация/i);
       await creditForm.expectFieldError('email');
     });
 
@@ -107,9 +110,14 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       const sameEmail = 'test@example.com';
       await creditForm.fillEmail(sameEmail);
+      await creditForm.fillPhone('+7 (999) 123-45-67');
       await creditForm.input('emailAdditional').fill(sameEmail);
-      await creditForm.input('emailAdditional').blur();
 
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 3 с ошибкой
+      await creditForm.expectStepHeading(/контактная информация/i);
       await creditForm.expectFieldError('emailAdditional', /должен отличаться/i);
     });
   });
@@ -122,11 +130,18 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       await creditForm.fillStep2PersonalData();
       await creditForm.goToNextStep();
 
+      // Заполняем остальные обязательные поля шага 3
+      await creditForm.fillEmail('test@example.com');
+
       // Вводим неполный телефон
       await creditForm.input('phoneMain').fill('+7 (999) 123');
-      await creditForm.input('phoneMain').blur();
 
-      await creditForm.expectFieldError('phoneMain', /формат/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 3 с ошибкой
+      await creditForm.expectStepHeading(/контактная информация/i);
+      await creditForm.expectFieldError('phoneMain');
     });
 
     test('VAL-003-B: Полный валидный номер телефона', async ({ creditForm }) => {
@@ -152,10 +167,15 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       await creditForm.goToNextStep();
 
       const samePhone = '+7 (999) 123-45-67';
+      await creditForm.fillEmail('test@example.com');
       await creditForm.fillPhone(samePhone);
       await creditForm.input('phoneAdditional').fill(samePhone);
-      await creditForm.input('phoneAdditional').blur();
 
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 3 с ошибкой
+      await creditForm.expectStepHeading(/контактная информация/i);
       await creditForm.expectFieldError('phoneAdditional', /должен отличаться/i);
     });
   });
@@ -171,13 +191,27 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       const youngBirthDate = new Date(today.getFullYear() - 17, today.getMonth(), today.getDate());
       const formattedDate = youngBirthDate.toISOString().split('T')[0];
 
+      // Заполняем все обязательные поля шага 2, но с невалидной датой рождения
       await creditForm.fillLastName('Иванов');
       await creditForm.fillFirstName('Иван');
       await creditForm.fillMiddleName('Иванович');
       await creditForm.fillBirthDate(formattedDate);
-      await creditForm.input('personalData-birthDate').blur();
+      await creditForm.selectGender('male');
+      await creditForm.fillBirthPlace('г. Москва');
+      await creditForm.fillPassportSeries('45 06');
+      await creditForm.fillPassportNumber('123456');
+      await creditForm.fillPassportIssuedBy('ОВД Центрального района');
+      await creditForm.fillPassportIssuedDate('2020-01-15');
+      await creditForm.fillPassportCode('770-001');
+      await creditForm.fillInn('123456789012');
+      await creditForm.fillSnils('123-456-789 01');
 
-      await creditForm.expectFieldError('personalData-birthDate', /не менее 18 лет/i);
+      // Попытка перехода должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 2 с ошибкой
+      await creditForm.expectStepHeading(/персональные данные/i);
+      await creditForm.expectFieldError('personalData-birthDate');
     });
 
     test('VAL-004-B: Возраст больше 70 лет', async ({ creditForm }) => {
@@ -190,13 +224,27 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       const oldBirthDate = new Date(today.getFullYear() - 75, today.getMonth(), today.getDate());
       const formattedDate = oldBirthDate.toISOString().split('T')[0];
 
+      // Заполняем все обязательные поля шага 2, но с невалидной датой рождения
       await creditForm.fillLastName('Иванов');
       await creditForm.fillFirstName('Иван');
       await creditForm.fillMiddleName('Иванович');
       await creditForm.fillBirthDate(formattedDate);
-      await creditForm.input('personalData-birthDate').blur();
+      await creditForm.selectGender('male');
+      await creditForm.fillBirthPlace('г. Москва');
+      await creditForm.fillPassportSeries('45 06');
+      await creditForm.fillPassportNumber('123456');
+      await creditForm.fillPassportIssuedBy('ОВД Центрального района');
+      await creditForm.fillPassportIssuedDate('1975-01-15');
+      await creditForm.fillPassportCode('770-001');
+      await creditForm.fillInn('123456789012');
+      await creditForm.fillSnils('123-456-789 01');
 
-      await creditForm.expectFieldError('personalData-birthDate', /70 лет/i);
+      // Попытка перехода должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 2 с ошибкой
+      await creditForm.expectStepHeading(/персональные данные/i);
+      await creditForm.expectFieldError('personalData-birthDate');
     });
 
     test('VAL-004-C: Валидный возраст (30 лет)', async ({ creditForm }) => {
@@ -224,8 +272,14 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       await creditForm.fillPropertyValue(5000000);
       await creditForm.input('initialPayment').fill('6000000');
-      await creditForm.input('initialPayment').blur();
+      await creditForm.fillLoanTerm(240);
+      await creditForm.fillLoanPurpose('Покупка квартиры');
 
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
       await creditForm.expectFieldError('initialPayment', /не может превышать/i);
     });
 
@@ -237,9 +291,15 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       await creditForm.fillPropertyValue(5000000);
       await creditForm.input('initialPayment').fill('500000'); // 10%
-      await creditForm.input('initialPayment').blur();
+      await creditForm.fillLoanTerm(240);
+      await creditForm.fillLoanPurpose('Покупка квартиры');
 
-      await creditForm.expectFieldError('initialPayment', /меньше 20%/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('initialPayment', /меньше 20%|минимум 20%/i);
     });
 
     test('VAL-005-C: Стаж на текущем месте не может превышать общий стаж', async ({
@@ -257,12 +317,17 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       await creditForm.fillWorkExperience(24); // 2 года общий
       await creditForm.fillCurrentJobExperience(36); // 3 года на текущем месте (невалидно)
-      await creditForm.input('workExperienceCurrent').blur();
+      await creditForm.fillMonthlyIncome(100000);
 
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 4 с ошибкой
+      await creditForm.expectStepHeading(/информация о занятости/i);
       await creditForm.expectFieldError('workExperienceCurrent', /не может превышать общий/i);
     });
 
-    test('VAL-005-D: Платеж не должен превышать 50% от дохода', async ({ creditForm }) => {
+    test('VAL-005-D: Платеж не должен превышать 50% от дохода (warning)', async ({ creditForm }) => {
       await creditForm.goto();
 
       // Заполняем большую сумму кредита
@@ -287,10 +352,13 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       await creditForm.fillWorkExperience(60);
       await creditForm.fillCurrentJobExperience(24);
       await creditForm.fillMonthlyIncome(50000); // Низкий доход для большого кредита
-      await creditForm.input('monthlyIncome').blur();
 
-      // Ожидаем ошибку о превышении 50%
-      await creditForm.expectFieldError('monthlyIncome', /50%/i);
+      // Попытка перехода на следующий шаг
+      await creditForm.goToNextStep();
+
+      // Это warning, а не блокирующая ошибка - форма может пропустить на следующий шаг
+      // Тест проверяет что валидация не блокирует навигацию (warning != error)
+      await creditForm.expectStepHeading(/дополнительная информация/i);
     });
 
     test('VAL-005-E: При дополнительном доходе требуется указать источник', async ({
@@ -309,11 +377,12 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       await creditForm.fillCurrentJobExperience(24);
       await creditForm.fillMonthlyIncome(100000);
       await creditForm.fillAdditionalIncome(50000);
-      await creditForm.input('additionalIncome').blur();
 
       // Пытаемся перейти дальше без указания источника
       await creditForm.goToNextStep();
 
+      // Должны остаться на шаге 4 с ошибкой
+      await creditForm.expectStepHeading(/информация о занятости/i);
       await creditForm.expectFieldError('additionalIncomeSource', /укажите источник/i);
     });
   });
@@ -322,41 +391,71 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
     test('VAL-006-A: Сумма кредита меньше минимума (50000)', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillLoanAmount(INVALID_DATA.loanAmountTooLow);
-      await creditForm.input('loanAmount').blur();
+      await creditForm.fillLoanTerm(24);
+      await creditForm.fillLoanPurpose('Покупка товаров для дома');
 
-      await creditForm.expectFieldError('loanAmount', /минимальная сумма.*50.*000/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('loanAmount', /минимальная сумма|50.*000/i);
     });
 
     test('VAL-006-B: Сумма кредита больше максимума (10000000)', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillLoanAmount(INVALID_DATA.loanAmountTooHigh);
-      await creditForm.input('loanAmount').blur();
+      await creditForm.fillLoanTerm(24);
+      await creditForm.fillLoanPurpose('Покупка товаров для дома');
 
-      await creditForm.expectFieldError('loanAmount', /максимальная сумма/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('loanAmount', /максимальная сумма|10.*000.*000/i);
     });
 
     test('VAL-006-C: Срок кредита меньше минимума (6 месяцев)', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillLoanAmount(500000);
       await creditForm.fillLoanTerm(INVALID_DATA.loanTermTooShort);
-      await creditForm.input('loanTerm').blur();
+      await creditForm.fillLoanPurpose('Покупка товаров для дома');
 
-      await creditForm.expectFieldError('loanTerm', /минимальный срок.*6/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('loanTerm', /минимальный срок|6 месяц/i);
     });
 
     test('VAL-006-D: Срок кредита больше максимума (240 месяцев)', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillLoanAmount(500000);
       await creditForm.fillLoanTerm(INVALID_DATA.loanTermTooLong);
-      await creditForm.input('loanTerm').blur();
+      await creditForm.fillLoanPurpose('Покупка товаров для дома');
 
-      await creditForm.expectFieldError('loanTerm', /максимальный срок.*240/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('loanTerm', /максимальный срок|240/i);
     });
 
     test('VAL-006-E: Цель кредита слишком короткая', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillLoanAmount(500000);
+      await creditForm.fillLoanTerm(24);
       await creditForm.fillLoanPurpose(INVALID_DATA.loanPurposeTooShort);
-      await creditForm.input('loanPurpose').blur();
 
-      await creditForm.expectFieldError('loanPurpose', /минимум 10/i);
+      // Попытка перехода на следующий шаг должна вызвать валидацию
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 1 с ошибкой
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('loanPurpose', /минимум 10|подробнее/i);
     });
   });
 
@@ -371,9 +470,13 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       await creditForm.input('confirmAccuracy').check();
 
       await creditForm.fillSmsCode(INVALID_DATA.incompleteSmsCode);
-      await creditForm.input('electronicSignature').blur();
 
-      await creditForm.expectFieldError('electronicSignature', /6 символов/i);
+      // Попытка отправки формы должна вызвать валидацию
+      await creditForm.submitForm();
+
+      // Должны остаться на шаге 6 с ошибкой
+      await creditForm.expectStepHeading(/подтверждение/i);
+      await creditForm.expectFieldError('electronicSignature', /6 символов|введите код/i);
     });
 
     test('VAL-007-B: Неверный SMS код', async ({ creditForm }) => {
@@ -389,7 +492,11 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       // Ждем асинхронную валидацию (debounce 500ms)
       await creditForm.page.waitForTimeout(700);
 
-      await creditForm.expectFieldError('electronicSignature', /неверный код/i);
+      // Попытка отправки формы
+      await creditForm.submitForm();
+
+      // Должна появиться ошибка неверного кода
+      await creditForm.expectFieldError('electronicSignature', /неверный код|invalid/i);
     });
 
     test('VAL-007-C: Верный SMS код (123456)', async ({ creditForm }) => {

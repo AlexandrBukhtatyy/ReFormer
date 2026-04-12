@@ -219,14 +219,9 @@ test.describe('Navigation', { tag: ['@navigation'] }, () => {
     test('NAV-004-B: Индикатор показывает все 6 шагов', async ({ creditForm }) => {
       await creditForm.goto();
 
-      // Проверяем наличие всех номеров шагов в индикаторе
+      // Проверяем наличие всех номеров шагов в индикаторе по data-testid
       for (let i = 1; i <= 6; i++) {
-        await expect(
-          creditForm.page
-            .locator(`[class*="step"]`)
-            .filter({ hasText: String(i) })
-            .first()
-        ).toBeVisible();
+        await expect(creditForm.page.locator(`[data-testid="step-indicator-${i}"]`)).toBeVisible();
       }
     });
 
@@ -252,25 +247,17 @@ test.describe('Navigation', { tag: ['@navigation'] }, () => {
     }) => {
       await creditForm.goto();
 
-      // На шаге 1, пытаемся кликнуть на шаг 3
-      const step3 = creditForm.page.locator('[class*="step"]').filter({ hasText: '3' }).first();
+      // На шаге 1, пытаемся проверить шаг 3
+      const step3 = creditForm.page.locator('[data-testid="step-indicator-3"]');
 
-      // Проверяем, что шаг 3 отключен или клик не работает
-      const isDisabled = await step3.evaluate((el) => {
-        return (
-          el.hasAttribute('disabled') ||
-          el.classList.contains('disabled') ||
-          el.classList.contains('opacity-50') ||
-          el.getAttribute('aria-disabled') === 'true'
-        );
-      });
+      // Проверяем, что шаг 3 не доступен для навигации (canNavigate=false)
+      const canNavigate = await step3.getAttribute('data-step-can-navigate');
+      expect(canNavigate).toBe('false');
 
-      if (!isDisabled) {
-        // Если элемент кликабелен, проверяем что переход не происходит
-        await step3.click();
-        await creditForm.page.waitForTimeout(300);
-        expect(await creditForm.getCurrentStep()).toBe(1);
-      }
+      // Пытаемся кликнуть - переход не должен произойти
+      await step3.click();
+      await creditForm.page.waitForTimeout(300);
+      expect(await creditForm.getCurrentStep()).toBe(1);
     });
 
     test('NAV-004-E: Прогресс-бар обновляется при переходах', async ({ creditForm }) => {

@@ -74,26 +74,20 @@ export class BehaviorsPage {
   // ============================================================================
 
   async fillPrice(value: number) {
-    const priceInput = this.page.locator('input[type="number"]').filter({ hasText: '' }).first();
-    // Find by label
-    const priceField = this.page.getByLabel(/цена/i).first();
-    await priceField.fill(String(value));
+    await this.input('price').fill(String(value));
   }
 
   async fillQuantity(value: number) {
-    const quantityField = this.page.getByLabel(/количество/i).first();
-    await quantityField.fill(String(value));
+    await this.input('quantity').fill(String(value));
   }
 
   async getTotal(): Promise<number> {
-    const totalField = this.page.getByLabel(/итого/i).first();
-    const value = await totalField.inputValue();
+    const value = await this.input('total').inputValue();
     return Number(value) || 0;
   }
 
   async expectTotal(expected: number) {
-    const totalField = this.page.getByLabel(/итого/i).first();
-    await expect(totalField).toHaveValue(String(expected));
+    await expect(this.input('total')).toHaveValue(String(expected));
   }
 
   // ============================================================================
@@ -101,28 +95,23 @@ export class BehaviorsPage {
   // ============================================================================
 
   async selectCountry(country: 'ru' | 'us' | 'de' | '') {
-    const countrySelect = this.page.getByLabel(/страна/i).first();
-    await countrySelect.selectOption(country);
+    await this.input('country').selectOption(country);
   }
 
   async fillCity(value: string) {
-    const cityField = this.page.getByLabel(/город/i).first();
-    await cityField.fill(value);
+    await this.input('city').fill(value);
   }
 
   async expectCityEnabled() {
-    const cityField = this.page.getByLabel(/город/i).first();
-    await expect(cityField).toBeEnabled();
+    await expect(this.input('city')).toBeEnabled();
   }
 
   async expectCityDisabled() {
-    const cityField = this.page.getByLabel(/город/i).first();
-    await expect(cityField).toBeDisabled();
+    await expect(this.input('city')).toBeDisabled();
   }
 
   async getCityValue(): Promise<string> {
-    const cityField = this.page.getByLabel(/город/i).first();
-    return await cityField.inputValue();
+    return await this.input('city').inputValue();
   }
 
   // ============================================================================
@@ -130,7 +119,7 @@ export class BehaviorsPage {
   // ============================================================================
 
   async toggleDiscount(enable: boolean) {
-    const discountCheckbox = this.page.getByLabel(/применить скидку/i);
+    const discountCheckbox = this.input('hasDiscount');
     const isChecked = await discountCheckbox.isChecked();
     if (isChecked !== enable) {
       await discountCheckbox.click();
@@ -138,18 +127,15 @@ export class BehaviorsPage {
   }
 
   async fillDiscountPercent(value: number) {
-    const discountField = this.page.getByLabel(/процент скидки/i);
-    await discountField.fill(String(value));
+    await this.input('discountPercent').fill(String(value));
   }
 
   async expectDiscountFieldVisible() {
-    const discountField = this.page.getByLabel(/процент скидки/i);
-    await expect(discountField).toBeVisible();
+    await expect(this.input('discountPercent')).toBeVisible();
   }
 
   async expectDiscountFieldHidden() {
-    const discountField = this.page.getByLabel(/процент скидки/i);
-    await expect(discountField).not.toBeVisible();
+    await expect(this.input('discountPercent')).not.toBeVisible();
   }
 
   // ============================================================================
@@ -157,7 +143,7 @@ export class BehaviorsPage {
   // ============================================================================
 
   async toggleConfirmed(enable: boolean) {
-    const confirmedCheckbox = this.page.getByLabel(/подтвердить/i);
+    const confirmedCheckbox = this.input('isConfirmed');
     const isChecked = await confirmedCheckbox.isChecked();
     if (isChecked !== enable) {
       await confirmedCheckbox.click();
@@ -165,18 +151,15 @@ export class BehaviorsPage {
   }
 
   async fillEditableField(value: string) {
-    const editableField = this.page.getByLabel(/редактируемое поле/i);
-    await editableField.fill(value);
+    await this.input('editableField').fill(value);
   }
 
   async expectEditableFieldEnabled() {
-    const editableField = this.page.getByLabel(/редактируемое поле/i);
-    await expect(editableField).toBeEnabled();
+    await expect(this.input('editableField')).toBeEnabled();
   }
 
   async expectEditableFieldDisabled() {
-    const editableField = this.page.getByLabel(/редактируемое поле/i);
-    await expect(editableField).toBeDisabled();
+    await expect(this.input('editableField')).toBeDisabled();
   }
 
   // ============================================================================
@@ -184,12 +167,11 @@ export class BehaviorsPage {
   // ============================================================================
 
   async fillShippingAddress(value: string) {
-    const shippingField = this.page.getByLabel(/адрес доставки/i);
-    await shippingField.fill(value);
+    await this.input('shippingAddress').fill(value);
   }
 
   async toggleUseShippingAsBilling(enable: boolean) {
-    const checkbox = this.page.getByLabel(/использовать для оплаты/i);
+    const checkbox = this.input('useShippingAsBilling');
     const isChecked = await checkbox.isChecked();
     if (isChecked !== enable) {
       await checkbox.click();
@@ -197,13 +179,11 @@ export class BehaviorsPage {
   }
 
   async getBillingAddress(): Promise<string> {
-    const billingField = this.page.getByLabel(/адрес оплаты/i);
-    return await billingField.inputValue();
+    return await this.input('billingAddress').inputValue();
   }
 
   async expectBillingAddress(expected: string) {
-    const billingField = this.page.getByLabel(/адрес оплаты/i);
-    await expect(billingField).toHaveValue(expected);
+    await expect(this.input('billingAddress')).toHaveValue(expected);
   }
 
   // ============================================================================
@@ -211,13 +191,11 @@ export class BehaviorsPage {
   // ============================================================================
 
   async fillUppercaseField(value: string) {
-    const uppercaseField = this.page.getByLabel(/код.*uppercase/i);
-    await uppercaseField.fill(value);
+    await this.input('uppercaseField').fill(value);
   }
 
   async expectUppercaseFieldValue(expected: string) {
-    const uppercaseField = this.page.getByLabel(/код.*uppercase/i);
-    await expect(uppercaseField).toHaveValue(expected);
+    await expect(this.input('uppercaseField')).toHaveValue(expected);
   }
 
   // ============================================================================
@@ -225,23 +203,19 @@ export class BehaviorsPage {
   // ============================================================================
 
   async selectPaymentType(type: 'card' | 'cash' | '') {
-    const paymentSelect = this.page.getByLabel(/способ оплаты/i);
-    await paymentSelect.selectOption(type);
+    await this.input('paymentType').selectOption(type);
   }
 
   async fillCardNumber(value: string) {
-    const cardField = this.page.getByLabel(/номер карты/i);
-    await cardField.fill(value);
+    await this.input('cardNumber').fill(value);
   }
 
   async expectCardFieldVisible() {
-    const cardField = this.page.getByLabel(/номер карты/i);
-    await expect(cardField).toBeVisible();
+    await expect(this.input('cardNumber')).toBeVisible();
   }
 
   async expectCardFieldHidden() {
-    const cardField = this.page.getByLabel(/номер карты/i);
-    await expect(cardField).not.toBeVisible();
+    await expect(this.input('cardNumber')).not.toBeVisible();
   }
 
   async expectCardResetMessage() {
@@ -253,33 +227,27 @@ export class BehaviorsPage {
   // ============================================================================
 
   async fillSyncField1(value: string) {
-    const syncField1 = this.page.getByLabel(/поле 1/i).first();
-    await syncField1.fill(value);
+    await this.input('syncField1').fill(value);
   }
 
   async fillSyncField2(value: string) {
-    const syncField2 = this.page.getByLabel(/поле 2/i).first();
-    await syncField2.fill(value);
+    await this.input('syncField2').fill(value);
   }
 
   async getSyncField1Value(): Promise<string> {
-    const syncField1 = this.page.getByLabel(/поле 1/i).first();
-    return await syncField1.inputValue();
+    return await this.input('syncField1').inputValue();
   }
 
   async getSyncField2Value(): Promise<string> {
-    const syncField2 = this.page.getByLabel(/поле 2/i).first();
-    return await syncField2.inputValue();
+    return await this.input('syncField2').inputValue();
   }
 
   async expectSyncField1Value(expected: string) {
-    const syncField1 = this.page.getByLabel(/поле 1/i).first();
-    await expect(syncField1).toHaveValue(expected);
+    await expect(this.input('syncField1')).toHaveValue(expected);
   }
 
   async expectSyncField2Value(expected: string) {
-    const syncField2 = this.page.getByLabel(/поле 2/i).first();
-    await expect(syncField2).toHaveValue(expected);
+    await expect(this.input('syncField2')).toHaveValue(expected);
   }
 
   // ============================================================================
@@ -287,13 +255,11 @@ export class BehaviorsPage {
   // ============================================================================
 
   async fillMaxAmount(value: number) {
-    const maxAmountField = this.page.getByLabel(/макс\. сумма/i);
-    await maxAmountField.fill(String(value));
+    await this.input('maxAmount').fill(String(value));
   }
 
   async fillAmount(value: number) {
-    const amountField = this.page.getByLabel(/сумма/i).last();
-    await amountField.fill(String(value));
+    await this.input('amount').fill(String(value));
   }
 
   async expectAmountError(errorText?: string | RegExp) {

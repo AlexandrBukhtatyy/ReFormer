@@ -120,6 +120,21 @@ export class CreditFormPage extends BasePage {
     return this.page.locator(`[data-testid="error-${testId}"]`);
   }
 
+  /** Get computed value element by testid */
+  computed(testId: string): Locator {
+    return this.page.locator(`[data-testid="computed-${testId}"]`);
+  }
+
+  /** Get computed value as number */
+  async getComputedValue(testId: string): Promise<number> {
+    const element = this.computed(testId);
+    await element.waitFor({ state: 'visible', timeout: 5000 });
+    const text = await element.textContent();
+    // Remove spaces and replace comma with dot for parsing
+    const cleanText = (text || '0').replace(/\s/g, '').replace(',', '.');
+    return parseFloat(cleanText);
+  }
+
   // ============================================================================
   // Navigation
   // ============================================================================
@@ -152,12 +167,16 @@ export class CreditFormPage extends BasePage {
   }
 
   async goToStep(stepNumber: number) {
-    const stepButton = this.page
-      .locator(`[class*="step"]`)
-      .filter({ hasText: String(stepNumber) })
-      .first();
-    await stepButton.click();
-    await this.page.waitForTimeout(300);
+    const stepButton = this.page.locator(`[data-testid="step-indicator-${stepNumber}"]`);
+    // Wait for step to be navigable
+    await stepButton.waitFor({ state: 'visible' });
+    const canNavigate = await stepButton.getAttribute('data-step-can-navigate');
+    if (canNavigate === 'true') {
+      await stepButton.click();
+      await this.page.waitForTimeout(300);
+    } else {
+      throw new Error(`Step ${stepNumber} is not navigable (canNavigate=${canNavigate})`);
+    }
   }
 
   async submitForm() {

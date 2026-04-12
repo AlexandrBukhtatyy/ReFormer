@@ -18,6 +18,7 @@ export const StepIndicator: FC<StepIndicatorProps> = ({ steps, goToStep, classNa
   return (
     <div
       className={`flex items-center justify-between p-4 bg-gray-100 rounded-lg ${className || ''}`}
+      data-testid="step-indicator"
     >
       {steps.map((step: FormWizardIndicatorStepWithState, index: number) => (
         <div key={step.number} className="flex items-center flex-1">
@@ -28,6 +29,11 @@ export const StepIndicator: FC<StepIndicatorProps> = ({ steps, goToStep, classNa
               ${step.canNavigate ? 'hover:bg-gray-200' : 'cursor-not-allowed opacity-50'}
             `}
             onClick={() => step.canNavigate && goToStep(step.number)}
+            data-testid={`step-indicator-${step.number}`}
+            data-step-number={step.number}
+            data-step-current={step.isCurrent}
+            data-step-completed={step.isCompleted}
+            data-step-can-navigate={step.canNavigate}
           >
             <div className="text-2xl">{step.isCompleted ? '✓' : step.icon}</div>
             <div className="text-xs font-medium">{step.title}</div>

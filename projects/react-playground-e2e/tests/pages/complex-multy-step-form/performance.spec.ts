@@ -215,8 +215,8 @@ test.describe('Performance', { tag: ['@performance'] }, () => {
       // Добавление 10 элементов не должно занимать более 5 секунд
       expect(addTime).toBeLessThan(5000);
 
-      // Все элементы должны быть добавлены
-      const coBorrowerForms = creditForm.page.locator('[data-testid*="coBorrower-lastName"]');
+      // Все элементы должны быть добавлены (используем input-* для точного подсчёта)
+      const coBorrowerForms = creditForm.page.locator('[data-testid="input-coBorrower-lastName"]');
       await expect(coBorrowerForms).toHaveCount(10);
     });
 

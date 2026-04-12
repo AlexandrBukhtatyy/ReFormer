@@ -52,9 +52,8 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.expectTotal(0);
     });
 
-    test('total field should be read-only', async ({ page }) => {
-      const totalField = page.getByLabel(/итого/i).first();
-      await expect(totalField).toBeDisabled();
+    test('total field should be read-only', async () => {
+      await expect(behaviorsPage.input('total')).toBeDisabled();
     });
   });
 
@@ -161,8 +160,7 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.waitForBehaviorUpdate();
 
       // Value should be preserved
-      const editableField = behaviorsPage.page.getByLabel(/редактируемое поле/i);
-      await expect(editableField).toHaveValue('Test value');
+      await expect(behaviorsPage.input('editableField')).toHaveValue('Test value');
     });
   });
 
@@ -279,8 +277,7 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.selectPaymentType('card');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      const cardField = behaviorsPage.page.getByLabel(/номер карты/i);
-      await expect(cardField).toHaveValue('');
+      await expect(behaviorsPage.input('cardNumber')).toHaveValue('');
     });
   });
 

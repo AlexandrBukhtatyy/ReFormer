@@ -70,12 +70,13 @@ export function LoanSummarySectionBase({
   monthlyPayment,
 }: LoanSummarySectionBaseProps): ReactNode {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="loan-summary-section">
       <h3 className="text-lg font-semibold">Итого</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <div>
-            <b>Процентная ставка:</b> {interestRate}%
+            <b>Процентная ставка:</b>{' '}
+            <span data-testid="computed-interestRate">{interestRate}</span>%
           </div>
           <span className="text-xs text-gray-500">
             зависит от типа кредита, региона, наличия имущества
@@ -83,7 +84,11 @@ export function LoanSummarySectionBase({
         </div>
         <div>
           <div>
-            <b>Ежемесячный платеж:</b> {monthlyPayment.toLocaleString('ru-RU')} ₽
+            <b>Ежемесячный платеж:</b>{' '}
+            <span data-testid="computed-monthlyPayment">
+              {monthlyPayment.toLocaleString('ru-RU')}
+            </span>{' '}
+            ₽
           </div>
           <span className="text-xs text-gray-500">вычисляется по формуле аннуитетного платежа</span>
         </div>
@@ -98,6 +103,98 @@ export function LoanSummarySection(): ReactNode {
   const interestRate = useFormControlValue(form.interestRate) as number;
   const monthlyPayment = useFormControlValue(form.monthlyPayment) as number;
   return <LoanSummarySectionBase interestRate={interestRate} monthlyPayment={monthlyPayment} />;
+}
+
+// ============================================================================
+// Секция вычисляемых полей заемщика
+// ============================================================================
+
+interface ApplicantSummarySectionBaseProps {
+  fullName: string;
+  age: number | null;
+  totalIncome: number;
+  paymentToIncomeRatio: number;
+  coBorrowersIncome: number;
+}
+
+/** Презентационный компонент - принимает данные как пропы */
+export function ApplicantSummarySectionBase({
+  fullName,
+  age,
+  totalIncome,
+  paymentToIncomeRatio,
+  coBorrowersIncome,
+}: ApplicantSummarySectionBaseProps): ReactNode {
+  return (
+    <div className="space-y-4" data-testid="applicant-summary-section">
+      <h3 className="text-lg font-semibold">Данные заявителя</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div>
+            <b>ФИО:</b>{' '}
+            <span data-testid="computed-fullName">{fullName || '—'}</span>
+          </div>
+        </div>
+        <div>
+          <div>
+            <b>Возраст:</b>{' '}
+            <span data-testid="computed-age">{age ?? '—'}</span>
+            {age !== null && ' лет'}
+          </div>
+        </div>
+        <div>
+          <div>
+            <b>Общий доход:</b>{' '}
+            <span data-testid="computed-totalIncome">
+              {totalIncome.toLocaleString('ru-RU')}
+            </span>{' '}
+            ₽/мес
+          </div>
+          <span className="text-xs text-gray-500">основной + дополнительный</span>
+        </div>
+        <div>
+          <div>
+            <b>Платеж/Доход:</b>{' '}
+            <span data-testid="computed-paymentToIncomeRatio">
+              {paymentToIncomeRatio.toFixed(1)}
+            </span>
+            %
+          </div>
+          <span className="text-xs text-gray-500">рекомендуется менее 50%</span>
+        </div>
+        {coBorrowersIncome > 0 && (
+          <div>
+            <div>
+              <b>Доход созаемщиков:</b>{' '}
+              <span data-testid="computed-coBorrowersIncome">
+                {coBorrowersIncome.toLocaleString('ru-RU')}
+              </span>{' '}
+              ₽/мес
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Версия с useFormWizard для RenderSchema */
+export function ApplicantSummarySection(): ReactNode {
+  const { form } = useFormWizard<CreditApplicationForm>();
+  const fullName = useFormControlValue(form.fullName) as string;
+  const age = useFormControlValue(form.age) as number | null;
+  const totalIncome = useFormControlValue(form.totalIncome) as number;
+  const paymentToIncomeRatio = useFormControlValue(form.paymentToIncomeRatio) as number;
+  const coBorrowersIncome = useFormControlValue(form.coBorrowersIncome) as number;
+  return (
+    <ApplicantSummarySectionBase
+      fullName={fullName}
+      age={age}
+      totalIncome={totalIncome}
+      paymentToIncomeRatio={paymentToIncomeRatio}
+      coBorrowersIncome={coBorrowersIncome}
+    />
+  );
 }
 
 // ============================================================================

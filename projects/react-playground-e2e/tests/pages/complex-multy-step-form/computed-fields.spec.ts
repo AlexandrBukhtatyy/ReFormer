@@ -38,11 +38,10 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goToNextStep();
 
       // Проверяем, что ежемесячный платеж рассчитан и отображается
-      const monthlyPaymentInput = creditForm.input('monthlyPayment');
-      await expect(monthlyPaymentInput).toBeVisible();
+      const monthlyPaymentElement = creditForm.computed('monthlyPayment');
+      await expect(monthlyPaymentElement).toBeVisible();
 
-      const paymentValue = await monthlyPaymentInput.inputValue();
-      const payment = parseFloat(paymentValue);
+      const payment = await creditForm.getComputedValue('monthlyPayment');
 
       // Платеж должен быть больше 0
       expect(payment).toBeGreaterThan(0);
@@ -58,7 +57,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.fillAndNavigateToStep6();
 
       // Запоминаем текущий платеж
-      const initialPayment = parseFloat(await creditForm.input('monthlyPayment').inputValue());
+      const initialPayment = await creditForm.getComputedValue('monthlyPayment');
 
       // Возвращаемся на шаг 1 и увеличиваем сумму
       await creditForm.goToStep(1);
@@ -72,7 +71,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goToNextStep();
 
       // Платеж должен увеличиться
-      const newPayment = parseFloat(await creditForm.input('monthlyPayment').inputValue());
+      const newPayment = await creditForm.getComputedValue('monthlyPayment');
       expect(newPayment).toBeGreaterThan(initialPayment);
     });
 
@@ -80,7 +79,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep6();
 
-      const initialPayment = parseFloat(await creditForm.input('monthlyPayment').inputValue());
+      const initialPayment = await creditForm.getComputedValue('monthlyPayment');
 
       // Увеличиваем срок - платеж должен уменьшиться
       await creditForm.goToStep(1);
@@ -92,7 +91,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goToNextStep();
       await creditForm.goToNextStep();
 
-      const newPayment = parseFloat(await creditForm.input('monthlyPayment').inputValue());
+      const newPayment = await creditForm.getComputedValue('monthlyPayment');
       expect(newPayment).toBeLessThan(initialPayment);
     });
   });
@@ -102,8 +101,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep6();
 
-      const rateValue = await creditForm.input('interestRate').inputValue();
-      const rate = parseFloat(rateValue);
+      const rate = await creditForm.getComputedValue('interestRate');
 
       // Базовая ставка для потребительского кредита 15.5%
       expect(rate).toBeCloseTo(15.5, 0);
@@ -140,8 +138,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.fillStep5AdditionalInfo();
       await creditForm.goToNextStep();
 
-      const rateValue = await creditForm.input('interestRate').inputValue();
-      const rate = parseFloat(rateValue);
+      const rate = await creditForm.getComputedValue('interestRate');
 
       // Ипотечная ставка ~8.5%
       expect(rate).toBeCloseTo(8.5, 0);
@@ -170,8 +167,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.fillStep5AdditionalInfo();
       await creditForm.goToNextStep();
 
-      const rateValue = await creditForm.input('interestRate').inputValue();
-      const rate = parseFloat(rateValue);
+      const rate = await creditForm.getComputedValue('interestRate');
 
       expect(rate).toBeCloseTo(12, 0);
     });
@@ -190,7 +186,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       // Запоминаем ставку без имущества
       await creditForm.fillStep5AdditionalInfo();
       await creditForm.goToNextStep();
-      const rateWithoutProperty = parseFloat(await creditForm.input('interestRate').inputValue());
+      const rateWithoutProperty = await creditForm.getComputedValue('interestRate');
 
       // Возвращаемся и добавляем имущество
       await creditForm.goToPreviousStep();
@@ -204,7 +200,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
 
       await creditForm.goToNextStep();
 
-      const rateWithProperty = parseFloat(await creditForm.input('interestRate').inputValue());
+      const rateWithProperty = await creditForm.getComputedValue('interestRate');
 
       // Ставка должна уменьшиться на 0.5%
       expect(rateWithProperty).toBeLessThan(rateWithoutProperty);
@@ -248,9 +244,9 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goToNextStep();
 
       // Проверяем вычисленный возраст
-      const ageInput = creditForm.input('age');
-      const ageValue = await ageInput.inputValue();
-      expect(parseInt(ageValue)).toBe(30);
+      const ageElement = creditForm.computed('age');
+      const ageText = await ageElement.textContent();
+      expect(parseInt(ageText || '0')).toBe(30);
     });
 
     test('COMP-003-B: Возраст пересчитывается при изменении даты рождения', async ({
@@ -292,8 +288,8 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.fillStep5AdditionalInfo();
       await creditForm.goToNextStep();
 
-      const ageValue = await creditForm.input('age').inputValue();
-      expect(parseInt(ageValue)).toBe(40);
+      const ageText = await creditForm.computed('age').textContent();
+      expect(parseInt(ageText || '0')).toBe(40);
     });
   });
 
@@ -328,9 +324,9 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goToNextStep();
 
       // Проверяем соотношение
-      const ratioInput = creditForm.input('paymentToIncomeRatio');
-      const ratioValue = await ratioInput.inputValue();
-      const ratio = parseFloat(ratioValue);
+      const ratioElement = creditForm.computed('paymentToIncomeRatio');
+      const ratioText = await ratioElement.textContent();
+      const ratio = parseFloat(ratioText || '0');
 
       // Платеж ~25000, доход 100000 = ~25%
       expect(ratio).toBeGreaterThan(20);
@@ -362,7 +358,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
 
       // Запоминаем соотношение без дополнительного дохода
       const ratioWithoutAdditional = parseFloat(
-        await creditForm.input('paymentToIncomeRatio').inputValue()
+        (await creditForm.computed('paymentToIncomeRatio').textContent()) || '0'
       );
 
       // Добавляем дополнительный доход
@@ -375,7 +371,7 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
 
       // Соотношение должно уменьшиться
       const ratioWithAdditional = parseFloat(
-        await creditForm.input('paymentToIncomeRatio').inputValue()
+        (await creditForm.computed('paymentToIncomeRatio').textContent()) || '0'
       );
 
       expect(ratioWithAdditional).toBeLessThan(ratioWithoutAdditional);
@@ -414,8 +410,8 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.goToNextStep();
 
       // Проверяем полное имя
-      const fullNameInput = creditForm.input('fullName');
-      const fullName = await fullNameInput.inputValue();
+      const fullNameElement = creditForm.computed('fullName');
+      const fullName = await fullNameElement.textContent();
 
       expect(fullName).toContain('Петров');
       expect(fullName).toContain('Петр');
@@ -449,11 +445,13 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       await creditForm.fillStep5AdditionalInfo();
       await creditForm.goToNextStep();
 
-      // Проверяем общий доход
-      const totalIncomeInput = creditForm.input('totalIncome');
-      const totalIncome = await totalIncomeInput.inputValue();
+      // Проверяем общий доход (отображается с форматированием)
+      const totalIncomeElement = creditForm.computed('totalIncome');
+      const totalIncomeText = await totalIncomeElement.textContent();
+      // Убираем пробелы форматирования (130 000 -> 130000)
+      const totalIncome = parseInt((totalIncomeText || '0').replace(/\s/g, ''));
 
-      expect(parseInt(totalIncome)).toBe(130000); // 100000 + 30000
+      expect(totalIncome).toBe(130000); // 100000 + 30000
     });
   });
 
@@ -500,11 +498,13 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
 
       await creditForm.goToNextStep();
 
-      // Проверяем общий доход созаемщиков
-      const coBorrowersIncomeInput = creditForm.input('coBorrowersIncome');
-      const coBorrowersIncome = await coBorrowersIncomeInput.inputValue();
+      // Проверяем общий доход созаемщиков (отображается с форматированием)
+      const coBorrowersIncomeElement = creditForm.computed('coBorrowersIncome');
+      const coBorrowersIncomeText = await coBorrowersIncomeElement.textContent();
+      // Убираем пробелы форматирования (200 000 -> 200000)
+      const coBorrowersIncome = parseInt((coBorrowersIncomeText || '0').replace(/\s/g, ''));
 
-      expect(parseInt(coBorrowersIncome)).toBe(200000); // 80000 + 120000
+      expect(coBorrowersIncome).toBe(200000); // 80000 + 120000
     });
   });
 });
