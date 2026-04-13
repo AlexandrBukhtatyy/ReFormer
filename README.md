@@ -49,26 +49,7 @@ npm run dev -w react-playground
 
 ### Запуск тестов:
 
-**\*Для активации accessibility тестов нужно установить зависимость**
-
-```
-npm install -D @axe-core/playwright
-```
-
-```
-# Команды для тестов нужно запускать из директории `projects/react-playground-e2e`
-cd projects/react-playground-e2e
-
-# Оба варианта комплексной формы
-npx playwright test --project='complex-multy-step-form*'
-
-# По тегам
-npx playwright test --grep @smoke      # быстрый CI
-npx playwright test --grep @critical   # PR CI
-npx playwright test --grep @a11y       # accessibility
-npx playwright test --grep @visual     # visual regression
-npx playwright test --grep @perf       # performance
-```
+Инструкция по настройке, запуску тестов и полный перечень команд находится в [README.md](./projects/react-playground-e2e/README.md)
 
 ## Packages
 
