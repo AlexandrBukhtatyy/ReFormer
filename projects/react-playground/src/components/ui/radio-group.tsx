@@ -48,7 +48,7 @@ const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
                 )}
                 onChange={handleRadioChange}
                 onBlur={onBlur}
-                data-testid={dataTestId ? `input-${dataTestId}-${option.value}` : undefined}
+                data-testid={dataTestId ? `${dataTestId}-${option.value}` : undefined}
               />
               <label
                 htmlFor={inputId}

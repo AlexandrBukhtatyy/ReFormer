@@ -48,6 +48,13 @@ abstract class BaseValidationContext<TForm> implements FormContext<TForm> {
       node.setValue(value as any, { emitEvent: false });
     }
   }
+
+  /**
+   * Получить поле формы по строковому пути
+   */
+  getFieldByPath(path: string) {
+    return this._form.getFieldByPath(path);
+  }
 }
 
 // ============================================================================

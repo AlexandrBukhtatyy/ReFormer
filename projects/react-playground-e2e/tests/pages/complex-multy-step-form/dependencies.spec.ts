@@ -11,51 +11,47 @@
 import { test, expect } from '../../shared/test-factory';
 
 test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
-  test.describe('DEP-001: Загрузка городов по региону', () => {
-    test('DEP-001-A: Города загружаются при выборе региона', async ({ creditForm }) => {
-      // FIX: addressBehavior включен - исправлено использование path.city вместо 'city'
+  test.describe('DEP-001: Сброс города при смене региона', () => {
+    test('DEP-001-A: При изменении региона город сбрасывается', async ({ creditForm }) => {
+      // FIX: addressBehavior включен - исправлено использование ctx.getFieldByPath и path.__path
       await creditForm.goto();
       await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
       await creditForm.fillStep2PersonalData();
       await creditForm.goToNextStep();
 
-      // Выбираем регион
-      await creditForm.input('registrationAddress-region').click();
-      await creditForm.page.getByRole('option', { name: /московская/i }).click();
+      // Заполняем регион и город (текстовые поля)
+      await creditForm.input('registrationAddress-region').fill('Москва');
+      await creditForm.input('registrationAddress-city').fill('Центральный район');
 
-      // Ждем загрузки городов
+      // Проверяем что город заполнен
+      let cityValue = await creditForm.input('registrationAddress-city').inputValue();
+      expect(cityValue).toBe('Центральный район');
+
+      // Меняем регион - город должен сброситься через addressBehavior
+      await creditForm.input('registrationAddress-region').fill('Санкт-Петербург');
       await creditForm.page.waitForTimeout(500);
 
-      // Города должны быть доступны
-      await creditForm.input('registrationAddress-city').click();
-      await expect(creditForm.page.getByRole('option').first()).toBeVisible();
+      // Город должен быть сброшен (addressBehavior watchField)
+      cityValue = await creditForm.input('registrationAddress-city').inputValue();
+      expect(cityValue).toBe('');
     });
 
-    test('DEP-001-B: При смене региона города обновляются', async ({ creditForm }) => {
-      // FIX: addressBehavior включен - город сбрасывается при смене региона
+    test('DEP-001-B: Почтовый индекс форматируется корректно', async ({ creditForm }) => {
+      // FIX: addressBehavior включен - автоформатирование почтового индекса
       await creditForm.goto();
       await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
       await creditForm.fillStep2PersonalData();
       await creditForm.goToNextStep();
 
-      // Выбираем первый регион и город
-      await creditForm.input('registrationAddress-region').click();
-      await creditForm.page.getByRole('option', { name: /московская/i }).click();
-      await creditForm.page.waitForTimeout(500);
+      // Вводим индекс с буквами
+      await creditForm.input('registrationAddress-postalCode').fill('abc123def456');
+      await creditForm.page.waitForTimeout(200);
 
-      await creditForm.input('registrationAddress-city').click();
-      await creditForm.page.getByRole('option', { name: /москва/i }).click();
-
-      // Меняем регион
-      await creditForm.input('registrationAddress-region').click();
-      await creditForm.page.getByRole('option', { name: /ленинградская/i }).click();
-      await creditForm.page.waitForTimeout(500);
-
-      // Город должен быть сброшен
-      const cityValue = await creditForm.input('registrationAddress-city').inputValue();
-      expect(cityValue).toBe('');
+      // Должны остаться только цифры, максимум 6
+      const postalCode = await creditForm.input('registrationAddress-postalCode').inputValue();
+      expect(postalCode).toBe('123456');
     });
   });
 
@@ -99,7 +95,7 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
       // Модель должна быть сброшена - проверяем через клик и наличие опций BMW
       await creditForm.input('carModel').click();
       // Должны появиться модели BMW, а не Toyota
-      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i })).toBeVisible({
+      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()).toBeVisible({
         timeout: 3000,
       });
       await creditForm.page.keyboard.press('Escape');
@@ -129,7 +125,7 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
       await creditForm.input('carModel').click();
 
       // Должны быть модели BMW (например 3 Series или X5)
-      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i })).toBeVisible({
+      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()).toBeVisible({
         timeout: 3000,
       });
     });

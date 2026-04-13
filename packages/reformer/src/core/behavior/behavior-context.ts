@@ -43,11 +43,25 @@ export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
    */
   setFieldValue(path: string | FieldPathNode<TForm, unknown>, value: unknown): void {
     // Преобразуем FieldPath в строку если необходимо
-    const pathStr = typeof path === 'string' ? path : path.toString();
+    const pathStr = typeof path === 'string' ? path : path.__path;
     const node = this._form.getFieldByPath(pathStr);
     if (node) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       node.setValue(value as any, { emitEvent: false });
     }
+  }
+
+  /**
+   * Получить поле формы по строковому пути
+   *
+   * Используется для динамического доступа к вложенным полям, например:
+   * - `ctx.getFieldByPath('address.city')` -> FieldNode
+   * - `ctx.getFieldByPath(path.city.__path)` -> FieldNode (для nested behaviors)
+   *
+   * @param path - Строковый путь к полю (например "address.city")
+   * @returns FieldNode или undefined если поле не найдено
+   */
+  getFieldByPath(path: string) {
+    return this._form.getFieldByPath(path);
   }
 }
