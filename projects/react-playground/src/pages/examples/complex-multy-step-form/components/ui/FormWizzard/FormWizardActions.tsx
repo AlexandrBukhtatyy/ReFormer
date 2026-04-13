@@ -6,7 +6,7 @@
 
 import type { FC } from 'react';
 import type { FormWizardActionsRenderProps } from '@reformer/cdk/form-wizard';
-import { Button } from '@/components/ui/button';
+import { Button } from '@reformer/ui-kit';
 
 interface FormWizardActionsProps extends FormWizardActionsRenderProps {
   className?: string;

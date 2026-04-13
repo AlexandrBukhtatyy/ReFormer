@@ -23,12 +23,7 @@ import { existingLoansFormSchema } from '../components/nested-forms/ExistingLoan
 import { coBorrowersFormSchema } from '../components/nested-forms/CoBorrower/CoBorrowerForm';
 
 import type { CreditApplicationForm } from '../types/credit-application';
-import { Select } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { InputMask } from '@/components/ui/input-mask';
-import { RadioGroup } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
+import { Select, Checkbox, Input, InputMask, RadioGroup, Textarea } from '@reformer/ui-kit';
 
 export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   // ========================================================================

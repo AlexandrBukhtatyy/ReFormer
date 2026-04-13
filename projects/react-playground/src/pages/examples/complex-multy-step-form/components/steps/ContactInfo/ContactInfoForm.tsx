@@ -9,7 +9,7 @@
 
 import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import { ResidenceAddressSection } from '../../ui/ResidenceAddressSection';

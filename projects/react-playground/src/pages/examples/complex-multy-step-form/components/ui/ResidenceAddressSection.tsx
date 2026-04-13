@@ -9,7 +9,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@reformer/ui-kit';
 import { useAddressCopy } from './useAddressCopy';
 
 interface ResidenceAddressSectionProps {

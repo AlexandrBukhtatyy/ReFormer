@@ -1,9 +1,7 @@
 import { memo } from 'react';
 import { EXISTING_LOAN_TYPES } from '../../../constants/credit-application';
 import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { FormField } from '@/components/ui/form-field';
+import { Input, Select, FormField } from '@reformer/ui-kit';
 import type { ExistingLoan } from './types';
 
 export type { ExistingLoan } from './types';

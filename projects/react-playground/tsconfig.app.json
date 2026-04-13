@@ -30,6 +30,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../../packages/reformer-ui-kit/src/lib"],
   "exclude": ["src/mocks/_generated"]
 }

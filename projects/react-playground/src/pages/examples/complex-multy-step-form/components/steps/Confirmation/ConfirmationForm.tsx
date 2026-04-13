@@ -1,5 +1,5 @@
 import { useFormControlValue, type FormProxy } from '@reformer/core';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 import {
   ConfirmationInfoBlock,

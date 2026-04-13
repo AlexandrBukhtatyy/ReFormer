@@ -28,8 +28,7 @@ import {
   NextStepsInfo,
   ElectronicSignatureHint,
 } from '../complex-multy-step-form/components/ui/ConfirmationComponents';
-import { Section } from '@/components/ui/section';
-import { Box } from '@/components/ui/box';
+import { Section, Box } from '@reformer/ui-kit';
 import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
 
 /**

@@ -1,9 +1,7 @@
 import { memo } from 'react';
 import { GENDERS } from '../../../constants/credit-application';
 import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input } from '@/components/ui/input';
-import { RadioGroup } from '@/components/ui/radio-group';
-import { FormField } from '@/components/ui/form-field';
+import { Input, RadioGroup, FormField } from '@reformer/ui-kit';
 import type { PersonalData } from './types';
 
 export type { PersonalData } from './types';

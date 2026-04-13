@@ -26,9 +26,7 @@ import {
   validate,
 } from '@reformer/core/validators';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { ExampleCard } from '@/components/ui/example-card';
-import { FormField } from '@/components/ui/form-field';
+import { Input, ExampleCard, FormField } from '@reformer/ui-kit';
 
 interface ValidationDemoForm {
   // Строки

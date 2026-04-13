@@ -26,10 +26,7 @@ import {
   revalidateWhen,
   type BehaviorSchemaFn,
 } from '@reformer/core/behaviors';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ExampleCard } from '@/components/ui/example-card';
+import { Input, Select, Checkbox, ExampleCard } from '@reformer/ui-kit';
 
 // Тип формы для демонстрации behaviors
 interface BehaviorsDemoForm {

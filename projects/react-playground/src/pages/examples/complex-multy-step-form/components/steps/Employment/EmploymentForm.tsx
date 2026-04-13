@@ -1,6 +1,6 @@
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import type { CreditApplicationForm, EmploymentStatus } from '../../../types/credit-application';
 import { UnemployedWarning } from '../../ui/UnemployedWarning';
 

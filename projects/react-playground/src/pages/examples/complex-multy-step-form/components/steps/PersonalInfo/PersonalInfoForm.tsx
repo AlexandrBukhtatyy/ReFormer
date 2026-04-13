@@ -10,7 +10,7 @@ import type { FormProxy } from '@reformer/core';
 import { PersonalDataForm } from '../../nested-forms/PersonalData/PersonalDataForm';
 import { PassportDataForm } from '../../nested-forms/PassportData/PassportDataForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 
 interface PersonalInfoFormProps {
   control: FormProxy<CreditApplicationForm>;

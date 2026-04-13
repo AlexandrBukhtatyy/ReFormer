@@ -16,7 +16,7 @@ import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/
 import { useLoadCreditApplication } from '../complex-multy-step-form/hooks/useLoadCreditApplication';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import { createCreditApplicationRenderSchema } from './render-schema';
 import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
 import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';

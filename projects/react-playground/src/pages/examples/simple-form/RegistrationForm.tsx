@@ -10,11 +10,7 @@
 
 import { useMemo } from 'react';
 import { createForm, type FormProxy, type FormSchema } from '@reformer/core';
-import { Input } from '@/components/ui/input';
-import { InputPassword } from '@/components/ui/input-password';
-import { InputMask } from '@/components/ui/input-mask';
-import { Checkbox } from '@/components/ui/checkbox';
-import { FormField } from '@/components/ui/form-field';
+import { Input, InputPassword, InputMask, Checkbox, FormField } from '@reformer/ui-kit';
 import { FormStateDisplay } from './FormSateDisplay';
 import { registrationValidation } from './validation/registration-validation';
 import { registrationBehavior } from './behaviors/registration-behavior';
