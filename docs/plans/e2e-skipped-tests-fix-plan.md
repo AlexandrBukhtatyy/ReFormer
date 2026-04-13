@@ -1,0 +1,260 @@
+# План исправления пропущенных E2E тестов
+
+## Обзор
+
+**Текущее состояние:** 247 skipped, 94 passed
+**Цель:** 0 skipped, ~341 passed
+
+## Категории проблем
+
+### Категория 1: POM селекторы не соответствуют DOM (высокий приоритет)
+
+**Затронутые тесты:** ~193 теста (3 проекта)
+
+| Файл | Проблема | Тестов |
+|------|----------|--------|
+| behaviors.spec.ts | `getByLabel()` не находит элементы — компоненты не имеют `htmlFor/id` связи | 60 |
+| validators.spec.ts | `data-testid="input-*"` не существует — страница использует кастомные компоненты без testId | 67 |
+| simple-form/*.spec.ts | `data-testid="input-*"` не существует | 66 |
+
+**Корневая причина:**
+- BehaviorsExamples.tsx использует кастомные компоненты (`NumberField`, `TextField`, `SelectField`) без `data-testid`
+- ValidationExamples.tsx не передаёт `testId` в `componentProps`
+- Компоненты не связывают `<label>` с `<input>` через `htmlFor/id`
+
+**Решение:**
+1. **Вариант A (предпочтительный):** Добавить `testId` в `componentProps` каждого поля в схемах форм
+2. **Вариант B:** Переписать POM для использования `getByLabel()` с правильными CSS-селекторами
+3. **Вариант C:** Модифицировать кастомные компоненты для автоматической генерации `data-testid`
+
+**Оценка трудозатрат:** 4-6 часов
+
+---
+
+### Категория 2: Валидация не показывает ошибки на blur (средний приоритет)
+
+**Затронутые тесты:** ~25 тестов
+
+| Файл | Тесты |
+|------|-------|
+| validation.spec.ts | VAL-002 (email), VAL-003 (phone), VAL-004 (age), VAL-005 (cross-field), VAL-006 (boundaries), VAL-007 (SMS) |
+| arrays.spec.ts | ARR-003-A, ARR-003-B, ARR-003-C |
+
+**Корневая причина:**
+- Форма использует `validateOnChange: false` или ленивую валидацию
+- Cross-field валидация не реализована
+- Ошибки показываются только при submit, не на blur
+
+**Решение:**
+1. Проверить настройки валидации формы (`validateOn: 'blur'`)
+2. Убедиться, что `onBlur` триггерит `markAsTouched()` и валидацию
+3. Реализовать cross-field валидаторы где необходимо
+
+**Оценка трудозатрат:** 3-4 часа
+
+---
+
+### Категория 3: Step Indicator навигация не работает (средний приоритет)
+
+**Затронутые тесты:** ~12 тестов
+
+| Файл | Тесты |
+|------|-------|
+| navigation.spec.ts | NAV-004-B, NAV-004-C, NAV-004-D |
+| dependencies.spec.ts | DEP-004 (весь describe), DEP-005 (весь describe) |
+
+**Корневая причина:**
+- Метод `goToStep()` использует `click()` на step indicator, но элементы могут быть некликабельными
+- Step indicator не имеет ожидаемой CSS-структуры или numbered элементов
+
+**Решение:**
+1. Проверить DOM структуру StepIndicator компонента
+2. Обновить `goToStep()` для корректной навигации
+3. Добавить `data-testid` для шагов
+
+**Оценка трудозатрат:** 2-3 часа
+
+---
+
+### Категория 4: FormArray операции (добавление/удаление) (средний приоритет)
+
+**Затронутые тесты:** ~10 тестов
+
+| Файл | Тесты |
+|------|-------|
+| arrays.spec.ts | ARR-001-B, ARR-002 (весь describe), ARR-004-A, ARR-004-C |
+
+**Корневая причина:**
+- Добавление нескольких элементов создаёт лишний элемент
+- Удаление элементов падает из-за React Strict Mode или CDK особенностей
+- Empty state текст не найден
+
+**Решение:**
+1. Исследовать FormArray поведение при множественном добавлении
+2. Проверить работу удаления в dev-режиме
+3. Добавить/проверить empty state сообщение
+
+**Оценка трудозатрат:** 2-3 часа
+
+---
+
+### Категория 5: Visual тесты — undefined методы POM (низкий приоритет)
+
+**Затронутые тесты:** ~6 тестов
+
+| Файл | Тесты |
+|------|-------|
+| visual.spec.ts | VIS-001-E, VIS-001-F, VIS-001-G, VIS-005 (весь describe) |
+
+**Корневая причина:**
+- Тесты вызывают методы (`selectLoanPurpose`, `fillPersonalDataLastName`), которых нет в POM
+
+**Решение:**
+1. Добавить недостающие методы в credit-form-page.pom.ts
+2. Или переписать тесты с использованием существующих методов
+
+**Оценка трудозатрат:** 1-2 часа
+
+---
+
+### Категория 6: Accessibility тесты (низкий приоритет)
+
+**Затронутые тесты:** ~6 тестов
+
+| Файл | Тесты |
+|------|-------|
+| accessibility.spec.ts | A11Y-001-A, A11Y-001-B, A11Y-002-A, A11Y-003-C, A11Y-007-A |
+
+**Корневая причина:**
+- Form не использует `<form>` элемент (div-based layout)
+- Нет `aria-required` на обязательных полях
+- Focus не перемещается автоматически при навигации
+
+**Решение:**
+1. Частично — исправление требует изменений в form components
+2. Или — пометить как "не применимо" для текущей архитектуры
+
+**Оценка трудозатрат:** 2-4 часа (если исправлять)
+
+---
+
+### Категория 7: Функциональность временно отключена
+
+**Затронутые тесты:** ~4 теста
+
+| Файл | Тесты |
+|------|-------|
+| dependencies.spec.ts | DEP-001-A, DEP-001-B (addressBehavior отключен) |
+| dependencies.spec.ts | DEP-002-B, DEP-002-C (carModel select поведение) |
+
+**Решение:**
+- Отложить до включения addressBehavior
+- Исследовать select компонент для carModel
+
+**Оценка трудозатрат:** Зависит от основного кода
+
+---
+
+### Категория 8: Computed Fields и Conditional Fields
+
+**Затронутые тесты:** ~20 тестов
+
+| Файл | Тесты |
+|------|-------|
+| computed-fields.spec.ts | COMP-001, COMP-002, COMP-003 (весь describe) |
+| conditional-fields.spec.ts | COND-001, COND-002, COND-003 (весь describe) |
+
+**Корневая причина:**
+- Computed поля не отображаются на текущем шаге (показываются на summary)
+- Conditional поля могут иметь другую логику отображения
+
+**Решение:**
+1. Проверить где отображаются computed значения
+2. Переписать тесты для проверки на правильном шаге
+
+**Оценка трудозатрат:** 2-3 часа
+
+---
+
+### Категория 9: Performance тесты
+
+**Затронутые тесты:** 1 тест
+
+| Файл | Тесты |
+|------|-------|
+| performance.spec.ts | PERF-005-A |
+
+**Корневая причина:**
+- Селектор `[data-testid*="coBorrower"]` матчит несколько testId на элемент (field, label, input, error)
+
+**Решение:**
+- Уточнить селектор: `[data-testid^="field-coBorrower"]`
+
+**Оценка трудозатрат:** 15 минут
+
+---
+
+## Порядок исправления
+
+### Фаза 1: Quick Wins (1-2 часа)
+1. [ ] PERF-005-A — исправить селектор
+2. [ ] Visual тесты — добавить недостающие методы в POM
+
+### Фаза 2: POM исправления (4-6 часов)
+3. [ ] BehaviorsPage — добавить `testId` в componentProps + обновить POM
+4. [ ] ValidationPage — добавить `testId` в componentProps
+5. [ ] SimpleFormPage — проверить и добавить testId
+
+### Фаза 3: Валидация (3-4 часа)
+6. [ ] Исследовать blur валидацию
+7. [ ] Исправить validation.spec.ts тесты
+8. [ ] Исправить arrays.spec.ts валидационные тесты
+
+### Фаза 4: Навигация (2-3 часа)
+9. [ ] Исправить goToStep() метод
+10. [ ] Обновить step indicator тесты
+
+### Фаза 5: FormArray (2-3 часа)
+11. [ ] Исследовать add/remove поведение
+12. [ ] Исправить arrays.spec.ts
+
+### Фаза 6: Остальное (2-4 часа)
+13. [ ] Computed/Conditional fields
+14. [ ] Accessibility (по возможности)
+15. [ ] Отложенные (addressBehavior)
+
+---
+
+## Общая оценка
+
+| Фаза | Время |
+|------|-------|
+| Quick Wins | 1-2 ч |
+| POM исправления | 4-6 ч |
+| Валидация | 3-4 ч |
+| Навигация | 2-3 ч |
+| FormArray | 2-3 ч |
+| Остальное | 2-4 ч |
+| **Итого** | **14-22 часа** |
+
+---
+
+## Файлы для изменения
+
+### Страницы (добавить testId)
+- `projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx`
+- `projects/react-playground/src/pages/examples/validation/ValidationExamples.tsx`
+- `projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx`
+
+### POM файлы (обновить селекторы)
+- `projects/react-playground-e2e/tests/pages/behaviors/behaviors-page.pom.ts`
+- `projects/react-playground-e2e/tests/pages/validation/validation-page.pom.ts`
+- `projects/react-playground-e2e/tests/pages/simple-form/simple-form-page.pom.ts`
+- `projects/react-playground-e2e/tests/pages/complex-multy-step-form/credit-form-page.pom.ts`
+
+### Компоненты (если выбран Вариант C)
+- `projects/react-playground/src/components/ui/form-field.tsx`
+- Кастомные field компоненты в BehaviorsExamples
+
+### Тестовые файлы (убрать skip после исправлений)
+- Все файлы в `projects/react-playground-e2e/tests/`
