@@ -113,6 +113,7 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
         return {
           code: 'paymentToIncomeExceeded',
           message: `Ежемесячный платеж не должен превышать 50% от дохода (текущий: ${ratio}%)`,
+          severity: 'warning',
         };
       }
       return null;

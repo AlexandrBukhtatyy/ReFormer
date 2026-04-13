@@ -1,7 +1,23 @@
+/**
+ * Behaviors Examples E2E Tests
+ *
+ * Тесты поведений формы:
+ * - computeFrom: Автоматический расчёт
+ * - enableWhen: Условная активация полей
+ * - disableWhen: Условное отключение полей
+ * - copyFrom: Копирование значений
+ * - transformValue: Трансформация значений
+ * - resetWhen: Условный сброс
+ * - syncFields: Синхронизация полей
+ * - revalidateWhen: Условная ревалидация
+ *
+ * @tag @behaviors
+ */
+
 import { test, expect } from '@playwright/test';
 import { BehaviorsPage } from './behaviors-page.pom';
 
-test.describe('Behaviors Examples', () => {
+test.describe('Примеры поведений', { tag: ['@behaviors'] }, () => {
   let behaviorsPage: BehaviorsPage;
 
   test.beforeEach(async ({ page }) => {
@@ -9,8 +25,8 @@ test.describe('Behaviors Examples', () => {
     await behaviorsPage.goto();
   });
 
-  test.describe('computeFrom: Automatic Calculation', () => {
-    test('should calculate total from price and quantity @critical', async ({ page }) => {
+  test.describe('BEH-001: computeFrom - Автоматический расчёт', () => {
+    test('BEH-001-A: Расчёт суммы из цены и количества', async () => {
       await behaviorsPage.fillPrice(100);
       await behaviorsPage.fillQuantity(5);
       await behaviorsPage.waitForBehaviorUpdate();
@@ -18,33 +34,33 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.expectTotal(500);
     });
 
-    test('should update total when price changes', async ({ page }) => {
+    test('BEH-001-B: Обновление суммы при изменении цены', async () => {
       await behaviorsPage.fillPrice(100);
       await behaviorsPage.fillQuantity(2);
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.expectTotal(200);
 
-      // Change price
+      // Изменяем цену
       await behaviorsPage.fillPrice(150);
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectTotal(300);
     });
 
-    test('should update total when quantity changes', async ({ page }) => {
+    test('BEH-001-C: Обновление суммы при изменении количества', async () => {
       await behaviorsPage.fillPrice(100);
       await behaviorsPage.fillQuantity(2);
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.expectTotal(200);
 
-      // Change quantity
+      // Изменяем количество
       await behaviorsPage.fillQuantity(10);
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectTotal(1000);
     });
 
-    test('should handle zero values', async ({ page }) => {
+    test('BEH-001-D: Обработка нулевых значений', async () => {
       await behaviorsPage.fillPrice(0);
       await behaviorsPage.fillQuantity(5);
       await behaviorsPage.waitForBehaviorUpdate();
@@ -52,120 +68,118 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.expectTotal(0);
     });
 
-    test('total field should be read-only', async () => {
+    test('BEH-001-E: Поле total только для чтения', async () => {
       await expect(behaviorsPage.input('total')).toBeDisabled();
     });
   });
 
-  test.describe('enableWhen: Conditional Field Activation', () => {
-    test.describe('Country -> City dependency', () => {
-      test('should disable city field when no country selected @critical', async () => {
-        await behaviorsPage.expectCityDisabled();
-      });
-
-      test('should enable city field when country is selected', async () => {
-        await behaviorsPage.selectCountry('ru');
-        await behaviorsPage.waitForBehaviorUpdate();
-
-        await behaviorsPage.expectCityEnabled();
-      });
-
-      test('should reset city when country is cleared', async () => {
-        // Select country and fill city
-        await behaviorsPage.selectCountry('ru');
-        await behaviorsPage.waitForBehaviorUpdate();
-        await behaviorsPage.fillCity('Moscow');
-
-        // Clear country
-        await behaviorsPage.selectCountry('');
-        await behaviorsPage.waitForBehaviorUpdate();
-
-        // City should be reset and disabled
-        await behaviorsPage.expectCityDisabled();
-        const cityValue = await behaviorsPage.getCityValue();
-        expect(cityValue).toBe('');
-      });
-
-      test('should preserve city when changing country', async () => {
-        await behaviorsPage.selectCountry('ru');
-        await behaviorsPage.waitForBehaviorUpdate();
-        await behaviorsPage.fillCity('Moscow');
-
-        // Change to different country (city should still be enabled)
-        await behaviorsPage.selectCountry('us');
-        await behaviorsPage.waitForBehaviorUpdate();
-
-        await behaviorsPage.expectCityEnabled();
-      });
+  test.describe('BEH-002: enableWhen - Зависимость страна/город', () => {
+    test('BEH-002-A: Поле город отключено без выбора страны', async () => {
+      await behaviorsPage.expectCityDisabled();
     });
 
-    test.describe('Discount checkbox -> Discount percent dependency', () => {
-      test('should hide discount field when checkbox unchecked @critical', async () => {
-        await behaviorsPage.expectDiscountFieldHidden();
-      });
+    test('BEH-002-B: Поле город активируется при выборе страны', async () => {
+      await behaviorsPage.selectCountry('ru');
+      await behaviorsPage.waitForBehaviorUpdate();
 
-      test('should show discount field when checkbox checked', async () => {
-        await behaviorsPage.toggleDiscount(true);
-        await behaviorsPage.waitForBehaviorUpdate();
+      await behaviorsPage.expectCityEnabled();
+    });
 
-        await behaviorsPage.expectDiscountFieldVisible();
-      });
+    test('BEH-002-C: Сброс города при очистке страны', async () => {
+      // Выбираем страну и заполняем город
+      await behaviorsPage.selectCountry('ru');
+      await behaviorsPage.waitForBehaviorUpdate();
+      await behaviorsPage.fillCity('Moscow');
 
-      test('should hide and reset discount when unchecked', async ({ page }) => {
-        // Enable and fill
-        await behaviorsPage.toggleDiscount(true);
-        await behaviorsPage.waitForBehaviorUpdate();
-        await behaviorsPage.fillDiscountPercent(25);
+      // Очищаем страну
+      await behaviorsPage.selectCountry('');
+      await behaviorsPage.waitForBehaviorUpdate();
 
-        // Disable
-        await behaviorsPage.toggleDiscount(false);
-        await behaviorsPage.waitForBehaviorUpdate();
+      // Город должен быть сброшен и отключен
+      await behaviorsPage.expectCityDisabled();
+      const cityValue = await behaviorsPage.getCityValue();
+      expect(cityValue).toBe('');
+    });
 
-        await behaviorsPage.expectDiscountFieldHidden();
-      });
+    test('BEH-002-D: Сохранение города при смене страны', async () => {
+      await behaviorsPage.selectCountry('ru');
+      await behaviorsPage.waitForBehaviorUpdate();
+      await behaviorsPage.fillCity('Moscow');
+
+      // Меняем на другую страну (город должен остаться активным)
+      await behaviorsPage.selectCountry('us');
+      await behaviorsPage.waitForBehaviorUpdate();
+
+      await behaviorsPage.expectCityEnabled();
     });
   });
 
-  test.describe('disableWhen: Conditional Field Disabling', () => {
-    test('should keep field enabled when not confirmed @critical', async () => {
+  test.describe('BEH-003: enableWhen - Чекбокс скидки', () => {
+    test('BEH-003-A: Поле скидки скрыто без чекбокса', async () => {
+      await behaviorsPage.expectDiscountFieldHidden();
+    });
+
+    test('BEH-003-B: Поле скидки показывается при включении чекбокса', async () => {
+      await behaviorsPage.toggleDiscount(true);
+      await behaviorsPage.waitForBehaviorUpdate();
+
+      await behaviorsPage.expectDiscountFieldVisible();
+    });
+
+    test('BEH-003-C: Скрытие и сброс скидки при отключении', async () => {
+      // Включаем и заполняем
+      await behaviorsPage.toggleDiscount(true);
+      await behaviorsPage.waitForBehaviorUpdate();
+      await behaviorsPage.fillDiscountPercent(25);
+
+      // Отключаем
+      await behaviorsPage.toggleDiscount(false);
+      await behaviorsPage.waitForBehaviorUpdate();
+
+      await behaviorsPage.expectDiscountFieldHidden();
+    });
+  });
+
+  test.describe('BEH-004: disableWhen - Отключение поля', () => {
+    test('BEH-004-A: Поле активно без подтверждения', async () => {
       await behaviorsPage.expectEditableFieldEnabled();
     });
 
-    test('should disable field when confirmed', async () => {
+    test('BEH-004-B: Поле отключается при подтверждении', async () => {
       await behaviorsPage.toggleConfirmed(true);
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectEditableFieldDisabled();
     });
 
-    test('should re-enable field when unconfirmed', async () => {
-      // Confirm
+    test('BEH-004-C: Поле активируется при снятии подтверждения', async () => {
+      // Подтверждаем
       await behaviorsPage.toggleConfirmed(true);
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.expectEditableFieldDisabled();
 
-      // Unconfirm
+      // Снимаем подтверждение
       await behaviorsPage.toggleConfirmed(false);
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectEditableFieldEnabled();
     });
 
-    test('should preserve value when disabled', async () => {
-      // Fill field
+    test('BEH-004-D: Сохранение значения при отключении', async () => {
+      // Заполняем поле
       await behaviorsPage.fillEditableField('Test value');
 
-      // Confirm (disable)
+      // Подтверждаем (отключаем)
       await behaviorsPage.toggleConfirmed(true);
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Value should be preserved
+      // Значение должно сохраниться
       await expect(behaviorsPage.input('editableField')).toHaveValue('Test value');
     });
   });
 
-  test.describe('copyFrom: Field Value Copying', () => {
-    test('should not copy when checkbox unchecked @critical', async () => {
+  test.describe('BEH-005: copyFrom - Копирование значений', () => {
+    test('BEH-005-A: Без копирования при неактивном чекбоксе', async () => {
       await behaviorsPage.fillShippingAddress('123 Main St');
       await behaviorsPage.waitForBehaviorUpdate();
 
@@ -173,69 +187,71 @@ test.describe('Behaviors Examples', () => {
       expect(billingAddress).toBe('');
     });
 
-    test('should copy shipping to billing when checkbox checked', async () => {
-      await behaviorsPage.fillShippingAddress('123 Main St');
+    test('BEH-005-B: Копирование адреса доставки в адрес оплаты', async () => {
+      // Сначала включаем копирование, затем заполняем адрес доставки
+      // Поведение copyFrom копирует при изменении исходного поля
       await behaviorsPage.toggleUseShippingAsBilling(true);
+      await behaviorsPage.fillShippingAddress('123 Main St');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectBillingAddress('123 Main St');
     });
 
-    test('should update billing when shipping changes (while copying)', async () => {
+    test('BEH-005-C: Обновление адреса оплаты при изменении доставки', async () => {
       await behaviorsPage.toggleUseShippingAsBilling(true);
       await behaviorsPage.fillShippingAddress('First Address');
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.expectBillingAddress('First Address');
 
-      // Change shipping
+      // Меняем адрес доставки
       await behaviorsPage.fillShippingAddress('Second Address');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectBillingAddress('Second Address');
     });
 
-    test('should stop copying when checkbox unchecked', async () => {
-      // Enable copying
+    test('BEH-005-D: Прекращение копирования при отключении', async () => {
+      // Включаем копирование
       await behaviorsPage.toggleUseShippingAsBilling(true);
       await behaviorsPage.fillShippingAddress('Copied Address');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Disable copying
+      // Отключаем копирование
       await behaviorsPage.toggleUseShippingAsBilling(false);
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Change shipping - billing should NOT update
+      // Меняем адрес доставки - адрес оплаты НЕ должен обновиться
       await behaviorsPage.fillShippingAddress('New Address');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Billing should still have old value
+      // Адрес оплаты должен сохранить старое значение
       await behaviorsPage.expectBillingAddress('Copied Address');
     });
   });
 
-  test.describe('transformValue: Value Transformation', () => {
-    test('should transform text to uppercase @critical', async () => {
+  test.describe('BEH-006: transformValue - Трансформация значений', () => {
+    test('BEH-006-A: Преобразование текста в верхний регистр', async () => {
       await behaviorsPage.fillUppercaseField('hello');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectUppercaseFieldValue('HELLO');
     });
 
-    test('should transform mixed case to uppercase', async () => {
+    test('BEH-006-B: Преобразование смешанного регистра', async () => {
       await behaviorsPage.fillUppercaseField('HeLLo WoRLd');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectUppercaseFieldValue('HELLO WORLD');
     });
 
-    test('should keep numbers unchanged', async () => {
+    test('BEH-006-C: Числа остаются без изменений', async () => {
       await behaviorsPage.fillUppercaseField('test123');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectUppercaseFieldValue('TEST123');
     });
 
-    test('should handle empty value', async () => {
+    test('BEH-006-D: Обработка пустого значения', async () => {
       await behaviorsPage.fillUppercaseField('test');
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.fillUppercaseField('');
@@ -245,35 +261,35 @@ test.describe('Behaviors Examples', () => {
     });
   });
 
-  test.describe('resetWhen: Conditional Value Reset', () => {
-    test('should show card field when payment type is card @critical', async () => {
+  test.describe('BEH-007: resetWhen - Условный сброс значений', () => {
+    test('BEH-007-A: Поле карты видимо при типе оплаты картой', async () => {
       await behaviorsPage.selectPaymentType('card');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectCardFieldVisible();
     });
 
-    test('should hide card field when payment type is cash', async () => {
+    test('BEH-007-B: Поле карты скрыто при типе оплаты наличными', async () => {
       await behaviorsPage.selectPaymentType('cash');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectCardFieldHidden();
     });
 
-    test('should reset card number when switching to cash', async () => {
-      // Select card and fill
+    test('BEH-007-C: Сброс номера карты при переключении на наличные', async () => {
+      // Выбираем карту и заполняем
       await behaviorsPage.selectPaymentType('card');
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.fillCardNumber('1234 5678 9012 3456');
 
-      // Switch to cash
+      // Переключаемся на наличные
       await behaviorsPage.selectPaymentType('cash');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Should show reset message
+      // Должно показаться сообщение о сбросе
       await behaviorsPage.expectCardResetMessage();
 
-      // Switch back to card - field should be empty
+      // Возвращаемся к карте - поле должно быть пустым
       await behaviorsPage.selectPaymentType('card');
       await behaviorsPage.waitForBehaviorUpdate();
 
@@ -281,22 +297,22 @@ test.describe('Behaviors Examples', () => {
     });
   });
 
-  test.describe('syncFields: Bidirectional Synchronization', () => {
-    test('should sync field2 when field1 changes @critical', async () => {
+  test.describe('BEH-008: syncFields - Синхронизация полей', () => {
+    test('BEH-008-A: Синхронизация field2 при изменении field1', async () => {
       await behaviorsPage.fillSyncField1('Hello');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectSyncField2Value('Hello');
     });
 
-    test('should sync field1 when field2 changes', async () => {
+    test('BEH-008-B: Синхронизация field1 при изменении field2', async () => {
       await behaviorsPage.fillSyncField2('World');
       await behaviorsPage.waitForBehaviorUpdate();
 
       await behaviorsPage.expectSyncField1Value('World');
     });
 
-    test('should keep fields in sync during continuous changes', async () => {
+    test('BEH-008-C: Синхронизация при последовательных изменениях', async () => {
       await behaviorsPage.fillSyncField1('First');
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.expectSyncField2Value('First');
@@ -311,36 +327,36 @@ test.describe('Behaviors Examples', () => {
     });
   });
 
-  test.describe('revalidateWhen: Dependent Field Revalidation', () => {
-    test('should revalidate amount when maxAmount changes @critical', async ({ page }) => {
-      // Set initial values
+  test.describe('BEH-009: revalidateWhen - Условная ревалидация', () => {
+    test('BEH-009-A: Ревалидация amount при изменении maxAmount', async ({ page }) => {
+      // Устанавливаем начальные значения
       await behaviorsPage.fillMaxAmount(500);
-      await behaviorsPage.fillAmount(600); // Over limit
+      await behaviorsPage.fillAmount(600); // Превышает лимит
       await page.keyboard.press('Tab');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Amount should show error (600 > 500, but validator uses fixed 1000)
-      // The actual validation message depends on implementation
+      // Amount должен показать ошибку (600 > 500, но валидатор использует фиксированный 1000)
+      // Фактическое сообщение валидации зависит от реализации
     });
 
-    test('should trigger revalidation on dependency change', async ({ page }) => {
-      // Fill amount first
+    test('BEH-009-B: Запуск ревалидации при изменении зависимости', async ({ page }) => {
+      // Сначала заполняем amount
       await behaviorsPage.fillAmount(800);
       await page.keyboard.press('Tab');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Change maxAmount - should trigger revalidation of amount
+      // Меняем maxAmount - должна запуститься ревалидация amount
       await behaviorsPage.fillMaxAmount(500);
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Amount field should be revalidated
-      // (behavior depends on actual validation rules)
+      // Поле amount должно быть ревалидировано
+      // (поведение зависит от фактических правил валидации)
     });
   });
 
-  test.describe('Form Reset', () => {
-    test('should reset all fields to initial values', async () => {
-      // Make changes
+  test.describe('BEH-010: Сброс формы', () => {
+    test('BEH-010-A: Сброс всех полей к начальным значениям', async () => {
+      // Вносим изменения
       await behaviorsPage.fillPrice(200);
       await behaviorsPage.fillQuantity(10);
       await behaviorsPage.selectCountry('us');
@@ -348,19 +364,19 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.fillUppercaseField('test');
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Reset
+      // Сбрасываем
       await behaviorsPage.reset();
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Check initial values are restored
-      await behaviorsPage.expectTotal(100); // 100 * 1 = 100 (initial values)
-      await behaviorsPage.expectCityDisabled(); // No country selected
-      await behaviorsPage.expectDiscountFieldHidden(); // Checkbox unchecked
+      // Проверяем восстановление начальных значений
+      await behaviorsPage.expectTotal(100); // 100 * 1 = 100 (начальные значения)
+      await behaviorsPage.expectCityDisabled(); // Страна не выбрана
+      await behaviorsPage.expectDiscountFieldHidden(); // Чекбокс снят
     });
   });
 
-  test.describe('Multiple Behaviors Interaction', () => {
-    test('should handle multiple behaviors on same form', async () => {
+  test.describe('BEH-011: Комбинация поведений', () => {
+    test('BEH-011-A: Совместная работа нескольких поведений', async () => {
       // computeFrom
       await behaviorsPage.fillPrice(50);
       await behaviorsPage.fillQuantity(4);
@@ -378,27 +394,27 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.expectUppercaseFieldValue('GERMANY');
 
-      // All behaviors should work together
+      // Все поведения должны работать вместе
       await behaviorsPage.expectTotal(200);
       const cityValue = await behaviorsPage.getCityValue();
       expect(cityValue).toBe('Berlin');
     });
   });
 
-  test.describe('Edge Cases', () => {
-    test('should handle rapid changes', async ({ page }) => {
-      // Rapidly change price
+  test.describe('BEH-012: Граничные случаи', () => {
+    test('BEH-012-A: Обработка быстрых изменений', async () => {
+      // Быстро меняем цену
       for (let i = 1; i <= 5; i++) {
         await behaviorsPage.fillPrice(i * 100);
       }
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Final value should be correct
+      // Финальное значение должно быть корректным
       await behaviorsPage.expectTotal(500); // 500 * 1 = 500
     });
 
-    test('should handle clearing fields', async () => {
-      // Fill and clear
+    test('BEH-012-B: Обработка очистки полей', async () => {
+      // Заполняем и очищаем
       await behaviorsPage.fillUppercaseField('TEST');
       await behaviorsPage.waitForBehaviorUpdate();
       await behaviorsPage.fillUppercaseField('');
@@ -407,7 +423,7 @@ test.describe('Behaviors Examples', () => {
       await behaviorsPage.expectUppercaseFieldValue('');
     });
 
-    test('should handle special characters in transform', async () => {
+    test('BEH-012-C: Специальные символы в трансформации', async () => {
       await behaviorsPage.fillUppercaseField('test@123!');
       await behaviorsPage.waitForBehaviorUpdate();
 
@@ -415,9 +431,9 @@ test.describe('Behaviors Examples', () => {
     });
   });
 
-  test.describe('No Console Errors', () => {
-    test('should not produce console errors during behaviors', async () => {
-      // Trigger various behaviors
+  test.describe('BEH-013: Отсутствие ошибок консоли', () => {
+    test('BEH-013-A: Нет ошибок консоли во время работы поведений', async () => {
+      // Запускаем различные поведения
       await behaviorsPage.fillPrice(100);
       await behaviorsPage.fillQuantity(5);
       await behaviorsPage.selectCountry('ru');
@@ -433,7 +449,7 @@ test.describe('Behaviors Examples', () => {
 
       await behaviorsPage.waitForBehaviorUpdate();
 
-      // Check no errors occurred
+      // Проверяем отсутствие ошибок
       expect(behaviorsPage.hasNoErrors()).toBe(true);
     });
   });

@@ -1,13 +1,12 @@
 import type { CreditApplicationForm } from '../../pages/examples/complex-multy-step-form/types/credit-application';
 
 export const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> = {
+  // Заявка '1' - потребительский кредит с минимальными данными для тестирования
   '1': {
-    loanType: 'mortgage',
-    loanAmount: 5000000,
-    loanTerm: 240,
-    loanPurpose: 'Покупка квартиры в новостройке для проживания семьи',
-    propertyValue: 7000000,
-    initialPayment: 2000000,
+    loanType: 'consumer',
+    loanAmount: 500000,
+    loanTerm: 24,
+    loanPurpose: 'Ремонт квартиры',
     personalData: {
       lastName: 'Иванов',
       firstName: 'Иван',
@@ -37,15 +36,8 @@ export const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> =
       apartment: '25',
       postalCode: '123456',
     },
-    sameAsRegistration: false,
-    residenceAddress: {
-      region: 'Московская область',
-      city: 'Химки',
-      street: 'ул. Победы',
-      house: '5',
-      apartment: '12',
-      postalCode: '141400',
-    },
+    sameAsRegistration: true,
+    // residenceAddress не заполняется, т.к. sameAsRegistration = true
     employmentStatus: 'employed',
     companyName: 'ООО "Ромашка"',
     companyInn: '7712345678',
@@ -55,56 +47,16 @@ export const MOCK_APPLICATIONS: Record<string, Partial<CreditApplicationForm>> =
     workExperienceTotal: 12,
     workExperienceCurrent: 6,
     monthlyIncome: 150000,
-    additionalIncome: 30000,
-    additionalIncomeSource: 'Сдача недвижимости в аренду',
+    additionalIncome: 0, // Нет дополнительного дохода по умолчанию
     maritalStatus: 'married',
     dependents: 2,
     education: 'higher',
-    hasProperty: true,
-    properties: [
-      {
-        id: '1',
-        type: 'apartment',
-        description: 'Квартира в г. Химки, 2-комнатная, 55 кв.м.',
-        estimatedValue: 4500000,
-        hasEncumbrance: false,
-      },
-      {
-        id: '2',
-        type: 'car',
-        description: 'Toyota Camry, 2020 года выпуска',
-        estimatedValue: 1800000,
-        hasEncumbrance: false,
-      },
-    ],
-    hasExistingLoans: true,
-    existingLoans: [
-      {
-        id: '1',
-        bank: 'Сбербанк',
-        type: 'consumer',
-        amount: 500000,
-        remainingAmount: 200000,
-        monthlyPayment: 15000,
-        maturityDate: '2026-12-31',
-      },
-    ],
-    hasCoBorrower: true,
-    coBorrowers: [
-      {
-        id: '1',
-        personalData: {
-          lastName: 'Иванова',
-          firstName: 'Мария',
-          middleName: 'Петровна',
-          birthDate: '1987-08-20',
-        },
-        phone: '+7 (999) 888-77-66',
-        email: 'maria.ivanova@example.com',
-        relationship: 'spouse',
-        monthlyIncome: 100000,
-      },
-    ],
+    hasProperty: false, // По умолчанию нет имущества
+    properties: [],
+    hasExistingLoans: false, // По умолчанию нет кредитов
+    existingLoans: [],
+    hasCoBorrower: false, // По умолчанию нет созаемщиков
+    coBorrowers: [],
     agreePersonalData: false,
     agreeCreditHistory: false,
     agreeMarketing: false,

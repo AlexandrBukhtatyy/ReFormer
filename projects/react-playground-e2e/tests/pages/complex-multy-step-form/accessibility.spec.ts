@@ -112,7 +112,7 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
 
         await page.keyboard.press('Shift+Tab');
         const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
-        expect(['INPUT', 'SELECT', 'BUTTON']).toContain(focusedElement);
+        expect(['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA']).toContain(focusedElement);
       });
     });
   });
@@ -156,14 +156,14 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
     // FIX: Test works - same pattern as VAL-001-A in validation.spec.ts
     test('A11Y-003-C: Required fields show validation errors when empty', async ({ creditForm }) => {
       await test.step('Check that empty required fields trigger validation errors', async () => {
-        // Fill only loanType but leave loanAmount empty (it's required)
+        // Clear pre-filled fields first
+        await creditForm.input('loanAmount').clear();
         await creditForm.selectLoanType('consumer');
 
-        // Try to proceed without filling loanAmount (which is null by default)
+        // Try to proceed without filling loanAmount
         await creditForm.goToNextStep();
 
-        // loanAmount field should show error (required, value is null)
-        // Error element has data-testid="error-loanAmount" from FormField component
+        // loanAmount field should show error (required, value is empty)
         await creditForm.expectFieldError('loanAmount');
       });
     });

@@ -1,7 +1,21 @@
+/**
+ * Registration Form Accessibility E2E Tests
+ *
+ * Тесты доступности формы регистрации:
+ * - Клавиатурная навигация
+ * - Метки полей
+ * - Управление фокусом
+ * - Сообщения об ошибках
+ * - Структура формы
+ * - Состояния кнопок
+ *
+ * @tag @a11y
+ */
+
 import { test, expect } from '@playwright/test';
 import { SimpleFormPage } from './simple-form-page.pom';
 
-test.describe('Registration Form Accessibility', () => {
+test.describe('Доступность формы регистрации', { tag: ['@a11y'] }, () => {
   let formPage: SimpleFormPage;
 
   test.beforeEach(async ({ page }) => {
@@ -9,21 +23,26 @@ test.describe('Registration Form Accessibility', () => {
     await formPage.goto();
   });
 
-  test.describe('Keyboard Navigation', () => {
-    test('should navigate through form fields with Tab', async ({ page }) => {
-      // Start from first focusable element
+  test.describe('SFA11Y-001: Клавиатурная навигация', () => {
+    test('SFA11Y-001-A: Навигация по полям формы через Tab', async ({ page }) => {
+      // Начинаем с первого фокусируемого элемента
       await formPage.usernameInput.focus();
 
-      // Tab through form fields
+      // Tab по полям формы
+      // Примечание: InputPassword имеет кнопку переключения, которая получает фокус между полями пароля
       await page.keyboard.press('Tab');
       await expect(formPage.emailInput).toBeFocused();
 
       await page.keyboard.press('Tab');
       await expect(formPage.passwordInput).toBeFocused();
 
+      // Пропускаем кнопку переключения видимости пароля
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await expect(formPage.confirmPasswordInput).toBeFocused();
 
+      // Пропускаем кнопку переключения для confirmPassword
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Tab');
       await expect(formPage.fullNameInput).toBeFocused();
 
@@ -37,11 +56,11 @@ test.describe('Registration Form Accessibility', () => {
       await expect(formPage.acceptTermsCheckbox).toBeFocused();
     });
 
-    test('should navigate backwards with Shift+Tab', async ({ page }) => {
-      // Start from captcha
+    test('SFA11Y-001-B: Навигация назад через Shift+Tab', async ({ page }) => {
+      // Начинаем с капчи
       await formPage.captchaInput.focus();
 
-      // Shift+Tab to go back
+      // Shift+Tab для возврата
       await page.keyboard.press('Shift+Tab');
       await expect(formPage.phoneInput).toBeFocused();
 
@@ -49,7 +68,7 @@ test.describe('Registration Form Accessibility', () => {
       await expect(formPage.fullNameInput).toBeFocused();
     });
 
-    test('should toggle checkbox with Space', async ({ page }) => {
+    test('SFA11Y-001-C: Переключение чекбокса через Space', async ({ page }) => {
       await formPage.acceptTermsCheckbox.focus();
       expect(await formPage.acceptTermsCheckbox.isChecked()).toBe(false);
 
@@ -60,61 +79,62 @@ test.describe('Registration Form Accessibility', () => {
       expect(await formPage.acceptTermsCheckbox.isChecked()).toBe(false);
     });
 
-    test('should submit form with Enter key', async ({ page }) => {
-      // Fill valid form
+    test('SFA11Y-001-D: Отправка формы через Enter', async ({ page }) => {
+      // Заполняем валидную форму
       await formPage.fillValidForm();
       await formPage.waitForAsyncValidation();
 
-      // Handle dialog
+      // Обработка диалога
       page.on('dialog', async (dialog) => {
         await dialog.accept();
       });
 
-      // Focus submit button and press Enter
+      // Фокус на кнопке submit и нажатие Enter
       await formPage.submitButton.focus();
       await page.keyboard.press('Enter');
 
-      // Form should be submitted (check for form reset)
+      // Форма должна быть отправлена (проверяем сброс формы)
       await formPage.page.waitForTimeout(500);
     });
   });
 
-  test.describe('Form Labels', () => {
-    test('should have visible labels for all form fields', async ({ page }) => {
-      // Check labels are present and visible
-      await expect(page.getByText('Имя пользователя')).toBeVisible();
-      await expect(page.getByText('Email')).toBeVisible();
-      await expect(page.getByText('Пароль')).toBeVisible();
-      await expect(page.getByText('Подтвердите пароль')).toBeVisible();
-      await expect(page.getByText('Полное имя')).toBeVisible();
-      await expect(page.getByText('Телефон')).toBeVisible();
-      await expect(page.getByText('Введите captcha')).toBeVisible();
+  test.describe('SFA11Y-002: Метки полей', () => {
+    test('SFA11Y-002-A: Видимые метки для всех полей формы', async ({ page }) => {
+      // Проверяем наличие и видимость меток - используем testId для точности
+      await expect(page.getByTestId('label-username')).toBeVisible();
+      await expect(page.getByTestId('label-email')).toBeVisible();
+      await expect(page.getByTestId('label-password')).toBeVisible();
+      await expect(page.getByTestId('label-confirmPassword')).toBeVisible();
+      await expect(page.getByTestId('label-fullName')).toBeVisible();
+      await expect(page.getByTestId('label-phone')).toBeVisible();
+      await expect(page.getByTestId('label-captcha')).toBeVisible();
+      // Компонент Checkbox имеет встроенную метку без testId
       await expect(page.getByText('Я принимаю условия использования')).toBeVisible();
     });
 
-    test('should associate labels with inputs', async ({ page }) => {
-      // Labels should be clickable and focus associated input
+    test('SFA11Y-002-B: Связь меток с полями ввода', async ({ page }) => {
+      // Метки должны быть кликабельными и фокусировать связанное поле
       const usernameLabel = page.locator('label', { hasText: 'Имя пользователя' });
       await usernameLabel.click();
 
-      // Input should receive focus (or be ready for input)
+      // Поле должно получить фокус (или быть готовым к вводу)
       await page.keyboard.type('test');
       await expect(formPage.usernameInput).toHaveValue('test');
     });
   });
 
-  test.describe('Focus Management', () => {
-    test('should show visible focus indicator on input fields', async ({ page }) => {
+  test.describe('SFA11Y-003: Управление фокусом', () => {
+    test('SFA11Y-003-A: Видимый индикатор фокуса на полях ввода', async ({ page }) => {
       await formPage.usernameInput.focus();
 
-      // Check that the element is focused
+      // Проверяем, что элемент в фокусе
       await expect(formPage.usernameInput).toBeFocused();
 
-      // Visual focus indicator should be present (ring/border styles)
-      // This is typically handled by CSS, we verify focus state exists
+      // Визуальный индикатор фокуса должен присутствовать (ring/border стили)
+      // Это обычно обрабатывается через CSS, мы проверяем наличие состояния фокуса
     });
 
-    test('should show visible focus indicator on buttons', async ({ page }) => {
+    test('SFA11Y-003-B: Видимый индикатор фокуса на кнопках', async ({ page }) => {
       await formPage.submitButton.focus();
       await expect(formPage.submitButton).toBeFocused();
 
@@ -122,87 +142,88 @@ test.describe('Registration Form Accessibility', () => {
       await expect(formPage.resetButton).toBeFocused();
     });
 
-    test('should maintain focus after validation error', async ({ page }) => {
+    test('SFA11Y-003-C: Сохранение фокуса после ошибки валидации', async ({ page }) => {
       await formPage.usernameInput.focus();
-      await page.keyboard.type('ab'); // Too short
+      await page.keyboard.type('ab'); // Слишком короткий
       await page.keyboard.press('Tab');
 
-      // After tab, focus should move to next field
+      // После tab фокус должен переместиться на следующее поле
       await expect(formPage.emailInput).toBeFocused();
     });
   });
 
-  test.describe('Error Messages', () => {
-    test('should display error messages accessibly', async ({ page }) => {
-      // Trigger validation error
+  test.describe('SFA11Y-004: Сообщения об ошибках', () => {
+    test('SFA11Y-004-A: Доступное отображение сообщений об ошибках', async ({ page }) => {
+      // Вызываем ошибку валидации - ReFormer показывает ошибки при submit
       await formPage.usernameInput.focus();
-      await page.keyboard.press('Tab');
+      await page.keyboard.type('');
+      await formPage.submit();
 
-      // Error should be visible
+      // Ошибка должна быть видимой
       const errorElement = formPage.error('username');
       await expect(errorElement).toBeVisible();
 
-      // Error should have meaningful text
+      // Ошибка должна содержать осмысленный текст
       const errorText = await errorElement.textContent();
       expect(errorText).toBeTruthy();
       expect(errorText!.length).toBeGreaterThan(0);
     });
 
-    test('should position error messages near associated fields', async ({ page }) => {
+    test('SFA11Y-004-B: Позиционирование ошибок рядом со связанными полями', async () => {
       await formPage.fillUsername('ab');
-      await page.keyboard.press('Tab');
+      await formPage.submit();
 
-      // Error should be visible within the field container
+      // Ошибка должна быть видима внутри контейнера поля
       const fieldContainer = formPage.field('username');
       const errorElement = formPage.error('username');
 
-      // Both should be visible
+      // Оба должны быть видимы
       await expect(fieldContainer).toBeVisible();
       await expect(errorElement).toBeVisible();
     });
   });
 
-  test.describe('Form Structure', () => {
-    test('should have proper heading structure', async ({ page }) => {
-      // Main heading should be present
+  test.describe('SFA11Y-005: Структура формы', () => {
+    test('SFA11Y-005-A: Правильная структура заголовков', async ({ page }) => {
+      // Главный заголовок должен присутствовать
       const mainHeading = page.getByRole('heading', { name: /регистрация/i });
       await expect(mainHeading).toBeVisible();
     });
 
-    test('should group related form elements', async ({ page }) => {
-      // Form should be present
+    test('SFA11Y-005-B: Группировка связанных элементов формы', async ({ page }) => {
+      // Форма должна присутствовать
       const form = page.locator('form');
       await expect(form).toBeVisible();
 
-      // All inputs should be within the form
+      // Все поля ввода должны быть внутри формы
       const inputs = form.locator('input');
       const inputCount = await inputs.count();
       expect(inputCount).toBeGreaterThan(0);
     });
   });
 
-  test.describe('Button States', () => {
-    test('should indicate disabled state for submit button', async ({ page }) => {
-      // Empty form - submit should be disabled
-      await expect(formPage.submitButton).toBeDisabled();
+  test.describe('SFA11Y-006: Состояния кнопок', () => {
+    test('SFA11Y-006-A: Активная кнопка submit для отправки формы', async () => {
+      // ReFormer оставляет кнопку submit активной - валидация происходит при submit
+      await expect(formPage.submitButton).toBeEnabled();
     });
 
-    test('should have descriptive button text', async ({ page }) => {
-      // Submit button should have clear text
+    test('SFA11Y-006-B: Понятный текст кнопок', async ({ page }) => {
+      // Кнопка submit должна иметь понятный текст
       await expect(formPage.submitButton).toHaveText(/зарегистрироваться/i);
 
-      // Reset button should have clear text
+      // Кнопка reset должна иметь понятный текст
       await expect(formPage.resetButton).toHaveText(/очистить/i);
     });
   });
 
-  test.describe('Color Contrast', () => {
-    test('should have visible text content', async ({ page }) => {
-      // All text elements should be visible
+  test.describe('SFA11Y-007: Цветовой контраст', () => {
+    test('SFA11Y-007-A: Видимый текстовый контент', async ({ page }) => {
+      // Все текстовые элементы должны быть видимы - используем testId для меток
       const visibleElements = [
-        page.getByText('Регистрация'),
-        page.getByText('Имя пользователя'),
-        page.getByText('Email'),
+        page.getByRole('heading', { name: /регистрация/i }),
+        page.getByTestId('label-username'),
+        page.getByTestId('label-email'),
       ];
 
       for (const element of visibleElements) {
@@ -210,37 +231,36 @@ test.describe('Registration Form Accessibility', () => {
       }
     });
 
-    test('should have visible error messages', async ({ page }) => {
-      // Trigger error
-      await formPage.usernameInput.focus();
-      await page.keyboard.press('Tab');
+    test('SFA11Y-007-B: Видимые сообщения об ошибках', async () => {
+      // Вызываем ошибку - ReFormer показывает ошибки при submit
+      await formPage.submit();
 
-      // Error text should be visible
+      // Текст ошибки должен быть видим
       const errorElement = formPage.error('username');
       await expect(errorElement).toBeVisible();
 
-      // Error should have text
+      // Ошибка должна содержать текст
       const text = await errorElement.textContent();
       expect(text!.trim().length).toBeGreaterThan(0);
     });
   });
 
-  test.describe('Input Placeholders', () => {
-    test('should have helpful placeholder text', async () => {
+  test.describe('SFA11Y-008: Плейсхолдеры полей ввода', () => {
+    test('SFA11Y-008-A: Наличие полезных плейсхолдеров', async () => {
       await expect(formPage.usernameInput).toHaveAttribute('placeholder', /логин|латиница/i);
       await expect(formPage.emailInput).toHaveAttribute('placeholder', /email/i);
       await expect(formPage.phoneInput).toHaveAttribute('placeholder', /\+7/);
     });
   });
 
-  test.describe('Password Field', () => {
-    test('should have password type to hide input', async () => {
+  test.describe('SFA11Y-009: Поле пароля', () => {
+    test('SFA11Y-009-A: Тип password для скрытия ввода', async () => {
       await expect(formPage.passwordInput).toHaveAttribute('type', 'password');
       await expect(formPage.confirmPasswordInput).toHaveAttribute('type', 'password');
     });
 
-    test('should allow password visibility toggle if available', async ({ page }) => {
-      // If there's a show/hide password button, test it
+    test('SFA11Y-009-B: Переключение видимости пароля', async ({ page }) => {
+      // Если есть кнопка показать/скрыть пароль, тестируем её
       const toggleButton = page.locator('[data-testid="toggle-password"]').first();
       if (await toggleButton.isVisible()) {
         await toggleButton.click();
@@ -252,47 +272,47 @@ test.describe('Registration Form Accessibility', () => {
     });
   });
 
-  test.describe('Touch Target Size', () => {
-    test('should have adequately sized interactive elements', async ({ page }) => {
-      // Checkbox should be clickable
+  test.describe('SFA11Y-010: Размер области касания', () => {
+    test('SFA11Y-010-A: Достаточный размер интерактивных элементов', async ({ page }) => {
+      // Чекбокс должен быть кликабельным
       const checkbox = formPage.acceptTermsCheckbox;
       const boundingBox = await checkbox.boundingBox();
 
       if (boundingBox) {
-        // Touch target should be at least 24x24 pixels (WCAG minimum)
-        // Note: The actual clickable area might be larger due to label
+        // Область касания должна быть минимум 24x24 пикселя (минимум WCAG)
+        // Примечание: Реальная кликабельная область может быть больше из-за метки
         expect(boundingBox.width).toBeGreaterThan(0);
         expect(boundingBox.height).toBeGreaterThan(0);
       }
     });
   });
 
-  test.describe('Form Validation Timing', () => {
-    test('should validate on blur (not during typing)', async ({ page }) => {
-      // Start typing - no error should appear yet
+  test.describe('SFA11Y-011: Время валидации', () => {
+    test('SFA11Y-011-A: Валидация при submit (не во время ввода)', async () => {
+      // Начинаем ввод - ошибка ещё не должна появиться
       await formPage.fillUsername('a');
       await expect(formPage.error('username')).not.toBeVisible();
 
-      // Continue typing
+      // Продолжаем ввод
       await formPage.usernameInput.pressSequentially('b');
       await expect(formPage.error('username')).not.toBeVisible();
 
-      // On blur, error should appear
-      await page.keyboard.press('Tab');
+      // При submit ошибка должна появиться
+      await formPage.submit();
       await expect(formPage.error('username')).toBeVisible();
     });
   });
 
-  test.describe('Responsive Behavior', () => {
-    test('should be usable on mobile viewport', async ({ page }) => {
-      // Set mobile viewport
+  test.describe('SFA11Y-012: Адаптивное поведение', () => {
+    test('SFA11Y-012-A: Работоспособность на мобильном viewport', async ({ page }) => {
+      // Устанавливаем мобильный viewport
       await page.setViewportSize({ width: 375, height: 667 });
 
-      // Form should still be visible and functional
+      // Форма должна быть видимой и функциональной
       await expect(formPage.usernameInput).toBeVisible();
       await expect(formPage.submitButton).toBeVisible();
 
-      // Should be able to fill form
+      // Должна быть возможность заполнить форму
       await formPage.fillUsername('mobileuser');
       await expect(formPage.usernameInput).toHaveValue('mobileuser');
     });

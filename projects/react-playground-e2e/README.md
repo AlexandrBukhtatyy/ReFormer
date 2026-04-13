@@ -68,6 +68,19 @@ playwright test --project='complex-multy-step-form*'
 
 # Запуск кросс-браузерных @critical тестов
 npx playwright test --project=complex-form:firefox --project=complex-form:webkit
+
+# Для обновления snapshot тестов используйте флаг --update-snapshots:
+# Обновить все visual snapshots
+npx playwright test --update-snapshots
+
+# Обновить snapshots только для visual тестов
+npx playwright test --grep "@visual" --update-snapshots
+
+# Обновить конкретный тест
+npx playwright test --grep "VIS-001-C" --update-snapshots
+
+# Если нужно обновить snapshots для конкретного проекта:
+npx playwright test --project="complex-multy-step-form" --update-snapshots
 ```
 
 ## Структура проекта

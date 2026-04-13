@@ -141,7 +141,10 @@ test.describe('Conditional Fields', { tag: ['@conditional'] }, () => {
 
       // Модель должна быть сброшена - проверяем через наличие моделей BMW
       await creditForm.input('carModel').click();
-      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i })).toBeVisible({
+      // Используем first() т.к. regex матчит несколько опций
+      await expect(
+        creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()
+      ).toBeVisible({
         timeout: 3000,
       });
       await creditForm.page.keyboard.press('Escape');

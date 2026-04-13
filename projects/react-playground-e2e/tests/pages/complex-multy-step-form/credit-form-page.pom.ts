@@ -603,6 +603,9 @@ export class CreditFormPage extends BasePage {
     await this.page.waitForTimeout(1000);
     // Если alert был показан — он уже принят dialog handler-ом
     // Проверяем, что не было ошибок страницы
+    if (this.pageErrors.length > 0) {
+      console.log('Page errors:', this.pageErrors);
+    }
     expect(this.pageErrors.length).toBe(0);
   }
 

@@ -391,8 +391,12 @@ export class FieldNode<T> extends FormNode<T> {
 
     if (syncErrors.length > 0) {
       this._errors.value = syncErrors;
-      this.statusMachine.setErrors(true);
-      return false;
+      // Only blocking errors (not warnings) affect validity
+      const hasBlockingErrors = syncErrors.some((e) => e.severity !== 'warning');
+      this.statusMachine.setErrors(hasBlockingErrors);
+      if (hasBlockingErrors) {
+        return false;
+      }
     }
 
     // Асинхронная валидация - ПАРАЛЛЕЛЬНО с поддержкой отмены
@@ -447,9 +451,13 @@ export class FieldNode<T> extends FormNode<T> {
         const asyncErrors = asyncResults.filter(Boolean) as ValidationError[];
         if (asyncErrors.length > 0) {
           this._errors.value = asyncErrors;
-          // Завершаем валидацию с ошибками
-          this.statusMachine.completeValidation(true);
-          return false;
+          // Only blocking errors (not warnings) affect validity
+          const hasBlockingErrors = asyncErrors.some((e) => e.severity !== 'warning');
+          this.statusMachine.completeValidation(hasBlockingErrors);
+          // Return valid if only warnings
+          if (hasBlockingErrors) {
+            return false;
+          }
         }
       } catch (error) {
         // Валидация была отменена - это нормально
@@ -476,12 +484,15 @@ export class FieldNode<T> extends FormNode<T> {
       this.statusMachine.completeValidation(false);
     }
 
-    return this._errors.value.length === 0;
+    // Return valid if no blocking errors (warnings don't block)
+    return !this._errors.value.some((e) => e.severity !== 'warning');
   }
 
   setErrors(errors: ValidationError[]): void {
     this._errors.value = errors;
-    this.statusMachine.setErrors(errors.length > 0);
+    // Only blocking errors (not warnings) affect validity
+    const hasBlockingErrors = errors.some((e) => e.severity !== 'warning');
+    this.statusMachine.setErrors(hasBlockingErrors);
   }
 
   clearErrors(): void {

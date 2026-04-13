@@ -310,7 +310,7 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
 
       // Указываем низкий доход (платеж > 50% от дохода)
       // При кредите 3 000 000 на 24 мес. платёж ~150 000₽
-      // При доходе 100 000₽ это 150% - ошибка
+      // При доходе 100 000₽ это 150% - warning (не блокирует навигацию)
       await creditForm.selectEmploymentStatus('employed');
       await creditForm.fillCompanyName('Компания');
       await creditForm.fillCompanyInn('1234567890');
@@ -321,25 +321,21 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
       await creditForm.fillCurrentJobExperience(24);
       await creditForm.fillMonthlyIncome(100000);
 
-      // Пытаемся перейти дальше - валидация сработает
+      // Переход возможен несмотря на высокий paymentToIncomeRatio (это warning, не error)
       await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/дополнительная информация/i);
 
-      // Ожидаем ошибку превышения 50%
-      await creditForm.expectFieldError('monthlyIncome', /50%/i);
-
-      // Возвращаемся и уменьшаем сумму кредита (платёж станет меньше)
+      // Возвращаемся на шаг 1 и уменьшаем сумму кредита
       await creditForm.goToStep(1);
       await creditForm.fillLoanAmount(500000); // При 500000 на 24 мес. платёж ~25 000₽
 
-      // Проходим шаги заново
+      // Проходим шаги заново до шага 4
       await creditForm.goToNextStep(); // Step 2
       await creditForm.goToNextStep(); // Step 3
       await creditForm.goToNextStep(); // Step 4
 
-      // Пытаемся перейти дальше - ошибка должна исчезнуть (ревалидация)
+      // Переход на шаг 5 успешен (теперь paymentToIncomeRatio < 50%)
       await creditForm.goToNextStep();
-
-      // Должны перейти на шаг 5 (ошибки нет)
       await creditForm.expectStepHeading(/дополнительная информация/i);
     });
 
