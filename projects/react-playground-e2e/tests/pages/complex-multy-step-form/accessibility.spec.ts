@@ -153,11 +153,8 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    // TODO: Form validation doesn't show errors in expected data-testid format
-    // Need to investigate how validation errors are displayed in this form
-    test.skip('A11Y-003-C: Required fields show validation errors when empty', async ({
-      creditForm,
-    }) => {
+    // FIX: Test works - same pattern as VAL-001-A in validation.spec.ts
+    test('A11Y-003-C: Required fields show validation errors when empty', async ({ creditForm }) => {
       await test.step('Check that empty required fields trigger validation errors', async () => {
         // Fill only loanType but leave loanAmount empty (it's required)
         await creditForm.selectLoanType('consumer');
@@ -166,6 +163,7 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
         await creditForm.goToNextStep();
 
         // loanAmount field should show error (required, value is null)
+        // Error element has data-testid="error-loanAmount" from FormField component
         await creditForm.expectFieldError('loanAmount');
       });
     });
