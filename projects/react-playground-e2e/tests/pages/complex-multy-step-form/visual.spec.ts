@@ -14,7 +14,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await page.waitForLoadState('networkidle');
 
       await expect(page).toHaveScreenshot('step-1-basic-info.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
         mask: [page.locator('[data-testid="timestamp"]')], // Mask dynamic content
       });
@@ -25,7 +25,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.selectLoanType('consumer');
 
       await expect(page).toHaveScreenshot('step-1-consumer-loan.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -38,7 +38,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.selectLoanType('mortgage');
 
       await expect(page).toHaveScreenshot('step-1-mortgage.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -51,7 +51,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.selectLoanType('car');
 
       await expect(page).toHaveScreenshot('step-1-car-loan.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -61,12 +61,12 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.selectLoanType('consumer');
       await creditForm.fillLoanAmount(500000);
       await creditForm.fillLoanTerm(24);
-      await creditForm.fillLoanPurpose('purchase');
+      await creditForm.fillLoanPurpose('Покупка товаров');
       await creditForm.goToNextStep();
       await page.waitForLoadState('networkidle');
 
       await expect(page).toHaveScreenshot('step-2-personal-data.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -77,7 +77,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.fillLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('Покупка товаров');
         await creditForm.goToNextStep();
 
         // Fill Step 2 minimum data
@@ -88,7 +88,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       });
 
       await expect(page).toHaveScreenshot('step-3-contact-info.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -99,7 +99,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.fillLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('Покупка товаров');
         await creditForm.goToNextStep();
 
         await creditForm.fillLastName('Иванов');
@@ -112,8 +112,11 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.goToNextStep();
       });
 
+      // Wait for API to complete loading mock data (form loads application '1')
+      await page.waitForLoadState('networkidle');
+
       await expect(page).toHaveScreenshot('step-4-employment.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -123,7 +126,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.goToNextStep(); // Try to proceed without filling
 
       await expect(page).toHaveScreenshot('step-1-validation-errors.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -137,7 +140,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       // Screenshot name includes variant from metadata
       const variant = creditForm.variant;
       await expect(page).toHaveScreenshot(`step-1-${variant}.png`, {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -153,7 +156,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
 
       const variant = creditForm.variant;
       await expect(page).toHaveScreenshot(`consumer-loan-filled-${variant}.png`, {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -167,7 +170,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
 
       const variant = creditForm.variant;
       await expect(page).toHaveScreenshot(`mortgage-fields-${variant}.png`, {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -179,7 +182,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.goto();
 
       await expect(page).toHaveScreenshot('step-1-mobile.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -189,7 +192,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.goto();
 
       await expect(page).toHaveScreenshot('step-1-tablet.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -199,7 +202,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
       await creditForm.goto();
 
       await expect(page).toHaveScreenshot('step-1-desktop.png', {
-        fullPage: false,
+        fullPage: true,
         animations: 'disabled',
       });
     });
@@ -251,7 +254,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.fillLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('Покупка товаров');
         await creditForm.goToNextStep();
 
         await creditForm.fillLastName('Иванов');
@@ -280,7 +283,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
-        await creditForm.fillLoanPurpose('purchase');
+        await creditForm.fillLoanPurpose('Покупка товаров');
         await creditForm.goToNextStep();
 
         await creditForm.fillLastName('Иванов');
