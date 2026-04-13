@@ -26,13 +26,15 @@ import {
   computeFrom,
   watchField,
   revalidateWhen,
-  apply,
+  // apply is temporarily disabled - nested behavior contexts not supported
+  // apply,
   type BehaviorSchemaFn,
 } from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 // Импортируем модульные behavior схемы
-import { addressBehavior } from '../components/nested-forms/Address/address-behavior';
+// addressBehavior disabled - ctx.form refers to root form, not nested Address
+// import { addressBehavior } from '../components/nested-forms/Address/address-behavior';
 
 // Compute функции из utils
 import {
@@ -65,8 +67,9 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
 
   // Применяем addressBehavior к двум полям адреса
   // Это заменяет дублирование логики загрузки регионов/городов
-  // FIX: Исправлено использование path.city вместо строки 'city' в setFieldValue
-  apply([path.registrationAddress, path.residenceAddress], addressBehavior);
+  // DISABLED: ctx.form in nested behavior refers to root form, not scoped Address
+  // This requires architectural changes to support scoped BehaviorContext
+  // apply([path.registrationAddress, path.residenceAddress], addressBehavior);
 
   // ===================================================================
   // 1. copyFrom() - Копирование значений между полями (2)
