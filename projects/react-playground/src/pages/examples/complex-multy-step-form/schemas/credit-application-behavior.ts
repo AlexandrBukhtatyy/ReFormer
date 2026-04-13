@@ -26,15 +26,13 @@ import {
   computeFrom,
   watchField,
   revalidateWhen,
-  // apply is temporarily unused while debugging cycle detection issues
-  // apply,
+  apply,
   type BehaviorSchemaFn,
 } from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from '../types/credit-application';
 
 // Импортируем модульные behavior схемы
-// addressBehavior is temporarily unused while debugging cycle detection issues
-// import { addressBehavior } from '../components/nested-forms/Address/address-behavior';
+import { addressBehavior } from '../components/nested-forms/Address/address-behavior';
 
 // Compute функции из utils
 import {
@@ -65,10 +63,10 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // 0. Композиция behavior схем (apply)
   // ===================================================================
 
-  //  Применяем addressBehavior к двум полям адреса
+  // Применяем addressBehavior к двум полям адреса
   // Это заменяет дублирование логики загрузки регионов/городов
-  // TODO: временно отключено для диагностики - вызывает Cycle detected
-  // apply([path.registrationAddress, path.residenceAddress], addressBehavior);
+  // FIX: Исправлено использование path.city вместо строки 'city' в setFieldValue
+  apply([path.registrationAddress, path.residenceAddress], addressBehavior);
 
   // ===================================================================
   // 1. copyFrom() - Копирование значений между полями (2)

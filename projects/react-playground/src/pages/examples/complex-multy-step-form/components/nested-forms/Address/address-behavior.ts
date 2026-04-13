@@ -67,7 +67,8 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
     path.region,
     (_region, ctx) => {
       // Очищаем город только если регион изменился
-      ctx.setFieldValue('city', '');
+      // Используем path.city для корректного разрешения вложенного пути
+      ctx.setFieldValue(path.city, '');
 
       if (import.meta.env.DEV) {
         console.log('[addressBehavior] Region changed, clearing city');
@@ -87,7 +88,8 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
       // Убираем все кроме цифр и ограничиваем длину
       const cleaned = postalCode?.replace(/\D/g, '').slice(0, 6);
       if (cleaned !== postalCode) {
-        ctx.setFieldValue('postalCode', cleaned || '');
+        // Используем path.postalCode для корректного разрешения вложенного пути
+        ctx.setFieldValue(path.postalCode, cleaned || '');
       }
     },
     { immediate: false }
