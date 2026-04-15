@@ -6,7 +6,7 @@ import { CreditFormPage } from '../pages/complex-multy-step-form/credit-form-pag
  */
 export interface ProjectMetadata {
   basePath?: string;
-  variant?: 'compound' | 'renderer';
+  variant?: 'compound' | 'renderer' | 'json';
 }
 
 /**
@@ -133,11 +133,16 @@ export { expect } from '@playwright/test';
 /**
  * Helper to create a test with specific variant
  */
-export function createVariantTest(variant: 'compound' | 'renderer') {
+export function createVariantTest(variant: 'compound' | 'renderer' | 'json') {
   return test.extend<TestFixtures>({
     creditForm: async ({ page }, use) => {
       const creditForm = new CreditFormPage(page);
-      const basePath = variant === 'renderer' ? '/examples/complex-renderer' : '/examples/complex';
+      const basePathByVariant: Record<typeof variant, string> = {
+        compound: '/examples/complex',
+        renderer: '/examples/complex-renderer',
+        json: '/examples/json-renderer',
+      };
+      const basePath = basePathByVariant[variant];
 
       Object.defineProperty(creditForm, 'baseUrl', {
         value: basePath,
@@ -150,7 +155,23 @@ export function createVariantTest(variant: 'compound' | 'renderer') {
 }
 
 /**
- * Helper to run the same test across both variants
+ * Helper to run the same test across all variants
+ */
+export function describeForAllVariants(
+  name: string,
+  fn: (variant: 'compound' | 'renderer' | 'json') => void
+): void {
+  const variants: Array<'compound' | 'renderer' | 'json'> = ['compound', 'renderer', 'json'];
+
+  for (const variant of variants) {
+    test.describe(`${name} [${variant}]`, () => {
+      fn(variant);
+    });
+  }
+}
+
+/**
+ * @deprecated Use describeForAllVariants instead
  */
 export function describeForBothVariants(
   name: string,

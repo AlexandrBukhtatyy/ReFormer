@@ -66,5 +66,13 @@ export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-pr
 export type { RenderSchemaProxy, RenderNodeControl } from './core/render-schema-proxy';
 
 // Declarative render behavior
-export { hideWhen, renderEffect, onComponentEvent } from './core/render-behavior';
+export {
+  hideWhen,
+  renderEffect,
+  onComponentEvent,
+  onInit,
+  onMount,
+  onUnmount,
+} from './core/render-behavior';
 export type { RenderBehaviorFn } from './core/render-behavior';
+export type { NodeLifecycleHooks } from './core/render-schema-proxy';

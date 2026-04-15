@@ -4,7 +4,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
 // Types
 // ============================================================================
 
-export type FormVariant = 'compound' | 'renderer';
+export type FormVariant = 'compound' | 'renderer' | 'json';
 
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
@@ -94,6 +94,10 @@ export class CreditFormPage extends BasePage {
 
   isCompound(): boolean {
     return this.variant === 'compound';
+  }
+
+  isJson(): boolean {
+    return this.variant === 'json';
   }
 
   // ============================================================================

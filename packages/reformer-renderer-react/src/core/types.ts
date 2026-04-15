@@ -72,6 +72,12 @@ export interface FieldRenderNodeProps {
    * ```
    */
   fieldWrapper?: ComponentType<FieldWrapperProps>;
+
+  /**
+   * Явный testId для поля. Если не задан — выводится из FieldPath:
+   * `personalData.lastName` → `personalData-lastName`.
+   */
+  testId?: string;
 }
 
 /**
@@ -171,6 +177,11 @@ export interface FieldWrapperProps {
   className?: string;
   /** Дочерний элемент (отрендеренный input) */
   children: React.ReactNode;
+  /**
+   * testId для генерации data-testid на wrapper/label/error.
+   * Выводится рендерером из FieldPath или переопределяется через componentProps.testId.
+   */
+  testId?: string;
 }
 
 /**

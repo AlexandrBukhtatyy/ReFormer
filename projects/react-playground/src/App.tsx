@@ -2,10 +2,11 @@ import { memo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer';
+import RegistrationFormRendererJson from './pages/examples/complex-multy-step-form-renderer-json/RegistrationFormRendererJson';
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'complex-renderer';
+type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'complex-renderer' | 'json-renderer';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -25,6 +26,12 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/complex-renderer',
     title: 'Комплексная (Renderer)',
     description: 'Та же форма через renderSchema API',
+  },
+  {
+    id: 'json-renderer',
+    path: '/examples/json-renderer',
+    title: 'JSON Renderer',
+    description: 'Рендеринг формы из JSON-схемы через @reformer/renderer-json',
   },
   {
     id: 'validation',
@@ -109,6 +116,7 @@ function Layout() {
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
+          <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

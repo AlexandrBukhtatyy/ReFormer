@@ -12,10 +12,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@preact/signals-core": "^1.8.0",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@reformer/cdk": "*",
     "@reformer/core": "*",
+    "@reformer/renderer-json": "*",
+    "@reformer/renderer-react": "*",
     "@reformer/ui-kit": "*",
     "@tailwindcss/vite": "^4.1.17",
     "axios": "^1.13.2",

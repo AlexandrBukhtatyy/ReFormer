@@ -9,6 +9,8 @@ import {
   hideWhen,
   renderEffect,
   onComponentEvent,
+  onMount,
+  onUnmount,
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
 import type { FormProxy } from '@reformer/core';
@@ -76,6 +78,17 @@ export function createCreditApplicationRenderBehavior(
       } else {
         throw new Error('Ошибка отправки заявки');
       }
+    });
+
+    // ── Lifecycle-хуки: демонстрация ────────────────────────────────────────
+    // onMount/onUnmount применимы к любой ноде с selector (контейнер или поле).
+    onMount(schema.node('wizard'), () => {
+      console.log('[render-behavior] wizard mounted');
+      return () => console.log('[render-behavior] wizard cleanup from onMount');
+    });
+
+    onUnmount(schema.node('wizard'), () => {
+      console.log('[render-behavior] wizard unmounted');
     });
   };
 }

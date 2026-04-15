@@ -16,7 +16,7 @@ import {
   usePropsOverride,
   RenderSchemaOverrideContext,
 } from './render-schema-proxy';
-import { useCondition } from './render-behavior';
+import { useCondition, useNodeLifecycle } from './render-behavior';
 
 /**
  * Props для RenderNodeComponent
@@ -54,6 +54,7 @@ interface FieldRendererProps {
   className?: string;
   wrapper?: React.ElementType;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  testId?: string;
 }
 
 const FieldRenderer = memo(function FieldRenderer({
@@ -61,17 +62,24 @@ const FieldRenderer = memo(function FieldRenderer({
   className,
   wrapper: Wrapper = 'div',
   fieldWrapper: FieldWrapper,
+  testId,
 }: FieldRendererProps): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const state = useFormControl(fieldNode as FieldNode<any>);
   const Component = fieldNode.component;
 
   // Только props для UI компонента (без state props которые не должны попадать в DOM)
-  const inputProps = {
+  const inputProps: Record<string, unknown> = {
     value: state.value,
     disabled: state.disabled,
     ...state.componentProps,
   };
+
+  // Прокидываем data-testid в UI-компонент (RadioGroup/Select/Checkbox используют его
+  // для генерации child-testid вида `input-${testId}-${optionValue}`)
+  if (testId && inputProps['data-testid'] === undefined) {
+    inputProps['data-testid'] = `input-${testId}`;
+  }
 
   // Handlers для UI компонентов
   const handlers = {
@@ -83,7 +91,7 @@ const FieldRenderer = memo(function FieldRenderer({
 
   // Если есть fieldWrapper, оборачиваем им
   const content = FieldWrapper ? (
-    <FieldWrapper control={fieldNode} className={className}>
+    <FieldWrapper control={fieldNode} className={className} testId={testId}>
       {input}
     </FieldWrapper>
   ) : (
@@ -127,6 +135,10 @@ export function RenderNodeComponent<T>({
   // Итоговое: override > behavior > видимо по умолчанию
   const isHidden = hiddenOverride != null ? hiddenOverride : isHiddenByBehavior;
 
+  // Lifecycle-хуки ноды (onInit/onDestroy)
+  const lifecycleHooks = selector ? overrideMaps?.lifecycleRegistry.get(selector) : undefined;
+  useNodeLifecycle(lifecycleHooks);
+
   if (isHidden) {
     return null;
   }
@@ -149,9 +161,22 @@ export function RenderNodeComponent<T>({
       return null;
     }
 
-    const { className, wrapper, fieldWrapper: perFieldWrapper } = node.componentProps || {};
+    const {
+      className,
+      wrapper,
+      fieldWrapper: perFieldWrapper,
+      testId: explicitTestId,
+    } = node.componentProps || {};
     // Per-field wrapper имеет приоритет над глобальным
     const effectiveWrapper = perFieldWrapper ?? fieldWrapper;
+    // Если testId задан явно в componentProps — используем его, иначе деривируем из path
+    // (`personalData.lastName` → `personalData-lastName`). Пустой path (root) → undefined.
+    const testId =
+      typeof explicitTestId === 'string'
+        ? explicitTestId
+        : fieldPath
+          ? fieldPath.replace(/\./g, '-')
+          : undefined;
 
     return (
       <FieldRenderer
@@ -159,6 +184,7 @@ export function RenderNodeComponent<T>({
         className={className}
         wrapper={wrapper}
         fieldWrapper={effectiveWrapper}
+        testId={testId}
       />
     );
   }

@@ -44,13 +44,19 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       metadata: { basePath: '/examples/complex', variant: 'compound' },
     },
-    // Renderer variant disabled - different data-testid structure
-    // {
-    //   name: 'complex-multy-step-form-renderer',
-    //   testDir: './tests/pages/complex-multy-step-form',
-    //   use: { ...devices['Desktop Chrome'] },
-    //   metadata: { basePath: '/examples/complex-renderer', variant: 'renderer' },
-    // },
+    {
+      name: 'complex-multy-step-form-renderer',
+      testDir: './tests/pages/complex-multy-step-form',
+      use: { ...devices['Desktop Chrome'] },
+      metadata: { basePath: '/examples/complex-renderer', variant: 'renderer' },
+    },
+    // JSON variant - renders form from JSON schema via @reformer/renderer-json
+    {
+      name: 'complex-multy-step-form-json',
+      testDir: './tests/pages/complex-multy-step-form',
+      use: { ...devices['Desktop Chrome'] },
+      metadata: { basePath: '/examples/json-renderer', variant: 'json' },
+    },
     // Cross-browser for @critical
     {
       name: 'complex-form:firefox',

@@ -18,10 +18,11 @@
     "format:check": "prettier --check .",
     "scripts:analize:imports": "node scripts/analyze-imports/index.js",
     "stackblitz:core": "npm install -w @reformer/core && npm run build:stackblitz -w @reformer/core",
-    "stackblitz:ui": "npm install -w @reformer/cdk && npm run build:stackblitz -w @reformer/cdk",
+    "stackblitz:cdk": "npm install -w @reformer/cdk && npm run build:stackblitz -w @reformer/cdk",
+    "stackblitz:ui-kit": "npm install -w @reformer/ui-kit && npm run build:stackblitz -w @reformer/ui-kit",
     "stackblitz:renderer-react": "npm install -w @reformer/renderer-react && npm run build:stackblitz -w @reformer/renderer-react",
     "stackblitz:playground": "npm install -w react-playground && npm run dev:stackblitz -w react-playground",
-    "stackblitz:start": "npm run stackblitz:core && npm run stackblitz:ui && npm run stackblitz:renderer-react && npm run stackblitz:playground"
+    "stackblitz:start": "npm run stackblitz:core && npm run stackblitz:cdk && npm run stackblitz:ui-kit && npm run stackblitz:renderer-react && npm run stackblitz:playground"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

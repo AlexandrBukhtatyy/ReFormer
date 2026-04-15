@@ -77,8 +77,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                     className: 'space-y-6',
                   },
                   children: [
-                    { component: path.loanType },
-                    { component: path.loanAmount },
+                    { selector: 'loanType', component: path.loanType },
+                    { selector: 'loanAmount', component: path.loanAmount },
                     { component: path.loanTerm },
                     { component: path.loanPurpose },
                   ],
@@ -569,16 +569,18 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                             className: 'space-y-3',
                           },
                           children: [
-                            { component: itemPath.bank },
-                            { component: itemPath.type },
+                            // testId явно задан для совместимости с e2e POM
+                            // (compound-вариант использует единый testId для всех item-ов массива)
+                            { component: itemPath.bank, componentProps: { testId: 'existingLoan-bank' } },
+                            { component: itemPath.type, componentProps: { testId: 'existingLoan-type' } },
                             {
                               component: Box,
                               componentProps: {
                                 className: 'grid grid-cols-2 gap-4',
                               },
                               children: [
-                                { component: itemPath.amount },
-                                { component: itemPath.remainingAmount },
+                                { component: itemPath.amount, componentProps: { testId: 'existingLoan-amount' } },
+                                { component: itemPath.remainingAmount, componentProps: { testId: 'existingLoan-remainingAmount' } },
                               ],
                             },
                             {
@@ -587,8 +589,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                                 className: 'grid grid-cols-2 gap-4',
                               },
                               children: [
-                                { component: itemPath.monthlyPayment },
-                                { component: itemPath.maturityDate },
+                                { component: itemPath.monthlyPayment, componentProps: { testId: 'existingLoan-monthlyPayment' } },
+                                { component: itemPath.maturityDate, componentProps: { testId: 'existingLoan-maturityDate' } },
                               ],
                             },
                           ],

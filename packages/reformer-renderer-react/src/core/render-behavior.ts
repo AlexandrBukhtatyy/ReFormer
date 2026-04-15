@@ -127,6 +127,73 @@ export function renderEffect<T>(
   schema.__overrideMaps.effectRegistry.push(effectFn);
 }
 
+// ----------------------------------------------------------------------------
+// Lifecycle helpers
+// ----------------------------------------------------------------------------
+
+function setLifecycleHook<K extends keyof import('./render-schema-proxy').NodeLifecycleHooks>(
+  node: RenderNodeControl,
+  hook: K,
+  value: NonNullable<import('./render-schema-proxy').NodeLifecycleHooks[K]>
+): void {
+  const { lifecycleRegistry } = node.__overrideMaps;
+  const existing = lifecycleRegistry.get(node.__selector) ?? {};
+  lifecycleRegistry.set(node.__selector, { ...existing, [hook]: value });
+}
+
+/**
+ * Синхронный build-time hook. Вызывается один раз при применении behavior к схеме
+ * (до первого рендера ноды). Возвращённый объект мерджится в `componentProps` ноды
+ * через `patchProps` — это единственный хук, способный повлиять на первый рендер.
+ *
+ * Типичный кейс: создать форму/стейт, закрепить за нодой.
+ *
+ * @example
+ * ```typescript
+ * onInit(schema.node('wizard'), () => {
+ *   const form = createMyForm();
+ *   return { form };  // попадёт в componentProps wizard-а
+ * });
+ * ```
+ */
+export function onInit(
+  node: RenderNodeControl,
+  fn: () => Record<string, unknown> | void
+): void {
+  const patch = fn();
+  if (patch) node.patchProps(patch);
+}
+
+/**
+ * Post-mount hook. Срабатывает после первого mount ноды (через useEffect).
+ * Может вернуть cleanup, который выполнится при unmount.
+ *
+ * @example
+ * ```typescript
+ * onMount(schema.node('wizard'), () => {
+ *   console.log('wizard mounted');
+ *   return () => console.log('wizard cleanup from onMount');
+ * });
+ * ```
+ */
+export function onMount(node: RenderNodeControl, fn: () => void | (() => void)): void {
+  setLifecycleHook(node, 'onMount', fn);
+}
+
+/**
+ * Pre-unmount hook. Срабатывает при unmount ноды.
+ *
+ * @example
+ * ```typescript
+ * onUnmount(schema.node('wizard'), () => {
+ *   console.log('wizard unmounted');
+ * });
+ * ```
+ */
+export function onUnmount(node: RenderNodeControl, fn: () => void): void {
+  setLifecycleHook(node, 'onUnmount', fn);
+}
+
 // ============================================================================
 // Internal hooks
 // ============================================================================
@@ -171,4 +238,22 @@ export function RenderBehaviorEffects({
   }, []); // effectRegistry стабилен — создаётся один раз при createRenderSchema
 
   return null;
+}
+
+/**
+ * @internal
+ * Подключает lifecycle-хуки ноды (onMount/onUnmount).
+ * onMount может вернуть cleanup-функцию — она вызовется до onUnmount.
+ */
+export function useNodeLifecycle(
+  hooks: import('./render-schema-proxy').NodeLifecycleHooks | undefined
+): void {
+  useEffect(() => {
+    if (!hooks) return;
+    const mountCleanup = hooks.onMount?.();
+    return () => {
+      if (typeof mountCleanup === 'function') mountCleanup();
+      hooks.onUnmount?.();
+    };
+  }, [hooks]);
 }

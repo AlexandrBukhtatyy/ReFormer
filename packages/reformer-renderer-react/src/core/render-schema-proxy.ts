@@ -25,6 +25,17 @@ const PROXY_MARKER = Symbol('RenderSchemaProxy');
 // Override maps context
 // ============================================================
 
+/**
+ * Хуки жизненного цикла ноды, регистрируемые через render-behavior.
+ * Каждый хук опционален; повторная регистрация перезаписывает предыдущее значение.
+ */
+export interface NodeLifecycleHooks {
+  /** Срабатывает один раз при mount ноды. Может вернуть cleanup-функцию. */
+  onMount?: () => void | (() => void);
+  /** Срабатывает один раз при unmount ноды. */
+  onUnmount?: () => void;
+}
+
 export interface RenderSchemaOverrideMaps {
   hiddenOverrides: Map<string, boolean | null>;
   propsOverrides: Map<string, Record<string, unknown> | null>;
@@ -37,6 +48,8 @@ export interface RenderSchemaOverrideMaps {
   /** Колбэки на пропсы компонентов: selector → { eventName → handler } */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   callbackRegistry: Map<string, Map<string, (...args: any[]) => any>>;
+  /** Хуки жизненного цикла ноды: selector → { onMount, onUnmount } */
+  lifecycleRegistry: Map<string, NodeLifecycleHooks>;
   /** Инкрементируется при любом изменении — все подписчики перечитывают свои значения */
   version: Signal<number>;
 }
@@ -126,6 +139,7 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
   const effectRegistry: Array<() => void | (() => void)> = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callbackRegistry = new Map<string, Map<string, (...args: any[]) => any>>();
+  const lifecycleRegistry = new Map<string, NodeLifecycleHooks>();
   const version = signal(0);
 
   const overrideMaps: RenderSchemaOverrideMaps = {
@@ -135,6 +149,7 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
     conditionRegistry,
     effectRegistry,
     callbackRegistry,
+    lifecycleRegistry,
     version,
   };
 
