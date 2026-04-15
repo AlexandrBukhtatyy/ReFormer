@@ -937,6 +937,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                   label: 'Тип имущества',
                                   placeholder: 'Выберите тип',
                                   options: PROPERTY_TYPE_OPTIONS,
+                                  testId: 'property-type',
                                 },
                               },
                               {
@@ -947,6 +948,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                   label: 'Описание',
                                   placeholder: 'Опишите имущество',
                                   rows: 2,
+                                  testId: 'property-description',
                                 },
                               },
                               {
@@ -959,13 +961,17 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                   type: 'number',
                                   min: 0,
                                   step: 1000,
+                                  testId: 'property-estimatedValue',
                                 },
                               },
                               {
                                 selector: 'hasEncumbrance',
                                 value: false,
                                 component: 'Checkbox',
-                                componentProps: { label: 'Имеется обременение (залог)' },
+                                componentProps: {
+                                  label: 'Имеется обременение (залог)',
+                                  testId: 'property-hasEncumbrance',
+                                },
                               },
                             ],
                           },
@@ -1127,6 +1133,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                     componentProps: {
                                       label: 'Фамилия',
                                       placeholder: 'Введите фамилию',
+                                      testId: 'coBorrower-lastName',
                                     },
                                   },
                                   {
@@ -1136,6 +1143,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                     componentProps: {
                                       label: 'Имя',
                                       placeholder: 'Введите имя',
+                                      testId: 'coBorrower-firstName',
                                     },
                                   },
                                   {
@@ -1145,6 +1153,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                     componentProps: {
                                       label: 'Отчество',
                                       placeholder: 'Введите отчество',
+                                      testId: 'coBorrower-middleName',
                                     },
                                   },
                                 ],
@@ -1153,7 +1162,11 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                 selector: 'personalData.birthDate',
                                 value: '',
                                 component: 'Input',
-                                componentProps: { label: 'Дата рождения', type: 'date' },
+                                componentProps: {
+                                  label: 'Дата рождения',
+                                  type: 'date',
+                                  testId: 'coBorrower-birthDate',
+                                },
                               },
                               {
                                 component: 'Box',
@@ -1167,6 +1180,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                       label: 'Телефон',
                                       placeholder: '+7 (___) ___-__-__',
                                       mask: '+7 (999) 999-99-99',
+                                      testId: 'coBorrower-phone',
                                     },
                                   },
                                   {
@@ -1177,6 +1191,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                       label: 'Email',
                                       placeholder: 'example@mail.com',
                                       type: 'email',
+                                      testId: 'coBorrower-email',
                                     },
                                   },
                                 ],
@@ -1193,6 +1208,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                       label: 'Отношение к заемщику',
                                       placeholder: 'Выберите отношение',
                                       options: 'RELATIONSHIPS',
+                                      testId: 'coBorrower-relationship',
                                     },
                                   },
                                   {
@@ -1205,6 +1221,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                                       type: 'number',
                                       min: 0,
                                       step: 1000,
+                                      testId: 'coBorrower-monthlyIncome',
                                     },
                                   },
                                 ],

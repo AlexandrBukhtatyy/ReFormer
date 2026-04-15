@@ -14,7 +14,6 @@
 
 import type { FormProxy } from '@reformer/core';
 import { createDefaultRegistry, type ComponentRegistry } from '@reformer/renderer-json';
-import { Box, Section } from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
 import { RendererFormWizard } from '../complex-multy-step-form/components/ui/FormWizzard/RendererFormWizard';
 import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
@@ -65,9 +64,6 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
         component: ElectronicSignatureHint,
         type: 'container',
       })
-      // Base layout уже есть в defaultRegistry — регистрируем алиасы на всякий случай.
-      .register('Box', { component: Box, type: 'container' })
-      .register('Section', { component: Section, type: 'container' })
       // Source-функции: подставляются конвертером в componentProps по имени.
       .registerSource(
         'PROPERTY_ITEM_LABEL_SOURCE_FN',
