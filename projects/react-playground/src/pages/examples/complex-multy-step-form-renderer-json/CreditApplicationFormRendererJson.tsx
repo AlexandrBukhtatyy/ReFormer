@@ -27,10 +27,7 @@ import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
 export default function CreditApplicationFormRendererJson() {
   const form = useMemo(() => createCreditApplicationForm(), []);
   const registry = useMemo(() => createCreditApplicationRegistry(), []);
-  const renderBehavior = useMemo(
-    () => createCreditApplicationJsonRenderBehavior(form),
-    [form]
-  );
+  const renderBehavior = useMemo(() => createCreditApplicationJsonRenderBehavior(form), [form]);
 
   const { isLoading, error } = useLoadCreditApplication(form, '1');
 

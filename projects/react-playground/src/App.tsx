@@ -2,11 +2,17 @@ import { memo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer';
-import RegistrationFormRendererJson from './pages/examples/complex-multy-step-form-renderer-json/RegistrationFormRendererJson';
+import RegistrationFormRendererJson from './pages/examples/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson';
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'complex-renderer' | 'json-renderer';
+type ExamplePage =
+  | 'simple'
+  | 'validation'
+  | 'behaviors'
+  | 'complex'
+  | 'complex-renderer'
+  | 'json-renderer';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
