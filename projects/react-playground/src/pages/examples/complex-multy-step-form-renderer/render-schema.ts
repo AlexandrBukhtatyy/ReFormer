@@ -24,6 +24,7 @@ import {
   ConfirmationInfoBlock,
   HighPaymentWarning,
   LoanSummarySection,
+  ApplicantSummarySection,
   SubmitWarning,
   NextStepsInfo,
   ElectronicSignatureHint,
@@ -533,10 +534,10 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                             className: 'space-y-3',
                           },
                           children: [
-                            { component: itemPath.type },
-                            { component: itemPath.description },
-                            { component: itemPath.estimatedValue },
-                            { component: itemPath.hasEncumbrance },
+                            { component: itemPath.type, componentProps: { testId: 'property-type' } },
+                            { component: itemPath.description, componentProps: { testId: 'property-description' } },
+                            { component: itemPath.estimatedValue, componentProps: { testId: 'property-estimatedValue' } },
+                            { component: itemPath.hasEncumbrance, componentProps: { testId: 'property-hasEncumbrance' } },
                           ],
                         }),
                       },
@@ -633,20 +634,20 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                                 className: 'grid grid-cols-3 gap-4',
                               },
                               children: [
-                                { component: itemPath.personalData.lastName },
-                                { component: itemPath.personalData.firstName },
-                                { component: itemPath.personalData.middleName },
+                                { component: itemPath.personalData.lastName, componentProps: { testId: 'coBorrower-lastName' } },
+                                { component: itemPath.personalData.firstName, componentProps: { testId: 'coBorrower-firstName' } },
+                                { component: itemPath.personalData.middleName, componentProps: { testId: 'coBorrower-middleName' } },
                               ],
                             },
-                            { component: itemPath.personalData.birthDate },
+                            { component: itemPath.personalData.birthDate, componentProps: { testId: 'coBorrower-birthDate' } },
                             {
                               component: Box,
                               componentProps: {
                                 className: 'grid grid-cols-2 gap-4',
                               },
                               children: [
-                                { component: itemPath.phone },
-                                { component: itemPath.email },
+                                { component: itemPath.phone, componentProps: { testId: 'coBorrower-phone' } },
+                                { component: itemPath.email, componentProps: { testId: 'coBorrower-email' } },
                               ],
                             },
                             {
@@ -655,8 +656,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                                 className: 'grid grid-cols-2 gap-4',
                               },
                               children: [
-                                { component: itemPath.relationship },
-                                { component: itemPath.monthlyIncome },
+                                { component: itemPath.relationship, componentProps: { testId: 'coBorrower-relationship' } },
+                                { component: itemPath.monthlyIncome, componentProps: { testId: 'coBorrower-monthlyIncome' } },
                               ],
                             },
                           ],
@@ -702,6 +703,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                 },
                 // Секция "Итого"
                 { component: LoanSummarySection },
+                // Секция вычисляемых полей заемщика
+                { component: ApplicantSummarySection },
                 // Обязательные согласия
                 {
                   component: Section,

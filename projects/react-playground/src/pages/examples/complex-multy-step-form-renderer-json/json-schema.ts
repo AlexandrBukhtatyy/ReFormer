@@ -1263,6 +1263,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                   ],
                 },
                 { component: 'LoanSummarySection' },
+                { component: 'ApplicantSummarySection' },
                 {
                   component: 'Section',
                   componentProps: {

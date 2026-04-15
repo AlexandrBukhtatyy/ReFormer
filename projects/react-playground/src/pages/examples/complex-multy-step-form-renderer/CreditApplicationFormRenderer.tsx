@@ -44,7 +44,7 @@ function SchemaControlPanel({ schema }: { schema: RenderSchemaProxy<CreditApplic
         <span className="text-sm font-semibold text-blue-800 group-hover:text-blue-600">
           Программное управление схемой (createRenderSchema)
         </span>
-        <span className="text-xs text-blue-500 font-normal">
+        <span className="text-xs text-blue-700 font-normal">
           — управление через сигналы, перерисовывается только затронутая нода
         </span>
       </button>

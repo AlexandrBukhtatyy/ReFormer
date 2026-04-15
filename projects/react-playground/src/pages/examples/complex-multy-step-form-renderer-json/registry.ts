@@ -23,6 +23,7 @@ import {
   ConfirmationInfoBlock,
   HighPaymentWarning,
   LoanSummarySection,
+  ApplicantSummarySection,
   SubmitWarning,
   NextStepsInfo,
   ElectronicSignatureHint,
@@ -58,6 +59,10 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
       .register('ConfirmationInfoBlock', { component: ConfirmationInfoBlock, type: 'container' })
       .register('HighPaymentWarning', { component: HighPaymentWarning, type: 'container' })
       .register('LoanSummarySection', { component: LoanSummarySection, type: 'container' })
+      .register('ApplicantSummarySection', {
+        component: ApplicantSummarySection,
+        type: 'container',
+      })
       .register('SubmitWarning', { component: SubmitWarning, type: 'container' })
       .register('NextStepsInfo', { component: NextStepsInfo, type: 'container' })
       .register('ElectronicSignatureHint', {

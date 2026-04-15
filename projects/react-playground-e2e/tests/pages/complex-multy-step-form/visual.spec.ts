@@ -114,6 +114,7 @@ test.describe('Visual Regression - Complex Form', { tag: ['@visual'] }, () => {
 
       // Wait for API to complete loading mock data (form loads application '1')
       await page.waitForLoadState('networkidle');
+      await page.mouse.move(0, 0);
 
       await expect(page).toHaveScreenshot('step-4-employment.png', {
         fullPage: true,
