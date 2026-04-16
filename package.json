@@ -21,8 +21,9 @@
     "stackblitz:cdk": "npm install -w @reformer/cdk && npm run build:stackblitz -w @reformer/cdk",
     "stackblitz:ui-kit": "npm install -w @reformer/ui-kit && npm run build:stackblitz -w @reformer/ui-kit",
     "stackblitz:renderer-react": "npm install -w @reformer/renderer-react && npm run build:stackblitz -w @reformer/renderer-react",
+    "stackblitz:renderer-react-json": "npm install -w @reformer/renderer-json && npm run build:stackblitz -w @reformer/renderer-json",
     "stackblitz:playground": "npm install -w react-playground && npm run dev:stackblitz -w react-playground",
-    "stackblitz:start": "npm run stackblitz:core && npm run stackblitz:cdk && npm run stackblitz:ui-kit && npm run stackblitz:renderer-react && npm run stackblitz:playground"
+    "stackblitz:start": "npm run stackblitz:core && npm run stackblitz:cdk && npm run stackblitz:ui-kit && npm run stackblitz:renderer-react && npm run stackblitz:renderer-react-json && npm run stackblitz:playground"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
