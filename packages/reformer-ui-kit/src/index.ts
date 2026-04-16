@@ -1,4 +1,7 @@
 // UI Components
+export { AsyncBoundary } from './components/ui/async-boundary';
+export type { AsyncBoundaryProps, AsyncStatus } from './components/ui/async-boundary';
+
 export { Box } from './components/ui/box';
 export type { BoxProps } from './components/ui/box';
 

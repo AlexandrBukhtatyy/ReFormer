@@ -29,8 +29,13 @@ import {
   NextStepsInfo,
   ElectronicSignatureHint,
 } from '../complex-multy-step-form/components/ui/ConfirmationComponents';
-import { Section, Box } from '@reformer/ui-kit';
+import { AsyncBoundary, Section, Box } from '@reformer/ui-kit';
 import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
+import { createElement } from 'react';
+import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
+import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';
+
+const ErrorStateDefault = () => createElement(ErrorState, { error: 'Не удалось загрузить заявку' });
 
 /**
  * RenderSchema для кредитной заявки
@@ -44,6 +49,15 @@ import { RendererFormArraySection } from '../complex-multy-step-form/components/
  */
 export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplicationForm>) {
   const schema = createRenderSchema<CreditApplicationForm>((path) => ({
+    selector: 'data-boundary',
+    component: AsyncBoundary,
+    componentProps: {
+      // status подставляет render-behavior через patchProps (loading | error | ready).
+      status: 'loading',
+      LoadingComponent: LoadingState,
+      ErrorComponent: ErrorStateDefault,
+    },
+    children: [{
     selector: 'wizard',
     component: RendererFormWizard,
     componentProps: {
@@ -752,6 +766,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
         },
       ] as unknown as RenderNode<CreditApplicationForm>[],
     },
+    }],
   }));
 
   // TODO: Не очень нравится контракт

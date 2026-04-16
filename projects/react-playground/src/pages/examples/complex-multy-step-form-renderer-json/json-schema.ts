@@ -33,6 +33,16 @@ const PROPERTY_TYPE_OPTIONS = [
 export const creditApplicationJsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
+    selector: 'data-boundary',
+    component: 'AsyncBoundary',
+    componentProps: {
+      // status подставляет render-behavior через patchProps (loading | error | ready).
+      status: 'loading',
+      // Строки резолвятся конвертером через registry (registerSource).
+      LoadingComponent: 'LoadingState',
+      ErrorComponent: 'ErrorStateDefault',
+    },
+    children: [{
     selector: 'wizard',
     component: 'RendererFormWizard',
     componentProps: {
@@ -1344,5 +1354,6 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
         },
       ],
     },
+    }],
   },
 };

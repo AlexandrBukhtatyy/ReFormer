@@ -17,6 +17,7 @@ import {
   Collapsible,
   FormField,
   Button,
+  AsyncBoundary,
 } from '@reformer/ui-kit';
 
 import { createComponentRegistry } from './component-registry';
@@ -98,6 +99,11 @@ export function createDefaultRegistry(): ComponentRegistry {
       component: Collapsible,
       type: 'container',
       description: 'Expandable/collapsible section',
+    })
+    .register('AsyncBoundary', {
+      component: AsyncBoundary,
+      type: 'container',
+      description: 'Switches between loading/error/ready slots by status prop',
     })
 
     // Utility components

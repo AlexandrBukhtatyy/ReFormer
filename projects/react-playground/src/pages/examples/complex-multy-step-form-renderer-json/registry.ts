@@ -12,6 +12,7 @@
  * в componentProps wizard-а через `onInit(schema.node('wizard'), () => ({ form }))`.
  */
 
+import { createElement } from 'react';
 import type { FormProxy } from '@reformer/core';
 import { createDefaultRegistry, type ComponentRegistry } from '@reformer/renderer-json';
 import { Step } from '@reformer/cdk/form-wizard';
@@ -19,6 +20,8 @@ import { RendererFormWizard } from '../complex-multy-step-form/components/ui/For
 import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
+import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
+import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';
 import {
   ConfirmationInfoBlock,
   HighPaymentWarning,
@@ -56,6 +59,14 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
         type: 'container',
       })
       .register('UnemployedWarning', { component: UnemployedWarning, type: 'container' })
+      // LoadingState / ErrorStateDefault регистрируются как source, а не как компонент,
+      // чтобы конвертер подставлял сам ComponentType в componentProps AsyncBoundary
+      // (LoadingComponent/ErrorComponent ожидают ComponentType, не JSX).
+      .registerSource('LoadingState', LoadingState)
+      .registerSource(
+        'ErrorStateDefault',
+        () => createElement(ErrorState, { error: 'Не удалось загрузить заявку' })
+      )
       .register('ConfirmationInfoBlock', { component: ConfirmationInfoBlock, type: 'container' })
       .register('HighPaymentWarning', { component: HighPaymentWarning, type: 'container' })
       .register('LoanSummarySection', { component: LoanSummarySection, type: 'container' })

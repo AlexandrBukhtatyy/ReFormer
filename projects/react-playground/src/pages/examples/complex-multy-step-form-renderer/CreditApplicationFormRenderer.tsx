@@ -13,13 +13,10 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/create-credit-application-form';
-import { useLoadCreditApplication } from '../complex-multy-step-form/hooks/useLoadCreditApplication';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 import { createCreditApplicationRenderSchema } from './render-schema';
-import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
-import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
 // Демо-панель для демонстрации программного управления схемой
@@ -117,17 +114,6 @@ function CreditApplicationFormRenderer() {
   const form = useMemo(() => createCreditApplicationForm(), []);
   // Создаём схему с формой и применённым поведением
   const schema = useMemo(() => createCreditApplicationRenderSchema(form), [form]);
-
-  // Загружаем данные заявки
-  const { isLoading, error } = useLoadCreditApplication(form, '1');
-
-  if (isLoading) {
-    return <LoadingState />;
-  }
-
-  if (error) {
-    return <ErrorState error={error} onRetry={() => window.location.reload()} />;
-  }
 
   return (
     <div className="w-full">

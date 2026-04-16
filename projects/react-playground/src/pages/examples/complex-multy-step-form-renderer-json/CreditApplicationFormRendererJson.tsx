@@ -16,9 +16,6 @@ import { useMemo } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/create-credit-application-form';
-import { useLoadCreditApplication } from '../complex-multy-step-form/hooks/useLoadCreditApplication';
-import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
-import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { creditApplicationJsonSchema } from './json-schema';
 import { createCreditApplicationRegistry } from './registry';
@@ -28,11 +25,6 @@ export default function CreditApplicationFormRendererJson() {
   const form = useMemo(() => createCreditApplicationForm(), []);
   const registry = useMemo(() => createCreditApplicationRegistry(), []);
   const renderBehavior = useMemo(() => createCreditApplicationJsonRenderBehavior(form), [form]);
-
-  const { isLoading, error } = useLoadCreditApplication(form, '1');
-
-  if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState error={error} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="w-full">

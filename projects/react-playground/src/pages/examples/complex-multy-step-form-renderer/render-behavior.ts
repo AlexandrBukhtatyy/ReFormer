@@ -16,7 +16,13 @@ import {
 import type { FormProxy } from '@reformer/core';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
-import { submitCreditApplication } from '../complex-multy-step-form/api';
+import type { Property } from '../complex-multy-step-form/components/nested-forms/Property/types';
+import type { ExistingLoan } from '../complex-multy-step-form/components/nested-forms/ExistingLoan/types';
+import {
+  fetchCreditApplication,
+  fetchDictionaries,
+  submitCreditApplication,
+} from '../complex-multy-step-form/api';
 
 /**
  * Фабрика поведения: принимает form напрямую, чтобы Preact computed()
@@ -28,6 +34,40 @@ export function createCreditApplicationRenderBehavior(
 ): RenderBehaviorFn<CreditApplicationForm> {
   return (schema) => {
     const wizardRef = schema.node('wizard').getRef<FormWizardHandle<CreditApplicationForm>>();
+    const boundary = schema.node('data-boundary');
+
+    // ── Загрузка данных заявки: управляет status у AsyncBoundary ─────────────
+    const loadApplication = async () => {
+      boundary.patchProps({ status: 'loading' });
+      try {
+        const [app, dict] = await Promise.all([
+          fetchCreditApplication('1'),
+          fetchDictionaries(),
+        ]);
+        if (app.status !== 200 || dict.status !== 200) {
+          throw new Error('Ошибка загрузки');
+        }
+        form.patchValue(app.data);
+        // queueMicrotask — дожидаемся завершения реактивных эффектов от patchValue
+        queueMicrotask(() => {
+          form.registrationAddress.city.updateComponentProps({ options: dict.data.cities });
+          form.residenceAddress?.city.updateComponentProps({ options: dict.data.cities });
+          form.properties?.forEach((p: FormProxy<Property>) =>
+            p.type.updateComponentProps({ options: dict.data.propertyTypes })
+          );
+          form.existingLoans?.forEach((l: FormProxy<ExistingLoan>) =>
+            l.bank.updateComponentProps({ options: dict.data.banks })
+          );
+        });
+        boundary.patchProps({ status: 'ready' });
+      } catch {
+        boundary.patchProps({ status: 'error' });
+      }
+    };
+
+    onMount(boundary, () => {
+      void loadApplication();
+    });
 
     // ── Реактивный эффект: навигация wizard через ref ────────────────────────
     // useEffect запускается после mount — wizardRef.current уже доступен.
