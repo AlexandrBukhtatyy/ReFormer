@@ -71,18 +71,6 @@ Clean separation of concerns, full type safety.
 (isDate, minDate, maxDate, pastDate, futureDate, minAge, maxAge);
 ```
 
-**Schema adapters:**
-
-```typescript
-import { zod } from '@reformer/zod';
-import { yup } from '@reformer/yup';
-import { valibot } from '@reformer/valibot';
-
-validation: (path) => {
-  zod(path.email, z.string().email());
-};
-```
-
 ---
 
 # Dynamic Behaviors
@@ -163,9 +151,6 @@ behavior: (path) => {
 ```
 @reformer/core      Core library (required)
 @reformer/cdk        Headless UI components
-@reformer/zod       Zod schema adapter
-@reformer/yup       Yup schema adapter
-@reformer/valibot   Valibot schema adapter
 @reformer/mcp       AI assistant integration
 ```
 

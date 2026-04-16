@@ -320,9 +320,6 @@ function buildFormProxy<T>(node: GroupNode<T>): FormProxy<T> {
 └── hooks/          useFormControl, useFormControlValue
 
 @reformer/cdk        Headless components (FormArray, FormWizard)
-@reformer/zod       Schema adapter for Zod
-@reformer/yup       Schema adapter for Yup
-@reformer/valibot   Schema adapter for Valibot
 ```
 
 ---

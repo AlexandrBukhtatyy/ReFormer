@@ -11,9 +11,6 @@ npm install @reformer/core
 
 # Optional: UI components
 npm install @reformer/cdk
-
-# Optional: Schema adapters
-npm install @reformer/zod   # or @reformer/yup or @reformer/valibot
 ```
 
 ---

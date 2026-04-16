@@ -152,9 +152,6 @@ packages/
 │   │   └── utils/         # Утилиты (signals, registry)
 │   ├── hooks/             # React-интеграция
 │   └── index.ts           # Public API
-├── reformer-zod/          # Адаптер для Zod
-├── reformer-yup/          # Адаптер для Yup
-└── reformer-valibot/      # Адаптер для Valibot
 ```
 
 ---

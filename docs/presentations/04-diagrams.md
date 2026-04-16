@@ -274,12 +274,6 @@ graph TB
         FormWizard[FormWizard]
     end
 
-    subgraph "Schema Adapters"
-        ZodAdapter["@reformer/zod"]
-        YupAdapter["@reformer/yup"]
-        ValibotAdapter["@reformer/valibot"]
-    end
-
     subgraph "@reformer/mcp"
         MCPServer[MCP Server]
     end
@@ -303,10 +297,6 @@ graph TB
 
     useFormControl --> FieldNode
     useFormControl --> ArrayNode
-
-    ZodAdapter --> ValidationRegistry
-    YupAdapter --> ValidationRegistry
-    ValibotAdapter --> ValidationRegistry
 ```
 
 ---
