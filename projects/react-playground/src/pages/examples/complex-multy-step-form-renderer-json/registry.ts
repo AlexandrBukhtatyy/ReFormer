@@ -9,7 +9,7 @@
  * - Константы options (LOAN_TYPES, GENDERS и т.д.).
  *
  * Форма в реестр НЕ регистрируется — она живёт в closure behavior-а и попадает
- * в componentProps wizard-а через `onInit(schema.node('wizard'), () => ({ form }))`.
+ * в componentProps wizard-а через `onInit` + `schema.node('wizard').patchProps({ form })`.
  */
 
 import { createElement } from 'react';

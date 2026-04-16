@@ -86,11 +86,13 @@ export function createCreditApplicationJsonRenderBehavior(
 
     // ── Lifecycle-хуки: демонстрация ────────────────────────────────────────
     // onMount/onUnmount применимы к любой ноде с selector (контейнер или поле).
-    onInit(schema.node('wizard'), () => ({
-      form,
-      stepValidations: STEP_VALIDATIONS,
-      fullValidation: creditApplicationValidation,
-    }));
+    onInit(schema.node('wizard'), () => {
+      schema.node('wizard').patchProps({
+        form,
+        stepValidations: STEP_VALIDATIONS,
+        fullValidation: creditApplicationValidation,
+      });
+    });
 
     onMount(schema.node('wizard'), () => {
       console.log('[render-behavior] wizard mounted');

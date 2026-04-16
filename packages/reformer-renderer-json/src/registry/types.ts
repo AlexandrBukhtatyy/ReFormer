@@ -16,7 +16,7 @@ import type { ComponentType } from 'react';
  *   в componentProps по имени.
  *
  * Формы в registry не регистрируются — они живут в closure behavior-а и инжектятся
- * в componentProps через `onInit(schema.node('wizard'), () => ({ form }))`.
+ * в componentProps через `onInit` + `schema.node('wizard').patchProps({ form })`.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ComponentMetadata<P = any> {

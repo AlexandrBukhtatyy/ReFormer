@@ -143,25 +143,22 @@ function setLifecycleHook<K extends keyof import('./render-schema-proxy').NodeLi
 
 /**
  * Синхронный build-time hook. Вызывается один раз при применении behavior к схеме
- * (до первого рендера ноды). Возвращённый объект мерджится в `componentProps` ноды
- * через `patchProps` — это единственный хук, способный повлиять на первый рендер.
+ * (до первого рендера ноды). Это единственный хук, способный повлиять на первый
+ * рендер — внутри можно дергать `schema.node(selector).patchProps({ ... })`
+ * для установки/обновления componentProps.
  *
- * Типичный кейс: создать форму/стейт, закрепить за нодой.
+ * Типичный кейс: создать форму/стейт, закрепить за нодой через patchProps.
  *
  * @example
  * ```typescript
  * onInit(schema.node('wizard'), () => {
  *   const form = createMyForm();
- *   return { form };  // попадёт в componentProps wizard-а
+ *   schema.node('wizard').patchProps({ form });
  * });
  * ```
  */
-export function onInit(
-  node: RenderNodeControl,
-  fn: () => Record<string, unknown> | void
-): void {
-  const patch = fn();
-  if (patch) node.patchProps(patch);
+export function onInit(node: RenderNodeControl, fn: () => void): void {
+  fn();
 }
 
 /**
