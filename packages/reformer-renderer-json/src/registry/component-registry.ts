@@ -4,67 +4,76 @@
  * @module reformer/renderer-json/registry/component-registry
  */
 
-import type { ComponentRegistry, ComponentMetadata } from './types';
+import type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './types';
 
-/**
- * Реализация ComponentRegistry
- */
-class ComponentRegistryImpl implements ComponentRegistry {
-  private components = new Map<string, ComponentMetadata>();
-
-  register<P>(name: string, metadata: ComponentMetadata<P>): this {
-    if (this.components.has(name)) {
-      console.warn(`[ComponentRegistry] Overwriting entry: ${name}`);
-    }
-    this.components.set(name, metadata as ComponentMetadata);
-    return this;
-  }
-
-  registerSource<T>(name: string, value: T, description?: string): this {
-    return this.register(name, {
-      component: value,
-      type: 'source',
-      description,
-    });
-  }
+export class ComponentRegistryImpl implements ComponentRegistry {
+  private own = new Map<string, ComponentMetadata>();
+  private parent: ComponentRegistryImpl | null = null;
 
   get(name: string): ComponentMetadata | undefined {
-    return this.components.get(name);
+    return this.own.get(name) ?? this.parent?.get(name);
   }
 
   getSource<T = unknown>(name: string): T | undefined {
-    const meta = this.components.get(name);
+    const meta = this.get(name);
     if (!meta || meta.type !== 'source') return undefined;
     return meta.component as T;
   }
 
   has(name: string): boolean {
-    return this.components.has(name);
+    return this.own.has(name) || (this.parent?.has(name) ?? false);
   }
 
   names(): string[] {
-    return Array.from(this.components.keys());
+    const parentNames = this.parent?.names() ?? [];
+    const ownNames = Array.from(this.own.keys());
+    return [...new Set([...parentNames, ...ownNames])];
   }
 
-  extend(): ComponentRegistry {
-    const extended = new ComponentRegistryImpl();
-    this.components.forEach((meta, name) => {
-      extended.components.set(name, meta);
+  _set(name: string, metadata: ComponentMetadata): void {
+    if (this.own.has(name)) {
+      console.warn(`[ComponentRegistry] Overwriting entry: ${name}`);
+    }
+    this.own.set(name, metadata);
+  }
+
+  static withParent(parent: ComponentRegistry, child: ComponentRegistry): ComponentRegistry {
+    const merged = new ComponentRegistryImpl();
+    merged.parent = parent as ComponentRegistryImpl;
+    (child as ComponentRegistryImpl).own.forEach((meta, name) => {
+      merged.own.set(name, meta);
     });
-    return extended;
+    return merged;
   }
 }
 
 /**
- * Создаёт новый пустой реестр компонентов
+ * Создаёт реестр компонентов через callback с типизированными хелперами.
  *
  * @example
  * ```typescript
- * const registry = createComponentRegistry()
- *   .register('Input', { component: Input, type: 'field' })
- *   .register('Box', { component: Box, type: 'container' });
+ * const registry = defineRegistry((reg) => {
+ *   reg.field('Input', Input);
+ *   reg.container('Box', Box);
+ *   reg.source('LOAN_TYPES', LOAN_TYPES);
+ * });
  * ```
  */
-export function createComponentRegistry(): ComponentRegistry {
-  return new ComponentRegistryImpl();
+export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentRegistry {
+  const registry = new ComponentRegistryImpl();
+
+  const builder: RegistryBuilder = {
+    field(name, component, description?) {
+      registry._set(name, { component, type: 'field', description });
+    },
+    container(name, component, description?) {
+      registry._set(name, { component, type: 'container', description });
+    },
+    source(name, value, description?) {
+      registry._set(name, { component: value, type: 'source', description });
+    },
+  };
+
+  fn(builder);
+  return registry;
 }

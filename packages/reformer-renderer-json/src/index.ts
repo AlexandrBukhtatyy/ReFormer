@@ -24,9 +24,8 @@ export { isFieldNode, isContainerNode } from './types/json-schema';
 // Component Registry
 // ============================================================================
 
-export { createComponentRegistry } from './registry/component-registry';
-export { createDefaultRegistry, defaultRegistry } from './registry/default-registry';
-export type { ComponentRegistry, ComponentMetadata } from './registry/types';
+export { defineRegistry } from './registry/component-registry';
+export type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './registry/types';
 
 // ============================================================================
 // Context Provider & Settings
