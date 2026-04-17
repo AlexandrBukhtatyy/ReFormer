@@ -14,7 +14,6 @@
 
 import { useMemo } from 'react';
 import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
-import { FormField } from '@reformer/ui-kit';
 import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/create-credit-application-form';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { creditApplicationJsonSchema } from './json-schema';
@@ -28,7 +27,7 @@ export default function CreditApplicationFormRendererJson() {
 
   return (
     <div className="w-full">
-      <JsonRendererProvider settings={{ fieldWrapper: FormField, registry }}>
+      <JsonRendererProvider settings={{ registry }}>
         <JsonFormRenderer<CreditApplicationForm>
           schema={creditApplicationJsonSchema}
           renderBehavior={renderBehavior}

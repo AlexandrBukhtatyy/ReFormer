@@ -25,6 +25,7 @@ export { isFieldNode, isContainerNode } from './types/json-schema';
 // ============================================================================
 
 export { defineRegistry } from './registry/component-registry';
+export { FIELD_WRAPPER } from './registry/constants';
 export type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './registry/types';
 
 // ============================================================================

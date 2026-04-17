@@ -4,10 +4,11 @@
  * @module reformer/renderer-json/context
  */
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import type { RendererSettings } from '@reformer/renderer-react';
+import { createContext, useContext, useMemo, type ReactNode, type ComponentType } from 'react';
+import type { RendererSettings, FieldWrapperProps } from '@reformer/renderer-react';
 import type { ComponentRegistry } from '../registry/types';
 import { ComponentRegistryImpl } from '../registry/component-registry';
+import { FIELD_WRAPPER } from '../registry/constants';
 
 export interface JsonRendererSettings extends RendererSettings {
   registry?: ComponentRegistry;
@@ -30,14 +31,18 @@ export function JsonRendererProvider({ settings, children }: JsonRendererProvide
     return settings.registry ?? parentSettings.registry;
   }, [parentSettings.registry, settings.registry]);
 
-  const mergedSettings = useMemo<JsonRendererSettings>(
-    () => ({
+  const mergedSettings = useMemo<JsonRendererSettings>(() => {
+    const fieldWrapperFromRegistry = mergedRegistry?.get(FIELD_WRAPPER)?.component as
+      | ComponentType<FieldWrapperProps>
+      | undefined;
+
+    return {
       ...parentSettings,
       ...settings,
       registry: mergedRegistry,
-    }),
-    [parentSettings, settings, mergedRegistry]
-  );
+      fieldWrapper: settings.fieldWrapper ?? fieldWrapperFromRegistry ?? parentSettings.fieldWrapper,
+    };
+  }, [parentSettings, settings, mergedRegistry]);
 
   return (
     <JsonRendererContext.Provider value={mergedSettings}>{children}</JsonRendererContext.Provider>

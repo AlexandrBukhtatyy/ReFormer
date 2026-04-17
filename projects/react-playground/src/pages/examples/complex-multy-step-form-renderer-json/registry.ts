@@ -14,7 +14,7 @@
 
 import { createElement } from 'react';
 import type { FormProxy } from '@reformer/core';
-import { defineRegistry, type ComponentRegistry } from '@reformer/renderer-json';
+import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
   Input,
   InputPassword,
@@ -90,6 +90,9 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     reg.container('SubmitWarning', SubmitWarning);
     reg.container('NextStepsInfo', NextStepsInfo);
     reg.container('ElectronicSignatureHint', ElectronicSignatureHint);
+
+    // Системный компонент
+    reg.container(FIELD_WRAPPER, FormField);
 
     // Source-компоненты (ComponentType для AsyncBoundary)
     reg.source('LoadingState', LoadingState);
