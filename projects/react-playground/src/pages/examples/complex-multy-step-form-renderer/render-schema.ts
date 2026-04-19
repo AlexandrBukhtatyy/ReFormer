@@ -545,7 +545,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                           component: RendererFormArraySection,
                           componentProps: {
                             title: 'Имущество',
-                            array: path.properties,
+                            control: path.properties,
                             itemLabel: (
                               _: FormProxy<CreditApplicationForm['properties'][0]>,
                               index: number
@@ -593,7 +593,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                           component: RendererFormArraySection,
                           componentProps: {
                             title: 'Существующие кредиты',
-                            array: path.existingLoans,
+                            control: path.existingLoans,
                             itemLabel: (
                               _: FormProxy<CreditApplicationForm['existingLoans'][0]>,
                               index: number
@@ -667,7 +667,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                           component: RendererFormArraySection,
                           componentProps: {
                             title: 'Созаемщики',
-                            array: path.coBorrowers,
+                            control: path.coBorrowers,
                             itemLabel: (
                               _: FormProxy<CreditApplicationForm['coBorrowers'][0]>,
                               index: number

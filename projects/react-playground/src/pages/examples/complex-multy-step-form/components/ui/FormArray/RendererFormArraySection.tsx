@@ -10,7 +10,7 @@ const navigator = new FieldPathNavigator();
 export interface RendererFormArraySectionProps<T extends object> {
   title: string;
   /** FieldPath к полю массива (path.properties, path.existingLoans и т.д.) */
-  array: unknown;
+  control: unknown;
   itemLabel: string | ((control: FormProxy<T>, index: number) => string);
   addButtonLabel: string;
   emptyMessage: string;
@@ -21,7 +21,7 @@ export interface RendererFormArraySectionProps<T extends object> {
 
 export function RendererFormArraySection<T extends object>({
   title,
-  array,
+  control,
   itemLabel,
   addButtonLabel,
   emptyMessage,
@@ -32,7 +32,7 @@ export function RendererFormArraySection<T extends object>({
   const { form, settings } = useRenderContext<any>();
   const fieldWrapper = settings?.fieldWrapper;
 
-  const arrayPath = extractPath(array);
+  const arrayPath = extractPath(control);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const arrayNode = navigator.getNodeByPath(form, arrayPath) as ArrayNode<any> | null;
 

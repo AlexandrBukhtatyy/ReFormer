@@ -70,18 +70,6 @@ function looksLikeJsonNode(value: unknown): value is JsonNode {
 }
 
 /**
- * Ссылка на поле формы: `{ $model: 'properties' }` резолвится в FieldPathNode.
- * Используется для пропсов, которые принимают FieldPath (array в RendererFormArraySection).
- */
-function isModelRef(value: unknown): value is { $model: string } {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    typeof (value as { $model?: unknown }).$model === 'string'
-  );
-}
-
-/**
  * Шаблон-обёртка: `{ $template: <JsonNode> }` превращается в функцию
  * `(itemPath) => RenderNode`, где `model:` внутри шаблона резолвится против `itemPath`.
  * Используется для itemComponent в RendererFormArraySection и подобных мест,
@@ -131,12 +119,7 @@ function transformPropValue<T>(
     return value;
   }
 
-  // 2. Ссылка на поле формы: { $model: 'path.to.field' }
-  if (isModelRef(value)) {
-    return getFieldPathNode(path, value.$model);
-  }
-
-  // 3. Шаблон: { $template: JsonNode } → (itemPath) => RenderNode
+  // 2. Шаблон: { $template: JsonNode } → (itemPath) => RenderNode
   //    args[0] становится FieldPath-корнем для резолва model: внутри шаблона.
   if (isTemplateRef(value)) {
     const template = value.$template;
@@ -190,7 +173,14 @@ function transformComponentProps<T>(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(props)) {
-    out[key] = transformPropValue(props[key], path, registry);
+    const value = props[key];
+    // Пропсы с именем 'control' или '*Control' и строковым значением
+    // резолвятся как ссылка на FieldPath (аналог control={fieldNode} в компонентах).
+    if ((key === 'control' || key.endsWith('Control')) && typeof value === 'string') {
+      out[key] = getFieldPathNode(path, value);
+    } else {
+      out[key] = transformPropValue(value, path, registry);
+    }
   }
   return out;
 }
@@ -203,10 +193,7 @@ function transformComponentProps<T>(
  *      `component` должен резолвиться в field-type запись реестра.
  * Возвращает null для контейнеров.
  */
-function resolveFieldPath(
-  jsonNode: JsonNode,
-  registry: ComponentRegistry
-): string | null {
+function resolveFieldPath(jsonNode: JsonNode, registry: ComponentRegistry): string | null {
   if (typeof jsonNode.model === 'string' && jsonNode.model.length > 0) {
     return jsonNode.model;
   }
@@ -308,9 +295,7 @@ function convertNode<T>(
 
     // Рекурсивно конвертируем дочерние узлы
     if (jsonNode.children && jsonNode.children.length > 0) {
-      containerNode.children = jsonNode.children.map((child) =>
-        convertNode(child, path, registry)
-      );
+      containerNode.children = jsonNode.children.map((child) => convertNode(child, path, registry));
     }
 
     return containerNode;
