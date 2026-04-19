@@ -2,7 +2,31 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResourceConfig } from '@reformer/core';
+
+interface ResourceLoadParams {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  [key: string]: unknown;
+}
+
+interface ResourceItem<T> {
+  id: string | number;
+  label: string;
+  value: T;
+  group?: string;
+  [key: string]: unknown;
+}
+
+interface ResourceResult<T> {
+  items: ResourceItem<T>[];
+  totalCount: number;
+}
+
+export interface ResourceConfig<T> {
+  type: 'static' | 'preload' | 'partial';
+  load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
+}
 
 export interface SelectProps<T> extends Omit<
   React.ComponentProps<typeof SelectPrimitive.Root>,

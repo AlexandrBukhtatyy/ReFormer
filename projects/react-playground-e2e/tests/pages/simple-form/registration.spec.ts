@@ -100,11 +100,13 @@ test.describe('Форма регистрации', { tag: ['@registration'] }, (
       await formPage.expectNoFieldError('email');
     });
 
-    test.fixme('REG-002-D: Валидация формата email перед асинхронной проверкой', async () => {
-      // FIXME: email() валидатор не показывает ошибку для невалидного формата.
-      // Unit тесты проходят, но E2E нет. Возможный баг в библиотеке или
-      // специфика интеграции. Требует отдельного исследования.
-      // См. https://github.com/AlexandrBukhtatyy/ReFormer/issues/XXX
+    test('REG-002-D: Валидация формата email перед асинхронной проверкой', async () => {
+      await formPage.fillEmail('invalid-email');
+      // Trigger blur to mark field as touched so shouldShowError becomes true
+      await formPage.emailInput.blur();
+      await formPage.waitForAsyncValidation();
+
+      await formPage.expectFieldError('email', /некорректный email/i);
     });
   });
 

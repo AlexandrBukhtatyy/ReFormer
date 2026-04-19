@@ -1,0 +1,37 @@
+[
+  {
+    "name": "@reformer/core",
+    "path": "packages/reformer/dist/index.js",
+    "limit": "20 kB"
+  },
+  {
+    "name": "@reformer/core (validators only)",
+    "path": "packages/reformer/dist/validators.js",
+    "limit": "5 kB"
+  },
+  {
+    "name": "@reformer/core (behaviors only)",
+    "path": "packages/reformer/dist/behaviors.js",
+    "limit": "5 kB"
+  },
+  {
+    "name": "@reformer/cdk",
+    "path": "packages/reformer-cdk/dist/index.js",
+    "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/renderer-react",
+    "path": "packages/reformer-renderer-react/dist/index.js",
+    "limit": "10 kB"
+  },
+  {
+    "name": "@reformer/ui-kit",
+    "path": "packages/reformer-ui-kit/dist/index.js",
+    "limit": "15 kB"
+  },
+  {
+    "name": "@reformer/renderer-json",
+    "path": "packages/reformer-renderer-json/dist/index.js",
+    "limit": "10 kB"
+  }
+]

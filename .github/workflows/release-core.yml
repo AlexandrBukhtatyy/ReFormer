@@ -32,7 +32,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: rm package-lock.json && npm install
+        run: npm ci
 
       - name: Build library
         run: npm run build -w @reformer/core

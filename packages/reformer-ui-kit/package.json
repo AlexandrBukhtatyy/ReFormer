@@ -1,7 +1,7 @@
 {
   "name": "@reformer/ui-kit",
   "version": "1.0.0-beta.2",
-  "description": "Headless UI components for @reformer/core - form arrays, multi-step wizards, and more",
+  "description": "Styled form components with Tailwind CSS and Radix UI for @reformer ecosystem",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -22,6 +22,54 @@
     "./form-field": {
       "types": "./dist/form-field.d.ts",
       "import": "./dist/form-field.js"
+    },
+    "./input": {
+      "types": "./dist/ui/input.d.ts",
+      "import": "./dist/ui/input.js"
+    },
+    "./select": {
+      "types": "./dist/ui/select.d.ts",
+      "import": "./dist/ui/select.js"
+    },
+    "./checkbox": {
+      "types": "./dist/ui/checkbox.d.ts",
+      "import": "./dist/ui/checkbox.js"
+    },
+    "./textarea": {
+      "types": "./dist/ui/textarea.d.ts",
+      "import": "./dist/ui/textarea.js"
+    },
+    "./radio-group": {
+      "types": "./dist/ui/radio-group.d.ts",
+      "import": "./dist/ui/radio-group.js"
+    },
+    "./button": {
+      "types": "./dist/ui/button.d.ts",
+      "import": "./dist/ui/button.js"
+    },
+    "./box": {
+      "types": "./dist/ui/box.d.ts",
+      "import": "./dist/ui/box.js"
+    },
+    "./section": {
+      "types": "./dist/ui/section.d.ts",
+      "import": "./dist/ui/section.js"
+    },
+    "./input-mask": {
+      "types": "./dist/ui/input-mask.d.ts",
+      "import": "./dist/ui/input-mask.js"
+    },
+    "./input-password": {
+      "types": "./dist/ui/input-password.d.ts",
+      "import": "./dist/ui/input-password.js"
+    },
+    "./collapsible": {
+      "types": "./dist/ui/collapsible.d.ts",
+      "import": "./dist/ui/collapsible.js"
+    },
+    "./async-boundary": {
+      "types": "./dist/ui/async-boundary.d.ts",
+      "import": "./dist/ui/async-boundary.js"
     }
   },
   "sideEffects": false,
@@ -36,8 +84,9 @@
   "keywords": [
     "react",
     "forms",
-    "headless-ui",
-    "compound-components",
+    "ui-components",
+    "tailwindcss",
+    "radix-ui",
     "form-array",
     "multi-step-form",
     "wizard",
@@ -72,11 +121,13 @@
     "@radix-ui/react-slot": "^1.0.0",
     "@reformer/cdk": ">=1.0.0-beta.0",
     "@reformer/core": ">=1.1.0-beta.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
     "lucide-react": "^0.400.0",
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
     "tailwind-merge": "^2.0.0 || ^3.0.0"
   },
   "devDependencies": {

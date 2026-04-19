@@ -21,14 +21,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: rm package-lock.json && npm install
+        run: npm ci
 
-      # Закомментировать если не проходит:
-      # - name: Lint
-      #   run: npm run lint
+      - name: Lint
+        run: npm run lint
 
-      # - name: Check formatting
-      #   run: npm run format:check
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Build @reformer/core
         run: npm run build -w @reformer/core
@@ -38,3 +37,24 @@ jobs:
 
       - name: Build @reformer/cdk
         run: npm run build -w @reformer/cdk
+
+      - name: Run @reformer/cdk tests
+        run: npm run test -w @reformer/cdk
+
+      - name: Build @reformer/renderer-react
+        run: npm run build -w @reformer/renderer-react
+
+      - name: Run @reformer/renderer-react tests
+        run: npm run test -w @reformer/renderer-react
+
+      - name: Build @reformer/ui-kit
+        run: npm run build -w @reformer/ui-kit
+
+      - name: Run @reformer/ui-kit tests
+        run: npm run test -w @reformer/ui-kit
+
+      - name: Build @reformer/renderer-json
+        run: npm run build -w @reformer/renderer-json
+
+      - name: Run @reformer/renderer-json tests
+        run: npm run test -w @reformer/renderer-json
