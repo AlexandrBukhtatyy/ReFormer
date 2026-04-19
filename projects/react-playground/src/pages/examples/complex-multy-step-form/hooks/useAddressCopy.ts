@@ -7,7 +7,7 @@
  */
 
 import { useFormWizard } from '@reformer/cdk/form-wizard';
-import type { CreditApplicationForm } from '../../types/credit-application';
+import type { CreditApplicationForm } from '../types/credit-application';
 
 interface UseAddressCopyResult {
   /** Копировать адрес регистрации в адрес проживания */

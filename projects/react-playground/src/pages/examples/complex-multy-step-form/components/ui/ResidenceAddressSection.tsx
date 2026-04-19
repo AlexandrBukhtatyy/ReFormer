@@ -10,7 +10,7 @@
 
 import type { ReactNode } from 'react';
 import { Button } from '@reformer/ui-kit';
-import { useAddressCopy } from './useAddressCopy';
+import { useAddressCopy } from '../../hooks/useAddressCopy';
 
 interface ResidenceAddressSectionProps {
   /** CSS классы */
