@@ -48,7 +48,7 @@ function FormFieldInner({
       )}
 
       <CdkFormField.Error
-        className="text-red-500 text-sm mt-1 block"
+        className="text-destructive text-sm mt-1 block"
         data-testid={`error-${testId}`}
       />
 

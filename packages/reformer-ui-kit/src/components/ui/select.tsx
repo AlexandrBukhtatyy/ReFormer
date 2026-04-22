@@ -43,8 +43,11 @@ export interface SelectProps<T> extends Omit<
   clearable?: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Select = React.forwardRef<HTMLButtonElement, SelectProps<any> & { 'data-testid'?: string }>(
+const Select = React.forwardRef<
+  HTMLButtonElement,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  SelectProps<any> & { 'data-testid'?: string; 'aria-invalid'?: boolean | 'true' | 'false' }
+>(
   (
     {
       className,
@@ -57,6 +60,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps<any> & { 'data-te
       disabled,
       clearable = false,
       'data-testid': dataTestId,
+      'aria-invalid': ariaInvalid,
       ...props
     },
     ref
@@ -132,6 +136,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps<any> & { 'data-te
             className={cn(className, showClearButton && 'pr-8')}
             disabled={loading}
             data-testid={dataTestId}
+            aria-invalid={ariaInvalid}
           >
             <SelectValue
               placeholder={loading ? 'Loading...' : placeholder || 'Select an option...'}
@@ -223,7 +228,7 @@ function SelectTrigger({
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-gray-500",
         className
       )}
-      style={{ backgroundColor: 'white', color: 'black', borderColor: '#d1d5db' }}
+      style={{ backgroundColor: 'white', color: 'black' }}
       {...props}
     >
       {children}
@@ -252,17 +257,12 @@ function SelectContent({
             'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
           className
         )}
+        style={position === 'popper' ? { width: 'var(--radix-select-trigger-width)' } : undefined}
         position={position}
         {...props}
       >
         <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
-          className={cn(
-            'p-1',
-            position === 'popper' &&
-              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]'
-          )}
-        >
+        <SelectPrimitive.Viewport className={cn('p-1', position === 'popper' && 'w-full')}>
           {children}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
@@ -290,7 +290,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-3 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
       {...props}

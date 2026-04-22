@@ -1,4 +1,4 @@
-# @reformer/cdk - LLM Integration Guide
+# @reformer/ui-kit - LLM Integration Guide
 
 Headless UI components for @reformer/core forms.
 
