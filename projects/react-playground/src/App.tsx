@@ -67,7 +67,7 @@ const Navigation = memo(function Navigation() {
               className={({ isActive }) =>
                 `px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'bg-blue-700 text-white'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`
               }
@@ -135,7 +135,7 @@ function Layout() {
             href="https://github.com/AlexandrBukhtatyy/ReFormer"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-700 underline hover:text-blue-900"
+            className="text-blue-500 hover:underline"
           >
             GitHub
           </a>

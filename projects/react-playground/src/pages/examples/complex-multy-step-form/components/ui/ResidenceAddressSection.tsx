@@ -37,16 +37,12 @@ export function ResidenceAddressSection({
     <div className={className}>
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Адрес проживания</h3>
-        <Button size="sm" onClick={copyRegistrationAddress}>
-          Скопировать из адреса регистрации
-        </Button>
+        <Button onClick={copyRegistrationAddress}>Скопировать из адреса регистрации</Button>
       </div>
 
       {children}
 
-      <Button size="sm" onClick={clearResidenceAddress}>
-        Очистить адрес проживания
-      </Button>
+      <Button onClick={clearResidenceAddress}>Очистить адрес проживания</Button>
     </div>
   );
 }

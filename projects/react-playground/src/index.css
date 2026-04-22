@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+@source "../../../packages/reformer-ui-kit/src";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
