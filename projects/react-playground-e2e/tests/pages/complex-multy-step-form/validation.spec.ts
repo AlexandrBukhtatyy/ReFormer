@@ -697,10 +697,10 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 
-      await creditForm.input('passportSeries').fill(INVALID_DATA.invalidPassportSeries);
-      await creditForm.input('passportSeries').blur();
+      await creditForm.input('passportData-series').fill(INVALID_DATA.invalidPassportSeries);
+      await creditForm.input('passportData-series').blur();
 
-      await creditForm.expectFieldError('passportSeries');
+      await creditForm.expectFieldError('passportData-series');
     });
 
     test('VAL-010-B: Код подразделения неверного формата → ошибка', async ({ creditForm }) => {
@@ -709,10 +709,12 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 
-      await creditForm.input('passportCode').fill(INVALID_DATA.invalidDepartmentCode);
-      await creditForm.input('passportCode').blur();
+      await creditForm
+        .input('passportData-departmentCode')
+        .fill(INVALID_DATA.invalidDepartmentCode);
+      await creditForm.input('passportData-departmentCode').blur();
 
-      await creditForm.expectFieldError('passportCode');
+      await creditForm.expectFieldError('passportData-departmentCode');
     });
 
     test('VAL-010-C: СНИЛС неверного формата → ошибка', async ({ creditForm }) => {
@@ -733,10 +735,10 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 
-      await creditForm.input('passportIssuedDate').fill(INVALID_DATA.futureDateStr);
-      await creditForm.input('passportIssuedDate').blur();
+      await creditForm.input('passportData-issueDate').fill(INVALID_DATA.futureDateStr);
+      await creditForm.input('passportData-issueDate').blur();
 
-      await creditForm.expectFieldError('passportIssuedDate');
+      await creditForm.expectFieldError('passportData-issueDate');
     });
   });
 
