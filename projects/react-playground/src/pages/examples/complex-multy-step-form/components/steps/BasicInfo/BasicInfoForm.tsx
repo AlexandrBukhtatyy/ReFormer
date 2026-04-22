@@ -18,9 +18,7 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
       <FormField control={control.loanType} testId="loanType" />
       <FormField control={control.loanAmount} testId="loanAmount" />
       <FormField control={control.loanTerm} testId="loanTerm" />
-      {loanType !== 'mortgage' && loanType !== 'car' && (
-        <FormField control={control.loanPurpose} testId="loanPurpose" />
-      )}
+      <FormField control={control.loanPurpose} testId="loanPurpose" />
 
       {loanType === 'mortgage' && (
         <>

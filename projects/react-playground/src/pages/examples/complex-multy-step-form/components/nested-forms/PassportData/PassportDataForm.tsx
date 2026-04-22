@@ -68,9 +68,11 @@ const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {
         <FormField control={control.series} testId="passportData-series" />
         <FormField control={control.number} testId="passportData-number" />
       </div>
-      <FormField control={control.issueDate} testId="passportData-issueDate" />
       <FormField control={control.issuedBy} testId="passportData-issuedBy" />
-      <FormField control={control.departmentCode} testId="passportData-departmentCode" />
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.issueDate} testId="passportData-issueDate" />
+        <FormField control={control.departmentCode} testId="passportData-departmentCode" />
+      </div>
     </div>
   );
 };
