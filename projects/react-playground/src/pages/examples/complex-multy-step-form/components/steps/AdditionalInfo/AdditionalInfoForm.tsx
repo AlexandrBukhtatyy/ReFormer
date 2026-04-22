@@ -82,7 +82,6 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           itemLabel="Созаемщик"
           addButtonLabel="+ Добавить созаемщика"
           emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
-          emptyMessageHint="CoBorrowerForm поддерживает вложенную группу personalData"
           hasItems={hasCoBorrower}
         />
       </div>

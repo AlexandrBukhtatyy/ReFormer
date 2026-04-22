@@ -210,7 +210,7 @@ function FormWizardInner<T extends Record<string, any>>(
         }
 
         // Use built-in submit of GroupNode
-        return form.submit(onSubmit);
+        return form.submit(onSubmit, { skipValidation: true });
       } finally {
         setIsValidating(false);
       }

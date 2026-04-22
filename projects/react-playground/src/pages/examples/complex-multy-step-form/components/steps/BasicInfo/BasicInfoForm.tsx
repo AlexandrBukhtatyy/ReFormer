@@ -18,7 +18,9 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
       <FormField control={control.loanType} testId="loanType" />
       <FormField control={control.loanAmount} testId="loanAmount" />
       <FormField control={control.loanTerm} testId="loanTerm" />
-      <FormField control={control.loanPurpose} testId="loanPurpose" />
+      {loanType !== 'mortgage' && loanType !== 'car' && (
+        <FormField control={control.loanPurpose} testId="loanPurpose" />
+      )}
 
       {loanType === 'mortgage' && (
         <>
@@ -37,6 +39,15 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
             <FormField control={control.carYear} testId="carYear" />
             <FormField control={control.carPrice} testId="carPrice" />
           </div>
+        </>
+      )}
+
+      {loanType === 'business' && (
+        <>
+          <h3 className="text-lg font-semibold mt-4">Информация о бизнесе</h3>
+          <FormField control={control.businessType} testId="businessType" />
+          <FormField control={control.businessInn} testId="businessInn" />
+          <FormField control={control.businessActivity} testId="businessActivity" />
         </>
       )}
     </div>

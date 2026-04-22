@@ -352,7 +352,9 @@ export class GroupNode<T> extends FormNode<T> {
     }
 
     // Проверяем, все ли поля валидны
-    return Array.from(this._fields.values()).every((field) => field.valid.value);
+    return Array.from(this._fields.values()).every(
+      (field) => field.valid.value || field.disabled.value
+    );
   }
 
   /**
