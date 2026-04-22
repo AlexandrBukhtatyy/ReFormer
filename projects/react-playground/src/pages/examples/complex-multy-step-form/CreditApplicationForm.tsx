@@ -70,21 +70,22 @@ function CreditApplicationForm() {
   // ============================================================================
 
   const submitApplication = async () => {
-    const result = await navRef.current?.submit(async (values: CreditApplicationFormType) => {
-      // Отправляем данные на сервер через API
-      const response = await submitCreditApplication(values);
+    try {
+      const result = await navRef.current?.submit(async (values: CreditApplicationFormType) => {
+        const response = await submitCreditApplication(values);
+        if (response.status === 200 || response.status === 201) {
+          return response.data;
+        }
+        throw new Error('Ошибка отправки заявки');
+      });
 
-      if (response.status === 200 || response.status === 201) {
-        return response.data;
+      if (result) {
+        alert(`Заявка успешно отправлена! ID: ${result.id}`);
+      } else {
+        alert('Пожалуйста, исправьте ошибки в форме');
       }
-
-      throw new Error('Ошибка отправки заявки');
-    });
-
-    if (result) {
-      alert(`Заявка успешно отправлена! ID: ${result.id}`);
-    } else {
-      alert('Пожалуйста, исправьте ошибки в форме');
+    } catch {
+      alert('Ошибка отправки заявки: сервер недоступен');
     }
   };
 

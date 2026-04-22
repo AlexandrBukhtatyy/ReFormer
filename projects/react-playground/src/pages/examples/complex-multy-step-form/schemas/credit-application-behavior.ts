@@ -188,8 +188,12 @@ export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> 
   // Возраст (вычисляется из даты рождения)
   computeFrom([path.personalData], path.age, computeAge);
 
-  // Общий доход (основной + дополнительный)
-  computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, computeTotalIncome);
+  // Общий доход (основной + дополнительный + созаемщики)
+  computeFrom(
+    [path.monthlyIncome, path.additionalIncome, path.coBorrowersIncome],
+    path.totalIncome,
+    computeTotalIncome
+  );
 
   // Процент платежа от дохода
   computeFrom(

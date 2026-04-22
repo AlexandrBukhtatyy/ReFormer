@@ -273,7 +273,6 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.fillPropertyValue(5000000);
       await creditForm.input('initialPayment').fill('6000000');
       await creditForm.fillLoanTerm(240);
-      await creditForm.fillLoanPurpose('Покупка квартиры');
 
       // Попытка перехода на следующий шаг должна вызвать валидацию
       await creditForm.goToNextStep();
@@ -292,7 +291,6 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.fillPropertyValue(5000000);
       await creditForm.input('initialPayment').fill('500000'); // 10%
       await creditForm.fillLoanTerm(240);
-      await creditForm.fillLoanPurpose('Покупка квартиры');
 
       // Попытка перехода на следующий шаг должна вызвать валидацию
       await creditForm.goToNextStep();
@@ -695,6 +693,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
   test.describe('VAL-010: Форматы паспортных данных', { tag: ['@regression'] }, () => {
     test('VAL-010-A: Серия паспорта неверного формата → ошибка', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 
@@ -706,6 +705,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
 
     test('VAL-010-B: Код подразделения неверного формата → ошибка', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 
@@ -717,6 +717,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
 
     test('VAL-010-C: СНИЛС неверного формата → ошибка', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 
@@ -728,6 +729,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
 
     test('VAL-010-D: Дата выдачи паспорта в будущем → ошибка', async ({ creditForm }) => {
       await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
       await creditForm.expectStepHeading(/персональные данные/i);
 

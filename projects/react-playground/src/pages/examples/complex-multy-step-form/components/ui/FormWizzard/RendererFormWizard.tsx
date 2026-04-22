@@ -14,7 +14,7 @@
  * передавал children как сырые RenderNode[], а не рендерил их самостоятельно.
  */
 
-import { type ReactNode, type Ref } from 'react';
+import { type ReactNode, type Ref, useRef } from 'react';
 import { createFieldPath, type FormProxy, type FieldPath } from '@reformer/core';
 import {
   useRenderContext,
@@ -26,7 +26,6 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 import { FormWizard } from './FormWizard';
 import type {
   FormWizardConfig,
-  FormWizardActionsProps,
   FormWizardIndicatorStep,
   FormWizardHandle,
 } from '@reformer/cdk/form-wizard';
@@ -43,14 +42,15 @@ interface RendererFormWizardProps<T extends Record<string, unknown>> {
   steps?: RendererStep[];
   stepValidations?: FormWizardConfig<T>['stepValidations'];
   fullValidation?: FormWizardConfig<T>['fullValidation'];
-  onSubmit?: FormWizardActionsProps['onSubmit'];
+  /** Вызывается после успешной валидации всей формы, получает значения формы */
+  onSubmit?: (values: T) => void | Promise<void>;
   onStepChange?: (step: number) => void;
   scrollToTop?: boolean;
   className?: string;
 }
 
 export function RendererFormWizard<T extends Record<string, unknown>>({
-  ref,
+  ref: externalRef,
   form,
   steps = [],
   stepValidations,
@@ -63,6 +63,8 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
   const { settings } = useRenderContext();
   const path = createFieldPath<T>();
   const fieldWrapper = settings?.fieldWrapper;
+  // Внутренний ref для доступа к CDK FormWizard handle (валидация + submit)
+  const wizardHandleRef = useRef<FormWizardHandle<T>>(null);
 
   const config: FormWizardConfig<T> = {
     stepValidations: stepValidations || {},
@@ -72,7 +74,16 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
   return (
     <RenderContextProvider value={{ form, path, settings }}>
       <FormWizard
-        ref={ref}
+        ref={(node) => {
+          (wizardHandleRef as React.RefObject<FormWizardHandle<T> | null>).current = node;
+          if (externalRef) {
+            if (typeof externalRef === 'function') {
+              externalRef(node);
+            } else {
+              (externalRef as React.RefObject<FormWizardHandle<T> | null>).current = node;
+            }
+          }
+        }}
         className={className}
         form={form}
         config={config}
@@ -91,7 +102,13 @@ export function RendererFormWizard<T extends Record<string, unknown>>({
             />
           ),
         }))}
-        onSubmit={onSubmit ? () => form.submit(onSubmit) : undefined}
+        onSubmit={
+          onSubmit
+            ? () => {
+                void wizardHandleRef.current?.submit(onSubmit);
+              }
+            : undefined
+        }
       />
     </RenderContextProvider>
   );

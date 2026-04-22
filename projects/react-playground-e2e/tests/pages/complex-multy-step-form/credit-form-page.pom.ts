@@ -143,8 +143,26 @@ export class CreditFormPage extends BasePage {
   // Navigation
   // ============================================================================
 
-  async goto() {
-    await this.page.goto(this.basePath);
+  /**
+   * @param options.disableMsw — если true, отключает MSW Service Worker в приложении,
+   *   чтобы page.route() имел приоритет. По умолчанию MSW активен (нужен для happy-path).
+   */
+  async goto(options?: { disableMsw?: boolean }) {
+    let target = this.basePath;
+    if (options?.disableMsw) {
+      // Разрегистрируем MSW service worker, сохранённый от предыдущих запусков.
+      await this.page.goto('/');
+      await this.page.evaluate(async () => {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+      });
+      const url = new URL(this.basePath, 'http://localhost');
+      url.searchParams.set('mocks', 'off');
+      target = url.pathname + url.search;
+    }
+    await this.page.goto(target);
     await this.page.waitForLoadState('networkidle');
     await this.waitForFormReady();
   }

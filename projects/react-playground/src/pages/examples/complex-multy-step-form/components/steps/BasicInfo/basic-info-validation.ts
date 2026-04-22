@@ -105,7 +105,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
     (path) => {
       required(path.loanPurpose, { message: 'Укажите цель кредита' });
       minLength(path.loanPurpose, 10, { message: 'Опишите цель подробнее (минимум 10 символов)' });
-      maxLength(path.loanPurpose, 500);
+      maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символов' });
     }
   );
 

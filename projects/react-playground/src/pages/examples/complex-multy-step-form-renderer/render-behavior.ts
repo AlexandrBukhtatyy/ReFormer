@@ -40,10 +40,7 @@ export function createCreditApplicationRenderBehavior(
     const loadApplication = async () => {
       boundary.patchProps({ status: 'loading' });
       try {
-        const [app, dict] = await Promise.all([
-          fetchCreditApplication('1'),
-          fetchDictionaries(),
-        ]);
+        const [app, dict] = await Promise.all([fetchCreditApplication('1'), fetchDictionaries()]);
         if (app.status !== 200 || dict.status !== 200) {
           throw new Error('Ошибка загрузки');
         }
@@ -112,11 +109,15 @@ export function createCreditApplicationRenderBehavior(
 
     // ── Шаг 6: отправка формы ───────────────────────────────────────────────
     onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditApplicationForm) => {
-      const response = await submitCreditApplication(values);
-      if (response.status === 200 || response.status === 201) {
-        alert(`Заявка успешно отправлена! ID: ${response.data.id}`);
-      } else {
-        throw new Error('Ошибка отправки заявки');
+      try {
+        const response = await submitCreditApplication(values);
+        if (response.status === 200 || response.status === 201) {
+          alert(`Заявка успешно отправлена! ID: ${response.data.id}`);
+        } else {
+          alert('Ошибка отправки заявки: сервер вернул неожиданный ответ');
+        }
+      } catch {
+        alert('Ошибка отправки заявки: сервер недоступен');
       }
     });
 

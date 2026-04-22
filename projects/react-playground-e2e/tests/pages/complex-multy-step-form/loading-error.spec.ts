@@ -35,11 +35,7 @@ test.describe('Loading & Error States', { tag: ['@regression'] }, () => {
       await page.goto(creditForm.basePath);
 
       // Loading indicator должен быть виден сразу после перехода
-      await expect(
-        page.locator(
-          '[data-testid="loading-state"], text=Загрузка данных..., [class*="loading"], [class*="spinner"]'
-        )
-      ).toBeVisible({ timeout: 2000 });
+      await expect(page.locator('[data-testid="loading-state"]')).toBeVisible({ timeout: 2000 });
     });
 
     test('LOAD-001-B: форма заполняется данными из API после загрузки (applicationId=1)', async ({

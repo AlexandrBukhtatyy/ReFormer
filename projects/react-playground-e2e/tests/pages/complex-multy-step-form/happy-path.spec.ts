@@ -14,6 +14,7 @@ import {
   mockDictionariesApi,
   mockRegionsApi,
   mockCitiesApi,
+  mockAllApisForHappyPath,
   MOCK_CREDIT_APPLICATION_1,
 } from './mocks';
 
@@ -96,7 +97,6 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       await creditForm.page.waitForTimeout(100);
       await creditForm.fillLoanAmount(MORTGAGE_LOAN_DATA.loanAmount);
       await creditForm.fillLoanTerm(MORTGAGE_LOAN_DATA.loanTerm);
-      await creditForm.fillLoanPurpose('Покупка квартиры для семьи');
       await creditForm.goToNextStep();
     });
 
@@ -174,7 +174,6 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
 
       await creditForm.fillLoanAmount(CAR_LOAN_DATA.loanAmount);
       await creditForm.fillLoanTerm(CAR_LOAN_DATA.loanTerm);
-      await creditForm.fillLoanPurpose('Покупка нового автомобиля');
       await creditForm.goToNextStep();
     });
 
@@ -328,10 +327,12 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       page,
       creditForm,
     }) => {
-      // Мокируем ошибку POST
+      // Настраиваем все API через page.route (MSW отключён в goto),
+      // submit возвращает 500.
+      await mockAllApisForHappyPath(page);
       await mockSubmitApplicationApi(page, { simulateError: true, errorStatus: 500 });
 
-      await creditForm.goto();
+      await creditForm.goto({ disableMsw: true });
 
       // Быстро заполняем все шаги
       await creditForm.fillLoanAmount(CONSUMER_LOAN_DATA.loanAmount);
@@ -447,8 +448,8 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       await creditForm.goToNextStep();
 
       const personal = MOCK_CREDIT_APPLICATION_1.personalData!;
-      await expect(creditForm.input('lastName')).toHaveValue(personal.lastName);
-      await expect(creditForm.input('firstName')).toHaveValue(personal.firstName);
+      await expect(creditForm.input('personalData-lastName')).toHaveValue(personal.lastName);
+      await expect(creditForm.input('personalData-firstName')).toHaveValue(personal.firstName);
     });
   });
 });

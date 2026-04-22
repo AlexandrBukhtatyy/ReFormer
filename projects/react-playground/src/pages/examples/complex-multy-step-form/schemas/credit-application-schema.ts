@@ -127,8 +127,6 @@ export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
       label: 'Год выпуска',
       placeholder: '2020',
       type: 'number',
-      min: 2000,
-      max: new Date().getFullYear() + 1,
     },
   },
 

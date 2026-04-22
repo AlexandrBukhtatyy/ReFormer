@@ -36,6 +36,7 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
           <FormField control={control.email} testId="email" />
           <FormField control={control.emailAdditional} testId="emailAdditional" />
         </div>
+        <FormField control={control.sameEmail} testId="sameEmail" />
       </div>
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Адрес регистрации</h3>

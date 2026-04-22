@@ -15,9 +15,11 @@
 export function computeTotalIncome({
   monthlyIncome,
   additionalIncome,
+  coBorrowersIncome,
 }: {
   monthlyIncome: number;
   additionalIncome: number;
+  coBorrowersIncome?: number;
 }): number {
-  return (monthlyIncome || 0) + (additionalIncome || 0);
+  return (monthlyIncome || 0) + (additionalIncome || 0) + (coBorrowersIncome || 0);
 }
