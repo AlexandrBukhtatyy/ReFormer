@@ -7,12 +7,15 @@
  */
 
 import { test, expect } from '../../shared/test-factory';
+import { CONSUMER_LOAN_DATA, MORTGAGE_LOAN_DATA, CAR_LOAN_DATA, VALID_SMS_CODE } from './test-data';
 import {
-  CONSUMER_LOAN_DATA,
-  MORTGAGE_LOAN_DATA,
-  CAR_LOAN_DATA,
-  VALID_SMS_CODE,
-} from './test-data';
+  mockSubmitApplicationApi,
+  mockCreditApplicationApi,
+  mockDictionariesApi,
+  mockRegionsApi,
+  mockCitiesApi,
+  MOCK_CREDIT_APPLICATION_1,
+} from './mocks';
 
 test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
   test('HP-001: Потребительский кредит - полное заполнение', async ({ creditForm }) => {
@@ -313,6 +316,139 @@ test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
       await creditForm.page.waitForTimeout(600);
       await creditForm.submitForm();
       await creditForm.expectSuccessMessage();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // HP-006: Ошибка при отправке формы
+  // -------------------------------------------------------------------------
+
+  test.describe('HP-006: Ошибка при отправке формы', { tag: ['@regression'] }, () => {
+    test('HP-006-A: при ошибке сервера 500 показывается сообщение об ошибке', async ({
+      page,
+      creditForm,
+    }) => {
+      // Мокируем ошибку POST
+      await mockSubmitApplicationApi(page, { simulateError: true, errorStatus: 500 });
+
+      await creditForm.goto();
+
+      // Быстро заполняем все шаги
+      await creditForm.fillLoanAmount(CONSUMER_LOAN_DATA.loanAmount);
+      await creditForm.fillLoanTerm(CONSUMER_LOAN_DATA.loanTerm);
+      await creditForm.fillLoanPurpose(CONSUMER_LOAN_DATA.loanPurpose);
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep3ContactInfo();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep4Employment();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep5AdditionalInfo();
+      await creditForm.goToNextStep();
+
+      await creditForm.acceptPersonalDataAgreement();
+      await creditForm.acceptCreditHistoryAgreement();
+      await creditForm.acceptTermsAgreement();
+      await creditForm.input('confirmAccuracy').check();
+      await creditForm.fillSmsCode(VALID_SMS_CODE);
+      await page.waitForTimeout(600);
+      await creditForm.submitForm();
+
+      // Ожидаем сообщение об ошибке через alert
+      await page.waitForTimeout(1000);
+      expect(
+        creditForm.alertMessages.some((msg) => /ошибк|error|не удалось/i.test(msg))
+      ).toBeTruthy();
+    });
+
+    test('HP-006-B: после ошибки отправки форма остаётся на шаге 6', async ({
+      page,
+      creditForm,
+    }) => {
+      await mockSubmitApplicationApi(page, { simulateError: true, errorStatus: 500 });
+
+      await creditForm.goto();
+
+      await creditForm.fillLoanAmount(CONSUMER_LOAN_DATA.loanAmount);
+      await creditForm.fillLoanTerm(CONSUMER_LOAN_DATA.loanTerm);
+      await creditForm.fillLoanPurpose(CONSUMER_LOAN_DATA.loanPurpose);
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep3ContactInfo();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep4Employment();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillStep5AdditionalInfo();
+      await creditForm.goToNextStep();
+
+      await creditForm.acceptPersonalDataAgreement();
+      await creditForm.acceptCreditHistoryAgreement();
+      await creditForm.acceptTermsAgreement();
+      await creditForm.input('confirmAccuracy').check();
+      await creditForm.fillSmsCode(VALID_SMS_CODE);
+      await page.waitForTimeout(600);
+      await creditForm.submitForm();
+
+      await page.waitForTimeout(1000);
+
+      // Форма должна остаться на последнем шаге
+      const step = await creditForm.getCurrentStep();
+      expect(step).toBe(6);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // HP-007: Предзаполнение формы из API
+  // -------------------------------------------------------------------------
+
+  test.describe('HP-007: Предзаполнение формы из API', { tag: ['@regression'] }, () => {
+    test('HP-007-A: поля шага 1 заполнены данными из applicationId=1', async ({
+      page,
+      creditForm,
+    }) => {
+      await mockCreditApplicationApi(page, { delay: 100 });
+      await mockDictionariesApi(page, { delay: 50 });
+      await mockRegionsApi(page, { delay: 50 });
+      await mockCitiesApi(page, { delay: 50 });
+
+      await creditForm.goto();
+
+      // Проверяем ключевые поля из MOCK_CREDIT_APPLICATION_1
+      await expect(creditForm.input('loanAmount')).toHaveValue(
+        String(MOCK_CREDIT_APPLICATION_1.loanAmount)
+      );
+      await expect(creditForm.input('loanTerm')).toHaveValue(
+        String(MOCK_CREDIT_APPLICATION_1.loanTerm)
+      );
+    });
+
+    test('HP-007-B: поля шага 2 заполнены персональными данными из applicationId=1', async ({
+      page,
+      creditForm,
+    }) => {
+      await mockCreditApplicationApi(page, { delay: 100 });
+      await mockDictionariesApi(page, { delay: 50 });
+      await mockRegionsApi(page, { delay: 50 });
+      await mockCitiesApi(page, { delay: 50 });
+
+      await creditForm.goto();
+
+      // Переходим на шаг 2
+      await creditForm.goToNextStep();
+
+      const personal = MOCK_CREDIT_APPLICATION_1.personalData!;
+      await expect(creditForm.input('lastName')).toHaveValue(personal.lastName);
+      await expect(creditForm.input('firstName')).toHaveValue(personal.firstName);
     });
   });
 });

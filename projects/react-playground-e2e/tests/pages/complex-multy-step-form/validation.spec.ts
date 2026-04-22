@@ -11,7 +11,7 @@
 import { test, expect } from '../../shared/test-factory';
 import { INVALID_DATA, VALID_SMS_CODE } from './test-data';
 
-test.describe('Validation', { tag: ['@validation'] }, () => {
+test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
   test.describe('VAL-001: Обязательные поля', () => {
     test('VAL-001-A: Блокировка перехода при пустых обязательных полях на шаге 1', async ({
       creditForm,
@@ -327,7 +327,9 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
       await creditForm.expectFieldError('workExperienceCurrent', /не может превышать общий/i);
     });
 
-    test('VAL-005-D: Платеж не должен превышать 50% от дохода (warning)', async ({ creditForm }) => {
+    test('VAL-005-D: Платеж не должен превышать 50% от дохода (warning)', async ({
+      creditForm,
+    }) => {
       await creditForm.goto();
 
       // Заполняем большую сумму кредита
@@ -513,5 +515,284 @@ test.describe('Validation', { tag: ['@validation'] }, () => {
 
       await creditForm.expectNoFieldError('electronicSignature');
     });
+  });
+
+  test.describe('VAL-008: Предупреждения (warnings) - не блокируют навигацию', () => {
+    test('VAL-008-A: Высокая долговая нагрузка 40-50% показывает warning, не блокирует', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      // Кредит 1.5M на 24 мес → платеж ~75000, доход 180000 → ratio ~41% (warning zone)
+      await creditForm.fillLoanAmount(1500000);
+      await creditForm.fillLoanTerm(24);
+      await creditForm.fillLoanPurpose('Тестовый кредит с высокой нагрузкой');
+      await creditForm.goToNextStep();
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+      await creditForm.fillStep3ContactInfo();
+      await creditForm.goToNextStep();
+
+      await creditForm.selectEmploymentStatus('employed');
+      await creditForm.fillCompanyName('Компания');
+      await creditForm.fillCompanyInn('1234567890');
+      await creditForm.fillCompanyPhone('+7 (999) 111-22-33');
+      await creditForm.fillCompanyAddress('г. Москва, ул. Тестовая, д. 1');
+      await creditForm.fillPosition('Менеджер');
+      await creditForm.fillWorkExperience(60);
+      await creditForm.fillCurrentJobExperience(24);
+      await creditForm.fillMonthlyIncome(180000); // ratio ~41% - warning, not error
+
+      // Warning не блокирует навигацию
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/дополнительная информация/i);
+    });
+
+    test('VAL-008-B: Возраст > 60 лет - warning, переход разрешен', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
+      await creditForm.goToNextStep();
+
+      // 62 года - валидно (до 70), но показывает warning
+      const today = new Date();
+      const birthDate62 = new Date(today.getFullYear() - 62, today.getMonth(), today.getDate());
+
+      await creditForm.fillLastName('Пожилов');
+      await creditForm.fillFirstName('Иван');
+      await creditForm.fillMiddleName('Иванович');
+      await creditForm.fillBirthDate(birthDate62.toISOString().split('T')[0]);
+      await creditForm.selectGender('male');
+      await creditForm.fillBirthPlace('г. Москва');
+      await creditForm.fillPassportSeries('45 06');
+      await creditForm.fillPassportNumber('123456');
+      await creditForm.fillPassportIssuedBy('ОВД Центрального района');
+      await creditForm.fillPassportIssuedDate('1982-06-20');
+      await creditForm.fillPassportCode('770-001');
+      await creditForm.fillInn('123456789012');
+      await creditForm.fillSnils('123-456-789 01');
+
+      // 62 года ≤ 70 - валидно, переход разрешен
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/контактная информация/i);
+    });
+
+    test('VAL-008-C: Малый стаж на текущем месте (<3 мес) - warning, переход разрешен', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+
+      await creditForm.selectEmploymentStatus('employed');
+      await creditForm.fillCompanyName('Новая Компания');
+      await creditForm.fillCompanyInn('1234567890');
+      await creditForm.fillCompanyPhone('+7 (999) 111-22-33');
+      await creditForm.fillCompanyAddress('г. Москва, ул. Тестовая, д. 1');
+      await creditForm.fillPosition('Стажёр');
+      await creditForm.fillWorkExperience(24);
+      await creditForm.fillCurrentJobExperience(1); // 1 месяц - warning (< 3 мес)
+      await creditForm.fillMonthlyIncome(100000);
+
+      // Warning не блокирует навигацию
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/дополнительная информация/i);
+    });
+  });
+
+  test.describe('VAL-009: Граничные значения дополнительных форматов', () => {
+    test('VAL-009-A: Цель кредита превышает максимум (500 символов)', async ({ creditForm }) => {
+      await creditForm.goto();
+
+      await creditForm.fillLoanAmount(500000);
+      await creditForm.fillLoanTerm(24);
+      // 501 символ - должна быть ошибка
+      await creditForm.fillLoanPurpose('А'.repeat(501));
+
+      await creditForm.goToNextStep();
+
+      await creditForm.expectStepHeading(/основная информация/i);
+      await creditForm.expectFieldError('loanPurpose', /максимум 500|не более 500/i);
+    });
+
+    test('VAL-009-B: ИНН компании неверной длины (не 10 цифр)', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+
+      await creditForm.selectEmploymentStatus('employed');
+      await creditForm.fillCompanyName('Компания');
+      await creditForm.input('companyInn').fill('12345'); // Только 5 цифр
+      await creditForm.fillCompanyPhone('+7 (999) 111-22-33');
+      await creditForm.fillCompanyAddress('г. Москва, ул. Тестовая, д. 1');
+      await creditForm.fillPosition('Сотрудник');
+      await creditForm.fillWorkExperience(24);
+      await creditForm.fillCurrentJobExperience(12);
+      await creditForm.fillMonthlyIncome(100000);
+
+      await creditForm.goToNextStep();
+
+      await creditForm.expectStepHeading(/информация о занятости/i);
+      await creditForm.expectFieldError('companyInn', /10 цифр|ровно 10/i);
+    });
+
+    test('VAL-009-C: agreeMarketing необязателен - отправка без него работает', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep6();
+
+      // Все обязательные согласия
+      await creditForm.acceptPersonalDataAgreement();
+      await creditForm.acceptCreditHistoryAgreement();
+      await creditForm.acceptTermsAgreement();
+      await creditForm.input('confirmAccuracy').check();
+
+      // agreeMarketing НЕ отмечаем (необязателен)
+      await creditForm.fillSmsCode(VALID_SMS_CODE);
+      await creditForm.page.waitForTimeout(700);
+
+      // Форма должна отправиться успешно
+      await creditForm.submitForm();
+      await creditForm.expectSuccessMessage();
+    });
+
+    test('VAL-009-D: Обязательные поля шага 3 - адрес регистрации', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
+      await creditForm.goToNextStep();
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+
+      // Заполняем телефон и email, но НЕ заполняем адрес
+      await creditForm.fillPhone('+7 (999) 123-45-67');
+      await creditForm.fillEmail('test@example.com');
+
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 3 - адрес обязателен
+      await creditForm.expectStepHeading(/контактная информация/i);
+      await creditForm.expectFieldError('registrationAddress-region');
+    });
+
+    test('VAL-009-E: Обязательные поля шага 5 (maritalStatus, dependents, education)', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+      await creditForm.fillStep4Employment();
+      await creditForm.goToNextStep();
+
+      // Не заполняем ничего, пытаемся перейти
+      await creditForm.goToNextStep();
+
+      // Должны остаться на шаге 5
+      await creditForm.expectStepHeading(/дополнительная информация/i);
+      await creditForm.expectFieldError('maritalStatus');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // VAL-010: Форматы паспортных данных
+  // -------------------------------------------------------------------------
+
+  test.describe('VAL-010: Форматы паспортных данных', { tag: ['@regression'] }, () => {
+    test('VAL-010-A: Серия паспорта неверного формата → ошибка', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/персональные данные/i);
+
+      await creditForm.input('passportSeries').fill(INVALID_DATA.invalidPassportSeries);
+      await creditForm.input('passportSeries').blur();
+
+      await creditForm.expectFieldError('passportSeries');
+    });
+
+    test('VAL-010-B: Код подразделения неверного формата → ошибка', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/персональные данные/i);
+
+      await creditForm.input('passportCode').fill(INVALID_DATA.invalidDepartmentCode);
+      await creditForm.input('passportCode').blur();
+
+      await creditForm.expectFieldError('passportCode');
+    });
+
+    test('VAL-010-C: СНИЛС неверного формата → ошибка', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/персональные данные/i);
+
+      await creditForm.input('snils').fill(INVALID_DATA.invalidSnils);
+      await creditForm.input('snils').blur();
+
+      await creditForm.expectFieldError('snils');
+    });
+
+    test('VAL-010-D: Дата выдачи паспорта в будущем → ошибка', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.goToNextStep();
+      await creditForm.expectStepHeading(/персональные данные/i);
+
+      await creditForm.input('passportIssuedDate').fill(INVALID_DATA.futureDateStr);
+      await creditForm.input('passportIssuedDate').blur();
+
+      await creditForm.expectFieldError('passportIssuedDate');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // VAL-011: Граничные значения автокредита
+  // -------------------------------------------------------------------------
+
+  test.describe('VAL-011: Граничные значения автокредита', { tag: ['@regression'] }, () => {
+    const carYearCases = [
+      { value: INVALID_DATA.carYearTooOld, label: 'слишком старый (1999)', expectError: true },
+      { value: INVALID_DATA.carYearTooNew, label: 'слишком новый (+2 года)', expectError: true },
+      { value: 2020, label: 'валидный (2020)', expectError: false },
+    ];
+
+    for (const { value, label, expectError } of carYearCases) {
+      test(`VAL-011-carYear: год автомобиля ${label}`, async ({ creditForm }) => {
+        await creditForm.goto();
+        await creditForm.selectLoanType('car');
+
+        await creditForm.fillCarYear(value);
+        await creditForm.input('carYear').blur();
+
+        if (expectError) {
+          await creditForm.expectFieldError('carYear');
+        } else {
+          await expect(creditForm.page.locator('[data-testid="error-carYear"]')).not.toBeVisible();
+        }
+      });
+    }
+
+    const carPriceCases = [
+      {
+        value: INVALID_DATA.carPriceTooLow,
+        label: 'слишком низкая (200k)',
+        expectError: true,
+      },
+      {
+        value: INVALID_DATA.carPriceTooHigh,
+        label: 'слишком высокая (11M)',
+        expectError: true,
+      },
+      { value: 3000000, label: 'валидная (3M)', expectError: false },
+    ];
+
+    for (const { value, label, expectError } of carPriceCases) {
+      test(`VAL-011-carPrice: цена автомобиля ${label}`, async ({ creditForm }) => {
+        await creditForm.goto();
+        await creditForm.selectLoanType('car');
+
+        await creditForm.fillCarPrice(value);
+        await creditForm.input('carPrice').blur();
+
+        if (expectError) {
+          await creditForm.expectFieldError('carPrice');
+        } else {
+          await expect(creditForm.page.locator('[data-testid="error-carPrice"]')).not.toBeVisible();
+        }
+      });
+    }
   });
 });

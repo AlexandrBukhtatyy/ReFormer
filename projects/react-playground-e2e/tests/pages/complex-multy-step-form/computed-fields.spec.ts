@@ -487,7 +487,6 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
 
       // Добавляем второго созаемщика
       await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
-      const secondCoBorrower = creditForm.page.locator('[class*="coborrower"]').last();
       await creditForm.input('coBorrower-lastName').last().fill('Петров');
       await creditForm.input('coBorrower-firstName').last().fill('Алексей');
       await creditForm.input('coBorrower-middleName').last().fill('Алексеевич');
@@ -505,6 +504,99 @@ test.describe('Computed Fields', { tag: ['@computed'] }, () => {
       const coBorrowersIncome = parseInt((coBorrowersIncomeText || '0').replace(/\s/g, ''));
 
       expect(coBorrowersIncome).toBe(200000); // 80000 + 120000
+    });
+  });
+
+  test.describe('COMP-008: Автоматический расчет первоначального взноса (ипотека)', () => {
+    test('COMP-008-A: Первоначальный взнос = 20% от стоимости недвижимости', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.selectLoanType('mortgage');
+
+      await creditForm.fillPropertyValue(5000000);
+      await creditForm.page.waitForTimeout(200);
+
+      // initialPayment должен автоматически стать 20% от 5 000 000 = 1 000 000
+      const initialPaymentValue = await creditForm.input('initialPayment').inputValue();
+      const cleanValue = parseInt(initialPaymentValue.replace(/\s/g, ''));
+      expect(cleanValue).toBe(1000000);
+    });
+
+    test('COMP-008-B: Взнос пересчитывается при изменении стоимости недвижимости', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.selectLoanType('mortgage');
+
+      await creditForm.fillPropertyValue(4000000);
+      await creditForm.page.waitForTimeout(200);
+      const payment1 = parseInt(
+        (await creditForm.input('initialPayment').inputValue()).replace(/\s/g, '')
+      );
+
+      await creditForm.fillPropertyValue(8000000);
+      await creditForm.page.waitForTimeout(200);
+      const payment2 = parseInt(
+        (await creditForm.input('initialPayment').inputValue()).replace(/\s/g, '')
+      );
+
+      // При удвоении стоимости взнос тоже удваивается
+      expect(payment2).toBeGreaterThan(payment1);
+      expect(payment1).toBe(800000); // 20% от 4 000 000
+      expect(payment2).toBe(1600000); // 20% от 8 000 000
+    });
+  });
+
+  test.describe('COMP-009: totalIncome учитывает доход созаемщиков', () => {
+    test('COMP-009-A: totalIncome = monthlyIncome + additionalIncome + coBorrowersIncome', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
+      await creditForm.goToNextStep();
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+      await creditForm.fillStep3ContactInfo();
+      await creditForm.goToNextStep();
+
+      // Основной доход: 100000, дополнительный: 20000
+      await creditForm.selectEmploymentStatus('employed');
+      await creditForm.fillCompanyName('Компания');
+      await creditForm.fillCompanyInn('1234567890');
+      await creditForm.fillCompanyPhone('+7 (999) 111-22-33');
+      await creditForm.fillCompanyAddress('г. Москва, ул. Тестовая, д. 1');
+      await creditForm.fillPosition('Менеджер');
+      await creditForm.fillWorkExperience(60);
+      await creditForm.fillCurrentJobExperience(24);
+      await creditForm.fillMonthlyIncome(100000);
+      await creditForm.fillAdditionalIncome(20000);
+      await creditForm.input('additionalIncomeSource').fill('Аренда');
+      await creditForm.goToNextStep();
+
+      // Добавляем созаемщика с доходом 50000
+      await creditForm.selectMaritalStatus('married');
+      await creditForm.fillDependents(0);
+      await creditForm.selectEducation('higher');
+      await creditForm.toggleHasProperty(false);
+      await creditForm.toggleHasLoans(false);
+      await creditForm.toggleAddCoBorrower(true);
+      await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
+      await creditForm.input('coBorrower-lastName').first().fill('Иванова');
+      await creditForm.input('coBorrower-firstName').first().fill('Анна');
+      await creditForm.input('coBorrower-middleName').first().fill('Ивановна');
+      await creditForm.input('coBorrower-birthDate').first().fill('1992-03-15');
+      await creditForm.input('coBorrower-phone').first().fill('+7 (999) 222-33-44');
+      await creditForm.input('coBorrower-email').first().fill('anna@example.com');
+      await creditForm.input('coBorrower-monthlyIncome').first().fill('50000');
+
+      await creditForm.goToNextStep();
+
+      // totalIncome = 100000 + 20000 + 50000 = 170000
+      const totalIncomeText = await creditForm.computed('totalIncome').textContent();
+      const totalIncome = parseInt((totalIncomeText || '0').replace(/\s/g, ''));
+
+      expect(totalIncome).toBe(170000);
     });
   });
 });

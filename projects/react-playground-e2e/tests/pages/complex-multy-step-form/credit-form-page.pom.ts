@@ -621,6 +621,27 @@ export class CreditFormPage extends BasePage {
     }
   }
 
+  /** Проверяет, что отображается индикатор загрузки (LoadingState) */
+  async expectLoadingState() {
+    await expect(
+      this.page.locator('[data-testid="loading-state"], text=Загрузка данных...')
+    ).toBeVisible({ timeout: 5000 });
+  }
+
+  /** Проверяет, что отображается экран ошибки (ErrorState) с кнопкой "Повторить" */
+  async expectErrorState(errorText?: string | RegExp) {
+    const errorContainer = this.page.locator(
+      '[data-testid="error-state"], [class*="error-state"], [class*="ErrorState"]'
+    );
+    await expect(errorContainer).toBeVisible({ timeout: 10000 });
+    if (errorText) {
+      await expect(this.page.getByText(errorText)).toBeVisible();
+    }
+    await expect(
+      this.page.locator('button:has-text("Повторить"), button:has-text("Retry")')
+    ).toBeVisible();
+  }
+
   hasNoErrors(): boolean {
     return this.pageErrors.length === 0 && !this.consoleErrors.some((e) => e.includes('Error'));
   }
@@ -706,7 +727,9 @@ export class CreditFormPage extends BasePage {
     await this.fillBirthPlace(options?.birthPlace ?? 'г. Москва');
     await this.fillPassportSeries(options?.passportSeries ?? '45 06');
     await this.fillPassportNumber(options?.passportNumber ?? '123456');
-    await this.fillPassportIssuedBy(options?.passportIssuedBy ?? 'ОВД Центрального района г. Москвы');
+    await this.fillPassportIssuedBy(
+      options?.passportIssuedBy ?? 'ОВД Центрального района г. Москвы'
+    );
     await this.fillPassportIssuedDate(options?.passportIssuedDate ?? '2010-06-20');
     await this.fillPassportCode(options?.passportCode ?? '770-001');
     await this.fillInn(options?.inn ?? '123456789012');

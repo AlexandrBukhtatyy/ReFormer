@@ -23,7 +23,9 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env.CI
+    ? [['list'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]]
+    : [['dot'], ['html']],
   /* Expect timeout */
   expect: { timeout: 5000 },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -70,6 +72,22 @@ export default defineConfig({
       testDir: './tests/pages/complex-multy-step-form',
       grep: /@critical/,
       use: { ...devices['Desktop Safari'] },
+      metadata: { basePath: '/examples/complex', variant: 'compound' },
+    },
+    // Smoke tests — быстрая проверка критических путей
+    {
+      name: 'smoke',
+      testDir: './tests/pages/complex-multy-step-form',
+      grep: /@smoke/,
+      use: { ...devices['Desktop Chrome'] },
+      metadata: { basePath: '/examples/complex', variant: 'compound' },
+    },
+    // Regression tests — полный регрессионный прогон
+    {
+      name: 'regression',
+      testDir: './tests/pages/complex-multy-step-form',
+      grep: /@regression/,
+      use: { ...devices['Desktop Chrome'] },
       metadata: { basePath: '/examples/complex', variant: 'compound' },
     },
     // Other pages

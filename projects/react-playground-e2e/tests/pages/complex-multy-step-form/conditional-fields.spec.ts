@@ -416,4 +416,107 @@ test.describe('Conditional Fields', { tag: ['@conditional'] }, () => {
       await expect(creditForm.page.locator('text=/имущество.*#1/i')).not.toBeVisible();
     });
   });
+
+  test.describe('COND-006: Копирование email через sameEmail (copyFrom)', () => {
+    test('COND-006-A: Чекбокс sameEmail копирует email в дополнительный', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
+      await creditForm.goToNextStep();
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+
+      const testEmail = 'primary@example.com';
+      await creditForm.fillEmail(testEmail);
+
+      // Включаем чекбокс "Email совпадает"
+      await creditForm.input('sameEmail').check();
+      await creditForm.page.waitForTimeout(100);
+
+      // Дополнительный email должен стать равным основному (copyFrom behavior)
+      const additionalEmail = await creditForm.input('emailAdditional').inputValue();
+      expect(additionalEmail).toBe(testEmail);
+    });
+
+    test('COND-006-B: Отключение sameEmail очищает дополнительный email (resetOnDisable)', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillStep1ConsumerLoan();
+      await creditForm.goToNextStep();
+      await creditForm.fillStep2PersonalData();
+      await creditForm.goToNextStep();
+
+      await creditForm.fillEmail('primary@example.com');
+      await creditForm.input('sameEmail').check();
+      await creditForm.page.waitForTimeout(100);
+
+      // Отключаем чекбокс
+      await creditForm.input('sameEmail').uncheck();
+      await creditForm.page.waitForTimeout(100);
+
+      // Дополнительный email должен быть очищен
+      const additionalEmail = await creditForm.input('emailAdditional').inputValue();
+      expect(additionalEmail).toBe('');
+    });
+  });
+
+  test.describe('COND-007: Статусы занятости retired и student', () => {
+    test('COND-007-A: Пенсионер - поля работодателя скрыты, доход виден', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+
+      await creditForm.selectEmploymentStatus('retired');
+
+      // Поля работодателя скрыты
+      await creditForm.expectFieldHidden('companyName');
+      await creditForm.expectFieldHidden('companyInn');
+      await creditForm.expectFieldHidden('position');
+
+      // Поля ИП скрыты
+      await creditForm.expectFieldHidden('businessType');
+      await creditForm.expectFieldHidden('businessInn');
+
+      // Поле дохода видно (пенсионер получает пенсию)
+      await creditForm.expectFieldVisible('monthlyIncome');
+    });
+
+    test('COND-007-B: Студент - поля работодателя и ИП скрыты', async ({ creditForm }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+
+      await creditForm.selectEmploymentStatus('student');
+
+      // Поля работодателя скрыты
+      await creditForm.expectFieldHidden('companyName');
+      await creditForm.expectFieldHidden('position');
+
+      // Поля ИП скрыты
+      await creditForm.expectFieldHidden('businessType');
+    });
+
+    test('COND-007-C: Переход между retired/employed сбрасывает данные (resetOnDisable)', async ({
+      creditForm,
+    }) => {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+
+      // Заполняем данные работодателя
+      await creditForm.selectEmploymentStatus('employed');
+      await creditForm.fillCompanyName('ООО Тест');
+      await creditForm.fillCompanyInn('1234567890');
+
+      // Меняем на пенсионера
+      await creditForm.selectEmploymentStatus('retired');
+
+      // Возвращаемся к employed - данные должны быть сброшены
+      await creditForm.selectEmploymentStatus('employed');
+
+      const companyName = await creditForm.input('companyName').inputValue();
+      expect(companyName).toBe('');
+    });
+  });
 });

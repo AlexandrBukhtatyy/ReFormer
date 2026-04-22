@@ -230,6 +230,18 @@ export const INVALID_DATA = {
 
   // SMS код
   incompleteSmsCode: '123', // нужно 6 цифр
+
+  // Паспортные данные (неверный формат)
+  invalidPassportSeries: '1234', // нужен формат "XX XX" (2 цифры + пробел + 2 цифры)
+  invalidDepartmentCode: '123456', // нужен формат "XXX-XXX"
+  invalidSnils: '12345678', // нужен формат "XXX-XXX-XXX XX"
+  futureDateStr: '2030-01-01', // будущая дата (для даты выдачи паспорта)
+
+  // Автокредит (граничные значения)
+  carYearTooOld: 1999, // минимальный год — 2000
+  carYearTooNew: new Date().getFullYear() + 2, // максимум — текущий год + 1
+  carPriceTooLow: 200000, // минимум — 300 000
+  carPriceTooHigh: 11000000, // максимум — 10 000 000
 };
 
 // ============================================================================
@@ -318,18 +330,14 @@ export const generateBirthDateForAge = (age: number): string => {
  * Генерирует случайный ИНН (12 цифр для физлица)
  */
 export const generateRandomInn = (): string => {
-  return Array.from({ length: 12 }, () =>
-    Math.floor(Math.random() * 10)
-  ).join('');
+  return Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
 };
 
 /**
  * Генерирует случайный СНИЛС
  */
 export const generateRandomSnils = (): string => {
-  const digits = Array.from({ length: 11 }, () =>
-    Math.floor(Math.random() * 10)
-  ).join('');
+  const digits = Array.from({ length: 11 }, () => Math.floor(Math.random() * 10)).join('');
   return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 9)} ${digits.slice(9, 11)}`;
 };
 

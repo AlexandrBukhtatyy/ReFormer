@@ -9,6 +9,7 @@
  */
 
 import { test, expect } from '../../shared/test-factory';
+import type { CreditFormPage } from './credit-form-page.pom';
 
 test.describe('Arrays', { tag: ['@arrays'] }, () => {
   test.describe('ARR-001: Добавление созаемщика', () => {
@@ -96,7 +97,9 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleAddCoBorrower(true);
 
       // Находим секцию созаемщиков по заголовку
-      const coBorrowerSection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
+      const coBorrowerSection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Получаем начальное количество созаемщиков (форма может загружаться с данными)
       const coBorrowerItems = coBorrowerSection.locator('text=/созаемщик.*#/i');
@@ -107,7 +110,10 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await expect(coBorrowerItems).toHaveCount(initialCount + 1);
 
       // Удаляем созаемщика (используем локатор внутри секции созаемщиков)
-      await coBorrowerSection.getByRole('button', { name: /удалить/i }).first().click();
+      await coBorrowerSection
+        .getByRole('button', { name: /удалить/i })
+        .first()
+        .click();
       await creditForm.page.waitForTimeout(300); // Ждём обновления DOM
 
       // Количество созаемщиков уменьшилось
@@ -123,10 +129,14 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleAddCoBorrower(true);
 
       // Находим секцию созаемщиков по заголовку
-      const coBorrowerSection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
+      const coBorrowerSection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Получаем начальное количество созаемщиков (форма может загружаться с данными)
-      const coBorrowerInputs = coBorrowerSection.locator('[data-testid="input-coBorrower-lastName"]');
+      const coBorrowerInputs = coBorrowerSection.locator(
+        '[data-testid="input-coBorrower-lastName"]'
+      );
       const initialCount = await coBorrowerInputs.count();
 
       // Добавляем 3 созаемщиков с уникальными данными
@@ -171,7 +181,9 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleHasProperty(true);
 
       // Находим секцию имущества по заголовку
-      const propertySection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Имущество\s*\+ Добавить имущество/ });
+      const propertySection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Имущество\s*\+ Добавить имущество/ });
 
       // Получаем начальное количество имущества (форма может загружаться с данными)
       const propertyItems = propertySection.locator('text=/имущество.*#/i');
@@ -201,7 +213,9 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleHasLoans(true);
 
       // Находим секцию кредитов по заголовку
-      const loansSection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Существующие кредиты\s*\+ Добавить кредит/ });
+      const loansSection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Существующие кредиты\s*\+ Добавить кредит/ });
 
       // Получаем начальное количество кредитов
       const loanItems = loansSection.locator('text=/кредит.*#/i');
@@ -226,7 +240,9 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
     // These tests verify that adding co-borrowers with various data states works correctly,
     // and that valid co-borrowers allow successful form progression.
 
-    test('ARR-003-A: Добавление созаемщика с пустыми полями не блокирует переход', async ({ creditForm }) => {
+    test('ARR-003-A: Добавление созаемщика с пустыми полями не блокирует переход', async ({
+      creditForm,
+    }) => {
       // NOTE: This test documents current behavior - step validation doesn't validate array item fields.
       // Array item validation only occurs during full form submission.
       await creditForm.goto();
@@ -242,11 +258,13 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleAddCoBorrower(true);
 
       // Находим секцию созаемщиков
-      const coBorrowerSection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
+      const coBorrowerSection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Удаляем всех существующих созаемщиков (форма может загружаться с данными)
       let deleteButton = coBorrowerSection.getByRole('button', { name: /удалить/i }).first();
-      while (await deleteButton.count() > 0) {
+      while ((await deleteButton.count()) > 0) {
         await deleteButton.click();
         await creditForm.page.waitForTimeout(300);
         deleteButton = coBorrowerSection.getByRole('button', { name: /удалить/i }).first();
@@ -262,7 +280,9 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.expectStepHeading(/подтверждение/i);
     });
 
-    test('ARR-003-B: Созаемщик с частично заполненными полями позволяет переход', async ({ creditForm }) => {
+    test('ARR-003-B: Созаемщик с частично заполненными полями позволяет переход', async ({
+      creditForm,
+    }) => {
       // NOTE: This test documents current behavior - step validation doesn't validate array item fields.
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
@@ -277,11 +297,13 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleAddCoBorrower(true);
 
       // Находим секцию созаемщиков
-      const coBorrowerSection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
+      const coBorrowerSection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Удаляем всех существующих созаемщиков
       let deleteButton = coBorrowerSection.getByRole('button', { name: /удалить/i }).first();
-      while (await deleteButton.count() > 0) {
+      while ((await deleteButton.count()) > 0) {
         await deleteButton.click();
         await creditForm.page.waitForTimeout(300);
         deleteButton = coBorrowerSection.getByRole('button', { name: /удалить/i }).first();
@@ -317,11 +339,13 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleAddCoBorrower(true);
 
       // Находим секцию созаемщиков
-      const coBorrowerSection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
+      const coBorrowerSection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Созаемщики\s*\+ Добавить созаемщика/ });
 
       // Удаляем всех существующих созаемщиков
       let deleteButton = coBorrowerSection.getByRole('button', { name: /удалить/i }).first();
-      while (await deleteButton.count() > 0) {
+      while ((await deleteButton.count()) > 0) {
         await deleteButton.click();
         await creditForm.page.waitForTimeout(300);
         deleteButton = coBorrowerSection.getByRole('button', { name: /удалить/i }).first();
@@ -333,11 +357,21 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       // Заполняем поля с невалидным email
       await coBorrowerSection.locator('[data-testid="input-coBorrower-lastName"]').fill('Тестов');
       await coBorrowerSection.locator('[data-testid="input-coBorrower-firstName"]').fill('Тест');
-      await coBorrowerSection.locator('[data-testid="input-coBorrower-middleName"]').fill('Тестович');
-      await coBorrowerSection.locator('[data-testid="input-coBorrower-birthDate"]').fill('1990-01-01');
-      await coBorrowerSection.locator('[data-testid="input-coBorrower-phone"]').fill('+7 (999) 123-45-67');
-      await coBorrowerSection.locator('[data-testid="input-coBorrower-email"]').fill('invalid-email'); // Невалидный email
-      await coBorrowerSection.locator('[data-testid="input-coBorrower-monthlyIncome"]').fill('50000');
+      await coBorrowerSection
+        .locator('[data-testid="input-coBorrower-middleName"]')
+        .fill('Тестович');
+      await coBorrowerSection
+        .locator('[data-testid="input-coBorrower-birthDate"]')
+        .fill('1990-01-01');
+      await coBorrowerSection
+        .locator('[data-testid="input-coBorrower-phone"]')
+        .fill('+7 (999) 123-45-67');
+      await coBorrowerSection
+        .locator('[data-testid="input-coBorrower-email"]')
+        .fill('invalid-email'); // Невалидный email
+      await coBorrowerSection
+        .locator('[data-testid="input-coBorrower-monthlyIncome"]')
+        .fill('50000');
 
       // Переход разрешён (step validation не проверяет элементы массива)
       await creditForm.goToNextStep();
@@ -428,7 +462,9 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.toggleHasProperty(true);
 
       // Находим секцию имущества по заголовку
-      const propertySection = creditForm.page.locator('.bg-gray-50').filter({ hasText: /^Имущество\s*\+ Добавить имущество/ });
+      const propertySection = creditForm.page
+        .locator('.bg-gray-50')
+        .filter({ hasText: /^Имущество\s*\+ Добавить имущество/ });
 
       // Удаляем все существующие элементы имущества
       let propertyItems = propertySection.locator('text=/имущество.*#/i');
@@ -475,6 +511,65 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
 
       // Проверяем сохранение
       await expect(creditForm.input('coBorrower-lastName').first()).toHaveValue('Вложенный');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // ARR-006: Поле relationship у созаёмщика
+  // -------------------------------------------------------------------------
+
+  test.describe('ARR-006: Поле relationship у созаёмщика', { tag: ['@regression'] }, () => {
+    async function navigateToStep5WithCoBorrower(creditForm: CreditFormPage) {
+      await creditForm.goto();
+      await creditForm.fillAndNavigateToStep4();
+      await creditForm.fillStep4Employment();
+      await creditForm.goToNextStep();
+      await creditForm.toggleAddCoBorrower(true);
+      await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
+    }
+
+    test('ARR-006-A: поле relationship обязательно — при пустом значении шаг не переходит', async ({
+      creditForm,
+    }) => {
+      await navigateToStep5WithCoBorrower(creditForm);
+
+      // Заполняем минимальные данные созаёмщика кроме relationship
+      await creditForm.input('coBorrower-lastName').first().fill('Иванов');
+      await creditForm.input('coBorrower-firstName').first().fill('Пётр');
+      await creditForm.input('coBorrower-monthlyIncome').first().fill('50000');
+
+      // Не выбираем relationship, пытаемся перейти
+      await creditForm.goToNextStep();
+
+      // Ожидаем ошибку на поле relationship или остаёмся на шаге 5
+      const relationshipError = creditForm.page.locator(
+        '[data-testid="error-coBorrower-relationship"], [data-testid*="relationship"] [class*="error"]'
+      );
+      const step5Heading = creditForm.page
+        .locator('h2, h3, [class*="heading"]')
+        .filter({ hasText: /дополнительная информация/i });
+
+      const hasError = (await relationshipError.count()) > 0;
+      const onStep5 = (await step5Heading.count()) > 0;
+
+      expect(hasError || onStep5).toBeTruthy();
+    });
+
+    test('ARR-006-B: все значения enum relationship доступны в select', async ({ creditForm }) => {
+      await navigateToStep5WithCoBorrower(creditForm);
+
+      const relationshipSelect = creditForm.page
+        .locator('[data-testid="input-coBorrower-relationship"], select[name*="relationship"]')
+        .first();
+
+      await expect(relationshipSelect).toBeVisible({ timeout: 5000 });
+
+      // Проверяем наличие значений enum
+      const expectedValues = ['spouse', 'parent', 'child', 'sibling', 'relative', 'other'];
+      for (const value of expectedValues) {
+        const option = relationshipSelect.locator(`option[value="${value}"]`);
+        await expect(option).toBeAttached();
+      }
     });
   });
 });
