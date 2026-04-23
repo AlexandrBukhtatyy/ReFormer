@@ -10,14 +10,14 @@
  * @tag @validation
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../shared/test-factory';
 import { ValidationPage } from './validation-page.pom';
 
 test.describe('Примеры валидации', { tag: ['@validation'] }, () => {
   let validationPage: ValidationPage;
 
-  test.beforeEach(async ({ page }) => {
-    validationPage = new ValidationPage(page);
+  test.beforeEach(async ({ page, perf }) => {
+    validationPage = new ValidationPage(page, { perf });
     await validationPage.goto();
     await validationPage.expandAllSections();
   });

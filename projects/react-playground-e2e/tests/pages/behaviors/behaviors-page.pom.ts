@@ -1,4 +1,9 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import type { PerformanceCollector } from '../../shared/performance-collector';
+
+export interface BehaviorsPageOptions {
+  perf?: PerformanceCollector;
+}
 
 /**
  * Page Object Model for Behaviors Examples Page
@@ -8,6 +13,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
 export class BehaviorsPage {
   readonly page: Page;
   readonly baseUrl = '/examples/behaviors';
+  readonly perf?: PerformanceCollector;
 
   // Reset button
   readonly resetButton: Locator;
@@ -16,8 +22,9 @@ export class BehaviorsPage {
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];
 
-  constructor(page: Page) {
+  constructor(page: Page, options?: BehaviorsPageOptions) {
     this.page = page;
+    this.perf = options?.perf;
 
     // Reset button
     this.resetButton = page.getByRole('button', { name: /сбросить форму/i });
@@ -57,16 +64,22 @@ export class BehaviorsPage {
   // Navigation
   // ============================================================================
 
+  private async measure<T>(name: string, action: () => Promise<T>): Promise<T> {
+    return this.perf ? this.perf.measure(name, action) : action();
+  }
+
   async goto() {
-    await this.page.goto(this.baseUrl);
-    await this.page.waitForLoadState('networkidle');
-    await this.waitForPageReady();
+    return this.measure('goto', async () => {
+      await this.page.goto(this.baseUrl);
+      await this.page.waitForLoadState('networkidle');
+      await this.waitForPageReady();
+    });
   }
 
   async waitForPageReady() {
-    await expect(
-      this.page.getByRole('heading', { name: /примеры поведений/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(this.page.getByRole('heading', { name: /примеры поведений/i })).toBeVisible({
+      timeout: 10000,
+    });
   }
 
   // ============================================================================
@@ -278,7 +291,9 @@ export class BehaviorsPage {
   // ============================================================================
 
   async reset() {
-    await this.resetButton.click();
+    return this.measure('reset', async () => {
+      await this.resetButton.click();
+    });
   }
 
   async waitForBehaviorUpdate() {

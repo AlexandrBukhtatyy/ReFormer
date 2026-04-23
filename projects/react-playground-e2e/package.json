@@ -5,7 +5,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:chromium": "playwright test --project=chromium",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:perf": "cross-env PERF_ENABLED=true playwright test",
+    "test:e2e:perf:smoke": "cross-env PERF_ENABLED=true playwright test --grep=@smoke"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

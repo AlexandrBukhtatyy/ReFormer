@@ -1,5 +1,6 @@
 import { test as base, type Page, type Route } from '@playwright/test';
 import { CreditFormPage } from '../pages/complex-multy-step-form/credit-form-page.pom';
+import { PerformanceCollector } from './performance-collector';
 
 /**
  * Project metadata interface for type safety
@@ -17,6 +18,8 @@ export interface TestFixtures {
   creditForm: CreditFormPage;
   /** Auto-mocked APIs */
   mockApis: MockApisFixture;
+  /** Performance collector — no-op при PERF_ENABLED !== 'true' */
+  perf: PerformanceCollector;
 }
 
 /**
@@ -104,13 +107,24 @@ function createMockApis(page: Page): MockApisFixture {
  */
 export const test = base.extend<TestFixtures>({
   /**
+   * Performance collector — инициализируется раньше POM, чтобы передать
+   * его в конструктор. Auto-flush после теста пишет NDJSON и лог в консоль.
+   */
+  perf: async ({ page }, use, testInfo) => {
+    const collector = new PerformanceCollector(page, testInfo);
+    await use(collector);
+    await collector.flush();
+  },
+
+  /**
    * Credit form page object with basePath and variant from project metadata
    */
-  creditForm: async ({ page }, use, testInfo) => {
+  creditForm: async ({ page, perf }, use, testInfo) => {
     const metadata = getProjectMetadata(testInfo);
     const creditForm = new CreditFormPage(page, {
       basePath: metadata.basePath,
       variant: metadata.variant,
+      perf,
     });
 
     await use(creditForm);

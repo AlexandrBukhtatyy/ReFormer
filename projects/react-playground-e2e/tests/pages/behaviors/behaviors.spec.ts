@@ -14,14 +14,14 @@
  * @tag @behaviors
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../shared/test-factory';
 import { BehaviorsPage } from './behaviors-page.pom';
 
 test.describe('Примеры поведений', { tag: ['@behaviors'] }, () => {
   let behaviorsPage: BehaviorsPage;
 
-  test.beforeEach(async ({ page }) => {
-    behaviorsPage = new BehaviorsPage(page);
+  test.beforeEach(async ({ page, perf }) => {
+    behaviorsPage = new BehaviorsPage(page, { perf });
     await behaviorsPage.goto();
   });
 

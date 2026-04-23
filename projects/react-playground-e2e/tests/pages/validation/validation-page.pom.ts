@@ -1,4 +1,9 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import type { PerformanceCollector } from '../../shared/performance-collector';
+
+export interface ValidationPageOptions {
+  perf?: PerformanceCollector;
+}
 
 /**
  * Page Object Model for Validation Examples Page
@@ -8,6 +13,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
 export class ValidationPage {
   readonly page: Page;
   readonly baseUrl = '/examples/validation';
+  readonly perf?: PerformanceCollector;
 
   // Section toggles
   readonly stringsSection: Locator;
@@ -23,8 +29,9 @@ export class ValidationPage {
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];
 
-  constructor(page: Page) {
+  constructor(page: Page, options?: ValidationPageOptions) {
     this.page = page;
+    this.perf = options?.perf;
 
     // Section toggles
     this.stringsSection = page.getByRole('button', { name: /строки/i });
@@ -71,10 +78,16 @@ export class ValidationPage {
   // Navigation
   // ============================================================================
 
+  private async measure<T>(name: string, action: () => Promise<T>): Promise<T> {
+    return this.perf ? this.perf.measure(name, action) : action();
+  }
+
   async goto() {
-    await this.page.goto(this.baseUrl);
-    await this.page.waitForLoadState('networkidle');
-    await this.waitForPageReady();
+    return this.measure('goto', async () => {
+      await this.page.goto(this.baseUrl);
+      await this.page.waitForLoadState('networkidle');
+      await this.waitForPageReady();
+    });
   }
 
   async waitForPageReady() {
@@ -204,11 +217,15 @@ export class ValidationPage {
   // ============================================================================
 
   async validateAll() {
-    await this.validateAllButton.click();
+    return this.measure('validateAll', async () => {
+      await this.validateAllButton.click();
+    });
   }
 
   async reset() {
-    await this.resetButton.click();
+    return this.measure('reset', async () => {
+      await this.resetButton.click();
+    });
   }
 
   async blurCurrentField() {

@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import type { PerformanceCollector } from '../../shared/performance-collector';
 
 // ============================================================================
 // Types
@@ -15,6 +16,7 @@ export type Gender = 'male' | 'female';
 export interface CreditFormPageOptions {
   basePath?: string;
   variant?: FormVariant;
+  perf?: PerformanceCollector;
 }
 
 // ============================================================================
@@ -41,6 +43,7 @@ abstract class BasePage {
 export class CreditFormPage extends BasePage {
   readonly variant: FormVariant;
   readonly basePath: string;
+  readonly perf?: PerformanceCollector;
 
   // Navigation buttons
   readonly nextButton: Locator;
@@ -59,6 +62,7 @@ export class CreditFormPage extends BasePage {
     super(page);
     this.basePath = options?.basePath ?? '/examples/complex';
     this.variant = options?.variant ?? 'compound';
+    this.perf = options?.perf;
 
     // Navigation buttons (use data-testid)
     this.nextButton = page.locator('[data-testid="btn-next"]');
@@ -82,6 +86,14 @@ export class CreditFormPage extends BasePage {
       this.alertMessages.push(dialog.message());
       await dialog.accept();
     });
+  }
+
+  /**
+   * Обёртка для замеров производительности. В disabled-режиме сразу вызывает
+   * action() без overhead; при PERF_ENABLED=true пишет метрику в коллектор.
+   */
+  private async measure<T>(name: string, action: () => Promise<T>): Promise<T> {
+    return this.perf ? this.perf.measure(name, action) : action();
   }
 
   // ============================================================================
@@ -148,23 +160,25 @@ export class CreditFormPage extends BasePage {
    *   чтобы page.route() имел приоритет. По умолчанию MSW активен (нужен для happy-path).
    */
   async goto(options?: { disableMsw?: boolean }) {
-    let target = this.basePath;
-    if (options?.disableMsw) {
-      // Разрегистрируем MSW service worker, сохранённый от предыдущих запусков.
-      await this.page.goto('/');
-      await this.page.evaluate(async () => {
-        if ('serviceWorker' in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.unregister()));
-        }
-      });
-      const url = new URL(this.basePath, 'http://localhost');
-      url.searchParams.set('mocks', 'off');
-      target = url.pathname + url.search;
-    }
-    await this.page.goto(target);
-    await this.page.waitForLoadState('networkidle');
-    await this.waitForFormReady();
+    return this.measure('goto', async () => {
+      let target = this.basePath;
+      if (options?.disableMsw) {
+        // Разрегистрируем MSW service worker, сохранённый от предыдущих запусков.
+        await this.page.goto('/');
+        await this.page.evaluate(async () => {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+        });
+        const url = new URL(this.basePath, 'http://localhost');
+        url.searchParams.set('mocks', 'off');
+        target = url.pathname + url.search;
+      }
+      await this.page.goto(target);
+      await this.page.waitForLoadState('networkidle');
+      await this.waitForFormReady();
+    });
   }
 
   async waitForFormReady() {
@@ -179,31 +193,38 @@ export class CreditFormPage extends BasePage {
   }
 
   async goToNextStep() {
-    await this.nextButton.click();
-    await this.page.waitForTimeout(300);
+    return this.measure('nav.next', async () => {
+      await this.nextButton.click();
+      await this.page.waitForTimeout(300);
+    });
   }
 
   async goToPreviousStep() {
-    await this.prevButton.click();
-    await this.page.waitForTimeout(300);
+    return this.measure('nav.prev', async () => {
+      await this.prevButton.click();
+      await this.page.waitForTimeout(300);
+    });
   }
 
   async goToStep(stepNumber: number) {
-    const stepButton = this.page.locator(`[data-testid="step-indicator-${stepNumber}"]`);
-    // Wait for step to be navigable
-    await stepButton.waitFor({ state: 'visible' });
-    const canNavigate = await stepButton.getAttribute('data-step-can-navigate');
-    if (canNavigate === 'true') {
-      await stepButton.click();
-      await this.page.waitForTimeout(300);
-    } else {
-      throw new Error(`Step ${stepNumber} is not navigable (canNavigate=${canNavigate})`);
-    }
+    return this.measure(`nav.step.${stepNumber}`, async () => {
+      const stepButton = this.page.locator(`[data-testid="step-indicator-${stepNumber}"]`);
+      await stepButton.waitFor({ state: 'visible' });
+      const canNavigate = await stepButton.getAttribute('data-step-can-navigate');
+      if (canNavigate === 'true') {
+        await stepButton.click();
+        await this.page.waitForTimeout(300);
+      } else {
+        throw new Error(`Step ${stepNumber} is not navigable (canNavigate=${canNavigate})`);
+      }
+    });
   }
 
   async submitForm() {
-    await this.submitButton.click();
-    await this.page.waitForTimeout(500);
+    return this.measure('submit', async () => {
+      await this.submitButton.click();
+      await this.page.waitForTimeout(500);
+    });
   }
 
   async getCurrentStep(): Promise<number> {
@@ -680,9 +701,11 @@ export class CreditFormPage extends BasePage {
     loanTerm?: number;
     loanPurpose?: string;
   }) {
-    await this.fillLoanAmount(options?.loanAmount ?? 500000);
-    await this.fillLoanTerm(options?.loanTerm ?? 24);
-    await this.fillLoanPurpose(options?.loanPurpose ?? 'Ремонт квартиры');
+    return this.measure('fillStep1.consumer', async () => {
+      await this.fillLoanAmount(options?.loanAmount ?? 500000);
+      await this.fillLoanTerm(options?.loanTerm ?? 24);
+      await this.fillLoanPurpose(options?.loanPurpose ?? 'Ремонт квартиры');
+    });
   }
 
   /**
@@ -694,11 +717,13 @@ export class CreditFormPage extends BasePage {
     loanAmount?: number;
     loanTerm?: number;
   }) {
-    await this.selectLoanType('mortgage');
-    await this.fillPropertyValue(options?.propertyValue ?? 5000000);
-    await this.fillInitialPayment(options?.initialPayment ?? 1000000);
-    await this.fillLoanAmount(options?.loanAmount ?? 4000000);
-    await this.fillLoanTerm(options?.loanTerm ?? 240);
+    return this.measure('fillStep1.mortgage', async () => {
+      await this.selectLoanType('mortgage');
+      await this.fillPropertyValue(options?.propertyValue ?? 5000000);
+      await this.fillInitialPayment(options?.initialPayment ?? 1000000);
+      await this.fillLoanAmount(options?.loanAmount ?? 4000000);
+      await this.fillLoanTerm(options?.loanTerm ?? 240);
+    });
   }
 
   /**
@@ -711,12 +736,14 @@ export class CreditFormPage extends BasePage {
     loanAmount?: number;
     loanTerm?: number;
   }) {
-    await this.selectLoanType('car');
-    await this.fillCarBrand(options?.carBrand ?? 'Toyota');
-    await this.fillCarYear(options?.carYear ?? 2023);
-    await this.fillCarPrice(options?.carPrice ?? 3000000);
-    await this.fillLoanAmount(options?.loanAmount ?? 2500000);
-    await this.fillLoanTerm(options?.loanTerm ?? 60);
+    return this.measure('fillStep1.car', async () => {
+      await this.selectLoanType('car');
+      await this.fillCarBrand(options?.carBrand ?? 'Toyota');
+      await this.fillCarYear(options?.carYear ?? 2023);
+      await this.fillCarPrice(options?.carPrice ?? 3000000);
+      await this.fillLoanAmount(options?.loanAmount ?? 2500000);
+      await this.fillLoanTerm(options?.loanTerm ?? 60);
+    });
   }
 
   /**
@@ -737,21 +764,23 @@ export class CreditFormPage extends BasePage {
     inn?: string;
     snils?: string;
   }) {
-    await this.fillLastName(options?.lastName ?? 'Иванов');
-    await this.fillFirstName(options?.firstName ?? 'Иван');
-    await this.fillMiddleName(options?.middleName ?? 'Иванович');
-    await this.fillBirthDate(options?.birthDate ?? '1990-05-15');
-    await this.selectGender(options?.gender ?? 'male');
-    await this.fillBirthPlace(options?.birthPlace ?? 'г. Москва');
-    await this.fillPassportSeries(options?.passportSeries ?? '45 06');
-    await this.fillPassportNumber(options?.passportNumber ?? '123456');
-    await this.fillPassportIssuedBy(
-      options?.passportIssuedBy ?? 'ОВД Центрального района г. Москвы'
-    );
-    await this.fillPassportIssuedDate(options?.passportIssuedDate ?? '2010-06-20');
-    await this.fillPassportCode(options?.passportCode ?? '770-001');
-    await this.fillInn(options?.inn ?? '123456789012');
-    await this.fillSnils(options?.snils ?? '123-456-789 01');
+    return this.measure('fillStep2.personal', async () => {
+      await this.fillLastName(options?.lastName ?? 'Иванов');
+      await this.fillFirstName(options?.firstName ?? 'Иван');
+      await this.fillMiddleName(options?.middleName ?? 'Иванович');
+      await this.fillBirthDate(options?.birthDate ?? '1990-05-15');
+      await this.selectGender(options?.gender ?? 'male');
+      await this.fillBirthPlace(options?.birthPlace ?? 'г. Москва');
+      await this.fillPassportSeries(options?.passportSeries ?? '45 06');
+      await this.fillPassportNumber(options?.passportNumber ?? '123456');
+      await this.fillPassportIssuedBy(
+        options?.passportIssuedBy ?? 'ОВД Центрального района г. Москвы'
+      );
+      await this.fillPassportIssuedDate(options?.passportIssuedDate ?? '2010-06-20');
+      await this.fillPassportCode(options?.passportCode ?? '770-001');
+      await this.fillInn(options?.inn ?? '123456789012');
+      await this.fillSnils(options?.snils ?? '123-456-789 01');
+    });
   }
 
   /**
@@ -767,14 +796,16 @@ export class CreditFormPage extends BasePage {
     apartment?: string;
     postalCode?: string;
   }) {
-    await this.fillPhone(options?.phone ?? '+7 (999) 123-45-67');
-    await this.fillEmail(options?.email ?? 'ivanov@example.com');
-    await this.fillRegion(options?.region ?? 'Московская область');
-    await this.fillCity(options?.city ?? 'Москва');
-    await this.fillStreet(options?.street ?? 'Тверская');
-    await this.fillHouse(options?.house ?? '1');
-    await this.fillApartment(options?.apartment ?? '10');
-    await this.fillPostalCode(options?.postalCode ?? '123456');
+    return this.measure('fillStep3.contact', async () => {
+      await this.fillPhone(options?.phone ?? '+7 (999) 123-45-67');
+      await this.fillEmail(options?.email ?? 'ivanov@example.com');
+      await this.fillRegion(options?.region ?? 'Московская область');
+      await this.fillCity(options?.city ?? 'Москва');
+      await this.fillStreet(options?.street ?? 'Тверская');
+      await this.fillHouse(options?.house ?? '1');
+      await this.fillApartment(options?.apartment ?? '10');
+      await this.fillPostalCode(options?.postalCode ?? '123456');
+    });
   }
 
   /**
@@ -791,16 +822,18 @@ export class CreditFormPage extends BasePage {
     monthlyIncome?: number;
     additionalIncome?: number;
   }) {
-    await this.selectEmploymentStatus('employed');
-    await this.fillCompanyName(options?.companyName ?? 'ООО Тестовая компания');
-    await this.fillCompanyInn(options?.companyInn ?? '1234567890');
-    await this.fillCompanyPhone(options?.companyPhone ?? '+7 (999) 111-22-33');
-    await this.fillCompanyAddress(options?.companyAddress ?? 'г. Москва, ул. Тестовая, д. 1');
-    await this.fillPosition(options?.position ?? 'Менеджер');
-    await this.fillWorkExperience(options?.workExperience ?? 60);
-    await this.fillCurrentJobExperience(options?.currentJobExperience ?? 24);
-    await this.fillMonthlyIncome(options?.monthlyIncome ?? 150000);
-    await this.fillAdditionalIncome(options?.additionalIncome ?? 0);
+    return this.measure('fillStep4.employed', async () => {
+      await this.selectEmploymentStatus('employed');
+      await this.fillCompanyName(options?.companyName ?? 'ООО Тестовая компания');
+      await this.fillCompanyInn(options?.companyInn ?? '1234567890');
+      await this.fillCompanyPhone(options?.companyPhone ?? '+7 (999) 111-22-33');
+      await this.fillCompanyAddress(options?.companyAddress ?? 'г. Москва, ул. Тестовая, д. 1');
+      await this.fillPosition(options?.position ?? 'Менеджер');
+      await this.fillWorkExperience(options?.workExperience ?? 60);
+      await this.fillCurrentJobExperience(options?.currentJobExperience ?? 24);
+      await this.fillMonthlyIncome(options?.monthlyIncome ?? 150000);
+      await this.fillAdditionalIncome(options?.additionalIncome ?? 0);
+    });
   }
 
   /**
@@ -813,12 +846,14 @@ export class CreditFormPage extends BasePage {
     monthlyIncome?: number;
     additionalIncome?: number;
   }) {
-    await this.selectEmploymentStatus('selfEmployed');
-    await this.fillBusinessType(options?.businessType ?? 'ИП');
-    await this.fillBusinessInn(options?.businessInn ?? '123456789012');
-    await this.fillBusinessActivity(options?.businessActivity ?? 'Консалтинг');
-    await this.fillMonthlyIncome(options?.monthlyIncome ?? 200000);
-    await this.fillAdditionalIncome(options?.additionalIncome ?? 0);
+    return this.measure('fillStep4.selfEmployed', async () => {
+      await this.selectEmploymentStatus('selfEmployed');
+      await this.fillBusinessType(options?.businessType ?? 'ИП');
+      await this.fillBusinessInn(options?.businessInn ?? '123456789012');
+      await this.fillBusinessActivity(options?.businessActivity ?? 'Консалтинг');
+      await this.fillMonthlyIncome(options?.monthlyIncome ?? 200000);
+      await this.fillAdditionalIncome(options?.additionalIncome ?? 0);
+    });
   }
 
   /**
@@ -832,26 +867,30 @@ export class CreditFormPage extends BasePage {
     hasLoans?: boolean;
     hasCoBorrower?: boolean;
   }) {
-    await this.selectMaritalStatus(options?.maritalStatus ?? 'married');
-    await this.fillDependents(options?.dependents ?? 1);
-    await this.selectEducation(options?.education ?? 'higher');
-    await this.toggleHasProperty(options?.hasProperty ?? false);
-    await this.toggleHasLoans(options?.hasLoans ?? false);
-    await this.toggleAddCoBorrower(options?.hasCoBorrower ?? false);
+    return this.measure('fillStep5.additional', async () => {
+      await this.selectMaritalStatus(options?.maritalStatus ?? 'married');
+      await this.fillDependents(options?.dependents ?? 1);
+      await this.selectEducation(options?.education ?? 'higher');
+      await this.toggleHasProperty(options?.hasProperty ?? false);
+      await this.toggleHasLoans(options?.hasLoans ?? false);
+      await this.toggleAddCoBorrower(options?.hasCoBorrower ?? false);
+    });
   }
 
   /**
    * Fill Step 6 (Confirmation)
    */
   async fillStep6Confirmation(options?: { smsCode?: string; acceptMarketing?: boolean }) {
-    await this.acceptPersonalDataAgreement();
-    await this.acceptCreditHistoryAgreement();
-    await this.acceptTermsAgreement();
-    await this.acceptAccuracyConfirmation();
-    if (options?.acceptMarketing) {
-      await this.acceptMarketingAgreement();
-    }
-    await this.fillSmsCode(options?.smsCode ?? '123456');
+    return this.measure('fillStep6.confirmation', async () => {
+      await this.acceptPersonalDataAgreement();
+      await this.acceptCreditHistoryAgreement();
+      await this.acceptTermsAgreement();
+      await this.acceptAccuracyConfirmation();
+      if (options?.acceptMarketing) {
+        await this.acceptMarketingAgreement();
+      }
+      await this.fillSmsCode(options?.smsCode ?? '123456');
+    });
   }
 
   // ============================================================================

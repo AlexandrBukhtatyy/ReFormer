@@ -14,14 +14,14 @@
  * @tag @registration
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../shared/test-factory';
 import { SimpleFormPage } from './simple-form-page.pom';
 
 test.describe('Форма регистрации', { tag: ['@registration'] }, () => {
   let formPage: SimpleFormPage;
 
-  test.beforeEach(async ({ page }) => {
-    formPage = new SimpleFormPage(page);
+  test.beforeEach(async ({ page, perf }) => {
+    formPage = new SimpleFormPage(page, { perf });
     await formPage.goto();
   });
 

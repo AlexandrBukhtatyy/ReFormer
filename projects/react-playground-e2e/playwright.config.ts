@@ -5,9 +5,14 @@ import path from 'path';
  * E2E test configuration via environment variables:
  * - E2E_PORT: Port for dev server (default: 5173)
  * - E2E_BASE_URL: Base URL for tests (default: http://localhost:${E2E_PORT})
+ * - PERF_ENABLED: 'true' включает замеры производительности в e2e
+ *   (POM оборачивает ключевые действия через PerformanceCollector,
+ *   результаты пишутся в test-results/perf-summary.json и в консоль).
+ *   По умолчанию — выключено, оверхед нулевой.
  */
 const E2E_PORT = parseInt(process.env.E2E_PORT || '5173', 10);
 const E2E_BASE_URL = process.env.E2E_BASE_URL || `http://localhost:${E2E_PORT}`;
+const PERF_ENABLED = process.env.PERF_ENABLED === 'true';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -23,9 +28,18 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI
-    ? [['list'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]]
-    : [['dot'], ['html']],
+  reporter: [
+    ...(process.env.CI
+      ? ([
+          ['list'],
+          ['html', { open: 'never' }],
+          ['junit', { outputFile: 'test-results/junit.xml' }],
+        ] as const)
+      : ([['dot'], ['html']] as const)),
+    // Performance reporter — активен только при PERF_ENABLED=true,
+    // иначе no-op. Агрегирует NDJSON от воркеров в perf-summary.json.
+    ...(PERF_ENABLED ? ([[require.resolve('./tests/shared/performance-reporter')]] as const) : []),
+  ],
   /* Expect timeout */
   expect: { timeout: 5000 },
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

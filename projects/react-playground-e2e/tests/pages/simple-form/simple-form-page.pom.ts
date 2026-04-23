@@ -1,4 +1,9 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import type { PerformanceCollector } from '../../shared/performance-collector';
+
+export interface SimpleFormPageOptions {
+  perf?: PerformanceCollector;
+}
 
 /**
  * Page Object Model for Registration Form
@@ -7,6 +12,7 @@ import { type Page, type Locator, expect } from '@playwright/test';
 export class SimpleFormPage {
   readonly page: Page;
   readonly baseUrl = '/examples/simple';
+  readonly perf?: PerformanceCollector;
 
   // Form fields
   readonly usernameInput: Locator;
@@ -26,8 +32,9 @@ export class SimpleFormPage {
   readonly consoleErrors: string[] = [];
   readonly pageErrors: string[] = [];
 
-  constructor(page: Page) {
+  constructor(page: Page, options?: SimpleFormPageOptions) {
     this.page = page;
+    this.perf = options?.perf;
 
     // Form field locators
     this.usernameInput = page.locator('[data-testid="input-username"]');
@@ -78,10 +85,16 @@ export class SimpleFormPage {
   // Navigation
   // ============================================================================
 
+  private async measure<T>(name: string, action: () => Promise<T>): Promise<T> {
+    return this.perf ? this.perf.measure(name, action) : action();
+  }
+
   async goto() {
-    await this.page.goto(this.baseUrl);
-    await this.page.waitForLoadState('networkidle');
-    await this.waitForFormReady();
+    return this.measure('goto', async () => {
+      await this.page.goto(this.baseUrl);
+      await this.page.waitForLoadState('networkidle');
+      await this.waitForFormReady();
+    });
   }
 
   async waitForFormReady() {
@@ -127,11 +140,15 @@ export class SimpleFormPage {
   }
 
   async submit() {
-    await this.submitButton.click();
+    return this.measure('submit', async () => {
+      await this.submitButton.click();
+    });
   }
 
   async reset() {
-    await this.resetButton.click();
+    return this.measure('reset', async () => {
+      await this.resetButton.click();
+    });
   }
 
   // ============================================================================
@@ -146,14 +163,16 @@ export class SimpleFormPage {
     phone?: string;
     captcha?: string;
   }) {
-    await this.fillUsername(options?.username ?? 'testuser123');
-    await this.fillEmail(options?.email ?? 'test@example.com');
-    await this.fillPassword(options?.password ?? 'Password123');
-    await this.fillConfirmPassword(options?.password ?? 'Password123');
-    await this.fillFullName(options?.fullName ?? 'Test User');
-    await this.fillPhone(options?.phone ?? '+7 (999) 123-45-67');
-    await this.fillCaptcha(options?.captcha ?? 'ABC123');
-    await this.acceptTerms();
+    return this.measure('fillValidForm', async () => {
+      await this.fillUsername(options?.username ?? 'testuser123');
+      await this.fillEmail(options?.email ?? 'test@example.com');
+      await this.fillPassword(options?.password ?? 'Password123');
+      await this.fillConfirmPassword(options?.password ?? 'Password123');
+      await this.fillFullName(options?.fullName ?? 'Test User');
+      await this.fillPhone(options?.phone ?? '+7 (999) 123-45-67');
+      await this.fillCaptcha(options?.captcha ?? 'ABC123');
+      await this.acceptTerms();
+    });
   }
 
   // ============================================================================
