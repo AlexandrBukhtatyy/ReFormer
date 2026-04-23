@@ -1,5 +1,5 @@
 /**
- * Registration Form Accessibility E2E Tests
+ * E2E-тесты доступности формы регистрации
  *
  * Тесты доступности формы регистрации:
  * - Клавиатурная навигация
@@ -124,7 +124,7 @@ test.describe('Доступность формы регистрации', { tag:
   });
 
   test.describe('SFA11Y-003: Управление фокусом', () => {
-    test('SFA11Y-003-A: Видимый индикатор фокуса на полях ввода', async ({ page }) => {
+    test('SFA11Y-003-A: Видимый индикатор фокуса на полях ввода', async () => {
       await formPage.usernameInput.focus();
 
       // Проверяем, что элемент в фокусе
@@ -134,7 +134,7 @@ test.describe('Доступность формы регистрации', { tag:
       // Это обычно обрабатывается через CSS, мы проверяем наличие состояния фокуса
     });
 
-    test('SFA11Y-003-B: Видимый индикатор фокуса на кнопках', async ({ page }) => {
+    test('SFA11Y-003-B: Видимый индикатор фокуса на кнопках', async () => {
       await formPage.submitButton.focus();
       await expect(formPage.submitButton).toBeFocused();
 
@@ -208,7 +208,7 @@ test.describe('Доступность формы регистрации', { tag:
       await expect(formPage.submitButton).toBeEnabled();
     });
 
-    test('SFA11Y-006-B: Понятный текст кнопок', async ({ page }) => {
+    test('SFA11Y-006-B: Понятный текст кнопок', async () => {
       // Кнопка submit должна иметь понятный текст
       await expect(formPage.submitButton).toHaveText(/зарегистрироваться/i);
 
@@ -273,7 +273,7 @@ test.describe('Доступность формы регистрации', { tag:
   });
 
   test.describe('SFA11Y-010: Размер области касания', () => {
-    test('SFA11Y-010-A: Достаточный размер интерактивных элементов', async ({ page }) => {
+    test('SFA11Y-010-A: Достаточный размер интерактивных элементов', async () => {
       // Чекбокс должен быть кликабельным
       const checkbox = formPage.acceptTermsCheckbox;
       const boundingBox = await checkbox.boundingBox();

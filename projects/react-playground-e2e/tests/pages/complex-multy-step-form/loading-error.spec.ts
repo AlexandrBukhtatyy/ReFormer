@@ -1,6 +1,6 @@
 /**
- * Loading State & Error State E2E Tests
- * Tests for useLoadCreditApplication hook: spinner, prefill, error, retry
+ * E2E-тесты состояний загрузки и ошибок
+ * Проверяют хук useLoadCreditApplication: спиннер, пред-заполнение, ошибка, повтор
  *
  * @tag @regression
  */
@@ -15,17 +15,17 @@ import {
   mockSubmitApplicationApi,
 } from './mocks';
 
-test.describe('Loading & Error States', { tag: ['@regression'] }, () => {
+test.describe('Состояния загрузки и ошибок', { tag: ['@regression'] }, () => {
   // -------------------------------------------------------------------------
-  // LOAD-001: Loading State
+  // LOAD-001: Состояние загрузки
   // -------------------------------------------------------------------------
 
-  test.describe('LOAD-001: Loading State', () => {
+  test.describe('LOAD-001: Состояние загрузки', () => {
     test('LOAD-001-A: форма показывает индикатор загрузки пока идёт запрос', async ({
       page,
       creditForm,
     }) => {
-      // Мокируем с длительной задержкой — чтобы поймать loading state
+      // Мокируем с длительной задержкой — чтобы поймать состояние загрузки
       await mockCreditApplicationApi(page, { delay: 3000 });
       await mockDictionariesApi(page, { delay: 100 });
       await mockRegionsApi(page, { delay: 100 });
@@ -34,7 +34,7 @@ test.describe('Loading & Error States', { tag: ['@regression'] }, () => {
 
       await page.goto(creditForm.basePath);
 
-      // Loading indicator должен быть виден сразу после перехода
+      // Индикатор загрузки должен быть виден сразу после перехода
       await expect(page.locator('[data-testid="loading-state"]')).toBeVisible({ timeout: 2000 });
     });
 
@@ -42,7 +42,7 @@ test.describe('Loading & Error States', { tag: ['@regression'] }, () => {
       page,
       creditForm,
     }) => {
-      // MOCK_CREDIT_APPLICATION_1: consumer 500k/24m, Иванов employed
+      // MOCK_CREDIT_APPLICATION_1: потребительский 500k/24мес, Иванов employed
       await mockCreditApplicationApi(page, { delay: 100 });
       await mockDictionariesApi(page, { delay: 50 });
       await mockRegionsApi(page, { delay: 50 });
@@ -59,10 +59,10 @@ test.describe('Loading & Error States', { tag: ['@regression'] }, () => {
   });
 
   // -------------------------------------------------------------------------
-  // LOAD-002: Error State
+  // LOAD-002: Состояние ошибки
   // -------------------------------------------------------------------------
 
-  test.describe('LOAD-002: Error State', () => {
+  test.describe('LOAD-002: Состояние ошибки', () => {
     test('LOAD-002-A: при ошибке API отображается компонент ErrorState', async ({
       page,
       creditForm,

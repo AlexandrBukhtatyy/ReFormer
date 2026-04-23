@@ -1,5 +1,5 @@
 /**
- * Dependencies E2E Tests
+ * E2E-тесты зависимостей полей
  *
  * Тесты зависимостей между полями (watchField):
  * - Регион -> Города
@@ -10,10 +10,10 @@
 
 import { test, expect } from '../../shared/test-factory';
 
-test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
+test.describe('Зависимости полей', { tag: ['@dependencies'] }, () => {
   test.describe('DEP-001: Сброс города при смене региона', () => {
     test('DEP-001-A: При изменении региона город сбрасывается', async ({ creditForm }) => {
-      // FIX: addressBehavior включен - исправлено использование ctx.getFieldByPath и path.__path
+      // ИСПРАВЛЕНО: addressBehavior включён — исправлено использование ctx.getFieldByPath и path.__path
       await creditForm.goto();
       await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
@@ -38,7 +38,7 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
     });
 
     test('DEP-001-B: Почтовый индекс форматируется корректно', async ({ creditForm }) => {
-      // FIX: addressBehavior включен - автоформатирование почтового индекса
+      // ИСПРАВЛЕНО: addressBehavior включён — автоформатирование почтового индекса
       await creditForm.goto();
       await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
@@ -95,7 +95,9 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
       // Модель должна быть сброшена - проверяем через клик и наличие опций BMW
       await creditForm.input('carModel').click();
       // Должны появиться модели BMW, а не Toyota
-      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()).toBeVisible({
+      await expect(
+        creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()
+      ).toBeVisible({
         timeout: 3000,
       });
       await creditForm.page.keyboard.press('Escape');
@@ -125,7 +127,9 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
       await creditForm.input('carModel').click();
 
       // Должны быть модели BMW (например 3 Series или X5)
-      await expect(creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()).toBeVisible({
+      await expect(
+        creditForm.page.getByRole('option', { name: /3 series|5 series|x5/i }).first()
+      ).toBeVisible({
         timeout: 3000,
       });
     });
@@ -330,9 +334,9 @@ test.describe('Dependencies', { tag: ['@dependencies'] }, () => {
       await creditForm.fillLoanAmount(500000); // При 500000 на 24 мес. платёж ~25 000₽
 
       // Проходим шаги заново до шага 4
-      await creditForm.goToNextStep(); // Step 2
-      await creditForm.goToNextStep(); // Step 3
-      await creditForm.goToNextStep(); // Step 4
+      await creditForm.goToNextStep(); // Шаг 2
+      await creditForm.goToNextStep(); // Шаг 3
+      await creditForm.goToNextStep(); // Шаг 4
 
       // Переход на шаг 5 успешен (теперь paymentToIncomeRatio < 50%)
       await creditForm.goToNextStep();

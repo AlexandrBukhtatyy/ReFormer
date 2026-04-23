@@ -1,5 +1,5 @@
 /**
- * Conditional Fields E2E Tests
+ * E2E-тесты условных полей
  *
  * Тесты условного отображения и скрытия полей формы:
  * - Поля для ипотеки (propertyValue, initialPayment)
@@ -10,7 +10,7 @@
 
 import { test, expect } from '../../shared/test-factory';
 
-test.describe('Conditional Fields', { tag: ['@conditional'] }, () => {
+test.describe('Условные поля', { tag: ['@conditional'] }, () => {
   test.describe('COND-001: Поля для ипотеки', () => {
     test('COND-001-A: Поля ипотеки скрыты при типе "потребительский кредит"', async ({
       creditForm,

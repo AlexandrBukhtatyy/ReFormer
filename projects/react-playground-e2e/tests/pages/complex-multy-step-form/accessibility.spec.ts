@@ -1,6 +1,6 @@
 /**
- * Accessibility Tests for Complex Multi-Step Form
- * Tests WCAG 2.1 AA compliance across all form steps
+ * Тесты доступности для комплексной многошаговой формы
+ * Проверяют соответствие WCAG 2.1 AA на всех шагах формы
  *
  * @tag @a11y
  */
@@ -8,18 +8,15 @@
 import { test, expect } from '../../shared/test-factory';
 import { checkA11y, checkWcag21AA, createA11yReport } from '../../shared/a11y';
 
-test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
+test.describe('Доступность — комплексная форма', { tag: ['@a11y'] }, () => {
   test.beforeEach(async ({ creditForm }) => {
     await creditForm.goto();
   });
 
-  // Fixed: Added aria-label to Select, improved color contrast (bg-blue-700)
-  test.describe('A11Y-001: No Critical WCAG Violations', () => {
-    test('A11Y-001-A: Step 1 - Basic Info has no critical violations', async ({
-      page,
-      creditForm,
-    }) => {
-      await test.step('Check accessibility on Step 1', async () => {
+  // Исправлено: добавлен aria-label для Select, улучшен цветовой контраст (bg-blue-700)
+  test.describe('A11Y-001: Отсутствие критичных нарушений WCAG', () => {
+    test('A11Y-001-A: шаг 1 — основная информация без критичных нарушений', async ({ page }) => {
+      await test.step('Проверяем доступность на шаге 1', async () => {
         const result = await checkA11y(page);
         const critical = result.violations.filter(
           (v) => v.impact === 'critical' || v.impact === 'serious'
@@ -28,11 +25,11 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-001-B: Step 2 - Personal Data has no critical violations', async ({
+    test('A11Y-001-B: шаг 2 — персональные данные без критичных нарушений', async ({
       page,
       creditForm,
     }) => {
-      await test.step('Navigate to Step 2', async () => {
+      await test.step('Переходим на шаг 2', async () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
@@ -40,7 +37,7 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
         await creditForm.goToNextStep();
       });
 
-      await test.step('Check accessibility on Step 2', async () => {
+      await test.step('Проверяем доступность на шаге 2', async () => {
         const result = await checkA11y(page);
         const critical = result.violations.filter(
           (v) => v.impact === 'critical' || v.impact === 'serious'
@@ -49,12 +46,12 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-001-C: All steps pass WCAG 2.1 AA', async ({ page, creditForm }) => {
-      await test.step('Check WCAG 2.1 AA compliance on each step', async () => {
-        // Step 1
+    test('A11Y-001-C: все шаги проходят WCAG 2.1 AA', async ({ page, creditForm }) => {
+      await test.step('Проверяем соответствие WCAG 2.1 AA на каждом шаге', async () => {
+        // Шаг 1
         await checkWcag21AA(page);
 
-        // Fill and go to step 2
+        // Заполняем и переходим на шаг 2
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
@@ -65,25 +62,25 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
     });
   });
 
-  test.describe('A11Y-002: Focus Management', () => {
-    // NOTE: Focus stays on navigation button after step change. This is acceptable behavior
-    // as the button remains visible and screen readers announce the new step content.
-    // Ideal behavior would auto-focus first field, but current behavior is not a violation.
-    test('A11Y-002-A: Focus is on interactive element after step navigation', async ({
+  test.describe('A11Y-002: Управление фокусом', () => {
+    // ЗАМЕТКА: фокус остаётся на кнопке навигации после перехода между шагами.
+    // Это допустимо — кнопка видна, и screen reader озвучивает содержимое нового шага.
+    // Идеальным поведением был бы автофокус на первое поле, но текущее не является нарушением.
+    test('A11Y-002-A: после навигации фокус на интерактивном элементе', async ({
       page,
       creditForm,
     }) => {
-      await test.step('Fill Step 1 and navigate', async () => {
+      await test.step('Заполняем шаг 1 и переходим дальше', async () => {
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
         await creditForm.fillLoanPurpose('Покупка товаров');
       });
 
-      await test.step('Check focus after navigation', async () => {
+      await test.step('Проверяем фокус после перехода', async () => {
         await creditForm.goToNextStep();
-        // Focus should be on an interactive element (button, input, etc.)
-        // or body (default) - all are acceptable for keyboard navigation
+        // Фокус должен быть на интерактивном элементе (button, input и т.д.)
+        // или на body (по умолчанию) — всё это допустимо для клавиатурной навигации
         const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
         expect(['INPUT', 'SELECT', 'H1', 'H2', 'H3', 'BUTTON', 'BODY', 'DIV']).toContain(
           focusedElement
@@ -91,12 +88,12 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-002-B: Tab navigation works through all fields', async ({ page, creditForm }) => {
-      await test.step('Tab through Step 1 fields', async () => {
+    test('A11Y-002-B: навигация Tab проходит через все поля', async ({ page }) => {
+      await test.step('Tab по полям шага 1', async () => {
         const firstInput = page.locator('[data-testid="input-loanType"]');
         await firstInput.focus();
 
-        // Tab through fields
+        // Tab по полям
         for (let i = 0; i < 5; i++) {
           await page.keyboard.press('Tab');
           const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
@@ -105,8 +102,8 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-002-C: Shift+Tab navigates backwards', async ({ page, creditForm }) => {
-      await test.step('Navigate backwards with Shift+Tab', async () => {
+    test('A11Y-002-C: Shift+Tab проходит назад', async ({ page }) => {
+      await test.step('Переход назад через Shift+Tab', async () => {
         const nextButton = page.locator('[data-testid="btn-next"]');
         await nextButton.focus();
 
@@ -117,18 +114,18 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
     });
   });
 
-  test.describe('A11Y-003: Error Announcements', () => {
-    test('A11Y-003-A: Validation errors have aria-describedby', async ({ page, creditForm }) => {
-      await test.step('Trigger validation error', async () => {
-        await creditForm.goToNextStep(); // Try to proceed without filling required fields
+  test.describe('A11Y-003: Анонсирование ошибок', () => {
+    test('A11Y-003-A: у ошибок валидации есть aria-describedby', async ({ page, creditForm }) => {
+      await test.step('Вызываем ошибку валидации', async () => {
+        await creditForm.goToNextStep(); // Пытаемся перейти без заполнения обязательных полей
       });
 
-      await test.step('Check error accessibility', async () => {
+      await test.step('Проверяем доступность ошибок', async () => {
         const errorMessages = page.locator('[data-testid^="error-"]');
         const count = await errorMessages.count();
 
         if (count > 0) {
-          // Check that errors are properly associated with inputs
+          // Проверяем, что ошибки корректно связаны с инпутами
           const firstError = errorMessages.first();
           const errorId = await firstError.getAttribute('id');
 
@@ -140,49 +137,53 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-003-B: Error messages are in live regions', async ({ page, creditForm }) => {
-      await test.step('Check for aria-live on error container', async () => {
+    test('A11Y-003-B: сообщения об ошибках находятся в live-регионах', async ({
+      page,
+      creditForm,
+    }) => {
+      await test.step('Проверяем aria-live на контейнере ошибок', async () => {
         await creditForm.goToNextStep();
 
         const liveRegion = page.locator(
           '[aria-live="polite"], [aria-live="assertive"], [role="alert"]'
         );
         const count = await liveRegion.count();
-        // At least one live region should exist for error announcements
-        expect(count).toBeGreaterThanOrEqual(0); // Soft check - depends on implementation
+        // Должен существовать хотя бы один live-регион для анонсирования ошибок
+        expect(count).toBeGreaterThanOrEqual(0); // Мягкая проверка — зависит от реализации
       });
     });
 
-    // FIX: Test works - same pattern as VAL-001-A in validation.spec.ts
-    test('A11Y-003-C: Required fields show validation errors when empty', async ({ creditForm }) => {
-      await test.step('Check that empty required fields trigger validation errors', async () => {
-        // Clear pre-filled fields first
+    // ИСПРАВЛЕНО: тест работает — тот же паттерн, что и VAL-001-A в validation.spec.ts
+    test('A11Y-003-C: обязательные поля показывают ошибки при пустом значении', async ({
+      creditForm,
+    }) => {
+      await test.step('Проверяем, что пустые обязательные поля вызывают ошибки', async () => {
+        // Сначала очищаем предзаполненные поля
         await creditForm.input('loanAmount').clear();
         await creditForm.selectLoanType('consumer');
 
-        // Try to proceed without filling loanAmount
+        // Пытаемся перейти без заполнения loanAmount
         await creditForm.goToNextStep();
 
-        // loanAmount field should show error (required, value is empty)
+        // Поле loanAmount должно показать ошибку (обязательное, значение пустое)
         await creditForm.expectFieldError('loanAmount');
       });
     });
   });
 
-  test.describe('A11Y-004: Form Structure', () => {
-    test('A11Y-004-A: Form has proper heading hierarchy', async ({ page }) => {
-      await test.step('Check heading levels', async () => {
+  test.describe('A11Y-004: Структура формы', () => {
+    test('A11Y-004-A: корректная иерархия заголовков', async ({ page }) => {
+      await test.step('Проверяем уровни заголовков', async () => {
         const h1Count = await page.locator('h1').count();
         const h2Count = await page.locator('h2').count();
-        const h3Count = await page.locator('h3').count();
 
-        // Should have at least one main heading
+        // Должен быть хотя бы один основной заголовок
         expect(h1Count + h2Count).toBeGreaterThan(0);
       });
     });
 
-    test('A11Y-004-B: Form fields are properly labeled', async ({ page }) => {
-      await test.step('Check that inputs have labels', async () => {
+    test('A11Y-004-B: поля формы имеют корректные метки', async ({ page }) => {
+      await test.step('Проверяем наличие меток у инпутов', async () => {
         const inputs = page.locator(
           'input:not([type="hidden"]):not([type="submit"]):not([type="button"])'
         );
@@ -204,40 +205,40 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-004-C: Step indicator is accessible', async ({ page }) => {
-      await test.step('Check step indicator accessibility', async () => {
+    test('A11Y-004-C: индикатор шагов доступен', async ({ page }) => {
+      await test.step('Проверяем доступность индикатора шагов', async () => {
         const stepIndicator = page.locator(
           '[data-testid="step-indicator"], [role="progressbar"], [role="navigation"]'
         );
         const count = await stepIndicator.count();
 
         if (count > 0) {
-          // Step indicator should have accessible name
+          // У индикатора шагов должно быть доступное имя
           const ariaLabel = await stepIndicator.first().getAttribute('aria-label');
           const ariaLabelledby = await stepIndicator.first().getAttribute('aria-labelledby');
-          expect(ariaLabel || ariaLabelledby || true).toBeTruthy(); // Soft check
+          expect(ariaLabel || ariaLabelledby || true).toBeTruthy(); // Мягкая проверка
         }
       });
     });
   });
 
-  test.describe('A11Y-005: Keyboard Accessibility', () => {
-    test('A11Y-005-A: All interactive elements are keyboard accessible', async ({ page }) => {
-      await test.step('Check keyboard accessibility of buttons', async () => {
+  test.describe('A11Y-005: Клавиатурная доступность', () => {
+    test('A11Y-005-A: все интерактивные элементы доступны с клавиатуры', async ({ page }) => {
+      await test.step('Проверяем клавиатурную доступность кнопок', async () => {
         const buttons = page.locator('button:visible');
         const buttonCount = await buttons.count();
 
         for (let i = 0; i < buttonCount; i++) {
           const button = buttons.nth(i);
           const tabindex = await button.getAttribute('tabindex');
-          // Buttons should not have negative tabindex
+          // У кнопок не должно быть отрицательного tabindex
           expect(tabindex !== '-1').toBeTruthy();
         }
       });
     });
 
-    test('A11Y-005-B: Custom controls are keyboard operable', async ({ page }) => {
-      await test.step('Check select components', async () => {
+    test('A11Y-005-B: кастомные контролы управляются с клавиатуры', async ({ page }) => {
+      await test.step('Проверяем select-компоненты', async () => {
         const selects = page.locator(
           'select:visible, [role="listbox"]:visible, [role="combobox"]:visible'
         );
@@ -253,18 +254,18 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
     });
   });
 
-  test.describe('A11Y-006: Color and Contrast', () => {
-    test('A11Y-006-A: Error states are not conveyed by color alone', async ({
+  test.describe('A11Y-006: Цвет и контраст', () => {
+    test('A11Y-006-A: состояния ошибок не передаются только цветом', async ({
       page,
       creditForm,
     }) => {
-      await test.step('Trigger error and check indicators', async () => {
+      await test.step('Вызываем ошибку и проверяем индикаторы', async () => {
         await creditForm.goToNextStep();
 
         const errorFields = page.locator('[data-testid^="error-"]:visible');
         const count = await errorFields.count();
 
-        // Error messages should exist (not relying on color alone)
+        // Сообщения об ошибках должны существовать (не полагаемся только на цвет)
         if (count > 0) {
           const firstError = errorFields.first();
           const text = await firstError.textContent();
@@ -274,15 +275,15 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
     });
   });
 
-  test.describe('A11Y-007: Screen Reader Compatibility', () => {
-    // NOTE: Form uses div-based layout for flexibility, but provides heading for context
-    test('A11Y-007-A: Form section has accessible heading', async ({ page }) => {
-      await test.step('Check form has heading for screen reader context', async () => {
-        // Step heading provides context for screen readers
+  test.describe('A11Y-007: Совместимость со screen reader', () => {
+    // ЗАМЕТКА: форма использует div-вёрстку ради гибкости, но предоставляет заголовок для контекста
+    test('A11Y-007-A: секция формы имеет доступный заголовок', async ({ page }) => {
+      await test.step('Проверяем, что у формы есть заголовок для контекста screen reader', async () => {
+        // Заголовок шага даёт контекст для screen reader
         const stepHeading = page.locator('[data-testid="step-heading"]');
         const headingExists = (await stepHeading.count()) > 0;
 
-        // Either step heading or any visible heading should exist
+        // Должен существовать либо заголовок шага, либо любой видимый заголовок
         const anyHeading = page.locator('h1:visible, h2:visible, h3:visible');
         const anyHeadingCount = await anyHeading.count();
 
@@ -290,38 +291,38 @@ test.describe('Accessibility - Complex Form', { tag: ['@a11y'] }, () => {
       });
     });
 
-    test('A11Y-007-B: Progress is communicated to screen readers', async ({ page, creditForm }) => {
-      await test.step('Check progress announcement', async () => {
-        // Fill step 1 and navigate
+    test('A11Y-007-B: прогресс озвучивается screen reader', async ({ page, creditForm }) => {
+      await test.step('Проверяем анонсирование прогресса', async () => {
+        // Заполняем шаг 1 и переходим дальше
         await creditForm.selectLoanType('consumer');
         await creditForm.fillLoanAmount(500000);
         await creditForm.fillLoanTerm(24);
         await creditForm.fillLoanPurpose('Покупка товаров');
         await creditForm.goToNextStep();
 
-        // Check for progress indicator with aria attributes
+        // Проверяем наличие индикатора прогресса с aria-атрибутами
         const progress = page.locator(
           '[role="progressbar"], [aria-valuenow], [data-testid="step-indicator"]'
         );
         const count = await progress.count();
-        expect(count).toBeGreaterThanOrEqual(0); // Soft check
+        expect(count).toBeGreaterThanOrEqual(0); // Мягкая проверка
       });
     });
   });
 
-  test('Generate A11Y Report', async ({ page, creditForm }) => {
-    await test.step('Generate comprehensive accessibility report', async () => {
+  test('Формирование отчёта по доступности', async ({ page }) => {
+    await test.step('Формируем подробный отчёт по доступности', async () => {
       const report = await createA11yReport(page);
-      console.log('Accessibility Report:', JSON.stringify(report, null, 2));
+      console.log('Отчёт по доступности:', JSON.stringify(report, null, 2));
 
-      // Log summary
+      // Логируем сводку
       if (report.violations) {
-        console.log(`Total violations: ${report.violations.length}`);
+        console.log(`Всего нарушений: ${report.violations.length}`);
         console.log(
-          `Critical: ${report.violations.filter((v: { impact: string }) => v.impact === 'critical').length}`
+          `Критичных: ${report.violations.filter((v: { impact: string }) => v.impact === 'critical').length}`
         );
         console.log(
-          `Serious: ${report.violations.filter((v: { impact: string }) => v.impact === 'serious').length}`
+          `Серьёзных: ${report.violations.filter((v: { impact: string }) => v.impact === 'serious').length}`
         );
       }
     });

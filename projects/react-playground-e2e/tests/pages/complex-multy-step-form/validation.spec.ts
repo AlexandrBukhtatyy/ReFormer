@@ -1,5 +1,5 @@
 /**
- * Validation E2E Tests
+ * E2E-тесты валидации
  *
  * Тесты валидации полей формы:
  * - Обязательные поля
@@ -11,7 +11,7 @@
 import { test, expect } from '../../shared/test-factory';
 import { INVALID_DATA, VALID_SMS_CODE } from './test-data';
 
-test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
+test.describe('Валидация', { tag: ['@validation', '@regression'] }, () => {
   test.describe('VAL-001: Обязательные поля', () => {
     test('VAL-001-A: Блокировка перехода при пустых обязательных полях на шаге 1', async ({
       creditForm,
@@ -263,7 +263,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
     });
   });
 
-  test.describe('VAL-005: Cross-field валидация', () => {
+  test.describe('VAL-005: Кросс-полевая валидация', () => {
     test('VAL-005-A: Первоначальный взнос не может превышать стоимость недвижимости', async ({
       creditForm,
     }) => {
@@ -538,7 +538,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.fillPosition('Менеджер');
       await creditForm.fillWorkExperience(60);
       await creditForm.fillCurrentJobExperience(24);
-      await creditForm.fillMonthlyIncome(180000); // ratio ~41% - warning, not error
+      await creditForm.fillMonthlyIncome(180000); // ratio ~41% — warning, не ошибка
 
       // Warning не блокирует навигацию
       await creditForm.goToNextStep();
@@ -586,7 +586,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
       await creditForm.fillCompanyAddress('г. Москва, ул. Тестовая, д. 1');
       await creditForm.fillPosition('Стажёр');
       await creditForm.fillWorkExperience(24);
-      await creditForm.fillCurrentJobExperience(1); // 1 месяц - warning (< 3 мес)
+      await creditForm.fillCurrentJobExperience(1); // 1 месяц — warning (< 3 мес)
       await creditForm.fillMonthlyIncome(100000);
 
       // Warning не блокирует навигацию
@@ -657,7 +657,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
     });
 
     test('VAL-009-D: Обязательные поля шага 3 - адрес регистрации', async ({ creditForm }) => {
-      // disableMsw: без пре-филла форма пустая, адрес действительно требуется
+      // disableMsw: без пред-заполнения форма пустая, адрес действительно требуется
       await creditForm.goto({ disableMsw: true });
       await creditForm.fillStep1ConsumerLoan();
       await creditForm.goToNextStep();
@@ -765,7 +765,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
     ];
 
     for (const { value, label, expectError } of carYearCases) {
-      test(`VAL-011-carYear: год автомобиля ${label}`, async ({ creditForm }) => {
+      test(`VAL-011-carYear: год автомобиля — ${label}`, async ({ creditForm }) => {
         await creditForm.goto();
         await creditForm.selectLoanType('car');
 
@@ -795,7 +795,7 @@ test.describe('Validation', { tag: ['@validation', '@regression'] }, () => {
     ];
 
     for (const { value, label, expectError } of carPriceCases) {
-      test(`VAL-011-carPrice: цена автомобиля ${label}`, async ({ creditForm }) => {
+      test(`VAL-011-carPrice: цена автомобиля — ${label}`, async ({ creditForm }) => {
         await creditForm.goto();
         await creditForm.selectLoanType('car');
 

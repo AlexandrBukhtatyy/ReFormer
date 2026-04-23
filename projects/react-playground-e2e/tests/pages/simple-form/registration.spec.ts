@@ -1,5 +1,5 @@
 /**
- * Registration Form E2E Tests
+ * E2E-тесты формы регистрации
  *
  * Тесты формы регистрации:
  * - Успешная регистрация
@@ -102,7 +102,7 @@ test.describe('Форма регистрации', { tag: ['@registration'] }, (
 
     test('REG-002-D: Валидация формата email перед асинхронной проверкой', async () => {
       await formPage.fillEmail('invalid-email');
-      // Trigger blur to mark field as touched so shouldShowError becomes true
+      // Вызываем blur, чтобы пометить поле как touched и включить shouldShowError
       await formPage.emailInput.blur();
       await formPage.waitForAsyncValidation();
 

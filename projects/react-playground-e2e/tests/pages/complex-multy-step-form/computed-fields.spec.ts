@@ -1,5 +1,5 @@
 /**
- * Computed Fields E2E Tests
+ * E2E-тесты вычисляемых полей
  *
  * Тесты вычисляемых полей формы (computeFrom):
  * - Ежемесячный платеж
@@ -13,7 +13,7 @@
 
 import { test, expect } from '../../shared/test-factory';
 
-test.describe('Computed Fields', { tag: ['@computed'] }, () => {
+test.describe('Вычисляемые поля', { tag: ['@computed'] }, () => {
   test.describe('COMP-001: Ежемесячный платеж', () => {
     test('COMP-001-A: Автоматический расчет ежемесячного платежа', async ({ creditForm }) => {
       await creditForm.goto();

@@ -1,5 +1,5 @@
 /**
- * Performance E2E Tests
+ * E2E-тесты производительности
  *
  * Тесты производительности формы:
  * - Время загрузки страницы
@@ -10,7 +10,7 @@
 
 import { test, expect } from '../../shared/test-factory';
 
-test.describe('Performance', { tag: ['@performance'] }, () => {
+test.describe('Производительность', { tag: ['@performance'] }, () => {
   test.describe('PERF-001: Время загрузки страницы', () => {
     test('PERF-001-A: Страница загружается менее чем за 5 секунд', async ({ creditForm }) => {
       const startTime = Date.now();

@@ -1,5 +1,5 @@
 /**
- * Validation Examples E2E Tests
+ * E2E-тесты примеров валидации
  *
  * Тесты примеров валидации:
  * - Строковые валидаторы (required, email, minLength, maxLength, pattern, url, phone)

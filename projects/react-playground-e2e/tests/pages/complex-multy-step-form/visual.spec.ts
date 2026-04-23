@@ -1,5 +1,5 @@
 /**
- * Visual Regression Tests for Complex Multi-Step Form
+ * Визуальные регрессионные тесты для комплексной многошаговой формы
  *
  * Покрывает абсолютно все состояния формы:
  * - Все 6 шагов с разными комбинациями данных
@@ -24,7 +24,7 @@ import type { Page } from '@playwright/test';
 import { mockAllApisForHappyPath } from './mocks';
 
 // ============================================================================
-// Shared helpers
+// Общие хелперы
 // ============================================================================
 
 /**
@@ -35,7 +35,7 @@ function dynamicMasks(page: Page) {
   return [
     page.locator('[data-testid="timestamp"]'),
     page.locator('[data-testid="application-id"]'),
-    // Debug overlay в renderer-варианте (createRenderSchema примеры)
+    // Отладочный оверлей в renderer-варианте (примеры createRenderSchema)
     page.getByRole('button', { name: /Программное управление схемой/ }),
   ];
 }
@@ -50,10 +50,10 @@ const shotOptions = (page: Page) => ({
 });
 
 // ============================================================================
-// VIS-001: Step 1 — Basic Info (все типы кредита)
+// VIS-001: Шаг 1 — Основная информация (все типы кредита)
 // ============================================================================
 
-test.describe('Visual · VIS-001: Step 1 (Основная информация)', { tag: ['@visual'] }, () => {
+test.describe('Visual · VIS-001: Шаг 1 (Основная информация)', { tag: ['@visual'] }, () => {
   test('VIS-001-A: шаг 1 — потребительский кредит (default, загружен из API)', async ({
     page,
     creditForm,
@@ -152,10 +152,10 @@ test.describe('Visual · VIS-001: Step 1 (Основная информация)
 });
 
 // ============================================================================
-// VIS-002: Step 2 — Personal Data
+// VIS-002: Шаг 2 — Персональные данные
 // ============================================================================
 
-test.describe('Visual · VIS-002: Step 2 (Персональные данные)', { tag: ['@visual'] }, () => {
+test.describe('Visual · VIS-002: Шаг 2 (Персональные данные)', { tag: ['@visual'] }, () => {
   test('VIS-002-A: шаг 2 — default (загружен из API)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillStep1ConsumerLoan();
@@ -195,10 +195,10 @@ test.describe('Visual · VIS-002: Step 2 (Персональные данные)
 });
 
 // ============================================================================
-// VIS-003: Step 3 — Contact Info
+// VIS-003: Шаг 3 — Контактная информация
 // ============================================================================
 
-test.describe('Visual · VIS-003: Step 3 (Контакты и адреса)', { tag: ['@visual'] }, () => {
+test.describe('Visual · VIS-003: Шаг 3 (Контакты и адреса)', { tag: ['@visual'] }, () => {
   test('VIS-003-A: шаг 3 — default (адрес проживания скрыт, sameAsRegistration=true)', async ({
     page,
     creditForm,
@@ -248,10 +248,10 @@ test.describe('Visual · VIS-003: Step 3 (Контакты и адреса)', { 
 });
 
 // ============================================================================
-// VIS-004: Step 4 — Employment (все статусы занятости)
+// VIS-004: Шаг 4 — Занятость (все статусы занятости)
 // ============================================================================
 
-test.describe('Visual · VIS-004: Step 4 (Занятость)', { tag: ['@visual'] }, () => {
+test.describe('Visual · VIS-004: Шаг 4 (Занятость)', { tag: ['@visual'] }, () => {
   test('VIS-004-A: шаг 4 — работающий (показаны поля работодателя)', async ({
     page,
     creditForm,
@@ -328,10 +328,10 @@ test.describe('Visual · VIS-004: Step 4 (Занятость)', { tag: ['@visual
 });
 
 // ============================================================================
-// VIS-005: Step 5 — Additional Info (toggle-секции + массивы)
+// VIS-005: Шаг 5 — Дополнительная информация (toggle-секции + массивы)
 // ============================================================================
 
-test.describe('Visual · VIS-005: Step 5 (Доп. информация + массивы)', { tag: ['@visual'] }, () => {
+test.describe('Visual · VIS-005: Шаг 5 (Доп. информация + массивы)', { tag: ['@visual'] }, () => {
   test('VIS-005-A: шаг 5 — базовое (все toggle-ы выключены)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillAndNavigateToStep4();
@@ -446,10 +446,10 @@ test.describe('Visual · VIS-005: Step 5 (Доп. информация + мас�
 });
 
 // ============================================================================
-// VIS-006: Step 6 — Confirmation
+// VIS-006: Шаг 6 — Подтверждение
 // ============================================================================
 
-test.describe('Visual · VIS-006: Step 6 (Подтверждение)', { tag: ['@visual'] }, () => {
+test.describe('Visual · VIS-006: Шаг 6 (Подтверждение)', { tag: ['@visual'] }, () => {
   test('VIS-006-A: шаг 6 — initial (без согласий)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillAndNavigateToStep6();
@@ -492,11 +492,11 @@ test.describe('Visual · VIS-006: Step 6 (Подтверждение)', { tag: [
 });
 
 // ============================================================================
-// VIS-007: Component states (focus / hover / error / disabled)
+// VIS-007: Состояния компонентов (focus / hover / error / disabled)
 // ============================================================================
 
 test.describe('Visual · VIS-007: Состояния компонентов', { tag: ['@visual'] }, () => {
-  test('VIS-007-A: input — focus state', async ({ creditForm }) => {
+  test('VIS-007-A: input — состояние focus', async ({ creditForm }) => {
     await creditForm.goto();
     const input = creditForm.input('loanAmount');
     await input.focus();
@@ -504,7 +504,7 @@ test.describe('Visual · VIS-007: Состояния компонентов', { 
     await expect(input).toHaveScreenshot(`${creditForm.variant}-input-focus.png`);
   });
 
-  test('VIS-007-B: input — filled state', async ({ page, creditForm }) => {
+  test('VIS-007-B: input — заполненное состояние', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillLoanAmount(1000000);
     await page.locator('body').click(); // снимаем фокус
@@ -513,7 +513,7 @@ test.describe('Visual · VIS-007: Состояния компонентов', { 
     await expect(input).toHaveScreenshot(`${creditForm.variant}-input-filled.png`);
   });
 
-  test('VIS-007-C: input — error state (touched и пустой)', async ({ page, creditForm }) => {
+  test('VIS-007-C: input — состояние ошибки (touched и пустой)', async ({ page, creditForm }) => {
     await creditForm.goto({ disableMsw: true });
     await creditForm.input('loanAmount').fill('0');
     await creditForm.goToNextStep();
@@ -525,7 +525,7 @@ test.describe('Visual · VIS-007: Состояния компонентов', { 
     }
   });
 
-  test('VIS-007-D: input — disabled state (business fields)', async ({ page, creditForm }) => {
+  test('VIS-007-D: input — состояние disabled (поля бизнеса)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.selectLoanType('business');
     await page.waitForTimeout(300);
@@ -575,11 +575,11 @@ test.describe('Visual · VIS-007: Состояния компонентов', { 
 });
 
 // ============================================================================
-// VIS-008: Form Wizard — indicator & progress
+// VIS-008: Form Wizard — индикатор и прогресс
 // ============================================================================
 
 test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual'] }, () => {
-  test('VIS-008-A: step indicator — шаг 1 current', async ({ page, creditForm }) => {
+  test('VIS-008-A: индикатор шагов — шаг 1 текущий', async ({ page, creditForm }) => {
     await creditForm.goto();
     await page.mouse.move(0, 0);
 
@@ -587,7 +587,7 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-1.png`);
   });
 
-  test('VIS-008-B: step indicator — шаг 3 (1, 2 completed)', async ({ page, creditForm }) => {
+  test('VIS-008-B: индикатор шагов — шаг 3 (1, 2 пройдены)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillStep1ConsumerLoan();
     await creditForm.goToNextStep();
@@ -599,7 +599,7 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-3.png`);
   });
 
-  test('VIS-008-C: step indicator — шаг 6 (все completed)', async ({ page, creditForm }) => {
+  test('VIS-008-C: индикатор шагов — шаг 6 (все пройдены)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillAndNavigateToStep6();
     await page.mouse.move(0, 0);
@@ -608,13 +608,13 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
     await expect(indicator).toHaveScreenshot(`${creditForm.variant}-indicator-step-6.png`);
   });
 
-  test('VIS-008-D: progress — шаг 1 (17%)', async ({ page, creditForm }) => {
+  test('VIS-008-D: прогресс — шаг 1 (17%)', async ({ page, creditForm }) => {
     await creditForm.goto();
     const progress = page.getByText(/Шаг 1 из 6/);
     await expect(progress).toHaveScreenshot(`${creditForm.variant}-progress-step-1.png`);
   });
 
-  test('VIS-008-E: progress — шаг 6 (100%)', async ({ page, creditForm }) => {
+  test('VIS-008-E: прогресс — шаг 6 (100%)', async ({ page, creditForm }) => {
     await creditForm.goto();
     await creditForm.fillAndNavigateToStep6();
     const progress = page.getByText(/Шаг 6 из 6/);
@@ -623,7 +623,7 @@ test.describe('Visual · VIS-008: Навигация wizard', { tag: ['@visual']
 });
 
 // ============================================================================
-// VIS-009: Responsive (mobile / tablet / desktop / wide)
+// VIS-009: Адаптивность (mobile / tablet / desktop / wide)
 // ============================================================================
 
 test.describe('Visual · VIS-009: Адаптивные viewport-ы', { tag: ['@visual'] }, () => {
@@ -664,11 +664,11 @@ test.describe('Visual · VIS-009: Адаптивные viewport-ы', { tag: ['@v
 });
 
 // ============================================================================
-// VIS-010: Loading & Error boundaries
+// VIS-010: Состояния загрузки и ошибок
 // ============================================================================
 
-test.describe('Visual · VIS-010: Loading & Error', { tag: ['@visual'] }, () => {
-  test('VIS-010-A: LoadingState во время загрузки', async ({ page, creditForm }) => {
+test.describe('Visual · VIS-010: Загрузка и ошибки', { tag: ['@visual'] }, () => {
+  test('VIS-010-A: компонент LoadingState во время загрузки', async ({ page, creditForm }) => {
     // Замедляем API, чтобы зафиксировать loading-состояние.
     await mockAllApisForHappyPath(page);
     await page.route('**/api/v1/credit-applications/1', async (route) => {
@@ -683,7 +683,7 @@ test.describe('Visual · VIS-010: Loading & Error', { tag: ['@visual'] }, () => 
     await nav.catch(() => {});
   });
 
-  test('VIS-010-B: ErrorState при 500 на GET', async ({ page, creditForm }) => {
+  test('VIS-010-B: компонент ErrorState при 500 на GET', async ({ page, creditForm }) => {
     await mockAllApisForHappyPath(page);
     await page.route('**/api/v1/credit-applications/1', async (route) => {
       await route.fulfill({

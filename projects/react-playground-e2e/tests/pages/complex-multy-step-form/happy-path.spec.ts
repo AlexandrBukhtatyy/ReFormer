@@ -1,5 +1,5 @@
 /**
- * Happy Path E2E Tests
+ * E2E-тесты happy path
  *
  * Тесты полного успешного прохождения формы для разных типов кредита.
  * Проверяют, что пользователь может заполнить форму от начала до конца
@@ -18,7 +18,7 @@ import {
   MOCK_CREDIT_APPLICATION_1,
 } from './mocks';
 
-test.describe('Happy Path', { tag: ['@critical', '@smoke'] }, () => {
+test.describe('Happy Path — успешное прохождение формы', { tag: ['@critical', '@smoke'] }, () => {
   test('HP-001: Потребительский кредит - полное заполнение', async ({ creditForm }) => {
     await test.step('Открываем форму', async () => {
       await creditForm.goto();

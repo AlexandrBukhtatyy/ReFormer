@@ -1,5 +1,5 @@
 /**
- * Navigation E2E Tests
+ * E2E-тесты навигации
  *
  * Тесты навигации по шагам формы:
  * - Переход вперед
@@ -10,7 +10,7 @@
 
 import { test, expect } from '../../shared/test-factory';
 
-test.describe('Navigation', { tag: ['@navigation', '@smoke'] }, () => {
+test.describe('Навигация', { tag: ['@navigation', '@smoke'] }, () => {
   test.describe('NAV-001: Переход вперед', () => {
     test('NAV-001-A: Успешный переход с шага 1 на шаг 2', async ({ creditForm }) => {
       await creditForm.goto();

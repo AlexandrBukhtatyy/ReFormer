@@ -1,5 +1,5 @@
 /**
- * Arrays E2E Tests
+ * E2E-тесты массивов форм
  *
  * Тесты работы с массивами форм (ArrayNode):
  * - Добавление элементов
@@ -11,7 +11,7 @@
 import { test, expect } from '../../shared/test-factory';
 import type { CreditFormPage } from './credit-form-page.pom';
 
-test.describe('Arrays', { tag: ['@arrays'] }, () => {
+test.describe('Массивы форм', { tag: ['@arrays'] }, () => {
   test.describe('ARR-001: Добавление созаемщика', () => {
     test('ARR-001-A: Добавление одного созаемщика', async ({ creditForm }) => {
       await creditForm.goto();
@@ -42,8 +42,8 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
 
       await creditForm.toggleAddCoBorrower(true);
 
-      // FormArray starts with 1 initial item from schema definition [coBorrowersFormSchema]
-      // Get initial count of coBorrower forms
+      // FormArray стартует с 1 элементом из схемы [coBorrowersFormSchema]
+      // Получаем начальное количество форм созаемщиков
       const coBorrowerForms = creditForm.page.locator('[data-testid="input-coBorrower-lastName"]');
       const initialCount = await coBorrowerForms.count();
 
@@ -52,10 +52,10 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
       await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
 
-      // After adding 3, total should be initialCount + 3
+      // После добавления 3-х итоговое количество должно быть initialCount + 3
       await expect(coBorrowerForms).toHaveCount(initialCount + 3);
 
-      // Проверяем, что формы появились (at least 3 visible)
+      // Проверяем, что формы появились (минимум 3 видимых)
       await expect(creditForm.page.locator('text=/созаемщик.*#1/i')).toBeVisible();
       await expect(creditForm.page.locator('text=/созаемщик.*#2/i')).toBeVisible();
       await expect(creditForm.page.locator('text=/созаемщик.*#3/i')).toBeVisible();
@@ -236,15 +236,17 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
   });
 
   test.describe('ARR-003: Валидация элементов массива', () => {
-    // NOTE: Step-level validation (validateForm) doesn't block navigation for invalid array items.
-    // These tests verify that adding co-borrowers with various data states works correctly,
-    // and that valid co-borrowers allow successful form progression.
+    // ЗАМЕТКА: валидация на уровне шага (validateForm) не блокирует навигацию
+    // для невалидных элементов массива. Эти тесты проверяют, что добавление
+    // созаёмщиков с разными состояниями данных работает корректно,
+    // а валидные созаёмщики позволяют успешно двигаться по форме дальше.
 
     test('ARR-003-A: Добавление созаемщика с пустыми полями не блокирует переход', async ({
       creditForm,
     }) => {
-      // NOTE: This test documents current behavior - step validation doesn't validate array item fields.
-      // Array item validation only occurs during full form submission.
+      // ЗАМЕТКА: тест документирует текущее поведение — step-валидация не проверяет
+      // поля элементов массива. Валидация элементов массива происходит только
+      // при отправке всей формы.
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -283,7 +285,7 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
     test('ARR-003-B: Созаемщик с частично заполненными полями позволяет переход', async ({
       creditForm,
     }) => {
-      // NOTE: This test documents current behavior - step validation doesn't validate array item fields.
+      // ЗАМЕТКА: тест документирует текущее поведение — step-валидация не проверяет поля элементов массива.
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -325,7 +327,7 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
     });
 
     test('ARR-003-C: Созаемщик с невалидным email позволяет переход', async ({ creditForm }) => {
-      // NOTE: This test documents current behavior - step validation doesn't validate array item fields.
+      // ЗАМЕТКА: тест документирует текущее поведение — step-валидация не проверяет поля элементов массива.
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -421,7 +423,7 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
 
       await creditForm.toggleAddCoBorrower(true);
 
-      // FormArray starts with initial item(s)
+      // FormArray стартует с начальным элементом (или несколькими)
       const coBorrowerForms = creditForm.page.locator('[data-testid="input-coBorrower-lastName"]');
       const initialCount = await coBorrowerForms.count();
 
@@ -430,7 +432,7 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
         await creditForm.page.getByRole('button', { name: /добавить созаемщика/i }).click();
       }
 
-      // Все 5 должны быть добавлены (initial + 5)
+      // Все 5 должны быть добавлены (начальные + 5)
       await expect(coBorrowerForms).toHaveCount(initialCount + 5);
     });
 
@@ -453,7 +455,7 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
       ).toBeEnabled();
     });
 
-    test('ARR-004-C: Пустое состояние массива (empty state)', async ({ creditForm }) => {
+    test('ARR-004-C: Пустое состояние массива', async ({ creditForm }) => {
       await creditForm.goto();
       await creditForm.fillAndNavigateToStep4();
       await creditForm.fillStep4Employment();
@@ -475,11 +477,11 @@ test.describe('Arrays', { tag: ['@arrays'] }, () => {
         propertyItems = propertySection.locator('text=/имущество.*#/i');
       }
 
-      // Теперь должен отображаться empty state внутри секции имущества
+      // Теперь внутри секции имущества должно отображаться пустое состояние
       const emptyStateText = propertySection.getByText(/для добавления информации/i);
       await expect(emptyStateText).toBeVisible();
 
-      // После добавления элемента empty state исчезает
+      // После добавления элемента пустое состояние исчезает
       await creditForm.page.getByRole('button', { name: /добавить имущество/i }).click();
       await creditForm.page.waitForTimeout(300);
       await expect(propertySection.locator('text=/имущество.*#1/i')).toBeVisible();
