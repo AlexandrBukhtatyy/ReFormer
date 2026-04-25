@@ -15,12 +15,6 @@ export class ValidationPage {
   readonly baseUrl = '/examples/validation';
   readonly perf?: PerformanceCollector;
 
-  // Section toggles
-  readonly stringsSection: Locator;
-  readonly numbersSection: Locator;
-  readonly datesSection: Locator;
-  readonly otherSection: Locator;
-
   // Control buttons
   readonly validateAllButton: Locator;
   readonly resetButton: Locator;
@@ -32,12 +26,6 @@ export class ValidationPage {
   constructor(page: Page, options?: ValidationPageOptions) {
     this.page = page;
     this.perf = options?.perf;
-
-    // Section toggles
-    this.stringsSection = page.getByRole('button', { name: /строки/i });
-    this.numbersSection = page.getByRole('button', { name: /числа/i });
-    this.datesSection = page.getByRole('button', { name: /дата и время/i });
-    this.otherSection = page.getByRole('button', { name: /другие/i });
 
     // Control buttons
     this.validateAllButton = page.getByRole('button', { name: /проверить все/i });
@@ -112,16 +100,6 @@ export class ValidationPage {
     if (await toggleAllButton.isVisible()) {
       await toggleAllButton.click();
     }
-  }
-
-  async toggleSection(section: 'strings' | 'numbers' | 'dates' | 'other') {
-    const sectionMap = {
-      strings: this.stringsSection,
-      numbers: this.numbersSection,
-      dates: this.datesSection,
-      other: this.otherSection,
-    };
-    await sectionMap[section].click();
   }
 
   // ============================================================================
@@ -228,10 +206,6 @@ export class ValidationPage {
     });
   }
 
-  async blurCurrentField() {
-    await this.page.keyboard.press('Tab');
-  }
-
   // ============================================================================
   // Assertions
   // ============================================================================
@@ -252,64 +226,6 @@ export class ValidationPage {
 
   async expectFieldValue(fieldTestId: string, value: string) {
     await expect(this.input(fieldTestId)).toHaveValue(value);
-  }
-
-  // ============================================================================
-  // Test Data Helpers
-  // ============================================================================
-
-  getValidTestData() {
-    return {
-      // Strings
-      requiredField: 'test value',
-      emailField: 'test@example.com',
-      minLengthField: 'abcdef', // 6 chars, min is 5
-      maxLengthField: 'short', // 5 chars, max is 10
-      patternField: 'letters', // only letters
-      urlField: 'https://example.com',
-      phoneField: '+7 900 123-45-67',
-      // Numbers
-      minField: 15, // min is 10
-      maxField: 50, // max is 100
-      numberField: 50, // integer 1-100
-      // Dates
-      dateField: '2020-06-15', // past date
-      isDateField: '2024-01-15',
-      minDateField: '2022-06-01', // after 2020-01-01
-      maxDateField: '2020-01-01', // before today
-      futureDateField: '2030-01-01', // future
-      minAgeField: '2000-01-01', // 24+ years old (>18)
-      maxAgeField: '1980-01-01', // 44 years old (<65)
-      // Custom
-      customField: 'Password1', // 8+ chars, digit, letter
-    };
-  }
-
-  getInvalidTestData() {
-    return {
-      // Strings
-      requiredField: '', // empty
-      emailField: 'invalid-email', // no @
-      minLengthField: 'ab', // 2 chars, min is 5
-      maxLengthField: 'this is too long', // >10 chars
-      patternField: 'abc123', // contains numbers
-      urlField: 'not-a-url',
-      phoneField: '123', // incomplete
-      // Numbers
-      minField: 5, // min is 10
-      maxField: 150, // max is 100
-      numberField: 150, // over 100
-      // Dates
-      dateField: '2030-01-01', // future date (should be past)
-      isDateField: '', // empty
-      minDateField: '2019-01-01', // before 2020-01-01
-      maxDateField: '2030-01-01', // after today
-      futureDateField: '2020-01-01', // past (should be future)
-      minAgeField: '2015-01-01', // too young (<18)
-      maxAgeField: '1950-01-01', // too old (>65)
-      // Custom
-      customField: 'pass', // too short, no digit
-    };
   }
 
   // ============================================================================
