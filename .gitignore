@@ -21,3 +21,8 @@ docs/_temp/
 
 # E2E
 */**/*.spec.ts-snapshots
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
