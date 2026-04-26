@@ -6,13 +6,15 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
+import McpCreditApplication from './pages/examples/mcp-credit-application';
 type ExamplePage =
   | 'simple'
   | 'validation'
   | 'behaviors'
   | 'complex'
   | 'complex-renderer'
-  | 'json-renderer';
+  | 'json-renderer'
+  | 'mcp-credit';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -50,6 +52,12 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/behaviors',
     title: 'Поведения',
     description: 'Реактивное поведение через декларативный подход',
+  },
+  {
+    id: 'mcp-credit',
+    path: '/examples/mcp-credit',
+    title: 'MCP Credit (тест MCP)',
+    description: 'Кредитная заявка, реализованная суб-агентом по MCP-prompts (PROMT.md)',
   },
 ];
 
@@ -123,6 +131,7 @@ function Layout() {
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
+          <Route path="/examples/mcp-credit" element={<McpCreditApplication />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
