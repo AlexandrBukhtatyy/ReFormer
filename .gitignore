@@ -19,6 +19,9 @@ projects/react-playground/src/mocks/_generated/
 # Temporary docs
 docs/_temp/
 
+# Orchestrator scratch (mcp prompt outputs, dev.log) — see PROMT.md
+.tmp/
+
 # E2E
 */**/*.spec.ts-snapshots
 
