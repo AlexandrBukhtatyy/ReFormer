@@ -11,12 +11,16 @@
 
 Если суб-агент не справился — оркестратор фиксирует пробел через `report_issue`, правит источник MCP (`docs/llms/*.md` или JSDoc), регенерирует `llms.txt`, удаляет файлы провалившегося суб-агента и спавнит нового.
 
+## Временные изменения для проверки (orchestrator-only)
+
+Чтобы playwright мог открыть страницу для visual smoke-тестов, оркестратор временно зарегистрировал маршрут `/examples/mcp-credit` в [`projects/react-playground/src/App.tsx`](../../projects/react-playground/src/App.tsx). Это нарушает «Регистрация маршрутов — out of scope» из PROMT.md, но альтернативы для playwright-проверки нет. Маршрут будет удалён единым `git revert` после завершения всех 3 страниц (stage 5 третьей страницы → snapshot-tests → revert App.tsx). Суб-агенты `App.tsx` не читают и не правят — это работа оркестратора.
+
 ## Сводная таблица
 
 | Страница | Этап | Итераций | MCP-фиксы (коммиты) | Use'd MCP |
 |---|---|---:|---|---|
 | `mcp-credit-application/` | 1. FormSchema | 2 | core: add `## Import Patterns` section + `FormFields` constraint callout in `07-complete-import.md` and `10-arrays.md` (commit pending) | prompt `create-form` (target=core) |
-| `mcp-credit-application/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application/` | 2. Validation | 1 (+ 1 polish iter) | — (фикс отложен до повтора) | prompt `add-validation` |
 | `mcp-credit-application/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
@@ -57,7 +61,15 @@ _Каждый этап после прогона дополняется блок
 
 ### `mcp-credit-application/` · 2. Validation
 
-_не начато_
+**Итерации: 1 + 1 polish.**
+
+**Итерация 1 — успех (validation block).** Суб-агент с prompt `add-validation` дописал `validation: (path) => { ... }` в `createForm` (schema.ts +474 строк). Покрыл: built-in (`required`/`min`/`max`/`minLength`/`maxLength`/`email`/`pattern`), custom через `validate(...)` (INN/SNILS checksums, age 18–70, паспорт/возраст cross-rule), `applyWhen(...)` для условных валидаций (mortgage-only, employed-only, sameAsRegistration, и т. д.), `validateItems(arrayPath, fn)` для трёх FormArrays. Cross-field через `ctx.form.<other>.value.value`. tsc/eslint clean. **MCP gap'ов не обнаружено.**
+
+**Итерация polish — error rendering.** Первая итерация не довела работу до видимости ошибок: `index.tsx` не был изменён, errors жили только в state. По правилу «Невалидный ввод даёт ошибки» из PROMT.md — недостаточно. Второй суб-агент дополнил `index.tsx` (+115 строк): общий `<FieldErrors>` helper вокруг `useFormControl(...).errors`, обёртка submit на `form.submit(callback)`, локальный `submitted`-state. **Новый MCP gap:** `form.submit(callback)` нигде не задокументирован в `add-validation` prompt — пришлось взять из Quick Start `create-form` prompt с `any`-cast (severity:minor, зарегистрирован через `report_issue`).
+
+**Visual smoke-test (playwright).** После добавления временного маршрута `/examples/mcp-credit` в `App.tsx` оркестратором: navigate → 0 console errors. Submit на пустой форме → **34 видимых error-сообщения** с правильными русскими текстами («Введите фамилию», «Поле обязательно для заполнения», «Необходимо принять условия кредитования», «Подтвердите точность введённых данных» и т. д.). Скриншоты сохранены:
+- baseline (stage 1 + 2 без ошибок): [docs/specs/screenshots/mcp-credit/stage1-2/](screenshots/mcp-credit/stage1-2/) — 7 PNG (fullPage + 6 шагов).
+- after-submit (stage 2 с ошибками): [docs/specs/screenshots/mcp-credit/stage2/](screenshots/mcp-credit/stage2/) — 7 PNG (fullPage + 6 шагов с красными error-spans).
 
 ### `mcp-credit-application/` · 3. Behaviors
 
