@@ -13,7 +13,6 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
-import { enableWhen, copyFrom } from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from './types';
 
 // Stage-1 scaffold: use a no-op component placeholder so we don't need
@@ -218,11 +217,7 @@ const RU_PHONE = /^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/;
 // breaks the deep inference chain while keeping the return type correct.
 
 export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
-  createForm as (config: {
-    form: unknown;
-    validation: unknown;
-    behavior: unknown;
-  }) => FormProxy<CreditApplicationForm>
+  createForm as (config: { form: unknown; validation: unknown }) => FormProxy<CreditApplicationForm>
 )({
   form: {
     // ── Step 1: Основная информация о кредите ──────────────────────────
@@ -679,180 +674,5 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     pattern(path.step6.electronicSignature, /^\d{6}$/, {
       message: 'Код подтверждения: 6 цифр',
     });
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // STAGE 3a: Declarative behaviors — enableWhen + copyFrom only.
-  // No watchField / computeFrom / revalidateWhen (those are stage 3b).
-  // ══════════════════════════════════════════════════════════════════════════
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  behavior: (path: any) => {
-    // ── Step 1: mortgage-only fields ────────────────────────────────────────
-    enableWhen(
-      path.step1.propertyValue,
-      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step1.initialPayment,
-      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage',
-      { resetOnDisable: true }
-    );
-
-    // ── Step 1: car-only fields ──────────────────────────────────────────────
-    enableWhen(
-      path.step1.carBrand,
-      (form: CreditApplicationForm) => form.step1.loanType === 'car',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step1.carModel,
-      (form: CreditApplicationForm) => form.step1.loanType === 'car',
-      { resetOnDisable: true }
-    );
-    enableWhen(path.step1.carYear, (form: CreditApplicationForm) => form.step1.loanType === 'car', {
-      resetOnDisable: true,
-    });
-    enableWhen(
-      path.step1.carPrice,
-      (form: CreditApplicationForm) => form.step1.loanType === 'car',
-      { resetOnDisable: true }
-    );
-
-    // ── Step 3: residenceAddress — enabled only when sameAsRegistration=false
-    enableWhen(
-      path.step3.residenceAddress.region,
-      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step3.residenceAddress.city,
-      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step3.residenceAddress.street,
-      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step3.residenceAddress.house,
-      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step3.residenceAddress.apartment,
-      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step3.residenceAddress.postalCode,
-      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
-      { resetOnDisable: true }
-    );
-
-    // ── Step 3: copyFrom registrationAddress → residenceAddress when same ───
-    copyFrom(path.step3.registrationAddress.region, path.step3.residenceAddress.region, {
-      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
-    });
-    copyFrom(path.step3.registrationAddress.city, path.step3.residenceAddress.city, {
-      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
-    });
-    copyFrom(path.step3.registrationAddress.street, path.step3.residenceAddress.street, {
-      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
-    });
-    copyFrom(path.step3.registrationAddress.house, path.step3.residenceAddress.house, {
-      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
-    });
-    copyFrom(path.step3.registrationAddress.apartment, path.step3.residenceAddress.apartment, {
-      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
-    });
-    copyFrom(path.step3.registrationAddress.postalCode, path.step3.residenceAddress.postalCode, {
-      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
-    });
-
-    // ── Step 4: employed-only fields ────────────────────────────────────────
-    enableWhen(
-      path.step4.companyName,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.companyInn,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.companyPhone,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.companyAddress,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.position,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.workExperienceTotal,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.workExperienceCurrent,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.monthlyIncome,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
-      { resetOnDisable: true }
-    );
-
-    // ── Step 4: selfEmployed-only fields ────────────────────────────────────
-    enableWhen(
-      path.step4.businessType,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.businessInn,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed',
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step4.businessActivity,
-      (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed',
-      { resetOnDisable: true }
-    );
-
-    // ── Step 4: additionalIncomeSource — enabled only when additionalIncome > 0
-    enableWhen(
-      path.step4.additionalIncomeSource,
-      (form: CreditApplicationForm) =>
-        typeof form.step4.additionalIncome === 'number' && form.step4.additionalIncome > 0,
-      { resetOnDisable: true }
-    );
-
-    // ── Step 5: FormArray gating ─────────────────────────────────────────────
-    enableWhen(
-      path.step5.properties,
-      (form: CreditApplicationForm) => form.step5.hasProperty === true,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step5.existingLoans,
-      (form: CreditApplicationForm) => form.step5.hasExistingLoans === true,
-      { resetOnDisable: true }
-    );
-    enableWhen(
-      path.step5.coBorrowers,
-      (form: CreditApplicationForm) => form.step5.hasCoBorrower === true,
-      { resetOnDisable: true }
-    );
   },
 });
