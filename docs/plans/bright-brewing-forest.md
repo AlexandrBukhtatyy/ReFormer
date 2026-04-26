@@ -1,143 +1,106 @@
-# План: убрать playground-зависимости из MCP-сервера и library docs
+# План: переработать PROMT.md под суб-агентовый итеративный цикл
 
 ## Context
 
-После публикации `@reformer/*` в npm у пользователя нет каталога `projects/react-playground/` — есть только `node_modules/@reformer/*`. Сейчас два места нарушают эту границу и сломаются у внешнего пользователя:
+`PROMT.md` описывает валидацию `reformer-mcp` через реализацию формы из `docs/specs/credit-application-form.md`. Текущая редакция имеет 5 нерешённых проблем (вскрылись при ревью):
 
-1. **Tool `find_example`** в `packages/reformer-mcp/src/tools/find-example.ts` использует `SCENARIO_MAP` с путями `'projects/react-playground/...'` и функцию `locateRepoRoot()`, которая ищет `package.json` с `name === 'reformer-monorepo'`. Из npm-установки эти пути не существуют → tool возвращает только fallback или падает на `existsSync`.
-2. **Library docs** содержат **25 markdown-ссылок** вида `[X](../../../../projects/react-playground/...)` в 6 пакетах (`reformer`, `reformer-cdk`, `reformer-ui-kit`, `reformer-renderer-react`, `reformer-renderer-json`). Эти ссылки попадают в `llms.txt` и отдаются через MCP — у внешнего пользователя они некликабельны.
+1. **Перезагрузка MCP** внутри одной сессии Claude Code невозможна без рестарта (stdio держит дочерний процесс) — шаг 5.e цикла нерабочий.
+2. **«Память» агента после `git restore`** — текущая сессия помнит черновик, MCP-подсказка дублируется собственным контекстом → тест частично инвалиден.
+3. **Чтение `projects/react-playground/`** — App.tsx и layout-обвязка размывают границу запретов.
+4. **Этапы 6 (Polish) и 7 (E2E)** не имеют покрытия MCP-промптами и тянут вне-scope работу (Playwright, маршрутизация).
+5. **Противоречие** «каждая страница с этапа 1» vs «использовать `to-renderer*`».
 
-MCP-сервер — это упаковка библиотек, он должен оперировать **только** их собственной документацией (`docs/llms/*.md` + JSDoc/TSDoc). Любая привязка к примерам из монорепо — баг архитектуры.
+Решение пользователя: суб-агенты на каждый этап (чистый контекст, MCP подхватывается свежим), интеграция и e2e — на стороне пользователя, между страницами портирование не используем.
 
-**Решение:** заменить `find_example` на `find_recipe` (источник — library docs/JSDoc) и вычистить playground-ссылки из библиотечных `.md`.
+## Изменения в PROMT.md
 
-**Не трогаем** (это документы монорепо, не распространяются в npm): `AGENTS.md`, `README.md` корня и пакетов, `docs/llms-convention.md`, `packages/reformer-mcp/README.md` (там тоже фраза про playground в описании старого tool — обновим в рамках README).
+### A. Раздел «Запреты для агента (КРИТИЧНО)»
+- Заменить пункт про `react-playground/src/pages/examples/...` на общее правило: **ничего не читать** в `projects/react-playground/` и в `projects/react-playground-e2e/` — никаких страниц, layout-ов, конфигов, тестов, App.tsx.
+- Убрать механику `-tainted`. Если суб-агент случайно открыл запрещённый файл — каталог страницы **удаляется**, этап перезапускается с нуля.
 
-## Декомпозиция (одно issue, без отдельного эпика)
+### B. Раздел «Что реализовать»
+- Каждая страница — **самодостаточный модуль** в `src/pages/examples/mcp-credit-application*/`, экспортирующий React-компонент.
+- Удалить фразу про регистрацию маршрута в `App.tsx` — это делает пользователь после приёмки.
+- Таблица из 3 страниц остаётся.
 
-`bd create --type=task --priority=1 --title="Remove playground references from MCP server and library docs"`
+### C. Раздел «Как должен работать ИИ-агент»
+- Переформулировать: **оркестратор** (родительский Claude Code) держит спеку и MCP-сервер; для каждого этапа спавнит **суб-агент** через Task tool с минимальным контекстом (текущая спека + scope этапа + перечень разрешённых MCP-инструментов).
+- Суб-агент имеет доступ только к: MCP, текущему каталогу страницы (write/read), AGENTS.md, корневому README, package.json пакетов, tsconfig, конфигам Vite/Tailwind.
+- Команды `claude mcp restart` убрать — новый суб-агент стартует со свежей stdio-сессией MCP.
 
-### Шаг 1 — Новый tool `find_recipe`
-
-**Создать** `packages/reformer-mcp/src/tools/find-recipe.ts`. Функция:
-
-- Вход: `{ topic: string, package?: string }`.
-- Алгоритм поиска (cascade):
-  1. **Точное совпадение по имени файла.** Пройти `getPublicSymbols`-инфраструктуру не нужно — переиспользуем `KNOWN_PACKAGES` + резолв путей как в [docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts). Ищем `docs/llms/<topic>.md` или `<NN>-<topic>.md` (с любым числовым префиксом). Если match — вернуть весь файл.
-  2. **Match по `## ` заголовку секции.** В каждом `docs/llms/*.md` всех пакетов искать заголовок, содержащий `topic` (case-insensitive). Возвращать секцию до следующего `##` через [`getSection`](packages/reformer-mcp/src/utils/docs-parser.ts).
-  3. **Match по public-символу через JSDoc.** Если ни 1, ни 2 не сработали — `findSymbol(topic)` (см. [symbols-parser.ts](packages/reformer-mcp/src/utils/symbols-parser.ts)) → если есть `@example` — вернуть его.
-  4. **Fallback:** список доступных тем (имена .md по всем пакетам без `NN-` префикса) + список public-символов (первые 20).
-- Выход: markdown с `# <Title>`, `**Source:** <package> · <file>`, тело рецепта/секции/примера.
-
-**Удалить** `packages/reformer-mcp/src/tools/find-example.ts` целиком. Никакого `SCENARIO_MAP`, `locateRepoRoot`, файловых I/O за пределы пакетов в `node_modules`/монорепо — только данные, которые уже подняты в кеш `docs-parser` / `symbols-parser`.
-
-**Подключить:**
-- [tools/index.ts](packages/reformer-mcp/src/tools/index.ts) — заменить `findExample*` экспорт на `findRecipe*`.
-- [src/index.ts](packages/reformer-mcp/src/index.ts) — переименовать `findExampleToolDefinition` → `findRecipeToolDefinition`, кейс `'find_example'` → `'find_recipe'`.
-
-### Шаг 2 — Очистка library docs (25 ссылок)
-
-Файлы (полный перечень из аудита):
-
-- `packages/reformer/docs/llms/{23-copy-from,24-sync-fields,25-reset-when,26-transform-value,27-revalidate-when,28-submit-and-reset,29-async-preload}.md` — 7 файлов, 7 ссылок (одна на каждый `BehaviorsExamples.tsx`/`RegistrationForm.tsx`/`useLoadCreditApplication`/…).
-- `packages/reformer-cdk/docs/llms/{04-form-field,05-recipes}.md` — 3 ссылки.
-- `packages/reformer-ui-kit/docs/llms/{01-overview,02-text-fields,03-choice-fields,04-layout-and-buttons,05-form-field-integration}.md` — 7 ссылок.
-- `packages/reformer-renderer-react/docs/llms/05-cookbook.md` — 2 ссылки.
-- `packages/reformer-renderer-json/docs/llms/{01-overview,03-registry,05-cookbook}.md` — 5 ссылок.
-
-**Правило замены:** убрать markdown-ссылку, оставить упоминание имени файла как inline-кода, без href. Например:
-
-```diff
-- См. [CreditApplicationForm.tsx](../../../../projects/react-playground/.../CreditApplicationForm.tsx).
-+ Эталонный паттерн в монорепо — `CreditApplicationForm.tsx` (раздел `## ...` ниже).
-```
-
-Если упоминание было только «See also»-списком — удалить элемент целиком (а не оставлять «голый» текст без href).
-
-`llms.txt` всех пакетов автоматически обновится после `npm run generate:llms` (шаг 4).
-
-### Шаг 3 — Обновить README MCP-сервера
-
-[packages/reformer-mcp/README.md](packages/reformer-mcp/README.md):
-- Заменить `find_example` → `find_recipe` (в таблице tools, в подразделе с примером JSON).
-- Обновить описание: «найти рецепт по `topic` в библиотечной документации (docs/llms/) или JSDoc», убрать упоминание `react-playground`.
-- В чек-листе verification (внизу): тестовые вызовы `find_recipe` вместо `find_example`.
-
-### Шаг 4 — Регенерация и smoke-test
-
-```bash
-npm run build -w @reformer/mcp           # включает npm run generate:llms
-npm run generate:llms                     # все пакеты
-git diff --stat -- 'packages/*/llms.txt'  # повторный запуск идемпотентен → diff пуст
-node scripts/generate-llms-txt packages/reformer --audit
-# (audit 0/0 во всех 5 packages по-прежнему ожидается)
-```
-
-Smoke-test через Node:
-
-```bash
-node -e "import('./packages/reformer-mcp/dist/tools/find-recipe.js').then(async m => {
-  console.log((await m.findRecipeTool({ topic: 'copyFrom' })).content[0].text.slice(0, 200));
-})"
-```
-
-Ожидание: возвращён рецепт из `packages/reformer/docs/llms/23-copy-from.md` (через секцию или файл) либо `@example` блок из `copy-from.ts`.
-
-Дополнительно проверить, что больше нет упоминания playground в выходе MCP:
-
-```bash
-grep -RE "react-playground" packages/*/llms.txt && echo "FAIL: still referenced" || echo "PASS: no playground refs"
-```
-
-### Шаг 5 — Commit
-
-Один коммит, conventional message:
+### D. Раздел «Итеративный процесс» — переписать цикл
+Шаблон одного этапа:
 
 ```
-refactor(mcp): drop playground dependency from server and library docs
-
-- replace find_example tool with find_recipe (sources: docs/llms/ and JSDoc only)
-- delete SCENARIO_MAP and locateRepoRoot — server now works only from
-  installed @reformer/* packages, no monorepo assumptions
-- strip 25 markdown links to projects/react-playground/* from
-  docs/llms/ in all 6 library packages
-- regenerate llms.txt for all packages (idempotent)
-- update reformer-mcp README to describe find_recipe
+1. Оркестратор согласует scope этапа со спекой.
+2. Оркестратор спавнит суб-агента (чистый контекст). Промт суб-агенту:
+   «Реализуй <scope> в <каталог>. Используй только MCP. Запрещено: <список>».
+3. Суб-агент работает, возвращает результат + лог использованных MCP tools/prompts/resources.
+4. Оркестратор проверяет: tsc проходит, страница рендерится в dev-сборке.
+5. Если ОК → оркестратор коммитит файлы суб-агента, переходит к следующему этапу.
+6. Если плохо:
+   a. Оркестратор фиксирует проблему через `report_issue`.
+   b. Оркестратор правит ИСТОЧНИК MCP — `packages/<pkg>/docs/llms/*.md` и/или JSDoc
+      в `packages/<pkg>/src/`. Никогда не редактировать `llms.txt` напрямую.
+   c. `npm run generate:llms`.
+   d. `npm run build -w @reformer/mcp`.
+   e. Удалить файлы провалившегося суб-агента (`git clean -fd <каталог>`,
+      `git restore <каталог>`).
+   f. Спавнит НОВЫЙ суб-агент (чистый контекст, свежий MCP) — запуск этапа заново.
+7. Если этап потребовал ≥2 итераций — оркестратор фиксирует в commit-сообщении
+   перечень правок MCP этой итерации.
 ```
 
-## Файлы
+### E. Раздел «Этапы внутри одной страницы» — сократить до 5
+Удалить этапы 6 (Polish & integration) и 7 (E2E). Финальная таблица:
 
-**Создаются:**
-- `packages/reformer-mcp/src/tools/find-recipe.ts`
+| Этап | Содержание | Проверка |
+|---|---|---|
+| 1. FormSchema | Типы, поля, начальные значения, группы, массивы. Без валидации/behavior. | tsc, страница рендерит пустые поля. |
+| 2. Валидация | Built-in + кастомные + async + cross-field. | Невалидный ввод даёт ошибки. |
+| 3. Behaviors | computeFrom / enableWhen / hideWhen / watchField / copyFrom / syncFields. | Изменение зависимого поля — реакция. |
+| 4. FormArray | Имущество, существующие кредиты, созаёмщики. | Add/remove работает, items валидируются. |
+| 5. Multi-step | 6 шагов через FormWizard, STEP_VALIDATIONS, fullValidation. | Все 6 шагов проходимы, валидация блокирует переход. |
 
-**Удаляются:**
-- `packages/reformer-mcp/src/tools/find-example.ts`
+### F. Раздел «Между страницами»
+- Каждая из 3 страниц делается **с нуля с этапа 1** — чтобы проверить MCP отдельно для каждого стека.
+- Промпты `to-renderer` / `to-renderer-json` **не используются** в этом тесте (отдельный сценарий валидации, вне scope этого PROMT).
+- После каждой страницы — оркестратор просматривает `~/.reformer/issues.jsonl`, превращает в правки MCP-доков, коммитит отдельно.
 
-**Правятся:**
-- `packages/reformer-mcp/src/tools/index.ts`
-- `packages/reformer-mcp/src/index.ts`
-- `packages/reformer-mcp/README.md`
-- 18 файлов `packages/*/docs/llms/*.md` (точечно — конкретные строки из аудита, всего 25 правок)
+### G. Раздел «Тестирование (Playwright)» — удалить целиком
+E2E пишет пользователь после приёмки страниц. Промпт-генератор для e2e в этом тесте не валидируем.
 
-**Регенерируются автоматически:**
-- `packages/*/llms.txt` (6 файлов)
+### H. Раздел «Definition of Done» — переписать
+- 3 страницы в `projects/react-playground/src/pages/examples/mcp-credit-application*/` собираются (`tsc` чистый), каждая экспортирует готовый React-компонент.
+- Регистрация маршрутов, layout-интеграция, e2e — не входит в DoD (пользовательская приёмка).
+- Если оркестратор записал пробелы в MCP-доках — они закрыты правками `docs/llms/*.md` или JSDoc.
+- Гранулярность коммитов: один коммит на «страница × этап»; правки MCP — отдельными коммитами `docs(<pkg>):` / `feat(mcp):`. История показывает чередование «этап → MCP-фикс → удаление → этап заново → ...».
+- В commit-сообщениях явно перечислять использованные MCP tools/prompts/resources (audit-trail).
+- Финальный отчёт `docs/specs/credit-application-mcp-report.md` — заполняет **сам агент-оркестратор** по ходу работы; таблица «страница × этап × количество итераций × что фиксили в MCP».
 
-## Verification (Definition of Done)
+### I. Раздел «Out of scope» — расширить
+- Регистрация маршрутов в `App.tsx`, layout-интеграция, нав-меню.
+- E2E-тесты (Playwright).
+- Промпты `to-renderer` / `to-renderer-json` — не применяются в этом тесте.
+- Реальный backend submit, адаптивная вёрстка, accessibility сверх ui-kit.
+- Перевод спеки/UI на английский. Замена baseline `complex-multy-step-form*`.
 
-- `grep -R "react-playground" packages/*/llms.txt` — 0 совпадений.
-- `grep -R "react-playground" packages/*/docs/llms/*.md` — 0 совпадений.
-- `grep -R "react-playground\|locateRepoRoot\|SCENARIO_MAP" packages/reformer-mcp/src` — 0 совпадений.
-- `npm run build -w @reformer/mcp` собирается.
-- `npm run generate:llms` идемпотентен.
-- `node scripts/generate-llms-txt packages/<pkg> --audit` для каждого из 5 пакетов: `Missing description: 0`, `Missing @example (callable only): 0`.
-- Smoke-test `find_recipe({ topic: 'copyFrom' })` возвращает непустой markdown с источником `@reformer/core`.
-- Smoke-test `find_recipe({ topic: 'wizard' })` возвращает рецепт wizard'а из `@reformer/cdk` (`05-recipes.md` — есть «Externally-controlled wizard»/«Conditional step visibility»).
-- README показывает `find_recipe` без упоминания playground.
-- Один аккуратный коммит без затрагивания корневого `AGENTS.md`/`README.md`/`docs/llms-convention.md`.
+### J. Связанные документы — без изменений
 
-## Out of scope
+## Files
 
-- Создание промптов-помощников (`create-form`, `add-validation`, …) — отдельная задача, обсуждалась ранее.
-- Vitest/integration-тесты MCP — отдельная задача.
-- README пакетов в корне (`README.md`, `packages/reformer/README.md`) — там playground остаётся как ссылка на StackBlitz для разработчиков, это легитимно.
-- AGENTS.md — это не в npm, ссылки на playground для разработчиков остаются.
+**Правится:**
+- `d:\Work\ReFormer\PROMT.md` (133 → ~110 строк после удаления e2e-секции)
+
+## Verification
+
+После правки PROMT.md:
+- В файле нет упоминаний `claude mcp restart`, `App.tsx` в обязательной части, Playwright, `-tainted`.
+- Цикл итерации содержит явный пункт «спавнит новый суб-агент».
+- Таблица этапов содержит 5 строк, не 7.
+- Definition of Done не упоминает 12 e2e-тестов.
+
+## Out of scope этого плана
+- Сам прогон валидации MCP по обновлённому PROMT.md.
+- Создание промпта `integrate-page` / `write-e2e` (если решим — отдельная задача).
+- Доработка инфраструктуры суб-агентов (Task tool сейчас работает как есть).
