@@ -5,4 +5,5 @@ export { addValidationPromptDefinition, getAddValidationPrompt } from './add-val
 export { addBehaviorPromptDefinition, getAddBehaviorPrompt } from './add-behavior.js';
 export { addFormArrayPromptDefinition, getAddFormArrayPrompt } from './add-form-array.js';
 export { addWizardPromptDefinition, getAddWizardPrompt } from './add-wizard.js';
+export { toRendererPromptDefinition, getToRendererPrompt } from './to-renderer.js';
 export { toRendererJsonPromptDefinition, getToRendererJsonPrompt } from './to-renderer-json.js';

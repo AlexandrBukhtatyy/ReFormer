@@ -93,6 +93,8 @@ import {
   getAddFormArrayPrompt,
   addWizardPromptDefinition,
   getAddWizardPrompt,
+  toRendererPromptDefinition,
+  getToRendererPrompt,
   toRendererJsonPromptDefinition,
   getToRendererJsonPrompt,
 } from './prompts/index.js';
@@ -258,6 +260,7 @@ type AnyPromptDefinition =
   | typeof addBehaviorPromptDefinition
   | typeof addFormArrayPromptDefinition
   | typeof addWizardPromptDefinition
+  | typeof toRendererPromptDefinition
   | typeof toRendererJsonPromptDefinition;
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
@@ -268,6 +271,7 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
     addBehaviorPromptDefinition,
     addFormArrayPromptDefinition,
     addWizardPromptDefinition,
+    toRendererPromptDefinition,
     toRendererJsonPromptDefinition,
   ];
   if (isDebugMode) {
@@ -303,6 +307,9 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 
     case 'add-wizard':
       return getAddWizardPrompt(args as { code: string; steps: string });
+
+    case 'to-renderer':
+      return getToRendererPrompt(args as { code: string });
 
     case 'to-renderer-json':
       return getToRendererJsonPrompt(args as { code: string });

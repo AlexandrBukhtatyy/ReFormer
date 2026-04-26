@@ -103,6 +103,7 @@ URI-шаблон: `reformer://<category>[/<short-package>]`.
 | `add-behavior` | `code` (required), `requirements` (required) | Выбрать и встроить behavior (`computeFrom`/`enableWhen`/`watchField`/`copyFrom`/`syncFields`/`resetWhen`/`transformValue`/`revalidateWhen`). Подгружает все рецепты + cycle-detection. |
 | `add-form-array` | `code` (required), `requirements` (required) | Превратить поле в массив через `array(...)` + `FormArray` UI. Подгружает array-operations, array-cleanup, FormArray compound API. |
 | `add-wizard` | `code` (required), `steps` (required) | Превратить single-form в multi-step `FormWizard`. Подгружает multi-step стратегию из core + FormWizard compound API + recipes. |
+| `to-renderer` | `code` (required) | Мигрировать форму с прямого React-рендеринга (`@reformer/core` + ручной JSX) на TS RenderSchema через `@reformer/renderer-react`. Подгружает quick-start, RenderSchema формат, behavior helpers, cookbook. |
 | `to-renderer-json` | `code` (required) | Мигрировать TS RenderSchema → JsonFormSchema + Registry. Подгружает migration cookbook, JSON-format, registry rules. |
 
 ### Analyze
