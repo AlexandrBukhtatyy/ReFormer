@@ -285,4 +285,3 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 
 - [05-form-field-integration.md](05-form-field-integration.md) — как `Button` используется в `FormWizard.Actions`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «forwardRef + Slot конфликты», «AsyncBoundary не переключает состояние».
-- Эталон playground: [react-playground/src/pages/examples/](../../../../projects/react-playground/src/pages/examples/).

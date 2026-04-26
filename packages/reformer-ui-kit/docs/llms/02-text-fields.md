@@ -265,4 +265,4 @@ import { Textarea } from '@reformer/ui-kit';
 - [03-choice-fields.md](03-choice-fields.md) — Select, Checkbox, RadioGroup.
 - [05-form-field-integration.md](05-form-field-integration.md) — как все эти поля автоматически подключаются через `FormField`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».
-- Эталон: [RegistrationForm.tsx](../../../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx), [credit-application-schema.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-schema.ts).
+- Эталон: `RegistrationForm.tsx`, `credit-application-schema.ts` (monorepo examples).

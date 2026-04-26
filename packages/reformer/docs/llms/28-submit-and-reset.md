@@ -96,7 +96,7 @@ function RegistrationForm() {
 }
 ```
 
-Source: [RegistrationForm.tsx:122-150](../../../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx).
+Source: `RegistrationForm.tsx:122-150` (monorepo example).
 
 ### Submit с error-handling и сохранением значений при ошибке
 

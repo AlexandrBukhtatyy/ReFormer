@@ -1,32 +1,38 @@
 # @reformer/mcp
 
-MCP (Model Context Protocol) server for the ReFormer form library. Provides AI assistants with ReFormer documentation and development tools.
+MCP (Model Context Protocol) server для библиотеки `@reformer/*`. Снабжает ИИ-ассистентов (Claude Code, Cursor, другие MCP-клиенты) per-package документацией, JSDoc-индексом публичных символов и эталонными примерами форм.
+
+См. сопутствующие документы:
+- [docs/llms-convention.md](../../docs/llms-convention.md) — конвенция документации.
+- [AGENTS.md](../../AGENTS.md) — инструкции для агентов.
 
 ## Installation
 
 ```bash
+# Глобально
 npm install -g @reformer/mcp
-```
 
-Or use directly with npx:
-
-```bash
+# Или через npx без установки
 npx @reformer/mcp
 ```
 
-## Usage with Claude Code
-
-### Register the server
+## Регистрация в Claude Code
 
 ```bash
-# Using npm global install
+# Глобальный install
 claude mcp add --transport stdio reformer -- reformer-mcp
 
-# Or with npx
+# Через npx
 claude mcp add --transport stdio reformer -- npx @reformer/mcp
+
+# Локальная сборка из монорепо (для разработки сервера)
+claude mcp add --transport stdio reformer -- node /absolute/path/to/ReFormer/packages/reformer-mcp/dist/index.js
+
+# Локальная сборка с debug-режимом
+claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /absolute/path/to/ReFormer/packages/reformer-mcp/dist/index.js
 ```
 
-### Verify registration
+Проверить:
 
 ```bash
 claude mcp list
@@ -34,77 +40,148 @@ claude mcp list
 
 ## Available Tools
 
-| Tool | Description |
-|------|-------------|
-| `report_issue` | Report an issue and its solution for feedback collection |
+| Tool | Always | Description |
+|------|--------|-------------|
+| `get_symbol_docs` | ✅ | Полный JSDoc публичного символа любого `@reformer/*` (description, signature, params, type params, returns, все `@example`, deprecated, see, source). |
+| `find_recipe` | ✅ | Найти рецепт по `topic` в библиотечной документации (`docs/llms/` всех `@reformer/*`) или fallback в `@example` JSDoc публичного символа. Поиск каскадный: имя файла → `## ` секция → имя символа. |
+| `report_issue` | ✅ | Сохранить найденную проблему и её решение в `~/.reformer/issues.jsonl` для последующего анализа. |
+| `debug` | под флагом `REFORMER_DEBUG=true` | Внутренний инструмент для разработки самого сервера. |
 
-### report_issue
+### `get_symbol_docs`
 
-Allows AI assistants to report issues encountered while working with ReFormer and their solutions. Reports are stored locally in `~/.reformer/issues.jsonl` for analysis.
+```jsonc
+{
+  "symbol": "useFormControl",
+  "package": "@reformer/core"   // optional: '*' (default) — поиск во всех пакетах
+}
+```
 
-**Parameters:**
-- `error` (required) - The error message or problem description
-- `solution` (required) - The solution or fix that resolved the issue
-- `tags` (optional) - Tags for categorization (e.g., `category:behavior`, `agent:claude`, `severity:critical`)
-- `context` (optional) - Additional context with `examples`, `relatedFiles`, `notes`
+### `find_recipe`
+
+```jsonc
+{
+  "topic": "copy-from",         // имя файла docs/llms/, заголовок секции, или имя символа
+  "package": "@reformer/core"   // optional, '*' (default) — все пакеты
+}
+```
+
+Возвращает markdown с источником: `## Source: <pkg> · <file>` + содержимое рецепта/секции/`@example`. Если ничего не найдено — fallback со списком всех доступных рецептов и публичных символов.
+
+### `report_issue`
+
+Параметры: `error` (required), `solution` (required), `tags` (e.g. `category:behavior`, `agent:claude`, `severity:critical`), `context` (`examples`, `relatedFiles`, `notes`).
 
 ## Available Resources
 
-| URI | Description |
-|-----|-------------|
-| `reformer://docs` | Full ReFormer documentation |
-| `reformer://api` | API reference |
-| `reformer://examples` | Code examples |
-| `reformer://troubleshooting` | Common problems and solutions |
+URI-шаблон: `reformer://<category>[/<short-package>]`.
+
+`<category>` — один из: `docs`, `api`, `examples`, `troubleshooting`.
+`<short-package>` — без префикса `@reformer/`: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `mcp`. Опционален — без него возвращается агрегированное по всем пакетам.
+
+| URI | Что внутри |
+|-----|-----------|
+| `reformer://docs` | Документация всех `@reformer/*` пакетов, склеенная. |
+| `reformer://docs/cdk` | Только `@reformer/cdk`: overview, FormArray, FormWizard, FormField, recipes, troubleshooting. |
+| `reformer://docs/ui-kit` | Только `@reformer/ui-kit`: text-fields, choice-fields, layout/buttons, form-field-integration, troubleshooting. |
+| `reformer://docs/renderer-json` | Только `@reformer/renderer-json`: JSON schema, registry, cookbook, troubleshooting. |
+| `reformer://api` | Список всех публичных символов из JSDoc (kind + одна строка описания), агрегировано. |
+| `reformer://api/core` | Список ~141 публичного символа `@reformer/core` (включая `behaviors.*` и `validators.*`). |
+| `reformer://examples[/<pkg>]` | Сниппеты кода из docs (по теме или общий). |
+| `reformer://troubleshooting[/<pkg>]` | Частые проблемы и решения (12 для cdk, 8 для renderer-json, 11 для ui-kit, …). |
+| `reformer://debug` | Только в debug-режиме. |
+
+## Available Prompts
+
+| Prompt | Always | Description |
+|--------|--------|-------------|
+| `review` | ✅ | Кросс-пакетный чек-лист код-ревью: state setup, React integration, CDK/UI-kit/renderers, errors. Подгружает anti-patterns и troubleshooting из всех пакетов. |
+| `debug` | под флагом `REFORMER_DEBUG=true` | Анализ кода формы по чек-листу из `@reformer/core` troubleshooting. |
+
+Аргумент у обоих: `code` (required) — фрагмент кода под анализ.
 
 ## Development
 
-```bash
-# Clone the repository
-git clone https://github.com/AlexandrBukhtatyy/ReFormer.git
-cd ReFormer/packages/reformer-mcp
+Из корня монорепо:
 
-# Install dependencies
+```bash
+# Установить зависимости
 npm install
 
-# Build
-npm run build
+# Собрать только MCP-сервер (включает npm run generate:llms перед tsc)
+npm run build -w @reformer/mcp
 
-# Run locally
-node dist/index.js
+# Регенерировать llms.txt всех пакетов вручную
+npm run generate:llms
+
+# Аудит JSDoc-покрытия пакета
+node scripts/generate-llms-txt packages/reformer --audit
+node scripts/generate-llms-txt packages/reformer-cdk --audit
+# ... и т.д. для остальных пакетов
+
+# Запустить сервер локально
+node packages/reformer-mcp/dist/index.js
 ```
+
+`build` пакета сначала вызывает `npm run generate:llms` (свой `llms.txt`), затем `tsc`. На свежем checkout этого достаточно — отдельно `npm run generate:llms` запускать не нужно.
 
 ## Debug Mode
 
-For debugging the MCP server, enable debug mode with the `REFORMER_DEBUG` environment variable:
+Активируется переменной окружения `REFORMER_DEBUG=true`:
 
 ```bash
-REFORMER_DEBUG=true node dist/index.js
+REFORMER_DEBUG=true node packages/reformer-mcp/dist/index.js
 ```
 
-This enables debug-only features:
+Что добавляется:
 
 | Type | Name | Description |
 |------|------|-------------|
-| Tool | `debug` | Debug tool for testing |
-| Resource | `reformer://debug` | Debug information |
-| Prompt | `debug` | Analyze ReFormer form code |
+| Tool | `debug` | Внутренний tool для тестирования сервера (читает любую секцию docs). |
+| Resource | `reformer://debug` | Список доступных пакетов (что нашёл парсер). |
+| Prompt | `debug` | Чек-лист анализа кода форм. |
 
-## Testing
+В обычном режиме эти три отсутствуют в `listTools` / `listResources` / `listPrompts`.
 
-### Using MCP Inspector
+## Verification: MCP Inspector
 
-```bash
-npm install -g @modelcontextprotocol/inspector
-REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
-```
-
-### In Claude Code
+После сборки можно визуально проверить сервер через официальный Inspector:
 
 ```bash
-# Register local build with debug mode
-claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /path/to/reformer-mcp/dist/index.js
+# Из корня монорепо
+npm run build -w @reformer/mcp
+
+# Запустить Inspector с нашим сервером
+npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
+
+# Опционально с debug-режимом
+REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-mcp/dist/index.js
 ```
+
+В терминале появится URL вида `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=…`. Открой в браузере — три вкладки.
+
+### Чек-лист ручной проверки
+
+**Resources** (4 aggregated + 4×6 per-package):
+- `reformer://docs` — длинный markdown с разделителями `# ===== @reformer/<pkg> =====`.
+- `reformer://docs/cdk` — содержит `FormArray` и новые секции `04-form-field`, `05-recipes`, `06-troubleshooting`.
+- `reformer://docs/ui-kit` — содержит `02-text-fields` … `06-troubleshooting`.
+- `reformer://api/core` — список ~141 символа, включая `copyFrom`, `watchField`, `useFormControl`.
+- `reformer://troubleshooting/cdk` — 12 проблем с решениями.
+- `reformer://examples/renderer-json` — содержит `$template`.
+
+**Tools:**
+- `get_symbol_docs` → `{ "symbol": "copyFrom" }` → ответ содержит ≥ 2 блока `@example`.
+- `find_recipe` → `{ "topic": "copy-from" }` → ответ содержит секцию из `@reformer/core` `23-copy-from.md`.
+- `find_recipe` → `{ "topic": "wizard" }` → возвращает рецепт wizard'а из `@reformer/cdk` (по имени файла либо секции).
+- `find_recipe` → `{ "topic": "useFormControl" }` → JSDoc-`@example` из `@reformer/core`.
+- `find_recipe` → `{ "topic": "unknown-xyz" }` → fallback со списком доступных рецептов.
+- `report_issue` → можно отправить тестовый — запишется в `~/.reformer/issues.jsonl`.
+
+**Prompts:**
+- `review` → render с любым кодом → messages с кросс-пакетным чек-листом.
+- `debug` (только в debug-режиме) → render с кодом формы → анализ по `@reformer/core` troubleshooting.
+
+Закрытие — `Ctrl+C` в терминале.
 
 ## License
 

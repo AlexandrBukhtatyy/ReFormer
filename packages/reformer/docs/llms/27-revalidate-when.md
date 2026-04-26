@@ -46,7 +46,7 @@ export const paymentBehavior: BehaviorSchemaFn<PaymentForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:252](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:252` (monorepo example).
 
 ### Несколько триггеров — initialPayment vs propertyValue/loanAmount
 
@@ -67,7 +67,7 @@ export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
 };
 ```
 
-Source: [credit-application-behavior.ts:242-245](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+Source: `credit-application-behavior.ts:242-245` (monorepo example).
 
 ### Парная перевалидация — confirmPassword
 

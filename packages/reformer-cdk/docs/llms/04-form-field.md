@@ -153,6 +153,6 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
 - [05-recipes.md](05-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
-- [Эталон использования: RegistrationForm.tsx](../../../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx) — `FormField` из ui-kit вокруг каждого поля.
-- [CreditApplicationForm steps](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/) — поля внутри multi-step формы.
+- `RegistrationForm.tsx` (monorepo example) — `FormField` из ui-kit вокруг каждого поля.
+- `CreditApplicationForm` (monorepo example) — поля внутри multi-step формы.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.

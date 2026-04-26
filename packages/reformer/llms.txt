@@ -1523,7 +1523,7 @@ export const orderBehavior: BehaviorSchemaFn<OrderForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:227](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:227` (monorepo example).
 
 ### Копирование группы — только выбранные подполя
 
@@ -1581,7 +1581,7 @@ export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
 };
 ```
 
-Source: [credit-application-behavior.ts:69-79](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+Source: `credit-application-behavior.ts:69-79` (monorepo example).
 
 ### Copy + transform — нормализация при копировании
 
@@ -1713,7 +1713,7 @@ export const mirrorBehavior: BehaviorSchemaFn<MirrorForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:249](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:249` (monorepo example).
 
 ### С трансформацией — нормализация при прямой записи
 
@@ -1865,7 +1865,7 @@ export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:243-245](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:243-245` (monorepo example).
 
 ### С `resetValue` для числовых полей
 
@@ -2046,7 +2046,7 @@ export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:239](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:239` (monorepo example).
 
 ### Несколько трансформаций — нормализация email + форматирование телефона
 
@@ -2231,7 +2231,7 @@ export const paymentBehavior: BehaviorSchemaFn<PaymentForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:252](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:252` (monorepo example).
 
 ### Несколько триггеров — initialPayment vs propertyValue/loanAmount
 
@@ -2252,7 +2252,7 @@ export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
 };
 ```
 
-Source: [credit-application-behavior.ts:242-245](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+Source: `credit-application-behavior.ts:242-245` (monorepo example).
 
 ### Парная перевалидация — confirmPassword
 
@@ -2458,7 +2458,7 @@ function RegistrationForm() {
 }
 ```
 
-Source: [RegistrationForm.tsx:122-150](../../../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx).
+Source: `RegistrationForm.tsx:122-150` (monorepo example).
 
 ### Submit с error-handling и сохранением значений при ошибке
 
@@ -2810,7 +2810,7 @@ export function useLoadCreditApplication(
 }
 ```
 
-Source: [useLoadCreditApplication.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/hooks/useLoadCreditApplication.ts).
+Source: `useLoadCreditApplication.ts` (monorepo example).
 
 ### Использование hook'а в компоненте
 
@@ -2830,7 +2830,7 @@ function CreditApplicationForm() {
 }
 ```
 
-Source: [CreditApplicationForm.tsx:50-66](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx).
+Source: `CreditApplicationForm.tsx:50-66` (monorepo example).
 
 ### Preload через behavior (когда сервер отвечает на изменение поля)
 
@@ -2865,7 +2865,7 @@ export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
 };
 ```
 
-Source: [address-behavior.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/Address/address-behavior.ts).
+Source: `address-behavior.ts` (monorepo example).
 
 ## 62. Anti-patterns
 

@@ -43,7 +43,7 @@ export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:243-245](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:243-245` (monorepo example).
 
 ### С `resetValue` для числовых полей
 

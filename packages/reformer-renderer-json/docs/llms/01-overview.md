@@ -93,4 +93,4 @@ function MyForm() {
 - [02-json-schema.md](02-json-schema.md) — формат `JsonFormSchema` и `JsonNode`.
 - [03-registry.md](03-registry.md) — как наполнять реестр.
 - [04-troubleshooting.md](04-troubleshooting.md) — частые ошибки.
-- Эталонный пример: [CreditApplicationFormRendererJson](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson.tsx).
+- Эталонный пример: `CreditApplicationFormRendererJson` (monorepo example).

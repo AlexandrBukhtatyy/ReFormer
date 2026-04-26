@@ -50,7 +50,7 @@ export const orderBehavior: BehaviorSchemaFn<OrderForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:227](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:227` (monorepo example).
 
 ### Копирование группы — только выбранные подполя
 
@@ -108,7 +108,7 @@ export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
 };
 ```
 
-Source: [credit-application-behavior.ts:69-79](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+Source: `credit-application-behavior.ts:69-79` (monorepo example).
 
 ### Copy + transform — нормализация при копировании
 

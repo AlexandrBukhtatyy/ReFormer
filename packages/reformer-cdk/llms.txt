@@ -489,8 +489,8 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
 - [05-recipes.md](05-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
-- [Эталон использования: RegistrationForm.tsx](../../../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx) — `FormField` из ui-kit вокруг каждого поля.
-- [CreditApplicationForm steps](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/) — поля внутри multi-step формы.
+- `RegistrationForm.tsx` (monorepo example) — `FormField` из ui-kit вокруг каждого поля.
+- `CreditApplicationForm` (monorepo example) — поля внутри multi-step формы.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
 ## 24. Nested FormArray
@@ -694,7 +694,7 @@ function Page({ form, config }: Props) {
 - `submit(onSubmit)` сначала прогоняет `config.fullValidation`, затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
-- Эталон: [CreditApplicationForm.tsx](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx) — `submit` через ref + центральная кнопка отправки.
+- Эталон: `CreditApplicationForm.tsx` (monorepo example) — `submit` через ref + центральная кнопка отправки.
 
 ## 28. See also
 

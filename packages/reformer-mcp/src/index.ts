@@ -13,7 +13,6 @@ import {
 
 import {
   getFullDocs,
-  getSection,
   getExamples,
   getTroubleshooting,
   listAvailablePackages,
@@ -74,8 +73,8 @@ import {
   reportIssueTool,
   getSymbolDocsToolDefinition,
   getSymbolDocsTool,
-  findExampleToolDefinition,
-  findExampleTool,
+  findRecipeToolDefinition,
+  findRecipeTool,
 } from './tools/index.js';
 
 // Prompts
@@ -111,8 +110,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     | typeof reportIssueToolDefinition
     | typeof debugToolDefinition
     | typeof getSymbolDocsToolDefinition
-    | typeof findExampleToolDefinition
-  > = [reportIssueToolDefinition, getSymbolDocsToolDefinition, findExampleToolDefinition];
+    | typeof findRecipeToolDefinition
+  > = [reportIssueToolDefinition, getSymbolDocsToolDefinition, findRecipeToolDefinition];
   if (isDebugMode) {
     tools.push(debugToolDefinition);
   }
@@ -142,8 +141,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'get_symbol_docs':
       return await getSymbolDocsTool(args as { symbol: string; package?: string });
 
-    case 'find_example':
-      return await findExampleTool(args as { scenario: string; maxLines?: number });
+    case 'find_recipe':
+      return await findRecipeTool(args as { topic: string; package?: string });
 
     default:
       throw new Error(`Unknown tool: ${name}`);

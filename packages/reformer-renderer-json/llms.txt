@@ -103,7 +103,7 @@ function MyForm() {
 - [02-json-schema.md](02-json-schema.md) — формат `JsonFormSchema` и `JsonNode`.
 - [03-registry.md](03-registry.md) — как наполнять реестр.
 - [04-troubleshooting.md](04-troubleshooting.md) — частые ошибки.
-- Эталонный пример: [CreditApplicationFormRendererJson](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson.tsx).
+- Эталонный пример: `CreditApplicationFormRendererJson` (monorepo example).
 
 ## 7. Key Concepts
 
@@ -241,7 +241,7 @@ const registry = defineRegistry((reg) => {
 
 - [01-overview.md](01-overview.md) — как реестр прокидывается через `JsonRendererProvider`.
 - [02-json-schema.md](02-json-schema.md) — где имена компонентов появляются в схеме.
-- Эталонный реестр: [registry.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts).
+- Эталонный реестр: `registry.ts` (monorepo example).
 
 ## 17. Component "X" not found in registry
 
@@ -334,7 +334,7 @@ reg.container(FIELD_WRAPPER, FormField);
 - Внутри template путь к полю задаётся через `selector` без префикса parent-пути (`'type'`, не `'properties[0].type'`). Конвертер достаёт `itemPath.type` из переданного `args[0]`.
 - В template можно вкладывать любые контейнеры (`Box`, `Section`, под-таблицы), но не другой `$template`-уровень того же массива — для вложенного массива нужен новый `RendererFormArraySection` с своим `$template`.
 - Если сам контейнер не получает `itemPath` первым аргументом (нестандартный компонент) — `$template` всё равно сработает, но `selector` внутри будет резолвиться от корня формы; обычно это не то, что нужно.
-- Эталон: блок `properties-array` в [json-schema.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/json-schema.ts).
+- Эталон: блок `properties-array` в `json-schema.ts` (monorepo example).
 
 ## 27. Source-функции
 
@@ -389,7 +389,7 @@ const registry = defineRegistry((reg) => {
 - Резолв строки в source происходит только если строка зарегистрирована. Если имени в реестре нет — строка останется строкой (никакой ошибки), что часто становится молчаливым багом. Перепроверь имя при «приходит литерал вместо значения».
 - Source-функция, возвращающая объект, **не** конвертируется автоматически — только если результат «выглядит как `JsonNode`» (есть `model: string` или `component: string`). Для функций-итем-лейблов (возвращают строку) — никаких сюрпризов.
 - Source нельзя использовать как имя `component` в самом узле (`{ component: 'LoadingState' }` вне source-проп будет ошибкой `Entry "..." is a 'source' and cannot be used as component`). Source — только для значений в `componentProps`.
-- Эталон: реестр [registry.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts).
+- Эталон: реестр `registry.ts` (monorepo example).
 
 ## 28. Control-пропсы
 
@@ -489,7 +489,7 @@ const registry = defineRegistry((reg) => {
 **Notes.**
 - В TS-варианте часто `children` лежат в `componentProps.children` исторически — это работает, но в JSON `children` всегда вне `componentProps` (отдельное поле `JsonNode.children`).
 - `field`-узлы и `container`-узлы взаимоисключающи: либо `model`, либо `children` — нельзя одновременно. Если ошибочно поставить и `model`, и `children`, конвертер развернёт `model` (поле), а `children` молча проигнорирует.
-- Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — оно остаётся TS-функцией `RenderBehaviorFn<T>` и применяется к финальной `RenderSchemaProxy` после `createRenderSchemaFromJson`. Полный пример организации — [CreditApplicationFormRendererJson](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/).
+- Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — оно остаётся TS-функцией `RenderBehaviorFn<T>` и применяется к финальной `RenderSchemaProxy` после `createRenderSchemaFromJson`. Полный пример организации — `CreditApplicationFormRendererJson` (monorepo example).
 - `createRenderSchema` оборачивает результат `createRenderSchemaFromJson` в Proxy — без этого `proxy.node(selector)` и behavior-helpers работать не будут.
 
 ## 30. See also

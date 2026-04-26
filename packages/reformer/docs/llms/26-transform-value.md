@@ -51,7 +51,7 @@ export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:239](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:239` (monorepo example).
 
 ### Несколько трансформаций — нормализация email + форматирование телефона
 

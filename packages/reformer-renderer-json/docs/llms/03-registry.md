@@ -59,4 +59,4 @@ const registry = defineRegistry((reg) => {
 
 - [01-overview.md](01-overview.md) — как реестр прокидывается через `JsonRendererProvider`.
 - [02-json-schema.md](02-json-schema.md) — где имена компонентов появляются в схеме.
-- Эталонный реестр: [registry.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts).
+- Эталонный реестр: `registry.ts` (monorepo example).

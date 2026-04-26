@@ -41,7 +41,7 @@ export const mirrorBehavior: BehaviorSchemaFn<MirrorForm> = (path) => {
 };
 ```
 
-Source: [BehaviorsExamples.tsx:249](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+Source: `BehaviorsExamples.tsx:249` (monorepo example).
 
 ### С трансформацией — нормализация при прямой записи
 

@@ -147,7 +147,7 @@ export function useLoadCreditApplication(
 }
 ```
 
-Source: [useLoadCreditApplication.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/hooks/useLoadCreditApplication.ts).
+Source: `useLoadCreditApplication.ts` (monorepo example).
 
 ### Использование hook'а в компоненте
 
@@ -167,7 +167,7 @@ function CreditApplicationForm() {
 }
 ```
 
-Source: [CreditApplicationForm.tsx:50-66](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx).
+Source: `CreditApplicationForm.tsx:50-66` (monorepo example).
 
 ### Preload через behavior (когда сервер отвечает на изменение поля)
 
@@ -202,7 +202,7 @@ export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
 };
 ```
 
-Source: [address-behavior.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/Address/address-behavior.ts).
+Source: `address-behavior.ts` (monorepo example).
 
 ## Anti-patterns
 
