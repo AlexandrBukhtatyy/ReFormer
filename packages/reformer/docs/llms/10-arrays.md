@@ -14,6 +14,15 @@ const itemSchema = {
 const schema: FormSchema<MyForm> = {
   items: [itemSchema],  // Array of sub-forms
 };
+```
+
+> **Type constraint:** the element interface used as `T` in `Array<T>` / `ArrayNode<T>`
+> must be assignable to `FormFields = Record<string, FormValue>`. Either declare the
+> item interface as `interface Item extends FormFields { … }` or add an explicit
+> `[key: string]: FormValue` index signature. Without it TS reports
+> *"Type 'Item' does not satisfy the constraint 'FormFields'"* on `ArrayNode<Item>`.
+
+```typescript
 
 // Each array item is a GroupNode (sub-form) with its own controls:
 form.items.map((item) => {
