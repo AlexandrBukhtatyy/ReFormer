@@ -34,6 +34,18 @@ const buttonVariants = cva(
   }
 );
 
+/**
+ * Базовая кнопка на shadcn/Radix `Slot`. Поддерживает варианты (`variant`, `size`)
+ * и `asChild` для замены DOM-узла.
+ *
+ * @example
+ * ```tsx
+ * import { Button } from '@reformer/ui-kit';
+ *
+ * <Button variant="default" size="lg" onClick={save}>Save</Button>
+ * <Button asChild><a href="/login">Sign in</a></Button>
+ * ```
+ */
 function Button({
   className,
   variant,

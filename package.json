@@ -19,6 +19,7 @@
     "size": "size-limit",
     "size:check": "size-limit --limit",
     "scripts:analize:imports": "node scripts/analyze-imports/index.js",
+    "generate:llms": "npm run generate:llms --workspaces --if-present",
     "stackblitz:core": "npm install -w @reformer/core && npm run build:stackblitz -w @reformer/core",
     "stackblitz:cdk": "npm install -w @reformer/cdk && npm run build:stackblitz -w @reformer/cdk",
     "stackblitz:ui-kit": "npm install -w @reformer/ui-kit && npm run build:stackblitz -w @reformer/ui-kit",

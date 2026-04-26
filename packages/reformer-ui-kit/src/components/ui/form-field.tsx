@@ -3,6 +3,7 @@ import { type FieldNode } from '@reformer/core';
 import { FormField as CdkFormField, useFormFieldContext } from '@reformer/cdk/form-field';
 import { Checkbox } from './checkbox';
 
+/** Props компонента {@link FormField}. */
 export interface FormFieldProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: FieldNode<any>;
@@ -72,6 +73,25 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
   );
 };
 
+/**
+ * Готовый wrapper поля: автоматически рендерит label, control и error из
+ * `@reformer/cdk/form-field`. Используется как `fieldWrapper` в `RenderSchema`
+ * или подключается напрямую.
+ *
+ * @example
+ * ```tsx
+ * import { FormField } from '@reformer/ui-kit';
+ *
+ * <FormField control={form.email} testId="email" />
+ * ```
+ *
+ * @example В качестве fieldWrapper рендерера
+ * ```tsx
+ * import { FormField } from '@reformer/ui-kit';
+ *
+ * <FormRenderer render={schema} form={form} settings={{ fieldWrapper: FormField }} />
+ * ```
+ */
 export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {
   return (
     prevProps.control === nextProps.control &&

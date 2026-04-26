@@ -361,6 +361,31 @@ type FormWizardComponent = typeof FormWizardBase & {
   Submit: typeof FormWizardSubmit;
 };
 
+/**
+ * Headless multi-step wizard. Compound-компонент: `FormWizard` + `FormWizard.Step`,
+ * `FormWizard.Actions`, `FormWizard.Indicator`, `FormWizard.Progress`,
+ * `FormWizard.Prev`, `FormWizard.Next`, `FormWizard.Submit`.
+ *
+ * @example
+ * ```tsx
+ * import { FormWizard } from '@reformer/cdk/form-wizard';
+ *
+ * <FormWizard form={form} steps={[{ name: 'profile' }, { name: 'review' }]}>
+ *   <FormWizard.Step name="profile"><ProfileFields /></FormWizard.Step>
+ *   <FormWizard.Step name="review"><Review /></FormWizard.Step>
+ *   <FormWizard.Actions>
+ *     {({ prev, next, submit, isLastStep }) => (
+ *       <div>
+ *         <button {...prev}>Prev</button>
+ *         {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
+ *       </div>
+ *     )}
+ *   </FormWizard.Actions>
+ * </FormWizard>
+ * ```
+ *
+ * @see [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
+ */
 export const FormWizard = FormWizardBase as FormWizardComponent;
 FormWizard.Step = FormWizardStep;
 FormWizard.Indicator = FormWizardIndicator;

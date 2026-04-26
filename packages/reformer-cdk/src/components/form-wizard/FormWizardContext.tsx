@@ -49,6 +49,21 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
   goToStep: (step: number) => boolean;
 }
 
+/**
+ * React context, который снабжает дочерние компоненты `FormWizard` (Step,
+ * Actions, Indicator, Progress) текущим состоянием мастера. Создаётся
+ * `FormWizard`. Читать через `useFormWizard()`.
+ *
+ * @example
+ * ```tsx
+ * import { FormWizardContext } from '@reformer/cdk/form-wizard';
+ *
+ * function CurrentStep() {
+ *   const ctx = useContext(FormWizardContext);
+ *   return <span>step {ctx?.currentStep}</span>;
+ * }
+ * ```
+ */
 // Using any for flexibility since context will be typed at usage site
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const FormWizardContext = createContext<FormWizardContextValue<any> | null>(null);

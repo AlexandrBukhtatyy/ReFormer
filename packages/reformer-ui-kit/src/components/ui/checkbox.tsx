@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/** Props компонента {@link Checkbox}. */
 export interface CheckboxProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
   className?: string;
@@ -12,6 +13,16 @@ export interface CheckboxProps
   'data-testid'?: string;
 }
 
+/**
+ * Чекбокс с подписью. `value`/`onChange` принимают `boolean`.
+ *
+ * @example
+ * ```tsx
+ * import { Checkbox } from '@reformer/ui-kit';
+ *
+ * <Checkbox value={agree} onChange={setAgree} label="Согласен с условиями" />
+ * ```
+ */
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
   (
     { className, value, onChange, onBlur, label, disabled, 'data-testid': dataTestId, ...props },

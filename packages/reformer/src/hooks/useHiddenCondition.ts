@@ -12,15 +12,25 @@ import type { FormProxy, FieldPath } from '../core/types';
 type HiddenFn<T> = (form: FormProxy<T>, path: FieldPath<T>) => boolean;
 
 /**
- * Хук для реактивной оценки функции hidden
+ * Хук для реактивной оценки функции hidden.
  *
- * Подписывается на изменения формы через сигналы и
- * возвращает текущее значение hidden условия.
+ * Подписывается на изменения формы через сигналы и возвращает текущее
+ * значение hidden-условия.
  *
- * @param hiddenFn - Функция, определяющая скрытие
- * @param form - FormProxy формы
- * @param path - Текущий FieldPath
- * @returns true если элемент должен быть скрыт
+ * @param hiddenFn - Функция, определяющая скрытие.
+ * @param form - {@link FormProxy} формы.
+ * @param path - Текущий {@link FieldPath}.
+ * @returns `true`, если элемент должен быть скрыт.
+ *
+ * @example
+ * ```tsx
+ * import { useHiddenCondition } from '@reformer/core';
+ *
+ * function MaybeHidden({ form, path, children }) {
+ *   const hidden = useHiddenCondition((f) => !f.subscribeNewsletter.value, form, path);
+ *   return hidden ? null : <>{children}</>;
+ * }
+ * ```
  */
 export function useHiddenCondition<T>(
   hiddenFn: HiddenFn<T> | undefined,

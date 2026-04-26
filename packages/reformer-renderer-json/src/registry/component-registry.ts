@@ -48,16 +48,31 @@ export class ComponentRegistryImpl implements ComponentRegistry {
 }
 
 /**
- * Создаёт реестр компонентов через callback с типизированными хелперами.
+ * Создаёт реестр компонентов через builder-callback.
+ *
+ * Реестр обязателен для работы {@link JsonFormRenderer} — иначе компоненты,
+ * упомянутые в JSON-схеме, не отрезолвятся.
+ *
+ * @param fn - Builder-callback. Получает {@link RegistryBuilder} с методами `field`, `container`, `source`.
+ * @returns Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
  *
  * @example
  * ```typescript
+ * import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+ * import { Input, Select, FormField } from '@reformer/ui-kit';
+ *
  * const registry = defineRegistry((reg) => {
  *   reg.field('Input', Input);
- *   reg.container('Box', Box);
- *   reg.source('LOAN_TYPES', LOAN_TYPES);
+ *   reg.field('Select', Select);
+ *   reg.container(FIELD_WRAPPER, FormField);
+ *   reg.source('LOAN_TYPES', [
+ *     { value: 'consumer', label: 'Потребительский' },
+ *     { value: 'mortgage', label: 'Ипотека' },
+ *   ]);
  * });
  * ```
+ *
+ * @see [docs/llms/03-registry.md](../../docs/llms/03-registry.md)
  */
 export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentRegistry {
   const registry = new ComponentRegistryImpl();

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/** Props компонента {@link InputPassword}. */
 export interface InputPasswordProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onChange' | 'type'
@@ -15,6 +16,16 @@ export interface InputPasswordProps extends Omit<
   showToggle?: boolean;
 }
 
+/**
+ * Поле ввода пароля с переключателем видимости.
+ *
+ * @example
+ * ```tsx
+ * import { InputPassword } from '@reformer/ui-kit';
+ *
+ * <InputPassword value={password} onChange={setPassword} showToggle />
+ * ```
+ */
 const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
   (
     {

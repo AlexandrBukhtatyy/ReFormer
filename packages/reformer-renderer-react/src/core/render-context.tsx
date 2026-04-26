@@ -26,7 +26,18 @@ export interface RenderContextValue<T = unknown> {
 const RenderContext = createContext<RenderContextValue | null>(null);
 
 /**
- * Provider для контекста рендеринга
+ * Provider для контекста рендеринга. Снабжает дочерние компоненты текущей формой,
+ * настройками и `path`. Обычно создаётся `FormRenderer` автоматически — явно
+ * нужен только при ручном построении дерева через `RenderNodeComponent`.
+ *
+ * @example
+ * ```tsx
+ * import { RenderContextProvider, RenderNodeComponent } from '@reformer/renderer-react';
+ *
+ * <RenderContextProvider value={{ form, settings: { fieldWrapper } }}>
+ *   <RenderNodeComponent node={rootNode} />
+ * </RenderContextProvider>
+ * ```
  */
 export function RenderContextProvider<T>({
   value,

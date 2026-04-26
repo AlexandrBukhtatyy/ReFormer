@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/** Props компонента {@link Textarea}. */
 export interface TextareaProps
   extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
   className?: string;
@@ -13,6 +14,16 @@ export interface TextareaProps
   maxLength?: number;
 }
 
+/**
+ * Многострочное поле ввода.
+ *
+ * @example
+ * ```tsx
+ * import { Textarea } from '@reformer/ui-kit';
+ *
+ * <Textarea value={comment} onChange={setComment} rows={5} maxLength={500} />
+ * ```
+ */
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   (
     { className, value, onChange, onBlur, placeholder, disabled, rows = 3, maxLength, ...props },

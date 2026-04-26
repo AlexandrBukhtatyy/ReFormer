@@ -14,7 +14,8 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "vite build",
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
+    "build": "npm run generate:llms && vite build",
     "build:stackblitz": "vite build",
     "dev": "vite",
     "test": "vitest",

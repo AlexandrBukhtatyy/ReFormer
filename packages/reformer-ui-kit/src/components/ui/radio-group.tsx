@@ -1,11 +1,13 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/** Один вариант для {@link RadioGroup}. */
 export interface RadioOption {
   value: string;
   label: string;
 }
 
+/** Props компонента {@link RadioGroup}. */
 export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
   className?: string;
   value?: string | null;
@@ -16,6 +18,21 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   'data-testid'?: string;
 }
 
+/**
+ * Группа радио-кнопок. `value` — строка из `options`.
+ *
+ * @example
+ * ```tsx
+ * import { RadioGroup } from '@reformer/ui-kit';
+ *
+ * const OPTIONS = [
+ *   { value: 'consumer', label: 'Потребительский' },
+ *   { value: 'mortgage', label: 'Ипотека' },
+ * ];
+ *
+ * <RadioGroup value={loanType} onChange={setLoanType} options={OPTIONS} />
+ * ```
+ */
 const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
   (
     { className, value, onChange, onBlur, options, disabled, 'data-testid': dataTestId, ...props },

@@ -109,7 +109,17 @@ function createFieldPathProxy<T>(basePath: string): FieldPath<T> {
 }
 
 /**
- * Извлечь путь из FieldPathNode
+ * Извлечь строковый путь из {@link FieldPathNode}.
+ *
+ * @param node - Узел `FieldPathNode` либо строка-путь.
+ * @returns Путь вида `"a.b.c"`.
+ *
+ * @example
+ * ```typescript
+ * import { extractPath } from '@reformer/core';
+ *
+ * const path = (renderPath) => extractPath(renderPath.user.email); // → 'user.email'
+ * ```
  */
 export function extractPath(node: FieldPathNode<unknown, unknown> | unknown): string {
   // Fallback для строк
@@ -158,7 +168,17 @@ export function toFieldPath<T>(
 }
 
 /**
- * Извлечь ключ поля из FieldPathNode
+ * Извлечь имя последнего сегмента ({@link FieldPathSegment}) пути.
+ *
+ * @param node - Узел `FieldPathNode` либо строка-путь.
+ * @returns Имя поля без префикса родителя (последний сегмент).
+ *
+ * @example
+ * ```typescript
+ * import { extractKey } from '@reformer/core';
+ *
+ * extractKey(path.user.email); // → 'email'
+ * ```
  */
 export function extractKey(node: FieldPathNode<unknown, unknown> | unknown): string {
   if (node && typeof node === 'object' && '__key' in node) {

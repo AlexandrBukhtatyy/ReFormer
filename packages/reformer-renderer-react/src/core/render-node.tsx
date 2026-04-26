@@ -102,11 +102,19 @@ const FieldRenderer = memo(function FieldRenderer({
 });
 
 /**
- * RenderNodeComponent - рекурсивный рендеринг узла RenderSchema
+ * Рекурсивный рендеринг узла `RenderSchema`. Определяет тип узла и рендерит
+ * соответственно: `FieldRenderNode` → компонент поля с wrapper,
+ * `ContainerRenderNode` → контейнер с дочерними узлами. Используется
+ * `FormRenderer`; явный вызов нужен при ручной композиции.
  *
- * Определяет тип узла и рендерит соответствующим образом:
- * - FieldRenderNode → компонент поля с wrapper
- * - ContainerRenderNode → контейнер с дочерними узлами
+ * @example
+ * ```tsx
+ * import { RenderNodeComponent } from '@reformer/renderer-react';
+ *
+ * <RenderContextProvider value={{ settings: { fieldWrapper: FormField } }}>
+ *   <RenderNodeComponent node={rootNode} />
+ * </RenderContextProvider>
+ * ```
  */
 export function RenderNodeComponent<T>({
   node,

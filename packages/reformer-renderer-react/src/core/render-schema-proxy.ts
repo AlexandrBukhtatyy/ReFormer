@@ -105,7 +105,21 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
 // Public API
 // ============================================================
 
-/** Проверяет, является ли fn результатом createRenderSchema */
+/**
+ * Type guard: проверяет, что `fn` — это результат {@link createRenderSchema}.
+ *
+ * @param fn - Произвольная `RenderSchemaFn`.
+ * @returns `true`, если `fn` обёрнута через `createRenderSchema`.
+ *
+ * @example
+ * ```typescript
+ * import { isRenderSchemaProxy, createRenderSchema } from '@reformer/renderer-react';
+ *
+ * const proxy = createRenderSchema(renderSchemaFn);
+ * isRenderSchemaProxy(proxy); // true
+ * isRenderSchemaProxy(renderSchemaFn); // false
+ * ```
+ */
 export function isRenderSchemaProxy<T>(fn: RenderSchemaFn<T>): fn is RenderSchemaProxy<T> {
   return typeof fn === 'function' && PROXY_MARKER in fn;
 }

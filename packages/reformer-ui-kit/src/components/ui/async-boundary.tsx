@@ -10,8 +10,10 @@
 
 import type { ComponentType, ReactNode } from 'react';
 
+/** Состояние асинхронной операции, ожидаемое {@link AsyncBoundary}. */
 export type AsyncStatus = 'loading' | 'error' | 'ready';
 
+/** Props компонента {@link AsyncBoundary}. */
 export interface AsyncBoundaryProps {
   status: AsyncStatus;
   LoadingComponent?: ComponentType;
@@ -19,6 +21,24 @@ export interface AsyncBoundaryProps {
   children?: ReactNode;
 }
 
+/**
+ * Контейнер с тремя состояниями (`loading`/`error`/`ready`). В состоянии `ready`
+ * отображает `children`. Для loading/error используются переданные slot-компоненты
+ * (`ComponentType`, без props — для кастомизации передай тонкую обёртку).
+ *
+ * @example
+ * ```tsx
+ * import { AsyncBoundary } from '@reformer/ui-kit';
+ *
+ * <AsyncBoundary
+ *   status={status}
+ *   LoadingComponent={() => <Spinner />}
+ *   ErrorComponent={() => <p>Ошибка загрузки</p>}
+ * >
+ *   <DataView data={data} />
+ * </AsyncBoundary>
+ * ```
+ */
 export function AsyncBoundary({
   status,
   LoadingComponent,

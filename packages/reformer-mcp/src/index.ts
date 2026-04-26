@@ -11,7 +11,60 @@ import {
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { getFullDocs, getSection, getExamples, getTroubleshooting } from './utils/docs-parser.js';
+import {
+  getFullDocs,
+  getSection,
+  getExamples,
+  getTroubleshooting,
+  listAvailablePackages,
+  KNOWN_PACKAGES,
+} from './utils/docs-parser.js';
+import { listSymbols } from './utils/symbols-parser.js';
+
+/**
+ * Resolve `reformer://<category>/<pkg-short>` to its full package name.
+ * `<pkg-short>` is the part after `@reformer/` ("cdk", "ui-kit", etc.).
+ */
+function resolvePackage(short: string): string | null {
+  if (!short) return null;
+  const full = `@reformer/${short}`;
+  return listAvailablePackages().includes(full as never) ? full : null;
+}
+
+const RESOURCE_CATEGORIES = ['docs', 'api', 'examples', 'troubleshooting'] as const;
+type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number];
+
+function categoryHandler(category: ResourceCategory, pkg: string | null): string {
+  const target = pkg ?? '*';
+  switch (category) {
+    case 'docs':
+      return pkg ? getFullDocs(pkg) : getFullDocs();
+    case 'api':
+      // List of public symbols (kind + one-line description) extracted from JSDoc.
+      // For aggregated view (no pkg), concat per-package listings.
+      if (pkg) return listSymbols(pkg);
+      return KNOWN_PACKAGES.filter((p) => listAvailablePackages().includes(p))
+        .map((p) => listSymbols(p))
+        .join('\n\n---\n\n');
+    case 'examples':
+      return getExamples(undefined, target);
+    case 'troubleshooting':
+      return getTroubleshooting(target);
+  }
+}
+
+function categoryDisplayName(category: ResourceCategory): string {
+  switch (category) {
+    case 'docs':
+      return 'Documentation';
+    case 'api':
+      return 'Public API Index';
+    case 'examples':
+      return 'Examples';
+    case 'troubleshooting':
+      return 'Troubleshooting';
+  }
+}
 
 // Tools
 import {
@@ -19,10 +72,19 @@ import {
   debugTool,
   reportIssueToolDefinition,
   reportIssueTool,
+  getSymbolDocsToolDefinition,
+  getSymbolDocsTool,
+  findExampleToolDefinition,
+  findExampleTool,
 } from './tools/index.js';
 
 // Prompts
-import { debugPromptDefinition, getDebugPrompt } from './prompts/index.js';
+import {
+  debugPromptDefinition,
+  getDebugPrompt,
+  reviewPromptDefinition,
+  getReviewPrompt,
+} from './prompts/index.js';
 
 // Check debug mode
 const isDebugMode = process.env.REFORMER_DEBUG === 'true';
@@ -45,9 +107,12 @@ const server = new Server(
 // ==================== TOOLS ====================
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  const tools: Array<typeof reportIssueToolDefinition | typeof debugToolDefinition> = [
-    reportIssueToolDefinition,
-  ];
+  const tools: Array<
+    | typeof reportIssueToolDefinition
+    | typeof debugToolDefinition
+    | typeof getSymbolDocsToolDefinition
+    | typeof findExampleToolDefinition
+  > = [reportIssueToolDefinition, getSymbolDocsToolDefinition, findExampleToolDefinition];
   if (isDebugMode) {
     tools.push(debugToolDefinition);
   }
@@ -74,6 +139,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       return await debugTool(args as { section?: string });
 
+    case 'get_symbol_docs':
+      return await getSymbolDocsTool(args as { symbol: string; package?: string });
+
+    case 'find_example':
+      return await findExampleTool(args as { scenario: string; maxLines?: number });
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -82,32 +153,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // ==================== RESOURCES ====================
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  const resources = [
-    {
-      uri: 'reformer://docs',
-      name: 'ReFormer Documentation',
-      description: 'Complete ReFormer library documentation',
+  const resources: Array<{ uri: string; name: string; description: string; mimeType: string }> = [];
+
+  // Aggregated resources (all packages)
+  for (const category of RESOURCE_CATEGORIES) {
+    resources.push({
+      uri: `reformer://${category}`,
+      name: `ReFormer ${categoryDisplayName(category)} (all packages)`,
+      description: `${categoryDisplayName(category)} aggregated across all @reformer/* packages.`,
       mimeType: 'text/markdown',
-    },
-    {
-      uri: 'reformer://api',
-      name: 'ReFormer API Reference',
-      description: 'API reference for ReFormer methods and types',
-      mimeType: 'text/markdown',
-    },
-    {
-      uri: 'reformer://examples',
-      name: 'ReFormer Examples',
-      description: 'Code examples for ReFormer usage',
-      mimeType: 'text/markdown',
-    },
-    {
-      uri: 'reformer://troubleshooting',
-      name: 'ReFormer Troubleshooting',
-      description: 'Common problems and solutions',
-      mimeType: 'text/markdown',
-    },
-  ];
+    });
+  }
+
+  // Per-package resources
+  const packages = listAvailablePackages();
+  for (const pkg of packages) {
+    const short = pkg.replace(/^@reformer\//, '');
+    for (const category of RESOURCE_CATEGORIES) {
+      resources.push({
+        uri: `reformer://${category}/${short}`,
+        name: `${pkg} ${categoryDisplayName(category)}`,
+        description: `${categoryDisplayName(category)} for ${pkg}.`,
+        mimeType: 'text/markdown',
+      });
+    }
+  }
 
   if (isDebugMode) {
     resources.push({
@@ -124,74 +194,55 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
 
-  switch (uri) {
-    case 'reformer://docs':
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/markdown',
-            text: getFullDocs(),
-          },
-        ],
-      };
-
-    case 'reformer://api':
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/markdown',
-            text: getSection('API Reference'),
-          },
-        ],
-      };
-
-    case 'reformer://examples':
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/markdown',
-            text: getExamples(),
-          },
-        ],
-      };
-
-    case 'reformer://troubleshooting':
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/markdown',
-            text: getTroubleshooting(),
-          },
-        ],
-      };
-
-    case 'reformer://debug':
-      if (!isDebugMode) {
-        throw new Error(`Unknown resource: ${uri}`);
-      }
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/markdown',
-            text: `# Debug Info\n\nDocs loaded: ${getFullDocs().length} chars`,
-          },
-        ],
-      };
-
-    default:
+  if (uri === 'reformer://debug') {
+    if (!isDebugMode) {
       throw new Error(`Unknown resource: ${uri}`);
+    }
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: 'text/markdown',
+          text: `# Debug Info\n\nAvailable packages: ${listAvailablePackages().join(', ')}`,
+        },
+      ],
+    };
   }
+
+  // Parse reformer://<category>[/<short-package>]
+  const match = uri.match(/^reformer:\/\/([^/]+)(?:\/(.+))?$/);
+  if (!match) {
+    throw new Error(`Unknown resource: ${uri}`);
+  }
+  const [, category, short] = match;
+
+  if (!RESOURCE_CATEGORIES.includes(category as ResourceCategory)) {
+    throw new Error(`Unknown resource category: ${category}`);
+  }
+
+  const pkg = short ? resolvePackage(short) : null;
+  if (short && !pkg) {
+    throw new Error(`Unknown package: @reformer/${short}`);
+  }
+
+  const text = categoryHandler(category as ResourceCategory, pkg);
+  return {
+    contents: [
+      {
+        uri,
+        mimeType: 'text/markdown',
+        text,
+      },
+    ],
+  };
 });
 
 // ==================== PROMPTS ====================
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
-  const prompts = [];
+  const prompts: Array<typeof reviewPromptDefinition | typeof debugPromptDefinition> = [
+    reviewPromptDefinition,
+  ];
   if (isDebugMode) {
     prompts.push(debugPromptDefinition);
   }
@@ -207,6 +258,9 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
         throw new Error(`Unknown prompt: ${name}`);
       }
       return getDebugPrompt(args as { code: string });
+
+    case 'review':
+      return getReviewPrompt(args as { code: string });
 
     default:
       throw new Error(`Unknown prompt: ${name}`);

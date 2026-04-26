@@ -28,6 +28,7 @@ export interface ResourceConfig<T> {
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
 }
 
+/** Props компонента {@link Select}. */
 export interface SelectProps<T> extends Omit<
   React.ComponentProps<typeof SelectPrimitive.Root>,
   'value' | 'onValueChange'
@@ -43,6 +44,24 @@ export interface SelectProps<T> extends Omit<
   clearable?: boolean;
 }
 
+/**
+ * Выпадающий список на shadcn/Radix `Select`. Принимает либо `options` напрямую,
+ * либо `resource` для асинхронной загрузки.
+ *
+ * @example
+ * ```tsx
+ * import { Select } from '@reformer/ui-kit';
+ *
+ * <Select
+ *   value={loanType}
+ *   onChange={setLoanType}
+ *   options={[
+ *     { value: 'consumer', label: 'Потребительский' },
+ *     { value: 'mortgage', label: 'Ипотека' },
+ *   ]}
+ * />
+ * ```
+ */
 const Select = React.forwardRef<
   HTMLButtonElement,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,14 +214,38 @@ const Select = React.forwardRef<
 
 Select.displayName = 'Select';
 
+/**
+ * Группа `<SelectItem>` с заголовком {@link SelectLabel}. Тонкая обёртка над Radix Select.Group.
+ *
+ * @example
+ * ```tsx
+ * <SelectGroup><SelectLabel>Fruit</SelectLabel><SelectItem value="apple">Apple</SelectItem></SelectGroup>
+ * ```
+ */
 function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.Group>) {
   return <SelectPrimitive.Group data-slot="select-group" {...props} />;
 }
 
+/**
+ * Отображает выбранное значение внутри {@link SelectTrigger}. Обёртка над Radix Select.Value.
+ *
+ * @example
+ * ```tsx
+ * <SelectTrigger><SelectValue placeholder="Select option" /></SelectTrigger>
+ * ```
+ */
 function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />;
 }
 
+/**
+ * Кнопка-открывалка списка для {@link Select}. Обёртка над Radix Select.Trigger.
+ *
+ * @example
+ * ```tsx
+ * <SelectTrigger><SelectValue placeholder="Choose..." /></SelectTrigger>
+ * ```
+ */
 function SelectTrigger({
   className,
   size = 'default',
@@ -239,6 +282,14 @@ function SelectTrigger({
   );
 }
 
+/**
+ * Дропдаун-контент {@link Select} (попап со списком). Обёртка над Radix Select.Content.
+ *
+ * @example
+ * ```tsx
+ * <SelectContent><SelectItem value="a">A</SelectItem></SelectContent>
+ * ```
+ */
 function SelectContent({
   className,
   children,
@@ -271,6 +322,14 @@ function SelectContent({
   );
 }
 
+/**
+ * Заголовок секции внутри {@link SelectGroup}. Обёртка над Radix Select.Label.
+ *
+ * @example
+ * ```tsx
+ * <SelectLabel>Fruit</SelectLabel>
+ * ```
+ */
 function SelectLabel({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.Label>) {
   return (
     <SelectPrimitive.Label
@@ -281,6 +340,14 @@ function SelectLabel({ className, ...props }: React.ComponentProps<typeof Select
   );
 }
 
+/**
+ * Один пункт списка {@link Select}. Обёртка над Radix Select.Item.
+ *
+ * @example
+ * ```tsx
+ * <SelectItem value="apple">Apple</SelectItem>
+ * ```
+ */
 function SelectItem({
   className,
   children,
@@ -305,6 +372,14 @@ function SelectItem({
   );
 }
 
+/**
+ * Кнопка-стрелка для скролла вверх в дропдауне {@link SelectContent}.
+ *
+ * @example
+ * ```tsx
+ * <SelectContent>{/* SelectScrollUpButton добавляется автоматически *\/}</SelectContent>
+ * ```
+ */
 function SelectScrollUpButton({
   className,
   ...props
@@ -320,6 +395,14 @@ function SelectScrollUpButton({
   );
 }
 
+/**
+ * Кнопка-стрелка для скролла вниз в дропдауне {@link SelectContent}.
+ *
+ * @example
+ * ```tsx
+ * <SelectContent>{/* SelectScrollDownButton добавляется автоматически *\/}</SelectContent>
+ * ```
+ */
 function SelectScrollDownButton({
   className,
   ...props

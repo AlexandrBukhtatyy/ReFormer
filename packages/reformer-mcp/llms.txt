@@ -1,0 +1,5 @@
+# ReFormer Mcp - LLM Integration Guide
+# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
+
+> MCP server for ReFormer form library - provides AI assistants with comprehensive documentation and tools for form development
+> Package: @reformer/mcp  •  Version: 1.0.0-beta.1

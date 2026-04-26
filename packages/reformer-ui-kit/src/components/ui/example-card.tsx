@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
+/** Props компонента {@link ExampleCard}. */
 export interface ExampleCardProps {
   title: string;
   description?: string;
@@ -82,6 +83,19 @@ const EyeIcon = () => (
   </svg>
 );
 
+/**
+ * Карточка-обёртка для демонстрации компонентов в playground: заголовок,
+ * описание, область с примером и кнопка переключения исходного кода.
+ *
+ * @example
+ * ```tsx
+ * import { ExampleCard } from '@reformer/ui-kit';
+ *
+ * <ExampleCard title="Inputs" description="Базовые поля" code={`<Input ... />`}>
+ *   <Input value={v} onChange={setV} />
+ * </ExampleCard>
+ * ```
+ */
 export function ExampleCard({
   title,
   description,

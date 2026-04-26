@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/** Props компонента {@link InputMask}. */
 export interface InputMaskProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   className?: string;
@@ -12,6 +13,16 @@ export interface InputMaskProps
   disabled?: boolean;
 }
 
+/**
+ * Текстовое поле с поддержкой простой маски (через шаблон вида `'9'` для цифр).
+ *
+ * @example
+ * ```tsx
+ * import { InputMask } from '@reformer/ui-kit';
+ *
+ * <InputMask value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />
+ * ```
+ */
 const InputMask = React.forwardRef<HTMLInputElement, InputMaskProps>(
   ({ className, value, onChange, onBlur, mask, placeholder, disabled, ...props }, ref) => {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {

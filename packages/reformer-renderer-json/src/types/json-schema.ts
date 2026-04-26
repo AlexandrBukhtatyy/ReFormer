@@ -104,14 +104,35 @@ export interface JsonFormSchema {
 }
 
 /**
- * Type guard: проверяет, является ли узел полем формы (имеет model)
+ * Type guard: проверяет, является ли узел полем формы (имеет `model`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если у узла есть непустое `model`.
+ *
+ * @example
+ * ```typescript
+ * if (isFieldNode(node)) {
+ *   // node.model гарантированно строка
+ *   readField(node.model);
+ * }
+ * ```
  */
 export function isFieldNode(node: JsonNode): boolean {
   return typeof node.model === 'string' && node.model.length > 0;
 }
 
 /**
- * Type guard: проверяет, является ли узел контейнером (только component, без model)
+ * Type guard: проверяет, является ли узел контейнером (только `component`, без `model`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если у узла есть `component`, но нет `model`.
+ *
+ * @example
+ * ```typescript
+ * if (isContainerNode(node)) {
+ *   node.children?.forEach(walk);
+ * }
+ * ```
  */
 export function isContainerNode(node: JsonNode): boolean {
   return typeof node.component === 'string' && !isFieldNode(node);

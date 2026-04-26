@@ -56,14 +56,56 @@ export interface FormArrayItemContextValue<T extends FormFields = FormFields> {
   remove: () => void;
 }
 
+/**
+ * React context, который снабжает дочерние компоненты `FormArray` (List, AddButton, …)
+ * текущим `ArrayNode` и хелперами. Создаётся `FormArray.Root`. Читать через {@link useFormArrayContext}.
+ *
+ * @example
+ * ```tsx
+ * import { FormArrayContext } from '@reformer/cdk/form-array';
+ *
+ * function MyConsumer() {
+ *   const ctx = useContext(FormArrayContext);
+ *   return <span>items: {ctx?.items.length}</span>;
+ * }
+ * ```
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const FormArrayContext = createContext<FormArrayContextValue<any> | null>(null);
+
+/**
+ * React context, видимый внутри `FormArray.List` для одного элемента массива.
+ * Содержит `index`, `path` и `remove()`. Читать через {@link useFormArrayItemContext}.
+ *
+ * @example
+ * ```tsx
+ * import { FormArrayItemContext } from '@reformer/cdk/form-array';
+ *
+ * function CurrentIndex() {
+ *   const item = useContext(FormArrayItemContext);
+ *   return <small>#{item?.index}</small>;
+ * }
+ * ```
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const FormArrayItemContext = createContext<FormArrayItemContextValue<any> | null>(null);
 
 /**
- * Hook to access FormArray context
- * @throws Error if used outside of FormArray.Root or RenderSchema ArrayRenderer
+ * Хук для доступа к контексту `FormArray`. Бросает исключение, если вызван вне
+ * `FormArray.Root` или эквивалентного провайдера.
+ *
+ * @returns Текущий {@link FormArrayContextValue}.
+ * @throws Error если используется вне `FormArray.Root`.
+ *
+ * @example
+ * ```tsx
+ * import { useFormArrayContext } from '@reformer/cdk/form-array';
+ *
+ * function CustomAddButton() {
+ *   const { add } = useFormArrayContext();
+ *   return <button onClick={() => add()}>+ Add</button>;
+ * }
+ * ```
  */
 export function useFormArrayContext<T extends FormFields = FormFields>(): FormArrayContextValue<T> {
   const context = useContext(FormArrayContext) as FormArrayContextValue<T> | null;
@@ -76,8 +118,20 @@ export function useFormArrayContext<T extends FormFields = FormFields>(): FormAr
 }
 
 /**
- * Hook to access current item context within FormArray.List
- * @throws Error if used outside of FormArray.List or item template
+ * Хук для доступа к контексту текущего элемента внутри `FormArray.List`.
+ *
+ * @returns Текущий {@link FormArrayItemContextValue} (`index`, `path`, `remove`).
+ * @throws Error если используется вне `FormArray.List` или item-шаблона.
+ *
+ * @example
+ * ```tsx
+ * import { useFormArrayItemContext } from '@reformer/cdk/form-array';
+ *
+ * function ItemRemoveButton() {
+ *   const { remove } = useFormArrayItemContext();
+ *   return <button onClick={remove}>×</button>;
+ * }
+ * ```
  */
 export function useFormArrayItemContext<
   T extends FormFields = FormFields,

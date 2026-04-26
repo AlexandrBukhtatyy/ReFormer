@@ -26,17 +26,27 @@ export interface SetValueOptions {
 }
 
 /**
- * Абстрактный базовый класс для всех узлов формы
+ * Абстрактный базовый класс для всех узлов формы.
  *
- * Все узлы (поля, группы, массивы) наследуют от этого класса
- * и реализуют единый интерфейс для работы с состоянием и валидацией
+ * Все узлы (поля, группы, массивы) наследуют от этого класса и реализуют
+ * единый интерфейс для работы с состоянием и валидацией.
  *
  * Template Method паттерн используется для управления состоянием:
- * - Общие signals (_touched, _dirty, _status) определены в базовом классе
- * - Публичные методы (markAsTouched, disable и т.д.) реализованы здесь
- * - Protected hooks (onMarkAsTouched, onDisable и т.д.) переопределяются в наследниках
+ * общие signals (`_touched`, `_dirty`, `_status`) живут в базовом классе,
+ * publi-методы (`markAsTouched`, `disable`, …) реализованы здесь, а protected
+ * hooks (`onMarkAsTouched`, `onDisable`, …) переопределяются в наследниках.
  *
  * @group Nodes
+ *
+ * @example
+ * ```typescript
+ * // FormNode не используется напрямую — экземпляры приходят из getReformerForm.
+ * import { getReformerForm, FormNode } from '@reformer/core';
+ *
+ * const form = getReformerForm({ email: '' });
+ * form.email instanceof FormNode; // true
+ * form.email.markAsTouched();
+ * ```
  */
 export abstract class FormNode<T> {
   // ============================================================================

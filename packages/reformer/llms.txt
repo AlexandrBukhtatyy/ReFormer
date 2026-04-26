@@ -1,6 +1,34 @@
-# ReFormer - LLM Integration Guide
+# ReFormer CORE - LLM Integration Guide
+# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
-## 1. API Reference
+> Reactive form state management library for React with signals-based architecture
+> Package: @reformer/core  •  Version: 1.1.0
+
+## Table of Contents
+- 01-api-reference.md — api-reference
+- 02-quick-start.md — quick-start
+- 03-api-signatures.md — api-signatures
+- 04-common-patterns.md — common-patterns
+- 05-common-mistakes.md — common-mistakes
+- 06-troubleshooting.md — troubleshooting
+- 07-complete-import.md — complete-import
+- 08-form-types.md — form-types
+- 09-formschema.md — formschema
+- 10-arrays.md — arrays
+- 11-async-watchfield.md — async-watchfield
+- 12-array-cleanup.md — array-cleanup
+- 13-multi-step.md — multi-step
+- 14-extended-mistakes.md — extended-mistakes
+- 15-project-structure.md — project-structure
+- 16-ui-components.md — ui-components
+- 17-nonexistent-api.md — nonexistent-api
+- 19-reading-values.md — reading-values
+- 20-compute-vs-watch.md — compute-vs-watch
+- 21-array-operations.md — array-operations
+- 22-cycle-detection.md — cycle-detection
+- API Reference (auto-generated from JSDoc)
+
+## 1. 1. API Reference
 
 ### Imports (CRITICALLY IMPORTANT)
 
@@ -43,7 +71,7 @@ const loanType = useFormControlValue(control.loanType);
 const { value, errors, disabled } = useFormControl(control.loanType);
 ```
 
-## 1.5 QUICK START - Minimal Working Form
+## 2. 1.5 QUICK START - Minimal Working Form
 
 ```typescript
 import { createForm, useFormControl } from '@reformer/core';
@@ -115,7 +143,7 @@ function FormStep({ form }: FormStepProps) {
 }
 ```
 
-## 2. API SIGNATURES
+## 3. 2. API SIGNATURES
 
 ### Validators
 
@@ -224,7 +252,7 @@ interface BehaviorContext<TForm> {
 }
 ```
 
-## 3. COMMON PATTERNS
+## 4. 3. COMMON PATTERNS
 
 ### Conditional Fields with Auto-Reset
 
@@ -279,7 +307,7 @@ validate(path.email, (value) => {
 });
 ```
 
-## 4. COMMON MISTAKES
+## 5. 4. COMMON MISTAKES
 
 ### useFormControlValue (CRITICAL)
 
@@ -355,7 +383,7 @@ import type { ValidationSchemaFn } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
 ```
 
-## 5. TROUBLESHOOTING
+## 6. 5. TROUBLESHOOTING
 
 | Error                                                  | Cause                          | Solution                          |
 | ------------------------------------------------------ | ------------------------------ | --------------------------------- |
@@ -366,7 +394,7 @@ import { required, email } from '@reformer/core/validators';
 | `Module has no exported member`                        | Wrong import source            | Types from core, functions from submodules |
 | `Cycle detected`                                       | Multiple watchers on same field calling disable/setValue | See 22-cycle-detection.md |
 
-## 6. COMPLETE IMPORT EXAMPLE
+## 7. 6. COMPLETE IMPORT EXAMPLE
 
 ```typescript
 // Types - always from @reformer/core
@@ -388,7 +416,7 @@ import { required, min, max, email, validate, applyWhen } from '@reformer/core/v
 import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/behaviors';
 ```
 
-## 7. FORM TYPE DEFINITION
+## 8. 7. FORM TYPE DEFINITION
 
 ```typescript
 // CORRECT form type definition
@@ -418,7 +446,7 @@ interface MyForm {
 }
 ```
 
-## 8. FORMSCHEMA FORMAT (CRITICALLY IMPORTANT)
+## 9. 8. FORMSCHEMA FORMAT (CRITICALLY IMPORTANT)
 
 **Every field MUST have `value` and `component` properties!**
 
@@ -552,7 +580,7 @@ if (isFieldNode(node)) { /* ... */ }   // Works with Proxy
 if (node instanceof FieldNode) { /* ... */ } // Fails with Proxy!
 ```
 
-## 9. ARRAY SCHEMA FORMAT
+## 10. 9. ARRAY SCHEMA FORMAT
 
 **Array items are sub-forms!** Each array element is a complete sub-form with its own fields, validation, and behavior.
 
@@ -605,7 +633,7 @@ validateItems(path.items, (itemPath) => {
 ))}
 ```
 
-## 10. ASYNC WATCHFIELD (CRITICALLY IMPORTANT)
+## 11. 10. ASYNC WATCHFIELD (CRITICALLY IMPORTANT)
 
 ```typescript
 // CORRECT - async watchField with ALL safeguards
@@ -637,7 +665,7 @@ watchField(path.field, async (value, ctx) => {
 - Guard clause - skip if value is empty
 - try-catch - handle errors explicitly
 
-## 11. ARRAY CLEANUP PATTERN
+## 12. 11. ARRAY CLEANUP PATTERN
 
 ```typescript
 // CORRECT - cleanup array when checkbox unchecked
@@ -657,7 +685,7 @@ watchField(path.hasItems, (hasItems, ctx) => {
 });
 ```
 
-## 12. MULTI-STEP FORM VALIDATION
+## 13. 12. MULTI-STEP FORM VALIDATION
 
 ```typescript
 // Step-specific validation schemas
@@ -739,7 +767,7 @@ function MultiStepForm() {
 }
 ```
 
-## 13. EXTENDED COMMON MISTAKES
+## 14. 13. EXTENDED COMMON MISTAKES
 
 ### Behavior Composition (Cycle Error)
 
@@ -833,7 +861,7 @@ validateTree((ctx: { form: MyForm }) => {
 });
 ```
 
-## 14. PROJECT STRUCTURE (COLOCATION)
+## 15. 14. PROJECT STRUCTURE (COLOCATION)
 
 ```
 src/
@@ -897,7 +925,7 @@ export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
 | Medium | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
 | Complex | Full colocation with `steps/` and `sub-forms/` |
 
-## 14.5 UI COMPONENT PATTERNS
+## 16. 14.5 UI COMPONENT PATTERNS
 
 ReFormer does NOT provide UI components - you create them yourself or use a UI library.
 
@@ -1004,7 +1032,7 @@ function ShadcnFormField({ control, label }: FormFieldProps<string>) {
 }
 ```
 
-## 15. NON-EXISTENT API (DO NOT USE)
+## 17. 15. NON-EXISTENT API (DO NOT USE)
 
 **The following APIs do NOT exist in @reformer/core:**
 
@@ -1061,7 +1089,7 @@ const schema: FormSchema<MyForm> = {
 };
 ```
 
-## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
+## 18. 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
 ### Why .value.value?
 
@@ -1116,7 +1144,7 @@ watchField(path.personalData.lastName, (lastName, ctx) => {
 }, { immediate: false });
 ```
 
-## 17. COMPUTE FROM vs WATCH FIELD
+## 19. 17. COMPUTE FROM vs WATCH FIELD
 
 ### computeFrom - Same Nesting Level Only
 
@@ -1173,7 +1201,7 @@ watchField(path.loanAmount, (amount, ctx) => {
 | Multiple dependencies | `watchField` |
 | Async computation | `watchField` with async callback |
 
-## 18. ARRAY OPERATIONS
+## 20. 18. ARRAY OPERATIONS
 
 ### Array Access - CRITICAL
 
@@ -1271,7 +1299,7 @@ validateTree((ctx: { form: MyForm }) => {
 }, { targetField: 'items' });
 ```
 
-## Cycle Detection Prevention Checklist
+## 21. Cycle Detection Prevention Checklist
 
 **ALWAYS follow these rules to prevent "Cycle detected" error:**
 
@@ -1284,7 +1312,7 @@ validateTree((ctx: { form: MyForm }) => {
 
 ---
 
-## Cycle Detected Error
+## 22. Cycle Detected Error
 
 ### Problem
 
@@ -1437,3 +1465,3196 @@ watchField(path.health.isSmoker, (_value, ctx) => {
   }
 }, { immediate: false });  // REQUIRED!
 ```
+
+## 23. API Reference
+
+_Auto-generated from JSDoc on public exports._
+
+### AbstractRegistry
+
+**Kind:** `class`
+
+Базовый класс для реестров (BehaviorRegistry, ValidationRegistry).
+
+Реализует паттерн Template Method для управления регистрацией:
+`beginRegistration()` → `onBeginRegistration()`, `endRegistration()` → `onEndRegistration()`.
+
+**Signature:**
+```typescript
+export abstract class AbstractRegistry<TRegistration> {
+  /** Флаг активной регистрации */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+import { AbstractRegistry } from '@reformer/core';
+
+class MyRegistry extends AbstractRegistry<{ name: string }> {
+  protected onEndRegistration(items: { name: string }[]) {
+    console.log('Registered', items.length);
+  }
+}
+```
+
+_Source: src/core/utils/abstract-registry.ts_
+
+### AnyFunction
+
+**Kind:** `type`
+
+Тип для проверки на функцию в conditional types
+Используется вместо Function для type narrowing
+
+**Signature:**
+```typescript
+export type AnyFunction = (...args: never[]) => unknown;
+```
+
+_Source: src/core/types/index.ts_
+
+### ArrayConfig
+
+**Kind:** `interface`
+
+Конфигурация массива
+
+**Signature:**
+```typescript
+export interface ArrayConfig<T extends FormFields> {
+  itemSchema: FormSchema<T>;
+  initial?: Partial<T>[];
+}
+```
+
+_Source: src/core/types/deep-schema.ts_
+
+### ArrayControlState
+
+**Kind:** `interface`
+
+Состояние массива формы, возвращаемое хуком {@link useFormControl} для {@link ArrayNode}.
+
+Содержит реактивные данные массива: значения элементов, длину, состояние валидации
+и флаги взаимодействия.
+
+**Signature:**
+```typescript
+export interface ArrayControlState<T> {
+  /**
+   * Массив текущих значений всех элементов.
+   *
+   * @example
+   * ```tsx
+   * const { value } = useFormControl(phonesArray);
+   * console.log(value);
+   * // [{ type: 'mobile', number: '+1234567890' }, { type: 'home', number: '+0987654321' }]
+   * ```
+   */
+  value: T[];
+
+  /**
+   * Количество элементов в массиве.
+   * Эквивалентно value.length, но оптимизировано для реактивности.
+   *
+   * @example
+   * ```tsx
+   * const { length } = useFormControl(itemsArray);
+   *
+   * return (
+   *   <div>
+   *     <span>Items: {length}</span>
+   *     {length >= 10 && <span>Maximum reached</span>}
+   *   </div>
+   * );
+   * ```
+   */
+  length: number;
+
+  /**
+   * Флаг асинхронной валидации.
+   * `true` когда выполняется асинхронный валидатор массива или любого элемента.
+   */
+  pending: boolean;
+
+  /**
+   * Массив ошибок валидации уровня массива.
+   * Не включает ошибки отдельных элементов.
+   *
+   * @example
+   * ```tsx
+   * // Валидатор массива
+   * validators.apply(phonesArray, {
+   *   validator: (phones) => phones.length >= 1,
+   *   message: 'At least one phone required'
+   * });
+   *
+   * // В компоненте
+   * const { errors } = useFormControl(phonesArray);
+   * // errors содержит ошибку "At least one phone required" если массив пуст
+   * ```
+   */
+  errors: ValidationError[];
+
+  /**
+   * Флаг валидности массива и всех его элементов.
+   * `true` только когда массив и все вложенные элементы валидны.
+   */
+  valid: boolean;
+
+  /**
+   * Флаг невалидности.
+   * `true` когда есть ошибки в массиве или любом элементе.
+   */
+  invalid: boolean;
+
+  /**
+   * Флаг взаимодействия.
+   * `true` после взаимодействия с любым элементом массива.
+   */
+  touched: boolean;
+
+  /**
+   * Флаг изменения.
+   * `true` когда значение массива отличается от начального.
+   *
+   * @example
+   * ```tsx
+   * const { dirty } = useFormControl(itemsArray);
+   *
+   * return (
+   *   <div>
+   *     {dirty && <span>* Unsaved changes</span>}
+   *     <button disabled={!dirty}>Save</button>
+   *   </div>
+   * );
+   * ```
+   */
+  dirty: boolean;
+}
+```
+
+**Examples:**
+
+Список с динамическим добавлением
+```tsx
+interface Phone {
+type: string;
+number: string;
+}
+
+interface Props {
+control: ArrayNode<Phone>;
+}
+
+function PhoneList({ control }: Props) {
+const { length, valid } = useFormControl(control);
+
+return (
+<div>
+{control.map((item, index) => (
+<PhoneItem
+ key={item.id}
+ control={item}
+ onRemove={() => control.remove(index)}
+/>
+))}
+
+{length === 0 && <p>No phones added</p>}
+
+<button onClick={() => control.push({ type: 'mobile', number: '' })}>
+Add Phone
+</button>
+
+{!valid && <p className="error">Please fix phone errors</p>}
+</div>
+);
+}
+```
+
+**See also:**
+- {@link useFormControl} - хук для получения состояния
+- {@link FieldControlState} - состояние для полей
+
+_Source: src/hooks/types.ts_
+
+### ArrayNode
+
+**Kind:** `class`
+
+ArrayNode - массив форм с реактивным состоянием
+
+**Signature:**
+```typescript
+export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
+  // ============================================================================
+  // Приватные поля
+  // ============================================================================ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+const array = new ArrayNode({
+  title: { value: '', component: Input },
+  price: { value: 0, component: Input },
+});
+
+array.push({ title: 'Item 1', price: 100 });
+array.at(0)?.title.setValue('Updated');
+console.log(array.length.value); // 1
+```
+
+_Source: src/core/nodes/array-node.ts_
+
+### ArrayNodeLike
+
+**Kind:** `interface`
+
+Интерфейс для узлов, похожих на ArrayNode (с методом at)
+Используется для duck typing при обходе путей
+
+**Signature:**
+```typescript
+export interface ArrayNodeLike {
+  at(index: number): FormNode<unknown> | undefined;
+  length: unknown;
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### AsyncValidatorFn
+
+**Kind:** `type`
+
+Асинхронная функция валидации
+
+**Signature:**
+```typescript
+export type AsyncValidatorFn<T = FormValue> = (
+  value: T,
+  options?: AsyncValidatorOptions
+) => Promise<ValidationError | null>;
+```
+
+**Parameters:**
+- `value` — - Значение для валидации
+- `options` — - Опции валидации (опционально)
+
+**Returns:** Promise с ошибкой валидации или null если значение валидно
+
+**Examples:**
+
+```typescript
+// Простой валидатор (без поддержки отмены)
+const emailExists: AsyncValidatorFn<string> = async (value) => {
+  const exists = await checkEmail(value);
+  return exists ? { code: 'exists', message: 'Email already exists' } : null;
+};
+
+// Валидатор с поддержкой отмены
+const emailExistsAbortable: AsyncValidatorFn<string> = async (value, options) => {
+  const exists = await fetch(`/api/check-email?email=${value}`, {
+    signal: options?.signal // Передаём signal в fetch для отмены запроса
+  });
+  return exists ? { code: 'exists', message: 'Email already exists' } : null;
+};
+```
+
+_Source: src/core/types/index.ts_
+
+### AsyncValidatorOptions
+
+**Kind:** `interface`
+
+Опции для асинхронного валидатора
+
+**Signature:**
+```typescript
+export interface AsyncValidatorOptions {
+  /**
+   * AbortSignal для отмены валидации
+   * Позволяет отменить асинхронную операцию при новой валидации
+   */
+  signal?: AbortSignal;
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### BehaviorSchemaFn
+
+**Kind:** `type`
+
+Тип функции behavior схемы
+Принимает FieldPath и описывает поведение формы
+
+**Signature:**
+```typescript
+export type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
+```
+
+_Source: src/core/behavior/types.ts_
+
+### ConditionFn
+
+**Kind:** `type`
+
+Функция условия для applyWhen
+
+**Signature:**
+```typescript
+export type ConditionFn<T> = (value: T) => boolean;
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### ConfigWithSchema
+
+**Kind:** `interface`
+
+Конфиг с полем schema (для ArrayConfig)
+
+**Signature:**
+```typescript
+export interface ConfigWithSchema {
+  schema: unknown;
+  initialItems?: unknown[];
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### ConfigWithValue
+
+**Kind:** `interface`
+
+Конфиг с полем value (для извлечения значений)
+
+**Signature:**
+```typescript
+export interface ConfigWithValue {
+  value: unknown;
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### ContextualAsyncValidatorFn
+
+**Kind:** `type`
+
+Асинхронная функция валидации поля с контекстом
+
+**Signature:**
+```typescript
+export type ContextualAsyncValidatorFn<TForm, TField> = (
+  value: TField,
+  ctx: FormContext<TForm>
+) => Promise<ValidationError | null>;
+```
+
+**Examples:**
+
+```typescript
+validateAsync(path.email, async (value, ctx) => {
+  const exists = await checkEmailExists(value);
+  if (exists) return { code: 'exists', message: 'Email already taken' };
+  return null;
+});
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### ContextualValidatorFn
+
+**Kind:** `type`
+
+Функция валидации поля с контекстом
+
+Новый паттерн: (value, ctx: FormContext) => ValidationError | null
+
+**Signature:**
+```typescript
+export type ContextualValidatorFn<TForm, TField> = (
+  value: TField,
+  ctx: FormContext<TForm>
+) => ValidationError | null;
+```
+
+**Examples:**
+
+```typescript
+validate(path.email, (value, ctx) => {
+  if (!value) return { code: 'required', message: 'Email required' };
+  const confirm = ctx.form.confirmEmail.value.value;
+  if (value !== confirm) return { code: 'mismatch', message: 'Must match' };
+  return null;
+});
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### createFieldPath
+
+**Kind:** `function`
+
+Создать FieldPath proxy для формы
+
+**Signature:**
+```typescript
+export function createFieldPath<T>(): FieldPath<T>
+```
+
+**Examples:**
+
+```typescript
+const path = createFieldPath<MyForm>();
+console.log(path.email.__path); // 'email'
+console.log(path.personalData.firstName.__path); // 'personalData.firstName'
+```
+
+_Source: src/core/utils/field-path.ts_
+
+### createForm
+
+**Kind:** `function`
+
+Создать форму с полной конфигурацией (form, behavior, validation)
+
+**Signature:**
+```typescript
+export function createForm<T>(config: GroupNodeConfig<T>): FormProxy<T>;
+```
+
+**Parameters:**
+- `config` — - Конфигурация формы с полями, поведением и валидацией
+
+**Returns:** Типизированная форма с Proxy-доступом к полям
+
+**Examples:**
+
+```typescript
+const form = createForm<UserForm>({
+  form: {
+    email: { value: '', component: Input },
+    password: { value: '', component: Input },
+  },
+  validation: (path) => {
+    required(path.email);
+    email(path.email);
+    required(path.password);
+    minLength(path.password, 8);
+  },
+});
+
+// TypeScript знает о полях:
+form.email.setValue('test@mail.com');
+```
+
+_Source: src/core/utils/create-form.ts_
+
+### ErrorFilterOptions
+
+**Kind:** `interface`
+
+Опции для фильтрации ошибок в методе getErrors()
+
+**Signature:**
+```typescript
+export interface ErrorFilterOptions {
+  /** Фильтр по коду ошибки */
+  code?: string | string[];
+
+  /** Фильтр по сообщению (поддерживает частичное совпадение) */
+  message?: string;
+
+  /** Фильтр по параметрам ошибки */
+  params?: FormFields;
+
+  /** Кастомный предикат для фильтрации */
+  predicate?: (error: ValidationError) => boolean;
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### ErrorStrategy
+
+**Kind:** `enum`
+
+Стратегия обработки ошибок
+
+Определяет, что делать с ошибкой после логирования
+
+**Signature:**
+```typescript
+export enum ErrorStrategy {
+  /**
+   * Пробросить ошибку дальше (throw)
+   * Используется когда ошибка критична и должна остановить выполнение
+   */
+  THROW = 'throw',
+
+  /**
+   * Залогировать и проглотить ошибку (продолжить выполнение)
+   * Используется когда ошибка не критична
+   */
+  LOG = 'log',
+
+  /**
+   * Конвертировать ошибку в ValidationError
+   * Используется в async validators для отображения ошибки валидации пользователю
+   */
+  CONVERT = 'convert',
+}
+```
+
+_Source: src/core/utils/error-handler.ts_
+
+### extractKey
+
+**Kind:** `function`
+
+Извлечь имя последнего сегмента ({@link FieldPathSegment}) пути.
+
+**Signature:**
+```typescript
+export function extractKey(node: FieldPathNode<unknown, unknown> | unknown): string
+```
+
+**Parameters:**
+- `node` — - Узел `FieldPathNode` либо строка-путь.
+
+**Returns:** Имя поля без префикса родителя (последний сегмент).
+
+**Examples:**
+
+```typescript
+import { extractKey } from '@reformer/core';
+
+extractKey(path.user.email); // → 'email'
+```
+
+_Source: src/core/utils/field-path.ts_
+
+### extractPath
+
+**Kind:** `function`
+
+Извлечь строковый путь из {@link FieldPathNode}.
+
+**Signature:**
+```typescript
+export function extractPath(node: FieldPathNode<unknown, unknown> | unknown): string
+```
+
+**Parameters:**
+- `node` — - Узел `FieldPathNode` либо строка-путь.
+
+**Returns:** Путь вида `"a.b.c"`.
+
+**Examples:**
+
+```typescript
+import { extractPath } from '@reformer/core';
+
+const path = (renderPath) => extractPath(renderPath.user.email); // → 'user.email'
+```
+
+_Source: src/core/utils/field-path.ts_
+
+### FieldConfig
+
+**Kind:** `interface`
+
+Конфигурация поля
+
+**Signature:**
+```typescript
+export interface FieldConfig<T> {
+  value: T | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  componentProps?: any;
+  validators?: ValidatorFn<T>[];
+  asyncValidators?: AsyncValidatorFn<T>[];
+  disabled?: boolean;
+  updateOn?: 'change' | 'blur' | 'submit';
+  /** Задержка (в мс) перед запуском асинхронной валидации */
+  debounce?: number;
+}
+```
+
+_Source: src/core/types/deep-schema.ts_
+
+### FieldControlState
+
+**Kind:** `interface`
+
+Состояние поля формы, возвращаемое хуком {@link useFormControl} для {@link FieldNode}.
+
+Содержит реактивные данные поля: значение, состояние валидации, флаги взаимодействия
+и пользовательские props для компонентов.
+
+**Signature:**
+```typescript
+export interface FieldControlState<T> {
+  /**
+   * Текущее значение поля.
+   *
+   * @example
+   * ```tsx
+   * const { value } = useFormControl(emailField);
+   * console.log(value); // "user@example.com"
+   * ```
+   */
+  value: T;
+
+  /**
+   * Флаг асинхронной валидации или загрузки.
+   * `true` когда выполняется асинхронный валидатор.
+   *
+   * @example
+   * ```tsx
+   * const { pending } = useFormControl(usernameField);
+   *
+   * return (
+   *   <div>
+   *     <input {...props} />
+   *     {pending && <Spinner size="small" />}
+   *   </div>
+   * );
+   * ```
+   */
+  pending: boolean;
+
+  /**
+   * Флаг отключения поля.
+   * `true` когда поле недоступно для редактирования.
+   *
+   * @example
+   * ```tsx
+   * const { disabled, value } = useFormControl(field);
+   *
+   * return (
+   *   <input
+   *     value={value}
+   *     disabled={disabled}
+   *     className={disabled ? 'opacity-50' : ''}
+   *   />
+   * );
+   * ```
+   */
+  disabled: boolean;
+
+  /**
+   * Массив ошибок валидации.
+   * Пустой массив означает отсутствие ошибок.
+   *
+   * @example
+   * ```tsx
+   * const { errors } = useFormControl(field);
+   *
+   * return (
+   *   <ul className="error-list">
+   *     {errors.map((error, i) => (
+   *       <li key={i}>{error.message}</li>
+   *     ))}
+   *   </ul>
+   * );
+   * ```
+   */
+  errors: ValidationError[];
+
+  /**
+   * Флаг валидности поля.
+   * `true` когда поле прошло все валидации (errors.length === 0).
+   *
+   * @example
+   * ```tsx
+   * const { valid } = useFormControl(field);
+   *
+   * return (
+   *   <input className={valid ? 'border-green' : 'border-gray'} />
+   * );
+   * ```
+   */
+  valid: boolean;
+
+  /**
+   * Флаг невалидности поля.
+   * `true` когда есть ошибки валидации (errors.length > 0).
+   * Противоположность {@link valid}.
+   *
+   * @example
+   * ```tsx
+   * const { invalid } = useFormControl(field);
+   *
+   * return (
+   *   <input
+   *     aria-invalid={invalid}
+   *     className={invalid ? 'border-red' : ''}
+   *   />
+   * );
+   * ```
+   */
+  invalid: boolean;
+
+  /**
+   * Флаг взаимодействия с полем.
+   * `true` после того как поле потеряло фокус (blur) хотя бы один раз.
+   *
+   * @example
+   * ```tsx
+   * const { touched, invalid } = useFormControl(field);
+   *
+   * // Показываем ошибку только после взаимодействия
+   * const showError = touched && invalid;
+   * ```
+   */
+  touched: boolean;
+
+  /**
+   * Флаг для отображения ошибки.
+   * Комбинация touched && invalid - удобный shortcut для UI.
+   *
+   * @example
+   * ```tsx
+   * const { shouldShowError, errors } = useFormControl(field);
+   *
+   * return (
+   *   <div>
+   *     <input {...props} />
+   *     {shouldShowError && (
+   *       <span className="error">{errors[0]?.message}</span>
+   *     )}
+   *   </div>
+   * );
+   * ```
+   */
+  shouldShowError: boolean;
+
+  /**
+   * Пользовательские props для передачи в UI-компоненты.
+   * Устанавливаются через {@link FieldNode.setComponentProps}.
+   *
+   * @example
+   * ```tsx
+   * // Установка props
+   * field.setComponentProps({
+   *   placeholder: 'Enter email...',
+   *   maxLength: 100,
+   *   autoComplete: 'email'
+   * });
+   *
+   * // Использование в компоненте
+   * const { componentProps, value } = useFormControl(field);
+   *
+   * return (
+   *   <input
+   *     value={value}
+   *     placeholder={componentProps.placeholder}
+   *     maxLength={componentProps.maxLength}
+   *     autoComplete={componentProps.autoComplete}
+   *   />
+   * );
+   * ```
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  componentProps: Record<string, any>;
+}
+```
+
+**Examples:**
+
+Базовое использование
+```tsx
+interface Props {
+control: FieldNode<string>;
+}
+
+function TextField({ control }: Props) {
+const state = useFormControl(control);
+
+return (
+<div>
+<input
+value={state.value}
+disabled={state.disabled}
+onChange={e => control.setValue(e.target.value)}
+/>
+{state.shouldShowError && state.errors[0] && (
+<span className="error">{state.errors[0].message}</span>
+)}
+</div>
+);
+}
+```
+
+**See also:**
+- {@link useFormControl} - хук для получения состояния
+- {@link ArrayControlState} - состояние для массивов
+
+_Source: src/hooks/types.ts_
+
+### FieldNode
+
+**Kind:** `class`
+
+FieldNode - узел для отдельного поля формы
+
+**Signature:**
+```typescript
+export class FieldNode<T> extends FormNode<T> {
+  // ============================================================================
+  // Приватные сигналы
+  // ============================================================================ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+const field = new FieldNode({
+  value: '',
+  component: Input,
+  validators: [required, email],
+});
+
+field.setValue('test@mail.com');
+await field.validate();
+console.log(field.valid.value); // true
+```
+
+_Source: src/core/nodes/field-node.ts_
+
+### FieldPath
+
+**Kind:** `type`
+
+FieldPath предоставляет типобезопасный доступ к путям полей формы
+
+Рекурсивно обрабатывает вложенные объекты для поддержки вложенных форм.
+
+Использование:
+```typescript
+const validation = (path: FieldPath<MyForm>) => {
+  required(path.email, { message: 'Email обязателен' });
+
+  // Вложенные объекты
+  required(path.registrationAddress.city);
+  minLength(path.registrationAddress.street, 3);
+
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (path) => {
+      required(path.propertyValue, { message: 'Укажите стоимость' });
+    }
+  );
+};
+```
+
+**Signature:**
+```typescript
+export type FieldPath<T> = {
+  [K in keyof T]: NonNullable<T[K]> extends Array<unknown>
+    ? FieldPathNode<T, T[K], K> // Массивы - не рекурсим (обрабатываются отдельно)
+    : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
+      ? FieldPathNode<T, T[K], K> // Специальные объекты - не рекурсим
+      : NonNullable<T[K]> extends object
+        ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> // Обычные объекты - рекурсия!
+        : FieldPathNode<T, T[K], K>; // Примитивы
+};
+```
+
+_Source: src/core/types/field-path.ts_
+
+### FieldPathNavigator
+
+**Kind:** `class`
+
+Навигация по путям к полям формы
+
+Централизует логику парсинга и навигации по путям к полям формы.
+Используется в ValidationContext, BehaviorContext, GroupNode для единообразной
+обработки путей вида "address.city" или "items[0].name".
+
+Устраняет дублирование логики парсинга путей в 4 местах кодовой базы.
+
+**Signature:**
+```typescript
+export class FieldPathNavigator {
+  /**
+   * Парсит путь в массив сегментов
+   *
+   * Поддерживаемые форматы:
+   * - Простые пути: "name", "email"
+   * - Вложенные пути: "address.city", "user.profile.avatar"
+   * - Массивы: "items[0]", "items[0].name", "tags[1][0]"
+   * - Комбинации: "orders[0].items[1].price"
+   *
+   * @param path Путь к полю (строка с точками и квадратными скобками)
+   * @returns Массив сегментов пути
+   *
+   * @example
+   * ```typescript
+   * navigator.parsePath('email');
+   * // [{ key: 'email' }]
+   *
+   * navigator.parsePath('address.city');
+   * // [{ key: 'address' }, { key: 'city' }]
+   *
+   * navigator.parsePath('items[0].name');
+   * // [{ key: 'items', index: 0 }, { key: 'name' }]
+   * ```
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+const navigator = new FieldPathNavigator();
+
+// Парсинг пути
+const segments = navigator.parsePath('items[0].title');
+// [{ key: 'items', index: 0 }, { key: 'title' }]
+
+// Получение значения из объекта
+const obj = { items: [{ title: 'Item 1' }] };
+const value = navigator.getValueByPath(obj, 'items[0].title');
+// 'Item 1'
+
+// Получение узла формы
+const titleNode = navigator.getNodeByPath(form, 'items[0].title');
+titleNode?.setValue('New Title');
+```
+
+_Source: src/core/utils/field-path-navigator.ts_
+
+### FieldPathNode
+
+**Kind:** `interface`
+
+Узел в пути поля
+Содержит метаинформацию о поле для валидации
+
+**Signature:**
+```typescript
+export interface FieldPathNode<TForm, TField, TKey = unknown> {
+  /** Ключ поля */
+  readonly __key: TKey;
+  /** Путь к полю (для вложенных объектов) */
+  readonly __path: string;
+  /** Тип формы */
+  readonly __formType?: TForm;
+  /** Тип поля */
+  readonly __fieldType?: TField;
+}
+```
+
+_Source: src/core/types/field-path.ts_
+
+### FieldPathSegment
+
+**Kind:** `type`
+
+Тип для путей к полям (field paths)
+Используется в навигации по полям вместо any
+
+**Signature:**
+```typescript
+export type FieldPathSegment = {
+  key: string;
+  index?: number;
+};
+```
+
+_Source: src/core/types/index.ts_
+
+### FieldStatus
+
+**Kind:** `type`
+
+Статус поля формы
+
+**Signature:**
+```typescript
+export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
+```
+
+_Source: src/core/types/index.ts_
+
+### FormArrayProxy
+
+**Kind:** `type`
+
+Комбинированный тип для ArrayNode с Proxy доступом к элементам
+
+Объединяет методы и свойства ArrayNode с типизированным доступом к элементам массива.
+
+**Signature:**
+```typescript
+export type FormArrayProxy<T extends FormFields> = ArrayNode<T> & {
+  /**
+   * Безопасный доступ к элементу массива по индексу
+   * Возвращает GroupNode с типизированными полями или undefined
+   */
+  at(index: number): FormProxy<T> | undefined;
+
+  /**
+   * Итерация по элементам массива с типизированными элементами
+   */
+  forEach(callback: (item: FormProxy<T>, index: number) => void): void;
+
+  /**
+   * Маппинг элементов массива с типизированными элементами
+   */
+  map<R>(callback: (item: FormProxy<T>, index: number) => R): R[];
+};
+```
+
+**Examples:**
+
+```typescript
+interface TodoItem {
+  title: string;
+  completed: boolean;
+}
+
+const todos: FormArrayProxy<TodoItem> = new ArrayNode(schema);
+
+// Доступ к методам ArrayNode
+todos.push({ title: 'New todo', completed: false });
+todos.removeAt(0);
+
+// Доступ к элементам (через Proxy)
+todos.at(0)?.title.setValue('Updated title');
+
+// Итерация
+todos.forEach((item, i) => {
+  console.log(item.title.value.value);
+});
+```
+
+_Source: src/core/types/form-proxy.ts_
+
+### FormChangeCallback
+
+**Kind:** `type`
+
+Callback для обработки событий изменения
+
+**Signature:**
+```typescript
+export type FormChangeCallback = (event: FormChangeEvent) => void;
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### FormChangeEvent
+
+**Kind:** `interface`
+
+Событие изменения в форме
+
+**Signature:**
+```typescript
+export interface FormChangeEvent {
+  /** Тип изменения */
+  type: FormChangeType;
+  /** Путь к полю */
+  path: string;
+  /** Timestamp события */
+  timestamp: number;
+  /** Старое значение */
+  oldValue?: unknown;
+  /** Новое значение */
+  newValue: unknown;
+}
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### FormChangeType
+
+**Kind:** `type`
+
+Тип события изменения в форме
+
+**Signature:**
+```typescript
+export type FormChangeType = 'value' | 'status' | 'errors' | 'touched' | 'dirty';
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### FormContext
+
+**Kind:** `interface`
+
+Единый контекст для работы с формой
+
+Предоставляет:
+- `form` - типизированный Proxy-доступ к полям формы
+- `setFieldValue` - безопасная установка значения (emitEvent: false)
+
+**Signature:**
+```typescript
+export interface FormContext<TForm> {
+  /**
+   * Форма с типизированным Proxy-доступом к полям
+   *
+   * Позволяет обращаться к полям напрямую через точечную нотацию:
+   * - `ctx.form.email` → FieldNode
+   * - `ctx.form.address.city` → FieldNode (вложенный)
+   * - `ctx.form.items` → ArrayNode
+   *
+   * @example
+   * ```typescript
+   * // Получить значение
+   * ctx.form.email.value.value
+   *
+   * // Установить значение (⚠️ может вызвать цикл в behavior!)
+   * ctx.form.email.setValue('new@mail.com')
+   *
+   * // Безопасно установить значение
+   * ctx.form.email.setValue('new@mail.com', { emitEvent: false })
+   *
+   * // Обновить пропсы компонента
+   * ctx.form.city.updateComponentProps({ options: cities })
+   *
+   * // Валидация поля
+   * await ctx.form.email.validate()
+   *
+   * // Работа с массивами
+   * ctx.form.items.push({ title: 'New' })
+   * ctx.form.items.clear()
+   * ```
+   */
+  readonly form: FormProxy<TForm>;
+
+  /**
+   * Безопасно установить значение поля по строковому пути или FieldPath
+   *
+   * Автоматически использует `emitEvent: false` для предотвращения
+   * бесконечных циклов в behavior схемах.
+   *
+   * @param path - Путь к полю (строка или FieldPath)
+   * @param value - Новое значение
+   *
+   * @example
+   * ```typescript
+   * // Сброс города при смене страны (строковый путь)
+   * watchField(path.country, (country, ctx) => {
+   *   ctx.setFieldValue('city', null);
+   * });
+   *
+   * // Использование FieldPath напрямую (более типобезопасно)
+   * watchField(path.country, (country, ctx) => {
+   *   ctx.setFieldValue(path.city, null);
+   * });
+   * ```
+   */
+  setFieldValue(path: string | FieldPathNode<TForm, unknown>, value: unknown): void;
+
+  /**
+   * Получить поле формы по строковому пути
+   *
+   * Используется для динамического доступа к вложенным полям,
+   * особенно в модульных behavior схемах, применяемых через apply().
+   *
+   * @param path - Строковый путь к полю (например "address.city")
+   * @returns FormNode или undefined если поле не найдено
+   *
+   * @example
+   * ```typescript
+   * // В модульной behavior схеме, применяемой к вложенному полю:
+   * // apply([path.registrationAddress, path.residenceAddress], addressBehavior)
+   *
+   * watchField(path.region, (region, ctx) => {
+   *   // path.city.__path = "registrationAddress.city" или "residenceAddress.city"
+   *   const cityField = ctx.getFieldByPath(path.city.__path);
+   *   cityField?.updateComponentProps({ options: cities });
+   * });
+   * ```
+   */
+  getFieldByPath(path: string): FormNode<FormValue> | undefined;
+}
+```
+
+_Source: src/core/types/form-context.ts_
+
+### FormControlsProxy
+
+**Kind:** `type`
+
+Мапит тип модели данных T на правильные типы узлов формы
+
+Рекурсивно определяет типы узлов на основе структуры данных:
+- `T[K] extends Array<infer U>` где U - объект → `FormArrayProxy<U>`
+- `T[K] extends Array<infer U>` где U - примитив → `FieldNode<T[K]>` (массив как обычное поле)
+- `T[K] extends object` → `FormProxy<T[K]>` (вложенная форма с типизацией)
+- `T[K]` примитив → `FieldNode<T[K]>` (простое поле)
+
+Использует NonNullable для правильной обработки опциональных полей
+
+**Signature:**
+```typescript
+export type FormControlsProxy<T> = {
+  [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
+    ? U extends FormFields
+      ? FormArrayProxy<U> // Массив объектов → FormArrayProxy
+      : FieldNode<T[K]> // Массив примитивов → FieldNode
+    : NonNullable<T[K]> extends FormFields
+      ? NonNullable<T[K]> extends Date | File | Blob
+        ? FieldNode<T[K]> // Специальные объекты → FieldNode
+        : FormProxy<NonNullable<T[K]>> // Обычный объект → FormProxy (рекурсивно!)
+      : FieldNode<T[K]>; // Примитивные типы → FieldNode
+};
+```
+
+_Source: src/core/types/form-proxy.ts_
+
+### FormErrorHandler
+
+**Kind:** `class`
+
+Централизованный обработчик ошибок для форм
+
+Обеспечивает:
+- Единообразное логирование ошибок в DEV режиме
+- Гибкие стратегии обработки (throw/log/convert)
+- Типобезопасное извлечение сообщений из Error/string/unknown
+
+**Signature:**
+```typescript
+export class FormErrorHandler {
+  /**
+   * Обработать ошибку согласно заданной стратегии
+   *
+   * @param error Ошибка для обработки (Error | string | unknown)
+   * @param context Контекст ошибки для логирования (например, 'AsyncValidator', 'BehaviorRegistry')
+   * @param strategy Стратегия обработки (THROW | LOG | CONVERT)
+   * @returns ValidationError если strategy = CONVERT, undefined если strategy = LOG, никогда не возвращается если strategy = THROW
+   *
+   * @example
+   * ```typescript
+   * // THROW - пробросить ошибку
+   * try {
+   *   riskyOperation();
+   * } catch (error) {
+   *   FormErrorHandler.handle(error, 'RiskyOperation', ErrorStrategy.THROW);
+   *   // Этот код никогда не выполнится
+   * }
+   *
+   * // LOG - залогировать и продолжить
+   * try {
+   *   nonCriticalOperation();
+   * } catch (error) {
+   *   FormErrorHandler.handle(error, 'NonCritical', ErrorStrategy.LOG);
+   *   // Продолжаем выполнение
+   * }
+   *
+   * // CONVERT - конвертировать в ValidationError
+   * try {
+   *   await validator(value);
+   * } catch (error) {
+   *   const validationError = FormErrorHandler.handle(
+   *     error,
+   *     'AsyncValidator',
+   *     ErrorStrategy.CONVERT
+   *   );
+   *   return validationError;
+   * }
+   * ```
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+// В async validator (конвертировать в ValidationError)
+try {
+  await validateEmail(value);
+} catch (error) {
+  return FormErrorHandler.handle(error, 'EmailValidator', ErrorStrategy.CONVERT);
+}
+
+// В behavior applicator (пробросить критичную ошибку)
+try {
+  applyBehavior(schema);
+} catch (error) {
+  FormErrorHandler.handle(error, 'BehaviorApplicator', ErrorStrategy.THROW);
+}
+
+// В validator (залогировать и продолжить)
+try {
+  validator(value);
+} catch (error) {
+  FormErrorHandler.handle(error, 'Validator', ErrorStrategy.LOG);
+}
+```
+
+_Source: src/core/utils/error-handler.ts_
+
+### FormFields
+
+**Kind:** `type`
+
+Тип для конфига с полями (FormSchema generic constraint)
+Используется вместо `Record<string, any>` для схем форм
+
+**Signature:**
+```typescript
+export type FormFields = Record<string, FormValue>;
+```
+
+**Deprecated:** (no message)
+
+_Source: src/core/types/index.ts_
+
+### FormNode
+
+**Kind:** `class`
+
+Абстрактный базовый класс для всех узлов формы.
+
+Все узлы (поля, группы, массивы) наследуют от этого класса и реализуют
+единый интерфейс для работы с состоянием и валидацией.
+
+Template Method паттерн используется для управления состоянием:
+общие signals (`_touched`, `_dirty`, `_status`) живут в базовом классе,
+publi-методы (`markAsTouched`, `disable`, …) реализованы здесь, а protected
+hooks (`onMarkAsTouched`, `onDisable`, …) переопределяются в наследниках.
+
+**Signature:**
+```typescript
+export abstract class FormNode<T> {
+  // ============================================================================
+  // Protected состояние (для Template Method паттерна)
+  // ============================================================================
+
+  /**
+   * Пользователь взаимодействовал с узлом (touched)
+   * Protected: наследники могут читать/изменять через методы
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+// FormNode не используется напрямую — экземпляры приходят из getReformerForm.
+import { getReformerForm, FormNode } from '@reformer/core';
+
+const form = getReformerForm({ email: '' });
+form.email instanceof FormNode; // true
+form.email.markAsTouched();
+```
+
+_Source: src/core/nodes/form-node.ts_
+
+### FormObserver
+
+**Kind:** `class`
+
+FormObserver - мониторинг изменений в форме
+
+Полезен для:
+- Отладки сложных форм
+- Логирования изменений для аудита
+- Синхронизации с внешними системами
+
+**Signature:**
+```typescript
+export class FormObserver<T extends FormFields> { /* … */ }
+```
+
+**Examples:**
+
+```typescript
+const observer = new FormObserver(form, {
+  enableLogging: true,
+  eventTypes: ['value', 'errors']
+});
+
+// Подписка на события
+const unsubscribe = observer.subscribe((event) => {
+  console.log(`${event.type} at ${event.path}:`, event.newValue);
+});
+
+// Включить трассировку
+const disposeTracing = observer.enableTracing();
+
+// Cleanup
+unsubscribe();
+disposeTracing();
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### FormObserverOptions
+
+**Kind:** `interface`
+
+Опции для FormObserver
+
+**Signature:**
+```typescript
+export interface FormObserverOptions {
+  /** Включить логирование в консоль (по умолчанию true в DEV) */
+  enableLogging?: boolean;
+  /** Фильтр типов событий */
+  eventTypes?: FormChangeType[];
+  /** Фильтр путей полей (regex или массив) */
+  pathFilter?: RegExp | string[];
+}
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### FormProxy
+
+**Kind:** `type`
+
+Комбинированный тип для GroupNode с Proxy доступом к полям
+
+Объединяет методы и свойства GroupNode с типизированными полями формы.
+Это позволяет использовать как API GroupNode, так и прямой доступ к полям.
+
+**Signature:**
+```typescript
+export type FormProxy<T> = GroupNode<T> & FormControlsProxy<T>;
+```
+
+**Examples:**
+
+```typescript
+interface UserForm {
+  email: string;
+  profile: {
+    name: string;
+    age: number;
+  };
+}
+
+const form = createForm<UserForm>(schema);
+
+// Доступ к методам GroupNode
+await form.validate();
+const values = form.getValue();
+console.log(form.valid.value);
+
+// Прямой доступ к полям (через Proxy)
+form.email.setValue('test@mail.com');
+form.profile.name.setValue('John');
+```
+
+_Source: src/core/types/form-proxy.ts_
+
+### FormSchema
+
+**Kind:** `type`
+
+Автоматически определяет тип схемы на основе TypeScript типа:
+- `T[] -> [FormSchema<T>]` (массив с одним элементом)
+- `object -> FormSchema<T>` (группа)
+- `primitive -> FieldConfig<T>` (поле)
+
+Использует NonNullable для корректной обработки опциональных полей
+
+**Signature:**
+```typescript
+export type FormSchema<T> = {
+  [K in keyof T]: NonNullable<T[K]> extends string | number | boolean
+    ? FieldConfig<T[K]>
+    : NonNullable<T[K]> extends Array<infer U>
+      ? U extends string | number | boolean
+        ? FieldConfig<T[K]>
+        : U extends Date | File | Blob | AnyFunction
+          ? FieldConfig<T[K]>
+          : [FormSchema<U>]
+      : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
+        ? FieldConfig<T[K]>
+        : FormSchema<NonNullable<T[K]>>;
+};
+```
+
+**Examples:**
+
+```typescript
+interface Form {
+  name: string;                    // → FieldConfig<string>
+  address: {                       // → FormSchema<Address>
+    city: string;
+    street: string;
+  };
+  items?: Array<{                  // → [FormSchema<Item>] (опциональный)
+    title: string;
+    price: number;
+  }>;
+}
+
+const schema: FormSchema<Form> = {
+  name: { value: '', component: Input },
+  address: {
+    city: { value: '', component: Input },
+    street: { value: '', component: Input },
+  },
+  items: [{
+    title: { value: '', component: Input },
+    price: { value: 0, component: Input },
+  }],
+};
+```
+
+_Source: src/core/types/deep-schema.ts_
+
+### FormStatusMachine
+
+**Kind:** `class`
+
+FormStatusMachine - управляет состоянием поля формы
+
+Предоставляет:
+- Единый источник истины для статуса
+- Computed signals для derived состояний (valid, invalid, pending, disabled)
+- Валидацию переходов между состояниями
+
+**Signature:**
+```typescript
+export class FormStatusMachine {
+  /** Внутренний сигнал статуса */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+const statusMachine = new FormStatusMachine('valid');
+
+// Начало валидации
+statusMachine.startValidation();
+console.log(statusMachine.pending.value); // true
+
+// Завершение валидации с ошибками
+statusMachine.completeValidation(true);
+console.log(statusMachine.invalid.value); // true
+
+// Отключение поля
+statusMachine.disable();
+console.log(statusMachine.disabled.value); // true
+```
+
+_Source: src/core/utils/status-machine.ts_
+
+### FormSubmitter
+
+**Kind:** `class`
+
+FormSubmitter - управляет процессом отправки формы
+
+**Signature:**
+```typescript
+export class FormSubmitter<T extends FormFields> {
+  /** Внутренний сигнал состояния отправки */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+const submitter = new FormSubmitter(form);
+
+// Простой submit
+const result = await submitter.submit(async (values) => {
+  return await api.saveForm(values);
+});
+
+// Проверка состояния
+if (submitter.submitting.value) {
+  console.log('Форма отправляется...');
+}
+```
+
+_Source: src/core/utils/form-submitter.ts_
+
+### FormValue
+
+**Kind:** `type`
+
+Represents any valid form value type
+Use this instead of 'any' for form values to maintain type safety
+
+**Signature:**
+```typescript
+export type FormValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Date
+  | File
+  | FormValue[]
+  | { [key: string]: FormValue };
+```
+
+_Source: src/core/types/index.ts_
+
+### getCurrentBehaviorRegistry
+
+**Kind:** `function`
+
+Получить текущий активный BehaviorRegistry из context stack
+
+Используется внутри behavior schema функций (copyFrom, enableWhen, computeFrom и т.д.)
+для регистрации поведений в активном контексте GroupNode
+
+**Signature:**
+```typescript
+export function getCurrentBehaviorRegistry(): BehaviorRegistry
+```
+
+**Returns:** Текущий BehaviorRegistry или заглушка в production
+
+**Examples:**
+
+```typescript
+function copyFrom(target, source, options) {
+  const registry = getCurrentBehaviorRegistry();
+  const handler = createCopyBehavior(target, source, options);
+  registry.register(handler, { debounce: options?.debounce });
+}
+```
+
+_Source: src/core/utils/registry-helpers.ts_
+
+### getCurrentValidationRegistry
+
+**Kind:** `function`
+
+Получить текущий активный ValidationRegistry из context stack
+
+Используется внутри validation schema функций (validate, validateAsync, required и т.д.)
+для регистрации валидаторов в активном контексте GroupNode
+
+**Signature:**
+```typescript
+export function getCurrentValidationRegistry(): ValidationRegistry
+```
+
+**Returns:** Текущий ValidationRegistry или заглушка в production
+
+**Examples:**
+
+```typescript
+function required(fieldPath, options) {
+  const registry = getCurrentValidationRegistry();
+  registry.registerSync(path, validator, options);
+}
+```
+
+_Source: src/core/utils/registry-helpers.ts_
+
+### getNodeType
+
+**Kind:** `function`
+
+Получить тип узла как строку (для отладки)
+
+Полезно для логирования и отладки
+
+**Signature:**
+```typescript
+export function getNodeType(node: unknown): string
+```
+
+**Parameters:**
+- `node` — - Узел для проверки
+
+**Returns:** Строковое название типа узла
+
+**Examples:**
+
+```typescript
+console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
+```
+
+_Source: src/core/utils/type-guards.ts_
+
+### GroupNode
+
+**Kind:** `class`
+
+GroupNode - узел для группы полей
+
+Поддерживает два API:
+1. Старый API (только schema) - обратная совместимость
+2. Новый API (config с form, behavior, validation) - автоматическое применение схем
+
+**Signature:**
+```typescript
+export class GroupNode<T> extends FormNode<T> {
+  // ============================================================================
+  // Приватные поля
+  // ============================================================================ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+// 1. Старый способ (обратная совместимость)
+const simpleForm = new GroupNode({
+  email: { value: '', component: Input },
+  password: { value: '', component: Input },
+});
+
+// 2. Новый способ (с behavior и validation схемами)
+const fullForm = new GroupNode({
+  form: {
+    email: { value: '', component: Input },
+    password: { value: '', component: Input },
+  },
+  behavior: (path) => {
+    computeFrom(path.email, [path.email], (values) => values[0]?.trim());
+  },
+  validation: (path) => {
+    required(path.email, { message: 'Email обязателен' });
+    email(path.email);
+    required(path.password);
+    minLength(path.password, 8);
+  },
+});
+
+// Прямой доступ к полям через Proxy
+fullForm.email.setValue('test@mail.com');
+await fullForm.validate();
+console.log(fullForm.valid.value); // true
+```
+
+_Source: src/core/nodes/group-node.ts_
+
+### GroupNodeConfig
+
+**Kind:** `interface`
+
+Конфигурация GroupNode с поддержкой схем
+Используется для создания форм с автоматическим применением behavior и validation схем
+
+**Signature:**
+```typescript
+export interface GroupNodeConfig<T> {
+  /** Схема структуры формы (поля и их конфигурация) */
+  form: FormSchema<T>;
+
+  /** Схема реактивного поведения (copyFrom, enableWhen, computeFrom и т.д.) */
+  behavior?: BehaviorSchemaFn<T>;
+
+  /** Схема валидации (required, email, minLength и т.д.) */
+  validation?: ValidationSchemaFn<T>;
+
+  /**
+   * Опциональный ValidationRegistry для dependency injection
+   * Используется для тестирования с mock-реестрами
+   * @internal
+   */
+  _validationRegistry?: unknown;
+
+  /**
+   * Опциональный BehaviorRegistry для dependency injection
+   * Используется для тестирования с mock-реестрами
+   * @internal
+   */
+  _behaviorRegistry?: unknown;
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### isArrayNode
+
+**Kind:** `function`
+
+Проверить, является ли значение ArrayNode (массив форм)
+
+ArrayNode представляет массив вложенных форм (обычно GroupNode)
+и имеет array-like методы (push, removeAt, at)
+
+**Signature:**
+```typescript
+export function isArrayNode(value: unknown): value is ArrayNode<FormFields>
+```
+
+**Parameters:**
+- `value` — - Значение для проверки
+
+**Returns:** true если value является ArrayNode
+
+**Examples:**
+
+```typescript
+if (isArrayNode(node)) {
+  node.push(); //  OK - добавить элемент
+  node.removeAt(0); //  OK - удалить элемент
+  const item = node.at(0); //  OK - получить элемент
+}
+```
+
+_Source: src/core/utils/type-guards.ts_
+
+### isFieldNode
+
+**Kind:** `function`
+
+Проверить, является ли значение FieldNode (примитивное поле)
+
+FieldNode представляет примитивное поле формы (string, number, boolean и т.д.)
+и имеет валидаторы, но не имеет вложенных полей или элементов массива
+
+**Signature:**
+```typescript
+export function isFieldNode(value: unknown): value is FieldNode<FormValue>
+```
+
+**Parameters:**
+- `value` — - Значение для проверки
+
+**Returns:** true если value является FieldNode
+
+**Examples:**
+
+```typescript
+if (isFieldNode(node)) {
+  node.validators; //  OK
+  node.asyncValidators; //  OK
+  node.markAsTouched(); //  OK
+}
+```
+
+_Source: src/core/utils/type-guards.ts_
+
+### isFormNode
+
+**Kind:** `function`
+
+Проверить, является ли значение любым FormNode
+
+Проверяет базовые свойства, общие для всех типов узлов
+
+**Signature:**
+```typescript
+export function isFormNode(value: unknown): value is FormNode<FormValue>
+```
+
+**Parameters:**
+- `value` — - Значение для проверки
+
+**Returns:** true если value является FormNode
+
+**Examples:**
+
+```typescript
+if (isFormNode(value)) {
+  value.setValue(newValue);
+  value.validate();
+}
+```
+
+_Source: src/core/utils/type-guards.ts_
+
+### isGroupNode
+
+**Kind:** `function`
+
+Проверить, является ли значение GroupNode (объект с вложенными полями)
+
+GroupNode представляет объект с вложенными полями формы
+и имеет методы для применения validation/behavior схем
+
+**Signature:**
+```typescript
+export function isGroupNode(value: unknown): value is GroupNode<FormFields>
+```
+
+**Parameters:**
+- `value` — - Значение для проверки
+
+**Returns:** true если value является GroupNode
+
+**Examples:**
+
+```typescript
+if (isGroupNode(node)) {
+  node.applyValidationSchema(schema); //  OK
+  node.getFieldByPath('user.email'); //  OK
+}
+```
+
+_Source: src/core/utils/type-guards.ts_
+
+### NodeFactory
+
+**Kind:** `class`
+
+Фабрика для создания узлов формы.
+
+Определяет тип конфига и создаёт соответствующий узел (FieldNode, GroupNode, ArrayNode).
+Используется внутри `getReformerForm`/`group`/`array` — явно вызывать обычно не нужно.
+
+**Signature:**
+```typescript
+export class NodeFactory {
+  /**
+   * Создает узел формы на основе конфигурации
+   *
+   * ✅ ОБНОВЛЕНО: Теперь поддерживает массивы напрямую
+   *
+   * Автоматически определяет тип узла:
+   * - FieldNode: имеет value и component
+   * - ArrayNode: массив [schema, ...items] или { schema, initialItems }
+   * - GroupNode: объект без value, component, schema
+   *
+   * @param config Конфигурация узла
+   * @returns Экземпляр FieldNode, GroupNode или ArrayNode
+   * @throws Error если конфиг не соответствует ни одному типу
+   *
+   * @example
+   * ```typescript
+   * const factory = new NodeFactory();
+   *
+   * // FieldNode
+   * const field = factory.createNode({
+   *   value: 'test@mail.com',
+   *   component: Input,
+   *   validators: [required, email]
+   * });
+   *
+   * // GroupNode
+   * const group = factory.createNode({
+   *   email: { value: '', component: Input },
+   *   password: { value: '', component: Input }
+   * });
+   *
+   * // ArrayNode (объект)
+   * const array = factory.createNode({
+   *   schema: { title: { value: '', component: Input } },
+   *   initialItems: [{ title: 'Item 1' }]
+   * });
+   *
+   * // ArrayNode (массив) - новый формат
+   * const array2 = factory.createNode([
+   *   { title: { value: '', component: Input } }, // schema
+   *   { title: 'Item 1' }, // initial item 1
+   *   { title: 'Item 2' }  // initial item 2
+   * ]);
+   * ```
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+import { NodeFactory } from '@reformer/core';
+
+const node = NodeFactory.create({ value: '' }); // → FieldNode<string>
+```
+
+_Source: src/core/factories/node-factory.ts_
+
+### ObservableForm
+
+**Kind:** `interface`
+
+Интерфейс формы для observer
+
+**Signature:**
+```typescript
+export interface ObservableForm<T extends FormFields> {
+  value: { value: T };
+  status: { value: FieldStatus };
+  errors: { value: ValidationError[] };
+  touched: { value: boolean };
+  dirty: { value: boolean };
+  getFieldByPath(path: string): ObservableFormNode | undefined;
+}
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### ObservableFormNode
+
+**Kind:** `interface`
+
+Интерфейс узла формы для observer
+
+**Signature:**
+```typescript
+export interface ObservableFormNode {
+  value: { value: FormValue };
+  status: { value: FieldStatus };
+  errors: { value: ValidationError[] };
+  touched: { value: boolean };
+  dirty: { value: boolean };
+}
+```
+
+_Source: src/core/utils/form-observer.ts_
+
+### PathSegment
+
+**Kind:** `interface`
+
+Сегмент пути к полю формы
+
+Представляет один сегмент в пути к полю, например:
+- `"email" → { key: 'email' }`
+- `"items[0]" → { key: 'items', index: 0 }`
+
+**Signature:**
+```typescript
+export interface PathSegment {
+  /**
+   * Ключ поля
+   */
+  key: string;
+
+  /**
+   * Индекс в массиве (опционально)
+   * Присутствует только для сегментов вида "items[0]"
+   */
+  index?: number;
+}
+```
+
+**Examples:**
+
+```typescript
+// Путь "items[0].name" разбивается на:
+[
+  { key: 'items', index: 0 },
+  { key: 'name' }
+]
+```
+
+_Source: src/core/utils/field-path-navigator.ts_
+
+### RegistryStack
+
+**Kind:** `class`
+
+Generic Registry Stack - утилита для управления стеком регистрации
+
+Используется ValidationRegistry и BehaviorRegistry для tracking активного контекста.
+Устраняет дублирование кода между параллельными системами.
+
+**Signature:**
+```typescript
+export class RegistryStack<T> { /* … */ }
+```
+
+**Examples:**
+
+```typescript
+class ValidationRegistry {
+  private static registryStack = new RegistryStack<ValidationRegistry>();
+
+  static getCurrent() {
+    return ValidationRegistry.registryStack.getCurrent();
+  }
+
+  beginRegistration() {
+    ValidationRegistry.registryStack.push(this);
+  }
+
+  endRegistration() {
+    ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
+  }
+}
+```
+
+_Source: src/core/utils/registry-stack.ts_
+
+### ResourceLoadResult
+
+**Kind:** `type`
+
+Тип для результатов загрузки ресурсов
+
+**Signature:**
+```typescript
+export type ResourceLoadResult = unknown;
+```
+
+_Source: src/core/types/index.ts_
+
+### runOutsideEffect
+
+**Kind:** `function`
+
+Выполняет функцию вне контекста effect
+
+Более простой вариант для одиночного вызова
+
+**Signature:**
+```typescript
+export function runOutsideEffect(fn: () => void | Promise<void>): void
+```
+
+**Parameters:**
+- `fn` — - Функция для выполнения
+
+**Examples:**
+
+```typescript
+effect(() => {
+  const value = signal.value;
+  runOutsideEffect(() => {
+    otherSignal.value = transform(value);
+  });
+});
+```
+
+_Source: src/core/utils/safe-effect.ts_
+
+### safeCallback
+
+**Kind:** `function`
+
+Создает callback, который выполняется вне контекста effect
+
+Использует queueMicrotask для отложенного выполнения,
+что позволяет модифицировать сигналы без вызова "Cycle detected"
+
+**Signature:**
+```typescript
+export function safeCallback<TArgs extends unknown[]>(
+  callback: (...args: TArgs) => void | Promise<void>
+): (...args: TArgs) => void
+```
+
+**Parameters:**
+- `callback` — - Функция для выполнения
+
+**Returns:** Обёрнутая функция, безопасная для вызова внутри effect
+
+**Examples:**
+
+```typescript
+// Вместо:
+effect(() => {
+  queueMicrotask(() => {
+    callback(value, context);
+  });
+});
+
+// Используем:
+effect(() => {
+  safeCallback(callback)(value, context);
+});
+```
+
+_Source: src/core/utils/safe-effect.ts_
+
+### safeDebouncedCallback
+
+**Kind:** `function`
+
+Создает версию callback с поддержкой debounce, безопасную для effect
+
+Комбинирует debounce логику с выходом из effect контекста
+
+**Signature:**
+```typescript
+export function safeDebouncedCallback(
+  callback: () => void | Promise<void>,
+  withDebounce: (fn: () => void) => void
+): () => void
+```
+
+**Parameters:**
+- `callback` — - Функция для выполнения
+- `withDebounce` — - Функция debounce обёртки из BehaviorRegistry
+
+**Returns:** Обёрнутая функция
+
+**Examples:**
+
+```typescript
+return effect(() => {
+  const value = node.value.value;
+  safeDebouncedCallback(
+    () => callback(value, context),
+    withDebounce
+  )();
+});
+```
+
+_Source: src/core/utils/safe-effect.ts_
+
+### SetValueOptions
+
+**Kind:** `interface`
+
+Опции для setValue
+
+**Signature:**
+```typescript
+export interface SetValueOptions {
+  /** Не вызывать событие изменения (не триггерить валидацию) */
+  emitEvent?: boolean;
+  /** Обновить только этот узел, не распространять на родителей */
+  onlySelf?: boolean;
+}
+```
+
+_Source: src/core/nodes/form-node.ts_
+
+### StatusEvent
+
+**Kind:** `type`
+
+События для State Machine
+
+**Signature:**
+```typescript
+export type StatusEvent =
+  | { type: 'START_VALIDATION' }
+  | { type: 'VALIDATION_SUCCESS' }
+  | { type: 'VALIDATION_FAILURE' }
+  | { type: 'DISABLE' }
+  | { type: 'ENABLE'; hasErrors?: boolean }
+  | { type: 'SET_ERRORS'; hasErrors: boolean };
+```
+
+_Source: src/core/utils/status-machine.ts_
+
+### SubmitOptions
+
+**Kind:** `interface`
+
+Опции для submit
+
+**Signature:**
+```typescript
+export interface SubmitOptions {
+  /** Пропустить валидацию перед submit */
+  skipValidation?: boolean;
+  /** Пропустить markAsTouched перед submit */
+  skipTouch?: boolean;
+}
+```
+
+_Source: src/core/utils/form-submitter.ts_
+
+### SubmitResult
+
+**Kind:** `interface`
+
+Результат submit
+
+**Signature:**
+```typescript
+export interface SubmitResult<R> {
+  /** Успешно ли выполнен submit */
+  success: boolean;
+  /** Результат от onSubmit callback */
+  data: R | null;
+  /** Ошибка, если submit не удался */
+  error?: Error;
+}
+```
+
+_Source: src/core/utils/form-submitter.ts_
+
+### SubmittableForm
+
+**Kind:** `interface`
+
+Интерфейс формы для FormSubmitter
+Минимальный контракт для работы с любой формой
+
+**Signature:**
+```typescript
+export interface SubmittableForm<T extends FormFields> {
+  /** Пометить все поля как touched */
+  markAsTouched(): void;
+  /** Валидировать форму */
+  validate(): Promise<boolean>;
+  /** Получить значения формы */
+  getValue(): T;
+}
+```
+
+_Source: src/core/utils/form-submitter.ts_
+
+### SubscriptionManager
+
+**Kind:** `class`
+
+Менеджер подписок для FormNode
+
+Централизует управление effect-подписками в узлах формы,
+предотвращает утечки памяти и упрощает отладку.
+
+Каждая подписка имеет уникальный ключ, что позволяет:
+- Отписываться от конкретной подписки по ключу
+- Автоматически заменять существующие подписки
+- Отслеживать количество активных подписок (для отладки)
+
+**Signature:**
+```typescript
+export class SubscriptionManager {
+  /**
+   * Хранилище подписок
+   * Ключ: уникальный идентификатор подписки
+   * Значение: функция отписки (dispose)
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+class FieldNode {
+  private subscriptions = new SubscriptionManager();
+
+  watch(callback: Function) {
+    const dispose = effect(() => callback(this.value.value));
+    return this.subscriptions.add('watch', dispose);
+  }
+
+  dispose() {
+    this.subscriptions.clear();
+  }
+}
+```
+
+_Source: src/core/utils/subscription-manager.ts_
+
+### toFieldPath
+
+**Kind:** `function`
+
+Преобразовать FieldPathNode в FieldPath для переиспользования схем
+
+Позволяет композировать validation schemas:
+
+**Signature:**
+```typescript
+export function toFieldPath<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  node: FieldPathNode<unknown, T, never> | FieldPathNode<any, T, any>
+): FieldPath<T>
+```
+
+**Examples:**
+
+```typescript
+const personalDataValidation = (path: FieldPath<PersonalData>) => {
+  required(path.firstName, { message: 'Имя обязательно' });
+  required(path.lastName, { message: 'Фамилия обязательна' });
+};
+
+const mainValidation = (path: FieldPath<MyForm>) => {
+  //  Переиспользуем схему
+  personalDataValidation(toFieldPath(path.personalData));
+  required(path.email);
+};
+```
+
+_Source: src/core/utils/field-path.ts_
+
+### TreeValidatorFn
+
+**Kind:** `type`
+
+Функция cross-field валидации
+
+**Signature:**
+```typescript
+export type TreeValidatorFn<TForm> = (ctx: FormContext<TForm>) => ValidationError | null;
+```
+
+**Examples:**
+
+```typescript
+validateTree((ctx) => {
+  const password = ctx.form.password.value.value;
+  const confirm = ctx.form.confirmPassword.value.value;
+  if (password !== confirm) {
+    return { code: 'mismatch', message: 'Passwords must match' };
+  }
+  return null;
+});
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### uniqueId
+
+**Kind:** `function`
+
+Генерирует уникальный идентификатор с указанным префиксом.
+
+**Signature:**
+```typescript
+export function uniqueId(prefix: SubscriptionKeyType): string
+```
+
+**Parameters:**
+- `prefix` — - Префикс для идентификатора (используйте {@link SubscriptionKey}).
+
+**Returns:** Уникальный идентификатор в формате `${prefix}-${counter}`.
+
+**Examples:**
+
+```typescript
+import { uniqueId, SubscriptionKey } from '@reformer/core';
+
+uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
+uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
+```
+
+_Source: src/core/utils/unique-id.ts_
+
+### UnknownCallback
+
+**Kind:** `type`
+
+Тип для коллбэков и обработчиков событий
+Используется вместо (...args: any[]) => any
+
+**Signature:**
+```typescript
+export type UnknownCallback = (...args: unknown[]) => unknown;
+```
+
+_Source: src/core/types/index.ts_
+
+### UnknownFormValue
+
+**Kind:** `type`
+
+Type-safe alternative to 'any' for unknown form values
+Requires explicit type checking before use
+
+**Signature:**
+```typescript
+export type UnknownFormValue = unknown;
+```
+
+_Source: src/core/types/index.ts_
+
+### UnknownRecord
+
+**Kind:** `type`
+
+Тип для Record с unknown значениями
+Используется вместо инлайнового `Record<string, unknown>`
+
+**Signature:**
+```typescript
+export type UnknownRecord = Record<string, any>;
+```
+
+_Source: src/core/types/index.ts_
+
+### useArrayLength
+
+**Kind:** `function`
+
+React-хук для подписки только на длину массива.
+
+Оптимизированная версия {@link useFormControl} для ArrayNode, которая
+подписывается только на сигнал `length`. Компонент не будет ре-рендериться
+при изменении значений вложенных полей.
+
+**Signature:**
+```typescript
+export function useArrayLength<T extends FormFields>(control: ArrayNode<T>): number
+```
+
+**Parameters:**
+- `control` — - ArrayNode для подписки
+
+**Returns:** Текущая длина массива
+
+**Examples:**
+
+```tsx
+function ArrayRenderer({ arrayNode }) {
+  const length = useArrayLength(arrayNode);
+
+  return (
+    <div>
+      {arrayNode.map((item, index) => (
+        <ItemRenderer key={item.id} item={item} />
+      ))}
+    </div>
+  );
+}
+```
+
+_Source: src/hooks/useArrayLength.ts_
+
+### useFormControl
+
+**Kind:** `function`
+
+React-хук для подписки на состояние формы (FieldNode или ArrayNode).
+
+Обеспечивает реактивную связь между состоянием формы и React-компонентами.
+Использует `useSyncExternalStore` для оптимальной интеграции с React 18+
+и Concurrent Mode.
+
+#### Основные возможности
+
+- **Автоматическая подписка** на все сигналы контрола
+- **Оптимизация ре-рендеров** - компонент обновляется только при реальных изменениях
+- **Поддержка SSR** через `useSyncExternalStore`
+- **Типобезопасность** - возвращаемый тип зависит от типа контрола
+
+#### Когда использовать
+
+Используйте `useFormControl` когда компоненту нужен доступ к нескольким
+свойствам состояния (value, errors, touched и т.д.).
+
+Для подписки только на значение используйте {@link useFormControlValue} -
+это предотвратит лишние ре-рендеры при изменении других свойств.
+
+**Signature:**
+```typescript
+export function useFormControl(
+  control: FieldNode<FormValue> | ArrayNode<FormFields> | undefined
+): FieldControlState<FormValue> | ArrayControlState<FormFields>
+```
+
+**Parameters:**
+- `control` — - FieldNode, ArrayNode или undefined
+
+**Returns:** Объект состояния {@link FieldControlState} или {@link ArrayControlState}
+
+**Examples:**
+
+Текстовое поле с валидацией
+```tsx
+import { useFormControl } from '@reformer/core';
+import type { FieldNode } from '@reformer/core';
+
+interface TextFieldProps {
+control: FieldNode<string>;
+label: string;
+}
+
+function TextField({ control, label }: TextFieldProps) {
+const {
+value,
+disabled,
+shouldShowError,
+errors,
+pending
+} = useFormControl(control);
+
+return (
+<div className="field">
+<label>{label}</label>
+
+<div className="input-wrapper">
+<input
+ type="text"
+ value={value}
+ disabled={disabled}
+ onChange={e => control.setValue(e.target.value)}
+ onBlur={() => control.markAsTouched()}
+ aria-invalid={shouldShowError}
+/>
+{pending && <Spinner />}
+</div>
+
+{shouldShowError && errors[0] && (
+<span className="error" role="alert">
+ {errors[0].message}
+</span>
+)}
+</div>
+);
+}
+```
+
+Checkbox с использованием componentProps
+```tsx
+interface CheckboxProps {
+control: FieldNode<boolean>;
+}
+
+function Checkbox({ control }: CheckboxProps) {
+const { value, disabled, componentProps } = useFormControl(control);
+
+return (
+<label className="checkbox">
+<input
+type="checkbox"
+checked={value}
+disabled={disabled}
+onChange={e => control.setValue(e.target.checked)}
+/>
+<span>{componentProps.label}</span>
+{componentProps.hint && (
+<small>{componentProps.hint}</small>
+)}
+</label>
+);
+}
+
+// Использование
+control.setComponentProps({
+label: 'Accept terms and conditions',
+hint: 'Required to continue'
+});
+```
+
+Select с динамическими опциями
+```tsx
+interface SelectProps {
+control: FieldNode<string>;
+}
+
+function Select({ control }: SelectProps) {
+const { value, disabled, componentProps, shouldShowError, errors } = useFormControl(control);
+const options = componentProps.options as Array<{ value: string; label: string }>;
+
+return (
+<div>
+<select
+value={value}
+disabled={disabled}
+onChange={e => control.setValue(e.target.value)}
+onBlur={() => control.markAsTouched()}
+>
+<option value="">Select...</option>
+{options?.map(opt => (
+ <option key={opt.value} value={opt.value}>
+   {opt.label}
+ </option>
+))}
+</select>
+{shouldShowError && <span className="error">{errors[0]?.message}</span>}
+</div>
+);
+}
+```
+
+Динамический массив элементов
+```tsx
+interface Address {
+street: string;
+city: string;
+}
+
+interface AddressListProps {
+control: ArrayNode<Address>;
+}
+
+function AddressList({ control }: AddressListProps) {
+const { length, valid, dirty, errors } = useFormControl(control);
+
+const handleAdd = () => {
+control.push({ street: '', city: '' });
+};
+
+const handleRemove = (index: number) => {
+control.remove(index);
+};
+
+return (
+<div className="address-list">
+<div className="header">
+<h3>Addresses ({length})</h3>
+{dirty && <span className="badge">Modified</span>}
+</div>
+
+{errors.length > 0 && (
+<div className="array-errors">
+ {errors.map((e, i) => <p key={i}>{e.message}</p>)}
+</div>
+)}
+
+{control.map((item, index) => (
+<AddressItem
+ key={item.id}
+ control={item}
+ onRemove={() => handleRemove(index)}
+/>
+))}
+
+{length === 0 && (
+<p className="empty">No addresses added yet</p>
+)}
+
+<button
+onClick={handleAdd}
+disabled={length >= 5}
+>
+Add Address
+</button>
+
+{!valid && (
+<p className="warning">Please fix errors before submitting</p>
+)}
+</div>
+);
+}
+```
+
+Условный рендеринг с undefined
+```tsx
+interface FormProps {
+optionalField?: ArrayNode<string>;
+}
+
+function Form({ optionalField }: FormProps) {
+// При undefined возвращается дефолтное состояние
+const { length } = useFormControl(optionalField);
+
+if (!optionalField) {
+return null;
+}
+
+return <div>Items: {length}</div>;
+}
+```
+
+**See also:**
+- {@link useFormControlValue} - для подписки только на значение
+- {@link FieldControlState} - тип состояния для FieldNode
+- {@link ArrayControlState} - тип состояния для ArrayNode
+
+_Source: src/hooks/useFormControl.ts_
+
+### useFormControlValue
+
+**Kind:** `function`
+
+React-хук для подписки только на значение поля.
+
+Оптимизированная версия {@link useFormControl}, которая подписывается
+только на сигнал `value`. Компонент не будет ре-рендериться при изменении
+`errors`, `touched`, `valid` и других свойств состояния.
+
+#### Когда использовать
+
+- **Условный рендеринг** на основе значения другого поля
+- **Вычисляемые значения** зависящие от значения поля
+- **Read-only отображение** значения без интерактивности
+- **Оптимизация производительности** когда не нужны другие свойства состояния
+
+#### Когда НЕ использовать
+
+Если компоненту нужны `errors`, `touched`, `disabled` или другие свойства -
+используйте {@link useFormControl}. Множественные подписки на один контрол
+через разные хуки менее эффективны, чем одна подписка через `useFormControl`.
+
+**Signature:**
+```typescript
+export function useFormControlValue<T extends FormValue>(control: FieldNode<T>): T
+```
+
+**Parameters:**
+- `control` — - FieldNode для подписки на значение
+
+**Returns:** Текущее значение поля
+
+**Examples:**
+
+Условный рендеринг секции
+```tsx
+import { useFormControlValue } from '@reformer/core';
+
+interface FormFields {
+hasShipping: FieldNode<boolean>;
+shippingAddress: GroupNode<AddressFields>;
+}
+
+function ShippingSection({ form }: { form: FormFields }) {
+// Подписка только на значение checkbox
+const hasShipping = useFormControlValue(form.hasShipping);
+
+if (!hasShipping) {
+return null;
+}
+
+return (
+<div className="shipping-section">
+<h3>Shipping Address</h3>
+<AddressForm control={form.shippingAddress} />
+</div>
+);
+}
+```
+
+Динамические опции на основе другого поля
+```tsx
+interface FormFields {
+country: FieldNode<string>;
+city: FieldNode<string>;
+}
+
+function CitySelect({ form }: { form: FormFields }) {
+const country = useFormControlValue(form.country);
+const { value, disabled } = useFormControl(form.city);
+
+// Получаем города для выбранной страны
+const cities = useMemo(() => getCitiesForCountry(country), [country]);
+
+// Сбрасываем город при смене страны
+useEffect(() => {
+form.city.setValue('');
+}, [country, form.city]);
+
+return (
+<select
+value={value}
+disabled={disabled || !country}
+onChange={e => form.city.setValue(e.target.value)}
+>
+<option value="">Select city...</option>
+{cities.map(city => (
+<option key={city.id} value={city.id}>{city.name}</option>
+))}
+</select>
+);
+}
+```
+
+Отображение суммы в реальном времени
+```tsx
+interface OrderItem {
+quantity: FieldNode<number>;
+price: FieldNode<number>;
+}
+
+function OrderTotal({ items }: { items: ArrayNode<OrderItem> }) {
+// Для каждого элемента получаем только значения
+const quantities = items.map(item => useFormControlValue(item.controls.quantity));
+const prices = items.map(item => useFormControlValue(item.controls.price));
+
+const total = quantities.reduce((sum, qty, i) => sum + qty * prices[i], 0);
+
+return (
+<div className="order-total">
+<strong>Total: ${total.toFixed(2)}</strong>
+</div>
+);
+}
+```
+
+Preview значения
+```tsx
+interface MarkdownEditorProps {
+control: FieldNode<string>;
+}
+
+function MarkdownPreview({ control }: MarkdownEditorProps) {
+// Подписка только на значение для preview
+const markdown = useFormControlValue(control);
+
+const html = useMemo(() => marked(markdown), [markdown]);
+
+return (
+<div
+className="markdown-preview"
+dangerouslySetInnerHTML={{ __html: html }}
+/>
+);
+}
+
+// Основной редактор использует useFormControl для полного состояния
+function MarkdownEditor({ control }: MarkdownEditorProps) {
+const { value, shouldShowError, errors } = useFormControl(control);
+
+return (
+<div className="editor-container">
+<textarea
+value={value}
+onChange={e => control.setValue(e.target.value)}
+/>
+{shouldShowError && <span className="error">{errors[0]?.message}</span>}
+
+{/* Preview обновляется только при изменении value *}
+<MarkdownPreview control={control} />
+</div>
+);
+}
+```
+
+Счётчик символов
+```tsx
+function CharacterCounter({ control, max }: { control: FieldNode<string>; max: number }) {
+const value = useFormControlValue(control);
+const remaining = max - value.length;
+
+return (
+<span className={remaining < 20 ? 'warning' : ''}>
+{remaining} characters remaining
+</span>
+);
+}
+```
+
+**See also:**
+- {@link useFormControl} - для полного состояния поля
+- {@link FieldNode} - тип контрола поля
+
+_Source: src/hooks/useFormControlValue.ts_
+
+### useHiddenCondition
+
+**Kind:** `function`
+
+Хук для реактивной оценки функции hidden.
+
+Подписывается на изменения формы через сигналы и возвращает текущее
+значение hidden-условия.
+
+**Signature:**
+```typescript
+export function useHiddenCondition<T>(
+  hiddenFn: HiddenFn<T> | undefined,
+  form: FormProxy<T>,
+  path: FieldPath<T>
+): boolean
+```
+
+**Parameters:**
+- `hiddenFn` — - Функция, определяющая скрытие.
+- `form` — - {@link FormProxy} формы.
+- `path` — - Текущий {@link FieldPath}.
+
+**Returns:** `true`, если элемент должен быть скрыт.
+
+**Examples:**
+
+```tsx
+import { useHiddenCondition } from '@reformer/core';
+
+function MaybeHidden({ form, path, children }) {
+  const hidden = useHiddenCondition((f) => !f.subscribeNewsletter.value, form, path);
+  return hidden ? null : <>{children}</>;
+}
+```
+
+_Source: src/hooks/useHiddenCondition.ts_
+
+### ValidateAsyncOptions
+
+**Kind:** `interface`
+
+Опции для функции validateAsync
+
+**Signature:**
+```typescript
+export interface ValidateAsyncOptions extends ValidateOptions {
+  /** Задержка перед выполнением валидации (в мс) */
+  debounce?: number;
+}
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### validateForm
+
+**Kind:** `function`
+
+Валидировать форму в соответствии с указанной схемой
+
+Функция создает временный контекст валидации, применяет валидаторы
+из схемы и очищает контекст без сохранения в реестр.
+
+**Signature:**
+```typescript
+export async function validateForm<T extends FormFields>(
+  form: GroupNode<T>,
+  schema: ValidationSchemaFn<T>
+): Promise<boolean>
+```
+
+**Parameters:**
+- `form` — - GroupNode для валидации
+- `schema` — - Схема валидации (ValidationSchemaFn)
+
+**Returns:** Promise<boolean> - `true` если форма валидна, `false` если есть ошибки
+
+**Examples:**
+
+Multi-step форма: валидация текущего шага
+```typescript
+const goToNextStep = async () => {
+const isValid = await validateForm(form, step1LoanValidation);
+
+if (!isValid) {
+form.markAsTouched(); // Показать ошибки
+return false;
+}
+
+setCurrentStep(2);
+return true;
+};
+```
+
+Полная валидация перед submit
+```typescript
+const handleSubmit = async () => {
+const isValid = await validateForm(form, fullValidationSchema);
+
+if (isValid) {
+await form.submit(onSubmit);
+}
+};
+```
+
+Условная валидация
+```typescript
+const schema = isBusinessAccount
+? businessValidation
+: personalValidation;
+
+const isValid = await validateForm(form, schema);
+```
+
+_Source: src/core/validation/validate-form.ts_
+
+### ValidateOptions
+
+**Kind:** `interface`
+
+Опции для функции validate
+
+**Signature:**
+```typescript
+export interface ValidateOptions {
+  /** Сообщение об ошибке */
+  message?: string;
+  /** Параметры ошибки */
+  params?: FormFields;
+}
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### ValidateTreeOptions
+
+**Kind:** `interface`
+
+Опции для функции validateTree
+
+**Signature:**
+```typescript
+export interface ValidateTreeOptions {
+  /** Поле, к которому привязать ошибку */
+  targetField?: string;
+}
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### ValidationError
+
+**Kind:** `interface`
+
+Ошибка валидации
+
+**Signature:**
+```typescript
+export interface ValidationError {
+  code: string;
+  message: string;
+  params?: FormFields;
+  /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
+  severity?: 'error' | 'warning';
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### ValidationSchemaFn
+
+**Kind:** `type`
+
+Функция validation schema
+
+Принимает FieldPath и определяет все правила валидации для формы
+
+**Signature:**
+```typescript
+export type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### ValidatorFn
+
+**Kind:** `type`
+
+Синхронная функция валидации
+
+**Signature:**
+```typescript
+export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
+```
+
+_Source: src/core/types/index.ts_
+
+### ValidatorRegistration
+
+**Kind:** `interface`
+
+Регистрация валидатора в системе
+
+**Signature:**
+```typescript
+export interface ValidatorRegistration {
+  fieldPath: string;
+  type: 'sync' | 'async' | 'tree';
+  validator:
+    | ContextualValidatorFn<unknown, unknown>
+    | ContextualAsyncValidatorFn<unknown, unknown>
+    | TreeValidatorFn<unknown>;
+  options?: ValidateOptions | ValidateAsyncOptions | ValidateTreeOptions;
+  condition?: {
+    fieldPath: string;
+    conditionFn: ConditionFn<unknown>;
+  };
+}
+```
+
+_Source: src/core/types/validation-schema.ts_
+
+### WithBehaviorSchema
+
+**Kind:** `interface`
+
+Интерфейс для узлов с методом applyBehaviorSchema
+
+**Signature:**
+```typescript
+export interface WithBehaviorSchema {
+  applyBehaviorSchema(schemaFn: unknown): void;
+}
+```
+
+_Source: src/core/types/index.ts_
+
+### WithValidationSchema
+
+**Kind:** `interface`
+
+Интерфейс для узлов с методом applyValidationSchema
+
+**Signature:**
+```typescript
+export interface WithValidationSchema {
+  applyValidationSchema(schemaFn: unknown): void;
+}
+```
+
+_Source: src/core/types/index.ts_

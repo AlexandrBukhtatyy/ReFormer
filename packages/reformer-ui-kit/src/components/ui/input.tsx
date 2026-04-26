@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/** Props компонента {@link Input}. */
 export interface InputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   className?: string;
@@ -12,6 +13,17 @@ export interface InputProps
   disabled?: boolean;
 }
 
+/**
+ * Текстовое поле ввода. Контролируемый компонент с тривиальным API: `value`/`onChange`
+ * получает строку (или число для `type="number"`).
+ *
+ * @example
+ * ```tsx
+ * import { Input } from '@reformer/ui-kit';
+ *
+ * <Input value={value} onChange={setValue} placeholder="email@example.com" />
+ * ```
+ */
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, value, onChange, onBlur, type = 'text', placeholder, disabled, ...props }, ref) => {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {

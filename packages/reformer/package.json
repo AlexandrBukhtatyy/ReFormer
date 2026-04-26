@@ -98,7 +98,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "generate:llms": "npx tsx scripts/generate-llms.ts",
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
     "build": "npm run generate:llms && vite build",
     "build:stackblitz": "vite build",
     "dev": "vite",

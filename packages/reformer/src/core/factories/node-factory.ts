@@ -37,9 +37,17 @@ import type { FormNode } from '../nodes/form-node';
 import type { ConfigWithSchema, ConfigWithValue, UnknownRecord } from '../types';
 
 /**
- * Фабрика для создания узлов формы
+ * Фабрика для создания узлов формы.
  *
- * Определяет тип конфига и создает соответствующий узел (FieldNode, GroupNode, ArrayNode)
+ * Определяет тип конфига и создаёт соответствующий узел (FieldNode, GroupNode, ArrayNode).
+ * Используется внутри `getReformerForm`/`group`/`array` — явно вызывать обычно не нужно.
+ *
+ * @example
+ * ```typescript
+ * import { NodeFactory } from '@reformer/core';
+ *
+ * const node = NodeFactory.create({ value: '' }); // → FieldNode<string>
+ * ```
  */
 export class NodeFactory {
   /**

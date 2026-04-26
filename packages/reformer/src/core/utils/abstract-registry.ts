@@ -35,13 +35,23 @@ import { RegistryStack } from './registry-stack';
 const registryStacks = new Map<new (...args: any[]) => AbstractRegistry<any>, RegistryStack<any>>();
 
 /**
- * Базовый класс для реестров
+ * Базовый класс для реестров (BehaviorRegistry, ValidationRegistry).
  *
  * Реализует паттерн Template Method для управления регистрацией:
- * - beginRegistration() -> onBeginRegistration()
- * - endRegistration() -> onEndRegistration()
+ * `beginRegistration()` → `onBeginRegistration()`, `endRegistration()` → `onEndRegistration()`.
  *
- * @template TRegistration - Тип регистрируемых элементов
+ * @typeParam TRegistration - Тип регистрируемых элементов.
+ *
+ * @example
+ * ```typescript
+ * import { AbstractRegistry } from '@reformer/core';
+ *
+ * class MyRegistry extends AbstractRegistry<{ name: string }> {
+ *   protected onEndRegistration(items: { name: string }[]) {
+ *     console.log('Registered', items.length);
+ *   }
+ * }
+ * ```
  */
 export abstract class AbstractRegistry<TRegistration> {
   /** Флаг активной регистрации */

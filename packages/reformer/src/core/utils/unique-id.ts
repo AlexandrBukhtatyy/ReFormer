@@ -37,10 +37,18 @@ export type SubscriptionKeyType = (typeof SubscriptionKey)[keyof typeof Subscrip
 let counter = 0;
 
 /**
- * Генерирует уникальный идентификатор с указанным префиксом
+ * Генерирует уникальный идентификатор с указанным префиксом.
  *
- * @param prefix - Префикс для идентификатора (используйте SubscriptionKey)
- * @returns Уникальный идентификатор в формате `${prefix}-${counter}`
+ * @param prefix - Префикс для идентификатора (используйте {@link SubscriptionKey}).
+ * @returns Уникальный идентификатор в формате `${prefix}-${counter}`.
+ *
+ * @example
+ * ```typescript
+ * import { uniqueId, SubscriptionKey } from '@reformer/core';
+ *
+ * uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
+ * uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
+ * ```
  */
 export function uniqueId(prefix: SubscriptionKeyType): string {
   return `${prefix}-${++counter}`;

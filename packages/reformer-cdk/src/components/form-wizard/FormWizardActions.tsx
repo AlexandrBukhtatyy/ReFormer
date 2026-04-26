@@ -94,11 +94,13 @@ function isRenderFunction(children: ReactNode | RenderFunction): children is Ren
 }
 
 /**
- * FormWizard.Actions - Container for navigation buttons
+ * `FormWizard.Actions` — контейнер кнопок навигации мастера. Поддерживает два режима:
+ * compound-children (`FormWizard.Prev`/`Next`/`Submit`) и render-props.
  *
- * Supports two modes:
+ * Render-props получают: `prev`, `next`, `submit` (все с `onClick`/`disabled`),
+ * `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`.
  *
- * ## 1. Compound Components Mode (recommended for simple cases)
+ * @example Compound mode
  * ```tsx
  * <FormWizard.Actions onSubmit={handleSubmit}>
  *   <FormWizard.Prev>Back</FormWizard.Prev>
@@ -107,39 +109,19 @@ function isRenderFunction(children: ReactNode | RenderFunction): children is Ren
  * </FormWizard.Actions>
  * ```
  *
- * ## 2. Render Props Mode (for complex/custom layouts)
+ * @example Render-props mode
  * ```tsx
  * <FormWizard.Actions onSubmit={handleSubmit}>
  *   {({ prev, next, submit, isFirstStep, isLastStep }) => (
  *     <div className="flex justify-between">
- *       {!isFirstStep && (
- *         <Button onClick={prev.onClick} disabled={prev.disabled}>
- *           Back
- *         </Button>
- *       )}
- *       <div className="flex-1" />
- *       {!isLastStep ? (
- *         <Button onClick={next.onClick} disabled={next.disabled}>
- *           Next
- *         </Button>
- *       ) : (
- *         <Button onClick={submit.onClick} disabled={submit.disabled}>
- *           {submit.isSubmitting ? 'Submitting...' : 'Submit'}
- *         </Button>
- *       )}
+ *       {!isFirstStep && <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>}
+ *       {isLastStep
+ *         ? <button onClick={submit.onClick} disabled={submit.disabled}>{submit.isSubmitting ? '…' : 'Submit'}</button>
+ *         : <button onClick={next.onClick} disabled={next.disabled}>Next</button>}
  *     </div>
  *   )}
  * </FormWizard.Actions>
  * ```
- *
- * ## Render Props (headless mode)
- * - `prev` - props for Previous button (`onClick`, `disabled`)
- * - `next` - props for Next button (`onClick`, `disabled`)
- * - `submit` - props for Submit button (`onClick`, `disabled`, `isSubmitting`)
- * - `isFirstStep` - hide prev button on first step
- * - `isLastStep` - show submit instead of next on last step
- * - `isValidating` - show loading state during validation
- * - `isSubmitting` - show loading state during submission
  */
 export function FormWizardActions({
   onSubmit,
