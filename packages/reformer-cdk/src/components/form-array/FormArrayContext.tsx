@@ -97,13 +97,26 @@ export const FormArrayItemContext = createContext<FormArrayItemContextValue<any>
  * @returns Текущий {@link FormArrayContextValue}.
  * @throws Error если используется вне `FormArray.Root`.
  *
- * @example
+ * @example Кастомный AddButton с predefined значением
  * ```tsx
  * import { useFormArrayContext } from '@reformer/cdk/form-array';
  *
- * function CustomAddButton() {
- *   const { add } = useFormArrayContext();
- *   return <button onClick={() => add()}>+ Add</button>;
+ * function AddDraftButton() {
+ *   const { add } = useFormArrayContext<Item>();
+ *   return (
+ *     <button onClick={() => add({ status: 'draft', createdAt: Date.now() })}>
+ *       + Add Draft
+ *     </button>
+ *   );
+ * }
+ * ```
+ *
+ * @example Счётчик и условный empty-state из произвольного места дерева
+ * ```tsx
+ * function ItemsBadge() {
+ *   const { length, isEmpty } = useFormArrayContext();
+ *   if (isEmpty) return <span className="text-gray-400">Нет элементов</span>;
+ *   return <span className="badge">{length}</span>;
  * }
  * ```
  */
@@ -123,13 +136,26 @@ export function useFormArrayContext<T extends FormFields = FormFields>(): FormAr
  * @returns Текущий {@link FormArrayItemContextValue} (`index`, `path`, `remove`).
  * @throws Error если используется вне `FormArray.List` или item-шаблона.
  *
- * @example
+ * @example Кнопка удаления текущего элемента
  * ```tsx
  * import { useFormArrayItemContext } from '@reformer/cdk/form-array';
  *
  * function ItemRemoveButton() {
  *   const { remove } = useFormArrayItemContext();
  *   return <button onClick={remove}>×</button>;
+ * }
+ * ```
+ *
+ * @example Доступ к control + index для условной валидации
+ * ```tsx
+ * function ItemHeader() {
+ *   const { control, index } = useFormArrayItemContext<Property>();
+ *   const { value: type } = useFormControl(control.type);
+ *   return (
+ *     <h4>
+ *       #{index + 1} — {type === 'house' ? 'Дом' : 'Квартира'}
+ *     </h4>
+ *   );
  * }
  * ```
  */

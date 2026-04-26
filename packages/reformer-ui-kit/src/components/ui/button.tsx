@@ -35,15 +35,28 @@ const buttonVariants = cva(
 );
 
 /**
- * Базовая кнопка на shadcn/Radix `Slot`. Поддерживает варианты (`variant`, `size`)
- * и `asChild` для замены DOM-узла.
+ * Базовая кнопка на shadcn/Radix `Slot`. Поддерживает 6 вариантов
+ * (`default`/`destructive`/`outline`/`secondary`/`ghost`/`link`), 6 размеров
+ * (`default`/`sm`/`lg`/`icon`/`icon-sm`/`icon-lg`) и `asChild` для замены
+ * корневого DOM-узла на дочерний элемент (например, `<Link>` из роутера).
  *
- * @example
+ * @example Variants matrix (для design-system документации)
  * ```tsx
  * import { Button } from '@reformer/ui-kit';
  *
- * <Button variant="default" size="lg" onClick={save}>Save</Button>
- * <Button asChild><a href="/login">Sign in</a></Button>
+ * {(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const).map(
+ *   (v) => <Button key={v} variant={v}>{v}</Button>
+ * )}
+ * ```
+ *
+ * @example asChild + react-router Link (стили кнопки на анкоре)
+ * ```tsx
+ * import { Link } from 'react-router-dom';
+ * import { Button } from '@reformer/ui-kit';
+ *
+ * <Button asChild variant="outline" size="lg">
+ *   <Link to="/dashboard">Открыть дашборд</Link>
+ * </Button>
  * ```
  */
 function Button({

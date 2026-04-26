@@ -27,7 +27,7 @@ export const FormFieldContext = createContext<FormFieldContextValue<any> | null>
  * @returns Текущий {@link FormFieldContextValue}.
  * @throws Error если используется вне `<FormField.Root>`.
  *
- * @example
+ * @example Счётчик символов рядом с label
  * ```tsx
  * import { useFormFieldContext } from '@reformer/cdk/form-field';
  *
@@ -35,6 +35,26 @@ export const FormFieldContext = createContext<FormFieldContextValue<any> | null>
  *   const { control } = useFormFieldContext<string>();
  *   return <small>{control.value.length} chars</small>;
  * }
+ * ```
+ *
+ * @example Async pending-индикатор и required-астериск
+ * ```tsx
+ * function PendingBadge() {
+ *   const { pending, required, error } = useFormFieldContext();
+ *   if (pending) return <Spinner size="xs" aria-label="Проверяем..." />;
+ *   if (error) return <span className="text-red-600 text-xs">!</span>;
+ *   if (required) return <span className="text-gray-400">*</span>;
+ *   return null;
+ * }
+ *
+ * <FormField.Root control={form.username}>
+ *   <div className="flex items-center gap-2">
+ *     <FormField.Label />
+ *     <PendingBadge />
+ *   </div>
+ *   <FormField.Control />
+ *   <FormField.Error />
+ * </FormField.Root>
  * ```
  */
 export function useFormFieldContext<T extends FormValue = FormValue>(): FormFieldContextValue<T> {

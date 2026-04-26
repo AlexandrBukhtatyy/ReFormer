@@ -69,13 +69,40 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
 export const FormWizardContext = createContext<FormWizardContextValue<any> | null>(null);
 
 /**
- * Hook to access FormWizard context
+ * Хук для доступа к контексту {@link FormWizard} из любого потомка.
  *
- * @example
+ * Возвращает текущее состояние мастера (`currentStep`, `totalSteps`,
+ * `completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`,
+ * `form`) и методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`).
+ * Бросает исключение, если вызван вне `<FormWizard>`.
+ *
+ * Для внешнего управления (вне дерева Wizard) используйте
+ * {@link FormWizardHandle} через `useRef`.
+ *
+ * @typeParam T - Тип корневой формы (`FormProxy<T>`).
+ * @returns Текущий {@link FormWizardContextValue}.
+ * @throws Error если используется вне `<FormWizard>`.
+ *
+ * @example Минимальное использование внутри custom-step
  * ```tsx
  * function MyStepComponent() {
  *   const { currentStep, isLastStep } = useFormWizard();
- *   // ...
+ *   return <p>Шаг {currentStep}{isLastStep && ' — последний'}</p>;
+ * }
+ * ```
+ *
+ * @example Условный рендер кнопки на основе isValidating + completedSteps
+ * ```tsx
+ * function ProgressBadge() {
+ *   const { currentStep, totalSteps, completedSteps, isValidating } =
+ *     useFormWizard<CreditApplication>();
+ *
+ *   if (isValidating) return <span>Проверяем шаг {currentStep}...</span>;
+ *   return (
+ *     <span>
+ *       Завершено {completedSteps.length} из {totalSteps}
+ *     </span>
+ *   );
  * }
  * ```
  */

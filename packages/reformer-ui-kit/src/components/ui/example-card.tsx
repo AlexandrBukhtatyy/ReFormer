@@ -4,11 +4,17 @@ import { cn } from '@/lib/utils';
 
 /** Props компонента {@link ExampleCard}. */
 export interface ExampleCardProps {
+  /** Заголовок карточки (обязательный). */
   title: string;
+  /** Описание под заголовком. */
   description?: string;
+  /** Контент примера, отображаемый в режиме «пример». */
   children: React.ReactNode;
+  /** Текст исходного кода, копируемый в clipboard в режиме «код». */
   code: string;
+  /** Дополнительный CSS-класс контейнера. */
   className?: string;
+  /** Tailwind-класс фона карточки. По умолчанию `'bg-white'`. */
   bgColor?: string;
 }
 
@@ -85,14 +91,41 @@ const EyeIcon = () => (
 
 /**
  * Карточка-обёртка для демонстрации компонентов в playground: заголовок,
- * описание, область с примером и кнопка переключения исходного кода.
+ * описание, область с примером и кнопка переключения исходного кода с
+ * copy-to-clipboard.
  *
- * @example
+ * Утилита для playground/документации, не для продакшена.
+ *
+ * @example Базовое использование
  * ```tsx
- * import { ExampleCard } from '@reformer/ui-kit';
+ * import { ExampleCard, Input } from '@reformer/ui-kit';
+ * import { useState } from 'react';
  *
- * <ExampleCard title="Inputs" description="Базовые поля" code={`<Input ... />`}>
- *   <Input value={v} onChange={setV} />
+ * function Demo() {
+ *   const [v, setV] = useState<string | null>(null);
+ *   return (
+ *     <ExampleCard
+ *       title="Input — базовый"
+ *       description="Однострочное поле с placeholder"
+ *       code={`<Input value={v} onChange={setV} placeholder="Email" />`}
+ *     >
+ *       <Input value={v} onChange={setV} placeholder="Email" />
+ *     </ExampleCard>
+ *   );
+ * }
+ * ```
+ *
+ * @example С кастомным фоном (для подсветки группы)
+ * ```tsx
+ * import { ExampleCard, Button } from '@reformer/ui-kit';
+ *
+ * <ExampleCard
+ *   title="Destructive button"
+ *   description="Кнопка опасного действия"
+ *   bgColor="bg-red-50"
+ *   code={`<Button variant="destructive">Delete</Button>`}
+ * >
+ *   <Button variant="destructive">Delete</Button>
  * </ExampleCard>
  * ```
  */

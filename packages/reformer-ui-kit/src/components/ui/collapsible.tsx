@@ -25,12 +25,14 @@ export interface CollapsibleProps {
 }
 
 /**
- * Collapsible - сворачиваемая секция формы
+ * Collapsible - сворачиваемая секция формы.
  *
- * Секция с возможностью сворачивания/разворачивания.
- * Используется для группировки опциональных или дополнительных полей.
+ * Заголовок-кнопка переключает видимость `children`. Состояние локальное
+ * (`useState`), внешний control пока не поддерживается — для управляемого
+ * варианта используй `RenderSchema.node('selector').setHidden(true)` поверх
+ * обычного `Box`.
  *
- * @example
+ * @example Свёрнута по умолчанию
  * ```typescript
  * {
  *   component: Collapsible,
@@ -38,11 +40,27 @@ export interface CollapsibleProps {
  *     title: 'Дополнительные параметры',
  *     defaultOpen: false,
  *     className: 'border rounded p-4',
- *     children: [
- *       { component: path.notes },
- *       { component: path.tags },
- *     ],
+ *     titleClassName: 'font-semibold w-full text-left',
  *   },
+ *   children: [
+ *     { component: path.notes },
+ *     { component: path.tags },
+ *   ],
+ * }
+ * ```
+ *
+ * @example Развёрнута, со специальным фоном контента
+ * ```typescript
+ * {
+ *   component: Collapsible,
+ *   componentProps: {
+ *     title: 'Адрес доставки',
+ *     defaultOpen: true,
+ *     contentClassName: 'mt-2 bg-gray-50 p-3 rounded',
+ *   },
+ *   children: [
+ *     { component: path.deliveryAddress },
+ *   ],
  * }
  * ```
  */

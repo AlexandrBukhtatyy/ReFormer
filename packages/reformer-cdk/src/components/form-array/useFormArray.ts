@@ -60,11 +60,40 @@ export interface UseFormArrayReturn<T extends FormFields> {
  * }
  * ```
  *
- * @example With initial values
+ * @example With initial values + clear / insert
  * ```tsx
- * const { add } = useFormArray(form.items);
- * // Add item with pre-filled values
- * add({ name: 'New Item', quantity: 1 });
+ * function PropertyToolbar() {
+ *   const { add, clear, insert, length } = useFormArray(form.properties);
+ *
+ *   return (
+ *     <div className="flex gap-2">
+ *       <button onClick={() => add({ type: 'apartment', estimatedValue: 0 })}>
+ *         + Квартира
+ *       </button>
+ *       <button onClick={() => insert(0, { type: 'house' })}>
+ *         + Дом (в начало)
+ *       </button>
+ *       <button onClick={clear} disabled={length === 0}>Очистить</button>
+ *       <span>{length} шт.</span>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example Кастомный AddButton снаружи compound API (drop-down)
+ * ```tsx
+ * import { useFormArrayContext } from '@reformer/cdk/form-array';
+ *
+ * function AddPropertyMenu() {
+ *   const { add } = useFormArrayContext<Property>();
+ *   return (
+ *     <Menu>
+ *       <Menu.Trigger>+ Добавить ▾</Menu.Trigger>
+ *       <Menu.Item onSelect={() => add({ type: 'apartment' })}>Квартира</Menu.Item>
+ *       <Menu.Item onSelect={() => add({ type: 'house' })}>Дом</Menu.Item>
+ *     </Menu>
+ *   );
+ * }
  * ```
  */
 export function useFormArray<T extends FormFields>(control: ArrayNode<T>): UseFormArrayReturn<T> {

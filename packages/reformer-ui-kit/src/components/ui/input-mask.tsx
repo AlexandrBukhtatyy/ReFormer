@@ -4,23 +4,52 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link InputMask}. */
 export interface InputMaskProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+  /** Дополнительный CSS-класс. */
   className?: string;
+  /** Текущее значение поля. `null`/`undefined` рендерится как пустое поле. */
   value?: string | null;
+  /** Обработчик изменений. Пустая строка приводится к `null`. */
   onChange?: (value: string | null) => void;
+  /** Срабатывает при потере фокуса. */
   onBlur?: () => void;
-  mask?: string; // Простая маска (например: '999-999-999 99')
+  /**
+   * Шаблон маски: символ `'9'` означает «цифра», все остальные символы (`+`,
+   * `-`, `(`, `)`, пробел, точка) — литералы и используются в `placeholder`.
+   * Пример: `'+7 (999) 999-99-99'`.
+   */
+  mask?: string;
+  /** Подсказка внутри поля. По умолчанию равна `mask` для подсветки формата. */
   placeholder?: string;
+  /** Блокирует ввод и редактирование. */
   disabled?: boolean;
 }
 
 /**
- * Текстовое поле с поддержкой простой маски (через шаблон вида `'9'` для цифр).
+ * Текстовое поле с поддержкой простой маски-подсказки (через шаблон вида
+ * `'9'` для цифр). Маска показывается в `placeholder`, но автоматическая
+ * вставка литералов **не** выполняется — компонент просто помечает формат.
  *
- * @example
+ * @example Маска для телефона
  * ```tsx
  * import { InputMask } from '@reformer/ui-kit';
  *
- * <InputMask value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />
+ * <InputMask
+ *   value={phone}
+ *   onChange={setPhone}
+ *   mask="+7 (999) 999-99-99"
+ * />
+ * ```
+ *
+ * @example Маска для даты `DD.MM.YYYY`
+ * ```tsx
+ * import { InputMask } from '@reformer/ui-kit';
+ *
+ * <InputMask
+ *   value={birthDate}
+ *   onChange={setBirthDate}
+ *   mask="99.99.9999"
+ *   placeholder="Дата рождения"
+ * />
  * ```
  */
 const InputMask = React.forwardRef<HTMLInputElement, InputMaskProps>(

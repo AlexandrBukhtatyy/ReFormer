@@ -10,11 +10,19 @@ import type { FormContext } from '../types/form-context';
 import type { FieldPathNode } from '../types/field-path';
 
 /**
- * Реализация BehaviorContext (FormContext)
+ * Реализация {@link FormContext} для behaviors. Создаётся фреймворком и передаётся
+ * в callback'и behaviors (`watchField`, `computeFrom`, …) — напрямую инстанцировать
+ * не нужно.
  *
- * Предоставляет:
- * - `form` - прямой типизированный доступ к форме
- * - `setFieldValue` - безопасная установка значения (emitEvent: false)
+ * @example
+ * ```typescript
+ * import { watchField } from '@reformer/core/behaviors/watch-field';
+ *
+ * watchField(path.country, (value, ctx) => {
+ *   // ctx — экземпляр BehaviorContextImpl
+ *   ctx.setFieldValue(path.city, '');
+ * });
+ * ```
  */
 export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
   /**

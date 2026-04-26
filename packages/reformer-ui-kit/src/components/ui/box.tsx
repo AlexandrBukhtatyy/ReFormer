@@ -17,22 +17,32 @@ export interface BoxProps {
 }
 
 /**
- * Box - базовый контейнер-обёртка
+ * Box - базовый контейнер-обёртка.
  *
- * Простой div для группировки элементов и применения стилей.
- * Используйте className для настройки layout через atomic CSS.
+ * Простой `<div>` для группировки элементов в `RenderSchema`. Используйте
+ * `className` для настройки layout через atomic CSS (Tailwind).
  *
- * @example
+ * @example Вертикальный список полей в RenderSchema
  * ```typescript
  * {
  *   component: Box,
- *   componentProps: {
- *     className: 'flex flex-col gap-4',
- *     children: [
- *       { component: path.email },
- *       { component: path.password },
- *     ],
- *   },
+ *   componentProps: { className: 'flex flex-col gap-4' },
+ *   children: [
+ *     { component: path.email },
+ *     { component: path.password },
+ *   ],
+ * }
+ * ```
+ *
+ * @example Двухколоночная сетка
+ * ```typescript
+ * {
+ *   component: Box,
+ *   componentProps: { className: 'grid grid-cols-2 gap-4' },
+ *   children: [
+ *     { component: path.firstName },
+ *     { component: path.lastName },
+ *   ],
  * }
  * ```
  */

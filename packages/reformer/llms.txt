@@ -26,6 +26,13 @@
 - 20-compute-vs-watch.md — compute-vs-watch
 - 21-array-operations.md — array-operations
 - 22-cycle-detection.md — cycle-detection
+- 23-copy-from.md — copyFrom — Копирование значений между полями
+- 24-sync-fields.md — syncFields — Двусторонняя синхронизация полей
+- 25-reset-when.md — resetWhen — Условный сброс полей
+- 26-transform-value.md — transformValue — Автоматическая трансформация значений
+- 27-revalidate-when.md — revalidateWhen — Перевалидация полей по триггерам
+- 28-submit-and-reset.md — Submit и Reset — Жизненный цикл отправки формы
+- 29-async-preload.md — Async Preload — Загрузка начальных значений и динамических справочников
 - API Reference (auto-generated from JSDoc)
 
 ## 1. 1. API Reference
@@ -1466,7 +1473,1493 @@ watchField(path.health.isSmoker, (_value, ctx) => {
 }, { immediate: false });  // REQUIRED!
 ```
 
-## 23. API Reference
+## 23. Purpose
+
+`copyFrom` декларативно копирует значение одного поля (или группы) в другое при выполнении условия `when`. Используется для UX-сценариев «совпадает с …»: «адрес проживания совпадает с адресом регистрации», «email для уведомлений = основной email», «billing = shipping». Альтернатива ручному `watchField` + `setValue` с управлением циклами — `copyFrom` сам выходит из reactive-контекста через `runOutsideEffect`.
+
+## 24. API
+
+```typescript
+function copyFrom<TForm, TSource, TTarget>(
+  source: FieldPathNode<TForm, TSource>,
+  target: FieldPathNode<TForm, TTarget>,
+  options?: CopyFromOptions<TSource, TForm>,
+): void;
+
+interface CopyFromOptions<TSource, TForm = unknown> {
+  /** Условие копирования. Если не задано — копирует всегда при изменении source. */
+  when?: (form: TForm) => boolean;
+
+  /** Какие поля копировать для группы. По умолчанию 'all'. */
+  fields?: (keyof TSource)[] | 'all';
+
+  /** Преобразование значения перед записью в target. */
+  transform?: (value: TSource) => unknown;
+
+  /** Debounce срабатывания в миллисекундах. */
+  debounce?: number;
+}
+```
+
+Вызывается строго внутри `BehaviorSchemaFn` (поведенческой схемы формы). Возвращает `void`; cleanup управляется реестром поведения формы.
+
+## 25. Examples
+
+### Базовый сценарий — синхронизация двух адресов целиком
+
+```typescript
+import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface OrderForm {
+  useShippingAsBilling: boolean;
+  shippingAddress: string;
+  billingAddress: string;
+}
+
+export const orderBehavior: BehaviorSchemaFn<OrderForm> = (path) => {
+  copyFrom(path.shippingAddress, path.billingAddress, {
+    when: (form) => form.useShippingAsBilling === true,
+  });
+};
+```
+
+Source: [BehaviorsExamples.tsx:227](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+
+### Копирование группы — только выбранные подполя
+
+```typescript
+import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface Address {
+  country: string;
+  region: string;
+  city: string;
+  street: string;
+  postalCode: string;
+}
+
+interface ProfileForm {
+  sameAsRegistration: boolean;
+  registrationAddress: Address;
+  residenceAddress: Address;
+}
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+  // Копируем только country/region/city, локальные значения street сохраняем
+  copyFrom(path.registrationAddress, path.residenceAddress, {
+    when: (form) => form.sameAsRegistration === true,
+    fields: ['country', 'region', 'city'],
+  });
+};
+```
+
+### Совмещение с `apply([...])` — переиспользование между несколькими полями
+
+```typescript
+import { copyFrom, apply, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface AddressBlock {
+  source: string;
+  copy: string;
+  copyEnabled: boolean;
+}
+
+const addressCopyBehavior: BehaviorSchemaFn<AddressBlock> = (path) => {
+  copyFrom(path.source, path.copy, {
+    when: (form) => form.copyEnabled === true,
+  });
+};
+
+interface ProfileForm {
+  homeAddress: AddressBlock;
+  workAddress: AddressBlock;
+}
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+  // Применяем одну схему копирования к двум вложенным группам
+  apply([path.homeAddress, path.workAddress], addressCopyBehavior);
+};
+```
+
+Source: [credit-application-behavior.ts:69-79](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+
+### Copy + transform — нормализация при копировании
+
+```typescript
+import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface ContactForm {
+  sameEmail: boolean;
+  email: string;
+  emailAdditional: string;
+}
+
+export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+  copyFrom(path.email, path.emailAdditional, {
+    when: (form) => form.sameEmail === true,
+    transform: (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+    debounce: 200,
+  });
+};
+```
+
+## 26. Anti-patterns
+
+```typescript
+// ❌ Ручной watchField с setValue — пишите copyFrom
+watchField(path.shippingAddress, (value, ctx) => {
+  if (ctx.form.useShippingAsBilling.value.value) {
+    ctx.form.billingAddress.setValue(value); // приведёт к "Cycle detected" без runOutsideEffect
+  }
+});
+
+// ✅ copyFrom уже использует runOutsideEffect внутри
+copyFrom(path.shippingAddress, path.billingAddress, {
+  when: (form) => form.useShippingAsBilling === true,
+});
+```
+
+```typescript
+// ❌ Не пытайтесь вернуть данные обратно — copyFrom однонаправленный
+copyFrom(path.a, path.b);
+copyFrom(path.b, path.a); // ЦИКЛ! Используйте syncFields для двусторонней связи
+
+// ✅ Двусторонняя синхронизация — это работа syncFields
+syncFields(path.a, path.b);
+```
+
+```typescript
+// ❌ when, который читает само target-поле
+copyFrom(path.source, path.target, {
+  when: (form) => form.target === ''  // лишний triger при перезаписи target
+});
+
+// ✅ when опирается только на флаг/независимое поле
+copyFrom(path.source, path.target, {
+  when: (form) => form.copyEnabled === true,
+});
+```
+
+```typescript
+// ❌ Передача fields для не-групповых полей
+copyFrom(path.email, path.emailCopy, { fields: ['something'] }); // fields игнорируется для скаляров
+
+// ✅ Для скаляров — без fields, или fields: 'all'
+copyFrom(path.email, path.emailCopy);
+```
+
+## 27. Troubleshooting
+
+**Q: Скопированное значение не появляется в target.**
+A: Проверьте, что (1) вы внутри `BehaviorSchemaFn`, переданной в `createForm({ behavior })`; (2) `when` возвращает `true` (поставьте `console.log` в `when`); (3) тип source/target совместим — `copyFrom` записывает значение «как есть», без неявных конверсий.
+
+**Q: «Cycle detected» при копировании.**
+A: Это происходит, если `when` использует значение target-поля (см. anti-pattern выше) или вы дополнительно навесили `watchField`/`computeFrom` на target. Изолируйте триггеры: condition должно зависеть только от source и от независимых флагов.
+
+**Q: Целевая группа теряет несколько полей.**
+A: По умолчанию `fields: 'all'` копирует **всё значение** через `setValue`, перетирая поля, которых нет в source. Если нужно сохранить часть target — укажите `fields: ['onlyThese']`, тогда применится `patchValue` (мердж).
+
+**Q: copyFrom не реагирует на загрузку начальных значений.**
+A: `copyFrom` подписывается на изменения source через `watchField` без `immediate`. Первичное копирование произойдёт при первом изменении source. Для синхронизации сразу после `patchValue` — вызывайте `patchValue` для target вручную в hooks загрузки (см. [29-async-preload.md](./29-async-preload.md)).
+
+**Q: Как откатить копию, если пользователь снял флаг `when`?**
+A: `copyFrom` сам по себе не сбрасывает target при `when === false` — он только не пишет. Для сброса параллельно используйте `resetWhen(path.target, (form) => !form.copyEnabled)` (см. [25-reset-when.md](./25-reset-when.md)).
+
+## 28. See also
+
+- [24-sync-fields.md](./24-sync-fields.md) — двусторонняя синхронизация
+- [25-reset-when.md](./25-reset-when.md) — сброс target при выключенном условии
+- [11-async-watchfield.md](./11-async-watchfield.md) — низкоуровневый `watchField`, на котором построен `copyFrom`
+- [22-cycle-detection.md](./22-cycle-detection.md) — почему `runOutsideEffect` нужен и как его избежать руками
+
+## 29. Purpose
+
+`syncFields` создаёт двунаправленную связь между двумя полями: изменение любого из них переписывает второе. Применяется для дублей одного значения в разных частях формы (тех. поле + видимое представление, мобильный/десктопный input, mirror-поля для отчётов). Внутренний флаг `isUpdating` плюс `runOutsideEffect` исключают петли. Если нужно одностороннее копирование — берите [`copyFrom`](./23-copy-from.md), для расчётов — [`computeFrom`](./03-api-signatures.md).
+
+## 30. API
+
+```typescript
+function syncFields<TForm extends FormFields, T extends FormValue>(
+  field1: FieldPathNode<TForm, T>,
+  field2: FieldPathNode<TForm, T>,
+  options?: SyncFieldsOptions<T>,
+): void;
+
+interface SyncFieldsOptions<T> {
+  /** Преобразование при синхронизации field1 → field2 (НЕ применяется в обратную сторону). */
+  transform?: (value: T) => T;
+
+  /** Debounce в миллисекундах. */
+  debounce?: number;
+}
+```
+
+Поля должны иметь совместимый тип `T`. `transform` асимметричен: он работает только при движении значения от `field1` к `field2`.
+
+## 31. Examples
+
+### Базовый сценарий — отзеркаливание текста
+
+```typescript
+import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface MirrorForm {
+  syncField1: string;
+  syncField2: string;
+}
+
+export const mirrorBehavior: BehaviorSchemaFn<MirrorForm> = (path) => {
+  syncFields(path.syncField1, path.syncField2);
+};
+```
+
+Source: [BehaviorsExamples.tsx:249](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+
+### С трансформацией — нормализация при прямой записи
+
+```typescript
+import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface DisplayForm {
+  internalCode: string; // канонический формат
+  displayCode: string;  // показываем пользователю
+}
+
+export const codeBehavior: BehaviorSchemaFn<DisplayForm> = (path) => {
+  // internalCode → displayCode: нормализация в верхний регистр
+  // displayCode → internalCode: значение пишется как есть
+  syncFields(path.internalCode, path.displayCode, {
+    transform: (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+    debounce: 150,
+  });
+};
+```
+
+### Edge case — sync с независимой валидацией
+
+```typescript
+import { syncFields, revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { required, pattern } from '@reformer/core/validators';
+
+interface ContactForm {
+  phoneA: string;
+  phoneB: string;
+}
+
+export const contactValidation = (path: FieldPath<ContactForm>) => {
+  required(path.phoneA);
+  pattern(path.phoneB, /^\+\d{10,12}$/);
+};
+
+export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+  syncFields(path.phoneA, path.phoneB);
+
+  // Когда явно нужно перезапустить валидацию обоих после синхронизации
+  revalidateWhen(path.phoneA, [path.phoneB]);
+  revalidateWhen(path.phoneB, [path.phoneA]);
+};
+```
+
+## 32. Anti-patterns
+
+```typescript
+// ❌ Симметрично через два copyFrom — приведёт к "Cycle detected"
+copyFrom(path.a, path.b);
+copyFrom(path.b, path.a);
+
+// ✅ syncFields умеет двусторонней связь без циклов
+syncFields(path.a, path.b);
+```
+
+```typescript
+// ❌ Ожидание, что transform применится в обе стороны
+syncFields(path.a, path.b, { transform: (v) => v.trim() });
+// при записи в b значение НЕ trim-ается
+
+// ✅ Если нужны симметричные трансформы, делайте syncFields + transformValue
+import { transformValue } from '@reformer/core/behaviors';
+syncFields(path.a, path.b);
+transformValue(path.a, (v) => (typeof v === 'string' ? v.trim() : v));
+transformValue(path.b, (v) => (typeof v === 'string' ? v.trim() : v));
+```
+
+```typescript
+// ❌ Поля разного типа — рантайм-приведение и баги
+syncFields(path.amountString, path.amountNumber); // string ↔ number
+
+// ✅ Используйте computeFrom + ручное обратное связывание
+computeFrom([path.amountString], path.amountNumber, (v) => Number(v.amountString));
+```
+
+```typescript
+// ❌ Sync для FormArray/FormGroup — компонент не сравнивает по содержимому
+syncFields(path.itemsA, path.itemsB); // ссылочное равенство, потенциально лишние перезаписи
+
+// ✅ Для коллекций — copyFrom + явный fields/transform либо ручной watchField
+```
+
+## 33. Troubleshooting
+
+**Q: Поля «дёргаются», вижу несколько перезаписей.**
+A: Чаще всего внутри одного из полей висит `transformValue` или `computeFrom`. Передайте `debounce: 100…300` в `syncFields`, и/или проверьте, что у источника transform идемпотентен (`f(f(x)) === f(x)`).
+
+**Q: Курсор/каретка прыгает в input.**
+A: Симптом частых `setValue`. Поднимите `debounce` (минимум 150 ms) и убедитесь, что `transform` стабильный (не возвращает `new String(...)` или другой объект-обёртку). Лучше — храните «канонический» формат в одном поле и считайте отображаемый через `computeFrom`.
+
+**Q: Sync не работает после `form.reset()`.**
+A: `reset()` устанавливает оба поля одновременно. Это нормально — sync догонится при первом следующем изменении. Если нужна согласованность сразу после reset — задайте одинаковые initial values в схеме.
+
+**Q: «Cycle detected» при включённом `syncFields`.**
+A: Не вешайте `watchField(path.a, …)` + `watchField(path.b, …)`, которые сами пишут друг в друга. `syncFields` уже занимает оба направления. Перенесите side-эффекты в `watchField` на одно поле и не трогайте второе изнутри callback.
+
+**Q: Как ограничить sync условием (как `when` у copyFrom)?**
+A: У `syncFields` нет `when`. Сэмулируйте через `apply` под условием либо комбинируйте `copyFrom(a → b, { when })` и `copyFrom(b → a, { when })` с разными флагами, разрешая только одну активную сторону за раз.
+
+## 34. See also
+
+- [23-copy-from.md](./23-copy-from.md) — однонаправленное копирование с `when`
+- [26-transform-value.md](./26-transform-value.md) — нормализация значений на месте
+- [22-cycle-detection.md](./22-cycle-detection.md) — почему симметричный copy ломается
+- [03-api-signatures.md](./03-api-signatures.md) — `computeFrom` для производных значений
+
+## 35. Purpose
+
+`resetWhen` сбрасывает значение поля и его `dirty/touched`-флаги при выполнении условия от формы. Это альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но содержимое нужно очистить (например, переключение типа оплаты обнуляет «номер карты», но поле всё ещё доступно для ручного ввода). По умолчанию пишет `null`; через `resetValue` задаётся произвольное значение, через `onlyIfDirty` — пропуск нетронутых пользователем полей.
+
+## 36. API
+
+```typescript
+function resetWhen<TForm extends FormFields>(
+  field: FieldPathNode<TForm, FormValue>,
+  condition: (form: TForm) => boolean,
+  options?: ResetWhenOptions & { debounce?: number },
+): void;
+
+interface ResetWhenOptions {
+  /** Значение, в которое сбрасывается поле. По умолчанию null. */
+  resetValue?: FormValue;
+
+  /** Сбрасывать только если поле dirty (пользователь его трогал). */
+  onlyIfDirty?: boolean;
+}
+```
+
+После сброса `markAsPristine()` и `markAsUntouched()` вызываются автоматически.
+
+## 37. Examples
+
+### Базовый сценарий — сброс номера карты при смене способа оплаты
+
+```typescript
+import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface CheckoutForm {
+  paymentType: 'card' | 'cash';
+  cardNumber: string;
+}
+
+export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
+  resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', {
+    resetValue: '',
+  });
+};
+```
+
+Source: [BehaviorsExamples.tsx:243-245](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+
+### С `resetValue` для числовых полей
+
+```typescript
+import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface MortgageForm {
+  loanType: 'mortgage' | 'consumer' | 'car';
+  propertyValue: number;
+  initialPayment: number;
+}
+
+export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+  // initialPayment теряет смысл без propertyValue — сбрасываем в 0
+  resetWhen(path.initialPayment, (form) => !form.propertyValue, {
+    resetValue: 0,
+  });
+};
+```
+
+### `onlyIfDirty` — не трогаем нетронутое поле
+
+```typescript
+import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface CarForm {
+  loanType: 'mortgage' | 'car' | 'consumer';
+  carPrice: number;
+}
+
+export const carBehavior: BehaviorSchemaFn<CarForm> = (path) => {
+  // Если пользователь ещё не вводил carPrice, не сбрасываем (не сломаем default)
+  resetWhen(path.carPrice, (form) => form.loanType !== 'car', {
+    resetValue: null,
+    onlyIfDirty: true,
+  });
+};
+```
+
+### С `apply([...])` — общая логика для нескольких блоков
+
+```typescript
+import { resetWhen, apply, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface AddressBlock {
+  enabled: boolean;
+  city: string;
+  street: string;
+}
+
+const addressResetBehavior: BehaviorSchemaFn<AddressBlock> = (path) => {
+  resetWhen(path.city, (form) => !form.enabled, { resetValue: '' });
+  resetWhen(path.street, (form) => !form.enabled, { resetValue: '' });
+};
+
+interface ProfileForm {
+  homeAddress: AddressBlock;
+  workAddress: AddressBlock;
+}
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+  apply([path.homeAddress, path.workAddress], addressResetBehavior);
+};
+```
+
+## 38. Anti-patterns
+
+```typescript
+// ❌ resetWhen вместо enableWhen для disable-сценария
+resetWhen(path.field, (form) => !form.show);
+// поле останется enabled и валидируемым, ошибка required всё равно прилетит
+
+// ✅ Если поле должно «исчезнуть», блокируем + сбрасываем
+enableWhen(path.field, (form) => form.show, { resetOnDisable: true });
+```
+
+```typescript
+// ❌ Сложная логика «обновить + сбросить» через ручной watchField + setValue
+watchField(path.type, (_v, ctx) => {
+  ctx.form.dependent.setValue(null);
+  ctx.form.dependent.markAsPristine(); // забыли markAsUntouched? валидация не очистится
+});
+
+// ✅ resetWhen делает все три действия атомарно
+resetWhen(path.dependent, (form) => form.type !== 'expected', { resetValue: null });
+```
+
+```typescript
+// ❌ resetValue с типом, отличным от поля
+resetWhen(path.amount, (form) => form.skipPayment, { resetValue: 'none' });
+// рантайм-несовпадение типов: amount: number ← string
+
+// ✅ resetValue должен быть валидным значением для FieldNode
+resetWhen(path.amount, (form) => form.skipPayment, { resetValue: 0 });
+```
+
+```typescript
+// ❌ Отсутствие resetValue для строкового поля
+resetWhen(path.cardNumber, (form) => form.paymentType !== 'card');
+// получит null, а Input ждёт string — отрисует undefined
+
+// ✅ Явный resetValue для строк
+resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', { resetValue: '' });
+```
+
+## 39. Troubleshooting
+
+**Q: Поле сбрасывается слишком часто, по любому изменению формы.**
+A: `resetWhen` подписан на `form.value.value` целиком — любое изменение формы прогоняет `condition`. Если ваш `condition` возвращает `true` стабильно, сброс происходит на каждом тике. Решение: добавьте проверку текущего значения в `condition` (`condition: (form) => form.type !== 'card' && form.cardNumber !== ''`) или поднимите `debounce`.
+
+**Q: Сброс не срабатывает, хотя `condition` возвращает true.**
+A: Опция `onlyIfDirty: true` пропустит сброс, если пользователь не трогал поле. Уберите `onlyIfDirty` или явно вызовите `field.markAsDirty()`.
+
+**Q: После сброса валидация продолжает показывать ошибку.**
+A: `resetWhen` зовёт `markAsUntouched()` — `error` остаётся, но в UI поле обычно ошибки скрыты до `touched`. Если нужна жёсткая очистка ошибки, дополнительно вызовите `field.validate()` после изменения зависимого поля или используйте `revalidateWhen`.
+
+**Q: Реактивная цепочка resetWhen → computeFrom → resetWhen ломается.**
+A: Убедитесь, что `condition` не зависит от значения **самого** поля, иначе после сброса вы попадёте в новый цикл. Сравните: `condition: (form) => form.type !== 'card'` (ок) vs `condition: (form) => form.cardNumber === ''` (плохо — самотриггер).
+
+**Q: Сбросить вложенную группу целиком — `resetValue: {}` не работает.**
+A: Для group-полей лучше использовать `field.reset()` напрямую через `watchField`, либо комбинацию `enableWhen({ resetOnDisable: true })`, которая правильно проходит по поддереву. `resetWhen` рассчитан на скалярные поля.
+
+## 40. See also
+
+- [04-common-patterns.md](./04-common-patterns.md) — `enableWhen({ resetOnDisable: true })` как альтернатива
+- [23-copy-from.md](./23-copy-from.md) — копирование, у которого нет встроенного отката
+- [22-cycle-detection.md](./22-cycle-detection.md) — почему `condition` не должен читать целевое поле
+- [11-async-watchfield.md](./11-async-watchfield.md) — низкоуровневый аналог через `watchField` + `setValue`
+
+## 41. Purpose
+
+`transformValue` подписывается на изменение поля и переписывает его трансформированной версией: uppercase для кодов, trim+toLowerCase для email, маска для телефона, округление для чисел. В отличие от `valueParser` в `<input>`, работает декларативно в схеме формы и применяется единообразно ко всем источникам изменения (пользователь, programmatic `setValue`, `patchValue`, async `copyFrom`). Идемпотентность (`f(f(x)) === f(x)`) обязательна — иначе бесконечный цикл `setValue → callback → setValue`.
+
+## 42. API
+
+```typescript
+function transformValue<TForm extends FormFields, TValue extends FormValue = FormValue>(
+  field: FieldPathNode<TForm, TValue>,
+  transformer: (value: TValue) => TValue,
+  options?: TransformValueOptions & { debounce?: number },
+): void;
+
+interface TransformValueOptions {
+  /** Применять только когда поле touched (т.е. правил пользователь, не programmatic). */
+  onUserChangeOnly?: boolean;
+
+  /** Эмитить событие изменения после трансформации. По умолчанию true. */
+  emitEvent?: boolean;
+}
+
+// Хелперы
+function createTransformer<TValue>(
+  transformer: (value: TValue) => TValue,
+  defaultOptions?: TransformValueOptions,
+): (field: FieldPathNode<TForm, TValue>, options?: …) => void;
+
+const transformers: {
+  toUpperCase: …; toLowerCase: …; trim: …; removeSpaces: …;
+  digitsOnly: …; round: …; roundTo2: …;
+};
+```
+
+`setValue` вызывается только если `transformer(value) !== value` — это базовый guard от циклов.
+
+## 43. Examples
+
+### Базовый сценарий — uppercase для кода
+
+```typescript
+import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface PromoForm {
+  uppercaseField: string;
+}
+
+export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
+  transformValue(path.uppercaseField, (value) => (value ?? '').toUpperCase());
+};
+```
+
+Source: [BehaviorsExamples.tsx:239](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+
+### Несколько трансформаций — нормализация email + форматирование телефона
+
+```typescript
+import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface ContactForm {
+  email: string;
+  phone: string;
+  amount: number;
+}
+
+export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+  // email: trim + lowercase
+  transformValue(path.email, (value) => (value ?? '').trim().toLowerCase());
+
+  // телефон: оставить только цифры и собрать формат
+  transformValue(path.phone, (value) => {
+    if (!value) return value;
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 11) {
+      return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
+    }
+    return value;
+  });
+
+  // округление до целого
+  transformValue(path.amount, (value) =>
+    typeof value === 'number' ? Math.round(value) : value,
+  );
+};
+```
+
+### С `transformers` — готовые трансформеры
+
+```typescript
+import { transformers, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface RegistrationForm {
+  username: string;
+  promoCode: string;
+  inn: string;
+  amount: number;
+}
+
+export const registrationBehavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+  transformers.trim(path.username);
+  transformers.toUpperCase(path.promoCode);
+  transformers.digitsOnly(path.inn);
+  transformers.roundTo2(path.amount);
+};
+```
+
+### `onUserChangeOnly` — пропуск programmatic изменений
+
+```typescript
+import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface UserForm {
+  preformatted: string; // изначально приходит с сервера в нужном виде
+}
+
+export const userBehavior: BehaviorSchemaFn<UserForm> = (path) => {
+  // Не трогаем значение, пришедшее через patchValue от useLoadCreditApplication;
+  // переформатируем только если пользователь начал править
+  transformValue(path.preformatted, (value) => (value ?? '').toUpperCase(), {
+    onUserChangeOnly: true,
+  });
+};
+```
+
+## 44. Anti-patterns
+
+```typescript
+// ❌ Не идемпотентный transformer — бесконечный цикл
+transformValue(path.field, (v) => `prefix-${v}`); // f(f(x)) = "prefix-prefix-x" ≠ f(x)
+
+// ✅ Делайте guard внутри transformer
+transformValue(path.field, (v) => (v?.startsWith('prefix-') ? v : `prefix-${v}`));
+```
+
+```typescript
+// ❌ Трансформация ОДНОВРЕМЕННО с syncFields на том же поле
+syncFields(path.a, path.b);
+transformValue(path.b, (v) => v.toUpperCase());
+// При записи в `a` → b получит сырой v, transformValue запишет b обратно,
+// syncFields перезапишет a, и т. д.
+
+// ✅ Трансформируйте источник до синхронизации
+transformValue(path.a, (v) => v.toUpperCase());
+syncFields(path.a, path.b);
+```
+
+```typescript
+// ❌ Тяжёлая логика в transformer без debounce
+transformValue(path.text, (v) => heavyParse(v));
+
+// ✅ Дебаунсим перерасчёт
+transformValue(path.text, (v) => heavyParse(v), { debounce: 250 });
+```
+
+```typescript
+// ❌ Использование transformValue для производных полей
+transformValue(path.fullName, () => `${form.firstName} ${form.lastName}`);
+// transformValue не имеет доступа к форме, только к value одного поля
+
+// ✅ Для зависимостей от других полей — computeFrom
+computeFrom(
+  [path.firstName, path.lastName],
+  path.fullName,
+  (v) => `${v.firstName} ${v.lastName}`,
+);
+```
+
+## 45. Troubleshooting
+
+**Q: Цикл «Cycle detected» при transformValue.**
+A: 99% случаев — неидемпотентный transformer. Проверьте: `transformer(transformer(x)) === transformer(x)` для типичных значений. Добавьте guard «уже преобразовано».
+
+**Q: Трансформация не применяется при загрузке через `patchValue`.**
+A: Если стоит `onUserChangeOnly: true` — это by design. Если не стоит, проверьте, что behavior зарегистрирован (передан в `createForm({ behavior })`) и форма не пересоздаётся при каждом рендере (используйте `useMemo`).
+
+**Q: Каретка input прыгает в начало строки при наборе.**
+A: Симптом — `setValue` в transformValue вызывает re-render. Лучшие практики: (1) `debounce: 100…200`; (2) держать преобразование как можно ближе к идемпотентному; (3) форматирование с динамическими разделителями (телефон, кредитка) лучше делать через `<InputMask>` из `@reformer/ui-kit`, а не через transformValue.
+
+**Q: Хочу трансформировать только при blur, а не на каждом keystroke.**
+A: Стандартная опция отсутствует, но эффект достигается через `onUserChangeOnly: true` + большой `debounce` (500-700 мс) — пользователь успевает закончить ввод. Альтернатива — слушать blur вручную через React-обработчик.
+
+**Q: Как сделать переиспользуемые трансформации?**
+A: Используйте `createTransformer<T>((value) => …)` — возвращает функцию вида `(path) => void`, которую можно применять в любых behaviour-схемах. См. готовый набор `transformers.{toUpperCase, trim, digitsOnly, roundTo2}`.
+
+## 46. See also
+
+- [24-sync-fields.md](./24-sync-fields.md) — порядок применения с syncFields
+- [23-copy-from.md](./23-copy-from.md) — `transform`-опция при копировании
+- [22-cycle-detection.md](./22-cycle-detection.md) — про идемпотентность
+- [16-ui-components.md](./16-ui-components.md) — `<InputMask>` для тяжёлого форматирования
+
+## 47. Purpose
+
+`revalidateWhen` перезапускает валидацию **target-поля**, когда изменяется любое из **trigger-полей**. Применяется, когда правило target зависит от значений других полей (`amount <= maxAmount`, `confirmPassword === password`, `initialPayment >= propertyValue * 0.2`). Без `revalidateWhen` валидатор target не получит сигнала о смене триггера и сохранит устаревшую ошибку. Не дублирует логику валидации — только просит перезапустить уже прописанные правила.
+
+## 48. API
+
+```typescript
+function revalidateWhen<TForm>(
+  target: FieldPathNode<TForm, FormValue>,
+  triggers: FieldPathNode<TForm, FormValue>[],
+  options?: RevalidateWhenOptions,
+): void;
+
+interface RevalidateWhenOptions {
+  /** Debounce в миллисекундах. */
+  debounce?: number;
+}
+```
+
+Внутри подписывается на `value.value` каждого `triggers[i]` и вызывает `target.validate()`. Если триггер исчез из формы (path не резолвится) — он игнорируется молча.
+
+## 49. Examples
+
+### Базовый сценарий — amount ≤ maxAmount
+
+```typescript
+import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { max } from '@reformer/core/validators';
+import type { FieldPath } from '@reformer/core';
+
+interface PaymentForm {
+  maxAmount: number;
+  amount: number;
+}
+
+export const paymentValidation = (path: FieldPath<PaymentForm>) => {
+  // ВНИМАНИЕ: max() сейчас принимает константу — для динамики комбинируйте с custom-валидатором
+  max(path.amount, 1000);
+};
+
+export const paymentBehavior: BehaviorSchemaFn<PaymentForm> = (path) => {
+  // Когда maxAmount меняется — перезапускаем валидацию amount
+  revalidateWhen(path.amount, [path.maxAmount]);
+};
+```
+
+Source: [BehaviorsExamples.tsx:252](../../../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx).
+
+### Несколько триггеров — initialPayment vs propertyValue/loanAmount
+
+```typescript
+import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface MortgageForm {
+  propertyValue: number;
+  loanAmount: number;
+  initialPayment: number;
+}
+
+export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+  // initialPayment зависит и от propertyValue (минимум 20%), и от loanAmount (= propertyValue - loanAmount)
+  revalidateWhen(path.initialPayment, [path.propertyValue, path.loanAmount], {
+    debounce: 300,
+  });
+};
+```
+
+Source: [credit-application-behavior.ts:242-245](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+
+### Парная перевалидация — confirmPassword
+
+```typescript
+import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { equalTo } from '@reformer/core/validators';
+import type { FieldPath } from '@reformer/core';
+
+interface RegistrationForm {
+  password: string;
+  confirmPassword: string;
+}
+
+export const registrationValidation = (path: FieldPath<RegistrationForm>) => {
+  equalTo(path.confirmPassword, path.password, { message: 'Пароли не совпадают' });
+};
+
+export const registrationBehavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+  // Если пользователь сначала ввёл confirm, потом меняет password — перевалидируем confirm
+  revalidateWhen(path.confirmPassword, [path.password]);
+};
+```
+
+### Edge case — перевалидация после async copyFrom
+
+```typescript
+import { revalidateWhen, copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface CheckoutForm {
+  sameEmail: boolean;
+  email: string;
+  emailAdditional: string;
+}
+
+export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
+  copyFrom(path.email, path.emailAdditional, {
+    when: (form) => form.sameEmail === true,
+  });
+
+  // После копирования валидаторы emailAdditional не догонят без явного триггера
+  revalidateWhen(path.emailAdditional, [path.email, path.sameEmail], { debounce: 100 });
+};
+```
+
+## 50. Anti-patterns
+
+```typescript
+// ❌ Перевалидация ВСЕХ полей при изменении одного — оверкилл
+revalidateWhen(path.field1, [path.x]);
+revalidateWhen(path.field2, [path.x]);
+revalidateWhen(path.field3, [path.x]);
+// плюс field1/2/3 валидируются на собственное изменение → дублирующие пробеги
+
+// ✅ Перевалидируйте только то, чьё правило ЗАВИСИТ от триггера
+revalidateWhen(path.totalCheck, [path.x]); // одно поле
+```
+
+```typescript
+// ❌ revalidateWhen вместо проверки в самом валидаторе
+revalidateWhen(path.amount, [path.maxAmount]);
+// но в схеме валидации стоит max(path.amount, 1000) — константа, не динамика
+
+// ✅ Сначала custom-валидатор, читающий form, потом revalidateWhen
+custom(path.amount, (value, form) => value <= form.maxAmount, { message: '...' });
+revalidateWhen(path.amount, [path.maxAmount]);
+```
+
+```typescript
+// ❌ Триггер == target
+revalidateWhen(path.amount, [path.amount]);
+// поле и так валидируется при изменении само по себе
+
+// ✅ Триггеры — другие поля
+revalidateWhen(path.amount, [path.maxAmount, path.discount]);
+```
+
+```typescript
+// ❌ revalidateWhen на async-валидаторах без debounce
+revalidateWhen(path.username, [path.email]);
+// каждый keystroke email → fetch /username/check
+
+// ✅ Debounce обязателен для async
+revalidateWhen(path.username, [path.email], { debounce: 500 });
+```
+
+## 51. Troubleshooting
+
+**Q: Ошибка target не пропадает после изменения триггера.**
+A: Проверьте, что (1) target имеет валидатор, который реально использует значение триггера (custom + read from form); (2) вы передали именно `path.trigger`, а не строку; (3) форма создана с текущим behavior (нет stale `useMemo`).
+
+**Q: Валидация запускается слишком часто.**
+A: Передайте `debounce: 200…500`. Для async-валидаторов debounce обязателен — иначе сервер получает шквал запросов.
+
+**Q: Цикл при `revalidateWhen` + `transformValue` на target.**
+A: `transformValue` модифицирует target → запускает свою validate → revalidateWhen видит изменение target… `revalidateWhen` подписан только на triggers, а не на target, поэтому цикла быть не должно. Если вы видите цикл — проверьте, не входит ли target в `triggers`.
+
+**Q: Триггер — это вложенное поле в группе. Передаю `path.address.region` — не работает.**
+A: `path.address.region` корректен, но если `address` создаётся как `FormProxy` динамически (например, через `apply`), убедитесь, что behavior вызывается **внутри** `apply`-callback с правильным path, а не из родителя.
+
+**Q: Хочу перевалидировать после `form.patchValue(...)`.**
+A: `revalidateWhen` сработает, потому что `patchValue` меняет values триггеров. Но если ваша задача — единый прогон валидации после загрузки данных, проще вызвать `await form.validate()` сразу после `patchValue` (см. [29-async-preload.md](./29-async-preload.md)).
+
+## 52. See also
+
+- [03-api-signatures.md](./03-api-signatures.md) — встроенные валидаторы и custom
+- [28-submit-and-reset.md](./28-submit-and-reset.md) — `form.validate()` целиком
+- [11-async-watchfield.md](./11-async-watchfield.md) — низкоуровневая подписка на изменения
+- [05-common-mistakes.md](./05-common-mistakes.md) — почему «всё перевалидировать» — антипаттерн
+
+## 53. Purpose
+
+Раздел описывает канонический submit-флоу `@reformer/core`: «отметить все поля как `touched` → запустить полную валидацию → проверить `valid` → достать `getValue()` → сделать запрос → `reset()`». Внутри submit-handler-а доступны `form.pending` (включая async-валидаторы), `form.invalid` (для блокировки кнопки), `form.errors` (для итогового вывода). Использование вне React-компонента — те же шаги, без разницы. `form.reset()` возвращает все поля к initial values + чистит `dirty/touched/errors`.
+
+## 54. API
+
+```typescript
+// Прокидывается всеми FormProxy и GroupNode:
+
+interface FormLifecycleAPI<T> {
+  /** Помечает каждое поле как touched (показ ошибок в UI). */
+  markAsTouched(): void;
+
+  /** Запускает все валидаторы (включая async). Возвращает Promise<boolean> — итоговый valid. */
+  validate(): Promise<boolean>;
+
+  /** Реактивные сигналы. */
+  valid: Signal<boolean>;
+  invalid: Signal<boolean>;
+  pending: Signal<boolean>;   // true пока крутятся async-валидаторы
+  dirty: Signal<boolean>;
+  touched: Signal<boolean>;
+  errors: Signal<ValidationError[]>;
+
+  /** Снимает все значения формы (deep). Возвращает T. */
+  getValue(): T;
+
+  /** Возвращает ВСЕ поля к initial values + чистит dirty/touched/errors/disabled. */
+  reset(): void;
+}
+```
+
+`form.valid.value` сразу после `markAsTouched()` без `await validate()` может вернуть устаревшее значение — обязательно **`await form.validate()`** перед чтением `valid`.
+
+## 55. Examples
+
+### Базовый submit-handler
+
+```tsx
+import { useMemo } from 'react';
+import { createForm, type FormProxy } from '@reformer/core';
+
+interface RegistrationFormData {
+  username: string;
+  email: string;
+  password: string;
+}
+
+function RegistrationForm() {
+  const form = useMemo(() => createForm<RegistrationFormData>({
+    form: { /* schema */ },
+    validation: /* validation */,
+    behavior: /* behavior */,
+  }), []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Шаг 1: показать ошибки на всех полях
+    form.markAsTouched();
+
+    // Шаг 2: дождаться async валидации
+    await form.validate();
+
+    // Шаг 3: проверить итог
+    if (!form.valid.value) {
+      return;
+    }
+
+    // Шаг 4: достать чистые данные и отправить
+    const payload = form.getValue();
+    const response = await fetch('/api/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      form.reset(); // Шаг 5: чистый старт после успеха
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* поля */}
+      <button
+        type="submit"
+        disabled={form.invalid.value || form.pending.value}
+      >
+        {form.pending.value ? 'Проверка...' : 'Отправить'}
+      </button>
+    </form>
+  );
+}
+```
+
+Source: [RegistrationForm.tsx:122-150](../../../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx).
+
+### Submit с error-handling и сохранением значений при ошибке
+
+```tsx
+async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+
+  form.markAsTouched();
+  const isValid = await form.validate();
+
+  if (!isValid) {
+    return;
+  }
+
+  try {
+    const payload = form.getValue();
+    const response = await api.register(payload);
+
+    if (response.success) {
+      // Сбрасываем только при успехе
+      form.reset();
+      navigate('/welcome');
+    } else {
+      // Сервер вернул бизнес-ошибку — НЕ сбрасываем форму, показываем ошибку
+      // Также не сбрасываем при сетевой ошибке.
+      form.username.setErrors([{ code: 'taken', message: response.message }]);
+    }
+  } catch (error) {
+    // Сеть/неожиданная ошибка — оставляем значения, чтобы пользователь не вводил заново
+    showToast(`Ошибка сети: ${(error as Error).message}`);
+  }
+}
+```
+
+### Reset с подтверждением + ручная очистка одного поля
+
+```tsx
+function ActionButtons({ form }: { form: FormProxy<RegistrationFormData> }) {
+  const handleReset = () => {
+    if (!form.dirty.value) {
+      return; // нечего сбрасывать
+    }
+    if (confirm('Очистить форму? Несохранённые изменения будут потеряны.')) {
+      form.reset();
+    }
+  };
+
+  const clearJustPassword = () => {
+    // Сброс одного поля (без затрагивания остальных)
+    form.password.setValue('');
+    form.password.markAsPristine();
+    form.password.markAsUntouched();
+  };
+
+  return (
+    <>
+      <button type="button" onClick={handleReset} disabled={!form.dirty.value}>
+        Очистить
+      </button>
+      <button type="button" onClick={clearJustPassword}>
+        Очистить только пароль
+      </button>
+    </>
+  );
+}
+```
+
+### Использование вне React (server action / Node)
+
+```typescript
+import { createForm } from '@reformer/core';
+
+async function processFormPayload(rawData: Partial<MyForm>) {
+  const form = createForm<MyForm>({
+    form: schema,
+    validation,
+    behavior,
+  });
+
+  // Загружаем данные через patchValue (как initial state)
+  form.patchValue(rawData);
+
+  form.markAsTouched();
+  const isValid = await form.validate();
+
+  if (!isValid) {
+    return { ok: false, errors: form.errors.value };
+  }
+
+  return { ok: true, data: form.getValue() };
+}
+```
+
+## 56. Anti-patterns
+
+```typescript
+// ❌ Чтение form.valid без await form.validate()
+const handleSubmit = (e) => {
+  e.preventDefault();
+  form.markAsTouched();
+  if (form.valid.value) { // async-валидаторы ещё не завершились!
+    submit();
+  }
+};
+
+// ✅ Дождаться validate()
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  form.markAsTouched();
+  await form.validate();
+  if (form.valid.value) submit();
+};
+```
+
+```typescript
+// ❌ form.reset() в onSubmit ДО ответа сервера — потеря данных при ошибке
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  await api.send(form.getValue());
+  form.reset(); // Если api.send бросит, юзер потеряет ввод
+};
+
+// ✅ Reset только после успеха
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await api.send(form.getValue());
+    form.reset();
+  } catch (err) {
+    showError(err);
+  }
+};
+```
+
+```typescript
+// ❌ Disabled только по invalid (без pending) — кнопка кликабельна во время async
+<button disabled={form.invalid.value}>Submit</button>
+// пользователь может нажать пока async-валидатор крутится
+
+// ✅ Disabled = invalid OR pending
+<button disabled={form.invalid.value || form.pending.value}>
+  {form.pending.value ? 'Проверка…' : 'Submit'}
+</button>
+```
+
+```typescript
+// ❌ Двойная отправка — отсутствие guard'а isSubmitting
+const handleSubmit = async () => {
+  await form.validate();
+  if (form.valid.value) await api.send(form.getValue());
+};
+
+// ✅ Локальный флаг + disabled
+const [isSubmitting, setSubmitting] = useState(false);
+const handleSubmit = async () => {
+  if (isSubmitting) return;
+  setSubmitting(true);
+  try {
+    await form.validate();
+    if (form.valid.value) await api.send(form.getValue());
+  } finally {
+    setSubmitting(false);
+  }
+};
+```
+
+```typescript
+// ❌ Сброс через setValue полей по очереди — дорого и теряет dirty/touched
+form.username.setValue('');
+form.email.setValue('');
+form.password.setValue('');
+// errors остаются, dirty флаги не очищены
+
+// ✅ form.reset() делает всё одним вызовом
+form.reset();
+```
+
+## 57. Troubleshooting
+
+**Q: `form.valid.value` всегда `false` сразу после `markAsTouched()`.**
+A: Без `await form.validate()` async-валидаторы возвращают `pending`. Структура: `markAsTouched()` (sync) → `await form.validate()` (ждём) → `form.valid.value` (актуально).
+
+**Q: После `reset()` поля сбросились, но в UI остались старые ошибки.**
+A: Проверьте, что компонент подписан на `errors`/`touched` через `useFormControl(field)` — он сам перерисуется. Если используете кастомный hook, не забудьте подписаться на `field.errors.value`.
+
+**Q: `form.pending.value` залип в `true`.**
+A: Один из async-валидаторов выкинул исключение без `try/catch` — реактивный счётчик pending не уменьшился. Оборачивайте `validator: async (value) => { try { … } catch { return null; } }`. Также проверьте: не запускаете ли `form.validate()` параллельно (несколько одновременных вызовов).
+
+**Q: Хочу submit без markAsTouched — оставить «зелёную» форму.**
+A: Можно. `markAsTouched` нужен только чтобы UI **показал** ошибки. Если вы рендерите ошибки сами (через `form.errors.value`), достаточно `await form.validate(); if (form.valid.value) …`.
+
+**Q: Reset не возвращает initial values — поля очищаются в null.**
+A: Initial values в схеме задаются через `value: …`. Если вы передавали `value: undefined`, reset вернёт `undefined`/`null`. Также `patchValue(...)` НЕ меняет initial values — только текущие; reset вернёт к тем, что были в схеме.
+
+**Q: Disabled-поля участвуют в submit-данных?**
+A: `getValue()` возвращает значения **всех** полей, включая disabled, в том виде, в котором они есть. Если хотите вырезать disabled — фильтруйте вручную после `getValue()` или используйте `enableWhen({ resetOnDisable: true })`, чтобы при disable в поле возвращалось initial.
+
+## 58. See also
+
+- [29-async-preload.md](./29-async-preload.md) — initial values и preload через external hook
+- [11-async-watchfield.md](./11-async-watchfield.md) — async-валидация и `pending`
+- [03-api-signatures.md](./03-api-signatures.md) — полные сигнатуры FormProxy/GroupNode
+- [05-common-mistakes.md](./05-common-mistakes.md) — типичные ошибки в submit-флоу
+
+## 59. Purpose
+
+Раздел про загрузку формы данными с сервера: (1) **initial values** в схеме (для дефолтов и mock-данных без API); (2) **patchValue** для частичного обновления существующей формы; (3) **external React-hook** (`useLoadCreditApplication`) для full-blown async preload — параллельный fetch заявки + справочников, обработка ошибок, race-condition guard через `applicationId` в deps. Динамические `componentProps` (опции селектов и т. п.) обновляются через `queueMicrotask`, чтобы не пересечься с реактивными эффектами от `patchValue`.
+
+## 60. API
+
+```typescript
+// FormProxy / GroupNode:
+
+interface PreloadAPI<T> {
+  /** Полная замена value. Перетирает всё. */
+  setValue(value: T): void;
+
+  /** Частичный мердж. Не трогает поля, отсутствующие в payload. Используется для preload. */
+  patchValue(value: Partial<T>): void;
+
+  /** Initial values из схемы. reset() возвращает к ним. */
+  reset(): void;
+
+  /** Динамическое обновление componentProps конкретного поля. */
+  field.updateComponentProps(props: Record<string, unknown>): void;
+}
+```
+
+В схеме `FormSchema<T>` каждое поле принимает `value: TFieldValue` — это initial value, в которое поле возвращается при `reset()`.
+
+## 61. Examples
+
+### Initial values в схеме
+
+```typescript
+import { createForm, type FormSchema } from '@reformer/core';
+import { Input, Select } from '@reformer/ui-kit';
+
+interface ProfileForm {
+  username: string;
+  language: 'ru' | 'en';
+  marketing: boolean;
+}
+
+const schema: FormSchema<ProfileForm> = {
+  username: {
+    value: '',                // initial
+    component: Input,
+    componentProps: { label: 'Username' },
+  },
+  language: {
+    value: 'ru',              // дефолт «Русский»
+    component: Select,
+    componentProps: {
+      label: 'Язык',
+      options: [
+        { value: 'ru', label: 'Русский' },
+        { value: 'en', label: 'English' },
+      ],
+    },
+  },
+  marketing: {
+    value: true,
+    component: Input,
+    componentProps: { type: 'checkbox' },
+  },
+};
+
+const form = createForm({ form: schema });
+// form.getValue() === { username: '', language: 'ru', marketing: true }
+// после правок: form.reset() возвращает к этим же значениям
+```
+
+### Async preload через external hook + patchValue
+
+```tsx
+import { useEffect, useState } from 'react';
+import type { FormProxy } from '@reformer/core';
+
+interface LoadingState {
+  isLoading: boolean;
+  error: string | null;
+}
+
+export function useLoadCreditApplication(
+  form: FormProxy<CreditApplicationForm>,
+  applicationId: string | null,
+): LoadingState {
+  const [state, setState] = useState<LoadingState>({
+    isLoading: !!applicationId,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!applicationId) {
+      setState({ isLoading: false, error: null });
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setState({ isLoading: true, error: null });
+
+      try {
+        const [appResp, dictsResp] = await Promise.all([
+          fetchCreditApplication(applicationId),
+          fetchDictionaries(),
+        ]);
+
+        // Race-guard: пользователь успел сменить applicationId или unmount
+        if (cancelled) return;
+
+        if (appResp.status !== 200 || dictsResp.status !== 200) {
+          throw new Error('Сервер вернул ошибку');
+        }
+
+        // patchValue для полей формы
+        form.patchValue(appResp.data);
+
+        // Динамические componentProps — через queueMicrotask, чтобы дождаться
+        // окончания реактивных эффектов от patchValue
+        queueMicrotask(() => {
+          if (cancelled) return;
+          form.registrationAddress.city.updateComponentProps({
+            options: dictsResp.data.cities,
+          });
+          form.properties?.forEach((prop) =>
+            prop.type.updateComponentProps({ options: dictsResp.data.propertyTypes }),
+          );
+        });
+
+        setState({ isLoading: false, error: null });
+      } catch (err) {
+        if (cancelled) return;
+        setState({
+          isLoading: false,
+          error: err instanceof Error ? err.message : 'Неизвестная ошибка',
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationId]); // form стабилен (создан через useMemo)
+
+  return state;
+}
+```
+
+Source: [useLoadCreditApplication.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/hooks/useLoadCreditApplication.ts).
+
+### Использование hook'а в компоненте
+
+```tsx
+import { useMemo } from 'react';
+import { LoadingState } from './components/LoadingState';
+import { ErrorState } from './components/ErrorState';
+
+function CreditApplicationForm() {
+  const form = useMemo(() => createCreditApplicationForm(), []);
+  const { isLoading, error } = useLoadCreditApplication(form, '1'); // ID заявки
+
+  if (isLoading) return <LoadingState />;
+  if (error) return <ErrorState error={error} onRetry={() => location.reload()} />;
+
+  return <FormWizard form={form} steps={STEPS} onSubmit={onSubmit} />;
+}
+```
+
+Source: [CreditApplicationForm.tsx:50-66](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx).
+
+### Preload через behavior (когда сервер отвечает на изменение поля)
+
+```typescript
+import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface AddressForm {
+  region: string;
+  city: string;
+}
+
+export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
+  // Загрузка списка городов при выборе региона
+  watchField(
+    path.region,
+    async (region, ctx) => {
+      if (!region) {
+        ctx.form.city.updateComponentProps({ options: [] });
+        return;
+      }
+
+      try {
+        const { data: cities } = await fetchCities(region);
+        ctx.form.city.updateComponentProps({ options: cities });
+      } catch (err) {
+        console.error('Failed to load cities:', err);
+        ctx.form.city.updateComponentProps({ options: [] });
+      }
+    },
+    { immediate: false, debounce: 300 },
+  );
+};
+```
+
+Source: [address-behavior.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/Address/address-behavior.ts).
+
+## 62. Anti-patterns
+
+```typescript
+// ❌ form пересоздаётся при каждом рендере → preload запускается каждый раз
+function MyForm() {
+  const form = createForm({ form: schema }); // КАЖДЫЙ рендер!
+  useLoadCreditApplication(form, '1');
+  return …;
+}
+
+// ✅ Стабильная ссылка через useMemo
+function MyForm() {
+  const form = useMemo(() => createForm({ form: schema }), []);
+  useLoadCreditApplication(form, '1');
+  return …;
+}
+```
+
+```typescript
+// ❌ updateComponentProps синхронно после patchValue → "Cycle detected"
+form.patchValue(data);
+form.region.updateComponentProps({ options: [...] }); // bang
+
+// ✅ queueMicrotask, чтобы реактивные эффекты от patchValue завершились
+form.patchValue(data);
+queueMicrotask(() => {
+  form.region.updateComponentProps({ options: [...] });
+});
+```
+
+```typescript
+// ❌ Полная замена через setValue вместо patchValue
+form.setValue(partialData); // partialData может не содержать все поля → перетирает в undefined
+
+// ✅ patchValue — partial update, сохраняет необъявленные поля
+form.patchValue(partialData);
+```
+
+```typescript
+// ❌ Отсутствие race-guard в async useEffect
+useEffect(() => {
+  fetchData(id).then((data) => form.patchValue(data));
+}, [id]);
+// Если id быстро поменялся, старый response перезапишет новый
+
+// ✅ Cleanup-флаг
+useEffect(() => {
+  let cancelled = false;
+  fetchData(id).then((data) => {
+    if (!cancelled) form.patchValue(data);
+  });
+  return () => { cancelled = true; };
+}, [id]);
+```
+
+```typescript
+// ❌ Initial values задаются через patchValue после createForm — reset() их не помнит
+const form = createForm({ form: schema });
+form.patchValue({ username: 'default' });
+form.reset(); // username станет '' (из schema), а не 'default'
+
+// ✅ Если значение должно быть initial, кладите его в schema.value
+const schema = { username: { value: 'default', component: Input } };
+```
+
+## 63. Troubleshooting
+
+**Q: После `patchValue` ошибки валидации не показываются.**
+A: `patchValue` НЕ trigger'ит `markAsTouched`. Если хотите сразу видеть ошибки — после `patchValue` вызовите `form.markAsTouched(); await form.validate();`.
+
+**Q: Опции в `<Select>` не появляются после `updateComponentProps`.**
+A: (1) Убедитесь, что вызов обёрнут в `queueMicrotask` после patch'ей; (2) проверьте, что компонент Select подписан на изменения через `useFormControl` (не использует props напрямую без подписки); (3) для FormArray — пройдитесь `forEach` по элементам и обновите для каждого.
+
+**Q: `form.patchValue` не работает для FormArray.**
+A: Работает, но требует, чтобы массив существовал. Если в schema у вас `arr: { value: [] }`, `patchValue({ arr: [item1, item2] })` создаст элементы. Опции внутри элементов придётся обновить через `forEach` отдельно (см. example).
+
+**Q: Двойной запрос при mount + StrictMode.**
+A: StrictMode вызывает effect дважды. Race-guard через `cancelled` флаг (см. пример) корректно отменяет первый запрос. Дополнительно проверьте, что `applicationId` стабилен между рендерами.
+
+**Q: Хочу прелоад без отдельного hook'а — прямо в behavior через `watchField` на `id`.**
+A: Можно, но behavior запускается в момент создания формы и не может вернуть loading state. Лучше использовать external hook + `patchValue`. Behavior подходит для динамики **после** preload (загрузка городов при смене региона и т. п.).
+
+**Q: При `reset()` теряются данные, загруженные с сервера.**
+A: Это by design — `reset()` возвращает к initial values из schema, не к последнему `patchValue`. Если нужно «сбросить к данным с сервера», храните snapshot и используйте `form.setValue(snapshot)` вместо `reset()`.
+
+## 64. See also
+
+- [28-submit-and-reset.md](./28-submit-and-reset.md) — обратная сторона жизненного цикла
+- [11-async-watchfield.md](./11-async-watchfield.md) — `watchField` для динамики после preload
+- [22-cycle-detection.md](./22-cycle-detection.md) — почему `queueMicrotask` нужен
+- [16-ui-components.md](./16-ui-components.md) — `updateComponentProps` для динамических опций
+
+## 65. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1512,6 +3005,106 @@ export type AnyFunction = (...args: never[]) => unknown;
 ```
 
 _Source: src/core/types/index.ts_
+
+### apply
+
+**Kind:** `function`
+
+Применить validation схему к вложенному полю или полям
+
+Поддерживает:
+- Одно поле или массив полей
+- Одну схему или массив схем
+- Все комбинации (поле + схема, поле + схемы, поля + схема, поля + схемы)
+
+**Signature:**
+```typescript
+export function apply<TForm, TField>(
+  fields:
+    | FieldPathNode<TForm, TField>
+    | Array<FieldPathNode<TForm, TField> | undefined>
+    | undefined,
+  validationSchemas: ValidationSchemaFn<TField> | Array<ValidationSchemaFn<TField>>
+): void;
+```
+
+**Parameters:**
+- `fields` — - Одно поле или массив полей
+- `validationSchemas` — - Одна схема или массив схем
+
+**Examples:**
+
+```typescript
+// Одна схема к одному полю
+apply(path.registrationAddress, addressValidation);
+
+// Одна схема к нескольким полям
+apply([path.homeAddress, path.workAddress], addressValidation);
+
+// Несколько схем к одному полю
+apply(path.email, [emailValidation, uniqueEmailValidation]);
+
+// Несколько схем к нескольким полям
+apply(
+  [path.email, path.confirmEmail],
+  [emailValidation, matchValidation]
+);
+```
+
+_Source: src/core/validation/core/apply.ts_
+
+### applyWhen
+
+**Kind:** `function`
+
+Условное применение behavior схем (аналог applyWhen из validation API)
+
+⚠️ ВАЖНО: Эта функция НЕ создаёт новые behaviors при каждом изменении условия!
+Вместо этого behaviors регистрируются ОДИН РАЗ при первом вызове и затем
+просто не выполняются, если условие не выполнено.
+
+Это отличается от старой реализации, которая создавала утечку памяти,
+регистрируя behaviors при каждом изменении conditionField.
+
+**Signature:**
+```typescript
+export function applyWhen<TForm extends FormFields, TValue extends FormValue>(
+  conditionField: FieldPathNode<TForm, TValue> | undefined,
+  condition: (value: TValue) => boolean,
+  callback: (path: FieldPath<TForm>) => void
+): void
+```
+
+**Parameters:**
+- `conditionField` — - Поле для проверки условия
+- `condition` — - Функция проверки условия
+- `callback` — - Callback для применения behavior схем
+
+**Examples:**
+
+```typescript
+// Применить addressBehavior только когда sameAsRegistration === false
+applyWhen(
+  path.sameAsRegistration,
+  (value) => value === false,
+  (path) => {
+    apply(path.residenceAddress, addressBehavior);
+  }
+);
+
+// Или с прямым использованием path
+applyWhen(
+  path.hasProperty,
+  (value) => value === true,
+  (path) => {
+    apply(path.properties, propertyBehavior);
+    // Можно применить несколько схем
+    apply([path.properties, path.items], arrayBehavior);
+  }
+);
+```
+
+_Source: src/core/behavior/compose-behavior.ts_
 
 ### ArrayConfig
 
@@ -1783,6 +3376,169 @@ export interface AsyncValidatorOptions {
 
 _Source: src/core/types/index.ts_
 
+### BehaviorContext
+
+**Kind:** `type`
+
+Контекст для behavior callback функций
+Алиас для FormContext
+
+**Signature:**
+```typescript
+export type BehaviorContext<TForm> = FormContext<TForm>;
+```
+
+**Examples:**
+
+```typescript
+watchField(path.country, async (country, ctx) => {
+  // Прямой типизированный доступ к полям
+  const cities = await fetchCities(country);
+  ctx.form.city.updateComponentProps({ options: cities });
+
+  // Безопасная установка значения (без циклов)
+  ctx.setFieldValue('city', null);
+});
+```
+
+_Source: src/core/behavior/types.ts_
+
+### BehaviorContextImpl
+
+**Kind:** `class`
+
+Реализация {@link FormContext} для behaviors. Создаётся фреймворком и передаётся
+в callback'и behaviors (`watchField`, `computeFrom`, …) — напрямую инстанцировать
+не нужно.
+
+**Signature:**
+```typescript
+export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
+  /**
+   * Форма с типизированным Proxy-доступом к полям
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+import { watchField } from '@reformer/core/behaviors/watch-field';
+
+watchField(path.country, (value, ctx) => {
+  // ctx — экземпляр BehaviorContextImpl
+  ctx.setFieldValue(path.city, '');
+});
+```
+
+_Source: src/core/behavior/behavior-context.ts_
+
+### BehaviorHandlerFn
+
+**Kind:** `type`
+
+Функция-handler для behavior
+
+Создает effect подписку для реактивного поведения формы.
+
+**Signature:**
+```typescript
+export type BehaviorHandlerFn<TForm> = (
+  form: GroupNode<TForm>,
+  context: BehaviorContext<TForm>,
+  withDebounce: (callback: () => void) => void
+) => (() => void) | null;
+```
+
+**Parameters:**
+- `form` — - Корневой узел формы (GroupNode)
+- `context` — - Контекст для работы с формой
+- `withDebounce` — - Функция-обертка для debounce
+
+**Returns:** Функция cleanup для отписки от effect или null
+
+**Examples:**
+
+```typescript
+const handler: BehaviorHandlerFn<MyForm> = (form, context, withDebounce) => {
+  const sourceNode = form.getFieldByPath('email');
+
+  return effect(() => {
+    const value = sourceNode.value.value;
+    withDebounce(() => {
+      // Логика behavior
+    });
+  });
+};
+```
+
+_Source: src/core/behavior/types.ts_
+
+### BehaviorOptions
+
+**Kind:** `interface`
+
+Общие опции для behavior
+
+**Signature:**
+```typescript
+export interface BehaviorOptions {
+  /** Debounce в миллисекундах */
+  debounce?: number;
+}
+```
+
+_Source: src/core/behavior/types.ts_
+
+### BehaviorRegistry
+
+**Kind:** `class`
+
+Реестр behaviors для формы
+
+Каждый экземпляр GroupNode создает собственный реестр (композиция).
+Устраняет race conditions и изолирует формы друг от друга.
+
+Наследует AbstractRegistry для унификации:
+- Управления global stack
+- Template methods begin/end registration
+
+**Signature:**
+```typescript
+export class BehaviorRegistry extends AbstractRegistry<RegisteredBehavior> {
+  /**
+   * Получить текущий активный реестр из context stack
+   *
+   * @returns Текущий активный реестр или null
+   *
+   * @example
+   * ```typescript
+   * // В schema-behaviors.ts
+   * export function copyFrom(...) {
+   *   const registry = BehaviorRegistry.getCurrent();
+   *   if (registry) {
+   *     registry.register({ ... });
+   *   }
+   * }
+   * ```
+   */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+class GroupNode {
+  private readonly behaviorRegistry = new BehaviorRegistry();
+
+  applyBehaviorSchema(schemaFn) {
+    this.behaviorRegistry.beginRegistration(); // Pushes this to stack
+    schemaFn(createBehaviorFieldPath(this));   // Uses getCurrent()
+    return this.behaviorRegistry.endRegistration(this); // Pops from stack
+  }
+}
+```
+
+_Source: src/core/behavior/behavior-registry.ts_
+
 ### BehaviorSchemaFn
 
 **Kind:** `type`
@@ -1793,6 +3549,112 @@ _Source: src/core/types/index.ts_
 **Signature:**
 ```typescript
 export type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
+```
+
+_Source: src/core/behavior/types.ts_
+
+### computeFrom
+
+**Kind:** `function`
+
+Автоматически вычисляет значение поля на основе других полей
+
+**Signature:**
+```typescript
+export function computeFrom<TForm, TTarget>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sources: FieldPathNode<TForm, any>[],
+  target: FieldPathNode<TForm, TTarget>,
+  computeFn: (values: TForm) => TTarget,
+  options?: ComputeFromOptions<TForm>
+): void
+```
+
+**Parameters:**
+- `sources` — - Массив полей-зависимостей
+- `target` — - Поле для записи результата
+- `computeFn` — - Функция вычисления (принимает объект с именами полей)
+- `options` — - Опции (`debounce`, `condition`, `trigger`)
+
+**Examples:**
+
+Многополевой расчёт — total = price × quantity
+```typescript
+import { computeFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface OrderForm {
+price: number;
+quantity: number;
+total: number;
+}
+
+export const orderBehavior: BehaviorSchemaFn<OrderForm> = (path) => {
+computeFrom(
+[path.price, path.quantity],
+path.total,
+(values) =>
+(typeof values.price === 'number' ? values.price : 0) *
+(typeof values.quantity === 'number' ? values.quantity : 0),
+);
+};
+```
+
+Edge case — async-like дорогие вычисления с `debounce` и условием
+```typescript
+import { computeFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface MortgageForm {
+loanType: 'mortgage' | 'consumer';
+loanAmount: number;
+loanTerm: number;
+interestRate: number;
+monthlyPayment: number;
+}
+
+function annuity(values: MortgageForm): number {
+const { loanAmount, loanTerm, interestRate } = values;
+if (!loanAmount || !loanTerm || !interestRate) return 0;
+const r = interestRate / 100 / 12;
+const n = loanTerm;
+return Math.round((loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+}
+
+export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+computeFrom(
+[path.loanAmount, path.loanTerm, path.interestRate],
+path.monthlyPayment,
+annuity,
+{
+debounce: 300,                                  // не пересчитываем на каждый keystroke
+condition: (form) => form.loanType === 'mortgage', // считаем только для ипотеки
+},
+);
+};
+```
+
+**See also:**
+- [docs/llms/20-compute-vs-watch.md](../../../../docs/llms/20-compute-vs-watch.md)
+
+_Source: src/core/behavior/behaviors/compute-from.ts_
+
+### ComputeFromOptions
+
+**Kind:** `interface`
+
+Опции для computeFrom
+
+**Signature:**
+```typescript
+export interface ComputeFromOptions<TForm> {
+  /** Когда вычислять */
+  trigger?: 'change' | 'blur';
+
+  /** Debounce в мс */
+  debounce?: number;
+
+  /** Условие применения */
+  condition?: (form: TForm) => boolean;
+}
 ```
 
 _Source: src/core/behavior/types.ts_
@@ -1896,6 +3758,99 @@ validate(path.email, (value, ctx) => {
 
 _Source: src/core/types/validation-schema.ts_
 
+### copyFrom
+
+**Kind:** `function`
+
+Копирует значения из одного поля/группы в другое при выполнении условия
+
+**Signature:**
+```typescript
+export function copyFrom<TForm, TSource, TTarget>(
+  source: FieldPathNode<TForm, TSource>,
+  target: FieldPathNode<TForm, TTarget>,
+  options?: CopyFromOptions<TSource, TForm>
+): void
+```
+
+**Parameters:**
+- `source` — - Откуда копировать
+- `target` — - Куда копировать
+- `options` — - Опции копирования (`when`, `fields`, `transform`, `debounce`)
+
+**Examples:**
+
+Скаляр → скаляр с условием
+```typescript
+import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface ContactForm {
+sameEmail: boolean;
+email: string;
+emailAdditional: string;
+}
+
+export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+copyFrom(path.email, path.emailAdditional, {
+when: (form) => form.sameEmail === true,
+});
+};
+```
+
+Копирование группы с подмножеством полей и `transform`
+```typescript
+import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface Address { country: string; region: string; city: string; street: string }
+interface ProfileForm {
+sameAsRegistration: boolean;
+registrationAddress: Address;
+residenceAddress: Address;
+}
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+copyFrom(path.registrationAddress, path.residenceAddress, {
+when: (form) => form.sameAsRegistration === true,
+fields: ['country', 'region', 'city'], // street НЕ копируем
+transform: (addr) => ({
+...addr,
+country: addr.country.toUpperCase(), // нормализация при копировании
+}),
+debounce: 200,
+});
+};
+```
+
+**See also:**
+- [docs/llms/23-copy-from.md](../../../../docs/llms/23-copy-from.md)
+
+_Source: src/core/behavior/behaviors/copy-from.ts_
+
+### CopyFromOptions
+
+**Kind:** `interface`
+
+Опции для copyFrom
+
+**Signature:**
+```typescript
+export interface CopyFromOptions<TSource, TForm = unknown> {
+  /** Условие копирования */
+  when?: (form: TForm) => boolean;
+
+  /** Какие поля копировать (для групп) */
+  fields?: (keyof TSource)[] | 'all';
+
+  /** Трансформация значения */
+  transform?: (value: TSource) => unknown;
+
+  /** Debounce в мс */
+  debounce?: number;
+}
+```
+
+_Source: src/core/behavior/types.ts_
+
 ### createFieldPath
 
 **Kind:** `function`
@@ -1954,6 +3909,273 @@ form.email.setValue('test@mail.com');
 ```
 
 _Source: src/core/utils/create-form.ts_
+
+### createTransformer
+
+**Kind:** `function`
+
+Хелпер для создания переиспользуемых трансформаций
+
+**Signature:**
+```typescript
+export function createTransformer<TValue extends FormValue = FormValue>(
+  transformer: (value: TValue) => TValue,
+  defaultOptions?: TransformValueOptions
+)
+```
+
+**Parameters:**
+- `transformer` — - Идемпотентная функция преобразования значения
+- `defaultOptions` — - Опции, применяемые ко всем вызовам созданного трансформера
+
+**Examples:**
+
+Доменно-специфичные трансформеры (банковский счёт, СНИЛС)
+```typescript
+import { createTransformer, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+// Сохраняем только цифры и форматируем СНИЛС: 000-000-000 00
+const formatSnils = createTransformer<string>((v) => {
+const d = (v ?? '').replace(/\D/g, '').slice(0, 11);
+if (d.length < 9) return d;
+return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6, 9)}${d.length > 9 ? ' ' + d.slice(9) : ''}`;
+});
+
+interface ProfileForm { snils: string }
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+formatSnils(path.snils, { debounce: 100 });
+};
+```
+
+С `defaultOptions` — единые настройки на серию полей
+```typescript
+import { createTransformer, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+// Все коды должны быть uppercase, но только после правки пользователем
+const upperOnUserEdit = createTransformer<string>(
+(v) => (v ?? '').toUpperCase(),
+{ onUserChangeOnly: true, debounce: 100 },
+);
+
+interface PromoForm { promoCode: string; partnerCode: string }
+
+export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
+upperOnUserEdit(path.promoCode);
+upperOnUserEdit(path.partnerCode);
+};
+```
+
+_Source: src/core/behavior/behaviors/transform-value.ts_
+
+### disableWhen
+
+**Kind:** `function`
+
+Условное выключение поля (инверсия enableWhen)
+
+**Signature:**
+```typescript
+export function disableWhen<TForm>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  field: FieldPathNode<TForm, any>,
+  condition: (form: TForm) => boolean,
+  options?: EnableWhenOptions
+): void
+```
+
+**Parameters:**
+- `field` — - Поле для выключения
+- `condition` — - Функция условия (true = disable, false = enable)
+- `options` — - Опции (`resetOnDisable`, `debounce`)
+
+**Examples:**
+
+Базовый сценарий — readonly после подтверждения
+```typescript
+import { disableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface ConfirmForm {
+isConfirmed: boolean;
+editableField: string;
+}
+
+export const confirmBehavior: BehaviorSchemaFn<ConfirmForm> = (path) => {
+// Поле блокируется после установки чекбокса подтверждения
+disableWhen(path.editableField, (form) => form.isConfirmed === true);
+// resetOnDisable НЕ ставим — сохраняем введённый текст
+};
+```
+
+С `resetOnDisable` для очистки заблокированного поля
+```typescript
+import { disableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface PromoForm {
+loanType: 'mortgage' | 'consumer';
+promoCode: string;
+}
+
+export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
+// Промокод недоступен для потребительских кредитов и сбрасывается
+disableWhen(path.promoCode, (form) => form.loanType === 'consumer', {
+resetOnDisable: true,
+});
+};
+```
+
+_Source: src/core/behavior/behaviors/enable-when.ts_
+
+### email
+
+**Kind:** `function`
+
+Валидатор формата email
+
+Проверяет, что значение соответствует формату email адреса.
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function email<TForm, TField extends string | undefined = string>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  required(path.email),
+  email(path.email),
+]
+
+// С кастомным сообщением
+email(path.email, { message: 'Введите корректный email адрес' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'email',
+  message: 'Неверный формат email',
+  params: {}
+}
+```
+
+_Source: src/core/validation/validators/email.ts_
+
+### enableWhen
+
+**Kind:** `function`
+
+Условное включение поля на основе значений других полей
+
+**Signature:**
+```typescript
+export function enableWhen<TForm>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  field: FieldPathNode<TForm, any>,
+  condition: (form: TForm) => boolean,
+  options?: EnableWhenOptions
+): void
+```
+
+**Parameters:**
+- `field` — - Поле для включения/выключения
+- `condition` — - Функция условия (true = enable, false = disable)
+- `options` — - Опции (`resetOnDisable`, `debounce`)
+
+**Examples:**
+
+Базовый сценарий с `resetOnDisable: true`
+```typescript
+import { enableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface LoanForm {
+loanType: 'mortgage' | 'consumer' | 'car';
+propertyValue: number;
+initialPayment: number;
+}
+
+export const loanBehavior: BehaviorSchemaFn<LoanForm> = (path) => {
+// Поля ипотеки активны только для loanType === 'mortgage'.
+// resetOnDisable: true гарантирует чистые initial values при переключении.
+enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage', {
+resetOnDisable: true,
+});
+enableWhen(path.initialPayment, (form) => form.loanType === 'mortgage', {
+resetOnDisable: true,
+});
+};
+```
+
+Множественные independent условия + cycle prevention
+```typescript
+import { enableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface ProfileForm {
+sameAsRegistration: boolean;
+employmentStatus: 'employed' | 'selfEmployed' | 'unemployed';
+residenceAddress: { city: string; street: string };
+companyName: string;
+companyInn: string;
+businessType: string;
+}
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+// Адрес проживания: enabled, когда НЕ совпадает с регистрационным
+enableWhen(path.residenceAddress, (form) => form.sameAsRegistration === false, {
+resetOnDisable: true,
+});
+
+// Поля работодателя: только для employed
+enableWhen(path.companyName, (form) => form.employmentStatus === 'employed', {
+resetOnDisable: true,
+});
+enableWhen(path.companyInn, (form) => form.employmentStatus === 'employed', {
+resetOnDisable: true,
+});
+
+// ИП-поля: только для selfEmployed
+enableWhen(path.businessType, (form) => form.employmentStatus === 'selfEmployed', {
+resetOnDisable: true,
+});
+
+// ВАЖНО: condition не должен читать значение САМОГО поля — иначе цикл.
+// condition зависит ТОЛЬКО от независимых триггеров (loanType, employmentStatus, ...).
+};
+```
+
+**See also:**
+- [docs/llms/22-cycle-detection.md](../../../../docs/llms/22-cycle-detection.md)
+
+_Source: src/core/behavior/behaviors/enable-when.ts_
+
+### EnableWhenOptions
+
+**Kind:** `interface`
+
+Опции для enableWhen/disableWhen
+
+**Signature:**
+```typescript
+export interface EnableWhenOptions {
+  /** Сбросить значение при disable */
+  resetOnDisable?: boolean;
+
+  /** Debounce в мс */
+  debounce?: number;
+}
+```
+
+_Source: src/core/behavior/types.ts_
 
 ### ErrorFilterOptions
 
@@ -3102,6 +5324,49 @@ export type FormValue =
 
 _Source: src/core/types/index.ts_
 
+### futureDate
+
+**Kind:** `function`
+
+Проверяет, что дата находится в будущем (не в прошлом)
+
+Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
+
+**Signature:**
+```typescript
+export function futureDate<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование - дата события должна быть в будущем
+validationSchema: (path) => [
+  futureDate(path.eventDate),
+]
+
+// С кастомным сообщением
+futureDate(path.appointmentDate, { message: 'Дата записи должна быть в будущем' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_past',
+  message: 'Дата не может быть в прошлом',
+  params: {}
+}
+```
+
+_Source: src/core/validation/validators/future-date.ts_
+
 ### getCurrentBehaviorRegistry
 
 **Kind:** `function`
@@ -3303,6 +5568,50 @@ if (isArrayNode(node)) {
 
 _Source: src/core/utils/type-guards.ts_
 
+### isDate
+
+**Kind:** `function`
+
+Проверяет, что значение является валидной датой
+
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function isDate<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  isDate(path.birthDate),
+  isDate(path.eventDate),
+]
+
+// С кастомным сообщением
+isDate(path.birthDate, { message: 'Введите корректную дату' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_invalid',
+  message: 'Неверный формат даты',
+  params: {}
+}
+```
+
+_Source: src/core/validation/validators/is-date.ts_
+
 ### isFieldNode
 
 **Kind:** `function`
@@ -3393,6 +5702,374 @@ if (isGroupNode(node)) {
 
 _Source: src/core/utils/type-guards.ts_
 
+### max
+
+**Kind:** `function`
+
+Валидатор максимального числового значения
+
+Проверяет, что числовое значение не превышает указанный максимум.
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function max<TForm, TField extends number | undefined = number>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  maxValue: number,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `maxValue` — - Максимально допустимое значение
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  max(path.quantity, 100),
+  max(path.discount, 50),
+]
+
+// С кастомным сообщением
+max(path.quantity, 100, { message: 'Максимум 100 единиц' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'max',
+  message: 'Максимальное значение: 100',
+  params: { max: 100, actual: 150 }
+}
+```
+
+_Source: src/core/validation/validators/max.ts_
+
+### maxAge
+
+**Kind:** `function`
+
+Проверяет, что возраст (вычисленный из даты рождения) не больше указанного
+
+Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
+
+**Signature:**
+```typescript
+export function maxAge<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  maxAgeValue: number,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации (дата рождения)
+- `maxAgeValue` — - Максимально допустимый возраст в годах
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование - максимум 65 лет
+validationSchema: (path) => [
+  maxAge(path.birthDate, 65),
+]
+
+// С кастомным сообщением
+maxAge(path.birthDate, 100, { message: 'Проверьте правильность даты рождения' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_max_age',
+  message: 'Максимальный возраст: 65 лет',
+  params: { maxAge: 65, currentAge: 70 }
+}
+```
+
+_Source: src/core/validation/validators/max-age.ts_
+
+### maxDate
+
+**Kind:** `function`
+
+Проверяет, что дата не позже указанной максимальной
+
+Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
+
+**Signature:**
+```typescript
+export function maxDate<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  maxDateValue: Date,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `maxDateValue` — - Максимально допустимая дата (включительно)
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  maxDate(path.birthDate, new Date()), // Не позже сегодня
+]
+
+// С кастомным сообщением
+maxDate(path.endDate, new Date('2025-12-31'), { message: 'Дата не может быть позже конца года' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_max',
+  message: 'Дата должна быть не позднее 31.12.2025',
+  params: { maxDate: Date }
+}
+```
+
+_Source: src/core/validation/validators/max-date.ts_
+
+### maxLength
+
+**Kind:** `function`
+
+Валидатор максимальной длины строки
+
+Проверяет, что длина строки не превышает указанный максимум.
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function maxLength<TForm, TField extends string | undefined = string>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  maxLen: number,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `maxLen` — - Максимальная допустимая длина строки
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  maxLength(path.name, 50),
+  maxLength(path.bio, 500),
+]
+
+// С кастомным сообщением
+maxLength(path.bio, 500, { message: 'Максимум 500 символов' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'maxLength',
+  message: 'Максимальная длина: 500 символов',
+  params: { maxLength: 500, actualLength: 512 }
+}
+```
+
+_Source: src/core/validation/validators/max-length.ts_
+
+### min
+
+**Kind:** `function`
+
+Валидатор минимального числового значения
+
+Проверяет, что числовое значение не меньше указанного минимума.
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function min<TForm, TField extends number | undefined = number>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  minValue: number,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `minValue` — - Минимально допустимое значение
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  min(path.age, 18),
+  min(path.quantity, 1),
+]
+
+// С кастомным сообщением
+min(path.age, 18, { message: 'Вам должно быть не менее 18 лет' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'min',
+  message: 'Минимальное значение: 18',
+  params: { min: 18, actual: 16 }
+}
+```
+
+_Source: src/core/validation/validators/min.ts_
+
+### minAge
+
+**Kind:** `function`
+
+Проверяет, что возраст (вычисленный из даты рождения) не меньше указанного
+
+Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
+
+**Signature:**
+```typescript
+export function minAge<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  minAgeValue: number,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации (дата рождения)
+- `minAgeValue` — - Минимально допустимый возраст в годах
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование - минимум 18 лет
+validationSchema: (path) => [
+  minAge(path.birthDate, 18),
+]
+
+// С кастомным сообщением
+minAge(path.birthDate, 21, { message: 'Вам должно быть не менее 21 года' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_min_age',
+  message: 'Минимальный возраст: 18 лет',
+  params: { minAge: 18, currentAge: 16 }
+}
+```
+
+_Source: src/core/validation/validators/min-age.ts_
+
+### minDate
+
+**Kind:** `function`
+
+Проверяет, что дата не раньше указанной минимальной
+
+Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
+
+**Signature:**
+```typescript
+export function minDate<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  minDateValue: Date,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `minDateValue` — - Минимально допустимая дата (включительно)
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  minDate(path.eventDate, new Date('2024-01-01')),
+]
+
+// С кастомным сообщением
+minDate(path.startDate, new Date(), { message: 'Дата должна быть не раньше сегодня' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_min',
+  message: 'Дата должна быть не ранее 01.01.2024',
+  params: { minDate: Date }
+}
+```
+
+_Source: src/core/validation/validators/min-date.ts_
+
+### minLength
+
+**Kind:** `function`
+
+Валидатор минимальной длины строки
+
+Проверяет, что длина строки не меньше указанного минимума.
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function minLength<TForm, TField extends string | undefined = string>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  minLen: number,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `minLen` — - Минимальная допустимая длина строки
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path) => [
+  minLength(path.name, 2),
+  minLength(path.password, 8),
+]
+
+// С кастомным сообщением
+minLength(path.password, 8, { message: 'Пароль должен быть не менее 8 символов' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'minLength',
+  message: 'Минимальная длина: 8 символов',
+  params: { minLength: 8, actualLength: 3 }
+}
+```
+
+_Source: src/core/validation/validators/min-length.ts_
+
 ### NodeFactory
 
 **Kind:** `class`
@@ -3462,6 +6139,80 @@ const node = NodeFactory.create({ value: '' }); // → FieldNode<string>
 
 _Source: src/core/factories/node-factory.ts_
 
+### notEmpty
+
+**Kind:** `function`
+
+Проверить что массив содержит хотя бы один элемент
+
+Это удобный алиас для `minLength(field, 1)`, оптимизированный для массивов.
+
+**Signature:**
+```typescript
+export function notEmpty<TForm, TItem>(
+  fieldPath: FieldPathNode<TForm, TItem[] | undefined> | undefined,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Поле-массив для валидации
+- `options` — - Опции валидации (message, params и т.д.)
+
+**Examples:**
+
+```typescript
+// Простая проверка
+notEmpty(path.properties, { message: 'Добавьте хотя бы один объект имущества' });
+
+// С дополнительными параметрами
+notEmpty(path.coBorrowers, {
+  message: 'Требуется хотя бы один созаемщик',
+  params: { minItems: 1 }
+});
+```
+
+_Source: src/core/validation/validators/array-validators.ts_
+
+### number
+
+**Kind:** `function`
+
+Адаптер для number валидатора
+Проверяет, что значение является числом и соответствует заданным ограничениям
+
+**Signature:**
+```typescript
+export function number<TForm, TField extends number | undefined = number>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions & {
+    /** Минимальное значение (включительно) */
+    min?: number;
+    /** Максимальное значение (включительно) */
+    max?: number;
+    /** Требовать целое число */
+    integer?: boolean;
+    /** Значение должно быть кратно этому числу */
+    multipleOf?: number;
+    /** Разрешить отрицательные числа (по умолчанию true) */
+    allowNegative?: boolean;
+    /** Разрешить ноль (по умолчанию true) */
+    allowZero?: boolean;
+  }
+): void
+```
+
+**Examples:**
+
+```typescript
+number(path.age);
+number(path.price, { min: 0, max: 1000000 });
+number(path.percentage, { min: 0, max: 100, integer: true });
+number(path.rating, { min: 0, max: 5, multipleOf: 0.5 });
+```
+
+_Source: src/core/validation/validators/number.ts_
+
 ### ObservableForm
 
 **Kind:** `interface`
@@ -3501,6 +6252,49 @@ export interface ObservableFormNode {
 
 _Source: src/core/utils/form-observer.ts_
 
+### pastDate
+
+**Kind:** `function`
+
+Проверяет, что дата находится в прошлом (не в будущем)
+
+Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
+
+**Signature:**
+```typescript
+export function pastDate<TForm, TField extends string | Date | undefined = string | Date>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование - дата рождения не может быть в будущем
+validationSchema: (path) => [
+  pastDate(path.birthDate),
+]
+
+// С кастомным сообщением
+pastDate(path.birthDate, { message: 'Дата рождения не может быть в будущем' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'date_future',
+  message: 'Дата не может быть в будущем',
+  params: {}
+}
+```
+
+_Source: src/core/validation/validators/past-date.ts_
+
 ### PathSegment
 
 **Kind:** `interface`
@@ -3539,6 +6333,96 @@ export interface PathSegment {
 
 _Source: src/core/utils/field-path-navigator.ts_
 
+### pattern
+
+**Kind:** `function`
+
+Валидатор паттерна (регулярного выражения)
+
+Проверяет, что значение соответствует указанному регулярному выражению.
+Пустые значения пропускаются (используйте `required` для обязательности).
+
+**Signature:**
+```typescript
+export function pattern<TForm, TField extends string | undefined = string>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  regex: RegExp,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `regex` — - Регулярное выражение для проверки
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Только буквы
+pattern(path.name, /^[а-яА-Яa-zA-Z]+$/)
+
+// Только цифры
+pattern(path.code, /^\d+$/)
+
+// С кастомным сообщением
+pattern(path.username, /^[a-z0-9_]+$/i, {
+  message: 'Только латинские буквы, цифры и подчёркивание'
+})
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'pattern',
+  message: 'Значение не соответствует требуемому формату',
+  params: { pattern: '^[a-z]+$' }
+}
+```
+
+_Source: src/core/validation/validators/pattern.ts_
+
+### phone
+
+**Kind:** `function`
+
+Адаптер для phone валидатора
+Поддерживает опциональные поля (string | undefined)
+
+**Signature:**
+```typescript
+export function phone<TForm, TField extends string | undefined = string>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions & {
+    /** Формат телефона */
+    format?: PhoneFormat;
+  }
+): void
+```
+
+**Examples:**
+
+```typescript
+phone(path.phoneNumber);
+phone(path.phoneNumber, { format: 'ru' });
+phone(path.phoneNumber, { format: 'international', message: 'Неверный формат телефона' });
+```
+
+_Source: src/core/validation/validators/phone.ts_
+
+### PhoneFormat
+
+**Kind:** `type`
+
+Формат телефона для валидации
+
+**Signature:**
+```typescript
+export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
+```
+
+_Source: src/core/validation/validators/phone.ts_
+
 ### RegistryStack
 
 **Kind:** `class`
@@ -3575,6 +6459,136 @@ class ValidationRegistry {
 
 _Source: src/core/utils/registry-stack.ts_
 
+### required
+
+**Kind:** `function`
+
+Валидатор обязательного поля
+
+Проверяет, что поле имеет непустое значение.
+Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
+Для boolean полей требуется значение `true`.
+
+**Signature:**
+```typescript
+export function required<TForm, TField>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Путь к полю для валидации
+- `options` — - Опции валидации (message, params)
+
+**Examples:**
+
+```typescript
+// Базовое использование
+validationSchema: (path, { validate }) => [
+  required(path.name),
+  required(path.email),
+]
+
+// С кастомным сообщением
+required(path.phone, { message: 'Укажите номер телефона' })
+
+// Для checkbox (требует true)
+required(path.agreeToTerms, { message: 'Необходимо принять условия' })
+```
+
+```typescript
+// Ошибка валидации
+{
+  code: 'required',
+  message: 'Поле обязательно для заполнения',
+  params: {}
+}
+```
+
+_Source: src/core/validation/validators/required.ts_
+
+### resetWhen
+
+**Kind:** `function`
+
+Условный сброс поля при выполнении условия
+
+**Signature:**
+```typescript
+export function resetWhen<TForm extends FormFields>(
+  field: FieldPathNode<TForm, FormValue>,
+  condition: (form: TForm) => boolean,
+  options?: ResetWhenOptions & { debounce?: number }
+): void
+```
+
+**Parameters:**
+- `field` — - Поле для сброса
+- `condition` — - Функция условия (true = reset)
+- `options` — - Опции (`resetValue`, `onlyIfDirty`, `debounce`)
+
+**Examples:**
+
+Сброс зависимого поля при смене типа платежа
+```typescript
+import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface CheckoutForm {
+paymentType: 'card' | 'cash';
+cardNumber: string;
+}
+
+export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
+// Когда выбрано НЕ card — обнуляем номер карты в пустую строку
+resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', {
+resetValue: '',
+});
+};
+```
+
+`onlyIfDirty` — не трогаем нетронутые initial значения
+```typescript
+import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface CarForm {
+loanType: 'mortgage' | 'car' | 'consumer';
+carPrice: number;
+}
+
+export const carBehavior: BehaviorSchemaFn<CarForm> = (path) => {
+// Если пользователь не вводил carPrice — оставляем default из схемы.
+// Сбрасываем только если поле dirty (была пользовательская правка).
+resetWhen(path.carPrice, (form) => form.loanType !== 'car', {
+resetValue: 0,
+onlyIfDirty: true,
+});
+};
+```
+
+**See also:**
+- [docs/llms/25-reset-when.md](../../../../docs/llms/25-reset-when.md)
+
+_Source: src/core/behavior/behaviors/reset-when.ts_
+
+### ResetWhenOptions
+
+**Kind:** `interface`
+
+Опции для resetWhen
+
+**Signature:**
+```typescript
+export interface ResetWhenOptions {
+  /** Значение для сброса (по умолчанию null) */
+  resetValue?: FormValue;
+  /** Сбросить только если поле dirty */
+  onlyIfDirty?: boolean;
+}
+```
+
+_Source: src/core/behavior/behaviors/reset-when.ts_
+
 ### ResourceLoadResult
 
 **Kind:** `type`
@@ -3587,6 +6601,87 @@ export type ResourceLoadResult = unknown;
 ```
 
 _Source: src/core/types/index.ts_
+
+### revalidateWhen
+
+**Kind:** `function`
+
+Перевалидирует поле при изменении других полей
+
+**Signature:**
+```typescript
+export function revalidateWhen<TForm>(
+  target: FieldPathNode<TForm, FormValue>,
+  triggers: FieldPathNode<TForm, FormValue>[],
+  options?: RevalidateWhenOptions
+): void
+```
+
+**Parameters:**
+- `target` — - Поле для перевалидации
+- `triggers` — - Поля-триггеры (НЕ должно содержать `target`)
+- `options` — - Опции (`debounce`)
+
+**Examples:**
+
+Парная перевалидация — confirmPassword при смене password
+```typescript
+import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { equalTo } from '@reformer/core/validators';
+import type { FieldPath } from '@reformer/core';
+
+interface RegistrationForm { password: string; confirmPassword: string }
+
+export const validation = (path: FieldPath<RegistrationForm>) => {
+equalTo(path.confirmPassword, path.password, { message: 'Пароли не совпадают' });
+};
+
+export const behavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+// Если пользователь сначала ввёл confirm, потом меняет password —
+// без revalidateWhen ошибка confirmPassword останется устаревшей.
+revalidateWhen(path.confirmPassword, [path.password]);
+};
+```
+
+Несколько триггеров + `debounce` для async-валидаторов
+```typescript
+import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface MortgageForm {
+propertyValue: number;
+loanAmount: number;
+initialPayment: number; // правило: initialPayment >= propertyValue * 0.2 - loanAmount
+}
+
+export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+revalidateWhen(
+path.initialPayment,
+[path.propertyValue, path.loanAmount],
+{ debounce: 300 }, // не дёргаем сервер на каждый keystroke
+);
+};
+```
+
+**See also:**
+- [docs/llms/27-revalidate-when.md](../../../../docs/llms/27-revalidate-when.md)
+
+_Source: src/core/behavior/behaviors/revalidate-when.ts_
+
+### RevalidateWhenOptions
+
+**Kind:** `interface`
+
+Опции для revalidateWhen
+
+**Signature:**
+```typescript
+export interface RevalidateWhenOptions {
+  /** Debounce в мс */
+  debounce?: number;
+}
+```
+
+_Source: src/core/behavior/types.ts_
 
 ### runOutsideEffect
 
@@ -3831,6 +6926,125 @@ class FieldNode {
 
 _Source: src/core/utils/subscription-manager.ts_
 
+### syncFields
+
+**Kind:** `function`
+
+Двусторонняя синхронизация двух полей
+
+**Signature:**
+```typescript
+export function syncFields<TForm extends FormFields, T extends FormValue>(
+  field1: FieldPathNode<TForm, T>,
+  field2: FieldPathNode<TForm, T>,
+  options?: SyncFieldsOptions<T>
+): void
+```
+
+**Parameters:**
+- `field1` — - Первое поле
+- `field2` — - Второе поле
+- `options` — - Опции (`transform` асимметричен — применяется только field1 → field2; `debounce`)
+
+**Examples:**
+
+Базовый mirror двух текстовых полей
+```typescript
+import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface MirrorForm {
+syncField1: string;
+syncField2: string;
+}
+
+export const mirrorBehavior: BehaviorSchemaFn<MirrorForm> = (path) => {
+syncFields(path.syncField1, path.syncField2);
+};
+```
+
+С `transform` (асимметричный) и `debounce` для защиты от частых перезаписей
+```typescript
+import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface CodeForm {
+internalCode: string;  // канонический формат
+displayCode: string;   // показываем пользователю
+}
+
+export const codeBehavior: BehaviorSchemaFn<CodeForm> = (path) => {
+// internalCode → displayCode: применяется toUpperCase
+// displayCode → internalCode: пишется как есть
+syncFields(path.internalCode, path.displayCode, {
+transform: (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+debounce: 150, // сглаживает дёргание каретки
+});
+};
+```
+
+**See also:**
+- [docs/llms/24-sync-fields.md](../../../../docs/llms/24-sync-fields.md)
+
+_Source: src/core/behavior/behaviors/sync-fields.ts_
+
+### SyncFieldsOptions
+
+**Kind:** `interface`
+
+Опции для syncFields
+
+**Signature:**
+```typescript
+export interface SyncFieldsOptions<T> {
+  /** Трансформация значения */
+  transform?: (value: T) => T;
+
+  /** Debounce в мс */
+  debounce?: number;
+}
+```
+
+_Source: src/core/behavior/types.ts_
+
+### toBehaviorFieldPath
+
+**Kind:** `function`
+
+Преобразовать FieldPath во вложенный путь для композиции behavior схем
+
+Аналог toFieldPath из validation API.
+
+**Signature:**
+```typescript
+export function toBehaviorFieldPath<TForm, TField>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined
+): FieldPath<TField>
+```
+
+**Parameters:**
+- `fieldPath` — - Поле для преобразования
+
+**Returns:** Вложенный FieldPath
+
+**Examples:**
+
+```typescript
+// address-behavior.ts
+export const addressBehavior = (path: FieldPath<Address>) => {
+  watchField(path.country, async (country, ctx) => {
+    const regions = await fetchRegions(country);
+    ctx.updateComponentProps(path.region, { options: regions });
+  });
+};
+
+// user-behavior.ts
+export const userBehavior = (path: FieldPath<User>) => {
+  // Композиция: применяем addressBehavior к вложенному полю
+  addressBehavior(toBehaviorFieldPath(path.address));
+};
+```
+
+_Source: src/core/behavior/compose-behavior.ts_
+
 ### toFieldPath
 
 **Kind:** `function`
@@ -3863,6 +7077,174 @@ const mainValidation = (path: FieldPath<MyForm>) => {
 ```
 
 _Source: src/core/utils/field-path.ts_
+
+### transformers
+
+**Kind:** `const`
+
+Готовые трансформеры для частых случаев. Все идемпотентны и безопасны для повторного применения.
+
+**Signature:**
+```typescript
+export const transformers
+```
+
+**Examples:**
+
+Готовые трансформеры в схеме формы
+```typescript
+import { transformers, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface RegistrationForm {
+username: string;
+email: string;
+promoCode: string;
+inn: string;
+amount: number;
+}
+
+export const behavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+transformers.trim(path.username);
+transformers.toLowerCase(path.email);
+transformers.toUpperCase(path.promoCode);
+transformers.digitsOnly(path.inn);
+transformers.roundTo2(path.amount);
+};
+```
+
+Композиция готовых трансформеров через createTransformer
+```typescript
+import { createTransformer, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+// trim + lowercase в одном трансформере (применяется как одна операция)
+const normalizeEmail = createTransformer<string>(
+(v) => (v ?? '').trim().toLowerCase(),
+);
+
+interface ContactForm { email: string }
+
+export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+normalizeEmail(path.email);
+};
+```
+
+_Source: src/core/behavior/behaviors/transform-value.ts_
+
+### transformValue
+
+**Kind:** `function`
+
+Трансформация значения поля при изменении
+Позволяет автоматически форматировать или преобразовывать значения
+
+**Signature:**
+```typescript
+export function transformValue<TForm extends FormFields, TValue extends FormValue = FormValue>(
+  field: FieldPathNode<TForm, TValue>,
+  transformer: (value: TValue) => TValue,
+  options?: TransformValueOptions & { debounce?: number }
+): void
+```
+
+**Parameters:**
+- `field` — - Поле для трансформации
+- `transformer` — - Функция трансформации (ОБЯЗАТЕЛЬНО идемпотентная: f(f(x)) === f(x))
+- `options` — - Опции (`onUserChangeOnly`, `emitEvent`, `debounce`)
+
+**Examples:**
+
+Базовая нормализация — uppercase + trim email
+```typescript
+import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface RegistrationForm {
+promoCode: string;
+email: string;
+}
+
+export const registrationBehavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+// Идемпотентно: toUpperCase(toUpperCase(x)) === toUpperCase(x) ✓
+transformValue(path.promoCode, (value) => (value ?? '').toUpperCase());
+transformValue(path.email, (value) => (value ?? '').trim().toLowerCase());
+};
+```
+
+`onUserChangeOnly` + idempotent guard для не-тривиальных форматов
+```typescript
+import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface ProfileForm {
+inn: string; // ИНН — только цифры
+prefixedCode: string; // должен иметь префикс "ID-"
+}
+
+export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+// Цифры из ИНН: трансформер идемпотентный естественно
+transformValue(path.inn, (v) => (v ?? '').replace(/\D/g, ''));
+
+// Префикс — ВАЖНО guard «уже преобразовано», иначе бесконечный цикл
+// f("ID-123") должно === "ID-123", а не "ID-ID-123"
+transformValue(
+path.prefixedCode,
+(v) => (v?.startsWith('ID-') ? v : `ID-${v ?? ''}`),
+{
+onUserChangeOnly: true, // не трогаем значение из patchValue/preload
+debounce: 200,
+},
+);
+};
+```
+
+**See also:**
+- [docs/llms/26-transform-value.md](../../../../docs/llms/26-transform-value.md)
+
+_Source: src/core/behavior/behaviors/transform-value.ts_
+
+### TransformValueOptions
+
+**Kind:** `interface`
+
+Опции для transformValue
+
+**Signature:**
+```typescript
+export interface TransformValueOptions {
+  /** Трансформировать только при изменении пользователем (не программно) */
+  onUserChangeOnly?: boolean;
+  /** Триггерить событие изменения после трансформации */
+  emitEvent?: boolean;
+}
+```
+
+_Source: src/core/behavior/behaviors/transform-value.ts_
+
+### TreeValidationContextImpl
+
+**Kind:** `class`
+
+Контекст cross-field валидации. Передаётся в `validateTree`/`validateForm`
+callback'и — напрямую инстанцировать не нужно.
+
+**Signature:**
+```typescript
+export class TreeValidationContextImpl<TForm> extends BaseValidationContext<TForm> { /* … */ }
+```
+
+**Examples:**
+
+```typescript
+import { validateForm } from '@reformer/core';
+
+validateForm(form, (ctx) => {
+  // ctx — экземпляр TreeValidationContextImpl
+  if (ctx.form.startDate.value > ctx.form.endDate.value) {
+    return [{ code: 'date-range', message: 'Дата начала позже даты окончания' }];
+  }
+  return [];
+});
+```
+
+_Source: src/core/validation/validation-context.ts_
 
 ### TreeValidatorFn
 
@@ -3958,6 +7340,36 @@ export type UnknownRecord = Record<string, any>;
 ```
 
 _Source: src/core/types/index.ts_
+
+### url
+
+**Kind:** `function`
+
+Адаптер для URL валидатора
+Поддерживает опциональные поля (string | undefined)
+
+**Signature:**
+```typescript
+export function url<TForm, TField extends string | undefined = string>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  options?: ValidateOptions & {
+    /** Требовать наличие протокола (http:// или https://) */
+    requireProtocol?: boolean;
+    /** Разрешенные протоколы */
+    allowedProtocols?: string[];
+  }
+): void
+```
+
+**Examples:**
+
+```typescript
+url(path.website);
+url(path.website, { message: 'Введите корректный URL' });
+url(path.website, { requireProtocol: true });
+```
+
+_Source: src/core/validation/validators/url.ts_
 
 ### useArrayLength
 
@@ -4445,6 +7857,87 @@ function MaybeHidden({ form, path, children }) {
 
 _Source: src/hooks/useHiddenCondition.ts_
 
+### validate
+
+**Kind:** `function`
+
+Зарегистрировать кастомный синхронный валидатор для поля
+Поддерживает опциональные поля
+
+**Signature:**
+```typescript
+export function validate<TForm, TField>(
+  fieldPath: FieldPathNode<TForm, TField> | undefined,
+  validatorFn: ContextualValidatorFn<TForm, TField>,
+  options?: ValidateOptions
+): void
+```
+
+**Examples:**
+
+```typescript
+validate(path.birthDate, (ctx: ValidationContext<TForm, TField>) => {
+  const birthDate = new Date(ctx.value());
+  const age = calculateAge(birthDate);
+
+  if (age < 18) {
+    return {
+      code: 'tooYoung',
+      message: 'Заемщику должно быть не менее 18 лет',
+    };
+  }
+
+  return null;
+});
+```
+
+_Source: src/core/validation/core/validate.ts_
+
+### validateAsync
+
+**Kind:** `function`
+
+Зарегистрировать асинхронный валидатор для поля
+
+**Signature:**
+```typescript
+export function validateAsync<TForm, TField>(
+  fieldPath: FieldPathNode<TForm, TField>,
+  validatorFn: ContextualAsyncValidatorFn<TForm, TField>,
+  options?: ValidateAsyncOptions
+): void
+```
+
+**Examples:**
+
+```typescript
+validateAsync(
+  path.inn,
+  async (ctx: ValidationContext<TForm, TField>) => {
+    const inn = ctx.value();
+    if (!inn) return null;
+
+    const response = await fetch('/api/validate-inn', {
+      method: 'POST',
+      body: JSON.stringify({ inn }),
+    });
+
+    const data = await response.json();
+    if (!data.valid) {
+      return {
+        code: 'invalidInn',
+        message: 'ИНН не найден в базе данных ФНС',
+      };
+    }
+
+    return null;
+  },
+  { debounce: 1000 }
+);
+```
+
+_Source: src/core/validation/core/validate-async.ts_
+
 ### ValidateAsyncOptions
 
 **Kind:** `interface`
@@ -4523,6 +8016,44 @@ const isValid = await validateForm(form, schema);
 
 _Source: src/core/validation/validate-form.ts_
 
+### validateItems
+
+**Kind:** `function`
+
+Применить validation schema к каждому элементу массива
+
+Регистрирует схему валидации, которая будет автоматически применяться
+к каждому элементу ArrayNode (как существующим, так и новым).
+
+**Signature:**
+```typescript
+export function validateItems<TForm, TItem>(
+  fieldPath: FieldPathNode<TForm, TItem[] | undefined> | undefined,
+  itemSchemaFn: ValidationSchemaFn<TItem>
+): void
+```
+
+**Parameters:**
+- `fieldPath` — - Поле-массив для валидации элементов
+- `itemSchemaFn` — - Validation schema для одного элемента
+
+**Examples:**
+
+```typescript
+import { propertyValidation } from './property-validation';
+
+// В additionalValidation
+applyWhen(path.hasProperty, (value) => value === true, (path) => {
+  // Проверка что массив не пустой
+  notEmpty(path.properties, { message: 'Добавьте хотя бы один объект имущества' });
+
+  // Валидация каждого элемента
+  validateItems(path.properties, propertyValidation);
+});
+```
+
+_Source: src/core/validation/validators/array-validators.ts_
+
 ### ValidateOptions
 
 **Kind:** `interface`
@@ -4541,6 +8072,44 @@ export interface ValidateOptions {
 
 _Source: src/core/types/validation-schema.ts_
 
+### validateTree
+
+**Kind:** `function`
+
+Зарегистрировать cross-field валидатор
+
+Используется для валидации, которая зависит от нескольких полей
+
+**Signature:**
+```typescript
+export function validateTree<TForm>(
+  validatorFn: TreeValidatorFn<TForm>,
+  options?: ValidateTreeOptions
+): void
+```
+
+**Examples:**
+
+```typescript
+// Явная типизация ctx для избежания implicit any
+validateTree(
+  (ctx: { form: MyForm }) => {
+    if (ctx.form.initialPayment && ctx.form.propertyValue) {
+      if (ctx.form.initialPayment > ctx.form.propertyValue) {
+        return {
+          code: 'initialPaymentTooHigh',
+          message: 'Первоначальный взнос не может превышать стоимость',
+        };
+      }
+    }
+    return null;
+  },
+  { targetField: 'initialPayment' }
+);
+```
+
+_Source: src/core/validation/core/validate-tree.ts_
+
 ### ValidateTreeOptions
 
 **Kind:** `interface`
@@ -4556,6 +8125,34 @@ export interface ValidateTreeOptions {
 ```
 
 _Source: src/core/types/validation-schema.ts_
+
+### ValidationContextImpl
+
+**Kind:** `class`
+
+Контекст валидации одного поля. Создаётся фреймворком и передаётся в валидаторы
+(`required`, `validate`, …) — напрямую инстанцировать не нужно.
+
+**Signature:**
+```typescript
+export class ValidationContextImpl<TForm, TField> extends BaseValidationContext<TForm> { /* … */ }
+```
+
+**Examples:**
+
+```typescript
+import { validate } from '@reformer/core/validators';
+
+validate(path.password, (value, ctx) => {
+  // ctx — экземпляр ValidationContextImpl, доступ к ctx.form для cross-field логики
+  if (value !== ctx.form.confirmPassword.value) {
+    return { code: 'mismatch', message: 'Пароли не совпадают' };
+  }
+  return null;
+});
+```
+
+_Source: src/core/validation/validation-context.ts_
 
 ### ValidationError
 
@@ -4575,6 +8172,41 @@ export interface ValidationError {
 ```
 
 _Source: src/core/types/index.ts_
+
+### ValidationRegistry
+
+**Kind:** `class`
+
+Реестр валидаторов для формы
+
+Каждый экземпляр GroupNode создает собственный реестр (композиция).
+Устраняет race conditions и изолирует формы друг от друга.
+
+Наследует AbstractRegistry для унификации:
+- Управления global stack
+- Template methods begin/end registration
+
+**Signature:**
+```typescript
+export class ValidationRegistry extends AbstractRegistry<ValidatorRegistration> {
+  /** Внутренний стек контекстов для управления condition blocks */ /* … */ }
+```
+
+**Examples:**
+
+```typescript
+class GroupNode {
+  private readonly validationRegistry = new ValidationRegistry();
+
+  applyValidationSchema(schemaFn) {
+    this.validationRegistry.beginRegistration(); // Pushes this to global stack
+    schemaFn(createFieldPath(this));             // Uses getCurrent()
+    this.validationRegistry.endRegistration(this); // Pops from global stack
+  }
+}
+```
+
+_Source: src/core/validation/validation-registry.ts_
 
 ### ValidationSchemaFn
 
@@ -4628,6 +8260,117 @@ export interface ValidatorRegistration {
 ```
 
 _Source: src/core/types/validation-schema.ts_
+
+### watchField
+
+**Kind:** `function`
+
+Выполняет callback при изменении поля
+
+**Signature:**
+```typescript
+export function watchField<TForm, TField>(
+  field: FieldPathNode<TForm, TField>,
+  callback: (value: TField, ctx: BehaviorContext<TForm>) => void | Promise<void>,
+  options?: WatchFieldOptions
+): void
+```
+
+**Parameters:**
+- `field` — - Поле для отслеживания
+- `callback` — - Функция обратного вызова
+- `options` — - Опции (`debounce`, `immediate`)
+
+**Examples:**
+
+Async loader with try/catch + guard + debounce
+```typescript
+import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface AddressForm { region: string; city: string }
+
+export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
+watchField(
+path.region,
+async (region, ctx) => {
+if (!region) {
+ctx.form.city.updateComponentProps({ options: [] });
+return; // guard: пустое значение не триггерит fetch
+}
+try {
+const { data: cities } = await fetchCities(region);
+ctx.form.city.updateComponentProps({ options: cities });
+} catch (error) {
+console.error('[addressBehavior] failed to load cities:', error);
+ctx.form.city.updateComponentProps({ options: [] });
+}
+},
+{ immediate: false, debounce: 300 }, // обязательные опции для async
+);
+};
+```
+
+Sync handler с консолидацией нескольких зависимостей в один watcher
+```typescript
+import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+
+interface InsuranceForm {
+insuranceType: 'casco' | 'osago' | 'property' | '';
+vehicleVin: string;
+propertyType: string;
+}
+
+export const insuranceBehavior: BehaviorSchemaFn<InsuranceForm> = (path) => {
+// ОДИН watchField на trigger-поле — несколько watcher'ов на одно поле = "Cycle detected"
+watchField(
+path.insuranceType,
+(type, ctx) => {
+const isVehicle = type === 'casco' || type === 'osago';
+const isProperty = type === 'property';
+
+// Guard — ставим только если состояние реально меняется
+if (isVehicle) {
+if (ctx.form.vehicleVin.disabled.value) ctx.form.vehicleVin.enable();
+} else {
+if (!ctx.form.vehicleVin.disabled.value) ctx.form.vehicleVin.disable();
+if (ctx.form.vehicleVin.getValue() !== '') ctx.form.vehicleVin.setValue('');
+}
+
+if (isProperty) {
+if (ctx.form.propertyType.disabled.value) ctx.form.propertyType.enable();
+} else {
+if (!ctx.form.propertyType.disabled.value) ctx.form.propertyType.disable();
+if (ctx.form.propertyType.getValue() !== '') ctx.form.propertyType.setValue('');
+}
+},
+{ immediate: false }, // CRITICAL: предотвращает запуск во время инициализации
+);
+};
+```
+
+**See also:**
+- [docs/llms/22-cycle-detection.md](../../../../docs/llms/22-cycle-detection.md)
+
+_Source: src/core/behavior/behaviors/watch-field.ts_
+
+### WatchFieldOptions
+
+**Kind:** `interface`
+
+Опции для watchField
+
+**Signature:**
+```typescript
+export interface WatchFieldOptions {
+  /** Debounce в мс */
+  debounce?: number;
+
+  /** Вызвать сразу при инициализации */
+  immediate?: boolean;
+}
+```
+
+_Source: src/core/behavior/types.ts_
 
 ### WithBehaviorSchema
 

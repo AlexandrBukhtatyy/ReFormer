@@ -21,27 +21,63 @@ import type { ComputeFromOptions, BehaviorHandlerFn } from '../types';
  * @param sources - Массив полей-зависимостей
  * @param target - Поле для записи результата
  * @param computeFn - Функция вычисления (принимает объект с именами полей)
- * @param options - Опции
+ * @param options - Опции (`debounce`, `condition`, `trigger`)
  *
- * @example
+ * @example Многополевой расчёт — total = price × quantity
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Автоматический расчет минимального взноса
- *   computeFrom(
- *     [path.propertyValue],
- *     path.initialPayment,
- *     (values) => values.propertyValue ? values.propertyValue * 0.2 : null,
- *     { debounce: 300 }
- *   );
+ * import { computeFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
  *
- *   // Общая стоимость = цена * количество
+ * interface OrderForm {
+ *   price: number;
+ *   quantity: number;
+ *   total: number;
+ * }
+ *
+ * export const orderBehavior: BehaviorSchemaFn<OrderForm> = (path) => {
  *   computeFrom(
  *     [path.price, path.quantity],
  *     path.total,
- *     (values) => values.price * values.quantity
+ *     (values) =>
+ *       (typeof values.price === 'number' ? values.price : 0) *
+ *       (typeof values.quantity === 'number' ? values.quantity : 0),
  *   );
  * };
  * ```
+ *
+ * @example Edge case — async-like дорогие вычисления с `debounce` и условием
+ * ```typescript
+ * import { computeFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface MortgageForm {
+ *   loanType: 'mortgage' | 'consumer';
+ *   loanAmount: number;
+ *   loanTerm: number;
+ *   interestRate: number;
+ *   monthlyPayment: number;
+ * }
+ *
+ * function annuity(values: MortgageForm): number {
+ *   const { loanAmount, loanTerm, interestRate } = values;
+ *   if (!loanAmount || !loanTerm || !interestRate) return 0;
+ *   const r = interestRate / 100 / 12;
+ *   const n = loanTerm;
+ *   return Math.round((loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+ * }
+ *
+ * export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+ *   computeFrom(
+ *     [path.loanAmount, path.loanTerm, path.interestRate],
+ *     path.monthlyPayment,
+ *     annuity,
+ *     {
+ *       debounce: 300,                                  // не пересчитываем на каждый keystroke
+ *       condition: (form) => form.loanType === 'mortgage', // считаем только для ипотеки
+ *     },
+ *   );
+ * };
+ * ```
+ *
+ * @see [docs/llms/20-compute-vs-watch.md](../../../../docs/llms/20-compute-vs-watch.md)
  */
 export function computeFrom<TForm, TTarget>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

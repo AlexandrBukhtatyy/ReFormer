@@ -19,18 +19,50 @@ import { watchField } from './watch-field';
  *
  * @param source - Откуда копировать
  * @param target - Куда копировать
- * @param options - Опции копирования
+ * @param options - Опции копирования (`when`, `fields`, `transform`, `debounce`)
  *
- * @example
+ * @example Скаляр → скаляр с условием
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Копировать адрес регистрации в адрес проживания
- *   copyFrom(path.registrationAddress, path.residenceAddress, {
- *     when: (form) => form.sameAsRegistration === true,
- *     fields: 'all'
+ * import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface ContactForm {
+ *   sameEmail: boolean;
+ *   email: string;
+ *   emailAdditional: string;
+ * }
+ *
+ * export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+ *   copyFrom(path.email, path.emailAdditional, {
+ *     when: (form) => form.sameEmail === true,
  *   });
  * };
  * ```
+ *
+ * @example Копирование группы с подмножеством полей и `transform`
+ * ```typescript
+ * import { copyFrom, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface Address { country: string; region: string; city: string; street: string }
+ * interface ProfileForm {
+ *   sameAsRegistration: boolean;
+ *   registrationAddress: Address;
+ *   residenceAddress: Address;
+ * }
+ *
+ * export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+ *   copyFrom(path.registrationAddress, path.residenceAddress, {
+ *     when: (form) => form.sameAsRegistration === true,
+ *     fields: ['country', 'region', 'city'], // street НЕ копируем
+ *     transform: (addr) => ({
+ *       ...addr,
+ *       country: addr.country.toUpperCase(), // нормализация при копировании
+ *     }),
+ *     debounce: 200,
+ *   });
+ * };
+ * ```
+ *
+ * @see [docs/llms/23-copy-from.md](../../../../docs/llms/23-copy-from.md)
  */
 export function copyFrom<TForm, TSource, TTarget>(
   source: FieldPathNode<TForm, TSource>,

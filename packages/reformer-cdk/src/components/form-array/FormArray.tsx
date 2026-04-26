@@ -11,7 +11,60 @@ import { FormArrayItemIndex } from './FormArrayItemIndex';
 import type { FormArrayRootProps } from './types';
 
 /**
- * Handle exposed via ref for external control of FormArray
+ * Handle exposed via ref for external control of {@link FormArray}.
+ *
+ * Имперо-API для случаев, когда триггер находится вне дерева `FormArray.Root`
+ * (тулбар страницы, диалог подтверждения, async-эффект). Получают через
+ * `useRef<FormArrayHandle<T>>(null)` и передают в `<FormArray.Root ref={...}>`.
+ *
+ * Свойства `length` / `isEmpty` — снимок на момент рендера. Реактивную длину
+ * для условного UI снаружи берите через `useFormControl(arrayNode).length`.
+ *
+ * @typeParam T - Тип одного элемента массива (как в `FormArray.Root control={...}`).
+ *
+ * @example Тулбар «Добавить / Очистить» поверх массива
+ * ```tsx
+ * import { useRef } from 'react';
+ * import { FormArray, type FormArrayHandle } from '@reformer/cdk/form-array';
+ *
+ * function PropertiesEditor({ form }: Props) {
+ *   const arrayRef = useRef<FormArrayHandle<Property>>(null);
+ *
+ *   return (
+ *     <>
+ *       <div className="toolbar">
+ *         <button onClick={() => arrayRef.current?.add({ type: 'apartment' })}>
+ *           + Квартира
+ *         </button>
+ *         <button onClick={() => arrayRef.current?.add({ type: 'house' })}>
+ *           + Дом
+ *         </button>
+ *         <button onClick={() => confirm('Удалить всё?') && arrayRef.current?.clear()}>
+ *           Очистить
+ *         </button>
+ *       </div>
+ *       <FormArray.Root ref={arrayRef} control={form.properties}>
+ *         <FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
+ *       </FormArray.Root>
+ *     </>
+ *   );
+ * }
+ * ```
+ *
+ * @example Импорт массива из API: insert + at для проверки дублей
+ * ```tsx
+ * const arrayRef = useRef<FormArrayHandle<Contact>>(null);
+ *
+ * async function importFromCSV(rows: Contact[]) {
+ *   for (const row of rows) {
+ *     // skip duplicates by email
+ *     const existing = Array.from({ length: arrayRef.current?.length ?? 0 })
+ *       .map((_, i) => arrayRef.current?.at(i)?.getValue());
+ *     if (existing.some((c) => c?.email === row.email)) continue;
+ *     arrayRef.current?.insert(0, row); // добавляем в начало
+ *   }
+ * }
+ * ```
  */
 export interface FormArrayHandle<T extends FormFields> {
   /** Add a new item to the end of the array */

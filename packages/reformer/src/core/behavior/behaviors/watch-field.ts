@@ -20,22 +20,74 @@ import type { BehaviorContext, WatchFieldOptions, BehaviorHandlerFn } from '../t
  *
  * @param field - Поле для отслеживания
  * @param callback - Функция обратного вызова
- * @param options - Опции
+ * @param options - Опции (`debounce`, `immediate`)
  *
- * @example
+ * @example Async loader with try/catch + guard + debounce
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Динамическая загрузка городов при изменении страны
- *   watchField(path.registrationAddress.country, async (country, ctx) => {
- *     if (country) {
- *       const cities = await fetchCities(country);
- *       ctx.updateComponentProps(path.registrationAddress.city, {
- *         options: cities
- *       });
- *     }
- *   });
+ * import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface AddressForm { region: string; city: string }
+ *
+ * export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
+ *   watchField(
+ *     path.region,
+ *     async (region, ctx) => {
+ *       if (!region) {
+ *         ctx.form.city.updateComponentProps({ options: [] });
+ *         return; // guard: пустое значение не триггерит fetch
+ *       }
+ *       try {
+ *         const { data: cities } = await fetchCities(region);
+ *         ctx.form.city.updateComponentProps({ options: cities });
+ *       } catch (error) {
+ *         console.error('[addressBehavior] failed to load cities:', error);
+ *         ctx.form.city.updateComponentProps({ options: [] });
+ *       }
+ *     },
+ *     { immediate: false, debounce: 300 }, // обязательные опции для async
+ *   );
  * };
  * ```
+ *
+ * @example Sync handler с консолидацией нескольких зависимостей в один watcher
+ * ```typescript
+ * import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface InsuranceForm {
+ *   insuranceType: 'casco' | 'osago' | 'property' | '';
+ *   vehicleVin: string;
+ *   propertyType: string;
+ * }
+ *
+ * export const insuranceBehavior: BehaviorSchemaFn<InsuranceForm> = (path) => {
+ *   // ОДИН watchField на trigger-поле — несколько watcher'ов на одно поле = "Cycle detected"
+ *   watchField(
+ *     path.insuranceType,
+ *     (type, ctx) => {
+ *       const isVehicle = type === 'casco' || type === 'osago';
+ *       const isProperty = type === 'property';
+ *
+ *       // Guard — ставим только если состояние реально меняется
+ *       if (isVehicle) {
+ *         if (ctx.form.vehicleVin.disabled.value) ctx.form.vehicleVin.enable();
+ *       } else {
+ *         if (!ctx.form.vehicleVin.disabled.value) ctx.form.vehicleVin.disable();
+ *         if (ctx.form.vehicleVin.getValue() !== '') ctx.form.vehicleVin.setValue('');
+ *       }
+ *
+ *       if (isProperty) {
+ *         if (ctx.form.propertyType.disabled.value) ctx.form.propertyType.enable();
+ *       } else {
+ *         if (!ctx.form.propertyType.disabled.value) ctx.form.propertyType.disable();
+ *         if (ctx.form.propertyType.getValue() !== '') ctx.form.propertyType.setValue('');
+ *       }
+ *     },
+ *     { immediate: false }, // CRITICAL: предотвращает запуск во время инициализации
+ *   );
+ * };
+ * ```
+ *
+ * @see [docs/llms/22-cycle-detection.md](../../../../docs/llms/22-cycle-detection.md)
  */
 export function watchField<TForm, TField>(
   field: FieldPathNode<TForm, TField>,

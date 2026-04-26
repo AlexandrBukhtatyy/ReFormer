@@ -1,6 +1,6 @@
 # Render Behavior
 
-`RenderBehaviorFn<T>` — функция, навешивающая декларативное поведение на готовый `RenderSchemaProxy`. Применяется через `createRenderSchema(...).behavior(fn)` или передаётся в обвязку (`@reformer/renderer-json`).
+`RenderBehaviorFn<T>` — функция, навешивающая декларативное поведение на готовый `RenderSchemaProxy`. Хелперы — standalone-функции, принимают `RenderNodeControl` (узел из `proxy.node('selector')`) первым аргументом.
 
 ## Helpers
 
@@ -21,9 +21,7 @@
 import { hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';
 
 const behavior: RenderBehaviorFn<CreditForm> = (proxy) => {
-  proxy.node('mortgage-section').apply(
-    hideWhen((form) => form.loanType.value !== 'mortgage'),
-  );
+  hideWhen(proxy.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
 };
 ```
 
@@ -32,22 +30,19 @@ const behavior: RenderBehaviorFn<CreditForm> = (proxy) => {
 ```tsx
 import { renderEffect } from '@reformer/renderer-react';
 
-proxy.node('summary').apply(
-  renderEffect((form) => {
-    console.log('total changed:', form.total.value);
-  }),
-);
+renderEffect(proxy.node('summary'), () => {
+  console.log('total changed:', form.total.value);
+});
 ```
 
-Lifecycle:
+Lifecycle (несколько хелперов на одном узле — просто вызываем подряд):
 
 ```tsx
 import { onInit, onMount } from '@reformer/renderer-react';
 
-proxy.node('wizard').apply(
-  onInit((form) => analytics.track('wizard:init', { step: form.currentStep.value })),
-  onMount(() => focusFirstInvalidField()),
-);
+const wizard = proxy.node('wizard');
+onInit(wizard, () => analytics.track('wizard:init', { step: form.currentStep.value }));
+onMount(wizard, () => focusFirstInvalidField());
 ```
 
 ## Anti-patterns

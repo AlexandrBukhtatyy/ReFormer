@@ -161,6 +161,19 @@ function collectFromFile(
       continue;
     }
 
+    // export * as ns from './foo' — flatten namespace contents.
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamespaceExport(stmt.exportClause) &&
+      stmt.moduleSpecifier &&
+      ts.isStringLiteral(stmt.moduleSpecifier)
+    ) {
+      const target = resolveModule(filePath, stmt.moduleSpecifier.text);
+      if (target) collectFromFile(target, visited, collected, null, pkg);
+      continue;
+    }
+
     if (
       ts.isExportDeclaration(stmt) &&
       stmt.exportClause &&

@@ -62,8 +62,21 @@ abstract class BaseValidationContext<TForm> implements FormContext<TForm> {
 // ============================================================================
 
 /**
- * Контекст валидации для отдельного поля
- * Предоставляет доступ к значению конкретного поля
+ * Контекст валидации одного поля. Создаётся фреймворком и передаётся в валидаторы
+ * (`required`, `validate`, …) — напрямую инстанцировать не нужно.
+ *
+ * @example
+ * ```typescript
+ * import { validate } from '@reformer/core/validators';
+ *
+ * validate(path.password, (value, ctx) => {
+ *   // ctx — экземпляр ValidationContextImpl, доступ к ctx.form для cross-field логики
+ *   if (value !== ctx.form.confirmPassword.value) {
+ *     return { code: 'mismatch', message: 'Пароли не совпадают' };
+ *   }
+ *   return null;
+ * });
+ * ```
  */
 export class ValidationContextImpl<TForm, TField> extends BaseValidationContext<TForm> {
   private control: FieldNode<TField>;
@@ -87,8 +100,21 @@ export class ValidationContextImpl<TForm, TField> extends BaseValidationContext<
 // ============================================================================
 
 /**
- * Контекст для cross-field валидации
- * Не предоставляет доступ к конкретному полю, только к форме целиком
+ * Контекст cross-field валидации. Передаётся в `validateTree`/`validateForm`
+ * callback'и — напрямую инстанцировать не нужно.
+ *
+ * @example
+ * ```typescript
+ * import { validateForm } from '@reformer/core';
+ *
+ * validateForm(form, (ctx) => {
+ *   // ctx — экземпляр TreeValidationContextImpl
+ *   if (ctx.form.startDate.value > ctx.form.endDate.value) {
+ *     return [{ code: 'date-range', message: 'Дата начала позже даты окончания' }];
+ *   }
+ *   return [];
+ * });
+ * ```
  */
 export class TreeValidationContextImpl<TForm> extends BaseValidationContext<TForm> {
   constructor(form: GroupNode<TForm>) {

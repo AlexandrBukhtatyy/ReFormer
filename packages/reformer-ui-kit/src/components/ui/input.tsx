@@ -4,24 +4,54 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link Input}. */
 export interface InputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+  /** Дополнительный CSS-класс (мерджится с дефолтными Tailwind-классами через `tailwind-merge`). */
   className?: string;
+  /**
+   * Текущее значение поля. Для `type='number'` ожидается `number | null`,
+   * для остальных — `string | null`. `null`/`undefined` рендерится как пустое поле.
+   */
   value?: string | number | null;
+  /**
+   * Обработчик изменений. Получает уже распарсенное значение:
+   * - для `type='number'` — `number` или `null` (для пустой строки),
+   * - иначе — `string` или `null`.
+   * `NaN` не прокидывается. При `min >= 0` отрицательные значения превращаются в `0`.
+   */
   onChange?: (value: string | number | null) => void;
+  /** Срабатывает при потере фокуса. Используется `FormField` для пометки `touched`. */
   onBlur?: () => void;
+  /** HTML-тип input. Для `'number'` включается специальный парсинг значения. */
   type?: 'text' | 'email' | 'number' | 'tel' | 'url' | 'password';
+  /** Подсказка внутри поля. */
   placeholder?: string;
+  /** Блокирует ввод и редактирование. */
   disabled?: boolean;
 }
 
 /**
  * Текстовое поле ввода. Контролируемый компонент с тривиальным API: `value`/`onChange`
- * получает строку (или число для `type="number"`).
+ * получает строку (или число для `type="number"`). Все нативные `<input>`-атрибуты
+ * (кроме `value`/`onChange`) прокидываются как есть.
  *
- * @example
+ * @example Базовое строковое поле
  * ```tsx
  * import { Input } from '@reformer/ui-kit';
  *
- * <Input value={value} onChange={setValue} placeholder="email@example.com" />
+ * <Input value={email} onChange={setEmail} type="email" placeholder="you@example.com" />
+ * ```
+ *
+ * @example Числовое поле с лимитом снизу
+ * ```tsx
+ * import { Input } from '@reformer/ui-kit';
+ *
+ * // Пустой ввод даёт null. Отрицательные значения зажимаются к 0 из-за min={0}.
+ * <Input
+ *   type="number"
+ *   value={age}
+ *   onChange={(v) => setAge(v as number | null)}
+ *   min={0}
+ *   placeholder="Возраст"
+ * />
  * ```
  */
 const Input = React.forwardRef<HTMLInputElement, InputProps>(

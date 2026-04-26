@@ -4,24 +4,53 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link Textarea}. */
 export interface TextareaProps
   extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
+  /** Дополнительный CSS-класс. */
   className?: string;
+  /** Текущее значение. `null`/`undefined` рендерится как пустое поле. */
   value?: string | null;
+  /** Обработчик изменений. Пустая строка приводится к `null`. */
   onChange?: (value: string | null) => void;
+  /** Срабатывает при потере фокуса. */
   onBlur?: () => void;
+  /** Подсказка внутри поля. */
   placeholder?: string;
+  /** Блокирует ввод. */
   disabled?: boolean;
+  /** Видимая высота в строках. По умолчанию `3`. */
   rows?: number;
+  /**
+   * Hard-лимит длины (нативное HTML-поведение). Используется как soft-protection
+   * на уровне UI; для бизнес-валидации добавляй `maxLength` через `validations`.
+   */
   maxLength?: number;
 }
 
 /**
- * Многострочное поле ввода.
+ * Многострочное поле ввода. Resize по вертикали разрешён (`resize-y`).
  *
- * @example
+ * @example Поле для комментария с лимитом длины
  * ```tsx
  * import { Textarea } from '@reformer/ui-kit';
  *
- * <Textarea value={comment} onChange={setComment} rows={5} maxLength={500} />
+ * <Textarea
+ *   value={comment}
+ *   onChange={setComment}
+ *   rows={5}
+ *   maxLength={500}
+ *   placeholder="Опишите проблему"
+ * />
+ * ```
+ *
+ * @example Поле адреса
+ * ```tsx
+ * import { Textarea } from '@reformer/ui-kit';
+ *
+ * <Textarea
+ *   value={address}
+ *   onChange={setAddress}
+ *   rows={3}
+ *   placeholder="Адрес доставки"
+ * />
  * ```
  */
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(

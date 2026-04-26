@@ -236,6 +236,19 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
       continue;
     }
 
+    // export * as ns from './foo' — flatten namespace contents into the public set
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamespaceExport(stmt.exportClause) &&
+      stmt.moduleSpecifier &&
+      ts.isStringLiteral(stmt.moduleSpecifier)
+    ) {
+      const target = resolveModule(filePath, stmt.moduleSpecifier.text);
+      if (target) collectFromFile(target, visited, collected, null);
+      continue;
+    }
+
     // export { A, B } from './foo'
     if (
       ts.isExportDeclaration(stmt) &&

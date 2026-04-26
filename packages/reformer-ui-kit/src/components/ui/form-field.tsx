@@ -5,11 +5,26 @@ import { Checkbox } from './checkbox';
 
 /** Props компонента {@link FormField}. */
 export interface FormFieldProps {
+  /**
+   * Поле формы. Из него берутся `component` (тип контрола), `componentProps`,
+   * `value`, `error`, `pending`, `setValue`, `blur`. Контрол инстанцируется
+   * автоматически через `CdkFormField.Control`.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   control: FieldNode<any>;
+  /** Дополнительный CSS-класс для корневой `<div>`-обёртки. */
   className?: string;
+  /**
+   * Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`,
+   * `error-<id>`). Если опущен — пытается взять `componentProps.testId`,
+   * иначе подставляет `'unknown'`.
+   */
   testId?: string;
-  /** Дочерний элемент (input) - для использования с RenderSchema fieldWrapper */
+  /**
+   * Кастомный input — оборачивается в `CdkFormField.Control asChild`. Используется,
+   * когда нужен нестандартный контрол (например, сторонняя маска), не
+   * зарегистрированный в `control.component`.
+   */
   children?: React.ReactNode;
 }
 
@@ -74,22 +89,49 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
 };
 
 /**
- * Готовый wrapper поля: автоматически рендерит label, control и error из
- * `@reformer/cdk/form-field`. Используется как `fieldWrapper` в `RenderSchema`
- * или подключается напрямую.
+ * Готовый wrapper поля: автоматически рендерит `Label` → `Control` → `Error`
+ * из `@reformer/cdk/form-field`. Подключается напрямую `<FormField control=... />`
+ * или как `fieldWrapper` для `FormRenderer`.
  *
- * @example
+ * Особенности:
+ * - Для `Checkbox` верхний `Label` не рендерится (label идёт справа от контрола).
+ * - При `pending = true` (async-валидация) под полем показывается «Проверка...».
+ * - Обёрнут в `React.memo` со сравнением по ссылке `control` — критично для
+ *   производительности больших форм.
+ *
+ * @example Standalone в обычной форме
  * ```tsx
- * import { FormField } from '@reformer/ui-kit';
+ * import { useMemo } from 'react';
+ * import { createForm, type FormSchema } from '@reformer/core';
+ * import { Button, FormField, Input } from '@reformer/ui-kit';
  *
- * <FormField control={form.email} testId="email" />
+ * function RegistrationPage() {
+ *   const form = useMemo(
+ *     () => createForm<FormSchema<{ email: string }>>({
+ *       email: { component: Input, componentProps: { label: 'Email' } },
+ *     }),
+ *     []
+ *   );
+ *   return (
+ *     <form>
+ *       <FormField control={form.email} testId="email" />
+ *       <Button type="submit">OK</Button>
+ *     </form>
+ *   );
+ * }
  * ```
  *
- * @example В качестве fieldWrapper рендерера
+ * @example В качестве `fieldWrapper` для FormRenderer
  * ```tsx
+ * import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
  * import { FormField } from '@reformer/ui-kit';
  *
- * <FormRenderer render={schema} form={form} settings={{ fieldWrapper: FormField }} />
+ * const schema = createRenderSchema<MyForm>((path) => ({
+ *   component: 'Box',
+ *   children: [{ component: path.email }, { component: path.phone }],
+ * }));
+ *
+ * <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
  * ```
  */
 export const FormField = React.memo(FormFieldComponent, (prevProps, nextProps) => {

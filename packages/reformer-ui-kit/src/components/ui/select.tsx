@@ -3,28 +3,50 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/** Параметры запроса к {@link ResourceConfig.load}. */
 interface ResourceLoadParams {
+  /** Поисковый запрос (для async-фильтрации). */
   search?: string;
+  /** Номер страницы (1-based) для пагинации. */
   page?: number;
+  /** Размер страницы. */
   pageSize?: number;
+  /** Дополнительные пользовательские параметры. */
   [key: string]: unknown;
 }
 
+/** Один элемент, возвращаемый {@link ResourceConfig.load}. */
 interface ResourceItem<T> {
+  /** Уникальный ключ элемента (для React `key`). */
   id: string | number;
+  /** Видимая подпись опции. */
   label: string;
+  /** Значение, которое попадает в `onChange` (всегда приводится к строке). */
   value: T;
+  /** Опциональное имя группы — варианты с одинаковым `group` объединяются в `SelectGroup`. */
   group?: string;
+  /** Дополнительные поля бек-данных. */
   [key: string]: unknown;
 }
 
+/** Ответ {@link ResourceConfig.load}. */
 interface ResourceResult<T> {
+  /** Список вариантов. */
   items: ResourceItem<T>[];
+  /** Общее число доступных вариантов (для пагинации). */
   totalCount: number;
 }
 
+/** Конфигурация асинхронного источника опций для {@link Select}. */
 export interface ResourceConfig<T> {
+  /**
+   * Стратегия загрузки:
+   * - `'static'` — варианты загружаются один раз и больше не меняются;
+   * - `'preload'` — загрузка на маунт компонента (используется по умолчанию в {@link Select});
+   * - `'partial'` — порционная загрузка (нужен будет внешний механизм пагинации).
+   */
   type: 'static' | 'preload' | 'partial';
+  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
 }
 
@@ -33,31 +55,61 @@ export interface SelectProps<T> extends Omit<
   React.ComponentProps<typeof SelectPrimitive.Root>,
   'value' | 'onValueChange'
 > {
+  /** Дополнительный CSS-класс для триггера. */
   className?: string;
+  /** Выбранное значение. Всегда строка из `option.value`. `null` — ничего не выбрано. */
   value?: string | null;
+  /** Обработчик выбора. При нажатии на крестик (`clearable`) приходит `null`. */
   onChange?: (value: string | null) => void;
+  /** Срабатывает при закрытии дропдауна (через `onOpenChange(false)`). */
   onBlur?: () => void;
+  /** Асинхронный источник опций. Если задан вместе с `options`, приоритет у `options`. */
   resource?: ResourceConfig<T>;
+  /**
+   * Inline-варианты. `value` приводится к строке. Опции с одинаковым `group`
+   * объединяются в `SelectGroup` с `SelectLabel` (см. рецепт grouped options).
+   */
   options?: Array<{ value: string | number; label: string; group?: string }>;
+  /** Подсказка в триггере. По умолчанию `'Select an option...'`. */
   placeholder?: string;
+  /** Блокирует выбор. */
   disabled?: boolean;
+  /** Показывать ли кнопку очистки (X) справа от значения. По умолчанию `false`. */
   clearable?: boolean;
 }
 
 /**
- * Выпадающий список на shadcn/Radix `Select`. Принимает либо `options` напрямую,
- * либо `resource` для асинхронной загрузки.
+ * Выпадающий список на `@radix-ui/react-select`. Поддерживает два режима
+ * источника данных: inline `options` и async `resource`. При `clearable=true`
+ * показывает крестик для сброса значения в `null`.
  *
- * @example
+ * @example Inline-options
  * ```tsx
  * import { Select } from '@reformer/ui-kit';
  *
  * <Select
  *   value={loanType}
  *   onChange={setLoanType}
+ *   placeholder="Тип кредита"
  *   options={[
  *     { value: 'consumer', label: 'Потребительский' },
  *     { value: 'mortgage', label: 'Ипотека' },
+ *     { value: 'auto', label: 'Авто' },
+ *   ]}
+ * />
+ * ```
+ *
+ * @example Grouped options
+ * ```tsx
+ * import { Select } from '@reformer/ui-kit';
+ *
+ * <Select
+ *   value={city}
+ *   onChange={setCity}
+ *   options={[
+ *     { value: 'msk', label: 'Москва', group: 'Россия' },
+ *     { value: 'spb', label: 'Санкт-Петербург', group: 'Россия' },
+ *     { value: 'minsk', label: 'Минск', group: 'Беларусь' },
  *   ]}
  * />
  * ```
@@ -215,11 +267,38 @@ const Select = React.forwardRef<
 Select.displayName = 'Select';
 
 /**
- * Группа `<SelectItem>` с заголовком {@link SelectLabel}. Тонкая обёртка над Radix Select.Group.
+ * Группа `<SelectItem>` с заголовком {@link SelectLabel}. Тонкая обёртка над
+ * `Radix.Select.Group`. Используется при ручной сборке кастомного дропдауна
+ * вместо `options`-проп `Select`.
  *
- * @example
+ * @example Группа с заголовком
  * ```tsx
- * <SelectGroup><SelectLabel>Fruit</SelectLabel><SelectItem value="apple">Apple</SelectItem></SelectGroup>
+ * import { SelectGroup, SelectLabel, SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectGroup>
+ *   <SelectLabel>Фрукты</SelectLabel>
+ *   <SelectItem value="apple">Яблоко</SelectItem>
+ *   <SelectItem value="pear">Груша</SelectItem>
+ * </SelectGroup>
+ * ```
+ *
+ * @example Несколько групп подряд внутри SelectContent
+ * ```tsx
+ * import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
+ *
+ * <Select value={city} onChange={setCity}>
+ *   <SelectTrigger><SelectValue placeholder="Город" /></SelectTrigger>
+ *   <SelectContent>
+ *     <SelectGroup>
+ *       <SelectLabel>Россия</SelectLabel>
+ *       <SelectItem value="msk">Москва</SelectItem>
+ *     </SelectGroup>
+ *     <SelectGroup>
+ *       <SelectLabel>Беларусь</SelectLabel>
+ *       <SelectItem value="minsk">Минск</SelectItem>
+ *     </SelectGroup>
+ *   </SelectContent>
+ * </Select>
  * ```
  */
 function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.Group>) {
@@ -227,11 +306,27 @@ function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.G
 }
 
 /**
- * Отображает выбранное значение внутри {@link SelectTrigger}. Обёртка над Radix Select.Value.
+ * Отображает выбранное значение внутри {@link SelectTrigger}. Обёртка над
+ * `Radix.Select.Value`. Поддерживает `placeholder` для пустого состояния.
  *
- * @example
+ * @example Стандартный placeholder
  * ```tsx
- * <SelectTrigger><SelectValue placeholder="Select option" /></SelectTrigger>
+ * import { SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
+ *
+ * <SelectTrigger>
+ *   <SelectValue placeholder="Выберите вариант" />
+ * </SelectTrigger>
+ * ```
+ *
+ * @example Кастомное представление выбранного значения через children
+ * ```tsx
+ * import { SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
+ *
+ * <SelectTrigger>
+ *   <SelectValue placeholder="Не выбрано">
+ *     {value && <span className="font-bold">{value}</span>}
+ *   </SelectValue>
+ * </SelectTrigger>
  * ```
  */
 function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
@@ -239,11 +334,26 @@ function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.V
 }
 
 /**
- * Кнопка-открывалка списка для {@link Select}. Обёртка над Radix Select.Trigger.
+ * Кнопка-открывалка списка для {@link Select}. Обёртка над
+ * `Radix.Select.Trigger` с дефолтными стилями (h-9, rounded, border) и
+ * `ChevronDown` справа.
  *
- * @example
+ * @example Дефолтный размер
  * ```tsx
- * <SelectTrigger><SelectValue placeholder="Choose..." /></SelectTrigger>
+ * import { SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
+ *
+ * <SelectTrigger>
+ *   <SelectValue placeholder="Выберите страну" />
+ * </SelectTrigger>
+ * ```
+ *
+ * @example Компактный (size='sm')
+ * ```tsx
+ * import { SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
+ *
+ * <SelectTrigger size="sm" className="w-32">
+ *   <SelectValue placeholder="Сорт." />
+ * </SelectTrigger>
  * ```
  */
 function SelectTrigger({
@@ -283,11 +393,27 @@ function SelectTrigger({
 }
 
 /**
- * Дропдаун-контент {@link Select} (попап со списком). Обёртка над Radix Select.Content.
+ * Дропдаун-контент {@link Select} (попап со списком). Обёртка над
+ * `Radix.Select.Content` с порталом, скролл-кнопками сверху/снизу и
+ * `position='popper'` по умолчанию (растягивается под ширину триггера).
  *
- * @example
+ * @example Popper-режим (default — ширина равна триггеру)
  * ```tsx
- * <SelectContent><SelectItem value="a">A</SelectItem></SelectContent>
+ * import { SelectContent, SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectContent>
+ *   <SelectItem value="a">A</SelectItem>
+ *   <SelectItem value="b">B</SelectItem>
+ * </SelectContent>
+ * ```
+ *
+ * @example Item-aligned (контент центрируется по выбранному элементу)
+ * ```tsx
+ * import { SelectContent, SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectContent position="item-aligned">
+ *   {LONG_LIST.map((x) => <SelectItem key={x.id} value={x.id}>{x.label}</SelectItem>)}
+ * </SelectContent>
  * ```
  */
 function SelectContent({
@@ -323,11 +449,27 @@ function SelectContent({
 }
 
 /**
- * Заголовок секции внутри {@link SelectGroup}. Обёртка над Radix Select.Label.
+ * Заголовок секции внутри {@link SelectGroup}. Обёртка над
+ * `Radix.Select.Label`. Не выбирается; используется для визуального разделения
+ * групп.
  *
- * @example
+ * @example Простая подпись группы
  * ```tsx
- * <SelectLabel>Fruit</SelectLabel>
+ * import { SelectGroup, SelectLabel, SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectGroup>
+ *   <SelectLabel>Овощи</SelectLabel>
+ *   <SelectItem value="potato">Картошка</SelectItem>
+ * </SelectGroup>
+ * ```
+ *
+ * @example Кастомный класс заголовка
+ * ```tsx
+ * import { SelectGroup, SelectLabel } from '@reformer/ui-kit/select';
+ *
+ * <SelectGroup>
+ *   <SelectLabel className="text-blue-600 font-bold">Премиум</SelectLabel>
+ * </SelectGroup>
  * ```
  */
 function SelectLabel({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.Label>) {
@@ -341,11 +483,23 @@ function SelectLabel({ className, ...props }: React.ComponentProps<typeof Select
 }
 
 /**
- * Один пункт списка {@link Select}. Обёртка над Radix Select.Item.
+ * Один пункт списка {@link Select}. Обёртка над `Radix.Select.Item` с
+ * чекмарком-индикатором (`CheckIcon`) для выбранного варианта.
  *
- * @example
+ * @example Простой пункт
  * ```tsx
- * <SelectItem value="apple">Apple</SelectItem>
+ * import { SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectItem value="apple">Яблоко</SelectItem>
+ * ```
+ *
+ * @example Заблокированный пункт
+ * ```tsx
+ * import { SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectItem value="premium" disabled>
+ *   Premium (требуется подписка)
+ * </SelectItem>
  * ```
  */
 function SelectItem({
@@ -374,10 +528,23 @@ function SelectItem({
 
 /**
  * Кнопка-стрелка для скролла вверх в дропдауне {@link SelectContent}.
+ * `SelectContent` добавляет её автоматически, экспорт нужен для случаев
+ * полностью кастомной сборки.
  *
- * @example
+ * @example Автоматическое добавление SelectContent
  * ```tsx
- * <SelectContent>{/* SelectScrollUpButton добавляется автоматически *\/}</SelectContent>
+ * import { SelectContent, SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectContent>
+ *   <SelectItem value="a">A</SelectItem>
+ * </SelectContent>
+ * ```
+ *
+ * @example Ручное использование (кастомная сборка дропдауна)
+ * ```tsx
+ * import { SelectScrollUpButton } from '@reformer/ui-kit/select';
+ *
+ * <SelectScrollUpButton className="bg-gray-50 text-gray-600" />
  * ```
  */
 function SelectScrollUpButton({
@@ -397,10 +564,23 @@ function SelectScrollUpButton({
 
 /**
  * Кнопка-стрелка для скролла вниз в дропдауне {@link SelectContent}.
+ * `SelectContent` добавляет её автоматически, экспорт нужен для случаев
+ * полностью кастомной сборки.
  *
- * @example
+ * @example Автоматическое добавление SelectContent
  * ```tsx
- * <SelectContent>{/* SelectScrollDownButton добавляется автоматически *\/}</SelectContent>
+ * import { SelectContent, SelectItem } from '@reformer/ui-kit/select';
+ *
+ * <SelectContent>
+ *   <SelectItem value="a">A</SelectItem>
+ * </SelectContent>
+ * ```
+ *
+ * @example Ручное использование (кастомная сборка дропдауна)
+ * ```tsx
+ * import { SelectScrollDownButton } from '@reformer/ui-kit/select';
+ *
+ * <SelectScrollDownButton className="bg-gray-50 text-gray-600" />
  * ```
  */
 function SelectScrollDownButton({

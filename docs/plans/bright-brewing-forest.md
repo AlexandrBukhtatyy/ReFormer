@@ -1,141 +1,154 @@
-# Оптимизация PROMT.md
+# План: полное покрытие документации `@reformer/*` для ИИ-агентов
 
 ## Context
 
-В корне репозитория лежит `PROMT.md` — четырёхстрочная заметка с идеей: «у нас есть `reformer-mcp`, хочу один MCP-сервер для агентов, и нужно придумать как документировать код для ИИ». Текст содержит опечатку, дублирует мысль в двух предложениях, не учитывает, что MCP-сервер уже реализован, и смешивает две разные задачи (доработка сервера и конвенция документации) без явных критериев приёмки.
+Предыдущий эпик (`PROMT.md`) поднял инфраструктуру: конвенцию [docs/llms-convention.md](../llms-convention.md), генератор [scripts/generate-llms-txt/](../../scripts/generate-llms-txt/), MCP-tools `get_symbol_docs`/`find_example`, `reformer://` ресурсы. Сейчас все 5 пакетов проходят аудит **формально** (0 callable без `@example`), но содержательно покрытие неполное.
 
-Адресат итогового файла — ИИ-агент (Claude Code или другой MCP-клиент), который по нему будет планировать и выполнять реализацию. Нужно дать структурированный бриф: цель, текущее состояние, две связанные задачи с шагами и критериями, ссылки на конкретные файлы.
+Аудит трёх параллельных Explore-агентов вскрыл четыре блока пробелов:
 
-## Текущее состояние, на которое опирается новый промт
+1. **`@reformer/core` ≈ 75% полноты.** 21 файл `docs/llms/` хорошо покрывают array/computeFrom/enableWhen/watchField/cycle-detection. `copyFrom`, `syncFields`, `resetWhen`, `transformValue`, `revalidateWhen` упомянуты только в `03-api-signatures.md` без отдельных рецептов. Submit/reset workflow и async preload не документированы как самостоятельные сценарии. JSDoc на behaviors (`watch-field`, `enable-when`) даёт 1 минимальный `@example` без try-catch / guard / `resetOnDisable`.
+2. **`@reformer/cdk`.** 3 файла (`01-overview`, `02-form-array`, `03-form-navigation`). Нет `FormField` compound-API doc, нет troubleshooting, нет рецептов (nested array, custom AddButton, conditional step visibility). Headless useFormWizard / scrollToTop / onStepChange не описаны.
+3. **`@reformer/ui-kit` — критическая дыра.** Все 3 файла `docs/llms/` — копии cdk-доков, а не про собственные компоненты. Input/InputMask/InputPassword/Textarea/Checkbox/RadioGroup/Select/Button/FormField/AsyncBoundary/ExampleCard в `docs/llms/` отсутствуют. JSDoc минимальный (одно-двух-строчный `@example`).
+4. **`@reformer/renderer-react` и `renderer-json`** в целом покрыты (4 файла каждый, anti-patterns + troubleshooting), но нет рецептов: custom fieldWrapper, programmatic node manipulation, source values cookbook, `$template` для массивов с разбором.
 
-- MCP-сервер уже работает: [packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts), tools — [report-issue.ts](packages/reformer-mcp/src/tools/report-issue.ts), [debug.ts](packages/reformer-mcp/src/tools/debug.ts); prompt — [debug.ts](packages/reformer-mcp/src/prompts/debug.ts); resources регистрируются в `index.ts` (`reformer://docs|api|examples|troubleshooting`).
-- Парсер `llms.txt`: [packages/reformer-mcp/src/utils/docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts) — ищет файл `llms.txt` только у `@reformer/core`.
-- AI-ориентированная документация уже есть в части пакетов:
-  - [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/) (overview, form-array, form-navigation)
-  - [packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/)
-  - [packages/reformer-renderer-react/docs/llms/](packages/reformer-renderer-react/docs/llms/)
-- В исходниках уже встречается TSDoc/JSDoc с тегом `@example` (особенно в `packages/reformer/src/`).
-- **Источников правды два**: `docs/llms/*.md` и JSDoc/TSDoc в `src/`. Файл `llms.txt` — производный артефакт, который должен **генерироваться** из этих двух источников билд-скриптом, а не редактироваться вручную.
-- Без AI-документации: `@reformer/renderer-json` (вообще без README).
-- Эталонные примеры использования:
-  - [projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx](projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx)
-  - [projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx](projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx)
+Контрольный список — **45 реальных сценариев** из `projects/react-playground/src/pages/examples/` (см. отчёт Explore агента 3): 5 создание формы, 9 валидация, 9 behaviors, 4 submit/reset, 3 подписки, 5 headless CDK, 4 TS-renderer, 4 JSON-renderer, 2 загрузка данных, 5 UI-kit. Цель плана — каждый сценарий должен находиться через `reformer-mcp` без чтения исходников.
 
-## Файлы
+## Ответы пользователя по подходу
 
-- `d:\Work\ReFormer\PROMT.md` — полностью перезаписать содержимым из секции «Итоговый текст PROMT.md» ниже.
+- **ui-kit-копии:** удалить копии cdk-доков и написать ui-kit-документацию с нуля.
+- **Трекинг:** новый эпик + ~12 beads-issues, агент идёт по ready-очереди.
+- **Глубина рецептов:** глубоко — 2–4 сценария на раздел (happy path + edge case + anti-pattern).
 
-Других файлов задача не трогает.
+## Декомпозиция (12 issues + epic)
 
-## Итоговый текст PROMT.md
+### Эпик `EPIC-DOCS2`
 
-````markdown
-# Бриф: ReFormer × ИИ-агенты
+`bd create --type=epic --priority=2 --title="EPIC: Full @reformer/* documentation coverage v2"`. Все ниже — `parent-child` к нему.
 
-## Цель
-Сделать так, чтобы ИИ-агенты (Claude Code, Cursor и другие MCP-клиенты) разрабатывали формы на `@reformer/*` быстро и без типичных ошибок: правильно использовали сигналы, `useFormControl`, `useMemo`, валидаторы, behaviors и headless-компоненты CDK.
+### Track A — `@reformer/core` (3 issues)
 
-Достижение цели идёт по двум связанным направлениям:
-1. **MCP-сервер** `@reformer/mcp` — единая точка справки для агента.
-2. **Документация в библиотеках** — источник правды, из которого MCP-сервер автоматически отдаёт ответы.
+| ID | Title | Содержание |
+|---|---|---|
+| A.1 | Behaviors recipes — copyFrom, syncFields, resetWhen, transformValue, revalidateWhen | Создать 5 файлов: [packages/reformer/docs/llms/23-copy-from.md](../../packages/reformer/docs/llms/), `24-sync-fields.md`, `25-reset-when.md`, `26-transform-value.md`, `27-revalidate-when.md`. Каждый: Purpose, 2–4 примера (включая `apply([...])`), Anti-patterns, Troubleshooting. Опираться на [packages/reformer/src/behaviors/](../../packages/reformer/src/behaviors/) и эталон [BehaviorsExamples.tsx](../../projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx). |
+| A.2 | Lifecycle docs — submit/reset/preload | Создать `28-submit-and-reset.md` (`form.markAsTouched`/`validate`/`getValue`/`reset`/`pending`, эталон [RegistrationForm.tsx:124-148](../../projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx)) и `29-async-preload.md` (initial values, async preload через `watchField`/external hook, race condition guards, эталон [credit-application-behavior.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form/behaviors/credit-application-behavior.ts)). |
+| A.3 | JSDoc deep-dive на behaviors | Расширить `@example` в [packages/reformer/src/behaviors/watch-field.ts](../../packages/reformer/src/behaviors/watch-field.ts) (try-catch + guard + debounce), `enable-when.ts` (resetOnDisable + cycle prevention), `compute-from.ts`, `revalidate-when.ts`, `reset-when.ts`, `sync-fields.ts`, `transform-value.ts`, `copy-from.ts` — у каждого минимум 2 содержательных `@example`. |
 
-## Текущее состояние
+### Track B — `@reformer/cdk` (3 issues)
 
-- MCP-сервер реализован и работает: `packages/reformer-mcp/`. Уже есть:
-  - tools: `report_issue`, `debug` (опционально, под флагом `REFORMER_DEBUG`)
-  - resources: `reformer://docs`, `reformer://api`, `reformer://examples`, `reformer://troubleshooting`
-  - prompt: `debug` (чек-лист анализа кода форм)
-  - парсер `llms.txt` (`src/utils/docs-parser.ts`), но только для `@reformer/core`
-- AI-документация (`docs/llms/`) есть у `@reformer/cdk`, `@reformer/ui-kit`, `@reformer/renderer-react`.
-- В исходниках уже есть JSDoc/TSDoc с тегами `@example` (особенно в `packages/reformer/src/`) — это справка уровня символа.
-- **Источников правды два**: `docs/llms/*.md` и JSDoc/TSDoc в `src/`. Файл `llms.txt` — **производный артефакт**, генерируется из них билд-скриптом. Сервер должен и парсить JSDoc прямо, и читать сгенерированный `llms.txt` как индекс.
-- AI-документации нет: `@reformer/renderer-json` (нет даже README).
-- На уровне репозитория нет общего гайда для агентов (CLAUDE.md/AGENTS.md).
-- Эталонные примеры — `projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx`, `projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx`.
+| ID | Title | Содержание |
+|---|---|---|
+| B.1 | `04-form-field.md` (FormField compound API) | Новый файл [packages/reformer-cdk/docs/llms/04-form-field.md](../../packages/reformer-cdk/docs/llms/). Описать `FormField.Root`, `Label`, `Control`, `Error`, `Hint`, `useFormFieldContext`. Покрыть 2–4 сценария: базовый, custom layout, async-валидация (pending), интеграция с `@reformer/ui-kit`. |
+| B.2 | `05-recipes.md` (advanced patterns) | Новый файл с рецептами: (1) nested FormArray (FormArray внутри Item); (2) custom AddButton с собственным triggering UI; (3) conditional step visibility / dynamic step count в FormWizard; (4) externally-controlled wizard через `useRef<FormWizardHandle>`. Привязка к [CreditApplicationForm.tsx](../../projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx). |
+| B.3 | `06-troubleshooting.md` + JSDoc на хуках/handles | Создать troubleshooting (10+ ошибок: «AddButton не появляется», «List ререндерит весь массив», «FormWizardHandle.goToStep не работает», «steps без validations пропускают валидацию», ...). Расширить JSDoc на `FormArrayHandle`, `FormWizardHandle`, `useFormArray`, `useFormArrayItemContext`, `useFormFieldContext` — у каждого 2 `@example`. |
 
-## Задача 1 — Расширить MCP-сервер до всех библиотек
+### Track C — `@reformer/ui-kit` (4 issues, КРИТИЧНО)
 
-**Цель:** через один сервер агент получает справку по всем `@reformer/*`, а не только по core.
+| ID | Title | Содержание |
+|---|---|---|
+| C.1 | Cleanup + `01-overview.md` | Удалить копии: [packages/reformer-ui-kit/docs/llms/02-form-array.md](../../packages/reformer-ui-kit/docs/llms/02-form-array.md), `03-form-navigation.md`. Переписать `01-overview.md` под себя: установка, импорты, философия (Tailwind + Radix), список собственных компонентов в виде таблицы, ссылка на эталоны в `react-playground`. |
+| C.2 | Field components docs | Три новых файла: `02-text-fields.md` (Input, InputMask, InputPassword, Textarea — value/onChange-контракт, type='number' edge cases, mask format, password toggle), `03-choice-fields.md` (Checkbox, RadioGroup, Select + 8 sub-компонентов: SelectGroup/Value/Trigger/Content/Label/Item/ScrollUp/ScrollDownButton; resource-loading в Select), `04-layout-and-buttons.md` (Button с variants/sizes/asChild, AsyncBoundary loading/error/ready, ExampleCard для playground, `cn` helper). |
+| C.3 | `05-form-field-integration.md` | Как UI-kit-овский `FormField` интегрируется с `@reformer/cdk` `FormField.Root` и как он используется как `fieldWrapper` в `@reformer/renderer-react`. Покрыть 2–4 сценария: автономно через `<FormField control={...}>`, как `fieldWrapper` в RenderSchema, кастомизация label/error через children-prop, интеграция с Checkbox-исключением. |
+| C.4 | `06-troubleshooting.md` + JSDoc deep-dive | 8–10 типичных проблем («number input возвращает строку», «Select не показывает options», «mask не работает», «forwardRef + Radix Slot конфликты», ...). Расширить JSDoc на каждом `XxxProps` (описание каждой prop) и на компонентах (variants для Button, options-структура для Select). |
 
-Сервер опирается на **два источника правды** в каждом пакете и один производный артефакт:
-1. `docs/llms/*.md` — длинные руководства, рецепты, anti-patterns. **Источник правды.**
-2. **JSDoc/TSDoc в `src/`** — справка уровня символа (функция, тип, компонент) с тегом `@example`. **Источник правды.**
-3. `llms.txt` — индекс/выжимка, **сгенерированная** из (1) и (2) скриптом из Задачи 2. Сервер использует его как быстрый индекс, но за полным ответом всегда идёт в (1) или (2).
+### Track D — `@reformer/renderer-react` + `renderer-json` (1 issue)
 
-**Шаги:**
-1. Расширить `docs-parser.ts`, чтобы он искал и сливал `llms.txt` из всех пакетов `@reformer/*`, у которых он есть, а не только из `@reformer/core`. Резолвинг — те же три пути (node_modules, монорепо, cwd), но обходом по списку пакетов.
-2. Добавить per-package resources вида `reformer://docs/{package}`, `reformer://api/{package}` (или эквивалентную параметризацию), чтобы агент мог запрашивать документацию конкретного пакета.
-3. Реализовать парсинг JSDoc/TSDoc из исходников пакетов:
-   - либо через `typescript`-AST/`ts-morph` (если он уже доступен), либо через готовую утилиту вроде `typedoc --json`;
-   - извлекать описание, сигнатуру, теги `@example`, `@param`, `@returns`, `@deprecated`;
-   - кэшировать результат на старте сервера (распарсить один раз).
-4. Добавить tool `get_symbol_docs`, принимающий `{ package, symbol }` и возвращающий описание + все `@example` для запрошенного символа (например `getReformerForm`, `FormArray.Root`).
-5. Добавить tool `find_example`, принимающий название сценария (`wizard`, `array`, `async-validation`) и возвращающий ссылку + сниппет из `projects/react-playground/src/pages/examples/` **либо** из `@example` в исходниках, если сценарий покрыт там.
-6. Зарегистрировать ресурс `reformer://api/{package}` так, чтобы он возвращал список всех публичных символов с короткими описаниями (генерируется из JSDoc), — это позволит агенту узнать, что вообще есть.
-7. Дополнить prompt `debug` или добавить prompt `review`, использующий чек-лист из всех пакетов (не только core).
+| ID | Title | Содержание |
+|---|---|---|
+| D.1 | Cookbooks для обоих рендереров | Два новых файла: [packages/reformer-renderer-react/docs/llms/05-cookbook.md](../../packages/reformer-renderer-react/docs/llms/) (custom fieldWrapper, programmatic node manipulation через `proxy.node().setHidden/patchProps/resetHidden`, container-компонент с своим children-проп) и [packages/reformer-renderer-json/docs/llms/05-cookbook.md](../../packages/reformer-renderer-json/docs/llms/) (`$template` для массивов, source-функции/константы рецепты, control-пропсы, миграция с TS RenderSchema). Эталоны — [render-schema.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer/render-schema.ts), [json-schema.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/json-schema.ts), [registry.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts). |
 
-**Критерии приёмки:**
-- В `mcp-inspector` видны ресурсы со ссылками на `cdk`, `ui-kit`, `renderer-react`, `core`.
-- Тестовый запрос «как сделать FormArray» возвращает текст из `packages/reformer-cdk/docs/llms/02-form-array.md`.
-- `find_example("wizard")` возвращает путь к `CreditApplicationForm.tsx` и релевантный сниппет.
-- `get_symbol_docs({ package: "@reformer/core", symbol: "getReformerForm" })` возвращает описание и хотя бы один `@example` из исходника.
-- `reformer://api/@reformer/core` содержит список публичных функций/типов с описанием из JSDoc.
-- Существующие tools (`report_issue`, `debug`) не сломаны.
-- Сборка `npm run build -w @reformer/mcp` проходит, smoke-тест `node packages/reformer-mcp/dist/index.js` стартует без ошибок.
+### Финал (1 issue)
 
-## Задача 2 — Конвенция документирования библиотек для ИИ-агентов
+| ID | Title | Содержание |
+|---|---|---|
+| F.1 | Regenerate llms.txt + MCP smoke-test | `npm run generate:llms` для всех пакетов; idempotent re-run; ручной тест MCP-инструментов: `get_symbol_docs({ symbol: "copyFrom" })` возвращает свежий `@example`, `find_example({ scenario: "wizard" })` ссылается на актуальный `recipes.md`, `reformer://docs/ui-kit` показывает 5 новых файлов, `review` prompt подгружает новые anti-patterns. Финальный аудит `--audit` остаётся 0/0 во всех пакетах. |
 
-**Цель:** единый формат AI-документации в каждом пакете, чтобы Задача 1 могла работать одинаково по всем пакетам, а будущие пакеты — подключались без правки сервера.
+## Параллельное выполнение через субагентов
 
-Источников правды **два**:
-- `docs/llms/*.md` — длинные сценарные руководства, рецепты, anti-patterns.
-- **JSDoc/TSDoc на публичных символах в `src/`** — справка уровня символа, обязательно с `@example`.
+Треки A, B, C, D **независимы по файлам** — каждый трогает только свой пакет, конфликтов в git нет. Запускаются как 4 параллельных субагента (general-purpose).
 
-`llms.txt` в каждом пакете — **производный артефакт**, генерируется скриптом из этих двух источников и коммитится в репозиторий (чтобы скачивающий пакет из npm получал готовый файл, а парсер MCP мог быстро его прочитать без AST-разбора).
+Порядок:
 
-**Шаги:**
-1. Зафиксировать конвенцию в `docs/llms-convention.md` (новый файл):
-   - структура `docs/llms/` (нумерованные разделы overview/api/recipes/troubleshooting);
-   - обязательные секции в каждом `.md` (`# Purpose`, `# When to use`, `# Anti-patterns`, `# Examples`);
-   - **правила JSDoc/TSDoc** для публичных API: краткое описание, теги `@param`, `@returns`, обязательный `@example` с минимально рабочим сниппетом, `@see` на соответствующий раздел `docs/llms/`. Стандартные теги достаточно — кастомных вроде `@ai-hint` не вводим;
-   - формат сгенерированного `llms.txt`: фиксированная структура (header пакета, оглавление `docs/llms/`, список публичных символов с одной строкой описания и ссылкой на `@example` по имени файла), стабильный порядок для воспроизводимости diff-ов.
-2. Реализовать генератор `llms.txt` (новый пакет/скрипт, например `scripts/generate-llms-txt/` или внутренний пакет `@reformer/internal-docs-gen`):
-   - на вход — путь к пакету;
-   - читает `docs/llms/*.md`, парсит `src/` через `ts-morph` (или `typedoc --json`), извлекает публичные экспорты с их JSDoc;
-   - выводит `llms.txt` в корень пакета.
-3. Подключить генератор как npm-script `build:llms` в каждом `@reformer/*` и добавить его в общий `build`. Запретить ручную правку `llms.txt` через комментарий в шапке файла (`# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc and run npm run build:llms.`).
-4. Привести к конвенции пакеты с пробелами:
-   - `@reformer/renderer-json` — создать `docs/llms/` и JSDoc на публичных API.
-   - `@reformer/renderer-react` — дописать недостающие разделы и JSDoc.
-5. Пройтись по публичным экспортам каждого пакета и убедиться, что у каждого есть JSDoc + хотя бы один `@example`. Образец — существующие комментарии из `packages/reformer/src/`.
-6. Сгенерировать `llms.txt` для всех `@reformer/*` через новый скрипт и закоммитить.
-7. На уровне репозитория добавить `AGENTS.md` со ссылками: где искать документацию пакета, как зарегистрировать MCP-сервер, какие команды запускать, как пользоваться tools `get_symbol_docs` и `find_example`, и явное правило «`llms.txt` не редактируем — правим источники».
+1. **Подготовка (последовательно):** создать в beads эпик `EPIC-DOCS2` и 12 issues с зависимостями `parent-child` к эпику. Зависимостей `blocks` между треками нет, кроме `F.1 → all` (финал ждёт всех).
+2. **Запуск 4 субагентов параллельно** в одном сообщении (4 `Agent` tool-use):
+   - **Agent-A** (Track A): добивает `@reformer/core` — закроет 3 issues (A.1, A.2, A.3).
+   - **Agent-B** (Track B): добивает `@reformer/cdk` — закроет 3 issues (B.1, B.2, B.3).
+   - **Agent-C** (Track C): полностью переписывает `@reformer/ui-kit` — закроет 4 issues (C.1, C.2, C.3, C.4).
+   - **Agent-D** (Track D): cookbooks для двух рендереров — закроет 1 issue (D.1).
+3. **F.1 — последовательно после всех:** регенерация `llms.txt` + smoke-test MCP.
 
-**Критерии приёмки:**
-- У каждого `@reformer/*` есть `docs/llms/` с минимальным набором секций по конвенции и сгенерированный `llms.txt` с пометкой «AUTO-GENERATED».
-- У каждого публичного символа в `src/` есть JSDoc и хотя бы один `@example` (выборочная проверка по экспортам из `index.ts`).
-- `docs/llms-convention.md` существует и описывает обязательные секции, правила JSDoc и формат генерируемого `llms.txt`.
-- Запуск `npm run build:llms -ws` идемпотентен: повторный запуск после чистого билда не меняет файлы (`git diff` пуст).
-- `AGENTS.md` существует в корне репозитория и содержит правило «не редактировать `llms.txt` руками».
-- Парсер из Задачи 1 успешно подхватывает оба источника во всех пакетах.
+Каждому субагенту в промпте передать:
+- Путь к этому плану (`docs/plans/bright-brewing-forest.md`) и к [docs/llms-convention.md](../llms-convention.md).
+- **Образец стиля** для текста: для core — [packages/reformer/docs/llms/11-async-watchfield.md](../../packages/reformer/docs/llms/11-async-watchfield.md) (полный с anti-patterns); для cdk/ui-kit/renderer — [packages/reformer-renderer-json/docs/llms/02-json-schema.md](../../packages/reformer-renderer-json/docs/llms/02-json-schema.md).
+- Список конкретных файлов из таблицы трека.
+- Эталонные примеры из `projects/react-playground/src/pages/examples/`.
+- Команда self-check: `node scripts/generate-llms-txt <pkg> --audit` → 0 callable без `@example`.
+- Команда обновления beads: `'/c/Users/user/AppData/Local/Programs/bd/bd.exe' update <id> --status=in_progress` → работа → `bd close <id> --reason="..."`.
+- Запрет: не трогать файлы вне своего пакета; не запускать `npm run generate:llms` (это работа F.1); не делать git commit (коммит — отдельным шагом после F.1).
 
-## Зависимости между задачами
+Контроль качества после возврата субагентов: я перечитываю выборочные новые `.md`, проверяю что сценарии соответствуют плану, пробегаюсь `--audit` и MCP-smoke-test, потом единый коммит.
 
-Задача 1 (сервер) опирается на формат, зафиксированный в Задаче 2 (конвенция + генератор). Рекомендуемый порядок:
-1. Задача 2, шаг 1 — зафиксировать конвенцию и формат генерируемого `llms.txt`.
-2. Задача 2, шаги 2–3 — реализовать генератор и подключить его как `build:llms`.
-3. Задача 1, шаги 1–6 — расширять сервер уже под стабильный формат.
-4. Задача 2, шаги 4–7 — докоммитывать документацию пакетов и регенерировать `llms.txt`. Парсер MCP подхватит изменения автоматически.
+## Выходные критерии (Definition of Done)
+
+- 12 + 1 issues закрыты, EPIC-DOCS2 закрыт.
+- Все 45 контрольных сценариев из react-playground находятся через `reformer-mcp` без чтения `src/`.
+- 0 callable публичных символов без `@example` (как сейчас) **и** все эти `@example` нетривиальны (минимум impоrts + рабочий вызов).
+- Каждый пакет имеет в `docs/llms/` секции: overview, тематические рецепты, anti-patterns, troubleshooting.
+- `npm run generate:llms` идемпотентен после регенерации.
+- MCP-сервер собирается; smoke-test ниже выполняется.
+
+## Верификация
+
+```bash
+# 1. Аудит JSDoc
+node scripts/generate-llms-txt packages/reformer --audit
+node scripts/generate-llms-txt packages/reformer-cdk --audit
+node scripts/generate-llms-txt packages/reformer-ui-kit --audit
+node scripts/generate-llms-txt packages/reformer-renderer-react --audit
+node scripts/generate-llms-txt packages/reformer-renderer-json --audit
+# Ожидание: каждый — "Missing @example (callable only): 0".
+
+# 2. Регенерация и идемпотентность
+npm run generate:llms
+git diff --stat -- 'packages/*/llms.txt'        # после первого запуска — изменения есть
+npm run generate:llms
+git diff --stat -- 'packages/*/llms.txt'        # после второго — пусто
+
+# 3. MCP smoke-test
+cd packages/reformer-mcp && npm run build
+node -e "import('./packages/reformer-mcp/dist/utils/symbols-parser.js').then(m => console.log(m.findSymbol('copyFrom')?.tags.filter(t => t.tag === 'example').length))"
+# Ожидание: ≥ 2.
+
+# 4. Manual проверка через MCP-клиент (Claude Code, mcp-inspector):
+#    - reformer://docs/ui-kit  → 5+ секций (overview, text-fields, choice-fields, layout, form-field-integration, troubleshooting)
+#    - reformer://api/cdk      → видны useFormArray, useFormFieldContext с описанием
+#    - find_example("nested-array") → возвращает рецепт из cdk/05-recipes.md
+#    - get_symbol_docs({ symbol: "watchField" }) → @example с try-catch и guard
+```
+
+## Файлы, затрагиваемые планом
+
+**Новые:**
+- `packages/reformer/docs/llms/{23,24,25,26,27,28,29}.md` (7)
+- `packages/reformer-cdk/docs/llms/{04,05,06}.md` (3)
+- `packages/reformer-ui-kit/docs/llms/{01,02,03,04,05,06}.md` (6 — `01` overwrite)
+- `packages/reformer-renderer-react/docs/llms/05-cookbook.md` (1)
+- `packages/reformer-renderer-json/docs/llms/05-cookbook.md` (1)
+
+**Удаляемые:**
+- `packages/reformer-ui-kit/docs/llms/02-form-array.md`
+- `packages/reformer-ui-kit/docs/llms/03-form-navigation.md`
+
+**Правка JSDoc** (без переписывания структуры файлов):
+- `packages/reformer/src/behaviors/*.ts` (8 файлов)
+- `packages/reformer-cdk/src/components/form-array/*.tsx`, `form-wizard/*.tsx`, `form-field/*.tsx` (хуки и Handle-типы)
+- `packages/reformer-ui-kit/src/components/ui/*.tsx` (deep-dive по props и variants)
+
+**Регенерируемые автоматически:**
+- `packages/*/llms.txt` (6 файлов).
 
 ## Out of scope
 
-- Замена транспорта MCP (stdio остаётся).
-- Публикация пакетов в npm — только локальная работа в монорепо.
-- Перевод существующей документации на другой язык — текущая смесь RU/EN сохраняется.
-````
-
-## Verification
-
-1. Открыть `PROMT.md` — он содержит две явно выделенные задачи с шагами и критериями приёмки, ссылки на конкретные файлы из репозитория, секцию текущего состояния.
-2. Передать `PROMT.md` Claude Code и попросить «реализуй задачу 1, шаг 1» — агент должен идти прямо в `packages/reformer-mcp/src/utils/docs-parser.ts` без догадок о структуре.
-3. Запустить `git diff PROMT.md` — изменения только в этом файле, других правок нет.
+- README пакетов в корне (отдельная история, не для агентов).
+- Перевод существующей документации на другой язык — оставляем смесь RU/EN.
+- Документация для `@reformer/mcp` (`docs/llms/`) — у пакета 0 публичных символов, его «документация» — это сам MCP-протокол.
+- Создание новых эталонных примеров в `react-playground` (используем существующие как точки опоры).

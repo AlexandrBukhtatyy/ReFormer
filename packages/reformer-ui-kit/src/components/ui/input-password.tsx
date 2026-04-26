@@ -7,23 +7,51 @@ export interface InputPasswordProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onChange' | 'type'
 > {
+  /** Дополнительный CSS-класс. */
   className?: string;
+  /** Текущее значение пароля. `null`/`undefined` рендерится как пустое поле. */
   value?: string | null;
+  /** Обработчик изменений. Пустая строка приводится к `null`. */
   onChange?: (value: string | null) => void;
+  /** Срабатывает при потере фокуса. */
   onBlur?: () => void;
+  /** Подсказка внутри поля. По умолчанию `'Password'`. */
   placeholder?: string;
+  /** Блокирует ввод. */
   disabled?: boolean;
+  /**
+   * Показывать ли иконку переключения видимости (eye/eye-off). По умолчанию
+   * `true`. Иконка появляется только когда `value` непустой.
+   */
   showToggle?: boolean;
 }
 
 /**
- * Поле ввода пароля с переключателем видимости.
+ * Поле ввода пароля с переключателем видимости (иконка eye/eye-off).
+ * Кнопка переключения показывается, когда `showToggle = true` (по умолчанию)
+ * и `value` непустой.
  *
- * @example
+ * @example С переключателем видимости
  * ```tsx
  * import { InputPassword } from '@reformer/ui-kit';
  *
- * <InputPassword value={password} onChange={setPassword} showToggle />
+ * <InputPassword
+ *   value={password}
+ *   onChange={setPassword}
+ *   placeholder="Пароль"
+ * />
+ * ```
+ *
+ * @example Без переключателя (например, для подтверждения пароля)
+ * ```tsx
+ * import { InputPassword } from '@reformer/ui-kit';
+ *
+ * <InputPassword
+ *   value={confirmPassword}
+ *   onChange={setConfirmPassword}
+ *   placeholder="Повторите пароль"
+ *   showToggle={false}
+ * />
  * ```
  */
 const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(

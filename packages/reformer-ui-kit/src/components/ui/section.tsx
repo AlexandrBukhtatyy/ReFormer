@@ -23,23 +23,37 @@ export interface SectionProps {
 }
 
 /**
- * Section - секция формы с заголовком
+ * Section - секция формы с заголовком.
  *
- * Семантический контейнер для группировки связанных полей
- * с опциональным заголовком.
+ * Семантический `<section>`-контейнер для группировки связанных полей
+ * с опциональным заголовком (`titleAs` управляет уровнем `h1`-`h6`).
  *
- * @example
+ * @example Заголовок h2 + сетка из двух колонок
  * ```typescript
  * {
  *   component: Section,
  *   componentProps: {
  *     title: 'Личные данные',
+ *     titleAs: 'h2',
+ *     titleClassName: 'text-xl font-bold',
  *     className: 'grid grid-cols-2 gap-4',
- *     children: [
- *       { component: path.firstName },
- *       { component: path.lastName },
- *     ],
  *   },
+ *   children: [
+ *     { component: path.firstName },
+ *     { component: path.lastName },
+ *   ],
+ * }
+ * ```
+ *
+ * @example Section без заголовка (только обёртка)
+ * ```typescript
+ * {
+ *   component: Section,
+ *   componentProps: { className: 'space-y-4 mt-4' },
+ *   children: [
+ *     { component: path.address },
+ *     { component: path.city },
+ *   ],
  * }
  * ```
  */

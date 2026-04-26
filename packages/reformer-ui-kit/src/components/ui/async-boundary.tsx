@@ -15,9 +15,13 @@ export type AsyncStatus = 'loading' | 'error' | 'ready';
 
 /** Props компонента {@link AsyncBoundary}. */
 export interface AsyncBoundaryProps {
+  /** Текущее состояние асинхронной операции. Управляется снаружи. */
   status: AsyncStatus;
+  /** Компонент, рендерящийся при `status === 'loading'`. Без props. Если не передан — `null`. */
   LoadingComponent?: ComponentType;
+  /** Компонент, рендерящийся при `status === 'error'`. Без props. Если не передан — `null`. */
   ErrorComponent?: ComponentType;
+  /** Контент, рендерящийся при `status === 'ready'`. */
   children?: ReactNode;
 }
 
@@ -26,17 +30,47 @@ export interface AsyncBoundaryProps {
  * отображает `children`. Для loading/error используются переданные slot-компоненты
  * (`ComponentType`, без props — для кастомизации передай тонкую обёртку).
  *
- * @example
+ * Это не Suspense-boundary: ничего не throw'ится, состоянием управляешь сам.
+ *
+ * @example Загрузка списка с обработкой ошибки
+ * ```tsx
+ * import { useEffect, useState } from 'react';
+ * import { AsyncBoundary, type AsyncStatus } from '@reformer/ui-kit';
+ *
+ * function CountriesPage() {
+ *   const [status, setStatus] = useState<AsyncStatus>('loading');
+ *   const [countries, setCountries] = useState<string[]>([]);
+ *
+ *   useEffect(() => {
+ *     fetch('/api/countries')
+ *       .then((r) => r.json())
+ *       .then((d) => { setCountries(d); setStatus('ready'); })
+ *       .catch(() => setStatus('error'));
+ *   }, []);
+ *
+ *   return (
+ *     <AsyncBoundary
+ *       status={status}
+ *       LoadingComponent={() => <p>Загружаем страны...</p>}
+ *       ErrorComponent={() => <p>Ошибка загрузки</p>}
+ *     >
+ *       <ul>{countries.map((c) => <li key={c}>{c}</li>)}</ul>
+ *     </AsyncBoundary>
+ *   );
+ * }
+ * ```
+ *
+ * @example Внутри RenderSchema (статус подставляется через `patchProps`)
  * ```tsx
  * import { AsyncBoundary } from '@reformer/ui-kit';
  *
- * <AsyncBoundary
- *   status={status}
- *   LoadingComponent={() => <Spinner />}
- *   ErrorComponent={() => <p>Ошибка загрузки</p>}
- * >
- *   <DataView data={data} />
- * </AsyncBoundary>
+ * createRenderSchema((path) => ({
+ *   selector: 'data-boundary',
+ *   component: AsyncBoundary,
+ *   componentProps: { status: 'loading', LoadingComponent: Spinner },
+ *   children: [...],
+ * }));
+ * // позже: schema.node('data-boundary').patchProps({ status: 'ready' });
  * ```
  */
 export function AsyncBoundary({
