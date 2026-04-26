@@ -92,12 +92,25 @@ URI-шаблон: `reformer://<category>[/<short-package>]`.
 
 ## Available Prompts
 
-| Prompt | Always | Description |
-|--------|--------|-------------|
-| `review` | ✅ | Кросс-пакетный чек-лист код-ревью: state setup, React integration, CDK/UI-kit/renderers, errors. Подгружает anti-patterns и troubleshooting из всех пакетов. |
-| `debug` | под флагом `REFORMER_DEBUG=true` | Анализ кода формы по чек-листу из `@reformer/core` troubleshooting. |
+Промпты делятся на **assist** (помогают создавать/менять код) и **analyze** (проверяют существующий код). Каждый подгружает только релевантные секции из `docs/llms/` через `getSection()` — агенту не нужно тянуть всю документацию.
 
-Аргумент у обоих: `code` (required) — фрагмент кода под анализ.
+### Assist (всегда доступны)
+
+| Prompt | Аргументы | Что делает |
+|--------|-----------|-----------|
+| `create-form` | `description` (required), `target` (`core` / `renderer-react` / `renderer-json`, default `core`) | Спроектировать и сгенерировать новую форму по описанию полей. Подгружает quick-start, FormSchema, импорты + при `target=renderer-*` соответствующий обвязочный пакет. |
+| `add-validation` | `code` (required), `requirements` (required) | Подобрать built-in/кастомные/async/cross-field валидаторы под требования. Подгружает справочник валидаторов, async-watchfield, common-mistakes. |
+| `add-behavior` | `code` (required), `requirements` (required) | Выбрать и встроить behavior (`computeFrom`/`enableWhen`/`watchField`/`copyFrom`/`syncFields`/`resetWhen`/`transformValue`/`revalidateWhen`). Подгружает все рецепты + cycle-detection. |
+| `add-form-array` | `code` (required), `requirements` (required) | Превратить поле в массив через `array(...)` + `FormArray` UI. Подгружает array-operations, array-cleanup, FormArray compound API. |
+| `add-wizard` | `code` (required), `steps` (required) | Превратить single-form в multi-step `FormWizard`. Подгружает multi-step стратегию из core + FormWizard compound API + recipes. |
+| `to-renderer-json` | `code` (required) | Мигрировать TS RenderSchema → JsonFormSchema + Registry. Подгружает migration cookbook, JSON-format, registry rules. |
+
+### Analyze
+
+| Prompt | Always | Аргументы | Что делает |
+|--------|--------|-----------|-----------|
+| `review` | ✅ | `code` (required) | Кросс-пакетный чек-лист код-ревью: state setup, React integration, CDK/UI-kit/renderers, errors. Подгружает anti-patterns и troubleshooting из всех пакетов. |
+| `debug` | под флагом `REFORMER_DEBUG=true` | `code` (required) | Анализ кода формы по чек-листу из `@reformer/core` troubleshooting. |
 
 ## Development
 

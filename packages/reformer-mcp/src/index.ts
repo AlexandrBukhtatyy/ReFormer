@@ -83,6 +83,18 @@ import {
   getDebugPrompt,
   reviewPromptDefinition,
   getReviewPrompt,
+  createFormPromptDefinition,
+  getCreateFormPrompt,
+  addValidationPromptDefinition,
+  getAddValidationPrompt,
+  addBehaviorPromptDefinition,
+  getAddBehaviorPrompt,
+  addFormArrayPromptDefinition,
+  getAddFormArrayPrompt,
+  addWizardPromptDefinition,
+  getAddWizardPrompt,
+  toRendererJsonPromptDefinition,
+  getToRendererJsonPrompt,
 } from './prompts/index.js';
 
 // Check debug mode
@@ -238,9 +250,25 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
 // ==================== PROMPTS ====================
 
+type AnyPromptDefinition =
+  | typeof reviewPromptDefinition
+  | typeof debugPromptDefinition
+  | typeof createFormPromptDefinition
+  | typeof addValidationPromptDefinition
+  | typeof addBehaviorPromptDefinition
+  | typeof addFormArrayPromptDefinition
+  | typeof addWizardPromptDefinition
+  | typeof toRendererJsonPromptDefinition;
+
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
-  const prompts: Array<typeof reviewPromptDefinition | typeof debugPromptDefinition> = [
+  const prompts: AnyPromptDefinition[] = [
     reviewPromptDefinition,
+    createFormPromptDefinition,
+    addValidationPromptDefinition,
+    addBehaviorPromptDefinition,
+    addFormArrayPromptDefinition,
+    addWizardPromptDefinition,
+    toRendererJsonPromptDefinition,
   ];
   if (isDebugMode) {
     prompts.push(debugPromptDefinition);
@@ -260,6 +288,24 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 
     case 'review':
       return getReviewPrompt(args as { code: string });
+
+    case 'create-form':
+      return getCreateFormPrompt(args as { description: string; target?: string });
+
+    case 'add-validation':
+      return getAddValidationPrompt(args as { code: string; requirements: string });
+
+    case 'add-behavior':
+      return getAddBehaviorPrompt(args as { code: string; requirements: string });
+
+    case 'add-form-array':
+      return getAddFormArrayPrompt(args as { code: string; requirements: string });
+
+    case 'add-wizard':
+      return getAddWizardPrompt(args as { code: string; steps: string });
+
+    case 'to-renderer-json':
+      return getToRendererJsonPrompt(args as { code: string });
 
     default:
       throw new Error(`Unknown prompt: ${name}`);
