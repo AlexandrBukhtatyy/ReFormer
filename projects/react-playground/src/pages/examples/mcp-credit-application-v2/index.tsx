@@ -1,9 +1,28 @@
-import { useMemo } from 'react';
-import { FormField } from '@reformer/ui-kit';
+import { useMemo, useState } from 'react';
+import { Button, FormField } from '@reformer/ui-kit';
 import { creditApplicationForm } from './schema';
 
 export default function McpCreditApplicationV2() {
   const form = useMemo(() => creditApplicationForm, []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      form.markAsTouched();
+      const ok = await form.validate();
+      if (!ok) {
+        return;
+      }
+      const values = form.getValue();
+      // eslint-disable-next-line no-console
+      console.log('values', values);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Template item proxies for FormArray fields (stage 1: render template once, no add/remove yet).
   const propertyItem = form.step5.properties.at(0);
@@ -11,7 +30,7 @@ export default function McpCreditApplicationV2() {
   const coBorrowerItem = form.step5.coBorrowers.at(0);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <form className="max-w-4xl mx-auto p-6 space-y-6" onSubmit={handleSubmit} noValidate>
       <h1 className="text-2xl font-bold text-gray-900">Заявка на кредит</h1>
 
       {/* ===== Шаг 1. Кредит ===== */}
@@ -292,6 +311,12 @@ export default function McpCreditApplicationV2() {
         <FormField control={form.step6.confirmAccuracy} testId="confirmAccuracy" />
         <FormField control={form.step6.electronicSignature} testId="electronicSignature" />
       </section>
-    </div>
+
+      <div className="flex justify-end pt-4">
+        <Button type="submit" disabled={isSubmitting} data-testid="submit">
+          {isSubmitting ? 'Проверка…' : 'Отправить заявку'}
+        </Button>
+      </div>
+    </form>
   );
 }
