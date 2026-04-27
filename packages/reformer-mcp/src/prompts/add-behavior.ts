@@ -1,4 +1,4 @@
-import { getSection, getFullDocs } from '../utils/docs-parser.js';
+import { getSection } from '../utils/docs-parser.js';
 
 export const addBehaviorPromptDefinition = {
   name: 'add-behavior',
@@ -54,6 +54,7 @@ Behavior через \`watchField\` + \`computeFrom\` + \`copyFrom\` + \`revalida
 5. **Guard \`enable\`/\`disable\`:** проверь \`field.disabled.value\` перед вызовом — повторный \`disable()\` на уже disabled поле триггерит signal на пустом месте.
 6. **Не используй \`revalidateWhen\` без необходимости.** Если уже есть \`copyFrom\` + валидаторы на target — обычно \`revalidateWhen\` не нужен.
 7. **\`computeFrom\` — только same-level**, для cross-level используй \`watchField\` (таблица «compute vs watch» ниже).
+8. **НЕ используй \`enableWhen\` на FormArray/ArrayNode** (целиком на массив). \`enableWhen(path.someArray, …, { resetOnDisable: true })\` создаёт цикл и вешает браузер на mount (verified emprически в credit-application-form). Условную видимость массива делай в JSX-рендере (\`{form.flag.value && <ArrayUI/>}\`), а не через behavior.
 
 Если требований много — реализуй их **двумя итерациями**: сначала минимальный набор enableWhen + copyFrom, протестируй, и только потом computed/watchField. Лучше отчитаться о двух коротких итерациях, чем о провале с зависанием браузера.
 

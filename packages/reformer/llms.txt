@@ -645,6 +645,19 @@ const schema: FormSchema<MyForm> = {
 > `[key: string]: FormValue` index signature. Without it TS reports
 > *"Type 'Item' does not satisfy the constraint 'FormFields'"* on `ArrayNode<Item>`.
 
+> **Do NOT use `enableWhen(path.someArray, …, { resetOnDisable: true })` on a whole
+> ArrayNode.** The combination triggers a reactive cycle on mount that prevents
+> `DOMContentLoaded` (the browser hangs and has to be restarted). For
+> "show array conditionally" — gate the rendering in JSX:
+>
+> ```tsx
+> {form.hasItems.value && (
+>   <ArrayUI array={form.items} />
+> )}
+> ```
+>
+> `enableWhen` on individual `FieldNode` targets inside an array item template is fine.
+
 ```typescript
 
 // Each array item is a GroupNode (sub-form) with its own controls:
