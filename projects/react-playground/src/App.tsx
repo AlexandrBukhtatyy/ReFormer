@@ -7,6 +7,7 @@ import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import McpCreditApplication from './pages/examples/mcp-credit-application';
+import McpCreditApplicationRenderer from './pages/examples/mcp-credit-application-renderer';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -14,7 +15,8 @@ type ExamplePage =
   | 'complex'
   | 'complex-renderer'
   | 'json-renderer'
-  | 'mcp-credit';
+  | 'mcp-credit'
+  | 'mcp-credit-renderer';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -58,6 +60,13 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/mcp-credit',
     title: 'MCP Credit (тест MCP)',
     description: 'Кредитная заявка, реализованная суб-агентом по MCP-prompts (PROMT.md)',
+  },
+  {
+    id: 'mcp-credit-renderer',
+    path: '/examples/mcp-credit-renderer',
+    title: 'MCP Credit Renderer (тест MCP)',
+    description:
+      'Та же форма через @reformer/renderer-react TS RenderSchema, реализованная суб-агентом по MCP (PROMT.md, page 2)',
   },
 ];
 
@@ -132,6 +141,7 @@ function Layout() {
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
           <Route path="/examples/mcp-credit" element={<McpCreditApplication />} />
+          <Route path="/examples/mcp-credit-renderer" element={<McpCreditApplicationRenderer />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

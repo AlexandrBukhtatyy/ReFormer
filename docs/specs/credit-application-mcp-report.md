@@ -25,7 +25,7 @@
 | `mcp-credit-application/` | 3. Behaviors (3b computed) | 3 | (1) `20-compute-vs-watch.md` — fix `ctx.setFieldValue` → `ctx.form.x.setValue` API; (2) `add-behavior` rule #3 + `20-compute-vs-watch.md` — добавлен paragraph «Multiple triggers, one cascade» (watchField принимает один path, не массив) | prompt `add-behavior` |
 | `mcp-credit-application/` | 4. FormArray | 0 (фактически реализован ранее) | — | — |
 | `mcp-credit-application/` | 5. Multi-step | 1 (с MCP gaps про FormWizard CDK) | — (workaround через manual useState) | prompt `add-wizard` |
-| `mcp-credit-application-renderer/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer/` | 1. FormSchema | 2 + бsplit-fixes | 4 critical: (1) `01-overview.md` Quick Start rewrite (no `getReformerForm`, no `form` prop on FormRenderer, FormRoot pattern); (2) `__selfManagedChildren = true` правило; (3) `node.children` top-level vs `componentProps.children`; (4) `types.ts` JSDoc example fix | prompt `create-form` (target=renderer-react) |
 | `mcp-credit-application-renderer/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
@@ -172,7 +172,38 @@ Stage 5 принят.
 
 ### `mcp-credit-application-renderer/` · 1. FormSchema
 
-_не начато_
+**Итерации: 2 + 2 orchestrator-fix.** Самый сложный stage 1 за весь тест — выявил **4 критических pgap** в renderer-react MCP-документации, для которых требовались архитектурные правки.
+
+**Итерация 1 — silent fail.** Sub-agent с prompt `create-form` (target=renderer-react) сделал tsc/eslint clean код, но страница рендерилась как пустой `<div></div>` — без console errors. Корни: (a) `getReformerForm` (упоминался в Quick Start) не существует — sub-agent заменил на `createForm`; (b) `<FormRenderer form={form}>` (Quick Start) не работает — `FormRenderer` не принимает `form` prop; (c) sub-agent попытался `<RenderContextProvider value={{ form, settings }}>` снаружи — но FormRenderer внутри re-устанавливает свой context без form. Files restored через `git rm -rf`.
+
+**MCP-фикс 1 (orchestrator).** Полностью переписан `packages/reformer-renderer-react/docs/llms/01-overview.md` Quick Start: убран несуществующий `getReformerForm`, убран `form={form}` prop, добавлен **FormRoot pattern** — минимальный root-container компонент (10 строк), принимающий `form` через `componentProps` и форвардящий его дочерним узлам через `RenderNodeComponent`. Добавлен closure pattern (`createSchema(form)`).
+
+**Итерация 2 — runtime crash.** Sub-agent retry на обновлённом prompt создал FormRoot строго по доке, но страница вылетела с `TypeError: Cannot read properties of undefined (reading 'map') at FormRoot`. Расследование (orchestrator):
+- В `RenderNodeComponent` обнаружено правило: компоненты с `__selfManagedChildren === true` получают raw `RenderNode[]` в children; иначе React-rendered.
+- В `types.ts` ContainerRenderNode деструктурирует `children` с **node-уровня**, не из `componentProps`. Но JSDoc example в самом файле показывает `componentProps.children: [...]` — bug.
+- Sub-agent следовал JSDoc → children в componentProps → undefined в node.children.
+
+**MCP-фикс 2 (orchestrator).** Два правки:
+1. JSDoc example в `packages/reformer-renderer-react/src/core/types.ts:128` — children вынесен на top-level узла + добавлен warning в комментарии.
+2. `01-overview.md` Quick Start — секция «Two more critical gotchas inside FormRoot» с двумя обязательными правилами: `__selfManagedChildren = true` flag + top-level `node.children`.
+
+**Окончательный фикс кода** (orchestrator вручную через Edit на page 2): добавлен `(FormRoot as any).__selfManagedChildren = true`, переписан `render-schema.ts` — все `children: [...]` перенесены с `componentProps` на top-level node.
+
+**Visual confirm.** Mount работает: 70 `<input>` + 2 `<textarea>` отрисованы, все 6 шагов с заголовками `<h2>` `Шаг N: ...`, FormField-обёртка показывает placeholder'ы («Введите сумму», «Введите фамилию»), 0 console errors. Файлы:
+- `types.ts` (141 строка) — `CreditApplicationForm extends FormFields` с 6 nested step-объектами, 3 array item interfaces.
+- `schema.ts` (224 строки) — `createForm<CreditApplicationForm>` через `Noop` placeholder.
+- `form-root.tsx` (24 строки) — `FormRoot` компонент + `__selfManagedChildren` flag.
+- `render-schema.ts` (170 строк) — `createCreditApplicationRenderSchema(form)` closure.
+- `index.tsx` (20 строк) — mount через `<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />`.
+
+**MCP gaps (зарегистрированы):**
+1. `getReformerForm` не существует, но в Quick Start (severity:critical) — закрыт.
+2. `<FormRenderer form={form}>` Quick Start (severity:critical) — закрыт.
+3. `__selfManagedChildren` нигде не задокументирован (severity:critical) — закрыт.
+4. `node.children` vs `componentProps.children` JSDoc bug (severity:critical) — закрыт.
+5. **Sub-agent retry прочитал `packages/reformer-{ui-kit,renderer-react}/src/index.ts`** (barrel exports) — нарушение по букве запрета. Канонический список exports не задокументирован — gap.
+
+Screenshot: [stage1-page2-renderer.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage1-page2-renderer.png).
 
 ### `mcp-credit-application-renderer/` · 2. Validation
 

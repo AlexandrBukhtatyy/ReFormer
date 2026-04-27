@@ -1,0 +1,165 @@
+import { createRenderSchema } from '@reformer/renderer-react';
+import type { FormProxy } from '@reformer/core';
+import { Box, Section } from '@reformer/ui-kit';
+import type { CreditApplicationForm } from './types';
+import { FormRoot } from './form-root.tsx';
+
+// ─── Closure-pattern render schema ──────────────────────────────────────────
+// IMPORTANT: ContainerRenderNode's `children` is a TOP-LEVEL property on the
+// node object, NOT inside `componentProps`. The JSDoc example in
+// reformer-renderer-react/src/core/types.ts (line ~140) wrongly nests children
+// inside componentProps; the actual destructuring at render-node.tsx:204 reads
+// `const { component, children } = node;`. Using componentProps.children leaves
+// node.children undefined and the renderer produces nothing.
+
+export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplicationForm>) {
+  return createRenderSchema<CreditApplicationForm>((path) => ({
+    component: FormRoot,
+    componentProps: { form },
+    children: [
+      // ── Step 1: Loan info ────────────────────────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Шаг 1: Основная информация о кредите' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.step1.loanType },
+              { component: path.step1.loanAmount },
+              { component: path.step1.loanTerm },
+              { component: path.step1.loanPurpose },
+              { component: path.step1.propertyValue },
+              { component: path.step1.initialPayment },
+              { component: path.step1.carBrand },
+              { component: path.step1.carModel },
+              { component: path.step1.carYear },
+              { component: path.step1.carPrice },
+            ],
+          },
+        ],
+      },
+
+      // ── Step 2: Personal data ────────────────────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Шаг 2: Персональные данные' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.step2.personalData.lastName },
+              { component: path.step2.personalData.firstName },
+              { component: path.step2.personalData.middleName },
+              { component: path.step2.personalData.birthDate },
+              { component: path.step2.personalData.gender },
+              { component: path.step2.personalData.birthPlace },
+              { component: path.step2.passportData.series },
+              { component: path.step2.passportData.number },
+              { component: path.step2.passportData.issueDate },
+              { component: path.step2.passportData.issuedBy },
+              { component: path.step2.passportData.departmentCode },
+              { component: path.step2.inn },
+              { component: path.step2.snils },
+            ],
+          },
+        ],
+      },
+
+      // ── Step 3: Contact info ─────────────────────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Шаг 3: Контактная информация' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.step3.phoneMain },
+              { component: path.step3.phoneAdditional },
+              { component: path.step3.email },
+              { component: path.step3.emailAdditional },
+              { component: path.step3.registrationAddress.region },
+              { component: path.step3.registrationAddress.city },
+              { component: path.step3.registrationAddress.street },
+              { component: path.step3.registrationAddress.house },
+              { component: path.step3.registrationAddress.apartment },
+              { component: path.step3.registrationAddress.postalCode },
+              { component: path.step3.sameAsRegistration },
+              { component: path.step3.residenceAddress.region },
+              { component: path.step3.residenceAddress.city },
+              { component: path.step3.residenceAddress.street },
+              { component: path.step3.residenceAddress.house },
+              { component: path.step3.residenceAddress.apartment },
+              { component: path.step3.residenceAddress.postalCode },
+            ],
+          },
+        ],
+      },
+
+      // ── Step 4: Employment ───────────────────────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Шаг 4: Информация о занятости' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.step4.employmentStatus },
+              { component: path.step4.companyName },
+              { component: path.step4.companyInn },
+              { component: path.step4.companyPhone },
+              { component: path.step4.companyAddress },
+              { component: path.step4.position },
+              { component: path.step4.workExperienceTotal },
+              { component: path.step4.workExperienceCurrent },
+              { component: path.step4.monthlyIncome },
+              { component: path.step4.additionalIncome },
+              { component: path.step4.additionalIncomeSource },
+              { component: path.step4.businessType },
+              { component: path.step4.businessInn },
+              { component: path.step4.businessActivity },
+            ],
+          },
+        ],
+      },
+
+      // ── Step 5: Additional info ──────────────────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Шаг 5: Дополнительная информация' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.step5.maritalStatus },
+              { component: path.step5.dependents },
+              { component: path.step5.education },
+              { component: path.step5.hasProperty },
+              { component: path.step5.hasExistingLoans },
+              { component: path.step5.hasCoBorrower },
+            ],
+          },
+        ],
+      },
+
+      // ── Step 6: Confirmation ─────────────────────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Шаг 6: Подтверждение и согласия' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.step6.agreePersonalData },
+              { component: path.step6.agreeCreditHistory },
+              { component: path.step6.agreeMarketing },
+              { component: path.step6.agreeTerms },
+              { component: path.step6.confirmAccuracy },
+              { component: path.step6.electronicSignature },
+            ],
+          },
+        ],
+      },
+    ],
+  }));
+}
