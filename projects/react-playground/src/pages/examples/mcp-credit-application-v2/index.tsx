@@ -1,10 +1,171 @@
 import { useMemo, useState } from 'react';
-import { Button, FormField } from '@reformer/ui-kit';
+import { useArrayLength, useFormControlValue } from '@reformer/core';
+import {
+  Button,
+  Checkbox,
+  FormField,
+  Input,
+  InputMask,
+  RadioGroup,
+  Select,
+  Textarea,
+} from '@reformer/ui-kit';
+import { PlusIcon, TrashIcon } from 'lucide-react';
 import { creditApplicationForm } from './schema';
+
+// ───── Option lists (mirror those in schema.ts — only what's used in templates) ─────
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: 'apartment', label: 'Квартира' },
+  { value: 'house', label: 'Дом' },
+  { value: 'land', label: 'Земельный участок' },
+  { value: 'commercial', label: 'Коммерческая' },
+  { value: 'car', label: 'Автомобиль' },
+];
+
+const GENDER_OPTIONS = [
+  { value: 'male', label: 'Мужской' },
+  { value: 'female', label: 'Женский' },
+];
+
+// ───── FormArray push() payload templates ─────
+//
+// To push a new array item we must supply the SAME `{ value, component, componentProps }`
+// FieldConfig shape that the schema declares for the template item — NOT plain primitives.
+// (Documented in the MCP `add-form-array` prompt and the `form-array` recipe.)
+
+const propertyTemplate = () => ({
+  type: {
+    value: 'apartment',
+    component: Select,
+    componentProps: {
+      label: 'Тип имущества',
+      options: PROPERTY_TYPE_OPTIONS,
+      placeholder: 'Выберите тип',
+    },
+  },
+  description: {
+    value: '',
+    component: Textarea,
+    componentProps: { label: 'Описание', placeholder: 'Опишите имущество', rows: 2 },
+  },
+  estimatedValue: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Оценочная стоимость (₽)', type: 'number', placeholder: '0' },
+  },
+  hasEncumbrance: {
+    value: false,
+    component: Checkbox,
+    componentProps: { label: 'Имеется обременение (залог)' },
+  },
+});
+
+const existingLoanTemplate = () => ({
+  bank: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Банк', placeholder: 'Название банка' },
+  },
+  type: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Тип кредита', placeholder: 'Тип кредита' },
+  },
+  amount: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Сумма кредита (₽)', type: 'number', placeholder: '0' },
+  },
+  remainingAmount: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Остаток задолженности (₽)', type: 'number', placeholder: '0' },
+  },
+  monthlyPayment: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Ежемесячный платёж (₽)', type: 'number', placeholder: '0' },
+  },
+  maturityDate: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Дата погашения', type: 'date' },
+  },
+});
+
+const coBorrowerTemplate = () => ({
+  personalData: {
+    lastName: {
+      value: '',
+      component: Input,
+      componentProps: { label: 'Фамилия', placeholder: 'Введите фамилию' },
+    },
+    firstName: {
+      value: '',
+      component: Input,
+      componentProps: { label: 'Имя', placeholder: 'Введите имя' },
+    },
+    middleName: {
+      value: '',
+      component: Input,
+      componentProps: { label: 'Отчество', placeholder: 'Введите отчество' },
+    },
+    birthDate: {
+      value: '',
+      component: Input,
+      componentProps: { label: 'Дата рождения', type: 'date' },
+    },
+    gender: {
+      value: 'male',
+      component: RadioGroup,
+      componentProps: { label: 'Пол', options: GENDER_OPTIONS, className: '!flex-row gap-6' },
+    },
+    birthPlace: {
+      value: '',
+      component: Input,
+      componentProps: { label: 'Место рождения', placeholder: 'Введите место рождения' },
+    },
+  },
+  phone: {
+    value: '',
+    component: InputMask,
+    componentProps: {
+      label: 'Телефон',
+      mask: '+7 (999) 999-99-99',
+      placeholder: '+7 (___) ___-__-__',
+    },
+  },
+  email: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Email', type: 'email', placeholder: 'example@mail.com' },
+  },
+  relationship: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Родство', placeholder: 'Укажите родство' },
+  },
+  monthlyIncome: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Ежемесячный доход (₽)', type: 'number', placeholder: '0' },
+  },
+});
 
 export default function McpCreditApplicationV2() {
   const form = useMemo(() => creditApplicationForm, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Subscribe to array lengths — re-renders the card list when push/removeAt happens.
+  const propertyCount = useArrayLength(form.step5.properties);
+  const loanCount = useArrayLength(form.step5.existingLoans);
+  const coBorrowerCount = useArrayLength(form.step5.coBorrowers);
+
+  // Subscribe to toggle values — show/hide each array section.
+  const hasProperty = useFormControlValue(form.step5.hasProperty);
+  const hasExistingLoans = useFormControlValue(form.step5.hasExistingLoans);
+  const hasCoBorrower = useFormControlValue(form.step5.hasCoBorrower);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,17 +178,12 @@ export default function McpCreditApplicationV2() {
         return;
       }
       const values = form.getValue();
-      // eslint-disable-next-line no-console
+
       console.log('values', values);
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Template item proxies for FormArray fields (stage 1: render template once, no add/remove yet).
-  const propertyItem = form.step5.properties.at(0);
-  const loanItem = form.step5.existingLoans.at(0);
-  const coBorrowerItem = form.step5.coBorrowers.at(0);
 
   return (
     <form className="max-w-4xl mx-auto p-6 space-y-6" onSubmit={handleSubmit} noValidate>
@@ -215,85 +371,205 @@ export default function McpCreditApplicationV2() {
         </div>
         <FormField control={form.step5.education} testId="education" />
 
+        {/* ── Имущество (FormArray) ── */}
         <FormField control={form.step5.hasProperty} testId="hasProperty" />
-        {propertyItem && (
-          <div className="border border-gray-200 rounded-md p-4 space-y-4">
+        {hasProperty && (
+          <div className="space-y-3">
             <h3 className="text-base font-semibold">Имущество</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={propertyItem.type} testId="properties.0.type" />
-              <FormField
-                control={propertyItem.estimatedValue}
-                testId="properties.0.estimatedValue"
-              />
-            </div>
-            <FormField control={propertyItem.description} testId="properties.0.description" />
-            <FormField control={propertyItem.hasEncumbrance} testId="properties.0.hasEncumbrance" />
+            {Array.from({ length: propertyCount }, (_, i) => {
+              const item = form.step5.properties.at(i);
+              if (!item) return null;
+              return (
+                <div
+                  key={i}
+                  className="rounded-md border border-gray-200 p-4 space-y-3 relative"
+                  data-testid={`property-card-${i}`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <h4 className="text-sm font-semibold text-gray-700">Имущество #{i + 1}</h4>
+                    {propertyCount > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => form.step5.properties.removeAt(i)}
+                        aria-label="Удалить имущество"
+                        data-testid={`remove-property-${i}`}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <FormField control={item.type} testId={`properties.${i}.type`} />
+                  <FormField control={item.description} testId={`properties.${i}.description`} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={item.estimatedValue}
+                      testId={`properties.${i}.estimatedValue`}
+                    />
+                    <FormField
+                      control={item.hasEncumbrance}
+                      testId={`properties.${i}.hasEncumbrance`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => form.step5.properties.push(propertyTemplate())}
+              data-testid="add-property"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Добавить имущество
+            </Button>
           </div>
         )}
 
+        {/* ── Существующие кредиты (FormArray) ── */}
         <FormField control={form.step5.hasExistingLoans} testId="hasExistingLoans" />
-        {loanItem && (
-          <div className="border border-gray-200 rounded-md p-4 space-y-4">
-            <h3 className="text-base font-semibold">Существующий кредит</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={loanItem.bank} testId="existingLoans.0.bank" />
-              <FormField control={loanItem.type} testId="existingLoans.0.type" />
-              <FormField control={loanItem.amount} testId="existingLoans.0.amount" />
-              <FormField
-                control={loanItem.remainingAmount}
-                testId="existingLoans.0.remainingAmount"
-              />
-              <FormField
-                control={loanItem.monthlyPayment}
-                testId="existingLoans.0.monthlyPayment"
-              />
-              <FormField control={loanItem.maturityDate} testId="existingLoans.0.maturityDate" />
-            </div>
+        {hasExistingLoans && (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold">Существующие кредиты</h3>
+            {Array.from({ length: loanCount }, (_, i) => {
+              const item = form.step5.existingLoans.at(i);
+              if (!item) return null;
+              return (
+                <div
+                  key={i}
+                  className="rounded-md border border-gray-200 p-4 space-y-3 relative"
+                  data-testid={`existing-loan-card-${i}`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <h4 className="text-sm font-semibold text-gray-700">Кредит #{i + 1}</h4>
+                    {loanCount > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => form.step5.existingLoans.removeAt(i)}
+                        aria-label="Удалить кредит"
+                        data-testid={`remove-existing-loan-${i}`}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={item.bank} testId={`existingLoans.${i}.bank`} />
+                    <FormField control={item.type} testId={`existingLoans.${i}.type`} />
+                    <FormField control={item.amount} testId={`existingLoans.${i}.amount`} />
+                    <FormField
+                      control={item.remainingAmount}
+                      testId={`existingLoans.${i}.remainingAmount`}
+                    />
+                    <FormField
+                      control={item.monthlyPayment}
+                      testId={`existingLoans.${i}.monthlyPayment`}
+                    />
+                    <FormField
+                      control={item.maturityDate}
+                      testId={`existingLoans.${i}.maturityDate`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => form.step5.existingLoans.push(existingLoanTemplate())}
+              data-testid="add-existing-loan"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Добавить кредит
+            </Button>
           </div>
         )}
 
+        {/* ── Созаёмщики (FormArray) ── */}
         <FormField control={form.step5.hasCoBorrower} testId="hasCoBorrower" />
-        {coBorrowerItem && (
-          <div className="border border-gray-200 rounded-md p-4 space-y-4">
-            <h3 className="text-base font-semibold">Созаемщик</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={coBorrowerItem.personalData.lastName}
-                testId="coBorrowers.0.personalData.lastName"
-              />
-              <FormField
-                control={coBorrowerItem.personalData.firstName}
-                testId="coBorrowers.0.personalData.firstName"
-              />
-              <FormField
-                control={coBorrowerItem.personalData.middleName}
-                testId="coBorrowers.0.personalData.middleName"
-              />
-              <FormField
-                control={coBorrowerItem.personalData.birthDate}
-                testId="coBorrowers.0.personalData.birthDate"
-              />
-            </div>
-            <FormField
-              control={coBorrowerItem.personalData.gender}
-              testId="coBorrowers.0.personalData.gender"
-            />
-            <FormField
-              control={coBorrowerItem.personalData.birthPlace}
-              testId="coBorrowers.0.personalData.birthPlace"
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={coBorrowerItem.phone} testId="coBorrowers.0.phone" />
-              <FormField control={coBorrowerItem.email} testId="coBorrowers.0.email" />
-              <FormField
-                control={coBorrowerItem.relationship}
-                testId="coBorrowers.0.relationship"
-              />
-              <FormField
-                control={coBorrowerItem.monthlyIncome}
-                testId="coBorrowers.0.monthlyIncome"
-              />
-            </div>
+        {hasCoBorrower && (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold">Созаёмщики</h3>
+            {Array.from({ length: coBorrowerCount }, (_, i) => {
+              const item = form.step5.coBorrowers.at(i);
+              if (!item) return null;
+              return (
+                <div
+                  key={i}
+                  className="rounded-md border border-gray-200 p-4 space-y-3 relative"
+                  data-testid={`co-borrower-card-${i}`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <h4 className="text-sm font-semibold text-gray-700">Созаёмщик #{i + 1}</h4>
+                    {coBorrowerCount > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => form.step5.coBorrowers.removeAt(i)}
+                        aria-label="Удалить созаёмщика"
+                        data-testid={`remove-co-borrower-${i}`}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={item.personalData.lastName}
+                      testId={`coBorrowers.${i}.personalData.lastName`}
+                    />
+                    <FormField
+                      control={item.personalData.firstName}
+                      testId={`coBorrowers.${i}.personalData.firstName`}
+                    />
+                    <FormField
+                      control={item.personalData.middleName}
+                      testId={`coBorrowers.${i}.personalData.middleName`}
+                    />
+                    <FormField
+                      control={item.personalData.birthDate}
+                      testId={`coBorrowers.${i}.personalData.birthDate`}
+                    />
+                  </div>
+                  <FormField
+                    control={item.personalData.gender}
+                    testId={`coBorrowers.${i}.personalData.gender`}
+                  />
+                  <FormField
+                    control={item.personalData.birthPlace}
+                    testId={`coBorrowers.${i}.personalData.birthPlace`}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={item.phone} testId={`coBorrowers.${i}.phone`} />
+                    <FormField control={item.email} testId={`coBorrowers.${i}.email`} />
+                    <FormField
+                      control={item.relationship}
+                      testId={`coBorrowers.${i}.relationship`}
+                    />
+                    <FormField
+                      control={item.monthlyIncome}
+                      testId={`coBorrowers.${i}.monthlyIncome`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => form.step5.coBorrowers.push(coBorrowerTemplate())}
+              data-testid="add-co-borrower"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Добавить созаёмщика
+            </Button>
           </div>
         )}
 
