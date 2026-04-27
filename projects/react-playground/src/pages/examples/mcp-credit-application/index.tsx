@@ -1153,6 +1153,58 @@ function Step6Section({ form }: { form: FormProxy<Step6Confirmation> }) {
   );
 }
 
+// ─── Stage 3b: read-only computed summary panel ────────────────────────────
+
+function ComputedSummaryPanel() {
+  const form = creditApplicationForm;
+  const interestRateCtrl = useFormControl(form.interestRate as FieldNode<number>);
+  const monthlyPaymentCtrl = useFormControl(form.monthlyPayment as FieldNode<number>);
+  const totalIncomeCtrl = useFormControl(form.totalIncome as FieldNode<number>);
+  const paymentToIncomeRatioCtrl = useFormControl(form.paymentToIncomeRatio as FieldNode<number>);
+  const ageCtrl = useFormControl(form.age as FieldNode<number>);
+  const fullNameCtrl = useFormControl(form.fullName as FieldNode<string>);
+
+  return (
+    <section
+      style={{
+        background: '#f5f7fa',
+        border: '1px solid #d0d7de',
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 24,
+        display: 'grid',
+        gap: 8,
+      }}
+    >
+      <h2 style={{ margin: '0 0 8px' }}>Сводка (вычисляемые поля)</h2>
+      <div>
+        <label style={{ display: 'block', fontWeight: 500 }}>Процентная ставка (%)</label>
+        <input disabled value={interestRateCtrl.value ?? ''} />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontWeight: 500 }}>Ежемесячный платёж (₽)</label>
+        <input disabled value={monthlyPaymentCtrl.value ?? ''} />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontWeight: 500 }}>Совокупный доход (₽)</label>
+        <input disabled value={totalIncomeCtrl.value ?? ''} />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontWeight: 500 }}>Платёж / доход (%)</label>
+        <input disabled value={paymentToIncomeRatioCtrl.value ?? ''} />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontWeight: 500 }}>Возраст (лет)</label>
+        <input disabled value={ageCtrl.value ?? ''} />
+      </div>
+      <div>
+        <label style={{ display: 'block', fontWeight: 500 }}>ФИО</label>
+        <input disabled value={fullNameCtrl.value ?? ''} />
+      </div>
+    </section>
+  );
+}
+
 // ─── Root component ─────────────────────────────────────────────────────────
 
 export default function McpCreditApplication() {
@@ -1171,6 +1223,7 @@ export default function McpCreditApplication() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: 24, fontFamily: 'sans-serif' }}>
       <h1>Заявка на кредит</h1>
+      <ComputedSummaryPanel />
       {submitted && (
         <p style={{ color: 'red' }}>Пожалуйста, исправьте ошибки в форме перед отправкой.</p>
       )}

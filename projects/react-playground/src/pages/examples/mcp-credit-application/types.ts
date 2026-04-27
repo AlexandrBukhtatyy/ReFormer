@@ -148,4 +148,12 @@ export interface CreditApplicationForm extends FormFields {
   step4: Step4Employment;
   step5: Step5Additional;
   step6: Step6Confirmation;
+
+  // ── Stage 3b: computed root-level fields ──────────────────────────────────
+  interestRate: number; // annual %, default 0
+  monthlyPayment: number; // RUB, default 0
+  totalIncome: number; // RUB, default 0
+  paymentToIncomeRatio: number; // %, default 0
+  age: number; // full years, default 0
+  fullName: string; // default ''
 }

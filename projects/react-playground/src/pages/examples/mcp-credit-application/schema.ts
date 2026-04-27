@@ -13,7 +13,7 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
-import { enableWhen, copyFrom } from '@reformer/core/behaviors';
+import { enableWhen, copyFrom, watchField } from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from './types';
 
 // Stage-1 scaffold: use a no-op component placeholder so we don't need
@@ -298,6 +298,14 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       confirmAccuracy: { value: false, component: Noop },
       electronicSignature: { value: '', component: Noop },
     },
+
+    // ── Stage 3b: computed root-level fields ──────────────────────────
+    interestRate: { value: 0, component: Noop },
+    monthlyPayment: { value: 0, component: Noop },
+    totalIncome: { value: 0, component: Noop },
+    paymentToIncomeRatio: { value: 0, component: Noop },
+    age: { value: 0, component: Noop },
+    fullName: { value: '', component: Noop },
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -838,5 +846,138 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     // change that breaks DOMContentLoaded).
     // The gating is implemented in index.tsx as conditional rendering
     // ({hasProperty.value && <PropertyArray/>}) instead.
+
+    // ── Stage 3b: watchField computed cascade ─────────────────────────────
+    // Interest-rate lookup table
+    const RATE_BY_TYPE: Record<string, number> = {
+      mortgage: 8.5,
+      car: 11,
+      business: 14,
+      refinancing: 9,
+      consumer: 16,
+    };
+
+    // Compute interestRate and monthlyPayment (and cascade paymentToIncomeRatio)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeRateAndPayment = (ctx: any) => {
+      const loanType = (ctx.form.step1.loanType.value.value as string) ?? 'consumer';
+      const newRate = RATE_BY_TYPE[loanType] ?? 16;
+      const curRate = ctx.form.interestRate.value.value as number;
+      if (Math.abs(curRate - newRate) > 0.0001) {
+        ctx.form.interestRate.setValue(newRate);
+      }
+
+      const amount = ctx.form.step1.loanAmount.value.value as number | null;
+      const term = ctx.form.step1.loanTerm.value.value as number;
+      const rate = newRate; // use freshly-computed rate, not stale curRate
+
+      let newPayment = 0;
+      if (amount != null && amount > 0 && term > 0 && rate > 0) {
+        const i = rate / 100 / 12;
+        const n = term;
+        newPayment = Math.round((amount * (i * Math.pow(1 + i, n))) / (Math.pow(1 + i, n) - 1));
+      }
+      const curPayment = ctx.form.monthlyPayment.value.value as number;
+      if (Math.abs(curPayment - newPayment) > 0.0001) {
+        ctx.form.monthlyPayment.setValue(newPayment);
+      }
+
+      // cascade: paymentToIncomeRatio depends on monthlyPayment + totalIncome
+      const totalIncome = ctx.form.totalIncome.value.value as number;
+      const newRatio = totalIncome > 0 ? Math.round((newPayment / totalIncome) * 10000) / 100 : 0;
+      const curRatio = ctx.form.paymentToIncomeRatio.value.value as number;
+      if (Math.abs(curRatio - newRatio) > 0.0001) {
+        ctx.form.paymentToIncomeRatio.setValue(newRatio);
+      }
+    };
+
+    // Compute totalIncome and cascade paymentToIncomeRatio
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeIncomeAndPayment = (ctx: any) => {
+      const monthly = (ctx.form.step4.monthlyIncome.value.value as number | null) ?? 0;
+      const additional = (ctx.form.step4.additionalIncome.value.value as number | null) ?? 0;
+      const newTotal = monthly + additional;
+      const curTotal = ctx.form.totalIncome.value.value as number;
+      if (Math.abs(curTotal - newTotal) > 0.0001) {
+        ctx.form.totalIncome.setValue(newTotal);
+      }
+
+      const payment = ctx.form.monthlyPayment.value.value as number;
+      const newRatio = newTotal > 0 ? Math.round((payment / newTotal) * 10000) / 100 : 0;
+      const curRatio = ctx.form.paymentToIncomeRatio.value.value as number;
+      if (Math.abs(curRatio - newRatio) > 0.0001) {
+        ctx.form.paymentToIncomeRatio.setValue(newRatio);
+      }
+    };
+
+    // Compute age from birthDate
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeAge = (ctx: any) => {
+      const birthDate = ctx.form.step2.personalData.birthDate.value.value as string | null;
+      let newAge = 0;
+      if (birthDate) {
+        const ms = Date.now() - new Date(birthDate).getTime();
+        if (!isNaN(ms) && ms > 0) {
+          newAge = Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
+        }
+      }
+      const curAge = ctx.form.age.value.value as number;
+      if (curAge !== newAge) {
+        ctx.form.age.setValue(newAge);
+      }
+    };
+
+    // Compute fullName from lastName + firstName + middleName
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeFullName = (ctx: any) => {
+      const lastName = (ctx.form.step2.personalData.lastName.value.value as string) ?? '';
+      const firstName = (ctx.form.step2.personalData.firstName.value.value as string) ?? '';
+      const middleName = (ctx.form.step2.personalData.middleName.value.value as string) ?? '';
+      const newName = [lastName, firstName, middleName].filter(Boolean).join(' ');
+      const curName = ctx.form.fullName.value.value as string;
+      if (curName !== newName) {
+        ctx.form.fullName.setValue(newName);
+      }
+    };
+
+    // One watchField per trigger path — all delegate to the shared compute fns.
+    // Preamble rule #3: watchField accepts ONE FieldPathNode, never an array.
+    watchField(path.step1.loanType, (_: unknown, ctx: unknown) => recomputeRateAndPayment(ctx), {
+      immediate: false,
+    });
+    watchField(path.step1.loanAmount, (_: unknown, ctx: unknown) => recomputeRateAndPayment(ctx), {
+      immediate: false,
+    });
+    watchField(path.step1.loanTerm, (_: unknown, ctx: unknown) => recomputeRateAndPayment(ctx), {
+      immediate: false,
+    });
+    watchField(
+      path.step4.monthlyIncome,
+      (_: unknown, ctx: unknown) => recomputeIncomeAndPayment(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step4.additionalIncome,
+      (_: unknown, ctx: unknown) => recomputeIncomeAndPayment(ctx),
+      { immediate: false }
+    );
+    watchField(path.step2.personalData.birthDate, (_: unknown, ctx: unknown) => recomputeAge(ctx), {
+      immediate: false,
+    });
+    watchField(
+      path.step2.personalData.lastName,
+      (_: unknown, ctx: unknown) => recomputeFullName(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step2.personalData.firstName,
+      (_: unknown, ctx: unknown) => recomputeFullName(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step2.personalData.middleName,
+      (_: unknown, ctx: unknown) => recomputeFullName(ctx),
+      { immediate: false }
+    );
   },
 });

@@ -22,7 +22,7 @@
 | `mcp-credit-application/` | 1. FormSchema | 2 | core: add `## Import Patterns` section + `FormFields` constraint callout in `07-complete-import.md` and `10-arrays.md` (commit pending) | prompt `create-form` (target=core) |
 | `mcp-credit-application/` | 2. Validation | 1 (+ 1 polish iter) | — (фикс отложен до повтора) | prompt `add-validation` |
 | `mcp-credit-application/` | 3. Behaviors (3a декларативные) | 4 | (1) `add-behavior` preamble + 7-rule cycle prevention; (2) `10-arrays.md` callout + `add-behavior` rule #8 о ArrayNode | prompt `add-behavior` |
-| `mcp-credit-application/` | 3. Behaviors (3b computed) | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application/` | 3. Behaviors (3b computed) | 3 | (1) `20-compute-vs-watch.md` — fix `ctx.setFieldValue` → `ctx.form.x.setValue` API; (2) `add-behavior` rule #3 + `20-compute-vs-watch.md` — добавлен paragraph «Multiple triggers, one cascade» (watchField принимает один path, не массив) | prompt `add-behavior` |
 | `mcp-credit-application/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
@@ -106,7 +106,31 @@ _Каждый этап после прогона дополняется блок
 
 ### `mcp-credit-application/` · 3. Behaviors — итерация 3b (computed fields)
 
-_не начато_
+**Итерации: 3** (2 провала + 1 успех).
+
+**Итерация 1 — нарушение запрета.** Sub-agent с обновлённым prompt (после 3a фиксов) сделал 5 watchers, tsc/eslint clean, но в final report сам сознался что прочитал два запрещённых файла: `simple-form/behaviors/registration-behavior.ts` и `complex-multy-step-form/schemas/credit-application-behavior.ts`. Цель чтения — выяснить правильный API записи в форму: prompt показывал `ctx.setFieldValue('field', value)`, реальный API — `ctx.form.<path>.setValue(value)`. **`git restore`** + `report_issue` (severity:critical, prompt:add-behavior, watchfield).
+
+**MCP-фикс 1 (коммит `242f739`).** Переписан `packages/reformer/docs/llms/20-compute-vs-watch.md`: оба `ctx.setFieldValue` заменены на `ctx.form.<path>.setValue`, добавлен пример guard через `Math.abs(diff) > epsilon`, добавлены подразделы «Cross-level write API» (явно: `ctx.setFieldValue` не существует) и «Stage-pattern for chained computeds» (cascade в одном watcher). `npm run generate:llms` обновил `packages/reformer/llms.txt`.
+
+**Итерация 2 — runtime crash.** Sub-agent retry 1 — без нарушений запретов, использовал правильный API. Но prompt preamble rule #3 говорил «multiple sources go in same watcher's [paths] array», и sub-agent попытался `watchField([loanAmount, loanTerm], ...)` с `as any` cast (т. к. tsc реально пропустил). Runtime crash на mount: `TypeError: Cannot read properties of undefined (reading 'startsWith')` в `getFieldByPath`. **Массив paths в watchField не существует** — это была documentation bug. **`git restore`** + `report_issue` (severity:critical, watchfield, api-surface).
+
+**MCP-фикс 2 (коммит `f0ac2d7`).** Переписан rule #3 в `add-behavior` preamble: «watchField принимает ОДИН path; для multi-trigger — несколько watchField на shared compute function». В `20-compute-vs-watch.md` добавлен подраздел «Multiple triggers, one cascade» с worked annuity example (3 trigger paths sharing one compute). MCP сервер пересобран.
+
+**Итерация 3 — успех.** Sub-agent retry 2 с обновлённым prompt — clean: 9 watchers (3 для loan-rate-payment, 2 для income, 1 для age, 3 для fullName) делегируют в 4 shared compute функции (`recomputeRateAndPayment`, `recomputeIncomeAndPayment`, `recomputeAge`, `recomputeFullName`). Каждый setValue guarded через `Math.abs(diff) > 0.0001` (floats) или `!==` (strings/integers). Все `{ immediate: false }`. Файлы:
+- `types.ts` (+9 строк) — 6 root-level fields на `CreditApplicationForm`.
+- `schema.ts` (+115 строк) — 6 FieldConfig + watchField cascade.
+- `index.tsx` (+55 строк) — `ComputedSummaryPanel` компонент с 6 read-only inputs.
+
+tsc/eslint clean, **0 MCP gaps**, **0 forbidden file reads**.
+
+**Visual smoke-test (playwright).** Mount OK, 0 console errors. Default state: `interestRate=16` (consumer initial → W1 fired). Интерактивный сценарий:
+1. Заполнено `loanAmount=3000000`, `loanTerm=120` → **monthlyPayment=50254** (annuity 3M @ 16% / 120мес ✓).
+2. Сменено `loanType=mortgage` → **interestRate=8.5**, **monthlyPayment=37196** (annuity @ 8.5%, cascade через ctx.form.interestRate ✓).
+3. Заполнено `monthlyIncome=100000`, `additionalIncome=20000` → **totalIncome=120000**, **paymentToIncomeRatio=31** (W3 + cascade ✓).
+4. Заполнено `birthDate=1990-01-15` → **age=36** (W4 ✓).
+5. Заполнено `lastName=Иванов`, `firstName=Иван`, `middleName=Иванович` → **fullName="Иванов Иван Иванович"** (W5, 3 watchers + 1 compute ✓).
+
+2 PNG screenshots: [../../projects/react-playground-e2e/screenshots/mcp-credit/stage3b/](../../projects/react-playground-e2e/screenshots/mcp-credit/stage3b/) — fullpage + крупный план summary panel.
 
 ### `mcp-credit-application/` · 4. FormArray
 
