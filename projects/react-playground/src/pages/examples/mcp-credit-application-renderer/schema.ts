@@ -12,7 +12,7 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
-import { enableWhen, copyFrom } from '@reformer/core/behaviors';
+import { enableWhen, copyFrom, watchField } from '@reformer/core/behaviors';
 import { Input, Checkbox, Select, Textarea, InputMask, RadioGroup } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
 
@@ -593,6 +593,38 @@ const formSchema = {
       componentProps: { label: 'Код подтверждения из СМС', mask: '999999', placeholder: '123456' },
     },
   },
+
+  // ── Computed root-level fields (stage 3b) — written by watchField cascade ──
+  interestRate: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Процентная ставка (%)', type: 'number', readOnly: true },
+  },
+  monthlyPayment: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Ежемесячный платеж (₽)', type: 'number', readOnly: true },
+  },
+  totalIncome: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Общий доход (₽)', type: 'number', readOnly: true },
+  },
+  paymentToIncomeRatio: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Платеж / доход (%)', type: 'number', readOnly: true },
+  },
+  age: {
+    value: 0,
+    component: Input,
+    componentProps: { label: 'Возраст (лет)', type: 'number', readOnly: true },
+  },
+  fullName: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Полное имя', readOnly: true },
+  },
 };
 
 export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
@@ -1133,6 +1165,142 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     });
     copyFrom(path.step3.registrationAddress.postalCode, path.step3.residenceAddress.postalCode, {
       when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+
+    // ── Stage 3b: computed root-level fields via watchField cascade ───────────
+    //
+    // Rate table: base annual % by loanType
+    const RATE_TABLE: Record<string, number> = {
+      consumer: 15.9,
+      mortgage: 9.5,
+      car: 12.5,
+      business: 18.0,
+      refinancing: 11.0,
+    };
+
+    // recomputeRateAndPayment — targets: interestRate, monthlyPayment, paymentToIncomeRatio
+    // Triggered by: loanType, loanAmount, loanTerm
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeRateAndPayment = (ctx: any) => {
+      const loanType = ctx.form.step1.loanType.value.value as string;
+      const loanAmount = ctx.form.step1.loanAmount.value.value as number | null;
+      const loanTerm = ctx.form.step1.loanTerm.value.value as number | null;
+
+      // 1. interestRate — guard: diff > 0.0001
+      const newRate = RATE_TABLE[loanType] ?? 15.9;
+      const curRate = ctx.form.interestRate.value.value as number;
+      if (Math.abs(curRate - newRate) > 0.0001) {
+        ctx.form.interestRate.setValue(newRate);
+      }
+
+      // 2. monthlyPayment (annuity) — guard: diff > 0.0001
+      let newPayment = 0;
+      if (loanAmount != null && loanTerm != null && loanAmount > 0 && loanTerm > 0) {
+        const monthlyRate = newRate / 100 / 12;
+        if (monthlyRate === 0) {
+          newPayment = loanAmount / loanTerm;
+        } else {
+          const pow = Math.pow(1 + monthlyRate, loanTerm);
+          newPayment = (loanAmount * monthlyRate * pow) / (pow - 1);
+        }
+      }
+      const curPayment = ctx.form.monthlyPayment.value.value as number;
+      if (Math.abs(curPayment - newPayment) > 0.0001) {
+        ctx.form.monthlyPayment.setValue(newPayment);
+      }
+
+      // 3. paymentToIncomeRatio — uses fresh newPayment + current totalIncome
+      const totalIncome = ctx.form.totalIncome.value.value as number;
+      const newRatio = totalIncome > 0 ? (newPayment / totalIncome) * 100 : 0;
+      const curRatio = ctx.form.paymentToIncomeRatio.value.value as number;
+      if (Math.abs(curRatio - newRatio) > 0.0001) {
+        ctx.form.paymentToIncomeRatio.setValue(newRatio);
+      }
+    };
+
+    // recomputeIncomeAndPayment — targets: totalIncome, paymentToIncomeRatio
+    // Triggered by: monthlyIncome, additionalIncome
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeIncomeAndPayment = (ctx: any) => {
+      const monthly = (ctx.form.step4.monthlyIncome.value.value as number | null) ?? 0;
+      const additional = (ctx.form.step4.additionalIncome.value.value as number | null) ?? 0;
+      const newIncome = monthly + additional;
+      const curIncome = ctx.form.totalIncome.value.value as number;
+      if (Math.abs(curIncome - newIncome) > 0.0001) {
+        ctx.form.totalIncome.setValue(newIncome);
+      }
+
+      // paymentToIncomeRatio — use current monthlyPayment + fresh newIncome
+      const currentPayment = ctx.form.monthlyPayment.value.value as number;
+      const newRatio = newIncome > 0 ? (currentPayment / newIncome) * 100 : 0;
+      const curRatio = ctx.form.paymentToIncomeRatio.value.value as number;
+      if (Math.abs(curRatio - newRatio) > 0.0001) {
+        ctx.form.paymentToIncomeRatio.setValue(newRatio);
+      }
+    };
+
+    // recomputeAge — target: age
+    // Triggered by: birthDate
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeAge = (ctx: any) => {
+      const birthDate = ctx.form.step2.personalData.birthDate.value.value as string;
+      if (!birthDate) return;
+      const birth = new Date(birthDate);
+      if (isNaN(birth.getTime())) return;
+      const today = new Date();
+      const newAge =
+        today.getFullYear() -
+        birth.getFullYear() -
+        (today.getMonth() < birth.getMonth() ||
+        (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+          ? 1
+          : 0);
+      const curAge = ctx.form.age.value.value as number;
+      if (curAge !== newAge) {
+        ctx.form.age.setValue(newAge);
+      }
+    };
+
+    // recomputeFullName — target: fullName
+    // Triggered by: lastName, firstName, middleName
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recomputeFullName = (ctx: any) => {
+      const last = (ctx.form.step2.personalData.lastName.value.value as string) ?? '';
+      const first = (ctx.form.step2.personalData.firstName.value.value as string) ?? '';
+      const middle = (ctx.form.step2.personalData.middleName.value.value as string) ?? '';
+      const newFullName = [last, first, middle].filter(Boolean).join(' ');
+      const curFullName = ctx.form.fullName.value.value as string;
+      if (curFullName !== newFullName) {
+        ctx.form.fullName.setValue(newFullName);
+      }
+    };
+
+    // 9 watchField calls — one per trigger, each with { immediate: false }
+    watchField(path.step1.loanType, (_, ctx) => recomputeRateAndPayment(ctx), { immediate: false });
+    watchField(path.step1.loanAmount, (_, ctx) => recomputeRateAndPayment(ctx), {
+      immediate: false,
+    });
+    watchField(path.step1.loanTerm, (_, ctx) => recomputeRateAndPayment(ctx), { immediate: false });
+
+    watchField(path.step4.monthlyIncome, (_, ctx) => recomputeIncomeAndPayment(ctx), {
+      immediate: false,
+    });
+    watchField(path.step4.additionalIncome, (_, ctx) => recomputeIncomeAndPayment(ctx), {
+      immediate: false,
+    });
+
+    watchField(path.step2.personalData.birthDate, (_, ctx) => recomputeAge(ctx), {
+      immediate: false,
+    });
+
+    watchField(path.step2.personalData.lastName, (_, ctx) => recomputeFullName(ctx), {
+      immediate: false,
+    });
+    watchField(path.step2.personalData.firstName, (_, ctx) => recomputeFullName(ctx), {
+      immediate: false,
+    });
+    watchField(path.step2.personalData.middleName, (_, ctx) => recomputeFullName(ctx), {
+      immediate: false,
     });
   },
 });

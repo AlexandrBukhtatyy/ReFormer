@@ -28,7 +28,7 @@
 | `mcp-credit-application-renderer/` | 1. FormSchema | 2 + бsplit-fixes | 4 critical: (1) `01-overview.md` Quick Start rewrite (no `getReformerForm`, no `form` prop on FormRenderer, FormRoot pattern); (2) `__selfManagedChildren = true` правило; (3) `node.children` top-level vs `componentProps.children`; (4) `types.ts` JSDoc example fix | prompt `create-form` (target=renderer-react) |
 | `mcp-credit-application-renderer/` | 2. Validation | 2 (1 forbidden-read + 1 success) | `04-common-patterns.md` — добавлена «Validation callback canonical shape» (cast + `(path: any)` + `(p: typeof path)` + eslint-disable) | prompt `add-validation` |
 | `mcp-credit-application-renderer/` | 3. Behaviors (3a декларативные) | 1 (success) | — | prompt `add-behavior` |
-| `mcp-credit-application-renderer/` | 3. Behaviors (3b computed) | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer/` | 3. Behaviors (3b computed) | 1 (success) | — | prompt `add-behavior` |
 | `mcp-credit-application-renderer/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
@@ -252,7 +252,22 @@ Screenshot: [stage3a-page2-renderer.png](../../projects/react-playground-e2e/scr
 
 ### `mcp-credit-application-renderer/` · 3. Behaviors — итерация 3b (computed fields)
 
-_не начато_
+**Итерация: 1 (успех с первой попытки).**
+
+Sub-agent добавил 6 root-level computed fields + 4 shared compute functions + 9 watchField triggers. Зеркальный mirror page 1 stage 3b — все MCP-фиксы page 1 (`242f739`, `f0ac2d7`, `83ebb3e`) полностью покрыли поверхность. **0 forbidden file reads, 0 MCP gaps.**
+
+Файлы:
+- `types.ts` (+7 строк) — 6 computed fields в `CreditApplicationForm`.
+- `schema.ts` (+156 строк) — 6 FieldConfig + 4 compute functions + 9 watchField calls.
+- `render-schema.ts` (+19 строк) — новый `<Section title="Сводка">` с 6 computed fields как первый child.
+
+**Visual smoke-test (playwright).** Mount OK, 0 console errors, "Сводка" Section видима.
+- На init: interestRate=15.9 (consumer default — W1 fired на initial loanType=consumer).
+- После заполнения loanAmount=3000000 + loanTerm=120: **monthlyPayment=50067** (annuity 3M @ 15.9% / 120 ✓).
+- После заполнения monthlyIncome=100000 + additionalIncome=20000: **totalIncome=120000**, **paymentToIncomeRatio=41.7** (50067/120000*100 ✓).
+- Cross-watcher cascade работает (W2 trigger loanAmount → recomputeRateAndPayment → setValue interestRate/monthlyPayment/ratio за один проход; W3 trigger income → recomputeIncomeAndPayment → setValue totalIncome/ratio).
+
+Screenshot: [stage3b-page2-renderer.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage3b-page2-renderer.png).
 
 ### `mcp-credit-application-renderer/` · 4. FormArray
 

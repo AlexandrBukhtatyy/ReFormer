@@ -137,5 +137,12 @@ export interface CreditApplicationForm extends FormFields {
   step4: Step4Form;
   step5: Step5Form;
   step6: Step6Form;
+  // ── Computed root-level fields (stage 3b) ──────────────────────────────────
+  interestRate: number;
+  monthlyPayment: number;
+  totalIncome: number;
+  paymentToIncomeRatio: number;
+  age: number;
+  fullName: string;
   [key: string]: FormValue;
 }

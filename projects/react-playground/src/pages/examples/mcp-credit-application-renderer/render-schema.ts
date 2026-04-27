@@ -25,6 +25,25 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
     component: FormRoot,
     componentProps: { form },
     children: [
+      // ── Сводка: computed fields (stage 3b) ───────────────────────────
+      {
+        component: Section,
+        componentProps: { title: 'Сводка' },
+        children: [
+          {
+            component: Box,
+            children: [
+              { component: path.interestRate },
+              { component: path.monthlyPayment },
+              { component: path.totalIncome },
+              { component: path.paymentToIncomeRatio },
+              { component: path.age },
+              { component: path.fullName },
+            ],
+          },
+        ],
+      },
+
       // ── Step 1: Loan info ────────────────────────────────────────────
       {
         component: Section,
