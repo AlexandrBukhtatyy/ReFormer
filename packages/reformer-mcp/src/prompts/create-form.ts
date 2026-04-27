@@ -107,6 +107,10 @@ ${commonPatterns}${rendererBlock}
 5. **Не добавляй валидацию и behaviors** — это отдельные шаги (для них есть промпты \`add-validation\` и \`add-behavior\`).
 6. **Используй \`useMemo\`** при создании формы в компоненте; импорты — точно как в секции «Imports» выше.
 7. **Не выдумывай API** — только что есть в Quick Start, FormSchema, и detected ui-kit.
+8. **FormField — две версии.** В detected ui-kit есть **wrapper** \`FormField\` (импорт \`from '@reformer/ui-kit'\`, API \`<FormField control={form.x} testId="x" />\`); в \`@reformer/cdk/form-field\` есть **compound** \`FormField.Root/Label/Control/Error\`. Skeleton выше использует **wrapper** из ui-kit. Для disambiguation у \`get_symbol_docs\` передавай \`package: "@reformer/ui-kit"\`.
+9. **Deeply nested forms.** Если форма имеет 4+ уровня (например, step-grouped как credit-application), дополни типизацию интерфейсов \`extends FormFields\` (или \`[key: string]: FormValue\` index signature) — иначе \`createForm<T>\` не примет такой generic. Также используй cast \`createForm as (config: { form: unknown; validation: unknown; behavior: unknown }) => FormProxy<T>\` чтобы избежать TS2589 на validation/behavior callbacks. Validation/behavior callback annotation: \`(path: any) => {...}\`. Внутри \`applyWhen\` — \`(p: typeof path) => {...}\`.
+10. **FormSchema для массивов = tuple.** Поле-массив описывается как \`arrField: [itemSchema]\` (tuple с одним template-элементом). НЕ как \`{ value: [], itemSchema: {...} }\` (silent corruption).
+11. **FormArray.AddButton initialValue.** Принимает PLAIN leaf values (не FieldConfig-объекты со \`{ value, component }\`). Иначе \`description\` рендерится как \`[object Object]\`. Template factory должна вернуть \`{ type: 'apartment', estimatedValue: 0, ... }\` без обёрток.
 
 В конце — короткий чек-лист «что включено / что отложено на следующие шаги» + явное подтверждение «использовал \`@reformer/ui-kit\` + Tailwind по detected стеку» (или причину, почему нет).`,
         },
