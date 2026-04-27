@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 
 export interface ProjectStack {
@@ -80,9 +80,7 @@ function findTailwindConfig(projectRoot: string): string | null {
  * detector returns the root package.json which usually lacks app-level deps.
  */
 export function detectProjectStack(startDir?: string): ProjectStack {
-  const start = startDir
-    ? (resolve(startDir))
-    : process.cwd();
+  const start = startDir ? resolve(startDir) : process.cwd();
   const pkgPath = findProjectPackageJson(start);
   if (!pkgPath) {
     return {
@@ -101,7 +99,11 @@ export function detectProjectStack(startDir?: string): ProjectStack {
   }
 
   const projectRoot = dirname(pkgPath);
-  let json: any = {};
+  let json: {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+  } = {};
   try {
     json = JSON.parse(readFileSync(pkgPath, 'utf-8'));
   } catch {
@@ -180,27 +182,34 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
     lines.push('');
     lines.push('```typescript');
     lines.push('// Поля формы');
-    lines.push('import { Input, InputMask, InputPassword, Textarea } from \'@reformer/ui-kit\';');
-    lines.push('import { Checkbox, RadioGroup, Select, SelectGroup, SelectItem } from \'@reformer/ui-kit\';');
+    lines.push("import { Input, InputMask, InputPassword, Textarea } from '@reformer/ui-kit';");
+    lines.push(
+      "import { Checkbox, RadioGroup, Select, SelectGroup, SelectItem } from '@reformer/ui-kit';"
+    );
     lines.push('// Layout-контейнеры (для RenderSchema или ручной разметки)');
-    lines.push('import { Section, Box, Collapsible } from \'@reformer/ui-kit\';');
+    lines.push("import { Section, Box, Collapsible } from '@reformer/ui-kit';");
     lines.push('// Кнопки и обвязка');
-    lines.push('import { Button, FormField, AsyncBoundary, cn } from \'@reformer/ui-kit\';');
+    lines.push("import { Button, FormField, AsyncBoundary, cn } from '@reformer/ui-kit';");
     lines.push('```');
     lines.push('');
-    lines.push('Все компоненты совместимы с `FieldNode` (`value`/`onChange`/`onBlur`) — подключай через `<FormField control={form.email} />` или регистрируй в `RenderSchema`.');
+    lines.push(
+      'Все компоненты совместимы с `FieldNode` (`value`/`onChange`/`onBlur`) — подключай через `<FormField control={form.email} />` или регистрируй в `RenderSchema`.'
+    );
   } else {
     lines.push('> ⚠️ `@reformer/ui-kit` НЕ найден в зависимостях. **Уточни у оркестратора:**');
-    lines.push('> «Какие UI-компоненты использовать? (a) добавить `@reformer/ui-kit`, (b) shadcn/ui, (c) MUI, (d) plain HTML, (e) другое».');
+    lines.push(
+      '> «Какие UI-компоненты использовать? (a) добавить `@reformer/ui-kit`, (b) shadcn/ui, (c) MUI, (d) plain HTML, (e) другое».'
+    );
     lines.push('> До получения ответа НЕ генерируй код — это инвалидный fallback.');
   }
   lines.push('');
 
   // Tailwind recommendation
   if (stack.hasTailwind) {
-    const setupNote = stack.hasTailwindVitePlugin && !stack.hasTailwindConfig
-      ? ' (v4 — конфиг inline через `@theme` в CSS, отдельного `tailwind.config.*` нет)'
-      : '';
+    const setupNote =
+      stack.hasTailwindVitePlugin && !stack.hasTailwindConfig
+        ? ' (v4 — конфиг inline через `@theme` в CSS, отдельного `tailwind.config.*` нет)'
+        : '';
     lines.push(`**Styling → используй Tailwind utility-classes**${setupNote}:`);
     lines.push('');
     lines.push('- Layout: `grid grid-cols-2 gap-4`, `flex flex-col gap-4`, `space-y-4`.');
@@ -208,13 +217,18 @@ export function renderStackDetectionBlock(stack: ProjectStack): string {
     lines.push('- Typography: `text-sm`, `text-2xl font-bold`, `text-gray-900`.');
     lines.push('- Состояния полей: `disabled:opacity-50`, `focus:ring-2 focus:ring-blue-500`.');
   } else if (stack.hasTailwindDep || stack.hasTailwindConfig) {
-    lines.push('> ⚠️ Tailwind частично обнаружен (' +
-      (stack.hasTailwindDep ? 'dep есть' : 'dep НЕТ') + ', ' +
-      (stack.hasTailwindConfig ? 'config есть' : 'config НЕТ') +
-      '). Уточни у оркестратора, считать ли Tailwind включённым.');
+    lines.push(
+      '> ⚠️ Tailwind частично обнаружен (' +
+        (stack.hasTailwindDep ? 'dep есть' : 'dep НЕТ') +
+        ', ' +
+        (stack.hasTailwindConfig ? 'config есть' : 'config НЕТ') +
+        '). Уточни у оркестратора, считать ли Tailwind включённым.'
+    );
   } else {
     lines.push('> ⚠️ Tailwind не обнаружен. **Уточни у оркестратора:**');
-    lines.push('> «Какая система стилей? (a) Tailwind, (b) CSS Modules, (c) Emotion / styled-components, (d) vanilla CSS, (e) inline style».');
+    lines.push(
+      '> «Какая система стилей? (a) Tailwind, (b) CSS Modules, (c) Emotion / styled-components, (d) vanilla CSS, (e) inline style».'
+    );
     lines.push('> До получения ответа НЕ генерируй классы.');
   }
 
@@ -239,18 +253,18 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('');
     lines.push('```typescript');
     lines.push('{');
-    lines.push('  selector: \'step1\',');
+    lines.push("  selector: 'step1',");
     lines.push('  component: Section,');
     lines.push('  componentProps: {');
-    lines.push('    title: \'Параметры кредита\',');
-    lines.push('    titleAs: \'h2\',');
-    lines.push('    titleClassName: \'text-xl font-bold mb-4\',');
-    lines.push('    className: \'space-y-4\',');
+    lines.push("    title: 'Параметры кредита',");
+    lines.push("    titleAs: 'h2',");
+    lines.push("    titleClassName: 'text-xl font-bold mb-4',");
+    lines.push("    className: 'space-y-4',");
     lines.push('  },');
     lines.push('  children: [');
     lines.push('    {');
     lines.push('      component: Box,');
-    lines.push('      componentProps: { className: \'grid grid-cols-2 gap-4\' },');
+    lines.push("      componentProps: { className: 'grid grid-cols-2 gap-4' },");
     lines.push('      children: [');
     lines.push('        { component: path.loanAmount },');
     lines.push('        { component: path.loanTerm },');
@@ -261,7 +275,9 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('}');
     lines.push('```');
     lines.push('');
-    lines.push('**Settings.fieldWrapper = FormField** — оборачивает каждое поле в label + error + pending:');
+    lines.push(
+      '**Settings.fieldWrapper = FormField** — оборачивает каждое поле в label + error + pending:'
+    );
     lines.push('```tsx');
     lines.push('<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />');
     lines.push('```');
@@ -290,13 +306,15 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
   lines.push('');
   lines.push('**Кнопки навигации:** используй `<Button>` из ui-kit:');
   lines.push('```tsx');
-  lines.push('import { Button } from \'@reformer/ui-kit\';');
+  lines.push("import { Button } from '@reformer/ui-kit';");
   lines.push('<Button type="button" variant="outline" onClick={prev}>Назад</Button>');
   lines.push('<Button type="button" onClick={next} disabled={isValidating}>Далее</Button>');
   lines.push('<Button type="submit" disabled={isValidating}>Отправить</Button>');
   lines.push('```');
   lines.push('');
-  lines.push('**Не используй plain `<input>` / `<button>` / inline-style** — это нарушает консистентность baseline.');
+  lines.push(
+    '**Не используй plain `<input>` / `<button>` / inline-style** — это нарушает консистентность baseline.'
+  );
 
   return lines.join('\n');
 }
