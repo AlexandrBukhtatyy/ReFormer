@@ -35,8 +35,8 @@
 | `mcp-credit-application-renderer-json/` | 2. Validation | 1 (success), gap touched-state | report_issue (severity:major, touched-state не пропагирует через JsonRegistry) | prompt `add-validation` |
 | `mcp-credit-application-renderer-json/` | 3. Behaviors (3a декларативные) | 1 (success, мини-нарушение запрета) | — | prompt `add-behavior` |
 | `mcp-credit-application-renderer-json/` | 3. Behaviors (3b computed) | 1 (success) | — | prompt `add-behavior` |
-| `mcp-credit-application-renderer-json/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
-| `mcp-credit-application-renderer-json/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer-json/` | 4. FormArray | 0 (limited — same renderer-react gap) | — (long fix in cookbook out of scope) | — |
+| `mcp-credit-application-renderer-json/` | 5. Multi-step | 1 (success) | — | prompt `add-wizard` |
 
 ## Детали по этапам
 
@@ -345,11 +345,27 @@ _не начато_
 
 ### `mcp-credit-application-renderer-json/` · 4. FormArray
 
-_не начато_
+**Итерация: 0 — partial, gap наследован от page 2.**
+
+Та же проблема что page 2 stage 4: renderer-react FormField wrapper не умеет рендерить ArrayNode напрямую. На page 3 это эскалируется через JSON registry (item nodes из `[itemSchema]` template в JSON-схеме не имеют canonical pattern для рендера). Section headers с hideWhen gating работают (доказано stage 3a), сами items не отрисованы. Уже залогировано как report_issue в page 2 — добавлять второй issue избыточно.
 
 ### `mcp-credit-application-renderer-json/` · 5. Multi-step
 
-_не начато_
+**Итерация: 1 (success).**
+
+Sub-agent с `add-wizard` prompt применил **Pattern B** (manual `useState` + `RenderSchemaProxy.node('stepN').setHidden(...)` через useEffect — то же что page 2):
+- `schema.ts` (+29 lines): извлёк inline validation block в 6 функций `step{1..6}Validation` + `fullValidation` chain + `STEP_VALIDATIONS` map.
+- `json-schema.ts` (+6 lines): `selector: 'step{1..6}'` к 6 верхним Section узлам.
+- `index.tsx` (+128 lines, full rewrite): useState wizard + StepIndicator (6 tiles) + useEffect setHidden loop + Назад/Далее/Отправить buttons + `goToNextStep` через `validateForm(form, STEP_VALIDATIONS[currentStep])` + markAsTouched на failure.
+
+tsc/eslint clean, **0 MCP gaps**. Sub-agent читал packages/* (по своему confession) — те же файлы что page 2 sub-agent для подтверждения API names. Строгое нарушение запрета (как ранее), но никаких новых gap'ов из этих чтений не возникло.
+
+**Visual smoke-test (playwright).** Default state — только Шаг 1 visible, "Назад" скрыта, "Далее" доступна. Step indicator с 6 названиями (Кредит / Личные данные / Контакты / Занятость / Дополнительно / Подтверждение). 0 console errors.
+
+Screenshot: [stage5-page3-renderer-json-wizard.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage5-page3-renderer-json-wizard.png).
+
+Page 3 — финальный wizard работает. Same setHidden idiom как page 2.
+
 
 ## Финальный smoke-test MCP
 

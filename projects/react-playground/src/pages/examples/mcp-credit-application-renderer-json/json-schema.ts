@@ -45,6 +45,7 @@ export const jsonSchema: JsonFormSchema = {
 
       // ── Step 1: Кредит ────────────────────────────────────────────────────
       {
+        selector: 'step1',
         component: 'Section',
         componentProps: { title: 'Шаг 1: Основная информация о кредите' },
         children: [
@@ -142,6 +143,7 @@ export const jsonSchema: JsonFormSchema = {
 
       // ── Step 2: Персональные данные ───────────────────────────────────────
       {
+        selector: 'step2',
         component: 'Section',
         componentProps: { title: 'Шаг 2: Персональные данные' },
         children: [
@@ -231,6 +233,7 @@ export const jsonSchema: JsonFormSchema = {
 
       // ── Step 3: Контакты ──────────────────────────────────────────────────
       {
+        selector: 'step3',
         component: 'Section',
         componentProps: { title: 'Шаг 3: Контактная информация' },
         children: [
@@ -328,6 +331,7 @@ export const jsonSchema: JsonFormSchema = {
 
       // ── Step 4: Занятость ─────────────────────────────────────────────────
       {
+        selector: 'step4',
         component: 'Section',
         componentProps: { title: 'Шаг 4: Информация о занятости' },
         children: [
@@ -436,6 +440,7 @@ export const jsonSchema: JsonFormSchema = {
 
       // ── Step 5: Дополнительно ─────────────────────────────────────────────
       {
+        selector: 'step5',
         component: 'Section',
         componentProps: { title: 'Шаг 5: Дополнительная информация' },
         children: [
@@ -661,6 +666,7 @@ export const jsonSchema: JsonFormSchema = {
 
       // ── Step 6: Подтверждение ─────────────────────────────────────────────
       {
+        selector: 'step6',
         component: 'Section',
         componentProps: { title: 'Шаг 6: Подтверждение и согласия' },
         children: [
