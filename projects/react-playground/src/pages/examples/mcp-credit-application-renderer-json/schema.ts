@@ -12,7 +12,7 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
-import { enableWhen, copyFrom } from '@reformer/core/behaviors';
+import { enableWhen, copyFrom, watchField } from '@reformer/core/behaviors';
 import { Input, Textarea, Select, Checkbox } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
 
@@ -84,6 +84,14 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
   }) => FormProxy<CreditApplicationForm>
 )({
   form: {
+    // ── Root-level computed fields (Сводка) ──────────────────────────────────
+    interestRate: { value: 0, component: Noop, disabled: true },
+    monthlyPayment: { value: 0, component: Noop, disabled: true },
+    totalIncome: { value: 0, component: Noop, disabled: true },
+    paymentToIncomeRatio: { value: 0, component: Noop, disabled: true },
+    age: { value: 0, component: Noop, disabled: true },
+    fullName: { value: '', component: Noop, disabled: true },
+
     step1: {
       loanType: { value: 'consumer', component: Select },
       loanAmount: { value: null, component: Input },
@@ -676,5 +684,158 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     copyFrom(path.step3.registrationAddress.postalCode, path.step3.residenceAddress.postalCode, {
       when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
     });
+
+    // ── Stage 3b: computed root-level fields via watchField cascade ──────────
+
+    // Shared compute function 1: interestRate + monthlyPayment + paymentToIncomeRatio
+    const recomputeRateAndPayment = (ctx: { form: ReturnType<typeof creditApplicationForm> }) => {
+      const loanType = ctx.form.step1.loanType.value.value as string;
+      const loanAmount = (ctx.form.step1.loanAmount.value.value as number | null) ?? 0;
+      const loanTerm = (ctx.form.step1.loanTerm.value.value as number) ?? 1;
+
+      const rateMap: Record<string, number> = {
+        mortgage: 8.5,
+        car: 11,
+        business: 14,
+        refinancing: 9,
+        consumer: 16,
+      };
+      const newRate = rateMap[loanType] ?? 16;
+
+      // Annuity formula: P * i * (1+i)^n / ((1+i)^n - 1)
+      const i = newRate / 100 / 12;
+      const n = loanTerm > 0 ? loanTerm : 1;
+      const newPayment =
+        loanAmount > 0 && i > 0
+          ? Math.round((loanAmount * i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1))
+          : 0;
+
+      const curRate = ctx.form.interestRate.value.value as number;
+      if (Math.abs(curRate - newRate) > 0.0001) {
+        ctx.form.interestRate.setValue(newRate);
+      }
+
+      const curPayment = ctx.form.monthlyPayment.value.value as number;
+      if (Math.abs(curPayment - newPayment) > 0.0001) {
+        ctx.form.monthlyPayment.setValue(newPayment);
+      }
+
+      const totalInc = (ctx.form.totalIncome.value.value as number) ?? 0;
+      const newRatio = totalInc > 0 ? Math.round((newPayment / totalInc) * 100 * 100) / 100 : 0;
+      const curRatio = ctx.form.paymentToIncomeRatio.value.value as number;
+      if (Math.abs(curRatio - newRatio) > 0.0001) {
+        ctx.form.paymentToIncomeRatio.setValue(newRatio);
+      }
+    };
+
+    // Shared compute function 2: totalIncome + paymentToIncomeRatio
+    const recomputeIncomeAndPayment = (ctx: { form: ReturnType<typeof creditApplicationForm> }) => {
+      const monthly = (ctx.form.step4.monthlyIncome.value.value as number | null) ?? 0;
+      const additional = (ctx.form.step4.additionalIncome.value.value as number | null) ?? 0;
+      const newTotal = monthly + additional;
+
+      const curTotal = ctx.form.totalIncome.value.value as number;
+      if (Math.abs(curTotal - newTotal) > 0.0001) {
+        ctx.form.totalIncome.setValue(newTotal);
+      }
+
+      const payment = (ctx.form.monthlyPayment.value.value as number) ?? 0;
+      const newRatio = newTotal > 0 ? Math.round((payment / newTotal) * 100 * 100) / 100 : 0;
+      const curRatio = ctx.form.paymentToIncomeRatio.value.value as number;
+      if (Math.abs(curRatio - newRatio) > 0.0001) {
+        ctx.form.paymentToIncomeRatio.setValue(newRatio);
+      }
+    };
+
+    // Shared compute function 3: age from birthDate
+    const recomputeAge = (ctx: { form: ReturnType<typeof creditApplicationForm> }) => {
+      const birthDate = ctx.form.step2.personalData.birthDate.value.value as string;
+      if (!birthDate) return;
+      const birth = new Date(birthDate);
+      if (isNaN(birth.getTime())) return;
+      const now = new Date();
+      const newAge =
+        now.getFullYear() -
+        birth.getFullYear() -
+        (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+      const curAge = ctx.form.age.value.value as number;
+      if (curAge !== newAge) {
+        ctx.form.age.setValue(newAge);
+      }
+    };
+
+    // Shared compute function 4: fullName from last+first+middle
+    const recomputeFullName = (ctx: { form: ReturnType<typeof creditApplicationForm> }) => {
+      const last = ((ctx.form.step2.personalData.lastName.value.value as string) ?? '').trim();
+      const first = ((ctx.form.step2.personalData.firstName.value.value as string) ?? '').trim();
+      const middle = ((ctx.form.step2.personalData.middleName.value.value as string) ?? '').trim();
+      const newFullName = [last, first, middle].filter(Boolean).join(' ');
+      const curFullName = ctx.form.fullName.value.value as string;
+      if (curFullName !== newFullName) {
+        ctx.form.fullName.setValue(newFullName);
+      }
+    };
+
+    // 9 watchField triggers (one per path, { immediate: false })
+    // Triggers for recomputeRateAndPayment
+    watchField(
+      path.step1.loanType,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeRateAndPayment(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step1.loanAmount,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeRateAndPayment(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step1.loanTerm,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeRateAndPayment(ctx),
+      { immediate: false }
+    );
+
+    // Triggers for recomputeIncomeAndPayment
+    watchField(
+      path.step4.monthlyIncome,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeIncomeAndPayment(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step4.additionalIncome,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeIncomeAndPayment(ctx),
+      { immediate: false }
+    );
+
+    // Trigger for recomputeAge
+    watchField(
+      path.step2.personalData.birthDate,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) => recomputeAge(ctx),
+      { immediate: false }
+    );
+
+    // Triggers for recomputeFullName
+    watchField(
+      path.step2.personalData.lastName,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeFullName(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step2.personalData.firstName,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeFullName(ctx),
+      { immediate: false }
+    );
+    watchField(
+      path.step2.personalData.middleName,
+      (_: unknown, ctx: { form: ReturnType<typeof creditApplicationForm> }) =>
+        recomputeFullName(ctx),
+      { immediate: false }
+    );
   },
 });

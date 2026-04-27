@@ -5,6 +5,44 @@ export const jsonSchema: JsonFormSchema = {
   root: {
     component: 'FormRoot',
     children: [
+      // ── Сводка: Root-level computed fields ───────────────────────────────
+      {
+        component: 'Section',
+        componentProps: { title: 'Сводка' },
+        children: [
+          {
+            model: 'interestRate',
+            component: 'Input',
+            componentProps: { label: 'Процентная ставка (%)', disabled: true },
+          },
+          {
+            model: 'monthlyPayment',
+            component: 'Input',
+            componentProps: { label: 'Ежемесячный платеж (₽)', disabled: true },
+          },
+          {
+            model: 'totalIncome',
+            component: 'Input',
+            componentProps: { label: 'Общий доход (₽)', disabled: true },
+          },
+          {
+            model: 'paymentToIncomeRatio',
+            component: 'Input',
+            componentProps: { label: 'Платеж к доходу (%)', disabled: true },
+          },
+          {
+            model: 'age',
+            component: 'Input',
+            componentProps: { label: 'Возраст (лет)', disabled: true },
+          },
+          {
+            model: 'fullName',
+            component: 'Input',
+            componentProps: { label: 'Полное имя', disabled: true },
+          },
+        ],
+      },
+
       // ── Step 1: Кредит ────────────────────────────────────────────────────
       {
         component: 'Section',
