@@ -1,3 +1,8 @@
+// Deeply-nested step-grouped form requires `any`-typed validation/behavior
+// callbacks (TS2589 workaround documented in MCP add-validation/add-behavior
+// prompts). Disable no-explicit-any for the whole file rather than scatter
+// inline disables across every callback.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createForm, type FormProxy } from '@reformer/core';
 import {
   required,
@@ -10,6 +15,7 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
+import { copyFrom, enableWhen, watchField } from '@reformer/core/behaviors';
 import { Input, InputMask, Textarea, Checkbox, Select, RadioGroup } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
 
@@ -67,7 +73,11 @@ const PROPERTY_TYPE_OPTIONS = [
 // hits TS2589 ("type instantiation excessively deep") — canonical workaround
 // per MCP docs is a function-cast on createForm with `validation: unknown`.
 export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
-  createForm as (config: { form: unknown; validation: unknown }) => FormProxy<CreditApplicationForm>
+  createForm as (config: {
+    form: unknown;
+    validation: unknown;
+    behavior: unknown;
+  }) => FormProxy<CreditApplicationForm>
 )({
   form: {
     // ===== Step 1. Кредит =====
@@ -699,7 +709,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   validation: (path: any) => {
     // ===== Step 1. Кредит =====
     required(path.step1.loanAmount, { message: 'Введите сумму кредита' });
@@ -855,7 +865,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     );
 
     // Cross-field: workExperienceCurrent <= workExperienceTotal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     validate(path.step4.workExperienceCurrent, (value: number | null, ctx: any) => {
       const total = ctx.form.step4.workExperienceTotal.value.value as number | null;
       if (total != null && value != null && value > total) {
@@ -878,7 +888,6 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       path.step5.hasProperty,
       (value: boolean) => value === true,
       (p: typeof path) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateItems(p.step5.properties, (itemPath: any) => {
           required(itemPath.type, { message: 'Укажите тип имущества' });
           required(itemPath.estimatedValue, { message: 'Укажите оценочную стоимость' });
@@ -891,7 +900,6 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       path.step5.hasExistingLoans,
       (value: boolean) => value === true,
       (p: typeof path) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateItems(p.step5.existingLoans, (itemPath: any) => {
           required(itemPath.bank, { message: 'Укажите банк' });
           required(itemPath.amount, { message: 'Укажите сумму кредита' });
@@ -906,7 +914,6 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       path.step5.hasCoBorrower,
       (value: boolean) => value === true,
       (p: typeof path) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateItems(p.step5.coBorrowers, (itemPath: any) => {
           required(itemPath.personalData.lastName, { message: 'Введите фамилию созаемщика' });
           required(itemPath.personalData.firstName, { message: 'Введите имя созаемщика' });
@@ -946,5 +953,194 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
 
     required(path.step6.electronicSignature, { message: 'Введите код подтверждения' });
     minLength(path.step6.electronicSignature, 5, { message: 'Код минимум 5 символов' });
+  },
+
+  behavior: (path: any) => {
+    // ===== Conditional enable/disable on simple fields (no arrays — risk of cycle/hang) =====
+
+    // Step 1 — mortgage / auto field gating
+    enableWhen(
+      path.step1.propertyValue,
+      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage'
+    );
+
+    enableWhen(
+      path.step1.carBrand,
+      (form: CreditApplicationForm) => form.step1.loanType === 'auto'
+    );
+    enableWhen(
+      path.step1.carModel,
+      (form: CreditApplicationForm) => form.step1.loanType === 'auto'
+    );
+    enableWhen(path.step1.carYear, (form: CreditApplicationForm) => form.step1.loanType === 'auto');
+    enableWhen(
+      path.step1.carPrice,
+      (form: CreditApplicationForm) => form.step1.loanType === 'auto'
+    );
+
+    // Step 4 — employment-driven gating
+    const isEmployed = (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed';
+    enableWhen(path.step4.companyName, isEmployed);
+    enableWhen(path.step4.companyInn, isEmployed);
+    enableWhen(path.step4.companyPhone, isEmployed);
+    enableWhen(path.step4.companyAddress, isEmployed);
+    enableWhen(path.step4.position, isEmployed);
+    enableWhen(path.step4.workExperienceTotal, isEmployed);
+    enableWhen(path.step4.workExperienceCurrent, isEmployed);
+
+    const isBusiness = (form: CreditApplicationForm) =>
+      form.step4.employmentStatus === 'selfEmployed' ||
+      form.step4.employmentStatus === 'businessOwner';
+    enableWhen(path.step4.businessType, isBusiness);
+    enableWhen(path.step4.businessInn, isBusiness);
+    enableWhen(path.step4.businessActivity, isBusiness);
+
+    // ===== Address copy (declarative) =====
+    // Signature: copyFrom(source, target, options)
+    copyFrom(path.step3.registrationAddress, path.step3.residenceAddress, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+
+    // ===== Computed fields via watchField (cross-level / cross-group via setValue) =====
+    // All watchField calls use { immediate: false } and guard setValue against cycle.
+
+    // 1. step1.initialPayment — 20% of propertyValue when mortgage
+    function recomputeInitialPayment(_v: unknown, ctx: any) {
+      const loanType = ctx.form.step1.loanType.value.value as string;
+      const propertyValue = ctx.form.step1.propertyValue.value.value as number | null;
+      let next: number | null = null;
+      if (loanType === 'mortgage' && propertyValue != null && propertyValue > 0) {
+        next = Math.round(propertyValue * 0.2);
+      }
+      if (ctx.form.step1.initialPayment.value.value !== next) {
+        ctx.form.step1.initialPayment.setValue(next);
+      }
+    }
+    watchField(path.step1.loanType, recomputeInitialPayment, { immediate: false });
+    watchField(path.step1.propertyValue, recomputeInitialPayment, { immediate: false });
+
+    // 2. step1.interestRate — fixed by loanType
+    const RATE_BY_TYPE: Record<string, number> = {
+      consumer: 15.5,
+      mortgage: 8.5,
+      auto: 12.0,
+      business: 16.0,
+      refinance: 13.0,
+    };
+    watchField(
+      path.step1.loanType,
+      (loanType: string, ctx: any) => {
+        const next = RATE_BY_TYPE[loanType] ?? null;
+        if (ctx.form.step1.interestRate.value.value !== next) {
+          ctx.form.step1.interestRate.setValue(next);
+        }
+      },
+      { immediate: false }
+    );
+
+    // 3. step1.monthlyPayment — annuity formula
+    function recomputeMonthlyPayment(_v: unknown, ctx: any) {
+      const amount = ctx.form.step1.loanAmount.value.value as number | null;
+      const term = ctx.form.step1.loanTerm.value.value as number | null;
+      const rate = ctx.form.step1.interestRate.value.value as number | null;
+      let next: number | null = null;
+      if (amount != null && amount > 0 && term != null && term > 0 && rate != null && rate > 0) {
+        const monthlyRate = rate / 100 / 12;
+        const factor = Math.pow(1 + monthlyRate, term);
+        next = Math.round((amount * monthlyRate * factor) / (factor - 1));
+        if (!Number.isFinite(next)) next = null;
+      }
+      if (ctx.form.step1.monthlyPayment.value.value !== next) {
+        ctx.form.step1.monthlyPayment.setValue(next);
+      }
+    }
+    watchField(path.step1.loanAmount, recomputeMonthlyPayment, { immediate: false });
+    watchField(path.step1.loanTerm, recomputeMonthlyPayment, { immediate: false });
+    watchField(path.step1.interestRate, recomputeMonthlyPayment, { immediate: false });
+
+    // 4. step2.fullName — concat lastName + firstName + middleName (skip empty)
+    function recomputeFullName(_v: unknown, ctx: any) {
+      const last = (ctx.form.step2.personalData.lastName.value.value as string) || '';
+      const first = (ctx.form.step2.personalData.firstName.value.value as string) || '';
+      const middle = (ctx.form.step2.personalData.middleName.value.value as string) || '';
+      const next = [last, first, middle].filter((p) => p.trim().length > 0).join(' ');
+      if (ctx.form.step2.fullName.value.value !== next) {
+        ctx.form.step2.fullName.setValue(next);
+      }
+    }
+    watchField(path.step2.personalData.lastName, recomputeFullName, { immediate: false });
+    watchField(path.step2.personalData.firstName, recomputeFullName, { immediate: false });
+    watchField(path.step2.personalData.middleName, recomputeFullName, { immediate: false });
+
+    // 5. step2.age — computed years from birthDate
+    watchField(
+      path.step2.personalData.birthDate,
+      (birthDate: string, ctx: any) => {
+        let next: number | null = null;
+        if (birthDate) {
+          const birth = new Date(birthDate);
+          if (!Number.isNaN(birth.getTime())) {
+            const now = new Date();
+            let age = now.getFullYear() - birth.getFullYear();
+            const m = now.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+              age -= 1;
+            }
+            if (age >= 0 && age < 200) next = age;
+          }
+        }
+        if (ctx.form.step2.age.value.value !== next) {
+          ctx.form.step2.age.setValue(next);
+        }
+      },
+      { immediate: false }
+    );
+
+    // 6. step4.totalIncome — monthlyIncome + additionalIncome
+    function recomputeTotalIncome(_v: unknown, ctx: any) {
+      const m = (ctx.form.step4.monthlyIncome.value.value as number | null) ?? 0;
+      const a = (ctx.form.step4.additionalIncome.value.value as number | null) ?? 0;
+      const sum = m + a;
+      const next: number | null = sum > 0 ? sum : null;
+      if (ctx.form.step4.totalIncome.value.value !== next) {
+        ctx.form.step4.totalIncome.setValue(next);
+      }
+    }
+    watchField(path.step4.monthlyIncome, recomputeTotalIncome, { immediate: false });
+    watchField(path.step4.additionalIncome, recomputeTotalIncome, { immediate: false });
+
+    // 7. step4.paymentToIncomeRatio — monthlyPayment / totalIncome * 100
+    function recomputeRatio(_v: unknown, ctx: any) {
+      const payment = ctx.form.step1.monthlyPayment.value.value as number | null;
+      const total = ctx.form.step4.totalIncome.value.value as number | null;
+      let next: number | null = null;
+      if (payment != null && payment > 0 && total != null && total > 0) {
+        next = Math.round((payment / total) * 100 * 10) / 10;
+      }
+      if (ctx.form.step4.paymentToIncomeRatio.value.value !== next) {
+        ctx.form.step4.paymentToIncomeRatio.setValue(next);
+      }
+    }
+    watchField(path.step1.monthlyPayment, recomputeRatio, { immediate: false });
+    watchField(path.step4.totalIncome, recomputeRatio, { immediate: false });
+
+    // 8. step5.coBorrowersIncome — sum of monthlyIncome across coBorrowers
+    watchField(
+      path.step5.coBorrowers,
+      (items: Array<{ monthlyIncome?: number | null }>, ctx: any) => {
+        let sum = 0;
+        if (Array.isArray(items)) {
+          for (const it of items) {
+            const v = it?.monthlyIncome;
+            if (typeof v === 'number' && Number.isFinite(v)) sum += v;
+          }
+        }
+        const next: number | null = sum > 0 ? sum : null;
+        if (ctx.form.step5.coBorrowersIncome.value.value !== next) {
+          ctx.form.step5.coBorrowersIncome.setValue(next);
+        }
+      },
+      { immediate: false }
+    );
   },
 });

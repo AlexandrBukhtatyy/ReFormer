@@ -34,7 +34,7 @@
 
 - **Не читать `packages/`** — кроме `package.json` каждого пакета (для детекта зависимостей это разрешено, исходники запрещены).
 - **Не читать `projects/react-playground/`** — никаких страниц, layout-ов, конфигов, `App.tsx`, **включая** `complex-multy-step-form*` (baseline для visual reference, но peek в код = инвалидный тест MCP).
-- **Не читать `projects/react-playground-e2e/`** кроме каталога новой итерации `tests/pages/<page-name>/iteration-2/` (куда лежат новые screenshots).
+- **Не читать `projects/react-playground-e2e/`** кроме каталога новой итерации `screenshots/mcp-credit-v2/page<N>/` (куда лежат новые screenshots; gitignored).
 - **Не читать `projects/react-playground/src/pages/examples/mcp-credit-application*`** (старая итерация — sub-agent не должен унаследовать её решения; новая реализация — с нуля в новых каталогах).
 - **Не читать `docs/specs/credit-application-mcp-report.md`** (отчёт первой итерации; sub-agent должен подходить «свежим взглядом»).
 - **Можно** читать: текущую спеку (`credit-application-form.md`), `AGENTS.md`, корневой `README.md`, `package.json` любого пакета и проекта (для детекта зависимостей), `tsconfig.json`, `tailwind.config.*`, `vite.config.*` (конфиги стилей и сборки).
@@ -81,9 +81,9 @@
 
 ## Тестирование (Playwright)
 
-**Скриншоты лежат в `projects/react-playground-e2e/tests/pages/<page-name>/iteration-2/`** (новый путь, не общий `screenshots/`). Имя файла: `<stage>-<scenario>.png`.
+**Скриншоты лежат в `projects/react-playground-e2e/screenshots/mcp-credit-v2/page<N>/`** (рядом с iteration-1 в `screenshots/mcp-credit/`, под общий gitignore `projects/react-playground-e2e/screenshots/`). Имя файла: `<stage>-<scenario>.png`. `page1` = `mcp-credit-application-v2`, `page2` = `-renderer-v2`, `page3` = `-renderer-json-v2`.
 
-**Не удалять скриншоты предыдущей итерации** — они в `projects/react-playground-e2e/screenshots/mcp-credit/` (старый путь) и в git history. Новая итерация создаёт **свои** screenshots, чтобы можно было сравнить «before / after» по каждому этапу.
+**Не удалять скриншоты предыдущей итерации** — они в `projects/react-playground-e2e/screenshots/mcp-credit/` (старый путь) и в git history. Новая итерация создаёт **свои** screenshots в соседней `mcp-credit-v2/`, чтобы можно было сравнить «before / after» по каждому этапу.
 
 Visual smoke-test через playwright MCP на каждом stage:
 1. Navigate на временный route в `App.tsx` (orchestrator-only).
@@ -95,7 +95,7 @@ Visual smoke-test через playwright MCP на каждом stage:
 
 - 3 страницы `mcp-credit-application-v2*/` собираются (`tsc` clean), используют `@reformer/ui-kit` + Tailwind, визуально близки к `complex-multy-step-form*`.
 - MCP-prompts (`create-form` и другие) **детектируют** наличие `@reformer/ui-kit` и Tailwind в `package.json` проекта; при detected — рекомендуют их с примерами; при не-detected — выдают "MCP gap" вопрос.
-- Скриншоты в `projects/react-playground-e2e/tests/pages/mcp-credit-application-v2*/iteration-2/` — fullpage + per-step + ключевые сценарии (валидация, computed cascade, FormArray add/remove, wizard navigation).
+- Скриншоты в `projects/react-playground-e2e/screenshots/mcp-credit-v2/page<N>/` — fullpage + per-step + ключевые сценарии (валидация, computed cascade, FormArray add/remove, wizard navigation). Gitignored по общему правилу `projects/react-playground-e2e/screenshots/`.
 - Финальный отчёт `docs/specs/credit-application-mcp-report-v2.md` — таблица «страница × этап × итераций × MCP-фикс × visual-similarity score (subjective: 1-5)» + side-by-side screenshots ключевых страниц.
 - Все правки MCP — отдельными коммитами `docs(<pkg>):` / `feat(mcp):`.
 - В commit-сообщении явно перечислять использованные MCP tools/prompts/resources.
