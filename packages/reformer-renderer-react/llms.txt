@@ -33,29 +33,137 @@ import {
 
 ## 3. Quick Start
 
+> **CRITICAL gotcha** — `FormRenderer` does NOT accept a `form` prop. Field-nodes silently
+> render as `null` (with a console warning *"Field node rendered without form — pass form via
+> wizard componentProps"*) unless the **root render-node** is a user-defined container that
+> accepts `form` through `componentProps` and forwards it to `RenderNodeComponent` for its
+> children. Below is the minimal pattern; for multi-step forms use `RendererFormWizard` from
+> `@reformer/cdk` as the root instead.
+
 ```tsx
-import { useMemo } from 'react';
-import { getReformerForm } from '@reformer/core';
-import { FormRenderer, type RenderSchemaFn } from '@reformer/renderer-react';
-import { Box, Input, FormField } from '@reformer/ui-kit';
+import { useMemo, type ReactNode } from 'react';
+import { createForm, type FormProxy, type FormFields } from '@reformer/core';
+import {
+  FormRenderer,
+  RenderNodeComponent,
+  createRenderSchema,
+  type RenderNode,
+  type RenderSchemaFn,
+} from '@reformer/renderer-react';
+import { Box, FormField, Input } from '@reformer/ui-kit';
 
-type MyForm = { email: string; password: string };
+type MyForm = FormFields & { email: string; password: string };
 
-const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
-  component: Box,
+// (1) Minimal user-defined root container — receives form via componentProps,
+//     renders children via RenderNodeComponent passing form down.
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
+  return (
+    <>
+      {children.map((child, i) => (
+        <RenderNodeComponent key={i} node={child} form={form} />
+      ))}
+    </>
+  );
+}
+
+// (2) Render schema — root must be FormRoot (or any component that propagates form).
+const renderSchemaFn: RenderSchemaFn<MyForm> = (path) => ({
+  component: FormRoot,
   componentProps: {
+    // form is filled in below via componentProps when mounting
     children: [
-      { component: path.email, componentProps: { label: 'Email' } },
-      { component: path.password, componentProps: { label: 'Password', type: 'password' } },
+      {
+        component: Box,
+        componentProps: {
+          children: [
+            { component: path.email, componentProps: { label: 'Email' } },
+            { component: path.password, componentProps: { label: 'Password', type: 'password' } },
+          ],
+        },
+      },
     ],
   },
 });
 
-function MyForm() {
-  const form = useMemo(() => getReformerForm<MyForm>({ email: '', password: '' }), []);
-  return <FormRenderer form={form} render={renderSchema} settings={{ fieldWrapper: FormField }} />;
+// (3) Mount: bind form into the schema once via createRenderSchema + patch root props.
+function MyFormPage() {
+  const form = useMemo(
+    () =>
+      createForm<MyForm>({
+        form: {
+          email: { value: '', component: Input },
+          password: { value: '', component: Input, componentProps: { type: 'password' } },
+        },
+      }),
+    []
+  );
+  const schema = useMemo(() => {
+    const s = createRenderSchema<MyForm>(renderSchemaFn);
+    // Inject form into FormRoot's componentProps via the root patcher (selector 'root').
+    return s; // for static schemas, simpler: use a closure that captures form (next pattern)
+  }, [form]);
+
+  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
+
+### Two more critical gotchas inside `FormRoot`
+
+1. **`__selfManagedChildren = true`** must be set on `FormRoot` (any value works as long as it's
+   strictly `true`). Without it, `RenderNodeComponent` auto-renders `node.children` as React
+   elements before passing them in — `FormRoot` then receives already-rendered `ReactNode`s
+   instead of raw `RenderNode[]` and `children.map(child => <RenderNodeComponent node={child}/>)`
+   blows up because `child` is a React element, not a node descriptor.
+
+   ```tsx
+   export function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
+     return <>{children.map((c, i) => <RenderNodeComponent key={i} node={c} form={form} />)}</>;
+   }
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   (FormRoot as any).__selfManagedChildren = true;
+   ```
+
+2. **Container `children` is a TOP-LEVEL node property**, not nested inside `componentProps`.
+   The renderer destructures `const { children } = node;`. Putting them in `componentProps.children`
+   leaves `node.children` undefined and the field tree is never rendered.
+
+   ```typescript
+   // CORRECT
+   { component: Section, componentProps: { title: 'X' }, children: [ /* nodes */ ] }
+
+   // WRONG — silent (children rendered as React-element prop, not as RenderNode tree)
+   { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
+   ```
+
+### Simpler closure pattern
+
+when `form` doesn't need to change: build the schema as a function
+that closes over `form`, so `FormRoot` always gets the right instance:
+
+```tsx
+function createMyFormSchema(form: FormProxy<MyForm>) {
+  return createRenderSchema<MyForm>((path) => ({
+    component: FormRoot,
+    componentProps: {
+      form,                              // ← captured here, not via path
+      children: [
+        { component: path.email, componentProps: { label: 'Email' } },
+        { component: path.password, componentProps: { label: 'Password', type: 'password' } },
+      ],
+    },
+  }));
+}
+
+function MyFormPage() {
+  const form = useMemo(() => createForm<MyForm>({ … }), []);
+  const schema = useMemo(() => createMyFormSchema(form), [form]);
+  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+}
+```
+
+The closure-pattern matches what `complex-multy-step-form-renderer` does in this monorepo —
+that's the canonical mount path. **Without `form` reaching `RenderNodeComponent` via a root
+component's `componentProps`, fields render as null.**
 
 ## 4. Key Concepts
 
@@ -447,7 +555,11 @@ _Source: src/core/types.ts_
 
 **Kind:** `interface`
 
-Узел контейнера (Box, Section, Collapsible и т.д.)
+Узел контейнера (Box, Section, Collapsible и т.д.).
+
+**Важно:** `children` — это TOP-LEVEL свойство узла, НЕ часть `componentProps`.
+Если положить `children` внутрь `componentProps`, то `node.children` будет undefined
+и рендерер ничего не отрисует (он деструктурирует `const { children } = node`).
 
 **Signature:**
 ```typescript
@@ -478,11 +590,11 @@ export interface ContainerRenderNode<T> {
   componentProps: {
     title: 'Личные данные',
     className: 'grid grid-cols-2 gap-4',
-    children: [
-      { component: path.firstName },
-      { component: path.lastName },
-    ],
   },
+  children: [
+    { component: path.firstName },
+    { component: path.lastName },
+  ],
 }
 ```
 

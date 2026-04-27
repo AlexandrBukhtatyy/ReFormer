@@ -125,7 +125,11 @@ export interface ContainerRenderNodeProps {
 }
 
 /**
- * Узел контейнера (Box, Section, Collapsible и т.д.)
+ * Узел контейнера (Box, Section, Collapsible и т.д.).
+ *
+ * **Важно:** `children` — это TOP-LEVEL свойство узла, НЕ часть `componentProps`.
+ * Если положить `children` внутрь `componentProps`, то `node.children` будет undefined
+ * и рендерер ничего не отрисует (он деструктурирует `const { children } = node`).
  *
  * @example
  * ```typescript
@@ -134,11 +138,11 @@ export interface ContainerRenderNodeProps {
  *   componentProps: {
  *     title: 'Личные данные',
  *     className: 'grid grid-cols-2 gap-4',
- *     children: [
- *       { component: path.firstName },
- *       { component: path.lastName },
- *     ],
  *   },
+ *   children: [
+ *     { component: path.firstName },
+ *     { component: path.lastName },
+ *   ],
  * }
  * ```
  */
