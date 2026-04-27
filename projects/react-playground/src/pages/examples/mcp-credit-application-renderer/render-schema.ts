@@ -1,4 +1,4 @@
-import { createRenderSchema } from '@reformer/renderer-react';
+import { createRenderSchema, hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';
 import type { FormProxy } from '@reformer/core';
 import { Box, Section } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
@@ -13,7 +13,15 @@ import { FormRoot } from './form-root.tsx';
 // node.children undefined and the renderer produces nothing.
 
 export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplicationForm>) {
-  return createRenderSchema<CreditApplicationForm>((path) => ({
+  // ── Render behavior: hide FormArray sections when their gating checkbox is off ──
+  // Selectors match the three Section nodes inside Step 5 below.
+  const arrayGating: RenderBehaviorFn<CreditApplicationForm> = (proxy) => {
+    hideWhen(proxy.node('properties-section'), () => !form.step5.hasProperty.value.value);
+    hideWhen(proxy.node('existing-loans-section'), () => !form.step5.hasExistingLoans.value.value);
+    hideWhen(proxy.node('co-borrowers-section'), () => !form.step5.hasCoBorrower.value.value);
+  };
+
+  const schema = createRenderSchema<CreditApplicationForm>((path) => ({
     component: FormRoot,
     componentProps: { form },
     children: [
@@ -139,6 +147,25 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
               { component: path.step5.hasCoBorrower },
             ],
           },
+          // FormArray sections — gated via hideWhen in arrayGating behavior below
+          {
+            selector: 'properties-section',
+            component: Section,
+            componentProps: { title: 'Имущество' },
+            children: [{ component: path.step5.properties }],
+          },
+          {
+            selector: 'existing-loans-section',
+            component: Section,
+            componentProps: { title: 'Действующие кредиты' },
+            children: [{ component: path.step5.existingLoans }],
+          },
+          {
+            selector: 'co-borrowers-section',
+            component: Section,
+            componentProps: { title: 'Созаемщики' },
+            children: [{ component: path.step5.coBorrowers }],
+          },
         ],
       },
 
@@ -162,4 +189,9 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
       },
     ],
   }));
+
+  // Apply render-level gating behavior to the schema proxy.
+  arrayGating(schema);
+
+  return schema;
 }

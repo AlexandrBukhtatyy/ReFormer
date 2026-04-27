@@ -27,7 +27,8 @@
 | `mcp-credit-application/` | 5. Multi-step | 1 (с MCP gaps про FormWizard CDK) | — (workaround через manual useState) | prompt `add-wizard` |
 | `mcp-credit-application-renderer/` | 1. FormSchema | 2 + бsplit-fixes | 4 critical: (1) `01-overview.md` Quick Start rewrite (no `getReformerForm`, no `form` prop on FormRenderer, FormRoot pattern); (2) `__selfManagedChildren = true` правило; (3) `node.children` top-level vs `componentProps.children`; (4) `types.ts` JSDoc example fix | prompt `create-form` (target=renderer-react) |
 | `mcp-credit-application-renderer/` | 2. Validation | 2 (1 forbidden-read + 1 success) | `04-common-patterns.md` — добавлена «Validation callback canonical shape» (cast + `(path: any)` + `(p: typeof path)` + eslint-disable) | prompt `add-validation` |
-| `mcp-credit-application-renderer/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer/` | 3. Behaviors (3a декларативные) | 1 (success) | — | prompt `add-behavior` |
+| `mcp-credit-application-renderer/` | 3. Behaviors (3b computed) | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
@@ -221,7 +222,35 @@ Screenshot: [stage2-page2-renderer-errors.png](../../projects/react-playground-e
 
 **Минорный gap (не блокирующий):** `validateItems` item callback typing (`(itemPath: any)`) не задокументирован — sub-agent применил pattern из верхнего callback по аналогии. Не нарушение запретов.
 
-### `mcp-credit-application-renderer/` · 3. Behaviors
+### `mcp-credit-application-renderer/` · 3. Behaviors — итерация 3a (декларативные + render hideWhen)
+
+**Итерация: 1 (успех с первой попытки).**
+
+В отличие от page 1 stage 3a (где FormArray gating пришлось делать через JSX `{hasFlag.value && <X/>}`), page 2 использует **renderer-react idiomatic подход**: `hideWhen(proxy.node('selector'), predicate)` через `RenderBehaviorFn`. Это безопасно — `hideWhen` работает на render layer, не form layer, поэтому cycle не возникает.
+
+**schema.ts** behavior block (canonical-shape) — 21 enableWhen + 6 copyFrom (те же что page 1):
+- 6 enableWhen для loanType (mortgage propertyValue/initialPayment + car brand/model/year/price)
+- 11 enableWhen для employmentStatus + additionalIncomeSource
+- 6 enableWhen + 6 copyFrom для sameAsRegistration на residenceAddress (per-field)
+
+**render-schema.ts** + `arrayGating` `RenderBehaviorFn`:
+- 3 selector'а добавлены к Section'ам FormArrays (`properties-section`, `existing-loans-section`, `co-borrowers-section`).
+- `arrayGating(proxy)` вызывает `hideWhen(proxy.node('...'), () => !form.step5.hasX.value.value)` для каждого.
+- Применяется сразу после `createRenderSchema(...)` внутри factory.
+
+tsc/eslint clean, **0 forbidden file reads, 0 MCP gaps**.
+
+**Visual smoke-test (playwright).** Default state:
+- propertyValue, initialPayment, carBrand disabled (loanType=consumer) ✓
+- companyName enabled (employmentStatus=employed) ✓
+- businessType disabled (selfEmployed-only) ✓
+- **Все 3 FormArray sections физически отсутствуют в DOM** (`hasPropertySection: false`, `hasExistingLoansSection: false`, `hasCoBorrowersSection: false`) — `hideWhen` рендерит null.
+- 70 inputs (на 0 меньше чем при показе FormArrays).
+- 0 console errors.
+
+Screenshot: [stage3a-page2-renderer.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage3a-page2-renderer.png).
+
+### `mcp-credit-application-renderer/` · 3. Behaviors — итерация 3b (computed fields)
 
 _не начато_
 
