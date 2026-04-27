@@ -22,6 +22,9 @@ docs/_temp/
 # Orchestrator scratch (mcp prompt outputs, dev.log) — see PROMT.md
 .tmp/
 
+# Playwright smoke-test screenshots (mcp validation runs)
+docs/specs/screenshots/
+
 # E2E
 */**/*.spec.ts-snapshots
 
