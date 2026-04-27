@@ -46,6 +46,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
 
       // ── Step 1: Loan info ────────────────────────────────────────────
       {
+        selector: 'step1',
         component: Section,
         componentProps: { title: 'Шаг 1: Основная информация о кредите' },
         children: [
@@ -69,6 +70,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
 
       // ── Step 2: Personal data ────────────────────────────────────────
       {
+        selector: 'step2',
         component: Section,
         componentProps: { title: 'Шаг 2: Персональные данные' },
         children: [
@@ -95,6 +97,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
 
       // ── Step 3: Contact info ─────────────────────────────────────────
       {
+        selector: 'step3',
         component: Section,
         componentProps: { title: 'Шаг 3: Контактная информация' },
         children: [
@@ -125,6 +128,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
 
       // ── Step 4: Employment ───────────────────────────────────────────
       {
+        selector: 'step4',
         component: Section,
         componentProps: { title: 'Шаг 4: Информация о занятости' },
         children: [
@@ -152,6 +156,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
 
       // ── Step 5: Additional info ──────────────────────────────────────
       {
+        selector: 'step5',
         component: Section,
         componentProps: { title: 'Шаг 5: Дополнительная информация' },
         children: [
@@ -204,6 +209,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
 
       // ── Step 6: Confirmation ─────────────────────────────────────────
       {
+        selector: 'step6',
         component: Section,
         componentProps: { title: 'Шаг 6: Подтверждение и согласия' },
         children: [

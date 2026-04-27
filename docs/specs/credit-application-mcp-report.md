@@ -30,7 +30,7 @@
 | `mcp-credit-application-renderer/` | 3. Behaviors (3a декларативные) | 1 (success) | — | prompt `add-behavior` |
 | `mcp-credit-application-renderer/` | 3. Behaviors (3b computed) | 1 (success) | — | prompt `add-behavior` |
 | `mcp-credit-application-renderer/` | 4. FormArray | 0 (частично — gap renderer-react) | report_issue только (длинный фикс — out of scope) | — |
-| `mcp-credit-application-renderer/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer/` | 5. Multi-step | 1 (success) | — | prompt `add-wizard` |
 | `mcp-credit-application-renderer-json/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
@@ -289,7 +289,23 @@ Renderer-react **не имеет canonical pattern** для declarative FormArra
 
 ### `mcp-credit-application-renderer/` · 5. Multi-step
 
-_не начато_
+**Итерация: 1 (success).**
+
+Sub-agent выбрал **Pattern B (manual `useState`)** вместо Pattern A (custom WizardRoot) — простой и хорошо документированный подход. Использует **renderer-react idiomatic API** `proxy.node('selector').setHidden(boolean)` для toggle visibility steps:
+- `schema.ts` (+~290 строк) — извлёк inline validation block в 6 функций `step{1..6}Validation` + `fullValidation` + экспорт `STEP_VALIDATIONS: Record<number, ValidationSchemaFn>`. Текущий `validation:` в `createForm` теперь = `fullValidation`.
+- `render-schema.ts` (+6 строк) — `selector: 'step{1..6}'` к 6 верхним Section узлам.
+- `index.tsx` (+118 строк, full rewrite) — `useState(currentStep=1)` + `completedSteps: Set<number>` + `useEffect` который вызывает `schema.node('stepN').setHidden(n !== currentStep)` на каждое изменение currentStep. StepIndicator panel (6 tiles), Назад/Далее/Отправить buttons, `goToNextStep` через `await validateForm(form, STEP_VALIDATIONS[currentStep])` + `form.markAsTouched()` на failure.
+
+tsc/eslint clean, **0 forbidden file reads, 0 MCP gaps** (page 1 stage 5 уже зарегистрировал FormWizard CDK как gap, но здесь это не блокатор — Pattern B работает на обеих страницах).
+
+**Visual smoke-test (playwright).** Default state — только Шаг 1 visible (`step2..step6` setHidden=true via setHidden API), "Назад" скрыта, "Далее" доступна. Click "Далее" с пустой формой → **остался на Шаг 1, 2 visible errors** (validation gate работает, `setCurrentStep` не вызывается). Selectors + setHidden + per-step validation + StepIndicator работают.
+
+Screenshot: [stage5-page2-renderer-wizard.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage5-page2-renderer-wizard.png).
+
+**Дополнительный bonus наблюдения:** `setHidden` через `RenderSchemaProxy.node()` оказался **значительно лучше** чем conditional rendering page 1 (`{currentStep === N && <Section/>}`):
+- Schema строится один раз через `createRenderSchema` (мемоизация безопасна).
+- Visibility toggle — мгновенный, без re-mount всех children.
+- Form state не теряется при переходах между steps (так как DOM nodes остаются hidden, не unmounted).
 
 ### `mcp-credit-application-renderer-json/` · 1. FormSchema
 
