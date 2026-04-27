@@ -1,19 +1,20 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Credit application form schema (renderer-react v2 — page 2).
  *
  * Mirrors page 1 (mcp-credit-application-v2) but built independently per
  * sub-agent protocol. Form definition uses ui-kit components + Tailwind.
  *
+ * `any` is required for validation/behavior callbacks (TS2589 workaround
+ * documented in MCP add-validation/add-behavior preambles for deeply nested
+ * step-grouped forms).
+ *
  * NOTE on `createForm` cast: the generic of `createForm` is the *form fields*
  * type; for a deeply-nested form it's easiest to cast the function once and
  * then keep full type-safety on the returned `FormProxy<CreditApplicationForm>`.
  */
 import { createForm, type FormProxy } from '@reformer/core';
-import {
-  copyFrom,
-  enableWhen,
-  watchField,
-} from '@reformer/core/behaviors';
+import { copyFrom, enableWhen, watchField } from '@reformer/core/behaviors';
 import {
   apply,
   applyWhen,
@@ -26,14 +27,7 @@ import {
   required,
   validateItems,
 } from '@reformer/core/validators';
-import {
-  Checkbox,
-  Input,
-  InputMask,
-  RadioGroup,
-  Select,
-  Textarea,
-} from '@reformer/ui-kit';
+import { Checkbox, Input, InputMask, RadioGroup, Select, Textarea } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
 
 const LOAN_TYPE_OPTIONS = [
@@ -97,7 +91,7 @@ function calcAge(birthDate: string | null | undefined): number | null {
 function calcMonthlyPayment(
   principal: number | null,
   termMonths: number | null,
-  annualRatePct: number | null,
+  annualRatePct: number | null
 ): number | null {
   if (!principal || !termMonths || !annualRatePct || termMonths <= 0) return null;
   const i = annualRatePct / 100 / 12;
@@ -106,10 +100,7 @@ function calcMonthlyPayment(
   return Math.round((principal * (i * pow)) / (pow - 1));
 }
 
-function calcInterestRate(
-  loanType: string,
-  hasProperty: boolean,
-): number {
+function calcInterestRate(loanType: string, hasProperty: boolean): number {
   const base: Record<string, number> = {
     consumer: 17,
     mortgage: 9,
@@ -325,7 +316,12 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       age: {
         value: null,
         component: Input,
-        componentProps: { label: 'Возраст (лет)', placeholder: 'Авто-расчёт', type: 'number', disabled: true },
+        componentProps: {
+          label: 'Возраст (лет)',
+          placeholder: 'Авто-расчёт',
+          type: 'number',
+          disabled: true,
+        },
       },
     },
     step3: {
@@ -403,7 +399,11 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
         city: { value: '', component: Input, componentProps: { label: 'Город (проживание)' } },
         street: { value: '', component: Input, componentProps: { label: 'Улица (проживание)' } },
         house: { value: '', component: Input, componentProps: { label: 'Дом (проживание)' } },
-        apartment: { value: '', component: Input, componentProps: { label: 'Квартира (проживание)' } },
+        apartment: {
+          value: '',
+          component: Input,
+          componentProps: { label: 'Квартира (проживание)' },
+        },
         postalCode: {
           value: '',
           component: InputMask,
@@ -454,12 +454,22 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       workExperienceCurrent: {
         value: null,
         component: Input,
-        componentProps: { label: 'Стаж на текущем месте (мес.)', type: 'number', min: 0, placeholder: '0' },
+        componentProps: {
+          label: 'Стаж на текущем месте (мес.)',
+          type: 'number',
+          min: 0,
+          placeholder: '0',
+        },
       },
       monthlyIncome: {
         value: null,
         component: Input,
-        componentProps: { label: 'Ежемесячный доход (₽)', type: 'number', min: 0, placeholder: '0' },
+        componentProps: {
+          label: 'Ежемесячный доход (₽)',
+          type: 'number',
+          min: 0,
+          placeholder: '0',
+        },
       },
       additionalIncome: {
         value: null,
@@ -492,7 +502,11 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       businessActivity: {
         value: null,
         component: Textarea,
-        componentProps: { label: 'Вид деятельности', placeholder: 'Опишите вид деятельности', rows: 3 },
+        componentProps: {
+          label: 'Вид деятельности',
+          placeholder: 'Опишите вид деятельности',
+          rows: 3,
+        },
       },
       totalIncome: {
         value: null,
@@ -524,7 +538,12 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       dependents: {
         value: 0,
         component: Input,
-        componentProps: { label: 'Количество иждивенцев', type: 'number', min: 0, placeholder: '0' },
+        componentProps: {
+          label: 'Количество иждивенцев',
+          type: 'number',
+          min: 0,
+          placeholder: '0',
+        },
       },
       education: {
         value: 'higher',
@@ -653,7 +672,11 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
             gender: {
               value: 'male',
               component: RadioGroup,
-              componentProps: { label: 'Пол', options: GENDER_OPTIONS, className: '!flex-row gap-6' },
+              componentProps: {
+                label: 'Пол',
+                options: GENDER_OPTIONS,
+                className: '!flex-row gap-6',
+              },
             },
             birthPlace: {
               value: '',
@@ -732,7 +755,11 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       electronicSignature: {
         value: '',
         component: InputMask,
-        componentProps: { label: 'Код подтверждения из СМС', mask: '999999', placeholder: '123456' },
+        componentProps: {
+          label: 'Код подтверждения из СМС',
+          mask: '999999',
+          placeholder: '123456',
+        },
       },
     },
   },
@@ -740,7 +767,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
   /* -----------------------------------------------------------------
    * Validation.
    * ----------------------------------------------------------------- */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   validation: (path: any) => {
     // Step 1: loan
     required(path.step1.loanType);
@@ -760,7 +787,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       (p: any) => {
         required(p.step1.propertyValue);
         min(p.step1.propertyValue, 1_000_000);
-      },
+      }
     );
     applyWhen(
       path.step1.loanType,
@@ -778,7 +805,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
         required(p.step1.carPrice);
         min(p.step1.carPrice, 300_000);
         max(p.step1.carPrice, 10_000_000);
-      },
+      }
     );
 
     // Step 2: personal
@@ -814,7 +841,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
         required(p.step3.residenceAddress.street);
         required(p.step3.residenceAddress.house);
         required(p.step3.residenceAddress.postalCode);
-      },
+      }
     );
 
     // Step 4: employment
@@ -834,7 +861,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
         required(p.step4.companyPhone);
         required(p.step4.companyAddress);
         required(p.step4.position);
-      },
+      }
     );
     applyWhen(
       path.step4.employmentStatus,
@@ -843,7 +870,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
         required(p.step4.businessType);
         required(p.step4.businessInn);
         required(p.step4.businessActivity);
-      },
+      }
     );
 
     // Step 5: extra
@@ -864,7 +891,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
           required(ip.estimatedValue);
           min(ip.estimatedValue, 0);
         });
-      },
+      }
     );
     applyWhen(
       path.step5.hasExistingLoans,
@@ -882,7 +909,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
           min(ip.monthlyPayment, 0);
           required(ip.maturityDate);
         });
-      },
+      }
     );
     applyWhen(
       path.step5.hasCoBorrower,
@@ -897,7 +924,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
           required(ip.monthlyIncome);
           min(ip.monthlyIncome, 0);
         });
-      },
+      }
     );
 
     // Step 6: confirmation
@@ -913,31 +940,52 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
   /* -----------------------------------------------------------------
    * Behavior.
    * ----------------------------------------------------------------- */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   behavior: (path: any) => {
     // Conditional fields — mortgage / car branches.
-    enableWhen(path.step1.propertyValue, (form: CreditApplicationForm) => form.step1.loanType === 'mortgage', {
-      resetOnDisable: true,
-    });
-    enableWhen(path.step1.initialPayment, (form: CreditApplicationForm) => form.step1.loanType === 'mortgage', {
-      resetOnDisable: true,
-    });
-    enableWhen(path.step1.carBrand, (form: CreditApplicationForm) => form.step1.loanType === 'car', {
-      resetOnDisable: true,
-    });
-    enableWhen(path.step1.carModel, (form: CreditApplicationForm) => form.step1.loanType === 'car', {
-      resetOnDisable: true,
-    });
+    enableWhen(
+      path.step1.propertyValue,
+      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage',
+      {
+        resetOnDisable: true,
+      }
+    );
+    enableWhen(
+      path.step1.initialPayment,
+      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage',
+      {
+        resetOnDisable: true,
+      }
+    );
+    enableWhen(
+      path.step1.carBrand,
+      (form: CreditApplicationForm) => form.step1.loanType === 'car',
+      {
+        resetOnDisable: true,
+      }
+    );
+    enableWhen(
+      path.step1.carModel,
+      (form: CreditApplicationForm) => form.step1.loanType === 'car',
+      {
+        resetOnDisable: true,
+      }
+    );
     enableWhen(path.step1.carYear, (form: CreditApplicationForm) => form.step1.loanType === 'car', {
       resetOnDisable: true,
     });
-    enableWhen(path.step1.carPrice, (form: CreditApplicationForm) => form.step1.loanType === 'car', {
-      resetOnDisable: true,
-    });
+    enableWhen(
+      path.step1.carPrice,
+      (form: CreditApplicationForm) => form.step1.loanType === 'car',
+      {
+        resetOnDisable: true,
+      }
+    );
 
     // Employment branches.
     const isEmployed = (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed';
-    const isSelfEmployed = (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed';
+    const isSelfEmployed = (form: CreditApplicationForm) =>
+      form.step4.employmentStatus === 'selfEmployed';
     enableWhen(path.step4.companyName, isEmployed, { resetOnDisable: true });
     enableWhen(path.step4.companyInn, isEmployed, { resetOnDisable: true });
     enableWhen(path.step4.companyPhone, isEmployed, { resetOnDisable: true });
@@ -964,7 +1012,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
           ctx.form.step1.initialPayment.setValue(next);
         }
       },
-      { immediate: false },
+      { immediate: false }
     );
 
     /* ---------- Computed: interestRate (loanType + hasProperty) ---------- */
@@ -1013,15 +1061,27 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
         ctx.form.step2.fullName.setValue(next);
       }
     };
-    watchField(path.step2.personalData.lastName, (_v: unknown, ctx: any) => recomputeFullName(ctx), {
-      immediate: false,
-    });
-    watchField(path.step2.personalData.firstName, (_v: unknown, ctx: any) => recomputeFullName(ctx), {
-      immediate: false,
-    });
-    watchField(path.step2.personalData.middleName, (_v: unknown, ctx: any) => recomputeFullName(ctx), {
-      immediate: false,
-    });
+    watchField(
+      path.step2.personalData.lastName,
+      (_v: unknown, ctx: any) => recomputeFullName(ctx),
+      {
+        immediate: false,
+      }
+    );
+    watchField(
+      path.step2.personalData.firstName,
+      (_v: unknown, ctx: any) => recomputeFullName(ctx),
+      {
+        immediate: false,
+      }
+    );
+    watchField(
+      path.step2.personalData.middleName,
+      (_v: unknown, ctx: any) => recomputeFullName(ctx),
+      {
+        immediate: false,
+      }
+    );
 
     /* ---------- Computed: age from birthDate ---------- */
     watchField(
@@ -1032,7 +1092,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
           ctx.form.step2.age.setValue(next);
         }
       },
-      { immediate: false },
+      { immediate: false }
     );
 
     /* ---------- Computed: totalIncome = monthly + additional ---------- */
@@ -1074,16 +1134,14 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     watchField(
       path.step5.coBorrowers,
       (items: unknown, ctx: any) => {
-        const arr = Array.isArray(items)
-          ? (items as Array<{ monthlyIncome?: number | null }>)
-          : [];
+        const arr = Array.isArray(items) ? (items as Array<{ monthlyIncome?: number | null }>) : [];
         const sum = arr.reduce((acc, b) => acc + (b?.monthlyIncome ?? 0), 0);
         const next = sum > 0 ? sum : null;
         if (ctx.form.step5.coBorrowersIncome.getValue() !== next) {
           ctx.form.step5.coBorrowersIncome.setValue(next);
         }
       },
-      { immediate: false },
+      { immediate: false }
     );
   },
 });
