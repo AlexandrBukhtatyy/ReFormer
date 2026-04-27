@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { createForm } from '@reformer/core';
 import { FormField, Input, Textarea, Select, Checkbox } from '@reformer/ui-kit';
 import { FormRenderer } from '@reformer/renderer-react';
@@ -30,6 +30,8 @@ const personalDataSchema = () => ({
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function McpCreditApplicationRendererJson() {
+  const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+
   const form = useMemo(
     () =>
       (
@@ -144,10 +146,30 @@ export default function McpCreditApplicationRendererJson() {
 
   const schema = useMemo(() => createCreditApplicationRenderSchema(form), [form]);
 
+  const handleSubmit = async () => {
+    setSubmittedAt(Date.now());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (form as any).markAsTouched?.();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (form as any).submit?.((values: CreditApplicationForm) => console.log(values));
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-bold text-gray-900">Заявка на кредит</h1>
       <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+      {submittedAt != null && (
+        <p className="text-sm text-gray-500">
+          Последняя попытка отправки: {new Date(submittedAt).toLocaleTimeString('ru-RU')}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => void handleSubmit()}
+        className="mt-4 w-full rounded-md bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        Отправить заявку
+      </button>
     </div>
   );
 }

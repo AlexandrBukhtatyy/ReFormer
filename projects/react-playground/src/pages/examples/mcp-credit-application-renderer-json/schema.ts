@@ -1,5 +1,17 @@
 import { createForm } from '@reformer/core';
 import type { FormProxy } from '@reformer/core';
+import {
+  required,
+  min,
+  max,
+  minLength,
+  maxLength,
+  email,
+  pattern,
+  validate,
+  applyWhen,
+  validateItems,
+} from '@reformer/core/validators';
 import { Input, Textarea, Select, Checkbox } from '@reformer/ui-kit';
 import type { CreditApplicationForm } from './types';
 
@@ -64,7 +76,7 @@ const coBorrowerItemSchema = {
 // nested schemas.
 
 export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
-  createForm as (config: { form: unknown }) => FormProxy<CreditApplicationForm>
+  createForm as (config: { form: unknown; validation: unknown }) => FormProxy<CreditApplicationForm>
 )({
   form: {
     step1: {
@@ -142,5 +154,367 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       confirmAccuracy: { value: false, component: Checkbox },
       electronicSignature: { value: '', component: Input },
     },
+  },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validation: (path: any) => {
+    // ── Step 1: Основная информация о кредите ────────────────────────────────
+
+    required(path.step1.loanType, { message: 'Выберите тип кредита' });
+    required(path.step1.loanAmount, { message: 'Введите сумму кредита' });
+    min(path.step1.loanAmount, 50000, { message: 'Минимальная сумма — 50 000 ₽' });
+    max(path.step1.loanAmount, 10000000, { message: 'Максимальная сумма — 10 000 000 ₽' });
+    required(path.step1.loanTerm, { message: 'Введите срок кредита' });
+    min(path.step1.loanTerm, 6, { message: 'Минимальный срок — 6 месяцев' });
+    max(path.step1.loanTerm, 240, { message: 'Максимальный срок — 240 месяцев' });
+    required(path.step1.loanPurpose, { message: 'Укажите цель кредита' });
+    minLength(path.step1.loanPurpose, 10, { message: 'Минимум 10 символов' });
+    maxLength(path.step1.loanPurpose, 500, { message: 'Максимум 500 символов' });
+
+    // applyWhen #1 — Mortgage fields
+    applyWhen(
+      path.step1.loanType,
+      (type: string) => type === 'mortgage',
+      (p: typeof path) => {
+        required(p.step1.propertyValue, { message: 'Введите стоимость недвижимости' });
+        min(p.step1.propertyValue, 1000000, { message: 'Минимальная стоимость — 1 000 000 ₽' });
+        required(p.step1.initialPayment, { message: 'Введите первоначальный взнос' });
+        validate(p.step1.initialPayment, (value, ctx) => {
+          const propVal = ctx.form.step1.propertyValue.value.value as number | null;
+          if (propVal != null && value != null) {
+            const minPayment = propVal * 0.2;
+            if ((value as number) < minPayment) {
+              return {
+                code: 'initial-payment-too-low',
+                message: `Первоначальный взнос должен быть не менее 20% от стоимости (${minPayment.toLocaleString('ru-RU')} ₽)`,
+              };
+            }
+          }
+          return null;
+        });
+      }
+    );
+
+    // applyWhen #2 — Car fields
+    applyWhen(
+      path.step1.loanType,
+      (type: string) => type === 'car',
+      (p: typeof path) => {
+        required(p.step1.carBrand, { message: 'Укажите марку автомобиля' });
+        minLength(p.step1.carBrand, 2, { message: 'Минимум 2 символа' });
+        maxLength(p.step1.carBrand, 50, { message: 'Максимум 50 символов' });
+        required(p.step1.carModel, { message: 'Укажите модель автомобиля' });
+        minLength(p.step1.carModel, 1, { message: 'Минимум 1 символ' });
+        maxLength(p.step1.carModel, 50, { message: 'Максимум 50 символов' });
+        required(p.step1.carYear, { message: 'Укажите год выпуска' });
+        min(p.step1.carYear, 2000, { message: 'Год не ранее 2000' });
+        max(p.step1.carYear, new Date().getFullYear() + 1, {
+          message: `Год не позднее ${new Date().getFullYear() + 1}`,
+        });
+        required(p.step1.carPrice, { message: 'Введите стоимость автомобиля' });
+        min(p.step1.carPrice, 300000, { message: 'Минимальная стоимость — 300 000 ₽' });
+        max(p.step1.carPrice, 10000000, { message: 'Максимальная стоимость — 10 000 000 ₽' });
+      }
+    );
+
+    // ── Step 2: Персональные данные ──────────────────────────────────────────
+
+    required(path.step2.personalData.lastName, { message: 'Введите фамилию' });
+    required(path.step2.personalData.firstName, { message: 'Введите имя' });
+    required(path.step2.personalData.middleName, { message: 'Введите отчество' });
+    required(path.step2.personalData.birthDate, { message: 'Введите дату рождения' });
+    required(path.step2.personalData.gender, { message: 'Выберите пол' });
+    required(path.step2.personalData.birthPlace, { message: 'Введите место рождения' });
+
+    required(path.step2.passportData.series, { message: 'Введите серию паспорта' });
+    required(path.step2.passportData.number, { message: 'Введите номер паспорта' });
+    required(path.step2.passportData.issueDate, { message: 'Введите дату выдачи' });
+    required(path.step2.passportData.issuedBy, { message: 'Введите кем выдан' });
+    required(path.step2.passportData.departmentCode, { message: 'Введите код подразделения' });
+
+    required(path.step2.inn, { message: 'Введите ИНН' });
+    pattern(path.step2.inn, /^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' });
+    // INN-12 checksum validation
+    validate(path.step2.inn, (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const digits = value.replace(/\D/g, '');
+      if (digits.length !== 12) return null;
+      const d = digits.split('').map(Number);
+      const n11 =
+        ((7 * d[0] +
+          2 * d[1] +
+          4 * d[2] +
+          10 * d[3] +
+          3 * d[4] +
+          5 * d[5] +
+          9 * d[6] +
+          4 * d[7] +
+          6 * d[8] +
+          8 * d[9]) %
+          11) %
+        10;
+      const n12 =
+        ((3 * d[0] +
+          7 * d[1] +
+          2 * d[2] +
+          4 * d[3] +
+          10 * d[4] +
+          3 * d[5] +
+          5 * d[6] +
+          9 * d[7] +
+          4 * d[8] +
+          6 * d[9] +
+          8 * d[10]) %
+          11) %
+        10;
+      if (d[10] !== n11 || d[11] !== n12) {
+        return { code: 'inn-checksum', message: 'Неверная контрольная сумма ИНН' };
+      }
+      return null;
+    });
+
+    required(path.step2.snils, { message: 'Введите СНИЛС' });
+    pattern(path.step2.snils, /^\d{3}-\d{3}-\d{3} \d{2}$/, {
+      message: 'СНИЛС должен быть в формате 123-456-789 00',
+    });
+    // SNILS checksum validation
+    validate(path.step2.snils, (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const digits = value.replace(/\D/g, '');
+      if (digits.length !== 11) return null;
+      const num = parseInt(digits.slice(0, 9), 10);
+      if (num <= 1001998) return null; // special cases not validated
+      const d = digits.slice(0, 9).split('').map(Number);
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += d[i] * (9 - i);
+      }
+      const checksum = (sum % 101) % 100;
+      const controlDigits = parseInt(digits.slice(9), 10);
+      if (checksum !== controlDigits) {
+        return { code: 'snils-checksum', message: 'Неверная контрольная сумма СНИЛС' };
+      }
+      return null;
+    });
+
+    // Age cross-check: 18–70 years
+    validate(path.step2.personalData.birthDate, (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const birth = new Date(value);
+      if (isNaN(birth.getTime())) return null;
+      const now = new Date();
+      const age =
+        now.getFullYear() -
+        birth.getFullYear() -
+        (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+      if (age < 18) {
+        return { code: 'age-too-young', message: 'Заемщик должен быть не моложе 18 лет' };
+      }
+      if (age > 70) {
+        return { code: 'age-too-old', message: 'Заемщик должен быть не старше 70 лет' };
+      }
+      return null;
+    });
+
+    // ── Step 3: Контактная информация ────────────────────────────────────────
+
+    required(path.step3.phoneMain, { message: 'Введите основной телефон' });
+    required(path.step3.email, { message: 'Введите email' });
+    email(path.step3.email, { message: 'Введите корректный email' });
+
+    required(path.step3.registrationAddress.region, { message: 'Введите регион' });
+    required(path.step3.registrationAddress.city, { message: 'Введите город' });
+    required(path.step3.registrationAddress.street, { message: 'Введите улицу' });
+    required(path.step3.registrationAddress.house, { message: 'Введите номер дома' });
+    required(path.step3.registrationAddress.postalCode, { message: 'Введите почтовый индекс' });
+    pattern(path.step3.registrationAddress.postalCode, /^\d{6}$/, {
+      message: 'Индекс должен содержать 6 цифр',
+    });
+
+    // applyWhen #3 — Residence address (when different from registration)
+    applyWhen(
+      path.step3.sameAsRegistration,
+      (same: boolean) => same === false,
+      (p: typeof path) => {
+        required(p.step3.residenceAddress.region, { message: 'Введите регион проживания' });
+        required(p.step3.residenceAddress.city, { message: 'Введите город проживания' });
+        required(p.step3.residenceAddress.street, { message: 'Введите улицу проживания' });
+        required(p.step3.residenceAddress.house, { message: 'Введите номер дома проживания' });
+        required(p.step3.residenceAddress.postalCode, {
+          message: 'Введите индекс адреса проживания',
+        });
+        pattern(p.step3.residenceAddress.postalCode, /^\d{6}$/, {
+          message: 'Индекс должен содержать 6 цифр',
+        });
+      }
+    );
+
+    // ── Step 4: Информация о занятости ───────────────────────────────────────
+
+    required(path.step4.employmentStatus, { message: 'Выберите статус занятости' });
+    required(path.step4.workExperienceTotal, { message: 'Введите общий стаж' });
+    min(path.step4.workExperienceTotal, 0, { message: 'Стаж не может быть отрицательным' });
+    required(path.step4.workExperienceCurrent, { message: 'Введите стаж на текущем месте' });
+    min(path.step4.workExperienceCurrent, 0, { message: 'Стаж не может быть отрицательным' });
+
+    // Work experience consistency cross-check
+    validate(path.step4.workExperienceCurrent, (value, ctx) => {
+      const total = ctx.form.step4.workExperienceTotal.value.value as number | null;
+      if (total != null && value != null && (value as number) > total) {
+        return {
+          code: 'experience-mismatch',
+          message: 'Стаж на текущем месте не может превышать общий стаж',
+        };
+      }
+      return null;
+    });
+
+    required(path.step4.monthlyIncome, { message: 'Введите ежемесячный доход' });
+    min(path.step4.monthlyIncome, 10000, { message: 'Минимальный доход — 10 000 ₽' });
+
+    // applyWhen #4 — Employed fields
+    applyWhen(
+      path.step4.employmentStatus,
+      (status: string) => status === 'employed',
+      (p: typeof path) => {
+        required(p.step4.companyName, { message: 'Введите название компании' });
+        required(p.step4.companyInn, { message: 'Введите ИНН компании' });
+        pattern(p.step4.companyInn, /^\d{10}$/, {
+          message: 'ИНН компании должен содержать 10 цифр',
+        });
+        required(p.step4.companyPhone, { message: 'Введите телефон компании' });
+        required(p.step4.companyAddress, { message: 'Введите адрес компании' });
+        required(p.step4.position, { message: 'Введите должность' });
+      }
+    );
+
+    // applyWhen #5 — Self-employed fields
+    applyWhen(
+      path.step4.employmentStatus,
+      (status: string) => status === 'selfEmployed',
+      (p: typeof path) => {
+        required(p.step4.businessType, { message: 'Укажите тип бизнеса' });
+        required(p.step4.businessInn, { message: 'Введите ИНН ИП' });
+        pattern(p.step4.businessInn, /^\d{12}$/, { message: 'ИНН ИП должен содержать 12 цифр' });
+        required(p.step4.businessActivity, { message: 'Опишите вид деятельности' });
+      }
+    );
+
+    // applyWhen #6 — Additional income source required when income > 0
+    applyWhen(
+      path.step4.additionalIncome,
+      (income: number | null) => income != null && (income as number) > 0,
+      (p: typeof path) => {
+        required(p.step4.additionalIncomeSource, {
+          message: 'Укажите источник дополнительного дохода',
+        });
+      }
+    );
+
+    // ── Step 5: Дополнительная информация ────────────────────────────────────
+
+    required(path.step5.maritalStatus, { message: 'Выберите семейное положение' });
+    required(path.step5.dependents, { message: 'Укажите количество иждивенцев' });
+    min(path.step5.dependents, 0, { message: 'Количество иждивенцев не может быть отрицательным' });
+    max(path.step5.dependents, 10, { message: 'Максимум 10 иждивенцев' });
+    required(path.step5.education, { message: 'Выберите уровень образования' });
+
+    // validateItems #1 — properties array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    validateItems(path.step5.properties, (itemPath: any) => {
+      required(itemPath.type, { message: 'Выберите тип имущества' });
+      required(itemPath.description, { message: 'Опишите имущество' });
+      required(itemPath.estimatedValue, { message: 'Введите оценочную стоимость' });
+      min(itemPath.estimatedValue, 0, { message: 'Стоимость не может быть отрицательной' });
+    });
+
+    // validateItems #2 — existingLoans array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    validateItems(path.step5.existingLoans, (itemPath: any) => {
+      required(itemPath.bank, { message: 'Введите название банка' });
+      required(itemPath.type, { message: 'Введите тип кредита' });
+      required(itemPath.amount, { message: 'Введите сумму кредита' });
+      min(itemPath.amount, 0, { message: 'Сумма не может быть отрицательной' });
+      required(itemPath.remainingAmount, { message: 'Введите остаток задолженности' });
+      min(itemPath.remainingAmount, 0, { message: 'Остаток не может быть отрицательным' });
+      // remaining <= amount cross-check
+      validate(itemPath.remainingAmount, (value, ctx) => {
+        const amount = ctx.form.amount?.value?.value as number | undefined;
+        if (amount != null && value != null && (value as number) > amount) {
+          return {
+            code: 'remaining-exceeds-amount',
+            message: 'Остаток задолженности не может превышать сумму кредита',
+          };
+        }
+        return null;
+      });
+      required(itemPath.monthlyPayment, { message: 'Введите ежемесячный платеж' });
+      min(itemPath.monthlyPayment, 0, { message: 'Платеж не может быть отрицательным' });
+      required(itemPath.maturityDate, { message: 'Введите дату погашения' });
+    });
+
+    // validateItems #3 — coBorrowers array
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    validateItems(path.step5.coBorrowers, (itemPath: any) => {
+      required(itemPath.personalData.lastName, { message: 'Введите фамилию созаемщика' });
+      required(itemPath.personalData.firstName, { message: 'Введите имя созаемщика' });
+      required(itemPath.personalData.middleName, { message: 'Введите отчество созаемщика' });
+      required(itemPath.personalData.birthDate, { message: 'Введите дату рождения созаемщика' });
+      required(itemPath.personalData.gender, { message: 'Выберите пол созаемщика' });
+      required(itemPath.personalData.birthPlace, { message: 'Введите место рождения созаемщика' });
+      required(itemPath.phone, { message: 'Введите телефон созаемщика' });
+      required(itemPath.email, { message: 'Введите email созаемщика' });
+      email(itemPath.email, { message: 'Введите корректный email созаемщика' });
+      required(itemPath.relationship, { message: 'Укажите степень родства' });
+      required(itemPath.monthlyIncome, { message: 'Введите ежемесячный доход созаемщика' });
+      min(itemPath.monthlyIncome, 0, { message: 'Доход не может быть отрицательным' });
+    });
+
+    // ── Step 6: Подтверждение и согласия ────────────────────────────────────
+
+    validate(path.step6.agreePersonalData, (value) => {
+      if (value !== true) {
+        return {
+          code: 'agreement-required',
+          message: 'Необходимо согласие на обработку персональных данных',
+        };
+      }
+      return null;
+    });
+
+    validate(path.step6.agreeCreditHistory, (value) => {
+      if (value !== true) {
+        return {
+          code: 'agreement-required',
+          message: 'Необходимо согласие на проверку кредитной истории',
+        };
+      }
+      return null;
+    });
+
+    validate(path.step6.agreeTerms, (value) => {
+      if (value !== true) {
+        return {
+          code: 'agreement-required',
+          message: 'Необходимо согласие с условиями кредитования',
+        };
+      }
+      return null;
+    });
+
+    validate(path.step6.confirmAccuracy, (value) => {
+      if (value !== true) {
+        return {
+          code: 'agreement-required',
+          message: 'Необходимо подтвердить точность введенных данных',
+        };
+      }
+      return null;
+    });
+
+    required(path.step6.electronicSignature, { message: 'Введите код подтверждения из СМС' });
+    pattern(path.step6.electronicSignature, /^\d{6}$/, {
+      message: 'Код подтверждения должен содержать 6 цифр',
+    });
   },
 });
