@@ -438,15 +438,180 @@ export const jsonSchema: JsonFormSchema = {
             component: 'Checkbox',
             componentProps: { label: 'У меня есть имущество' },
           },
+          // Properties FormArray section — gated by hasProperty via render behavior
+          {
+            selector: 'properties-section',
+            component: 'Section',
+            componentProps: { title: 'Имущество' },
+            children: [
+              {
+                model: 'step5.properties[0].type',
+                component: 'Select',
+                componentProps: {
+                  label: 'Тип имущества',
+                  options: [
+                    { value: 'apartment', label: 'Квартира' },
+                    { value: 'house', label: 'Дом' },
+                    { value: 'land', label: 'Земля' },
+                    { value: 'commercial', label: 'Коммерческая недвижимость' },
+                    { value: 'car', label: 'Автомобиль' },
+                  ],
+                },
+              },
+              {
+                model: 'step5.properties[0].description',
+                component: 'Textarea',
+                componentProps: { label: 'Описание имущества', placeholder: 'Опишите имущество' },
+              },
+              {
+                model: 'step5.properties[0].estimatedValue',
+                component: 'Input',
+                componentProps: {
+                  label: 'Оценочная стоимость (₽)',
+                  type: 'number',
+                  placeholder: '0',
+                },
+              },
+              {
+                model: 'step5.properties[0].hasEncumbrance',
+                component: 'Checkbox',
+                componentProps: { label: 'Имеется обременение' },
+              },
+            ],
+          },
           {
             model: 'step5.hasExistingLoans',
             component: 'Checkbox',
             componentProps: { label: 'У меня есть другие кредиты' },
           },
+          // ExistingLoans FormArray section — gated by hasExistingLoans via render behavior
+          {
+            selector: 'existing-loans-section',
+            component: 'Section',
+            componentProps: { title: 'Существующие кредиты' },
+            children: [
+              {
+                model: 'step5.existingLoans[0].bank',
+                component: 'Input',
+                componentProps: { label: 'Банк', placeholder: 'Название банка' },
+              },
+              {
+                model: 'step5.existingLoans[0].type',
+                component: 'Input',
+                componentProps: { label: 'Тип кредита', placeholder: 'Ипотека, автокредит и т.д.' },
+              },
+              {
+                model: 'step5.existingLoans[0].amount',
+                component: 'Input',
+                componentProps: { label: 'Сумма кредита (₽)', type: 'number', placeholder: '0' },
+              },
+              {
+                model: 'step5.existingLoans[0].remainingAmount',
+                component: 'Input',
+                componentProps: {
+                  label: 'Остаток задолженности (₽)',
+                  type: 'number',
+                  placeholder: '0',
+                },
+              },
+              {
+                model: 'step5.existingLoans[0].monthlyPayment',
+                component: 'Input',
+                componentProps: {
+                  label: 'Ежемесячный платеж (₽)',
+                  type: 'number',
+                  placeholder: '0',
+                },
+              },
+              {
+                model: 'step5.existingLoans[0].maturityDate',
+                component: 'Input',
+                componentProps: { label: 'Дата погашения', type: 'date' },
+              },
+            ],
+          },
           {
             model: 'step5.hasCoBorrower',
             component: 'Checkbox',
             componentProps: { label: 'Добавить созаемщика' },
+          },
+          // CoBorrowers FormArray section — gated by hasCoBorrower via render behavior
+          {
+            selector: 'co-borrowers-section',
+            component: 'Section',
+            componentProps: { title: 'Созаемщик' },
+            children: [
+              {
+                model: 'step5.coBorrowers[0].personalData.lastName',
+                component: 'Input',
+                componentProps: { label: 'Фамилия созаемщика', placeholder: 'Введите фамилию' },
+              },
+              {
+                model: 'step5.coBorrowers[0].personalData.firstName',
+                component: 'Input',
+                componentProps: { label: 'Имя созаемщика', placeholder: 'Введите имя' },
+              },
+              {
+                model: 'step5.coBorrowers[0].personalData.middleName',
+                component: 'Input',
+                componentProps: { label: 'Отчество созаемщика', placeholder: 'Введите отчество' },
+              },
+              {
+                model: 'step5.coBorrowers[0].personalData.birthDate',
+                component: 'Input',
+                componentProps: { label: 'Дата рождения созаемщика', type: 'date' },
+              },
+              {
+                model: 'step5.coBorrowers[0].personalData.gender',
+                component: 'Select',
+                componentProps: {
+                  label: 'Пол созаемщика',
+                  options: [
+                    { value: 'male', label: 'Мужской' },
+                    { value: 'female', label: 'Женский' },
+                  ],
+                },
+              },
+              {
+                model: 'step5.coBorrowers[0].personalData.birthPlace',
+                component: 'Input',
+                componentProps: {
+                  label: 'Место рождения созаемщика',
+                  placeholder: 'Введите место рождения',
+                },
+              },
+              {
+                model: 'step5.coBorrowers[0].phone',
+                component: 'Input',
+                componentProps: { label: 'Телефон созаемщика', placeholder: '+7 (___) ___-__-__' },
+              },
+              {
+                model: 'step5.coBorrowers[0].email',
+                component: 'Input',
+                componentProps: {
+                  label: 'Email созаемщика',
+                  type: 'email',
+                  placeholder: 'example@mail.com',
+                },
+              },
+              {
+                model: 'step5.coBorrowers[0].relationship',
+                component: 'Input',
+                componentProps: {
+                  label: 'Степень родства',
+                  placeholder: 'Супруг(а), родитель и т.д.',
+                },
+              },
+              {
+                model: 'step5.coBorrowers[0].monthlyIncome',
+                component: 'Input',
+                componentProps: {
+                  label: 'Ежемесячный доход созаемщика (₽)',
+                  type: 'number',
+                  placeholder: '0',
+                },
+              },
+            ],
           },
           {
             model: 'step5.coBorrowersIncome',

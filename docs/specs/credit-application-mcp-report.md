@@ -32,8 +32,9 @@
 | `mcp-credit-application-renderer/` | 4. FormArray | 0 (частично — gap renderer-react) | report_issue только (длинный фикс — out of scope) | — |
 | `mcp-credit-application-renderer/` | 5. Multi-step | 1 (success) | — | prompt `add-wizard` |
 | `mcp-credit-application-renderer-json/` | 1. FormSchema + JsonSchema + Registry | 2 (1 forbidden-massacre + 1 success) | `01-overview.md` Quick Start rewrite (зеркальный к renderer-react fix `3572a17`) | prompt `create-form` (target=renderer-json) |
-| `mcp-credit-application-renderer-json/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
-| `mcp-credit-application-renderer-json/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer-json/` | 2. Validation | 1 (success), gap touched-state | report_issue (severity:major, touched-state не пропагирует через JsonRegistry) | prompt `add-validation` |
+| `mcp-credit-application-renderer-json/` | 3. Behaviors (3a декларативные) | 1 (success, мини-нарушение запрета) | — | prompt `add-behavior` |
+| `mcp-credit-application-renderer-json/` | 3. Behaviors (3b computed) | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
 
