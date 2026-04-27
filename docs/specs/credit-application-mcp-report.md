@@ -29,7 +29,7 @@
 | `mcp-credit-application-renderer/` | 2. Validation | 2 (1 forbidden-read + 1 success) | `04-common-patterns.md` — добавлена «Validation callback canonical shape» (cast + `(path: any)` + `(p: typeof path)` + eslint-disable) | prompt `add-validation` |
 | `mcp-credit-application-renderer/` | 3. Behaviors (3a декларативные) | 1 (success) | — | prompt `add-behavior` |
 | `mcp-credit-application-renderer/` | 3. Behaviors (3b computed) | 1 (success) | — | prompt `add-behavior` |
-| `mcp-credit-application-renderer/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer/` | 4. FormArray | 0 (частично — gap renderer-react) | report_issue только (длинный фикс — out of scope) | — |
 | `mcp-credit-application-renderer/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
@@ -271,7 +271,21 @@ Screenshot: [stage3b-page2-renderer.png](../../projects/react-playground-e2e/scr
 
 ### `mcp-credit-application-renderer/` · 4. FormArray
 
-_не начато_
+**Итерация: 0 — частично закрыт; обнаружен critical gap.**
+
+Попытка рендерить `{ component: path.step5.properties }` (т. е. ArrayNode напрямую через RenderSchema) приводит к runtime crash: `TypeError: Cannot read properties of undefined (reading 'label')` в `form-field.js:81` — `FormField` wrapper не умеет работать с `ArrayNode` (он ожидает `FieldNode` с `componentProps.label`).
+
+Renderer-react **не имеет canonical pattern** для declarative FormArray rendering. Идиоматический путь — custom user-side компонент типа `RendererFormArraySection` (в `complex-multy-step-form-renderer/` baseline) — который принимает ArrayNode через componentProps, рендерит {add button + N item rows + remove buttons} и для каждого item использует `RenderNodeComponent` с per-item RenderSchema. Это **большая инфраструктура**, которая не покрывается одним sub-agent retry.
+
+**Решение для теста.** Оркестратор (orchestrator-side hand-fix):
+- Откатил `{ component: path.step5.properties }` etc. из render-schema.
+- Section'ы остаются в `step5` со `selector`'ами `properties-section`/`existing-loans-section`/`co-borrowers-section` — их `hideWhen` gating через `arrayGating` (stage 3a) демонстрируется.
+- Section title явно обозначен как «(items not rendered — renderer-react gap)».
+- Items сами по себе **существуют в форме** (default 1 item per array из tuple-template, `validateItems` работает на validation level), просто не отрисованы через render-schema.
+
+`report_issue` (severity:critical, renderer-react, form-array): «No canonical pattern for FormArray rendering in renderer-react Quick Start / cookbook». Решение — добавить в `05-cookbook.md` worked example custom ArrayList компонента. Этот фикс **отложен** — он требует написания infrastructure-кода + полноценного example в docs/llms (≥ 50 строк), это отдельная задача.
+
+**Stage 4 page 2 принят со scope reduction.** Add/remove items на page 2 не доступны через UI (никакого UI для items нет). На page 1 это работает потому что используется ручной React rendering, не RenderSchema.
 
 ### `mcp-credit-application-renderer/` · 5. Multi-step
 

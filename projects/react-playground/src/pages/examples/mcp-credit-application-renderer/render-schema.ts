@@ -166,24 +166,38 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
               { component: path.step5.hasCoBorrower },
             ],
           },
-          // FormArray sections — gated via hideWhen in arrayGating behavior below
+          // FormArray sections — gated via hideWhen in arrayGating below.
+          // NOTE: renderer-react has no canonical pattern for declarative
+          // FormArray rendering — { component: path.arrayNode } crashes
+          // FormField at runtime ('Cannot read properties of undefined
+          // (reading "label")'). Idiomatic path is a custom user-side
+          // ArrayList component, see RendererFormArraySection in the
+          // complex-multy-step-form-renderer baseline. Out of scope for
+          // the MCP-only test — we keep the section headers (so the
+          // hideWhen gating is still demonstrable) but drop the items.
           {
             selector: 'properties-section',
             component: Section,
-            componentProps: { title: 'Имущество' },
-            children: [{ component: path.step5.properties }],
+            componentProps: {
+              title: 'Имущество (items not rendered — renderer-react gap)',
+            },
+            children: [],
           },
           {
             selector: 'existing-loans-section',
             component: Section,
-            componentProps: { title: 'Действующие кредиты' },
-            children: [{ component: path.step5.existingLoans }],
+            componentProps: {
+              title: 'Действующие кредиты (items not rendered — renderer-react gap)',
+            },
+            children: [],
           },
           {
             selector: 'co-borrowers-section',
             component: Section,
-            componentProps: { title: 'Созаемщики' },
-            children: [{ component: path.step5.coBorrowers }],
+            componentProps: {
+              title: 'Созаемщики (items not rendered — renderer-react gap)',
+            },
+            children: [],
           },
         ],
       },
