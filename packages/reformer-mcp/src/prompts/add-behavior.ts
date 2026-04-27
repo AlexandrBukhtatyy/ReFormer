@@ -49,7 +49,21 @@ Behavior через \`watchField\` + \`computeFrom\` + \`copyFrom\` + \`revalida
 
 1. **Сначала — только декларативные:** \`enableWhen\` / \`disableWhen\` / \`copyFrom\`. Ни одного \`watchField\`/\`computeFrom\` на первой итерации. Прогони \`tsc\` и визуальный smoke-test, убедись что страница монтируется. **Только потом** добавляй computed-поля.
 2. **Каждый \`watchField\` — с \`{ immediate: false }\`.** Без исключений.
-3. **Один \`watchField\` на trigger-поле.** Несколько хэндлеров на одну path = почти гарантированный цикл — объединяй в один callback.
+3. **\`watchField\` принимает ОДНО поле.** Сигнатура: \`watchField(path: FieldPathNode<TForm, TField>, callback, options)\`. Массив \`watchField([pathA, pathB], …)\` **не поддерживается** — runtime сломается (\`Cannot read properties of undefined (reading 'startsWith')\` в \`getFieldByPath\`), даже если TS пропустит через \`as any\`. Для нескольких триггеров — несколько \`watchField\` на разные trigger-paths, **все вызывают общую compute-функцию**:
+
+\`\`\`typescript
+const recomputeMonthlyPayment = (ctx) => {
+  const amount = ctx.form.step1.loanAmount.value.value;
+  const term = ctx.form.step1.loanTerm.value.value;
+  const rate = ctx.form.interestRate.value.value;
+  // ... compute + guard + ctx.form.monthlyPayment.setValue(...)
+};
+
+watchField(path.step1.loanAmount, (_, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
+watchField(path.step1.loanTerm,   (_, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
+\`\`\`
+
+Правило «один watcher на trigger» означает: **не регистрируй два watchField на одну и ту же path** (это источник цикла). Несколько watchField на **разные** trigger-paths — норма.
 4. **Guard каждый \`setValue\`:** проверь, что новое значение реально отличается от текущего (для массивов — сравни \`length\`, ссылки всегда разные).
 5. **Guard \`enable\`/\`disable\`:** проверь \`field.disabled.value\` перед вызовом — повторный \`disable()\` на уже disabled поле триггерит signal на пустом месте.
 6. **Не используй \`revalidateWhen\` без необходимости.** Если уже есть \`copyFrom\` + валидаторы на target — обычно \`revalidateWhen\` не нужен.

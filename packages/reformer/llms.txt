@@ -1279,6 +1279,29 @@ For enable/disable: `ctx.form.<path>.enable()` / `.disable()` / read `.disabled.
 
 When several computeds depend on each other (e.g. `interestRate` → `monthlyPayment` → `paymentToIncomeRatio`), put the whole chain inside ONE `watchField` for the upstream trigger. Do NOT split into one watcher per target — that creates cross-watcher signal bouncing and risks cycles. Read intermediate values from the `new` local you just computed, not from `ctx.form.intermediate.value.value` (which still holds the old value during the cascade).
 
+### Multiple triggers, one cascade
+
+`watchField` accepts a **single** `FieldPathNode` — there is no `watchField([pathA, pathB], ...)` overload. If a single computed depends on several independent triggers (e.g. `monthlyPayment` depends on `loanAmount`, `loanTerm`, `interestRate`), register one `watchField` per trigger and have them all call the same compute function:
+
+```typescript
+function recomputeMonthlyPayment(ctx: BehaviorContext<MyForm>) {
+  const amount = ctx.form.step1.loanAmount.value.value;
+  const term   = ctx.form.step1.loanTerm.value.value;
+  const rate   = ctx.form.interestRate.value.value;
+  if (!amount || !term || !rate) return;
+  const monthly = annuity(amount, term, rate);
+  if (Math.abs((ctx.form.monthlyPayment.value.value as number) - monthly) > 0.01) {
+    ctx.form.monthlyPayment.setValue(monthly);
+  }
+}
+
+watchField(path.step1.loanAmount, (_v, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
+watchField(path.step1.loanTerm,   (_v, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
+watchField(path.interestRate,     (_v, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
+```
+
+The "one watcher per trigger" cycle-prevention rule means **never register two watchField on the same path**, not "consolidate all triggers into one". Multiple watchers on different trigger paths is the canonical pattern for multi-source recomputes — try `watchField([…], …)` and you get a runtime `getFieldByPath` failure (the array form does not exist).
+
 ## 20. 18. ARRAY OPERATIONS
 
 ### Array Access - CRITICAL
