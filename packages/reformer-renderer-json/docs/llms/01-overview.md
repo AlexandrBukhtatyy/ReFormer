@@ -28,22 +28,38 @@ import {
 
 ## Quick Start
 
+> **CRITICAL gotchas** (renderer-json shares the renderer-react architecture):
+> 1. `getReformerForm` does NOT exist — use `createForm` from `@reformer/core`.
+> 2. `JsonFormRenderer` does NOT accept a `form` prop. `JsonFormRendererProps<T>` is `{ schema, renderBehavior?, onSchemaReady? }`. Field-nodes silently render as null unless the schema's root container is a user-defined component (registered with `__selfManagedChildren = true`) that takes the form via `componentProps` and forwards it down via `RenderNodeComponent`.
+> 3. The pattern mirrors renderer-react's FormRoot — see `@reformer/renderer-react/docs/llms/01-overview.md` for the full FormRoot snippet. Same component can be reused; just register it in the JSON registry under any name (e.g. `'FormRoot'`).
+
+Minimal working mount (closure pattern injecting form into the root):
+
 ```tsx
 import { useMemo } from 'react';
-import { getReformerForm, useFormControl } from '@reformer/core';
+import { createForm, type FormProxy, type FormFields } from '@reformer/core';
 import { Input, FormField } from '@reformer/ui-kit';
 import {
-  JsonFormRenderer,
-  JsonRendererProvider,
+  FormRenderer,
+  RenderNodeComponent,
+  createRenderSchema,
+  type RenderNode,
+  type RenderSchemaFn,
+} from '@reformer/renderer-react';
+import {
   defineRegistry,
   FIELD_WRAPPER,
+  createRenderSchemaFromJson,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 
-const schema: JsonFormSchema = {
+type MyForm = FormFields & { email: string };
+
+// 1. JSON schema — pure data, no React imports.
+const jsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
-    component: 'Box',
+    component: 'FormRoot',  // user-defined, registered below
     children: [
       { selector: 'email', model: 'email', component: 'Input',
         componentProps: { label: 'Email' } },
@@ -51,21 +67,40 @@ const schema: JsonFormSchema = {
   },
 };
 
+// 2. FormRoot — same as renderer-react FormRoot. Forwards form to children.
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
+  return <>{children.map((c, i) => <RenderNodeComponent key={i} node={c} form={form} />)}</>;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(FormRoot as any).__selfManagedChildren = true;
+
+// 3. Registry maps string names from JSON to React components.
 const registry = defineRegistry((reg) => {
   reg.field('Input', Input);
-  reg.container('Box', ({ children }) => <div>{children}</div>);
+  reg.container('FormRoot', FormRoot);
   reg.container(FIELD_WRAPPER, FormField);
 });
 
-function MyForm() {
-  const form = useMemo(() => getReformerForm({ email: '' }), []);
-  return (
-    <JsonRendererProvider settings={{ registry }}>
-      <JsonFormRenderer schema={schema} form={form} />
-    </JsonRendererProvider>
+// 4. Mount — closure factory wraps the JSON-derived RenderSchemaFn so the root receives form.
+function createMyFormSchema(form: FormProxy<MyForm>): RenderSchemaFn<MyForm> {
+  return (path) => {
+    const baseFn = createRenderSchemaFromJson<MyForm>(jsonSchema, registry);
+    const baseRoot = baseFn(path);
+    return { ...baseRoot, componentProps: { ...baseRoot.componentProps, form } };
+  };
+}
+
+function MyFormPage() {
+  const form = useMemo(
+    () => createForm<MyForm>({ form: { email: { value: '', component: Input } } }),
+    []
   );
+  const schema = useMemo(() => createRenderSchema<MyForm>(createMyFormSchema(form)), [form]);
+  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
+
+**Why this shape and not `<JsonFormRenderer schema={schema}/>`?** `JsonFormRenderer` builds the proxy internally but has no way to inject your live `form` into the root container's `componentProps` — its job is purely the JSON-to-RenderSchema conversion. For any non-trivial form you need to inject `form` yourself, which is exactly what `createMyFormSchema(form)` above does. `JsonFormRenderer` works in demos where the schema's root is `<div>{children}</div>` (no form needed) but not for real form rendering.
 
 ## Key Concepts
 
