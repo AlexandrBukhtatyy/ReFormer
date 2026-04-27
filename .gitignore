@@ -23,7 +23,7 @@ docs/_temp/
 .tmp/
 
 # Playwright smoke-test screenshots (mcp validation runs)
-docs/specs/screenshots/
+projects/react-playground-e2e/screenshots/
 
 # E2E
 */**/*.spec.ts-snapshots

@@ -69,8 +69,8 @@ _Каждый этап после прогона дополняется блок
 **Итерация polish — error rendering.** Первая итерация не довела работу до видимости ошибок: `index.tsx` не был изменён, errors жили только в state. По правилу «Невалидный ввод даёт ошибки» из PROMT.md — недостаточно. Второй суб-агент дополнил `index.tsx` (+115 строк): общий `<FieldErrors>` helper вокруг `useFormControl(...).errors`, обёртка submit на `form.submit(callback)`, локальный `submitted`-state. **Новый MCP gap:** `form.submit(callback)` нигде не задокументирован в `add-validation` prompt — пришлось взять из Quick Start `create-form` prompt с `any`-cast (severity:minor, зарегистрирован через `report_issue`).
 
 **Visual smoke-test (playwright).** После добавления временного маршрута `/examples/mcp-credit` в `App.tsx` оркестратором: navigate → 0 console errors. Submit на пустой форме → **34 видимых error-сообщения** с правильными русскими текстами («Введите фамилию», «Поле обязательно для заполнения», «Необходимо принять условия кредитования», «Подтвердите точность введённых данных» и т. д.). Скриншоты сохранены:
-- baseline (stage 1 + 2 без ошибок): [docs/specs/screenshots/mcp-credit/stage1-2/](screenshots/mcp-credit/stage1-2/) — 7 PNG (fullPage + 6 шагов).
-- after-submit (stage 2 с ошибками): [docs/specs/screenshots/mcp-credit/stage2/](screenshots/mcp-credit/stage2/) — 7 PNG (fullPage + 6 шагов с красными error-spans).
+- baseline (stage 1 + 2 без ошибок): [docs/specs/../../projects/react-playground-e2e/screenshots/mcp-credit/stage1-2/](../../projects/react-playground-e2e/screenshots/mcp-credit/stage1-2/) — 7 PNG (fullPage + 6 шагов).
+- after-submit (stage 2 с ошибками): [docs/specs/../../projects/react-playground-e2e/screenshots/mcp-credit/stage2/](../../projects/react-playground-e2e/screenshots/mcp-credit/stage2/) — 7 PNG (fullPage + 6 шагов с красными error-spans).
 
 ### `mcp-credit-application/` · 3. Behaviors — итерация 3a (декларативные)
 
@@ -96,7 +96,7 @@ _Каждый этап после прогона дополняется блок
 - toggle hasProperty → "Имущество #1" появляется (PropertyRow с типом/описанием/стоимостью/обременением + Удалить + +Добавить имущество (1)).
 - toggle sameAsRegistration=false → residenceAddress.* `disabled=false` (через DOM, для 5 полей region/city/street/house/index).
 
-5 PNG screenshots: [docs/specs/screenshots/mcp-credit/stage3a/](screenshots/mcp-credit/stage3a/) — fullpage baseline, step1 disabled, step5 collapsed, step1 mortgage enabled, step5 hasProperty array shown, step3 residence enabled.
+5 PNG screenshots: [docs/specs/../../projects/react-playground-e2e/screenshots/mcp-credit/stage3a/](../../projects/react-playground-e2e/screenshots/mcp-credit/stage3a/) — fullpage baseline, step1 disabled, step5 collapsed, step1 mortgage enabled, step5 hasProperty array shown, step3 residence enabled.
 
 **MCP gaps накопленные за итерацию 3a (закрыты в этой же итерации):**
 1. ✅ Cycle-prevention checklist жил в самом конце 14KB prompt — вынесен в начало (faabe7d).
