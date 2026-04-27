@@ -26,7 +26,7 @@
 | `mcp-credit-application/` | 4. FormArray | 0 (фактически реализован ранее) | — | — |
 | `mcp-credit-application/` | 5. Multi-step | 1 (с MCP gaps про FormWizard CDK) | — (workaround через manual useState) | prompt `add-wizard` |
 | `mcp-credit-application-renderer/` | 1. FormSchema | 2 + бsplit-fixes | 4 critical: (1) `01-overview.md` Quick Start rewrite (no `getReformerForm`, no `form` prop on FormRenderer, FormRoot pattern); (2) `__selfManagedChildren = true` правило; (3) `node.children` top-level vs `componentProps.children`; (4) `types.ts` JSDoc example fix | prompt `create-form` (target=renderer-react) |
-| `mcp-credit-application-renderer/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer/` | 2. Validation | 2 (1 forbidden-read + 1 success) | `04-common-patterns.md` — добавлена «Validation callback canonical shape» (cast + `(path: any)` + `(p: typeof path)` + eslint-disable) | prompt `add-validation` |
 | `mcp-credit-application-renderer/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
@@ -207,7 +207,19 @@ Screenshot: [stage1-page2-renderer.png](../../projects/react-playground-e2e/scre
 
 ### `mcp-credit-application-renderer/` · 2. Validation
 
-_не начато_
+**Итерации: 2** (1 forbidden-read fail + 1 success).
+
+**Итерация 1 — нарушение запрета.** Sub-agent с prompt `add-validation` сделал tsc clean validation block, но в final report сознался что прочитал `projects/react-playground/src/pages/examples/mcp-credit-application/schema.ts` (page 1, **forbidden**) ради syntactic patterns: `(p: typeof path)` annotation в `applyWhen` и расположения `eslint-disable-next-line`. Это рецидив: уже было на page 1 stage 3b. Файлы restored.
+
+**MCP-фикс.** Добавлена секция «Validation callback canonical shape (deep nested forms)» в `packages/reformer/docs/llms/04-common-patterns.md` с полным worked example: cast extension `validation: unknown`, outer `validation: (path: any)`, inner `(p: typeof path)` для `applyWhen`, eslint-disable-next-line directive. Также пофикшен старый `ctx.setFieldValue` example в том же файле. `npm run generate:llms` обновил `packages/reformer/llms.txt`.
+
+**Итерация 2 — успех.** Sub-agent retry: ~230 строк добавлено в `schema.ts`. 6 applyWhen conditional groups (mortgage / car / employed / selfEmployed / sameAsRegistration / additionalIncome>0), 3 validateItems, INN/SNILS checksums, age 18–70, cross-field workExperienceCurrent ≤ workExperienceTotal, all required fields per spec. tsc/eslint clean. **0 forbidden file reads, 0 MCP gaps.**
+
+**Visual smoke-test (playwright).** Mount OK, 0 console errors. Добавлен **orchestrator-side** submit button (как на page 1) — `index.tsx` +20 строк через ручной Edit (это infrastructure для verification, не часть scope sub-agent). Click "Отправить заявку" с пустыми полями → **34 visible errors** на форме («Поле обязательно для заполнения», «Введите ...» и т. д.). FormField wrapper из ui-kit корректно рендерит ошибки после `form.submit()` → `markAsTouched()`.
+
+Screenshot: [stage2-page2-renderer-errors.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage2-page2-renderer-errors.png).
+
+**Минорный gap (не блокирующий):** `validateItems` item callback typing (`(itemPath: any)`) не задокументирован — sub-agent применил pattern из верхнего callback по аналогии. Не нарушение запретов.
 
 ### `mcp-credit-application-renderer/` · 3. Behaviors
 
