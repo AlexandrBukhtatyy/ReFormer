@@ -3,6 +3,9 @@ node_modules
 
 # TypeScript declaration files generated alongside source
 packages/*/src/**/*.d.ts
+
+# TypeScript incremental build cache
+*.tsbuildinfo
 test-results
 playwright-report
 .playwright-mcp
