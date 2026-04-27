@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useArrayLength, useFormControlValue } from '@reformer/core';
+import { useArrayLength, useFormControlValue, validateForm } from '@reformer/core';
 import {
   Button,
   Checkbox,
@@ -11,7 +11,7 @@ import {
   Textarea,
 } from '@reformer/ui-kit';
 import { PlusIcon, TrashIcon } from 'lucide-react';
-import { creditApplicationForm } from './schema';
+import { creditApplicationForm, STEP_VALIDATIONS } from './schema';
 
 // ───── Option lists (mirror those in schema.ts — only what's used in templates) ─────
 
@@ -28,11 +28,20 @@ const GENDER_OPTIONS = [
   { value: 'female', label: 'Женский' },
 ];
 
+// ───── Step labels for the indicator strip ─────
+
+const STEP_LABELS: Record<number, string> = {
+  1: 'Кредит',
+  2: 'Личные',
+  3: 'Контакты',
+  4: 'Работа',
+  5: 'Доп.',
+  6: 'Подтверждение',
+};
+
+const TOTAL_STEPS = 6;
+
 // ───── FormArray push() payload templates ─────
-//
-// To push a new array item we must supply the SAME `{ value, component, componentProps }`
-// FieldConfig shape that the schema declares for the template item — NOT plain primitives.
-// (Documented in the MCP `add-form-array` prompt and the `form-array` recipe.)
 
 const propertyTemplate = () => ({
   type: {
@@ -153,8 +162,44 @@ const coBorrowerTemplate = () => ({
   },
 });
 
+// ───── Step indicator strip ─────
+
+function StepIndicator({ current, completed }: { current: number; completed: Set<number> }) {
+  return (
+    <div
+      className="flex items-center gap-1 mb-6 overflow-x-auto pb-1"
+      data-testid="step-indicator-strip"
+    >
+      {Array.from({ length: TOTAL_STEPS }, (_, i) => {
+        const step = i + 1;
+        const isCurrent = step === current;
+        const isCompleted = completed.has(step);
+        let cls =
+          'flex-1 min-w-[80px] rounded-md px-2 py-2 text-center text-xs font-medium transition-colors select-none';
+        if (isCurrent) cls += ' bg-blue-600 text-white';
+        else if (isCompleted) cls += ' bg-green-100 text-green-800 border border-green-300';
+        else cls += ' bg-gray-100 text-gray-500 border border-gray-200';
+        return (
+          <div key={step} className={cls} data-testid={`step-indicator-${step}`}>
+            <div className="font-semibold">
+              {isCompleted && !isCurrent ? '✓ ' : ''}
+              {step}
+            </div>
+            <div className="truncate">{STEP_LABELS[step]}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function McpCreditApplicationV2() {
   const form = useMemo(() => creditApplicationForm, []);
+
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Subscribe to array lengths — re-renders the card list when push/removeAt happens.
@@ -167,6 +212,36 @@ export default function McpCreditApplicationV2() {
   const hasExistingLoans = useFormControlValue(form.step5.hasExistingLoans);
   const hasCoBorrower = useFormControlValue(form.step5.hasCoBorrower);
 
+  const goToPrev = () => {
+    if (currentStep > 1) setCurrentStep((s) => s - 1);
+  };
+
+  const goToNext = async () => {
+    if (isValidating) return;
+    setIsValidating(true);
+    try {
+      const stepValidator = STEP_VALIDATIONS[currentStep];
+      if (!stepValidator) {
+        setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
+        return;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isValid = await validateForm(form as any, stepValidator as any);
+      if (!isValid) {
+        form.markAsTouched(); // surface errors on the current step
+        return;
+      }
+      setCompletedSteps((s) => {
+        const next = new Set(s);
+        next.add(currentStep);
+        return next;
+      });
+      setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -177,421 +252,484 @@ export default function McpCreditApplicationV2() {
       if (!ok) {
         return;
       }
+      setCompletedSteps((s) => {
+        const next = new Set(s);
+        next.add(currentStep);
+        return next;
+      });
       const values = form.getValue();
-
       console.log('values', values);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const isLastStep = currentStep === TOTAL_STEPS;
+
   return (
     <form className="max-w-4xl mx-auto p-6 space-y-6" onSubmit={handleSubmit} noValidate>
       <h1 className="text-2xl font-bold text-gray-900">Заявка на кредит</h1>
 
+      <StepIndicator current={currentStep} completed={completedSteps} />
+
       {/* ===== Шаг 1. Кредит ===== */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Шаг 1. Параметры кредита</h2>
+      {currentStep === 1 && (
+        <section className="space-y-4" data-testid="step-section-1">
+          <h2 className="text-xl font-bold mb-4">Шаг 1. Параметры кредита</h2>
 
-        <FormField control={form.step1.loanType} testId="loanType" />
+          <FormField control={form.step1.loanType} testId="loanType" />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step1.loanAmount} testId="loanAmount" />
-          <FormField control={form.step1.loanTerm} testId="loanTerm" />
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step1.loanAmount} testId="loanAmount" />
+            <FormField control={form.step1.loanTerm} testId="loanTerm" />
+          </div>
 
-        <FormField control={form.step1.loanPurpose} testId="loanPurpose" />
+          <FormField control={form.step1.loanPurpose} testId="loanPurpose" />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step1.propertyValue} testId="propertyValue" />
-          <FormField control={form.step1.initialPayment} testId="initialPayment" />
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step1.propertyValue} testId="propertyValue" />
+            <FormField control={form.step1.initialPayment} testId="initialPayment" />
+          </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step1.carBrand} testId="carBrand" />
-          <FormField control={form.step1.carModel} testId="carModel" />
-          <FormField control={form.step1.carYear} testId="carYear" />
-          <FormField control={form.step1.carPrice} testId="carPrice" />
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step1.carBrand} testId="carBrand" />
+            <FormField control={form.step1.carModel} testId="carModel" />
+            <FormField control={form.step1.carYear} testId="carYear" />
+            <FormField control={form.step1.carPrice} testId="carPrice" />
+          </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step1.interestRate} testId="interestRate" />
-          <FormField control={form.step1.monthlyPayment} testId="monthlyPayment" />
-        </div>
-      </section>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step1.interestRate} testId="interestRate" />
+            <FormField control={form.step1.monthlyPayment} testId="monthlyPayment" />
+          </div>
+        </section>
+      )}
 
       {/* ===== Шаг 2. Личные данные ===== */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Шаг 2. Личные данные</h2>
+      {currentStep === 2 && (
+        <section className="space-y-4" data-testid="step-section-2">
+          <h2 className="text-xl font-bold mb-4">Шаг 2. Личные данные</h2>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step2.personalData.lastName} testId="personalData.lastName" />
-          <FormField control={form.step2.personalData.firstName} testId="personalData.firstName" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step2.personalData.lastName} testId="personalData.lastName" />
+            <FormField
+              control={form.step2.personalData.firstName}
+              testId="personalData.firstName"
+            />
+            <FormField
+              control={form.step2.personalData.middleName}
+              testId="personalData.middleName"
+            />
+            <FormField
+              control={form.step2.personalData.birthDate}
+              testId="personalData.birthDate"
+            />
+          </div>
+
+          <FormField control={form.step2.personalData.gender} testId="personalData.gender" />
           <FormField
-            control={form.step2.personalData.middleName}
-            testId="personalData.middleName"
+            control={form.step2.personalData.birthPlace}
+            testId="personalData.birthPlace"
           />
-          <FormField control={form.step2.personalData.birthDate} testId="personalData.birthDate" />
-        </div>
 
-        <FormField control={form.step2.personalData.gender} testId="personalData.gender" />
-        <FormField control={form.step2.personalData.birthPlace} testId="personalData.birthPlace" />
+          <h3 className="text-base font-semibold mt-2">Паспортные данные</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step2.passportData.series} testId="passportData.series" />
+            <FormField control={form.step2.passportData.number} testId="passportData.number" />
+            <FormField
+              control={form.step2.passportData.issueDate}
+              testId="passportData.issueDate"
+            />
+            <FormField
+              control={form.step2.passportData.departmentCode}
+              testId="passportData.departmentCode"
+            />
+          </div>
+          <FormField control={form.step2.passportData.issuedBy} testId="passportData.issuedBy" />
 
-        <h3 className="text-base font-semibold mt-2">Паспортные данные</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step2.passportData.series} testId="passportData.series" />
-          <FormField control={form.step2.passportData.number} testId="passportData.number" />
-          <FormField control={form.step2.passportData.issueDate} testId="passportData.issueDate" />
-          <FormField
-            control={form.step2.passportData.departmentCode}
-            testId="passportData.departmentCode"
-          />
-        </div>
-        <FormField control={form.step2.passportData.issuedBy} testId="passportData.issuedBy" />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step2.inn} testId="inn" />
+            <FormField control={form.step2.snils} testId="snils" />
+          </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step2.inn} testId="inn" />
-          <FormField control={form.step2.snils} testId="snils" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step2.fullName} testId="fullName" />
-          <FormField control={form.step2.age} testId="age" />
-        </div>
-      </section>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step2.fullName} testId="fullName" />
+            <FormField control={form.step2.age} testId="age" />
+          </div>
+        </section>
+      )}
 
       {/* ===== Шаг 3. Контакты ===== */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Шаг 3. Контактная информация</h2>
+      {currentStep === 3 && (
+        <section className="space-y-4" data-testid="step-section-3">
+          <h2 className="text-xl font-bold mb-4">Шаг 3. Контактная информация</h2>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step3.phoneMain} testId="phoneMain" />
-          <FormField control={form.step3.phoneAdditional} testId="phoneAdditional" />
-          <FormField control={form.step3.email} testId="email" />
-          <FormField control={form.step3.emailAdditional} testId="emailAdditional" />
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step3.phoneMain} testId="phoneMain" />
+            <FormField control={form.step3.phoneAdditional} testId="phoneAdditional" />
+            <FormField control={form.step3.email} testId="email" />
+            <FormField control={form.step3.emailAdditional} testId="emailAdditional" />
+          </div>
 
-        <h3 className="text-base font-semibold mt-2">Адрес регистрации</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.step3.registrationAddress.region}
-            testId="registrationAddress.region"
-          />
-          <FormField
-            control={form.step3.registrationAddress.city}
-            testId="registrationAddress.city"
-          />
-          <FormField
-            control={form.step3.registrationAddress.street}
-            testId="registrationAddress.street"
-          />
-          <FormField
-            control={form.step3.registrationAddress.house}
-            testId="registrationAddress.house"
-          />
-          <FormField
-            control={form.step3.registrationAddress.apartment}
-            testId="registrationAddress.apartment"
-          />
-          <FormField
-            control={form.step3.registrationAddress.postalCode}
-            testId="registrationAddress.postalCode"
-          />
-        </div>
+          <h3 className="text-base font-semibold mt-2">Адрес регистрации</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.step3.registrationAddress.region}
+              testId="registrationAddress.region"
+            />
+            <FormField
+              control={form.step3.registrationAddress.city}
+              testId="registrationAddress.city"
+            />
+            <FormField
+              control={form.step3.registrationAddress.street}
+              testId="registrationAddress.street"
+            />
+            <FormField
+              control={form.step3.registrationAddress.house}
+              testId="registrationAddress.house"
+            />
+            <FormField
+              control={form.step3.registrationAddress.apartment}
+              testId="registrationAddress.apartment"
+            />
+            <FormField
+              control={form.step3.registrationAddress.postalCode}
+              testId="registrationAddress.postalCode"
+            />
+          </div>
 
-        <FormField control={form.step3.sameAsRegistration} testId="sameAsRegistration" />
+          <FormField control={form.step3.sameAsRegistration} testId="sameAsRegistration" />
 
-        <h3 className="text-base font-semibold mt-2">Адрес проживания</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.step3.residenceAddress.region}
-            testId="residenceAddress.region"
-          />
-          <FormField control={form.step3.residenceAddress.city} testId="residenceAddress.city" />
-          <FormField
-            control={form.step3.residenceAddress.street}
-            testId="residenceAddress.street"
-          />
-          <FormField control={form.step3.residenceAddress.house} testId="residenceAddress.house" />
-          <FormField
-            control={form.step3.residenceAddress.apartment}
-            testId="residenceAddress.apartment"
-          />
-          <FormField
-            control={form.step3.residenceAddress.postalCode}
-            testId="residenceAddress.postalCode"
-          />
-        </div>
-      </section>
+          <h3 className="text-base font-semibold mt-2">Адрес проживания</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.step3.residenceAddress.region}
+              testId="residenceAddress.region"
+            />
+            <FormField control={form.step3.residenceAddress.city} testId="residenceAddress.city" />
+            <FormField
+              control={form.step3.residenceAddress.street}
+              testId="residenceAddress.street"
+            />
+            <FormField
+              control={form.step3.residenceAddress.house}
+              testId="residenceAddress.house"
+            />
+            <FormField
+              control={form.step3.residenceAddress.apartment}
+              testId="residenceAddress.apartment"
+            />
+            <FormField
+              control={form.step3.residenceAddress.postalCode}
+              testId="residenceAddress.postalCode"
+            />
+          </div>
+        </section>
+      )}
 
       {/* ===== Шаг 4. Занятость ===== */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Шаг 4. Информация о занятости</h2>
+      {currentStep === 4 && (
+        <section className="space-y-4" data-testid="step-section-4">
+          <h2 className="text-xl font-bold mb-4">Шаг 4. Информация о занятости</h2>
 
-        <FormField control={form.step4.employmentStatus} testId="employmentStatus" />
+          <FormField control={form.step4.employmentStatus} testId="employmentStatus" />
 
-        <h3 className="text-base font-semibold mt-2">Работа по найму</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step4.companyName} testId="companyName" />
-          <FormField control={form.step4.companyInn} testId="companyInn" />
-          <FormField control={form.step4.companyPhone} testId="companyPhone" />
-          <FormField control={form.step4.position} testId="position" />
-        </div>
-        <FormField control={form.step4.companyAddress} testId="companyAddress" />
+          <h3 className="text-base font-semibold mt-2">Работа по найму</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step4.companyName} testId="companyName" />
+            <FormField control={form.step4.companyInn} testId="companyInn" />
+            <FormField control={form.step4.companyPhone} testId="companyPhone" />
+            <FormField control={form.step4.position} testId="position" />
+          </div>
+          <FormField control={form.step4.companyAddress} testId="companyAddress" />
 
-        <h3 className="text-base font-semibold mt-2">Стаж и доход</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step4.workExperienceTotal} testId="workExperienceTotal" />
-          <FormField control={form.step4.workExperienceCurrent} testId="workExperienceCurrent" />
-          <FormField control={form.step4.monthlyIncome} testId="monthlyIncome" />
-          <FormField control={form.step4.additionalIncome} testId="additionalIncome" />
-        </div>
-        <FormField control={form.step4.additionalIncomeSource} testId="additionalIncomeSource" />
+          <h3 className="text-base font-semibold mt-2">Стаж и доход</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step4.workExperienceTotal} testId="workExperienceTotal" />
+            <FormField control={form.step4.workExperienceCurrent} testId="workExperienceCurrent" />
+            <FormField control={form.step4.monthlyIncome} testId="monthlyIncome" />
+            <FormField control={form.step4.additionalIncome} testId="additionalIncome" />
+          </div>
+          <FormField control={form.step4.additionalIncomeSource} testId="additionalIncomeSource" />
 
-        <h3 className="text-base font-semibold mt-2">ИП / самозанятый</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step4.businessType} testId="businessType" />
-          <FormField control={form.step4.businessInn} testId="businessInn" />
-        </div>
-        <FormField control={form.step4.businessActivity} testId="businessActivity" />
+          <h3 className="text-base font-semibold mt-2">ИП / самозанятый</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step4.businessType} testId="businessType" />
+            <FormField control={form.step4.businessInn} testId="businessInn" />
+          </div>
+          <FormField control={form.step4.businessActivity} testId="businessActivity" />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step4.totalIncome} testId="totalIncome" />
-          <FormField control={form.step4.paymentToIncomeRatio} testId="paymentToIncomeRatio" />
-        </div>
-      </section>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step4.totalIncome} testId="totalIncome" />
+            <FormField control={form.step4.paymentToIncomeRatio} testId="paymentToIncomeRatio" />
+          </div>
+        </section>
+      )}
 
       {/* ===== Шаг 5. Дополнительно ===== */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Шаг 5. Дополнительная информация</h2>
+      {currentStep === 5 && (
+        <section className="space-y-4" data-testid="step-section-5">
+          <h2 className="text-xl font-bold mb-4">Шаг 5. Дополнительная информация</h2>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.step5.maritalStatus} testId="maritalStatus" />
-          <FormField control={form.step5.dependents} testId="dependents" />
-        </div>
-        <FormField control={form.step5.education} testId="education" />
-
-        {/* ── Имущество (FormArray) ── */}
-        <FormField control={form.step5.hasProperty} testId="hasProperty" />
-        {hasProperty && (
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold">Имущество</h3>
-            {Array.from({ length: propertyCount }, (_, i) => {
-              const item = form.step5.properties.at(i);
-              if (!item) return null;
-              return (
-                <div
-                  key={i}
-                  className="rounded-md border border-gray-200 p-4 space-y-3 relative"
-                  data-testid={`property-card-${i}`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Имущество #{i + 1}</h4>
-                    {propertyCount > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => form.step5.properties.removeAt(i)}
-                        aria-label="Удалить имущество"
-                        data-testid={`remove-property-${i}`}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <FormField control={item.type} testId={`properties.${i}.type`} />
-                  <FormField control={item.description} testId={`properties.${i}.description`} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={item.estimatedValue}
-                      testId={`properties.${i}.estimatedValue`}
-                    />
-                    <FormField
-                      control={item.hasEncumbrance}
-                      testId={`properties.${i}.hasEncumbrance`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => form.step5.properties.push(propertyTemplate())}
-              data-testid="add-property"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Добавить имущество
-            </Button>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.step5.maritalStatus} testId="maritalStatus" />
+            <FormField control={form.step5.dependents} testId="dependents" />
           </div>
-        )}
+          <FormField control={form.step5.education} testId="education" />
 
-        {/* ── Существующие кредиты (FormArray) ── */}
-        <FormField control={form.step5.hasExistingLoans} testId="hasExistingLoans" />
-        {hasExistingLoans && (
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold">Существующие кредиты</h3>
-            {Array.from({ length: loanCount }, (_, i) => {
-              const item = form.step5.existingLoans.at(i);
-              if (!item) return null;
-              return (
-                <div
-                  key={i}
-                  className="rounded-md border border-gray-200 p-4 space-y-3 relative"
-                  data-testid={`existing-loan-card-${i}`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Кредит #{i + 1}</h4>
-                    {loanCount > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => form.step5.existingLoans.removeAt(i)}
-                        aria-label="Удалить кредит"
-                        data-testid={`remove-existing-loan-${i}`}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    )}
+          {/* ── Имущество (FormArray) ── */}
+          <FormField control={form.step5.hasProperty} testId="hasProperty" />
+          {hasProperty && (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold">Имущество</h3>
+              {Array.from({ length: propertyCount }, (_, i) => {
+                const item = form.step5.properties.at(i);
+                if (!item) return null;
+                return (
+                  <div
+                    key={i}
+                    className="rounded-md border border-gray-200 p-4 space-y-3 relative"
+                    data-testid={`property-card-${i}`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <h4 className="text-sm font-semibold text-gray-700">Имущество #{i + 1}</h4>
+                      {propertyCount > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => form.step5.properties.removeAt(i)}
+                          aria-label="Удалить имущество"
+                          data-testid={`remove-property-${i}`}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <FormField control={item.type} testId={`properties.${i}.type`} />
+                    <FormField control={item.description} testId={`properties.${i}.description`} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={item.estimatedValue}
+                        testId={`properties.${i}.estimatedValue`}
+                      />
+                      <FormField
+                        control={item.hasEncumbrance}
+                        testId={`properties.${i}.hasEncumbrance`}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={item.bank} testId={`existingLoans.${i}.bank`} />
-                    <FormField control={item.type} testId={`existingLoans.${i}.type`} />
-                    <FormField control={item.amount} testId={`existingLoans.${i}.amount`} />
-                    <FormField
-                      control={item.remainingAmount}
-                      testId={`existingLoans.${i}.remainingAmount`}
-                    />
-                    <FormField
-                      control={item.monthlyPayment}
-                      testId={`existingLoans.${i}.monthlyPayment`}
-                    />
-                    <FormField
-                      control={item.maturityDate}
-                      testId={`existingLoans.${i}.maturityDate`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => form.step5.existingLoans.push(existingLoanTemplate())}
-              data-testid="add-existing-loan"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Добавить кредит
-            </Button>
-          </div>
-        )}
+                );
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => form.step5.properties.push(propertyTemplate())}
+                data-testid="add-property"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Добавить имущество
+              </Button>
+            </div>
+          )}
 
-        {/* ── Созаёмщики (FormArray) ── */}
-        <FormField control={form.step5.hasCoBorrower} testId="hasCoBorrower" />
-        {hasCoBorrower && (
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold">Созаёмщики</h3>
-            {Array.from({ length: coBorrowerCount }, (_, i) => {
-              const item = form.step5.coBorrowers.at(i);
-              if (!item) return null;
-              return (
-                <div
-                  key={i}
-                  className="rounded-md border border-gray-200 p-4 space-y-3 relative"
-                  data-testid={`co-borrower-card-${i}`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Созаёмщик #{i + 1}</h4>
-                    {coBorrowerCount > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => form.step5.coBorrowers.removeAt(i)}
-                        aria-label="Удалить созаёмщика"
-                        data-testid={`remove-co-borrower-${i}`}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    )}
+          {/* ── Существующие кредиты (FormArray) ── */}
+          <FormField control={form.step5.hasExistingLoans} testId="hasExistingLoans" />
+          {hasExistingLoans && (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold">Существующие кредиты</h3>
+              {Array.from({ length: loanCount }, (_, i) => {
+                const item = form.step5.existingLoans.at(i);
+                if (!item) return null;
+                return (
+                  <div
+                    key={i}
+                    className="rounded-md border border-gray-200 p-4 space-y-3 relative"
+                    data-testid={`existing-loan-card-${i}`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <h4 className="text-sm font-semibold text-gray-700">Кредит #{i + 1}</h4>
+                      {loanCount > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => form.step5.existingLoans.removeAt(i)}
+                          aria-label="Удалить кредит"
+                          data-testid={`remove-existing-loan-${i}`}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={item.bank} testId={`existingLoans.${i}.bank`} />
+                      <FormField control={item.type} testId={`existingLoans.${i}.type`} />
+                      <FormField control={item.amount} testId={`existingLoans.${i}.amount`} />
+                      <FormField
+                        control={item.remainingAmount}
+                        testId={`existingLoans.${i}.remainingAmount`}
+                      />
+                      <FormField
+                        control={item.monthlyPayment}
+                        testId={`existingLoans.${i}.monthlyPayment`}
+                      />
+                      <FormField
+                        control={item.maturityDate}
+                        testId={`existingLoans.${i}.maturityDate`}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={item.personalData.lastName}
-                      testId={`coBorrowers.${i}.personalData.lastName`}
-                    />
-                    <FormField
-                      control={item.personalData.firstName}
-                      testId={`coBorrowers.${i}.personalData.firstName`}
-                    />
-                    <FormField
-                      control={item.personalData.middleName}
-                      testId={`coBorrowers.${i}.personalData.middleName`}
-                    />
-                    <FormField
-                      control={item.personalData.birthDate}
-                      testId={`coBorrowers.${i}.personalData.birthDate`}
-                    />
-                  </div>
-                  <FormField
-                    control={item.personalData.gender}
-                    testId={`coBorrowers.${i}.personalData.gender`}
-                  />
-                  <FormField
-                    control={item.personalData.birthPlace}
-                    testId={`coBorrowers.${i}.personalData.birthPlace`}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={item.phone} testId={`coBorrowers.${i}.phone`} />
-                    <FormField control={item.email} testId={`coBorrowers.${i}.email`} />
-                    <FormField
-                      control={item.relationship}
-                      testId={`coBorrowers.${i}.relationship`}
-                    />
-                    <FormField
-                      control={item.monthlyIncome}
-                      testId={`coBorrowers.${i}.monthlyIncome`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => form.step5.coBorrowers.push(coBorrowerTemplate())}
-              data-testid="add-co-borrower"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Добавить созаёмщика
-            </Button>
-          </div>
-        )}
+                );
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => form.step5.existingLoans.push(existingLoanTemplate())}
+                data-testid="add-existing-loan"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Добавить кредит
+              </Button>
+            </div>
+          )}
 
-        <FormField control={form.step5.coBorrowersIncome} testId="coBorrowersIncome" />
-      </section>
+          {/* ── Созаёмщики (FormArray) ── */}
+          <FormField control={form.step5.hasCoBorrower} testId="hasCoBorrower" />
+          {hasCoBorrower && (
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold">Созаёмщики</h3>
+              {Array.from({ length: coBorrowerCount }, (_, i) => {
+                const item = form.step5.coBorrowers.at(i);
+                if (!item) return null;
+                return (
+                  <div
+                    key={i}
+                    className="rounded-md border border-gray-200 p-4 space-y-3 relative"
+                    data-testid={`co-borrower-card-${i}`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <h4 className="text-sm font-semibold text-gray-700">Созаёмщик #{i + 1}</h4>
+                      {coBorrowerCount > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => form.step5.coBorrowers.removeAt(i)}
+                          aria-label="Удалить созаёмщика"
+                          data-testid={`remove-co-borrower-${i}`}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={item.personalData.lastName}
+                        testId={`coBorrowers.${i}.personalData.lastName`}
+                      />
+                      <FormField
+                        control={item.personalData.firstName}
+                        testId={`coBorrowers.${i}.personalData.firstName`}
+                      />
+                      <FormField
+                        control={item.personalData.middleName}
+                        testId={`coBorrowers.${i}.personalData.middleName`}
+                      />
+                      <FormField
+                        control={item.personalData.birthDate}
+                        testId={`coBorrowers.${i}.personalData.birthDate`}
+                      />
+                    </div>
+                    <FormField
+                      control={item.personalData.gender}
+                      testId={`coBorrowers.${i}.personalData.gender`}
+                    />
+                    <FormField
+                      control={item.personalData.birthPlace}
+                      testId={`coBorrowers.${i}.personalData.birthPlace`}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={item.phone} testId={`coBorrowers.${i}.phone`} />
+                      <FormField control={item.email} testId={`coBorrowers.${i}.email`} />
+                      <FormField
+                        control={item.relationship}
+                        testId={`coBorrowers.${i}.relationship`}
+                      />
+                      <FormField
+                        control={item.monthlyIncome}
+                        testId={`coBorrowers.${i}.monthlyIncome`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => form.step5.coBorrowers.push(coBorrowerTemplate())}
+                data-testid="add-co-borrower"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Добавить созаёмщика
+              </Button>
+            </div>
+          )}
+
+          <FormField control={form.step5.coBorrowersIncome} testId="coBorrowersIncome" />
+        </section>
+      )}
 
       {/* ===== Шаг 6. Подтверждение ===== */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold mb-4">Шаг 6. Подтверждение и согласия</h2>
+      {currentStep === 6 && (
+        <section className="space-y-4" data-testid="step-section-6">
+          <h2 className="text-xl font-bold mb-4">Шаг 6. Подтверждение и согласия</h2>
 
-        <FormField control={form.step6.agreePersonalData} testId="agreePersonalData" />
-        <FormField control={form.step6.agreeCreditHistory} testId="agreeCreditHistory" />
-        <FormField control={form.step6.agreeMarketing} testId="agreeMarketing" />
-        <FormField control={form.step6.agreeTerms} testId="agreeTerms" />
-        <FormField control={form.step6.confirmAccuracy} testId="confirmAccuracy" />
-        <FormField control={form.step6.electronicSignature} testId="electronicSignature" />
-      </section>
+          <FormField control={form.step6.agreePersonalData} testId="agreePersonalData" />
+          <FormField control={form.step6.agreeCreditHistory} testId="agreeCreditHistory" />
+          <FormField control={form.step6.agreeMarketing} testId="agreeMarketing" />
+          <FormField control={form.step6.agreeTerms} testId="agreeTerms" />
+          <FormField control={form.step6.confirmAccuracy} testId="confirmAccuracy" />
+          <FormField control={form.step6.electronicSignature} testId="electronicSignature" />
+        </section>
+      )}
 
-      <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={isSubmitting} data-testid="submit">
-          {isSubmitting ? 'Проверка…' : 'Отправить заявку'}
-        </Button>
+      {/* ===== Wizard navigation ===== */}
+      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+        <div>
+          {currentStep > 1 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={goToPrev}
+              disabled={isValidating || isSubmitting}
+              data-testid="wizard-prev"
+            >
+              Назад
+            </Button>
+          )}
+        </div>
+        <div>
+          {!isLastStep ? (
+            <Button
+              type="button"
+              variant="default"
+              onClick={goToNext}
+              disabled={isValidating}
+              data-testid="wizard-next"
+            >
+              {isValidating ? 'Проверка…' : 'Далее'}
+            </Button>
+          ) : (
+            <Button type="submit" disabled={isSubmitting} data-testid="submit">
+              {isSubmitting ? 'Отправка…' : 'Отправить'}
+            </Button>
+          )}
+        </div>
       </div>
     </form>
   );
