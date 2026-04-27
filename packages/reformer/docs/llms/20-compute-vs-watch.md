@@ -31,7 +31,7 @@ computeFrom(
 // Works for cross-level computation
 watchField(path.nested.price, (price, ctx) => {
   const quantity = ctx.form.quantity.value.value;  // Sibling in nested
-  ctx.setFieldValue('rootTotal', price * quantity); // Full path to root
+  ctx.form.rootTotal.setValue(price * quantity);    // ctx.form.<path>.setValue, NOT ctx.setFieldValue
 }, { immediate: false });  // REQUIRED!
 
 // Works for multiple dependencies
@@ -41,9 +41,20 @@ watchField(path.loanAmount, (amount, ctx) => {
 
   if (amount && term && rate) {
     const monthly = calculateMonthlyPayment(amount, term, rate);
-    ctx.setFieldValue('monthlyPayment', monthly);
+    // Guard: only setValue if value really changed (cycle prevention)
+    if (Math.abs(ctx.form.monthlyPayment.value.value - monthly) > 0.01) {
+      ctx.form.monthlyPayment.setValue(monthly);
+    }
   }
 }, { immediate: false });  // REQUIRED!
+```
+
+### Cross-level write API
+
+Inside a `watchField` callback, write to other fields via `ctx.form.<path>.setValue(value)` —
+**`ctx.setFieldValue(name, value)` does not exist** (that was a documentation typo, fixed).
+For reads use `ctx.form.<path>.value.value` (the inner `.value` reads the signal).
+For enable/disable: `ctx.form.<path>.enable()` / `.disable()` / read `.disabled.value`.
 ```
 
 ### Rule of Thumb
@@ -54,3 +65,7 @@ watchField(path.loanAmount, (amount, ctx) => {
 | Fields at different levels | `watchField` (more flexible) |
 | Multiple dependencies | `watchField` |
 | Async computation | `watchField` with async callback |
+
+### Stage-pattern for chained computeds
+
+When several computeds depend on each other (e.g. `interestRate` → `monthlyPayment` → `paymentToIncomeRatio`), put the whole chain inside ONE `watchField` for the upstream trigger. Do NOT split into one watcher per target — that creates cross-watcher signal bouncing and risks cycles. Read intermediate values from the `new` local you just computed, not from `ctx.form.intermediate.value.value` (which still holds the old value during the cascade).
