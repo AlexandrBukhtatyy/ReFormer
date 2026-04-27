@@ -949,29 +949,33 @@ function Step5Section({ form }: { form: FormProxy<Step5Additional> }) {
           </label>
           <FieldErrors errors={hasProperty.errors} />
         </legend>
-        {Array.from({ length: propertiesLen }, (_, index) => (
-          <PropertyRow
-            key={index}
-            form={form.properties.at(index)}
-            index={index}
-            onRemove={() => {
-              form.properties.removeAt(index);
-            }}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            form.properties.push({
-              type: 'apartment',
-              description: '',
-              estimatedValue: 0,
-              hasEncumbrance: false,
-            });
-          }}
-        >
-          + Добавить имущество ({propertiesLen})
-        </button>
+        {hasProperty.value && (
+          <>
+            {Array.from({ length: propertiesLen }, (_, index) => (
+              <PropertyRow
+                key={index}
+                form={form.properties.at(index)}
+                index={index}
+                onRemove={() => {
+                  form.properties.removeAt(index);
+                }}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                form.properties.push({
+                  type: 'apartment',
+                  description: '',
+                  estimatedValue: 0,
+                  hasEncumbrance: false,
+                });
+              }}
+            >
+              + Добавить имущество ({propertiesLen})
+            </button>
+          </>
+        )}
       </fieldset>
 
       {/* Existing loans array */}
@@ -988,31 +992,35 @@ function Step5Section({ form }: { form: FormProxy<Step5Additional> }) {
           </label>
           <FieldErrors errors={hasExistingLoans.errors} />
         </legend>
-        {Array.from({ length: existingLoansLen }, (_, index) => (
-          <ExistingLoanRow
-            key={index}
-            form={form.existingLoans.at(index)}
-            index={index}
-            onRemove={() => {
-              form.existingLoans.removeAt(index);
-            }}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            form.existingLoans.push({
-              bank: '',
-              type: '',
-              amount: 0,
-              remainingAmount: 0,
-              monthlyPayment: 0,
-              maturityDate: '',
-            });
-          }}
-        >
-          + Добавить кредит ({existingLoansLen})
-        </button>
+        {hasExistingLoans.value && (
+          <>
+            {Array.from({ length: existingLoansLen }, (_, index) => (
+              <ExistingLoanRow
+                key={index}
+                form={form.existingLoans.at(index)}
+                index={index}
+                onRemove={() => {
+                  form.existingLoans.removeAt(index);
+                }}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                form.existingLoans.push({
+                  bank: '',
+                  type: '',
+                  amount: 0,
+                  remainingAmount: 0,
+                  monthlyPayment: 0,
+                  maturityDate: '',
+                });
+              }}
+            >
+              + Добавить кредит ({existingLoansLen})
+            </button>
+          </>
+        )}
       </fieldset>
 
       {/* Co-borrowers array */}
@@ -1029,37 +1037,41 @@ function Step5Section({ form }: { form: FormProxy<Step5Additional> }) {
           </label>
           <FieldErrors errors={hasCoBorrower.errors} />
         </legend>
-        {Array.from({ length: coBorrowersLen }, (_, index) => (
-          <CoBorrowerRow
-            key={index}
-            form={form.coBorrowers.at(index)}
-            index={index}
-            onRemove={() => {
-              form.coBorrowers.removeAt(index);
-            }}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            form.coBorrowers.push({
-              personalData: {
-                lastName: '',
-                firstName: '',
-                middleName: '',
-                birthDate: '',
-                gender: 'male',
-                birthPlace: '',
-              },
-              phone: '',
-              email: '',
-              relationship: '',
-              monthlyIncome: 0,
-            });
-          }}
-        >
-          + Добавить созаёмщика ({coBorrowersLen})
-        </button>
+        {hasCoBorrower.value && (
+          <>
+            {Array.from({ length: coBorrowersLen }, (_, index) => (
+              <CoBorrowerRow
+                key={index}
+                form={form.coBorrowers.at(index)}
+                index={index}
+                onRemove={() => {
+                  form.coBorrowers.removeAt(index);
+                }}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                form.coBorrowers.push({
+                  personalData: {
+                    lastName: '',
+                    firstName: '',
+                    middleName: '',
+                    birthDate: '',
+                    gender: 'male',
+                    birthPlace: '',
+                  },
+                  phone: '',
+                  email: '',
+                  relationship: '',
+                  monthlyIncome: 0,
+                });
+              }}
+            >
+              + Добавить созаёмщика ({coBorrowersLen})
+            </button>
+          </>
+        )}
       </fieldset>
     </section>
   );

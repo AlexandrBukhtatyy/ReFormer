@@ -21,7 +21,8 @@
 |---|---|---:|---|---|
 | `mcp-credit-application/` | 1. FormSchema | 2 | core: add `## Import Patterns` section + `FormFields` constraint callout in `07-complete-import.md` and `10-arrays.md` (commit pending) | prompt `create-form` (target=core) |
 | `mcp-credit-application/` | 2. Validation | 1 (+ 1 polish iter) | — (фикс отложен до повтора) | prompt `add-validation` |
-| `mcp-credit-application/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application/` | 3. Behaviors (3a декларативные) | 4 | (1) `add-behavior` preamble + 7-rule cycle prevention; (2) `10-arrays.md` callout + `add-behavior` rule #8 о ArrayNode | prompt `add-behavior` |
+| `mcp-credit-application/` | 3. Behaviors (3b computed) | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
@@ -71,7 +72,39 @@ _Каждый этап после прогона дополняется блок
 - baseline (stage 1 + 2 без ошибок): [docs/specs/screenshots/mcp-credit/stage1-2/](screenshots/mcp-credit/stage1-2/) — 7 PNG (fullPage + 6 шагов).
 - after-submit (stage 2 с ошибками): [docs/specs/screenshots/mcp-credit/stage2/](screenshots/mcp-credit/stage2/) — 7 PNG (fullPage + 6 шагов с красными error-spans).
 
-### `mcp-credit-application/` · 3. Behaviors
+### `mcp-credit-application/` · 3. Behaviors — итерация 3a (декларативные)
+
+**Итерации: 4** (3 провала + 1 успех). Самый сложный этап на странице 1.
+
+**Итерация 1 — провал.** Sub-agent с prompt `add-behavior` сделал «всё в одном bang»: 6 watchField (computeFrom для interestRate / monthlyPayment / age / fullName / totalIncome / paymentToIncomeRatio) + 9 enableWhen + 1 copyFrom + 1 revalidateWhen. Результат — реактивный цикл при mount, страница не доходит до `DOMContentLoaded`, browser приходится перезапускать (visual confirm от пользователя). Sub-agent отчитался об успехе с tsc clean — лишний раз показывает что **type-check ≠ acceptance**. `git restore` всех 3 файлов. `report_issue` (severity:major, prompt:add-behavior, cycle).
+
+**MCP-фикс 1.** Добавлена жёсткая 7-правильная преамбула в начало `packages/reformer-mcp/src/prompts/add-behavior.ts`: «начни с enableWhen + copyFrom; computeFrom/watchField — отдельной итерацией; всегда `{ immediate: false }`; guard каждый setValue/enable/disable; не используй revalidateWhen без необходимости». MCP пересобран. Коммит `faabe7d`.
+
+**Итерация 2 — снова провал.** Sub-agent с обновлённым prompt сделал scope **3a** (только enableWhen + copyFrom, без watchField/computeFrom) — 24 декларации (15 enableWhen на FieldNode + 6 copyFrom на FieldNode + 3 enableWhen на FormArray-ноды). tsc/eslint clean. Но playwright `navigate` опять timeout — пользователь подтвердил «опять подвис браузер». `git revert db980b3 → 16ac15f`.
+
+**Bisect.** Оркестратор провёл инкрементальный bisect через свои Edit'ы: добавил behaviors группами, проверял каждую через playwright. **Группы 1–5 (21 declarations на FieldNode targets) — все mount OK.** **Группа 6 (3 enableWhen на whole ArrayNode с `resetOnDisable: true`) — гарантированный hang.** Оставил 21 безопасных, 3 удалил.
+
+**MCP-фикс 2.** Добавлен callout в `packages/reformer/docs/llms/10-arrays.md` (immediately after FormFields constraint) и rule #8 в cycle-prevention preamble `add-behavior` prompt: «не используй `enableWhen(arrayNode, …, { resetOnDisable: true })` — это цикл; gate в JSX через `{form.flag.value && <ArrayUI/>}`». `npm run generate:llms` обновил `packages/reformer/llms.txt`. `report_issue` (severity:critical, form-array). Коммит `91b657c`.
+
+**Итерация 3 — успех (schema).** Schema.ts с 21 безопасным behavior-ом закоммичен (`a56fbaa`). Visual confirm: page mount OK, 0 console errors.
+
+**Итерация 4 — успех (index.tsx polish).** Sub-agent добавил conditional rendering для трёх FormArrays в `index.tsx`: `{hasProperty.value && (<>...</>)}`, `{hasExistingLoans.value && (<>...</>)}`, `{hasCoBorrower.value && (<>...</>)}`. Diff +11 строк. tsc/eslint clean.
+
+**Visual smoke-test (playwright).** 4 интерактивных сценария верифицированы:
+- baseline: loanType=consumer → mortgage/car поля disabled; sameAsRegistration=true → residenceAddress disabled (copyFrom активен); 3 FormArrays свёрнуты.
+- toggle loanType=mortgage → `propertyValue`/`initialPayment` enabled (`disabled=false` через DOM-инспекцию), car* остались disabled.
+- toggle hasProperty → "Имущество #1" появляется (PropertyRow с типом/описанием/стоимостью/обременением + Удалить + +Добавить имущество (1)).
+- toggle sameAsRegistration=false → residenceAddress.* `disabled=false` (через DOM, для 5 полей region/city/street/house/index).
+
+5 PNG screenshots: [docs/specs/screenshots/mcp-credit/stage3a/](screenshots/mcp-credit/stage3a/) — fullpage baseline, step1 disabled, step5 collapsed, step1 mortgage enabled, step5 hasProperty array shown, step3 residence enabled.
+
+**MCP gaps накопленные за итерацию 3a (закрыты в этой же итерации):**
+1. ✅ Cycle-prevention checklist жил в самом конце 14KB prompt — вынесен в начало (faabe7d).
+2. ✅ enableWhen на whole ArrayNode не было предупреждения — добавлено в `10-arrays.md` и `add-behavior` (91b657c).
+
+**Перенос в 3b:** computeFrom для `interestRate` / `monthlyPayment` / `age` / `fullName` / `totalIncome` / `paymentToIncomeRatio` — отдельной итерацией.
+
+### `mcp-credit-application/` · 3. Behaviors — итерация 3b (computed fields)
 
 _не начато_
 
