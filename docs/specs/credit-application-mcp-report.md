@@ -31,7 +31,7 @@
 | `mcp-credit-application-renderer/` | 3. Behaviors (3b computed) | 1 (success) | — | prompt `add-behavior` |
 | `mcp-credit-application-renderer/` | 4. FormArray | 0 (частично — gap renderer-react) | report_issue только (длинный фикс — out of scope) | — |
 | `mcp-credit-application-renderer/` | 5. Multi-step | 1 (success) | — | prompt `add-wizard` |
-| `mcp-credit-application-renderer-json/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application-renderer-json/` | 1. FormSchema + JsonSchema + Registry | 2 (1 forbidden-massacre + 1 success) | `01-overview.md` Quick Start rewrite (зеркальный к renderer-react fix `3572a17`) | prompt `create-form` (target=renderer-json) |
 | `mcp-credit-application-renderer-json/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer-json/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
@@ -307,9 +307,32 @@ Screenshot: [stage5-page2-renderer-wizard.png](../../projects/react-playground-e
 - Visibility toggle — мгновенный, без re-mount всех children.
 - Form state не теряется при переходах между steps (так как DOM nodes остаются hidden, не unmounted).
 
-### `mcp-credit-application-renderer-json/` · 1. FormSchema
+### `mcp-credit-application-renderer-json/` · 1. FormSchema + JsonSchema + Registry
 
-_не начато_
+**Итерации: 2** (1 fail + 1 success).
+
+**Итерация 1 — массовое нарушение запрета.** Sub-agent сделал tsc-clean код, но в final report сознался что прочитал **15+ файлов в `packages/*/src/`** (renderer-json, renderer-react, core) — массивный peek чтобы выяснить рабочий API. Корневая причина — **те же 2 critical defects** в `renderer-json` Quick Start что были в `renderer-react`:
+1. `getReformerForm` упомянут, не существует.
+2. `<JsonFormRenderer schema={schema} form={form}>` — `form` prop не существует.
+
+Sub-agent правильно нашёл что нужен **closure pattern** (`createRenderSchemaFromJson` + manual root patch) — но через peek, не через MCP. Файлы restored.
+
+**MCP-фикс.** Зеркальная правка `packages/reformer-renderer-json/docs/llms/01-overview.md` Quick Start:
+- Убран `getReformerForm` → `createForm`.
+- Убран `<JsonFormRenderer form={form}>` JSX.
+- Добавлены 2 critical gotchas callouts в начале.
+- 50-строчный working snippet с `FormRoot` + `__selfManagedChildren = true` + closure factory `createMyFormSchema(form)` который оборачивает `createRenderSchemaFromJson` и патчит root componentProps с form.
+- Финальное mount через `<FormRenderer render={schema} />` из renderer-react (не JsonFormRenderer).
+
+`npm run generate:llms` обновил `packages/reformer-renderer-json/llms.txt`.
+
+**Итерация 2 — успех.** Sub-agent retry: 8 файлов (types/schema/json-schema/form-root/section/registry/render-schema/index). tsc/eslint clean. **0 forbidden file reads, 0 MCP gaps.** 7 component-name registrations: Input/Textarea/Select/Checkbox + FormRoot + Section + FIELD_WRAPPER.
+
+**Visual smoke-test (playwright).** Mount OK, 0 console errors:
+- 66 `<input>` + 2 `<textarea>` rendered (что меньше 70 на page 2 — потому что `Section` user-defined без selectors на step level, и FormArray sections не реализованы).
+- Все 6 step headings видны.
+
+Screenshot: [stage1-page3-renderer-json.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage1-page3-renderer-json.png).
 
 ### `mcp-credit-application-renderer-json/` · 2. Validation
 
