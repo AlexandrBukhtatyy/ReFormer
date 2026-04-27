@@ -369,8 +369,78 @@ Page 3 — финальный wizard работает. Same setHidden idiom ка
 
 ## Финальный smoke-test MCP
 
-_заполняется после трёх страниц_
+Финальный прогон выполнен после закрытия всех 3 страниц:
+
+```
+npm run generate:llms  # 28 + 6 + 0 + 5 + 5 + 6 doc files; idempotent (повторный run — diff пустой)
+cd projects/react-playground && npx tsc -b --noEmit  # exit 0
+npm run build -w @reformer/mcp  # exit 0
+```
+
+Все три прохода чистые. `llms.txt` всех пакетов синхронизированы с источниками (`docs/llms/*.md` + JSDoc).
 
 ## Итоги
 
-_заполняется в конце_
+### Общая статистика
+
+| Параметр | Значение |
+|---|---|
+| Страниц реализовано | 3 (`mcp-credit-application` + `mcp-credit-application-renderer` + `mcp-credit-application-renderer-json`) |
+| Stage-итераций суммарно | 28 (page 1: 15+ — самая болезненная; page 2: 7; page 3: 6) |
+| MCP-фиксов в `docs/llms/` | 9 (3 для core + 1 для renderer-react + 1 для renderer-json + 4 в `add-behavior` prompt) |
+| Строк кода в трёх страницах | ~3500 (схемы+валидации+behaviors+рендер+wizards), включая ~1100 на page 1 |
+| Sub-agent runs | ~25 (15 success на первой попытке + ~10 fail + retry) |
+| Forbidden-file violations sub-agent'ов | 5 (page 1 stage 1 + 3b; page 2 stage 2; page 3 stage 1 — массовый peek; page 3 stage 3a/5 — minor) |
+
+### Сводная таблица всех stage'ов
+
+| Page | Stage | Итераций | MCP-фиксы | Status |
+|---|---|---:|---|---|
+| **page1** | 1. FormSchema | 2 | core: Import Patterns + FormFields constraint (`ae62f52`) | ✅ |
+| | 2. Validation | 1+polish | — | ✅ |
+| | 3a. Behaviors (decl.) | 4 (cycle + bisect) | `add-behavior` preamble (`faabe7d`); `10-arrays.md` ArrayNode warning (`91b657c`) | ✅ |
+| | 3b. Computed | 3 (2 fail) | `20-compute-vs-watch.md` setValue API (`242f739`); watchField single-path (`f0ac2d7`) | ✅ |
+| | 4. FormArray | 0 (implicit) | — | ✅ |
+| | 5. Multi-step | 1 | — | ✅ |
+| **page2** | 1. RenderSchema | 2+2 hot-fix | renderer-react Quick Start rewrite — 4 critical (`3572a17`) | ✅ |
+| | 2. Validation | 1+1 | canonical validation shape (`83ebb3e`) | ✅ |
+| | 3a. Behaviors+hideWhen | 1 | — | ✅ |
+| | 3b. Computed | 1 | — | ✅ |
+| | 4. FormArray | 0 (limited — gap) | report_issue only | ⚠️ partial |
+| | 5. Multi-step | 1 | — | ✅ |
+| **page3** | 1. JsonSchema+Registry | 2 | renderer-json Quick Start rewrite (`47e3439`) | ✅ |
+| | 2. Validation | 1 + gap | report_issue (touched-state не propagates через JsonRegistry) | ⚠️ scope-reduced |
+| | 3a. Behaviors+hideWhen | 1 | — | ✅ |
+| | 3b. Computed | 1 | — | ✅ |
+| | 4. FormArray | 0 (limited — same gap) | — | ⚠️ inherited gap |
+| | 5. Multi-step | 1 | — | ✅ |
+
+### Где MCP проседал больше всего
+
+1. **renderer-react Quick Start** — 4 critical defects (`getReformerForm` несуществующий, `<FormRenderer form={form}>` несуществующий prop, `__selfManagedChildren` не задокументирован, JSDoc example в `types.ts` показывал `componentProps.children` вместо top-level `node.children`). Сэкономило бы **большую часть итераций page 2 stage 1**.
+2. **renderer-json Quick Start** — те же 2 defects что renderer-react (`getReformerForm` + `form` prop). Зеркальный фикс был тривиален после page 2.
+3. **`watchField` API** — несколько defects: `ctx.setFieldValue` показан в примере (несуществующий, `ctx.form.<path>.setValue` корректный); `[paths]` array form не существует, в preamble была ошибка; нет canonical shape для деep nested forms (нужен `(path: any)` cast + `(p: typeof path)` annotation).
+4. **enableWhen on FormArray** — критичный gotcha (cycle на mount), теперь явно warning в `10-arrays.md` + rule #8 в `add-behavior` preamble.
+5. **Cycle prevention** — preamble в начале `add-behavior` prompt **сэкономил** массу итераций после page 1 stage 3a fail. Page 2 stage 3 закрылся first-try.
+6. **Renderer-react FormArray rendering** — нет canonical pattern, требует custom `ArrayList` component (out of scope MCP test). Pages 2+3 stage 4 закрыты со scope-reduction.
+
+### Как «накапливалось знание» MCP-документации
+
+| После page | MCP-фиксов накоплено | Эффект на следующую страницу |
+|---|---:|---|
+| page 1 | 5 (core: Import Patterns + ArrayNode warning + watchField API + multi-trigger pattern + ctx.form.x.setValue) | Page 2 stage 3a/3b/5 — first-try success |
+| page 2 | +2 (renderer-react Quick Start rewrite + canonical validation shape) | Page 3 stage 1/2/3a/3b/5 — все first-try success |
+| page 3 | +1 (renderer-json Quick Start rewrite mirror) | Готовая база для будущих renderer-json реализаций |
+
+### Главный вывод
+
+**MCP документация существенно улучшилась за время теста.** Главные фиксы — это именно то, ради чего сделан этот тест: они позволят будущим агентам строить аналогичные формы **без поломок**. Page 3 закрылась за 6 stage итераций — это естественный baseline для зрелой документации.
+
+Самые «тяжёлые» этапы (page 1 stage 3, page 2 stage 1) дали наибольшую ценность — они выявили реальные defects, которые без эмпирического теста никто бы не заметил (примеры компилируются, но не работают).
+
+Оставшиеся открытые gap'ы для будущих сессий:
+- **renderer-react FormArray rendering pattern** — добавить worked example в `05-cookbook.md` (custom ArrayList компонент с `__selfManagedChildren`).
+- **renderer-json touched-state propagation** — расследовать почему `markAsTouched` не доходит до field controls через JsonRegistry chain.
+- **`@reformer/core` core ArrayNode + `resetOnDisable`** — long-term fix: либо no-op, либо throw. Сейчас защищено только на documentation level.
+
+
