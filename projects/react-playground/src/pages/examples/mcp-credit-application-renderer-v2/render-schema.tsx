@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Render schema for the credit-application form (renderer-react v2 — page 2).
  *
@@ -31,11 +32,7 @@ import {
   type RenderSchemaProxy,
 } from '@reformer/renderer-react';
 import { Box, Button, Section } from '@reformer/ui-kit';
-import {
-  coBorrowerTemplate,
-  existingLoanTemplate,
-  propertyTemplate,
-} from './schema';
+import { coBorrowerTemplate, existingLoanTemplate, propertyTemplate } from './schema';
 import type { CreditApplicationForm } from './types';
 
 /* -----------------------------------------------------------------
@@ -43,13 +40,7 @@ import type { CreditApplicationForm } from './types';
  * (see renderer-react Quick Start). Without this, FieldRenderNodes
  * silently render to null.
  * ----------------------------------------------------------------- */
-function FormRoot<T>({
-  form,
-  children,
-}: {
-  form: FormProxy<T>;
-  children: RenderNode<T>[];
-}) {
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
   return (
     <>
       {children.map((child, i) => (
@@ -58,7 +49,7 @@ function FormRoot<T>({
     </>
   );
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 (FormRoot as any).__selfManagedChildren = true;
 
 /* -----------------------------------------------------------------
@@ -77,7 +68,7 @@ const arrayCard = 'rounded-md border p-4 space-y-3 bg-gray-50';
  * label + input + error. Mirrors what `settings.fieldWrapper={FormField}`
  * does outside the array.
  * ----------------------------------------------------------------- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function ArrayItemField({ control }: { control: any }) {
   return (
     <CdkFormField.Root control={control}>
@@ -142,12 +133,7 @@ function makePropertiesArrayBlock(form: FormProxy<CreditApplicationForm>) {
           </FormArray.List>
           <div>
             <FormArray.AddButton initialValue={propertyTemplate() as any} asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid="property-add"
-              >
+              <Button type="button" variant="outline" size="sm" data-testid="property-add">
                 Добавить имущество
               </Button>
             </FormArray.AddButton>
@@ -160,9 +146,9 @@ function makePropertiesArrayBlock(form: FormProxy<CreditApplicationForm>) {
 
 function makeExistingLoansArrayBlock(form: FormProxy<CreditApplicationForm>) {
   return function ExistingLoansArrayBlock() {
-    const hasExistingLoansState = useFormControl(
-      form.step5.hasExistingLoans
-    ) as unknown as { value: boolean };
+    const hasExistingLoansState = useFormControl(form.step5.hasExistingLoans) as unknown as {
+      value: boolean;
+    };
     const loansState = useFormControl(form.step5.existingLoans) as unknown as {
       length: number;
     };
@@ -209,12 +195,7 @@ function makeExistingLoansArrayBlock(form: FormProxy<CreditApplicationForm>) {
           </FormArray.List>
           <div>
             <FormArray.AddButton initialValue={existingLoanTemplate() as any} asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid="loan-add"
-              >
+              <Button type="button" variant="outline" size="sm" data-testid="loan-add">
                 Добавить кредит
               </Button>
             </FormArray.AddButton>
@@ -227,9 +208,9 @@ function makeExistingLoansArrayBlock(form: FormProxy<CreditApplicationForm>) {
 
 function makeCoBorrowersArrayBlock(form: FormProxy<CreditApplicationForm>) {
   return function CoBorrowersArrayBlock() {
-    const hasCoBorrowerState = useFormControl(
-      form.step5.hasCoBorrower
-    ) as unknown as { value: boolean };
+    const hasCoBorrowerState = useFormControl(form.step5.hasCoBorrower) as unknown as {
+      value: boolean;
+    };
     const coBorrowersState = useFormControl(form.step5.coBorrowers) as unknown as {
       length: number;
     };
@@ -249,24 +230,14 @@ function makeCoBorrowersArrayBlock(form: FormProxy<CreditApplicationForm>) {
             {({ control, remove }) => (
               <div className={arrayCard} data-testid="coborrower-card">
                 <div className={rowGrid3}>
-                  <ArrayItemField
-                    control={(control as any).personalData.lastName}
-                  />
-                  <ArrayItemField
-                    control={(control as any).personalData.firstName}
-                  />
-                  <ArrayItemField
-                    control={(control as any).personalData.middleName}
-                  />
+                  <ArrayItemField control={(control as any).personalData.lastName} />
+                  <ArrayItemField control={(control as any).personalData.firstName} />
+                  <ArrayItemField control={(control as any).personalData.middleName} />
                 </div>
                 <div className={rowGrid3}>
-                  <ArrayItemField
-                    control={(control as any).personalData.birthDate}
-                  />
+                  <ArrayItemField control={(control as any).personalData.birthDate} />
                   <ArrayItemField control={(control as any).personalData.gender} />
-                  <ArrayItemField
-                    control={(control as any).personalData.birthPlace}
-                  />
+                  <ArrayItemField control={(control as any).personalData.birthPlace} />
                 </div>
                 <div className={rowGrid2}>
                   <ArrayItemField control={(control as any).phone} />
@@ -294,12 +265,7 @@ function makeCoBorrowersArrayBlock(form: FormProxy<CreditApplicationForm>) {
           </FormArray.List>
           <div>
             <FormArray.AddButton initialValue={coBorrowerTemplate() as any} asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-testid="coborrower-add"
-              >
+              <Button type="button" variant="outline" size="sm" data-testid="coborrower-add">
                 Добавить созаемщика
               </Button>
             </FormArray.AddButton>
@@ -314,7 +280,7 @@ function makeCoBorrowersArrayBlock(form: FormProxy<CreditApplicationForm>) {
  * createCreditApplicationRenderSchema — closure factory.
  * ----------------------------------------------------------------- */
 export function createCreditApplicationRenderSchema(
-  form: FormProxy<CreditApplicationForm>,
+  form: FormProxy<CreditApplicationForm>
 ): RenderSchemaProxy<CreditApplicationForm> {
   const PropertiesArrayBlock = makePropertiesArrayBlock(form);
   const ExistingLoansArrayBlock = makeExistingLoansArrayBlock(form);
@@ -339,10 +305,7 @@ export function createCreditApplicationRenderSchema(
           {
             component: Box,
             componentProps: { className: rowGrid2 },
-            children: [
-              { component: path.step1.loanAmount },
-              { component: path.step1.loanTerm },
-            ],
+            children: [{ component: path.step1.loanAmount }, { component: path.step1.loanTerm }],
           },
           { component: path.step1.loanPurpose },
           {
@@ -408,10 +371,7 @@ export function createCreditApplicationRenderSchema(
           {
             component: Box,
             componentProps: { className: rowGrid2 },
-            children: [
-              { component: path.step2.fullName },
-              { component: path.step2.age },
-            ],
+            children: [{ component: path.step2.fullName }, { component: path.step2.age }],
           },
           {
             component: Section,
@@ -444,10 +404,7 @@ export function createCreditApplicationRenderSchema(
           {
             component: Box,
             componentProps: { className: rowGrid2 },
-            children: [
-              { component: path.step2.inn },
-              { component: path.step2.snils },
-            ],
+            children: [{ component: path.step2.inn }, { component: path.step2.snils }],
           },
         ],
       },
@@ -474,10 +431,7 @@ export function createCreditApplicationRenderSchema(
           {
             component: Box,
             componentProps: { className: rowGrid2 },
-            children: [
-              { component: path.step3.email },
-              { component: path.step3.emailAdditional },
-            ],
+            children: [{ component: path.step3.email }, { component: path.step3.emailAdditional }],
           },
           {
             component: Section,
