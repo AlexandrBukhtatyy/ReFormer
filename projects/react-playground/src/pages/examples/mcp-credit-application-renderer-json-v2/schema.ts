@@ -1,4 +1,10 @@
-import { createForm, type FormProxy, type FieldPath, type FormFields } from '@reformer/core';
+import {
+  createForm,
+  type FormProxy,
+  type FieldPath,
+  type FormFields,
+  type ValidationSchemaFn,
+} from '@reformer/core';
 import {
   required,
   email,
@@ -12,7 +18,12 @@ import {
 import { enableWhen, copyFrom, watchField } from '@reformer/core/behaviors';
 import { Input, Select, Textarea, Checkbox, RadioGroup, InputMask } from '@reformer/ui-kit';
 
-import type { CreditApplicationForm } from './types';
+import type {
+  CreditApplicationForm,
+  PropertyItem,
+  ExistingLoanItem,
+  CoBorrowerItem,
+} from './types';
 
 // ----- option lists -----
 export const LOAN_TYPE_OPTIONS = [
@@ -91,6 +102,167 @@ function rateForLoanType(loanType: string): number {
     default:
       return 0;
   }
+}
+
+// ===== Per-step validations (used by wizard's "Далее" button) =====
+
+export const step1Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  required(path.loanType, { message: 'Выберите тип кредита' });
+  required(path.loanAmount);
+  min(path.loanAmount, 1000, { message: 'Минимальная сумма 1 000 ₽' });
+  required(path.loanTerm);
+  min(path.loanTerm, 1);
+  max(path.loanTerm, 360);
+  required(path.loanPurpose);
+
+  applyWhen(
+    path.loanType,
+    (v: string) => v === 'mortgage',
+    (p) => {
+      required(p.propertyValue, { message: 'Укажите стоимость объекта' });
+      min(p.propertyValue, 1);
+      required(p.initialPayment, { message: 'Укажите первоначальный взнос' });
+      min(p.initialPayment, 0);
+    }
+  );
+
+  applyWhen(
+    path.loanType,
+    (v: string) => v === 'car',
+    (p) => {
+      required(p.carBrand, { message: 'Укажите марку автомобиля' });
+      required(p.carYear);
+      min(p.carYear, 1980);
+      max(p.carYear, new Date().getFullYear() + 1);
+    }
+  );
+};
+
+export const step2Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  required(path.lastName);
+  required(path.firstName);
+  required(path.birthDate);
+  required(path.passport, { message: 'Укажите паспортные данные' });
+  pattern(path.passport, /^\d{4}\s\d{6}$/, { message: 'Формат: 0000 000000' });
+  required(path.inn);
+  pattern(path.inn, /^\d{10,12}$/, { message: 'ИНН: 10–12 цифр' });
+  required(path.maritalStatus);
+  min(path.childrenCount, 0);
+};
+
+export const step3Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  required(path.employmentStatus, { message: 'Выберите статус занятости' });
+
+  applyWhen(
+    path.employmentStatus,
+    (v: string) => v === 'employed',
+    (p) => {
+      required(p.companyName, { message: 'Укажите компанию' });
+      required(p.position);
+      required(p.workExperience);
+      min(p.workExperience, 1);
+      required(p.monthlySalary);
+      min(p.monthlySalary, 1);
+    }
+  );
+
+  applyWhen(
+    path.employmentStatus,
+    (v: string) => v === 'selfEmployed',
+    (p) => {
+      required(p.businessType, { message: 'Укажите вид деятельности' });
+      required(p.monthlyRevenue);
+      min(p.monthlyRevenue, 1);
+    }
+  );
+};
+
+export const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  min(path.additionalIncome, 0);
+  min(path.monthlyExpenses, 0);
+
+  applyWhen(
+    path.hasProperty,
+    (v: boolean) => v === true,
+    (p) => {
+      notEmpty(p.properties, { message: 'Добавьте хотя бы один объект имущества' });
+      validateItems(p.properties, (ip) => {
+        required(ip.type, { message: 'Тип имущества обязателен' });
+        required(ip.description);
+        required(ip.estimatedValue);
+        min(ip.estimatedValue, 1);
+      });
+    }
+  );
+
+  applyWhen(
+    path.hasExistingLoans,
+    (v: boolean) => v === true,
+    (p) => {
+      notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один кредит' });
+      validateItems(p.existingLoans, (ip) => {
+        required(ip.bankName);
+        required(ip.loanType);
+        required(ip.remainingDebt);
+        min(ip.remainingDebt, 0);
+        required(ip.monthlyPayment);
+        min(ip.monthlyPayment, 0);
+        required(ip.status);
+      });
+    }
+  );
+};
+
+export const step5Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  applyWhen(
+    path.hasCoBorrower,
+    (v: boolean) => v === true,
+    (p) => {
+      notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
+      validateItems(p.coBorrowers, (ip) => {
+        required(ip.fullName);
+        required(ip.relationship);
+        required(ip.monthlyIncome);
+        min(ip.monthlyIncome, 1);
+        required(ip.passport);
+        pattern(ip.passport, /^\d{4}\s\d{6}$/, { message: 'Формат: 0000 000000' });
+      });
+    }
+  );
+};
+
+export const step6Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  required(path.agreeToProcessData, { message: 'Необходимо согласие' });
+  required(path.agreeToCreditCheck, { message: 'Необходимо согласие' });
+  required(path.contactPhone);
+  pattern(path.contactPhone, /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
+    message: 'Формат: +7 (XXX) XXX-XX-XX',
+  });
+  required(path.contactEmail);
+  email(path.contactEmail);
+};
+
+export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<CreditApplicationForm>> = {
+  1: step1Validation,
+  2: step2Validation,
+  3: step3Validation,
+  4: step4Validation,
+  5: step5Validation,
+  6: step6Validation,
+};
+
+// ===== Item template factories (for FormArray.AddButton initialValue — plain leaf values) =====
+
+export function propertyTemplate(): PropertyItem {
+  return { type: '', description: '', estimatedValue: 0 };
+}
+
+export function existingLoanTemplate(): ExistingLoanItem {
+  return { bankName: '', loanType: '', remainingDebt: 0, monthlyPayment: 0, status: '' };
+}
+
+export function coBorrowerTemplate(): CoBorrowerItem {
+  return { fullName: '', relationship: '', monthlyIncome: 0, passport: '' };
 }
 
 // ===== Form factory =====
@@ -231,21 +403,60 @@ export function createCreditApplicationForm(): FormProxy<CreditApplicationForm> 
         component: Checkbox,
         componentProps: { label: 'Есть имущество в собственности' },
       },
-      properties: {
-        value: [] as CreditApplicationForm['properties'],
-        component: Input,
-        componentProps: { label: 'Имущество' },
-      },
+      // Array as sub-form template (tuple). Each item is a GroupNode with its own fields.
+      properties: [
+        {
+          type: {
+            value: '' as PropertyItem['type'],
+            component: Select,
+            componentProps: { label: 'Тип имущества', options: PROPERTY_TYPE_OPTIONS },
+          },
+          description: {
+            value: '',
+            component: Input,
+            componentProps: { label: 'Описание' },
+          },
+          estimatedValue: {
+            value: 0,
+            component: Input,
+            componentProps: { label: 'Оценочная стоимость (руб.)', type: 'number', min: 0 },
+          },
+        },
+      ],
       hasExistingLoans: {
         value: false,
         component: Checkbox,
         componentProps: { label: 'Есть действующие кредиты' },
       },
-      existingLoans: {
-        value: [] as CreditApplicationForm['existingLoans'],
-        component: Input,
-        componentProps: { label: 'Действующие кредиты' },
-      },
+      existingLoans: [
+        {
+          bankName: {
+            value: '',
+            component: Input,
+            componentProps: { label: 'Банк' },
+          },
+          loanType: {
+            value: '',
+            component: Input,
+            componentProps: { label: 'Тип кредита' },
+          },
+          remainingDebt: {
+            value: 0,
+            component: Input,
+            componentProps: { label: 'Остаток долга (руб.)', type: 'number', min: 0 },
+          },
+          monthlyPayment: {
+            value: 0,
+            component: Input,
+            componentProps: { label: 'Ежемесячный платёж (руб.)', type: 'number', min: 0 },
+          },
+          status: {
+            value: '' as ExistingLoanItem['status'],
+            component: Select,
+            componentProps: { label: 'Статус', options: LOAN_STATUS_OPTIONS },
+          },
+        },
+      ],
       totalIncome: {
         value: 0,
         component: Input,
@@ -263,11 +474,30 @@ export function createCreditApplicationForm(): FormProxy<CreditApplicationForm> 
         component: Checkbox,
         componentProps: { label: 'Привлечь созаёмщиков' },
       },
-      coBorrowers: {
-        value: [] as CreditApplicationForm['coBorrowers'],
-        component: Input,
-        componentProps: { label: 'Созаёмщики' },
-      },
+      coBorrowers: [
+        {
+          fullName: {
+            value: '',
+            component: Input,
+            componentProps: { label: 'Полное ФИО' },
+          },
+          relationship: {
+            value: '' as CoBorrowerItem['relationship'],
+            component: Select,
+            componentProps: { label: 'Степень родства', options: RELATIONSHIP_OPTIONS },
+          },
+          monthlyIncome: {
+            value: 0,
+            component: Input,
+            componentProps: { label: 'Ежемесячный доход (руб.)', type: 'number', min: 0 },
+          },
+          passport: {
+            value: '',
+            component: InputMask,
+            componentProps: { label: 'Паспорт (серия и номер)', mask: '0000 000000' },
+          },
+        },
+      ],
       coBorrowersIncome: {
         value: 0,
         component: Input,
@@ -297,139 +527,14 @@ export function createCreditApplicationForm(): FormProxy<CreditApplicationForm> 
       },
     } as unknown as FormFields,
 
-    // ----- validation -----
+    // ----- validation (full schema = sum of all step validations) -----
     validation: ((path: FieldPath<CreditApplicationForm>) => {
-      // step 1 — base
-      required(path.loanType, { message: 'Выберите тип кредита' });
-      required(path.loanAmount);
-      min(path.loanAmount, 1000, { message: 'Минимальная сумма 1 000 ₽' });
-      required(path.loanTerm);
-      min(path.loanTerm, 1);
-      max(path.loanTerm, 360);
-      required(path.loanPurpose);
-
-      // mortgage-only
-      applyWhen(
-        path.loanType,
-        (v: string) => v === 'mortgage',
-        (p: FieldPath<CreditApplicationForm>) => {
-          required(p.propertyValue, { message: 'Укажите стоимость объекта' });
-          min(p.propertyValue, 1);
-          required(p.initialPayment, { message: 'Укажите первоначальный взнос' });
-          min(p.initialPayment, 0);
-        }
-      );
-
-      // car-only
-      applyWhen(
-        path.loanType,
-        (v: string) => v === 'car',
-        (p: FieldPath<CreditApplicationForm>) => {
-          required(p.carBrand, { message: 'Укажите марку автомобиля' });
-          required(p.carYear);
-          min(p.carYear, 1980);
-          max(p.carYear, new Date().getFullYear() + 1);
-        }
-      );
-
-      // step 2
-      required(path.lastName);
-      required(path.firstName);
-      required(path.birthDate);
-      required(path.passport, { message: 'Укажите паспортные данные' });
-      pattern(path.passport, /^\d{4}\s\d{6}$/, { message: 'Формат: 0000 000000' });
-      required(path.inn);
-      pattern(path.inn, /^\d{10,12}$/, { message: 'ИНН: 10–12 цифр' });
-      required(path.maritalStatus);
-      min(path.childrenCount, 0);
-
-      // step 3
-      required(path.employmentStatus, { message: 'Выберите статус занятости' });
-
-      applyWhen(
-        path.employmentStatus,
-        (v: string) => v === 'employed',
-        (p: FieldPath<CreditApplicationForm>) => {
-          required(p.companyName, { message: 'Укажите компанию' });
-          required(p.position);
-          required(p.workExperience);
-          min(p.workExperience, 1);
-          required(p.monthlySalary);
-          min(p.monthlySalary, 1);
-        }
-      );
-
-      applyWhen(
-        path.employmentStatus,
-        (v: string) => v === 'selfEmployed',
-        (p: FieldPath<CreditApplicationForm>) => {
-          required(p.businessType, { message: 'Укажите вид деятельности' });
-          required(p.monthlyRevenue);
-          min(p.monthlyRevenue, 1);
-        }
-      );
-
-      // step 4
-      min(path.additionalIncome, 0);
-      min(path.monthlyExpenses, 0);
-
-      applyWhen(
-        path.hasProperty,
-        (v: boolean) => v === true,
-        (p: FieldPath<CreditApplicationForm>) => {
-          notEmpty(p.properties, { message: 'Добавьте хотя бы один объект имущества' });
-          validateItems(p.properties, (ip) => {
-            required(ip.type, { message: 'Тип имущества обязателен' });
-            required(ip.description);
-            required(ip.estimatedValue);
-            min(ip.estimatedValue, 1);
-          });
-        }
-      );
-
-      applyWhen(
-        path.hasExistingLoans,
-        (v: boolean) => v === true,
-        (p: FieldPath<CreditApplicationForm>) => {
-          notEmpty(p.existingLoans, { message: 'Добавьте хотя бы один кредит' });
-          validateItems(p.existingLoans, (ip) => {
-            required(ip.bankName);
-            required(ip.loanType);
-            required(ip.remainingDebt);
-            min(ip.remainingDebt, 0);
-            required(ip.monthlyPayment);
-            min(ip.monthlyPayment, 0);
-            required(ip.status);
-          });
-        }
-      );
-
-      // step 5
-      applyWhen(
-        path.hasCoBorrower,
-        (v: boolean) => v === true,
-        (p: FieldPath<CreditApplicationForm>) => {
-          notEmpty(p.coBorrowers, { message: 'Добавьте хотя бы одного созаёмщика' });
-          validateItems(p.coBorrowers, (ip) => {
-            required(ip.fullName);
-            required(ip.relationship);
-            required(ip.monthlyIncome);
-            min(ip.monthlyIncome, 1);
-            required(ip.passport);
-            pattern(ip.passport, /^\d{4}\s\d{6}$/, { message: 'Формат: 0000 000000' });
-          });
-        }
-      );
-
-      // step 6
-      required(path.agreeToProcessData, { message: 'Необходимо согласие' });
-      required(path.agreeToCreditCheck, { message: 'Необходимо согласие' });
-      required(path.contactPhone);
-      pattern(path.contactPhone, /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
-        message: 'Формат: +7 (XXX) XXX-XX-XX',
-      });
-      required(path.contactEmail);
-      email(path.contactEmail);
+      step1Validation(path);
+      step2Validation(path);
+      step3Validation(path);
+      step4Validation(path);
+      step5Validation(path);
+      step6Validation(path);
     }) as never,
 
     // ----- behavior -----

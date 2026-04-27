@@ -14,7 +14,19 @@ import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 
 import type { CreditApplicationForm } from './types';
-import { LOAN_TYPE_OPTIONS, EMPLOYMENT_STATUS_OPTIONS, MARITAL_STATUS_OPTIONS } from './schema';
+import {
+  LOAN_TYPE_OPTIONS,
+  EMPLOYMENT_STATUS_OPTIONS,
+  MARITAL_STATUS_OPTIONS,
+  PROPERTY_TYPE_OPTIONS,
+  LOAN_STATUS_OPTIONS,
+  RELATIONSHIP_OPTIONS,
+} from './schema';
+import {
+  PropertiesArrayBlock,
+  ExistingLoansArrayBlock,
+  CoBorrowersArrayBlock,
+} from './array-blocks';
 
 // FormRoot — required for JSON renderer to forward the live FormProxy down to RenderNode tree.
 function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
@@ -36,6 +48,11 @@ export const registry: ComponentRegistry = defineRegistry((reg) => {
   reg.container('Section', Section);
   reg.container(FIELD_WRAPPER, FormField);
 
+  // custom blocks (form-array UI fed by CreditFormContext)
+  reg.container('PropertiesArrayBlock', PropertiesArrayBlock as never);
+  reg.container('ExistingLoansArrayBlock', ExistingLoansArrayBlock as never);
+  reg.container('CoBorrowersArrayBlock', CoBorrowersArrayBlock as never);
+
   // fields
   reg.field('Input', Input);
   reg.field('InputMask', InputMask);
@@ -48,6 +65,9 @@ export const registry: ComponentRegistry = defineRegistry((reg) => {
   reg.source('LOAN_TYPE_OPTIONS', LOAN_TYPE_OPTIONS);
   reg.source('EMPLOYMENT_STATUS_OPTIONS', EMPLOYMENT_STATUS_OPTIONS);
   reg.source('MARITAL_STATUS_OPTIONS', MARITAL_STATUS_OPTIONS);
+  reg.source('PROPERTY_TYPE_OPTIONS', PROPERTY_TYPE_OPTIONS);
+  reg.source('LOAN_STATUS_OPTIONS', LOAN_STATUS_OPTIONS);
+  reg.source('RELATIONSHIP_OPTIONS', RELATIONSHIP_OPTIONS);
 });
 
 export type { CreditApplicationForm };

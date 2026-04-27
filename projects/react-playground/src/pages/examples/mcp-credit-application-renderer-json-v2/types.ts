@@ -1,5 +1,7 @@
 // CreditApplicationForm — shared types for the renderer-json v2 page.
 
+import type { FormValue } from '@reformer/core';
+
 export type LoanType = 'consumer' | 'mortgage' | 'car' | '';
 export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | '';
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed' | '';
@@ -7,10 +9,13 @@ export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial' | '';
 export type LoanStatus = 'active' | 'closed' | 'overdue' | '';
 export type Relationship = 'spouse' | 'parent' | 'child' | 'sibling' | 'other' | '';
 
+// `[key: string]: FormValue` is required so PropertyItem can be used as `T` in `ArrayNode<T>`,
+// which constrains `T extends FormFields = Record<string, FormValue>`.
 export interface PropertyItem {
   type: PropertyType;
   description: string;
   estimatedValue: number;
+  [key: string]: FormValue;
 }
 
 export interface ExistingLoanItem {
@@ -19,6 +24,7 @@ export interface ExistingLoanItem {
   remainingDebt: number;
   monthlyPayment: number;
   status: LoanStatus;
+  [key: string]: FormValue;
 }
 
 export interface CoBorrowerItem {
@@ -26,6 +32,7 @@ export interface CoBorrowerItem {
   relationship: Relationship;
   monthlyIncome: number;
   passport: string;
+  [key: string]: FormValue;
 }
 
 export interface CreditApplicationForm {

@@ -222,11 +222,14 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                 component: 'Checkbox',
                 componentProps: { label: 'Есть имущество в собственности' },
               },
+              // Custom block — renders FormArray UI for properties when hasProperty=true.
+              { component: 'PropertiesArrayBlock' },
               {
                 model: 'hasExistingLoans',
                 component: 'Checkbox',
                 componentProps: { label: 'Есть действующие кредиты' },
               },
+              { component: 'ExistingLoansArrayBlock' },
               {
                 component: 'Box',
                 componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
@@ -270,6 +273,7 @@ export const creditApplicationJsonSchema: JsonFormSchema = {
                 component: 'Checkbox',
                 componentProps: { label: 'Привлечь созаёмщиков' },
               },
+              { component: 'CoBorrowersArrayBlock' },
               {
                 model: 'coBorrowersIncome',
                 component: 'Input',
