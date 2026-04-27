@@ -13,7 +13,7 @@
  * type; for a deeply-nested form it's easiest to cast the function once and
  * then keep full type-safety on the returned `FormProxy<CreditApplicationForm>`.
  */
-import { createForm, type FormProxy } from '@reformer/core';
+import { createForm, type FormProxy, type ValidationSchemaFn } from '@reformer/core';
 import { copyFrom, enableWhen, watchField } from '@reformer/core/behaviors';
 import {
   apply,
@@ -112,6 +112,239 @@ function calcInterestRate(loanType: string, hasProperty: boolean): number {
   if (hasProperty) rate -= 0.5;
   return Math.max(rate, 5);
 }
+
+/* -----------------------------------------------------------------
+ * Per-step validation schemas (used by wizard for "next" gate).
+ *
+ * Each step's validation is a `ValidationSchemaFn<CreditApplicationForm>`.
+ * The wizard calls `validateForm(form, STEP_VALIDATIONS[currentStep])`
+ * and only advances when it resolves `true`.
+ *
+ * The full schema below in `validation:` simply composes all six.
+ * ----------------------------------------------------------------- */
+
+const step1Validation: ValidationSchemaFn<CreditApplicationForm> = (path: any) => {
+  required(path.step1.loanType);
+  required(path.step1.loanAmount);
+  min(path.step1.loanAmount, 50_000);
+  max(path.step1.loanAmount, 10_000_000);
+  required(path.step1.loanTerm);
+  min(path.step1.loanTerm, 6);
+  max(path.step1.loanTerm, 240);
+  required(path.step1.loanPurpose);
+  minLength(path.step1.loanPurpose, 10);
+  maxLength(path.step1.loanPurpose, 500);
+
+  applyWhen(
+    path.step1.loanType,
+    (v: string) => v === 'mortgage',
+    (p: any) => {
+      required(p.step1.propertyValue);
+      min(p.step1.propertyValue, 1_000_000);
+    }
+  );
+  applyWhen(
+    path.step1.loanType,
+    (v: string) => v === 'car',
+    (p: any) => {
+      required(p.step1.carBrand);
+      minLength(p.step1.carBrand, 2);
+      maxLength(p.step1.carBrand, 50);
+      required(p.step1.carModel);
+      minLength(p.step1.carModel, 1);
+      maxLength(p.step1.carModel, 50);
+      required(p.step1.carYear);
+      min(p.step1.carYear, 2000);
+      max(p.step1.carYear, CURRENT_YEAR + 1);
+      required(p.step1.carPrice);
+      min(p.step1.carPrice, 300_000);
+      max(p.step1.carPrice, 10_000_000);
+    }
+  );
+};
+
+const step2Validation: ValidationSchemaFn<CreditApplicationForm> = (path: any) => {
+  required(path.step2.personalData.lastName);
+  required(path.step2.personalData.firstName);
+  required(path.step2.personalData.middleName);
+  required(path.step2.personalData.birthDate);
+  required(path.step2.personalData.gender);
+  required(path.step2.personalData.birthPlace);
+  required(path.step2.passportData.series);
+  required(path.step2.passportData.number);
+  required(path.step2.passportData.issueDate);
+  required(path.step2.passportData.issuedBy);
+  required(path.step2.passportData.departmentCode);
+  required(path.step2.inn);
+  required(path.step2.snils);
+};
+
+const step3Validation: ValidationSchemaFn<CreditApplicationForm> = (path: any) => {
+  required(path.step3.phoneMain);
+  required(path.step3.email);
+  email(path.step3.email);
+  required(path.step3.registrationAddress.region);
+  required(path.step3.registrationAddress.city);
+  required(path.step3.registrationAddress.street);
+  required(path.step3.registrationAddress.house);
+  required(path.step3.registrationAddress.postalCode);
+  applyWhen(
+    path.step3.sameAsRegistration,
+    (v: boolean) => v === false,
+    (p: any) => {
+      required(p.step3.residenceAddress.region);
+      required(p.step3.residenceAddress.city);
+      required(p.step3.residenceAddress.street);
+      required(p.step3.residenceAddress.house);
+      required(p.step3.residenceAddress.postalCode);
+    }
+  );
+};
+
+const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path: any) => {
+  required(path.step4.employmentStatus);
+  required(path.step4.workExperienceTotal);
+  min(path.step4.workExperienceTotal, 0);
+  required(path.step4.workExperienceCurrent);
+  min(path.step4.workExperienceCurrent, 0);
+  required(path.step4.monthlyIncome);
+  min(path.step4.monthlyIncome, 10_000);
+  applyWhen(
+    path.step4.employmentStatus,
+    (v: string) => v === 'employed',
+    (p: any) => {
+      required(p.step4.companyName);
+      required(p.step4.companyInn);
+      required(p.step4.companyPhone);
+      required(p.step4.companyAddress);
+      required(p.step4.position);
+    }
+  );
+  applyWhen(
+    path.step4.employmentStatus,
+    (v: string) => v === 'selfEmployed',
+    (p: any) => {
+      required(p.step4.businessType);
+      required(p.step4.businessInn);
+      required(p.step4.businessActivity);
+    }
+  );
+};
+
+const step5Validation: ValidationSchemaFn<CreditApplicationForm> = (path: any) => {
+  required(path.step5.maritalStatus);
+  required(path.step5.dependents);
+  min(path.step5.dependents, 0);
+  max(path.step5.dependents, 10);
+  required(path.step5.education);
+
+  applyWhen(
+    path.step5.hasProperty,
+    (v: boolean) => v === true,
+    (p: any) => {
+      notEmpty(p.step5.properties, { message: 'Добавьте хотя бы один объект имущества' });
+      validateItems(p.step5.properties, (ip: any) => {
+        required(ip.type);
+        required(ip.description);
+        required(ip.estimatedValue);
+        min(ip.estimatedValue, 0);
+      });
+    }
+  );
+  applyWhen(
+    path.step5.hasExistingLoans,
+    (v: boolean) => v === true,
+    (p: any) => {
+      notEmpty(p.step5.existingLoans, { message: 'Добавьте хотя бы один кредит' });
+      validateItems(p.step5.existingLoans, (ip: any) => {
+        required(ip.bank);
+        required(ip.type);
+        required(ip.amount);
+        min(ip.amount, 0);
+        required(ip.remainingAmount);
+        min(ip.remainingAmount, 0);
+        required(ip.monthlyPayment);
+        min(ip.monthlyPayment, 0);
+        required(ip.maturityDate);
+      });
+    }
+  );
+  applyWhen(
+    path.step5.hasCoBorrower,
+    (v: boolean) => v === true,
+    (p: any) => {
+      notEmpty(p.step5.coBorrowers, { message: 'Добавьте хотя бы одного созаемщика' });
+      validateItems(p.step5.coBorrowers, (ip: any) => {
+        required(ip.phone);
+        required(ip.email);
+        email(ip.email);
+        required(ip.relationship);
+        required(ip.monthlyIncome);
+        min(ip.monthlyIncome, 0);
+      });
+    }
+  );
+};
+
+const step6Validation: ValidationSchemaFn<CreditApplicationForm> = (path: any) => {
+  required(path.step6.agreePersonalData, { message: 'Необходимо согласие' });
+  required(path.step6.agreeCreditHistory, { message: 'Необходимо согласие' });
+  required(path.step6.agreeTerms, { message: 'Необходимо согласие' });
+  required(path.step6.confirmAccuracy, { message: 'Необходимо подтвердить точность данных' });
+  required(path.step6.electronicSignature);
+};
+
+export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<CreditApplicationForm>> = {
+  1: step1Validation,
+  2: step2Validation,
+  3: step3Validation,
+  4: step4Validation,
+  5: step5Validation,
+  6: step6Validation,
+};
+
+/* -----------------------------------------------------------------
+ * Array item template factories — used by FormArray.AddButton in
+ * render-schema.tsx to push a new item with the correct shape.
+ *
+ * IMPORTANT: `array.push(value)` (the underlying op of `FormArray.AddButton`)
+ * expects PLAIN VALUES, not FieldConfig objects. The schema (with `value`,
+ * `component`, `componentProps`) was already declared once in
+ * `creditApplicationForm.form.step5.{properties|existingLoans|coBorrowers}[0]`;
+ * each new item inherits that schema and only needs the initial values for
+ * its fields.
+ * ----------------------------------------------------------------- */
+
+export const propertyTemplate = () => ({
+  type: 'apartment',
+  description: '',
+  estimatedValue: 0,
+  hasEncumbrance: false,
+});
+
+export const existingLoanTemplate = () => ({
+  bank: '',
+  type: '',
+  amount: 0,
+  remainingAmount: 0,
+  monthlyPayment: 0,
+  maturityDate: '',
+});
+
+export const coBorrowerTemplate = () => ({
+  personalData: {
+    lastName: '',
+    firstName: '',
+    middleName: '',
+    birthDate: '',
+    gender: 'male',
+    birthPlace: '',
+  },
+  phone: '',
+  email: '',
+  relationship: '',
+  monthlyIncome: 0,
+});
 
 /* -----------------------------------------------------------------
  * Form definition.
@@ -769,171 +1002,13 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
    * ----------------------------------------------------------------- */
 
   validation: (path: any) => {
-    // Step 1: loan
-    required(path.step1.loanType);
-    required(path.step1.loanAmount);
-    min(path.step1.loanAmount, 50_000);
-    max(path.step1.loanAmount, 10_000_000);
-    required(path.step1.loanTerm);
-    min(path.step1.loanTerm, 6);
-    max(path.step1.loanTerm, 240);
-    required(path.step1.loanPurpose);
-    minLength(path.step1.loanPurpose, 10);
-    maxLength(path.step1.loanPurpose, 500);
-
-    applyWhen(
-      path.step1.loanType,
-      (v: string) => v === 'mortgage',
-      (p: any) => {
-        required(p.step1.propertyValue);
-        min(p.step1.propertyValue, 1_000_000);
-      }
-    );
-    applyWhen(
-      path.step1.loanType,
-      (v: string) => v === 'car',
-      (p: any) => {
-        required(p.step1.carBrand);
-        minLength(p.step1.carBrand, 2);
-        maxLength(p.step1.carBrand, 50);
-        required(p.step1.carModel);
-        minLength(p.step1.carModel, 1);
-        maxLength(p.step1.carModel, 50);
-        required(p.step1.carYear);
-        min(p.step1.carYear, 2000);
-        max(p.step1.carYear, CURRENT_YEAR + 1);
-        required(p.step1.carPrice);
-        min(p.step1.carPrice, 300_000);
-        max(p.step1.carPrice, 10_000_000);
-      }
-    );
-
-    // Step 2: personal
-    required(path.step2.personalData.lastName);
-    required(path.step2.personalData.firstName);
-    required(path.step2.personalData.middleName);
-    required(path.step2.personalData.birthDate);
-    required(path.step2.personalData.gender);
-    required(path.step2.personalData.birthPlace);
-    required(path.step2.passportData.series);
-    required(path.step2.passportData.number);
-    required(path.step2.passportData.issueDate);
-    required(path.step2.passportData.issuedBy);
-    required(path.step2.passportData.departmentCode);
-    required(path.step2.inn);
-    required(path.step2.snils);
-
-    // Step 3: contacts
-    required(path.step3.phoneMain);
-    required(path.step3.email);
-    email(path.step3.email);
-    required(path.step3.registrationAddress.region);
-    required(path.step3.registrationAddress.city);
-    required(path.step3.registrationAddress.street);
-    required(path.step3.registrationAddress.house);
-    required(path.step3.registrationAddress.postalCode);
-    applyWhen(
-      path.step3.sameAsRegistration,
-      (v: boolean) => v === false,
-      (p: any) => {
-        required(p.step3.residenceAddress.region);
-        required(p.step3.residenceAddress.city);
-        required(p.step3.residenceAddress.street);
-        required(p.step3.residenceAddress.house);
-        required(p.step3.residenceAddress.postalCode);
-      }
-    );
-
-    // Step 4: employment
-    required(path.step4.employmentStatus);
-    required(path.step4.workExperienceTotal);
-    min(path.step4.workExperienceTotal, 0);
-    required(path.step4.workExperienceCurrent);
-    min(path.step4.workExperienceCurrent, 0);
-    required(path.step4.monthlyIncome);
-    min(path.step4.monthlyIncome, 10_000);
-    applyWhen(
-      path.step4.employmentStatus,
-      (v: string) => v === 'employed',
-      (p: any) => {
-        required(p.step4.companyName);
-        required(p.step4.companyInn);
-        required(p.step4.companyPhone);
-        required(p.step4.companyAddress);
-        required(p.step4.position);
-      }
-    );
-    applyWhen(
-      path.step4.employmentStatus,
-      (v: string) => v === 'selfEmployed',
-      (p: any) => {
-        required(p.step4.businessType);
-        required(p.step4.businessInn);
-        required(p.step4.businessActivity);
-      }
-    );
-
-    // Step 5: extra
-    required(path.step5.maritalStatus);
-    required(path.step5.dependents);
-    min(path.step5.dependents, 0);
-    max(path.step5.dependents, 10);
-    required(path.step5.education);
-
-    applyWhen(
-      path.step5.hasProperty,
-      (v: boolean) => v === true,
-      (p: any) => {
-        notEmpty(p.step5.properties, { message: 'Добавьте хотя бы один объект имущества' });
-        validateItems(p.step5.properties, (ip: any) => {
-          required(ip.type);
-          required(ip.description);
-          required(ip.estimatedValue);
-          min(ip.estimatedValue, 0);
-        });
-      }
-    );
-    applyWhen(
-      path.step5.hasExistingLoans,
-      (v: boolean) => v === true,
-      (p: any) => {
-        notEmpty(p.step5.existingLoans, { message: 'Добавьте хотя бы один кредит' });
-        validateItems(p.step5.existingLoans, (ip: any) => {
-          required(ip.bank);
-          required(ip.type);
-          required(ip.amount);
-          min(ip.amount, 0);
-          required(ip.remainingAmount);
-          min(ip.remainingAmount, 0);
-          required(ip.monthlyPayment);
-          min(ip.monthlyPayment, 0);
-          required(ip.maturityDate);
-        });
-      }
-    );
-    applyWhen(
-      path.step5.hasCoBorrower,
-      (v: boolean) => v === true,
-      (p: any) => {
-        notEmpty(p.step5.coBorrowers, { message: 'Добавьте хотя бы одного созаемщика' });
-        validateItems(p.step5.coBorrowers, (ip: any) => {
-          required(ip.phone);
-          required(ip.email);
-          email(ip.email);
-          required(ip.relationship);
-          required(ip.monthlyIncome);
-          min(ip.monthlyIncome, 0);
-        });
-      }
-    );
-
-    // Step 6: confirmation
-    required(path.step6.agreePersonalData, { message: 'Необходимо согласие' });
-    required(path.step6.agreeCreditHistory, { message: 'Необходимо согласие' });
-    required(path.step6.agreeTerms, { message: 'Необходимо согласие' });
-    required(path.step6.confirmAccuracy, { message: 'Необходимо подтвердить точность данных' });
-    required(path.step6.electronicSignature);
-
+    // Compose all six per-step validators (extracted above as STEP_VALIDATIONS).
+    step1Validation(path);
+    step2Validation(path);
+    step3Validation(path);
+    step4Validation(path);
+    step5Validation(path);
+    step6Validation(path);
     void apply;
   },
 
