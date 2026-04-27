@@ -9,6 +9,9 @@ import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import McpCreditApplication from './pages/examples/mcp-credit-application';
 import McpCreditApplicationRenderer from './pages/examples/mcp-credit-application-renderer';
 import McpCreditApplicationRendererJson from './pages/examples/mcp-credit-application-renderer-json';
+import McpCreditApplicationV2 from './pages/examples/mcp-credit-application-v2';
+import McpCreditApplicationRendererV2 from './pages/examples/mcp-credit-application-renderer-v2';
+import McpCreditApplicationRendererJsonV2 from './pages/examples/mcp-credit-application-renderer-json-v2';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -18,7 +21,10 @@ type ExamplePage =
   | 'json-renderer'
   | 'mcp-credit'
   | 'mcp-credit-renderer'
-  | 'mcp-credit-renderer-json';
+  | 'mcp-credit-renderer-json'
+  | 'mcp-credit-v2'
+  | 'mcp-credit-renderer-v2'
+  | 'mcp-credit-renderer-json-v2';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -76,6 +82,25 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     title: 'MCP Credit JSON (тест MCP)',
     description:
       'Та же форма через @reformer/renderer-json JSON-схему + Registry, реализованная суб-агентом по MCP (PROMT.md, page 3)',
+  },
+  {
+    id: 'mcp-credit-v2',
+    path: '/examples/mcp-credit-v2',
+    title: 'MCP Credit v2 (ui-kit + Tailwind)',
+    description:
+      'Iteration 2: та же форма через ui-kit + Tailwind, target=core. Sub-agent должен достичь визуальной похожести на complex-multy-step-form.',
+  },
+  {
+    id: 'mcp-credit-renderer-v2',
+    path: '/examples/mcp-credit-renderer-v2',
+    title: 'MCP Credit Renderer v2 (ui-kit + Tailwind)',
+    description: 'Iteration 2: renderer-react с ui-kit + Tailwind layout-skeleton.',
+  },
+  {
+    id: 'mcp-credit-renderer-json-v2',
+    path: '/examples/mcp-credit-renderer-json-v2',
+    title: 'MCP Credit JSON v2 (ui-kit + Tailwind)',
+    description: 'Iteration 2: renderer-json с ui-kit + Tailwind через registry.',
   },
 ];
 
@@ -154,6 +179,15 @@ function Layout() {
           <Route
             path="/examples/mcp-credit-renderer-json"
             element={<McpCreditApplicationRendererJson />}
+          />
+          <Route path="/examples/mcp-credit-v2" element={<McpCreditApplicationV2 />} />
+          <Route
+            path="/examples/mcp-credit-renderer-v2"
+            element={<McpCreditApplicationRendererV2 />}
+          />
+          <Route
+            path="/examples/mcp-credit-renderer-json-v2"
+            element={<McpCreditApplicationRendererJsonV2 />}
           />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
