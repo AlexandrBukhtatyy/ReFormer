@@ -13,6 +13,7 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
+import { enableWhen, copyFrom } from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from './types';
 
 // Stage-1 scaffold: use a no-op component placeholder so we don't need
@@ -217,7 +218,11 @@ const RU_PHONE = /^\+7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/;
 // breaks the deep inference chain while keeping the return type correct.
 
 export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
-  createForm as (config: { form: unknown; validation: unknown }) => FormProxy<CreditApplicationForm>
+  createForm as (config: {
+    form: unknown;
+    validation: unknown;
+    behavior: unknown;
+  }) => FormProxy<CreditApplicationForm>
 )({
   form: {
     // ── Step 1: Основная информация о кредите ──────────────────────────
@@ -674,5 +679,164 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     pattern(path.step6.electronicSignature, /^\d{6}$/, {
       message: 'Код подтверждения: 6 цифр',
     });
+  },
+
+  // Stage 3a bisect — Group 1: only Step1 loanType-conditional fields.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  behavior: (path: any) => {
+    enableWhen(
+      path.step1.propertyValue,
+      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step1.initialPayment,
+      (form: CreditApplicationForm) => form.step1.loanType === 'mortgage',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step1.carBrand,
+      (form: CreditApplicationForm) => form.step1.loanType === 'car',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step1.carModel,
+      (form: CreditApplicationForm) => form.step1.loanType === 'car',
+      { resetOnDisable: true }
+    );
+    enableWhen(path.step1.carYear, (form: CreditApplicationForm) => form.step1.loanType === 'car', {
+      resetOnDisable: true,
+    });
+    enableWhen(
+      path.step1.carPrice,
+      (form: CreditApplicationForm) => form.step1.loanType === 'car',
+      { resetOnDisable: true }
+    );
+
+    // Group 2: Step3 residenceAddress per-field enableWhen
+    enableWhen(
+      path.step3.residenceAddress.region,
+      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step3.residenceAddress.city,
+      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step3.residenceAddress.street,
+      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step3.residenceAddress.house,
+      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step3.residenceAddress.apartment,
+      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step3.residenceAddress.postalCode,
+      (form: CreditApplicationForm) => form.step3.sameAsRegistration === false,
+      { resetOnDisable: true }
+    );
+
+    // Group 3: copyFrom registrationAddress -> residenceAddress (per-field)
+    copyFrom(path.step3.registrationAddress.region, path.step3.residenceAddress.region, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+    copyFrom(path.step3.registrationAddress.city, path.step3.residenceAddress.city, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+    copyFrom(path.step3.registrationAddress.street, path.step3.residenceAddress.street, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+    copyFrom(path.step3.registrationAddress.house, path.step3.residenceAddress.house, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+    copyFrom(path.step3.registrationAddress.apartment, path.step3.residenceAddress.apartment, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+    copyFrom(path.step3.registrationAddress.postalCode, path.step3.residenceAddress.postalCode, {
+      when: (form: CreditApplicationForm) => form.step3.sameAsRegistration === true,
+    });
+
+    // Group 4: Step4 employed-only enableWhen
+    enableWhen(
+      path.step4.companyName,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.companyInn,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.companyPhone,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.companyAddress,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.position,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.workExperienceTotal,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.workExperienceCurrent,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.monthlyIncome,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'employed',
+      { resetOnDisable: true }
+    );
+
+    // Group 5: Step4 selfEmployed-only + additionalIncomeSource
+    enableWhen(
+      path.step4.businessType,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.businessInn,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.businessActivity,
+      (form: CreditApplicationForm) => form.step4.employmentStatus === 'selfEmployed',
+      { resetOnDisable: true }
+    );
+    enableWhen(
+      path.step4.additionalIncomeSource,
+      (form: CreditApplicationForm) =>
+        typeof form.step4.additionalIncome === 'number' && form.step4.additionalIncome > 0,
+      { resetOnDisable: true }
+    );
+
+    // NOTE: FormArray gating (step5.properties / existingLoans / coBorrowers
+    // by their hasX boolean flags) is intentionally NOT done via
+    // enableWhen + resetOnDisable on the array node itself — that triggers a
+    // reactive cycle on mount that hangs the browser (verified by bisect:
+    // adding the three enableWhen calls to ArrayNode targets is the only
+    // change that breaks DOMContentLoaded).
+    // The gating is implemented in index.tsx as conditional rendering
+    // ({hasProperty.value && <PropertyArray/>}) instead.
   },
 });
