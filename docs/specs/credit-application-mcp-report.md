@@ -23,8 +23,8 @@
 | `mcp-credit-application/` | 2. Validation | 1 (+ 1 polish iter) | — (фикс отложен до повтора) | prompt `add-validation` |
 | `mcp-credit-application/` | 3. Behaviors (3a декларативные) | 4 | (1) `add-behavior` preamble + 7-rule cycle prevention; (2) `10-arrays.md` callout + `add-behavior` rule #8 о ArrayNode | prompt `add-behavior` |
 | `mcp-credit-application/` | 3. Behaviors (3b computed) | 3 | (1) `20-compute-vs-watch.md` — fix `ctx.setFieldValue` → `ctx.form.x.setValue` API; (2) `add-behavior` rule #3 + `20-compute-vs-watch.md` — добавлен paragraph «Multiple triggers, one cascade» (watchField принимает один path, не массив) | prompt `add-behavior` |
-| `mcp-credit-application/` | 4. FormArray | _tbd_ | _tbd_ | _tbd_ |
-| `mcp-credit-application/` | 5. Multi-step | _tbd_ | _tbd_ | _tbd_ |
+| `mcp-credit-application/` | 4. FormArray | 0 (фактически реализован ранее) | — | — |
+| `mcp-credit-application/` | 5. Multi-step | 1 (с MCP gaps про FormWizard CDK) | — (workaround через manual useState) | prompt `add-wizard` |
 | `mcp-credit-application-renderer/` | 1. FormSchema | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 2. Validation | _tbd_ | _tbd_ | _tbd_ |
 | `mcp-credit-application-renderer/` | 3. Behaviors | _tbd_ | _tbd_ | _tbd_ |
@@ -134,11 +134,41 @@ tsc/eslint clean, **0 MCP gaps**, **0 forbidden file reads**.
 
 ### `mcp-credit-application/` · 4. FormArray
 
-_не начато_
+**Итераций: 0 — фактически реализован ранее.**
+
+Stage 4 acceptance criterion («Add/remove работает, items валидируются») оказался уже закрытым по итогам предыдущих стадий:
+- **Stage 1** ввёл tuple-format массивы в schema (`properties: [propertyItemSchema]`, `existingLoans`, `coBorrowers`) — `useArrayLength` + `array.at(idx)` + `array.push(...)` + `array.removeAt(idx)` доступны из коробки.
+- **Stage 2** добавил `validateItems(path.array, (itemPath) => …)` для всех трёх массивов — items валидируются.
+- **Stage 3a** добавил JSX-gating через `{hasFlag.value && <ArrayUI/>}` — массивы скрываются/показываются по чекбоксам.
+
+**Visual smoke-test (playwright).** Toggle `hasProperty=true` → появилось «Имущество #1» (default initial item). Click "+ Добавить имущество" дважды → 3 items. Click "Удалить" на первом → 2 items, кнопка `(2)` корректно обновлена. 0 console errors. Screenshot: [stage4/01-property-array-2items.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage4/01-property-array-2items.png).
+
+**Никаких отдельных коммитов** — stage 4 валидируется через тот же commit history что stage 1+2+3a. Помечен в отчёте для полноты trace.
 
 ### `mcp-credit-application/` · 5. Multi-step
 
-_не начато_
+**Итерация: 1 (успех с первой попытки).**
+
+Sub-agent с `add-wizard` prompt:
+- `schema.ts` (+372 строк) — извлёк существующий validation block в 6 per-step функций (`step1Validation`, …, `step6Validation`), экспортирует `STEP_VALIDATIONS: Record<number, ValidationSchemaFn>` map + `fullValidation` для submit'а.
+- `index.tsx` (+114 строк) — `useState(currentStep=1)` + `completedSteps: Set<number>` + `isValidating` state. `<StepIndicator>` компонент. Conditional render `{currentStep === N && <StepNSection/>}`. `goToNextStep` calls `validateForm(form, STEP_VALIDATIONS[currentStep])`, blocks на ошибках через `form.markAsTouched()`, иначе `setCurrentStep(s => s+1)` + добавление в completedSteps. Submit на step 6 calls `validateForm(form, fullValidation)`.
+
+tsc/eslint clean, **0 forbidden file reads**, **4 MCP gaps** (все обошлись workaround'ом):
+1. `validateForm` import path не задокументирован в prompt — выведено из существующего кода.
+2. `ValidationSchemaFn` type import не задокументирован — выведено.
+3. **`FormWizard` compound component** (`@reformer/cdk`) — упоминается в prompt'е (`<FormWizard form steps stepValidations fullValidation>`), но import path не показан. Sub-agent выбрал manual `useState` + `validateForm` подход, который полностью покрыт promp'том — это правильное решение.
+4. `STEPS` array `component` field — назначение неясно. Не нужно для manual подхода.
+
+**Visual smoke-test (playwright).**
+- Default: видится только Шаг 1, Step indicator показывает «1. Кредит» (active) + 5 серых, кнопка «Назад» скрыта.
+- Click "Далее" с пустыми required → 2 errors появились, остался на Шаг 1 ✓ (validation gate работает).
+- Заполнено `loanAmount=500000` + `loanPurpose="Ремонт квартиры"` → Click "Далее" → переход на Шаг 2 ✓. Step indicator: «✓ Кредит» (зелёный, completed) + «2. Персональные данные» (синий, active).
+- Click "Назад" → возврат на Шаг 1, "Назад" скрыта ✓.
+- Computed Summary panel остаётся видимой над wizard (W2 пересчитал monthlyPayment=45365 для 500K@16%/12 — корректная annuity ✓).
+
+2 PNG screenshots: [stage5/01-step1-initial.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage5/01-step1-initial.png), [stage5/02-step2-after-next.png](../../projects/react-playground-e2e/screenshots/mcp-credit/stage5/02-step2-after-next.png).
+
+Stage 5 принят.
 
 ### `mcp-credit-application-renderer/` · 1. FormSchema
 

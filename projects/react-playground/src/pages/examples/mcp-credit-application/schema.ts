@@ -1,6 +1,6 @@
 import type React from 'react';
-import { createForm } from '@reformer/core';
-import type { FormProxy } from '@reformer/core';
+import { createForm, validateForm } from '@reformer/core';
+import type { FormProxy, ValidationSchemaFn } from '@reformer/core';
 import {
   required,
   min,
@@ -847,7 +847,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     // The gating is implemented in index.tsx as conditional rendering
     // ({hasProperty.value && <PropertyArray/>}) instead.
 
-    // ── Stage 3b: watchField computed cascade ─────────────────────────────
+    // ── Stage 3b: watchField computed cascade ───────────────────────────────
     // Interest-rate lookup table
     const RATE_BY_TYPE: Record<string, number> = {
       mortgage: 8.5,
@@ -981,3 +981,370 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     );
   },
 });
+
+// ─── Stage 5: Per-step validation functions ─────────────────────────────────
+// Each function validates only the fields belonging to its step.
+// Extracted from the root validation block above so the wizard can run
+// step-scoped validation before advancing to the next step.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const step1Validation: ValidationSchemaFn<any> = (path: any) => {
+  required(path.step1.loanType);
+  required(path.step1.loanAmount);
+  min(path.step1.loanAmount, 50000, { message: 'Минимальная сумма кредита — 50 000 ₽' });
+  max(path.step1.loanAmount, 10000000, { message: 'Максимальная сумма кредита — 10 000 000 ₽' });
+  required(path.step1.loanTerm);
+  min(path.step1.loanTerm, 6, { message: 'Минимальный срок — 6 месяцев' });
+  max(path.step1.loanTerm, 240, { message: 'Максимальный срок — 240 месяцев (20 лет)' });
+  required(path.step1.loanPurpose);
+  minLength(path.step1.loanPurpose, 10, {
+    message: 'Опишите цель подробнее (минимум 10 символов)',
+  });
+  maxLength(path.step1.loanPurpose, 500, { message: 'Максимум 500 символов' });
+
+  applyWhen(
+    path.step1.loanType,
+    (type: unknown) => type === 'mortgage',
+    (p: typeof path) => {
+      required(p.step1.propertyValue, { message: 'Укажите стоимость недвижимости' });
+      min(p.step1.propertyValue, 1000000, {
+        message: 'Стоимость недвижимости не может быть менее 1 000 000 ₽',
+      });
+      required(p.step1.initialPayment, { message: 'Укажите первоначальный взнос' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      validate(p.step1.initialPayment, (value: unknown, ctx: any) => {
+        const payment = value as number | null;
+        const propVal = ctx.form.step1.propertyValue.value.value as number | null;
+        if (payment == null || propVal == null || propVal <= 0) return null;
+        const minPayment = propVal * 0.2;
+        if (payment < minPayment) {
+          return {
+            code: 'initial_payment_min',
+            message: `Первоначальный взнос должен быть не менее 20% от стоимости недвижимости (${minPayment.toLocaleString('ru-RU')} ₽)`,
+          };
+        }
+        return null;
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      validate(p.step1.loanAmount, (value: unknown, ctx: any) => {
+        const loan = value as number | null;
+        const propVal = ctx.form.step1.propertyValue.value.value as number | null;
+        const initPay = ctx.form.step1.initialPayment.value.value as number | null;
+        if (loan == null || propVal == null || initPay == null) return null;
+        const maxLoan = propVal - initPay;
+        if (loan > maxLoan) {
+          return {
+            code: 'loan_exceeds_property',
+            message: `Сумма кредита не может превышать стоимость за вычетом взноса (${maxLoan.toLocaleString('ru-RU')} ₽)`,
+          };
+        }
+        return null;
+      });
+    }
+  );
+
+  applyWhen(
+    path.step1.loanType,
+    (type: unknown) => type === 'car',
+    (p: typeof path) => {
+      required(p.step1.carBrand, { message: 'Укажите марку автомобиля' });
+      minLength(p.step1.carBrand, 2, { message: 'Минимум 2 символа' });
+      maxLength(p.step1.carBrand, 50, { message: 'Максимум 50 символов' });
+      required(p.step1.carModel, { message: 'Укажите модель автомобиля' });
+      minLength(p.step1.carModel, 1, { message: 'Минимум 1 символ' });
+      maxLength(p.step1.carModel, 50, { message: 'Максимум 50 символов' });
+      required(p.step1.carYear, { message: 'Укажите год выпуска' });
+      min(p.step1.carYear, 2000, { message: 'Год выпуска не ранее 2000' });
+      max(p.step1.carYear, new Date().getFullYear() + 1, {
+        message: `Год выпуска не позднее ${new Date().getFullYear() + 1}`,
+      });
+      required(p.step1.carPrice, { message: 'Укажите стоимость автомобиля' });
+      min(p.step1.carPrice, 300000, { message: 'Минимальная стоимость автомобиля — 300 000 ₽' });
+      max(p.step1.carPrice, 10000000, {
+        message: 'Максимальная стоимость автомобиля — 10 000 000 ₽',
+      });
+    }
+  );
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const step2Validation: ValidationSchemaFn<any> = (path: any) => {
+  required(path.step2.personalData.lastName, { message: 'Введите фамилию' });
+  required(path.step2.personalData.firstName, { message: 'Введите имя' });
+  required(path.step2.personalData.middleName, { message: 'Введите отчество' });
+  required(path.step2.personalData.birthDate, { message: 'Введите дату рождения' });
+  validate(path.step2.personalData.birthDate, (value: unknown) =>
+    validateAge18to70(value as string | null | undefined)
+  );
+  required(path.step2.personalData.gender, { message: 'Выберите пол' });
+  required(path.step2.personalData.birthPlace, { message: 'Введите место рождения' });
+  required(path.step2.passportData.series, { message: 'Введите серию паспорта' });
+  pattern(path.step2.passportData.series, /^\d{2}\s?\d{2}$/, {
+    message: 'Серия паспорта: 4 цифры (например 12 34)',
+  });
+  required(path.step2.passportData.number, { message: 'Введите номер паспорта' });
+  pattern(path.step2.passportData.number, /^\d{6}$/, {
+    message: 'Номер паспорта: 6 цифр',
+  });
+  required(path.step2.passportData.issueDate, { message: 'Введите дату выдачи паспорта' });
+  validate(path.step2.passportData.issueDate, (value: unknown) =>
+    validatePassportIssueDate(value as string | null | undefined)
+  );
+  required(path.step2.passportData.issuedBy, { message: 'Введите орган, выдавший паспорт' });
+  required(path.step2.passportData.departmentCode, { message: 'Введите код подразделения' });
+  pattern(path.step2.passportData.departmentCode, /^\d{3}-\d{3}$/, {
+    message: 'Код подразделения: формат 123-456',
+  });
+  required(path.step2.inn, { message: 'Введите ИНН' });
+  pattern(path.step2.inn, /^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' });
+  validate(path.step2.inn, (value: unknown) => validateInn12(value as string | null | undefined));
+  required(path.step2.snils, { message: 'Введите СНИЛС' });
+  pattern(path.step2.snils, /^\d{3}-\d{3}-\d{3}\s\d{2}$/, {
+    message: 'СНИЛС: формат 123-456-789 00',
+  });
+  validate(path.step2.snils, (value: unknown) => validateSnils(value as string | null | undefined));
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const step3Validation: ValidationSchemaFn<any> = (path: any) => {
+  required(path.step3.phoneMain, { message: 'Введите основной телефон' });
+  pattern(path.step3.phoneMain, RU_PHONE, {
+    message: 'Телефон: формат +7 (999) 999-99-99',
+  });
+  validate(path.step3.phoneAdditional, (value: unknown) => {
+    const v = value as string | null;
+    if (!v) return null;
+    if (!RU_PHONE.test(v)) {
+      return { code: 'phone_format', message: 'Телефон: формат +7 (999) 999-99-99' };
+    }
+    return null;
+  });
+  required(path.step3.email, { message: 'Введите email' });
+  email(path.step3.email, { message: 'Введите корректный email' });
+  validate(path.step3.emailAdditional, (value: unknown) => {
+    const v = value as string | null;
+    if (!v) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      return { code: 'email_format', message: 'Введите корректный дополнительный email' };
+    }
+    return null;
+  });
+  required(path.step3.registrationAddress.region, { message: 'Введите регион' });
+  required(path.step3.registrationAddress.city, { message: 'Введите город' });
+  required(path.step3.registrationAddress.street, { message: 'Введите улицу' });
+  required(path.step3.registrationAddress.house, { message: 'Введите дом' });
+  required(path.step3.registrationAddress.postalCode, { message: 'Введите почтовый индекс' });
+  pattern(path.step3.registrationAddress.postalCode, /^\d{6}$/, {
+    message: 'Индекс: 6 цифр',
+  });
+  applyWhen(
+    path.step3.sameAsRegistration,
+    (same: unknown) => same === false,
+    (p: typeof path) => {
+      required(p.step3.residenceAddress.region, { message: 'Введите регион проживания' });
+      required(p.step3.residenceAddress.city, { message: 'Введите город проживания' });
+      required(p.step3.residenceAddress.street, { message: 'Введите улицу проживания' });
+      required(p.step3.residenceAddress.house, { message: 'Введите дом (проживание)' });
+      required(p.step3.residenceAddress.postalCode, { message: 'Введите индекс (проживание)' });
+      pattern(p.step3.residenceAddress.postalCode, /^\d{6}$/, {
+        message: 'Индекс: 6 цифр',
+      });
+    }
+  );
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const step4Validation: ValidationSchemaFn<any> = (path: any) => {
+  required(path.step4.employmentStatus, { message: 'Выберите статус занятости' });
+  applyWhen(
+    path.step4.employmentStatus,
+    (status: unknown) => status === 'employed',
+    (p: typeof path) => {
+      required(p.step4.companyName, { message: 'Введите название компании' });
+      required(p.step4.companyInn, { message: 'Введите ИНН компании' });
+      pattern(p.step4.companyInn, /^\d{10}$/, { message: 'ИНН компании: 10 цифр' });
+      validate(p.step4.companyInn, (value: unknown) =>
+        validateInn10(value as string | null | undefined)
+      );
+      required(p.step4.companyPhone, { message: 'Введите телефон компании' });
+      pattern(p.step4.companyPhone, RU_PHONE, { message: 'Телефон: формат +7 (999) 999-99-99' });
+      required(p.step4.companyAddress, { message: 'Введите адрес компании' });
+      required(p.step4.position, { message: 'Введите должность' });
+    }
+  );
+  applyWhen(
+    path.step4.employmentStatus,
+    (status: unknown) => status === 'selfEmployed',
+    (p: typeof path) => {
+      required(p.step4.businessType, { message: 'Введите тип бизнеса' });
+      required(p.step4.businessInn, { message: 'Введите ИНН ИП' });
+      pattern(p.step4.businessInn, /^\d{12}$/, { message: 'ИНН ИП: 12 цифр' });
+      validate(p.step4.businessInn, (value: unknown) =>
+        validateInn12(value as string | null | undefined)
+      );
+      required(p.step4.businessActivity, { message: 'Опишите вид деятельности' });
+    }
+  );
+  required(path.step4.workExperienceTotal, { message: 'Введите общий стаж' });
+  min(path.step4.workExperienceTotal, 0, { message: 'Стаж не может быть отрицательным' });
+  required(path.step4.workExperienceCurrent, { message: 'Введите стаж на текущем месте' });
+  min(path.step4.workExperienceCurrent, 0, { message: 'Стаж не может быть отрицательным' });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validate(path.step4.workExperienceCurrent, (value: unknown, ctx: any) => {
+    const current = value as number | null;
+    const total = ctx.form.step4.workExperienceTotal.value.value as number | null;
+    if (current == null || total == null) return null;
+    if (current > total) {
+      return {
+        code: 'experience_exceeds_total',
+        message: 'Стаж на текущем месте не может превышать общий стаж',
+      };
+    }
+    return null;
+  });
+  required(path.step4.monthlyIncome, { message: 'Введите ежемесячный доход' });
+  min(path.step4.monthlyIncome, 10000, { message: 'Минимальный доход — 10 000 ₽' });
+  validate(path.step4.additionalIncome, (value: unknown) => {
+    const v = value as number | null;
+    if (v == null) return null;
+    if (v < 0)
+      return {
+        code: 'additional_income_negative',
+        message: 'Дополнительный доход не может быть отрицательным',
+      };
+    return null;
+  });
+  applyWhen(
+    path.step4.additionalIncome,
+    (income: unknown) => typeof income === 'number' && income > 0,
+    (p: typeof path) => {
+      required(p.step4.additionalIncomeSource, {
+        message: 'Укажите источник дополнительного дохода',
+      });
+    }
+  );
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const step5Validation: ValidationSchemaFn<any> = (path: any) => {
+  required(path.step5.maritalStatus, { message: 'Выберите семейное положение' });
+  required(path.step5.dependents, { message: 'Укажите количество иждивенцев' });
+  min(path.step5.dependents, 0, { message: 'Количество иждивенцев не может быть отрицательным' });
+  max(path.step5.dependents, 10, { message: 'Максимум 10 иждивенцев' });
+  required(path.step5.education, { message: 'Выберите уровень образования' });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validateItems(path.step5.properties, (itemPath: any) => {
+    required(itemPath.type, { message: 'Выберите тип имущества' });
+    required(itemPath.description, { message: 'Опишите имущество' });
+    required(itemPath.estimatedValue, { message: 'Укажите оценочную стоимость' });
+    min(itemPath.estimatedValue, 0, { message: 'Стоимость не может быть отрицательной' });
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validateItems(path.step5.existingLoans, (itemPath: any) => {
+    required(itemPath.bank, { message: 'Введите название банка' });
+    required(itemPath.type, { message: 'Введите тип кредита' });
+    required(itemPath.amount, { message: 'Введите сумму кредита' });
+    min(itemPath.amount, 0, { message: 'Сумма не может быть отрицательной' });
+    required(itemPath.remainingAmount, { message: 'Введите остаток задолженности' });
+    min(itemPath.remainingAmount, 0, { message: 'Остаток не может быть отрицательным' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    validate(itemPath.remainingAmount, (value: unknown, ctx: any) => {
+      const remaining = value as number;
+      const total = ctx.form.amount.value.value as number;
+      if (remaining > total) {
+        return {
+          code: 'remaining_exceeds_amount',
+          message: 'Остаток задолженности не может превышать сумму кредита',
+        };
+      }
+      return null;
+    });
+    required(itemPath.monthlyPayment, { message: 'Введите ежемесячный платёж' });
+    min(itemPath.monthlyPayment, 0, { message: 'Платёж не может быть отрицательным' });
+    required(itemPath.maturityDate, { message: 'Введите дату погашения' });
+    validate(itemPath.maturityDate, (value: unknown) =>
+      validateFutureDate(value as string | null | undefined)
+    );
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validateItems(path.step5.coBorrowers, (itemPath: any) => {
+    required(itemPath.personalData.lastName, { message: 'Введите фамилию созаёмщика' });
+    required(itemPath.personalData.firstName, { message: 'Введите имя созаёмщика' });
+    required(itemPath.personalData.middleName, { message: 'Введите отчество созаёмщика' });
+    required(itemPath.personalData.birthDate, { message: 'Введите дату рождения созаёмщика' });
+    validate(itemPath.personalData.birthDate, (value: unknown) =>
+      validateAge18to70(value as string | null | undefined)
+    );
+    required(itemPath.personalData.gender, { message: 'Выберите пол созаёмщика' });
+    required(itemPath.personalData.birthPlace, { message: 'Введите место рождения созаёмщика' });
+    required(itemPath.phone, { message: 'Введите телефон созаёмщика' });
+    pattern(itemPath.phone, RU_PHONE, { message: 'Телефон: формат +7 (999) 999-99-99' });
+    required(itemPath.email, { message: 'Введите email созаёмщика' });
+    email(itemPath.email, { message: 'Введите корректный email созаёмщика' });
+    required(itemPath.relationship, { message: 'Укажите степень родства' });
+    required(itemPath.monthlyIncome, { message: 'Введите доход созаёмщика' });
+    min(itemPath.monthlyIncome, 0, { message: 'Доход не может быть отрицательным' });
+  });
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const step6Validation: ValidationSchemaFn<any> = (path: any) => {
+  validate(path.step6.agreePersonalData, (value: unknown) => {
+    if (value !== true) {
+      return {
+        code: 'consent_required',
+        message: 'Необходимо дать согласие на обработку персональных данных',
+      };
+    }
+    return null;
+  });
+  validate(path.step6.agreeCreditHistory, (value: unknown) => {
+    if (value !== true) {
+      return {
+        code: 'consent_required',
+        message: 'Необходимо дать согласие на проверку кредитной истории',
+      };
+    }
+    return null;
+  });
+  validate(path.step6.agreeTerms, (value: unknown) => {
+    if (value !== true) {
+      return { code: 'consent_required', message: 'Необходимо принять условия кредитования' };
+    }
+    return null;
+  });
+  validate(path.step6.confirmAccuracy, (value: unknown) => {
+    if (value !== true) {
+      return { code: 'confirm_required', message: 'Подтвердите точность введённых данных' };
+    }
+    return null;
+  });
+  required(path.step6.electronicSignature, { message: 'Введите код из СМС' });
+  pattern(path.step6.electronicSignature, /^\d{6}$/, {
+    message: 'Код подтверждения: 6 цифр',
+  });
+};
+
+// STEP_VALIDATIONS map — keyed by 1-based step number.
+// Used in index.tsx: validateForm(form, STEP_VALIDATIONS[currentStep])
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<any>> = {
+  1: step1Validation,
+  2: step2Validation,
+  3: step3Validation,
+  4: step4Validation,
+  5: step5Validation,
+  6: step6Validation,
+};
+
+// fullValidation — combines all steps for final submit.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const fullValidation: ValidationSchemaFn<any> = (path: any) => {
+  step1Validation(path);
+  step2Validation(path);
+  step3Validation(path);
+  step4Validation(path);
+  step5Validation(path);
+  step6Validation(path);
+};
+
+export { validateForm };

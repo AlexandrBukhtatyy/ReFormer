@@ -15,7 +15,7 @@ import type {
   ExistingLoanItem,
   CoBorrowerItem,
 } from './types';
-import { creditApplicationForm } from './schema';
+import { creditApplicationForm, STEP_VALIDATIONS, fullValidation, validateForm } from './schema';
 
 // ─── Helper: render validation errors for a control ────────────────────────
 
@@ -1205,14 +1205,96 @@ function ComputedSummaryPanel() {
   );
 }
 
+// ─── Step indicator ──────────────────────────────────────────────────────────
+
+const STEP_TITLES = [
+  'Кредит',
+  'Персональные данные',
+  'Контакты',
+  'Работа',
+  'Дополнительно',
+  'Подтверждение',
+];
+
+function StepIndicator({
+  currentStep,
+  completedSteps,
+}: {
+  currentStep: number;
+  completedSteps: Set<number>;
+}) {
+  return (
+    <nav
+      aria-label="Шаги формы"
+      style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}
+    >
+      {STEP_TITLES.map((title, idx) => {
+        const num = idx + 1;
+        const isCurrent = num === currentStep;
+        const isCompleted = completedSteps.has(num);
+        return (
+          <div
+            key={num}
+            aria-current={isCurrent ? 'step' : undefined}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 4,
+              border: isCurrent ? '2px solid #0078d4' : '1px solid #ccc',
+              background: isCurrent ? '#e6f0fb' : isCompleted ? '#d4edda' : '#f8f9fa',
+              fontWeight: isCurrent ? 700 : 400,
+              fontSize: 13,
+              color: isCurrent ? '#0078d4' : isCompleted ? '#155724' : '#6c757d',
+            }}
+          >
+            {isCompleted ? '✓' : num}. {title}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
 // ─── Root component ─────────────────────────────────────────────────────────
 
 export default function McpCreditApplication() {
   const form = creditApplicationForm;
+  const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [submitted, setSubmitted] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const goToNextStep = async () => {
+    setIsValidating(true);
+    const validation = STEP_VALIDATIONS[currentStep];
+    const isValid = await validateForm(form, validation);
+    setIsValidating(false);
+
+    if (!isValid) {
+      form.markAsTouched();
+      return;
+    }
+
+    setCompletedSteps((prev) => new Set([...prev, currentStep]));
+    setCurrentStep((s) => s + 1);
+  };
+
+  const goToPrevStep = () => {
+    setCurrentStep((s) => s - 1);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsValidating(true);
+    const isValid = await validateForm(form, fullValidation);
+    setIsValidating(false);
+
+    if (!isValid) {
+      form.markAsTouched();
+      setSubmitted(true);
+      return;
+    }
+
+    setCompletedSteps((prev) => new Set([...prev, 6]));
     setSubmitted(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     void form.submit((values: any) => {
@@ -1220,22 +1302,47 @@ export default function McpCreditApplication() {
     });
   };
 
+  const isFirstStep = currentStep === 1;
+  const isLastStep = currentStep === 6;
+
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: 24, fontFamily: 'sans-serif' }}>
       <h1>Заявка на кредит</h1>
       <ComputedSummaryPanel />
+
+      <StepIndicator currentStep={currentStep} completedSteps={completedSteps} />
+
+      <div style={{ marginBottom: 8, fontSize: 13, color: '#666' }}>
+        Шаг {currentStep} из {STEP_TITLES.length}
+      </div>
+
       {submitted && (
         <p style={{ color: 'red' }}>Пожалуйста, исправьте ошибки в форме перед отправкой.</p>
       )}
+
       <form onSubmit={handleSubmit}>
-        <Step1Section form={form.step1} />
-        <Step2Section form={form.step2} />
-        <Step3Section form={form.step3} />
-        <Step4Section form={form.step4} />
-        <Step5Section form={form.step5} />
-        <Step6Section form={form.step6} />
-        <div style={{ marginTop: 24 }}>
-          <button type="submit">Отправить заявку</button>
+        {currentStep === 1 && <Step1Section form={form.step1} />}
+        {currentStep === 2 && <Step2Section form={form.step2} />}
+        {currentStep === 3 && <Step3Section form={form.step3} />}
+        {currentStep === 4 && <Step4Section form={form.step4} />}
+        {currentStep === 5 && <Step5Section form={form.step5} />}
+        {currentStep === 6 && <Step6Section form={form.step6} />}
+
+        <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
+          {!isFirstStep && (
+            <button type="button" onClick={goToPrevStep} disabled={isValidating}>
+              Назад
+            </button>
+          )}
+          {!isLastStep ? (
+            <button type="button" onClick={goToNextStep} disabled={isValidating}>
+              {isValidating ? 'Проверка...' : 'Далее'}
+            </button>
+          ) : (
+            <button type="submit" disabled={isValidating}>
+              {isValidating ? 'Проверка...' : 'Отправить заявку'}
+            </button>
+          )}
         </div>
       </form>
     </div>
