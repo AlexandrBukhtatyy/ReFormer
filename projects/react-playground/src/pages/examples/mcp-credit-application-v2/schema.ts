@@ -855,6 +855,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
     );
 
     // Cross-field: workExperienceCurrent <= workExperienceTotal
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     validate(path.step4.workExperienceCurrent, (value: number | null, ctx: any) => {
       const total = ctx.form.step4.workExperienceTotal.value.value as number | null;
       if (total != null && value != null && value > total) {
@@ -877,6 +878,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       path.step5.hasProperty,
       (value: boolean) => value === true,
       (p: typeof path) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateItems(p.step5.properties, (itemPath: any) => {
           required(itemPath.type, { message: 'Укажите тип имущества' });
           required(itemPath.estimatedValue, { message: 'Укажите оценочную стоимость' });
@@ -889,6 +891,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       path.step5.hasExistingLoans,
       (value: boolean) => value === true,
       (p: typeof path) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateItems(p.step5.existingLoans, (itemPath: any) => {
           required(itemPath.bank, { message: 'Укажите банк' });
           required(itemPath.amount, { message: 'Укажите сумму кредита' });
@@ -903,6 +906,7 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
       path.step5.hasCoBorrower,
       (value: boolean) => value === true,
       (p: typeof path) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validateItems(p.step5.coBorrowers, (itemPath: any) => {
           required(itemPath.personalData.lastName, { message: 'Введите фамилию созаемщика' });
           required(itemPath.personalData.firstName, { message: 'Введите имя созаемщика' });
@@ -925,7 +929,10 @@ export const creditApplicationForm: FormProxy<CreditApplicationForm> = (
 
     validate(path.step6.agreeTerms, (value: boolean) => {
       if (value !== true) {
-        return { code: 'consent-required', message: 'Необходимо согласие с условиями кредитования' };
+        return {
+          code: 'consent-required',
+          message: 'Необходимо согласие с условиями кредитования',
+        };
       }
       return null;
     });
