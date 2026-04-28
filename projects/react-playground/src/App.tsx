@@ -6,25 +6,13 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-import McpCreditApplication from './pages/examples/mcp-credit-application';
-import McpCreditApplicationRenderer from './pages/examples/mcp-credit-application-renderer';
-import McpCreditApplicationRendererJson from './pages/examples/mcp-credit-application-renderer-json';
-import McpCreditApplicationV2 from './pages/examples/mcp-credit-application-v2';
-import McpCreditApplicationRendererV2 from './pages/examples/mcp-credit-application-renderer-v2';
-import McpCreditApplicationRendererJsonV2 from './pages/examples/mcp-credit-application-renderer-json-v2';
 type ExamplePage =
   | 'simple'
   | 'validation'
   | 'behaviors'
   | 'complex'
   | 'complex-renderer'
-  | 'json-renderer'
-  | 'mcp-credit'
-  | 'mcp-credit-renderer'
-  | 'mcp-credit-renderer-json'
-  | 'mcp-credit-v2'
-  | 'mcp-credit-renderer-v2'
-  | 'mcp-credit-renderer-json-v2';
+  | 'json-renderer';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -62,45 +50,6 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/behaviors',
     title: 'Поведения',
     description: 'Реактивное поведение через декларативный подход',
-  },
-  {
-    id: 'mcp-credit',
-    path: '/examples/mcp-credit',
-    title: 'MCP Credit (тест MCP)',
-    description: 'Кредитная заявка, реализованная суб-агентом по MCP-prompts (PROMT.md)',
-  },
-  {
-    id: 'mcp-credit-renderer',
-    path: '/examples/mcp-credit-renderer',
-    title: 'MCP Credit Renderer (тест MCP)',
-    description:
-      'Та же форма через @reformer/renderer-react TS RenderSchema, реализованная суб-агентом по MCP (PROMT.md, page 2)',
-  },
-  {
-    id: 'mcp-credit-renderer-json',
-    path: '/examples/mcp-credit-renderer-json',
-    title: 'MCP Credit JSON (тест MCP)',
-    description:
-      'Та же форма через @reformer/renderer-json JSON-схему + Registry, реализованная суб-агентом по MCP (PROMT.md, page 3)',
-  },
-  {
-    id: 'mcp-credit-v2',
-    path: '/examples/mcp-credit-v2',
-    title: 'MCP Credit v2 (ui-kit + Tailwind)',
-    description:
-      'Iteration 2: та же форма через ui-kit + Tailwind, target=core. Sub-agent должен достичь визуальной похожести на complex-multy-step-form.',
-  },
-  {
-    id: 'mcp-credit-renderer-v2',
-    path: '/examples/mcp-credit-renderer-v2',
-    title: 'MCP Credit Renderer v2 (ui-kit + Tailwind)',
-    description: 'Iteration 2: renderer-react с ui-kit + Tailwind layout-skeleton.',
-  },
-  {
-    id: 'mcp-credit-renderer-json-v2',
-    path: '/examples/mcp-credit-renderer-json-v2',
-    title: 'MCP Credit JSON v2 (ui-kit + Tailwind)',
-    description: 'Iteration 2: renderer-json с ui-kit + Tailwind через registry.',
   },
 ];
 
@@ -174,21 +123,6 @@ function Layout() {
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
-          <Route path="/examples/mcp-credit" element={<McpCreditApplication />} />
-          <Route path="/examples/mcp-credit-renderer" element={<McpCreditApplicationRenderer />} />
-          <Route
-            path="/examples/mcp-credit-renderer-json"
-            element={<McpCreditApplicationRendererJson />}
-          />
-          <Route path="/examples/mcp-credit-v2" element={<McpCreditApplicationV2 />} />
-          <Route
-            path="/examples/mcp-credit-renderer-v2"
-            element={<McpCreditApplicationRendererV2 />}
-          />
-          <Route
-            path="/examples/mcp-credit-renderer-json-v2"
-            element={<McpCreditApplicationRendererJsonV2 />}
-          />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
