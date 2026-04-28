@@ -212,16 +212,29 @@ export function RenderNodeComponent<T>({
 
     // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
+    // form пробрасывается в self-managed компоненты как prop, чтобы они могли
+    // вызывать `<RenderNodeComponent form={form} ...>` для своих дочерних узлов
+    // (используется в RendererFormArraySection, RendererFormWizard и т.п.).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((Component as any).__selfManagedChildren === true) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SelfManagedComponent = Component as React.ComponentType<any>;
+      // Не перетираем form, если уже задан в componentProps (orchestrator-инжект).
+      const formProp =
+        (effectiveProps as Record<string, unknown>).form === undefined && form !== undefined
+          ? { form }
+          : {};
+      // children: предпочитаем node.children (если есть). Иначе fallback на
+      // componentProps.children (некоторые компоненты, напр. FormRoot из page 2 v4,
+      // передают raw RenderNode[] через componentProps).
+      const childrenProp = children !== undefined ? { children } : {};
       return (
         <SelfManagedComponent
           {...(selector !== undefined ? { selector } : {})}
           {...effectiveProps}
+          {...formProp}
           {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
-          children={children}
+          {...childrenProp}
         />
       );
     }
