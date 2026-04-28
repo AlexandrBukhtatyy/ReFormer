@@ -1,7 +1,4 @@
 {
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "embedded",
-  "dolt_database": "ReFormer",
-  "project_id": "2333286d-ff4c-4b39-bec5-29ac3cd4c977"
+  "database": "beads.db",
+  "jsonl_export": "issues.jsonl"
 }
