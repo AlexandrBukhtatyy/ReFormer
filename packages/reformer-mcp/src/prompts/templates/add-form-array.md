@@ -29,7 +29,7 @@ You add a dynamic field array to a `@reformer/*` form.
 
 5. **Element access**: `form.<arr>.at(i)` (NOT brackets), `.length.value`, `.items.value`. Mutations: `add`, `removeAt`, `insert`, `move`, `clear` — never mutate `.items` directly.
 
-6. **renderer-react self-managed FormArray block**: must resolve `FieldPath → ArrayNode` via `FieldPathNavigator` + `extractPath`, AND mark `(Block as any).__selfManagedChildren = true` (otherwise `form` prop not injected).
+6. **renderer-react self-managed FormArray block**: must resolve `FieldPath → ArrayNode` via `FieldPathNavigator` + `extractPath`, AND mark `(Block as any).__selfManagedChildren = true` (otherwise `form` prop not injected). Generic resolver utilities will need `<T extends FormFields>` because `ArrayNode<T>` carries that constraint — add it to your resolver function signature, not a workaround.
 
 7. **renderer-json**: USE app-level `RendererFormArraySection` component (≈150-line template lives in renderer-json cookbook). DO NOT write per-page `array-blocks.tsx` with `CreditFormProvider`. Schema describes the array fully via `$template` + `control` (string FieldPath) + `initialValue` (source ID).
 
