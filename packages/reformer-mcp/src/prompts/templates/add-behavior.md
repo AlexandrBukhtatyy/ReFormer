@@ -1,186 +1,75 @@
-Ты добавляешь behaviors к форме на `@reformer/core`.
+You add behaviors to a `@reformer/core` form.
 
-## ⛔ Перед началом — CYCLE PREVENTION (читай ОБЯЗАТЕЛЬНО)
+## Args
 
-Behavior через `watchField` + `computeFrom` + `copyFrom` + `revalidateWhen` легко завязывается в реактивный цикл, который вешает страницу при mount (DOMContentLoaded не наступает, browser приходится перезапускать). Полная секция «Cycle Detection Prevention Checklist» — ниже, но базовые правила здесь:
+- requirements: {{requirements}}
 
-1. **Сначала — только декларативные:** `enableWhen` / `disableWhen` / `copyFrom`. Ни одного `watchField`/`computeFrom` на первой итерации. Прогони `tsc` и визуальный smoke-test, убедись что страница монтируется. **Только потом** добавляй computed-поля.
-2. **Каждый `watchField` — с `{ immediate: false }`.** Без исключений.
-3. **`watchField` принимает ОДНО поле.** Сигнатура: `watchField(path: FieldPathNode<TForm, TField>, callback, options)`. Массив `watchField([pathA, pathB], …)` **не поддерживается** — runtime сломается (`Cannot read properties of undefined (reading 'startsWith')` в `getFieldByPath`), даже если TS пропустит через `as any`. Для нескольких триггеров — несколько `watchField` на разные trigger-paths, **все вызывают общую compute-функцию**:
+## Current form code
 
-```typescript
-const recomputeMonthlyPayment = (ctx) => {
-  const amount = ctx.form.step1.loanAmount.value.value;
-  const term = ctx.form.step1.loanTerm.value.value;
-  const rate = ctx.form.interestRate.value.value;
-  // ... compute + guard + ctx.form.monthlyPayment.setValue(...)
-};
-
-watchField(path.step1.loanAmount, (_, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
-watchField(path.step1.loanTerm,   (_, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
-```
-
-Правило «один watcher на trigger» означает: **не регистрируй два watchField на одну и ту же path** (это источник цикла). Несколько watchField на **разные** trigger-paths — норма.
-4. **Guard каждый `setValue`:** проверь, что новое значение реально отличается от текущего (для массивов — сравни `length`, ссылки всегда разные).
-5. **Guard `enable`/`disable`:** проверь `field.disabled.value` перед вызовом — повторный `disable()` на уже disabled поле триггерит signal на пустом месте.
-6. **Не используй `revalidateWhen` без необходимости.** Если уже есть `copyFrom` + валидаторы на target — обычно `revalidateWhen` не нужен.
-7. **`computeFrom` — только same-level**, для cross-level используй `watchField` (таблица «compute vs watch» ниже).
-8. **НЕ используй `enableWhen` на FormArray/ArrayNode** (целиком на массив). `enableWhen(path.someArray, …, { resetOnDisable: true })` создаёт цикл и вешает браузер на mount (verified emprически в credit-application-form). Условную видимость массива делай в JSX-рендере (`{form.flag.value && <ArrayUI/>}`), а не через behavior.
-
-## 🎯 Hide vs Disable — критически важный выбор
-
-Когда поле **нерелевантно** (mortgage-only при loanType=consumer, business-only при employmentStatus=employed), есть ДВА разных подхода. Они НЕ взаимозаменяемы:
-
-| Подход | Когда применять | Эффект |
-|---|---|---|
-| **Hide** (JSX conditional / `hideWhen` / `schema.node().setHidden(...)`) | Поле не имеет смысла для текущего контекста — пользователь не должен его ВИДЕТЬ. | Поле полностью пропадает из DOM/верстки. Нет ни label, ни input. |
-| **Disable** (`enableWhen`) | Поле может стать активным позже без изменения смысла; например, `confirmPassword` активен только когда `password` непустой. | Поле остаётся видимым, контрол серый, фокус не доступен. |
-
-**Правило по умолчанию для conditional полей по типу/статусу (loanType, employmentStatus и т.п.):** используй **Hide**, не Disable.
-
-Антипример (часто встречается на baseline credit-form):
-
-```tsx
-// ❌ Conditional spam — propertyValue видим всегда, серый при consumer
-enableWhen(path.step1.propertyValue, (form) => form.step1.loanType === 'mortgage');
-
-// ✅ JSX-conditional — поле пропадает когда не mortgage
-{loanType === 'mortgage' && (
-  <FormField control={form.step1.propertyValue} testId="step1.propertyValue" />
-)}
-
-// ✅ Renderer-react: hideWhen на узле RenderSchema
-{
-  selector: 'propertyValue-section',
-  component: Section,
-  behavior: hideWhen((form) => form.step1.loanType !== 'mortgage'),
-  children: [{ component: path.step1.propertyValue }],
-}
-
-// ✅ Renderer-json: setHidden из useEffect
-useEffect(() => {
-  schema.node('propertyValue-section').setHidden(loanType !== 'mortgage');
-}, [schema, loanType]);
-```
-
-`enableWhen` оставь для случаев, где поле сохраняет смысл и может ожидать ввод (зависимое поле, прогрессивное раскрытие).
-
-Если требований много — реализуй их **двумя итерациями**: сначала минимальный набор enableWhen + copyFrom, протестируй, и только потом computed/watchField. Лучше отчитаться о двух коротких итерациях, чем о провале с зависанием браузера.
-
-## Требования
-{{requirements}}
-
-## Текущий код формы
 ```typescript
 {{code}}
 ```
 
-## Палитра behaviors
+## ⛔ Critical inline rules — CYCLE PREVENTION (do not skip)
 
-### computeFrom vs watchField
+A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 
-{{computeVsWatch}}
+1. **Start with declarative only**: `enableWhen` / `disableWhen` / `copyFrom`. NO `watchField` / `computeFrom` on iteration 1. Verify mount works, then add computed.
+2. **Every `watchField` MUST take `{ immediate: false }`**. No exceptions.
+3. **`watchField` accepts ONE path** (signature: `watchField(path, callback, options)`). Array-of-paths is NOT supported — runtime breaks (`Cannot read properties of undefined (reading 'startsWith')`). For multiple triggers — multiple `watchField` calls on different paths, all calling a shared compute function.
+4. **Guard every `setValue`**: compare with current value, abort if equal (for arrays — compare `length`).
+5. **Guard `enable`/`disable`**: check `field.disabled.value` first — re-disable triggers spurious signal.
+6. **Don't use `revalidateWhen` if `copyFrom` + validators on target already cover it.**
+7. **`computeFrom` only same-level** — for cross-level use `watchField`.
+8. **NEVER `enableWhen` on a whole `ArrayNode` with `resetOnDisable: true`** — verified browser-hang. For conditional array visibility use JSX-conditional (`{form.flag.value && <ArrayUI/>}`).
 
-### watchField (async, guards)
+## 🎯 Hide vs Disable
 
-{{watchField}}
+- **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).
+- **Disable** (`enableWhen`) → field stays visible, control greyed out. Use only for progressive disclosure (`confirmPassword` after `password`).
 
-### copyFrom
+For type/status conditional fields **default = Hide, NOT Disable**.
 
-{{copyFrom}}
-
-### syncFields
-
-{{syncFields}}
-
-### resetWhen
-
-{{resetWhen}}
-
-### transformValue
-
-{{transformValue}}
-
-### revalidateWhen
-
-{{revalidateWhen}}
-
-### Cycle detection (КРИТИЧНО)
-
-{{cycleDetection}}
-
-### Common Patterns
-
-{{commonPatterns}}
-
----
-
-## TS2589 «Type instantiation is excessively deep» — workaround
-
-Глубоко-вложенные формы (multi-step с group-узлами + array items) ломают TS-inference на TS2589. Симптом — компилятор виснет или выдаёт «Type instantiation is excessively deep». Рабочий паттерн: точечный каст через `as never` или `as unknown as <Type>` в **точках, где TS не может развернуть путь сам**.
-
-### Где обычно нужен каст
+## TS2589 workaround (deeply nested forms)
 
 ```typescript
-// 1. useFormControlValue / useFormControl с deep-nested полем
-const loanType = useFormControlValue(form.step1.loanType as never) as string;
-const sameAsReg = useFormControlValue(form.step3.sameAsRegistration as never) as boolean;
-
-// 2. validateForm — form-аргумент должен быть GroupNode<T> или FormProxy<T>
-await validateForm(
-  form as unknown as GroupNode<MyForm>,
-  STEP_VALIDATIONS[currentStep],
-);
-
-// 3. form.markAsTouched / form.getValue / form.submit — на корневом уровне deep-form
-(form as any).markAsTouched();        // или as FormProxy<MyForm>
-const values = (form as any).getValue();
-
-// 4. createForm-возврат вёрстки сам — если TS2589 вылезает в сигнатуре creator-функции
-export function creditApplicationForm(): FormProxy<CreditApplicationForm> {
-  return (createForm as (config: {
-    form: unknown;
-    validation: unknown;
-    behavior: unknown;
-  }) => FormProxy<CreditApplicationForm>)({
-    form: { step1: {...}, step2: {...} },
-    validation: (path: any) => {...},
-    behavior: (path: any) => {...},
-  });
-}
-
-// 5. validation/behavior callbacks — `path: any` чтобы избежать TS2589 в callback теле
-const step1Validation = (path: any): void => {
-  required(path.step1.loanType, { message: 'Выберите тип' });
-};
+// useFormControlValue with deep path
+const v = useFormControlValue(form.step1.foo as never) as string;
+// validateForm root cast
+await validateForm(form as unknown as GroupNode<MyForm>, STEP_VALIDATIONS[step]);
+// validation/behavior callbacks
+const behavior = (path: any): void => { ... };
 ```
 
-### Где НЕ нужно
+Don't cast on simple forms — only when TS2589 actually appears.
 
-- На простых формах (один уровень или `step1` без вложенных group) TS-inference справляется. **Не каст ради каста** — это шум.
-- На `watchField(path.fieldName, (value, ctx) => {...})` сигнатура callback'а `(value: ..., ctx: ...) => void` обычно резолвится. Каст внутри callback'а — да: `ctx.form.step2.fullName.setValue(...)` через `ctx.form as any`.
+## Prerequisites — read these resources via ReadMcpResourceTool
 
-### Почему это безопасно
+**You MUST read these BEFORE writing behaviors. Skipping = browser hang risk.**
 
-`as never` / `as any` тут — **не отключение типизации**, а обход глубинного reflection. На runtime пути работают потому что они построены через `createForm` proxy. TS2589 — только compile-time артефакт. Если форма работает — типы корректные.
+- `reformer://docs/core/cycle-detection-prevention-checklist` (КРИТИЧНО — full checklist)
+- `reformer://docs/core/cycle-detected-error` (how the runtime reports it)
+- `reformer://docs/core/compute-from-vs-watch-field` (which to choose)
+- `reformer://docs/core/async-watchfield-critically-important` (async, debounce, guards)
+- `reformer://docs/core/common-patterns` (apply, copyFrom recipes)
+- `reformer://docs/core/common-mistakes`
+- `reformer://docs/core/extended-common-mistakes`
+- `reformer://docs/core` (aggregator — for `copyFrom` / `syncFields` / `resetWhen` / `transformValue` / `revalidateWhen` per-behavior sections)
 
----
+## Task
 
-## Задание
+1. Map each requirement to a behavior (`computeFrom` / `watchField` / `enableWhen` / `disableWhen` / `copyFrom` / `syncFields` / `resetWhen` / `transformValue` / `revalidateWhen`).
+2. Use `apply([...paths], schema)` if a behavior repeats across multiple fields/groups.
+3. Walk the cycle-prevention checklist for each `watchField`/`computeFrom` you add.
+4. Don't duplicate existing `watchField` callbacks — extend them.
+5. `computeFrom` only same-level.
 
-1. **Сопоставь требования с подходящим behavior** (см. таблицу compute-vs-watch для выбора между `computeFrom` / `watchField`).
-2. **Разбей по типам:**
-   - вычисляемые поля (sync, на одном уровне) — `computeFrom`
-   - вкл/выкл по условию — `enableWhen` / `disableWhen` (с `resetOnDisable` если нужно)
-   - реакция на изменение (async, side-effects) — `watchField` с `debounce` + guard `cancelled`
-   - копирование значений — `copyFrom` (со `when`, `fields`, `transform`)
-   - sync двух полей — `syncFields`
-   - сброс при условии — `resetWhen`
-   - нормализация ввода — `transformValue`
-   - повторная валидация при зависимости — `revalidateWhen`
-3. **Обязательно используй `apply([...paths], schema)`** если behavior повторяется на нескольких полях/группах.
-4. **Cycle detection** — пройдись по чек-листу из секции выше. Особое внимание: consolidated `watchField`, guard `disable/enable/setValue`, сравнение массивов по длине.
-5. Не дублируй существующие `watchField` callback'и — расширяй их.
-6. Не используй `computeFrom` через уровни иерархии (только same level).
+## Output checklist
 
-В конце — короткий чек-лист «какие требования закрыты, какие риски циклов».
+- [ ] Прочитал все ресурсы из Prerequisites: yes/no
+- [ ] Every `watchField` has `{ immediate: false }`
+- [ ] Every `setValue` has equality guard
+- [ ] No `enableWhen` on whole ArrayNode
+- [ ] `computeFrom` not used cross-level
+- [ ] Hide-vs-Disable choice documented per conditional field
+- [ ] Short risk summary at end

@@ -1,43 +1,42 @@
-You are an expert debugger for ReFormer forms. Analyze the code and identify issues.
+You are an expert debugger for ReFormer forms.
 
-## Common Issues & Solutions
-
-{{faq}}
-
-## React Integration Reference
-
-{{reactIntegration}}
-
-## API Reference
-
-{{apiReference}}
-
----
-
-## Code to Debug
+## Code to debug
 
 ```typescript
 {{code}}
 ```
 
----
+## Critical inline rules (most-common bug shortlist)
 
-## Analysis Tasks
+- `createForm` MUST be wrapped in `useMemo([])` — otherwise it's recreated each render and subscriptions detach.
+- Field reads through `useFormControl` / `useFormControlValue` — `.value.value` directly is wrong (signal-of-signal access).
+- Async validators MUST be `await`-ed in submit; checking `isValid` before await returns stale value.
+- `markAsTouched()` on blur — without it, errors don't surface until submit.
+- Validators imported from `@reformer/core/validators` — not from `/behaviors` (`applyWhen` exists in both, easy to mix).
+- FormArray AddButton `initialValue` MUST be plain leaf values (`{ name: '' }`), NEVER FieldConfig (`{ name: { value, component } }`) — silent corruption.
 
-Please analyze the code above and:
+## Prerequisites — read these resources via ReadMcpResourceTool
 
-1. **Identify Issues**: List any problems, bugs, or anti-patterns you find
-2. **Root Cause**: Explain why each issue occurs
-3. **Solutions**: Provide fixed code for each issue
-4. **Best Practices**: Suggest improvements even if code works
+**You MUST read these BEFORE diagnosis. Skipping = wrong root cause.**
 
-Common things to check:
-- [ ] Is `createForm` wrapped in `useMemo`?
-- [ ] Are `useFormControl` hooks used for subscriptions?
-- [ ] Is the type definition matching the schema?
-- [ ] Are validators properly imported and applied?
-- [ ] Is `markAsTouched()` called on blur?
-- [ ] Is form validation checked before submission?
-- [ ] Are signals accessed correctly (`.value` vs `.value.value`)?
+- `reformer://docs/core/troubleshooting`
+- `reformer://docs/core/common-mistakes`
+- `reformer://docs/core/extended-common-mistakes`
+- `reformer://docs/core/non-existent-api-do-not-use`
+- `reformer://docs/core/reading-field-values-critically-important`
+- `reformer://docs/core/api-reference` (if API misuse suspected)
 
-Provide clear explanations and working code fixes.
+## Task
+
+Analyze the code:
+1. **Identify Issues** — list problems / bugs / anti-patterns.
+2. **Root Cause** — explain why each issue occurs.
+3. **Solutions** — provide fixed code per issue.
+4. **Best Practices** — suggest improvements even if code works.
+
+## Output checklist
+
+- [ ] Прочитал все ресурсы из Prerequisites: yes/no
+- [ ] All identified issues have line references
+- [ ] Each issue includes root cause + fix
+- [ ] Best-practice suggestions section present

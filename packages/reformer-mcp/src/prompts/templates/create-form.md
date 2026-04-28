@@ -1,68 +1,68 @@
-Ты помогаешь спроектировать и написать новую форму на `@reformer/*`.
+You design and write a new form on `@reformer/*`.
 
-## Целевой стек
-`{{target}}` {{targetLabel}}
+## Args
 
-## Описание формы
-{{description}}
+- target: `{{target}}` {{targetLabel}}
+- description: {{description}}
 
-## Stage 0: MCP discovery (КРИТИЧНО — выполни до генерации кода)
+## Stage 0 — MCP discovery (CRITICAL: do this before any code)
 
 {{stackBlock}}
 
-⚠️ **Если выше есть MCP-gap-вопрос** — НЕ продолжай. Верни оркестратору запрос на уточнение и ЖДИ ответа. Самостоятельный fallback на plain HTML / inline-style инвалидирует тест MCP.
+⚠️ **If the discovery block above contains a question for the orchestrator** — STOP and return the question. Do NOT fall back to plain HTML / inline-style — that invalidates the MCP test.
+
+## Critical inline rules
+
+- **FormSchema only declarative**: this prompt does NOT add validation/behavior. Use `add-validation` and `add-behavior` separately.
+- **`useMemo`** when creating the form in a React component.
+- **FormField** (from `@reformer/ui-kit`) usage: `<FormField control={form.x} testId="step1.x" />`. NOT the cdk compound `FormField.Root/Label/Control/Error` for ordinary fields.
+- **Deeply nested forms (4+ levels)**: typed as `extends FormFields` (or index signature), and cast `createForm as (config: { form: unknown; validation: unknown; behavior: unknown }) => FormProxy<T>` to dodge TS2589.
+- **Array shape**: `arr: [itemSchema]` (tuple), NEVER `{ value: [], itemSchema: {...} }` (silent corruption).
+- **`FormArray.AddButton initialValue`**: PLAIN leaf values only. Never FieldConfig (`{ value, component }`) — silent runtime corruption.
+- **Conditional fields → Hide, not Disable**. Type/status conditional (loanType, employmentStatus) → JSX-conditional (`{loanType==='mortgage' && <FormField .../>}`) for `core`; `hideWhen` / `setHidden` for renderers. `enableWhen` only for progressive disclosure (`confirmPassword` after `password`).
+- **Spec compliance — literal**: every spec field = separate FormSchema field with the same name and the same step. No merging, no skipping, no moving.
+- **testId convention**: dotted path (`step1.loanAmount`, `step2.passportData.series`), never bare leaf names — collisions inevitable across steps.
+- **User-facing strings**: from spec or in the user's native language. No default English `"Select an option..."` placeholders.
+- **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`.
+- **`Select` / `RadioGroup` `options` MUST live in `createForm` componentProps** (not only JSON for renderer-json — JSON `componentProps.options` is documentation; runtime reads from FieldNode).
+
+## Layout & visual density
 
 {{layoutSection}}
 
-## Контекст из документации
+## Prerequisites — read these resources via ReadMcpResourceTool
 
-### Imports
-{{imports}}
+**You MUST read these BEFORE writing schema. Skipping = wrong imports / wrong layout / wrong shape.**
 
-### Quick Start
-{{quickStart}}
+- `reformer://docs/core/import-patterns`
+- `reformer://docs/core/quick-start-minimal-working-form`
+- `reformer://docs/core/formschema-format-critically-important`
+- `reformer://docs/core/array-schema-format`
+- `reformer://docs/core/common-patterns`
+- `reformer://docs/core/ui-component-patterns`
+- `reformer://docs/core/non-existent-api-do-not-use`
+- `reformer://docs/ui-kit/quick-start` (if `@reformer/ui-kit` detected)
+- `reformer://docs/ui-kit/components`
+{{rendererPrereqs}}
 
-### FormSchema (структура полей)
-{{formSchema}}
+## Task
 
-### Common Patterns (group, applyWhen, типы)
-{{commonPatterns}}{{rendererBlock}}
+1. Stage 0 — verify detected stack (above). If gap → ask, don't code.
+2. Design form structure from description (fields, types, groups, arrays, nested forms).
+3. Write typed `interface MyForm { ... }`.
+4. Generate FormSchema via `createForm` (+ RenderSchemaFn for renderer-react / + JsonFormSchema + defineRegistry for renderer-json).
+5. Use components from detected ui-kit + Tailwind layout from skeleton above.
+6. Don't add validation/behaviors — out of scope.
 
----
+## Output checklist
 
-## Задание
-
-1. **Stage 0 (выше)** — проверь detected стек. Если MCP-gap — попроси уточнение и стоп.
-2. **Спроектируй структуру формы** по описанию: какие поля, какие типы (`string | number | boolean | Date | null`), какие группы / массивы / nested-формы.
-3. **Напиши typed interface** для формы (`interface MyForm { ... }`).
-4. **Сгенерируй FormSchema** через `createForm` (а для `renderer-react` — ещё RenderSchemaFn; для `renderer-json` — JsonFormSchema + defineRegistry).
-   - **Используй компоненты из detected ui-kit** (`Input`, `Select`, `Checkbox`, `Textarea` и т.д.) — НЕ plain HTML.
-   - **Используй Tailwind layout** из секции «Layout skeleton» выше (Section/Box grid) — НЕ inline-style и НЕ plain `<div>` без классов.
-5. **Не добавляй валидацию и behaviors** — это отдельные шаги (для них есть промпты `add-validation` и `add-behavior`).
-6. **Используй `useMemo`** при создании формы в компоненте; импорты — точно как в секции «Imports» выше.
-7. **Не выдумывай API** — только что есть в Quick Start, FormSchema, и detected ui-kit.
-8. **FormField — две версии.** В detected ui-kit есть **wrapper** `FormField` (импорт `from '@reformer/ui-kit'`, API `<FormField control={form.x} testId="x" />`); в `@reformer/cdk/form-field` есть **compound** `FormField.Root/Label/Control/Error`. Skeleton выше использует **wrapper** из ui-kit. Для disambiguation у `get_symbol_docs` передавай `package: "@reformer/ui-kit"`.
-9. **Deeply nested forms.** Если форма имеет 4+ уровня (например, step-grouped как credit-application), дополни типизацию интерфейсов `extends FormFields` (или `[key: string]: FormValue` index signature) — иначе `createForm<T>` не примет такой generic. Также используй cast `createForm as (config: { form: unknown; validation: unknown; behavior: unknown }) => FormProxy<T>` чтобы избежать TS2589 на validation/behavior callbacks. Validation/behavior callback annotation: `(path: any) => {...}`. Внутри `applyWhen` — `(p: typeof path) => {...}`.
-10. **FormSchema для массивов = tuple.** Поле-массив описывается как `arrField: [itemSchema]` (tuple с одним template-элементом). НЕ как `{ value: [], itemSchema: {...} }` (silent corruption).
-11. **FormArray.AddButton initialValue.** Принимает PLAIN leaf values (не FieldConfig-объекты со `{ value, component }`). Иначе `description` рендерится как `[object Object]`. Template factory должна вернуть `{ type: 'apartment', estimatedValue: 0, ... }` без обёрток.
-12. **Conditional поля → hide, не disable.** Поле, которое не имеет смысла для текущего контекста (mortgage-only при loanType=consumer; auto-only; business-only employment) должно **исчезать из DOM**, а не оставаться видимым серым. Используй JSX-conditional (`{loanType === 'mortgage' && <FormField .../>}`) для target=core, `hideWhen` / `schema.node().setHidden(...)` для renderer-react, `setHidden` из `useEffect` для renderer-json. `enableWhen` оставь только для прогрессивного раскрытия (`confirmPassword` после ввода `password`).
-13. **Spec compliance — literal.** Используй спеку как контракт: КАЖДОЕ поле спеки = отдельное поле в FormSchema с тем же именем. НЕ объединять (`carBrand` + `carModel` ≠ одно `carModelBrand`), НЕ пропускать (`gender`, `birthPlace`, `snils` etc), НЕ переносить между шагами (`hasProperty` живёт в step5, не в step4). Если поле `parent.child` в спеке — пиши `parent: { child: {...} }` в схеме (не `parent_child`).
-14. **testId convention — dotted-path.** Передавай `testId` как путь по структуре: `<FormField testId="step1.loanAmount" />`, `<FormField testId="step2.passportData.series" />`. НЕ просто leaf name (`testId="loanAmount"`) — collisions неизбежны при дублирующихся именах в разных шагах. Это критично для тестов и автоматизации.
-15. **User-facing strings — из спеки, не выдумывать.** Все label, placeholder, error message бери из спеки или родного языка пользователя. НЕ оставлять дефолтные английские placeholder типа `"Select an option..."` (Radix Select default). НЕ изобретать единицы — `(₽)` для денег, `(месяцев)` (полное слово) для сроков, единый стиль на всех страницах.
-16. **`required(...)` ВСЕГДА с `{ message: '...' }`.** Без message пользователь видит дефолтное `"Поле обязательно для заполнения"` — невозможно понять, какое поле где. Пиши осмысленный текст: `required(path.step1.loanAmount, { message: 'Введите сумму кредита' })`.
-17. **`Select` / `RadioGroup` — `options` ОБЯЗАТЕЛЬНО на уровне `createForm` componentProps.** Без `options` runtime падает: `TypeError: t.map is not a function` (RadioGroup) или показывается пустой dropdown (Select). Это правило критично для **renderer-json**: JSON-уровень `componentProps: { options: 'LOAN_TYPES' }` НЕ пробрасывается в input (renderer берёт `state.componentProps` из FieldNode, не из JSON-ноды). Если поле — `Select`/`RadioGroup`, опции должны быть в `createForm({ ..., loanType: { value: 'consumer', component: Select, componentProps: { label: 'Тип', options: LOAN_TYPES, placeholder: 'Выберите тип' } } })`. JSON может **дублировать** `options` для документации, но source-of-truth — schema. Импортируй массивы options из `registry.tsx` или общего файла, чтобы переиспользовать без дублирования.
-
-## Финальный чек-лист (включи в ответ ОБЯЗАТЕЛЬНО)
-
-1. ✅ Использовал ui-kit + Tailwind (detected stack), не plain HTML.
-2. ✅ Структура form: `step1, step2, ..., step6` точно по спеке (если форма step-grouped).
-3. ✅ Все поля спеки включены — пройдись по списку и проверь по галочке. Если что-то пропущено — обоснуй.
-4. ✅ FieldConfig полностью: `{ value, component, componentProps }` для каждого поля.
-5. ✅ Conditional поля скрыты JSX-conditional / hideWhen / setHidden, НЕ enableWhen-as-disabled.
-6. ✅ testId = dotted-path по структуре schema.
-7. ✅ `required(...)` каждое — с человеческим `{ message }`.
-8. ✅ FormArray template factory возвращает PLAIN leaves (без `component`/`componentProps`).
-9. ✅ Все user-facing strings локализованы и берутся из спеки.
-10. ✅ Все Select/RadioGroup имеют `options` в createForm-level componentProps (не только в JSON для renderer-json).
-
-В конце — явное подтверждение «использовал `@reformer/ui-kit` + Tailwind по detected стеку» (или причину, почему нет).
+- [ ] Прочитал все ресурсы из Prerequisites: yes/no
+- [ ] Used ui-kit + Tailwind from detected stack (not plain HTML)
+- [ ] All spec fields included (walked the list)
+- [ ] FieldConfig complete: `{ value, component, componentProps }` per field
+- [ ] Conditional fields hidden via JSX/`hideWhen`/`setHidden`, NOT `enableWhen`
+- [ ] testId = dotted-path
+- [ ] FormArray template-factory returns PLAIN leaves
+- [ ] User-facing strings localized from spec
+- [ ] `Select`/`RadioGroup` have `options` in `createForm` componentProps
+- [ ] Final note: «использовал `@reformer/ui-kit` + Tailwind по detected стеку» (or reason why not)

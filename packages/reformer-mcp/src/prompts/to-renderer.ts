@@ -1,10 +1,9 @@
-import { getSection, getFullDocs } from '../utils/docs-parser.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 
 export const toRendererPromptDefinition = {
   name: 'to-renderer',
   description:
-    'Мигрировать форму с прямого React-рендеринга (@reformer/core + ручной JSX) на декларативный TS RenderSchema (@reformer/renderer-react). Подгружает quick-start, RenderSchema формат, behavior helpers и cookbook.',
+    'Migrate a form from direct React rendering (@reformer/core + manual JSX) to declarative TS RenderSchema (@reformer/renderer-react). Slim+ prompt — quick-start / RenderSchema reference / cookbook live in MCP resources.',
   arguments: [
     {
       name: 'code',
@@ -18,24 +17,8 @@ export const toRendererPromptDefinition = {
 export function getToRendererPrompt(args: { code: string }): {
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
 } {
-  const rendererDocs = getFullDocs('@reformer/renderer-react');
-  const cookbookIdx = rendererDocs.indexOf('Cookbook');
-  const cookbookBlock = cookbookIdx >= 0 ? rendererDocs.slice(cookbookIdx, cookbookIdx + 4000) : '';
-
-  const text = renderPromptTemplate('to-renderer', {
-    code: args.code,
-    quickStart: getSection('Quick Start', '@reformer/renderer-react'),
-    renderSchema: getSection('Render Schema', '@reformer/renderer-react'),
-    renderBehavior: getSection('Render Behavior', '@reformer/renderer-react'),
-    cookbookBlock,
-  });
-
+  const text = renderPromptTemplate('to-renderer', { code: args.code });
   return {
-    messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text },
-      },
-    ],
+    messages: [{ role: 'user', content: { type: 'text', text } }],
   };
 }

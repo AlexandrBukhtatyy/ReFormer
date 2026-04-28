@@ -61,6 +61,11 @@ const cases = [
   ],
   ['to-renderer', mod.getToRendererPrompt, { code: FIXTURES.code }],
   ['to-renderer-json', mod.getToRendererJsonPrompt, { code: FIXTURES.code }],
+  [
+    'discover-context',
+    mod.getDiscoverContextPrompt,
+    { description: FIXTURES.description, projectPath: repoRoot },
+  ],
 ];
 
 let failures = 0;
@@ -71,7 +76,7 @@ for (const [name, fn, args] of cases) {
     continue;
   }
   try {
-    const result = fn(args);
+    const result = await fn(args);
     const text = result?.messages?.[0]?.content?.text;
     if (typeof text !== 'string') {
       console.error(`[snapshot] "${name}" returned non-string text`);

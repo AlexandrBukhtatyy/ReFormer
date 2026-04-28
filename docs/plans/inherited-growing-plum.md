@@ -1,138 +1,221 @@
-# Вынос текстов MCP prompts в .md + Handlebars
+# Resources fine-grained + slim prompts + sampling в reformer-mcp
 
 ## Context
 
-В `packages/reformer-mcp/src/prompts/` сейчас 11 модулей, каждый содержит большой template literal (от ~80 до ~450 строк) прямо в TS-коде. Это мешает редактированию (нет markdown-подсветки, IDE-preview, prettier), плохо diff-ится и смешивает «контент» (тело prompt'а) с «логикой» (вычисление аргументов, построение блоков, регистрация в MCP).
+Сейчас prompts инжектят 50–60 KB справочного llms.txt-материала через
+`getSection()`/`getFullDocs()` в каждое сообщение (`add-behavior` ~28 KB,
+`create-form` ~21 KB). Это раздувает контекст модели тем, что модель уже
+могла знать или подгрузить только при необходимости.
 
-Цель — вынести текстовые тела в отдельные `.md`-файлы с плейсхолдерами и рендерить их через Handlebars. Логика остаётся в TS, шаблоны становятся «глупыми» — просто подстановка переменных.
+Цель — три связанных изменения:
+
+1. **Fine-grained resources** — каждая `## ` секция llms.txt становится
+   отдельным MCP resource. Модель/клиент читает их через
+   `ReadMcpResourceTool` точечно.
+2. **Slim+ prompts** — prompts содержат args + 1-line critical shortlist
+   (имена API + anti-patterns) + блок Prerequisites со списком URIs +
+   output checklist. Все полные code-examples и discussion-style секции
+   уезжают в resources. Размер prompts падает в 5–8x.
+3. **Sampling capability** — сервер использует client LLM для
+   auto-detect target, fallback UI-kit/styling discovery, deep
+   spec-analysis в plan-form, и нового prompt `discover-context`.
+
+Это **breaking change** для resources API → bump до `2.0.0-beta.1`.
 
 ## Решения (зафиксированы)
 
-1. **Scope**: все 11 prompts разом, в одном PR.
-2. **Engine**: Handlebars (`handlebars@^4.7`, типы встроены — `@types/handlebars` не нужен).
-3. **Синтаксис**: `{{name}}` с глобальным `noEscape: true` (контент — markdown/код, HTML-escape вреден).
-4. **Strict mode**: `Handlebars.compile(..., { strict: true })` + наша pre-validation — опечатки в плейсхолдерах падают сразу, а не превращаются в пустую строку.
-5. **Расположение**: `src/prompts/templates/<prompt-name>.md` рядом с TS-модулями.
-6. **Build**: `tsc` + новый node-скрипт `scripts/copy-templates.mjs` (zero deps), копирующий `.md` в `dist/`. `tsup` не вводим — слишком большое изменение build-chain.
-7. **Логика остаётся в TS**: `${getSection(...)}`, `${getFullDocs(...)}`, тернарные блоки (`stackBlock`, `rendererBlock`) — всё вычисляется на TS-стороне как готовые строки, передаётся в Handlebars как переменные. Никаких `{{#if}}` в шаблонах.
+| Решение | Выбор |
+|---|---|
+| Гранулярность resources | Fine-grained (1 ресурс = 1 секция llms.txt) |
+| Стратегия prompts | Slim+ (args + 1-line shortlist + Prerequisites + checklist) |
+| Sampling use cases | Auto-detect target, UI-kit fallback, plan-form deep, новый `discover-context` |
+| Versioning | Breaking → удалить legacy URI в этом же релизе, bump 2.0.0-beta.1 |
+| Scope сессии | Все этапы 0–6 |
+
+## URI scheme
+
+- `reformer://docs/<pkg-short>/<section-slug>` — primary (fine-grained).
+- `reformer://docs/<pkg-short>` — aggregator (full llms.txt).
+- **Удаляются**: `reformer://api/*`, `reformer://examples/*`, `reformer://troubleshooting/*`, `reformer://docs` без pkg.
+
+`pkg-short`: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`.
+
+`section-slug`: `slugify(title)` — lowercase, NFKC, не-`[a-z0-9]` → `-`,
+trim/dedupа `-`. Примеры: `## copyFrom` → `copyfrom`,
+`## API SIGNATURES` → `api-signatures`, `## Multi-Step / Wizard` →
+`multi-step-wizard`.
+
+Только level-2 секции (`## `). Level-3 не выносим — иначе 200+ ресурсов.
 
 ## Этапы
 
-### Этап 0. Baseline snapshot (до любых правок)
+### Этап 0. Slugify + listSections (additive в utils)
 
-Цель — иметь референс для diff'а после миграции.
+Файл: [packages/reformer-mcp/src/utils/docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts).
 
-- Временный (не коммитить) скрипт `packages/reformer-mcp/scripts/snapshot-prompts.mjs`: импортирует каждый `get*Prompt` из `dist/prompts/*.js`, вызывает с фиксированными fake-args, пишет `messages[0].content.text` в `.tmp/baseline/<name>.txt`.
-- Запустить после `npm run build`. После Этапа 7 — сравнить с `.tmp/post-migration/`, ожидаем zero diff (или whitespace-only).
+- `slugify(title): string` — pure функция.
+- `interface SectionMeta { title: string; slug: string; level: 2 }`.
+- `listSections(pkg): SectionMeta[]` — парсит llms.txt, возвращает level-2 секции, кеш `sectionsCache: Map<string, SectionMeta[]>`.
+- `getSectionBySlug(pkg, slug): string | null` — exact-matcher (не substring как текущий `getSection`).
+- Юнит-тесты: snapshot всех 5 пакетов × секций → slugs. Unique within pkg.
 
-### Этап 1. Зависимость и build-pipeline
+### Этап 1. Resources — fine-grained
 
-Файлы: [packages/reformer-mcp/package.json](packages/reformer-mcp/package.json), новый [packages/reformer-mcp/scripts/copy-templates.mjs](packages/reformer-mcp/scripts/copy-templates.mjs).
+Файл: [packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts).
 
-- `npm i handlebars@^4.7` в `packages/reformer-mcp` (типы встроены).
-- Новый `scripts/copy-templates.mjs` (~15 строк): `fs.cpSync(src, dst, { recursive: true, filter: f => f.endsWith('.md') })` из `src/prompts/templates/` → `dist/prompts/templates/`. Стиль повторяет существующий `scripts/generate-llms-txt`.
-- `package.json.scripts.build`: `"npm run generate:llms && tsc && node scripts/copy-templates.mjs"`.
-- `package.json.scripts.dev`: оставить `tsc --watch`. Loader (Этап 2) читает из `src/` как fallback — dev-режим не требует копирования.
-- `files: ["dist", "README.md"]` — без изменений; `.md` поедут внутри `dist/`.
+- В `ListResourcesRequestSchema`-handler: для каждого пакета — 1 aggregator + N section-resources. Description = первые ~120 chars после header.
+- В `ReadResourceRequestSchema`-handler: regex `^reformer:\/\/docs\/([^/]+)(?:\/(.+))?$` — `(short, undefined)` → `getFullDocs`, `(short, slug)` → `getSectionBySlug`. Unknown slug → throw с диагностикой `Available: ...`.
+- **Удаление**: legacy URI patterns (`api/`, `examples/`, `troubleshooting/`). `RESOURCE_CATEGORIES` устаревает, заменяется на новую логику.
+- README + CHANGELOG: breaking-change запись.
 
-### Этап 2. Loader / Renderer
+### Этап 2. Async prompt handlers
 
-Новый файл: [packages/reformer-mcp/src/utils/prompt-template-loader.ts](packages/reformer-mcp/src/utils/prompt-template-loader.ts).
+Файл: [packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts) + все 10 prompt-модулей.
 
-API: `renderPromptTemplate(name: string, vars: Record<string, unknown>): string`.
+- В `GetPromptRequestSchema`-handler — `await` каждого `get*Prompt(args)`.
+- Сигнатура каждого `get*Prompt(args): Promise<{ messages: ... }>`. Нужно для sampling use cases (см. Этап 5).
 
-Поведение:
-- Path-resolution мирроит [packages/reformer-mcp/src/utils/docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts) — три кандидата:
-  1. `__dirname + '../prompts/templates/<name>.md'` — runtime в `dist/`
-  2. `__dirname + '../../src/prompts/templates/<name>.md'` — monorepo dev (`tsc --watch`)
-  3. `process.cwd() + '/packages/reformer-mcp/src/prompts/templates/<name>.md'` — cwd fallback
-- Два кеша: raw text (`Map<string, string>`) и compiled `Handlebars.TemplateDelegate`.
-- Compile options: `{ noEscape: true, strict: true }`.
-- Pre-validation: regex-скан шаблона на `{{ ([\w.]+) }}` и `{{{ … }}}`, пересечение с `Object.keys(vars)`, `throw` со списком пропущенных. Belt-and-suspenders: `strict: true` ловит большую часть случаев, но даёт менее читаемое сообщение.
-- Любой throw из Handlebars оборачиваем с контекстом `template=<name>`.
+### Этап 3. Slim+ prompts (10 шаблонов + TS-модули)
 
-### Этап 3. Папка шаблонов и нэйминг
+Файлы: [packages/reformer-mcp/src/prompts/templates/*.md](packages/reformer-mcp/src/prompts/templates/) + [packages/reformer-mcp/src/prompts/*.ts](packages/reformer-mcp/src/prompts/).
 
-Новая директория: `packages/reformer-mcp/src/prompts/templates/`.
+Структура каждого slim+ template:
 
-10 файлов 1:1 с `*PromptDefinition.name` (kebab-case): `create-form.md`, `add-validation.md`, `add-behavior.md`, `add-form-array.md`, `add-wizard.md`, `plan-form.md`, `review.md`, `to-renderer.md`, `to-renderer-json.md`, `debug.md`. (`index.ts` — без шаблона.)
+```markdown
+## Args
+- description: {{description}}
+- requirements: {{requirements}}
 
-### Этап 4. Миграция 11 prompts (канонический пример — `create-form`)
+## Critical inline rules
+<5–10 строк: имена API + сигнатуры + 1-line anti-patterns,
+которые модель чаще всего галлюцинирует>
 
-Рецепт на каждый файл:
+## Prerequisites — read these resources via ReadMcpResourceTool
+**You MUST read these BEFORE writing code. Skipping = incorrect output.**
+- reformer://docs/core/cycle-detection (КРИТИЧНО)
+- reformer://docs/core/copyfrom
+- ...
 
-1. Создать `templates/<name>.md`, перенести тело строки из `text:`.
-2. Заменить плейсхолдеры:
-   - `${args.description}` → `{{description}}`
-   - `${target}` → `{{target}}` (+ `{{targetLabel}}` если был тернарный helper — вычисляется в TS)
-   - `${stackBlock}`, `${layoutBlock}`, `${rendererBlock}`, `${layoutSection}` → одноимённые `{{…}}`
-3. Все `${getSection(...)}` / `${getFullDocs(...)}` — **остаются в TS**: `const quickStart = getSection(...)` и передаются как `{ quickStart, formSchema, imports, ... }`.
-4. Условные ветки (тернарии для `rendererBlock` от `target` и т.п.) — **полностью в TS**. В шаблон уходит уже готовый фрагмент-строка как одна переменная.
-5. TS-модуль ужимается до: импортов, `*PromptDefinition` (без изменений) и `get<Name>Prompt(args)`, который:
-   - вычисляет derived (`target`, `targetLabel`)
-   - дёргает `detectProjectStack()` / `getSection()` / `getFullDocs()`
-   - собирает vars
-   - возвращает `{ messages: [{ role: 'user', content: { type: 'text', text: renderPromptTemplate('<name>', vars) } }] }`
+## Task
+<инструкция что сделать с args>
 
-Порядок миграции:
-1. `review.md` — самый маленький (86 строк), мало плейсхолдеров. PoC для loader+build.
-2. `create-form.md` — каноничный (все типы плейсхолдеров).
-3. Остальные: `to-renderer`, `to-renderer-json`, `debug`, `add-validation`, `add-behavior`, `add-wizard`, `add-form-array`.
-4. `plan-form.md` **последним** — самый большой (454 строки, наибольший риск).
+## Output checklist
+- [ ] Прочитал все ресурсы из Prerequisites: yes/no
+- [ ] Cycle-prevention rule respected
+- [ ] ...
+```
 
-### Этап 5. Handlebars-коллизии (audit)
+Per-prompt prerequisites таблица:
 
-Риск: литералы `{{` / `}}` в кодовых блоках (Vue/Liquid примеры, JSX, JSON).
+| Prompt | Resources |
+|---|---|
+| add-behavior | core/{compute-vs-watch, cycle-detection, copyfrom, syncfields, resetwhen, transformvalue, revalidatewhen, common-patterns} |
+| add-form-array | core/{arrays, array-operations, array-cleanup}, cdk/{formarray, nested} |
+| create-form | core/{import-patterns, quick-start, formschema-format, common-patterns} + (target-conditional) renderer-react/* или renderer-json/* |
+| add-validation | core/{validation, api-signatures, async, common-mistakes, cross-field} |
+| add-wizard | core/{multi-step}, cdk/{formwizard, wizard-recipes} |
+| to-renderer | renderer-react aggregator + selected sections |
+| to-renderer-json | renderer-json aggregator + selected sections |
+| review | core/{anti-patterns, troubleshooting-faq, react-integration} |
+| debug | core/{troubleshooting-faq, react-integration, api-reference} |
+| plan-form | core/{quick-start, formschema-format}, cdk/{formwizard}, core/{multi-step} (target-conditional) |
 
-- Перед миграцией каждого файла: `grep -n '{{' src/prompts/<name>.ts`.
-- Если хиты есть — оборачивать кодовые блоки в `{{{{raw}}}}…{{{{/raw}}}}` (встроенный raw-block helper Handlebars).
-- Высокий риск: [packages/reformer-mcp/src/prompts/add-form-array.ts](packages/reformer-mcp/src/prompts/add-form-array.ts) (JSX `RendererFormArraySection`), [packages/reformer-mcp/src/prompts/to-renderer.ts](packages/reformer-mcp/src/prompts/to-renderer.ts), [packages/reformer-mcp/src/prompts/to-renderer-json.ts](packages/reformer-mcp/src/prompts/to-renderer-json.ts) (JSON), [packages/reformer-mcp/src/prompts/plan-form.ts](packages/reformer-mcp/src/prompts/plan-form.ts).
+Из TS-модулей удаляются все `getSection()`/`getFullDocs()` вызовы — TS оставляет только сборку args + project-detector + sampling helpers.
 
-`noEscape: true` глобально — HTML-escape не вмешивается, остаются только парсер-коллизии `{{`.
+Размер каждого prompt ≤ 5KB. Snapshot-тест жёстко проверяет (Этап 6).
 
-### Этап 6. Wiring index.ts
+### Этап 4. Sampling helper
 
-[packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts) и [packages/reformer-mcp/src/prompts/index.ts](packages/reformer-mcp/src/prompts/index.ts) — **без изменений**. Сигнатуры геттеров и `*PromptDefinition` сохраняются, `ListPromptsRequestSchema` / `GetPromptRequestSchema` switch'и работают как есть.
+Новый файл: [packages/reformer-mcp/src/utils/sampling.ts](packages/reformer-mcp/src/utils/sampling.ts).
+
+```typescript
+export interface SamplingRequest {
+  systemPrompt?: string;
+  userPrompt: string;
+  maxTokens?: number;
+  modelHint?: string;
+  intelligencePriority?: number;
+}
+
+export type SamplingResult =
+  | { ok: true; text: string }
+  | { ok: false; reason: 'unsupported' | 'error'; error?: unknown };
+
+export async function requestSampling(server: Server, req: SamplingRequest): Promise<SamplingResult>;
+export function isSamplingSupported(server: Server): boolean;
+```
+
+- Defaults: `modelHint='claude-3-5-sonnet'`, `maxTokens=512`, `intelligencePriority=0.7`.
+- `isSamplingSupported`: `server.getClientCapabilities()?.sampling !== undefined`.
+- Любой throw → `{ ok: false, reason: 'unsupported' }` или `'error'`. Логирование в stderr.
+- В [index.ts](packages/reformer-mcp/src/index.ts) `Server` constructor: добавить `sampling: {}` в capabilities.
+
+### Этап 5. Sampling use cases
+
+Файл [packages/reformer-mcp/src/utils/sampling-helpers.ts](packages/reformer-mcp/src/utils/sampling-helpers.ts) (новый):
+
+- `inferTarget(server, { description, stack }): Promise<'core' | 'renderer-react' | 'renderer-json'>` — bias по deps; fallback `core`.
+- `discoverUnknownStack(server, projectRoot): Promise<{ uiKit; styling } | null>` — sampling по `stack.allDependencies`.
+- `deepAnalyzeSpec(server, content, regexResults): Promise<DeepAnalysis | null>` — JSON-output sampling, мердж в `plan-form` template как опциональная секция (Handlebars-блок пустой если null).
+
+Интеграция:
+- [create-form.ts](packages/reformer-mcp/src/prompts/create-form.ts), [plan-form.ts](packages/reformer-mcp/src/prompts/plan-form.ts) — `inferTarget` если `args.target === undefined`.
+- [project-detector.ts](packages/reformer-mcp/src/utils/project-detector.ts) — `renderStackDetectionBlockAsync(stack, server?)` с fallback на legacy MCP-gap-блок.
+- [plan-form.ts](packages/reformer-mcp/src/prompts/plan-form.ts) — `deepAnalyzeSpec` после regex.
+
+### Этап 6. Новый prompt `discover-context`
+
+Новый файл: [packages/reformer-mcp/src/prompts/discover-context.ts](packages/reformer-mcp/src/prompts/discover-context.ts) + [templates/discover-context.md](packages/reformer-mcp/src/prompts/templates/discover-context.md).
+
+- Args: `description` (required), `projectPath` (optional).
+- Поведение: `detectProjectStack` + один batched sampling-запрос (`maxTokens=1024`, `intelligencePriority=0.8`) который просит JSON `{ target, uiKit, styling, validation, async }`.
+- Output: `{ messages: [{ role: 'user', content: { type: 'text', text: <JSON в fenced block + краткая prose-summary> } }] }`.
+- Если `!isSamplingSupported(server)` — возвращает шаблон вопросов «спроси пользователя сам» без sampling-вызова.
+- Регистрация в [src/prompts/index.ts](packages/reformer-mcp/src/prompts/index.ts) и в [src/index.ts](packages/reformer-mcp/src/index.ts) `ListPromptsRequestSchema` + `GetPromptRequestSchema` switch.
 
 ### Этап 7. Verification
 
-1. `npm run build` — должен пройти.
-2. Запустить `scripts/snapshot-prompts.mjs` → `.tmp/post-migration/`.
-3. `diff -r .tmp/baseline .tmp/post-migration` — ZERO diff (или только whitespace; любое содержательное расхождение — расследовать).
-4. `npm run dev` smoke: запустить сервер, прогнать `prompts/list` и `prompts/get` по каждому из 10 имён через MCP inspector. Проверить fallback path #2 (monorepo dev) работает без copy-step.
-5. Проверить — в пакете нет `.test.ts`/`.spec.ts` для prompts (актуально на Этапе 0). Если появились — обновить.
-6. `npm pack --dry-run` — `.md` из `dist/prompts/templates/` попали в tarball.
+- **Unit (slug):** snapshot всех текущих slugs → если кто-то переименует секцию, тест падает.
+- **Unit (sampling helper):** mock `server.createMessage` через jest spy, проверить все 3 ветки `requestSampling` (ok / unsupported / error).
+- **Snapshot prompts:** обновить [scripts/snapshot-prompts.mjs](packages/reformer-mcp/scripts/snapshot-prompts.mjs) — теперь генерирует с `--mock-sampling=fixed-response.json` (детерминированный sampling stub).
+- **Size assertion:** новый `tests/prompts/size.test.ts` — `expect(rendered.length).toBeLessThan(5_000)` для каждого из 10 prompts с baseline-args.
+- **Manual via MCP Inspector:** `npx @modelcontextprotocol/inspector node dist/index.js`:
+  - Resources tab — список ~50–70 ресурсов, чтение 3–4 вручную, проверить slug-resolution.
+  - Prompts tab — `discover-context` с фейковыми args, проверить JSON в output.
+- **Integration smoke:** один полный flow через Claude Desktop (`/create-form` без target → sampling → правильный prompt с relevant prerequisites).
 
 ## Critical files
 
 **Новые:**
-- [packages/reformer-mcp/src/utils/prompt-template-loader.ts](packages/reformer-mcp/src/utils/prompt-template-loader.ts) — loader+renderer
-- [packages/reformer-mcp/scripts/copy-templates.mjs](packages/reformer-mcp/scripts/copy-templates.mjs) — build copy step
-- `packages/reformer-mcp/src/prompts/templates/*.md` — 10 шаблонов
+- [packages/reformer-mcp/src/utils/sampling.ts](packages/reformer-mcp/src/utils/sampling.ts)
+- [packages/reformer-mcp/src/utils/sampling-helpers.ts](packages/reformer-mcp/src/utils/sampling-helpers.ts)
+- [packages/reformer-mcp/src/prompts/discover-context.ts](packages/reformer-mcp/src/prompts/discover-context.ts)
+- [packages/reformer-mcp/src/prompts/templates/discover-context.md](packages/reformer-mcp/src/prompts/templates/discover-context.md)
 
 **Меняются:**
-- [packages/reformer-mcp/package.json](packages/reformer-mcp/package.json) — `+handlebars`, расширенный `scripts.build`
-- [packages/reformer-mcp/src/prompts/create-form.ts](packages/reformer-mcp/src/prompts/create-form.ts) и остальные 9 prompt-модулей — тело геттера ужимается до сбора vars + вызова loader'а
+- [packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts) — capabilities + resources logic + async prompt handlers
+- [packages/reformer-mcp/src/utils/docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts) — slugify + listSections + getSectionBySlug
+- [packages/reformer-mcp/src/utils/project-detector.ts](packages/reformer-mcp/src/utils/project-detector.ts) — async UI-kit fallback
+- 10 prompt-модулей в [packages/reformer-mcp/src/prompts/](packages/reformer-mcp/src/prompts/) — async + удаление getSection
+- 10 шаблонов в [packages/reformer-mcp/src/prompts/templates/](packages/reformer-mcp/src/prompts/templates/) — переписаны как slim+
+- [packages/reformer-mcp/package.json](packages/reformer-mcp/package.json) — bump 2.0.0-beta.1
+- [packages/reformer-mcp/docs/development.md](packages/reformer-mcp/docs/development.md) — обновить под новую архитектуру (resources/sampling)
 
-**Reused (без изменений, как референс):**
-- [packages/reformer-mcp/src/utils/docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts) — паттерн path-resolution + кеш
-- [packages/reformer-mcp/src/utils/project-detector.ts](packages/reformer-mcp/src/utils/project-detector.ts) — поставляет `stackBlock` / `layoutBlock` / `rendererBlock` как готовые строки
-- [packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts) — MCP-регистрация остаётся как есть
-
-## Риски и митигации
+## Риски
 
 | Риск | Митигация |
 |---|---|
-| `{{` в JSX/Vue/JSON-кодовых блоках | grep-audit перед миграцией каждого файла; `{{{{raw}}}}` блоки |
-| Опечатка в имени переменной → пустая строка | `strict: true` + наша pre-validation с явным списком пропущенных |
-| `tsc --watch` не копирует `.md` | loader fallback #2 читает из `src/` напрямую в dev |
-| Drift между TS-геттером и vars шаблона | `strict: true` падает при первом вызове в snapshot-тесте |
-| `+handlebars` ~22KB gzipped | приемлемо, dev-tool, не браузерный bundle |
-| HTML-escape ломает markdown | `noEscape: true` глобально |
-| `.md` не попадают в npm tarball | `dist/` целиком в `files`; проверка через `npm pack --dry-run` |
+| Модель не читает resources | MANDATORY-wording в Prerequisites, slim+ inline shortlist (5-10 строк), self-check «Прочитал ресурсы: yes/no» в output checklist |
+| Sampling latency ~3-10s на batched запрос | `discover-context` — single batched request, не N отдельных |
+| Sampling не поддерживается клиентом | `isSamplingSupported` check + graceful fallback на legacy-paths во всех use cases |
+| Slug-instability при rename секции | Snapshot-тест slugs, любой rename падает CI |
+| Sampling cost (billable у клиента) | `inferTarget` срабатывает только при `args.target === undefined`. `discover-context` opt-in (отдельный prompt). UI-kit fallback только при пустом detect. |
+| 50-70 resources в `/resources` UI шумно | Короткие descriptions ≤100 chars, опциональные emoji-prefix в name (post-M1) |
+| Bump 2.0.0 ломает потребителей | Пакет в beta, активных потребителей кроме внутреннего sub-agent flow нет |
 
 ## Out of scope
 
-- Handlebars helpers/partials — loader остаётся минимальным.
-- Перенос `getSection`/`getFullDocs` в HB-helpers — переинтродуцирует coupling.
-- Шаблонные строки в `project-detector.ts` — отдельная задача, объём небольшой, оставляем inline.
+- Level-3 (`### `) секции как resources — отложено.
+- Stable slug aliases — пока не нужны.
+- Resources `subscriptions` (`resources/subscribe`) — для статичной документации не нужны.
+- Удаление copy-templates.mjs / loader — сохраняется как сейчас (Handlebars + `{{var}}` остаются в slim+ templates).

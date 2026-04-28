@@ -13,16 +13,14 @@ import {
 
 import {
   getFullDocs,
-  getExamples,
-  getTroubleshooting,
+  getSectionBySlug,
+  listSections,
   listAvailablePackages,
-  KNOWN_PACKAGES,
 } from './utils/docs-parser.js';
-import { listSymbols } from './utils/symbols-parser.js';
 
 /**
- * Resolve `reformer://<category>/<pkg-short>` to its full package name.
- * `<pkg-short>` is the part after `@reformer/` ("cdk", "ui-kit", etc.).
+ * Resolve `<pkg-short>` (e.g. "core", "cdk") to its full package name.
+ * Returns null for unknown short names or packages without llms.txt.
  */
 function resolvePackage(short: string): string | null {
   if (!short) return null;
@@ -30,39 +28,8 @@ function resolvePackage(short: string): string | null {
   return listAvailablePackages().includes(full as never) ? full : null;
 }
 
-const RESOURCE_CATEGORIES = ['docs', 'api', 'examples', 'troubleshooting'] as const;
-type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number];
-
-function categoryHandler(category: ResourceCategory, pkg: string | null): string {
-  const target = pkg ?? '*';
-  switch (category) {
-    case 'docs':
-      return pkg ? getFullDocs(pkg) : getFullDocs();
-    case 'api':
-      // List of public symbols (kind + one-line description) extracted from JSDoc.
-      // For aggregated view (no pkg), concat per-package listings.
-      if (pkg) return listSymbols(pkg);
-      return KNOWN_PACKAGES.filter((p) => listAvailablePackages().includes(p))
-        .map((p) => listSymbols(p))
-        .join('\n\n---\n\n');
-    case 'examples':
-      return getExamples(undefined, target);
-    case 'troubleshooting':
-      return getTroubleshooting(target);
-  }
-}
-
-function categoryDisplayName(category: ResourceCategory): string {
-  switch (category) {
-    case 'docs':
-      return 'Documentation';
-    case 'api':
-      return 'Public API Index';
-    case 'examples':
-      return 'Examples';
-    case 'troubleshooting':
-      return 'Troubleshooting';
-  }
+function packageShortName(pkg: string): string {
+  return pkg.replace(/^@reformer\//, '');
 }
 
 // Tools
@@ -99,6 +66,8 @@ import {
   getToRendererPrompt,
   toRendererJsonPromptDefinition,
   getToRendererJsonPrompt,
+  discoverContextPromptDefinition,
+  getDiscoverContextPrompt,
 } from './prompts/index.js';
 
 // Check debug mode
@@ -108,13 +77,14 @@ const isDebugMode = process.env.REFORMER_DEBUG === 'true';
 const server = new Server(
   {
     name: 'reformer-mcp',
-    version: '1.0.0-beta.1',
+    version: '2.0.0-beta.1',
   },
   {
     capabilities: {
       tools: {},
       resources: {},
       prompts: {},
+      sampling: {},
     },
   }
 );
@@ -166,29 +136,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // ==================== RESOURCES ====================
+//
+// URI scheme:
+//   reformer://docs/<pkg-short>             — full llms.txt of one package
+//   reformer://docs/<pkg-short>/<section>   — single level-2 section, by slug
+//
+// Section slugs come from listSections() which parses llms.txt headers and
+// applies slugify(). Slugs are stable as long as section titles don't change
+// upstream. Use ListResources to discover all available URIs at runtime.
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   const resources: Array<{ uri: string; name: string; description: string; mimeType: string }> = [];
 
-  // Aggregated resources (all packages)
-  for (const category of RESOURCE_CATEGORIES) {
+  for (const pkg of listAvailablePackages()) {
+    const short = packageShortName(pkg);
     resources.push({
-      uri: `reformer://${category}`,
-      name: `ReFormer ${categoryDisplayName(category)} (all packages)`,
-      description: `${categoryDisplayName(category)} aggregated across all @reformer/* packages.`,
+      uri: `reformer://docs/${short}`,
+      name: `${pkg} (full docs)`,
+      description: `Full llms.txt for ${pkg} — every section concatenated.`,
       mimeType: 'text/markdown',
     });
-  }
-
-  // Per-package resources
-  const packages = listAvailablePackages();
-  for (const pkg of packages) {
-    const short = pkg.replace(/^@reformer\//, '');
-    for (const category of RESOURCE_CATEGORIES) {
+    for (const section of listSections(pkg)) {
+      const description = section.preview
+        ? section.preview
+        : `Section "${section.title}" of ${pkg}.`;
       resources.push({
-        uri: `reformer://${category}/${short}`,
-        name: `${pkg} ${categoryDisplayName(category)}`,
-        description: `${categoryDisplayName(category)} for ${pkg}.`,
+        uri: `reformer://docs/${short}/${section.slug}`,
+        name: `${pkg}: ${section.title}`,
+        description: description.slice(0, 200),
         mimeType: 'text/markdown',
       });
     }
@@ -224,31 +199,37 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     };
   }
 
-  // Parse reformer://<category>[/<short-package>]
-  const match = uri.match(/^reformer:\/\/([^/]+)(?:\/(.+))?$/);
+  // Parse reformer://docs/<pkg-short>[/<section-slug>]
+  const match = uri.match(/^reformer:\/\/docs\/([^/]+)(?:\/(.+))?$/);
   if (!match) {
-    throw new Error(`Unknown resource: ${uri}`);
+    throw new Error(
+      `Unknown resource: ${uri}. Expected reformer://docs/<package>[/<section-slug>].`
+    );
   }
-  const [, category, short] = match;
-
-  if (!RESOURCE_CATEGORIES.includes(category as ResourceCategory)) {
-    throw new Error(`Unknown resource category: ${category}`);
+  const [, short, slug] = match;
+  const pkg = resolvePackage(short);
+  if (!pkg) {
+    const known = listAvailablePackages()
+      .map((p) => packageShortName(p))
+      .join(', ');
+    throw new Error(`Unknown package "${short}". Available: ${known}.`);
   }
 
-  const pkg = short ? resolvePackage(short) : null;
-  if (short && !pkg) {
-    throw new Error(`Unknown package: @reformer/${short}`);
+  if (!slug) {
+    return {
+      contents: [{ uri, mimeType: 'text/markdown', text: getFullDocs(pkg) }],
+    };
   }
 
-  const text = categoryHandler(category as ResourceCategory, pkg);
+  const text = getSectionBySlug(pkg, slug);
+  if (text === null) {
+    const available = listSections(pkg)
+      .map((s) => s.slug)
+      .join(', ');
+    throw new Error(`Unknown section "${slug}" in ${pkg}. Available: ${available}.`);
+  }
   return {
-    contents: [
-      {
-        uri,
-        mimeType: 'text/markdown',
-        text,
-      },
-    ],
+    contents: [{ uri, mimeType: 'text/markdown', text }],
   };
 });
 
@@ -264,10 +245,12 @@ type AnyPromptDefinition =
   | typeof addFormArrayPromptDefinition
   | typeof addWizardPromptDefinition
   | typeof toRendererPromptDefinition
-  | typeof toRendererJsonPromptDefinition;
+  | typeof toRendererJsonPromptDefinition
+  | typeof discoverContextPromptDefinition;
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
   const prompts: AnyPromptDefinition[] = [
+    discoverContextPromptDefinition,
     reviewPromptDefinition,
     planFormPromptDefinition,
     createFormPromptDefinition,
@@ -292,36 +275,46 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
       if (!isDebugMode) {
         throw new Error(`Unknown prompt: ${name}`);
       }
-      return getDebugPrompt(args as { code: string });
+      return await getDebugPrompt(args as { code: string });
 
     case 'review':
-      return getReviewPrompt(args as { code: string });
+      return await getReviewPrompt(args as { code: string });
 
     case 'plan-form':
-      return getPlanFormPrompt(
-        args as { specPath: string; target?: string; projectPath?: string }
+      return await getPlanFormPrompt(
+        args as { specPath: string; target?: string; projectPath?: string },
+        server
       );
 
     case 'create-form':
-      return getCreateFormPrompt(args as { description: string; target?: string });
+      return await getCreateFormPrompt(
+        args as { description: string; target?: string; projectPath?: string },
+        server
+      );
+
+    case 'discover-context':
+      return await getDiscoverContextPrompt(
+        args as { description: string; projectPath?: string },
+        server
+      );
 
     case 'add-validation':
-      return getAddValidationPrompt(args as { code: string; requirements: string });
+      return await getAddValidationPrompt(args as { code: string; requirements: string });
 
     case 'add-behavior':
-      return getAddBehaviorPrompt(args as { code: string; requirements: string });
+      return await getAddBehaviorPrompt(args as { code: string; requirements: string });
 
     case 'add-form-array':
-      return getAddFormArrayPrompt(args as { code: string; requirements: string });
+      return await getAddFormArrayPrompt(args as { code: string; requirements: string });
 
     case 'add-wizard':
-      return getAddWizardPrompt(args as { code: string; steps: string });
+      return await getAddWizardPrompt(args as { code: string; steps: string });
 
     case 'to-renderer':
-      return getToRendererPrompt(args as { code: string });
+      return await getToRendererPrompt(args as { code: string });
 
     case 'to-renderer-json':
-      return getToRendererJsonPrompt(args as { code: string });
+      return await getToRendererJsonPrompt(args as { code: string });
 
     default:
       throw new Error(`Unknown prompt: ${name}`);

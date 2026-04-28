@@ -3,6 +3,25 @@
 > Сгенерировано MCP-промптом `plan-form` на основе спеки `{{specPathRel}}`.
 > Target stack: **`{{target}}`**.
 
+## 0. Prerequisites — sub-agents МUST read these via ReadMcpResourceTool
+
+Перед стадиями 2–6 (см. roadmap ниже) каждый sub-agent обязан прочитать:
+
+- `reformer://docs/core/quick-start-minimal-working-form`
+- `reformer://docs/core/formschema-format-critically-important`
+- `reformer://docs/core/array-schema-format`
+- `reformer://docs/core/multi-step-form-validation`
+- `reformer://docs/core/cycle-detection-prevention-checklist` (КРИТИЧНО для стадии Behaviors)
+- `reformer://docs/core/common-patterns`
+- `reformer://docs/core/common-mistakes`
+- `reformer://docs/core/extended-common-mistakes`
+- `reformer://docs/cdk/formwizard-indicator`
+- `reformer://docs/cdk/formwizard-actions`
+- `reformer://docs/cdk/formarrayhandle-api`
+{{rendererPrereqs}}
+
+Без этого sub-agent работает вслепую — рискует cycle-prevention нарушением, plain-leaf corruption, неверными импортами.
+
 ## 1. Анализ спеки
 
 - **Структура:** {{stepsLine}}
@@ -18,6 +37,8 @@
 ## 2. Detected стек
 
 {{stackBlock}}
+
+{{deepAnalysisBlock}}
 
 ## 3. Этапы разработки (sub-agent roadmap)
 

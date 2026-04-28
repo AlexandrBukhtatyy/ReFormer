@@ -172,6 +172,84 @@ export async function myTool() {
 2. Export from `src/tools/index.ts`
 3. Register in `src/index.ts`
 
+## Resources & Sampling Architecture (2.0)
+
+Starting in `2.0.0-beta.1` the server uses a **fine-grained resource model**
+plus **sampling** to keep prompt messages small.
+
+### Fine-grained resources
+
+Every level-2 section (`## `) of every package's `llms.txt` is exposed as
+its own MCP resource:
+
+- `reformer://docs/<pkg-short>` — full `llms.txt` for one package (aggregator).
+- `reformer://docs/<pkg-short>/<section-slug>` — single section.
+
+Where `<pkg-short>` ∈ `{core, cdk, ui-kit, renderer-react, renderer-json}`
+and `<section-slug>` is `slugify(title)` after stripping leading numeric
+prefixes (`## 1. Foo` → slug `foo`).
+
+`resources/list` is generated at runtime from `listSections()` —
+~213 resources total (208 sections + 5 aggregators). Use the MCP Inspector's
+Resources tab to browse the catalogue.
+
+### Slim+ prompts
+
+Prompt messages contain only:
+
+- args (description, code, requirements, …);
+- a 5–10 line **Critical inline rules** block — API names + signatures the
+  model commonly hallucinates, plus 1-line anti-patterns;
+- a **Prerequisites** block — list of resource URIs the model MUST read via
+  `ReadMcpResourceTool` before writing code;
+- the task and output checklist.
+
+Full code examples, discussion-style sections, and behavior-recipe deep-dives
+live in resources, not in the prompt. Compression vs the 1.x format: between
+**2× and 7×** depending on the prompt (`add-behavior` is the largest win:
+28 KB → 4 KB).
+
+### Sampling capability
+
+The server declares `sampling: {}` and uses it in four places:
+
+| Where | When it fires | Purpose |
+|---|---|---|
+| `create-form`, `plan-form` | `args.target` is missing | classify `core` / `renderer-react` / `renderer-json` from description + deps |
+| `project-detector.renderStackDetectionBlockAsync` | `projectRoot` found but no `@reformer/ui-kit` and no Tailwind | guess UI library + styling system from `package.json` deps |
+| `plan-form` | always (when sampling supported) | extract complex spec patterns the regex parser misses (cross-step cascades, conditional groups, hidden steps) |
+| `discover-context` prompt | always | one batched call returning a JSON `{ target, uiKit, styling, validation, async }` recommendation |
+
+Each call routes through `requestSampling()` in
+[src/utils/sampling.ts](../src/utils/sampling.ts) which:
+
+1. Checks `isSamplingSupported(server)` via `getClientCapabilities()`.
+2. Calls `server.createMessage(...)` with sane defaults
+   (`claude-3-5-sonnet`, 512 tokens, intelligencePriority 0.7).
+3. Returns a discriminated-union result so callers must handle
+   `{ ok: false, reason }` explicitly — graceful degradation is the rule,
+   never a thrown exception.
+
+When the client doesn't support sampling, every call falls back to
+deterministic logic — `inferTarget` returns the first detected renderer
+(or `'core'`), `discoverUnknownStack` returns `null`, `deepAnalyzeSpec`
+returns `null` (and the corresponding template block is empty).
+
+### Snapshot-based regression check
+
+`scripts/snapshot-prompts.mjs` writes the rendered output of every prompt
+to `.tmp/<dir>/<name>.txt` (without MCP-client sampling, so it always uses
+the deterministic fallback path). Use it to compare two states:
+
+```bash
+npm run build
+node packages/reformer-mcp/scripts/snapshot-prompts.mjs .tmp/before
+# … make changes …
+npm run build
+node packages/reformer-mcp/scripts/snapshot-prompts.mjs .tmp/after
+diff -r .tmp/before .tmp/after
+```
+
 ## Adding a New Prompt
 
 Prompts are split into two files: a TypeScript module that holds the

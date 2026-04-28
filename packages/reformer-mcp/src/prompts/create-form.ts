@@ -1,15 +1,16 @@
-import { getSection } from '../utils/docs-parser.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   detectProjectStack,
-  renderStackDetectionBlock,
+  renderStackDetectionBlockAsync,
   renderLayoutSkeletonBlock,
 } from '../utils/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
+import { inferTarget } from '../utils/sampling-helpers.js';
 
 export const createFormPromptDefinition = {
   name: 'create-form',
   description:
-    'Создать форму на @reformer/* по текстовому описанию полей. Подгружает quick-start, импорты и формат FormSchema из @reformer/core, а при target=renderer-react/renderer-json — соответствующий обвязочный пакет. Авто-детектит @reformer/ui-kit и Tailwind в package.json рабочего проекта и рекомендует layout-skeleton при detected стеке.',
+    'Create a form on @reformer/* from a textual description. Slim+ prompt — points the model at MCP resources for full FormSchema/Quick-Start/imports references; only critical inline rules and the auto-detected stack block stay in the message body.',
   arguments: [
     {
       name: 'description',
@@ -26,7 +27,7 @@ export const createFormPromptDefinition = {
     {
       name: 'projectPath',
       description:
-        'Абсолютный или относительный путь к каталогу проекта, чей `package.json` нужно использовать для auto-detection (UI kit + Tailwind). По умолчанию — `process.cwd()` MCP-сервера. В монорепо передавай путь конкретного приложения, иначе detector найдёт корневой package.json без app-deps.',
+        'Абсолютный или относительный путь к каталогу проекта, чей `package.json` нужно использовать для auto-detection (UI kit + Tailwind). По умолчанию — `process.cwd()` MCP-сервера.',
       required: false,
     },
   ],
@@ -38,29 +39,51 @@ function targetLabelFor(target: string): string {
   return '(@reformer/renderer-json + JSON-схема + Registry)';
 }
 
-function buildRendererBlock(target: string): string {
+function rendererPrereqsFor(target: string): string {
   if (target === 'renderer-react') {
-    return `\n\n## RenderSchema (TS)\n\n${getSection('Quick Start', '@reformer/renderer-react')}\n\n${getSection('Render Schema', '@reformer/renderer-react')}`;
+    return [
+      '- `reformer://docs/renderer-react/quick-start`',
+      '- `reformer://docs/renderer-react/key-concepts`',
+      '- `reformer://docs/renderer-react/components-and-exports`',
+      '- `reformer://docs/renderer-react/programmatic-api`',
+      '- `reformer://docs/renderer-react/anti-patterns`',
+    ].join('\n');
   }
   if (target === 'renderer-json') {
-    return `\n\n## JSON Schema\n\n${getSection('Quick Start', '@reformer/renderer-json')}\n\n${getSection('JSON Schema', '@reformer/renderer-json')}\n\n## Registry\n\n${getSection('Component Registry', '@reformer/renderer-json')}`;
+    return [
+      '- `reformer://docs/renderer-json/quick-start`',
+      '- `reformer://docs/renderer-json/key-concepts`',
+      '- `reformer://docs/renderer-json/components-and-exports`',
+      '- `reformer://docs/renderer-json/builder-api`',
+      '- `reformer://docs/renderer-json/template-template-arrays`',
+      '- `reformer://docs/renderer-json/source`',
+      '- `reformer://docs/renderer-json/control`',
+      '- `reformer://docs/renderer-json/anti-patterns`',
+    ].join('\n');
   }
   return '';
 }
 
-export function getCreateFormPrompt(args: {
-  description: string;
-  target?: string;
-  projectPath?: string;
-}): {
+export async function getCreateFormPrompt(
+  args: { description: string; target?: string; projectPath?: string },
+  server?: Server
+): Promise<{
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
-} {
-  const target = (args.target ?? 'core').toLowerCase();
-
+}> {
   const stack = detectProjectStack(args.projectPath);
-  const stackBlock = renderStackDetectionBlock(stack);
+
+  // Auto-detect target via sampling only if caller didn't pin it.
+  const target = args.target
+    ? args.target.toLowerCase()
+    : server
+      ? await inferTarget(server, { description: args.description, stack })
+      : 'core';
+
+  const stackBlock = await renderStackDetectionBlockAsync(stack, server);
   const layoutBlock = renderLayoutSkeletonBlock(stack, target);
-  const layoutSection = layoutBlock ? `\n\n## Layout & Visual density\n\n${layoutBlock}` : '';
+  const layoutSection = layoutBlock
+    ? layoutBlock
+    : '_No layout skeleton — ui-kit/Tailwind not detected. Once you confirm the styling system with the orchestrator, follow Tailwind utility classes (`grid grid-cols-2 gap-4`, `space-y-4`, `bg-white border rounded-xl shadow-sm p-6`)._';
 
   const text = renderPromptTemplate('create-form', {
     target,
@@ -68,19 +91,10 @@ export function getCreateFormPrompt(args: {
     description: args.description,
     stackBlock,
     layoutSection,
-    imports: getSection('Import Patterns', '@reformer/core'),
-    quickStart: getSection('Quick Start', '@reformer/core'),
-    formSchema: getSection('FormSchema', '@reformer/core'),
-    commonPatterns: getSection('Common Patterns', '@reformer/core'),
-    rendererBlock: buildRendererBlock(target),
+    rendererPrereqs: rendererPrereqsFor(target),
   });
 
   return {
-    messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text },
-      },
-    ],
+    messages: [{ role: 'user', content: { type: 'text', text } }],
   };
 }

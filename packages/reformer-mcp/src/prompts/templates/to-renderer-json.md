@@ -1,44 +1,58 @@
-Ты мигрируешь форму с `@reformer/renderer-react` (TS RenderSchema) на `@reformer/renderer-json` (JSON-схема + Registry).
+You migrate a form from `@reformer/renderer-react` (TS RenderSchema) to `@reformer/renderer-json` (JSON schema + Registry).
 
-## Текущий TS-код
+## Current TS code
+
 ```typescript
 {{code}}
 ```
 
-## Формат JsonFormSchema / JsonNode
+## Critical inline rules
 
-{{jsonSchemaFormat}}
+- **Field node**: `{ component: path.email }` → `{ model: 'email', component: 'Input' }`.
+- **Box container**: `{ component: Box, componentProps: { children: [...] } }` → `{ component: 'Box', children: [...] }` (children OUTSIDE componentProps).
+- **Section container**: `{ component: Section, componentProps: { title, children: [...] } }` → `{ component: 'Section', componentProps: { title }, children: [...] }`.
+- **Registry** via `defineRegistry`: every component name in JSON MUST be registered as `reg.field`/`reg.container`. `FIELD_WRAPPER` MUST be set.
+- **Constants** (LOAN_TYPES, GENDERS) via `reg.source('LOAN_TYPES', LOAN_TYPES)`; in JSON reference by string `{ options: 'LOAN_TYPES' }`. Never inline arrays in JSON.
+- **Item-label functions** via `reg.source('LABEL_FN', fn)`.
+- **Arrays via `$template`**: `{ component: 'PropertyArray', componentProps: { itemComponent: { $template: { ... } } } }`. Inside template selectors omit parent prefix.
+- **Behavior does NOT migrate to JSON** — stays a TS function `RenderBehaviorFn<T>` applied to the final `RenderSchemaProxy` (apply after `createRenderSchemaFromJson` + `createRenderSchema`).
+- **`control` prop** (e.g. for `RendererFormArraySection`): `{ control: 'fieldName' }` — string FieldPath. Array indices in `control` not supported.
+- **`version: '1.0'`** is required.
 
-## Registry (defineRegistry, FIELD_WRAPPER, source values)
+## Prerequisites — read these resources via ReadMcpResourceTool
 
-{{registry}}
+**You MUST read these BEFORE writing JSON. Skipping = unregistered components / wrong shape.**
 
-## Migration cookbook (TS RenderSchema → JSON)
+- `reformer://docs/renderer-json/quick-start`
+- `reformer://docs/renderer-json/key-concepts`
+- `reformer://docs/renderer-json/components-and-exports`
+- `reformer://docs/renderer-json/key-concepts-2`
+- `reformer://docs/renderer-json/key-concepts-3`
+- `reformer://docs/renderer-json/builder-api`
+- `reformer://docs/renderer-json/template-template-arrays`
+- `reformer://docs/renderer-json/source`
+- `reformer://docs/renderer-json/control`
+- `reformer://docs/renderer-json/migration-from-ts-renderschema`
+- `reformer://docs/renderer-json/anti-patterns`
 
-{{migrationBlock}}
+## Task
 
----
+1. Convert TS RenderSchema into `JsonFormSchema`.
+2. Fill the registry (components + sources + FIELD_WRAPPER).
+3. Migrate arrays via `$template` + `RendererFormArraySection`.
+4. Keep behavior as TS — apply to proxy after `createRenderSchemaFromJson` + `createRenderSchema`.
+5. Add `version: '1.0'`.
+6. Final list: which components must be registered.
 
-## Задание
+## Output checklist
 
-1. **Преврати TS RenderSchema в JsonFormSchema:**
-   - `{ component: path.email }` → `{ model: 'email', component: 'Input' }`
-   - `{ component: Box, componentProps: { children: [...] } }` → `{ component: 'Box', children: [...] }` (children вне componentProps)
-   - `{ component: Section, componentProps: { title: '...', children: [...] } }` → `{ component: 'Section', componentProps: { title: '...' }, children: [...] }`
-2. **Заполни Registry** через `defineRegistry`:
-   - все используемые UI-компоненты как `reg.field('Input', Input)` / `reg.container('Box', Box)`
-   - `FIELD_WRAPPER` — обязательно
-   - константы options (LOAN_TYPES, GENDERS) — как `reg.source('LOAN_TYPES', LOAN_TYPES)`, в схеме ссылка строкой `{ options: 'LOAN_TYPES' }`
-   - функции-итем-лейблы — как source-функции
-3. **Массивы — через `$template`**: `{ component: 'PropertyArray', componentProps: { itemComponent: { $template: { ... } } } }`. Внутри template selector — без префикса родителя.
-4. **Behavior НЕ переезжает в JSON** — оно остаётся TS-функцией `RenderBehaviorFn<T>` и применяется к финальной `RenderSchemaProxy`:
-   ```tsx
-   const fn = createRenderSchemaFromJson<T>(jsonSchema, registry);
-   const proxy = createRenderSchema<T>(fn);
-   myBehavior(proxy);  // hideWhen, patchProps, lifecycle
-   <FormRenderer render={proxy} />
-   ```
-5. **Control-пропсы** (`{ control: 'fieldName' }`) — для передачи FieldPathNode в компоненты типа `RendererFormArraySection`. Ограничение: индексы массива в control нельзя.
-6. **Versioning** — `version: '1.0'` обязательно.
-
-В конце — короткий чек-лист «schema / registry / behavior / risks» и список компонентов, которые надо зарегистрировать.
+- [ ] Прочитал все ресурсы из Prerequisites: yes/no
+- [ ] All component names in JSON registered in `defineRegistry`
+- [ ] `FIELD_WRAPPER` set
+- [ ] Constants moved to `reg.source` (no inline arrays in JSON)
+- [ ] Box children OUTSIDE componentProps
+- [ ] Section children OUTSIDE componentProps
+- [ ] Arrays use `$template`
+- [ ] Behavior stays TS, applied to proxy
+- [ ] `version: '1.0'` present
+- [ ] Components-to-register list at end

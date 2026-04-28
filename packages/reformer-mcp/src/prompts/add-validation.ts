@@ -1,10 +1,9 @@
-import { getSection } from '../utils/docs-parser.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 
 export const addValidationPromptDefinition = {
   name: 'add-validation',
   description:
-    'Добавить валидаторы (built-in или кастомные, sync/async, cross-field) к существующей форме @reformer/core. Подгружает справочник валидаторов, async-watchfield и common-mistakes.',
+    'Add validators (built-in or custom, sync/async, cross-field) to an existing @reformer/core form. Slim+ prompt — points the model at MCP resources for full reference; only critical inline rules are kept in the message body.',
   arguments: [
     {
       name: 'code',
@@ -26,19 +25,8 @@ export function getAddValidationPrompt(args: { code: string; requirements: strin
   const text = renderPromptTemplate('add-validation', {
     code: args.code,
     requirements: args.requirements,
-    validators: getSection('Validation', '@reformer/core'),
-    apiSignatures: getSection('API SIGNATURES', '@reformer/core'),
-    asyncWatch: getSection('Async', '@reformer/core'),
-    commonMistakes: getSection('Common Mistakes', '@reformer/core'),
-    crossField: getSection('Cross', '@reformer/core'),
   });
-
   return {
-    messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text },
-      },
-    ],
+    messages: [{ role: 'user', content: { type: 'text', text } }],
   };
 }

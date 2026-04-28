@@ -1,6 +1,6 @@
 {
   "name": "@reformer/mcp",
-  "version": "1.0.0-beta.1",
+  "version": "2.0.0-beta.1",
   "description": "MCP server for ReFormer form library - provides AI assistants with comprehensive documentation and tools for form development",
   "type": "module",
   "main": "./dist/index.js",

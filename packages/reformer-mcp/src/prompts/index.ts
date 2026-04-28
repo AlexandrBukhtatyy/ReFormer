@@ -8,3 +8,4 @@ export { addFormArrayPromptDefinition, getAddFormArrayPrompt } from './add-form-
 export { addWizardPromptDefinition, getAddWizardPrompt } from './add-wizard.js';
 export { toRendererPromptDefinition, getToRendererPrompt } from './to-renderer.js';
 export { toRendererJsonPromptDefinition, getToRendererJsonPrompt } from './to-renderer-json.js';
+export { discoverContextPromptDefinition, getDiscoverContextPrompt } from './discover-context.js';

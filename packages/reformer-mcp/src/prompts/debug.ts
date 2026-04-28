@@ -1,10 +1,9 @@
-import { getTroubleshooting, getSection } from '../utils/docs-parser.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 
 export const debugPromptDefinition = {
   name: 'debug',
   description:
-    'Help debug issues with a ReFormer form. Analyzes code and provides solutions for common problems.',
+    'Help debug issues with a ReFormer form. Slim+ prompt — surfaces the most-common bug shortlist inline and points the model at MCP resources for the full troubleshooting/FAQ sections.',
   arguments: [
     {
       name: 'code',
@@ -17,19 +16,8 @@ export const debugPromptDefinition = {
 export function getDebugPrompt(args: { code: string }): {
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
 } {
-  const text = renderPromptTemplate('debug', {
-    code: args.code,
-    faq: getTroubleshooting(),
-    reactIntegration: getSection('React Integration'),
-    apiReference: getSection('API Reference'),
-  });
-
+  const text = renderPromptTemplate('debug', { code: args.code });
   return {
-    messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text },
-      },
-    ],
+    messages: [{ role: 'user', content: { type: 'text', text } }],
   };
 }

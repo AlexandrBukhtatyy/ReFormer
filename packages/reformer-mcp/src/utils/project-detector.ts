@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname, join } from 'path';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { discoverUnknownStack } from './sampling-helpers.js';
 
 export interface ProjectStack {
   /** Absolute path to the resolved project package.json (or null if not found). */
@@ -259,7 +261,7 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push("    title: 'Шаг 1. Параметры кредита',");
     lines.push("    titleAs: 'h2',");
     lines.push("    titleClassName: 'text-xl font-bold mb-4 text-gray-900',");
-    lines.push("    // ВАЖНО: card wrap, не просто space-y-4 — иначе секция выглядит дёшево");
+    lines.push('    // ВАЖНО: card wrap, не просто space-y-4 — иначе секция выглядит дёшево');
     lines.push("    className: 'space-y-4 bg-white border rounded-xl shadow-sm p-6',");
     lines.push('  },');
     lines.push('  children: [');
@@ -291,14 +293,10 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
       '  <h2 className="text-xl font-bold mb-4 text-gray-900">Шаг 1. Параметры кредита</h2>'
     );
     lines.push('  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">');
-    lines.push(
-      '    <FormField control={form.step1.loanAmount} testId="step1.loanAmount" />'
-    );
+    lines.push('    <FormField control={form.step1.loanAmount} testId="step1.loanAmount" />');
     lines.push('    <FormField control={form.step1.loanTerm} testId="step1.loanTerm" />');
     lines.push('  </div>');
-    lines.push(
-      '  <FormField control={form.step1.loanPurpose} testId="step1.loanPurpose" />'
-    );
+    lines.push('  <FormField control={form.step1.loanPurpose} testId="step1.loanPurpose" />');
     lines.push('</section>');
     lines.push('```');
     lines.push('');
@@ -316,7 +314,9 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
   lines.push('');
   lines.push('**Step indicator с иконками + dashes (lucide-react):**');
   lines.push('```tsx');
-  lines.push("import { Coins, User, Phone, Briefcase, FileText, CheckSquare } from 'lucide-react';");
+  lines.push(
+    "import { Coins, User, Phone, Briefcase, FileText, CheckSquare } from 'lucide-react';"
+  );
   lines.push('');
   lines.push('const STEP_META = [');
   lines.push("  { n: 1, label: 'Кредит', icon: Coins },");
@@ -356,5 +356,52 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     '**Не пропускай:** card wrap (`bg-white border rounded-xl shadow-sm p-6`), иконки в indicator, en-dashes между chips, "← Назад" / "Далее →" со стрелкой, progress-text. Каждый из этих элементов — заметный gap vs baseline (см. iter-3 fix-plan).'
   );
 
+  return lines.join('\n');
+}
+
+/**
+ * Async variant of {@link renderStackDetectionBlock} that asks the connected
+ * client LLM (via sampling) for likely UI library + styling system when local
+ * detection couldn't find `@reformer/ui-kit` or Tailwind.
+ *
+ * Falls back to the synchronous `renderStackDetectionBlock` output (legacy
+ * MCP-gap question) when the client doesn't support sampling, the call fails,
+ * or the LLM has no useful suggestion.
+ *
+ * Pass `server` from the MCP request handler. Without `server`, behaves
+ * exactly like the sync version.
+ */
+export async function renderStackDetectionBlockAsync(
+  stack: ProjectStack,
+  server?: Server
+): Promise<string> {
+  // Only kick in when we have a project root but failed to find both ui-kit
+  // and Tailwind — that's the case where the legacy block becomes a static
+  // "ask the orchestrator" question. With sampling we can do better.
+  const needsDiscovery = stack.projectRoot !== null && !stack.hasUiKit && !stack.hasTailwind;
+  if (!needsDiscovery || !server) {
+    return renderStackDetectionBlock(stack);
+  }
+
+  const discovered = await discoverUnknownStack(server, stack);
+  if (!discovered || (!discovered.uiKit && !discovered.styling)) {
+    return renderStackDetectionBlock(stack);
+  }
+
+  const lines: string[] = [];
+  lines.push('### Detected stack (auto + LLM-assisted)');
+  lines.push('');
+  lines.push(`Project root: \`${stack.projectRoot}\``);
+  lines.push('');
+  lines.push(
+    '**LLM analysis of dependencies suggests:**' +
+      (discovered.uiKit ? `\n- UI library: \`${discovered.uiKit}\`` : '') +
+      (discovered.styling ? `\n- Styling system: \`${discovered.styling}\`` : '')
+  );
+  lines.push('');
+  lines.push(
+    '> ⚠️ This is an LLM guess based on `package.json`, not a verified detection. ' +
+      'Confirm with the orchestrator before generating code.'
+  );
   return lines.join('\n');
 }

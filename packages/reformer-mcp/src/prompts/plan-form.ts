@@ -1,7 +1,13 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { detectProjectStack, renderStackDetectionBlock } from '../utils/project-detector.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { detectProjectStack, renderStackDetectionBlockAsync } from '../utils/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
+import {
+  deepAnalyzeSpec,
+  inferTarget,
+  renderDeepAnalysisBlock,
+} from '../utils/sampling-helpers.js';
 
 export const planFormPromptDefinition = {
   name: 'plan-form',
@@ -202,6 +208,29 @@ function extractApiEndpoints(content: string): string[] {
   return patterns.slice(0, 15);
 }
 
+function rendererPrereqsFor(target: string): string {
+  if (target === 'renderer-react') {
+    return [
+      '- `reformer://docs/renderer-react/quick-start`',
+      '- `reformer://docs/renderer-react/key-concepts`',
+      '- `reformer://docs/renderer-react/programmatic-api`',
+      '- `reformer://docs/renderer-react/anti-patterns`',
+    ].join('\n');
+  }
+  if (target === 'renderer-json') {
+    return [
+      '- `reformer://docs/renderer-json/quick-start`',
+      '- `reformer://docs/renderer-json/key-concepts`',
+      '- `reformer://docs/renderer-json/builder-api`',
+      '- `reformer://docs/renderer-json/template-template-arrays`',
+      '- `reformer://docs/renderer-json/source`',
+      '- `reformer://docs/renderer-json/control`',
+      '- `reformer://docs/renderer-json/anti-patterns`',
+    ].join('\n');
+  }
+  return '';
+}
+
 function buildPlanVars(
   spec: SpecAnalysis,
   stackBlock: string,
@@ -268,17 +297,16 @@ function buildPlanVars(
     stepsTextOrSix: spec.steps > 0 ? String(spec.steps) : '6',
     stepsTextOrOne: spec.steps > 0 ? String(spec.steps) : '1',
     rendererArtifactSuffix: target !== 'core' ? ' + render-schema' : '',
+    rendererPrereqs: rendererPrereqsFor(target),
   };
 }
 
-export function getPlanFormPrompt(args: {
-  specPath: string;
-  target?: string;
-  projectPath?: string;
-}): {
+export async function getPlanFormPrompt(
+  args: { specPath: string; target?: string; projectPath?: string },
+  server?: Server
+): Promise<{
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
-} {
-  const target = (args.target ?? 'core').toLowerCase();
+}> {
   const resolvedSpecPath = resolveSpecPath(args.specPath);
 
   if (!resolvedSpecPath) {
@@ -327,8 +355,23 @@ export function getPlanFormPrompt(args: {
 
   const spec = analyzeSpec(specContent);
   const stack = detectProjectStack(args.projectPath);
-  const stackBlock = renderStackDetectionBlock(stack);
+
+  // Auto-detect target via sampling unless caller pinned it.
+  const target = args.target
+    ? args.target.toLowerCase()
+    : server
+      ? await inferTarget(server, { description: spec.formName, stack })
+      : 'core';
+
+  // Run stack-block discovery + deep spec analysis in parallel — both are
+  // best-effort sampling calls and gracefully no-op when unsupported.
+  const [stackBlock, deep] = await Promise.all([
+    renderStackDetectionBlockAsync(stack, server),
+    server ? deepAnalyzeSpec(server, specContent) : Promise.resolve(null),
+  ]);
+
   const vars = buildPlanVars(spec, stackBlock, target, args.specPath);
+  vars.deepAnalysisBlock = renderDeepAnalysisBlock(deep);
   const text = renderPromptTemplate('plan-form', vars);
 
   return {

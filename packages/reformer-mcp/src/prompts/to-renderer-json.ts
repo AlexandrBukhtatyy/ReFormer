@@ -1,10 +1,9 @@
-import { getSection, getFullDocs } from '../utils/docs-parser.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 
 export const toRendererJsonPromptDefinition = {
   name: 'to-renderer-json',
   description:
-    'Мигрировать TS RenderSchema (@reformer/renderer-react) в JSON-схему + Registry для @reformer/renderer-json. Подгружает migration cookbook, JsonFormSchema формат, registry rules.',
+    'Migrate TS RenderSchema (@reformer/renderer-react) into JSON schema + Registry for @reformer/renderer-json. Slim+ prompt — migration cookbook / JsonFormSchema format / registry rules live in MCP resources.',
   arguments: [
     {
       name: 'code',
@@ -17,23 +16,8 @@ export const toRendererJsonPromptDefinition = {
 export function getToRendererJsonPrompt(args: { code: string }): {
   messages: Array<{ role: 'user'; content: { type: 'text'; text: string } }>;
 } {
-  const cookbook = getFullDocs('@reformer/renderer-json');
-  const migrationIdx = cookbook.indexOf('Migration');
-  const migrationBlock = migrationIdx >= 0 ? cookbook.slice(migrationIdx, migrationIdx + 3000) : '';
-
-  const text = renderPromptTemplate('to-renderer-json', {
-    code: args.code,
-    jsonSchemaFormat: getSection('JSON Schema', '@reformer/renderer-json'),
-    registry: getSection('Component Registry', '@reformer/renderer-json'),
-    migrationBlock,
-  });
-
+  const text = renderPromptTemplate('to-renderer-json', { code: args.code });
   return {
-    messages: [
-      {
-        role: 'user',
-        content: { type: 'text', text },
-      },
-    ],
+    messages: [{ role: 'user', content: { type: 'text', text } }],
   };
 }
