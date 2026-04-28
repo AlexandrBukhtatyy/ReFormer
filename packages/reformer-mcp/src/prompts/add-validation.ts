@@ -1,4 +1,4 @@
-import { getSection, getFullDocs } from '../utils/docs-parser.js';
+import { getSection } from '../utils/docs-parser.js';
 
 export const addValidationPromptDefinition = {
   name: 'add-validation',
