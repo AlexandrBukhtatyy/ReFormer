@@ -47,6 +47,29 @@ reg.container(FIELD_WRAPPER, FormField);
 - `componentProps.itemComponent` действительно `{ $template: { ... } }`, а не сразу `JsonNode`.
 - Зарегистрирован контейнер-компонент (например `PropertyArray`), который умеет работать с `itemComponent`.
 
+## TypeError: Cannot read properties of undefined (reading 'value') в `<FormField.Root>`
+
+Симптомы: при toggle/click checkbox вся страница уходит в белый экран, в консоли — `TypeError: Cannot read properties of undefined (reading 'value')` + React unmount без error boundary.
+
+Это **path mismatch** между схемой и FormProxy. Кастомный block-компонент (например `PropertiesArrayBlock`) вызвал `useFormControl(form.X.Y)` по пути, которого в форме нет (опечатка, или sub-form-схема изменена и поле уехало в другой шаг).
+
+Что проверить:
+1. Полный путь в `useFormControl(form.<step>.<field>)` совпадает с путём в `createForm({ form: { <step>: { <field>: ... } } })`.
+2. Если поле **должно жить в step5**, не помещай его в step4 ради «удобства группировки» — кастомный block, написанный под «toggle живёт в step5», крашится.
+3. Block ОБЯЗАН быть defensive:
+   ```tsx
+   function PropertiesArrayBlock({ form }: { form: FormProxy<MyForm> }) {
+     const ctrl = useFormControl(form.step5.hasProperty);
+     // Defensive null-check: путь мог не существовать, или контрол ещё не смонтирован.
+     const hasProperty = (ctrl as { value?: boolean } | undefined)?.value;
+     if (!hasProperty) return null;
+     // ... FormArray.Root ...
+   }
+   ```
+4. На уровне страницы оборачивай `<FormRenderer>` в React error boundary (минимум — `componentDidCatch` со fallback `<div>Ошибка рендера</div>`), чтобы один падающий блок не уносил весь React-tree.
+
+> Это **самый частый crash** в кастомных блоках — добавляй defensive optional chaining (`?.`) на каждое чтение `useFormControl(...)?.value` / `useArrayLength(...)?.length`.
+
 ## See also
 
 - [01-overview.md](01-overview.md)
