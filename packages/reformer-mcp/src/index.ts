@@ -83,6 +83,8 @@ import {
   getDebugPrompt,
   reviewPromptDefinition,
   getReviewPrompt,
+  planFormPromptDefinition,
+  getPlanFormPrompt,
   createFormPromptDefinition,
   getCreateFormPrompt,
   addValidationPromptDefinition,
@@ -255,6 +257,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 type AnyPromptDefinition =
   | typeof reviewPromptDefinition
   | typeof debugPromptDefinition
+  | typeof planFormPromptDefinition
   | typeof createFormPromptDefinition
   | typeof addValidationPromptDefinition
   | typeof addBehaviorPromptDefinition
@@ -266,6 +269,7 @@ type AnyPromptDefinition =
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
   const prompts: AnyPromptDefinition[] = [
     reviewPromptDefinition,
+    planFormPromptDefinition,
     createFormPromptDefinition,
     addValidationPromptDefinition,
     addBehaviorPromptDefinition,
@@ -292,6 +296,11 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 
     case 'review':
       return getReviewPrompt(args as { code: string });
+
+    case 'plan-form':
+      return getPlanFormPrompt(
+        args as { specPath: string; target?: string; projectPath?: string }
+      );
 
     case 'create-form':
       return getCreateFormPrompt(args as { description: string; target?: string });

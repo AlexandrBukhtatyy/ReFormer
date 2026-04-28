@@ -1,5 +1,6 @@
 export { debugPromptDefinition, getDebugPrompt } from './debug.js';
 export { reviewPromptDefinition, getReviewPrompt } from './review.js';
+export { planFormPromptDefinition, getPlanFormPrompt } from './plan-form.js';
 export { createFormPromptDefinition, getCreateFormPrompt } from './create-form.js';
 export { addValidationPromptDefinition, getAddValidationPrompt } from './add-validation.js';
 export { addBehaviorPromptDefinition, getAddBehaviorPrompt } from './add-behavior.js';

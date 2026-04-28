@@ -249,28 +249,29 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
   lines.push('');
 
   if (target === 'renderer-react' || target === 'renderer-json') {
-    lines.push('**Step / Section в RenderSchema:**');
+    lines.push('**Step / Section в RenderSchema (с card wrap):**');
     lines.push('');
     lines.push('```typescript');
     lines.push('{');
     lines.push("  selector: 'step1',");
     lines.push('  component: Section,');
     lines.push('  componentProps: {');
-    lines.push("    title: 'Параметры кредита',");
+    lines.push("    title: 'Шаг 1. Параметры кредита',");
     lines.push("    titleAs: 'h2',");
-    lines.push("    titleClassName: 'text-xl font-bold mb-4',");
-    lines.push("    className: 'space-y-4',");
+    lines.push("    titleClassName: 'text-xl font-bold mb-4 text-gray-900',");
+    lines.push("    // ВАЖНО: card wrap, не просто space-y-4 — иначе секция выглядит дёшево");
+    lines.push("    className: 'space-y-4 bg-white border rounded-xl shadow-sm p-6',");
     lines.push('  },');
     lines.push('  children: [');
     lines.push('    {');
     lines.push('      component: Box,');
-    lines.push("      componentProps: { className: 'grid grid-cols-2 gap-4' },");
+    lines.push("      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },");
     lines.push('      children: [');
-    lines.push('        { component: path.loanAmount },');
-    lines.push('        { component: path.loanTerm },');
+    lines.push('        { component: path.step1.loanAmount },  // testId="step1.loanAmount"');
+    lines.push('        { component: path.step1.loanTerm },');
     lines.push('      ],');
     lines.push('    },');
-    lines.push('    { component: path.loanPurpose },  // full-width');
+    lines.push('    { component: path.step1.loanPurpose },  // full-width');
     lines.push('  ],');
     lines.push('}');
     lines.push('```');
@@ -282,16 +283,22 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />');
     lines.push('```');
   } else {
-    lines.push('**Step-обёртка в ручном React:**');
+    lines.push('**Step-обёртка в ручном React (с card wrap):**');
     lines.push('');
     lines.push('```tsx');
-    lines.push('<section className="space-y-4">');
-    lines.push('  <h2 className="text-xl font-bold mb-4">Параметры кредита</h2>');
-    lines.push('  <div className="grid grid-cols-2 gap-4">');
-    lines.push('    <FormField control={form.loanAmount} testId="loanAmount" />');
-    lines.push('    <FormField control={form.loanTerm} testId="loanTerm" />');
+    lines.push('<section className="space-y-4 bg-white border rounded-xl shadow-sm p-6">');
+    lines.push(
+      '  <h2 className="text-xl font-bold mb-4 text-gray-900">Шаг 1. Параметры кредита</h2>'
+    );
+    lines.push('  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">');
+    lines.push(
+      '    <FormField control={form.step1.loanAmount} testId="step1.loanAmount" />'
+    );
+    lines.push('    <FormField control={form.step1.loanTerm} testId="step1.loanTerm" />');
     lines.push('  </div>');
-    lines.push('  <FormField control={form.loanPurpose} testId="loanPurpose" />');
+    lines.push(
+      '  <FormField control={form.step1.loanPurpose} testId="step1.loanPurpose" />'
+    );
     lines.push('</section>');
     lines.push('```');
     lines.push('');
@@ -299,21 +306,54 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('```tsx');
     lines.push('<div className="max-w-4xl mx-auto p-6 space-y-6">');
     lines.push('  <h1 className="text-2xl font-bold text-gray-900">Заявка на кредит</h1>');
-    lines.push('  {/* Step indicator + текущий шаг + nav кнопки */}');
+    lines.push('  <StepIndicator current={currentStep} completed={completedSteps} />');
+    lines.push('  {/* card-wrapped step section */}');
+    lines.push('  {/* nav-buttons row */}');
+    lines.push('  {/* progress text */}');
     lines.push('</div>');
     lines.push('```');
   }
   lines.push('');
-  lines.push('**Кнопки навигации:** используй `<Button>` из ui-kit:');
+  lines.push('**Step indicator с иконками + dashes (lucide-react):**');
+  lines.push('```tsx');
+  lines.push("import { Coins, User, Phone, Briefcase, FileText, CheckSquare } from 'lucide-react';");
+  lines.push('');
+  lines.push('const STEP_META = [');
+  lines.push("  { n: 1, label: 'Кредит', icon: Coins },");
+  lines.push("  { n: 2, label: 'Данные', icon: User },");
+  lines.push("  { n: 3, label: 'Контакты', icon: Phone },");
+  lines.push("  { n: 4, label: 'Работа', icon: Briefcase },");
+  lines.push("  { n: 5, label: 'Доп. инфо', icon: FileText },");
+  lines.push("  { n: 6, label: 'Подтверждение', icon: CheckSquare },");
+  lines.push('];');
+  lines.push('// chip = <button> (не <div>), клик ведёт на n если completed || n <= maxReached.');
+  lines.push('// Между chip и chip — `<li className="text-gray-300">—</li>` (en-dash).');
+  lines.push('```');
+  lines.push('');
+  lines.push('**Кнопки навигации с visual cues + progress text:**');
   lines.push('```tsx');
   lines.push("import { Button } from '@reformer/ui-kit';");
-  lines.push('<Button type="button" variant="outline" onClick={prev}>Назад</Button>');
-  lines.push('<Button type="button" onClick={next} disabled={isValidating}>Далее</Button>');
-  lines.push('<Button type="submit" disabled={isValidating}>Отправить</Button>');
+  lines.push('');
+  lines.push('<div className="flex items-center justify-between gap-3 pt-4 border-t">');
+  lines.push('  {currentStep > 1');
+  lines.push('    ? <Button type="button" variant="outline" onClick={prev}>← Назад</Button>');
+  lines.push('    : <span aria-hidden />}');
+  lines.push('  {currentStep < TOTAL_STEPS');
+  lines.push('    ? <Button type="button" onClick={next}>Далее →</Button>');
+  lines.push('    : <Button type="submit">Отправить</Button>}');
+  lines.push('</div>');
+  lines.push('<div className="text-sm text-center text-gray-500">');
+  lines.push(
+    '  Шаг {currentStep} из {TOTAL_STEPS} • {Math.round((currentStep - 1) / (TOTAL_STEPS - 1) * 100)}% завершено'
+  );
+  lines.push('</div>');
   lines.push('```');
   lines.push('');
   lines.push(
     '**Не используй plain `<input>` / `<button>` / inline-style** — это нарушает консистентность baseline.'
+  );
+  lines.push(
+    '**Не пропускай:** card wrap (`bg-white border rounded-xl shadow-sm p-6`), иконки в indicator, en-dashes между chips, "← Назад" / "Далее →" со стрелкой, progress-text. Каждый из этих элементов — заметный gap vs baseline (см. iter-3 fix-plan).'
   );
 
   return lines.join('\n');
