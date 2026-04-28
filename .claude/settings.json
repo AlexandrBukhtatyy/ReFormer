@@ -42,13 +42,11 @@
       "Bash(git:*)",
       "Edit(src/**)",
       "Bash(bd:*)",
-      "mcp__playwright__*"
+      "mcp__playwright__*",
+      "mcp__reformer__*"
     ],
     "defaultMode": "acceptEdits",
-    "deny": [
-      "Read(.env*)",
-      "Read(**/credentials*)"
-    ]
+    "deny": ["Read(.env*)", "Read(**/credentials*)"]
   },
   "plansDirectory": "./docs/plans",
   "respectGitignore": true,
