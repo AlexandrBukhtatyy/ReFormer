@@ -31,12 +31,11 @@ import {
   AsyncBoundary,
 } from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
-import { RendererFormWizard } from '../complex-multy-step-form/components/ui/FormWizzard/RendererFormWizard';
-import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
+import { RendererFormWizard } from '../../../components/RendererFormWizard';
+import { RendererFormArraySection } from '../../../components/RendererFormArraySection';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
-import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
-import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';
+import { LoadingState, ErrorState } from '@reformer/ui-kit';
 import {
   ConfirmationInfoBlock,
   HighPaymentWarning,

@@ -19,11 +19,37 @@ Sections are independent: any implementation from A composes with any integratio
 
 ## Section A — Wizard implementation hierarchy (pick the highest applicable)
 
-### A1 (preferred) — `FormWizard` from `@reformer/ui-kit`, if exported
+### A1 (DEFAULT for ui-kit stacks) — `FormWizard` from `@reformer/ui-kit/form-wizard`
 
-If the detected stack includes `@reformer/ui-kit` AND its public exports include `FormWizard` (verify via `reformer://docs/ui-kit/components` or `import { FormWizard } from '@reformer/ui-kit'`), use it. **Highest priority** — it's an opinionated, batteries-included wrapper around the CDK compound: consistent step indicator + nav buttons + progress + accessibility wired by default. Minimum code.
+If the detected stack includes `@reformer/ui-kit`, **this is the default**. Import `FormWizard` from `@reformer/ui-kit/form-wizard`. Opinionated, batteries-included wrapper around the CDK compound: consistent step indicator + nav buttons + progress + accessibility + Russian-locale defaults wired by default. Minimum code.
 
-If `@reformer/ui-kit/FormWizard` is NOT exported in the current version, skip to A2 — DO NOT invent your own under that name.
+**Polymorphic `step.body` (Path C unified API):**
+
+```tsx
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+
+const steps: FormWizardStep<MyForm>[] = [
+  // Variant 1 — React FC: receives { control: FormProxy<T> } as prop
+  { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
+
+  // Variant 2 — Static JSX (ReactNode): rendered directly
+  { number: 2, title: 'Подтверждение', icon: '✓', body: <ConfirmationStep /> },
+
+  // Variant 3 — RenderNode subtree (used in renderer-react / renderer-json flows)
+  { number: 3, title: 'Контакты', icon: '📞', body: { component: Box, children: [...] } },
+];
+
+<FormWizard
+  form={form}
+  config={{ stepValidations: STEP_VALIDATIONS, fullValidation }}
+  steps={steps}
+  onSubmit={handleSubmit}
+/>
+```
+
+`step.body` is runtime-discriminated — pick whichever shape fits the consumer's flow. ui-kit handles all three internally via `RenderNodeComponent` for the RenderNode case.
+
+If `@reformer/ui-kit` is NOT in package.json, skip to A2.
 
 ### A2 — Project-custom wizard wrapper, if one exists in the consumer project
 
@@ -49,18 +75,16 @@ For most multi-step forms A3 is the right level — A4 is opt-out, not default.
 ### Decision flowchart
 
 ```
-ui-kit detected?
-  └─ Yes → FormWizard exported in current version?
-            └─ Yes → A1 (use ui-kit FormWizard)
-            └─ No  → continue
-  └─ No → continue
+ui-kit (@reformer/ui-kit) in package.json?
+  └─ Yes → A1 (FormWizard from @reformer/ui-kit/form-wizard) [DEFAULT]
+  └─ No  → continue
 
-Project-custom wizard wrapper exists in src/components/?
+Project-custom wizard wrapper in src/components/?
   └─ Yes → A2 (use it)
-  └─ No  → A3 (CDK FormWizard compound) [DEFAULT]
+  └─ No  → A3 (CDK FormWizard compound headless)
 
-Need flow constraints CDK can't express?
-  └─ Yes → A4 (manual useState)
+Need flow constraints CDK/ui-kit can't express?
+  └─ Yes → A4 (manual useState — last resort)
 ```
 
 ---
@@ -81,7 +105,8 @@ Validation per step: `validateForm(form, STEP_VALIDATIONS[currentStep])` in `goN
 
 Step bodies are RenderSchema sub-trees with `selector: 'step1'..'stepN'` on each step container.
 
-- A1/A2: if the wizard accepts a `currentStep` prop and renders its `<Step>` slot, pass schema's pre-rendered nodes per step. Or use `setHidden` (next bullet).
+- **A1 (ui-kit FormWizard)**: pass `step.body: RenderNode<T>` (the subtree). FormWizard internally wraps in `<RenderNodeComponent>`. No `setHidden` needed — ui-kit handles step switching.
+- A2: if the wrapper accepts a `currentStep` prop and renders its `<Step>` slot, pass schema's pre-rendered nodes per step. Or use `setHidden` (next bullet).
 - A3/A4: `useEffect` toggling `schema.node('stepN').setHidden(currentStep !== n)` for each step.
 
 ```tsx

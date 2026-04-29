@@ -25,18 +25,17 @@ import creditApplicationValidation, {
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
-import { LoadingState } from './components/ui/LoadingState';
-import { ErrorState } from './components/ui/ErrorState';
-import { FormWizard } from './components/ui/FormWizzard/FormWizard';
-import type { FormWizardHandle, FormWizardIndicatorStep } from '@reformer/cdk/form-wizard';
+import { LoadingState, ErrorState } from '@reformer/ui-kit';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 
-export const STEPS: FormWizardIndicatorStep[] = [
-  { number: 1, title: 'Кредит', icon: '💰', component: BasicInfoForm },
-  { number: 2, title: 'Данные', icon: '👤', component: PersonalInfoForm },
-  { number: 3, title: 'Контакты', icon: '📞', component: ContactInfoForm },
-  { number: 4, title: 'Работа', icon: '💼', component: EmploymentForm },
-  { number: 5, title: 'Доп. инфо', icon: '📋', component: AdditionalInfoForm },
-  { number: 6, title: 'Подтверждение', icon: '✓', component: ConfirmationForm },
+export const STEPS: FormWizardStep<CreditApplicationFormType>[] = [
+  { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
+  { number: 2, title: 'Данные', icon: '👤', body: PersonalInfoForm },
+  { number: 3, title: 'Контакты', icon: '📞', body: ContactInfoForm },
+  { number: 4, title: 'Работа', icon: '💼', body: EmploymentForm },
+  { number: 5, title: 'Доп. инфо', icon: '📋', body: AdditionalInfoForm },
+  { number: 6, title: 'Подтверждение', icon: '✓', body: ConfirmationForm },
 ];
 
 // ============================================================================

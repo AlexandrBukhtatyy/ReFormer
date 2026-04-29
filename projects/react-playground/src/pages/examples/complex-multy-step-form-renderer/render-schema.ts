@@ -17,7 +17,7 @@ import type { CoBorrower } from '../complex-multy-step-form/components/nested-fo
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from '../complex-multy-step-form/schemas/credit-application-validation';
-import { RendererFormWizard } from '../complex-multy-step-form/components/ui/FormWizzard/RendererFormWizard';
+import { RendererFormWizard } from '../../../components/RendererFormWizard';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
 import {
@@ -29,11 +29,9 @@ import {
   NextStepsInfo,
   ElectronicSignatureHint,
 } from '../complex-multy-step-form/components/ui/ConfirmationComponents';
-import { AsyncBoundary, Section, Box } from '@reformer/ui-kit';
-import { RendererFormArraySection } from '../complex-multy-step-form/components/ui/FormArray/RendererFormArraySection';
+import { AsyncBoundary, Section, Box, ErrorState, LoadingState } from '@reformer/ui-kit';
+import { RendererFormArraySection } from '../../../components/RendererFormArraySection';
 import { createElement } from 'react';
-import { LoadingState } from '../complex-multy-step-form/components/ui/LoadingState';
-import { ErrorState } from '../complex-multy-step-form/components/ui/ErrorState';
 
 const ErrorStateDefault = () => createElement(ErrorState, { error: 'Не удалось загрузить заявку' });
 

@@ -1,0 +1,160 @@
+/**
+ * FormWizard — унифицированный multi-step wrapper поверх
+ * `@reformer/cdk/form-wizard` headless compound. Один компонент покрывает
+ * TS-flow, renderer-react flow и renderer-json flow за счёт полиморфного
+ * `step.body`:
+ *
+ * - `ComponentType<{ control: FormProxy<T> }>` — FC получает `control={form}`.
+ * - `ReactNode` — готовый JSX (статический контент шага).
+ * - `RenderNode<T>` — RenderSchema-поддерево; внутри обёрнуто в
+ *   `<RenderNodeComponent>` для интеграции с `@reformer/renderer-react`.
+ *
+ * Дискриминация делается в `renderStepBody` по типу значения runtime,
+ * без discriminated-union-полей.
+ *
+ * Маркер `__selfManagedChildren = true` гарантирует, что при использовании
+ * внутри RenderSchema родительский renderer пробрасывает `form` как prop
+ * без рекурсивного обхода children.
+ */
+
+import {
+  forwardRef,
+  isValidElement,
+  useImperativeHandle,
+  useRef,
+  type ComponentType,
+  type ForwardedRef,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+import {
+  FormWizard as FormWizardHeadless,
+  type FormWizardActionsProps as HeadlessFormWizardActionsProps,
+  type FormWizardHandle,
+  type FormWizardProps as FormWizardHeadlessProps,
+} from '@reformer/cdk/form-wizard';
+import type { FormProxy } from '@reformer/core';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
+import { FormWizardActions } from './form-wizard-actions';
+import { FormWizardProgress } from './form-wizard-progress';
+import { StepIndicator } from './step-indicator';
+
+/**
+ * Полиморфное тело шага.
+ *
+ * - FC получает `control={form}`.
+ * - ReactNode рендерится напрямую (статический JSX).
+ * - RenderNode<T> рендерится через `<RenderNodeComponent>`.
+ */
+export type FormWizardStepBody<T> =
+  | ComponentType<{ control: FormProxy<T> }>
+  | ReactNode
+  | RenderNode<T>;
+
+export interface FormWizardStep<T> {
+  /** Step number (1-based). */
+  number: number;
+  /** Step title shown in indicator. */
+  title: string;
+  /** Optional icon (string или ReactNode). Передаётся в headless Indicator. */
+  icon?: string;
+  /** Body — FC | ReactNode | RenderNode<T>. */
+  body: FormWizardStepBody<T>;
+}
+
+export interface FormWizardProps<T extends Record<string, unknown>>
+  extends FormWizardHeadlessProps<T> {
+  className?: string;
+  steps: FormWizardStep<T>[];
+  onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
+}
+
+function isRenderNode<T>(value: unknown): value is RenderNode<T> {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !isValidElement(value as ReactElement) &&
+    'component' in (value as object)
+  );
+}
+
+function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): ReactNode {
+  // FC — function component
+  if (typeof body === 'function') {
+    const FC = body as ComponentType<{ control: FormProxy<T> }>;
+    return <FC control={form} />;
+  }
+  // RenderNode — plain object с .component (не React element)
+  if (isRenderNode<T>(body)) {
+    return <RenderNodeComponent node={body} form={form} />;
+  }
+  // ReactNode (готовый JSX, текст, число, null, и т.д.)
+  return body as ReactNode;
+}
+
+function FormWizardInner<T extends Record<string, unknown>>(
+  props: FormWizardProps<T>,
+  ref: ForwardedRef<FormWizardHandle<T>>
+) {
+  const formWizardRef = useRef<FormWizardHandle<T>>(null);
+  useImperativeHandle(ref, () => formWizardRef.current as FormWizardHandle<T>);
+
+  // Headless Indicator принимает steps без body — только number/title/icon.
+  const indicatorSteps = props.steps.map(({ number, title, icon }) => ({
+    number,
+    title,
+    icon,
+  }));
+
+  return (
+    <FormWizardHeadless ref={formWizardRef} form={props.form} config={props.config}>
+      <FormWizardHeadless.Indicator steps={indicatorSteps}>
+        {(indicatorProps) => <StepIndicator {...indicatorProps} className="mb-8" />}
+      </FormWizardHeadless.Indicator>
+
+      <div className="bg-white p-8 rounded-lg shadow-md">
+        {props.steps.map((step) => (
+          <FormWizardHeadless.Step key={step.number}>
+            {renderStepBody(step.body, props.form)}
+          </FormWizardHeadless.Step>
+        ))}
+      </div>
+
+      <FormWizardHeadless.Actions onSubmit={props.onSubmit}>
+        {(actionsProps) => <FormWizardActions {...actionsProps} className="mt-8" />}
+      </FormWizardHeadless.Actions>
+
+      <FormWizardHeadless.Progress>
+        {(progressProps) => <FormWizardProgress {...progressProps} className="mt-4" />}
+      </FormWizardHeadless.Progress>
+    </FormWizardHeadless>
+  );
+}
+
+const FormWizardForwarded = forwardRef(FormWizardInner) as <T extends Record<string, unknown>>(
+  props: FormWizardProps<T> & { ref?: React.Ref<FormWizardHandle<T>> }
+) => ReactElement | null;
+
+// Compound API: re-export headless slots для consumer-ов, которым нужен
+// custom layout (например, расположить Indicator поверх кастомного header'а).
+type FormWizardCompound = typeof FormWizardForwarded & {
+  Indicator: typeof FormWizardHeadless.Indicator;
+  Step: typeof FormWizardHeadless.Step;
+  Actions: typeof FormWizardHeadless.Actions;
+  Progress: typeof FormWizardHeadless.Progress;
+};
+
+const FormWizard = Object.assign(FormWizardForwarded, {
+  Indicator: FormWizardHeadless.Indicator,
+  Step: FormWizardHeadless.Step,
+  Actions: FormWizardHeadless.Actions,
+  Progress: FormWizardHeadless.Progress,
+}) as FormWizardCompound;
+
+// Маркер для интеграции с RenderNodeComponent: при использовании FormWizard
+// внутри RenderSchema родитель пробрасывает `form` prop напрямую, без обхода
+// `children` через рекурсивный рендерер.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(FormWizard as any).__selfManagedChildren = true;
+
+export { FormWizard };

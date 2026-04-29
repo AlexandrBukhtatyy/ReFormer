@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button } from '@reformer/ui-kit';
+import { Button } from '../ui/button';
 
 interface ErrorStateProps {
   error: string;

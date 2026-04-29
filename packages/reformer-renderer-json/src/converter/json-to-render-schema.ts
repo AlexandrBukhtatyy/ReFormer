@@ -4,13 +4,16 @@
  * @module reformer/renderer-json/converter
  */
 
-import type {
-  RenderSchemaFn,
-  RenderNode,
-  FieldRenderNode,
-  ContainerRenderNode,
+import type { ComponentType, ReactNode } from 'react';
+import { createElement } from 'react';
+import {
+  RenderNodeComponent,
+  type RenderSchemaFn,
+  type RenderNode,
+  type FieldRenderNode,
+  type ContainerRenderNode,
 } from '@reformer/renderer-react';
-import type { FieldPath, FieldPathNode } from '@reformer/core';
+import { createFieldPath, type FieldPath, type FieldPathNode, type FormProxy } from '@reformer/core';
 import type { JsonFormSchema, JsonNode } from '../types/json-schema';
 import type { ComponentRegistry } from '../registry/types';
 
@@ -84,6 +87,28 @@ function isTemplateRef(value: unknown): value is { $template: JsonNode } {
 }
 
 /**
+ * Создаёт FC-обёртку из JsonNode-шаблона. FC принимает `control: FormProxy<TItem>`,
+ * пред-конвертирует шаблон в RenderNode (один раз) и рендерит через
+ * `RenderNodeComponent` с form={control}. Используется для `itemComponent`
+ * слотов в `FormArraySection` и подобных мест.
+ */
+function templateToItemFC<T>(
+  template: JsonNode,
+  registry: ComponentRegistry
+): ComponentType<{ control: FormProxy<unknown> }> {
+  // Pre-convert: используем синтетический FieldPath<TItem> root. RenderNode
+  // содержит FieldPathNode-ссылки относительно item-корня. При render-time
+  // navigator.getNodeByPath(form=control, pathStr) резолвит против item FormProxy.
+  const itemPath = createFieldPath<unknown>() as FieldPath<T>;
+  const renderNode = convertNode(template, itemPath, registry);
+
+  const TemplateItemFC = ({ control }: { control: FormProxy<unknown> }): ReactNode =>
+    createElement(RenderNodeComponent, { node: renderNode, form: control });
+  TemplateItemFC.displayName = 'TemplateItemFC';
+  return TemplateItemFC;
+}
+
+/**
  * Преобразует значение внутри componentProps:
  * - JsonNode → RenderNode
  * - массив JsonNode → массив RenderNode
@@ -119,12 +144,12 @@ function transformPropValue<T>(
     return value;
   }
 
-  // 2. Шаблон: { $template: JsonNode } → (itemPath) => RenderNode
-  //    args[0] становится FieldPath-корнем для резолва model: внутри шаблона.
+  // 2. Шаблон: { $template: JsonNode } → FC<{ control }> (Path C unified API).
+  //    Шаблон конвертируется один раз, FC рендерит через RenderNodeComponent
+  //    с form=control. Это позволяет `itemComponent: { $template: ... }` в JSON
+  //    работать с новым `FormArraySection.itemComponent: ComponentType<{ control }>`.
   if (isTemplateRef(value)) {
-    const template = value.$template;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (...args: any[]) => convertNode(template, args[0] as FieldPath<T>, registry);
+    return templateToItemFC<T>(value.$template, registry);
   }
 
   // 4. JsonNode → RenderNode
@@ -178,9 +203,20 @@ function transformComponentProps<T>(
     // резолвятся как ссылка на FieldPath (аналог control={fieldNode} в компонентах).
     if ((key === 'control' || key.endsWith('Control')) && typeof value === 'string') {
       out[key] = getFieldPathNode(path, value);
-    } else {
-      out[key] = transformPropValue(value, path, registry);
+      continue;
     }
+    // `*Component` слоты (itemComponent, headerComponent, и т.п.) со строковым
+    // значением резолвятся как ссылка на любой зарегистрированный компонент
+    // (field/container/source). Используется в Path C для FormArraySection,
+    // где `itemComponent: "PropertyForm"` указывает на FC из registry.
+    if ((key === 'component' || key.endsWith('Component')) && typeof value === 'string') {
+      const meta = registry.get(value);
+      if (meta) {
+        out[key] = meta.component;
+        continue;
+      }
+    }
+    out[key] = transformPropValue(value, path, registry);
   }
   return out;
 }

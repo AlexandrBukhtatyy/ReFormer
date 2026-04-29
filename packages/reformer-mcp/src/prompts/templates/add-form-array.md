@@ -31,7 +31,31 @@ You add a dynamic field array to a `@reformer/*` form.
 
 6. **renderer-react self-managed FormArray block**: must resolve `FieldPath → ArrayNode` via `FieldPathNavigator` + `extractPath`, AND mark `(Block as any).__selfManagedChildren = true` (otherwise `form` prop not injected). Generic resolver utilities will need `<T extends FormFields>` because `ArrayNode<T>` carries that constraint — add it to your resolver function signature, not a workaround.
 
-7. **renderer-json**: USE app-level `RendererFormArraySection` component (≈150-line template lives in renderer-json cookbook). DO NOT write per-page `array-blocks.tsx` with `CreditFormProvider`. Schema describes the array fully via `$template` + `control` (string FieldPath) + `initialValue` (source ID).
+7. **All targets — `FormArraySection` from `@reformer/ui-kit/form-array` is the single component for both TS-flow and renderer-flow.** Polymorphic `control` (accepts `FormArrayProxy<T>` / `ArrayNode<T>` / `FieldPathNode`). **Single `itemComponent: ComponentType<{ control: FormProxy<T> }>` shape.** Do NOT use a node-factory `(itemPath) => RenderNode<T>` — that's the legacy `RendererFormArraySection` shape; use FC instead.
+
+   ```tsx
+   import { FormArraySection } from '@reformer/ui-kit/form-array';
+
+   const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+     <Section>
+       <FormField control={control.type} />
+       <FormField control={control.estimatedValue} />
+     </Section>
+   );
+
+   <FormArraySection
+     control={path.properties}              // или resolved ArrayNode напрямую
+     itemComponent={PropertyForm}
+     title="Имущество"
+     addButtonLabel="+ Добавить имущество"
+   />
+   ```
+
+   **renderer-json:** consumer registers `PropertyForm` via `reg.container('PropertyForm', PropertyForm)` and references by string in JSON — `"itemComponent": "PropertyForm"`. Or uses inline `$template`:
+   ```jsonc
+   { "itemComponent": { "$template": { "component": "Section", "children": [...] } } }
+   ```
+   Converter wraps `$template` into an FC automatically — ui-kit sees a unified FC-shape.
 
 ## Prerequisites — read these resources via ReadMcpResourceTool
 
@@ -57,7 +81,7 @@ You add a dynamic field array to a `@reformer/*` form.
 5. Nested arrays: separate `array(...)` inside item schema; UI nests `FormArray.Root`.
 6. Template-factory returns PLAIN leaf values (never FieldConfig).
 7. (renderer-react) self-managed array block — resolve FieldPath→ArrayNode + `__selfManagedChildren = true`.
-8. (renderer-json) app-level `RendererFormArraySection` from cookbook + `$template` JSON.
+8. **All targets**: use `FormArraySection` from `@reformer/ui-kit/form-array` (single FC `itemComponent`). For renderer-json: registry-name string OR inline `$template` — both produce FC.
 
 ## Output checklist
 
@@ -69,4 +93,5 @@ You add a dynamic field array to a `@reformer/*` form.
 - [ ] Cleanup wired (if applicable)
 - [ ] (renderer-react) Checkbox without `CdkFormField.Label` wrapper
 - [ ] (renderer-react self-managed) `__selfManagedChildren = true` set
-- [ ] (renderer-json) `RendererFormArraySection` registered, `$template` schema written
+- [ ] All targets: `FormArraySection` from `@reformer/ui-kit/form-array` used; `itemComponent` is FC (`ComponentType<{ control }>`)
+- [ ] (renderer-json) item FC registered via `reg.container('Name', FC)` OR inline `$template` used (converter wraps to FC)

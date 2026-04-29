@@ -15,7 +15,7 @@ import { FormField } from '@reformer/ui-kit';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
-import { FormArraySection } from '../../ui/FormArray/FormArraySection';
+import { FormArraySection } from '@reformer/ui-kit/form-array';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface AdditionalInfoFormProps {

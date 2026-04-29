@@ -1,188 +1,301 @@
-# План: iteration 4 — MCP-валидация с этапом planning + verification gates
+# План: Path C — унификация UI в `@reformer/ui-kit` через polymorphic props (без правок renderer-react)
 
 ## Context
 
-Iter-1/2/3 валидировали MCP-сервер через постепенное наращивание правил в промптах. К концу iter-3 sub-агенты выходили на работающий код за 1 проход без retry, но **отсутствовал этап планирования** — sub-agent сразу шёл в реализацию без формального плана работ. Это приводило к двум типам проблем:
+В `projects/react-playground/src/pages/examples/complex-multy-step-form/components/ui/` лежат wrapper-компоненты поверх headless-примитивов из `@reformer/cdk` и `@reformer/renderer-react`. Сейчас существуют **парные варианты**: `FormWizard` ⊕ `RendererFormWizard`, `FormArraySection` ⊕ `RendererFormArraySection`. Дилемма «какой брать» появляется каждый раз: TS-flow vs renderer-flow требуют разную форму `itemComponent`/`step.component` (FC vs node-factory).
 
-1. **Дрейф спеки** (D5/D16 из iter-3): sub-agent сам решал, какие поля «не критичны», объединял `carBrand+carModel`, переносил `hasProperty` из step5 в step4.
-2. **Inconsistent test convention** (D6 из iter-3): на каждой странице sub-agent изобретал свои testIds (`step1.x` vs `step1-x`) — нет общего execution plan, который зафиксировал бы конвенции.
+**Главный gap:** `packages/reformer-ui-kit/package.json` уже декларирует exports `./form-wizard` и `./form-array` (строки 14-25), но файлов нет. Iter-7 показал последствия — Patch G hierarchy A1 («ui-kit FormWizard exists → используй») всегда обрывается, sub-agent'ы сваливаются на A3 и изобретают свой wizard каждый раз.
 
-Iter-4 добавляет:
-- **Новый MCP prompt `plan-form`** — принимает спеку формы, возвращает структурированный markdown-план разработки с фазами, рисками и verification-чеклистами.
-- **Гранулярные sub-agent стадии** — 7 sub-агентов на страницу вместо одного, с **orchestrator playwright verification gates** между каждой стадией. Если стадия не прошла верификацию — orchestrator патчит MCP/доки и перезапускает только эту стадию, не всю страницу.
+**User decisions:**
+- Renderer-* компоненты идут в ui-kit (добавляем `@reformer/renderer-react` в peerDependencies).
+- Domain-coupled (`ConfirmationComponents`, `ResidenceAddressSection`, `UnemployedWarning`) остаются в complex-multy-step-form.
+- **Унификация Path C** — единый prop с runtime polymorphism. Renderer-react **не трогаем**. Дискриминация выполняется внутри ui-kit-компонентов.
 
-Цель: убедиться, что MCP-планирование (а) реально улучшает spec-compliance, (б) sub-агенты успешно работают в гранулярном режиме без regression к iter-3 уровню (1 проход).
+Цели:
+1. Унифицировать API: один `FormArraySection` + один `FormWizard` в ui-kit с **единым** prop-shape.
+2. Закрыть declared-but-missing exports `./form-wizard`, `./form-array`, добавить `./state`.
+3. Сделать A1 в Patch G реальным дефолтом для ui-kit-стеков.
+4. Дедуплицировать complex-* + iter-7 v7 (через shim).
 
-## MCP changes
+## Унифицированный API (Path C)
 
-### Новый промпт `plan-form`
+### `FormArraySection<T>` — один itemComponent
 
-**Файл:** `packages/reformer-mcp/src/prompts/plan-form.ts` (NEW)
+```ts
+import type { ComponentType } from 'react';
+import type {
+  FormProxy, FormArrayProxy, ArrayNode, FieldPathNode, FormFields,
+} from '@reformer/core';
+import type { FieldWrapperProps } from '@reformer/renderer-react';
 
-**Сигнатура:**
-```typescript
-export const planFormPromptDefinition = {
-  name: 'plan-form',
-  description: 'Прочитать спеку формы, проанализировать её и вернуть структурированный markdown-план разработки: список этапов, рекомендуемая последовательность других MCP-промптов, risk matrix (cycle-prevention, plain-leaves, hide-vs-disable), verification checklist для playwright.',
-  arguments: [
-    { name: 'specPath', description: 'Абсолютный или относительный путь к markdown-спеке формы. Например: docs/specs/credit-application-form.md', required: true },
-    { name: 'target', description: 'Целевой стек: "core" | "renderer-react" | "renderer-json". По умолчанию "core".', required: false },
-    { name: 'projectPath', description: 'Путь к каталогу проекта для auto-detection стека (как в create-form). По умолчанию process.cwd().', required: false },
-  ],
+interface FormArraySectionProps<T extends FormFields> {
+  /** Резолвится автоматически: FormArrayProxy / уже-резолвленный ArrayNode / FieldPathNode из RenderSchema. */
+  control: FormArrayProxy<T> | ArrayNode<T> | FieldPathNode<unknown, unknown>;
+
+  /** React FC получает control: FormProxy<T> для каждого элемента массива. ЕДИНСТВЕННЫЙ shape. */
+  itemComponent: ComponentType<{ control: FormProxy<T> }>;
+
+  title?: string;
+  itemLabel?: string | ((control: FormProxy<T>, index: number) => string);
+  addButtonLabel?: string;        // default '+ Добавить'
+  removeButtonLabel?: string;     // default 'Удалить'
+  emptyMessage?: string;
+  emptyMessageHint?: string;
+  hasItems?: boolean;
+  initialValue?: Partial<FormFields>;
+  maxItems?: number;
+  showRemoveOnSingle?: boolean;
+  className?: string;
+  cardClassName?: string;
+
+  // Auto-injected by RenderNodeComponent (self-managed marker)
+  form?: FormProxy<unknown>;
+  fieldWrapper?: ComponentType<FieldWrapperProps>;
+}
+```
+
+**Внутри:**
+- `resolveArrayNode(control, form)` — из app-level [`RendererFormArraySection.tsx:136-177`](../../projects/react-playground/src/components/RendererFormArraySection.tsx#L136-L177): резолвит `FieldPathNode → ArrayNode<T>` через `FieldPathNavigator + extractPath`. Принимает уже-резолвленный `ArrayNode/FormArrayProxy` без изменений.
+- Для каждого item: `<ItemComponent control={itemForm} />` — прямой JSX. Никакого `RenderNodeComponent`, никакого `(itemPath) => RenderNode` factory.
+- `__selfManagedChildren = true` — гарантирует автоинъекцию `form` + `fieldWrapper` от родителя-renderer'а.
+
+### `FormWizard<T>` — polymorphic body
+
+```ts
+import type { ComponentType, ReactNode } from 'react';
+import type { FormProxy } from '@reformer/core';
+import type { RenderNode } from '@reformer/renderer-react';
+
+type FormWizardStepBody<T> =
+  | ComponentType<{ control: FormProxy<T> }>   // FC получает control={form}
+  | ReactNode                                    // готовый JSX
+  | RenderNode<T>;                               // RenderSchema subtree
+
+type FormWizardStep<T> = {
+  number: number;
+  title: string;
+  icon?: ReactNode;
+  body: FormWizardStepBody<T>;
 };
+
+interface FormWizardProps<T extends object> extends FormWizardHeadlessProps<T> {
+  steps: FormWizardStep<T>[];
+  onSubmit: FormWizardActionsProps['onSubmit'];
+  className?: string;
+}
 ```
 
-**Вход:**
-- Читает спеку через `readFileSync(specPath)` с fallback на cwd-relative.
-- Запускает `detectProjectStack(projectPath)` — переиспользует [`packages/reformer-mcp/src/utils/project-detector.ts`](../../packages/reformer-mcp/src/utils/project-detector.ts).
-- Извлекает из спеки секции (regex по `^## Поля формы`, `^## Сценарии`, `^## API интеграция`, `^## Canonical user-facing strings`).
-
-**Output (markdown в `messages[0].content.text`):**
-```
-# План разработки формы <name>
-
-## 1. Анализ спеки
-- Шагов: N (если multi-step)
-- Полей всего: M (с разбивкой по группам, computed, conditional, arrays)
-- Conditional поля: список с триггерами
-- Computed поля: список с формулами + dependencies
-- Arrays: список с item-shapes
-- API endpoints: список (для async-валидации/load-options)
-
-## 2. Detected стек
-(вывод renderStackDetectionBlock — переиспользуем из project-detector.ts)
-
-## 3. Этапы разработки (sub-agent roadmap)
-| # | Стадия | MCP-prompt | Артефакты | Verification (orchestrator) |
-|---|--------|------------|-----------|------------------------------|
-| 1 | Types | (нет prompt) | types.ts | tsc + grep counts spec fields vs interface |
-| 2 | FormSchema + UI | create-form | schema.ts + index.tsx | playwright: render все 6 step section, screenshots |
-| 3 | Validation | add-validation | schema.ts validation block | playwright: empty submit → specific Russian errors |
-| 4 | Behaviors | add-behavior | schema.ts behavior block | playwright: trigger каждый behavior, assert effect |
-| 5 | FormArray | add-form-array | template factories + ui | playwright: add/remove, plain leaves verify |
-| 6 | Wizard | add-wizard | StepIndicator + nav + setHidden | playwright: walk all steps, per-step validation |
-| 7 | Report | (нет prompt, sub-agent сам) | dev-report.md | review-checklist matched against spec |
-
-## 4. Risk matrix (must-not-do)
-- ⚠️ enableWhen + resetOnDisable на whole ArrayNode → browser hang.
-- ⚠️ Conditional fields (loanType/employmentStatus) → hide via JSX-conditional / setHidden, НЕ enableWhen.
-- ⚠️ FormArray.AddButton initialValue → PLAIN leaf values (не FieldConfig).
-- ⚠️ Cycle prevention: каждый watchField immediate:false + value-equality guard.
-- ⚠️ testId convention — dotted-path (step1.loanAmount), не dashes.
-- ⚠️ Spec literal — все поля из спеки в schema, без collapsing/dropping/moving.
-- ⚠️ user-facing strings из спеки (canonical labels table), не выдумывать.
-
-## 5. Verification scenarios для orchestrator
-1. **Initial render**: 6 step sections в DOM, 0 console errors.
-2. **Empty submit step 1**: 2 ошибки видимы (loanAmount, loanPurpose).
-3. **loanType=mortgage**: propertyValue/initialPayment появились; carBrand/Model/Year/Price скрыты.
-4. **sameAsRegistration=true**: residenceAddress mirror registrationAddress.
-5. **monthlyIncome=120000 + additionalIncome=20000**: totalIncome=140000.
-6. **Step 5 toggle hasProperty**: array section появилась, "+ Добавить" → 2 cards с правильными default'ами.
-7. **Wizard chip 1 click из step 3**: возврат на step 1.
-8. **End-to-end**: happy-path заполнение → step 6 submit → console.log values.
-
-## 6. Test fixtures
-- Happy-path (consumer кредит, без property/loans/coBorrowers): inline JSON.
-- Edge case (mortgage + 2 properties + 1 loan + 1 co-borrower): inline JSON.
+**Внутри (runtime-дискриминация):**
+```ts
+function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): ReactNode {
+  // FC (function component, не React element)
+  if (typeof body === 'function') {
+    const FC = body as ComponentType<{ control: FormProxy<T> }>;
+    return <FC control={form} />;
+  }
+  // RenderNode (plain object с .component) — отличаем от React element
+  if (body && typeof body === 'object' && 'component' in body && !isValidElement(body)) {
+    return <RenderNodeComponent node={body as RenderNode<T>} form={form} />;
+  }
+  // ReactNode (готовый JSX)
+  return body as ReactNode;
+}
 ```
 
-**Реализация:** функция `getPlanFormPrompt(args)` использует:
-- `readFileSync(args.specPath, 'utf-8')` для чтения спеки.
-- `detectProjectStack(args.projectPath)` для stack-blocks.
-- Парсит спеку regex'ами: `## Поля формы` секция → разбивает на step1..stepN таблицы → подсчитывает поля.
-- Возвращает один user-message с markdown-планом по шаблону выше.
+**Compound API:** `Object.assign(FormWizard, { Indicator, Step, Actions, Progress })` через re-export `FormWizardHeadless.*` слотов.
 
-**Регистрация:** `packages/reformer-mcp/src/prompts/index.ts` — добавить строку:
-```typescript
-export { planFormPromptDefinition, getPlanFormPrompt } from './plan-form.js';
+`__selfManagedChildren = true` — для использования внутри RenderSchema.
+
+## Renderer-json — minor patch для `$template` в itemComponent позиции
+
+`packages/reformer-renderer-json/src/converter/json-to-render-schema.ts`: добавить логику резолва `itemComponent` (или любого `*Component` field):
+
+1. **Если string** (`"itemComponent": "PropertyForm"`):
+   - Lookup в registry → FC. Передаём в ui-kit как `ComponentType<{ control }>`.
+
+2. **Если object с `$template`** (`"itemComponent": { "$template": {...} }`):
+   - Конвертируем в FC-обёртку:
+     ```ts
+     const wrapperFC: FC<{ control: FormProxy<T> }> = ({ control }) => {
+       const schema = createRenderSchema(() => templateNode);
+       return <FormRenderer form={control} render={schema} />;
+     };
+     ```
+   - Передаём в ui-kit как FC.
+
+3. **Иначе** (raw FC reference, через registry-source) — passthrough.
+
+**Это сохраняет JSON-flexibility:** consumer может писать inline subtree через `$template` ИЛИ ссылку на registry-FC по имени. ui-kit видит единственный FC-shape всегда.
+
+Тест:
+```jsonc
+// 1. Registry name
+{ "component": "FormArraySection", "componentProps": { "itemComponent": "PropertyForm" } }
+// 2. Inline $template
+{ "component": "FormArraySection", "componentProps": {
+  "itemComponent": { "$template": { "component": "Section", "children": [...] } }
+}}
+```
+Оба варианта на выходе — `ComponentType<{ control: FormProxy<Property> }>`.
+
+## Что мигрируется (8 файлов → 7 в ui-kit, дубли удаляются)
+
+| Источник | Целевой путь в `packages/reformer-ui-kit/src/` | Что делаем |
+|---|---|---|
+| `complex-form/components/ui/ErrorState.tsx` | `components/state/error-state.tsx` | Импорт `Button` сделать относительным. |
+| `complex-form/components/ui/LoadingState.tsx` | `components/state/loading-state.tsx` | as-is. |
+| `complex-form/components/ui/FormWizzard/FormWizardActions.tsx` | `components/form-wizard/form-wizard-actions.tsx` | Хардкод-строки на 31/35/39 → опциональные props (`prevLabel`, `nextLabel`, `submitLabel`, `validatingLabel`, `submittingLabel`) с Russian-дефолтами. |
+| `complex-form/components/ui/FormWizzard/FormWizardProgress.tsx` | `components/form-wizard/form-wizard-progress.tsx` | `combineClasses` → `cn` из ui-kit `lib/utils`. Prop `format?: (p) => ReactNode` с Russian-дефолтом. |
+| `complex-form/components/ui/FormWizzard/StepIndicator.tsx` | `components/form-wizard/step-indicator.tsx` | Aria-строки на 30/44 → props `navAriaLabel?`, `stepAriaLabel?` с Russian-дефолтами. |
+| `complex-form/components/ui/FormWizzard/FormWizard.tsx` + `RendererFormWizard.tsx` | `components/form-wizard/form-wizard.tsx` (один файл) | **Слияние:** базовая структура + полиморфный `step.body` через `renderStepBody()` helper. Внутри ветка для RenderNode использует `RenderNodeComponent`. Generic по `T`, без `CreditApplicationForm`. `__selfManagedChildren = true`. Compound API. |
+| `complex-form/components/ui/FormArray/FormArraySection.tsx` + app-level `components/RendererFormArraySection.tsx` | `components/form-array/form-array-section.tsx` (один файл) | **Слияние:** берём app-level версию (`maxItems`, `showRemoveOnSingle`, `initialValue` plain-leaves, `resolveArrayNode`). Заменяем `(itemPath) => RenderNode` API на единственный `itemComponent: ComponentType<{ control }>`. Items рендерятся как `<ItemComponent control={itemForm}/>`. `__selfManagedChildren = true`. |
+
+**Удаляются** (после миграции consumer-ов):
+- `complex-form/components/ui/FormWizzard/{FormWizard,RendererFormWizard,StepIndicator,FormWizardActions,FormWizardProgress}.tsx`.
+- `complex-form/components/ui/FormArray/{FormArraySection,RendererFormArraySection}.tsx`.
+- `complex-form/components/ui/{ErrorState,LoadingState}.tsx`.
+
+**Shim:** `projects/react-playground/src/components/RendererFormArraySection.tsx` → адаптер для iter-7 v7-страниц. v7 ожидает старый API `itemComponent: (itemPath) => RenderNode<T>`. Внутри shim:
+```ts
+import { FormArraySection } from '@reformer/ui-kit/form-array';
+
+export function RendererFormArraySection<T>(props: { itemComponent: (itemPath) => RenderNode<T>; ... }) {
+  // Преобразуем node-factory в FC-обёртку
+  const itemFC: FC<{ control: FormProxy<T> }> = ({ control }) => {
+    const itemPath = createFieldPath<T>();
+    const node = props.itemComponent(itemPath);
+    return <RenderNodeComponent node={node} form={control} />;
+  };
+  return <FormArraySection {...props} itemComponent={itemFC} />;
+}
+```
+Iter-7 страницы продолжают работать без изменений.
+
+**Не трогаем:** `ConfirmationComponents.tsx`, `ResidenceAddressSection.tsx`, `UnemployedWarning.tsx`.
+
+## Структура целевого пакета
+
+```
+packages/reformer-ui-kit/src/
+├── components/
+│   ├── ui/                          # существующие 14 leaf-компонентов
+│   ├── form-wizard/                 # NEW
+│   │   ├── form-wizard.tsx          # унифицированный (полиморфный body)
+│   │   ├── form-wizard-actions.tsx
+│   │   ├── form-wizard-progress.tsx
+│   │   ├── step-indicator.tsx
+│   │   └── index.ts
+│   ├── form-array/                  # NEW
+│   │   ├── form-array-section.tsx   # унифицированный (FC itemComponent)
+│   │   └── index.ts
+│   └── state/                       # NEW
+│       ├── error-state.tsx
+│       ├── loading-state.tsx
+│       └── index.ts
+└── index.ts
 ```
 
-И в `packages/reformer-mcp/src/server.ts` (или где регистрируются промпты — найти через grep `addValidationPromptDefinition` если index.ts только реэкспортирует) — добавить в массив prompts.
+## Изменения в инфраструктуре
 
-## Iter-4 workflow per page (3 страницы × 7 sub-агентов = 21 sub-agent run)
+**`packages/reformer-ui-kit/package.json`:**
+- `peerDependencies`: добавить `"@reformer/renderer-react": ">=1.0.0-beta.0"`.
+- `devDependencies`: `"@reformer/renderer-react": "*"`.
+- `exports`: добавить `"./state"` (form-wizard и form-array уже задекларированы).
 
-Каталоги для трёх страниц (orchestrator создаёт stub'ы перед запуском):
-- `projects/react-playground/src/pages/examples/mcp-credit-application-v4/` (target=core)
-- `projects/react-playground/src/pages/examples/mcp-credit-application-renderer-v4/` (target=renderer-react)
-- `projects/react-playground/src/pages/examples/mcp-credit-application-renderer-json-v4/` (target=renderer-json)
+**`packages/reformer-ui-kit/vite.config.ts`:**
+- Entry-points: `'form-wizard'`, `'form-array'`, `'state'`.
+- `rollupOptions.external`: `'@reformer/renderer-react'`.
 
-### Стадии (одинаковы для всех 3 страниц)
+## Renderer-react
 
-| # | Sub-agent | Что делает | Orchestrator verification после |
-|---|-----------|-----------|--------------------------------|
-| 1 | **Planning** | Вызывает `plan-form` через JSON-RPC, читает план, **возвращает план в финальном сообщении** (orchestrator сохраняет в `<page-dir>/dev-plan.md`) | Orchestrator валидирует план: secций ≥ 6, risk matrix присутствует, verification scenarios ≥ 5. |
-| 2 | **Types** | Реализует `types.ts` с интерфейсом `CreditApplicationForm` + sub-types (with `extends FormFields`) | `tsc --noEmit` clean + grep считает поля в спеке vs `interface` properties (должно совпадать). |
-| 3 | **FormSchema + UI rendering** | Реализует `schema.ts` (createForm + form-only) + `index.tsx` (рендеринг всех 6 step sections вертикально, без wizard) | Playwright: navigate `/examples/mcp-credit-v4`, snapshot DOM, screenshot fullpage. Assert: все спека-поля имеют `[data-testid^="input-"]` matching dotted-path, 0 console errors. |
-| 4 | **Validation** | Добавляет `validation: (path: any) => {...}` блок + submit handler | Playwright: click submit, scrape `.text-destructive` элементы. Assert: error messages совпадают с canonical messages из спеки. Если хоть один generic — failure. |
-| 5 | **Behaviors** | Добавляет `behavior: (path: any) => {...}` блок (8 watchField + enableWhen + copyFrom) | Playwright: 5 verification scenarios из плана: change loanType→interestRate update, mortgage→propertyValue visible, sameAsRegistration→copyFrom, monthlyIncome change → totalIncome cascade, fullName concat. |
-| 6 | **FormArray + Wizard** | Превращает 3 array fields в FormArray с add/remove + оборачивает в multi-step wizard со StepIndicator | Playwright: walk through 6 steps with happy-path data, verify chip transitions, click chip 1 from step 3 (back-nav), toggle hasProperty → add 2 properties → verify plain-leaves. |
-| 7 | **Report** | Sub-agent читает все свои файлы + `dev-plan.md`, пишет `<page-dir>/dev-report.md` с раскладкой «план vs реализация», использованные MCP tools, найденные gaps | Orchestrator читает report, добавляет в финальный `credit-application-mcp-report-v4.md` соответствующую секцию. |
+**НЕ ТРОГАЕМ.** Никаких изменений в `types.ts`, `render-node.tsx`, `utils.ts`. Никакого SemVer impact.
 
-### Failure handling
+## Порядок фаз
 
-Если playwright verification после стадии N вернул failure:
-1. Orchestrator анализирует, что именно сломалось.
-2. Если это **новый MCP gap** (не покрыт текущими промптами) — orchestrator патчит соответствующий промпт (`packages/reformer-mcp/src/prompts/<name>.ts`), пересобирает MCP (`npm run build -w @reformer/mcp`).
-3. Orchestrator удаляет файлы, созданные провалившимся sub-agent'ом (только текущей стадии, не всей страницы).
-4. Orchestrator спавнит **новый sub-agent** на ту же стадию N со свежим контекстом.
-5. Если стадия 1 (planning) провалилась — это критично, означает что `plan-form` сломан; orchestrator сначала фиксит prompt, потом перезапускает.
+1. **Phase 0 — ui-kit infra:** package.json + vite.config.ts.
+2. **Phase 1 — state листья:** ErrorState, LoadingState (smoke-test пайплайна).
+3. **Phase 2 — wizard cluster:** Actions, Progress, StepIndicator → унифицированный FormWizard с polymorphic `body`.
+4. **Phase 3 — form-array:** унифицированный FormArraySection с FC `itemComponent`.
+5. **Phase 4 — renderer-json converter:** patch для `$template` → FC в `*Component` слотах + registry-name string resolve. Тесты.
+6. **Phase 5 — миграция consumer-ов** + удаление старых файлов + shim для v7.
+7. **Phase 6 — MCP prompt G + llms-доки.**
+8. **Phase 7 — verification.**
 
-## Files
+## Consumer migration
 
-**Создаются:**
-- `packages/reformer-mcp/src/prompts/plan-form.ts` (NEW) — реализация промпта.
-- `projects/react-playground/src/pages/examples/mcp-credit-application-v4/{dev-plan,dev-report}.md` + `{types,schema}.ts` + `index.tsx`.
-- `projects/react-playground/src/pages/examples/mcp-credit-application-renderer-v4/...` (то же + `render-schema.tsx`).
-- `projects/react-playground/src/pages/examples/mcp-credit-application-renderer-json-v4/...` (то же + `registry.tsx` + `render-schema.ts` + `array-blocks.tsx`).
-- `docs/specs/credit-application-mcp-report-v4.md` — финальный отчёт по iter-4.
+`projects/react-playground/src/pages/examples/complex-multy-step-form-renderer/render-schema.ts` (строки 20-36):
+- Старое: `<RendererFormWizard steps={[{ ..., component: someRenderNode }]}>` — где `someRenderNode` это RenderNode subtree.
+- Новое: `<FormWizard steps={[{ ..., body: someRenderNode }]}>` from `@reformer/ui-kit/form-wizard`. Тот же RenderNode subtree, поле переименовано `component` → `body`.
+- Старое: `<RendererFormArraySection itemComponent={(itemPath) => itemRenderNode}>` — node-factory.
+- Новое: items должны стать FC. Один из путей:
+  - **Inline FC обёртка:** `itemComponent={(props) => <FormRenderer form={props.control} render={() => itemRenderNode}/>}`.
+  - **Lift item в отдельный FC:** `const PropertyForm: FC<{control: FormProxy<Property>}> = ({control}) => <Section>...</Section>`. Тогда `itemComponent={PropertyForm}`.
+- `LoadingState`, `ErrorState` → `'@reformer/ui-kit'` напрямую.
+- `ResidenceAddressSection`, `UnemployedWarning`, `ConfirmationComponents` — НЕ трогаем.
 
-**Модифицируются:**
-- `packages/reformer-mcp/src/prompts/index.ts` — реэкспорт нового промпта.
-- `packages/reformer-mcp/src/server.ts` (или эквивалент) — регистрация нового промпта в массиве prompts (найти через grep при имплементации).
-- `projects/react-playground/src/App.tsx` — 3 импорта + 3 routes + 3 nav-entries для v4 страниц.
+`projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts` (строки 34-48): тот же набор замен. JSON `itemComponent: "Name"` или `itemComponent: { "$template": {...} }` — оба работают через converter patch.
 
-**Не трогаются** (правка ниже scope):
-- `packages/reformer-mcp/src/prompts/{create-form,add-validation,add-behavior,add-form-array,add-wizard}.ts` — текущие правила достаточны, новый `plan-form` их дополняет, не переопределяет.
-- `docs/specs/credit-application-form.md` — спека уже включает canonical labels table из iter-3.
-- `PROMT.md` — обновим только если по ходу iter-4 выяснится что-то фундаментально новое.
+Iter-7 v7-страницы: подхватят shim в `projects/react-playground/src/components/RendererFormArraySection.tsx` без изменений в самих v7 страницах.
 
-## Verification (как протестировать iter-4 end-to-end)
+## MCP prompt + llms-доки
 
-После имплементации `plan-form` промпта:
+**`packages/reformer-mcp/src/prompts/templates/add-wizard.md` Section A1:** переписать на «**A1 — default путь для ui-kit-detected стеков**»:
+```tsx
+import { FormWizard } from '@reformer/ui-kit/form-wizard';
+<FormWizard form={form} config={config} steps={steps} onSubmit={onSubmit} />
+```
+Описать что `step.body` принимает `FC | ReactNode | RenderNode<T>` (runtime-дискриминация). Привести по примеру каждого варианта.
 
-1. **Smoke-test промпта** через JSON-RPC helper:
-   ```bash
-   node scripts/mcp-call.mjs prompts/get '{"name":"plan-form","arguments":{"specPath":"docs/specs/credit-application-form.md","target":"core","projectPath":"projects/react-playground"}}'
-   ```
-   Output должен содержать: «План разработки формы», 6 секций, risk matrix с 7 пунктами, verification scenarios ≥ 5, detected stack `@reformer/ui-kit + Tailwind v4`.
+**`packages/reformer-mcp/src/prompts/templates/add-form-array.md`:** переписать `itemComponent` секцию — теперь это всегда `ComponentType<{ control: FormProxy<TItem> }>`. Никаких node-factory. Для JSON: registry-string или `$template` (converter сам обернёт в FC).
 
-2. **Запустить iter-4 на page 1** (target=core):
-   - Создать stub `mcp-credit-application-v4/index.tsx`.
-   - Зарегистрировать route в App.tsx.
-   - Спавнить sub-agent #1 (planning) → проверить план.
-   - Спавнить sub-agent #2 (types) → tsc + grep field count.
-   - ... и так по всем 7 стадиям.
-   - На каждой стадии orchestrator делает playwright verification по чеклисту из плана.
+**`packages/reformer-ui-kit/docs/llms/`:**
+- `07-form-wizard.md` — recipe «Build a multi-step form» с тремя примерами body (FC / ReactNode / RenderNode).
+- `08-form-array-section.md` — recipe для FormArraySection (FC itemComponent + JSON $template/string).
+- Обновить `05-recipes.md` пунктом про multi-step + form-array combo.
 
-3. **Финальная приёмка page 1**:
-   - Build чистый.
-   - Все 8 verification scenarios из плана зелёные в playwright.
-   - 0 console errors.
-   - `dev-plan.md` + `dev-report.md` в каталоге страницы.
+`generate:llms` пайплайн запускается из `scripts/generate-llms-txt` автоматически в `npm run build`.
 
-4. **Повторить для page 2 + page 3** (renderer-react, renderer-json).
+## Critical files
 
-5. **Финальный отчёт** `docs/specs/credit-application-mcp-report-v4.md`:
-   - Сколько sub-agent retries было на каждой стадии каждой страницы.
-   - Какие новые MCP gaps вскрылись (если есть).
-   - Как `plan-form` повлиял на spec-compliance vs iter-3 (D5, D6 — закрыты ли литерально без human-intervention).
+- [packages/reformer-ui-kit/package.json](../../packages/reformer-ui-kit/package.json) — peerDeps + exports.
+- [packages/reformer-ui-kit/vite.config.ts](../../packages/reformer-ui-kit/vite.config.ts) — entries + external.
+- [packages/reformer-ui-kit/src/index.ts](../../packages/reformer-ui-kit/src/index.ts) — re-exports.
+- [packages/reformer-renderer-json/src/converter/json-to-render-schema.ts](../../packages/reformer-renderer-json/src/converter/json-to-render-schema.ts) — `*Component` slot patch.
+- [packages/reformer-mcp/src/prompts/templates/add-wizard.md](../../packages/reformer-mcp/src/prompts/templates/add-wizard.md) — Section A1.
+- [packages/reformer-mcp/src/prompts/templates/add-form-array.md](../../packages/reformer-mcp/src/prompts/templates/add-form-array.md) — itemComponent unified shape.
+- [projects/react-playground/src/components/RendererFormArraySection.tsx](../../projects/react-playground/src/components/RendererFormArraySection.tsx) — становится shim.
+- [projects/react-playground/src/pages/examples/complex-multy-step-form-renderer/render-schema.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer/render-schema.ts) — consumer.
+- [projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/registry.ts) — consumer.
 
-## Out of scope этого плана
+## Verification
 
-- **MCP-changes за пределами `plan-form`**: текущие промпты не правим (они стабильны после iter-3).
-- **Изменения в спеке**: уже содержит canonical labels из iter-3.
-- **`PROMT.md`**: переписывать пока не нужно — iter-4 brief можно держать в этом плане.
-- **Параллельный запуск sub-агентов между стадиями**: стадии последовательны (planning → types → schema+UI → ...), так как каждая зависит от предыдущей. Параллельность только между страницами (page 1/2/3 могут идти одновременно после своих stage 1).
-- **Регистрация в App.tsx через sub-agent**: только orchestrator (sub-agent forbidden от App.tsx).
-- **Коммиты по ходу работы**: согласно правилу из CLAUDE.md, коммиты только по явному запросу пользователя.
+1. `npm run build -w @reformer/ui-kit` — clean. `dist/form-wizard.js`, `dist/form-array.js`, `dist/state.js` + `.d.ts` присутствуют. `@reformer/renderer-react` external (нет runtime-копии в bundle).
+2. `npm run build -w @reformer/renderer-json` — clean. Тест converter $template→FC проходит.
+3. `cd projects/react-playground && npx tsc --noEmit` — clean.
+4. Dev-server `npm run dev -w react-playground`:
+   - `/examples/complex` — wizard визуально неизменён (StepIndicator, кнопки, прогресс).
+   - `/examples/complex-renderer` — то же; используется `step.body: RenderNode`. Items через FC `PropertyForm`.
+   - `/examples/json-renderer` — то же; через converter $template→FC resolve.
+   - `/examples/mcp-credit-v7`, `/examples/mcp-credit-renderer-v7`, `/examples/mcp-credit-renderer-json-v7` — рендерятся через shim без regress.
+5. **Playwright e2e** на `/examples/complex-renderer`: 6 шагов wizard happy-path, без console-errors, testIds сохранены (`btn-next`, `btn-submit`, `step-indicator-N`, `array-item-*`).
+6. **Renderer-react regression:** `npm test -w @reformer/renderer-react` — все существующие тесты проходят (никаких изменений в renderer-react).
+7. **MCP regression:** spawn fresh sub-agent через JSON-RPC `prompts/get name=add-wizard target=core projectPath=projects/react-playground` — подтвердить A1 как DEFAULT и пример `from '@reformer/ui-kit/form-wizard'` со step.body: FC|ReactNode|RenderNode присутствует.
+8. **Type-safety check:** TS правильно типизирует step.body через discriminated runtime + valid type union. Подтвердить отсутствие `as never` cast в migrated consumer files.
+
+## Risk matrix
+
+| Риск | Митигация |
+|---|---|
+| **Полиморфный `step.body` runtime-дискриминация** — функция vs React element vs plain object. | Чёткие type guards: `typeof body === 'function'` (FC), `isValidElement(body)` (ReactElement), `'component' in body && !isValidElement` (RenderNode). Unit-тесты ui-kit/form-wizard на каждый shape. |
+| **`$template` → FC wrapper в renderer-json** — wrapper создаётся per-render, не оптимизировано. | Memoize wrapper по identity templateNode внутри converter. Performance impact для arrays на 100+ items. Если станет проблемой — оптимизация в follow-up. |
+| **Shim для iter-7 v7** — старый API node-factory нужно адаптировать. | Inline FC-обёртка вокруг `RenderNodeComponent`. Поведение сохраняется, тесты v7 не падают. |
+| **complex-form-renderer items — что они сейчас?** | Перед миграцией читаем существующие render-schema. Если items сейчас — RenderSchema-tree, оборачиваем в `(props) => <FormRenderer form={props.control} render={...}/>`. |
+| **Type union FC \| ReactNode \| RenderNode** — TS может неправильно сужать. | Явный helper `renderStepBody<T>()` с type guards. Опционально — добавить test-d.ts если есть в ui-kit. |
+
+## Out of scope
+
+- Path A (discriminated props) и Path B (controlMode) — отвергнуты.
+- Генерализация `UnemployedWarning` в общий `Callout`/`Alert`.
+- Миграция iter-7 v7 страниц на новый FC-shape (через shim работает).
+- Расширение renderer-react новыми node-вариантами — отдельная задача когда станет нужно.
+- Коммиты — только по явному запросу пользователя (per CLAUDE.md).

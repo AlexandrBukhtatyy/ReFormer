@@ -70,6 +70,10 @@
     "./async-boundary": {
       "types": "./dist/ui/async-boundary.d.ts",
       "import": "./dist/ui/async-boundary.js"
+    },
+    "./state": {
+      "types": "./dist/state.d.ts",
+      "import": "./dist/state.js"
     }
   },
   "sideEffects": false,
@@ -121,6 +125,7 @@
     "@radix-ui/react-slot": "^1.0.0",
     "@reformer/cdk": ">=1.0.0-beta.0",
     "@reformer/core": ">=1.1.0-beta.0",
+    "@reformer/renderer-react": ">=1.0.0-beta.0",
     "lucide-react": "^0.400.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
@@ -135,6 +140,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@reformer/cdk": "*",
     "@reformer/core": "*",
+    "@reformer/renderer-react": "*",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
