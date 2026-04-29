@@ -22,7 +22,32 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 6. **Don't use `revalidateWhen` if `copyFrom` + validators on target already cover it.**
 7. **`computeFrom` only same-level** — for cross-level use `watchField`.
 8. **NEVER `enableWhen` on a whole `ArrayNode` with `resetOnDisable: true`** — verified browser-hang. For conditional array visibility use JSX-conditional (`{form.flag.value && <ArrayUI/>}`).
-9. **`computeFrom` source-subscription rule** — values-объект, который computeFn получает, строится по **last-segment keys** path-источников. Если computeFn читает `form.<group>.<field>` (nested), подписывайся на **group node** (`[path.<group>]`) — values придёт как `{ <group>: { <field>: ... } }`. Если подписаться на отдельные leaves (`[path.<group>.<fieldA>, path.<group>.<fieldB>]`), values станет flat (`{ <fieldA>, <fieldB> }`) — computeFn получит plain object без вложенности и тихо вернёт пустоту/0/undefined. **`as never` cast в `[...sources] as never` — red flag**: если cast скрывает type error в `computeFrom` — это значит subscription mistyped. Зарефактори: либо подписка на group, либо computeFn перепиши под flat shape.
+9. **NEVER combine raw `effect()` from `@preact/signals-core` with signal-write calls** (`schema.node().setHidden()`, `field.setValue()`, `field.disable()`, etc.) **inside the same callback**. setHidden writes the hidden-signal → effect dependency graph re-runs → infinite loop with «Cycle detected» runtime error.
+
+   **For React-side orchestration (B3 setHidden cascade в renderer-json A4 wizard pair, любые JSX-condition реакции на signals):** используй `useFormControlValue(form.X)` для signal→React-state bridge + **отдельный `useEffect` per source/condition**. React deps prevent infinite re-trigger.
+
+   ```tsx
+   // ❌ Cycle detected — effect reads signal, setHidden writes signal
+   useEffect(() => {
+     const dispose = effect(() => {
+       const loanType = form.loanType.value.value;
+       schema.node('mortgage-section').setHidden(loanType !== 'mortgage');
+       schema.node('car-section').setHidden(loanType !== 'car');
+     });
+     return dispose;
+   }, [schema, form]);
+
+   // ✅ React-mediated — signal subscribed via useFormControlValue, useEffect runs on deps change
+   const loanType = useFormControlValue(form.loanType as never) as string;
+   useEffect(() => {
+     schema.node('mortgage-section').setHidden(loanType !== 'mortgage');
+     schema.node('car-section').setHidden(loanType !== 'car');
+   }, [schema, loanType]);
+   ```
+
+   `effect()` raw — только для side-effects вне React (`console.log`, fetch, broadcasting events). Внутри React tree всегда mediate через `useFormControlValue`.
+
+10. **`computeFrom` source-subscription rule** — values-объект, который computeFn получает, строится по **last-segment keys** path-источников. Если computeFn читает `form.<group>.<field>` (nested), подписывайся на **group node** (`[path.<group>]`) — values придёт как `{ <group>: { <field>: ... } }`. Если подписаться на отдельные leaves (`[path.<group>.<fieldA>, path.<group>.<fieldB>]`), values станет flat (`{ <fieldA>, <fieldB> }`) — computeFn получит plain object без вложенности и тихо вернёт пустоту/0/undefined. **`as never` cast в `[...sources] as never` — red flag**: если cast скрывает type error в `computeFrom` — это значит subscription mistyped. Зарефактори: либо подписка на group, либо computeFn перепиши под flat shape.
 
    ```typescript
    // ❌ silent fail — computeFn видит { lastName, firstName, middleName }, а читает form.personalData.lastName
@@ -91,6 +116,7 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] Every `setValue` has equality guard
 - [ ] No `enableWhen` on whole ArrayNode
 - [ ] `computeFrom` not used cross-level
-- [ ] `computeFrom` sources subscribe to group node когда computeFn читает nested fields (rule #9); никаких `as never` cast'ов на источниках
+- [ ] `computeFrom` sources subscribe to group node когда computeFn читает nested fields (rule #10); никаких `as never` cast'ов на источниках
+- [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); React orchestration через `useFormControlValue` + `useEffect`
 - [ ] Hide-vs-Disable choice documented per conditional field
 - [ ] Short risk summary at end

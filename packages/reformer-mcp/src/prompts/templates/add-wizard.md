@@ -144,6 +144,8 @@ useEffect(() => { /* same setHidden loop as B2 */ }, [schema, currentStep]);
 
 JSON `selector: 'stepN'` on each step container; `useEffect setHidden` orchestration in `index.tsx`. Conditional sub-sections via `useFormControlValue(form.field as never)` + `useEffect setHidden('subsection-selector')`.
 
+⚠️ **NEVER use raw `effect()` from `@preact/signals-core` для setHidden orchestration.** `setHidden` пишет в hidden-signal, raw `effect()` подписан на signals → infinite loop с «Cycle detected». Используй React-mediated bridge: `const x = useFormControlValue(form.x as never); useEffect(() => schema.node('y').setHidden(...), [schema, x])` — **отдельный `useEffect` per condition**. См. add-behavior.md rule #9 с примерами ❌/✅.
+
 ---
 
 ## Common to every (A, B) combination
