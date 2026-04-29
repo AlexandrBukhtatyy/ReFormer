@@ -6,13 +6,19 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
+import McpCreditApplicationV7 from './pages/examples/mcp-credit-application-v7';
+import McpCreditApplicationRendererV7 from './pages/examples/mcp-credit-application-renderer-v7';
+import McpCreditApplicationRendererJsonV7 from './pages/examples/mcp-credit-application-renderer-json-v7';
 type ExamplePage =
   | 'simple'
   | 'validation'
   | 'behaviors'
   | 'complex'
   | 'complex-renderer'
-  | 'json-renderer';
+  | 'json-renderer'
+  | 'mcp-credit-v7'
+  | 'mcp-credit-renderer-v7'
+  | 'mcp-credit-renderer-json-v7';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -50,6 +56,25 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/behaviors',
     title: 'Поведения',
     description: 'Реактивное поведение через декларативный подход',
+  },
+  {
+    id: 'mcp-credit-v7',
+    path: '/examples/mcp-credit-v7',
+    title: 'MCP Credit v7 (core)',
+    description:
+      'Iteration 7: target=core, regression test on patched MCP prompts (incl. wizard hierarchy).',
+  },
+  {
+    id: 'mcp-credit-renderer-v7',
+    path: '/examples/mcp-credit-renderer-v7',
+    title: 'MCP Credit Renderer v7',
+    description: 'Iteration 7: target=renderer-react, regression test on patched MCP prompts.',
+  },
+  {
+    id: 'mcp-credit-renderer-json-v7',
+    path: '/examples/mcp-credit-renderer-json-v7',
+    title: 'MCP Credit JSON v7',
+    description: 'Iteration 7: target=renderer-json, regression test on patched MCP prompts.',
   },
 ];
 
@@ -123,6 +148,15 @@ function Layout() {
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
+          <Route path="/examples/mcp-credit-v7" element={<McpCreditApplicationV7 />} />
+          <Route
+            path="/examples/mcp-credit-renderer-v7"
+            element={<McpCreditApplicationRendererV7 />}
+          />
+          <Route
+            path="/examples/mcp-credit-renderer-json-v7"
+            element={<McpCreditApplicationRendererJsonV7 />}
+          />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
