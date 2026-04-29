@@ -24,6 +24,8 @@ You design and write a new form on `@reformer/*`.
 - **testId convention**: dotted path (`step1.loanAmount`, `step2.passportData.series`), never bare leaf names — collisions inevitable across steps.
 - **User-facing strings**: from spec or in the user's native language. No default English `"Select an option..."` placeholders.
 - **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`.
+- **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`). Sub-agents intuitively reach for the HTML attribute name — that spams `Warning: Invalid DOM property '<name>'. Did you mean '<camelCase>'?` on every render.
+
 - **All input-rendering `componentProps` (`label`, `placeholder`, `options`, `mask`, `rows`, `type`, anything the leaf component reads) MUST live in `createForm` componentProps**, not only in JSON for `target=renderer-json`. The renderer reads `state.componentProps` from the FieldNode at render time; `JsonNode.componentProps` only carries `selector` / `wrapper` / `testId` / `className` to `RenderNodeComponent`, not the input itself. Symptoms when violated:
   - `label` only in JSON → field renders without a label (visual-only, but breaks UX);
   - `options` only in JSON → `RadioGroup` throws `TypeError: t.map is not a function` at mount; `Select` shows an empty dropdown;

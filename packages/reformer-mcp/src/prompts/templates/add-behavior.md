@@ -22,6 +22,26 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 6. **Don't use `revalidateWhen` if `copyFrom` + validators on target already cover it.**
 7. **`computeFrom` only same-level** — for cross-level use `watchField`.
 8. **NEVER `enableWhen` on a whole `ArrayNode` with `resetOnDisable: true`** — verified browser-hang. For conditional array visibility use JSX-conditional (`{form.flag.value && <ArrayUI/>}`).
+9. **`computeFrom` source-subscription rule** — values-объект, который computeFn получает, строится по **last-segment keys** path-источников. Если computeFn читает `form.<group>.<field>` (nested), подписывайся на **group node** (`[path.<group>]`) — values придёт как `{ <group>: { <field>: ... } }`. Если подписаться на отдельные leaves (`[path.<group>.<fieldA>, path.<group>.<fieldB>]`), values станет flat (`{ <fieldA>, <fieldB> }`) — computeFn получит plain object без вложенности и тихо вернёт пустоту/0/undefined. **`as never` cast в `[...sources] as never` — red flag**: если cast скрывает type error в `computeFrom` — это значит subscription mistyped. Зарефактори: либо подписка на group, либо computeFn перепиши под flat shape.
+
+   ```typescript
+   // ❌ silent fail — computeFn видит { lastName, firstName, middleName }, а читает form.personalData.lastName
+   computeFrom<MyForm, string>(
+     [path.personalData.lastName, path.personalData.firstName, path.personalData.middleName] as never,
+     path.fullName,
+     (form) => [form.personalData?.lastName, form.personalData?.firstName].filter(Boolean).join(' ')
+   );
+
+   // ✅ group node subscription — computeFn получает { personalData: { lastName, firstName, ... } }
+   computeFrom(
+     [path.personalData],
+     path.fullName,
+     (values) => {
+       const pd = values.personalData;
+       return [pd?.lastName, pd?.firstName, pd?.middleName].filter(Boolean).join(' ').trim();
+     }
+   );
+   ```
 
 ## 🎯 Hide vs Disable
 
@@ -71,5 +91,6 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] Every `setValue` has equality guard
 - [ ] No `enableWhen` on whole ArrayNode
 - [ ] `computeFrom` not used cross-level
+- [ ] `computeFrom` sources subscribe to group node когда computeFn читает nested fields (rule #9); никаких `as never` cast'ов на источниках
 - [ ] Hide-vs-Disable choice documented per conditional field
 - [ ] Short risk summary at end
