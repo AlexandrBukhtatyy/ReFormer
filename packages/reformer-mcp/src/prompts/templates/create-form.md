@@ -26,6 +26,40 @@ You design and write a new form on `@reformer/*`.
 - **`required(...)` always with `{ message }`**: never default `"Поле обязательно для заполнения"`.
 - **`componentProps` use camelCase React-style prop names**, not HTML-lowercase. Pass-through to the React leaf component → React DOM rejects the lowercase variant with a console warning. Common offenders: `readOnly` (NOT `readonly`), `htmlFor` (NOT `for`), `tabIndex` (NOT `tabindex`), `autoFocus` (NOT `autofocus`), `maxLength` / `minLength` (NOT `maxlength` / `minlength`). Sub-agents intuitively reach for the HTML attribute name — that spams `Warning: Invalid DOM property '<name>'. Did you mean '<camelCase>'?` on every render.
 
+- **Inside RenderSchema callback (`target=renderer-react`) — use `path.X` (FieldPathNode), NEVER `form.X` (FieldNode).** They look similar at type-level but renderer treats them very differently:
+  - `path.X` is a Proxy with `__path: string` marker (created by `createRenderSchema((path) => ...)`). Renderer's `isFieldRenderNode` sees `__path`, calls `extractPath(node.component)` → string fieldPath → `navigator.getNodeByPath(form, fieldPath)` at render time. **This is the renderer flow contract.**
+  - `form.X` is the actual FieldNode (Signal-wrapped runtime object). It has no `__path` marker. `isFieldRenderNode` returns `false`, `isContainerRenderNode` returns `false` (FieldNode is not a function/forwardRef component) → node is **silently ignored** by the renderer. Form looks empty, no console error.
+
+  ```typescript
+  // ❌ silent fail — renderer ignores these nodes
+  function step1Body(form: FormProxy<MyForm>): RenderNode<MyForm> {
+    return {
+      component: Box,
+      children: [
+        { component: form.email },           // FieldNode — ignored
+        { component: form.password },        // FieldNode — ignored
+      ],
+    };
+  }
+
+  // ✅ correct — pass `path` from createRenderSchema callback
+  const schema = createRenderSchema<MyForm>((path) => ({
+    component: Box,
+    children: [step1Body(path)],
+  }));
+  function step1Body(path: FieldPath<MyForm>): RenderNode<MyForm> {
+    return {
+      component: Box,
+      children: [
+        { component: path.email },           // FieldPathNode — resolved at render
+        { component: path.password },
+      ],
+    };
+  }
+  ```
+
+  When a step body / form-array item / nested helper needs field references, pass `path` (or a sub-path like `path.user`) — never the resolved `form` instance.
+
 - **All input-rendering `componentProps` (`label`, `placeholder`, `options`, `mask`, `rows`, `type`, anything the leaf component reads) MUST live in `createForm` componentProps**, not only in JSON for `target=renderer-json`. The renderer reads `state.componentProps` from the FieldNode at render time; `JsonNode.componentProps` only carries `selector` / `wrapper` / `testId` / `className` to `RenderNodeComponent`, not the input itself. Symptoms when violated:
   - `label` only in JSON → field renders without a label (visual-only, but breaks UX);
   - `options` only in JSON → `RadioGroup` throws `TypeError: t.map is not a function` at mount; `Select` shows an empty dropdown;
@@ -81,6 +115,23 @@ reg.container('FormRoot', FormRoot);
 {{{{/raw}}}}
 
 Without `__selfManagedChildren = true`, `RenderNodeComponent` would NOT pass `form` into FormRoot, and child field nodes would silently render nothing. Without the wrapper, `form` would never reach `componentProps` on the root.
+
+**Field references in JSON — `model: 'fieldPath'`, NOT `selector: 'stepN.fieldPath'`.** Two distinct concepts:
+- `model: 'loanAmount'` — actual field path in the form schema (no `stepN.` prefix). This is what the renderer-json converter resolves via `getFieldByPath(form, model)`.
+- `selector: 'unique-id'` — node identifier for `setHidden` / `hideWhen` / `patchProps` orchestration via `schema.node(selector)`.
+- `testId: 'step1.loanAmount'` — DOM testId convention (dotted path with `stepN.` prefix). Stays in `componentProps`, doesn't drive field resolution.
+
+The converter falls back to `selector` as fieldPath when component is field-type and `model` is missing — but if `selector` was a testId-style `step1.loanAmount`, your form has `loanAmount` (not `step1.loanAmount`) and you get **silent `[RenderSchema] Field not found: step1.loanAmount` warnings** with the field rendered as nothing.
+
+```jsonc
+// ❌ silent fail
+{ "selector": "step1.loanAmount", "component": "Input",
+  "componentProps": { "testId": "step1.loanAmount" } }
+
+// ✅ correct
+{ "model": "loanAmount", "component": "Input",
+  "componentProps": { "testId": "step1.loanAmount" } }
+```
 
 ## Layout & visual density
 

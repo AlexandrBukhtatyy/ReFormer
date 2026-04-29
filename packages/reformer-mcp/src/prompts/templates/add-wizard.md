@@ -36,7 +36,12 @@ const steps: FormWizardStep<MyForm>[] = [
   { number: 2, title: 'Подтверждение', icon: '✓', body: <ConfirmationStep /> },
 
   // Variant 3 — RenderNode subtree (used in renderer-react / renderer-json flows)
-  { number: 3, title: 'Контакты', icon: '📞', body: { component: Box, children: [...] } },
+  // ⚠ Inside the RenderNode tree use `path.X` (FieldPathNode), NOT `form.X` (FieldNode).
+  // FieldNode has no `__path` marker → renderer silently ignores the node.
+  { number: 3, title: 'Контакты', icon: '📞', body: { component: Box, children: [
+    { component: path.phoneMain },
+    { component: path.email },
+  ] } },
 ];
 
 <FormWizard

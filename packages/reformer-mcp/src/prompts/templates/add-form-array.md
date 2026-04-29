@@ -31,7 +31,26 @@ You add a dynamic field array to a `@reformer/*` form.
 
 6. **renderer-react self-managed FormArray block**: must resolve `FieldPath → ArrayNode` via `FieldPathNavigator` + `extractPath`, AND mark `(Block as any).__selfManagedChildren = true` (otherwise `form` prop not injected). Generic resolver utilities will need `<T extends FormFields>` because `ArrayNode<T>` carries that constraint — add it to your resolver function signature, not a workaround.
 
-7. **All targets — `FormArraySection` from `@reformer/ui-kit/form-array` is the single component for both TS-flow and renderer-flow.** Polymorphic `control` (accepts `FormArrayProxy<T>` / `ArrayNode<T>` / `FieldPathNode`). **Single `itemComponent: ComponentType<{ control: FormProxy<T> }>` shape.** Do NOT use a node-factory `(itemPath) => RenderNode<T>` — that's the legacy `RendererFormArraySection` shape; use FC instead.
+7. **JSON `selector` vs `model` — different semantics, do NOT mix.** Two distinct concepts that look superficially similar:
+   - **`model: 'fieldName'`** — explicit fieldPath. Drives renderer's `getFieldByPath(form, fieldName)` for FieldRenderNode resolution. Use this for ANY field reference in JSON (`Input` / `Select` / `Checkbox` / `RadioGroup` / `Textarea` / etc.).
+   - **`selector: 'unique-id'`** — node identifier. Drives `setHidden` / `hideWhen` / `patchProps` / `getRef` orchestration via `schema.node(selector)`. Use this for nodes you want to control programmatically (step containers, conditional sub-sections, array sections).
+
+   **Don't put dotted-path `stepN.fieldName` into `selector` of a field-typed node** (`{ component: 'Input', selector: 'step1.loanAmount' }`). The converter's `resolveFieldPath` falls back to `selector` as fieldPath when component is field-type — but `step1.loanAmount` is NOT in your form schema (your form has `loanAmount` directly), so `getFieldByPath` returns null and you get **silent `[RenderSchema] Field not found: step1.loanAmount` warnings** with the field rendered as nothing. testIds and field paths are different conventions:
+   - `testId: 'step1.loanAmount'` — DOM test convention (dotted path with stepN. prefix). Stays in `componentProps`.
+   - `model: 'loanAmount'` — actual field path in the form (no stepN. prefix).
+
+   ```jsonc
+   // ❌ silent fail — selector treated as fieldPath, form has 'loanAmount' not 'step1.loanAmount'
+   { "selector": "step1.loanAmount", "component": "Input", "componentProps": { "testId": "step1.loanAmount" } }
+
+   // ✅ correct — model is the real fieldPath, testId is just for DOM
+   { "model": "loanAmount", "component": "Input", "componentProps": { "testId": "step1.loanAmount" } }
+
+   // ✅ also valid — selector for orchestration, model for field
+   { "selector": "loan-amount-field", "model": "loanAmount", "component": "Input" }
+   ```
+
+8. **All targets — `FormArraySection` from `@reformer/ui-kit/form-array` is the single component for both TS-flow and renderer-flow.** Polymorphic `control` (accepts `FormArrayProxy<T>` / `ArrayNode<T>` / `FieldPathNode`). **Single `itemComponent: ComponentType<{ control: FormProxy<T> }>` shape.** Do NOT use a node-factory `(itemPath) => RenderNode<T>` — that's the legacy `RendererFormArraySection` shape; use FC instead.
 
    ```tsx
    import { FormArraySection } from '@reformer/ui-kit/form-array';
@@ -81,7 +100,7 @@ You add a dynamic field array to a `@reformer/*` form.
 5. Nested arrays: separate `array(...)` inside item schema; UI nests `FormArray.Root`.
 6. Template-factory returns PLAIN leaf values (never FieldConfig).
 7. (renderer-react) self-managed array block — resolve FieldPath→ArrayNode + `__selfManagedChildren = true`.
-8. **All targets**: use `FormArraySection` from `@reformer/ui-kit/form-array` (single FC `itemComponent`). For renderer-json: registry-name string OR inline `$template` — both produce FC.
+9. **All targets**: use `FormArraySection` from `@reformer/ui-kit/form-array` (single FC `itemComponent`). For renderer-json: registry-name string OR inline `$template` — both produce FC.
 
 ## Output checklist
 
