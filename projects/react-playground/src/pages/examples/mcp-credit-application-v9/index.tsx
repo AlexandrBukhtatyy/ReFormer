@@ -1,12 +1,16 @@
 /**
- * MCP Credit Application v8 — target=core (plain React + @reformer/core + @reformer/ui-kit)
+ * MCP Credit Application v9 — target=core (plain React + @reformer/core + @reformer/ui-kit)
  *
- * Iter-8 regression page. Verifies:
+ * Iter-9 regression page. Verifies:
  * - Patch G — FormWizard hierarchy A1: ui-kit FormWizard (default for projects with @reformer/ui-kit dep).
  * - Pair B1 — JSX-conditional sub-sections inside step bodies (loanType-, employmentStatus-,
  *   sameAsRegistration-, hasProperty-, hasExistingLoans-, hasCoBorrower-driven hide/show).
- * - Patch H — `readOnly: true` (camelCase) on computed fields in schema.ts.
- * - Patch I — computeFrom subscribes to group node `[path.personalData]` for fullName/age.
+ * - Patch H — `readOnly: true` (camelCase) on computed fields + `maxLength` (camelCase)
+ *   on textarea, in schema.ts.
+ * - Patch I — computeFrom subscribes to group node `[path.personalData]` for fullName/age,
+ *   no `as never` cast.
+ * - Patches J/K — N/A for target=core (use `form.X` directly; `model`/`selector` semantics
+ *   are JSON-renderer specific). Verified by absence of regressions.
  * - D1 — Select/RadioGroup carry `options` in createForm schema.
  * - D3 — FormArray.AddButton initialValue = plain primitive item factory.
  *
@@ -466,7 +470,7 @@ const STEPS: FormWizardStep<CreditApplicationForm>[] = [
 // Page component
 // ============================================================================
 
-export default function McpCreditApplicationV8() {
+export default function McpCreditApplicationV9() {
   const navRef = useRef<FormWizardHandle<CreditApplicationForm>>(null);
   const form = useMemo(() => createCreditApplicationForm(), []);
   const navConfig = useMemo(() => ({ stepValidations: STEP_VALIDATIONS, fullValidation }), []);
@@ -474,7 +478,7 @@ export default function McpCreditApplicationV8() {
   const submitApplication = async () => {
     const result = await navRef.current?.submit(async (values: CreditApplicationForm) => {
       // Mock submission per spec — no real API.
-      console.log('[mcp-credit-v8] submit:', values);
+      console.log('[mcp-credit-v9] submit:', values);
       await new Promise((resolve) => setTimeout(resolve, 300));
       return { id: `mock-${Date.now()}`, ok: true };
     });
@@ -503,7 +507,7 @@ export default function McpCreditApplicationV8() {
             🎭 Заполнить тестовыми данными
           </button>
           <span className="text-xs text-gray-500">
-            target=core · Iter-8 · A1 (ui-kit FormWizard) · B1 (JSX-conditional)
+            target=core · Iter-9 · A1 (ui-kit FormWizard) · B1 (JSX-conditional)
           </span>
         </div>
       )}

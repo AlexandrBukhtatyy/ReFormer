@@ -1,164 +1,46 @@
 /**
- * Iter-8 — credit-application form (target=renderer-react)
+ * RenderSchema for the iter-9 credit-application form (renderer-react target).
  *
- * RenderSchema using ui-kit `FormWizard` (Patch G — A1 default for ui-kit stacks).
+ * Wizard pair: A=A1 (FormWizard from `@reformer/ui-kit/form-wizard`),
+ *              B=B2 (renderer-react via `step.body: RenderNode<T>`).
  *
- * Wizard pair: A=A1, B=B2.
- *  - A1 ui-kit FormWizard handles step switching internally; no manual setHidden.
- *  - step.body uses Variant 3 (`RenderNode<T>`) — RenderSchema subtree wrapped
- *    by `<RenderNodeComponent>` inside FormWizard.
- *  - Conditional sub-sections (mortgage/car/employer/business/residence/array
- *    visibility) use `selector` + top-level `hideWhen(...)` after
- *    `createRenderSchema(...)`.
+ * Patch J — inside the `createRenderSchema((path) => ...)` callback we ONLY
+ * use `path.X` (FieldPathNode). NEVER `form.X` (FieldNode) — the renderer's
+ * `isFieldRenderNode` looks for `__path`, which only `path.X` carries.
+ *
+ * Step containers carry `selector: 'stepN'`. ui-kit FormWizard handles step
+ * switching internally (no `setHidden('stepN')` loop required for B2 with A1).
+ * Conditional sub-sections (mortgage, residence-address, employer, …) get
+ * their own selectors and are wired via top-level `hideWhen(proxy.node(...), …)`
+ * AFTER `createRenderSchema(...)`.
  */
 
-import type { FC } from 'react';
 import type { FieldPath, FormProxy } from '@reformer/core';
 import {
   createRenderSchema,
   hideWhen,
-  RenderNodeComponent,
   type RenderNode,
+  type RenderSchemaProxy,
 } from '@reformer/renderer-react';
-import { Box, FormArraySection, Section } from '@reformer/ui-kit';
+import { Box, Section } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-
+import { RendererFormArraySection } from '../../../components/RendererFormArraySection';
 import { STEP_VALIDATIONS, creditApplicationValidation } from './schema';
-import type { CoBorrower, CreditApplicationForm, ExistingLoan, Property } from './types';
+import type {
+  CoBorrower,
+  CreditApplicationForm,
+  ExistingLoan,
+  Property,
+} from './types';
 
 // ============================================================================
-// Item FCs for FormArraySection (Path C — single FC `itemComponent` shape)
-//
-// Each FC receives `control: FormProxy<ItemT>` and renders item fields by
-// passing nodes through `<RenderNodeComponent node={...} form={control} />`.
-// `form={control}` is mandatory — without it FieldRenderNodes warn
-// "Field node rendered without form".
-// ============================================================================
-
-function ItemNodes<T>({ control, nodes }: { control: FormProxy<T>; nodes: RenderNode<T>[] }) {
-  return (
-    <div className="space-y-3">
-      {nodes.map((n, i) => (
-        <RenderNodeComponent key={i} node={n} form={control} />
-      ))}
-    </div>
-  );
-}
-
-const PropertyItem: FC<{ control: FormProxy<Property> }> = ({ control }) => (
-  <ItemNodes<Property>
-    control={control}
-    nodes={[
-      { component: control.type, componentProps: { testId: 'property.type' } },
-      { component: control.description, componentProps: { testId: 'property.description' } },
-      {
-        component: control.estimatedValue,
-        componentProps: { testId: 'property.estimatedValue' },
-      },
-      {
-        component: control.hasEncumbrance,
-        componentProps: { testId: 'property.hasEncumbrance' },
-      },
-    ]}
-  />
-);
-
-const ExistingLoanItem: FC<{ control: FormProxy<ExistingLoan> }> = ({ control }) => (
-  <ItemNodes<ExistingLoan>
-    control={control}
-    nodes={[
-      { component: control.bank, componentProps: { testId: 'existingLoan.bank' } },
-      { component: control.type, componentProps: { testId: 'existingLoan.type' } },
-      {
-        component: Box,
-        componentProps: { className: 'grid grid-cols-2 gap-4' },
-        children: [
-          {
-            component: control.amount,
-            componentProps: { testId: 'existingLoan.amount' },
-          },
-          {
-            component: control.remainingAmount,
-            componentProps: { testId: 'existingLoan.remainingAmount' },
-          },
-        ],
-      },
-      {
-        component: Box,
-        componentProps: { className: 'grid grid-cols-2 gap-4' },
-        children: [
-          {
-            component: control.monthlyPayment,
-            componentProps: { testId: 'existingLoan.monthlyPayment' },
-          },
-          {
-            component: control.maturityDate,
-            componentProps: { testId: 'existingLoan.maturityDate' },
-          },
-        ],
-      },
-    ]}
-  />
-);
-
-const CoBorrowerItem: FC<{ control: FormProxy<CoBorrower> }> = ({ control }) => (
-  <ItemNodes<CoBorrower>
-    control={control}
-    nodes={[
-      {
-        component: Box,
-        componentProps: { className: 'grid grid-cols-3 gap-4' },
-        children: [
-          {
-            component: control.personalData.lastName,
-            componentProps: { testId: 'coBorrower.lastName' },
-          },
-          {
-            component: control.personalData.firstName,
-            componentProps: { testId: 'coBorrower.firstName' },
-          },
-          {
-            component: control.personalData.middleName,
-            componentProps: { testId: 'coBorrower.middleName' },
-          },
-        ],
-      },
-      {
-        component: control.personalData.birthDate,
-        componentProps: { testId: 'coBorrower.birthDate' },
-      },
-      {
-        component: Box,
-        componentProps: { className: 'grid grid-cols-2 gap-4' },
-        children: [
-          { component: control.phone, componentProps: { testId: 'coBorrower.phone' } },
-          { component: control.email, componentProps: { testId: 'coBorrower.email' } },
-        ],
-      },
-      {
-        component: Box,
-        componentProps: { className: 'grid grid-cols-2 gap-4' },
-        children: [
-          {
-            component: control.relationship,
-            componentProps: { testId: 'coBorrower.relationship' },
-          },
-          {
-            component: control.monthlyIncome,
-            componentProps: { testId: 'coBorrower.monthlyIncome' },
-          },
-        ],
-      },
-    ]}
-  />
-);
-
-// ============================================================================
-// Step bodies as RenderNode subtrees (Variant 3 of FormWizardStepBody)
+// Step bodies — each receives `path: FieldPath<CreditApplicationForm>`
+// (Patch J — never `form: FormProxy<...>`).
 // ============================================================================
 
 function step1Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApplicationForm> {
   return {
+    selector: 'step1',
     component: Box,
     componentProps: { className: 'space-y-6' },
     children: [
@@ -167,7 +49,7 @@ function step1Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
         componentProps: {
           title: 'Основная информация о кредите',
           titleAs: 'h2',
-          titleClassName: 'text-xl font-bold',
+          titleClassName: 'text-xl font-bold mb-4',
           className: 'space-y-4',
         },
         children: [
@@ -177,7 +59,6 @@ function step1Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           { component: path.loanPurpose, componentProps: { testId: 'step1.loanPurpose' } },
         ],
       },
-      // Mortgage sub-section — hidden via hideWhen('mortgage-section') below.
       {
         selector: 'mortgage-section',
         component: Section,
@@ -187,17 +68,10 @@ function step1Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           className: 'space-y-4',
         },
         children: [
-          {
-            component: path.propertyValue,
-            componentProps: { testId: 'step1.propertyValue' },
-          },
-          {
-            component: path.initialPayment,
-            componentProps: { testId: 'step1.initialPayment' },
-          },
+          { component: path.propertyValue, componentProps: { testId: 'step1.propertyValue' } },
+          { component: path.initialPayment, componentProps: { testId: 'step1.initialPayment' } },
         ],
       },
-      // Car sub-section
       {
         selector: 'car-section',
         component: Section,
@@ -225,19 +99,16 @@ function step1Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 
 function step2Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApplicationForm> {
   return {
-    component: Section,
-    componentProps: {
-      title: 'Персональные данные',
-      titleAs: 'h2',
-      titleClassName: 'text-xl font-bold',
-      className: 'space-y-6',
-    },
+    selector: 'step2',
+    component: Box,
+    componentProps: { className: 'space-y-6' },
     children: [
       {
         component: Section,
         componentProps: {
           title: 'Личные данные',
-          titleClassName: 'text-lg font-semibold',
+          titleAs: 'h2',
+          titleClassName: 'text-xl font-bold mb-4',
           className: 'space-y-4',
         },
         children: [
@@ -345,19 +216,16 @@ function step2Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 
 function step3Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApplicationForm> {
   return {
-    component: Section,
-    componentProps: {
-      title: 'Контактная информация',
-      titleAs: 'h2',
-      titleClassName: 'text-xl font-bold',
-      className: 'space-y-6',
-    },
+    selector: 'step3',
+    component: Box,
+    componentProps: { className: 'space-y-6' },
     children: [
       {
         component: Section,
         componentProps: {
           title: 'Контакты',
-          titleClassName: 'text-lg font-semibold',
+          titleAs: 'h2',
+          titleClassName: 'text-xl font-bold mb-4',
           className: 'space-y-4',
         },
         children: [
@@ -365,10 +233,7 @@ function step3Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             component: Box,
             componentProps: { className: 'grid grid-cols-2 gap-4' },
             children: [
-              {
-                component: path.phoneMain,
-                componentProps: { testId: 'step3.phoneMain' },
-              },
+              { component: path.phoneMain, componentProps: { testId: 'step3.phoneMain' } },
               {
                 component: path.phoneAdditional,
                 componentProps: { testId: 'step3.phoneAdditional' },
@@ -438,7 +303,6 @@ function step3Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
         component: path.sameAsRegistration,
         componentProps: { testId: 'step3.sameAsRegistration' },
       },
-      // Residence address — hidden via hideWhen('residence-address-section')
       {
         selector: 'residence-address-section',
         component: Section,
@@ -492,25 +356,20 @@ function step3Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 
 function step4Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApplicationForm> {
   return {
-    component: Section,
-    componentProps: {
-      title: 'Информация о занятости',
-      titleAs: 'h2',
-      titleClassName: 'text-xl font-bold',
-      className: 'space-y-6',
-    },
+    selector: 'step4',
+    component: Box,
+    componentProps: { className: 'space-y-6' },
     children: [
       {
         component: path.employmentStatus,
         componentProps: { testId: 'step4.employmentStatus' },
       },
-      // Employer section
       {
         selector: 'employer-section',
         component: Section,
         componentProps: {
           title: 'Информация о работодателе',
-          titleClassName: 'text-lg font-semibold mt-6',
+          titleClassName: 'text-lg font-semibold mt-2',
           className: 'space-y-4',
         },
         children: [
@@ -519,10 +378,7 @@ function step4Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             component: Box,
             componentProps: { className: 'grid grid-cols-2 gap-4' },
             children: [
-              {
-                component: path.companyInn,
-                componentProps: { testId: 'step4.companyInn' },
-              },
+              { component: path.companyInn, componentProps: { testId: 'step4.companyInn' } },
               {
                 component: path.companyPhone,
                 componentProps: { testId: 'step4.companyPhone' },
@@ -534,6 +390,33 @@ function step4Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             componentProps: { testId: 'step4.companyAddress' },
           },
           { component: path.position, componentProps: { testId: 'step4.position' } },
+        ],
+      },
+      {
+        selector: 'business-section',
+        component: Section,
+        componentProps: {
+          title: 'Информация о бизнесе',
+          titleClassName: 'text-lg font-semibold mt-2',
+          className: 'space-y-4',
+        },
+        children: [
+          { component: path.businessType, componentProps: { testId: 'step4.businessType' } },
+          { component: path.businessInn, componentProps: { testId: 'step4.businessInn' } },
+          {
+            component: path.businessActivity,
+            componentProps: { testId: 'step4.businessActivity' },
+          },
+        ],
+      },
+      {
+        component: Section,
+        componentProps: {
+          title: 'Стаж',
+          titleClassName: 'text-lg font-semibold mt-2',
+          className: 'space-y-4',
+        },
+        children: [
           {
             component: Box,
             componentProps: { className: 'grid grid-cols-2 gap-4' },
@@ -550,31 +433,12 @@ function step4Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           },
         ],
       },
-      // Business section
-      {
-        selector: 'business-section',
-        component: Section,
-        componentProps: {
-          title: 'Информация о бизнесе',
-          titleClassName: 'text-lg font-semibold mt-6',
-          className: 'space-y-4',
-        },
-        children: [
-          { component: path.businessType, componentProps: { testId: 'step4.businessType' } },
-          { component: path.businessInn, componentProps: { testId: 'step4.businessInn' } },
-          {
-            component: path.businessActivity,
-            componentProps: { testId: 'step4.businessActivity' },
-          },
-        ],
-      },
-      // Income
       {
         selector: 'income-section',
         component: Section,
         componentProps: {
           title: 'Доход',
-          titleClassName: 'text-lg font-semibold mt-6',
+          titleClassName: 'text-lg font-semibold mt-2',
           className: 'space-y-4',
         },
         children: [
@@ -591,8 +455,14 @@ function step4Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
                 componentProps: { testId: 'step4.additionalIncome' },
               },
               {
-                component: path.additionalIncomeSource,
-                componentProps: { testId: 'step4.additionalIncomeSource' },
+                selector: 'additional-income-source-section',
+                component: Box,
+                children: [
+                  {
+                    component: path.additionalIncomeSource,
+                    componentProps: { testId: 'step4.additionalIncomeSource' },
+                  },
+                ],
               },
             ],
           },
@@ -604,40 +474,30 @@ function step4Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 
 function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApplicationForm> {
   return {
-    component: Section,
-    componentProps: {
-      title: 'Дополнительная информация',
-      titleAs: 'h2',
-      titleClassName: 'text-xl font-bold',
-      className: 'space-y-6',
-    },
+    selector: 'step5',
+    component: Box,
+    componentProps: { className: 'space-y-6' },
     children: [
       {
         component: Section,
         componentProps: {
           title: 'Общая информация',
-          titleClassName: 'text-lg font-semibold',
+          titleAs: 'h2',
+          titleClassName: 'text-xl font-bold mb-4',
           className: 'space-y-4',
         },
         children: [
-          {
-            component: path.maritalStatus,
-            componentProps: { testId: 'step5.maritalStatus' },
-          },
+          { component: path.maritalStatus, componentProps: { testId: 'step5.maritalStatus' } },
           {
             component: Box,
             componentProps: { className: 'grid grid-cols-2 gap-4' },
             children: [
-              {
-                component: path.dependents,
-                componentProps: { testId: 'step5.dependents' },
-              },
+              { component: path.dependents, componentProps: { testId: 'step5.dependents' } },
               { component: path.education, componentProps: { testId: 'step5.education' } },
             ],
           },
         ],
       },
-      // hasProperty + properties[]
       {
         component: Section,
         componentProps: { className: 'space-y-4' },
@@ -645,25 +505,46 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           { component: path.hasProperty, componentProps: { testId: 'step5.hasProperty' } },
           {
             selector: 'properties-array',
-            component: FormArraySection,
-            // D3: initialValue PLAIN leaves only — never FieldConfig.
+            component: RendererFormArraySection,
             componentProps: {
-              control: path.properties,
-              itemComponent: PropertyItem,
               title: 'Имущество',
+              control: path.properties,
+              itemLabel: (
+                _: FormProxy<CreditApplicationForm['properties'][0]>,
+                index: number,
+              ) => `Имущество #${index + 1}`,
               addButtonLabel: '+ Добавить имущество',
-              emptyMessage: 'Нажмите "Добавить имущество" для добавления информации',
+              emptyMessage: 'Нажмите «Добавить имущество» для добавления',
+              // Patch G/D3 — initialValue is plain leaves only.
               initialValue: {
                 type: 'apartment',
                 description: '',
                 estimatedValue: 0,
                 hasEncumbrance: false,
               },
+              itemComponent: (itemPath: FieldPath<Property>) => ({
+                component: Box,
+                componentProps: { className: 'space-y-3' },
+                children: [
+                  { component: itemPath.type, componentProps: { testId: 'property-type' } },
+                  {
+                    component: itemPath.description,
+                    componentProps: { testId: 'property-description' },
+                  },
+                  {
+                    component: itemPath.estimatedValue,
+                    componentProps: { testId: 'property-estimatedValue' },
+                  },
+                  {
+                    component: itemPath.hasEncumbrance,
+                    componentProps: { testId: 'property-hasEncumbrance' },
+                  },
+                ],
+              }),
             },
           },
         ],
       },
-      // hasExistingLoans + existingLoans[]
       {
         component: Section,
         componentProps: { className: 'space-y-4' },
@@ -674,13 +555,16 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           },
           {
             selector: 'existing-loans-array',
-            component: FormArraySection,
+            component: RendererFormArraySection,
             componentProps: {
-              control: path.existingLoans,
-              itemComponent: ExistingLoanItem,
               title: 'Существующие кредиты',
+              control: path.existingLoans,
+              itemLabel: (
+                _: FormProxy<CreditApplicationForm['existingLoans'][0]>,
+                index: number,
+              ) => `Кредит #${index + 1}`,
               addButtonLabel: '+ Добавить кредит',
-              emptyMessage: 'Нажмите "Добавить кредит" для добавления информации',
+              emptyMessage: 'Нажмите «Добавить кредит» для добавления',
               initialValue: {
                 bank: '',
                 type: '',
@@ -689,11 +573,46 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
                 monthlyPayment: 0,
                 maturityDate: '',
               },
+              itemComponent: (itemPath: FieldPath<ExistingLoan>) => ({
+                component: Box,
+                componentProps: { className: 'space-y-3' },
+                children: [
+                  { component: itemPath.bank, componentProps: { testId: 'existingLoan-bank' } },
+                  { component: itemPath.type, componentProps: { testId: 'existingLoan-type' } },
+                  {
+                    component: Box,
+                    componentProps: { className: 'grid grid-cols-2 gap-4' },
+                    children: [
+                      {
+                        component: itemPath.amount,
+                        componentProps: { testId: 'existingLoan-amount' },
+                      },
+                      {
+                        component: itemPath.remainingAmount,
+                        componentProps: { testId: 'existingLoan-remainingAmount' },
+                      },
+                    ],
+                  },
+                  {
+                    component: Box,
+                    componentProps: { className: 'grid grid-cols-2 gap-4' },
+                    children: [
+                      {
+                        component: itemPath.monthlyPayment,
+                        componentProps: { testId: 'existingLoan-monthlyPayment' },
+                      },
+                      {
+                        component: itemPath.maturityDate,
+                        componentProps: { testId: 'existingLoan-maturityDate' },
+                      },
+                    ],
+                  },
+                ],
+              }),
             },
           },
         ],
       },
-      // hasCoBorrower + coBorrowers[]
       {
         component: Section,
         componentProps: { className: 'space-y-4' },
@@ -704,13 +623,16 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           },
           {
             selector: 'co-borrowers-array',
-            component: FormArraySection,
+            component: RendererFormArraySection,
             componentProps: {
-              control: path.coBorrowers,
-              itemComponent: CoBorrowerItem,
               title: 'Созаемщики',
+              control: path.coBorrowers,
+              itemLabel: (
+                _: FormProxy<CreditApplicationForm['coBorrowers'][0]>,
+                index: number,
+              ) => `Созаемщик #${index + 1}`,
               addButtonLabel: '+ Добавить созаемщика',
-              emptyMessage: 'Нажмите "Добавить созаемщика" для добавления информации',
+              emptyMessage: 'Нажмите «Добавить созаемщика» для добавления',
               initialValue: {
                 personalData: {
                   lastName: '',
@@ -723,6 +645,62 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
                 relationship: '',
                 monthlyIncome: 0,
               },
+              itemComponent: (itemPath: FieldPath<CoBorrower>) => ({
+                component: Box,
+                componentProps: { className: 'space-y-3' },
+                children: [
+                  {
+                    component: Box,
+                    componentProps: { className: 'grid grid-cols-3 gap-4' },
+                    children: [
+                      {
+                        component: itemPath.personalData.lastName,
+                        componentProps: { testId: 'coBorrower-lastName' },
+                      },
+                      {
+                        component: itemPath.personalData.firstName,
+                        componentProps: { testId: 'coBorrower-firstName' },
+                      },
+                      {
+                        component: itemPath.personalData.middleName,
+                        componentProps: { testId: 'coBorrower-middleName' },
+                      },
+                    ],
+                  },
+                  {
+                    component: itemPath.personalData.birthDate,
+                    componentProps: { testId: 'coBorrower-birthDate' },
+                  },
+                  {
+                    component: Box,
+                    componentProps: { className: 'grid grid-cols-2 gap-4' },
+                    children: [
+                      {
+                        component: itemPath.phone,
+                        componentProps: { testId: 'coBorrower-phone' },
+                      },
+                      {
+                        component: itemPath.email,
+                        componentProps: { testId: 'coBorrower-email' },
+                      },
+                    ],
+                  },
+                  {
+                    component: Box,
+                    componentProps: { className: 'grid grid-cols-2 gap-4' },
+                    children: [
+                      {
+                        component: itemPath.relationship,
+                        componentProps: { testId: 'coBorrower-relationship' },
+                      },
+                      {
+                        component: itemPath.monthlyIncome,
+                        componentProps: { testId: 'coBorrower-monthlyIncome' },
+                      },
+                    ],
+                  },
+                ],
+              }),
             },
           },
         ],
@@ -733,23 +711,28 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 
 function step6Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApplicationForm> {
   return {
-    component: Section,
-    componentProps: {
-      title: 'Подтверждение и согласия',
-      titleAs: 'h2',
-      titleClassName: 'text-xl font-bold',
-      className: 'space-y-6',
-    },
+    selector: 'step6',
+    component: Box,
+    componentProps: { className: 'space-y-6' },
     children: [
-      // Computed summary
       {
         component: Section,
         componentProps: {
-          title: 'Итого по заявке',
-          titleClassName: 'text-lg font-semibold',
+          title: 'Сводка по заёмщику',
+          titleAs: 'h2',
+          titleClassName: 'text-xl font-bold mb-4',
           className: 'space-y-4',
         },
         children: [
+          { component: path.fullName, componentProps: { testId: 'step6.fullName' } },
+          {
+            component: Box,
+            componentProps: { className: 'grid grid-cols-2 gap-4' },
+            children: [
+              { component: path.age, componentProps: { testId: 'step6.age' } },
+              { component: path.totalIncome, componentProps: { testId: 'step6.totalIncome' } },
+            ],
+          },
           {
             component: Box,
             componentProps: { className: 'grid grid-cols-2 gap-4' },
@@ -765,27 +748,11 @@ function step6Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             ],
           },
           {
-            component: Box,
-            componentProps: { className: 'grid grid-cols-2 gap-4' },
-            children: [
-              { component: path.totalIncome, componentProps: { testId: 'step6.totalIncome' } },
-              {
-                component: path.paymentToIncomeRatio,
-                componentProps: { testId: 'step6.paymentToIncomeRatio' },
-              },
-            ],
-          },
-          {
-            component: Box,
-            componentProps: { className: 'grid grid-cols-2 gap-4' },
-            children: [
-              { component: path.fullName, componentProps: { testId: 'step6.fullName' } },
-              { component: path.age, componentProps: { testId: 'step6.age' } },
-            ],
+            component: path.paymentToIncomeRatio,
+            componentProps: { testId: 'step6.paymentToIncomeRatio' },
           },
         ],
       },
-      // Required consents
       {
         component: Section,
         componentProps: {
@@ -809,12 +776,11 @@ function step6Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           },
         ],
       },
-      // Optional
       {
         component: Section,
         componentProps: {
           title: 'Опциональные согласия',
-          titleClassName: 'text-lg font-semibold mt-6',
+          titleClassName: 'text-lg font-semibold mt-4',
         },
         children: [
           {
@@ -823,12 +789,11 @@ function step6Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
           },
         ],
       },
-      // Electronic signature
       {
         component: Section,
         componentProps: {
           title: 'Электронная подпись',
-          titleClassName: 'text-lg font-semibold mt-6',
+          titleClassName: 'text-lg font-semibold mt-4',
           className: 'space-y-4',
         },
         children: [
@@ -843,74 +808,70 @@ function step6Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 }
 
 // ============================================================================
-// createCreditApplicationRenderSchema(form)
+// Public factory — `createCreditApplicationRenderSchema(form)`
 // ============================================================================
-
-export interface CreateRenderSchemaOptions {
-  onSubmit?: (values: CreditApplicationForm) => void | Promise<void>;
-}
 
 export function createCreditApplicationRenderSchema(
   form: FormProxy<CreditApplicationForm>,
-  options: CreateRenderSchemaOptions = {}
-) {
-  const handleSubmit = async (values: CreditApplicationForm) => {
-    if (options.onSubmit) {
-      await options.onSubmit(values);
-      return;
-    }
-    // Default: log to console
+  onSubmit: (values: CreditApplicationForm) => Promise<void> | void,
+): RenderSchemaProxy<CreditApplicationForm> {
+  const proxy = createRenderSchema<CreditApplicationForm>((path) => {
+    const steps: FormWizardStep<CreditApplicationForm>[] = [
+      { number: 1, title: 'Кредит', icon: '💰', body: step1Body(path) },
+      { number: 2, title: 'Данные', icon: '👤', body: step2Body(path) },
+      { number: 3, title: 'Контакты', icon: '📞', body: step3Body(path) },
+      { number: 4, title: 'Работа', icon: '💼', body: step4Body(path) },
+      { number: 5, title: 'Доп. инфо', icon: '📋', body: step5Body(path) },
+      { number: 6, title: 'Подтверждение', icon: '✓', body: step6Body(path) },
+    ];
 
-    console.log('[mcp-credit-application-renderer-v8] submit', values);
-    alert('Заявка успешно отправлена!');
-  };
-
-  // Patch G — A=A1: ui-kit FormWizard handles step switching internally.
-  // No manual setHidden('stepN') loop needed.
-  // step bodies subscribe to FieldPath<T> (path.X) — renderer-react resolves to FieldNode at render time.
-  const schema = createRenderSchema<CreditApplicationForm>((path) => ({
-    selector: 'wizard',
-    component: FormWizard,
-    componentProps: {
-      form,
-      config: {
-        stepValidations: STEP_VALIDATIONS,
-        fullValidation: creditApplicationValidation,
+    return {
+      selector: 'wizard',
+      component: FormWizard,
+      componentProps: {
+        form,
+        config: {
+          stepValidations: STEP_VALIDATIONS,
+          fullValidation: creditApplicationValidation,
+        },
+        steps,
+        onSubmit,
       },
-      steps: [
-        { number: 1, title: 'Кредит', icon: '💰', body: step1Body(path) },
-        { number: 2, title: 'Данные', icon: '👤', body: step2Body(path) },
-        { number: 3, title: 'Контакты', icon: '📞', body: step3Body(path) },
-        { number: 4, title: 'Работа', icon: '💼', body: step4Body(path) },
-        { number: 5, title: 'Доп. инфо', icon: '📋', body: step5Body(path) },
-        { number: 6, title: 'Подтверждение', icon: '✓', body: step6Body(path) },
-      ] satisfies FormWizardStep<CreditApplicationForm>[],
-      onSubmit: handleSubmit,
-    },
-  }));
+    };
+  });
 
-  // -------------------------------------------------------------------------
-  // Conditional sub-sections — top-level hideWhen AFTER createRenderSchema.
-  // form.<field>.value.value reads are tracked by Preact computed.
-  // -------------------------------------------------------------------------
-  hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
-  hideWhen(schema.node('car-section'), () => form.loanType.value.value !== 'car');
+  // ==========================================================================
+  // Conditional sub-section visibility — top-level `hideWhen` AFTER createRenderSchema(...)
+  // ==========================================================================
 
+  hideWhen(proxy.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
+  hideWhen(proxy.node('car-section'), () => form.loanType.value !== 'car');
   hideWhen(
-    schema.node('residence-address-section'),
-    () => form.sameAsRegistration.value.value === true
+    proxy.node('residence-address-section'),
+    () => form.sameAsRegistration.value === true,
+  );
+  hideWhen(
+    proxy.node('employer-section'),
+    () => form.employmentStatus.value !== 'employed',
+  );
+  hideWhen(
+    proxy.node('business-section'),
+    () => form.employmentStatus.value !== 'selfEmployed',
+  );
+  hideWhen(
+    proxy.node('income-section'),
+    () => form.employmentStatus.value === 'unemployed',
+  );
+  hideWhen(proxy.node('properties-array'), () => form.hasProperty.value !== true);
+  hideWhen(
+    proxy.node('existing-loans-array'),
+    () => form.hasExistingLoans.value !== true,
+  );
+  hideWhen(proxy.node('co-borrowers-array'), () => form.hasCoBorrower.value !== true);
+  hideWhen(
+    proxy.node('additional-income-source-section'),
+    () => (form.additionalIncome.value ?? 0) <= 0,
   );
 
-  hideWhen(schema.node('employer-section'), () => form.employmentStatus.value.value !== 'employed');
-  hideWhen(
-    schema.node('business-section'),
-    () => form.employmentStatus.value.value !== 'selfEmployed'
-  );
-  hideWhen(schema.node('income-section'), () => form.employmentStatus.value.value === 'unemployed');
-
-  hideWhen(schema.node('properties-array'), () => !form.hasProperty.value.value);
-  hideWhen(schema.node('existing-loans-array'), () => !form.hasExistingLoans.value.value);
-  hideWhen(schema.node('co-borrowers-array'), () => !form.hasCoBorrower.value.value);
-
-  return schema;
+  return proxy;
 }

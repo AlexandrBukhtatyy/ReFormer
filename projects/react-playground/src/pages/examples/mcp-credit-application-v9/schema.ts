@@ -1,13 +1,15 @@
 /**
- * Schema, behavior, validation for MCP Credit Application v8 (target=core)
+ * Schema, behavior, validation for MCP Credit Application v9 (target=core)
  *
- * Iter-8 patch verification:
+ * Iter-9 patch verification:
  * - Patch H: ALL computed-field componentProps use `readOnly: true` (camelCase), NOT `readonly`.
+ *            All HTML-attr-like props use camelCase: maxLength, autoFocus, htmlFor, tabIndex.
  * - Patch I: computeFrom that reads `form.personalData.<field>` subscribes to `[path.personalData]`
- *           (group node), NOT to individual leaves.
+ *           (group node), NOT individual leaves. NO `as never` cast.
  * - D1: Every Select/RadioGroup has `options` in componentProps in this createForm schema.
  * - D3: FormArray.AddButton initialValue uses item factories returning plain primitives,
  *       NEVER FieldConfig objects.
+ * - Patches J/K: target=core uses `form.X` directly (FieldNode), so neither apply here.
  * - Cycle prevention: every watchField has { immediate: false } and value-equality guards.
  */
 
@@ -329,7 +331,7 @@ const coBorrowerItemSchema: FormSchema<CoBorrowerItem> = {
 };
 
 // ============================================================================
-// Item factories — D3 compliance: plain primitives, NEVER FieldConfig
+// Item factories (D3: plain primitive values, NOT FieldConfig)
 // ============================================================================
 
 export const createPropertyItem = (): PropertyItem => ({
@@ -406,7 +408,7 @@ const formSchema: FormSchema<CreditApplicationForm> = {
       label: 'Цель кредита',
       placeholder: 'Опишите, на что планируете потратить средства',
       rows: 4,
-      maxLength: 500,
+      maxLength: 500, // Patch H: camelCase
     },
   },
   propertyValue: {
@@ -850,7 +852,7 @@ const behaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
     fields: 'all',
   });
 
-  // ---- computeFrom: fullName from personalData group (Patch I) ----
+  // ---- computeFrom: fullName from personalData group (Patch I — group node, no `as never`) ----
   computeFrom([path.personalData], path.fullName, ({ personalData }) => {
     const pd = personalData as PersonalData | undefined;
     if (!pd) return '';

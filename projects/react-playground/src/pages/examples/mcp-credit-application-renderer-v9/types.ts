@@ -1,24 +1,23 @@
 /**
- * Types for MCP Credit Application v8 (target=core)
+ * Types for the iter-9 credit-application form (renderer-react target).
  *
- * Patch B compliance: NO `extends FormFields` on union-literal leaf interfaces.
- * Plain interfaces; FormFields constraint flows structurally through createForm<T>.
+ * Note: leaf interfaces with union-literal fields (gender, loanType,
+ * employmentStatus, …) intentionally do NOT `extends FormFields` —
+ * `FormFields = Record<string, FormValue>` index signature would widen
+ * the literal back to `string` and break the typed `FormProxy<T>`.
  */
 
-// ============================================================================
-// Union literal types (Step 1, 4, 5)
-// ============================================================================
-
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
-export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
+export type EmploymentStatus =
+  | 'employed'
+  | 'selfEmployed'
+  | 'unemployed'
+  | 'retired'
+  | 'student';
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
 export type Gender = 'male' | 'female';
 export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'commercial' | 'other';
-
-// ============================================================================
-// Nested sub-form types (Step 2, 3, 5)
-// ============================================================================
 
 export interface PersonalData {
   lastName: string;
@@ -46,18 +45,14 @@ export interface Address {
   postalCode: string;
 }
 
-// ============================================================================
-// Array item types (Step 5)
-// ============================================================================
-
-export interface PropertyItem {
+export interface Property {
   type: PropertyType;
   description: string;
   estimatedValue: number;
   hasEncumbrance: boolean;
 }
 
-export interface ExistingLoanItem {
+export interface ExistingLoan {
   bank: string;
   type: string;
   amount: number;
@@ -66,48 +61,43 @@ export interface ExistingLoanItem {
   maturityDate: string;
 }
 
-/** CoBorrower with embedded personalData group node */
-export interface CoBorrowerPersonal {
+export interface CoBorrowerPersonalData {
   lastName: string;
   firstName: string;
   middleName: string;
   birthDate: string;
 }
 
-export interface CoBorrowerItem {
-  personalData: CoBorrowerPersonal;
+export interface CoBorrower {
+  personalData: CoBorrowerPersonalData;
   phone: string;
   email: string;
   relationship: string;
   monthlyIncome: number;
 }
 
-// ============================================================================
-// Root form interface (all 6 steps + computed fields)
-// ============================================================================
-
 export interface CreditApplicationForm {
-  // ----- Step 1: loan -----
+  // Step 1 — основная информация о кредите
   loanType: LoanType;
-  loanAmount: number | null;
+  loanAmount: number;
   loanTerm: number;
   loanPurpose: string;
-  // mortgage-conditional
-  propertyValue: number | null;
-  initialPayment: number | null;
-  // car-conditional
+  // Mortgage-specific
+  propertyValue: number;
+  initialPayment: number;
+  // Car-loan-specific
   carBrand: string;
   carModel: string;
-  carYear: number | null;
-  carPrice: number | null;
+  carYear: number;
+  carPrice: number;
 
-  // ----- Step 2: personal -----
+  // Step 2 — персональные данные
   personalData: PersonalData;
   passportData: PassportData;
   inn: string;
   snils: string;
 
-  // ----- Step 3: contacts -----
+  // Step 3 — контакты
   phoneMain: string;
   phoneAdditional: string;
   email: string;
@@ -116,37 +106,34 @@ export interface CreditApplicationForm {
   sameAsRegistration: boolean;
   residenceAddress: Address;
 
-  // ----- Step 4: employment -----
+  // Step 4 — занятость
   employmentStatus: EmploymentStatus;
-  // employed-conditional
   companyName: string;
   companyInn: string;
   companyPhone: string;
   companyAddress: string;
   position: string;
-  // common
-  workExperienceTotal: number | null;
-  workExperienceCurrent: number | null;
-  monthlyIncome: number | null;
-  additionalIncome: number | null;
+  workExperienceTotal: number;
+  workExperienceCurrent: number;
+  monthlyIncome: number;
+  additionalIncome: number;
   additionalIncomeSource: string;
-  // selfEmployed-conditional
   businessType: string;
   businessInn: string;
   businessActivity: string;
 
-  // ----- Step 5: additional -----
+  // Step 5 — доп. информация / массивы
   maritalStatus: MaritalStatus;
   dependents: number;
   education: EducationLevel;
   hasProperty: boolean;
-  properties: PropertyItem[];
+  properties: Property[];
   hasExistingLoans: boolean;
-  existingLoans: ExistingLoanItem[];
+  existingLoans: ExistingLoan[];
   hasCoBorrower: boolean;
-  coBorrowers: CoBorrowerItem[];
+  coBorrowers: CoBorrower[];
 
-  // ----- Step 6: confirmations -----
+  // Step 6 — согласия и подпись
   agreePersonalData: boolean;
   agreeCreditHistory: boolean;
   agreeMarketing: boolean;
@@ -154,11 +141,11 @@ export interface CreditApplicationForm {
   confirmAccuracy: boolean;
   electronicSignature: string;
 
-  // ----- Computed (readOnly in UI) -----
+  // Computed (readonly)
   interestRate: number;
   monthlyPayment: number;
   fullName: string;
-  age: number | null;
+  age: number;
   totalIncome: number;
   paymentToIncomeRatio: number;
   coBorrowersIncome: number;

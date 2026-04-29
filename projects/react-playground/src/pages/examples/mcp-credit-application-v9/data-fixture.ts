@@ -1,5 +1,5 @@
 /**
- * Happy-path fixture for the credit application form.
+ * Happy-path fixture for the credit application form (v9, target=core).
  *
  * Used by the dev-only "Заполнить тестовыми данными" button to fill all fields
  * with realistic values so an e2e/orchestrator pass can walk through all 6 steps
@@ -88,7 +88,7 @@ export const happyPathFixture: CreditApplicationForm = {
   businessInn: '',
   businessActivity: '',
 
-  // ----- Step 5: additional (no arrays) -----
+  // ----- Step 5: additional (no arrays — happy path simplest) -----
   maritalStatus: 'single',
   dependents: 0,
   education: 'higher',
