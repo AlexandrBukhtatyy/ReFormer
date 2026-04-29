@@ -62,8 +62,9 @@ export interface FormWizardStep<T> {
   body: FormWizardStepBody<T>;
 }
 
-export interface FormWizardProps<T extends Record<string, unknown>>
-  extends FormWizardHeadlessProps<T> {
+export interface FormWizardProps<
+  T extends Record<string, unknown>,
+> extends FormWizardHeadlessProps<T> {
   className?: string;
   steps: FormWizardStep<T>[];
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
@@ -74,21 +75,41 @@ function isRenderNode<T>(value: unknown): value is RenderNode<T> {
     value !== null &&
     typeof value === 'object' &&
     !isValidElement(value as ReactElement) &&
-    'component' in (value as object)
+    'component' in (value as object) &&
+    // RenderNode-shape, НЕ React component reference (memo/forwardRef имеют $$typeof).
+    !('$$typeof' in (value as object))
   );
 }
 
-function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): ReactNode {
-  // FC — function component
-  if (typeof body === 'function') {
-    const FC = body as ComponentType<{ control: FormProxy<T> }>;
-    return <FC control={form} />;
+/**
+ * React FC reference: либо plain function component, либо `React.memo(fn)` /
+ * `React.forwardRef(fn)` обёртка. memo/forwardRef возвращают object вида
+ * `{ $$typeof, type, compare? }` — `typeof === 'object'`, не 'function'.
+ * Этот check покрывает оба случая.
+ */
+function isComponentType<T>(value: unknown): value is ComponentType<{ control: FormProxy<T> }> {
+  if (typeof value === 'function') return true;
+  if (value !== null && typeof value === 'object' && '$$typeof' in (value as object)) {
+    // Это либо memo/forwardRef-обёртка, либо React element. Различаем через isValidElement —
+    // у element есть `props`/`type` shape, у component-reference нет .props в верхнем уровне.
+    return !isValidElement(value as ReactElement);
   }
-  // RenderNode — plain object с .component (не React element)
+  return false;
+}
+
+function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): ReactNode {
+  // React element (уже-отрендеренный JSX) — отдаём как ReactNode.
+  if (isValidElement(body as ReactElement)) return body as ReactNode;
+  // Component reference (FC | memo'd FC | forwardRef'd FC) — рендерим с control={form}.
+  if (isComponentType<T>(body)) {
+    const Comp = body as ComponentType<{ control: FormProxy<T> }>;
+    return <Comp control={form} />;
+  }
+  // RenderNode — plain object с `.component` без `$$typeof` маркера.
   if (isRenderNode<T>(body)) {
     return <RenderNodeComponent node={body} form={form} />;
   }
-  // ReactNode (готовый JSX, текст, число, null, и т.д.)
+  // Fallback ReactNode (текст, число, null, и т.д.)
   return body as ReactNode;
 }
 

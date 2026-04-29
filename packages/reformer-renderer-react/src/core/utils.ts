@@ -39,6 +39,11 @@ export function isFieldRenderNode<T>(node: RenderNode<T>): node is FieldRenderNo
  *
  * Проверяет, что узел является контейнером (Box, Section и т.д.).
  *
+ * Принимает любой валидный React component reference:
+ * - plain function component (`function Foo() {...}`),
+ * - `React.memo(...)` / `React.forwardRef(...)` обёртки (объекты с `$$typeof`),
+ * - lazy / context provider'ы / прочие React-внутренности.
+ *
  * @example
  * ```typescript
  * if (isContainerRenderNode(node)) {
@@ -48,5 +53,15 @@ export function isFieldRenderNode<T>(node: RenderNode<T>): node is FieldRenderNo
  * ```
  */
 export function isContainerRenderNode<T>(node: RenderNode<T>): node is ContainerRenderNode<T> {
-  return typeof node.component === 'function';
+  if (typeof node.component === 'function') return true;
+  // memo/forwardRef/lazy components are plain objects carrying `$$typeof`.
+  if (
+    node.component !== null &&
+    typeof node.component === 'object' &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (node.component as any).$$typeof !== undefined
+  ) {
+    return true;
+  }
+  return false;
 }
