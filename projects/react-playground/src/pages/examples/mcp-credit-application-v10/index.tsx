@@ -18,7 +18,7 @@
 // =============================================================================
 
 import { useMemo, useRef } from 'react';
-import type { FC } from 'react';
+import type { FC, ReactNode } from 'react';
 import { type FormProxy, useFormControlValue } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
@@ -37,11 +37,36 @@ import type {
 } from './types';
 
 // =============================================================================
+// Inline hint / warning helpers
+// =============================================================================
+
+const Hint: FC<{ children: ReactNode; testId?: string }> = ({ children, testId }) => (
+  <div
+    role="note"
+    data-testid={testId}
+    className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+  >
+    {children}
+  </div>
+);
+
+const Warning: FC<{ children: ReactNode; testId?: string }> = ({ children, testId }) => (
+  <div
+    role="alert"
+    data-testid={testId}
+    className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+  >
+    ⚠ {children}
+  </div>
+);
+
+// =============================================================================
 // Step body components
 // =============================================================================
 
 const Step1Loan: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ control }) => {
   const loanType = useFormControlValue(control.loanType) as LoanType;
+  const dtiRatio = useFormControlValue(control.paymentToIncomeRatio) as number;
 
   return (
     <div className="space-y-4" data-testid="step-1-body">
@@ -60,6 +85,10 @@ const Step1Loan: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ contr
             <FormField control={control.propertyValue} testId="step1.propertyValue" />
             <FormField control={control.initialPayment} testId="step1.initialPayment" />
           </div>
+          <Hint testId="hint-mortgage-docs">
+            Для ипотеки потребуются: документы на недвижимость, оценка (не старше 6 мес.), отчёт об
+            оценке, выписка ЕГРН.
+          </Hint>
         </div>
       )}
 
@@ -82,14 +111,29 @@ const Step1Loan: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ contr
           <FormField control={control.monthlyPayment} testId="step1.monthlyPayment" />
         </div>
       </div>
+
+      {dtiRatio > 40 && (
+        <Warning testId="warn-high-dti">
+          Высокая долговая нагрузка: платёж составляет {dtiRatio}% от дохода. Шансы на одобрение
+          снижаются. Рассмотрите меньшую сумму или больший срок.
+        </Warning>
+      )}
     </div>
   );
 };
 
 const Step2Personal: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ control }) => {
+  const age = useFormControlValue(control.age) as number | null;
+
   return (
     <div className="space-y-4" data-testid="step-2-body">
       <h2 className="text-xl font-bold text-gray-900">Шаг 2. Персональные данные</h2>
+      {age != null && age > 60 && (
+        <Warning testId="warn-senior-age">
+          Возраст заёмщика старше 60 лет — могут потребоваться дополнительные гарантии: поручитель,
+          залог имущества или страхование жизни.
+        </Warning>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <FormField control={control.personalData.lastName} testId="step2.personalData.lastName" />
         <FormField control={control.personalData.firstName} testId="step2.personalData.firstName" />
@@ -221,11 +265,19 @@ const Step3Contacts: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ c
 
 const Step4Employment: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ control }) => {
   const employmentStatus = useFormControlValue(control.employmentStatus) as EmploymentStatus;
+  const workCurrent = useFormControlValue(control.workExperienceCurrent) as number | null;
 
   return (
     <div className="space-y-4" data-testid="step-4-body">
       <h2 className="text-xl font-bold text-gray-900">Шаг 4. Информация о занятости</h2>
       <FormField control={control.employmentStatus} testId="step4.employmentStatus" />
+
+      {employmentStatus === 'selfEmployed' && (
+        <Hint testId="hint-self-employed">
+          ИП требуется подтверждение дохода: налоговая декларация за последний отчётный период,
+          выписка по расчётному счёту за 6 месяцев, справка об отсутствии задолженности.
+        </Hint>
+      )}
 
       {employmentStatus === 'employed' && (
         <div className="space-y-4 pt-2">
@@ -271,6 +323,13 @@ const Step4Employment: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({
           <FormField control={control.paymentToIncomeRatio} testId="step4.paymentToIncomeRatio" />
         </div>
       </div>
+
+      {workCurrent != null && workCurrent < 3 && (
+        <Warning testId="warn-low-experience">
+          Малый стаж на текущем месте работы (менее 3 месяцев) — банк может запросить подтверждение
+          от предыдущего работодателя.
+        </Warning>
+      )}
     </div>
   );
 };
@@ -358,6 +417,13 @@ const Step5Additional: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({
 
       <div className="space-y-2 pt-2">
         <FormField control={control.hasExistingLoans} testId="step5.hasExistingLoans" />
+        {hasExistingLoans && (
+          <Hint testId="hint-existing-loans-impact">
+            Существующие кредиты учитываются при расчёте долговой нагрузки. Совокупный платёж по
+            всем кредитам (включая новый) не должен превышать 50% дохода — иначе высокая вероятность
+            отказа.
+          </Hint>
+        )}
         <FormArraySection
           title="Существующие кредиты"
           control={control.existingLoans}
@@ -420,10 +486,7 @@ export default function McpCreditApplicationV10() {
 
   const form = useMemo(() => createCreditApplicationForm(), []);
 
-  const navConfig = useMemo(
-    () => ({ stepValidations: STEP_VALIDATIONS, fullValidation }),
-    []
-  );
+  const navConfig = useMemo(() => ({ stepValidations: STEP_VALIDATIONS, fullValidation }), []);
 
   const handleSubmit = async () => {
     const result = await navRef.current?.submit(async (values: CreditApplicationFormV10) => {
@@ -432,6 +495,16 @@ export default function McpCreditApplicationV10() {
       return values;
     });
     if (!result) {
+      // Поднять touched на всю форму — поля с ошибками подсветятся.
+      (form as unknown as { markAsTouched?: () => void }).markAsTouched?.();
+      // Скролл к первому invalid input'у.
+      requestAnimationFrame(() => {
+        const firstInvalid = document.querySelector<HTMLElement>(
+          '[data-testid^="input-"][aria-invalid="true"], [aria-invalid="true"][data-testid^="input-"]'
+        );
+        firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstInvalid?.focus?.();
+      });
       window.alert('Пожалуйста, исправьте ошибки в форме');
     }
   };
@@ -446,14 +519,16 @@ export default function McpCreditApplicationV10() {
         <h1 className="text-2xl font-bold text-gray-900">
           MCP Credit Application v10 (target=core)
         </h1>
-        <button
-          type="button"
-          onClick={fillFakeData}
-          data-testid="fill-fake-data"
-          className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
-        >
-          Заполнить тестовыми данными
-        </button>
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            onClick={fillFakeData}
+            data-testid="fill-fake-data"
+            className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
+            Заполнить тестовыми данными
+          </button>
+        )}
       </div>
 
       <FormWizard

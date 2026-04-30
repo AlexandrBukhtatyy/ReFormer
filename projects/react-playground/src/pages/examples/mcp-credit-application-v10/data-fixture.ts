@@ -46,9 +46,12 @@ export const happyPathFixture: CreditApplicationFormV10 = {
   phoneAdditional: '',
   email: 'ivan.petrov@example.com',
   emailAdditional: '',
+  // Note: region/city values match mock /api/v1/cities backend keys
+  // ('moscow' → ['moscow_center', 'moscow_north', 'moscow_south']).
+  // City Select renders human labels из option.label, value остаётся в data.
   registrationAddress: {
-    region: 'Москва',
-    city: 'Москва',
+    region: 'moscow',
+    city: 'moscow_center',
     street: 'Тверская',
     house: '5',
     apartment: '12',
@@ -56,8 +59,8 @@ export const happyPathFixture: CreditApplicationFormV10 = {
   },
   sameAsRegistration: true,
   residenceAddress: {
-    region: 'Москва',
-    city: 'Москва',
+    region: 'moscow',
+    city: 'moscow_center',
     street: 'Тверская',
     house: '5',
     apartment: '12',
