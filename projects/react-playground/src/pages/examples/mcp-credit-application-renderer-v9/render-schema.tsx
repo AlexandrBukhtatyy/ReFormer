@@ -26,12 +26,7 @@ import { Box, Section } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { RendererFormArraySection } from '../../../components/RendererFormArraySection';
 import { STEP_VALIDATIONS, creditApplicationValidation } from './schema';
-import type {
-  CoBorrower,
-  CreditApplicationForm,
-  ExistingLoan,
-  Property,
-} from './types';
+import type { CoBorrower, CreditApplicationForm, ExistingLoan, Property } from './types';
 
 // ============================================================================
 // Step bodies — each receives `path: FieldPath<CreditApplicationForm>`
@@ -509,10 +504,8 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             componentProps: {
               title: 'Имущество',
               control: path.properties,
-              itemLabel: (
-                _: FormProxy<CreditApplicationForm['properties'][0]>,
-                index: number,
-              ) => `Имущество #${index + 1}`,
+              itemLabel: (_: FormProxy<CreditApplicationForm['properties'][0]>, index: number) =>
+                `Имущество #${index + 1}`,
               addButtonLabel: '+ Добавить имущество',
               emptyMessage: 'Нажмите «Добавить имущество» для добавления',
               // Patch G/D3 — initialValue is plain leaves only.
@@ -559,10 +552,8 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             componentProps: {
               title: 'Существующие кредиты',
               control: path.existingLoans,
-              itemLabel: (
-                _: FormProxy<CreditApplicationForm['existingLoans'][0]>,
-                index: number,
-              ) => `Кредит #${index + 1}`,
+              itemLabel: (_: FormProxy<CreditApplicationForm['existingLoans'][0]>, index: number) =>
+                `Кредит #${index + 1}`,
               addButtonLabel: '+ Добавить кредит',
               emptyMessage: 'Нажмите «Добавить кредит» для добавления',
               initialValue: {
@@ -627,10 +618,8 @@ function step5Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
             componentProps: {
               title: 'Созаемщики',
               control: path.coBorrowers,
-              itemLabel: (
-                _: FormProxy<CreditApplicationForm['coBorrowers'][0]>,
-                index: number,
-              ) => `Созаемщик #${index + 1}`,
+              itemLabel: (_: FormProxy<CreditApplicationForm['coBorrowers'][0]>, index: number) =>
+                `Созаемщик #${index + 1}`,
               addButtonLabel: '+ Добавить созаемщика',
               emptyMessage: 'Нажмите «Добавить созаемщика» для добавления',
               initialValue: {
@@ -813,7 +802,7 @@ function step6Body(path: FieldPath<CreditApplicationForm>): RenderNode<CreditApp
 
 export function createCreditApplicationRenderSchema(
   form: FormProxy<CreditApplicationForm>,
-  onSubmit: (values: CreditApplicationForm) => Promise<void> | void,
+  onSubmit: (values: CreditApplicationForm) => Promise<void> | void
 ): RenderSchemaProxy<CreditApplicationForm> {
   const proxy = createRenderSchema<CreditApplicationForm>((path) => {
     const steps: FormWizardStep<CreditApplicationForm>[] = [
@@ -844,33 +833,26 @@ export function createCreditApplicationRenderSchema(
   // Conditional sub-section visibility — top-level `hideWhen` AFTER createRenderSchema(...)
   // ==========================================================================
 
-  hideWhen(proxy.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
-  hideWhen(proxy.node('car-section'), () => form.loanType.value !== 'car');
+  // form.<field>.value is the Preact Signal; current value is form.<field>.value.value.
+  // Reading .value.value inside hideWhen callback is what subscribes the signal effect.
+  hideWhen(proxy.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
+  hideWhen(proxy.node('car-section'), () => form.loanType.value.value !== 'car');
   hideWhen(
     proxy.node('residence-address-section'),
-    () => form.sameAsRegistration.value === true,
+    () => form.sameAsRegistration.value.value === true
   );
-  hideWhen(
-    proxy.node('employer-section'),
-    () => form.employmentStatus.value !== 'employed',
-  );
+  hideWhen(proxy.node('employer-section'), () => form.employmentStatus.value.value !== 'employed');
   hideWhen(
     proxy.node('business-section'),
-    () => form.employmentStatus.value !== 'selfEmployed',
+    () => form.employmentStatus.value.value !== 'selfEmployed'
   );
-  hideWhen(
-    proxy.node('income-section'),
-    () => form.employmentStatus.value === 'unemployed',
-  );
-  hideWhen(proxy.node('properties-array'), () => form.hasProperty.value !== true);
-  hideWhen(
-    proxy.node('existing-loans-array'),
-    () => form.hasExistingLoans.value !== true,
-  );
-  hideWhen(proxy.node('co-borrowers-array'), () => form.hasCoBorrower.value !== true);
+  hideWhen(proxy.node('income-section'), () => form.employmentStatus.value.value === 'unemployed');
+  hideWhen(proxy.node('properties-array'), () => form.hasProperty.value.value !== true);
+  hideWhen(proxy.node('existing-loans-array'), () => form.hasExistingLoans.value.value !== true);
+  hideWhen(proxy.node('co-borrowers-array'), () => form.hasCoBorrower.value.value !== true);
   hideWhen(
     proxy.node('additional-income-source-section'),
-    () => (form.additionalIncome.value ?? 0) <= 0,
+    () => (form.additionalIncome.value.value ?? 0) <= 0
   );
 
   return proxy;

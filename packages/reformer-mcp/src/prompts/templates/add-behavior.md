@@ -68,6 +68,26 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
    );
    ```
 
+11. **Preact Signal двойной `.value` — обязательно при чтении значения из callback'а.** Для FieldNode `field.value` возвращает **сам Signal-объект** (`Signal<T>`), а **текущее значение** — это `field.value.value`. Сравнение `field.value !== 'foo'` — всегда true (Signal `!==` literal), `field.value === true` — всегда false. Тихий silent fail: hideWhen-условие никогда не срабатывает, секция вечно скрыта/видима, errors нет.
+
+    **Где применимо:** любая callback-функция, которая читает значение поля из `form.<field>` напрямую. В первую очередь — `hideWhen(node, () => …)`, `enableWhen`, `disableWhen`, тело `effect()`, тело `useEffect`, `setValue` predicate. Если значение приходит через arg (`computeFrom((values) => …)`, `watchField((newValue) => …)`) — там уже plain value, второй `.value` не нужен.
+
+    **NB:** именно второй `.value` подписывает effect/computeFrom-deps на signal. Если читаешь `field.value` (один) — subscription **не** регистрируется, реактивность ломается.
+
+    ```typescript
+    // ❌ Signal !== literal → всегда true → секция вечно скрыта; effect не подписан
+    hideWhen(proxy.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
+    hideWhen(proxy.node('properties-array'), () => form.hasProperty.value !== true);
+
+    // ✅ field.value.value — current value; subscription регистрируется правильно
+    hideWhen(proxy.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
+    hideWhen(proxy.node('properties-array'), () => form.hasProperty.value.value !== true);
+
+    // ✅ React-side через useFormControlValue (предпочтительнее в JSX) — bridge сам разворачивает .value.value
+    const loanType = useFormControlValue(form.loanType as never) as string;
+    {loanType === 'mortgage' && <MortgageSection/>}
+    ```
+
 ## 🎯 Hide vs Disable
 
 - **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).
@@ -118,5 +138,6 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] `computeFrom` not used cross-level
 - [ ] `computeFrom` sources subscribe to group node когда computeFn читает nested fields (rule #10); никаких `as never` cast'ов на источниках
 - [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); React orchestration через `useFormControlValue` + `useEffect`
+- [ ] Все callback'и (`hideWhen`/`enableWhen`/`disableWhen`/`effect`/`useEffect`), читающие `form.<field>` напрямую, используют **двойной** `.value.value` (rule #11) — single `.value` сравнивается с Signal-объектом и тихо ломает условие
 - [ ] Hide-vs-Disable choice documented per conditional field
 - [ ] Short risk summary at end

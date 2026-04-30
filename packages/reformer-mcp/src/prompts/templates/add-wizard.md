@@ -25,6 +25,7 @@ If the detected stack includes `@reformer/ui-kit`, **this is the default**. Impo
 
 **Polymorphic `step.body` (Path C unified API):**
 
+{{{{raw}}}}
 ```tsx
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 
@@ -51,6 +52,7 @@ const steps: FormWizardStep<MyForm>[] = [
   onSubmit={handleSubmit}
 />
 ```
+{{{{/raw}}}}
 
 `step.body` is runtime-discriminated — pick whichever shape fits the consumer's flow. ui-kit handles all three internally via `RenderNodeComponent` for the RenderNode case.
 
@@ -123,6 +125,8 @@ useEffect(() => {
 ```
 
 Conditional sub-sections within steps (mortgage, residence, etc.) get their own selectors and use top-level `hideWhen(proxy.node('selector'), () => ...)` after `createRenderSchema(...)` — NOT inside the node config.
+
+⚠️ **Внутри hideWhen-callback'а читай значение поля как `form.<field>.value.value` (двойной `.value`).** `field.value` возвращает Preact-Signal-объект, не значение. Сравнение `form.flag.value !== true` всегда true (Signal `!==` literal) → секция вечно скрыта без errors. См. add-behavior.md rule #11.
 
 ### Integration B3 — `target=renderer-json`
 
