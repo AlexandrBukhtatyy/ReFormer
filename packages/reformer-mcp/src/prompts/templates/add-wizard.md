@@ -108,6 +108,18 @@ Step bodies are plain React components rendered conditionally:
 
 Validation per step: `validateForm(form, STEP_VALIDATIONS[currentStep])` in `goNext()`. Cross-step `fullValidation` runs in submit handler.
 
+⚠ **`validateForm` returns `Promise<boolean>`, NOT `Promise<{valid, errors}>`.** Treat the return as a plain boolean — `if (!isValid) return;`. Если используешь `.valid` / `.errors` access — гарантированный silent abort: `result.valid` всегда undefined → `!undefined` → goNext всегда выходит → никогда не переключает шаг. Никаких runtime-errors, просто wizard «зависает» на step 1.
+
+```ts
+// ❌ silent fail — wizard stuck
+const result = await validateForm(form, validator);
+if (!result.valid) return;
+
+// ✅
+const isValid = await validateForm(form, validator);
+if (!isValid) return;
+```
+
 ### Integration B2 — `target=renderer-react`
 
 Step bodies are RenderSchema sub-trees with `selector: 'step1'..'stepN'` on each step container.

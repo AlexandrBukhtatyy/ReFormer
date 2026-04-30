@@ -88,6 +88,22 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
     {loanType === 'mortgage' && <MortgageSection/>}
     ```
 
+12. **`useFormControl(node)` принимает ТОЛЬКО FieldNode (leaf control), не FormProxy/GroupNode/ArrayNode.** Hook читает `node.componentProps.value` (signal-snapshot) для рендера label/error/disabled/etc. — у GroupNode/ArrayNode/корневой FormProxy НЕТ `componentProps` Signal'а, и hook падает с `TypeError: Cannot read properties of undefined (reading 'value')` либо тихо возвращает stub-объект, который потом упадёт на потребителе.
+
+    **Не делай так** — даже «чтобы подписаться на root формы для re-render»: FormWizard/FormRenderer сами владеют lifecycle'ом, ручная подписка на root не нужна и сломает рендер.
+
+    ```typescript
+    // ❌ FormProxy root — hook падает или возвращает мусор
+    useFormControl(form);
+    useFormControl(form.personalData);  // GroupNode — то же самое
+
+    // ✅ FieldNode (leaf)
+    useFormControl(form.loanAmount);
+    const v = useFormControlValue(form.loanType);   // value-only сахар поверх useFormControl
+    ```
+
+    Аналогичные API на FormProxy: `useFormControlValue(field)` — value-only; `form.markAsTouched()` / `form.setValue(partial)` — императивные методы (НЕ хуки). Для отслеживания изменений на нескольких полях — несколько отдельных `useFormControlValue` вызовов, по одному на поле.
+
 ## 🎯 Hide vs Disable
 
 - **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).
@@ -139,5 +155,6 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] `computeFrom` sources subscribe to group node когда computeFn читает nested fields (rule #10); никаких `as never` cast'ов на источниках
 - [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); React orchestration через `useFormControlValue` + `useEffect`
 - [ ] Все callback'и (`hideWhen`/`enableWhen`/`disableWhen`/`effect`/`useEffect`), читающие `form.<field>` напрямую, используют **двойной** `.value.value` (rule #11) — single `.value` сравнивается с Signal-объектом и тихо ломает условие
+- [ ] `useFormControl` / `useFormControlValue` вызываются ТОЛЬКО на FieldNode (leaf). Никогда на FormProxy root, GroupNode, ArrayNode (rule #12) — иначе TypeError на componentProps.value
 - [ ] Hide-vs-Disable choice documented per conditional field
 - [ ] Short risk summary at end
