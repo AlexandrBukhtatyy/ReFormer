@@ -34,6 +34,28 @@
 - **Канонические тексты:** {{canonicalLine}}
 - **Маски:** {{masksLine}}
 
+### 1.1 Walkthrough «Поведение при изменении полей и зависимости» (обязательно)
+
+Спека форм-приложения почти всегда содержит **отдельную таблицу** behavioural-правил (cross-validations, reset cascades, async loaders, warnings/hints, dynamic limits, conditional hints) — она НЕ дублирует таблицу полей. Sub-agent ОБЯЗАН перебрать **каждую строку** этой таблицы и явно классифицировать:
+
+- **In scope** — будет реализовано в текущей итерации (укажи в каком стадии: validation / behavior / wizard / index UI).
+- **Deferred** — отложено (укажи причину: нужен API не описанный в спеке; требует AsyncValidator-pattern; UI-feature вне core-промптов; и т.д.).
+- **Not relevant** — не релевантно для target'а (например, async loader не имеет смысла для target=core если api-mock отсутствует).
+
+Молчаливое опущение запрещено. Эта классификация — ВХОД в dev-plan.md и ВЫХОД в dev-report.md (секция «Spec gaps»).
+
+Типичные категории правил, которые легко пропустить:
+
+| Категория | Где в спеке | Признаки |
+|---|---|---|
+| Cross-validations | таблица «Поведение при изменении полей» | колонка type=`Кросс-валидация` |
+| Reset cascades | то же | `Сброс зависимых` (carBrand→carModel, region→city) |
+| Dynamic limits | то же | `Динамические лимиты` (loanAmount.max от totalIncome, loanTerm.max от age) |
+| Conditional required | то же | `Условная валидация` (additionalIncome>0 → additionalIncomeSource обязателен) |
+| Async loaders | то же | `Динамическая загрузка` + debounce |
+| Warnings / Hints | то же | `Предупреждение` / `Условное сообщение` |
+| Revalidation triggers | то же | `Ревалидация` (totalIncome change → revalidate paymentToIncomeRatio) |
+
 ## 2. Detected стек
 
 {{stackBlock}}

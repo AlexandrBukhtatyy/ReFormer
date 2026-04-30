@@ -104,6 +104,30 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 
     Аналогичные API на FormProxy: `useFormControlValue(field)` — value-only; `form.markAsTouched()` / `form.setValue(partial)` — императивные методы (НЕ хуки). Для отслеживания изменений на нескольких полях — несколько отдельных `useFormControlValue` вызовов, по одному на поле.
 
+13. **Не комбинируй `enableWhen + resetOnDisable: true` с `copyFrom` на одной и той же GroupNode (или включающей её).** Они конкурируют: `copyFrom` пишет значения в группу, `enableWhen` с `resetOnDisable` стирает их при срабатывании условия — порядок и тайминг непредсказуемы, а в worst-case race-condition выглядит как «иногда копируется, иногда пусто». Также: правило #8 уже запрещает `enableWhen + resetOnDisable` на whole ArrayNode (cycle на mount), но для GroupNode оно не падает технически, лишь портит данные.
+
+    **Как делать правильно**: оставь `copyFrom` для синхронизации значений; для скрытия секции используй JSX-conditional (`{condition && <Section/>}`) или `hideWhen(proxy.node('selector'), () => …)` в renderer-react. **Не блокируй disable'ом ту же группу, в которую пишет copyFrom**.
+
+    ```typescript
+    // ❌ race: copyFrom пишет registrationAddress→residenceAddress, потом enableWhen
+    // обнуляет residenceAddress (или наоборот). Видно как "иногда пусто, иногда заполнено".
+    copyFrom(path.registrationAddress, path.residenceAddress, {
+      when: (form) => form.sameAsRegistration === true,
+      fields: 'all',
+    });
+    enableWhen(path.residenceAddress, (form) => form.sameAsRegistration === false, {
+      resetOnDisable: true,
+    });
+
+    // ✅ только copyFrom; скрытие — JSX
+    copyFrom(path.registrationAddress, path.residenceAddress, {
+      when: (form) => form.sameAsRegistration === true,
+      fields: 'all',
+    });
+    // в index.tsx:
+    {!sameAsRegistration && <ResidenceAddressSection control={control}/>}
+    ```
+
 ## 🎯 Hide vs Disable
 
 - **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).
@@ -156,5 +180,7 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] Никаких raw `effect()` + signal-write комбинаций (rule #9); React orchestration через `useFormControlValue` + `useEffect`
 - [ ] Все callback'и (`hideWhen`/`enableWhen`/`disableWhen`/`effect`/`useEffect`), читающие `form.<field>` напрямую, используют **двойной** `.value.value` (rule #11) — single `.value` сравнивается с Signal-объектом и тихо ломает условие
 - [ ] `useFormControl` / `useFormControlValue` вызываются ТОЛЬКО на FieldNode (leaf). Никогда на FormProxy root, GroupNode, ArrayNode (rule #12) — иначе TypeError на componentProps.value
+- [ ] Никаких `enableWhen + resetOnDisable: true` на той же Group, в которую пишет `copyFrom` (rule #13) — race ломает данные. Скрытие — JSX-conditional / `hideWhen`
+- [ ] **Spec gaps section в dev-report.md**: для каждого правила из таблиц спеки (`Поведение при изменении полей и зависимости`, `Cross-validation`, `Async loaders`, `Warnings/Hints`) — отметка `реализовано (где) / отложено (почему) / не релевантно (почему)`. Молчаливое опущение запрещено
 - [ ] Hide-vs-Disable choice documented per conditional field
 - [ ] Short risk summary at end
