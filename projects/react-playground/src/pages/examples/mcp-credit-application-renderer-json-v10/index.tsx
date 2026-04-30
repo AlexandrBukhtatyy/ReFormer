@@ -22,11 +22,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  useFormControlValue,
-  validateForm,
-  type GroupNode,
-} from '@reformer/core';
+import { useFormControlValue, validateForm, type GroupNode } from '@reformer/core';
 import { Button, FormField } from '@reformer/ui-kit';
 import {
   FormRenderer,
@@ -35,14 +31,7 @@ import {
   type RenderSchemaFn,
 } from '@reformer/renderer-react';
 import { createRenderSchemaFromJson } from '@reformer/renderer-json';
-import {
-  Coins,
-  User,
-  Phone,
-  Briefcase,
-  FileText,
-  CheckSquare,
-} from 'lucide-react';
+import { Coins, User, Phone, Briefcase, FileText, CheckSquare } from 'lucide-react';
 
 import { createCreditApplicationForm, STEP_VALIDATIONS, fullValidation } from './schema';
 import { creditApplicationJsonSchema } from './render-schema';
@@ -105,23 +94,17 @@ export default function McpCreditApplicationRendererJsonV10() {
     schema.node('car-section').setHidden(loanType !== 'car');
   }, [schema, loanType]);
 
-  const sameAsRegistration = useFormControlValue(
-    form.sameAsRegistration as never
-  ) as boolean;
+  const sameAsRegistration = useFormControlValue(form.sameAsRegistration as never) as boolean;
   useEffect(() => {
     schema.node('residence-section').setHidden(sameAsRegistration === true);
   }, [schema, sameAsRegistration]);
 
-  const employmentStatus = useFormControlValue(
-    form.employmentStatus as never
-  ) as string;
+  const employmentStatus = useFormControlValue(form.employmentStatus as never) as string;
   useEffect(() => {
     schema.node('employed-section').setHidden(employmentStatus !== 'employed');
   }, [schema, employmentStatus]);
   useEffect(() => {
-    schema
-      .node('business-section')
-      .setHidden(employmentStatus !== 'selfEmployed');
+    schema.node('business-section').setHidden(employmentStatus !== 'selfEmployed');
   }, [schema, employmentStatus]);
 
   const hasProperty = useFormControlValue(form.hasProperty as never) as boolean;
@@ -129,16 +112,12 @@ export default function McpCreditApplicationRendererJsonV10() {
     schema.node('properties-section').setHidden(hasProperty !== true);
   }, [schema, hasProperty]);
 
-  const hasExistingLoans = useFormControlValue(
-    form.hasExistingLoans as never
-  ) as boolean;
+  const hasExistingLoans = useFormControlValue(form.hasExistingLoans as never) as boolean;
   useEffect(() => {
     schema.node('existingLoans-section').setHidden(hasExistingLoans !== true);
   }, [schema, hasExistingLoans]);
 
-  const hasCoBorrower = useFormControlValue(
-    form.hasCoBorrower as never
-  ) as boolean;
+  const hasCoBorrower = useFormControlValue(form.hasCoBorrower as never) as boolean;
   useEffect(() => {
     schema.node('coBorrowers-section').setHidden(hasCoBorrower !== true);
   }, [schema, hasCoBorrower]);
@@ -185,7 +164,7 @@ export default function McpCreditApplicationRendererJsonV10() {
       );
       if (!isValid) return;
       const values = (form as any).getValue?.() ?? (form as any).values?.value;
-      // eslint-disable-next-line no-console
+
       console.log('[mcp-credit-application-renderer-json-v10] submit', values);
       window.alert('Заявка отправлена (mock)');
     },
@@ -197,7 +176,7 @@ export default function McpCreditApplicationRendererJsonV10() {
   // ---------------------------------------------------------------------------
 
   const fillFakeData = useCallback(() => {
-    const setLeaves = (node: any, value: any, _pathSegments: string[] = []) => {
+    const setLeaves = (node: any, value: any) => {
       if (node == null) return;
       if (typeof node?.setValue === 'function' && typeof value !== 'object') {
         node.setValue(value);
@@ -211,9 +190,8 @@ export default function McpCreditApplicationRendererJsonV10() {
         // ArrayNode: clear, then add each item, then descend per-item.
         if (typeof node?.clear === 'function') node.clear();
         if (typeof node?.add === 'function') {
-          // For each fixture item, add one and descend
-          value.forEach((item: any) => {
-            // Use plain leaf-tree default; add() with no args creates default item
+          // For each fixture item, add one (default leaf tree); descend below.
+          value.forEach(() => {
             node.add();
           });
           // descend after items exist
@@ -248,24 +226,14 @@ export default function McpCreditApplicationRendererJsonV10() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Заявка на кредит (renderer-json v10)
-        </h1>
-        <Button
-          type="button"
-          variant="outline"
-          data-testid="fill-fake-data"
-          onClick={fillFakeData}
-        >
+        <h1 className="text-2xl font-bold text-gray-900">Заявка на кредит (renderer-json v10)</h1>
+        <Button type="button" variant="outline" data-testid="fill-fake-data" onClick={fillFakeData}>
           Заполнить тестовыми данными
         </Button>
       </div>
 
       {/* Step indicator */}
-      <ol
-        className="flex items-center gap-2 flex-wrap"
-        data-testid="step-indicator"
-      >
+      <ol className="flex items-center gap-2 flex-wrap" data-testid="step-indicator">
         {STEP_META.map((s, i) => {
           const Icon = s.icon;
           const completed = s.n < currentStep;
@@ -304,20 +272,12 @@ export default function McpCreditApplicationRendererJsonV10() {
       </ol>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <FormRenderer
-          render={schema}
-          settings={{ fieldWrapper: FormField as never }}
-        />
+        <FormRenderer render={schema} settings={{ fieldWrapper: FormField as never }} />
 
         {/* Nav */}
         <div className="flex items-center justify-between gap-3 pt-4 border-t">
           {currentStep > 1 ? (
-            <Button
-              type="button"
-              variant="outline"
-              data-testid="btn-prev"
-              onClick={goPrev}
-            >
+            <Button type="button" variant="outline" data-testid="btn-prev" onClick={goPrev}>
               ← Назад
             </Button>
           ) : (
