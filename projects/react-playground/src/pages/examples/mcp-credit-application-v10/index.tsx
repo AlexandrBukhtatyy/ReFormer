@@ -123,7 +123,7 @@ const Step1Loan: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ contr
 };
 
 const Step2Personal: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ control }) => {
-  const age = useFormControlValue(control.age) as number | null;
+  const age = useFormControlValue(control.age) as number | undefined;
 
   return (
     <div className="space-y-4" data-testid="step-2-body">
@@ -265,7 +265,7 @@ const Step3Contacts: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ c
 
 const Step4Employment: FC<{ control: FormProxy<CreditApplicationFormV10> }> = ({ control }) => {
   const employmentStatus = useFormControlValue(control.employmentStatus) as EmploymentStatus;
-  const workCurrent = useFormControlValue(control.workExperienceCurrent) as number | null;
+  const workCurrent = useFormControlValue(control.workExperienceCurrent) as number | undefined;
 
   return (
     <div className="space-y-4" data-testid="step-4-body">

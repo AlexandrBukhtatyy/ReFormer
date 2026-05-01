@@ -15,12 +15,12 @@ export const happyPathFixture: CreditApplicationFormV10 = {
   loanAmount: 500000,
   loanTerm: 24,
   loanPurpose: 'Покупка бытовой техники для дома, ремонт кухни и прочие крупные расходы.',
-  propertyValue: null,
-  initialPayment: null,
+  propertyValue: undefined,
+  initialPayment: undefined,
   carBrand: '',
   carModel: '',
-  carYear: null,
-  carPrice: null,
+  carYear: undefined,
+  carPrice: undefined,
 
   // Step 2
   personalData: {

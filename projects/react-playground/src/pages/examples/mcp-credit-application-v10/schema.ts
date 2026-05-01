@@ -21,8 +21,6 @@
 // - All `watchField` carry `{ immediate: false }`; `setValue` calls are guarded.
 // =============================================================================
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import {
   createForm,
   type FieldPath,
@@ -42,6 +40,7 @@ import {
   email,
   validate,
   validateItems,
+  validateTree,
 } from '@reformer/core/validators';
 import {
   copyFrom,
@@ -309,7 +308,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     },
   },
   loanAmount: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Сумма кредита (₽)',
@@ -343,7 +342,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
   },
   // Mortgage-only
   propertyValue: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Стоимость недвижимости (₽)',
@@ -354,7 +353,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     },
   },
   initialPayment: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Первоначальный взнос (₽)',
@@ -382,12 +381,12 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     },
   },
   carYear: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: { label: 'Год выпуска', placeholder: '2020', type: 'number' },
   },
   carPrice: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Стоимость автомобиля (₽)',
@@ -499,7 +498,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     componentProps: { label: 'Должность', placeholder: 'Ваша должность' },
   },
   workExperienceTotal: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Общий стаж работы (месяцев)',
@@ -509,7 +508,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     },
   },
   workExperienceCurrent: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Стаж на текущем месте (месяцев)',
@@ -519,7 +518,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     },
   },
   monthlyIncome: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Ежемесячный доход (₽)',
@@ -530,7 +529,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     },
   },
   additionalIncome: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: {
       label: 'Дополнительный доход (₽)',
@@ -664,7 +663,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
     componentProps: { label: 'Полное имя', readOnly: true },
   },
   age: {
-    value: null,
+    value: undefined,
     component: Input,
     componentProps: { label: 'Возраст (лет)', type: 'number', readOnly: true },
   },
@@ -689,10 +688,7 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
 // Validation per step
 // =============================================================================
 
-// (path: any) here only because step1 has number|null fields (loanAmount,
-// propertyValue, initialPayment, carPrice, carYear) — built-in `min`/`max` ждут
-// number|undefined. Полная типизация требует cast-helper или union-сужения.
-const step1Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any) => {
+const step1Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => {
   required(path.loanType, { message: 'Выберите тип кредита' });
 
   required(path.loanAmount, { message: 'Укажите сумму кредита' });
@@ -709,32 +705,36 @@ const step1Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any
 
   applyWhen(
     path.loanType,
-    (t: unknown) => t === 'mortgage',
-    (p: any) => {
+    (t) => t === 'mortgage',
+    (p) => {
       required(p.propertyValue, { message: 'Укажите стоимость недвижимости' });
       min(p.propertyValue, 1000000, { message: 'Минимальная стоимость: 1 000 000 ₽' });
-      // initialPayment is computed (20% от propertyValue) — cross-field check still useful
-      validate(p.loanAmount, (value: unknown, ctx: any) => {
-        const propertyValue = ctx.form.propertyValue?.value?.value;
-        const initialPayment = ctx.form.initialPayment?.value?.value;
-        const v = value as number | null;
-        if (v == null || propertyValue == null || initialPayment == null) return null;
-        const cap = propertyValue - initialPayment;
-        if (cap > 0 && v > cap) {
-          return {
-            code: 'loanAmountExceedsCap',
-            message: `Сумма кредита не должна превышать ${cap.toLocaleString('ru-RU')} ₽ (стоимость минус первоначальный взнос)`,
-          };
-        }
-        return null;
-      });
+      // Cross-field: loanAmount <= propertyValue − initialPayment (initialPayment computed).
+      validateTree<CreditApplicationFormV10>(
+        (ctx) => {
+          const form = ctx.form.getValue();
+          const v = form.loanAmount;
+          const propertyValue = form.propertyValue;
+          const initialPayment = form.initialPayment;
+          if (v == null || propertyValue == null || initialPayment == null) return null;
+          const cap = propertyValue - initialPayment;
+          if (cap > 0 && v > cap) {
+            return {
+              code: 'loanAmountExceedsCap',
+              message: `Сумма кредита не должна превышать ${cap.toLocaleString('ru-RU')} ₽ (стоимость минус первоначальный взнос)`,
+            };
+          }
+          return null;
+        },
+        { targetField: 'loanAmount' }
+      );
     }
   );
 
   applyWhen(
     path.loanType,
-    (t: unknown) => t === 'car',
-    (p: any) => {
+    (t) => t === 'car',
+    (p) => {
       required(p.carBrand, { message: 'Укажите марку автомобиля' });
       minLength(p.carBrand, 2, { message: 'Минимум 2 символа' });
       maxLength(p.carBrand, 50, { message: 'Максимум 50 символов' });
@@ -757,34 +757,42 @@ const step1Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any
 
   // spec:1140 — loanAmount.max <= totalIncome * 10 (10 годовых доходов).
   // totalIncome = monthlyIncome*12 + additionalIncome*12 (computed).
-  validate(path.loanAmount, (value: unknown, ctx: any) => {
-    const v = value as number | null;
-    const totalIncome = ctx.form.totalIncome?.value?.value as number | undefined;
-    if (v == null || !totalIncome || totalIncome <= 0) return null;
-    const cap = totalIncome * 12 * 10;
-    if (v > cap) {
-      return {
-        code: 'loanAmountExceedsIncomeCap',
-        message: `Сумма кредита не должна превышать ${cap.toLocaleString('ru-RU')} ₽ (10 годовых доходов)`,
-      };
-    }
-    return null;
-  });
+  validateTree<CreditApplicationFormV10>(
+    (ctx) => {
+      const form = ctx.form.getValue();
+      const v = form.loanAmount;
+      const totalIncome = form.totalIncome;
+      if (v == null || !totalIncome || totalIncome <= 0) return null;
+      const cap = totalIncome * 12 * 10;
+      if (v > cap) {
+        return {
+          code: 'loanAmountExceedsIncomeCap',
+          message: `Сумма кредита не должна превышать ${cap.toLocaleString('ru-RU')} ₽ (10 годовых доходов)`,
+        };
+      }
+      return null;
+    },
+    { targetField: 'loanAmount' }
+  );
 
   // spec:1141 — loanTerm.max <= (70 - age) * 12 (погашение до 70 лет).
-  validate(path.loanTerm, (value: unknown, ctx: any) => {
-    const term = value as number | null;
-    const age = ctx.form.age?.value?.value as number | null;
-    if (term == null || age == null) return null;
-    const maxByAge = (70 - age) * 12;
-    if (term > maxByAge) {
-      return {
-        code: 'loanTermExceedsAgeCap',
-        message: `Максимальный срок ${maxByAge} мес. — погашение должно завершиться к 70 годам`,
-      };
-    }
-    return null;
-  });
+  validateTree<CreditApplicationFormV10>(
+    (ctx) => {
+      const form = ctx.form.getValue();
+      const term = form.loanTerm;
+      const age = form.age;
+      if (term == null || age == null) return null;
+      const maxByAge = (70 - age) * 12;
+      if (term > maxByAge) {
+        return {
+          code: 'loanTermExceedsAgeCap',
+          message: `Максимальный срок ${maxByAge} мес. — погашение должно завершиться к 70 годам`,
+        };
+      }
+      return null;
+    },
+    { targetField: 'loanTerm' }
+  );
 };
 
 const step2Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => {
@@ -804,9 +812,9 @@ const step2Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
   required(path.inn, { message: 'Введите ИНН' });
   required(path.snils, { message: 'Введите СНИЛС' });
 
-  // Cross-field: возраст 18-70 (validate via age computed field)
-  validate(path.personalData.birthDate, (value: unknown) => {
-    if (!value || typeof value !== 'string') return null;
+  // Возраст 18-70 — валидация по birthDate (single-field, без cross-field).
+  validate(path.personalData.birthDate, (value: string) => {
+    if (!value) return null;
     const birth = new Date(value);
     if (Number.isNaN(birth.getTime())) return null;
     const today = new Date();
@@ -836,8 +844,8 @@ const step3Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
 
   applyWhen(
     path.sameAsRegistration,
-    (v: unknown) => v === false,
-    (p: any) => {
+    (v) => v === false,
+    (p) => {
       required(p.residenceAddress.region, { message: 'Введите регион проживания' });
       required(p.residenceAddress.city, { message: 'Введите город проживания' });
       required(p.residenceAddress.street, { message: 'Введите улицу проживания' });
@@ -847,16 +855,13 @@ const step3Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
   );
 };
 
-// (path: any) here only because step4 has number|null fields
-// (workExperienceTotal, workExperienceCurrent, monthlyIncome) — same TS gap
-// as step1. Validators logic не требует null-narrowing — min(0, null) safe.
-const step4Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any) => {
+const step4Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => {
   required(path.employmentStatus, { message: 'Укажите статус занятости' });
 
   applyWhen(
     path.employmentStatus,
-    (s: unknown) => s === 'employed',
-    (p: any) => {
+    (s) => s === 'employed',
+    (p) => {
       required(p.companyName, { message: 'Укажите название компании' });
       required(p.companyInn, { message: 'Укажите ИНН компании' });
       required(p.companyPhone, { message: 'Укажите телефон компании' });
@@ -867,8 +872,8 @@ const step4Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any
 
   applyWhen(
     path.employmentStatus,
-    (s: unknown) => s === 'selfEmployed',
-    (p: any) => {
+    (s) => s === 'selfEmployed',
+    (p) => {
       required(p.businessType, { message: 'Укажите тип бизнеса' });
       required(p.businessInn, { message: 'Укажите ИНН ИП' });
       required(p.businessActivity, { message: 'Опишите вид деятельности' });
@@ -882,18 +887,22 @@ const step4Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any
   min(path.workExperienceCurrent, 0, { message: 'Стаж не может быть отрицательным' });
 
   // Cross-field: workExperienceCurrent <= workExperienceTotal
-  validate(path.workExperienceCurrent, (value: unknown, ctx: any) => {
-    const current = value as number | null;
-    const total = ctx.form.workExperienceTotal?.value?.value as number | null;
-    if (current == null || total == null) return null;
-    if (current > total) {
-      return {
-        code: 'currentExceedsTotal',
-        message: 'Стаж на текущем месте не может превышать общий стаж',
-      };
-    }
-    return null;
-  });
+  validateTree<CreditApplicationFormV10>(
+    (ctx) => {
+      const form = ctx.form.getValue();
+      const current = form.workExperienceCurrent;
+      const total = form.workExperienceTotal;
+      if (current == null || total == null) return null;
+      if (current > total) {
+        return {
+          code: 'currentExceedsTotal',
+          message: 'Стаж на текущем месте не может превышать общий стаж',
+        };
+      }
+      return null;
+    },
+    { targetField: 'workExperienceCurrent' }
+  );
 
   required(path.monthlyIncome, { message: 'Укажите ежемесячный доход' });
   min(path.monthlyIncome, 10000, { message: 'Минимальный доход: 10 000 ₽' });
@@ -901,8 +910,8 @@ const step4Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any
   // spec:1139 — additionalIncomeSource обязателен если additionalIncome > 0.
   applyWhen(
     path.additionalIncome,
-    (v: unknown) => typeof v === 'number' && v > 0,
-    (p: any) => {
+    (v) => typeof v === 'number' && v > 0,
+    (p) => {
       required(p.additionalIncomeSource, {
         message: 'Укажите источник дополнительного дохода',
       });
@@ -920,28 +929,32 @@ const step5Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
   // spec:1130 — existingLoans[].remainingAmount <= existingLoans[].amount (per-item).
   applyWhen(
     path.hasExistingLoans,
-    (v: unknown) => v === true,
-    (p: any) => {
-      validateItems(p.existingLoans, (itemPath: any) => {
-        validate(itemPath.remainingAmount, (value: unknown, ctx: any) => {
-          const remaining = value as number | null;
-          const amount = ctx.form.amount?.value?.value as number | null;
-          if (remaining == null || amount == null) return null;
-          if (remaining > amount) {
-            return {
-              code: 'remainingExceedsAmount',
-              message: 'Остаток задолженности не может превышать сумму кредита',
-            };
-          }
-          return null;
-        });
+    (v) => v === true,
+    (p) => {
+      validateItems(p.existingLoans, (itemPath) => {
+        // Per-item cross-field: ctx.form внутри validateTree — это FormProxy<ExistingLoan>
+        // (sub-form элемента массива), поэтому ctx.form.getValue() возвращает один ExistingLoan.
+        void itemPath;
+        validateTree<ExistingLoan>(
+          (ctx) => {
+            const item = ctx.form.getValue();
+            if (item.remainingAmount > item.amount) {
+              return {
+                code: 'remainingExceedsAmount',
+                message: 'Остаток задолженности не может превышать сумму кредита',
+              };
+            }
+            return null;
+          },
+          { targetField: 'remainingAmount' }
+        );
       });
     }
   );
 };
 
 const step6Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => {
-  validate(path.agreePersonalData, (value: unknown) =>
+  validate(path.agreePersonalData, (value: boolean) =>
     value === true
       ? null
       : {
@@ -949,7 +962,7 @@ const step6Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
           message: 'Необходимо согласиться на обработку персональных данных',
         }
   );
-  validate(path.agreeCreditHistory, (value: unknown) =>
+  validate(path.agreeCreditHistory, (value: boolean) =>
     value === true
       ? null
       : {
@@ -957,7 +970,7 @@ const step6Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
           message: 'Необходимо согласиться на проверку кредитной истории',
         }
   );
-  validate(path.agreeTerms, (value: unknown) =>
+  validate(path.agreeTerms, (value: boolean) =>
     value === true
       ? null
       : {
@@ -965,7 +978,7 @@ const step6Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
           message: 'Необходимо согласиться с условиями кредитования',
         }
   );
-  validate(path.confirmAccuracy, (value: unknown) =>
+  validate(path.confirmAccuracy, (value: boolean) =>
     value === true
       ? null
       : {
@@ -976,17 +989,20 @@ const step6Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => 
   required(path.electronicSignature, { message: 'Введите код подтверждения из СМС' });
 
   // spec:1133 — paymentToIncomeRatio <= 50% final-check at submit.
-  validate(path.confirmAccuracy, (_value: unknown, ctx: any) => {
-    const ratio = ctx.form.paymentToIncomeRatio?.value?.value as number | undefined;
-    if (ratio == null) return null;
-    if (ratio > 50) {
-      return {
-        code: 'dtiExceeded',
-        message: `Платёж по кредиту составляет ${ratio}% от дохода — превышен лимит 50%. Уменьшите сумму или увеличьте срок.`,
-      };
-    }
-    return null;
-  });
+  validateTree<CreditApplicationFormV10>(
+    (ctx) => {
+      const ratio = ctx.form.getValue().paymentToIncomeRatio;
+      if (ratio == null) return null;
+      if (ratio > 50) {
+        return {
+          code: 'dtiExceeded',
+          message: `Платёж по кредиту составляет ${ratio}% от дохода — превышен лимит 50%. Уменьшите сумму или увеличьте срок.`,
+        };
+      }
+      return null;
+    },
+    { targetField: 'confirmAccuracy' }
+  );
 };
 
 export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<CreditApplicationFormV10>> = {
@@ -1008,6 +1024,94 @@ const fullValidation: ValidationSchemaFn<CreditApplicationFormV10> = (path) => {
 };
 
 // =============================================================================
+// Compute helpers — module-level typed functions used by computeFrom below.
+// Извлечение вместо inline arrow позволяет TS правильно проинферить
+// (values: CreditApplicationFormV10) — не требуется (values: any).
+// =============================================================================
+
+function computeFullName(values: CreditApplicationFormV10): string {
+  const pd = values.personalData ?? ({} as CreditApplicationFormV10['personalData']);
+  const parts = [pd.lastName, pd.firstName, pd.middleName].filter(
+    (s) => typeof s === 'string' && s.trim().length > 0
+  );
+  return parts.join(' ').trim();
+}
+
+function computeAge(values: CreditApplicationFormV10): number | undefined {
+  const birth = values.personalData?.birthDate;
+  if (!birth || typeof birth !== 'string') return undefined;
+  const d = new Date(birth);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const now = new Date();
+  let y = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) y -= 1;
+  return y;
+}
+
+function computeInitialPayment(values: CreditApplicationFormV10): number | undefined {
+  if (
+    values.loanType !== 'mortgage' ||
+    typeof values.propertyValue !== 'number' ||
+    values.propertyValue <= 0
+  ) {
+    return undefined;
+  }
+  return Math.round(values.propertyValue * 0.2);
+}
+
+const INTEREST_RATE_BASE: Record<string, number> = {
+  consumer: 18,
+  mortgage: 9,
+  car: 12,
+  business: 15,
+  refinancing: 13,
+};
+
+function computeInterestRate(values: CreditApplicationFormV10): number {
+  const base = INTEREST_RATE_BASE[values.loanType] ?? 18;
+  // Регион-надбавки: столицы — базовая ставка, регионы — +1%.
+  const region = values.registrationAddress?.region;
+  const isCapital =
+    typeof region === 'string' && /^(москва|санкт-петербург|спб)/i.test(region.trim());
+  const regionAdjust = region && !isCapital ? 1 : 0;
+  const propertyBonus = values.hasProperty ? 0.5 : 0;
+  return Math.max(0, base + regionAdjust - propertyBonus);
+}
+
+function computeMonthlyPayment(values: CreditApplicationFormV10): number {
+  const P = values.loanAmount;
+  const n = values.loanTerm;
+  const annualPercent = values.interestRate;
+  if (!P || !n || !annualPercent || P <= 0 || n <= 0) return 0;
+  const i = annualPercent / 100 / 12;
+  if (i <= 0) return Math.round(P / n);
+  const factor = Math.pow(1 + i, n);
+  const payment = (P * (i * factor)) / (factor - 1);
+  return Math.round(payment);
+}
+
+function computeCoBorrowersIncome(values: CreditApplicationFormV10): number {
+  const list = values.coBorrowers;
+  if (!Array.isArray(list)) return 0;
+  return list.reduce(
+    (acc, item) => acc + (typeof item?.monthlyIncome === 'number' ? item.monthlyIncome : 0),
+    0
+  );
+}
+
+function computeTotalIncome(values: CreditApplicationFormV10): number {
+  return (values.monthlyIncome ?? 0) + (values.additionalIncome ?? 0);
+}
+
+function computeDtiRatio(values: CreditApplicationFormV10): number {
+  const mp = values.monthlyPayment ?? 0;
+  const ti = values.totalIncome ?? 0;
+  if (ti <= 0) return 0;
+  return Math.round((mp / ti) * 100);
+}
+
+// =============================================================================
 // Behavior schema
 // =============================================================================
 
@@ -1017,8 +1121,8 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   // ---------------------------------------------------------------------------
   // copyFrom — sameAsRegistration → copy registrationAddress to residenceAddress
   // ---------------------------------------------------------------------------
-  copyFrom(path.registrationAddress as any, path.residenceAddress as any, {
-    when: (form: CreditApplicationFormV10) => form.sameAsRegistration === true,
+  copyFrom(path.registrationAddress, path.residenceAddress, {
+    when: (form) => form.sameAsRegistration === true,
     fields: 'all',
   });
 
@@ -1066,146 +1170,59 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   // НЕ применяем enableWhen+resetOnDisable: race с copyFrom (write→reset).
 
   // ---------------------------------------------------------------------------
-  // computeFrom — same-level computed fields
-  //  Subscribe to GROUP node (path.personalData) when computeFn reads nested fields.
+  // computeFrom — same-level computed fields. Compute helpers extracted as
+  // typed module-level functions (см. блок выше); inline arrows здесь не
+  // используются — это даёт правильную TS-инференцию (values: TForm) → result.
+  // Subscribe to GROUP node (path.personalData / path.registrationAddress)
+  // when computeFn reads nested fields (Patch I).
   // ---------------------------------------------------------------------------
 
-  // fullName = lastName firstName middleName
-  computeFrom([path.personalData] as any, path.fullName, (values: any) => {
-    const pd = values.personalData ?? {};
-    const parts = [pd.lastName, pd.firstName, pd.middleName].filter(
-      (s) => typeof s === 'string' && s.trim().length > 0
-    );
-    return parts.join(' ').trim();
-  });
-
-  // age = years since birthDate
-  computeFrom([path.personalData] as any, path.age, (values: any) => {
-    const birth = values.personalData?.birthDate;
-    if (!birth || typeof birth !== 'string') return null;
-    const d = new Date(birth);
-    if (Number.isNaN(d.getTime())) return null;
-    const now = new Date();
-    let y = now.getFullYear() - d.getFullYear();
-    const m = now.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) y -= 1;
-    return y;
-  });
-
-  // initialPayment = 20% of propertyValue (mortgage only); else 0
-  computeFrom([path.propertyValue, path.loanType] as any, path.initialPayment, (values: any) => {
-    const lt = values.loanType;
-    const pv = values.propertyValue;
-    if (lt !== 'mortgage' || typeof pv !== 'number' || pv <= 0) return null;
-    return Math.round(pv * 0.2);
-  });
-
-  // interestRate — base table by loanType + regional coefficient (per spec C.1
-  // depends on loanType, registrationAddress, hasProperty); bonus -0.5% for
-  // hasProperty=true. Subscribe to registrationAddress GROUP per Patch I.
+  computeFrom([path.personalData], path.fullName, computeFullName);
+  computeFrom([path.personalData], path.age, computeAge);
+  computeFrom([path.propertyValue, path.loanType], path.initialPayment, computeInitialPayment);
   computeFrom(
-    [path.loanType, path.hasProperty, path.registrationAddress] as any,
+    [path.loanType, path.hasProperty, path.registrationAddress],
     path.interestRate,
-    (values: any) => {
-      const lt = values.loanType;
-      const baseByType: Record<string, number> = {
-        consumer: 18,
-        mortgage: 9,
-        car: 12,
-        business: 15,
-        refinancing: 13,
-      };
-      const base = baseByType[lt as string] ?? 18;
-      // Регион-надбавки: столицы — базовая ставка, регионы — +1%.
-      const region = values.registrationAddress?.region as string | undefined;
-      const isCapital =
-        typeof region === 'string' && /^(москва|санкт-петербург|спб)/i.test(region.trim());
-      const regionAdjust = region && !isCapital ? 1 : 0;
-      const propertyBonus = values.hasProperty ? 0.5 : 0;
-      return Math.max(0, base + regionAdjust - propertyBonus);
-    }
+    computeInterestRate
   );
-
-  // monthlyPayment — annuity formula
   computeFrom(
-    [path.loanAmount, path.loanTerm, path.interestRate] as any,
+    [path.loanAmount, path.loanTerm, path.interestRate],
     path.monthlyPayment,
-    (values: any) => {
-      const P = values.loanAmount as number | null | undefined;
-      const n = values.loanTerm as number | null | undefined;
-      const annualPercent = values.interestRate as number | null | undefined;
-      if (!P || !n || !annualPercent || P <= 0 || n <= 0) return 0;
-      const i = annualPercent / 100 / 12;
-      if (i <= 0) return Math.round(P / n);
-      const factor = Math.pow(1 + i, n);
-      const payment = (P * (i * factor)) / (factor - 1);
-      return Math.round(payment);
-    }
+    computeMonthlyPayment
   );
-
-  // coBorrowersIncome = sum of coBorrowers[].monthlyIncome
-  computeFrom([path.coBorrowers] as any, path.coBorrowersIncome, (values: any) => {
-    const list = values.coBorrowers as Array<{ monthlyIncome?: number }> | undefined;
-    if (!Array.isArray(list)) return 0;
-    return list.reduce(
-      (acc, item) => acc + (typeof item?.monthlyIncome === 'number' ? item.monthlyIncome : 0),
-      0
-    );
-  });
-
-  // totalIncome = monthlyIncome + additionalIncome (per spec C.6).
-  // coBorrowersIncome is a separate computed field and is NOT summed in here.
-  computeFrom(
-    [path.monthlyIncome, path.additionalIncome] as any,
-    path.totalIncome,
-    (values: any) => {
-      const a = (values.monthlyIncome as number | null | undefined) ?? 0;
-      const b = (values.additionalIncome as number | null | undefined) ?? 0;
-      return a + b;
-    }
-  );
-
-  // paymentToIncomeRatio = monthlyPayment / totalIncome * 100
-  computeFrom(
-    [path.monthlyPayment, path.totalIncome] as any,
-    path.paymentToIncomeRatio,
-    (values: any) => {
-      const mp = (values.monthlyPayment as number | null | undefined) ?? 0;
-      const ti = (values.totalIncome as number | null | undefined) ?? 0;
-      if (ti <= 0) return 0;
-      return Math.round((mp / ti) * 100);
-    }
-  );
+  computeFrom([path.coBorrowers], path.coBorrowersIncome, computeCoBorrowersIncome);
+  computeFrom([path.monthlyIncome, path.additionalIncome], path.totalIncome, computeTotalIncome);
+  computeFrom([path.monthlyPayment, path.totalIncome], path.paymentToIncomeRatio, computeDtiRatio);
 
   // ---------------------------------------------------------------------------
   // watchField — array cleanup on flag-uncheck (immediate: false + length guard)
   // ---------------------------------------------------------------------------
   watchField(
     path.hasProperty,
-    (hasProperty: unknown, ctx: any) => {
+    (hasProperty, ctx) => {
       if (hasProperty === false) {
         const arr = ctx.form.properties;
-        if (arr && arr.length?.value > 0) arr.clear?.();
+        if (arr && arr.length.value > 0) arr.clear();
       }
     },
     { immediate: false }
   );
   watchField(
     path.hasExistingLoans,
-    (has: unknown, ctx: any) => {
+    (has, ctx) => {
       if (has === false) {
         const arr = ctx.form.existingLoans;
-        if (arr && arr.length?.value > 0) arr.clear?.();
+        if (arr && arr.length.value > 0) arr.clear();
       }
     },
     { immediate: false }
   );
   watchField(
     path.hasCoBorrower,
-    (has: unknown, ctx: any) => {
+    (has, ctx) => {
       if (has === false) {
         const arr = ctx.form.coBorrowers;
-        if (arr && arr.length?.value > 0) arr.clear?.();
+        if (arr && arr.length.value > 0) arr.clear();
       }
     },
     { immediate: false }
@@ -1227,23 +1244,24 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   // + reset carModel если текущая модель не в новых options.
   watchField(
     path.carBrand,
-    async (brand: unknown, ctx: any) => {
-      if (typeof brand !== 'string' || brand.trim().length < 2) {
-        ctx.form.carModel?.updateComponentProps?.({ options: [] });
-        if (ctx.form.carModel?.value?.value !== '') ctx.form.carModel?.setValue?.('');
+    async (brand, ctx) => {
+      const carModel = ctx.form.carModel;
+      if (!brand || brand.trim().length < 2) {
+        carModel.updateComponentProps({ options: [] });
+        if (carModel.value.value !== '') carModel.setValue('');
         return;
       }
       try {
         const res = await fetch(`/api/v1/car-models?brand=${encodeURIComponent(brand.trim())}`);
         if (!res.ok) throw new Error(`car-models ${res.status}`);
         const options = (await res.json()) as Array<{ value: string; label: string }>;
-        ctx.form.carModel?.updateComponentProps?.({ options });
-        const current = ctx.form.carModel?.value?.value as string | undefined;
+        carModel.updateComponentProps({ options });
+        const current = carModel.value.value;
         const validValues = options.map((o) => o.value);
-        if (current && !validValues.includes(current)) ctx.form.carModel?.setValue?.('');
+        if (current && !validValues.includes(current)) carModel.setValue('');
       } catch (err) {
         console.error('[carBrand→models] load failed:', err);
-        ctx.form.carModel?.updateComponentProps?.({ options: [] });
+        carModel.updateComponentProps({ options: [] });
       }
     },
     { immediate: false, debounce: 300 }
@@ -1252,24 +1270,24 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   // spec:1115+1135 — registrationAddress.region → cities loader + city reset.
   watchField(
     path.registrationAddress.region,
-    async (region: unknown, ctx: any) => {
-      const cityNode = ctx.form.registrationAddress?.city;
-      if (typeof region !== 'string' || region.trim().length < 2) {
-        cityNode?.updateComponentProps?.({ options: [] });
-        if (cityNode?.value?.value !== '') cityNode?.setValue?.('');
+    async (region, ctx) => {
+      const cityNode = ctx.form.registrationAddress.city;
+      if (!region || region.trim().length < 2) {
+        cityNode.updateComponentProps({ options: [] });
+        if (cityNode.value.value !== '') cityNode.setValue('');
         return;
       }
       try {
         const res = await fetch(`/api/v1/cities?region=${encodeURIComponent(region.trim())}`);
         if (!res.ok) throw new Error(`cities ${res.status}`);
         const options = (await res.json()) as Array<{ value: string; label: string }>;
-        cityNode?.updateComponentProps?.({ options });
-        const current = cityNode?.value?.value as string | undefined;
+        cityNode.updateComponentProps({ options });
+        const current = cityNode.value.value;
         const validValues = options.map((o) => o.value);
-        if (current && !validValues.includes(current)) cityNode?.setValue?.('');
+        if (current && !validValues.includes(current)) cityNode.setValue('');
       } catch (err) {
         console.error('[reg.region→cities] load failed:', err);
-        cityNode?.updateComponentProps?.({ options: [] });
+        cityNode.updateComponentProps({ options: [] });
       }
     },
     { immediate: false, debounce: 300 }
@@ -1278,26 +1296,25 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   // spec:1116 — residenceAddress.region (только при sameAsRegistration=false).
   watchField(
     path.residenceAddress.region,
-    async (region: unknown, ctx: any) => {
-      const sameAs = ctx.form.sameAsRegistration?.value?.value;
-      if (sameAs === true) return;
-      const cityNode = ctx.form.residenceAddress?.city;
-      if (typeof region !== 'string' || region.trim().length < 2) {
-        cityNode?.updateComponentProps?.({ options: [] });
-        if (cityNode?.value?.value !== '') cityNode?.setValue?.('');
+    async (region, ctx) => {
+      if (ctx.form.sameAsRegistration.value.value === true) return;
+      const cityNode = ctx.form.residenceAddress.city;
+      if (!region || region.trim().length < 2) {
+        cityNode.updateComponentProps({ options: [] });
+        if (cityNode.value.value !== '') cityNode.setValue('');
         return;
       }
       try {
         const res = await fetch(`/api/v1/cities?region=${encodeURIComponent(region.trim())}`);
         if (!res.ok) throw new Error(`cities ${res.status}`);
         const options = (await res.json()) as Array<{ value: string; label: string }>;
-        cityNode?.updateComponentProps?.({ options });
-        const current = cityNode?.value?.value as string | undefined;
+        cityNode.updateComponentProps({ options });
+        const current = cityNode.value.value;
         const validValues = options.map((o) => o.value);
-        if (current && !validValues.includes(current)) cityNode?.setValue?.('');
+        if (current && !validValues.includes(current)) cityNode.setValue('');
       } catch (err) {
         console.error('[res.region→cities] load failed:', err);
-        cityNode?.updateComponentProps?.({ options: [] });
+        cityNode.updateComponentProps({ options: [] });
       }
     },
     { immediate: false, debounce: 300 }
@@ -1309,18 +1326,14 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
 // =============================================================================
 
 export const createCreditApplicationForm = (): FormProxy<CreditApplicationFormV10> => {
-  // Cast workaround for TS2589 on deeply-nested types (per add-validation prompt).
-  return (
-    createForm as unknown as (config: {
-      form: unknown;
-      validation: unknown;
-      behavior: unknown;
-    }) => FormProxy<CreditApplicationFormV10>
-  )({
-    form: creditApplicationSchema,
-    validation: fullValidation,
-    behavior: creditApplicationBehavior,
-  });
+  // Сплит на 3 типизированных вызова — обходит TS2589 unification на
+  // GroupNodeConfig<T>{form,validation,behavior} для 76-полевой формы.
+  // FormSchema-overload (createForm<T>(schema)) не рекурсирует в behavior/validation
+  // generics — TS успевает проинферить за полиномиальное время.
+  const form = createForm<CreditApplicationFormV10>(creditApplicationSchema);
+  form.applyValidationSchema(fullValidation);
+  form.applyBehaviorSchema(creditApplicationBehavior);
+  return form;
 };
 
 export { fullValidation };

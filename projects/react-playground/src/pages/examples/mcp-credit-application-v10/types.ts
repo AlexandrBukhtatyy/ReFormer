@@ -8,12 +8,7 @@
 
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 export type Gender = 'male' | 'female';
-export type EmploymentStatus =
-  | 'employed'
-  | 'selfEmployed'
-  | 'unemployed'
-  | 'retired'
-  | 'student';
+export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
 export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial' | 'car' | 'other';
@@ -84,17 +79,17 @@ export interface CoBorrower {
 export interface CreditApplicationFormV10 {
   // Step 1 — Loan
   loanType: LoanType;
-  loanAmount: number | null;
+  loanAmount: number | undefined;
   loanTerm: number;
   loanPurpose: string;
   // Mortgage
-  propertyValue: number | null;
-  initialPayment: number | null;
+  propertyValue: number | undefined;
+  initialPayment: number | undefined;
   // Car loan
   carBrand: string;
   carModel: string;
-  carYear: number | null;
-  carPrice: number | null;
+  carYear: number | undefined;
+  carPrice: number | undefined;
 
   // Step 2 — Personal & passport
   personalData: PersonalData;
@@ -118,10 +113,10 @@ export interface CreditApplicationFormV10 {
   companyPhone: string;
   companyAddress: string;
   position: string;
-  workExperienceTotal: number | null;
-  workExperienceCurrent: number | null;
-  monthlyIncome: number | null;
-  additionalIncome: number | null;
+  workExperienceTotal: number | undefined;
+  workExperienceCurrent: number | undefined;
+  monthlyIncome: number | undefined;
+  additionalIncome: number | undefined;
   additionalIncomeSource: string;
   businessType: string;
   businessInn: string;
@@ -150,7 +145,7 @@ export interface CreditApplicationFormV10 {
   interestRate: number;
   monthlyPayment: number;
   fullName: string;
-  age: number | null;
+  age: number | undefined;
   totalIncome: number;
   paymentToIncomeRatio: number;
   coBorrowersIncome: number;
