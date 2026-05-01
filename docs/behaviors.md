@@ -307,6 +307,83 @@ const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
 
 ---
 
+## Best practices: типизация и структура callback'ов
+
+Эти два правила относятся **ко всей behavior-схеме** (`BehaviorSchemaFn<T>`).
+
+### 1. Используй типизированный generic формы — НЕ `any`
+
+`BehaviorSchemaFn<T>` параметризован form-interface'ом. Передай его явно:
+
+```typescript
+import type { OrderForm } from './types';
+
+// ✅ generic зафиксирован — TS инферит values, ctx, value во всех callback'ах
+const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
+  computeFrom([path.price, path.quantity], path.total, (values) => {
+    // values: OrderForm — IDE автодополняет
+    return values.price * values.quantity;
+  });
+};
+
+// ❌ generic пропущен или path: any — silent fail на опечатках в имени поля
+const behavior: BehaviorSchemaFn<any> = (path: any) => { ... };
+```
+
+`as any` иногда нужен в отдельных call-site (например, computeFrom-source для очень глубокого пути). Тогда **сужай cast до конкретного выражения**, а не на весь callback.
+
+### 2. Inline callback OK для коротких, extract module-level для содержательных
+
+**Inline-callback** (короткие predicates, один вызов):
+
+```typescript
+// ✅ нормально для 1-2 строк
+enableWhen(path.discountCode, (form) => form.subtotal > 100);
+copyFrom(path.shippingAddress, path.billingAddress, {
+  when: (form) => form.sameAsShipping === true,
+  fields: 'all',
+});
+```
+
+**Extracted module-level function** (предпочтительно для computeFrom, async watchField, любой логики >5 строк):
+
+```typescript
+// ✅ предпочтительно — extracted типизированный helper
+function computeMonthlyPayment(form: LoanForm): number {
+  const P = form.loanAmount;
+  const n = form.loanTerm;
+  const annual = form.interestRate;
+  if (!P || !n || !annual || P <= 0 || n <= 0) return 0;
+  const i = annual / 100 / 12;
+  if (i <= 0) return Math.round(P / n);
+  const factor = Math.pow(1 + i, n);
+  return Math.round((P * (i * factor)) / (factor - 1));
+}
+
+const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
+  computeFrom(
+    [path.loanAmount, path.loanTerm, path.interestRate],
+    path.monthlyPayment,
+    computeMonthlyPayment,  // референс — TS инферит signature
+  );
+};
+```
+
+**Когда extract обязателен:**
+- callback >5 строк или содержит несколько return-веток / try/catch;
+- callback переиспользуется в нескольких behavior-вызовах (DRY);
+- **inline-arrow в `computeFrom([...], target, callback)`** — TS не всегда инферит `values: TForm`, может потребоваться `(values: any)`. Module-level функция с сигнатурой `(form: T) => Result` инферится без cast.
+- async watchField с try/catch на 10+ строк — extracted async-функция читаемее.
+
+**Inline OK когда:**
+- predicate в `enableWhen`/`disableWhen`/`copyFrom.when` на 1 значение;
+- watchField с 2-3 строками простой логики;
+- single computeFn на 1 line (`(v) => v.price * v.quantity`).
+
+См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts) и [`mcp-credit-application-v10/schema.ts`](../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts) (секция «Compute helpers»).
+
+---
+
 ## Связанные документы
 
 - [Архитектура](architecture.md)

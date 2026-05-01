@@ -241,6 +241,85 @@ interface ValidationError {
 
 ---
 
+## Best practices: типизация и структура callback'ов
+
+Эти два правила относятся **ко всей схеме валидации** (`ValidationSchemaFn<T>`) и одинаково важны для `add-validation`/`add-behavior` стадий MCP-плейбука.
+
+### 1. Используй типизированный generic формы — НЕ `any`
+
+`ValidationSchemaFn<T>` — параметризованный тип. Передай свой form-interface:
+
+```typescript
+import type { CreditApplicationForm } from './types';
+
+// ✅ generic зафиксирован — path / ctx / value инферятся правильно
+const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  required(path.email);
+  validateTree<CreditApplicationForm>((ctx) => {
+    const form = ctx.form.getValue();  // тип CreditApplicationForm — IDE автодополняет поля
+    if (form.loanAmount && form.totalIncome && form.loanAmount > form.totalIncome * 10) {
+      return { code: 'tooHigh', message: '...' };
+    }
+    return null;
+  }, { targetField: 'loanAmount' });
+};
+
+// ❌ generic пропущен или `path: any` — теряются поля, ошибки в имени = silent fail
+const validation: ValidationSchemaFn<any> = (path: any) => { ... };
+```
+
+`(path: any)` иногда требуется как обход TS2589 для очень глубоких форм или редких mismatches типов (например, `min(field)` ждёт `number | undefined`, а ваше поле `number | null`). В таких случаях:
+- сначала **попробуй типизировать** — TS обычно справляется.
+- если падает — **сузь cast до конкретного call-site** (`min(path.X as never, ...)`), а не на весь callback `(path: any)`.
+- крайний случай — `(path: any)` с **комментарием почему** (один TS issue line + reference на baseline).
+
+### 2. Inline callback OK для простых, extract для сложных
+
+**Inline-callback** (короткие predicates, единичные validate):
+
+```typescript
+// ✅ нормально для 1-2 строк
+applyWhen(path.loanType, (t) => t === 'mortgage', (p) => {
+  required(p.propertyValue);
+});
+```
+
+**Extracted module-level function** (предпочтительно для cross-field, computeFrom, многошаговых validate):
+
+```typescript
+// ✅ предпочтительно — extracted типизированный helper
+function validateLoanCap(form: CreditApplicationForm): ValidationError | null {
+  if (!form.loanAmount || !form.totalIncome) return null;
+  const cap = form.totalIncome * 12 * 10;
+  if (form.loanAmount > cap) {
+    return { code: 'loanAmountExceedsCap', message: `Превышен лимит ${cap}` };
+  }
+  return null;
+}
+
+const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validateTree<CreditApplicationForm>(
+    (ctx) => validateLoanCap(ctx.form.getValue()),
+    { targetField: 'loanAmount' },
+  );
+};
+```
+
+**Когда extract обязателен:**
+- callback >5 строк или содержит несколько return-веток;
+- callback переиспользуется в нескольких блоках (DRY);
+- inline-arrow в `computeFrom([...], target, callback)` — TS теряет inference и просит `(values: any)`. Module-level функция с явной сигнатурой `(form: T) => Result` инферится без cast.
+- cross-field валидация, которая читает несколько полей формы — extracted функция читается легче.
+
+**Inline OK когда:**
+- predicate на 1 значение (`(t) => t === 'mortgage'`);
+- single-field validate с одной проверкой (`(value: boolean) => value === true ? null : {...}`);
+- applyWhen-body c 2-3 `required` вызовами без ветвлений.
+
+См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts) и [`mcp-credit-application-v10/schema.ts`](../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts).
+
+---
+
 ## Связанные документы
 
 - [Архитектура](architecture.md)

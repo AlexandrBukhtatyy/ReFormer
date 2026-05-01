@@ -111,3 +111,75 @@ validate(path.email, (value) => {
   return null;
 });
 ```
+
+## TYPED schema generic + extracted callback rules
+
+Two rules apply to **every** validation/behavior schema you write:
+
+### Rule A — Use the form interface as `<T>` in the schema generic; never `any`
+
+```typescript
+import type { CreditApplicationForm } from './types';
+
+// ✅ generic fixed → path / ctx / value all infer correctly
+const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  required(path.email);
+  validateTree<CreditApplicationForm>((ctx) => {
+    const form = ctx.form.getValue();  // typed CreditApplicationForm
+    if (form.loanAmount && form.totalIncome && form.loanAmount > form.totalIncome * 12 * 10) {
+      return { code: 'loanCap', message: '...' };
+    }
+    return null;
+  }, { targetField: 'loanAmount' });
+};
+
+const behavior: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
+  computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity);
+};
+
+// ❌ generic dropped or path: any — silent fail on field-name typos
+const validation: ValidationSchemaFn<any> = (path: any) => { ... };
+const behavior = (path: any) => { ... };  // missing BehaviorSchemaFn<T> annotation entirely
+```
+
+`as any` cast is acceptable in narrow call-sites (e.g. TS2589 workaround for very deep forms) but should be **scoped to the expression**, not the entire callback parameter.
+
+### Rule B — Inline OK for short callbacks; extract module-level for content
+
+**Inline acceptable** (1-3 line callbacks):
+
+```typescript
+applyWhen(path.loanType, (t) => t === 'mortgage', (p) => required(p.propertyValue));
+enableWhen(path.discountCode, (form) => form.subtotal > 100);
+copyFrom(path.regAddress, path.resAddress, { when: (form) => form.sameAsReg, fields: 'all' });
+validate(path.agree, (v: boolean) => v === true ? null : { code: 'mustAgree', message: '...' });
+```
+
+**Extract module-level when**:
+- callback >5 lines or has multiple return branches
+- `computeFrom([...], target, callback)` — inline arrow may lose `(values: TForm)` inference and force `(values: any)`. Module-level `function computeX(form: T): R` infers correctly.
+- async `watchField` with try/catch
+- callback reused in multiple places
+- cross-field `validateTree` with branching logic
+
+```typescript
+// ✅ extracted typed helpers — used by behavior schema
+function computeMonthlyPayment(form: LoanForm): number {
+  const P = form.loanAmount, n = form.loanTerm, annual = form.interestRate;
+  if (!P || !n || !annual || P <= 0 || n <= 0) return 0;
+  const i = annual / 100 / 12;
+  if (i <= 0) return Math.round(P / n);
+  const factor = Math.pow(1 + i, n);
+  return Math.round((P * (i * factor)) / (factor - 1));
+}
+
+const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
+  computeFrom(
+    [path.loanAmount, path.loanTerm, path.interestRate],
+    path.monthlyPayment,
+    computeMonthlyPayment,  // by-reference, signature already typed
+  );
+};
+```
+
+Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior.ts` and `mcp-credit-application-v10/schema.ts` (Compute helpers section).

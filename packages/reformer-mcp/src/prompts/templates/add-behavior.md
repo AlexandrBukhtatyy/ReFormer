@@ -128,6 +128,56 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
     {!sameAsRegistration && <ResidenceAddressSection control={control}/>}
     ```
 
+14. **TYPED schema generic — обязательно. Inline-callback OK для коротких, extract module-level для содержательных.**
+
+    **Часть A — generic.** `BehaviorSchemaFn<T>` параметризован form-interface'ом. Передай свой type явно:
+
+    ```typescript
+    import type { OrderForm } from './types';
+
+    // ✅ generic зафиксирован — values, ctx, value во всех callback'ах инферятся правильно
+    const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
+      computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity);
+    };
+
+    // ❌ generic дропнут или path: any — silent fail на опечатках в field-name
+    const behavior: BehaviorSchemaFn<any> = (path: any) => { ... };
+    ```
+
+    `as any` cast допустим в редких narrow call-site (например, TS2589 на 70+полевой форме); сужай до конкретного выражения, не на весь callback parameter.
+
+    **Часть B — inline vs extract.** Inline нормально для коротких:
+
+    ```typescript
+    // ✅ inline OK
+    enableWhen(path.discountCode, (form) => form.subtotal > 100);
+    copyFrom(path.regAddress, path.resAddress, { when: (form) => form.sameAsReg, fields: 'all' });
+    ```
+
+    Extract обязателен когда: callback >5 строк, async watchField с try/catch, computeFrom с branching, повторно используется. Особенно важно для `computeFrom` — inline-arrow часто теряет inference `(values: TForm)` и заставляет писать `(values: any)`. Module-level функция избегает этого:
+
+    ```typescript
+    // ✅ extracted typed helper — TS инферит signature по reference
+    function computeMonthlyPayment(form: LoanForm): number {
+      const P = form.loanAmount, n = form.loanTerm, annual = form.interestRate;
+      if (!P || !n || !annual || P <= 0 || n <= 0) return 0;
+      const i = annual / 100 / 12;
+      if (i <= 0) return Math.round(P / n);
+      const factor = Math.pow(1 + i, n);
+      return Math.round((P * (i * factor)) / (factor - 1));
+    }
+
+    const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
+      computeFrom(
+        [path.loanAmount, path.loanTerm, path.interestRate],
+        path.monthlyPayment,
+        computeMonthlyPayment,  // by-reference, без inline-arrow
+      );
+    };
+    ```
+
+    **Reference**: [`mcp-credit-application-v10/schema.ts`](../../../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts) секция «Compute helpers» — 8 extracted typed functions, 0 `any`/`unknown` в behavior schema.
+
 ## 🎯 Hide vs Disable
 
 - **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).
@@ -181,6 +231,8 @@ Don't cast on simple forms — only when TS2589 actually appears.
 - [ ] Все callback'и (`hideWhen`/`enableWhen`/`disableWhen`/`effect`/`useEffect`), читающие `form.<field>` напрямую, используют **двойной** `.value.value` (rule #11) — single `.value` сравнивается с Signal-объектом и тихо ломает условие
 - [ ] `useFormControl` / `useFormControlValue` вызываются ТОЛЬКО на FieldNode (leaf). Никогда на FormProxy root, GroupNode, ArrayNode (rule #12) — иначе TypeError на componentProps.value
 - [ ] Никаких `enableWhen + resetOnDisable: true` на той же Group, в которую пишет `copyFrom` (rule #13) — race ломает данные. Скрытие — JSX-conditional / `hideWhen`
+- [ ] **Schema generic зафиксирован**: `BehaviorSchemaFn<MyForm>` (НЕ `<any>`, НЕ опущен) — silent fail на опечатках имён полей (rule #14, часть A)
+- [ ] **Содержательные callback'и (>5 lines, computeFrom, async watchField) extracted module-level** как типизированные функции `(form: MyForm) => Result`; inline OK только для коротких predicates / single setter (rule #14, часть B)
 - [ ] **Spec gaps section в dev-report.md**: для каждого правила из таблиц спеки (`Поведение при изменении полей и зависимости`, `Cross-validation`, `Async loaders`, `Warnings/Hints`) — отметка `реализовано (где) / отложено (почему) / не релевантно (почему)`. Молчаливое опущение запрещено
 - [ ] Hide-vs-Disable choice documented per conditional field
 - [ ] Short risk summary at end
