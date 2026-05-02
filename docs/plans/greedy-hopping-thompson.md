@@ -1,6 +1,7 @@
 # План: Наглядная демонстрация принципов работы ReFormer
 
 ## Цель
+
 Создать документацию в формате Markdown + Mermaid для наглядной демонстрации всех ключевых концепций ReFormer.
 
 ---
@@ -223,13 +224,11 @@ flowchart LR
 ```
 
 **Код:**
+
 ```typescript
-computeFrom(
-  [path.price, path.quantity],
-  path.total,
-  (values) => values.price * values.quantity,
-  { debounce: 100 }
-);
+computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity, {
+  debounce: 100,
+});
 ```
 
 ### 4.2 enableWhen
@@ -245,12 +244,9 @@ stateDiagram-v2
 ```
 
 **Код:**
+
 ```typescript
-enableWhen(
-  path.discountPercent,
-  (form) => form.hasDiscount,
-  { resetOnDisable: true }
-);
+enableWhen(path.discountPercent, (form) => form.hasDiscount, { resetOnDisable: true });
 ```
 
 ### 4.3 watchField
@@ -273,12 +269,17 @@ sequenceDiagram
 ```
 
 **Код:**
+
 ```typescript
-watchField(path.country, async (country, ctx) => {
-  const cities = await fetchCities(country);
-  ctx.updateComponentProps(path.city, { options: cities });
-  ctx.form.city.setValue(null);
-}, { debounce: 300 });
+watchField(
+  path.country,
+  async (country, ctx) => {
+    const cities = await fetchCities(country);
+    ctx.updateComponentProps(path.city, { options: cities });
+    ctx.form.city.setValue(null);
+  },
+  { debounce: 300 }
+);
 ```
 
 ### 4.4 Все behaviors
@@ -390,6 +391,7 @@ flowchart TB
 ```
 
 **Код:**
+
 ```typescript
 validators.applyWhen(
   (form) => form.hasCompany,
@@ -546,14 +548,14 @@ const form = createForm<RegistrationForm>({
 
 ### Файлы для создания
 
-| Файл | Описание |
-|------|----------|
+| Файл                                         | Описание                        |
+| -------------------------------------------- | ------------------------------- |
 | [docs/architecture.md](docs/architecture.md) | Общая архитектура с диаграммами |
-| [docs/signals.md](docs/signals.md) | Signals и реактивность |
-| [docs/behaviors.md](docs/behaviors.md) | Система behaviors |
-| [docs/validation.md](docs/validation.md) | Валидация |
-| [docs/type-safety.md](docs/type-safety.md) | Типобезопасность |
-| [docs/examples.md](docs/examples.md) | Полные примеры |
+| [docs/signals.md](docs/signals.md)           | Signals и реактивность          |
+| [docs/behaviors.md](docs/behaviors.md)       | Система behaviors               |
+| [docs/validation.md](docs/validation.md)     | Валидация                       |
+| [docs/type-safety.md](docs/type-safety.md)   | Типобезопасность                |
+| [docs/examples.md](docs/examples.md)         | Полные примеры                  |
 
 ### Порядок работы
 

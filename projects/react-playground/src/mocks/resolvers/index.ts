@@ -193,7 +193,7 @@ export interface CreateApplicationResult {
 
 export function createCreditApplication(data: unknown): ResolverResult<CreateApplicationResult> {
   const newId = String(Date.now());
-  MOCK_APPLICATIONS[newId] = data as typeof MOCK_APPLICATIONS[string];
+  MOCK_APPLICATIONS[newId] = data as (typeof MOCK_APPLICATIONS)[string];
   return {
     status: 201,
     body: {
@@ -284,9 +284,7 @@ export interface EmailCheckResult {
 }
 
 export function checkEmailAvailability(email: string): ResolverResult<EmailCheckResult> {
-  const emailExists = EXISTING_USERS.some(
-    (u) => u.email.toLowerCase() === email.toLowerCase()
-  );
+  const emailExists = EXISTING_USERS.some((u) => u.email.toLowerCase() === email.toLowerCase());
 
   if (emailExists) {
     return {

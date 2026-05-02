@@ -131,23 +131,19 @@ export function ApplicantSummarySectionBase({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <div>
-            <b>ФИО:</b>{' '}
-            <span data-testid="computed-fullName">{fullName || '—'}</span>
+            <b>ФИО:</b> <span data-testid="computed-fullName">{fullName || '—'}</span>
           </div>
         </div>
         <div>
           <div>
-            <b>Возраст:</b>{' '}
-            <span data-testid="computed-age">{age ?? '—'}</span>
+            <b>Возраст:</b> <span data-testid="computed-age">{age ?? '—'}</span>
             {age !== null && ' лет'}
           </div>
         </div>
         <div>
           <div>
             <b>Общий доход:</b>{' '}
-            <span data-testid="computed-totalIncome">
-              {totalIncome.toLocaleString('ru-RU')}
-            </span>{' '}
+            <span data-testid="computed-totalIncome">{totalIncome.toLocaleString('ru-RU')}</span>{' '}
             ₽/мес
           </div>
           <span className="text-xs text-gray-500">основной + дополнительный</span>

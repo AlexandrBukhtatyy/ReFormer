@@ -7,6 +7,7 @@
 Компонент `FormWizard` (локальная обёртка) принимает `config: FormWizardConfig<Record<string, any>>`.
 
 Ошибка — **контравариантность параметров функции**:
+
 - `ValidationSchemaFn<T> = (path: FieldPath<T>) => void`
 - `ValidationSchemaFn<CreditApplicationForm>` принимает `FieldPath<CreditApplicationForm>` (конкретные поля)
 - `ValidationSchemaFn<Record<string, any>>` принимает `FieldPath<Record<string, any>>` (индексная сигнатура)
@@ -21,6 +22,7 @@
 ## Fix
 
 Текущий код:
+
 ```typescript
 type FormValue = Record<string, any>;
 
@@ -36,6 +38,7 @@ export const FormWizard: FC<FormWizardProps<FormValue>> = forwardRef(
 Проблема: `FC<FormWizardProps<FormValue>>` фиксирует `T = Record<string, any>`, дженерик не пробрасывается.
 
 Исправленный код — стандартный паттерн для generic + forwardRef в TypeScript:
+
 ```typescript
 import { forwardRef, useImperativeHandle, useRef, type FC, type ForwardedRef } from 'react';
 import type { FormWizardHandle } from '@reformer/ui/form-wizard';
@@ -65,6 +68,7 @@ export const FormWizard = forwardRef(FormWizardInner) as <T extends FormValue>(
 ```
 
 Ключевые изменения:
+
 1. Выносим реализацию в `FormWizardInner<T>` с явным параметром `ref: ForwardedRef<FormWizardHandle<T>>`
 2. `forwardRef(FormWizardInner)` — TypeScript выводит generic через параметры функции
 3. Явное приведение типа при экспорте (`as <T extends FormValue>(...)`) — стандартный workaround для `forwardRef` + дженерик
@@ -74,6 +78,7 @@ export const FormWizard = forwardRef(FormWizardInner) as <T extends FormValue>(
 ## Verification
 
 После правки:
+
 1. `tsc --noEmit` должен пройти без ошибок в этом файле
 2. В `CreditApplicationForm.tsx` `navConfig` будет корректно приведён к `FormWizardConfig<CreditApplicationFormType>`
 3. `ref` типа `FormWizardHandle<CreditApplicationFormType>` продолжит работать корректно

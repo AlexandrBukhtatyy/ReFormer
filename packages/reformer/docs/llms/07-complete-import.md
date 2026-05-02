@@ -6,10 +6,10 @@ import type {
   FormProxy,
   FieldNode,
   FieldPath,
-  FormFields,        // = Record<string, FormValue>
-  FormValue,         // primitive | nested | array element of any form
-  FormSchema,        // schema literal type for createForm<T>
-  FieldConfig,       // shape of a single field: { value, component, componentProps?, ... }
+  FormFields, // = Record<string, FormValue>
+  FormValue, // primitive | nested | array element of any form
+  FormSchema, // schema literal type for createForm<T>
+  FieldConfig, // shape of a single field: { value, component, componentProps?, ... }
   ValidationSchemaFn,
   BehaviorSchemaFn,
 } from '@reformer/core';

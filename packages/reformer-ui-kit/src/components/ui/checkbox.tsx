@@ -2,8 +2,10 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /** Props компонента {@link Checkbox}. */
-export interface CheckboxProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+export interface CheckboxProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'type'
+> {
   /** Дополнительный CSS-класс для самого input. */
   className?: string;
   /** Состояние чекбокса. `undefined` рендерится как `false`. */

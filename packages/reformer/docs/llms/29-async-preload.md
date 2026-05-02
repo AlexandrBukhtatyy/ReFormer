@@ -42,12 +42,12 @@ interface ProfileForm {
 
 const schema: FormSchema<ProfileForm> = {
   username: {
-    value: '',                // initial
+    value: '', // initial
     component: Input,
     componentProps: { label: 'Username' },
   },
   language: {
-    value: 'ru',              // дефолт «Русский»
+    value: 'ru', // дефолт «Русский»
     component: Select,
     componentProps: {
       label: 'Язык',
@@ -82,7 +82,7 @@ interface LoadingState {
 
 export function useLoadCreditApplication(
   form: FormProxy<CreditApplicationForm>,
-  applicationId: string | null,
+  applicationId: string | null
 ): LoadingState {
   const [state, setState] = useState<LoadingState>({
     isLoading: !!applicationId,
@@ -124,7 +124,7 @@ export function useLoadCreditApplication(
             options: dictsResp.data.cities,
           });
           form.properties?.forEach((prop) =>
-            prop.type.updateComponentProps({ options: dictsResp.data.propertyTypes }),
+            prop.type.updateComponentProps({ options: dictsResp.data.propertyTypes })
           );
         });
 
@@ -197,7 +197,7 @@ export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
         ctx.form.city.updateComponentProps({ options: [] });
       }
     },
-    { immediate: false, debounce: 300 },
+    { immediate: false, debounce: 300 }
   );
 };
 ```
@@ -255,7 +255,9 @@ useEffect(() => {
   fetchData(id).then((data) => {
     if (!cancelled) form.patchValue(data);
   });
-  return () => { cancelled = true; };
+  return () => {
+    cancelled = true;
+  };
 }, [id]);
 ```
 

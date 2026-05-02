@@ -75,7 +75,9 @@ export class BasePage {
       'Each child in a list should have a unique',
       'Invalid hook call',
     ];
-    return !this.consoleErrors.some((e) => reactErrorPatterns.some((pattern) => e.includes(pattern)));
+    return !this.consoleErrors.some((e) =>
+      reactErrorPatterns.some((pattern) => e.includes(pattern))
+    );
   }
 
   /**

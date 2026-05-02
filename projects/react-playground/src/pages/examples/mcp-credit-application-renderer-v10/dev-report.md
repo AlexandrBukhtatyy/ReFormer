@@ -9,16 +9,16 @@ elapsed_minutes: 12
 
 ## Stages completed
 
-| # | Stage | Status | Notes |
-|---|---|---|---|
-| 1 | Plan | done | dev-plan.md committed; chose A1 (ui-kit FormWizard) + B2 (RenderNode bodies). |
-| 2 | Types | done | types.ts — interfaces for CreditApplicationForm + 6 sub-types (PersonalData, PassportData, Address, PropertyItem, ExistingLoanItem, CoBorrowerItem, CoBorrowerPersonal). 76 fields total + 7 computed. |
-| 3 | FormSchema + UI | done | schema.ts with createForm + behavior + validation; D1 options compliance; D3 plain-leaf factories. |
-| 4 | Validation | done | Per-step validations + fullValidation; canonical Russian messages on every required/min/max/minLength/maxLength/pattern. |
-| 5 | Behavior | done | enableWhen for conditionals; copyFrom registration→residence; computeFrom group-node subscription [path.personalData] for fullName/age (Patch I, no `as never`); 7 computed fields wired; watchField with `{ immediate: false }` + length-guard for array cleanup. |
-| 6 | FormArray | done | Three FormArraySection blocks (properties / existingLoans / coBorrowers) inside RenderSchema with FC `itemComponent` and plain-leaf factories. |
-| 7 | Wizard | done | A1 (ui-kit FormWizard) used at the root of the RenderSchema. RenderNode step bodies built via `path.X` per step (Patch J). |
-| 8 | Renderer migration | done | render-schema.tsx returns `RenderSchemaProxy<CreditApplicationForm>`; conditional sub-sections have selectors; index.tsx orchestrates `setHidden` via per-condition `useEffect`s (Patch L). |
+| #   | Stage              | Status | Notes                                                                                                                                                                                                                                                              |
+| --- | ------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Plan               | done   | dev-plan.md committed; chose A1 (ui-kit FormWizard) + B2 (RenderNode bodies).                                                                                                                                                                                      |
+| 2   | Types              | done   | types.ts — interfaces for CreditApplicationForm + 6 sub-types (PersonalData, PassportData, Address, PropertyItem, ExistingLoanItem, CoBorrowerItem, CoBorrowerPersonal). 76 fields total + 7 computed.                                                             |
+| 3   | FormSchema + UI    | done   | schema.ts with createForm + behavior + validation; D1 options compliance; D3 plain-leaf factories.                                                                                                                                                                 |
+| 4   | Validation         | done   | Per-step validations + fullValidation; canonical Russian messages on every required/min/max/minLength/maxLength/pattern.                                                                                                                                           |
+| 5   | Behavior           | done   | enableWhen for conditionals; copyFrom registration→residence; computeFrom group-node subscription [path.personalData] for fullName/age (Patch I, no `as never`); 7 computed fields wired; watchField with `{ immediate: false }` + length-guard for array cleanup. |
+| 6   | FormArray          | done   | Three FormArraySection blocks (properties / existingLoans / coBorrowers) inside RenderSchema with FC `itemComponent` and plain-leaf factories.                                                                                                                     |
+| 7   | Wizard             | done   | A1 (ui-kit FormWizard) used at the root of the RenderSchema. RenderNode step bodies built via `path.X` per step (Patch J).                                                                                                                                         |
+| 8   | Renderer migration | done   | render-schema.tsx returns `RenderSchemaProxy<CreditApplicationForm>`; conditional sub-sections have selectors; index.tsx orchestrates `setHidden` via per-condition `useEffect`s (Patch L).                                                                        |
 
 ## Patches verified
 
@@ -47,7 +47,7 @@ elapsed_minutes: 12
   - Existing v9 (target=core) reference (commit 0e05721, since-rolled-back) which compiled cleanly.
   - `mcp__reformer__get_symbol_docs` for `createRenderSchema`, `RenderNode`, `FieldRenderNode`, `FieldRenderNodeProps`, `ContainerRenderNode`, `ContainerRenderNodeProps`, `FormWizard`, `FormWizardProps`.
   - Direct file inspection of FormArraySection, Box, Section, FormField source.
-  
+
   If tsc fails when the orchestrator runs it, the most likely sources are: (a) FormWizardProps generic constraint `T extends Record<string, unknown>` versus `CreditApplicationForm` with union-literal `loanType` — mitigated by `as unknown as RenderNode<CreditApplicationForm>` cast at the FormWizard root node; (b) deep-nested `path.passportData.series` etc. triggering TS2589 — mitigated by builder functions accepting `path: any`. The patterns mirror the working iter-9 code one-to-one for these issues.
 
 ## Prompt gaps observed

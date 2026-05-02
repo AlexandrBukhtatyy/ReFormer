@@ -1879,43 +1879,43 @@
 
 ### Поведение при изменении полей и зависимости
 
-| Статус | Управляющее поле                        | Зависимые поля / Действие                                        | Тип поведения         | Условие                                | Описание                                                               |
-| ------ | --------------------------------------- | ---------------------------------------------------------------- | --------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
-| ✅     | `insuranceType`                         | vehicle.*, property.*, health.*, travel.*                        | Условные поля         | При смене типа страхования             | Показываются только поля соответствующего типа                         |
-| ✅     | `insuranceType`                         | drivers, beneficiaries                                           | Условные поля         | casco/osago → drivers, life → beneficiaries | Показывается соответствующий массив                                   |
-| ✅     | `insuredType`                           | personalData.*, passportData.*, companyData.*                    | Условные поля         | individual/company                     | Показываются поля для физ/юр лица                                      |
-| ✅     | `paymentType`                           | installments                                                     | Условные поля         | paymentType='installments'             | Показывается выбор количества платежей                                 |
-| ✅     | `vehicle.hasAntiTheft`                  | vehicle.antiTheftBrand                                           | Условные поля         | hasAntiTheft=true                      | Показывается поле марки противоугонки                                  |
-| ✅     | `health.isSmoker`                       | health.smokingYears                                              | Условные поля         | isSmoker=true                          | Показывается поле стажа курения                                        |
-| ✅     | `health.hasChronicDiseases`             | health.chronicDiseases                                           | Условные поля         | hasChronicDiseases=true                | Показывается описание заболеваний                                      |
-| ✅     | `health.hadSurgeries`                   | health.surgeries                                                 | Условные поля         | hadSurgeries=true                      | Показывается описание операций                                         |
-| ✅     | `health.practicesSports`                | health.extremeSports                                             | Условные поля         | practicesSports=true                   | Показывается чекбокс экстремальных видов                               |
-| ✅     | `property.type`                         | property.floor                                                   | Условные поля         | type='apartment'                       | Этаж только для квартир                                                |
-| ✅     | `hasPreviousInsurance`                  | previousInsurer, previousPolicyNumber, previousPolicyEndDate     | Условные поля         | hasPreviousInsurance=true              | Показываются поля предыдущего полиса                                   |
-| ✅     | `hadClaims`                             | claims[]                                                         | Управление массивом   | hadClaims=true                         | Показывается список страховых случаев                                  |
-| ✅     | `startDate, insurancePeriod`            | endDate                                                          | Вычисляемое поле      | -                                      | Автоматический расчет даты окончания                                   |
-| ✅     | `personalData.*`                        | fullName                                                         | Вычисляемое поле      | -                                      | Конкатенация ФИО                                                       |
-| ✅     | `personalData.birthDate`                | age                                                              | Вычисляемое поле      | -                                      | Вычисление возраста                                                    |
-| ✅     | `health.height, health.weight`          | health.bmi                                                       | Вычисляемое поле      | insuranceType='life'                   | Расчет индекса массы тела                                              |
-| ✅     | `travel.departureDate, returnDate`      | travel.tripDuration                                              | Вычисляемое поле      | insuranceType='travel'                 | Расчет длительности поездки                                            |
-| ✅     | `drivers[].licenseIssueDate`            | drivers[].drivingExperience                                      | Вычисляемое поле      | -                                      | Расчет стажа каждого водителя                                          |
-| ✅     | `drivers[]`                             | minDriverAge, minDriverExperience                                | Вычисляемое поле      | -                                      | Расчет минимальных показателей                                         |
-| ✅     | `beneficiaries[].share`                 | totalBeneficiaryShare                                            | Вычисляемое поле      | -                                      | Сумма долей выгодоприобретателей                                       |
-| ✅     | Все параметры                           | basePremium, коэффициенты, скидки, totalPremium                  | Вычисляемое поле      | -                                      | Расчет стоимости полиса                                                |
-| ✅     | `totalPremium, installments`            | installmentAmount                                                | Вычисляемое поле      | paymentType='installments'             | Расчет суммы платежа при рассрочке                                     |
-| ✅     | `vehicle.brand`                         | Загрузка моделей автомобилей                                     | Динамическая загрузка | insuranceType in ['casco', 'osago']    | Асинхронная загрузка списка моделей                                    |
-| ✅     | `promoCode`                             | promoDiscount                                                    | Проверка на сервере   | -                                      | Валидация промокода и получение скидки                                 |
-| 🆕     | `totalBeneficiaryShare`                 | Валидация = 100%                                                 | Кросс-валидация       | insuranceType='life'                   | Сумма долей выгодоприобретателей должна быть 100%                      |
-| 🆕     | `travel.returnDate`                     | Валидация > departureDate                                        | Кросс-валидация       | insuranceType='travel'                 | Дата возвращения должна быть позже даты отъезда                        |
-| 🆕     | `age`                                   | Валидация 18-75                                                  | Кросс-валидация       | insuredType='individual'               | Возраст страхователя должен быть от 18 до 75 лет                       |
-| 🆕     | `vehicle.year`                          | Валидация 1990-текущий год                                       | Кросс-валидация       | insuranceType in ['casco', 'osago']    | Год выпуска в допустимом диапазоне                                     |
-| 🆕     | `insuranceType`                         | Сброс специфичных полей                                          | Сброс зависимых       | При смене типа                         | Очистка полей другого типа страхования                                 |
-| 🆕     | `vehicle.brand`                         | Очистка vehicle.model                                            | Сброс зависимых       | При изменении марки                    | Очистка модели при смене марки                                         |
-| 🆕     | Вычисляемые поля                        | Поля readonly                                                    | Блокировка            | -                                      | Все вычисляемые поля недоступны для редактирования                     |
-| 🆕     | mode='view'                             | Все поля readonly                                                | Блокировка            | Режим просмотра                        | В режиме просмотра все поля заблокированы                              |
-| 🆕     | `health.bmi`                            | Warning сообщение                                                | Предупреждение        | bmi > 30 или bmi < 18                  | Показать предупреждение о рисках                                       |
-| 🆕     | `minDriverAge`                          | Warning сообщение                                                | Предупреждение        | minDriverAge < 22                      | Показать предупреждение о повышенном коэффициенте                      |
-| 🆕     | `drivers[].accidentsCount`              | Ревалидация claimsCoefficient                                    | Ревалидация           | При изменении количества ДТП           | Пересчет коэффициента аварийности                                      |
+| Статус | Управляющее поле                   | Зависимые поля / Действие                                    | Тип поведения         | Условие                                     | Описание                                           |
+| ------ | ---------------------------------- | ------------------------------------------------------------ | --------------------- | ------------------------------------------- | -------------------------------------------------- |
+| ✅     | `insuranceType`                    | vehicle._, property._, health._, travel._                    | Условные поля         | При смене типа страхования                  | Показываются только поля соответствующего типа     |
+| ✅     | `insuranceType`                    | drivers, beneficiaries                                       | Условные поля         | casco/osago → drivers, life → beneficiaries | Показывается соответствующий массив                |
+| ✅     | `insuredType`                      | personalData._, passportData._, companyData.\*               | Условные поля         | individual/company                          | Показываются поля для физ/юр лица                  |
+| ✅     | `paymentType`                      | installments                                                 | Условные поля         | paymentType='installments'                  | Показывается выбор количества платежей             |
+| ✅     | `vehicle.hasAntiTheft`             | vehicle.antiTheftBrand                                       | Условные поля         | hasAntiTheft=true                           | Показывается поле марки противоугонки              |
+| ✅     | `health.isSmoker`                  | health.smokingYears                                          | Условные поля         | isSmoker=true                               | Показывается поле стажа курения                    |
+| ✅     | `health.hasChronicDiseases`        | health.chronicDiseases                                       | Условные поля         | hasChronicDiseases=true                     | Показывается описание заболеваний                  |
+| ✅     | `health.hadSurgeries`              | health.surgeries                                             | Условные поля         | hadSurgeries=true                           | Показывается описание операций                     |
+| ✅     | `health.practicesSports`           | health.extremeSports                                         | Условные поля         | practicesSports=true                        | Показывается чекбокс экстремальных видов           |
+| ✅     | `property.type`                    | property.floor                                               | Условные поля         | type='apartment'                            | Этаж только для квартир                            |
+| ✅     | `hasPreviousInsurance`             | previousInsurer, previousPolicyNumber, previousPolicyEndDate | Условные поля         | hasPreviousInsurance=true                   | Показываются поля предыдущего полиса               |
+| ✅     | `hadClaims`                        | claims[]                                                     | Управление массивом   | hadClaims=true                              | Показывается список страховых случаев              |
+| ✅     | `startDate, insurancePeriod`       | endDate                                                      | Вычисляемое поле      | -                                           | Автоматический расчет даты окончания               |
+| ✅     | `personalData.*`                   | fullName                                                     | Вычисляемое поле      | -                                           | Конкатенация ФИО                                   |
+| ✅     | `personalData.birthDate`           | age                                                          | Вычисляемое поле      | -                                           | Вычисление возраста                                |
+| ✅     | `health.height, health.weight`     | health.bmi                                                   | Вычисляемое поле      | insuranceType='life'                        | Расчет индекса массы тела                          |
+| ✅     | `travel.departureDate, returnDate` | travel.tripDuration                                          | Вычисляемое поле      | insuranceType='travel'                      | Расчет длительности поездки                        |
+| ✅     | `drivers[].licenseIssueDate`       | drivers[].drivingExperience                                  | Вычисляемое поле      | -                                           | Расчет стажа каждого водителя                      |
+| ✅     | `drivers[]`                        | minDriverAge, minDriverExperience                            | Вычисляемое поле      | -                                           | Расчет минимальных показателей                     |
+| ✅     | `beneficiaries[].share`            | totalBeneficiaryShare                                        | Вычисляемое поле      | -                                           | Сумма долей выгодоприобретателей                   |
+| ✅     | Все параметры                      | basePremium, коэффициенты, скидки, totalPremium              | Вычисляемое поле      | -                                           | Расчет стоимости полиса                            |
+| ✅     | `totalPremium, installments`       | installmentAmount                                            | Вычисляемое поле      | paymentType='installments'                  | Расчет суммы платежа при рассрочке                 |
+| ✅     | `vehicle.brand`                    | Загрузка моделей автомобилей                                 | Динамическая загрузка | insuranceType in ['casco', 'osago']         | Асинхронная загрузка списка моделей                |
+| ✅     | `promoCode`                        | promoDiscount                                                | Проверка на сервере   | -                                           | Валидация промокода и получение скидки             |
+| 🆕     | `totalBeneficiaryShare`            | Валидация = 100%                                             | Кросс-валидация       | insuranceType='life'                        | Сумма долей выгодоприобретателей должна быть 100%  |
+| 🆕     | `travel.returnDate`                | Валидация > departureDate                                    | Кросс-валидация       | insuranceType='travel'                      | Дата возвращения должна быть позже даты отъезда    |
+| 🆕     | `age`                              | Валидация 18-75                                              | Кросс-валидация       | insuredType='individual'                    | Возраст страхователя должен быть от 18 до 75 лет   |
+| 🆕     | `vehicle.year`                     | Валидация 1990-текущий год                                   | Кросс-валидация       | insuranceType in ['casco', 'osago']         | Год выпуска в допустимом диапазоне                 |
+| 🆕     | `insuranceType`                    | Сброс специфичных полей                                      | Сброс зависимых       | При смене типа                              | Очистка полей другого типа страхования             |
+| 🆕     | `vehicle.brand`                    | Очистка vehicle.model                                        | Сброс зависимых       | При изменении марки                         | Очистка модели при смене марки                     |
+| 🆕     | Вычисляемые поля                   | Поля readonly                                                | Блокировка            | -                                           | Все вычисляемые поля недоступны для редактирования |
+| 🆕     | mode='view'                        | Все поля readonly                                            | Блокировка            | Режим просмотра                             | В режиме просмотра все поля заблокированы          |
+| 🆕     | `health.bmi`                       | Warning сообщение                                            | Предупреждение        | bmi > 30 или bmi < 18                       | Показать предупреждение о рисках                   |
+| 🆕     | `minDriverAge`                     | Warning сообщение                                            | Предупреждение        | minDriverAge < 22                           | Показать предупреждение о повышенном коэффициенте  |
+| 🆕     | `drivers[].accidentsCount`         | Ревалидация claimsCoefficient                                | Ревалидация           | При изменении количества ДТП                | Пересчет коэффициента аварийности                  |
 
 ### Сценарии ошибок
 
@@ -1934,15 +1934,15 @@
 
 ### Таблица API эндпоинтов
 
-| Эндпоинт                                 | HTTP метод | Назначение                                    | Основные параметры                | HTTP статусы  |
-| ---------------------------------------- | ---------- | --------------------------------------------- | --------------------------------- | ------------- |
-| `/api/insurance/applications/{id}`       | GET        | Получение данных заявки по ID                 | id: string                        | 200, 404, 500 |
-| `/api/insurance/dictionaries`            | GET        | Получение справочников                        | -                                 | 200, 500      |
-| `/api/insurance/car-models/{brand}`      | GET        | Получение моделей автомобилей по марке        | brand: string                     | 200, 500      |
-| `/api/insurance/validate-promo`          | POST       | Валидация промокода                           | { code: string }                  | 200, 400, 500 |
-| `/api/insurance/calculate-premium`       | POST       | Расчет стоимости полиса                       | InsuranceApplicationFormType      | 200, 400, 500 |
-| `/api/insurance/send-verification`       | POST       | Отправка SMS-кода подтверждения               | { phone: string }                 | 200, 400, 500 |
-| `/api/insurance/applications`            | POST       | Создание заявки                               | InsuranceApplicationFormType      | 201, 400, 500 |
+| Эндпоинт                            | HTTP метод | Назначение                             | Основные параметры           | HTTP статусы  |
+| ----------------------------------- | ---------- | -------------------------------------- | ---------------------------- | ------------- |
+| `/api/insurance/applications/{id}`  | GET        | Получение данных заявки по ID          | id: string                   | 200, 404, 500 |
+| `/api/insurance/dictionaries`       | GET        | Получение справочников                 | -                            | 200, 500      |
+| `/api/insurance/car-models/{brand}` | GET        | Получение моделей автомобилей по марке | brand: string                | 200, 500      |
+| `/api/insurance/validate-promo`     | POST       | Валидация промокода                    | { code: string }             | 200, 400, 500 |
+| `/api/insurance/calculate-premium`  | POST       | Расчет стоимости полиса                | InsuranceApplicationFormType | 200, 400, 500 |
+| `/api/insurance/send-verification`  | POST       | Отправка SMS-кода подтверждения        | { phone: string }            | 200, 400, 500 |
+| `/api/insurance/applications`       | POST       | Создание заявки                        | InsuranceApplicationFormType | 201, 400, 500 |
 
 **Примечания:**
 
@@ -2003,12 +2003,8 @@
       { "value": "toyota", "label": "Toyota" },
       { "value": "bmw", "label": "BMW" }
     ],
-    "regions": [
-      { "value": "moscow", "label": "Москва" }
-    ],
-    "countries": [
-      { "value": "europe", "label": "Европа" }
-    ]
+    "regions": [{ "value": "moscow", "label": "Москва" }],
+    "countries": [{ "value": "europe", "label": "Европа" }]
   }
 }
 ```
@@ -2086,27 +2082,32 @@
 ## Особенности реализации
 
 ### 1. Динамические коэффициенты
+
 - Коэффициенты меняются в реальном времени при изменении данных
 - Пользователь видит как влияет каждый параметр на стоимость
 
 ### 2. Сложная условная логика
+
 - 5 разных типов страхования с уникальными полями
 - Вложенные условия (например, `property.floor` только для квартир)
 - Условия внутри условий (например, `health.smokingYears` при `isSmoker` при `insuranceType='life'`)
 
 ### 3. Множественные массивы
+
 - Водители (с вычисляемым стажем)
 - Выгодоприобретатели (с валидацией суммы долей = 100%)
 - Путешественники
 - История страховых случаев
 
 ### 4. Кросс-валидация
+
 - Сумма долей выгодоприобретателей = 100%
 - Дата возвращения > Дата отъезда
 - Минимальный возраст/стаж водителя
 - Возраст страхователя 18-75 лет
 
 ### 5. Интеграция с внешними сервисами
+
 - Валидация VIN
 - Проверка промокода
 - Расчет премии на сервере

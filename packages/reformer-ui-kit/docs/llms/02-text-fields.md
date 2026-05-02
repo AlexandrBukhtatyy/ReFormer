@@ -12,12 +12,12 @@
 
 ## Components
 
-| Name | Purpose | When to use |
-| --- | --- | --- |
-| `Input` | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`. | По умолчанию для строк и чисел. |
-| `InputMask` | `Input` + строковая маска (`'9'` → цифра). | Телефоны, ИНН, даты. |
-| `InputPassword` | Поле пароля с переключателем «глаз». | Регистрация, логин, смена пароля. |
-| `Textarea` | Многострочное поле с `rows`/`maxLength`. | Комментарии, адрес, длинные описания. |
+| Name            | Purpose                                                                                | When to use                           |
+| --------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
+| `Input`         | Однострочное поле, поддерживает `type='text'/'email'/'number'/'tel'/'url'/'password'`. | По умолчанию для строк и чисел.       |
+| `InputMask`     | `Input` + строковая маска (`'9'` → цифра).                                             | Телефоны, ИНН, даты.                  |
+| `InputPassword` | Поле пароля с переключателем «глаз».                                                   | Регистрация, логин, смена пароля.     |
+| `Textarea`      | Многострочное поле с `rows`/`maxLength`.                                               | Комментарии, адрес, длинные описания. |
 
 ## Input
 
@@ -37,14 +37,14 @@ interface InputProps {
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `value` | `string \| number \| null` | `''` рендерится | Текущее значение. `null`/`undefined` → пустое поле. |
-| `onChange` | `(value: string \| number \| null) => void` | — | Вызывается при вводе. Пустая строка → `null`. Для `type='number'` — число. |
-| `onBlur` | `() => void` | — | Срабатывает при потере фокуса. |
-| `type` | union | `'text'` | HTML `type`. Для `'number'` включается числовой парсинг. |
-| `placeholder` | `string` | — | Подсказка. |
-| `disabled` | `boolean` | `false` | Блокирует ввод и редактирование. |
+| Prop          | Тип                                         | Default         | Описание                                                                   |
+| ------------- | ------------------------------------------- | --------------- | -------------------------------------------------------------------------- |
+| `value`       | `string \| number \| null`                  | `''` рендерится | Текущее значение. `null`/`undefined` → пустое поле.                        |
+| `onChange`    | `(value: string \| number \| null) => void` | —               | Вызывается при вводе. Пустая строка → `null`. Для `type='number'` — число. |
+| `onBlur`      | `() => void`                                | —               | Срабатывает при потере фокуса.                                             |
+| `type`        | union                                       | `'text'`        | HTML `type`. Для `'number'` включается числовой парсинг.                   |
+| `placeholder` | `string`                                    | —               | Подсказка.                                                                 |
+| `disabled`    | `boolean`                                   | `false`         | Блокирует ввод и редактирование.                                           |
 
 ### Common Patterns
 
@@ -53,19 +53,13 @@ interface InputProps {
 ```tsx
 import { Input } from '@reformer/ui-kit';
 
-<Input value={name} onChange={setName} placeholder="Имя" />
+<Input value={name} onChange={setName} placeholder="Имя" />;
 ```
 
 Числовое поле (с `min`):
 
 ```tsx
-<Input
-  type="number"
-  value={age}
-  onChange={setAge}
-  min={0}
-  placeholder="Возраст"
-/>
+<Input type="number" value={age} onChange={setAge} min={0} placeholder="Возраст" />
 ```
 
 > **Edge case `type='number'`.** Пустой ввод даёт `null` (а не `''`). При `min >= 0`
@@ -84,7 +78,7 @@ const form = createForm<FormSchema<{ email: string }>>({
   email: { component: Input, validations: [pipe(string(), email())] },
 });
 
-<Input value={form.email.value} onChange={form.email.setValue} type="email" />
+<Input value={form.email.value} onChange={form.email.setValue} type="email" />;
 ```
 
 ### Anti-patterns
@@ -107,16 +101,16 @@ interface InputMaskProps {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  mask?: string;        // '9' = цифра, остальные символы — литералы
+  mask?: string; // '9' = цифра, остальные символы — литералы
   placeholder?: string; // если опущен — используется mask
   disabled?: boolean;
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `mask` | `string` | — | Шаблон маски. `9` означает «цифра», остальные символы (`+`, `-`, `(`, `)`, пробел) — литералы. |
-| `placeholder` | `string` | `mask` | Подсказка. По умолчанию равна маске для подсветки формата. |
+| Prop          | Тип      | Default | Описание                                                                                       |
+| ------------- | -------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `mask`        | `string` | —       | Шаблон маски. `9` означает «цифра», остальные символы (`+`, `-`, `(`, `)`, пробел) — литералы. |
+| `placeholder` | `string` | `mask`  | Подсказка. По умолчанию равна маске для подсветки формата.                                     |
 
 ### Common Patterns
 
@@ -125,11 +119,7 @@ interface InputMaskProps {
 ```tsx
 import { InputMask } from '@reformer/ui-kit';
 
-<InputMask
-  value={phone}
-  onChange={setPhone}
-  mask="+7 (999) 999-99-99"
-/>
+<InputMask value={phone} onChange={setPhone} mask="+7 (999) 999-99-99" />;
 ```
 
 ИНН (10 цифр):
@@ -163,16 +153,16 @@ interface InputPasswordProps {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
-  placeholder?: string;   // default: 'Password'
+  placeholder?: string; // default: 'Password'
   disabled?: boolean;
-  showToggle?: boolean;   // default: true — показывать кнопку «глаз»
+  showToggle?: boolean; // default: true — показывать кнопку «глаз»
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `showToggle` | `boolean` | `true` | Показывать ли иконку «глаз»/«перечеркнутый глаз» для переключения видимости. Иконка показывается только когда `value` непустой. |
-| `placeholder` | `string` | `'Password'` | Подсказка. |
+| Prop          | Тип       | Default      | Описание                                                                                                                        |
+| ------------- | --------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `showToggle`  | `boolean` | `true`       | Показывать ли иконку «глаз»/«перечеркнутый глаз» для переключения видимости. Иконка показывается только когда `value` непустой. |
+| `placeholder` | `string`  | `'Password'` | Подсказка.                                                                                                                      |
 
 ### Common Patterns
 
@@ -181,7 +171,7 @@ interface InputPasswordProps {
 ```tsx
 import { InputPassword } from '@reformer/ui-kit';
 
-<InputPassword value={password} onChange={setPassword} placeholder="Пароль" />
+<InputPassword value={password} onChange={setPassword} placeholder="Пароль" />;
 ```
 
 Без переключателя видимости:
@@ -220,15 +210,15 @@ interface TextareaProps {
   onBlur?: () => void;
   placeholder?: string;
   disabled?: boolean;
-  rows?: number;        // default: 3
+  rows?: number; // default: 3
   maxLength?: number;
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `rows` | `number` | `3` | Видимая высота в строках. Resize по вертикали оставлен (`resize-y`). |
-| `maxLength` | `number` | — | Жёсткое ограничение длины (нативное HTML-поведение). |
+| Prop        | Тип      | Default | Описание                                                             |
+| ----------- | -------- | ------- | -------------------------------------------------------------------- |
+| `rows`      | `number` | `3`     | Видимая высота в строках. Resize по вертикали оставлен (`resize-y`). |
+| `maxLength` | `number` | —       | Жёсткое ограничение длины (нативное HTML-поведение).                 |
 
 ### Common Patterns
 
@@ -243,7 +233,7 @@ import { Textarea } from '@reformer/ui-kit';
   rows={5}
   maxLength={500}
   placeholder="Опишите проблему"
-/>
+/>;
 ```
 
 Адрес доставки:

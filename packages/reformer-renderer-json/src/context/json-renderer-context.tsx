@@ -63,7 +63,8 @@ export function JsonRendererProvider({ settings, children }: JsonRendererProvide
       ...parentSettings,
       ...settings,
       registry: mergedRegistry,
-      fieldWrapper: settings.fieldWrapper ?? fieldWrapperFromRegistry ?? parentSettings.fieldWrapper,
+      fieldWrapper:
+        settings.fieldWrapper ?? fieldWrapperFromRegistry ?? parentSettings.fieldWrapper,
     };
   }, [parentSettings, settings, mergedRegistry]);
 

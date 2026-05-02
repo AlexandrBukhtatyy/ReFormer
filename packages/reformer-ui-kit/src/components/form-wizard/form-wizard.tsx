@@ -63,7 +63,12 @@ export interface FormWizardStep<T> {
 }
 
 export interface FormWizardProps<
-  T extends Record<string, unknown>,
+  // Constraint синхронизирован с headless cdk (`Record<string, any>`) — это
+  // снимает блокер инференции generic'а T в JSX, когда T содержит nullable-
+  // числа (`number | null`). Constraint используется только для bound, not
+  // for direct value access.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  T extends Record<string, any>,
 > extends FormWizardHeadlessProps<T> {
   className?: string;
   steps: FormWizardStep<T>[];
@@ -113,7 +118,8 @@ function renderStepBody<T>(body: FormWizardStepBody<T>, form: FormProxy<T>): Rea
   return body as ReactNode;
 }
 
-function FormWizardInner<T extends Record<string, unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function FormWizardInner<T extends Record<string, any>>(
   props: FormWizardProps<T>,
   ref: ForwardedRef<FormWizardHandle<T>>
 ) {
@@ -152,7 +158,10 @@ function FormWizardInner<T extends Record<string, unknown>>(
   );
 }
 
-const FormWizardForwarded = forwardRef(FormWizardInner) as <T extends Record<string, unknown>>(
+const FormWizardForwarded = forwardRef(FormWizardInner) as <
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  T extends Record<string, any>,
+>(
   props: FormWizardProps<T> & { ref?: React.Ref<FormWizardHandle<T>> }
 ) => ReactElement | null;
 

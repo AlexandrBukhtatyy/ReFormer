@@ -142,7 +142,10 @@ const validationFormSchema: FormSchema<ValidationDemoForm> = {
   customField: {
     value: '',
     component: Input,
-    componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)', testId: 'customField' },
+    componentProps: {
+      placeholder: 'Пароль (мин. 8 символов, цифра, буква)',
+      testId: 'customField',
+    },
   },
 };
 

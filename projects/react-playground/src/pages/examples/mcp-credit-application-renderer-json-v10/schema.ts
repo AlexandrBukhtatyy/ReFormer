@@ -30,14 +30,7 @@ import {
   type FormSchema,
   type ValidationSchemaFn,
 } from '@reformer/core';
-import {
-  Checkbox,
-  Input,
-  InputMask,
-  RadioGroup,
-  Select,
-  Textarea,
-} from '@reformer/ui-kit';
+import { Checkbox, Input, InputMask, RadioGroup, Select, Textarea } from '@reformer/ui-kit';
 import {
   apply,
   applyWhen,
@@ -647,12 +640,22 @@ export const creditApplicationSchema: FormSchema<CreditApplicationFormV10> = {
   interestRate: {
     value: 0,
     component: Input,
-    componentProps: { label: 'Процентная ставка (%)', type: 'number', readOnly: true, disabled: true },
+    componentProps: {
+      label: 'Процентная ставка (%)',
+      type: 'number',
+      readOnly: true,
+      disabled: true,
+    },
   },
   monthlyPayment: {
     value: 0,
     component: Input,
-    componentProps: { label: 'Ежемесячный платеж (₽)', type: 'number', readOnly: true, disabled: true },
+    componentProps: {
+      label: 'Ежемесячный платеж (₽)',
+      type: 'number',
+      readOnly: true,
+      disabled: true,
+    },
   },
   fullName: {
     value: '',
@@ -717,23 +720,20 @@ const step1Validation: ValidationSchemaFn<CreditApplicationFormV10> = (path: any
       required(p.propertyValue, { message: 'Укажите стоимость недвижимости' });
       min(p.propertyValue, 1000000, { message: 'Минимальная стоимость: 1 000 000 ₽' });
       // initialPayment is computed (20% от propertyValue) — cross-field check still useful
-      validate(
-        p.loanAmount,
-        (value: unknown, ctx: any) => {
-          const propertyValue = ctx.form.propertyValue?.value?.value;
-          const initialPayment = ctx.form.initialPayment?.value?.value;
-          const v = value as number | null;
-          if (v == null || propertyValue == null || initialPayment == null) return null;
-          const cap = propertyValue - initialPayment;
-          if (cap > 0 && v > cap) {
-            return {
-              code: 'loanAmountExceedsCap',
-              message: `Сумма кредита не должна превышать ${cap.toLocaleString('ru-RU')} ₽ (стоимость минус первоначальный взнос)`,
-            };
-          }
-          return null;
+      validate(p.loanAmount, (value: unknown, ctx: any) => {
+        const propertyValue = ctx.form.propertyValue?.value?.value;
+        const initialPayment = ctx.form.initialPayment?.value?.value;
+        const v = value as number | null;
+        if (v == null || propertyValue == null || initialPayment == null) return null;
+        const cap = propertyValue - initialPayment;
+        if (cap > 0 && v > cap) {
+          return {
+            code: 'loanAmountExceedsCap',
+            message: `Сумма кредита не должна превышать ${cap.toLocaleString('ru-RU')} ₽ (стоимость минус первоначальный взнос)`,
+          };
         }
-      );
+        return null;
+      });
     }
   );
 
@@ -1022,35 +1022,27 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   });
 
   // initialPayment = 20% of propertyValue (mortgage only); else 0
-  computeFrom(
-    [path.propertyValue, path.loanType] as any,
-    path.initialPayment,
-    (values: any) => {
-      const lt = values.loanType;
-      const pv = values.propertyValue;
-      if (lt !== 'mortgage' || typeof pv !== 'number' || pv <= 0) return null;
-      return Math.round(pv * 0.2);
-    }
-  );
+  computeFrom([path.propertyValue, path.loanType] as any, path.initialPayment, (values: any) => {
+    const lt = values.loanType;
+    const pv = values.propertyValue;
+    if (lt !== 'mortgage' || typeof pv !== 'number' || pv <= 0) return null;
+    return Math.round(pv * 0.2);
+  });
 
   // interestRate — base table by loanType; bonus reduction for hasProperty=true
-  computeFrom(
-    [path.loanType, path.hasProperty] as any,
-    path.interestRate,
-    (values: any) => {
-      const lt = values.loanType;
-      const baseByType: Record<string, number> = {
-        consumer: 18,
-        mortgage: 9,
-        car: 12,
-        business: 15,
-        refinancing: 13,
-      };
-      const base = baseByType[lt as string] ?? 18;
-      const bonus = values.hasProperty ? 0.5 : 0;
-      return Math.max(0, base - bonus);
-    }
-  );
+  computeFrom([path.loanType, path.hasProperty] as any, path.interestRate, (values: any) => {
+    const lt = values.loanType;
+    const baseByType: Record<string, number> = {
+      consumer: 18,
+      mortgage: 9,
+      car: 12,
+      business: 15,
+      refinancing: 13,
+    };
+    const base = baseByType[lt as string] ?? 18;
+    const bonus = values.hasProperty ? 0.5 : 0;
+    return Math.max(0, base - bonus);
+  });
 
   // monthlyPayment — annuity formula
   computeFrom(
@@ -1073,7 +1065,10 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
   computeFrom([path.coBorrowers] as any, path.coBorrowersIncome, (values: any) => {
     const list = values.coBorrowers as Array<{ monthlyIncome?: number }> | undefined;
     if (!Array.isArray(list)) return 0;
-    return list.reduce((acc, item) => acc + (typeof item?.monthlyIncome === 'number' ? item.monthlyIncome : 0), 0);
+    return list.reduce(
+      (acc, item) => acc + (typeof item?.monthlyIncome === 'number' ? item.monthlyIncome : 0),
+      0
+    );
   });
 
   // totalIncome = monthlyIncome + additionalIncome + coBorrowersIncome
@@ -1141,11 +1136,13 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationFormV10> = (
 
 export const createCreditApplicationForm = (): FormProxy<CreditApplicationFormV10> => {
   // Cast workaround for TS2589 on deeply-nested types (per add-validation prompt).
-  return (createForm as unknown as (config: {
-    form: unknown;
-    validation: unknown;
-    behavior: unknown;
-  }) => FormProxy<CreditApplicationFormV10>)({
+  return (
+    createForm as unknown as (config: {
+      form: unknown;
+      validation: unknown;
+      behavior: unknown;
+    }) => FormProxy<CreditApplicationFormV10>
+  )({
     form: creditApplicationSchema,
     validation: fullValidation,
     behavior: creditApplicationBehavior,

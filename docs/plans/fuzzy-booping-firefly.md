@@ -7,16 +7,14 @@
 ```typescript
 const schema = createRenderSchema<MyForm>((path) => ({
   component: Box,
-  children: [
-    { component: path.email },
-    { component: path.password },
-  ]
+  children: [{ component: path.email }, { component: path.password }],
 }));
 ```
 
 **Проблема:** Для сценариев, когда схема формы приходит с сервера, хранится в базе данных, или генерируется динамически — нужна возможность описывать формы в JSON-формате.
 
 **Решение:** Создать `@reformer/renderer-json` — обёртку над `renderer-react`, которая:
+
 1. Принимает JSON-схему вместо TypeScript-функции
 2. Предоставляет реестр компонентов с предустановленными из `ui-kit`
 3. Позволяет регистрировать кастомные компоненты
@@ -63,11 +61,13 @@ interface JsonFormSchema {
 ```
 
 **Определение типа узла:**
+
 - Если есть `model` → узел поля формы (FieldRenderNode)
 - Если есть только `component` → узел контейнера (ContainerRenderNode)
 - `component` + `model` → поле с явно указанным компонентом (например, Select вместо дефолтного Input)
 
 **Пример JSON:**
+
 ```json
 {
   "root": {
@@ -95,6 +95,7 @@ interface JsonFormSchema {
 ```
 
 **Пример с wrapper:**
+
 ```json
 {
   "model": "email",
@@ -124,6 +125,7 @@ interface ComponentRegistry {
 ```
 
 **Дефолтный реестр** включает все компоненты из `@reformer/ui-kit`:
+
 - Input, InputPassword, InputMask, Textarea
 - Select, Checkbox, RadioGroup
 - Box, Section, Collapsible
@@ -178,10 +180,7 @@ export function useJsonRendererSettings(): JsonRendererSettings {
 
 ```tsx
 // src/App.tsx
-import {
-  JsonRendererProvider,
-  createDefaultRegistry
-} from '@reformer/renderer-json';
+import { JsonRendererProvider, createDefaultRegistry } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 import { MyDatePicker, MyWizard } from './components';
 
@@ -194,8 +193,8 @@ function App() {
   return (
     <JsonRendererProvider
       settings={{
-        fieldWrapper: FormField,  // из RendererSettings
-        registry: appRegistry     // добавленное свойство
+        fieldWrapper: FormField, // из RendererSettings
+        registry: appRegistry, // добавленное свойство
       }}
     >
       {/* Все JsonFormRenderer внутри используют эти настройки */}
@@ -250,6 +249,7 @@ function JsonFormRenderer<T>(props: JsonFormRendererProps<T>): ReactNode;
 **Настройки (registry, rendererSettings) берутся из `JsonRendererProvider`.**
 
 Под капотом:
+
 1. Конвертирует JSON в `RenderSchemaFn<T>`
 2. Резолвит строковые пути в `FieldPathNode` через навигацию по `FieldPath<T>`
 3. Резолвит имена компонентов в React-компоненты через реестр
@@ -337,22 +337,13 @@ import { FormField } from '@reformer/ui-kit';
 const schema = {
   root: {
     component: 'Box',
-    children: [
-      { model: 'email' },
-      { model: 'password', component: 'InputPassword' }
-    ]
-  }
+    children: [{ model: 'email' }, { model: 'password', component: 'InputPassword' }],
+  },
 };
 
 function App() {
   const form = useMemo(() => createLoginForm(), []);
-  return (
-    <JsonFormRenderer
-      schema={schema}
-      form={form}
-      settings={{ fieldWrapper: FormField }}
-    />
-  );
+  return <JsonFormRenderer schema={schema} form={form} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
@@ -366,24 +357,20 @@ const customRegistry = createDefaultRegistry()
   .register('DatePicker', { component: MyDatePicker, type: 'field' })
   .register('CustomWizard', { component: MyCustomWizard, type: 'container' });
 
-<JsonFormRenderer
-  schema={schema}
-  form={form}
-  registry={customRegistry}
-/>
+<JsonFormRenderer schema={schema} form={form} registry={customRegistry} />;
 ```
 
 ---
 
 ## Критические файлы для модификации/чтения
 
-| Файл | Действие |
-|------|----------|
-| `packages/reformer-renderer-react/src/core/types.ts` | Читать — базовые типы RenderNode |
-| `packages/reformer-renderer-react/src/core/form-renderer.tsx` | Читать — FormRenderer API |
-| `packages/reformer-ui-kit/src/index.ts` | Читать — экспорты для реестра |
-| `packages/reformer-renderer-json/` | Создать — новый пакет |
-| `package.json` (root) | Добавить workspace |
+| Файл                                                          | Действие                         |
+| ------------------------------------------------------------- | -------------------------------- |
+| `packages/reformer-renderer-react/src/core/types.ts`          | Читать — базовые типы RenderNode |
+| `packages/reformer-renderer-react/src/core/form-renderer.tsx` | Читать — FormRenderer API        |
+| `packages/reformer-ui-kit/src/index.ts`                       | Читать — экспорты для реестра    |
+| `packages/reformer-renderer-json/`                            | Создать — новый пакет            |
+| `package.json` (root)                                         | Добавить workspace               |
 
 ---
 
@@ -409,6 +396,7 @@ const customRegistry = createDefaultRegistry()
 ## Итого
 
 `@reformer/renderer-json` — это тонкая обёртка над `@reformer/renderer-react`:
+
 1. **Парсит JSON** → конвертирует в `RenderSchemaFn`
 2. **Резолвит компоненты** → через `ComponentRegistry` преобразует строки в React-компоненты
 3. **Делегирует рендеринг** → передаёт результат в `FormRenderer`

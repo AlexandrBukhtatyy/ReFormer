@@ -34,8 +34,7 @@ const schema: JsonFormSchema = {
   root: {
     component: 'Box',
     children: [
-      { selector: 'email', model: 'email', component: 'Input',
-        componentProps: { label: 'Email' } },
+      { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email' } },
     ],
   },
 };

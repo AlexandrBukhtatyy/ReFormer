@@ -21,8 +21,8 @@ node scripts/generate-llms-txt <package-path>
 ```jsonc
 {
   "scripts": {
-    "generate:llms": "node ../../scripts/generate-llms-txt ."
-  }
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
+  },
 }
 ```
 
@@ -37,6 +37,7 @@ node scripts/generate-llms-txt <package-path>
 ## Идемпотентность
 
 Порядок жёстко фиксирован:
+
 - `docs/llms/*.md` — по числовому префиксу имени файла (`01-`, `02-`, …).
 - Секции внутри файла — в порядке появления.
 - API-символы — алфавитно по имени.

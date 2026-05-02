@@ -45,7 +45,7 @@ import type { FieldPathNode } from '../../types';
  * }
  * ```
  */
-export function max<TForm, TField extends number | undefined = number>(
+export function max<TForm, TField extends number | null | undefined = number>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   maxValue: number,
   options?: ValidateOptions

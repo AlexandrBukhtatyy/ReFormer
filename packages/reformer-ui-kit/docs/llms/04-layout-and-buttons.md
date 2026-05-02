@@ -20,29 +20,29 @@ interface ButtonProps extends React.ComponentProps<'button'> {
 }
 ```
 
-| Variant | Use case |
-| --- | --- |
-| `default` | Основное действие (`Submit`, `Save`). Заполненный фон `bg-primary`. |
-| `destructive` | Опасное действие (`Delete`, `Remove`). |
-| `outline` | Вторичное действие (`Cancel`, `Edit`). Прозрачный фон + бордер. |
-| `secondary` | Между `default` и `outline`. Серый фон. |
-| `ghost` | Меню, иконки в toolbar. Без фона до hover. |
-| `link` | Текстовая ссылка с подчёркиванием на hover. |
+| Variant       | Use case                                                            |
+| ------------- | ------------------------------------------------------------------- |
+| `default`     | Основное действие (`Submit`, `Save`). Заполненный фон `bg-primary`. |
+| `destructive` | Опасное действие (`Delete`, `Remove`).                              |
+| `outline`     | Вторичное действие (`Cancel`, `Edit`). Прозрачный фон + бордер.     |
+| `secondary`   | Между `default` и `outline`. Серый фон.                             |
+| `ghost`       | Меню, иконки в toolbar. Без фона до hover.                          |
+| `link`        | Текстовая ссылка с подчёркиванием на hover.                         |
 
-| Size | Высота | Использование |
-| --- | --- | --- |
-| `default` | `h-9` | Дефолтный размер для большинства форм. |
-| `sm` | `h-8` | Компактные toolbar-ы, фильтры. |
-| `lg` | `h-10` | Финальный CTA, оплата. |
-| `icon` | `size-9` | Только иконка, default-размер. |
-| `icon-sm` | `size-8` | Иконка в toolbar. |
-| `icon-lg` | `size-10` | Иконка hero. |
+| Size      | Высота    | Использование                          |
+| --------- | --------- | -------------------------------------- |
+| `default` | `h-9`     | Дефолтный размер для большинства форм. |
+| `sm`      | `h-8`     | Компактные toolbar-ы, фильтры.         |
+| `lg`      | `h-10`    | Финальный CTA, оплата.                 |
+| `icon`    | `size-9`  | Только иконка, default-размер.         |
+| `icon-sm` | `size-8`  | Иконка в toolbar.                      |
+| `icon-lg` | `size-10` | Иконка hero.                           |
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `variant` | union | `'default'` | Внешний вид (см. таблицу). |
-| `size` | union | `'default'` | Размер (см. таблицу). |
-| `asChild` | `boolean` | `false` | Заменить корневой `<button>` на дочерний элемент через `@radix-ui/react-slot`. Требует ровно одного React-элемента в `children`. |
+| Prop      | Тип       | Default     | Описание                                                                                                                         |
+| --------- | --------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `variant` | union     | `'default'` | Внешний вид (см. таблицу).                                                                                                       |
+| `size`    | union     | `'default'` | Размер (см. таблицу).                                                                                                            |
+| `asChild` | `boolean` | `false`     | Заменить корневой `<button>` на дочерний элемент через `@radix-ui/react-slot`. Требует ровно одного React-элемента в `children`. |
 
 Все остальные пропсы (`onClick`, `disabled`, `type`, `aria-*`, `data-*`)
 прокидываются как у нативного `<button>`.
@@ -56,19 +56,19 @@ import { Button } from '@reformer/ui-kit';
 
 <Button type="submit" disabled={isSubmitting}>
   {isSubmitting ? 'Отправка...' : 'Отправить'}
-</Button>
+</Button>;
 ```
 
 Variants matrix (для design-system документации):
 
 ```tsx
-{(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const).map(
-  (variant) => (
+{
+  (['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const).map((variant) => (
     <Button key={variant} variant={variant}>
       {variant}
     </Button>
-  )
-)}
+  ));
+}
 ```
 
 `asChild` + react-router:
@@ -79,14 +79,16 @@ import { Button } from '@reformer/ui-kit';
 
 <Button asChild variant="outline">
   <Link to="/dashboard">Открыть дашборд</Link>
-</Button>
+</Button>;
 ```
 
 `asChild` + `<a download>`:
 
 ```tsx
 <Button asChild>
-  <a href="/report.pdf" download>Скачать отчёт</a>
+  <a href="/report.pdf" download>
+    Скачать отчёт
+  </a>
 </Button>
 ```
 
@@ -97,7 +99,7 @@ import { PlusIcon } from 'lucide-react';
 
 <Button size="sm">
   <PlusIcon /> Добавить
-</Button>
+</Button>;
 ```
 
 Только иконка:
@@ -136,12 +138,12 @@ interface AsyncBoundaryProps {
 }
 ```
 
-| Prop | Тип | Описание |
-| --- | --- | --- |
-| `status` | `AsyncStatus` | Текущее состояние. Управляется снаружи. |
+| Prop               | Тип             | Описание                                                                               |
+| ------------------ | --------------- | -------------------------------------------------------------------------------------- |
+| `status`           | `AsyncStatus`   | Текущее состояние. Управляется снаружи.                                                |
 | `LoadingComponent` | `ComponentType` | Рендерится при `status === 'loading'`. Без props. Если не передан — рендерится `null`. |
-| `ErrorComponent` | `ComponentType` | Рендерится при `status === 'error'`. Без props. Если не передан — `null`. |
-| `children` | `ReactNode` | Рендерится при `status === 'ready'`. |
+| `ErrorComponent`   | `ComponentType` | Рендерится при `status === 'error'`. Без props. Если не передан — `null`.              |
+| `children`         | `ReactNode`     | Рендерится при `status === 'ready'`.                                                   |
 
 Оба слота — `ComponentType`, не `ReactNode`. Для передачи props (текста ошибки,
 `retry`-callback) — оберни в тонкий компонент:
@@ -156,7 +158,7 @@ const ErrorView = () => (
 
 <AsyncBoundary status={status} LoadingComponent={Loading} ErrorComponent={ErrorView}>
   <Profile data={data} />
-</AsyncBoundary>
+</AsyncBoundary>;
 ```
 
 ### Common Patterns
@@ -187,7 +189,11 @@ function CountriesPage() {
       LoadingComponent={() => <p>Загружаем страны...</p>}
       ErrorComponent={() => <p>Ошибка загрузки</p>}
     >
-      <ul>{countries.map((c) => <li key={c}>{c}</li>)}</ul>
+      <ul>
+        {countries.map((c) => (
+          <li key={c}>{c}</li>
+        ))}
+      </ul>
     </AsyncBoundary>
   );
 }
@@ -219,12 +225,12 @@ interface ExampleCardProps {
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `title` | `string` | — | Заголовок карточки. |
-| `description` | `string` | — | Описание под заголовком. |
-| `code` | `string` | — | Текст исходника, копируется в clipboard. |
-| `bgColor` | `string` | `'bg-white'` | Tailwind-класс фона карточки. |
+| Prop          | Тип      | Default      | Описание                                 |
+| ------------- | -------- | ------------ | ---------------------------------------- |
+| `title`       | `string` | —            | Заголовок карточки.                      |
+| `description` | `string` | —            | Описание под заголовком.                 |
+| `code`        | `string` | —            | Текст исходника, копируется в clipboard. |
+| `bgColor`     | `string` | `'bg-white'` | Tailwind-класс фона карточки.            |
 
 ### Common Patterns
 
@@ -237,7 +243,7 @@ import { ExampleCard, Input } from '@reformer/ui-kit';
   code={`<Input value={v} onChange={setV} placeholder="Email" />`}
 >
   <Input value={v} onChange={setV} placeholder="Email" />
-</ExampleCard>
+</ExampleCard>;
 ```
 
 ### Anti-patterns

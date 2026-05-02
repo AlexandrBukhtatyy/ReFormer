@@ -847,6 +847,11 @@ Type guard для ContainerRenderNode
 
 Проверяет, что узел является контейнером (Box, Section и т.д.).
 
+Принимает любой валидный React component reference:
+- plain function component (`function Foo() {...}`),
+- `React.memo(...)` / `React.forwardRef(...)` обёртки (объекты с `$$typeof`),
+- lazy / context provider'ы / прочие React-внутренности.
+
 **Signature:**
 ```typescript
 export function isContainerRenderNode<T>(node: RenderNode<T>): node is ContainerRenderNode<T>

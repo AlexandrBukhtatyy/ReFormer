@@ -36,6 +36,7 @@
 ```
 
 **Notes.**
+
 - Резолв пути работает так: `transformPropValue` встречает `{ $template }` и возвращает `(...args) => convertNode(template, args[0], registry)`. `args[0]` — `FieldPath<Item>`, который контейнер обязан передать первым аргументом (это контракт `RendererFormArraySection`).
 - Внутри template путь к полю задаётся через `selector` без префикса parent-пути (`'type'`, не `'properties[0].type'`). Конвертер достаёт `itemPath.type` из переданного `args[0]`.
 - В template можно вкладывать любые контейнеры (`Box`, `Section`, под-таблицы), но не другой `$template`-уровень того же массива — для вложенного массива нужен новый `RendererFormArraySection` с своим `$template`.
@@ -63,10 +64,7 @@ const registry = defineRegistry((reg) => {
   reg.source('LoadingState', LoadingState);
 
   // 3. Функция: itemLabel для FormArraySection.
-  reg.source(
-    'PROPERTY_ITEM_LABEL_SOURCE_FN',
-    (_, index: number) => `Имущество #${index + 1}`,
-  );
+  reg.source('PROPERTY_ITEM_LABEL_SOURCE_FN', (_, index: number) => `Имущество #${index + 1}`);
 
   // 4. Computed-константа.
   reg.source('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
@@ -92,6 +90,7 @@ const registry = defineRegistry((reg) => {
 ```
 
 **Notes.**
+
 - Резолв строки в source происходит только если строка зарегистрирована. Если имени в реестре нет — строка останется строкой (никакой ошибки), что часто становится молчаливым багом. Перепроверь имя при «приходит литерал вместо значения».
 - Source-функция, возвращающая объект, **не** конвертируется автоматически — только если результат «выглядит как `JsonNode`» (есть `model: string` или `component: string`). Для функций-итем-лейблов (возвращают строку) — никаких сюрпризов.
 - Source нельзя использовать как имя `component` в самом узле (`{ component: 'LoadingState' }` вне source-проп будет ошибкой `Entry "..." is a 'source' and cannot be used as component`). Source — только для значений в `componentProps`.
@@ -129,6 +128,7 @@ const registry = defineRegistry((reg) => {
 ```
 
 **Notes.**
+
 - Правило срабатывает только когда (а) ключ — `control` или `*Control` и (б) значение — строка. Для других ключей строка пойдёт через source-резолв, и если имя в реестре есть — подставится source-значение.
 - Если путь не существует в форме (`'addresses[0].city'` при пустом массиве) — `getFieldPathNode` бросит `Invalid field path: "..." - segment "..." not found` уже на этапе конверсии. Это значит: `control` на динамические индексы не работает, для item-полей пользуйся `$template`.
 - Параметр прокидывается как `FieldPathNode<unknown, unknown, unknown>` — компонент должен сам кастить к нужному типу или принимать `FieldPathNode<unknown>`.
@@ -139,18 +139,18 @@ const registry = defineRegistry((reg) => {
 
 **Solution.** Покомпонентная карта замен.
 
-| TS RenderSchema (`@reformer/renderer-react`) | JSON-схема (`@reformer/renderer-json`) |
-|---|---|
-| `{ component: path.email }` | `{ model: 'email' }` или `{ selector: 'email', component: 'Input' }` |
-| `{ component: path.personalData.firstName }` | `{ model: 'personalData.firstName', component: 'Input' }` |
-| `{ component: path.addresses[0].city }` | `{ model: 'addresses[0].city', component: 'Input' }` |
-| `{ component: Box, componentProps: { className: 'grid', children: [...] } }` *(старый стиль)* или `{ component: Box, children: [...] }` | `{ component: 'Box', componentProps: { className: 'grid' }, children: [...] }` |
-| `{ component: Section, componentProps: { title: 'X' }, children: [...] }` | `{ component: 'Section', componentProps: { title: 'X' }, children: [...] }` |
-| `{ selector: 'mortgage-section', component: Section, ... }` | то же — `selector` сохраняется |
-| `componentProps: { options: LOAN_TYPES }` (импорт константы) | `componentProps: { options: 'LOAN_TYPES' }` + `reg.source('LOAN_TYPES', LOAN_TYPES)` |
-| `componentProps: { LoadingComponent: LoadingState }` | `componentProps: { LoadingComponent: 'LoadingState' }` + `reg.source('LoadingState', LoadingState)` |
-| `componentProps: { control: path.properties, itemLabel: (_, i) => '#' + i, itemComponent: (itemPath) => ({ ... }) }` | `componentProps: { control: 'properties', itemLabel: 'NAME_FN', itemComponent: { $template: { ... } } }` + `reg.source('NAME_FN', fn)` |
-| `createCreditApplicationRenderBehavior(form)(schema)` (поведение в TS) | то же поведение — переиспользуется как есть, через `JsonFormSchema → createRenderSchemaFromJson → behavior(schema)` |
+| TS RenderSchema (`@reformer/renderer-react`)                                                                                            | JSON-схема (`@reformer/renderer-json`)                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ component: path.email }`                                                                                                             | `{ model: 'email' }` или `{ selector: 'email', component: 'Input' }`                                                                   |
+| `{ component: path.personalData.firstName }`                                                                                            | `{ model: 'personalData.firstName', component: 'Input' }`                                                                              |
+| `{ component: path.addresses[0].city }`                                                                                                 | `{ model: 'addresses[0].city', component: 'Input' }`                                                                                   |
+| `{ component: Box, componentProps: { className: 'grid', children: [...] } }` _(старый стиль)_ или `{ component: Box, children: [...] }` | `{ component: 'Box', componentProps: { className: 'grid' }, children: [...] }`                                                         |
+| `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                                                               | `{ component: 'Section', componentProps: { title: 'X' }, children: [...] }`                                                            |
+| `{ selector: 'mortgage-section', component: Section, ... }`                                                                             | то же — `selector` сохраняется                                                                                                         |
+| `componentProps: { options: LOAN_TYPES }` (импорт константы)                                                                            | `componentProps: { options: 'LOAN_TYPES' }` + `reg.source('LOAN_TYPES', LOAN_TYPES)`                                                   |
+| `componentProps: { LoadingComponent: LoadingState }`                                                                                    | `componentProps: { LoadingComponent: 'LoadingState' }` + `reg.source('LoadingState', LoadingState)`                                    |
+| `componentProps: { control: path.properties, itemLabel: (_, i) => '#' + i, itemComponent: (itemPath) => ({ ... }) }`                    | `componentProps: { control: 'properties', itemLabel: 'NAME_FN', itemComponent: { $template: { ... } } }` + `reg.source('NAME_FN', fn)` |
+| `createCreditApplicationRenderBehavior(form)(schema)` (поведение в TS)                                                                  | то же поведение — переиспользуется как есть, через `JsonFormSchema → createRenderSchemaFromJson → behavior(schema)`                    |
 
 ```typescript
 // До: TS RenderSchema
@@ -160,9 +160,10 @@ const schema: RenderSchemaFn<MyForm> = (path) => ({
     className: 'space-y-4',
     children: [
       { component: path.email, componentProps: { label: 'Email' } },
-      { component: Section, componentProps: { title: 'Адрес', children: [
-        { component: path.address.city },
-      ] } },
+      {
+        component: Section,
+        componentProps: { title: 'Адрес', children: [{ component: path.address.city }] },
+      },
     ],
   },
 });
@@ -193,6 +194,7 @@ const registry = defineRegistry((reg) => {
 ```
 
 **Notes.**
+
 - В TS-варианте часто `children` лежат в `componentProps.children` исторически — это работает, но в JSON `children` всегда вне `componentProps` (отдельное поле `JsonNode.children`).
 - `field`-узлы и `container`-узлы взаимоисключающи: либо `model`, либо `children` — нельзя одновременно. Если ошибочно поставить и `model`, и `children`, конвертер развернёт `model` (поле), а `children` молча проигнорирует.
 - Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — оно остаётся TS-функцией `RenderBehaviorFn<T>` и применяется к финальной `RenderSchemaProxy` после `createRenderSchemaFromJson`. Полный пример организации — `CreditApplicationFormRendererJson` (monorepo example).
@@ -212,8 +214,16 @@ const registry = defineRegistry((reg) => {
 // registry.tsx
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import {
-  Input, InputMask, Select, Textarea, Checkbox, RadioGroup,
-  Button, FormField, Box, Section,
+  Input,
+  InputMask,
+  Select,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  Button,
+  FormField,
+  Box,
+  Section,
 } from '@reformer/ui-kit';
 // Локальный app-level компонент (НЕ из @reformer/renderer-react!)
 import { RendererFormArraySection } from '@/components/RendererFormArraySection';
@@ -226,11 +236,26 @@ const propertyTemplate = () => ({
   hasEncumbrance: false,
 });
 const existingLoanTemplate = () => ({
-  bank: '', type: '', amount: 0, remainingAmount: 0, monthlyPayment: 0, maturityDate: '',
+  bank: '',
+  type: '',
+  amount: 0,
+  remainingAmount: 0,
+  monthlyPayment: 0,
+  maturityDate: '',
 });
 const coBorrowerTemplate = () => ({
-  personalData: { lastName: '', firstName: '', middleName: '', birthDate: '', gender: 'male', birthPlace: '' },
-  phone: '', email: '', relationship: '', monthlyIncome: 0,
+  personalData: {
+    lastName: '',
+    firstName: '',
+    middleName: '',
+    birthDate: '',
+    gender: 'male',
+    birthPlace: '',
+  },
+  phone: '',
+  email: '',
+  relationship: '',
+  monthlyIncome: 0,
 });
 
 export const registry = defineRegistry((reg) => {
@@ -249,7 +274,9 @@ export const registry = defineRegistry((reg) => {
   // Field wrapper (label + error + pending)
   reg.container(FIELD_WRAPPER, FormField);
   // Sources for option lists + initial-value templates
-  reg.source('PROPERTY_TYPES', [/* ... */]);
+  reg.source('PROPERTY_TYPES', [
+    /* ... */
+  ]);
   reg.source('PROPERTY_TEMPLATE', propertyTemplate);
   reg.source('EXISTING_LOAN_TEMPLATE', existingLoanTemplate);
   reg.source('CO_BORROWER_TEMPLATE', coBorrowerTemplate);
@@ -274,14 +301,34 @@ export const registry = defineRegistry((reg) => {
         "component": "Box",
         "componentProps": { "className": "space-y-3" },
         "children": [
-          { "model": "type", "component": "Select", "componentProps": { "label": "Тип имущества", "options": "PROPERTY_TYPES" } },
-          { "model": "estimatedValue", "component": "Input", "componentProps": { "label": "Оценочная стоимость (₽)", "type": "number" } },
-          { "model": "description", "component": "Textarea", "componentProps": { "label": "Описание", "rows": 2, "placeholder": "Опишите имущество" } },
-          { "model": "hasEncumbrance", "component": "Checkbox", "componentProps": { "label": "Имеется обременение (залог)" } }
-        ]
-      }
-    }
-  }
+          {
+            "model": "type",
+            "component": "Select",
+            "componentProps": { "label": "Тип имущества", "options": "PROPERTY_TYPES" },
+          },
+          {
+            "model": "estimatedValue",
+            "component": "Input",
+            "componentProps": { "label": "Оценочная стоимость (₽)", "type": "number" },
+          },
+          {
+            "model": "description",
+            "component": "Textarea",
+            "componentProps": {
+              "label": "Описание",
+              "rows": 2,
+              "placeholder": "Опишите имущество",
+            },
+          },
+          {
+            "model": "hasEncumbrance",
+            "component": "Checkbox",
+            "componentProps": { "label": "Имеется обременение (залог)" },
+          },
+        ],
+      },
+    },
+  },
 }
 ```
 
@@ -290,6 +337,7 @@ export const registry = defineRegistry((reg) => {
 Условный показ всей секции **не** делается через custom blocks. Используй один из:
 
 1. **JSON-уровень `hideWhen`** через top-level `RenderBehaviorFn` (применяется после `createRenderSchemaFromJson`):
+
    ```typescript
    import { hideWhen } from '@reformer/renderer-react';
 
@@ -334,11 +382,22 @@ export const registry = defineRegistry((reg) => {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ReactNode } from 'react';
 import {
-  FieldPathNavigator, createFieldPath, extractPath, useFormControl,
-  type FieldPath, type FieldPathNode, type FormFields, type FormProxy, type ArrayNode,
+  FieldPathNavigator,
+  createFieldPath,
+  extractPath,
+  useFormControl,
+  type FieldPath,
+  type FieldPathNode,
+  type FormFields,
+  type FormProxy,
+  type ArrayNode,
 } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
-import { RenderNodeComponent, type RenderNode, type FieldWrapperProps } from '@reformer/renderer-react';
+import {
+  RenderNodeComponent,
+  type RenderNode,
+  type FieldWrapperProps,
+} from '@reformer/renderer-react';
 
 export interface RendererFormArraySectionProps<T extends FormFields> {
   control: ArrayNode<T> | FieldPathNode<unknown, unknown>;
@@ -362,11 +421,14 @@ const navigator = new FieldPathNavigator();
 
 function resolveArrayNode<T extends FormFields>(
   control: RendererFormArraySectionProps<T>['control'],
-  form: FormProxy<unknown> | undefined,
+  form: FormProxy<unknown> | undefined
 ): ArrayNode<T> | null {
-  if (control && typeof control === 'object'
-      && typeof (control as ArrayNode<T>).push === 'function'
-      && typeof (control as ArrayNode<T>).removeAt === 'function') {
+  if (
+    control &&
+    typeof control === 'object' &&
+    typeof (control as ArrayNode<T>).push === 'function' &&
+    typeof (control as ArrayNode<T>).removeAt === 'function'
+  ) {
     return control as ArrayNode<T>;
   }
   if (!form) return null;
@@ -374,17 +436,27 @@ function resolveArrayNode<T extends FormFields>(
     const pathStr = extractPath(control as FieldPathNode<unknown, unknown>);
     const node = navigator.getNodeByPath(form, pathStr);
     return (node as unknown as ArrayNode<T>) ?? null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function RendererFormArraySection<T extends FormFields>({
-  control, itemComponent, title, titleAs: TitleTag = 'h3',
+  control,
+  itemComponent,
+  title,
+  titleAs: TitleTag = 'h3',
   titleClassName = 'text-base font-semibold mb-2',
   className = 'space-y-3 mt-2',
   cardClassName = 'rounded-md border p-4 space-y-3',
-  addButtonLabel = '+ Добавить', removeButtonLabel = 'Удалить',
-  initialValue, showRemoveOnSingle = false, emptyLabel, maxItems,
-  form, fieldWrapper,
+  addButtonLabel = '+ Добавить',
+  removeButtonLabel = 'Удалить',
+  initialValue,
+  showRemoveOnSingle = false,
+  emptyLabel,
+  maxItems,
+  form,
+  fieldWrapper,
 }: RendererFormArraySectionProps<T>): ReactNode {
   const arrayNode = resolveArrayNode<T>(control, form);
   if (!arrayNode) return null;
@@ -402,17 +474,31 @@ export function RendererFormArraySection<T extends FormFields>({
             const showRemove = showRemoveOnSingle || length > 1;
             return (
               <div className={cardClassName} data-testid={`array-item-${index}`}>
-                <RenderNodeComponent node={renderNode} form={itemForm as unknown as FormProxy<T>} fieldWrapper={fieldWrapper} />
-                {showRemove ? <div className="flex justify-end">
-                  <button type="button" onClick={remove} data-testid={`array-item-${index}-remove`}>{removeButtonLabel}</button>
-                </div> : null}
+                <RenderNodeComponent
+                  node={renderNode}
+                  form={itemForm as unknown as FormProxy<T>}
+                  fieldWrapper={fieldWrapper}
+                />
+                {showRemove ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={remove}
+                      data-testid={`array-item-${index}-remove`}
+                    >
+                      {removeButtonLabel}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             );
           }}
         </FormArray.List>
         {atMaxItems ? null : (
           <div>
-            <FormArray.AddButton initialValue={initialValue} data-testid="array-add">{addButtonLabel}</FormArray.AddButton>
+            <FormArray.AddButton initialValue={initialValue} data-testid="array-add">
+              {addButtonLabel}
+            </FormArray.AddButton>
           </div>
         )}
       </FormArray.Root>

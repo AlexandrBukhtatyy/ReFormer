@@ -14,11 +14,11 @@
 
 ### Новая модель lifecycle (ноды схемы)
 
-| Хук | Когда вызывается | Возвращает | Текущее имя |
-|---|---|---|---|
-| `onInit(node, fn)` | **Синхронно** при применении behavior (до первого рендера) | опциональный патч `componentProps` | — (новый) |
-| `onMount(node, fn)` | `useEffect` после первого mount ноды | опциональный cleanup | текущий `onInit` |
-| `onUnmount(node, fn)` | при unmount ноды | void | текущий `onDestroy` |
+| Хук                   | Когда вызывается                                           | Возвращает                         | Текущее имя         |
+| --------------------- | ---------------------------------------------------------- | ---------------------------------- | ------------------- |
+| `onInit(node, fn)`    | **Синхронно** при применении behavior (до первого рендера) | опциональный патч `componentProps` | — (новый)           |
+| `onMount(node, fn)`   | `useEffect` после первого mount ноды                       | опциональный cleanup               | текущий `onInit`    |
+| `onUnmount(node, fn)` | при unmount ноды                                           | void                               | текущий `onDestroy` |
 
 `onInit` — единственный хук, способный влиять на **первый рендер** (через patch props). Остальные — реактивные к DOM-lifecycle.
 
@@ -30,11 +30,10 @@ const renderBehavior = (schema) => {
 
   onInit(schema.node('wizard'), () => {
     form = createCreditApplicationForm();
-    return { form };  // попадёт в componentProps wizard-а
+    return { form }; // попадёт в componentProps wizard-а
   });
 
-  hideWhen(schema.node('mortgage-section'),
-    () => form?.loanType.value.value !== 'mortgage');
+  hideWhen(schema.node('mortgage-section'), () => form?.loanType.value.value !== 'mortgage');
   // ... остальной behavior использует form из closure
 };
 ```
@@ -79,10 +78,7 @@ onInit(schema.node('contact-wizard'), () => ({ form: createContactForm() }));
 - **Переименовать** `onDestroy(node, fn)` → `onUnmount(node, fn)`. Подпись не меняется.
 - **Добавить новый** `onInit(node, fn)`:
   ```ts
-  export function onInit(
-    node: RenderNodeControl,
-    fn: () => Record<string, unknown> | void
-  ): void {
+  export function onInit(node: RenderNodeControl, fn: () => Record<string, unknown> | void): void {
     const patch = fn();
     if (patch) node.patchProps(patch);
   }

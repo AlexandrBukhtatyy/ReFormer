@@ -36,8 +36,8 @@ You design and write a new form on `@reformer/*`.
     return {
       component: Box,
       children: [
-        { component: form.email },           // FieldNode — ignored
-        { component: form.password },        // FieldNode — ignored
+        { component: form.email }, // FieldNode — ignored
+        { component: form.password }, // FieldNode — ignored
       ],
     };
   }
@@ -51,7 +51,7 @@ You design and write a new form on `@reformer/*`.
     return {
       component: Box,
       children: [
-        { component: path.email },           // FieldPathNode — resolved at render
+        { component: path.email }, // FieldPathNode — resolved at render
         { component: path.password },
       ],
     };
@@ -64,13 +64,14 @@ You design and write a new form on `@reformer/*`.
   - `label` only in JSON → field renders without a label (visual-only, but breaks UX);
   - `options` only in JSON → `RadioGroup` throws `TypeError: t.map is not a function` at mount; `Select` shows an empty dropdown;
   - `placeholder` only in JSON → input shows nothing.
-  Practical recipe: declare all option arrays / templates in `registry.tsx`, import them into `schema.ts`, and use them BOTH in `createForm({...componentProps: { label, options }...})` AND as `reg.source(...)` so JSON can reference them by name (the JSON reference becomes documentation, not the runtime source-of-truth).
+    Practical recipe: declare all option arrays / templates in `registry.tsx`, import them into `schema.ts`, and use them BOTH in `createForm({...componentProps: { label, options }...})` AND as `reg.source(...)` so JSON can reference them by name (the JSON reference becomes documentation, not the runtime source-of-truth).
 
 ## If `target=renderer-json` — `RenderSchemaFn`-wrapper for form-injection
 
 `createRenderSchemaFromJson(jsonSchema, registry)` returns a `RenderSchemaFn` that builds a tree from the JSON, but it has **no way to inject your live `FormProxy`** into the root `FormRoot` (the self-managed root component you register; it needs `form` via `componentProps` to forward it down to children via `<RenderNodeComponent form={form} ...>`). Solution — wrap the converter result yourself and pass the wrapped fn to `createRenderSchema(...)`. Boilerplate (copy verbatim into `index.tsx`):
 
 {{{{raw}}}}
+
 ```tsx
 import { useMemo } from 'react';
 import {
@@ -105,18 +106,26 @@ The corresponding `FormRoot` in `registry.tsx` looks like:
 
 ```tsx
 function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
-  return <>{children.map((c, i) => <RenderNodeComponent key={i} node={c} form={form} />)}</>;
+  return (
+    <>
+      {children.map((c, i) => (
+        <RenderNodeComponent key={i} node={c} form={form} />
+      ))}
+    </>
+  );
 }
-(FormRoot as any).__selfManagedChildren = true;  // ← required marker
+(FormRoot as any).__selfManagedChildren = true; // ← required marker
 
 // in defineRegistry:
 reg.container('FormRoot', FormRoot);
 ```
+
 {{{{/raw}}}}
 
 Without `__selfManagedChildren = true`, `RenderNodeComponent` would NOT pass `form` into FormRoot, and child field nodes would silently render nothing. Without the wrapper, `form` would never reach `componentProps` on the root.
 
 **Field references in JSON — `model: 'fieldPath'`, NOT `selector: 'stepN.fieldPath'`.** Two distinct concepts:
+
 - `model: 'loanAmount'` — actual field path in the form schema (no `stepN.` prefix). This is what the renderer-json converter resolves via `getFieldByPath(form, model)`.
 - `selector: 'unique-id'` — node identifier for `setHidden` / `hideWhen` / `patchProps` orchestration via `schema.node(selector)`.
 - `testId: 'step1.loanAmount'` — DOM testId convention (dotted path with `stepN.` prefix). Stays in `componentProps`, doesn't drive field resolution.
@@ -150,7 +159,7 @@ The converter falls back to `selector` as fieldPath when component is field-type
 - `reformer://docs/core/non-existent-api-do-not-use`
 - `reformer://docs/ui-kit/quick-start` (if `@reformer/ui-kit` detected)
 - `reformer://docs/ui-kit/components`
-{{rendererPrereqs}}
+  {{rendererPrereqs}}
 
 ## Task
 

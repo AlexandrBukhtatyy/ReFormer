@@ -3,6 +3,7 @@
 This file provides instructions and context for AI coding agents working on this project.
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -43,6 +44,7 @@ bd close <id>         # Complete work
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
@@ -58,6 +60,7 @@ bd close <id>         # Complete work
 Все скриншоты от playwright (e2e тесты, smoke-проверки, MCP-валидация iter-N, визуальные регрессии) лежат в `projects/react-playground-e2e/screenshots/<context>/<scenario>.png`.
 
 Структура подкаталогов по контексту:
+
 - `screenshots/mcp-credit-v<N>/page<M>/<stage>-<scenario>.png` — итерации MCP-валидации.
 - `screenshots/<feature-name>/<scenario>.png` — feature-specific визуальные тесты.
 

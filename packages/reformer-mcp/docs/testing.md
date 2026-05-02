@@ -20,6 +20,7 @@ REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
 ```
 
 This opens a web interface where you can:
+
 - View all registered tools, resources, and prompts
 - Call tools with custom arguments
 - Read resources
@@ -45,6 +46,7 @@ claude
 ```
 
 Example test queries:
+
 - "What is ReFormer?"
 - "Show me how to create a form with validation"
 - "How do I use ArrayNode?"
@@ -66,6 +68,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
 ### Tools
 
 #### report_issue
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -79,16 +82,21 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node dist/index.js
       "tags": ["category:react", "agent:claude"],
       "context": {
         "examples": [
-          { "description": "Correct usage", "code": "const form = useMemo(() => createForm(...), []);" }
+          {
+            "description": "Correct usage",
+            "code": "const form = useMemo(() => createForm(...), []);"
+          }
         ]
       }
     }
   }
 }
 ```
+
 Expected: Confirmation message with file path
 
 #### debug (Debug Mode Only)
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -100,11 +108,13 @@ Expected: Confirmation message with file path
   }
 }
 ```
+
 Expected: Debug information (only works with REFORMER_DEBUG=true)
 
 ### Resources
 
 #### List resources
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -112,9 +122,11 @@ Expected: Debug information (only works with REFORMER_DEBUG=true)
   "method": "resources/list"
 }
 ```
+
 Expected: List of 4 resources (docs, api, examples, troubleshooting)
 
 #### Read resource
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -123,6 +135,7 @@ Expected: List of 4 resources (docs, api, examples, troubleshooting)
   "params": { "uri": "reformer://docs" }
 }
 ```
+
 Expected: Documentation content
 
 ```json
@@ -133,11 +146,13 @@ Expected: Documentation content
   "params": { "uri": "reformer://troubleshooting" }
 }
 ```
+
 Expected: Troubleshooting content
 
 ### Prompts
 
 #### List prompts
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -145,9 +160,11 @@ Expected: Troubleshooting content
   "method": "prompts/list"
 }
 ```
+
 Expected: Empty list (or 1 prompt in debug mode)
 
 #### Get debug prompt (Debug Mode Only)
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -159,21 +176,25 @@ Expected: Empty list (or 1 prompt in debug mode)
   }
 }
 ```
+
 Expected: Prompt with documentation context (only works with REFORMER_DEBUG=true)
 
 ## Viewing Logs
 
 ### Windows
+
 ```powershell
 Get-Content ~\AppData\Roaming\Claude\logs\mcp.log -Tail 50 -Wait
 ```
 
 ### macOS
+
 ```bash
 tail -f ~/Library/Logs/Claude/mcp.log
 ```
 
 ### Linux
+
 ```bash
 tail -f ~/.config/Claude/logs/mcp.log
 ```
@@ -181,16 +202,19 @@ tail -f ~/.config/Claude/logs/mcp.log
 ## Troubleshooting Tests
 
 ### Server not starting
+
 - Check Node.js version (18+)
 - Verify build succeeded (`npm run build`)
 - Check for TypeScript errors
 
 ### Tools not appearing
+
 - Verify server is registered (`claude mcp list`)
 - Check MCP logs for errors
 - Restart Claude Code
 
 ### Debug features not available
+
 - Ensure `REFORMER_DEBUG=true` is set
 - Re-register server with environment variable:
   ```bash
@@ -198,5 +222,6 @@ tail -f ~/.config/Claude/logs/mcp.log
   ```
 
 ### Documentation not found
+
 - Ensure @reformer/core is installed or
 - Run from the ReFormer monorepo root

@@ -31,4 +31,3 @@ Remove `settings={settings}` from the `RenderNodeComponent` call — only the co
 ## Verification
 
 TypeScript compilation should produce no errors. Visually confirm in the playground that `fieldWrapper` still works correctly.
-

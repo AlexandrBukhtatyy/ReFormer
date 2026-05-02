@@ -13,15 +13,15 @@ Headless compound component для построения доступной (a11y
 
 ## Components
 
-| Component | Purpose | Notes |
-|---|---|---|
-| `FormField.Root` | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`. | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение. |
-| `FormField.Label` | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`. | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label. |
-| `FormField.Control` | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur`. |
-| `FormField.Error` | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`. | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок). |
-| `FormField.Description` | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`. | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`. |
-| `useFormFieldContext<T>()` | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`. | Бросает `Error`, если вызван вне `FormField.Root`. |
-| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`. | Удобен, когда нужен полный контроль над DOM-структурой и пропсами. |
+| Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`.                                                                             | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                      |
+| `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label. |
+| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur`.                                            |
+| `FormField.Error`            | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`.                                                                       | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                               |
+| `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                               |
+| `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                            |
+| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`.                               | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                            |
 
 ## Examples
 
@@ -89,7 +89,7 @@ function PendingDot() {
   </div>
   <FormField.Control />
   <FormField.Error multi className="text-xs text-red-600" />
-</FormField.Root>
+</FormField.Root>;
 ```
 
 `multi` рендерит все ошибки из `errors[]` (например, async-валидатор может вернуть и «слишком короткое имя», и «уже занято»). Первая ошибка получит `id={errorId}` для `aria-errormessage`.
@@ -104,7 +104,7 @@ import { FormField } from '@reformer/ui-kit';
 <form>
   <FormField control={form.username} className="mb-4" />
   <FormField control={form.email} className="mb-4" />
-</form>
+</form>;
 ```
 
 Если нужен один кастомный кейс среди типовых — комбинируйте: `FormField` из ui-kit для большинства полей и `FormField.Root` из cdk для нестандартного:
@@ -125,7 +125,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
     </div>
     <FieldRoot.Error />
   </FieldRoot.Root>
-</>
+</>;
 ```
 
 ## Anti-patterns

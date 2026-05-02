@@ -355,9 +355,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasProperty && (
           <FormArray.Root control={control.properties}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Имущество</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Имущество</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Добавить имущество
@@ -394,9 +396,13 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasExistingLoans && (
           <FormArray.Root control={control.existingLoans}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Существующие кредиты</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">
+                    {count} Существующие кредиты
+                  </span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Добавить кредит
@@ -433,9 +439,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasCoBorrower && (
           <FormArray.Root control={control.coBorrowers}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Добавить созаёмщика

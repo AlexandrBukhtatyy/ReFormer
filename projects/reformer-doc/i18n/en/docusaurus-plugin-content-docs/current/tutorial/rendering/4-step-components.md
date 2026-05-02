@@ -355,9 +355,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasProperty && (
           <FormArray.Root control={control.properties}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Property</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Property</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Add property
@@ -394,9 +396,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasExistingLoans && (
           <FormArray.Root control={control.existingLoans}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Existing loans</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Existing loans</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Add loan
@@ -433,9 +437,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasCoBorrower && (
           <FormArray.Root control={control.coBorrowers}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Co-borrowers</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Co-borrowers</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Add co-borrower

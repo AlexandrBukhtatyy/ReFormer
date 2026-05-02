@@ -20,7 +20,9 @@ import { FormField } from '@reformer/ui-kit';
       <fieldset className="border rounded p-4">
         <legend className="flex justify-between w-full">
           <span>Имущество #{index + 1}</span>
-          <button type="button" onClick={remove}>×</button>
+          <button type="button" onClick={remove}>
+            ×
+          </button>
         </legend>
 
         <FormField control={property.address} />
@@ -33,7 +35,9 @@ import { FormField } from '@reformer/ui-kit';
               <div className="flex gap-2">
                 <FormField control={owner.fullName} className="flex-1" />
                 <FormField control={owner.share} className="w-24" />
-                <button type="button" onClick={removeOwner}>×</button>
+                <button type="button" onClick={removeOwner}>
+                  ×
+                </button>
               </div>
             )}
           </FormArray.List>
@@ -45,7 +49,7 @@ import { FormField } from '@reformer/ui-kit';
     )}
   </FormArray.List>
   <FormArray.AddButton className="btn-primary">+ Добавить имущество</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ### Notes
@@ -85,7 +89,7 @@ function AddPropertyMenu() {
 <FormArray.Root control={form.properties}>
   <FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
   <AddPropertyMenu />
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ### Notes
@@ -136,7 +140,11 @@ function CreditWizard({ form, navConfig }: Props) {
         {({ prev, next, submit, isLastStep }) => (
           <div>
             <button {...prev}>Назад</button>
-            {isLastStep ? <button {...submit}>Подтвердить</button> : <button {...next}>Далее</button>}
+            {isLastStep ? (
+              <button {...submit}>Подтвердить</button>
+            ) : (
+              <button {...next}>Далее</button>
+            )}
           </div>
         )}
       </FormWizard.Actions>

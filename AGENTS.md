@@ -6,14 +6,14 @@
 
 ### Где искать документацию по пакету
 
-| Пакет                      | docs/llms/                                                                            | Что внутри                                                |
-| -------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `@reformer/core`           | [packages/reformer/docs/llms/](packages/reformer/docs/llms/)                          | API, валидаторы, behaviors, типы, hooks.                  |
-| `@reformer/cdk`            | [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/)                  | Headless: FormArray, FormWizard, FormField.               |
-| `@reformer/ui-kit`         | [packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/)            | Стилизованные компоненты на Tailwind + Radix.             |
-| `@reformer/renderer-react` | [packages/reformer-renderer-react/docs/llms/](packages/reformer-renderer-react/docs/llms/) | Рендерер схем для React.                              |
-| `@reformer/renderer-json`  | [packages/reformer-renderer-json/docs/llms/](packages/reformer-renderer-json/docs/llms/)   | JSON-схема, реестр компонентов.                       |
-| `@reformer/mcp`            | [packages/reformer-mcp/](packages/reformer-mcp/)                                      | MCP-сервер: tools, resources, prompts.                    |
+| Пакет                      | docs/llms/                                                                                 | Что внутри                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| `@reformer/core`           | [packages/reformer/docs/llms/](packages/reformer/docs/llms/)                               | API, валидаторы, behaviors, типы, hooks.      |
+| `@reformer/cdk`            | [packages/reformer-cdk/docs/llms/](packages/reformer-cdk/docs/llms/)                       | Headless: FormArray, FormWizard, FormField.   |
+| `@reformer/ui-kit`         | [packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/)                 | Стилизованные компоненты на Tailwind + Radix. |
+| `@reformer/renderer-react` | [packages/reformer-renderer-react/docs/llms/](packages/reformer-renderer-react/docs/llms/) | Рендерер схем для React.                      |
+| `@reformer/renderer-json`  | [packages/reformer-renderer-json/docs/llms/](packages/reformer-renderer-json/docs/llms/)   | JSON-схема, реестр компонентов.               |
+| `@reformer/mcp`            | [packages/reformer-mcp/](packages/reformer-mcp/)                                           | MCP-сервер: tools, resources, prompts.        |
 
 ### MCP-сервер
 
@@ -33,11 +33,11 @@ claude mcp add --transport stdio reformer -- reformer-mcp
 
 ### Команды документации
 
-| Команда                                              | Назначение                                                              |
-| ---------------------------------------------------- | ----------------------------------------------------------------------- |
-| `npm run generate:llms`                              | Регенерировать `llms.txt` во всех пакетах (`--workspaces --if-present`).|
-| `npm run generate:llms -w @reformer/<pkg>`           | Регенерировать только для одного пакета.                                |
-| `node scripts/generate-llms-txt <pkg-path> --audit`  | Аудит JSDoc: символы без описания / без `@example`.                     |
+| Команда                                             | Назначение                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `npm run generate:llms`                             | Регенерировать `llms.txt` во всех пакетах (`--workspaces --if-present`). |
+| `npm run generate:llms -w @reformer/<pkg>`          | Регенерировать только для одного пакета.                                 |
+| `node scripts/generate-llms-txt <pkg-path> --audit` | Аудит JSDoc: символы без описания / без `@example`.                      |
 
 ### Правила
 
@@ -74,6 +74,7 @@ bd dolt push          # Push beads data to remote
 Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
 
 **Use these forms instead:**
+
 ```bash
 # Force overwrite without prompting
 cp -f source dest           # NOT: cp source dest
@@ -86,12 +87,14 @@ cp -rf source dest          # NOT: cp -r source dest
 ```
 
 **Other commands that may prompt:**
+
 - `scp` - use `-o BatchMode=yes` for non-interactive
 - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
 - `apt-get` - use `-y` flag
 - `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -132,6 +135,7 @@ bd close <id>         # Complete work
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push

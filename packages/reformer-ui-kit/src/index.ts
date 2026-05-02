@@ -59,7 +59,11 @@ export { FormArraySection } from './components/form-array/form-array-section';
 export type { FormArraySectionProps } from './components/form-array/form-array-section';
 
 export { FormWizard } from './components/form-wizard/form-wizard';
-export type { FormWizardProps, FormWizardStep, FormWizardStepBody } from './components/form-wizard/form-wizard';
+export type {
+  FormWizardProps,
+  FormWizardStep,
+  FormWizardStepBody,
+} from './components/form-wizard/form-wizard';
 export { StepIndicator } from './components/form-wizard/step-indicator';
 export { FormWizardActions } from './components/form-wizard/form-wizard-actions';
 export { FormWizardProgress } from './components/form-wizard/form-wizard-progress';

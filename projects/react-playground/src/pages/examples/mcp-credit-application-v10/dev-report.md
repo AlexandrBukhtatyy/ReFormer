@@ -11,14 +11,14 @@ Iter-10 MCP regression. Output: `projects/react-playground/src/pages/examples/mc
 
 ## Stages completed
 
-| # | Stage | Artefact | Status |
-|---|-------|----------|--------|
-| 1 | plan-form | `dev-plan.md` | done |
-| 2 | create-form | `schema.ts` (creditApplicationSchema), `types.ts` | done |
-| 3 | add-validation | `schema.ts` (`STEP_VALIDATIONS`, `fullValidation`) | done |
-| 4 | add-behavior | `schema.ts` (`creditApplicationBehavior`) | done |
-| 5 | add-form-array | `schema.ts` tuple-shape arrays + `index.tsx` `FormArraySection` items | done |
-| 6 | add-wizard | `index.tsx` (A1=ui-kit `FormWizard`, B1=core) | done |
+| #   | Stage          | Artefact                                                              | Status |
+| --- | -------------- | --------------------------------------------------------------------- | ------ |
+| 1   | plan-form      | `dev-plan.md`                                                         | done   |
+| 2   | create-form    | `schema.ts` (creditApplicationSchema), `types.ts`                     | done   |
+| 3   | add-validation | `schema.ts` (`STEP_VALIDATIONS`, `fullValidation`)                    | done   |
+| 4   | add-behavior   | `schema.ts` (`creditApplicationBehavior`)                             | done   |
+| 5   | add-form-array | `schema.ts` tuple-shape arrays + `index.tsx` `FormArraySection` items | done   |
+| 6   | add-wizard     | `index.tsx` (A1=ui-kit `FormWizard`, B1=core)                         | done   |
 
 All 6 stages performed sequentially per playbook. Each stage built atop the prior in the same `schema.ts` (form → validation → behavior).
 

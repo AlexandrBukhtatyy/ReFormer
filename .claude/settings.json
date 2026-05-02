@@ -43,7 +43,8 @@
       "Edit(src/**)",
       "Bash(bd:*)",
       "mcp__playwright__*",
-      "mcp__reformer__*"
+      "mcp__reformer__*",
+      "mcp__github__*"
     ],
     "defaultMode": "acceptEdits",
     "deny": ["Read(.env*)", "Read(**/credentials*)"]

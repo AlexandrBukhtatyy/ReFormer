@@ -47,21 +47,23 @@ const renderSchema: RenderSchema<MyForm> = {
   columns: 2,
   sections: [
     { title: 'Personal', fields: ['firstName', 'lastName'] },
-    { title: 'Contact', fields: ['email', 'phone'] }
+    { title: 'Contact', fields: ['email', 'phone'] },
   ],
   fields: {
     firstName: { component: 'input', label: 'First Name', span: 1 },
-    email: { component: 'input', label: 'Email', span: 2 }
-  }
+    email: { component: 'input', label: 'Email', span: 2 },
+  },
 };
 ```
 
 **Плюсы:**
+
 - Полное разделение данных и UI
 - JSON-сериализуемо (можно хранить в БД)
 - Лёгкая смена темы/layout без изменения формы
 
 **Минусы:**
+
 - Дублирование полей между FormSchema и RenderSchema
 - Нужен registry компонентов для string-идентификаторов
 
@@ -91,11 +93,13 @@ interface FieldConfig<T> {
 ```
 
 **Плюсы:**
+
 - Минимальные изменения API
 - Всё в одном месте - легко понять структуру поля
 - Backward compatible
 
 **Минусы:**
+
 - FormSchema становится большой
 - Нельзя сериализовать в JSON (компоненты)
 
@@ -124,21 +128,27 @@ const renderSchema: RenderSchemaFn<MyForm> = (path, render) => {
   render.field(path.firstName, {
     component: TextField,
     label: 'First Name',
-    span: 1
+    span: 1,
   });
 
-  render.when(path.hasPhone, (v) => v === true, () => {
-    render.field(path.phone, { component: PhoneInput, label: 'Phone' });
-  });
+  render.when(
+    path.hasPhone,
+    (v) => v === true,
+    () => {
+      render.field(path.phone, { component: PhoneInput, label: 'Phone' });
+    }
+  );
 };
 ```
 
 **Плюсы:**
+
 - Консистентно с ValidationSchema и BehaviorSchema
 - Type-safe через FieldPath
 - Поддержка условного рендеринга
 
 **Минусы:**
+
 - Сложнее сериализовать
 - Императивный стиль может быть непривычен
 
@@ -173,11 +183,13 @@ interface UIFieldConfig {
 ```
 
 **Плюсы:**
+
 - JSON Schema для UI (можно генерировать на сервере)
 - Один компонент для рендеринга всей формы
 - Легко интегрировать с дизайн-системами
 
 **Минусы:**
+
 - Меньше гибкости для кастомных случаев
 - Нужен registry компонентов
 

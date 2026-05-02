@@ -3,6 +3,7 @@
 ## Контекст
 
 Текущий `FieldConfig` объединяет две ответственности:
+
 - **Модель данных:** value, validators, disabled, updateOn, debounce
 - **Рендеринг:** component, componentProps
 
@@ -11,6 +12,7 @@
 **Решение:** Разделить на ModelSchema + RenderSchema.
 
 ### Принятые решения
+
 - **Breaking change:** Допустим
 - **Validators:** Только в ValidationSchema
 - **render.fields:** Опционально (неописанные поля не рендерятся)
@@ -229,6 +231,7 @@ function FormRenderer<T>({ form, render, className }: FormRendererProps<T>) {
 ## Файлы для изменения
 
 ### Новые файлы
+
 ```
 src/core/types/model-schema.ts      # ModelFieldConfig, ModelSchema
 src/core/types/render-schema.ts     # RenderFieldConfig, RenderSchema, SectionConfig
@@ -240,6 +243,7 @@ src/core/render/section.tsx         # Section компонент
 ```
 
 ### Изменяемые файлы
+
 ```
 src/core/types/index.ts             # новые экспорты
 src/core/types/deep-schema.ts       # deprecated или удалить FieldConfig
@@ -254,23 +258,27 @@ src/index.ts                        # экспорт FormRenderer
 ## Этапы реализации
 
 ### Этап 1: Типы (без изменения существующего кода)
+
 - [ ] Создать `model-schema.ts`
 - [ ] Создать `render-schema.ts`
 - [ ] Создать `form-config.ts`
 - [ ] Обновить экспорты
 
 ### Этап 2: NodeFactory и FieldNode
+
 - [ ] Обновить `isFieldConfig` - теперь без component
 - [ ] Убрать validators из FieldNode конструктора
 - [ ] Оставить componentProps сигнал
 - [ ] Тесты
 
 ### Этап 3: createForm
+
 - [ ] Новая сигнатура `createForm({ model, render, validation, behavior })`
 - [ ] Интеграция с ValidationRegistry
 - [ ] Тесты
 
 ### Этап 4: FormRenderer
+
 - [ ] Компонент FormRenderer
 - [ ] Компонент RenderField
 - [ ] Компонент Section
@@ -278,6 +286,7 @@ src/index.ts                        # экспорт FormRenderer
 - [ ] Поддержка hidden условий
 
 ### Этап 5: Примеры и документация
+
 - [ ] Обновить playground примеры
 - [ ] Обновить документацию
 - [ ] Migration guide

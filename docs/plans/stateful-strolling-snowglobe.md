@@ -53,12 +53,15 @@ export class PerformanceCollector {
   readonly enabled: boolean;
   private actions: CollectedAction[] = [];
 
-  constructor(private page: Page, private testInfo: TestInfo) {
+  constructor(
+    private page: Page,
+    private testInfo: TestInfo
+  ) {
     this.enabled = process.env.PERF_ENABLED === 'true';
   }
 
   async measure<T>(name: string, action: () => Promise<T>): Promise<T> {
-    if (!this.enabled) return action();  // быстрый путь
+    if (!this.enabled) return action(); // быстрый путь
     const m = await measureAction(this.page, name, action);
     this.actions.push({ name, duration: m.duration, startTime: m.startTime });
     return m.result;
@@ -100,7 +103,7 @@ export class PerformanceCollector {
 export interface TestFixtures {
   creditForm: CreditFormPage;
   mockApis: MockApisFixture;
-  perf: PerformanceCollector;  // ← новая
+  perf: PerformanceCollector; // ← новая
 }
 ```
 

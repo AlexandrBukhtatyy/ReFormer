@@ -49,11 +49,25 @@ utility-классы (`h-9`, `rounded-md`, `border-input`, `text-destructive`, .
 ```typescript
 // Все компоненты из корня (рекомендованный способ для приложений)
 import {
-  Input, InputMask, InputPassword, Textarea,
-  Checkbox, RadioGroup,
-  Select, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
-  Button, FormField, AsyncBoundary, ExampleCard,
-  Box, Section, Collapsible,
+  Input,
+  InputMask,
+  InputPassword,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  Select,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+  Button,
+  FormField,
+  AsyncBoundary,
+  ExampleCard,
+  Box,
+  Section,
+  Collapsible,
   cn,
 } from '@reformer/ui-kit';
 ```
@@ -121,21 +135,21 @@ function RegistrationPage() {
 
 ## Components
 
-| Name | Purpose | Where documented |
-| --- | --- | --- |
-| `Input` | Текстовое поле (`text`/`email`/`number`/`tel`/`url`). | [02-text-fields.md](02-text-fields.md) |
-| `InputMask` | Поле ввода со строковой маской (телефон, дата, ИНН). | [02-text-fields.md](02-text-fields.md) |
-| `InputPassword` | Поле пароля с переключателем видимости. | [02-text-fields.md](02-text-fields.md) |
-| `Textarea` | Многострочное поле. | [02-text-fields.md](02-text-fields.md) |
-| `Checkbox` | Чекбокс с label рядом с контролом. | [03-choice-fields.md](03-choice-fields.md) |
-| `RadioGroup` | Группа радио-кнопок из массива `options`. | [03-choice-fields.md](03-choice-fields.md) |
-| `Select` (+ 8 sub-компонентов) | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md) |
-| `Button` | Кнопка с вариантами (`variant`, `size`, `asChild`). | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `AsyncBoundary` | Контейнер с состояниями `loading`/`error`/`ready`. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `ExampleCard` | Карточка-обёртка для демо в playground. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `cn` | Утилита для конкатенации Tailwind-классов. | [04-layout-and-buttons.md](04-layout-and-buttons.md) |
-| `FormField` | Wrapper «label + control + error + pending» поверх CDK. | [05-form-field-integration.md](05-form-field-integration.md) |
-| `Box`, `Section`, `Collapsible` | Контейнеры для `RenderSchema` (см. рендерер). | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
+| Name                            | Purpose                                                    | Where documented                                              |
+| ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| `Input`                         | Текстовое поле (`text`/`email`/`number`/`tel`/`url`).      | [02-text-fields.md](02-text-fields.md)                        |
+| `InputMask`                     | Поле ввода со строковой маской (телефон, дата, ИНН).       | [02-text-fields.md](02-text-fields.md)                        |
+| `InputPassword`                 | Поле пароля с переключателем видимости.                    | [02-text-fields.md](02-text-fields.md)                        |
+| `Textarea`                      | Многострочное поле.                                        | [02-text-fields.md](02-text-fields.md)                        |
+| `Checkbox`                      | Чекбокс с label рядом с контролом.                         | [03-choice-fields.md](03-choice-fields.md)                    |
+| `RadioGroup`                    | Группа радио-кнопок из массива `options`.                  | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Select` (+ 8 sub-компонентов)  | Выпадающий список с inline `options` или async `resource`. | [03-choice-fields.md](03-choice-fields.md)                    |
+| `Button`                        | Кнопка с вариантами (`variant`, `size`, `asChild`).        | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `AsyncBoundary`                 | Контейнер с состояниями `loading`/`error`/`ready`.         | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `ExampleCard`                   | Карточка-обёртка для демо в playground.                    | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `cn`                            | Утилита для конкатенации Tailwind-классов.                 | [04-layout-and-buttons.md](04-layout-and-buttons.md)          |
+| `FormField`                     | Wrapper «label + control + error + pending» поверх CDK.    | [05-form-field-integration.md](05-form-field-integration.md)  |
+| `Box`, `Section`, `Collapsible` | Контейнеры для `RenderSchema` (см. рендерер).              | [renderer-react](../../../reformer-renderer-react/docs/llms/) |
 
 Полный troubleshooting (number-input возвращает строку, Select не показывает
 options, mask пропускает символы, forwardRef + Slot конфликты, и т.п.) —

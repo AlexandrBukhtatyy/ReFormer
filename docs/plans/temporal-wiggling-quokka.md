@@ -3,20 +3,25 @@
 ## Context
 
 В `reformer-renderer-react` находятся два файла:
+
 - `form-array.tsx` — маркерный компонент для RenderSchema системы
 - `form-array-context.tsx` — React-контексты `FormArrayContext` / `FormArrayItemContext`
 
 Проблема: контексты нужны **обоим** пакетам:
+
 - `reformer-renderer-react` — заполняет контекст данными в `ArrayRenderer`
 - `reformer-ui` — компаунд-компоненты (`FormArray.List`, `FormArrayAddButton` и т.д.) читают контекст
 
 При этом `reformer-ui/src/components/form-array/FormArrayContext.tsx` **уже** импортирует из `@reformer/core`:
+
 ```ts
 import { FormArrayContext, ... } from '@reformer/core';
 ```
+
 Но `@reformer/core` ещё не экспортирует эти контексты — импорт сломан. Комментарий в файле: _«Контекст определён в @reformer/core»_ — это было намерением, которое не было реализовано.
 
 **Правильная архитектура:**
+
 - `@reformer/core` → форм-состояние + общие React-хуки и контексты
 - `reformer-renderer-react` → RenderSchema-движок, маркеры типов (`FormArray.__isFormArray`)
 - `reformer-ui` → headless compound-компоненты, потребляющие контексты
@@ -30,6 +35,7 @@ import { FormArrayContext, ... } from '@reformer/core';
 ### 1. Создать файл в core
 
 Переместить содержимое:
+
 ```
 packages/reformer-renderer-react/src/components/form-array-context.tsx
 → packages/reformer/src/react/form-array-context.tsx
@@ -59,6 +65,7 @@ export {
 ### 3. Обновить импорты в reformer-renderer-react
 
 В [packages/reformer-renderer-react/src/core/render-node.tsx](packages/reformer-renderer-react/src/core/render-node.tsx) заменить импорт:
+
 ```ts
 // было
 import { FormArrayContext, FormArrayItemContext } from '../components/form-array-context';
@@ -67,6 +74,7 @@ import { FormArrayContext, FormArrayItemContext } from '@reformer/core';
 ```
 
 В [packages/reformer-renderer-react/src/index.ts](packages/reformer-renderer-react/src/index.ts) изменить источник ре-экспорта контекстов:
+
 ```ts
 // было
 export { FormArrayContext, ... } from './components/form-array-context';
@@ -80,18 +88,19 @@ export { FormArrayContext, ... } from '@reformer/core';
 
 ## Файлы, затронутые изменением
 
-| Файл | Действие |
-|------|----------|
-| `packages/reformer/src/react/form-array-context.tsx` | Создать (перенести) |
-| `packages/reformer/src/index.ts` | Добавить экспорт |
-| `packages/reformer-renderer-react/src/components/form-array-context.tsx` | Удалить |
-| `packages/reformer-renderer-react/src/core/render-node.tsx` | Обновить импорт |
-| `packages/reformer-renderer-react/src/index.ts` | Обновить источник ре-экспорта |
-| `packages/reformer-ui/src/components/form-array/FormArrayContext.tsx` | Уже корректен (импорт из `@reformer/core`) |
+| Файл                                                                     | Действие                                   |
+| ------------------------------------------------------------------------ | ------------------------------------------ |
+| `packages/reformer/src/react/form-array-context.tsx`                     | Создать (перенести)                        |
+| `packages/reformer/src/index.ts`                                         | Добавить экспорт                           |
+| `packages/reformer-renderer-react/src/components/form-array-context.tsx` | Удалить                                    |
+| `packages/reformer-renderer-react/src/core/render-node.tsx`              | Обновить импорт                            |
+| `packages/reformer-renderer-react/src/index.ts`                          | Обновить источник ре-экспорта              |
+| `packages/reformer-ui/src/components/form-array/FormArrayContext.tsx`    | Уже корректен (импорт из `@reformer/core`) |
 
 ## Итог
 
 После изменения:
+
 - `form-array-context.tsx` → `@reformer/core` (единый источник истины для обоих пакетов)
 - `form-array.tsx` → `reformer-renderer-react` (маркер RenderSchema, там и место)
 - Сломанный импорт в `reformer-ui/FormArrayContext.tsx` автоматически заработает

@@ -10,7 +10,7 @@
 function syncFields<TForm extends FormFields, T extends FormValue>(
   field1: FieldPathNode<TForm, T>,
   field2: FieldPathNode<TForm, T>,
-  options?: SyncFieldsOptions<T>,
+  options?: SyncFieldsOptions<T>
 ): void;
 
 interface SyncFieldsOptions<T> {
@@ -50,7 +50,7 @@ import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
 
 interface DisplayForm {
   internalCode: string; // канонический формат
-  displayCode: string;  // показываем пользователю
+  displayCode: string; // показываем пользователю
 }
 
 export const codeBehavior: BehaviorSchemaFn<DisplayForm> = (path) => {

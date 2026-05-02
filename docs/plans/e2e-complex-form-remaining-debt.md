@@ -18,14 +18,17 @@
 ## Категория A: coBorrower relationship (ARR-006)
 
 **Тесты:**
+
 - `ARR-006-A`: поле relationship обязательно — при пустом значении шаг не переходит
 - `ARR-006-B`: все значения enum relationship доступны в select
 
 **Корневая причина (гипотеза):**
+
 - В `CoBorrowerForm` [CoBorrowerForm.tsx:62-70](projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/CoBorrower/CoBorrowerForm.tsx#L62-L70) у `relationship` дефолт `value: 'spouse'` — значит поле валидно сразу, "обязательность" в UI не воспроизводится. Похожая ситуация на VAL-009-E (skipped).
 - Тест ARR-006-A ожидает `expect(hasError || onStep5).toBeTruthy()` — оба false, значит форма уходит на шаг 6.
 
 **Решение:**
+
 - **A1.** Скипнуть как невоспроизводимые в UI (аналогично VAL-009-E) — если нет цели менять схему.
 - **A2.** Изменить схему: `relationship: { value: '' }` + placeholder "Выберите отношение" + required-валидатор. Тогда тест осмысленен.
 - **A3.** Для ARR-006-B (enum доступен) — не требует required, только проверка options. Вероятно сломан селектор. Проверить [arrays.spec.ts:558](projects/react-playground-e2e/tests/pages/complex-multy-step-form/arrays.spec.ts#L558): ищет `option[value="spouse"]`, но Select кастомный — может рендерить `<div role="option">` вместо `<option>`.
@@ -37,21 +40,26 @@
 ## Категория B: sameEmail copyFrom (COND-006)
 
 **Тесты:**
+
 - `COND-006-A`: чекбокс `sameEmail` копирует основной email в `emailAdditional`
 - `COND-006-B`: снятие `sameEmail` очищает `emailAdditional` (resetOnDisable)
 
 **Корневая причина (гипотеза):**
 Behavior настроен в [credit-application-behavior.ts:82-84](projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts#L82-L84):
+
 ```ts
 copyFrom(path.email, path.emailAdditional, {
   when: (form) => form.sameEmail === true,
 });
 ```
+
 Проверить:
+
 1. Срабатывает ли copyFrom реактивно при смене `sameEmail` с `false`→`true`.
 2. Есть ли `resetOnDisable` в опциях copyFrom (для COND-006-B).
 
 **Решение:**
+
 1. Прогнать тесты с `.only` + `--headed`, посмотреть реальное состояние `emailAdditional` в момент проверки.
 2. Если copyFrom работает, но опция `resetOnDisable` не поддерживается в @reformer/core — это fix API либо убрать COND-006-B.
 3. Возможно тест пишет в `input-sameEmail` checkbox, а реальный testId `sameEmail` (подтверждено в компоненте) — проверить обёртку FormField.
@@ -63,6 +71,7 @@ copyFrom(path.email, path.emailAdditional, {
 ## Категория C: LoadingError (LOAD-002)
 
 **Тесты:**
+
 - `LOAD-002-A`: при ошибке API отображается компонент ErrorState
 - `LOAD-002-B`: кнопка «Повторить» перезагружает страницу
 
@@ -70,6 +79,7 @@ copyFrom(path.email, path.emailAdditional, {
 Race между MSW в приложении и `page.route('**/api/v1/credit-applications/**', ...)` в тесте. Часть уже чинилась в `238105c fix ... e2e msw race`, но не до конца.
 
 **Решение:**
+
 1. Запускать с `disableMsw: true` чтобы MSW не перехватывал запрос раньше route.
 2. Проверить в `error-context.md` упавшего LOAD-002-A — на какой стадии: запрос был послан в `route`? Отобразился ли ErrorState вообще?
 3. Если ErrorState не рендерится — проверить, что GET-error корректно пропущен в ErrorBoundary.
@@ -104,8 +114,8 @@ Race между MSW в приложении и `page.route('**/api/v1/credit-app
 
 ## Метрики прогресса
 
-| Этап | Прохождений | Падений | Skipped |
-|---|---:|---:|---:|
-| Старт сессии (baseline) | ~? | 17 в подгруппе | 0 |
-| После fix testId+trigger | 15 | 6 | 2 |
-| Цель завтра | 21 | 0 | 2 |
+| Этап                     | Прохождений |        Падений | Skipped |
+| ------------------------ | ----------: | -------------: | ------: |
+| Старт сессии (baseline)  |          ~? | 17 в подгруппе |       0 |
+| После fix testId+trigger |          15 |              6 |       2 |
+| Цель завтра              |          21 |              0 |       2 |

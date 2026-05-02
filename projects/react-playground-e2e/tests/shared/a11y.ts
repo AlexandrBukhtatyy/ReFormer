@@ -1,4 +1,4 @@
-import { type Page, type Locator, expect } from '@playwright/test';
+import { type Page, type Locator } from '@playwright/test';
 
 // Note: @axe-core/playwright needs to be installed separately
 // npm install -D @axe-core/playwright
@@ -128,7 +128,9 @@ export async function expectNoA11yViolations(page: Page, options: AxeOptions = {
 
   if (result.violations.length > 0) {
     const violationMessages = result.violations.map((v) => {
-      const nodeDetails = v.nodes.map((n) => `  - ${n.target.join(' ')}: ${n.failureSummary}`).join('\n');
+      const nodeDetails = v.nodes
+        .map((n) => `  - ${n.target.join(' ')}: ${n.failureSummary}`)
+        .join('\n');
       return `[${v.impact}] ${v.id}: ${v.help}\n${nodeDetails}`;
     });
 
@@ -163,7 +165,9 @@ export async function checkWcag21AAA(page: Page): Promise<A11yCheckResult> {
 /**
  * Check if all images have alt text
  */
-export async function checkImagesHaveAlt(page: Page): Promise<{ valid: boolean; missing: string[] }> {
+export async function checkImagesHaveAlt(
+  page: Page
+): Promise<{ valid: boolean; missing: string[] }> {
   const missing = await page.evaluate(() => {
     const images = document.querySelectorAll('img');
     const missingAlt: string[] = [];
@@ -186,7 +190,9 @@ export async function checkImagesHaveAlt(page: Page): Promise<{ valid: boolean; 
 /**
  * Check if all form inputs have associated labels
  */
-export async function checkInputsHaveLabels(page: Page): Promise<{ valid: boolean; missing: string[] }> {
+export async function checkInputsHaveLabels(
+  page: Page
+): Promise<{ valid: boolean; missing: string[] }> {
   const missing = await page.evaluate(() => {
     const inputs = document.querySelectorAll('input, select, textarea');
     const missingLabels: string[] = [];
@@ -227,7 +233,9 @@ export async function checkInputsHaveLabels(page: Page): Promise<{ valid: boolea
  */
 export async function checkColorContrast(page: Page): Promise<{ warnings: string[] }> {
   const warnings = await page.evaluate(() => {
-    const textElements = document.querySelectorAll('p, span, h1, h2, h3, h4, h5, h6, a, button, label');
+    const textElements = document.querySelectorAll(
+      'p, span, h1, h2, h3, h4, h5, h6, a, button, label'
+    );
     const contrastWarnings: string[] = [];
 
     textElements.forEach((el) => {
@@ -250,7 +258,9 @@ export async function checkColorContrast(page: Page): Promise<{ warnings: string
 /**
  * Check heading hierarchy (h1, h2, h3, etc. in order)
  */
-export async function checkHeadingHierarchy(page: Page): Promise<{ valid: boolean; issues: string[] }> {
+export async function checkHeadingHierarchy(
+  page: Page
+): Promise<{ valid: boolean; issues: string[] }> {
   const issues = await page.evaluate(() => {
     const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
     const hierarchyIssues: string[] = [];
@@ -331,7 +341,8 @@ export async function isKeyboardAccessible(locator: Locator): Promise<boolean> {
     await locator.evaluate((el) => {
       // Build a selector for this element
       if (el.id) return `#${el.id}`;
-      if (el.getAttribute('data-testid')) return `[data-testid="${el.getAttribute('data-testid')}"]`;
+      if (el.getAttribute('data-testid'))
+        return `[data-testid="${el.getAttribute('data-testid')}"]`;
       return el.tagName.toLowerCase();
     })
   );

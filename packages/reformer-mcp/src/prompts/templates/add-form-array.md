@@ -7,7 +7,11 @@ You add a dynamic field array to a `@reformer/*` form.
 ## Current form code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## ⚠️ Critical inline rules (silent corruption hazards)
@@ -63,17 +67,19 @@ You add a dynamic field array to a `@reformer/*` form.
    );
 
    <FormArraySection
-     control={path.properties}              // или resolved ArrayNode напрямую
+     control={path.properties} // или resolved ArrayNode напрямую
      itemComponent={PropertyForm}
      title="Имущество"
      addButtonLabel="+ Добавить имущество"
-   />
+   />;
    ```
 
    **renderer-json:** consumer registers `PropertyForm` via `reg.container('PropertyForm', PropertyForm)` and references by string in JSON — `"itemComponent": "PropertyForm"`. Or uses inline `$template`:
+
    ```jsonc
    { "itemComponent": { "$template": { "component": "Section", "children": [...] } } }
    ```
+
    Converter wraps `$template` into an FC automatically — ui-kit sees a unified FC-shape.
 
 ## Prerequisites — read these resources via ReadMcpResourceTool
@@ -100,7 +106,7 @@ You add a dynamic field array to a `@reformer/*` form.
 5. Nested arrays: separate `array(...)` inside item schema; UI nests `FormArray.Root`.
 6. Template-factory returns PLAIN leaf values (never FieldConfig).
 7. (renderer-react) self-managed array block — resolve FieldPath→ArrayNode + `__selfManagedChildren = true`.
-9. **All targets**: use `FormArraySection` from `@reformer/ui-kit/form-array` (single FC `itemComponent`). For renderer-json: registry-name string OR inline `$template` — both produce FC.
+8. **All targets**: use `FormArraySection` from `@reformer/ui-kit/form-array` (single FC `itemComponent`). For renderer-json: registry-name string OR inline `$template` — both produce FC.
 
 ## Output checklist
 

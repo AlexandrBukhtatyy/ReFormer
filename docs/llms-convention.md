@@ -38,20 +38,20 @@ packages/<package>/
 
 Парсер MCP матчит секции по точным именам заголовков. Используем **фиксированный словарь имён** для секций, по которым агент будет ходить:
 
-| `## Заголовок` | Когда нужен | Что внутри |
-|---|---|---|
-| `## Overview` | в `01-overview.md` | Одна-две фразы: что делает пакет, для каких задач. |
-| `## Installation` | в `01-overview.md` | `npm install` команда, peer-deps, требуемые версии. |
-| `## Import Patterns` | в `01-overview.md` или per-feature | Правильные импорты с пометками `// recommended`. |
-| `## Quick Start` | в `01-overview.md` | Минимальный рабочий пример. |
-| `## Architecture` | по необходимости | Высокоуровневая схема пакета. |
-| `## Key Concepts` | per-feature | Bulleted list с **bolded** ключевыми терминами и пояснением. |
-| `## Components` / `## Hooks` / `## Validators` / `## Behaviors` | per-feature | Markdown-таблица: `\| Name \| Purpose \|`. |
-| `## API Reference` | в `NN-<feature>.md` | API-сигнатуры из JSDoc, обычно генерируется в `llms.txt`. |
-| `## Common Patterns` | per-feature | Рецепты: «как сделать X». Каждый рецепт — fenced code. |
-| `## Anti-patterns` | per-feature | Что нельзя делать и почему. |
-| `## Examples` | per-feature | Fenced code-блоки с полными работающими примерами. |
-| `## Troubleshooting / FAQ` | в `NN-troubleshooting.md` | Частые ошибки, решения, ссылки на issues. |
+| `## Заголовок`                                                  | Когда нужен                        | Что внутри                                                   |
+| --------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------ |
+| `## Overview`                                                   | в `01-overview.md`                 | Одна-две фразы: что делает пакет, для каких задач.           |
+| `## Installation`                                               | в `01-overview.md`                 | `npm install` команда, peer-deps, требуемые версии.          |
+| `## Import Patterns`                                            | в `01-overview.md` или per-feature | Правильные импорты с пометками `// recommended`.             |
+| `## Quick Start`                                                | в `01-overview.md`                 | Минимальный рабочий пример.                                  |
+| `## Architecture`                                               | по необходимости                   | Высокоуровневая схема пакета.                                |
+| `## Key Concepts`                                               | per-feature                        | Bulleted list с **bolded** ключевыми терминами и пояснением. |
+| `## Components` / `## Hooks` / `## Validators` / `## Behaviors` | per-feature                        | Markdown-таблица: `\| Name \| Purpose \|`.                   |
+| `## API Reference`                                              | в `NN-<feature>.md`                | API-сигнатуры из JSDoc, обычно генерируется в `llms.txt`.    |
+| `## Common Patterns`                                            | per-feature                        | Рецепты: «как сделать X». Каждый рецепт — fenced code.       |
+| `## Anti-patterns`                                              | per-feature                        | Что нельзя делать и почему.                                  |
+| `## Examples`                                                   | per-feature                        | Fenced code-блоки с полными работающими примерами.           |
+| `## Troubleshooting / FAQ`                                      | в `NN-troubleshooting.md`          | Частые ошибки, решения, ссылки на issues.                    |
 
 Дополнительные правила:
 
@@ -68,16 +68,16 @@ packages/<package>/
 
 Каждый публичный символ (функция, тип, класс, hook, компонент, константа) **обязан** иметь JSDoc-блок со следующими полями:
 
-| Тег | Обязателен | Назначение |
-|---|---|---|
-| `описание` (первая строка) | ✅ | Одна фраза: что делает символ. На русском или английском (придерживаемся языка пакета). |
-| `@param` | ✅ для каждого параметра | Имя + назначение. Тип берётся из TS — повторять не нужно. |
-| `@typeParam` | ✅ для каждого generic | Имя + назначение. |
-| `@returns` | ✅ если функция возвращает не `void` | Что возвращается. |
-| `@example` | ✅ для callable (function, class, hook); рекомендуется для остальных | Минимальный рабочий сниппет. См. правила ниже. |
-| `@see` | по необходимости | Ссылка `{@link OtherSymbol}` или markdown-ссылка на раздел `docs/llms/`. |
-| `@group` | рекомендуется | Логическая группировка (`React Hooks`, `Validators`, `Behaviors`). Используется для сортировки в `llms.txt`. |
-| `@deprecated` | при удалении | Текст с предложением замены. |
+| Тег                        | Обязателен                                                           | Назначение                                                                                                   |
+| -------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `описание` (первая строка) | ✅                                                                   | Одна фраза: что делает символ. На русском или английском (придерживаемся языка пакета).                      |
+| `@param`                   | ✅ для каждого параметра                                             | Имя + назначение. Тип берётся из TS — повторять не нужно.                                                    |
+| `@typeParam`               | ✅ для каждого generic                                               | Имя + назначение.                                                                                            |
+| `@returns`                 | ✅ если функция возвращает не `void`                                 | Что возвращается.                                                                                            |
+| `@example`                 | ✅ для callable (function, class, hook); рекомендуется для остальных | Минимальный рабочий сниппет. См. правила ниже.                                                               |
+| `@see`                     | по необходимости                                                     | Ссылка `{@link OtherSymbol}` или markdown-ссылка на раздел `docs/llms/`.                                     |
+| `@group`                   | рекомендуется                                                        | Логическая группировка (`React Hooks`, `Validators`, `Behaviors`). Используется для сортировки в `llms.txt`. |
+| `@deprecated`              | при удалении                                                         | Текст с предложением замены.                                                                                 |
 
 **Что считаем callable**: `function`, `class`, и константа, чьё значение — функция/компонент. Hooks (`useXxx`) обычно объявлены через `function` или `const = (…) => …` — оба варианта callable.
 
@@ -85,7 +85,7 @@ packages/<package>/
 
 Образец (взят из [packages/reformer/src/hooks/useFormControl.ts](../packages/reformer/src/hooks/useFormControl.ts)):
 
-```typescript
+````typescript
 /**
  * React-хук для подписки на состояние {@link FieldNode}.
  *
@@ -105,10 +105,8 @@ packages/<package>/
  * }
  * ```
  */
-export function useFormControl<T extends FormValue>(
-  control: FieldNode<T>,
-): FieldControlState<T>;
-```
+export function useFormControl<T extends FormValue>(control: FieldNode<T>): FieldControlState<T>;
+````
 
 ### 4.1 Правила для `@example`
 
@@ -128,7 +126,7 @@ export function useFormControl<T extends FormValue>(
 
 `llms.txt` лежит в корне каждого пакета (`packages/<package>/llms.txt`) и состоит из четырёх блоков в строго заданном порядке.
 
-```
+````
 # <Package Display Name> - LLM Integration Guide
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc and run npm run generate:llms.
 
@@ -161,19 +159,22 @@ export function useFormControl<T extends FormValue>(
 **Signature:**
 ```typescript
 <сигнатура из TS-типа>
-```
+````
 
 **Parameters:**
+
 - `param` — описание
 
 **Returns:** ...
 
 **Examples:**
+
 ```tsx
 <содержимое первого @example>
 ```
 
 [Source: src/path/to/file.ts](src/path/to/file.ts)
+
 ```
 
 Правила:
@@ -201,3 +202,4 @@ export function useFormControl<T extends FormValue>(
 - [PROMT.md](../PROMT.md) — бриф задачи (контекст, почему эта конвенция нужна).
 - [docs/plans/bright-brewing-forest.md](plans/bright-brewing-forest.md) — план реализации.
 - [packages/reformer-mcp/src/utils/docs-parser.ts](../packages/reformer-mcp/src/utils/docs-parser.ts) — парсер, под который рассчитан формат.
+```

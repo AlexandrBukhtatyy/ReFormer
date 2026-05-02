@@ -45,7 +45,7 @@ import type { FieldPathNode } from '../../types';
  * }
  * ```
  */
-export function min<TForm, TField extends number | undefined = number>(
+export function min<TForm, TField extends number | null | undefined = number>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   minValue: number,
   options?: ValidateOptions

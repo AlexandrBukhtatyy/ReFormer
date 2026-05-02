@@ -63,9 +63,7 @@ interface ApiApplicationData {
 }
 
 // Deserialize: API → Form
-export function deserializeApplication(
-  api: ApiApplicationData
-): Partial<CreditApplicationForm> {
+export function deserializeApplication(api: ApiApplicationData): Partial<CreditApplicationForm> {
   return {
     loanType: api.loanType as CreditApplicationForm['loanType'],
     loanAmount: api.loanAmount,
@@ -85,9 +83,7 @@ export function deserializeApplication(
 }
 
 // Serialize: Form → API
-export function serializeApplication(
-  form: CreditApplicationForm
-): ApiApplicationData {
+export function serializeApplication(form: CreditApplicationForm): ApiApplicationData {
   return {
     loanType: form.loanType,
     loanAmount: form.loanAmount,
@@ -194,7 +190,12 @@ export function ApplicationForm({ applicationId }: Props) {
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+    >
       {/* Form fields */}
       <button type="submit">Save</button>
     </form>

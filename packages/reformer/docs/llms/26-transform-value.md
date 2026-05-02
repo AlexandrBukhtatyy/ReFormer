@@ -79,9 +79,7 @@ export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
   });
 
   // округление до целого
-  transformValue(path.amount, (value) =>
-    typeof value === 'number' ? Math.round(value) : value,
-  );
+  transformValue(path.amount, (value) => (typeof value === 'number' ? Math.round(value) : value));
 };
 ```
 
@@ -159,11 +157,7 @@ transformValue(path.fullName, () => `${form.firstName} ${form.lastName}`);
 // transformValue не имеет доступа к форме, только к value одного поля
 
 // ✅ Для зависимостей от других полей — computeFrom
-computeFrom(
-  [path.firstName, path.lastName],
-  path.fullName,
-  (v) => `${v.firstName} ${v.lastName}`,
-);
+computeFrom([path.firstName, path.lastName], path.fullName, (v) => `${v.firstName} ${v.lastName}`);
 ```
 
 ## Troubleshooting

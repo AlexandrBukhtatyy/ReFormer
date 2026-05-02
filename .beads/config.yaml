@@ -6,12 +6,13 @@
 # Issue prefix for this repository (used by bd init)
 # If not set, bd init will auto-detect from directory name
 # Example: issue-prefix: "myproject" creates issues like "myproject-1", "myproject-2", etc.
-issue-prefix: "ReFormer"
+issue-prefix: 'ReFormer'
 
 # Use no-db mode: load from JSONL, write back after each command
 # When true, bd will use .beads/issues.jsonl as the source of truth
 # instead of the Dolt database
-no-db: true  # JSONL-only mode, no SQLite database
+no-db: true # JSONL-only mode, no SQLite database
+
 
 # Enable JSON output by default
 # json: false

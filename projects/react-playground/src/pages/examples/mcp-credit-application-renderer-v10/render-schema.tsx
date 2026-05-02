@@ -72,18 +72,9 @@ const ExistingLoanItemForm: FC<{ control: FormProxy<ExistingLoanItem> }> = ({ co
 const CoBorrowerItemForm: FC<{ control: FormProxy<CoBorrowerItem> }> = ({ control }) => (
   <Box className="space-y-3">
     <Box className="grid grid-cols-3 gap-3">
-      <FormField
-        control={control.personalData.lastName}
-        testId="step5.coBorrower.lastName"
-      />
-      <FormField
-        control={control.personalData.firstName}
-        testId="step5.coBorrower.firstName"
-      />
-      <FormField
-        control={control.personalData.middleName}
-        testId="step5.coBorrower.middleName"
-      />
+      <FormField control={control.personalData.lastName} testId="step5.coBorrower.lastName" />
+      <FormField control={control.personalData.firstName} testId="step5.coBorrower.firstName" />
+      <FormField control={control.personalData.middleName} testId="step5.coBorrower.middleName" />
     </Box>
     <FormField control={control.personalData.birthDate} testId="step5.coBorrower.birthDate" />
     <Box className="grid grid-cols-2 gap-3">
@@ -736,29 +727,31 @@ export function createCreditApplicationRenderSchema(
   form: FormProxy<CreditApplicationForm>,
   onSubmit: (values: CreditApplicationForm) => Promise<unknown> | unknown
 ): RenderSchemaProxy<CreditApplicationForm> {
-  const schema = createRenderSchema<CreditApplicationForm>((path: FieldPath<CreditApplicationForm>) => {
-    // Build step bodies as RenderNode<T> sub-trees using `path.X` (FieldPathNode).
-    // These are passed into ui-kit FormWizard which wraps them in <RenderNodeComponent>.
-    const steps: FormWizardStep<CreditApplicationForm>[] = [
-      { number: 1, title: 'Кредит', icon: '💰', body: buildStep1Body(path) },
-      { number: 2, title: 'Данные', icon: '👤', body: buildStep2Body(path) },
-      { number: 3, title: 'Контакты', icon: '📞', body: buildStep3Body(path) },
-      { number: 4, title: 'Работа', icon: '💼', body: buildStep4Body(path) },
-      { number: 5, title: 'Доп. инфо', icon: '📋', body: buildStep5Body(path) },
-      { number: 6, title: 'Подтверждение', icon: '✓', body: buildStep6Body(path) },
-    ];
+  const schema = createRenderSchema<CreditApplicationForm>(
+    (path: FieldPath<CreditApplicationForm>) => {
+      // Build step bodies as RenderNode<T> sub-trees using `path.X` (FieldPathNode).
+      // These are passed into ui-kit FormWizard which wraps them in <RenderNodeComponent>.
+      const steps: FormWizardStep<CreditApplicationForm>[] = [
+        { number: 1, title: 'Кредит', icon: '💰', body: buildStep1Body(path) },
+        { number: 2, title: 'Данные', icon: '👤', body: buildStep2Body(path) },
+        { number: 3, title: 'Контакты', icon: '📞', body: buildStep3Body(path) },
+        { number: 4, title: 'Работа', icon: '💼', body: buildStep4Body(path) },
+        { number: 5, title: 'Доп. инфо', icon: '📋', body: buildStep5Body(path) },
+        { number: 6, title: 'Подтверждение', icon: '✓', body: buildStep6Body(path) },
+      ];
 
-    return {
-      selector: 'wizard-root',
-      component: FormWizard,
-      componentProps: {
-        form,
-        config: { stepValidations: STEP_VALIDATIONS, fullValidation },
-        steps,
-        onSubmit,
-      },
-    } as unknown as RenderNode<CreditApplicationForm>;
-  });
+      return {
+        selector: 'wizard-root',
+        component: FormWizard,
+        componentProps: {
+          form,
+          config: { stepValidations: STEP_VALIDATIONS, fullValidation },
+          steps,
+          onSubmit,
+        },
+      } as unknown as RenderNode<CreditApplicationForm>;
+    }
+  );
 
   return schema;
 }

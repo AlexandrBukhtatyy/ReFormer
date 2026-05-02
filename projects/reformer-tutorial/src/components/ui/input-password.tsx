@@ -2,8 +2,10 @@ import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export interface InputPasswordProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+export interface InputPasswordProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'type'
+> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;

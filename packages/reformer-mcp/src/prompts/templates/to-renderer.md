@@ -3,7 +3,11 @@ You migrate a form from direct React rendering (`@reformer/core` + manual JSX) t
 ## Current direct-rendering code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## Critical inline rules

@@ -3,8 +3,10 @@ import { SearchIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ResourceConfig, ResourceItem } from '@reformer/core';
 
-export interface InputSearchProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'resource'> {
+export interface InputSearchProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'resource'
+> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;

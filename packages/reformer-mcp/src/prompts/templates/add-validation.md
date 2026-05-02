@@ -7,7 +7,11 @@ You add validation to an existing `@reformer/core` form.
 ## Current form code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## Critical inline rules

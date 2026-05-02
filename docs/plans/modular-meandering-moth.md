@@ -13,6 +13,7 @@
 **Принцип работы:** Signal-based реактивность через `@preact/signals-core` — без React.
 
 **Иерархия узлов:**
+
 ```
 FormNode (abstract)
   ├── FieldNode<T>          — одно поле (значение + состояние + валидация)
@@ -40,6 +41,7 @@ FormNode (abstract)
 7. **React-интеграция** через `useFormControl(node)` — подписывается на `@preact/signals-core` через `useSyncExternalStore` (Concurrent Mode безопасно).
 
 **Потоки данных:**
+
 ```
 User Input
   → FieldNode.setValue()
@@ -59,6 +61,7 @@ User Input
 **Три компонента:**
 
 #### FormArray (динамические списки)
+
 ```
 ArrayNode<T>
   ↓
@@ -69,9 +72,11 @@ FormArray.Root (Context provider)
   ├── FormArray.AddButton — добавление с initialValue
   └── FormArray.Count     — счётчик элементов
 ```
+
 - `useFormArray(control)` — hook для полного контроля
 
 #### FormField (одно поле)
+
 ```
 FieldNode<T>
   ↓
@@ -81,10 +86,12 @@ FormField.Root (Context provider → ids, state, aria attrs)
   ├── FormField.Error     — single/multi ошибки с aria-errormessage
   └── FormField.Description — helper text
 ```
+
 - Автоматически вычисляет `aria-*` атрибуты (labelledby, errormessage, required, invalid)
 - `useFormField(control)` — hook возвращает `labelProps`, `controlProps`, `errorProps`
 
 #### FormWizard (многошаговые формы)
+
 ```
 FormProxy<T> + config
   ↓
@@ -99,6 +106,7 @@ FormWizard (Root — Context provider)
 ```
 
 **Алгоритм goToNextStep:**
+
 1. Применяет `stepValidations[currentStep]` к форме
 2. Если invalid → touchAll() + return false
 3. Добавляет в completedSteps → переходит на следующий step
@@ -127,6 +135,7 @@ FormWizard (Root — Context provider)
 | `AsyncBoundary` | 3-состояния | loading / error / ready |
 
 **FormField** — ключевой компонент ui-kit, интегрирует CDK:
+
 ```tsx
 function FormField({ control }) {
   // Использует @reformer/cdk:
@@ -141,13 +150,15 @@ function FormField({ control }) {
 **Принцип работы:** Принимает `RenderSchemaFn<T>` → строит дерево узлов → рекурсивно рендерит через `RenderNodeComponent`.
 
 **Типы узлов схемы:**
+
 ```typescript
-type RenderNode<T> = 
-  | FieldRenderNode          // { component: path.email }
-  | ContainerRenderNode<T>   // { component: Box, children: [...] }
+type RenderNode<T> =
+  | FieldRenderNode // { component: path.email }
+  | ContainerRenderNode<T>; // { component: Box, children: [...] }
 ```
 
 **Программное управление — RenderSchemaProxy:**
+
 ```typescript
 const schema = createRenderSchema<T>((path) => ({...}));
 
@@ -155,9 +166,11 @@ const schema = createRenderSchema<T>((path) => ({...}));
 schema.node('email-field').setHidden(true);
 schema.node('email-field').patchProps({ className: 'col-span-2' });
 ```
+
 Версионирование через `Signal<number>` — инкремент версии триггерит перерисовку.
 
 **Behavior API:**
+
 - `hideWhen(node, () => condition)` — реактивное условие на Preact сигналах
 - `renderEffect(schema, effectFn)` — эффект на сигналах
 - `onComponentEvent(node, 'onSubmit', handler)` — делегирование событий
@@ -170,6 +183,7 @@ schema.node('email-field').patchProps({ className: 'col-span-2' });
 **Принцип работы:** JSON Schema → Registry lookup → `createRenderSchemaFromJson` → `FormRenderer`.
 
 **Конвертация JSON → RenderSchema:**
+
 ```
 { model: "email" }          → FieldRenderNode (path.email)
 { component: "Box", ... }   → ContainerRenderNode (Box component)
@@ -179,6 +193,7 @@ schema.node('email-field').patchProps({ className: 'col-span-2' });
 ```
 
 **Registry система:**
+
 ```typescript
 const registry = defineRegistry((reg) => {
   reg.field('Input', Input);
@@ -188,6 +203,7 @@ const registry = defineRegistry((reg) => {
 ```
 
 **Context inheritance:**
+
 ```
 <JsonRendererProvider settings={{ registry: globalRegistry }}>
   <JsonRendererProvider settings={{ registry: localRegistry }}>
@@ -197,6 +213,7 @@ const registry = defineRegistry((reg) => {
 ```
 
 **FIELD_WRAPPER константа:** специальное имя в registry для регистрации обёртки поля:
+
 ```typescript
 reg.container(FIELD_WRAPPER, FormField);
 // Будет использоваться как fieldWrapper для всех полей
@@ -250,20 +267,25 @@ reg.container(FIELD_WRAPPER, FormField);
 ### 3.1 `@reformer/core` — критические улучшения
 
 #### [HIGH] Отсутствует встроенный механизм dirty-tracking на уровне GroupNode
+
 **Проблема:** `dirty` на GroupNode — агрегированное OR по всем детям. Нельзя узнать, какие конкретно поля изменились.
 **Решение:** Добавить `getDirtyFields(): Partial<T>` — возвращает только изменённые поля.
 
 #### [HIGH] ArrayNode не поддерживает reorder операцию
+
 **Проблема:** Есть `insert/push/removeAt`, но нет `move(from, to)` / `reorder(indices)`.
 **Решение:** Добавить `move(fromIndex: number, toIndex: number): void`.
 
 #### [MEDIUM] Отсутствует cross-form связь (форма B зависит от формы A)
+
 **Проблема:** `behavior` работает только внутри одной формы. Для межформенных зависимостей нужны ручные `effect()`.
 **Решение:** Добавить `watchExternal(signal: ReadonlySignal<T>, callback)` в BehaviorRegistry.
 
 #### [MEDIUM] `validate()` не возвращает список невалидных полей
+
 **Проблема:** `await form.validate()` возвращает `boolean`. При ошибке неизвестно, какие поля провалили валидацию.
 **Решение:**
+
 ```typescript
 interface ValidationResult {
   valid: boolean;
@@ -274,14 +296,17 @@ async validateDetailed(): Promise<ValidationResult>
 ```
 
 #### [MEDIUM] Нет поддержки dependent validators (валидатор B зависит от значения поля A)
+
 **Проблема:** `validateTree` существует, но громоздко для простых случаев. Частый паттерн — "confirmPassword === password".
 **Решение:** Добавить `equalTo(path.confirmPassword, path.password, { message: 'Passwords must match' })` как встроенный валидатор.
 
 #### [LOW] Нет debounce для `transformValue`
+
 **Проблема:** `transformValue` запускается синхронно на каждый keystroke, что дорого для сложных трансформаций.
 **Решение:** Добавить `{ debounce?: number }` в `TransformValueOptions`.
 
 #### [LOW] `resetToInitial()` — неочевидное vs `reset()` различие
+
 **Проблема:** Разработчики путают `reset()` (сбрасывает к переданному значению или к defaultValue) vs `resetToInitial()` (сбрасывает к значению на момент создания).
 **Решение:** Переименовать: `reset()` → `resetToDefault()`, `resetToInitial()` → `reset()`. Или улучшить JSDoc с примерами.
 
@@ -290,8 +315,10 @@ async validateDetailed(): Promise<ValidationResult>
 ### 3.2 `@reformer/cdk` — улучшения API
 
 #### [HIGH] FormWizard не поддерживает async onStepChange
+
 **Проблема:** `onStepChange?: (step: number) => void` — синхронный. Нельзя сохранять данные между шагами (например, сохранение draft на каждый шаг).
 **Решение:**
+
 ```typescript
 onStepChange?: (step: number) => void | Promise<void>;
 // + новый prop:
@@ -299,19 +326,24 @@ onStepChangeError?: (error: Error) => void;
 ```
 
 #### [HIGH] FormArray не поддерживает drag-and-drop reorder из коробки
+
 **Проблема:** Нет `move()` в ArrayNode (см. выше), и FormArray не предоставляет drag-and-drop API.
 **Решение:** После добавления `ArrayNode.move()`, добавить `FormArray.DragHandle` компонент + `onReorder` callback.
 
 #### [MEDIUM] FormField.Control теряет ref при auto-render режиме
+
 **Проблема:** В режиме `<FormField.Control />` (auto-render) нельзя получить ref на actual input.
 **Решение:** Добавить `ref` forwarding в FormField.Root или `FormField.Control`:
+
 ```typescript
 <FormField.Root control={control} ref={inputRef}>
 ```
 
 #### [MEDIUM] FormWizard.Step не поддерживает условный skip шага
+
 **Проблема:** Нет способа пропустить шаг на основе значений формы (например, шаг "Адрес ипотеки" — только для mortgage).
 **Решение:**
+
 ```typescript
 <FormWizard.Step skip={() => form.loanType.value.value !== 'mortgage'}>
   <MortgageStep />
@@ -319,10 +351,12 @@ onStepChangeError?: (error: Error) => void;
 ```
 
 #### [LOW] FormArray.List не поддерживает виртуализацию для больших списков
+
 **Проблема:** При 100+ элементах всё рендерится в DOM.
 **Решение:** Добавить `virtual` prop с интеграцией `@tanstack/virtual` или `react-window`.
 
 #### [LOW] useFormArray / useFormField не экспортируют типы возвращаемых значений
+
 **Проблема:** Разработчик не может написать `const state: UseFormArrayReturn<T>` без импорта.
 **Решение:** Экспортировать `UseFormArrayReturn<T>`, `UseFormFieldReturn<T>` из index.
 
@@ -331,36 +365,44 @@ onStepChangeError?: (error: Error) => void;
 ### 3.3 `@reformer/ui-kit` — улучшения компонентов
 
 #### [HIGH] InputMask — псевдо-реализация, не применяет маску
+
 **Проблема:** `InputMask` принимает `mask: string`, но фактически не применяет маску к вводу.
 **Решение:** Реализовать настоящую маску или подключить `react-imask` / `react-input-mask`:
+
 ```typescript
 import { IMaskInput } from 'react-imask';
 // Поддержка: date, phone, number, custom regex маски
 ```
 
 #### [HIGH] Select не поддерживает multi-select
+
 **Проблема:** Только single value. Частый use-case — выбор нескольких тегов/категорий.
 **Решение:**
+
 ```typescript
 interface SelectProps {
-  multiple?: boolean;       // включает multi-select
+  multiple?: boolean; // включает multi-select
   value: string | string[]; // union type при multiple
   onChange: (value: string | string[]) => void;
 }
 ```
 
 #### [MEDIUM] FormField не поддерживает кастомный pending контент
+
 **Проблема:** Захардкожен текст `"Проверка..."` для async валидации.
 **Решение:**
+
 ```typescript
 interface FormFieldProps {
-  pendingContent?: ReactNode;  // default: <span>Проверка...</span>
+  pendingContent?: ReactNode; // default: <span>Проверка...</span>
 }
 ```
 
 #### [MEDIUM] Button отсутствует `loading` состояние
+
 **Проблема:** Для асинхронных действий (submit формы) нет встроенного loading spinner.
 **Решение:**
+
 ```typescript
 interface ButtonProps {
   loading?: boolean;
@@ -369,12 +411,15 @@ interface ButtonProps {
 ```
 
 #### [MEDIUM] Select.resource — нет кеширования результатов
+
 **Проблема:** При `type: 'preload'` данные загружаются каждый раз при mount компонента.
 **Решение:** Добавить простой кеш (Map по ключу опций) или поддержку `staleTime`.
 
 #### [LOW] Checkbox не поддерживает indeterminate состояние
+
 **Проблема:** Для tree-select UI нужен `indeterminate`.
 **Решение:**
+
 ```typescript
 interface CheckboxProps {
   value: boolean | 'indeterminate';
@@ -382,6 +427,7 @@ interface CheckboxProps {
 ```
 
 #### [LOW] Нет компонента DatePicker
+
 **Проблема:** Отсутствует базовый date input, хотя core поддерживает `Date` тип и `minDate/maxDate` валидаторы.
 **Решение:** Добавить `DatePicker` на основе `@radix-ui/react-popover` + `react-day-picker`.
 
@@ -390,12 +436,15 @@ interface CheckboxProps {
 ### 3.4 `@reformer/renderer-react` — улучшения рендерера
 
 #### [HIGH] Отсутствует поддержка Suspense/ErrorBoundary
+
 **Проблема:** При ошибке в `renderEffect` или async операции падает весь рендерер.
 **Решение:** Обернуть `FormRenderer` в ErrorBoundary по умолчанию с пропом `fallback`.
 
 #### [HIGH] RenderSchemaProxy.node() — нет TypeScript типизации для конкретного узла
+
 **Проблема:** `schema.node('email').patchProps(...)` — props не типизированы.
 **Решение:**
+
 ```typescript
 // Generics для типизированного доступа
 const schema = createRenderSchema<MyForm, {
@@ -407,8 +456,10 @@ schema.node('email-field').patchProps({ placeholder: 'Enter email' }); // тип
 ```
 
 #### [MEDIUM] hideWhen не поддерживает анимации (mount/unmount)
+
 **Проблема:** При скрытии узла он полностью unmount-ится, нет возможности добавить fade-out анимацию.
 **Решение:** Добавить `animateWhen` behavior:
+
 ```typescript
 animateWhen(schema.node('section'), {
   condition: () => form.loanType.value.value === 'mortgage',
@@ -418,13 +469,16 @@ animateWhen(schema.node('section'), {
 ```
 
 #### [MEDIUM] Нет поддержки conditional children в ContainerRenderNode
+
 **Проблема:** Нельзя добавить/убрать ребёнка программно — только всю ноду целиком.
 **Решение:** Добавить поддержку `children` override в `patchProps`:
+
 ```typescript
 schema.node('container').patchProps({ children: [...] });
 ```
 
 #### [LOW] onInit/onMount вызываются каждый раз при ре-рендере родителя
+
 **Проблема:** Lifecycle hooks не привязаны к конкретному mount/unmount цикла.
 **Решение:** Использовать `useEffect(() => { onInit(); return onUnmount; }, [])` как в обычном React.
 
@@ -433,43 +487,50 @@ schema.node('container').patchProps({ children: [...] });
 ### 3.5 `@reformer/renderer-json` — улучшения JSON рендерера
 
 #### [HIGH] JSON Schema не валидируется
+
 **Проблема:** Передача `{ model: "nonExistentField" }` не даёт ошибку — просто ничего не рендерится.
 **Решение:** Добавить опциональную валидацию схемы (zod-based):
+
 ```typescript
 function validateJsonSchema(schema: JsonFormSchema, form: GroupNode<T>): ValidationResult;
 // + dev-mode warnings в консоль
 ```
 
 #### [HIGH] Нет поддержки динамических массивов в JSON Schema
+
 **Проблема:** Нет декларативного способа описать `FormArray` в JSON — только через кастомный registry container.
 **Решение:** Добавить специальный тип узла:
+
 ```json
 {
   "type": "array",
   "model": "addresses",
   "itemTemplate": {
     "component": "Section",
-    "children": [
-      { "model": "city" }
-    ]
+    "children": [{ "model": "city" }]
   }
 }
 ```
 
 #### [MEDIUM] $template не поддерживает вложенные $template
+
 **Проблема:** Нельзя вложить `$template` внутрь другого `$template`.
 **Решение:** Добавить рекурсивную обработку в `transformPropValue`.
 
 #### [MEDIUM] defineRegistry не поддерживает aliases
+
 **Проблема:** Нельзя зарегистрировать `'TextArea'` как alias для `'Textarea'`.
 **Решение:**
+
 ```typescript
 reg.alias('TextArea', 'Textarea');
 ```
 
 #### [LOW] JSON Schema не поддерживает условные children (if/then/else)
+
 **Проблема:** Для условного рендеринга секций нужен behavior. В самой JSON схеме нет декларативного условия.
 **Решение:** Добавить `condition` поле:
+
 ```json
 {
   "component": "Section",
@@ -479,6 +540,7 @@ reg.alias('TextArea', 'Textarea');
 ```
 
 #### [LOW] Нет hot-reload поддержки для JSON схемы
+
 **Проблема:** При изменении JSON схемы (например, CMS-driven) компонент полностью перемонтируется.
 **Решение:** Добавить diffing алгоритм — обновлять только изменённые узлы без полного ре-монта.
 
@@ -487,24 +549,28 @@ reg.alias('TextArea', 'Textarea');
 ## 4. ПРИОРИТИЗИРОВАННЫЙ ПЛАН УЛУЧШЕНИЙ
 
 ### Sprint 1 — Критические функциональные пробелы
+
 1. `ArrayNode.move(from, to)` → `FormArray` drag-and-drop support
 2. Реальная реализация `InputMask` (react-imask)
 3. `Select` multi-select поддержка
 4. JSON Schema валидация с dev-mode warnings
 
 ### Sprint 2 — Developer Experience
+
 5. `validateDetailed()` возвращает список невалидных полей
 6. `equalTo()` validator для confirm-password паттерна
 7. `DatePicker` компонент
 8. Экспорт типов `UseFormArrayReturn<T>`, `UseFormFieldReturn<T>`
 
 ### Sprint 3 — Performance & Advanced
+
 9. `FormArray` виртуализация (tanstack virtual)
 10. `FormWizard.Step` skip условие
 11. `Button` loading состояние
 12. Динамические массивы в JSON Schema (`"type": "array"`)
 
 ### Sprint 4 — Polishing
+
 13. `Checkbox` indeterminate состояние
 14. `hideWhen` с анимациями
 15. `defineRegistry` aliases
@@ -515,6 +581,7 @@ reg.alias('TextArea', 'Textarea');
 ## 5. ВЕРИФИКАЦИЯ АНАЛИЗА
 
 Данный анализ основан на чтении исходного кода всех пакетов:
+
 - `packages/reformer/src/` — core (nodes, validation, behavior, hooks)
 - `packages/reformer-cdk/src/components/` — cdk (form-array, form-field, form-wizard)
 - `packages/reformer-ui-kit/src/components/ui/` — ui-kit (14 компонентов)
@@ -522,6 +589,7 @@ reg.alias('TextArea', 'Textarea');
 - `packages/reformer-renderer-json/src/` — renderer-json
 
 Для верификации рекомендаций:
+
 1. `packages/reformer/src/core/nodes/array-node.ts` — проверить наличие `move()`
 2. `packages/reformer-ui-kit/src/components/ui/input-mask.tsx` — убедиться в псевдо-реализации
 3. `packages/reformer-ui-kit/src/components/ui/select.tsx` — убедиться в отсутствии multi

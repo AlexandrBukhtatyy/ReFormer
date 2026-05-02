@@ -8,12 +8,7 @@
 
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
 export type Gender = 'male' | 'female';
-export type EmploymentStatus =
-  | 'employed'
-  | 'selfEmployed'
-  | 'unemployed'
-  | 'retired'
-  | 'student';
+export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
 export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial' | 'car' | 'other';

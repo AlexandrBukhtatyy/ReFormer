@@ -314,12 +314,7 @@ export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 
 ```tsx title="reformer-tutorial/src/components/ui/FormArrayManager.tsx"
 import type { ComponentType } from 'react';
-import {
-  useFormControl,
-  type ArrayNode,
-  type FormFields,
-  type FormProxy,
-} from '@reformer/core';
+import { useFormControl, type ArrayNode, type FormFields, type FormProxy } from '@reformer/core';
 import { Button } from '@/components/ui/button';
 
 interface FormArrayManagerProps {

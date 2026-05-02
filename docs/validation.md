@@ -99,7 +99,7 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
     if (value !== ctx.form.password.value.value) {
       return {
         code: 'mismatch',
-        message: 'Пароли не совпадают'
+        message: 'Пароли не совпадают',
       };
     }
     return null;
@@ -136,13 +136,11 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
     path.email,
     async (value, options) => {
       const response = await fetch(`/api/check-email?email=${value}`, {
-        signal: options?.signal // Поддержка отмены
+        signal: options?.signal, // Поддержка отмены
       });
       const { exists } = await response.json();
 
-      return exists
-        ? { code: 'taken', message: 'Email уже занят' }
-        : null;
+      return exists ? { code: 'taken', message: 'Email уже занят' } : null;
     },
     { debounce: 500 }
   );
@@ -217,14 +215,14 @@ const validation: ValidationSchemaFn<RegistrationForm> = (path) => {
 
 ```typescript
 // Доступные сигналы
-field.valid.value      // true если нет ошибок
-field.invalid.value    // true если есть ошибки
-field.pending.value    // true если идёт async валидация
-field.errors.value     // ValidationError[]
-field.status.value     // 'valid' | 'invalid' | 'pending' | 'disabled'
+field.valid.value; // true если нет ошибок
+field.invalid.value; // true если есть ошибки
+field.pending.value; // true если идёт async валидация
+field.errors.value; // ValidationError[]
+field.status.value; // 'valid' | 'invalid' | 'pending' | 'disabled'
 
 // Показывать ли ошибку пользователю
-field.shouldShowError.value  // invalid && (touched || dirty)
+field.shouldShowError.value; // invalid && (touched || dirty)
 ```
 
 ---
@@ -233,9 +231,9 @@ field.shouldShowError.value  // invalid && (touched || dirty)
 
 ```typescript
 interface ValidationError {
-  code: string;      // Уникальный код ошибки
-  message: string;   // Сообщение для пользователя
-  path?: string;     // Путь к полю (для вложенных)
+  code: string; // Уникальный код ошибки
+  message: string; // Сообщение для пользователя
+  path?: string; // Путь к полю (для вложенных)
 }
 ```
 
@@ -269,6 +267,7 @@ const validation: ValidationSchemaFn<any> = (path: any) => { ... };
 ```
 
 `(path: any)` иногда требуется как обход TS2589 для очень глубоких форм или редких mismatches типов (например, `min(field)` ждёт `number | undefined`, а ваше поле `number | null`). В таких случаях:
+
 - сначала **попробуй типизировать** — TS обычно справляется.
 - если падает — **сузь cast до конкретного call-site** (`min(path.X as never, ...)`), а не на весь callback `(path: any)`.
 - крайний случай — `(path: any)` с **комментарием почему** (один TS issue line + reference на baseline).
@@ -279,9 +278,13 @@ const validation: ValidationSchemaFn<any> = (path: any) => { ... };
 
 ```typescript
 // ✅ нормально для 1-2 строк
-applyWhen(path.loanType, (t) => t === 'mortgage', (p) => {
-  required(p.propertyValue);
-});
+applyWhen(
+  path.loanType,
+  (t) => t === 'mortgage',
+  (p) => {
+    required(p.propertyValue);
+  }
+);
 ```
 
 **Extracted module-level function** (предпочтительно для cross-field, computeFrom, многошаговых validate):
@@ -298,20 +301,21 @@ function validateLoanCap(form: CreditApplicationForm): ValidationError | null {
 }
 
 const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validateTree<CreditApplicationForm>(
-    (ctx) => validateLoanCap(ctx.form.getValue()),
-    { targetField: 'loanAmount' },
-  );
+  validateTree<CreditApplicationForm>((ctx) => validateLoanCap(ctx.form.getValue()), {
+    targetField: 'loanAmount',
+  });
 };
 ```
 
 **Когда extract обязателен:**
+
 - callback >5 строк или содержит несколько return-веток;
 - callback переиспользуется в нескольких блоках (DRY);
 - inline-arrow в `computeFrom([...], target, callback)` — TS теряет inference и просит `(values: any)`. Module-level функция с явной сигнатурой `(form: T) => Result` инферится без cast.
 - cross-field валидация, которая читает несколько полей формы — extracted функция читается легче.
 
 **Inline OK когда:**
+
 - predicate на 1 значение (`(t) => t === 'mortgage'`);
 - single-field validate с одной проверкой (`(value: boolean) => value === true ? null : {...}`);
 - applyWhen-body c 2-3 `required` вызовами без ветвлений.

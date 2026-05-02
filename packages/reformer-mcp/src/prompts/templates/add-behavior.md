@@ -7,7 +7,11 @@ You add behaviors to a `@reformer/core` form.
 ## Current form code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## ⛔ Critical inline rules — CYCLE PREVENTION (do not skip)
@@ -49,24 +53,20 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
 
 10. **`computeFrom` source-subscription rule** — values-объект, который computeFn получает, строится по **last-segment keys** path-источников. Если computeFn читает `form.<group>.<field>` (nested), подписывайся на **group node** (`[path.<group>]`) — values придёт как `{ <group>: { <field>: ... } }`. Если подписаться на отдельные leaves (`[path.<group>.<fieldA>, path.<group>.<fieldB>]`), values станет flat (`{ <fieldA>, <fieldB> }`) — computeFn получит plain object без вложенности и тихо вернёт пустоту/0/undefined. **`as never` cast в `[...sources] as never` — red flag**: если cast скрывает type error в `computeFrom` — это значит subscription mistyped. Зарефактори: либо подписка на group, либо computeFn перепиши под flat shape.
 
-   ```typescript
-   // ❌ silent fail — computeFn видит { lastName, firstName, middleName }, а читает form.personalData.lastName
-   computeFrom<MyForm, string>(
-     [path.personalData.lastName, path.personalData.firstName, path.personalData.middleName] as never,
-     path.fullName,
-     (form) => [form.personalData?.lastName, form.personalData?.firstName].filter(Boolean).join(' ')
-   );
+```typescript
+// ❌ silent fail — computeFn видит { lastName, firstName, middleName }, а читает form.personalData.lastName
+computeFrom<MyForm, string>(
+  [path.personalData.lastName, path.personalData.firstName, path.personalData.middleName] as never,
+  path.fullName,
+  (form) => [form.personalData?.lastName, form.personalData?.firstName].filter(Boolean).join(' ')
+);
 
-   // ✅ group node subscription — computeFn получает { personalData: { lastName, firstName, ... } }
-   computeFrom(
-     [path.personalData],
-     path.fullName,
-     (values) => {
-       const pd = values.personalData;
-       return [pd?.lastName, pd?.firstName, pd?.middleName].filter(Boolean).join(' ').trim();
-     }
-   );
-   ```
+// ✅ group node subscription — computeFn получает { personalData: { lastName, firstName, ... } }
+computeFrom([path.personalData], path.fullName, (values) => {
+  const pd = values.personalData;
+  return [pd?.lastName, pd?.firstName, pd?.middleName].filter(Boolean).join(' ').trim();
+});
+```
 
 11. **Preact Signal двойной `.value` — обязательно при чтении значения из callback'а.** Для FieldNode `field.value` возвращает **сам Signal-объект** (`Signal<T>`), а **текущее значение** — это `field.value.value`. Сравнение `field.value !== 'foo'` — всегда true (Signal `!==` literal), `field.value === true` — всегда false. Тихий silent fail: hideWhen-условие никогда не срабатывает, секция вечно скрыта/видима, errors нет.
 
@@ -95,11 +95,11 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
     ```typescript
     // ❌ FormProxy root — hook падает или возвращает мусор
     useFormControl(form);
-    useFormControl(form.personalData);  // GroupNode — то же самое
+    useFormControl(form.personalData); // GroupNode — то же самое
 
     // ✅ FieldNode (leaf)
     useFormControl(form.loanAmount);
-    const v = useFormControlValue(form.loanType);   // value-only сахар поверх useFormControl
+    const v = useFormControlValue(form.loanType); // value-only сахар поверх useFormControl
     ```
 
     Аналогичные API на FormProxy: `useFormControlValue(field)` — value-only; `form.markAsTouched()` / `form.setValue(partial)` — императивные методы (НЕ хуки). Для отслеживания изменений на нескольких полях — несколько отдельных `useFormControlValue` вызовов, по одному на поле.
@@ -159,7 +159,9 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
     ```typescript
     // ✅ extracted typed helper — TS инферит signature по reference
     function computeMonthlyPayment(form: LoanForm): number {
-      const P = form.loanAmount, n = form.loanTerm, annual = form.interestRate;
+      const P = form.loanAmount,
+        n = form.loanTerm,
+        annual = form.interestRate;
       if (!P || !n || !annual || P <= 0 || n <= 0) return 0;
       const i = annual / 100 / 12;
       if (i <= 0) return Math.round(P / n);
@@ -171,7 +173,7 @@ A reactive cycle hangs the browser at mount. These rules are non-negotiable:
       computeFrom(
         [path.loanAmount, path.loanTerm, path.interestRate],
         path.monthlyPayment,
-        computeMonthlyPayment,  // by-reference, без inline-arrow
+        computeMonthlyPayment // by-reference, без inline-arrow
       );
     };
     ```

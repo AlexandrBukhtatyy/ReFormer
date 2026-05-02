@@ -23,29 +23,29 @@ import { FormArray } from '@reformer/cdk/form-array';
   </FormArray.List>
 
   <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ## Sub-components
 
-| Component | Props | Purpose |
-|-----------|-------|---------|
-| `FormArray.Root` | `control: ArrayNode<T>` | Context provider |
-| `FormArray.List` | `children: (item) => ReactNode` | Iterates items (render props) |
-| `FormArray.AddButton` | `initialValue?: Partial<T>` | Adds new item |
-| `FormArray.RemoveButton` | - | Removes current item (inside List) |
-| `FormArray.Empty` | `children: ReactNode` | Shows when array is empty |
-| `FormArray.Count` | `render?: (count) => ReactNode` | Displays item count |
-| `FormArray.ItemIndex` | `render?: (index) => ReactNode` | Displays current index |
+| Component                | Props                           | Purpose                            |
+| ------------------------ | ------------------------------- | ---------------------------------- |
+| `FormArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
+| `FormArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
+| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item                      |
+| `FormArray.RemoveButton` | -                               | Removes current item (inside List) |
+| `FormArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
+| `FormArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
+| `FormArray.ItemIndex`    | `render?: (index) => ReactNode` | Displays current index             |
 
 ## List Render Props
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: FormProxy<T>;  // Form control for item
-  index: number;                       // Zero-based index
-  id: string | number;                 // Unique key
-  remove: () => void;                  // Remove this item
+  control: FormProxy<T>; // Form control for item
+  index: number; // Zero-based index
+  id: string | number; // Unique key
+  remove: () => void; // Remove this item
 }
 ```
 
@@ -64,7 +64,7 @@ arrayRef.current?.clear();
 
 <FormArray.Root ref={arrayRef} control={form.items}>
   ...
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ## FormArrayHandle API

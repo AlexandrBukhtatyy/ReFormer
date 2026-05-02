@@ -76,10 +76,10 @@ flowchart LR
 
 ### Почему это важно?
 
-| Подход | Изменение 1 поля | Форма с 20 полями |
-|--------|------------------|-------------------|
-| useState | Re-render всех 20 | 20 re-renders |
-| ReFormer | Re-render 1 поля | 1 re-render |
+| Подход   | Изменение 1 поля  | Форма с 20 полями |
+| -------- | ----------------- | ----------------- |
+| useState | Re-render всех 20 | 20 re-renders     |
+| ReFormer | Re-render 1 поля  | 1 re-render       |
 
 ---
 
@@ -123,9 +123,7 @@ this.valid = computed(() => {
 });
 
 // pending = хотя бы один дочерний в состоянии pending
-this.pending = computed(() =>
-  this.getChildren().some((child) => child.pending.value)
-);
+this.pending = computed(() => this.getChildren().some((child) => child.pending.value));
 
 // errors = собственные + все дочерние
 this.errors = computed(() => {

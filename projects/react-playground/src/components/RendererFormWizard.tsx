@@ -18,11 +18,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ReactNode } from 'react';
-import {
-  FormWizard,
-  type FormWizardProps as UiKitFormWizardProps,
-  type FormWizardStep,
-} from '@reformer/ui-kit/form-wizard';
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardConfig, FormWizardHandle } from '@reformer/cdk/form-wizard';
 import type { FormProxy } from '@reformer/core';
 

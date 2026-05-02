@@ -10,11 +10,14 @@
 import { FormArraySection } from '@reformer/ui-kit/form-array';
 import type { FormProxy } from '@reformer/core';
 
-interface Property {
+// ВАЖНО: используйте `type`, не `interface` — иначе тип элемента не
+// удовлетворяет constraint `extends FormFields` (FormFields требует
+// implicit index signature, который interface не даёт).
+type Property = {
   type: 'apartment' | 'house' | 'land';
   description: string;
   estimatedValue: number;
-}
+};
 
 const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   <Section className="space-y-3">
@@ -24,16 +27,27 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
   </Section>
 );
 
+// Type-safe initialValue — generic выводится из control:
 <FormArraySection
-  control={form.properties}                  // FormArrayProxy
-  itemComponent={PropertyForm}                // FC<{ control: FormProxy<Property> }>
+  control={form.properties}                  // FormArrayProxy<Property>
+  itemComponent={PropertyForm}
   title="Имущество"
   addButtonLabel="+ Добавить имущество"
   emptyMessage="Нажмите «Добавить имущество» для добавления записи"
   hasItems={hasProperty}
   initialValue={{ type: 'apartment', description: '', estimatedValue: 0 }}
 />
+
+// Если TS не выводит generic из union-типа control — укажите явно:
+<FormArraySection<Property>
+  control={form.properties}
+  itemComponent={PropertyForm}
+  initialValue={createProperty()}             // Partial<Property> — checked
+/>
 ```
+
+`initialValue` имеет тип `Partial<T>`, где `T` — тип элемента массива.
+Передавайте plain-objects по форме элемента, **не** FieldConfig-объекты.
 
 ## Renderer-react RenderSchema
 
@@ -44,8 +58,8 @@ const renderSchema = (path) => ({
   selector: 'properties-section',
   component: FormArraySection,
   componentProps: {
-    control: path.properties,            // FieldPath → ArrayNode
-    itemComponent: PropertyForm,          // FC напрямую
+    control: path.properties, // FieldPath → ArrayNode
+    itemComponent: PropertyForm, // FC напрямую
     title: 'Имущество',
     addButtonLabel: '+ Добавить имущество',
   },
@@ -72,11 +86,11 @@ defineRegistry((reg) => {
 {
   "component": "FormArraySection",
   "componentProps": {
-    "control": "properties",                  // строка → FieldPath
-    "itemComponent": "PropertyForm",          // string → registry lookup → FC
+    "control": "properties", // строка → FieldPath
+    "itemComponent": "PropertyForm", // string → registry lookup → FC
     "title": "Имущество",
-    "addButtonLabel": "+ Добавить имущество"
-  }
+    "addButtonLabel": "+ Добавить имущество",
+  },
 }
 ```
 
@@ -94,14 +108,22 @@ defineRegistry((reg) => {
         "component": "Section",
         "componentProps": { "className": "space-y-3" },
         "children": [
-          { "model": "type", "component": "Select", "componentProps": { "label": "Тип", "options": "PROPERTY_TYPES" } },
+          {
+            "model": "type",
+            "component": "Select",
+            "componentProps": { "label": "Тип", "options": "PROPERTY_TYPES" },
+          },
           { "model": "description", "component": "Textarea" },
-          { "model": "estimatedValue", "component": "Input", "componentProps": { "type": "number" } }
-        ]
-      }
+          {
+            "model": "estimatedValue",
+            "component": "Input",
+            "componentProps": { "type": "number" },
+          },
+        ],
+      },
     },
-    "title": "Имущество"
-  }
+    "title": "Имущество",
+  },
 }
 ```
 
@@ -109,20 +131,20 @@ defineRegistry((reg) => {
 
 ## Props (полный список)
 
-| Prop | Type | Default | Описание |
-|---|---|---|---|
-| `control` | `FormArrayProxy<T> \| ArrayNode<T> \| FieldPathNode` | required | Массив для управления |
-| `itemComponent` | `ComponentType<{ control: FormProxy<T> }>` | required | FC для рендера каждого item |
-| `title` | `string` | — | Заголовок секции (h3) |
-| `itemLabel` | `string \| (control, index) => string` | — | Метка над каждым item |
-| `addButtonLabel` | `string` | `'+ Добавить'` | Текст кнопки добавления |
-| `removeButtonLabel` | `string` | `'Удалить'` | Текст кнопки удаления |
-| `emptyMessage` | `string` | — | Сообщение при пустом массиве |
-| `emptyMessageHint` | `string` | — | Подсказка под emptyMessage |
-| `hasItems` | `boolean` | — | `false` → секция полностью скрыта |
-| `initialValue` | `Partial<FormFields>` | — | Plain-leaf значения для новых items |
-| `maxItems` | `number` | — | Максимум items (AddButton отключается) |
-| `showRemoveOnSingle` | `boolean` | `false` | Показывать «Удалить» при одном item |
+| Prop                 | Type                                                 | Default        | Описание                               |
+| -------------------- | ---------------------------------------------------- | -------------- | -------------------------------------- |
+| `control`            | `FormArrayProxy<T> \| ArrayNode<T> \| FieldPathNode` | required       | Массив для управления                  |
+| `itemComponent`      | `ComponentType<{ control: FormProxy<T> }>`           | required       | FC для рендера каждого item            |
+| `title`              | `string`                                             | —              | Заголовок секции (h3)                  |
+| `itemLabel`          | `string \| (control, index) => string`               | —              | Метка над каждым item                  |
+| `addButtonLabel`     | `string`                                             | `'+ Добавить'` | Текст кнопки добавления                |
+| `removeButtonLabel`  | `string`                                             | `'Удалить'`    | Текст кнопки удаления                  |
+| `emptyMessage`       | `string`                                             | —              | Сообщение при пустом массиве           |
+| `emptyMessageHint`   | `string`                                             | —              | Подсказка под emptyMessage             |
+| `hasItems`           | `boolean`                                            | —              | `false` → секция полностью скрыта      |
+| `initialValue`       | `Partial<FormFields>`                                | —              | Plain-leaf значения для новых items    |
+| `maxItems`           | `number`                                             | —              | Максимум items (AddButton отключается) |
+| `showRemoveOnSingle` | `boolean`                                            | `false`        | Показывать «Удалить» при одном item    |
 
 ## Critical: `initialValue` — PLAIN LEAVES ONLY
 

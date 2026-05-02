@@ -3,6 +3,7 @@
 MCP (Model Context Protocol) server для библиотеки `@reformer/*`. Снабжает ИИ-ассистентов (Claude Code, Cursor, другие MCP-клиенты) per-package документацией, JSDoc-индексом публичных символов и эталонными примерами форм.
 
 См. сопутствующие документы:
+
 - [docs/llms-convention.md](../../docs/llms-convention.md) — конвенция документации.
 - [AGENTS.md](../../AGENTS.md) — инструкции для агентов.
 
@@ -40,19 +41,19 @@ claude mcp list
 
 ## Available Tools
 
-| Tool | Always | Description |
-|------|--------|-------------|
-| `get_symbol_docs` | ✅ | Полный JSDoc публичного символа любого `@reformer/*` (description, signature, params, type params, returns, все `@example`, deprecated, see, source). |
-| `find_recipe` | ✅ | Найти рецепт по `topic` в библиотечной документации (`docs/llms/` всех `@reformer/*`) или fallback в `@example` JSDoc публичного символа. Поиск каскадный: имя файла → `## ` секция → имя символа. |
-| `report_issue` | ✅ | Сохранить найденную проблему и её решение в `~/.reformer/issues.jsonl` для последующего анализа. |
-| `debug` | под флагом `REFORMER_DEBUG=true` | Внутренний инструмент для разработки самого сервера. |
+| Tool              | Always                           | Description                                                                                                                                                                                        |
+| ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_symbol_docs` | ✅                               | Полный JSDoc публичного символа любого `@reformer/*` (description, signature, params, type params, returns, все `@example`, deprecated, see, source).                                              |
+| `find_recipe`     | ✅                               | Найти рецепт по `topic` в библиотечной документации (`docs/llms/` всех `@reformer/*`) или fallback в `@example` JSDoc публичного символа. Поиск каскадный: имя файла → `## ` секция → имя символа. |
+| `report_issue`    | ✅                               | Сохранить найденную проблему и её решение в `~/.reformer/issues.jsonl` для последующего анализа.                                                                                                   |
+| `debug`           | под флагом `REFORMER_DEBUG=true` | Внутренний инструмент для разработки самого сервера.                                                                                                                                               |
 
 ### `get_symbol_docs`
 
 ```jsonc
 {
   "symbol": "useFormControl",
-  "package": "@reformer/core"   // optional: '*' (default) — поиск во всех пакетах
+  "package": "@reformer/core", // optional: '*' (default) — поиск во всех пакетах
 }
 ```
 
@@ -60,8 +61,8 @@ claude mcp list
 
 ```jsonc
 {
-  "topic": "copy-from",         // имя файла docs/llms/, заголовок секции, или имя символа
-  "package": "@reformer/core"   // optional, '*' (default) — все пакеты
+  "topic": "copy-from", // имя файла docs/llms/, заголовок секции, или имя символа
+  "package": "@reformer/core", // optional, '*' (default) — все пакеты
 }
 ```
 
@@ -78,17 +79,17 @@ URI-шаблон: `reformer://<category>[/<short-package>]`.
 `<category>` — один из: `docs`, `api`, `examples`, `troubleshooting`.
 `<short-package>` — без префикса `@reformer/`: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `mcp`. Опционален — без него возвращается агрегированное по всем пакетам.
 
-| URI | Что внутри |
-|-----|-----------|
-| `reformer://docs` | Документация всех `@reformer/*` пакетов, склеенная. |
-| `reformer://docs/cdk` | Только `@reformer/cdk`: overview, FormArray, FormWizard, FormField, recipes, troubleshooting. |
-| `reformer://docs/ui-kit` | Только `@reformer/ui-kit`: text-fields, choice-fields, layout/buttons, form-field-integration, troubleshooting. |
-| `reformer://docs/renderer-json` | Только `@reformer/renderer-json`: JSON schema, registry, cookbook, troubleshooting. |
-| `reformer://api` | Список всех публичных символов из JSDoc (kind + одна строка описания), агрегировано. |
-| `reformer://api/core` | Список ~141 публичного символа `@reformer/core` (включая `behaviors.*` и `validators.*`). |
-| `reformer://examples[/<pkg>]` | Сниппеты кода из docs (по теме или общий). |
-| `reformer://troubleshooting[/<pkg>]` | Частые проблемы и решения (12 для cdk, 8 для renderer-json, 11 для ui-kit, …). |
-| `reformer://debug` | Только в debug-режиме. |
+| URI                                  | Что внутри                                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `reformer://docs`                    | Документация всех `@reformer/*` пакетов, склеенная.                                                             |
+| `reformer://docs/cdk`                | Только `@reformer/cdk`: overview, FormArray, FormWizard, FormField, recipes, troubleshooting.                   |
+| `reformer://docs/ui-kit`             | Только `@reformer/ui-kit`: text-fields, choice-fields, layout/buttons, form-field-integration, troubleshooting. |
+| `reformer://docs/renderer-json`      | Только `@reformer/renderer-json`: JSON schema, registry, cookbook, troubleshooting.                             |
+| `reformer://api`                     | Список всех публичных символов из JSDoc (kind + одна строка описания), агрегировано.                            |
+| `reformer://api/core`                | Список ~141 публичного символа `@reformer/core` (включая `behaviors.*` и `validators.*`).                       |
+| `reformer://examples[/<pkg>]`        | Сниппеты кода из docs (по теме или общий).                                                                      |
+| `reformer://troubleshooting[/<pkg>]` | Частые проблемы и решения (12 для cdk, 8 для renderer-json, 11 для ui-kit, …).                                  |
+| `reformer://debug`                   | Только в debug-режиме.                                                                                          |
 
 ## Available Prompts
 
@@ -96,22 +97,22 @@ URI-шаблон: `reformer://<category>[/<short-package>]`.
 
 ### Assist (всегда доступны)
 
-| Prompt | Аргументы | Что делает |
-|--------|-----------|-----------|
-| `create-form` | `description` (required), `target` (`core` / `renderer-react` / `renderer-json`, default `core`) | Спроектировать и сгенерировать новую форму по описанию полей. Подгружает quick-start, FormSchema, импорты + при `target=renderer-*` соответствующий обвязочный пакет. |
-| `add-validation` | `code` (required), `requirements` (required) | Подобрать built-in/кастомные/async/cross-field валидаторы под требования. Подгружает справочник валидаторов, async-watchfield, common-mistakes. |
-| `add-behavior` | `code` (required), `requirements` (required) | Выбрать и встроить behavior (`computeFrom`/`enableWhen`/`watchField`/`copyFrom`/`syncFields`/`resetWhen`/`transformValue`/`revalidateWhen`). Подгружает все рецепты + cycle-detection. |
-| `add-form-array` | `code` (required), `requirements` (required) | Превратить поле в массив через `array(...)` + `FormArray` UI. Подгружает array-operations, array-cleanup, FormArray compound API. |
-| `add-wizard` | `code` (required), `steps` (required) | Превратить single-form в multi-step `FormWizard`. Подгружает multi-step стратегию из core + FormWizard compound API + recipes. |
-| `to-renderer` | `code` (required) | Мигрировать форму с прямого React-рендеринга (`@reformer/core` + ручной JSX) на TS RenderSchema через `@reformer/renderer-react`. Подгружает quick-start, RenderSchema формат, behavior helpers, cookbook. |
-| `to-renderer-json` | `code` (required) | Мигрировать TS RenderSchema → JsonFormSchema + Registry. Подгружает migration cookbook, JSON-format, registry rules. |
+| Prompt             | Аргументы                                                                                        | Что делает                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `create-form`      | `description` (required), `target` (`core` / `renderer-react` / `renderer-json`, default `core`) | Спроектировать и сгенерировать новую форму по описанию полей. Подгружает quick-start, FormSchema, импорты + при `target=renderer-*` соответствующий обвязочный пакет.                                      |
+| `add-validation`   | `code` (required), `requirements` (required)                                                     | Подобрать built-in/кастомные/async/cross-field валидаторы под требования. Подгружает справочник валидаторов, async-watchfield, common-mistakes.                                                            |
+| `add-behavior`     | `code` (required), `requirements` (required)                                                     | Выбрать и встроить behavior (`computeFrom`/`enableWhen`/`watchField`/`copyFrom`/`syncFields`/`resetWhen`/`transformValue`/`revalidateWhen`). Подгружает все рецепты + cycle-detection.                     |
+| `add-form-array`   | `code` (required), `requirements` (required)                                                     | Превратить поле в массив через `array(...)` + `FormArray` UI. Подгружает array-operations, array-cleanup, FormArray compound API.                                                                          |
+| `add-wizard`       | `code` (required), `steps` (required)                                                            | Превратить single-form в multi-step `FormWizard`. Подгружает multi-step стратегию из core + FormWizard compound API + recipes.                                                                             |
+| `to-renderer`      | `code` (required)                                                                                | Мигрировать форму с прямого React-рендеринга (`@reformer/core` + ручной JSX) на TS RenderSchema через `@reformer/renderer-react`. Подгружает quick-start, RenderSchema формат, behavior helpers, cookbook. |
+| `to-renderer-json` | `code` (required)                                                                                | Мигрировать TS RenderSchema → JsonFormSchema + Registry. Подгружает migration cookbook, JSON-format, registry rules.                                                                                       |
 
 ### Analyze
 
-| Prompt | Always | Аргументы | Что делает |
-|--------|--------|-----------|-----------|
-| `review` | ✅ | `code` (required) | Кросс-пакетный чек-лист код-ревью: state setup, React integration, CDK/UI-kit/renderers, errors. Подгружает anti-patterns и troubleshooting из всех пакетов. |
-| `debug` | под флагом `REFORMER_DEBUG=true` | `code` (required) | Анализ кода формы по чек-листу из `@reformer/core` troubleshooting. |
+| Prompt   | Always                           | Аргументы         | Что делает                                                                                                                                                   |
+| -------- | -------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `review` | ✅                               | `code` (required) | Кросс-пакетный чек-лист код-ревью: state setup, React integration, CDK/UI-kit/renderers, errors. Подгружает anti-patterns и troubleshooting из всех пакетов. |
+| `debug`  | под флагом `REFORMER_DEBUG=true` | `code` (required) | Анализ кода формы по чек-листу из `@reformer/core` troubleshooting.                                                                                          |
 
 ## Development
 
@@ -148,11 +149,11 @@ REFORMER_DEBUG=true node packages/reformer-mcp/dist/index.js
 
 Что добавляется:
 
-| Type | Name | Description |
-|------|------|-------------|
-| Tool | `debug` | Внутренний tool для тестирования сервера (читает любую секцию docs). |
-| Resource | `reformer://debug` | Список доступных пакетов (что нашёл парсер). |
-| Prompt | `debug` | Чек-лист анализа кода форм. |
+| Type     | Name               | Description                                                          |
+| -------- | ------------------ | -------------------------------------------------------------------- |
+| Tool     | `debug`            | Внутренний tool для тестирования сервера (читает любую секцию docs). |
+| Resource | `reformer://debug` | Список доступных пакетов (что нашёл парсер).                         |
+| Prompt   | `debug`            | Чек-лист анализа кода форм.                                          |
 
 В обычном режиме эти три отсутствуют в `listTools` / `listResources` / `listPrompts`.
 
@@ -176,6 +177,7 @@ REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-m
 ### Чек-лист ручной проверки
 
 **Resources** (4 aggregated + 4×6 per-package):
+
 - `reformer://docs` — длинный markdown с разделителями `# ===== @reformer/<pkg> =====`.
 - `reformer://docs/cdk` — содержит `FormArray` и новые секции `04-form-field`, `05-recipes`, `06-troubleshooting`.
 - `reformer://docs/ui-kit` — содержит `02-text-fields` … `06-troubleshooting`.
@@ -184,6 +186,7 @@ REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-m
 - `reformer://examples/renderer-json` — содержит `$template`.
 
 **Tools:**
+
 - `get_symbol_docs` → `{ "symbol": "copyFrom" }` → ответ содержит ≥ 2 блока `@example`.
 - `find_recipe` → `{ "topic": "copy-from" }` → ответ содержит секцию из `@reformer/core` `23-copy-from.md`.
 - `find_recipe` → `{ "topic": "wizard" }` → возвращает рецепт wizard'а из `@reformer/cdk` (по имени файла либо секции).
@@ -192,6 +195,7 @@ REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-m
 - `report_issue` → можно отправить тестовый — запишется в `~/.reformer/issues.jsonl`.
 
 **Prompts:**
+
 - `review` → render с любым кодом → messages с кросс-пакетным чек-листом.
 - `debug` (только в debug-режиме) → render с кодом формы → анализ по `@reformer/core` troubleshooting.
 

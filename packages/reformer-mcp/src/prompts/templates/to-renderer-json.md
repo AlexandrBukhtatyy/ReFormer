@@ -3,7 +3,11 @@ You migrate a form from `@reformer/renderer-react` (TS RenderSchema) to `@reform
 ## Current TS code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## Critical inline rules
@@ -17,7 +21,7 @@ You migrate a form from `@reformer/renderer-react` (TS RenderSchema) to `@reform
 - **Arrays via `$template`**: `{ component: 'PropertyArray', componentProps: { itemComponent: { $template: { ... } } } }`. Inside template selectors omit parent prefix.
 - **Behavior does NOT migrate to JSON** — stays a TS function `RenderBehaviorFn<T>` applied to the final `RenderSchemaProxy` (apply after `createRenderSchemaFromJson` + `createRenderSchema`).
 - **`control` prop** (e.g. for `RendererFormArraySection`): `{ control: 'fieldName' }` — string FieldPath. Array indices in `control` not supported.
-- **`testId` is bare** (e.g. `'step1.loanAmount'`), never pre-prefixed with `input-`. Renderer auto-prefixes when emitting `data-testid="input-${testId}"`. If your JSON-builder helper does `testId: \`input-${id}\`` you get double-prefixed `input-input-step1.X` and all playwright selectors silently miss.
+- **`testId` is bare** (e.g. `'step1.loanAmount'`), never pre-prefixed with `input-`. Renderer auto-prefixes when emitting `data-testid="input-${testId}"`. If your JSON-builder helper does `testId: \`input-${id}\``you get double-prefixed`input-input-step1.X` and all playwright selectors silently miss.
 - **NEVER combine `model:` with a container `component`.** `model:` is the discriminator for «leaf field» — converter ignores `component` and treats the node as a field bound to that path. If you need a container that is **bound to a form path** (FormArraySection, custom array UIs), drop `model:` and pass the path through `componentProps.control: '<path>'` instead. The converter's string-resolver handles `control` / `*Control` componentProps automatically (resolves string → FieldPath / FormProxy).
 
   ```jsonc

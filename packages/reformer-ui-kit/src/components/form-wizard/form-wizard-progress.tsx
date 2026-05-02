@@ -10,8 +10,6 @@ import type { FC, ReactNode } from 'react';
 import type { FormWizardProgressRenderProps } from '@reformer/cdk/form-wizard';
 import { cn } from '../../lib/utils';
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 export interface FormWizardProgressProps extends FormWizardProgressRenderProps {
   className?: string;
   format?: (props: FormWizardProgressRenderProps) => ReactNode;

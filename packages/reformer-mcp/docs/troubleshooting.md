@@ -9,12 +9,15 @@ Common issues and solutions for the ReFormer MCP server.
 **Cause:** Global npm package not in PATH
 
 **Solutions:**
+
 1. Use npx instead:
+
    ```bash
    claude mcp add --transport stdio reformer -- npx @reformer/mcp
    ```
 
 2. Check npm global bin path:
+
    ```bash
    npm config get prefix
    # Add the bin folder to your PATH
@@ -31,6 +34,7 @@ Common issues and solutions for the ReFormer MCP server.
 **Cause:** Dependencies not installed
 
 **Solution:**
+
 ```bash
 cd packages/reformer-mcp
 npm install
@@ -44,12 +48,15 @@ npm run build
 **Symptoms:** No response from MCP server
 
 **Check:**
+
 1. Node.js version (requires 18+):
+
    ```bash
    node --version
    ```
 
 2. Build status:
+
    ```bash
    cd packages/reformer-mcp
    npm run build
@@ -66,12 +73,15 @@ npm run build
 **Cause:** llms.txt file cannot be located
 
 **Solutions:**
+
 1. Install @reformer/core in your project:
+
    ```bash
    npm install @reformer/core
    ```
 
 2. Run from monorepo root:
+
    ```bash
    cd /path/to/ReFormer
    node packages/reformer-mcp/dist/index.js
@@ -91,7 +101,9 @@ npm run build
 **Cause:** Registration failed
 
 **Solutions:**
+
 1. Re-register with full path:
+
    ```bash
    claude mcp remove reformer
    claude mcp add --transport stdio reformer -- node /full/path/to/dist/index.js
@@ -108,13 +120,16 @@ npm run build
 **Symptoms:** Claude doesn't use ReFormer tools
 
 **Solutions:**
+
 1. Restart Claude Code:
+
    ```bash
    # Exit Claude Code (Ctrl+C)
    claude
    ```
 
 2. Verify server is running:
+
    ```bash
    claude mcp list
    ```
@@ -130,6 +145,7 @@ npm run build
 **Cause:** Version mismatch or incomplete build
 
 **Solution:**
+
 ```bash
 cd packages/reformer-mcp
 npm run build
@@ -146,6 +162,7 @@ claude mcp add --transport stdio reformer -- node ./dist/index.js
 **Cause:** `REFORMER_DEBUG` environment variable not set
 
 **Solution:**
+
 ```bash
 # Re-register with debug mode
 claude mcp remove reformer
@@ -167,7 +184,9 @@ REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
 ### TypeScript compilation errors
 
 **Check:**
+
 1. TypeScript version:
+
    ```bash
    npx tsc --version
    ```
@@ -183,7 +202,9 @@ REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
 **Cause:** Using cached version
 
 **Solution:**
+
 1. Rebuild:
+
    ```bash
    npm run build
    ```
@@ -199,6 +220,7 @@ REFORMER_DEBUG=true npx mcp-inspector node ./dist/index.js
 ### Enable verbose logging
 
 Add to your server code:
+
 ```typescript
 console.error('Debug:', JSON.stringify(data, null, 2));
 ```
@@ -206,16 +228,19 @@ console.error('Debug:', JSON.stringify(data, null, 2));
 ### View MCP logs
 
 **Windows:**
+
 ```powershell
 Get-Content ~\AppData\Roaming\Claude\logs\mcp.log -Tail 100 -Wait
 ```
 
 **macOS:**
+
 ```bash
 tail -f ~/Library/Logs/Claude/mcp.log
 ```
 
 **Linux:**
+
 ```bash
 tail -f ~/.config/Claude/logs/mcp.log
 ```
@@ -230,16 +255,19 @@ npx mcp-inspector node ./dist/index.js
 ## Common Error Messages
 
 ### "ENOENT: no such file or directory"
+
 - File path is incorrect
 - Build was not run
 - Working directory is wrong
 
 ### "SyntaxError: Cannot use import statement"
+
 - Node.js doesn't support ESM
 - Check `"type": "module"` in package.json
 - Use Node.js 18+
 
 ### "TypeError: Cannot read properties of undefined"
+
 - Tool arguments not provided
 - Documentation file not found
 - Invalid JSON-RPC request

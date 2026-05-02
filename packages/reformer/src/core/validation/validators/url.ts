@@ -36,8 +36,8 @@ export function url<TForm, TField extends string | undefined = string>(
   if (!fieldPath) return; // Защита от undefined fieldPath
 
   // URL regex с опциональным протоколом
-  const urlRegexWithProtocol = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-  const urlRegexRequireProtocol = /^https?:\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+  const urlRegexWithProtocol = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+  const urlRegexRequireProtocol = /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
 
   validate(fieldPath, (value) => {
     if (!value) {

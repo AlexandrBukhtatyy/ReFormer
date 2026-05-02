@@ -1004,34 +1004,9 @@ _Source: src/components/form-array/FormArray.tsx_
 
 **Kind:** `const`
 
-FormArray.AddButton - Button to add new items to the array
-
 **Signature:**
 ```typescript
 export const FormArrayAddButton
-```
-
-**Examples:**
-
-Basic usage
-```tsx
-<FormArray.AddButton className="btn-primary">
-+ Add Item
-</FormArray.AddButton>
-```
-
-With initial value
-```tsx
-<FormArray.AddButton initialValue={{ status: 'draft' }}>
-Add Draft
-</FormArray.AddButton>
-```
-
-With custom button (asChild)
-```tsx
-<FormArray.AddButton asChild initialValue={{ name: '' }}>
-<MyButton variant="primary">+ Add Item</MyButton>
-</FormArray.AddButton>
 ```
 
 _Source: src/components/form-array/FormArrayAddButton.tsx_
@@ -1042,14 +1017,19 @@ _Source: src/components/form-array/FormArrayAddButton.tsx_
 
 Props for FormArray.AddButton component
 
+Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий) —
+для совместимости. Для type-safe initialValue передавайте generic явно
+(`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
+`FormArraySection<T>` из `@reformer/ui-kit`.
+
 **Signature:**
 ```typescript
-export interface FormArrayAddButtonProps extends Omit<
+export interface FormArrayAddButtonProps<T extends FormFields = FormFields> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
   /** Initial value for the new item */
-  initialValue?: Partial<FormFields>;
+  initialValue?: Partial<T>;
   /** Custom render function for the button */
   asChild?: boolean;
 }

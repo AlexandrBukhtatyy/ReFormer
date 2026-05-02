@@ -29,6 +29,7 @@ import {
 ## Quick Start
 
 > **CRITICAL gotchas** (renderer-json shares the renderer-react architecture):
+>
 > 1. `getReformerForm` does NOT exist — use `createForm` from `@reformer/core`.
 > 2. `JsonFormRenderer` does NOT accept a `form` prop. `JsonFormRendererProps<T>` is `{ schema, renderBehavior?, onSchemaReady? }`. Field-nodes silently render as null unless the schema's root container is a user-defined component (registered with `__selfManagedChildren = true`) that takes the form via `componentProps` and forwards it down via `RenderNodeComponent`.
 > 3. The pattern mirrors renderer-react's FormRoot — see `@reformer/renderer-react/docs/llms/01-overview.md` for the full FormRoot snippet. Same component can be reused; just register it in the JSON registry under any name (e.g. `'FormRoot'`).
@@ -59,17 +60,22 @@ type MyForm = FormFields & { email: string };
 const jsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
-    component: 'FormRoot',  // user-defined, registered below
+    component: 'FormRoot', // user-defined, registered below
     children: [
-      { selector: 'email', model: 'email', component: 'Input',
-        componentProps: { label: 'Email' } },
+      { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email' } },
     ],
   },
 };
 
 // 2. FormRoot — same as renderer-react FormRoot. Forwards form to children.
 function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
-  return <>{children.map((c, i) => <RenderNodeComponent key={i} node={c} form={form} />)}</>;
+  return (
+    <>
+      {children.map((c, i) => (
+        <RenderNodeComponent key={i} node={c} form={form} />
+      ))}
+    </>
+  );
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (FormRoot as any).__selfManagedChildren = true;
@@ -112,16 +118,16 @@ function MyFormPage() {
 
 ## Components and exports
 
-| Export                      | Purpose                                                                |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `JsonFormRenderer`          | Главный компонент-рендерер схемы.                                      |
-| `JsonRendererProvider`      | Контекст-провайдер: реестр и настройки.                                |
-| `useJsonRendererSettings`   | Хук для чтения текущих настроек контекста.                             |
-| `defineRegistry`            | Builder реестра компонентов и source-значений.                         |
-| `FIELD_WRAPPER`             | Ключ реестра для компонента-обёртки полей.                             |
-| `JsonFormSchema`, `JsonNode`| Типы JSON-схемы.                                                        |
-| `isFieldNode`, `isContainerNode` | Type guards для работы с узлами.                                  |
-| `createRenderSchemaFromJson`| Низкоуровневый конвертер JSON → render-schema (advanced use cases).    |
+| Export                           | Purpose                                                             |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `JsonFormRenderer`               | Главный компонент-рендерер схемы.                                   |
+| `JsonRendererProvider`           | Контекст-провайдер: реестр и настройки.                             |
+| `useJsonRendererSettings`        | Хук для чтения текущих настроек контекста.                          |
+| `defineRegistry`                 | Builder реестра компонентов и source-значений.                      |
+| `FIELD_WRAPPER`                  | Ключ реестра для компонента-обёртки полей.                          |
+| `JsonFormSchema`, `JsonNode`     | Типы JSON-схемы.                                                    |
+| `isFieldNode`, `isContainerNode` | Type guards для работы с узлами.                                    |
+| `createRenderSchemaFromJson`     | Низкоуровневый конвертер JSON → render-schema (advanced use cases). |
 
 ## See also
 

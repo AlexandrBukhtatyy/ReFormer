@@ -30,7 +30,7 @@ export interface GetSymbolDocsArgs {
 }
 
 export async function getSymbolDocsTool(
-  args: GetSymbolDocsArgs,
+  args: GetSymbolDocsArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   const sym = findSymbol(args.symbol, args.package ?? '*');
   if (!sym) {

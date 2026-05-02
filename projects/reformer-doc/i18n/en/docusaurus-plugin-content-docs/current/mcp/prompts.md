@@ -22,6 +22,7 @@ Create a registration form with email, password, and confirm password
 ```
 
 **What gets generated:**
+
 1. TypeScript interface for the form
 2. Form schema (FormSchema) with components
 3. Validation rules (ValidationSchema)
@@ -30,6 +31,7 @@ Create a registration form with email, password, and confirm password
 **Workflow:**
 
 AI sequentially uses tools:
+
 1. `get_recommended_structure` — project structure
 2. `generate_types` — TypeScript types
 3. `generate_schema` — form schema
@@ -59,6 +61,7 @@ Create a credit application form with steps:
 ```
 
 **Features:**
+
 - Separation into steps with individual schemas
 - Navigation between steps
 - Validation of each step separately
@@ -81,6 +84,7 @@ Create an order form with a dynamic list of items (name, quantity, price) and au
 ```
 
 **Features:**
+
 - Using ArrayNode
 - Adding/removing elements
 - Computed fields (subtotal, total)
@@ -111,6 +115,7 @@ Add a check that password and confirmation match
 ```
 
 **Capabilities:**
+
 - Add built-in validators
 - Create custom validators
 - Async validation
@@ -142,6 +147,7 @@ Copy billingAddress to shippingAddress when sameAddress checkbox is checked
 ```
 
 **Capabilities:**
+
 - `computeFrom` — computed fields
 - `enableWhen` / `disableWhen` — conditional enabling
 - `watchField` — react to changes
@@ -169,6 +175,7 @@ Why doesn't my form show validation errors?
 ```
 
 **What gets checked:**
+
 - Use of `useMemo` for `createForm`
 - Correct `useFormControl` and `useFormControlValue` usage
 - Type and schema matching

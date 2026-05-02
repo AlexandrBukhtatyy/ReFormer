@@ -95,16 +95,16 @@ const toolDefinition = {
   inputSchema: {
     type: 'object',
     properties: {
-      param: { type: 'string', description: 'Parameter description' }
+      param: { type: 'string', description: 'Parameter description' },
     },
-    required: ['param']
-  }
+    required: ['param'],
+  },
 };
 
 // Handler
 async function myTool(args: { param: string }) {
   return {
-    content: [{ type: 'text', text: 'Result' }]
+    content: [{ type: 'text', text: 'Result' }],
   };
 }
 ```
@@ -120,13 +120,13 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       uri: 'my://resource',
       name: 'My Resource',
       description: 'Description',
-      mimeType: 'text/markdown'
-    }
-  ]
+      mimeType: 'text/markdown',
+    },
+  ],
 }));
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => ({
-  contents: [{ uri: request.params.uri, text: 'Content' }]
+  contents: [{ uri: request.params.uri, text: 'Content' }],
 }));
 ```
 
@@ -138,17 +138,17 @@ Prompts are pre-built templates:
 const promptDefinition = {
   name: 'my-prompt',
   description: 'What the prompt does',
-  arguments: [
-    { name: 'input', description: 'Input description', required: true }
-  ]
+  arguments: [{ name: 'input', description: 'Input description', required: true }],
 };
 
 function getMyPrompt(args: { input: string }) {
   return {
-    messages: [{
-      role: 'user',
-      content: { type: 'text', text: `Context...\n\n${args.input}` }
-    }]
+    messages: [
+      {
+        role: 'user',
+        content: { type: 'text', text: `Context...\n\n${args.input}` },
+      },
+    ],
   };
 }
 ```
@@ -161,7 +161,7 @@ function getMyPrompt(args: { input: string }) {
 export const myToolDefinition = {
   name: 'my_tool',
   description: 'Description',
-  inputSchema: { type: 'object', properties: {}, required: [] }
+  inputSchema: { type: 'object', properties: {}, required: [] },
 };
 
 export async function myTool() {
@@ -213,12 +213,12 @@ live in resources, not in the prompt. Compression vs the 1.x format: between
 
 The server declares `sampling: {}` and uses it in four places:
 
-| Where | When it fires | Purpose |
-|---|---|---|
-| `create-form`, `plan-form` | `args.target` is missing | classify `core` / `renderer-react` / `renderer-json` from description + deps |
-| `project-detector.renderStackDetectionBlockAsync` | `projectRoot` found but no `@reformer/ui-kit` and no Tailwind | guess UI library + styling system from `package.json` deps |
-| `plan-form` | always (when sampling supported) | extract complex spec patterns the regex parser misses (cross-step cascades, conditional groups, hidden steps) |
-| `discover-context` prompt | always | one batched call returning a JSON `{ target, uiKit, styling, validation, async }` recommendation |
+| Where                                             | When it fires                                                 | Purpose                                                                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `create-form`, `plan-form`                        | `args.target` is missing                                      | classify `core` / `renderer-react` / `renderer-json` from description + deps                                  |
+| `project-detector.renderStackDetectionBlockAsync` | `projectRoot` found but no `@reformer/ui-kit` and no Tailwind | guess UI library + styling system from `package.json` deps                                                    |
+| `plan-form`                                       | always (when sampling supported)                              | extract complex spec patterns the regex parser misses (cross-step cascades, conditional groups, hidden steps) |
+| `discover-context` prompt                         | always                                                        | one batched call returning a JSON `{ target, uiKit, styling, validation, async }` recommendation              |
 
 Each call routes through `requestSampling()` in
 [src/utils/sampling.ts](../src/utils/sampling.ts) which:
@@ -263,9 +263,11 @@ below for the rationale.
    You are doing X. Context:
 
    ## Task
+
    {{task}}
 
    ## Reference
+
    {{referenceDocs}}
    ```
 
@@ -278,9 +280,7 @@ below for the rationale.
    export const myPromptDefinition = {
      name: 'my-prompt',
      description: 'Description',
-     arguments: [
-       { name: 'task', description: 'Task description', required: true },
-     ],
+     arguments: [{ name: 'task', description: 'Task description', required: true }],
    };
 
    export function getMyPrompt(args: { task: string }): {
@@ -323,10 +323,10 @@ Prompt bodies grew to hundreds of lines of template-literal text mixed with
 `getSection()` calls and ternaries. Splitting them keeps each concern in its
 natural file:
 
-- **`src/prompts/<name>.ts`** owns the *definition* (name/description/arguments),
+- **`src/prompts/<name>.ts`** owns the _definition_ (name/description/arguments),
   variable assembly (`getSection`/`detectProjectStack`/precomputed conditional
   blocks) and the MCP message envelope.
-- **`src/prompts/templates/<name>.md`** owns the *content* — markdown with
+- **`src/prompts/templates/<name>.md`** owns the _content_ — markdown with
   syntax highlighting in IDE preview, prettier-friendly, diff-friendly.
 
 The template name passed to `renderPromptTemplate(name, vars)` matches the
@@ -391,11 +391,13 @@ spread (`settings={{ fieldWrapper: FormField }}`) or Vue/Liquid examples in a
 fenced code block — Handlebars in strict mode will treat it as an undefined
 helper invocation and throw. Wrap the offending line(s) in a raw block:
 
-```markdown
-   ```tsx
-   {{{{raw}}}}<FormRenderer settings={{ fieldWrapper: FormField }} />{{{{/raw}}}}
-   ```
+````markdown
+```tsx
+{{{{raw}}}}<FormRenderer settings={{ fieldWrapper: FormField }} />{{{{/raw}}}}
 ```
+````
+
+````
 
 Before adding a new prompt, grep its TS source for literal `{{` (anything not
 inside a `${…}` interpolation) and decide which lines to wrap. Top files to
@@ -413,7 +415,7 @@ const text = renderPromptTemplate('add-behavior', {
   watchField:     getSection('Async', '@reformer/core'),
   // …
 });
-```
+````
 
 ### Build pipeline
 

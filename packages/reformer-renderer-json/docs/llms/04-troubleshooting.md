@@ -3,6 +3,7 @@
 ## Component "X" not found in registry
 
 Имя из `component` поля схемы не зарегистрировано в реестре. Проверь:
+
 - `defineRegistry` действительно содержит `reg.field('X', ...)` или `reg.container('X', ...)`.
 - `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
 - Если используются вложенные провайдеры — реестр внутреннего провайдера наследуется через `withParent`, но дубли разрешаются в пользу внешнего.
@@ -21,6 +22,7 @@ reg.container(FIELD_WRAPPER, FormField);
 ## Cannot read field at path "..."
 
 Путь в `model` не соответствует реальной структуре формы. Проверь:
+
 - `model: 'personalData.firstName'` — поле `firstName` существует внутри `personalData` в `getReformerForm`.
 - Для массивов: индекс должен существовать на момент рендера, иначе `convertNode` бросит ошибку.
 
@@ -43,6 +45,7 @@ reg.container(FIELD_WRAPPER, FormField);
 ## $template inside array doesn't render rows
 
 Проверь:
+
 - Содержащий узел использует `model` для привязки к массиву формы.
 - `componentProps.itemComponent` действительно `{ $template: { ... } }`, а не сразу `JsonNode`.
 - Зарегистрирован контейнер-компонент (например `PropertyArray`), который умеет работать с `itemComponent`.
@@ -54,6 +57,7 @@ reg.container(FIELD_WRAPPER, FormField);
 Это **path mismatch** между схемой и FormProxy. Кастомный block-компонент (например `PropertiesArrayBlock`) вызвал `useFormControl(form.X.Y)` по пути, которого в форме нет (опечатка, или sub-form-схема изменена и поле уехало в другой шаг).
 
 Что проверить:
+
 1. Полный путь в `useFormControl(form.<step>.<field>)` совпадает с путём в `createForm({ form: { <step>: { <field>: ... } } })`.
 2. Если поле **должно жить в step5**, не помещай его в step4 ради «удобства группировки» — кастомный block, написанный под «toggle живёт в step5», крашится.
 3. Block ОБЯЗАН быть defensive:

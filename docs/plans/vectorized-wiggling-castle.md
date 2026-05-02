@@ -1,20 +1,22 @@
 # План рефакторинга Core модуля ReFormer
 
 ## Цель
+
 Агрессивный рефакторинг `packages/reformer/src/core/` с сохранением:
+
 - **Контрактов**: FieldPath, FormContext, FormProxy, публичный API узлов
 - **Сигналов**: value, errors, valid, invalid, pending, touched, dirty, status
 
 ## Ключевые проблемы
 
-| Проблема | Файлы | Влияние |
-|----------|-------|---------|
-| GroupNode слишком большой (729 строк) | `nodes/group-node.ts` | Сложность поддержки |
-| Дублирование в Registry | `behavior-registry.ts`, `validation-registry.ts` | ~100 строк дублирования |
-| queueMicrotask повторяется в behaviors | `behaviors/*.ts` | Boilerplate |
-| Статусы разбросаны по узлам | `field-node.ts`, `group-node.ts` | Сложно отлаживать |
-| Eager initialization Proxy | `group-node.ts:236` | Производительность |
-| Неконсистентная обработка ошибок | Разные подходы | Отладка |
+| Проблема                               | Файлы                                            | Влияние                 |
+| -------------------------------------- | ------------------------------------------------ | ----------------------- |
+| GroupNode слишком большой (729 строк)  | `nodes/group-node.ts`                            | Сложность поддержки     |
+| Дублирование в Registry                | `behavior-registry.ts`, `validation-registry.ts` | ~100 строк дублирования |
+| queueMicrotask повторяется в behaviors | `behaviors/*.ts`                                 | Boilerplate             |
+| Статусы разбросаны по узлам            | `field-node.ts`, `group-node.ts`                 | Сложно отлаживать       |
+| Eager initialization Proxy             | `group-node.ts:236`                              | Производительность      |
+| Неконсистентная обработка ошибок       | Разные подходы                                   | Отладка                 |
 
 ---
 
@@ -25,7 +27,9 @@
 **Файл:** `core/utils/safe-effect.ts` (новый)
 
 ```typescript
-export function safeEffectCallback<T>(callback: (value: T) => void | Promise<void>): (value: T) => void {
+export function safeEffectCallback<T>(
+  callback: (value: T) => void | Promise<void>
+): (value: T) => void {
   return (value: T) => {
     queueMicrotask(() => callback(value));
   };
@@ -33,6 +37,7 @@ export function safeEffectCallback<T>(callback: (value: T) => void | Promise<voi
 ```
 
 **Изменить:** все behaviors в `core/behavior/behaviors/`:
+
 - `watch-field.ts`
 - `compute-from.ts`
 - `copy-from.ts`
@@ -66,6 +71,7 @@ getProxy(): FormProxy<T> {
 **Файл:** `core/utils/error-handler.ts` (существует)
 
 Заменить все `console.warn` на `FormErrorHandler`:
+
 - `array-node.ts:147-149`
 - `validation-registry.ts:341-343`
 
@@ -152,6 +158,7 @@ export class BehaviorRegistry extends AbstractRegistry<RegisteredBehavior> {
 **Файл:** `core/behavior/behavior-applicator.ts` (новый)
 
 Извлечь из GroupNode:
+
 - `applyBehaviorSchema()`
 - Взаимодействие с BehaviorRegistry
 
@@ -181,6 +188,7 @@ export class BehaviorApplicator<T extends FormFields> {
 **Файл:** `core/utils/form-submitter.ts` (новый)
 
 Извлечь из GroupNode:
+
 - `submit()`
 - `_submitting` signal
 - Touch all + validate logic
@@ -211,6 +219,7 @@ export class FormSubmitter<T extends FormFields> {
 ### 3.3 Обновлённый GroupNode
 
 После извлечения GroupNode уменьшится на ~150-200 строк:
+
 - BehaviorApplicator: ~30 строк
 - FormSubmitter: ~20 строк
 - Lazy Proxy: ~5 строк
@@ -308,7 +317,7 @@ export function createAggregateSignals<T>(options: AggregateSignalsOptions<T>): 
 
   // Кэширование состояний для fine-grained reactivity
   const childStates = computed(() =>
-    children.value.map(c => ({
+    children.value.map((c) => ({
       valid: c.valid.value,
       pending: c.pending.value,
       touched: c.touched.value,
@@ -320,7 +329,7 @@ export function createAggregateSignals<T>(options: AggregateSignalsOptions<T>): 
   // Теперь computed зависят от childStates, а не от каждого ребёнка напрямую
   const valid = computed(() => {
     if (ownErrors.value.length > 0) return false;
-    return childStates.value.every(s => s.valid);
+    return childStates.value.every((s) => s.valid);
   });
 
   // ... остальные signals
@@ -362,6 +371,7 @@ export class FormObserver<T extends FormFields> {
 ## Файлы для изменения
 
 ### Новые файлы
+
 - `core/utils/safe-effect.ts`
 - `core/utils/abstract-registry.ts`
 - `core/utils/status-machine.ts`
@@ -370,6 +380,7 @@ export class FormObserver<T extends FormFields> {
 - `core/behavior/behavior-applicator.ts`
 
 ### Изменяемые файлы
+
 - `core/nodes/group-node.ts` - декомпозиция, lazy proxy
 - `core/nodes/field-node.ts` - интеграция StatusMachine
 - `core/nodes/array-node.ts` - error handling
@@ -411,16 +422,19 @@ export class FormObserver<T extends FormFields> {
 ## Верификация
 
 ### Unit Tests
+
 ```bash
 npm run test:core
 ```
 
 ### Integration Tests
+
 ```bash
 npm run test:integration
 ```
 
 ### Playground проверка
+
 ```bash
 cd projects/react-playground
 npm run dev
@@ -428,6 +442,7 @@ npm run dev
 ```
 
 ### Типы
+
 ```bash
 npm run typecheck
 ```
@@ -437,6 +452,7 @@ npm run typecheck
 ## Breaking Changes
 
 Публичный API сохраняется полностью. Internal API изменения:
+
 - `BehaviorRegistry` и `ValidationRegistry` наследуют от `AbstractRegistry`
 - `GroupNode._proxyInstance` создаётся лениво
 - Новые utility классы доступны для расширения
@@ -445,9 +461,9 @@ npm run typecheck
 
 ## Ожидаемый результат
 
-| Метрика | До | После |
-|---------|-----|-------|
-| GroupNode строк | ~729 | ~500-550 |
-| Дублирование Registry | ~100 строк | 0 |
-| Boilerplate в behaviors | 6 файлов × 5 строк | 1 утилита |
-| Статус-логика | Разбросана | Централизована |
+| Метрика                 | До                 | После          |
+| ----------------------- | ------------------ | -------------- |
+| GroupNode строк         | ~729               | ~500-550       |
+| Дублирование Registry   | ~100 строк         | 0              |
+| Boilerplate в behaviors | 6 файлов × 5 строк | 1 утилита      |
+| Статус-логика           | Разбросана         | Централизована |

@@ -95,6 +95,8 @@ function waitFor(id, timeoutMs = 30000) {
   process.stderr.write('Helper failed: ' + (err && err.stack ? err.stack : String(err)) + '\n');
   try {
     child.kill();
-  } catch {}
+  } catch {
+    // Ignored: child process already dead.
+  }
   process.exit(1);
 });

@@ -36,11 +36,7 @@ export interface FormArraySectionProps<T extends FormFields> {
    * Резолвится автоматически: уже-резолвленный ArrayNode/FormArrayProxy ИЛИ
    * FieldPathNode (path.<arrayField>) — в этом случае через `form` + navigator.
    */
-  control:
-    | FormArrayProxy<T>
-    | ArrayNode<T>
-    | FieldPathNode<unknown, unknown>
-    | undefined;
+  control: FormArrayProxy<T> | ArrayNode<T> | FieldPathNode<unknown, unknown> | undefined;
 
   /** React FC получает `control: FormProxy<T>` для каждого элемента. */
   itemComponent: ComponentType<{ control: FormProxy<T> }>;
@@ -71,9 +67,13 @@ export interface FormArraySectionProps<T extends FormFields> {
 
   /**
    * Plain-leaf значения для новых items (передаётся в `FormArray.AddButton`).
-   * НЕ FieldConfig — только примитивы по форме item-типа.
+   * НЕ FieldConfig — только примитивы по форме item-типа `T`.
+   *
+   * Тип `Partial<T>` — TS проверит, что initialValue совместим с типом элемента.
+   * Передавайте generic явно для лучшей type-safety:
+   * `<FormArraySection<PropertyItem> initialValue={createPropertyItem()} ...>`.
    */
-  initialValue?: Partial<FormFields>;
+  initialValue?: Partial<T>;
 
   /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
   showRemoveOnSingle?: boolean;
@@ -162,15 +162,18 @@ export function FormArraySection<T extends FormFields>({
   cardClassName = 'mb-4 p-4 bg-white rounded border',
   form,
 }: FormArraySectionProps<T>): ReactNode {
-  if (hasItems === false) return null;
-
   const arrayNode = resolveArrayNode<T>(control, form);
-  if (!arrayNode) return null;
 
   // Subscribe to length so add/remove triggers re-render of empty/full state.
+  // Hook is called unconditionally; for missing arrayNode we pass a no-op
+  // signal-like sentinel and ignore the result.
   const lengthCtrl = useFormControl(
-    arrayNode as unknown as Parameters<typeof useFormControl>[0]
+    (arrayNode ?? undefined) as unknown as Parameters<typeof useFormControl>[0]
   );
+
+  if (hasItems === false) return null;
+  if (!arrayNode) return null;
+
   const length = (lengthCtrl as unknown as { length?: number } | undefined)?.length ?? 0;
   const atMaxItems = maxItems != null && length >= maxItems;
 

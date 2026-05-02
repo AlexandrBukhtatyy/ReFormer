@@ -52,19 +52,16 @@ flowchart LR
 
 ```typescript
 const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
-  computeFrom(
-    [path.price, path.quantity],
-    path.total,
-    (values) => values.price * values.quantity,
-    { debounce: 100 }
-  );
+  computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity, {
+    debounce: 100,
+  });
 };
 ```
 
 ### Опции
 
-| Опция | Тип | Описание |
-|-------|-----|----------|
+| Опция      | Тип      | Описание                        |
+| ---------- | -------- | ------------------------------- |
 | `debounce` | `number` | Задержка перед вычислением (мс) |
 
 ---
@@ -88,24 +85,17 @@ stateDiagram-v2
 ```typescript
 const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
   // Поле активно только если hasDiscount = true
-  enableWhen(
-    path.discountPercent,
-    (form) => form.hasDiscount,
-    { resetOnDisable: true }
-  );
+  enableWhen(path.discountPercent, (form) => form.hasDiscount, { resetOnDisable: true });
 
   // Или наоборот — отключить при условии
-  disableWhen(
-    path.manualTotal,
-    (form) => form.autoCalculate
-  );
+  disableWhen(path.manualTotal, (form) => form.autoCalculate);
 };
 ```
 
 ### Опции
 
-| Опция | Тип | Описание |
-|-------|-----|----------|
+| Опция            | Тип       | Описание                         |
+| ---------------- | --------- | -------------------------------- |
 | `resetOnDisable` | `boolean` | Сбросить значение при отключении |
 
 ---
@@ -135,29 +125,33 @@ sequenceDiagram
 
 ```typescript
 const behavior: BehaviorSchemaFn<AddressForm> = (path) => {
-  watchField(path.country, async (country, ctx) => {
-    if (country) {
-      const cities = await fetchCities(country);
-      ctx.updateComponentProps(path.city, { options: cities });
-      ctx.form.city.setValue(null);
-    }
-  }, { debounce: 300, immediate: false });
+  watchField(
+    path.country,
+    async (country, ctx) => {
+      if (country) {
+        const cities = await fetchCities(country);
+        ctx.updateComponentProps(path.city, { options: cities });
+        ctx.form.city.setValue(null);
+      }
+    },
+    { debounce: 300, immediate: false }
+  );
 };
 ```
 
 ### Опции
 
-| Опция | Тип | Описание |
-|-------|-----|----------|
-| `debounce` | `number` | Задержка перед вызовом (мс) |
+| Опция       | Тип       | Описание                        |
+| ----------- | --------- | ------------------------------- |
+| `debounce`  | `number`  | Задержка перед вызовом (мс)     |
 | `immediate` | `boolean` | Вызвать сразу при инициализации |
 
 ### Контекст (ctx)
 
 ```typescript
 interface WatchFieldContext<T> {
-  form: FormProxy<T>;                    // Доступ к форме
-  updateComponentProps(path, props);     // Обновить props компонента
+  form: FormProxy<T>; // Доступ к форме
+  updateComponentProps(path, props); // Обновить props компонента
 }
 ```
 
@@ -190,11 +184,9 @@ flowchart LR
 
 ```typescript
 const behavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
-  copyFrom(
-    path.shippingAddress,
-    path.billingAddress,
-    { when: (form) => form.useShippingAsBilling }
-  );
+  copyFrom(path.shippingAddress, path.billingAddress, {
+    when: (form) => form.useShippingAsBilling,
+  });
 };
 ```
 
@@ -227,10 +219,7 @@ const behavior: BehaviorSchemaFn<MyForm> = (path) => {
 
 ```typescript
 const behavior: BehaviorSchemaFn<MyForm> = (path) => {
-  resetWhen(
-    path.selectedCity,
-    (form) => form.country !== previousCountry
-  );
+  resetWhen(path.selectedCity, (form) => form.country !== previousCountry);
 };
 ```
 
@@ -282,17 +271,12 @@ const behavior: BehaviorSchemaFn<MyForm> = (path) => {
 ```typescript
 const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
   // 1. Вычисление итога
-  computeFrom(
-    [path.items, path.taxRate],
-    path.subtotal,
-    (v) => v.items.reduce((sum, item) => sum + item.price * item.qty, 0)
+  computeFrom([path.items, path.taxRate], path.subtotal, (v) =>
+    v.items.reduce((sum, item) => sum + item.price * item.qty, 0)
   );
 
   // 2. Скидка активна только при subtotal > 100
-  enableWhen(
-    path.discountCode,
-    (form) => form.subtotal > 100
-  );
+  enableWhen(path.discountCode, (form) => form.subtotal > 100);
 
   // 3. При изменении страны — загрузить города
   watchField(path.country, async (country, ctx) => {
@@ -364,18 +348,20 @@ const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
   computeFrom(
     [path.loanAmount, path.loanTerm, path.interestRate],
     path.monthlyPayment,
-    computeMonthlyPayment,  // референс — TS инферит signature
+    computeMonthlyPayment // референс — TS инферит signature
   );
 };
 ```
 
 **Когда extract обязателен:**
+
 - callback >5 строк или содержит несколько return-веток / try/catch;
 - callback переиспользуется в нескольких behavior-вызовах (DRY);
 - **inline-arrow в `computeFrom([...], target, callback)`** — TS не всегда инферит `values: TForm`, может потребоваться `(values: any)`. Module-level функция с сигнатурой `(form: T) => Result` инферится без cast.
 - async watchField с try/catch на 10+ строк — extracted async-функция читаемее.
 
 **Inline OK когда:**
+
 - predicate в `enableWhen`/`disableWhen`/`copyFrom.when` на 1 значение;
 - watchField с 2-3 строками простой логики;
 - single computeFn на 1 line (`(v) => v.price * v.quantity`).

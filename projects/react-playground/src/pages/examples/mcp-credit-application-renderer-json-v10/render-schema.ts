@@ -285,11 +285,16 @@ const step3: JsonNode = {
               label: 'Квартира',
               placeholder: '№',
             }),
-            f('registrationAddress.postalCode', 'InputMask', 'step3.registrationAddress.postalCode', {
-              label: 'Индекс',
-              placeholder: '000000',
-              mask: '999999',
-            }),
+            f(
+              'registrationAddress.postalCode',
+              'InputMask',
+              'step3.registrationAddress.postalCode',
+              {
+                label: 'Индекс',
+                placeholder: '000000',
+                mask: '999999',
+              }
+            ),
           ],
         },
       ],

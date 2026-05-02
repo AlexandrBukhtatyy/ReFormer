@@ -118,18 +118,18 @@ const form = createForm<MyForm>({
 });
 
 // ✅ TypeScript знает типы
-form.email.setValue('test@mail.com');  // OK
-form.email.setValue(123);               // ❌ Ошибка: number не string
+form.email.setValue('test@mail.com'); // OK
+form.email.setValue(123); // ❌ Ошибка: number не string
 
-form.age.setValue(25);                  // OK
-form.age.setValue('25');                // ❌ Ошибка: string не number
+form.age.setValue(25); // OK
+form.age.setValue('25'); // ❌ Ошибка: string не number
 
-form.address.city.setValue('Moscow');   // OK (вложенные поля)
+form.address.city.setValue('Moscow'); // OK (вложенные поля)
 
 // ✅ Автокомплит работает
-form.email.value.value;     // string
-form.email.valid.value;     // boolean
-form.email.errors.value;    // ValidationError[]
+form.email.value.value; // string
+form.email.valid.value; // boolean
+form.email.errors.value; // ValidationError[]
 ```
 
 ### Типы узлов
@@ -138,11 +138,11 @@ form.email.errors.value;    // ValidationError[]
 type FormProxy<T> = {
   [K in keyof T]: T[K] extends Array<infer U>
     ? U extends object
-      ? ArrayNode<U>           // Массив объектов
-      : FieldNode<T[K]>        // Массив примитивов
+      ? ArrayNode<U> // Массив объектов
+      : FieldNode<T[K]> // Массив примитивов
     : T[K] extends object
-      ? GroupNode<T[K]>        // Вложенный объект
-      : FieldNode<T[K]>;       // Примитив
+      ? GroupNode<T[K]> // Вложенный объект
+      : FieldNode<T[K]>; // Примитив
 };
 ```
 
@@ -171,12 +171,12 @@ validators.validate(path.age, (value) => {
 const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
   // computeFrom знает типы источников и результата
   computeFrom(
-    [path.price, path.quantity],  // number, number
-    path.total,                    // number
+    [path.price, path.quantity], // number, number
+    path.total, // number
     (values) => {
       // values.price: number
       // values.quantity: number
-      return values.price * values.quantity;  // должен вернуть number
+      return values.price * values.quantity; // должен вернуть number
     }
   );
 
@@ -203,9 +203,9 @@ const schema: FormSchema<MyForm> = {
     value: '',
     component: Input,
     componentProps: {
-      label: 'Email',        // ✅ TypeScript проверяет props
-      placeholder: 'Enter',  // ✅ OK
-      invalid: true,         // ❌ Ошибка если не в InputProps
+      label: 'Email', // ✅ TypeScript проверяет props
+      placeholder: 'Enter', // ✅ OK
+      invalid: true, // ❌ Ошибка если не в InputProps
     },
   },
 };

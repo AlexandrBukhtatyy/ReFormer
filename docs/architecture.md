@@ -62,9 +62,15 @@ flowchart TB
 
 ```typescript
 const form = createForm<MyForm>({
-  form: { /* FormSchema */ },
-  validation: (path) => { /* validators */ },
-  behavior: (path) => { /* behaviors */ },
+  form: {
+    /* FormSchema */
+  },
+  validation: (path) => {
+    /* validators */
+  },
+  behavior: (path) => {
+    /* behaviors */
+  },
 });
 ```
 

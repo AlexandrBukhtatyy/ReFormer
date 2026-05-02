@@ -150,7 +150,7 @@ export async function fetchUserProfile(): Promise<UserProfile> {
  * Получить существующую заявку по ID
  * Используется для редактирования заявки
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export async function fetchApplication(_id: string): Promise<ApiApplicationData> {
   await delay(800);
 

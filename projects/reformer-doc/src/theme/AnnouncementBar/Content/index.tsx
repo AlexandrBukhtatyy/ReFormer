@@ -21,7 +21,6 @@ export default function AnnouncementBarContent(props: Props): ReactNode {
     <div
       {...props}
       className={clsx(styles.content, props.className)}
-      // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: content }}
     />
   );

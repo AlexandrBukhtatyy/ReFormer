@@ -10,7 +10,7 @@
 function copyFrom<TForm, TSource, TTarget>(
   source: FieldPathNode<TForm, TSource>,
   target: FieldPathNode<TForm, TTarget>,
-  options?: CopyFromOptions<TSource, TForm>,
+  options?: CopyFromOptions<TSource, TForm>
 ): void;
 
 interface CopyFromOptions<TSource, TForm = unknown> {
@@ -158,7 +158,7 @@ syncFields(path.a, path.b);
 ```typescript
 // ❌ when, который читает само target-поле
 copyFrom(path.source, path.target, {
-  when: (form) => form.target === ''  // лишний triger при перезаписи target
+  when: (form) => form.target === '', // лишний triger при перезаписи target
 });
 
 // ✅ when опирается только на флаг/независимое поле

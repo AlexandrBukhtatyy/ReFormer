@@ -86,7 +86,9 @@ export async function measurePerformance(page: Page): Promise<WebVitalsMetrics> 
       }
 
       // Get TTFB from Navigation Timing
-      const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+      const navEntries = performance.getEntriesByType(
+        'navigation'
+      ) as PerformanceNavigationTiming[];
       if (navEntries.length > 0) {
         result.ttfb = navEntries[0].responseStart - navEntries[0].requestStart;
       }

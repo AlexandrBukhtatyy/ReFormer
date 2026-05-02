@@ -24,8 +24,8 @@ import {
 ## Quick Start
 
 > **CRITICAL gotcha** — `FormRenderer` does NOT accept a `form` prop. Field-nodes silently
-> render as `null` (with a console warning *"Field node rendered without form — pass form via
-> wizard componentProps"*) unless the **root render-node** is a user-defined container that
+> render as `null` (with a console warning _"Field node rendered without form — pass form via
+> wizard componentProps"_) unless the **root render-node** is a user-defined container that
 > accepts `form` through `componentProps` and forwards it to `RenderNodeComponent` for its
 > children. Below is the minimal pattern; for multi-step forms use `RendererFormWizard` from
 > `@reformer/cdk` as the root instead.
@@ -106,8 +106,20 @@ function MyFormPage() {
    blows up because `child` is a React element, not a node descriptor.
 
    ```tsx
-   export function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
-     return <>{children.map((c, i) => <RenderNodeComponent key={i} node={c} form={form} />)}</>;
+   export function FormRoot<T>({
+     form,
+     children,
+   }: {
+     form: FormProxy<T>;
+     children: RenderNode<T>[];
+   }) {
+     return (
+       <>
+         {children.map((c, i) => (
+           <RenderNodeComponent key={i} node={c} form={form} />
+         ))}
+       </>
+     );
    }
    // eslint-disable-next-line @typescript-eslint/no-explicit-any
    (FormRoot as any).__selfManagedChildren = true;
@@ -165,14 +177,14 @@ component's `componentProps`, fields render as null.**
 
 ## Components and exports
 
-| Export                                | Purpose                                                           |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `FormRenderer`                        | Главный React-компонент, отрисовывающий форму.                    |
-| `RenderNodeComponent`                 | Низкоуровневый рендер одного узла (для расширений).               |
-| `RenderContextProvider`, `useRenderContext` | Контекст: `form`, `settings`, текущий узел.                  |
-| `createRenderSchema`, `isRenderSchemaProxy` | Программное управление схемой.                              |
-| `isFieldRenderNode`, `isContainerRenderNode` | Type guards для `RenderNode`.                              |
-| `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Декларативные обёртки behavior. |
+| Export                                                                           | Purpose                                             |
+| -------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `FormRenderer`                                                                   | Главный React-компонент, отрисовывающий форму.      |
+| `RenderNodeComponent`                                                            | Низкоуровневый рендер одного узла (для расширений). |
+| `RenderContextProvider`, `useRenderContext`                                      | Контекст: `form`, `settings`, текущий узел.         |
+| `createRenderSchema`, `isRenderSchemaProxy`                                      | Программное управление схемой.                      |
+| `isFieldRenderNode`, `isContainerRenderNode`                                     | Type guards для `RenderNode`.                       |
+| `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Декларативные обёртки behavior.                     |
 
 ## See also
 

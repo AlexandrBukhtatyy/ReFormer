@@ -24,13 +24,13 @@
 
 ## Решения (зафиксированы)
 
-| Решение | Выбор |
-|---|---|
-| Гранулярность resources | Fine-grained (1 ресурс = 1 секция llms.txt) |
-| Стратегия prompts | Slim+ (args + 1-line shortlist + Prerequisites + checklist) |
-| Sampling use cases | Auto-detect target, UI-kit fallback, plan-form deep, новый `discover-context` |
-| Versioning | Breaking → удалить legacy URI в этом же релизе, bump 2.0.0-beta.1 |
-| Scope сессии | Все этапы 0–6 |
+| Решение                 | Выбор                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| Гранулярность resources | Fine-grained (1 ресурс = 1 секция llms.txt)                                   |
+| Стратегия prompts       | Slim+ (args + 1-line shortlist + Prerequisites + checklist)                   |
+| Sampling use cases      | Auto-detect target, UI-kit fallback, plan-form deep, новый `discover-context` |
+| Versioning              | Breaking → удалить legacy URI в этом же релизе, bump 2.0.0-beta.1             |
+| Scope сессии            | Все этапы 0–6                                                                 |
 
 ## URI scheme
 
@@ -77,29 +77,35 @@ trim/dedupа `-`. Примеры: `## copyFrom` → `copyfrom`,
 
 ### Этап 3. Slim+ prompts (10 шаблонов + TS-модули)
 
-Файлы: [packages/reformer-mcp/src/prompts/templates/*.md](packages/reformer-mcp/src/prompts/templates/) + [packages/reformer-mcp/src/prompts/*.ts](packages/reformer-mcp/src/prompts/).
+Файлы: [packages/reformer-mcp/src/prompts/templates/\*.md](packages/reformer-mcp/src/prompts/templates/) + [packages/reformer-mcp/src/prompts/\*.ts](packages/reformer-mcp/src/prompts/).
 
 Структура каждого slim+ template:
 
 ```markdown
 ## Args
+
 - description: {{description}}
 - requirements: {{requirements}}
 
 ## Critical inline rules
+
 <5–10 строк: имена API + сигнатуры + 1-line anti-patterns,
 которые модель чаще всего галлюцинирует>
 
 ## Prerequisites — read these resources via ReadMcpResourceTool
+
 **You MUST read these BEFORE writing code. Skipping = incorrect output.**
+
 - reformer://docs/core/cycle-detection (КРИТИЧНО)
 - reformer://docs/core/copyfrom
 - ...
 
 ## Task
+
 <инструкция что сделать с args>
 
 ## Output checklist
+
 - [ ] Прочитал все ресурсы из Prerequisites: yes/no
 - [ ] Cycle-prevention rule respected
 - [ ] ...
@@ -107,18 +113,18 @@ trim/dedupа `-`. Примеры: `## copyFrom` → `copyfrom`,
 
 Per-prompt prerequisites таблица:
 
-| Prompt | Resources |
-|---|---|
-| add-behavior | core/{compute-vs-watch, cycle-detection, copyfrom, syncfields, resetwhen, transformvalue, revalidatewhen, common-patterns} |
-| add-form-array | core/{arrays, array-operations, array-cleanup}, cdk/{formarray, nested} |
-| create-form | core/{import-patterns, quick-start, formschema-format, common-patterns} + (target-conditional) renderer-react/* или renderer-json/* |
-| add-validation | core/{validation, api-signatures, async, common-mistakes, cross-field} |
-| add-wizard | core/{multi-step}, cdk/{formwizard, wizard-recipes} |
-| to-renderer | renderer-react aggregator + selected sections |
-| to-renderer-json | renderer-json aggregator + selected sections |
-| review | core/{anti-patterns, troubleshooting-faq, react-integration} |
-| debug | core/{troubleshooting-faq, react-integration, api-reference} |
-| plan-form | core/{quick-start, formschema-format}, cdk/{formwizard}, core/{multi-step} (target-conditional) |
+| Prompt           | Resources                                                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| add-behavior     | core/{compute-vs-watch, cycle-detection, copyfrom, syncfields, resetwhen, transformvalue, revalidatewhen, common-patterns}          |
+| add-form-array   | core/{arrays, array-operations, array-cleanup}, cdk/{formarray, nested}                                                             |
+| create-form      | core/{import-patterns, quick-start, formschema-format, common-patterns} + (target-conditional) renderer-react/_ или renderer-json/_ |
+| add-validation   | core/{validation, api-signatures, async, common-mistakes, cross-field}                                                              |
+| add-wizard       | core/{multi-step}, cdk/{formwizard, wizard-recipes}                                                                                 |
+| to-renderer      | renderer-react aggregator + selected sections                                                                                       |
+| to-renderer-json | renderer-json aggregator + selected sections                                                                                        |
+| review           | core/{anti-patterns, troubleshooting-faq, react-integration}                                                                        |
+| debug            | core/{troubleshooting-faq, react-integration, api-reference}                                                                        |
+| plan-form        | core/{quick-start, formschema-format}, cdk/{formwizard}, core/{multi-step} (target-conditional)                                     |
 
 Из TS-модулей удаляются все `getSection()`/`getFullDocs()` вызовы — TS оставляет только сборку args + project-detector + sampling helpers.
 
@@ -141,7 +147,10 @@ export type SamplingResult =
   | { ok: true; text: string }
   | { ok: false; reason: 'unsupported' | 'error'; error?: unknown };
 
-export async function requestSampling(server: Server, req: SamplingRequest): Promise<SamplingResult>;
+export async function requestSampling(
+  server: Server,
+  req: SamplingRequest
+): Promise<SamplingResult>;
 export function isSamplingSupported(server: Server): boolean;
 ```
 
@@ -159,6 +168,7 @@ export function isSamplingSupported(server: Server): boolean;
 - `deepAnalyzeSpec(server, content, regexResults): Promise<DeepAnalysis | null>` — JSON-output sampling, мердж в `plan-form` template как опциональная секция (Handlebars-блок пустой если null).
 
 Интеграция:
+
 - [create-form.ts](packages/reformer-mcp/src/prompts/create-form.ts), [plan-form.ts](packages/reformer-mcp/src/prompts/plan-form.ts) — `inferTarget` если `args.target === undefined`.
 - [project-detector.ts](packages/reformer-mcp/src/utils/project-detector.ts) — `renderStackDetectionBlockAsync(stack, server?)` с fallback на legacy MCP-gap-блок.
 - [plan-form.ts](packages/reformer-mcp/src/prompts/plan-form.ts) — `deepAnalyzeSpec` после regex.
@@ -187,12 +197,14 @@ export function isSamplingSupported(server: Server): boolean;
 ## Critical files
 
 **Новые:**
+
 - [packages/reformer-mcp/src/utils/sampling.ts](packages/reformer-mcp/src/utils/sampling.ts)
 - [packages/reformer-mcp/src/utils/sampling-helpers.ts](packages/reformer-mcp/src/utils/sampling-helpers.ts)
 - [packages/reformer-mcp/src/prompts/discover-context.ts](packages/reformer-mcp/src/prompts/discover-context.ts)
 - [packages/reformer-mcp/src/prompts/templates/discover-context.md](packages/reformer-mcp/src/prompts/templates/discover-context.md)
 
 **Меняются:**
+
 - [packages/reformer-mcp/src/index.ts](packages/reformer-mcp/src/index.ts) — capabilities + resources logic + async prompt handlers
 - [packages/reformer-mcp/src/utils/docs-parser.ts](packages/reformer-mcp/src/utils/docs-parser.ts) — slugify + listSections + getSectionBySlug
 - [packages/reformer-mcp/src/utils/project-detector.ts](packages/reformer-mcp/src/utils/project-detector.ts) — async UI-kit fallback
@@ -203,15 +215,15 @@ export function isSamplingSupported(server: Server): boolean;
 
 ## Риски
 
-| Риск | Митигация |
-|---|---|
-| Модель не читает resources | MANDATORY-wording в Prerequisites, slim+ inline shortlist (5-10 строк), self-check «Прочитал ресурсы: yes/no» в output checklist |
-| Sampling latency ~3-10s на batched запрос | `discover-context` — single batched request, не N отдельных |
-| Sampling не поддерживается клиентом | `isSamplingSupported` check + graceful fallback на legacy-paths во всех use cases |
-| Slug-instability при rename секции | Snapshot-тест slugs, любой rename падает CI |
-| Sampling cost (billable у клиента) | `inferTarget` срабатывает только при `args.target === undefined`. `discover-context` opt-in (отдельный prompt). UI-kit fallback только при пустом detect. |
-| 50-70 resources в `/resources` UI шумно | Короткие descriptions ≤100 chars, опциональные emoji-prefix в name (post-M1) |
-| Bump 2.0.0 ломает потребителей | Пакет в beta, активных потребителей кроме внутреннего sub-agent flow нет |
+| Риск                                      | Митигация                                                                                                                                                 |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Модель не читает resources                | MANDATORY-wording в Prerequisites, slim+ inline shortlist (5-10 строк), self-check «Прочитал ресурсы: yes/no» в output checklist                          |
+| Sampling latency ~3-10s на batched запрос | `discover-context` — single batched request, не N отдельных                                                                                               |
+| Sampling не поддерживается клиентом       | `isSamplingSupported` check + graceful fallback на legacy-paths во всех use cases                                                                         |
+| Slug-instability при rename секции        | Snapshot-тест slugs, любой rename падает CI                                                                                                               |
+| Sampling cost (billable у клиента)        | `inferTarget` срабатывает только при `args.target === undefined`. `discover-context` opt-in (отдельный prompt). UI-kit fallback только при пустом detect. |
+| 50-70 resources в `/resources` UI шумно   | Короткие descriptions ≤100 chars, опциональные emoji-prefix в name (post-M1)                                                                              |
+| Bump 2.0.0 ломает потребителей            | Пакет в beta, активных потребителей кроме внутреннего sub-agent flow нет                                                                                  |
 
 ## Out of scope
 

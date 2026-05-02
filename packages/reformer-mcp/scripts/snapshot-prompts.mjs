@@ -54,11 +54,7 @@ const cases = [
     mod.getAddFormArrayPrompt,
     { code: FIXTURES.code, requirements: FIXTURES.requirements },
   ],
-  [
-    'add-wizard',
-    mod.getAddWizardPrompt,
-    { code: FIXTURES.code, steps: FIXTURES.steps },
-  ],
+  ['add-wizard', mod.getAddWizardPrompt, { code: FIXTURES.code, steps: FIXTURES.steps }],
   ['to-renderer', mod.getToRendererPrompt, { code: FIXTURES.code }],
   ['to-renderer-json', mod.getToRendererJsonPrompt, { code: FIXTURES.code }],
   [

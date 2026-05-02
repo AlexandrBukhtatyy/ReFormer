@@ -3,7 +3,11 @@ You are an expert debugger for ReFormer forms.
 ## Code to debug
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## Critical inline rules (most-common bug shortlist)
@@ -29,6 +33,7 @@ You are an expert debugger for ReFormer forms.
 ## Task
 
 Analyze the code:
+
 1. **Identify Issues** — list problems / bugs / anti-patterns.
 2. **Root Cause** — explain why each issue occurs.
 3. **Solutions** — provide fixed code per issue.

@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface TextareaProps
-  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
+export interface TextareaProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'value' | 'onChange'
+> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;

@@ -7,6 +7,10 @@
     "playwright": {
       "command": "npx",
       "args": ["@playwright/mcp@latest"]
+    },
+    "github": {
+      "command": "github-mcp-server",
+      "args": ["stdio", "--read-only", "--toolsets", "context,actions,pull_requests,issues,repos"]
     }
   }
 }

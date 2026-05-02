@@ -160,6 +160,7 @@ const MyForm = () => {
 **Что получите:**
 
 AI найдёт проблемы:
+
 - Нет `useMemo` для `createForm`
 - Нет вызова `markAsTouched` при blur
 - Нет отображения ошибок

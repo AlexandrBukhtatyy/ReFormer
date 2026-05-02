@@ -7,14 +7,18 @@ TS-схема, renderer-react RenderSchema, renderer-json.
 ## Базовое использование
 
 ```tsx
+import { useRef } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 import type { FormProxy } from '@reformer/core';
 
-interface MyForm {
+// Используйте `type`, не `interface`, для structural-совместимости с
+// FormFields constraint внутри FormWizard generic'а.
+type MyForm = {
   email: string;
   password: string;
   confirmation: boolean;
-}
+};
 
 const Step1: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
   <FormField control={control.email} />
@@ -30,23 +34,28 @@ const steps: FormWizardStep<MyForm>[] = [
   { number: 3, title: 'Готово', icon: '✓', body: <ConfirmationView /> },
 ];
 
+// ref типизируется явно типом формы; constraint `T extends Record<string, any>`
+// позволяет nullable-поля (`number | null`) внутри MyForm без TS-ошибок.
+const navRef = useRef<FormWizardHandle<MyForm>>(null);
+
 <FormWizard
+  ref={navRef}
   form={form}
   config={{ stepValidations: STEP_VALIDATIONS, fullValidation }}
   steps={steps}
   onSubmit={async (values) => api.submit(values)}
-/>
+/>;
 ```
 
 ## Полиморфный `step.body`
 
 `body` принимает три формы (runtime-discriminated):
 
-| Форма | Когда использовать |
-|---|---|
+| Форма                                      | Когда использовать                                 |
+| ------------------------------------------ | -------------------------------------------------- |
 | `ComponentType<{ control: FormProxy<T> }>` | TS-flow; FC получает `control={form}` через ui-kit |
-| `ReactNode` (готовый JSX) | Статический контент шага без необходимости control |
-| `RenderNode<T>` (RenderSchema subtree) | renderer-react / renderer-json flows |
+| `ReactNode` (готовый JSX)                  | Статический контент шага без необходимости control |
+| `RenderNode<T>` (RenderSchema subtree)     | renderer-react / renderer-json flows               |
 
 Все три варианта работают в одном wizard'е — можно комбинировать.
 
@@ -68,10 +77,7 @@ const renderSchema = (path) => ({
         body: {
           component: Box,
           componentProps: { className: 'space-y-4' },
-          children: [
-            { component: path.loanAmount },
-            { component: path.loanTerm },
-          ],
+          children: [{ component: path.loanAmount }, { component: path.loanTerm }],
         },
       },
     ],
@@ -96,14 +102,11 @@ ui-kit FormWizard детектирует RenderNode (объект с `.component
         "icon": "💰",
         "body": {
           "component": "Box",
-          "children": [
-            { "model": "loanAmount" },
-            { "model": "loanTerm" }
-          ]
-        }
-      }
-    ]
-  }
+          "children": [{ "model": "loanAmount" }, { "model": "loanTerm" }],
+        },
+      },
+    ],
+  },
 }
 ```
 

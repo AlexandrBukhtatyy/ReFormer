@@ -13,8 +13,8 @@
 ```typescript
 // В mocks.ts (НЕПРАВИЛЬНО):
 export interface PassportData {
-  issueDate: string;       // ← должно быть issuedDate
-  departmentCode: string;  // ← должно быть code
+  issueDate: string; // ← должно быть issuedDate
+  departmentCode: string; // ← должно быть code
 }
 
 // В test-data.ts (ПРАВИЛЬНО):
@@ -49,10 +49,12 @@ export interface CoBorrower {
 ### Шаг 1: Исправить PassportData в mocks.ts
 
 Переименовать поля в интерфейсе и во всех mock-данных:
+
 - `issueDate` → `issuedDate`
 - `departmentCode` → `code`
 
 **Файлы для изменения:**
+
 - [mocks.ts](projects/react-playground-e2e/tests/pages/complex-multy-step-form/mocks.ts) — интерфейс и данные MOCK_CREDIT_APPLICATION_1, MOCK_CREDIT_APPLICATION_2
 
 ### Шаг 2: Унифицировать типы
@@ -74,8 +76,8 @@ import type { PassportData, PersonalData, AddressData } from './test-data';
 
 ## Файлы для изменения
 
-| Файл | Изменение |
-|------|-----------|
+| Файл                                                                                   | Изменение                                                  |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | [mocks.ts](projects/react-playground-e2e/tests/pages/complex-multy-step-form/mocks.ts) | Исправить PassportData, импортировать типы из test-data.ts |
 
 ## Верификация

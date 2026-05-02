@@ -44,7 +44,7 @@ import { parseDate, normalizeDate } from './date-utils';
  * }
  * ```
  */
-export function maxDate<TForm, TField extends string | Date | undefined = string | Date>(
+export function maxDate<TForm, TField extends string | Date | null | undefined = string | Date>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   maxDateValue: Date,
   options?: ValidateOptions

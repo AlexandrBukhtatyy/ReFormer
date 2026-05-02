@@ -21,8 +21,11 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
       <div className={className} data-testid={`field-${testId ?? 'unknown'}`}>
         <CdkFormField.Label className="text-xs uppercase text-slate-500" />
         <div className="rounded border bg-white p-2">
-          {children ? <CdkFormField.Control asChild>{children}</CdkFormField.Control>
-                    : <CdkFormField.Control />}
+          {children ? (
+            <CdkFormField.Control asChild>{children}</CdkFormField.Control>
+          ) : (
+            <CdkFormField.Control />
+          )}
         </div>
         {error && <small className="text-red-600">{error}</small>}
       </div>
@@ -30,10 +33,11 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
   );
 }
 
-<FormRenderer render={schema} settings={{ fieldWrapper: MyFieldWrapper }} />
+<FormRenderer render={schema} settings={{ fieldWrapper: MyFieldWrapper }} />;
 ```
 
 **Notes.**
+
 - Wrapper вызывается на каждое FieldRenderNode. Если поле — Checkbox, обычно label рендерится внутри input (см. ветку `isCheckbox` в `@reformer/ui-kit/FormField`); своему wrapper'у проверку нужно добавить вручную, иначе будет двойной label.
 - Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (см. `FieldRenderNodeProps.fieldWrapper`).
 - Не оборачивай wrapper в `React.memo` без сравнения по `control` и `children` — иначе DOM будет «застревать» на старом инпуте.
@@ -49,11 +53,15 @@ import { useEffect, useMemo } from 'react';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
 
 function CreditApplicationPage() {
-  const schema = useMemo(() => createRenderSchema<CreditForm>((path) => ({
-    selector: 'mortgage-section',
-    component: Section,
-    children: [{ component: path.propertyValue }],
-  })), []);
+  const schema = useMemo(
+    () =>
+      createRenderSchema<CreditForm>((path) => ({
+        selector: 'mortgage-section',
+        component: Section,
+        children: [{ component: path.propertyValue }],
+      })),
+    []
+  );
 
   useEffect(() => {
     // Скрыть секцию по внешнему сигналу.
@@ -71,6 +79,7 @@ function CreditApplicationPage() {
 ```
 
 **Notes.**
+
 - Методы `setHidden/patchProps/resetHidden/resetProps` чейнятся (`return this`).
 - `patchProps` именно мерджит — повторный вызов с `{ disabled: true }` не сбросит ранее заданный `title`. Для полной очистки используй `resetProps`.
 - `setHidden(true)` перекрывает реактивное условие из `hideWhen`. Чтобы вернуть автоматику — `resetHidden()`.
@@ -122,6 +131,7 @@ export function CollapsibleSection({
 ```
 
 **Notes.**
+
 - `children` всегда `ReactNode` — обходить как массив `RenderNode` нельзя: к этому моменту они уже превращены в React-элементы.
 - Если контейнеру нужны ноды как данные (вычислить количество, отрисовать таб-бар) — описывай их через `componentProps`, а не через `children`. Пример — `RendererFormWizard` с `componentProps.steps`. Конвертер JSON-схемы поддерживает `JsonNode` и `$template` внутри произвольных props (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md#template-arrays)).
 - Контейнер можно адресовать через `selector` — тогда `setHidden` будет работать на его содержимое целиком.
@@ -167,6 +177,7 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 ```
 
 **Notes.**
+
 - Повторный `hideWhen` на одном selector затирает предыдущее условие — это последняя запись побеждает.
 - `onComponentEvent` мерджит обработчики по имени события (`onSubmit`, `onChange`, ...). Если schema уже содержит такой проп — он будет полностью заменён обработчиком из behavior.
 - `renderEffect` принимает не node, а саму схему: эффекты живут на уровне рендера всего дерева и автоматически диспозятся при unmount `FormRenderer`.

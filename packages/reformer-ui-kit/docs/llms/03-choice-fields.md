@@ -4,11 +4,11 @@
 Контракт `value`/`onChange`/`onBlur` тот же, что у текстовых полей, но `value`
 бывает разных типов:
 
-| Component | `value` type | `onChange` payload |
-| --- | --- | --- |
-| `Checkbox` | `boolean` | `boolean` |
-| `RadioGroup` | `string \| null` | `string` (ровно один из `options`) |
-| `Select` | `string \| null` | `string \| null` (`null` при `clearable`) |
+| Component    | `value` type     | `onChange` payload                        |
+| ------------ | ---------------- | ----------------------------------------- |
+| `Checkbox`   | `boolean`        | `boolean`                                 |
+| `RadioGroup` | `string \| null` | `string` (ровно один из `options`)        |
+| `Select`     | `string \| null` | `string \| null` (`null` при `clearable`) |
 
 ## Checkbox
 
@@ -26,12 +26,12 @@ interface CheckboxProps {
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `value` | `boolean` | `false` | Чекнут или нет. `undefined` → `false`. |
-| `onChange` | `(value: boolean) => void` | — | Вызывается с `event.target.checked`. |
-| `label` | `string` | — | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс. |
-| `disabled` | `boolean` | `false` | Блокирует переключение. |
+| Prop       | Тип                        | Default | Описание                                                                 |
+| ---------- | -------------------------- | ------- | ------------------------------------------------------------------------ |
+| `value`    | `boolean`                  | `false` | Чекнут или нет. `undefined` → `false`.                                   |
+| `onChange` | `(value: boolean) => void` | —       | Вызывается с `event.target.checked`.                                     |
+| `label`    | `string`                   | —       | Подпись справа от чекбокса. Если опущен — рендерится только сам чекбокс. |
+| `disabled` | `boolean`                  | `false` | Блокирует переключение.                                                  |
 
 ### Common Patterns
 
@@ -40,7 +40,7 @@ interface CheckboxProps {
 ```tsx
 import { Checkbox } from '@reformer/ui-kit';
 
-<Checkbox value={agree} onChange={setAgree} label="Согласен с условиями" />
+<Checkbox value={agree} onChange={setAgree} label="Согласен с условиями" />;
 ```
 
 Чекбокс без подписи (label рендерится снаружи или не нужен):
@@ -63,7 +63,7 @@ const form = createForm<FormSchema<{ accept: boolean }>>({
   accept: { component: Checkbox, value: false, componentProps: { label: 'Принять' } },
 });
 
-<FormField control={form.accept} testId="accept" />
+<FormField control={form.accept} testId="accept" />;
 ```
 
 ### Anti-patterns
@@ -71,7 +71,7 @@ const form = createForm<FormSchema<{ accept: boolean }>>({
 - Передавать `value: 'yes' | 'no'` (строку) — `Checkbox` ожидает `boolean`. Для
   строкового выбора используйте `RadioGroup` (два варианта) или `Select`.
 - Делать `<Checkbox checked={x} onChange={…}>` (как с нативным `<input
-  type="checkbox">`) — пропа `checked` нет, нужно `value`.
+type="checkbox">`) — пропа `checked` нет, нужно `value`.
 
 ## RadioGroup
 
@@ -94,12 +94,12 @@ interface RadioGroupProps {
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `options` | `RadioOption[]` | — | Список вариантов. `value` обязан быть строкой. |
-| `value` | `string \| null` | `null` | Выбранный вариант. Должен совпадать с одним из `options[i].value`. |
-| `onChange` | `(value: string) => void` | — | Вызывается при выборе. Передаётся `event.target.value`. |
-| `disabled` | `boolean` | `false` | Блокирует все варианты. |
+| Prop       | Тип                       | Default | Описание                                                           |
+| ---------- | ------------------------- | ------- | ------------------------------------------------------------------ |
+| `options`  | `RadioOption[]`           | —       | Список вариантов. `value` обязан быть строкой.                     |
+| `value`    | `string \| null`          | `null`  | Выбранный вариант. Должен совпадать с одним из `options[i].value`. |
+| `onChange` | `(value: string) => void` | —       | Вызывается при выборе. Передаётся `event.target.value`.            |
+| `disabled` | `boolean`                 | `false` | Блокирует все варианты.                                            |
 
 По умолчанию варианты раскладываются вертикально (`flex flex-col gap-2`).
 
@@ -116,7 +116,7 @@ const LOAN_TYPES = [
   { value: 'auto', label: 'Авто' },
 ];
 
-<RadioGroup value={loanType} onChange={setLoanType} options={LOAN_TYPES} />
+<RadioGroup value={loanType} onChange={setLoanType} options={LOAN_TYPES} />;
 ```
 
 Горизонтальная раскладка (через `className`):
@@ -145,7 +145,7 @@ const form = createForm<FormSchema<{ loanType: string }>>({
   },
 });
 
-<FormField control={form.loanType} testId="loan-type" />
+<FormField control={form.loanType} testId="loan-type" />;
 ```
 
 ### Anti-patterns
@@ -187,37 +187,37 @@ interface SelectProps<T> {
   options?: Array<{ value: string | number; label: string; group?: string }>;
   placeholder?: string;
   disabled?: boolean;
-  clearable?: boolean;       // показать кнопку очистки (X)
+  clearable?: boolean; // показать кнопку очистки (X)
   'data-testid'?: string;
   'aria-invalid'?: boolean | 'true' | 'false';
 }
 ```
 
-| Prop | Тип | Default | Описание |
-| --- | --- | --- | --- |
-| `options` | `Array<{value,label,group?}>` | — | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. |
-| `resource` | `ResourceConfig<T>` | — | Асинхронный источник. На маунт вызывается `resource.load({})`. На время загрузки `Select` показывает `Loading...` и блокируется. |
-| `value` | `string \| null` | `null` | Выбранное значение (всегда строка из `option.value`). |
-| `onChange` | `(value: string \| null) => void` | — | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`. |
-| `placeholder` | `string` | `'Select an option...'` | Подсказка в триггере. |
-| `clearable` | `boolean` | `false` | Показать кнопку очистки справа от значения (только когда `value` непустой). |
-| `disabled` | `boolean` | `false` | Блокирует выбор. |
+| Prop          | Тип                               | Default                 | Описание                                                                                                                                        |
+| ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник. На маунт вызывается `resource.load({})`. На время загрузки `Select` показывает `Loading...` и блокируется.                |
+| `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                           |
+| `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                   |
+| `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                           |
+| `clearable`   | `boolean`                         | `false`                 | Показать кнопку очистки справа от значения (только когда `value` непустой).                                                                     |
+| `disabled`    | `boolean`                         | `false`                 | Блокирует выбор.                                                                                                                                |
 
 ### Sub-components
 
 Все рендерятся `Select` автоматически, но при необходимости их можно
 импортировать и собрать кастомный layout:
 
-| Component | Purpose |
-| --- | --- |
-| `SelectGroup` | Обёртка над `Radix.Select.Group`. Группирует `SelectItem`. |
-| `SelectValue` | Отображает выбранное значение в триггере. |
-| `SelectTrigger` | Кнопка-открывалка. Принимает `size: 'sm' \| 'default'`. |
-| `SelectContent` | Дропдаун-портал со списком. Включает `SelectScrollUpButton` / `SelectScrollDownButton`. |
-| `SelectLabel` | Заголовок группы (рендерится в `SelectGroup`). |
-| `SelectItem` | Одна опция. С `CheckIcon`-индикатором, если выбрана. |
-| `SelectScrollUpButton` | Стрелка скролла вверх. |
-| `SelectScrollDownButton` | Стрелка скролла вниз. |
+| Component                | Purpose                                                                                 |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `SelectGroup`            | Обёртка над `Radix.Select.Group`. Группирует `SelectItem`.                              |
+| `SelectValue`            | Отображает выбранное значение в триггере.                                               |
+| `SelectTrigger`          | Кнопка-открывалка. Принимает `size: 'sm' \| 'default'`.                                 |
+| `SelectContent`          | Дропдаун-портал со списком. Включает `SelectScrollUpButton` / `SelectScrollDownButton`. |
+| `SelectLabel`            | Заголовок группы (рендерится в `SelectGroup`).                                          |
+| `SelectItem`             | Одна опция. С `CheckIcon`-индикатором, если выбрана.                                    |
+| `SelectScrollUpButton`   | Стрелка скролла вверх.                                                                  |
+| `SelectScrollDownButton` | Стрелка скролла вниз.                                                                   |
 
 ### Common Patterns
 
@@ -234,7 +234,7 @@ import { Select } from '@reformer/ui-kit';
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
   ]}
-/>
+/>;
 ```
 
 Async `resource` (пример: список банков):
@@ -254,7 +254,7 @@ const banksResource: ResourceConfig<string> = {
   },
 };
 
-<Select value={bankId} onChange={setBankId} resource={banksResource} />
+<Select value={bankId} onChange={setBankId} resource={banksResource} />;
 ```
 
 Grouped options:
@@ -303,7 +303,7 @@ const form = createForm<FormSchema<{ city: string }>>({
   },
 });
 
-<FormField control={form.city} testId="city" />
+<FormField control={form.city} testId="city" />;
 ```
 
 ### Anti-patterns

@@ -120,7 +120,7 @@ function EmailField({ control }: { control: FieldNode<string> }) {
 interface OrderForm {
   price: number;
   quantity: number;
-  total: number;      // Вычисляемое
+  total: number; // Вычисляемое
   discount: number;
   finalTotal: number; // Вычисляемое
 }
@@ -143,11 +143,7 @@ const form = createForm<OrderForm>({
 
   behavior: (path) => {
     // total = price × quantity
-    computeFrom(
-      [path.price, path.quantity],
-      path.total,
-      (v) => v.price * v.quantity
-    );
+    computeFrom([path.price, path.quantity], path.total, (v) => v.price * v.quantity);
 
     // finalTotal = total - discount%
     computeFrom(
@@ -193,13 +189,17 @@ const form = createForm<AddressForm>({
     enableWhen(path.city, (form) => Boolean(form.country));
 
     // При изменении страны — загрузить города
-    watchField(path.country, async (country, ctx) => {
-      if (country) {
-        const cities = await api.getCities(country);
-        ctx.updateComponentProps(path.city, { options: cities });
-        ctx.form.city.setValue(''); // Сбросить выбранный город
-      }
-    }, { debounce: 300 });
+    watchField(
+      path.country,
+      async (country, ctx) => {
+        if (country) {
+          const cities = await api.getCities(country);
+          ctx.updateComponentProps(path.city, { options: cities });
+          ctx.form.city.setValue(''); // Сбросить выбранный город
+        }
+      },
+      { debounce: 300 }
+    );
   },
 });
 ```
@@ -230,18 +230,26 @@ const form = createForm<RegistrationForm>({
     // Username
     required(path.username);
     minLength(path.username, 3);
-    validators.validateAsync(path.username, async (value, opts) => {
-      const { exists } = await api.checkUsername(value, opts?.signal);
-      return exists ? { code: 'taken', message: 'Имя занято' } : null;
-    }, { debounce: 500 });
+    validators.validateAsync(
+      path.username,
+      async (value, opts) => {
+        const { exists } = await api.checkUsername(value, opts?.signal);
+        return exists ? { code: 'taken', message: 'Имя занято' } : null;
+      },
+      { debounce: 500 }
+    );
 
     // Email
     required(path.email);
     email(path.email);
-    validators.validateAsync(path.email, async (value, opts) => {
-      const { exists } = await api.checkEmail(value, opts?.signal);
-      return exists ? { code: 'taken', message: 'Email занят' } : null;
-    }, { debounce: 500 });
+    validators.validateAsync(
+      path.email,
+      async (value, opts) => {
+        const { exists } = await api.checkEmail(value, opts?.signal);
+        return exists ? { code: 'taken', message: 'Email занят' } : null;
+      },
+      { debounce: 500 }
+    );
 
     // Password
     required(path.password);

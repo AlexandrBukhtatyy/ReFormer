@@ -6,21 +6,22 @@
 
 ## Root causes под фикс (все 5 — Variant C)
 
-| # | Root cause | Где | Решение |
-|---|---|---|---|
-| **R1** | `number \| null` (in `types.ts`) ≠ `number \| undefined` (constraint в `min`/`max` валидаторах из `@reformer/core`) → cast `(path: any)` в step1Validation/step4Validation | [types.ts:87,91-92,96-97,121-122,123-124,153](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/types.ts#L87) (~10 полей) | Переписать number-nullable поля с `\| null` на `\| undefined`. Обновить `data-fixture.ts`, `schema.ts` (`value: undefined`), проверить number-input на controlled/uncontrolled поведение |
-| **R2** | TS2589 при `createForm({form, validation, behavior})` на 76-полях форме — TS не может проинферить `GroupNodeConfig<T>` за полиномиальное время | [schema.ts:1313-1318](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts#L1313) | Сплитить на 3 типизированных вызова: `const form = createForm<T>(schema); form.applyValidationSchema(fullValidation); form.applyBehaviorSchema(creditApplicationBehavior);` (методы существуют на `GroupNode` per `packages/reformer/dist/core/nodes/group-node.d.ts:210,215`) |
-| **R3** | `validate()` callback использует `ctx.form.X.value.value` (Signal-internal) → public API типизирован только до `FormProxy<T>` → cast `ctx: any` | 6 cross-field валидаций: [schema.ts:717,760,775,885,926,979](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts#L717) | Мигрировать cross-field на `validateTree<T>(callback, { targetField })` — `ctx.form.getValue()` возвращает полностью типизированный `T`. Counter-example: [basic-info-validation.ts:44-72](../../projects/react-playground/src/pages/examples/complex-multy-step-form/components/steps/BasicInfo/basic-info-validation.ts#L44). Single-field validate (booleans, agreements) типизировать через `(value: boolean, ctx: FormContext<T>)` |
-| **R4** | `computeFrom([path.X], target, (values: any) => ...)` — inline arrow теряет inference TForm | 8 occurrences: [schema.ts:1074,1083,1096,1107,1131,1147,1159,1170](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts#L1074) | Извлечь compute-функции на module-level с явной сигнатурой: `function computeFullName(form: CreditApplicationFormV10): string { ... }` и передавать референсом. Counter-example: [credit-application-behavior.ts:168-189](../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts#L168) |
-| **R5** | Лишние casts (НЕ root cause, перестраховка sub-agent'а) | 16 occurrences: `[path.X] as any` в computeFrom (8), `as any` в copyFrom (2), `(t: unknown)` в applyWhen-предикатах (6) | Просто убрать |
+| #      | Root cause                                                                                                                                                                 | Где                                                                                                                                                               | Решение                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **R1** | `number \| null` (in `types.ts`) ≠ `number \| undefined` (constraint в `min`/`max` валидаторах из `@reformer/core`) → cast `(path: any)` в step1Validation/step4Validation | [types.ts:87,91-92,96-97,121-122,123-124,153](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/types.ts#L87) (~10 полей)             | Переписать number-nullable поля с `\| null` на `\| undefined`. Обновить `data-fixture.ts`, `schema.ts` (`value: undefined`), проверить number-input на controlled/uncontrolled поведение                                                                                                                                                                                                                                                |
+| **R2** | TS2589 при `createForm({form, validation, behavior})` на 76-полях форме — TS не может проинферить `GroupNodeConfig<T>` за полиномиальное время                             | [schema.ts:1313-1318](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts#L1313)                                              | Сплитить на 3 типизированных вызова: `const form = createForm<T>(schema); form.applyValidationSchema(fullValidation); form.applyBehaviorSchema(creditApplicationBehavior);` (методы существуют на `GroupNode` per `packages/reformer/dist/core/nodes/group-node.d.ts:210,215`)                                                                                                                                                          |
+| **R3** | `validate()` callback использует `ctx.form.X.value.value` (Signal-internal) → public API типизирован только до `FormProxy<T>` → cast `ctx: any`                            | 6 cross-field валидаций: [schema.ts:717,760,775,885,926,979](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts#L717)        | Мигрировать cross-field на `validateTree<T>(callback, { targetField })` — `ctx.form.getValue()` возвращает полностью типизированный `T`. Counter-example: [basic-info-validation.ts:44-72](../../projects/react-playground/src/pages/examples/complex-multy-step-form/components/steps/BasicInfo/basic-info-validation.ts#L44). Single-field validate (booleans, agreements) типизировать через `(value: boolean, ctx: FormContext<T>)` |
+| **R4** | `computeFrom([path.X], target, (values: any) => ...)` — inline arrow теряет inference TForm                                                                                | 8 occurrences: [schema.ts:1074,1083,1096,1107,1131,1147,1159,1170](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts#L1074) | Извлечь compute-функции на module-level с явной сигнатурой: `function computeFullName(form: CreditApplicationFormV10): string { ... }` и передавать референсом. Counter-example: [credit-application-behavior.ts:168-189](../../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts#L168)                                                                                       |
+| **R5** | Лишние casts (НЕ root cause, перестраховка sub-agent'а)                                                                                                                    | 16 occurrences: `[path.X] as any` в computeFrom (8), `as any` в copyFrom (2), `(t: unknown)` в applyWhen-предикатах (6)                                           | Просто убрать                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## Изменения по файлам
 
 ### 1. [types.ts](../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/types.ts) (R1)
 
 Заменить `\| null` на `\| undefined` для number-nullable полей:
+
 ```ts
-loanAmount: number | undefined;       // было: number | null
+loanAmount: number | undefined; // было: number | null
 propertyValue: number | undefined;
 initialPayment: number | undefined;
 carYear: number | undefined;
@@ -41,11 +42,13 @@ age: number | undefined;
 **R1**: `value: null` → `value: undefined` для number-nullable полей в schema (~10 line touches: lines 312, 346, 357, 385, 390, 502, 512, 522, 532, 667).
 
 **R5 (косметика)**:
+
 - `[path.X] as any` → `[path.X]` в 8 `computeFrom` (lines 1074, 1083, 1096, 1107, 1131, 1147, 1159, 1170).
 - `(t: unknown) =>` → `(t) =>` в 6 applyWhen-предикатах (lines 712, 736, 839, 858, 870, 904, 923).
 - `path.registrationAddress as any, path.residenceAddress as any` → bare references в copyFrom (line 1020).
 
 **R4**: извлечь 8 compute-функций как module-level (выше `creditApplicationBehavior` или в новой секции `// === Compute helpers ===`):
+
 ```ts
 function computeFullName(form: CreditApplicationFormV10): string { ... }
 function computeAge(form: CreditApplicationFormV10): number | null { ... }
@@ -56,6 +59,7 @@ function computeCoBorrowersIncome(form: CreditApplicationFormV10): number { ... 
 function computeTotalIncome(form: CreditApplicationFormV10): number { ... }
 function computeDtiRatio(form: CreditApplicationFormV10): number { ... }
 ```
+
 В `creditApplicationBehavior` использовать: `computeFrom([path.personalData], path.fullName, computeFullName);`
 
 **R3**: cross-field валидации переписать с `validate(path.X, (value, ctx) => {ctx.form.Y...})` на `validateTree<CreditApplicationFormV10>((ctx) => { const form = ctx.form.getValue(); ... }, { targetField: 'X' })`. Затронутых блоков: 6 (loanAmount-vs-property, loanAmount-vs-totalIncome, loanTerm-vs-age, currentExceedsTotal, remainingExceedsAmount, dtiExceeded). Single-field validates на agreement checkboxes: `(value: boolean) => ...`.
@@ -63,6 +67,7 @@ function computeDtiRatio(form: CreditApplicationFormV10): number { ... }
 **R5**: убрать `(path: any)` (теперь после R1 не нужен) — `(path)` инферится `FieldPath<CreditApplicationFormV10>`.
 
 **R2**: финальный `createForm` cast → split:
+
 ```ts
 export const createCreditApplicationForm = (): FormProxy<CreditApplicationFormV10> => {
   const form = createForm<CreditApplicationFormV10>(creditApplicationSchema);
@@ -85,13 +90,13 @@ export const createCreditApplicationForm = (): FormProxy<CreditApplicationFormV1
 
 ## Risk matrix
 
-| Риск | Митигация |
-|---|---|
-| **`number \| undefined` ломает controlled `<input type="number">`** — React переключает controlled→uncontrolled и логирует warning. ui-kit `Input` может рендерить пустую строку или NaN. | После R1: dev-server, navigate `/examples/mcp-credit-v10`, пустой input для loanAmount → ввод 500000 → стирание → проверить console на warning, проверить что value переключается обратно в `undefined` через ReFormer. Если ломается — придётся внутри `Input` нормализовать `value ?? ''`. |
-| **`validateTree` `targetField` смещает error display** — error код фиксируется на `targetField`, не на `path` из `validate()`. UI-логика, читающая `form.X.errors.value`, должна продолжать работать т.к. targetField=loanAmount = тот же field. | Verify в браузере: ввести `loanAmount=99999999999`, нажать Next → error появляется под loanAmount, не под другим полем. |
-| **`createForm`-split может НЕ дожить до compile-clean** — TS2589 непредсказуем. Если split всё равно падает, fall back на `unknown as ...` cast (как было) и оставить пометку. | После R2: `npx tsc --noEmit` сразу. Если зелёный — ОК. Если TS2589 повторяется — пробовать intermediate `const cfg: GroupNodeConfig<T> = {...}; createForm(cfg)`. Если и это не помогает — оставить cast с TODO. |
-| **Линтер найдёт unused locals** после миграции (например, удалённые validate-callbacks могут оставить unused imports `validate`, `ContextualValidatorFn`). | Финальный `eslint --fix` и `tsc --noEmit` отловят. |
-| **`applyValidationSchema`/`applyBehaviorSchema` методы вызывают behaviors иначе чем через `createForm({...behavior})`** — например, порядок инициализации, immediate-firing. | Сравнить с complex-multy-step-form реализацией. Verify в браузере: fill button + walk через все 6 шагов + submit → alert «Заявка отправлена (mock)». |
+| Риск                                                                                                                                                                                                                                             | Митигация                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`number \| undefined` ломает controlled `<input type="number">`** — React переключает controlled→uncontrolled и логирует warning. ui-kit `Input` может рендерить пустую строку или NaN.                                                        | После R1: dev-server, navigate `/examples/mcp-credit-v10`, пустой input для loanAmount → ввод 500000 → стирание → проверить console на warning, проверить что value переключается обратно в `undefined` через ReFormer. Если ломается — придётся внутри `Input` нормализовать `value ?? ''`. |
+| **`validateTree` `targetField` смещает error display** — error код фиксируется на `targetField`, не на `path` из `validate()`. UI-логика, читающая `form.X.errors.value`, должна продолжать работать т.к. targetField=loanAmount = тот же field. | Verify в браузере: ввести `loanAmount=99999999999`, нажать Next → error появляется под loanAmount, не под другим полем.                                                                                                                                                                      |
+| **`createForm`-split может НЕ дожить до compile-clean** — TS2589 непредсказуем. Если split всё равно падает, fall back на `unknown as ...` cast (как было) и оставить пометку.                                                                   | После R2: `npx tsc --noEmit` сразу. Если зелёный — ОК. Если TS2589 повторяется — пробовать intermediate `const cfg: GroupNodeConfig<T> = {...}; createForm(cfg)`. Если и это не помогает — оставить cast с TODO.                                                                             |
+| **Линтер найдёт unused locals** после миграции (например, удалённые validate-callbacks могут оставить unused imports `validate`, `ContextualValidatorFn`).                                                                                       | Финальный `eslint --fix` и `tsc --noEmit` отловят.                                                                                                                                                                                                                                           |
+| **`applyValidationSchema`/`applyBehaviorSchema` методы вызывают behaviors иначе чем через `createForm({...behavior})`** — например, порядок инициализации, immediate-firing.                                                                     | Сравнить с complex-multy-step-form реализацией. Verify в браузере: fill button + walk через все 6 шагов + submit → alert «Заявка отправлена (mock)».                                                                                                                                         |
 
 ## Verification
 
@@ -113,7 +118,7 @@ export const createCreditApplicationForm = (): FormProxy<CreditApplicationFormV1
 
 - Не трогать `mcp-credit-application-renderer-v10/` и `mcp-credit-application-renderer-json-v10/` — отдельные target'ы, отдельные итерации.
 - Не править `@reformer/core` API (например, не менять `min`/`max` constraint на `number | null`) — это библиотечный уровень, выходит за рамки одной формы.
-- MCP-промпты (Patch P*?) на основе этой работы — отдельный шаг, не в текущем плане.
+- MCP-промпты (Patch P\*?) на основе этой работы — отдельный шаг, не в текущем плане.
 - Не коммитить — пользователь явно решает отдельно.
 
 ## Sequencing внутри implementation

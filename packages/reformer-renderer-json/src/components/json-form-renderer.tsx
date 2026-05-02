@@ -94,7 +94,6 @@ export function JsonFormRenderer<T>({
     return proxy;
   }, [schema, registry, renderBehavior]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useMemo(() => {
     if (onSchemaReady) onSchemaReady(schemaProxy);
   }, [schemaProxy]);

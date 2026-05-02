@@ -21,7 +21,9 @@
 В schema поле должно быть `number | null`, а не `number`:
 
 ```typescript
-interface Form { age: number | null }
+interface Form {
+  age: number | null;
+}
 ```
 
 ## 2. `Select` не показывает options (пустой дропдаун)
@@ -86,7 +88,7 @@ transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
 
 ```tsx
 <Button asChild>
-  <Link to="/">Go</Link>   {/* один элемент, без текста рядом */}
+  <Link to="/">Go</Link> {/* один элемент, без текста рядом */}
 </Button>
 ```
 
@@ -95,10 +97,14 @@ transformValue(form.phone, (raw) => raw?.replace(/\D/g, '') ?? null);
 ```tsx
 const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: ReactNode }>(
   ({ href, children, ...props }, ref) => (
-    <a ref={ref} href={href} {...props}>{children}</a>
+    <a ref={ref} href={href} {...props}>
+      {children}
+    </a>
   )
 );
-<Button asChild><MyLink href="/x">Go</MyLink></Button>
+<Button asChild>
+  <MyLink href="/x">Go</MyLink>
+</Button>;
 ```
 
 ## 5. `Checkbox` value не сохраняется (всегда `false`)
@@ -116,7 +122,7 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 
 ```typescript
 const form = createForm<FormSchema<{ accept: boolean }>>({
-  accept: { component: Checkbox, value: false },  // не undefined!
+  accept: { component: Checkbox, value: false }, // не undefined!
 });
 ```
 
@@ -147,9 +153,9 @@ const onSubmit = async () => {
 И импорт:
 
 ```tsx
-import { FormField } from '@reformer/ui-kit';   // готовый wrapper
+import { FormField } from '@reformer/ui-kit'; // готовый wrapper
 // а не
-import { FormField } from '@reformer/cdk/form-field';   // headless, без Error
+import { FormField } from '@reformer/cdk/form-field'; // headless, без Error
 ```
 
 ## 7. `onBlur` не срабатывает на `Select` / `RadioGroup`
@@ -174,7 +180,7 @@ import { FormField } from '@reformer/cdk/form-field';   // headless, без Erro
   value={form.city.value}
   onChange={(v) => {
     form.city.setValue(v);
-    form.city.blur();   // принудительно помечаем touched
+    form.city.blur(); // принудительно помечаем touched
   }}
   options={CITIES}
 />
@@ -235,7 +241,9 @@ overrideнет дефолт `px-3`, но получил оба.
 
 ```tsx
 const hasValue = Boolean(value);
-{showToggle && hasValue && <button>…</button>}
+{
+  showToggle && hasValue && <button>…</button>;
+}
 ```
 
 **Решение.** Это работает as-designed: для пустого пароля смысла переключать

@@ -10,7 +10,7 @@
 function revalidateWhen<TForm>(
   target: FieldPathNode<TForm, FormValue>,
   triggers: FieldPathNode<TForm, FormValue>[],
-  options?: RevalidateWhenOptions,
+  options?: RevalidateWhenOptions
 ): void;
 
 interface RevalidateWhenOptions {

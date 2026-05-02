@@ -13,7 +13,12 @@ import {
   type FieldRenderNode,
   type ContainerRenderNode,
 } from '@reformer/renderer-react';
-import { createFieldPath, type FieldPath, type FieldPathNode, type FormProxy } from '@reformer/core';
+import {
+  createFieldPath,
+  type FieldPath,
+  type FieldPathNode,
+  type FormProxy,
+} from '@reformer/core';
 import type { JsonFormSchema, JsonNode } from '../types/json-schema';
 import type { ComponentRegistry } from '../registry/types';
 

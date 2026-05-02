@@ -3,12 +3,7 @@
  * Паттерн Builder для создания тестовых данных с поддержкой модификаторов
  */
 
-import type {
-  PersonalData,
-  PassportData,
-  AddressData,
-  EmploymentData,
-} from './test-data';
+import type { PersonalData, PassportData, AddressData, EmploymentData } from './test-data';
 
 // ============================================================================
 // Типы для Builder
@@ -556,9 +551,7 @@ export const creditFormBuilder = {
   /**
    * Пустая подпись
    */
-  withEmptySignature: <T extends { electronicSignature?: string }>(
-    base: T
-  ): T => ({
+  withEmptySignature: <T extends { electronicSignature?: string }>(base: T): T => ({
     ...base,
     electronicSignature: '',
   }),

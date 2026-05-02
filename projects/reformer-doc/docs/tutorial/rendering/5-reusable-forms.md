@@ -338,27 +338,27 @@ import { Button } from '@/components/ui/button';
   </FormArray.List>
 
   <FormArray.AddButton>Добавить элемент</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 #### Субкомпоненты
 
-| Компонент              | Props                        | Назначение                           |
-| ---------------------- | ---------------------------- | ------------------------------------ |
-| `FormArray.Root`       | `control: ArrayNode<T>`      | Провайдер контекста                  |
-| `FormArray.List`       | `children: (item) => Node`   | Итерация с render props              |
-| `FormArray.AddButton`  | `initialValue?: Partial<T>`  | Добавить новый элемент               |
-| `FormArray.Empty`      | `children: ReactNode`        | Показать когда массив пустой         |
-| `FormArray.Count`      | `render?: (count) => Node`   | Отображение количества               |
+| Компонент             | Props                       | Назначение                   |
+| --------------------- | --------------------------- | ---------------------------- |
+| `FormArray.Root`      | `control: ArrayNode<T>`     | Провайдер контекста          |
+| `FormArray.List`      | `children: (item) => Node`  | Итерация с render props      |
+| `FormArray.AddButton` | `initialValue?: Partial<T>` | Добавить новый элемент       |
+| `FormArray.Empty`     | `children: ReactNode`       | Показать когда массив пустой |
+| `FormArray.Count`     | `render?: (count) => Node`  | Отображение количества       |
 
 #### Render Props в List
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: FormProxy<T>;  // Контрол элемента
-  index: number;                       // Индекс (с 0)
-  id: string | number;                 // Уникальный ключ
-  remove: () => void;                  // Удалить этот элемент
+  control: FormProxy<T>; // Контрол элемента
+  index: number; // Индекс (с 0)
+  id: string | number; // Уникальный ключ
+  remove: () => void; // Удалить этот элемент
 }
 ```
 
@@ -382,9 +382,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       {hasProperty && (
         <FormArray.Root control={control.properties}>
           <div className="flex justify-between items-center">
-            <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Имущество</span>
-            )} />
+            <FormArray.Count
+              render={(count) => (
+                <span className="text-sm text-muted-foreground">{count} Имущество</span>
+              )}
+            />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
                 + Добавить имущество
@@ -418,9 +420,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       {hasCoBorrower && (
         <FormArray.Root control={control.coBorrowers}>
           <div className="flex justify-between items-center">
-            <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
-            )} />
+            <FormArray.Count
+              render={(count) => (
+                <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+              )}
+            />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
                 + Добавить созаёмщика

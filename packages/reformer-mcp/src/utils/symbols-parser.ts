@@ -136,12 +136,9 @@ function collectFromFile(
   visited: Set<string>,
   collected: Map<string, PublicSymbol>,
   aliasFilter: Set<string> | null,
-  pkg: string,
+  pkg: string
 ): void {
-  const key =
-    filePath +
-    '||' +
-    (aliasFilter ? [...aliasFilter].sort().join(',') : '*');
+  const key = filePath + '||' + (aliasFilter ? [...aliasFilter].sort().join(',') : '*');
   if (visited.has(key)) return;
   visited.add(key);
 
@@ -228,7 +225,7 @@ function hasExportModifier(node: ts.Node): boolean {
 
 function describeExportStatement(
   stmt: ts.Statement,
-  sf: ts.SourceFile,
+  _sf: ts.SourceFile
 ): Array<{ name: string; decl: ts.Node; kind: PublicSymbol['kind'] }> {
   if (ts.isFunctionDeclaration(stmt) && stmt.name) {
     return [{ name: stmt.name.text, decl: stmt, kind: 'function' }];
@@ -280,7 +277,7 @@ function addSymbol(
   sf: ts.SourceFile,
   filePath: string,
   kind: PublicSymbol['kind'] | undefined,
-  pkg: string,
+  pkg: string
 ): void {
   const jsdoc = extractJSDoc(decl);
   const candidate: PublicSymbol = {
@@ -322,11 +319,17 @@ function extractSignature(decl: ts.Node, sf: ts.SourceFile): string {
   let text = decl.getText(sf).trim().replace(/\s+$/, '');
 
   if (ts.isVariableStatement(decl)) {
-    text = text.replace(/=\s*[\s\S]*$/, '').trim().replace(/[,;]?$/, '');
+    text = text
+      .replace(/=\s*[\s\S]*$/, '')
+      .trim()
+      .replace(/[,;]?$/, '');
   }
   if (ts.isFunctionDeclaration(decl) && decl.body) {
     const bodyStart = decl.body.getStart(sf) - decl.getStart(sf);
-    text = text.slice(0, bodyStart).trim().replace(/[{;,]?$/, '');
+    text = text
+      .slice(0, bodyStart)
+      .trim()
+      .replace(/[{;,]?$/, '');
   }
   if (ts.isClassDeclaration(decl) && decl.members.length > 0) {
     const firstMember = decl.members[0];
@@ -382,12 +385,7 @@ function renderComment(comment: string | ts.NodeArray<ts.JSDocComment>): string 
 function resolveModule(fromFile: string, spec: string): string | null {
   if (!spec.startsWith('.')) return null;
   const baseDir = dirname(fromFile);
-  const candidates = [
-    spec + '.ts',
-    spec + '.tsx',
-    `${spec}/index.ts`,
-    `${spec}/index.tsx`,
-  ];
+  const candidates = [spec + '.ts', spec + '.tsx', `${spec}/index.ts`, `${spec}/index.tsx`];
   for (const rel of candidates) {
     const abs = resolve(baseDir, rel);
     if (existsSync(abs)) return abs;

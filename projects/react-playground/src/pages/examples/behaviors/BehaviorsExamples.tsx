@@ -276,7 +276,12 @@ function NumberField({
 
   return (
     <div className="mb-4" data-testid={testId ? `field-${testId}` : undefined}>
-      <label className="block text-sm font-medium mb-1" data-testid={testId ? `label-${testId}` : undefined}>{label}</label>
+      <label
+        className="block text-sm font-medium mb-1"
+        data-testid={testId ? `label-${testId}` : undefined}
+      >
+        {label}
+      </label>
       <input
         type="number"
         value={value}
@@ -305,7 +310,12 @@ function TextField({
 
   return (
     <div className="mb-4" data-testid={testId ? `field-${testId}` : undefined}>
-      <label className="block text-sm font-medium mb-1" data-testid={testId ? `label-${testId}` : undefined}>{label}</label>
+      <label
+        className="block text-sm font-medium mb-1"
+        data-testid={testId ? `label-${testId}` : undefined}
+      >
+        {label}
+      </label>
       <input
         type="text"
         value={value ?? ''}
@@ -320,12 +330,23 @@ function TextField({
 }
 
 // Компонент чекбокса
-function CheckboxField({ control, label, testId }: { control: FieldNode<boolean>; label: string; testId?: string }) {
+function CheckboxField({
+  control,
+  label,
+  testId,
+}: {
+  control: FieldNode<boolean>;
+  label: string;
+  testId?: string;
+}) {
   const { value, disabled } = useFormControl(control);
 
   return (
     <div className="mb-4" data-testid={testId ? `field-${testId}` : undefined}>
-      <label className="flex items-center gap-2" data-testid={testId ? `label-${testId}` : undefined}>
+      <label
+        className="flex items-center gap-2"
+        data-testid={testId ? `label-${testId}` : undefined}
+      >
         <input
           type="checkbox"
           checked={value}
@@ -356,7 +377,12 @@ function SelectField({
 
   return (
     <div className="mb-4" data-testid={testId ? `field-${testId}` : undefined}>
-      <label className="block text-sm font-medium mb-1" data-testid={testId ? `label-${testId}` : undefined}>{label}</label>
+      <label
+        className="block text-sm font-medium mb-1"
+        data-testid={testId ? `label-${testId}` : undefined}
+      >
+        {label}
+      </label>
       <select
         value={value}
         onChange={(e) => control.setValue(e.target.value)}
@@ -448,7 +474,13 @@ export default function BehaviorsExamples() {
           )`}
         >
           <CheckboxField control={form.hasDiscount} label="Применить скидку" testId="hasDiscount" />
-          {hasDiscount && <NumberField control={form.discountPercent} label="Процент скидки" testId="discountPercent" />}
+          {hasDiscount && (
+            <NumberField
+              control={form.discountPercent}
+              label="Процент скидки"
+              testId="discountPercent"
+            />
+          )}
         </ExampleCard>
 
         {/* DisableWhen Example */}
@@ -467,7 +499,11 @@ export default function BehaviorsExamples() {
             placeholder="Введите текст..."
             testId="editableField"
           />
-          <CheckboxField control={form.isConfirmed} label="Подтвердить (заблокировать поле)" testId="isConfirmed" />
+          <CheckboxField
+            control={form.isConfirmed}
+            label="Подтвердить (заблокировать поле)"
+            testId="isConfirmed"
+          />
         </ExampleCard>
 
         {/* CopyFrom Example */}
@@ -487,7 +523,11 @@ export default function BehaviorsExamples() {
             placeholder="Введите адрес..."
             testId="shippingAddress"
           />
-          <CheckboxField control={form.useShippingAsBilling} label="Использовать для оплаты" testId="useShippingAsBilling" />
+          <CheckboxField
+            control={form.useShippingAsBilling}
+            label="Использовать для оплаты"
+            testId="useShippingAsBilling"
+          />
           <TextField
             control={form.billingAddress}
             label="Адрес оплаты"
@@ -577,7 +617,12 @@ export default function BehaviorsExamples() {
             path.syncField2
           )`}
         >
-          <TextField control={form.syncField1} label="Поле 1" placeholder="Введите текст..." testId="syncField1" />
+          <TextField
+            control={form.syncField1}
+            label="Поле 1"
+            placeholder="Введите текст..."
+            testId="syncField1"
+          />
           <TextField
             control={form.syncField2}
             label="Поле 2 (синхронизировано)"

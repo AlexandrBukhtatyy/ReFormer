@@ -27,29 +27,29 @@ import { FormArray } from '@reformer/cdk/form-array';
   </FormArray.List>
 
   <FormArray.AddButton>Добавить</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ## Sub-компоненты
 
-| Компонент | Props | Назначение |
-|-----------|-------|------------|
-| `FormArray.Root` | `control: ArrayNode<T>` | Context provider |
-| `FormArray.List` | `children: (item) => ReactNode` | Итерация по элементам (render props) |
-| `FormArray.AddButton` | `initialValue?: Partial<T>` | Добавляет новый элемент |
-| `FormArray.RemoveButton` | - | Удаляет текущий элемент (внутри List) |
-| `FormArray.Empty` | `children: ReactNode` | Показывает при пустом массиве |
-| `FormArray.Count` | `render?: (count) => ReactNode` | Отображает количество |
-| `FormArray.ItemIndex` | `render?: (index) => ReactNode` | Отображает текущий индекс |
+| Компонент                | Props                           | Назначение                            |
+| ------------------------ | ------------------------------- | ------------------------------------- |
+| `FormArray.Root`         | `control: ArrayNode<T>`         | Context provider                      |
+| `FormArray.List`         | `children: (item) => ReactNode` | Итерация по элементам (render props)  |
+| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Добавляет новый элемент               |
+| `FormArray.RemoveButton` | -                               | Удаляет текущий элемент (внутри List) |
+| `FormArray.Empty`        | `children: ReactNode`           | Показывает при пустом массиве         |
+| `FormArray.Count`        | `render?: (count) => ReactNode` | Отображает количество                 |
+| `FormArray.ItemIndex`    | `render?: (index) => ReactNode` | Отображает текущий индекс             |
 
 ## Render Props в List
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: FormProxy<T>;  // Контрол элемента
-  index: number;                       // Индекс (0-based)
-  id: string | number;                 // Уникальный ключ
-  remove: () => void;                  // Удалить этот элемент
+  control: FormProxy<T>; // Контрол элемента
+  index: number; // Индекс (0-based)
+  id: string | number; // Уникальный ключ
+  remove: () => void; // Удалить этот элемент
 }
 ```
 
@@ -68,7 +68,7 @@ arrayRef.current?.clear();
 
 <FormArray.Root ref={arrayRef} control={form.items}>
   ...
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ## FormArrayHandle API
@@ -138,9 +138,6 @@ function CustomList() {
 ```tsx
 <h3>
   Элементы (
-  <FormArray.Count render={(count) =>
-    count === 0 ? 'нет' : `${count} шт.`
-  } />
-  )
+  <FormArray.Count render={(count) => (count === 0 ? 'нет' : `${count} шт.`)} />)
 </h3>
 ```

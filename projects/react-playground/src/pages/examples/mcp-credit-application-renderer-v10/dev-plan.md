@@ -28,14 +28,14 @@ Iter-10 regression test of patches G–M for renderer-react target.
 
 ## Step → fields map
 
-| Step | Title | Fields (all from spec) |
-|---|---|---|
-| 1 | Кредит | loanType, loanAmount, loanTerm, loanPurpose, [propertyValue, initialPayment if mortgage], [carBrand, carModel, carYear, carPrice if car], interestRate, monthlyPayment |
-| 2 | Данные | personalData.{lastName, firstName, middleName, birthDate, gender, birthPlace}, passportData.{series, number, issueDate, issuedBy, departmentCode}, inn, snils, fullName, age |
-| 3 | Контакты | phoneMain, phoneAdditional, email, emailAdditional, registrationAddress.{region, city, street, house, apartment, postalCode}, sameAsRegistration, [residenceAddress.* if !sameAsRegistration] |
-| 4 | Работа | employmentStatus, [company* if employed], [business* if selfEmployed], workExperience{Total,Current}, monthly/additionalIncome, additionalIncomeSource, totalIncome, paymentToIncomeRatio |
-| 5 | Доп. инфо | maritalStatus, dependents, education, hasProperty + properties[], hasExistingLoans + existingLoans[], hasCoBorrower + coBorrowers[], coBorrowersIncome |
-| 6 | Подтверждение | agreePersonalData, agreeCreditHistory, agreeMarketing, agreeTerms, confirmAccuracy, electronicSignature |
+| Step | Title         | Fields (all from spec)                                                                                                                                                                        |
+| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Кредит        | loanType, loanAmount, loanTerm, loanPurpose, [propertyValue, initialPayment if mortgage], [carBrand, carModel, carYear, carPrice if car], interestRate, monthlyPayment                        |
+| 2    | Данные        | personalData.{lastName, firstName, middleName, birthDate, gender, birthPlace}, passportData.{series, number, issueDate, issuedBy, departmentCode}, inn, snils, fullName, age                  |
+| 3    | Контакты      | phoneMain, phoneAdditional, email, emailAdditional, registrationAddress.{region, city, street, house, apartment, postalCode}, sameAsRegistration, [residenceAddress.* if !sameAsRegistration] |
+| 4    | Работа        | employmentStatus, [company* if employed], [business* if selfEmployed], workExperience{Total,Current}, monthly/additionalIncome, additionalIncomeSource, totalIncome, paymentToIncomeRatio     |
+| 5    | Доп. инфо     | maritalStatus, dependents, education, hasProperty + properties[], hasExistingLoans + existingLoans[], hasCoBorrower + coBorrowers[], coBorrowersIncome                                        |
+| 6    | Подтверждение | agreePersonalData, agreeCreditHistory, agreeMarketing, agreeTerms, confirmAccuracy, electronicSignature                                                                                       |
 
 ## Risks
 

@@ -21,6 +21,7 @@ import { FormField } from '@reformer/ui-kit';
 ## RenderSchemaProxy nodes don't react to behavior
 
 `hideWhen`/`patchProps` работают только при адресации узла через `proxy.node(selector)`. Убедись, что:
+
 - У узла есть `selector` (или используется внешний адрес-провайдер).
 - `RenderSchemaFn` обёрнута через `createRenderSchema`, а не передана в `<FormRenderer>` напрямую.
 

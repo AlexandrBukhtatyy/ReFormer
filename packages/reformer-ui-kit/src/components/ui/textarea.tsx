@@ -2,8 +2,10 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /** Props компонента {@link Textarea}. */
-export interface TextareaProps
-  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
+export interface TextareaProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'value' | 'onChange'
+> {
   /** Дополнительный CSS-класс. */
   className?: string;
   /** Текущее значение. `null`/`undefined` рендерится как пустое поле. */

@@ -1,6 +1,6 @@
 # Component Registry
 
-Реестр — это карта от строкового имени `component` в JSON-схеме на React-компонент. Без регистрации компонент не отрендерится — будет ошибка вида *Component "X" not found in registry*.
+Реестр — это карта от строкового имени `component` в JSON-схеме на React-компонент. Без регистрации компонент не отрендерится — будет ошибка вида _Component "X" not found in registry_.
 
 ## Key Concepts
 
@@ -11,11 +11,11 @@
 
 ## Builder API
 
-| Method                                | Purpose                                                           |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `reg.field(name, Component)`          | Регистрирует field-компонент.                                     |
-| `reg.container(name, Component)`      | Регистрирует container-компонент.                                 |
-| `reg.source(name, value)`             | Регистрирует source-значение (константу или функцию).             |
+| Method                           | Purpose                                               |
+| -------------------------------- | ----------------------------------------------------- |
+| `reg.field(name, Component)`     | Регистрирует field-компонент.                         |
+| `reg.container(name, Component)` | Регистрирует container-компонент.                     |
+| `reg.source(name, value)`        | Регистрирует source-значение (константу или функцию). |
 
 ## Examples
 

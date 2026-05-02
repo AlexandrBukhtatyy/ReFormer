@@ -12,7 +12,7 @@ const itemSchema = {
 };
 
 const schema: FormSchema<MyForm> = {
-  items: [itemSchema],  // Array of sub-forms
+  items: [itemSchema], // Array of sub-forms
 };
 ```
 
@@ -20,7 +20,7 @@ const schema: FormSchema<MyForm> = {
 > must be assignable to `FormFields = Record<string, FormValue>`. Either declare the
 > item interface as `interface Item extends FormFields { … }` or add an explicit
 > `[key: string]: FormValue` index signature. Without it TS reports
-> *"Type 'Item' does not satisfy the constraint 'FormFields'"* on `ArrayNode<Item>`.
+> _"Type 'Item' does not satisfy the constraint 'FormFields'"_ on `ArrayNode<Item>`.
 
 > **Do NOT use `enableWhen(path.someArray, …, { resetOnDisable: true })` on a whole
 > ArrayNode.** The combination triggers a reactive cycle on mount that prevents
@@ -28,20 +28,19 @@ const schema: FormSchema<MyForm> = {
 > "show array conditionally" — gate the rendering in JSX:
 >
 > ```tsx
-> {form.hasItems.value && (
->   <ArrayUI array={form.items} />
-> )}
+> {
+>   form.hasItems.value && <ArrayUI array={form.items} />;
+> }
 > ```
 >
 > `enableWhen` on individual `FieldNode` targets inside an array item template is fine.
 
 ```typescript
-
 // Each array item is a GroupNode (sub-form) with its own controls:
 form.items.map((item) => {
   // item is a sub-form (GroupNode) - access fields like nested form
   item.name.setValue('New Name');
-  item.price.value.value;  // Get current value
+  item.price.value.value; // Get current value
 });
 ```
 
@@ -80,11 +79,12 @@ form.step5.properties.push(propertyTemplate());
 ```
 
 The FieldConfig SHAPE (with `component`, `componentProps`, etc.) belongs
-ONLY in the *initial* schema literal passed to `createForm({...})`. New
+ONLY in the _initial_ schema literal passed to `createForm({...})`. New
 items pushed at runtime reuse the same component+props that the schema's
 template item declared — `initialValue` only fills the field VALUES.
 
 > **Symptom checklist** (if you see these, you're passing FieldConfig):
+>
 > - `[object Object]` rendered in a Textarea/Input.
 > - Boolean checkbox shows checked even though `value: false` was provided.
 > - Select shows empty placeholder even though `value: 'apartment'` was provided.

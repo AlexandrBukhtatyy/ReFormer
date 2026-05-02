@@ -2,8 +2,10 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /** Props компонента {@link Input}. */
-export interface InputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+export interface InputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+> {
   /** Дополнительный CSS-класс (мерджится с дефолтными Tailwind-классами через `tailwind-merge`). */
   className?: string;
   /**

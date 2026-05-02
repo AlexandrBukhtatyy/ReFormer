@@ -6,15 +6,15 @@
 
 **Зафиксированные решения:**
 
-| Аспект | Решение |
-|--------|---------|
-| API | `RenderSchemaFn<T> = (path) => RenderNode<T>` |
-| Структура узла | `{ component, componentProps }` |
-| Типизация | Union types: `FieldNode \| ContainerNode \| ArrayNode` |
-| Массивы | Компонент `FormArray` с `array` и `renderItem` |
-| Wrapper полей | `wrapper` prop (по умолчанию `'div'`) |
-| Стилизация | Atomic CSS через `className` |
-| JSON-сериализация | Да (функции только для `hidden`) |
+| Аспект            | Решение                                                |
+| ----------------- | ------------------------------------------------------ |
+| API               | `RenderSchemaFn<T> = (path) => RenderNode<T>`          |
+| Структура узла    | `{ component, componentProps }`                        |
+| Типизация         | Union types: `FieldNode \| ContainerNode \| ArrayNode` |
+| Массивы           | Компонент `FormArray` с `array` и `renderItem`         |
+| Wrapper полей     | `wrapper` prop (по умолчанию `'div'`)                  |
+| Стилизация        | Atomic CSS через `className`                           |
+| JSON-сериализация | Да (функции только для `hidden`)                       |
 
 ---
 
@@ -56,17 +56,14 @@ type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
 // RENDER NODE - дискриминированный union
 // ============================================================================
 
-type RenderNode<T> =
-  | FieldRenderNode<T>
-  | ContainerRenderNode<T>
-  | ArrayRenderNode<T>;
+type RenderNode<T> = FieldRenderNode<T> | ContainerRenderNode<T> | ArrayRenderNode<T>;
 
 /** Поле формы */
 interface FieldRenderNode<T> {
   component: FieldPathNode<T, any>;
   componentProps?: {
     className?: string;
-    wrapper?: ElementType;  // 'div' | 'span' | CustomWrapper
+    wrapper?: ElementType; // 'div' | 'span' | CustomWrapper
     hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
   };
 }
@@ -78,7 +75,7 @@ interface ContainerRenderNode<T> {
     className?: string;
     children?: RenderNode<T>[];
     hidden?: (form: FormProxy<T>, path: FieldPath<T>) => boolean;
-    [key: string]: any;  // title, defaultOpen, etc.
+    [key: string]: any; // title, defaultOpen, etc.
   };
 }
 
@@ -133,10 +130,7 @@ const renderSchema: RenderSchemaFn<CreditForm> = (path) => ({
           title: 'Параметры ипотеки',
           className: 'flex flex-col gap-3',
           hidden: (form) => form.loanType.value.value !== 'mortgage',
-          children: [
-            { component: path.propertyValue },
-            { component: path.initialPayment },
-          ],
+          children: [{ component: path.propertyValue }, { component: path.initialPayment }],
         },
       },
     ],
@@ -294,20 +288,24 @@ function RenderNodeComponent<T>({ node, form, path }: Props<T>) {
 ## План реализации
 
 ### Фаза 1: Типы
+
 - [x] `types.ts` - RenderSchemaFn, RenderNode (union), FieldRenderNode, ContainerRenderNode, ArrayRenderNode
 - [x] `utils.ts` - type guards (isFieldRenderNode, isArrayRenderNode, isContainerRenderNode)
 
 ### Фаза 2: FormRenderer
+
 - [x] `form-renderer.tsx` - FormRenderer компонент
 - [x] `render-node.tsx` - RenderNodeComponent (рекурсивный)
 
 ### Фаза 3: Компоненты
+
 - [x] `box.tsx` - простой div
 - [x] `section.tsx` - секция с title
 - [x] `collapsible.tsx` - сворачиваемая секция
 - [x] `form-array.tsx` - рендеринг массивов
 
 ### Фаза 4: Интеграция
+
 - [x] Экспорты в index.ts
 - [x] Пример в playground (`projects/react-playground/src/pages/examples/render-schema/`)
 

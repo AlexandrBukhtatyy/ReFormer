@@ -19,7 +19,7 @@ interface FormLifecycleAPI<T> {
   /** Реактивные сигналы. */
   valid: Signal<boolean>;
   invalid: Signal<boolean>;
-  pending: Signal<boolean>;   // true пока крутятся async-валидаторы
+  pending: Signal<boolean>; // true пока крутятся async-валидаторы
   dirty: Signal<boolean>;
   touched: Signal<boolean>;
   errors: Signal<ValidationError[]>;
@@ -197,7 +197,8 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 const handleSubmit = (e) => {
   e.preventDefault();
   form.markAsTouched();
-  if (form.valid.value) { // async-валидаторы ещё не завершились!
+  if (form.valid.value) {
+    // async-валидаторы ещё не завершились!
     submit();
   }
 };

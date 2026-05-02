@@ -12,7 +12,11 @@ Sections are independent: any implementation from A composes with any integratio
 ## Current form code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ---
@@ -26,6 +30,7 @@ If the detected stack includes `@reformer/ui-kit`, **this is the default**. Impo
 **Polymorphic `step.body` (Path C unified API):**
 
 {{{{raw}}}}
+
 ```tsx
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 
@@ -39,10 +44,12 @@ const steps: FormWizardStep<MyForm>[] = [
   // Variant 3 — RenderNode subtree (used in renderer-react / renderer-json flows)
   // ⚠ Inside the RenderNode tree use `path.X` (FieldPathNode), NOT `form.X` (FieldNode).
   // FieldNode has no `__path` marker → renderer silently ignores the node.
-  { number: 3, title: 'Контакты', icon: '📞', body: { component: Box, children: [
-    { component: path.phoneMain },
-    { component: path.email },
-  ] } },
+  {
+    number: 3,
+    title: 'Контакты',
+    icon: '📞',
+    body: { component: Box, children: [{ component: path.phoneMain }, { component: path.email }] },
+  },
 ];
 
 <FormWizard
@@ -50,8 +57,9 @@ const steps: FormWizardStep<MyForm>[] = [
   config={{ stepValidations: STEP_VALIDATIONS, fullValidation }}
   steps={steps}
   onSubmit={handleSubmit}
-/>
+/>;
 ```
+
 {{{{/raw}}}}
 
 `step.body` is runtime-discriminated — pick whichever shape fits the consumer's flow. ui-kit handles all three internally via `RenderNodeComponent` for the RenderNode case.
@@ -65,6 +73,7 @@ Some projects already have `src/components/AppWizard.tsx` or similar — a thin 
 ### A3 — `@reformer/cdk` `FormWizard` compound
 
 Headless compound (`FormWizard.Root + Indicator + Step + Actions + Progress`) — full styling/UX control, you assemble the visual layer. Use when:
+
 - ui-kit doesn't export a high-level wizard, AND
 - you don't have a project-custom wrapper, AND
 - you want compound primitives (Indicator API, Actions slot, programmatic `goToStep` via ref).
@@ -74,6 +83,7 @@ See `reformer://docs/cdk/formwizard-indicator`, `formwizard-actions`, `formwizar
 ### A4 (last resort) — Manual `useState` wizard
 
 Plain `const [currentStep, setCurrentStep] = useState(1)` with own step indicator and nav buttons. Use only when:
+
 - A1, A2, A3 unavailable or unsuitable, OR
 - the wizard has unique flow constraints not expressible in CDK compound (e.g. dynamic step skipping, custom routing integration).
 
@@ -103,6 +113,7 @@ How wizard step visibility is wired to the form rendering. Independent of A.
 ### Integration B1 — `target=core` (no RenderSchema)
 
 Step bodies are plain React components rendered conditionally:
+
 - A1/A2/A3: Wizard's `<Step>` slot or equivalent renders the active step's body — no `setHidden` needed.
 - A4 (manual useState): JSX-conditional `{currentStep === 1 && <Step1Section />}`.
 
@@ -145,6 +156,7 @@ Conditional sub-sections within steps (mortgage, residence, etc.) get their own 
 Same as B2 mechanics (`schema.node().setHidden`), but the schema is built from JSON via a `RenderSchemaFn`-wrapper that injects `form` into root `FormRoot` componentProps:
 
 {{{{raw}}}}
+
 ```tsx
 const schema = useMemo(() => {
   const baseFn = createRenderSchemaFromJson<MyForm>(jsonSchema, registry);
@@ -154,8 +166,11 @@ const schema = useMemo(() => {
   };
   return createRenderSchema(fnWithForm);
 }, [registry, form]);
-useEffect(() => { /* same setHidden loop as B2 */ }, [schema, currentStep]);
+useEffect(() => {
+  /* same setHidden loop as B2 */
+}, [schema, currentStep]);
 ```
+
 {{{{/raw}}}}
 
 JSON `selector: 'stepN'` on each step container; `useEffect setHidden` orchestration in `index.tsx`. Conditional sub-sections via `useFormControlValue(form.field as never)` + `useEffect setHidden('subsection-selector')`.

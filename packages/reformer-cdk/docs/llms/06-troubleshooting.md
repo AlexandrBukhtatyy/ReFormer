@@ -26,9 +26,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
   <PropertyForm control={control} />
 ));
 
-<FormArray.List>
-  {({ control, id }) => <Item key={id} control={control} />}
-</FormArray.List>
+<FormArray.List>{({ control, id }) => <Item key={id} control={control} />}</FormArray.List>;
 ```
 
 `useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
@@ -38,6 +36,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 **Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
 
 **Решение.**
+
 - Для последовательного перехода вперёд используйте `await navRef.current?.goToNextStep()` — он сам валидирует и помечает шаг completed.
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
@@ -80,6 +79,7 @@ const config: FormWizardConfig<MyForm> = {
 **Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
 
 **Решение.**
+
 - На сабмите формы вызовите `form.markAsTouched()` перед `await form.validate()`.
 - Для немедленной валидации поля используйте `revalidateWhen({ when: 'change' })` behavior, либо вручную `control.markAsTouched()` в `onChange`.
 
@@ -87,7 +87,9 @@ const config: FormWizardConfig<MyForm> = {
 const handleSubmit = async () => {
   form.markAsTouched();
   await form.validate();
-  if (form.valid.value) { /* submit */ }
+  if (form.valid.value) {
+    /* submit */
+  }
 };
 ```
 
@@ -128,7 +130,9 @@ const handleSubmit = async () => {
 ```tsx
 <FormArray.List>
   {({ control, id, remove }) => (
-    <div key={id}>           {/* ✓ стабильный id */}
+    <div key={id}>
+      {' '}
+      {/* ✓ стабильный id */}
       <ItemForm control={control} />
     </div>
   )}

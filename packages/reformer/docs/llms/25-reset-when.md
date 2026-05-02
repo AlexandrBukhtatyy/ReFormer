@@ -10,7 +10,7 @@
 function resetWhen<TForm extends FormFields>(
   field: FieldPathNode<TForm, FormValue>,
   condition: (form: TForm) => boolean,
-  options?: ResetWhenOptions & { debounce?: number },
+  options?: ResetWhenOptions & { debounce?: number }
 ): void;
 
 interface ResetWhenOptions {

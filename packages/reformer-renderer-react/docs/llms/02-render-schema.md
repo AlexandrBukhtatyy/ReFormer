@@ -11,8 +11,12 @@ Type guards:
 ```typescript
 import { isFieldRenderNode, isContainerRenderNode } from '@reformer/renderer-react';
 
-if (isFieldRenderNode(node)) { /* node.component — FieldPathNode */ }
-if (isContainerRenderNode(node)) { /* node.componentProps.children — RenderNode[] */ }
+if (isFieldRenderNode(node)) {
+  /* node.component — FieldPathNode */
+}
+if (isContainerRenderNode(node)) {
+  /* node.componentProps.children — RenderNode[] */
+}
 ```
 
 ## Examples
@@ -31,10 +35,7 @@ const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
         component: Section,
         componentProps: {
           title: 'Личные данные',
-          children: [
-            { component: path.firstName },
-            { component: path.lastName },
-          ],
+          children: [{ component: path.firstName }, { component: path.lastName }],
         },
       },
     ],

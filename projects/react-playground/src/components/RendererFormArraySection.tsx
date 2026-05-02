@@ -18,12 +18,7 @@
  */
 
 import { type ComponentType, type ReactNode } from 'react';
-import {
-  createFieldPath,
-  type FieldPath,
-  type FormFields,
-  type FormProxy,
-} from '@reformer/core';
+import { createFieldPath, type FieldPath, type FormFields, type FormProxy } from '@reformer/core';
 import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import {
   FormArraySection,
@@ -32,8 +27,10 @@ import {
 
 type LegacyItemFactory<T> = (itemPath: FieldPath<T>) => RenderNode<T>;
 
-export interface RendererFormArraySectionProps<T extends FormFields>
-  extends Omit<UiKitProps<T>, 'itemComponent'> {
+export interface RendererFormArraySectionProps<T extends FormFields> extends Omit<
+  UiKitProps<T>,
+  'itemComponent'
+> {
   /**
    * Legacy node-factory API. Path C ui-kit consumers should pass FC directly
    * via `FormArraySection.itemComponent` from `@reformer/ui-kit/form-array`.
@@ -52,10 +49,12 @@ export function RendererFormArraySection<T extends FormFields>(
   const itemPath = createFieldPath<T>();
   const itemRenderNode = legacyFactory(itemPath);
 
-  const ItemFC: ComponentType<{ control: FormProxy<T> }> = ({ control }) => (
-    <RenderNodeComponent node={itemRenderNode} form={control} />
+  const ItemFC: ComponentType<{ control: FormProxy<T> }> = Object.assign(
+    ({ control }: { control: FormProxy<T> }) => (
+      <RenderNodeComponent node={itemRenderNode} form={control} />
+    ),
+    { displayName: 'LegacyItemFC' }
   );
-  ItemFC.displayName = 'LegacyItemFC';
 
   return <FormArraySection<T> {...rest} itemComponent={ItemFC} />;
 }

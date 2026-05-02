@@ -45,11 +45,11 @@
 
 Спека: [docs/specs/credit-application-form.md](docs/specs/credit-application-form.md). **Три новые страницы** в `projects/react-playground/src/pages/examples/`, **отдельные** от итерации 1:
 
-| Каталог | Стек | Цель |
-|---|---|---|
-| `mcp-credit-application-v2/` | `@reformer/core` + `@reformer/cdk` + `@reformer/ui-kit` + Tailwind | Полная форма ui-kit + Tailwind, ручной React-рендеринг. |
-| `mcp-credit-application-renderer-v2/` | + `@reformer/renderer-react` | Та же визуальная плотность, через TS RenderSchema. |
-| `mcp-credit-application-renderer-json-v2/` | + `@reformer/renderer-json` | Та же, через JSON-схему + Registry. |
+| Каталог                                    | Стек                                                               | Цель                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------- |
+| `mcp-credit-application-v2/`               | `@reformer/core` + `@reformer/cdk` + `@reformer/ui-kit` + Tailwind | Полная форма ui-kit + Tailwind, ручной React-рендеринг. |
+| `mcp-credit-application-renderer-v2/`      | + `@reformer/renderer-react`                                       | Та же визуальная плотность, через TS RenderSchema.      |
+| `mcp-credit-application-renderer-json-v2/` | + `@reformer/renderer-json`                                        | Та же, через JSON-схему + Registry.                     |
 
 Существующие `mcp-credit-application*` (без `-v2`) **не трогаем** — они остаются как «before» state для сравнения в отчёте. Существующие `complex-multy-step-form*` тоже не трогаем — они остаются baseline.
 
@@ -68,14 +68,14 @@
 
 ### Этапы внутри одной страницы (расширены)
 
-| Этап | Содержание | Проверка |
-|---|---|---|
-| 0. **MCP discovery** *(новый)* | Sub-agent читает `package.json` проекта, детектит ui-kit + Tailwind. Если ui-kit detected — использует его. Если detected, но layout не очевиден — задаёт MCP-gap вопрос; оркестратор уточняет. | Sub-agent в final report показывает какие detected зависимости и какой стек выбрал. |
-| 1. FormSchema | Типы + поля + initial values + groups + arrays + `@reformer/ui-kit` компоненты в `FieldConfig.component`. Tailwind layout для steps (Section + Box grid). | tsc clean, визуально страница рендерит **поля с правильным spacing** (sections, grid, gaps), не plain `<input>`-stack. |
-| 2. Валидация | Built-in + custom + applyWhen + validateItems. **Errors отображаются через `FormField` wrapper** (label + red error span), не через ручной `<span>`. | Невалидный submit показывает ошибки в том же стиле что baseline `complex-multy-step-form*`. |
-| 3. Behaviors | computeFrom/watchField/enableWhen/copyFrom + (для renderer-react/json) `hideWhen` через `RenderBehaviorFn`. | Изменение зависимого поля — реакция; disabled поля визуально отключены через Tailwind. |
-| 4. FormArray | Имущество/кредиты/созаёмщики через `FormArray` compound component из `@reformer/cdk` (если detected). Add/remove buttons в стиле `Button` из ui-kit. | Add/remove работает, items в визуально однородной table/list. |
-| 5. Multi-step | `FormWizard` compound component из `@reformer/cdk` (если detected) с per-step validation. Step indicator + Назад/Далее/Submit в стиле baseline. | Wizard визуально похож на baseline (numbered tabs + buttons + transition). |
+| Этап                           | Содержание                                                                                                                                                                                      | Проверка                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 0. **MCP discovery** _(новый)_ | Sub-agent читает `package.json` проекта, детектит ui-kit + Tailwind. Если ui-kit detected — использует его. Если detected, но layout не очевиден — задаёт MCP-gap вопрос; оркестратор уточняет. | Sub-agent в final report показывает какие detected зависимости и какой стек выбрал.                                    |
+| 1. FormSchema                  | Типы + поля + initial values + groups + arrays + `@reformer/ui-kit` компоненты в `FieldConfig.component`. Tailwind layout для steps (Section + Box grid).                                       | tsc clean, визуально страница рендерит **поля с правильным spacing** (sections, grid, gaps), не plain `<input>`-stack. |
+| 2. Валидация                   | Built-in + custom + applyWhen + validateItems. **Errors отображаются через `FormField` wrapper** (label + red error span), не через ручной `<span>`.                                            | Невалидный submit показывает ошибки в том же стиле что baseline `complex-multy-step-form*`.                            |
+| 3. Behaviors                   | computeFrom/watchField/enableWhen/copyFrom + (для renderer-react/json) `hideWhen` через `RenderBehaviorFn`.                                                                                     | Изменение зависимого поля — реакция; disabled поля визуально отключены через Tailwind.                                 |
+| 4. FormArray                   | Имущество/кредиты/созаёмщики через `FormArray` compound component из `@reformer/cdk` (если detected). Add/remove buttons в стиле `Button` из ui-kit.                                            | Add/remove работает, items в визуально однородной table/list.                                                          |
+| 5. Multi-step                  | `FormWizard` compound component из `@reformer/cdk` (если detected) с per-step validation. Step indicator + Назад/Далее/Submit в стиле baseline.                                                 | Wizard визуально похож на baseline (numbered tabs + buttons + transition).                                             |
 
 После 5 этапа — **переход на следующую страницу с этапа 0 заново**. Sub-agent заново детектит ui-kit/Tailwind, заново выбирает компоненты — это проверка что MCP discovery работает воспроизводимо.
 
@@ -86,6 +86,7 @@
 **Не удалять скриншоты предыдущей итерации** — они в `projects/react-playground-e2e/screenshots/mcp-credit/` (старый путь) и в git history. Новая итерация создаёт **свои** screenshots в соседней `mcp-credit-v2/`, чтобы можно было сравнить «before / after» по каждому этапу.
 
 Visual smoke-test через playwright MCP на каждом stage:
+
 1. Navigate на временный route в `App.tsx` (orchestrator-only).
 2. Snapshot DOM + 0 console errors.
 3. Screenshot fullpage + per-step.

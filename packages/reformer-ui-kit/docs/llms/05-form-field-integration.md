@@ -41,12 +41,12 @@ interface FormFieldProps {
 }
 ```
 
-| Prop | Тип | Описание |
-| --- | --- | --- |
-| `control` | `FieldNode<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`. |
-| `className` | `string` | Класс корневой `<div>`-обёртки. |
-| `testId` | `string` | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
-| `children` | `ReactNode` | Кастомный контрол: оборачивается в `CdkFormField.Control asChild`. См. сценарий 3. |
+| Prop        | Тип            | Описание                                                                                                                                                     |
+| ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `control`   | `FieldNode<T>` | Поле формы. Из него берутся `component`, `componentProps`, `value`, `error`, `pending`, `setValue`, `blur`.                                                  |
+| `className` | `string`       | Класс корневой `<div>`-обёртки.                                                                                                                              |
+| `testId`    | `string`       | Префикс для `data-testid` (`field-<id>`, `label-<id>`, `input-<id>`, `error-<id>`). Если опущен — пытается взять `componentProps.testId`. Иначе `'unknown'`. |
+| `children`  | `ReactNode`    | Кастомный контрол: оборачивается в `CdkFormField.Control asChild`. См. сценарий 3.                                                                           |
 
 `FormField` обёрнут в `React.memo` со сравнением по ссылочному равенству
 `control` — это критично для производительности больших форм (при ререндере
@@ -159,7 +159,7 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 
 <FormField control={form.phone} testId="phone">
   <InputMask mask="+7 (999) 999-99-99" />
-</FormField>
+</FormField>;
 ```
 
 > Важно: кастомный child должен быть единичным React-элементом и принимать
@@ -191,7 +191,7 @@ const form = createForm<FormSchema<{ accept: boolean }>>({
   },
 });
 
-<FormField control={form.accept} testId="accept" />
+<FormField control={form.accept} testId="accept" />;
 // рендерится только Checkbox с label справа + error снизу.
 ```
 

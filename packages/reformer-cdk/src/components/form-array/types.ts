@@ -39,13 +39,18 @@ export interface FormArrayItemRenderProps<T extends FormFields> {
 
 /**
  * Props for FormArray.AddButton component
+ *
+ * Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий) —
+ * для совместимости. Для type-safe initialValue передавайте generic явно
+ * (`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
+ * `FormArraySection<T>` из `@reformer/ui-kit`.
  */
-export interface FormArrayAddButtonProps extends Omit<
+export interface FormArrayAddButtonProps<T extends FormFields = FormFields> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
   /** Initial value for the new item */
-  initialValue?: Partial<FormFields>;
+  initialValue?: Partial<T>;
   /** Custom render function for the button */
   asChild?: boolean;
 }

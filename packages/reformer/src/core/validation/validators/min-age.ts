@@ -44,7 +44,7 @@ import { parseDate, calculateAge } from './date-utils';
  * }
  * ```
  */
-export function minAge<TForm, TField extends string | Date | undefined = string | Date>(
+export function minAge<TForm, TField extends string | Date | null | undefined = string | Date>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   minAgeValue: number,
   options?: ValidateOptions

@@ -301,12 +301,12 @@ export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 
 `FormArrayProxy` provides the following operations:
 
-| Method            | Description                                       |
-| ----------------- | ------------------------------------------------- |
-| `push()`          | Add element with default values from schema       |
-| `removeAt(index)` | Remove element by index                           |
-| `map(callback)`   | Iterate over array elements                       |
-| `length`          | Get current array length                          |
+| Method            | Description                                 |
+| ----------------- | ------------------------------------------- |
+| `push()`          | Add element with default values from schema |
+| `removeAt(index)` | Remove element by index                     |
+| `map(callback)`   | Iterate over array elements                 |
+| `length`          | Get current array length                    |
 
 ### FormArray from @reformer/cdk
 
@@ -338,27 +338,27 @@ import { Button } from '@/components/ui/button';
   </FormArray.List>
 
   <FormArray.AddButton>Add item</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 #### Sub-components
 
-| Component              | Props                        | Purpose                              |
-| ---------------------- | ---------------------------- | ------------------------------------ |
-| `FormArray.Root`       | `control: ArrayNode<T>`      | Context provider                     |
-| `FormArray.List`       | `children: (item) => Node`   | Iteration with render props          |
-| `FormArray.AddButton`  | `initialValue?: Partial<T>`  | Add new element                      |
-| `FormArray.Empty`      | `children: ReactNode`        | Show when array is empty             |
-| `FormArray.Count`      | `render?: (count) => Node`   | Display count                        |
+| Component             | Props                       | Purpose                     |
+| --------------------- | --------------------------- | --------------------------- |
+| `FormArray.Root`      | `control: ArrayNode<T>`     | Context provider            |
+| `FormArray.List`      | `children: (item) => Node`  | Iteration with render props |
+| `FormArray.AddButton` | `initialValue?: Partial<T>` | Add new element             |
+| `FormArray.Empty`     | `children: ReactNode`       | Show when array is empty    |
+| `FormArray.Count`     | `render?: (count) => Node`  | Display count               |
 
 #### Render Props in List
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: FormProxy<T>;  // Item control
-  index: number;                       // Index (from 0)
-  id: string | number;                 // Unique key
-  remove: () => void;                  // Remove this item
+  control: FormProxy<T>; // Item control
+  index: number; // Index (from 0)
+  id: string | number; // Unique key
+  remove: () => void; // Remove this item
 }
 ```
 
@@ -382,9 +382,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       {hasProperty && (
         <FormArray.Root control={control.properties}>
           <div className="flex justify-between items-center">
-            <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Property</span>
-            )} />
+            <FormArray.Count
+              render={(count) => (
+                <span className="text-sm text-muted-foreground">{count} Property</span>
+              )}
+            />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
                 + Add property
@@ -418,9 +420,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       {hasCoBorrower && (
         <FormArray.Root control={control.coBorrowers}>
           <div className="flex justify-between items-center">
-            <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Co-borrowers</span>
-            )} />
+            <FormArray.Count
+              render={(count) => (
+                <span className="text-sm text-muted-foreground">{count} Co-borrowers</span>
+              )}
+            />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
                 + Add co-borrower

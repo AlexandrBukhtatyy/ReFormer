@@ -43,13 +43,7 @@ import {
 // RenderNodeComponent — restoring field resolution.
 // -----------------------------------------------------------------------------
 
-function FormRoot<T>({
-  form,
-  children,
-}: {
-  form: FormProxy<T>;
-  children: RenderNode<T>[];
-}) {
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
   return (
     <>
       {children.map((c, i) => (

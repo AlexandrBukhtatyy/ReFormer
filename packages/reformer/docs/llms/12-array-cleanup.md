@@ -14,6 +14,6 @@ watchField(
 
 // WRONG - no immediate: false, no null check
 watchField(path.hasItems, (hasItems, ctx) => {
-  if (!hasItems) ctx.form.items.clear();  // May crash on init!
+  if (!hasItems) ctx.form.items.clear(); // May crash on init!
 });
 ```

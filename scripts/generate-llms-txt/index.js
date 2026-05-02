@@ -18,7 +18,7 @@ const positional = rawArgs.filter((a) => !a.startsWith('--'));
 if (positional.length !== 1 || flags.has('--help') || flags.has('-h')) {
   console.error(
     'Usage: node scripts/generate-llms-txt <package-path> [--audit]\n' +
-      '  --audit  Do not write llms.txt; print public symbols missing JSDoc/@example.',
+      '  --audit  Do not write llms.txt; print public symbols missing JSDoc/@example.'
   );
   process.exit(positional.length === 0 ? 1 : 0);
 }
@@ -51,7 +51,7 @@ function main(pkg) {
 
   console.log(
     `Generated ${path.relative(process.cwd(), outPath)} ` +
-      `(${docs.length} doc files, ${symbols.length} public symbols)`,
+      `(${docs.length} doc files, ${symbols.length} public symbols)`
   );
 }
 
@@ -71,7 +71,7 @@ function audit(pkg) {
   console.log(`Audit: ${meta.name} (${symbols.length} public symbols)`);
   console.log(`  Missing description:        ${noDescription.length}`);
   console.log(
-    `  Missing @example${strict ? ' (strict)' : ' (callable only)'}: ${noExample.length}`,
+    `  Missing @example${strict ? ' (strict)' : ' (callable only)'}: ${noExample.length}`
   );
   if (noDescription.length > 0) {
     console.log('\n  No description:');
@@ -190,10 +190,7 @@ function parsePublicSymbols(pkg) {
 }
 
 function findEntry(pkg) {
-  const candidates = [
-    path.join(pkg, 'src', 'index.ts'),
-    path.join(pkg, 'src', 'index.tsx'),
-  ];
+  const candidates = [path.join(pkg, 'src', 'index.ts'), path.join(pkg, 'src', 'index.tsx')];
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
   }
@@ -304,11 +301,11 @@ function collectFromFile(filePath, visited, collected, aliasFilter) {
 
 function hasExportModifier(node) {
   return Boolean(
-    node.modifiers && node.modifiers.some((m) => m.kind === ts.SyntaxKind.ExportKeyword),
+    node.modifiers && node.modifiers.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
   );
 }
 
-function describeExportStatement(stmt, sf) {
+function describeExportStatement(stmt, _sf) {
   if (ts.isFunctionDeclaration(stmt) && stmt.name) {
     return [{ name: stmt.name.text, decl: stmt, kind: 'function' }];
   }
@@ -402,12 +399,18 @@ function extractSignature(decl, sf) {
 
   if (ts.isVariableStatement(decl)) {
     // export const foo = …  →  export const foo: <type>
-    text = text.replace(/=\s*[\s\S]*$/, '').trim().replace(/[,;]?$/, '');
+    text = text
+      .replace(/=\s*[\s\S]*$/, '')
+      .trim()
+      .replace(/[,;]?$/, '');
   }
   if (ts.isFunctionDeclaration(decl) && decl.body) {
     // Drop function body for readability.
     const bodyStart = decl.body.getStart(sf) - decl.getStart(sf);
-    text = text.slice(0, bodyStart).trim().replace(/[{;,]?$/, '');
+    text = text
+      .slice(0, bodyStart)
+      .trim()
+      .replace(/[{;,]?$/, '');
   }
   if (ts.isClassDeclaration(decl) && decl.members.length > 0) {
     const firstMember = decl.members[0];
@@ -501,7 +504,7 @@ function renderLlmsTxt({ meta, docs, symbols }) {
   // Header
   lines.push(`# ${meta.displayName} - LLM Integration Guide`);
   lines.push(
-    `# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.`,
+    `# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.`
   );
   lines.push('');
   if (meta.description) lines.push(`> ${meta.description}`);

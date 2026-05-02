@@ -37,11 +37,6 @@ export function useHiddenCondition<T>(
   form: FormProxy<T>,
   path: FieldPath<T>
 ): boolean {
-  // Если нет функции hidden - элемент всегда видим
-  if (!hiddenFn) {
-    return false;
-  }
-
   // Создаём функцию подписки на все сигналы формы
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -73,9 +68,10 @@ export function useHiddenCondition<T>(
     [form]
   );
 
-  // Функция получения текущего состояния (hidden значения)
+  // Функция получения текущего состояния (hidden значения).
+  // Если hiddenFn не задана — элемент всегда видим (false).
   const getSnapshot = useCallback(() => {
-    return hiddenFn(form, path);
+    return hiddenFn ? hiddenFn(form, path) : false;
   }, [hiddenFn, form, path]);
 
   // Используем useSyncExternalStore для синхронизации с React
