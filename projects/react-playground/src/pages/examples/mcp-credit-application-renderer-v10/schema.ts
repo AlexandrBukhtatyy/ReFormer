@@ -846,64 +846,64 @@ const behaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   });
 
   // Patch I — computeFrom subscribes to GROUP NODE [path.personalData], not leaves.
-  computeFrom([path.personalData], path.fullName, ({ personalData }) => {
-    const pd = personalData as PersonalData | undefined;
-    if (!pd) return '';
-    return [pd.lastName, pd.firstName, pd.middleName].filter(Boolean).join(' ').trim();
+  // Recipe 4 (docs/llms/30-type-safety-recipes.md) — annotate the destructured arg
+  // with the form type so fields are typed exactly; no `as` casts in the body.
+  computeFrom([path.personalData], path.fullName, ({ personalData }: CreditApplicationForm) => {
+    if (!personalData) return '';
+    return [personalData.lastName, personalData.firstName, personalData.middleName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
   });
 
-  computeFrom([path.personalData], path.age, ({ personalData }) => {
-    const pd = personalData as PersonalData | undefined;
-    if (!pd?.birthDate) return null;
-    return computeAge(pd.birthDate);
+  computeFrom([path.personalData], path.age, ({ personalData }: CreditApplicationForm) => {
+    if (!personalData?.birthDate) return null;
+    return computeAge(personalData.birthDate);
   });
 
-  computeFrom([path.loanType], path.interestRate, ({ loanType }) =>
-    ratePerLoanType(loanType as string)
+  computeFrom([path.loanType], path.interestRate, ({ loanType }: CreditApplicationForm) =>
+    ratePerLoanType(loanType)
   );
 
   computeFrom(
     [path.loanAmount, path.loanTerm, path.interestRate],
     path.monthlyPayment,
-    ({ loanAmount, loanTerm, interestRate }) => {
-      const a = (loanAmount as number | null) ?? 0;
-      const t = (loanTerm as number | null) ?? 0;
-      const r = (interestRate as number | null) ?? 0;
-      return annuityMonthly(a, t, r);
-    }
+    ({ loanAmount, loanTerm, interestRate }: CreditApplicationForm) =>
+      annuityMonthly(loanAmount ?? 0, loanTerm ?? 0, interestRate ?? 0)
   );
 
-  computeFrom([path.propertyValue], path.initialPayment, ({ propertyValue }) => {
-    const v = (propertyValue as number | null) ?? 0;
-    if (!v) return null;
-    return Math.round(v * 0.2);
-  });
+  computeFrom(
+    [path.propertyValue],
+    path.initialPayment,
+    ({ propertyValue }: CreditApplicationForm) => {
+      const v = propertyValue ?? 0;
+      if (!v) return null;
+      return Math.round(v * 0.2);
+    }
+  );
 
   computeFrom(
     [path.monthlyIncome, path.additionalIncome],
     path.totalIncome,
-    ({ monthlyIncome, additionalIncome }) => {
-      const m = (monthlyIncome as number | null) ?? 0;
-      const a = (additionalIncome as number | null) ?? 0;
-      return m + a;
-    }
+    ({ monthlyIncome, additionalIncome }: CreditApplicationForm) =>
+      (monthlyIncome ?? 0) + (additionalIncome ?? 0)
   );
 
   computeFrom(
     [path.monthlyPayment, path.totalIncome],
     path.paymentToIncomeRatio,
-    ({ monthlyPayment, totalIncome }) => {
-      const p = (monthlyPayment as number | null) ?? 0;
-      const t = (totalIncome as number | null) ?? 0;
-      if (!t) return 0;
-      return Math.round((p / t) * 100 * 10) / 10;
+    ({ monthlyPayment, totalIncome }: CreditApplicationForm) => {
+      if (!totalIncome) return 0;
+      return Math.round((monthlyPayment / totalIncome) * 100 * 10) / 10;
     }
   );
 
-  computeFrom([path.coBorrowers], path.coBorrowersIncome, ({ coBorrowers }) => {
-    const arr = (coBorrowers as CoBorrowerItem[] | undefined) ?? [];
-    return arr.reduce((sum, c) => sum + (c?.monthlyIncome ?? 0), 0);
-  });
+  computeFrom(
+    [path.coBorrowers],
+    path.coBorrowersIncome,
+    ({ coBorrowers }: CreditApplicationForm) =>
+      coBorrowers.reduce((sum, c) => sum + (c?.monthlyIncome ?? 0), 0)
+  );
 
   // watchField — clear arrays when flags flip false. immediate:false + length-guard.
   watchField(
