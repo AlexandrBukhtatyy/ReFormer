@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Target version (например 3.0.0-beta.0). Должна быть выше текущей у каждого пакета.'
+        description: 'Target version. На develop — с суффиксом (3.0.0-beta.0). На main — без (3.0.0). Должна быть выше текущей у каждого пакета.'
         required: true
         type: string
       dry_run:
@@ -53,6 +53,23 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate version vs branch
+        # Версии без суффикса публикуются ТОЛЬКО с main, версии с `-beta`
+        # ТОЛЬКО с develop (или другой prerelease ветки). См. docs/versioning.md.
+        run: |
+          set -e
+          BRANCH="${{ github.ref_name }}"
+          VERSION="${{ inputs.version }}"
+          if [ "$BRANCH" = "main" ] && [[ "$VERSION" == *-* ]]; then
+            echo "::error::main branch publishes stable versions only — version '$VERSION' contains a prerelease suffix. Use e.g. 3.0.0 (no -beta)."
+            exit 1
+          fi
+          if [ "$BRANCH" != "main" ] && [[ "$VERSION" != *-* ]]; then
+            echo "::error::Branch '$BRANCH' is a prerelease channel — version '$VERSION' must contain a prerelease suffix (e.g. 3.0.0-beta.0)."
+            exit 1
+          fi
+          echo "Branch '$BRANCH' + version '$VERSION' OK."
 
       - name: Build packages in dependency order
         run: |
@@ -91,11 +108,21 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -e
+          # main → npm dist-tag latest (default канал);
+          # любая другая ветка (develop, feature/*) → dist-tag = имя ветки.
+          # Это соответствует поведению semantic-release с `branches`-config
+          # в .releaserc.json и согласуется с docs/versioning.md.
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            DIST_TAG="latest"
+          else
+            DIST_TAG="${{ github.ref_name }}"
+          fi
+          echo "Publishing to npm dist-tag: $DIST_TAG"
           for dir in packages/reformer packages/reformer-cdk \
                     packages/reformer-renderer-react packages/reformer-ui-kit \
                     packages/reformer-renderer-json packages/reformer-mcp; do
             echo "::group::Publish $dir"
-            (cd "$dir" && npm publish --tag develop --access public)
+            (cd "$dir" && npm publish --tag "$DIST_TAG" --access public)
             echo "::endgroup::"
           done
 
