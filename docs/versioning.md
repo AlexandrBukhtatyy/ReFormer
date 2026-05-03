@@ -3,6 +3,9 @@
 ReFormer — monorepo из 6 npm-пакетов. Все они версионируются **lockstep** по
 major+minor (одинаковые `X.Y.*`), patch (`*.*.Z`) разрешено расходиться.
 
+См. также [branching.md](./branching.md) — какие ветки используются, как делается
+feature-work, как promote develop → main, conventional-commits.
+
 | Package                    | npm                                                    | git tagFormat                |
 | -------------------------- | ------------------------------------------------------ | ---------------------------- |
 | `@reformer/core`           | https://www.npmjs.com/package/@reformer/core           | `v${version}`                |
