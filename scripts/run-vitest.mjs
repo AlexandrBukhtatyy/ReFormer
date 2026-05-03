@@ -34,7 +34,9 @@ const args = process.argv.slice(2);
 const IDLE_KILL_MS = Number(process.env.VITEST_IDLE_KILL_MS ?? 60000);
 const MIN_RUN_MS = Number(process.env.VITEST_MIN_RUN_MS ?? 5000);
 
-const child = spawn('npx', ['vitest', 'run', ...args], {
+// `--passWithNoTests` — для пакетов без .test.ts файлов (cdk, mcp).
+// Иначе `vitest run` exit'ает с code 1 на "No test files found".
+const child = spawn('npx', ['vitest', 'run', '--passWithNoTests', ...args], {
   stdio: ['inherit', 'pipe', 'pipe'],
   env: process.env,
 });
