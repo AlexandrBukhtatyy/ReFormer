@@ -100,6 +100,45 @@ bd close <id>         # Complete work
 - `git status`, `git diff`, `git log`, `git stash` — these are read-only/non-publishing and may be run freely. The restriction is on commit/push specifically.
 - This rule applies even when prior turns in the conversation contained commits — the user's authorization for past commits does NOT carry forward to new changes.
 
+## Iter prompt system — MCP regression cycle
+
+Для повторяемой проверки качества MCP-сервера (на каждой итерации генерим форму через MCP, обнаруживаем gaps, готовим патчи) используется orchestrator + 3 параллельных sub-agent'а.
+
+- **Главный промт**: [docs/iter-prompts/orchestrator.md](docs/iter-prompts/orchestrator.md)
+- **Шаблон sub-agent'а**: [docs/iter-prompts/sub-agent.template.md](docs/iter-prompts/sub-agent.template.md)
+- **Templates** (dev-plan/dev-report/iter-summary): [docs/iter-prompts/templates/](docs/iter-prompts/templates/)
+- **План архитектуры**: [docs/plans/proud-pondering-jellyfish.md](docs/plans/proud-pondering-jellyfish.md)
+
+### Sub-agent — MCP-only sandbox (strict)
+
+Sub-agent имитирует консумента MCP. Это **тест MCP**, а не Claude. Поэтому:
+
+**МОЖНО**: `mcp__reformer__*`-tools, спека (`docs/specs/<spec>.md` read-only), свой workspace `.tmp/iter-artifacts/iter-{N}/{target}/`, новый каталог `projects/.../examples/mcp-credit-application-{target}-v{N}/`, e2e в `projects/react-playground-e2e/tests/iter/`.
+
+**НЕЛЬЗЯ** (orchestrator аудирует grep'ом по transcript): Read/Glob/Grep по `packages/`, `projects/.../examples/<other>/`, `projects/.../components|factories|hooks|utils/`. Любая правка `docs/specs/`. `git commit/push`. Изменение `App.tsx` (это работа orchestrator'а post-merge).
+
+Если хочешь добавить или править iter-prompt промты — делай это **отдельным PR**, **вне цикла**. Внутри цикла промты read-only (иначе теряется воспроизводимость метрик).
+
+### Артефакты iter-N
+
+- **Workspace** (gitignored): `.tmp/iter-artifacts/iter-{N}/{target}/{dev-plan,dev-report,discovery}.md`, `.tmp/iter-artifacts/iter-{N}/proposed-patches/`
+- **Сгенерированный код** (в репо): `projects/react-playground/src/pages/examples/mcp-credit-application-{target}-v{N}/`
+- **E2E тесты** (в репо): `projects/react-playground-e2e/tests/iter/mcp-credit-{target}-v{N}.spec.ts`
+- **Скриншоты** (gitignored, fullPage): `projects/react-playground-e2e/screenshots/mcp-credit-v{N}/{target}/page{1..6}-*.png`
+- **Видео** (gitignored): `projects/react-playground-e2e/videos/mcp-credit-v{N}/{target}/walkthrough.webm`
+- **Агрегатный отчёт** (в репо, history): `docs/iter-summaries/iter-{N}.md`
+
+### Запуск iter-N e2e
+
+```bash
+cd projects/react-playground-e2e
+ITER_MODE=on \
+  ITER_OUTPUT_DIR=videos/mcp-credit-v{N}/{target}/ \
+  npx playwright test --project=iter mcp-credit-{target}-v{N}.spec.ts
+```
+
+`ITER_MODE=on` включает video + viewport 1440×900 (без него обычные e2e не затронуты). Project `iter` обязателен — без него тесты в `tests/iter/` не подхватываются.
+
 ## Build & Test
 
 _Add your build and test commands here_

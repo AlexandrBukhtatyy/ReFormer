@@ -1,394 +1,417 @@
-# Type-safety fix для схем mcp-credit-application-v\* + cleanup компонентов и документации
+# Orchestrator + sub-agent prompt system для итеративного MCP regression-testing
 
 ## Context
 
-В `projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts` и сопутствующем `index.tsx` сейчас 40 ошибок типов (по `tsc --noEmit -p tsconfig.app.json`). Раскладка по корневым причинам:
+После ручных циклов H/I/J/K/L/M/N1-4/O1-3 ясно: правки MCP приходят из реальных попыток сгенерировать форму через MCP, обнаружить gap, дописать prompt/recipe/tool. Делать это вручную для трёх target-стеков (`core` / `renderer-react` / `renderer-json`) дорого и невоспроизводимо.
 
-1. **Один неверный импорт** в schema.ts ломает 36 ошибок цепочкой:
-   `import { ... type ValidationSchemaFn } from '@reformer/core/validators'` → TS2614 (нет такого экспорта в submodule). После этого все `path` параметры в `ValidationSchemaFn`-callback'ах становятся `implicit any`, далее 21× `path.X is FieldPath<unknown>` (TS2339) и 9× `parameter implicitly any` (TS7006). `applyWhen`-callback'и теряют тип `p` по той же цепочке.
+Нужен механизм, в котором:
 
-2. **Ручные `as`-касты в `computeFrom`** — это симптом, а не баг. Сигнатура `computeFn: (values: TForm) => TTarget` ([compute-from.ts:86](packages/reformer/src/core/behavior/behaviors/compute-from.ts#L86)) корректна, но при деструктуризации `({ x }) => ...` без явной аннотации TS не выводит тип отдельных полей. В коде это компенсируется кастами `as PersonalData | undefined`, `as number | null`, `as string`, `as CoBorrowerItem[] | undefined`.
+- **Главный агент (orchestrator)** запускает на одной итерации `iter-N` три **sub-agent**'а параллельно — по одному на каждый target.
+- **Sub-agent имитирует консумента MCP**: у него НЕТ доступа к каталогу `projects/`, нет права смотреть существующие `mcp-credit-application-*` примеры, нет права читать исходники `packages/`. Единственные источники правды — MCP-сервер (`mcp__reformer__*`-tools, prompts, resources) и `docs/specs/`. Это критично — мы проверяем **качество MCP**, а не способность Claude скопировать предыдущую итерацию.
+- Каждый sub-agent: discovery через MCP → план → код → tsc/lint/build → Playwright walkthrough с full-page скриншотами на каждом шаге + видео → `dev-report.md` с метриками и MCP gaps.
+- Orchestrator агрегирует три `dev-report.md` в `iter-summary.md` с метриками (tokens, time, errors, version), список patches для MCP, и решение stop/continue.
+- Цикл: пользователь ревьюит patches, применяет к MCP вручную, заново запускает orchestrator с `iter+1`. Авто-применение patches — out of scope (риск порчи MCP без аудита).
 
-3. **`FormArraySection.initialValue` теряет generic-связь с типом элемента**. В [form-array-section.tsx:76](packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx#L76) тип `Partial<FormFields>` (вместо `Partial<T>`), хотя сам компонент generic `<T extends FormFields>`. То же в headless [FormArrayAddButton types.ts:48](packages/reformer-cdk/src/components/form-array/types.ts#L48). Из-за этого `initialValue={createPropertyItem()}` в [index.tsx:398](projects/react-playground/src/pages/examples/mcp-credit-application-v9/index.tsx#L398) даёт TS2322 (3 ошибки в v9, аналогично в любом callsite с union-literal элементами массива).
-
-4. **`FormWizard ref` сужается до `Ref<FormWizardHandle<Record<string, unknown>>>`** ([index.tsx:515](projects/react-playground/src/pages/examples/mcp-credit-application-v9/index.tsx#L515) и [complex-multy-step-form/CreditApplicationForm.tsx:109,111](projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx#L109)). Constraint `T extends Record<string, unknown>` в [form-wizard.tsx:65-67](packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx#L65-L67) мешает выводу T из props в JSX — TS использует bound вместо инференса. Headless cdk-обёртка ([cdk/form-wizard/FormWizard.tsx:348](packages/reformer-cdk/src/components/form-wizard/FormWizard.tsx#L348)) имеет более широкий `extends Record<string, any>`, который инференс позволяет.
-
-5. **Документация уже содержит рекомендации**, но в неоптимальном виде:
-   - [packages/reformer/llms.txt:285-323](packages/reformer/llms.txt#L285) рекомендует `(path: any)` workaround для TS2589 — это и приводит MCP-генератор к implicit-any в схемах вида v9 (которая на самом деле НЕ настолько глубокая, чтобы триггерить TS2589).
-   - В [llms.txt:441-450](packages/reformer/llms.txt#L441) корректный паттерн импортов есть, но он внизу, после workaround-блока, и легко пропускается.
-   - Про type-safe `computeFrom` (без `as` кастов) рекомендации нет.
-
-Цель — закрыть все 40 ошибок tsc, убрать `as`-касты в схемах, и обновить документацию так, чтобы MCP-генератор и Cursor/Claude писали правильный код в новых формах.
-
-## Файлы изменяемые
-
-- [projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts)
-- [projects/react-playground/src/components/RendererFormWizard.tsx](projects/react-playground/src/components/RendererFormWizard.tsx)
-- [packages/reformer-cdk/src/components/form-array/types.ts](packages/reformer-cdk/src/components/form-array/types.ts)
-- [packages/reformer-cdk/src/components/form-array/FormArrayAddButton.tsx](packages/reformer-cdk/src/components/form-array/FormArrayAddButton.tsx)
-- [packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx](packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx)
-- [packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx](packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx)
-- [packages/reformer/docs/llms/05-common-mistakes.md](packages/reformer/docs/llms/05-common-mistakes.md)
-- [packages/reformer/docs/llms/20-compute-vs-watch.md](packages/reformer/docs/llms/20-compute-vs-watch.md)
-- (новый) [packages/reformer/docs/llms/30-type-safety-recipes.md](packages/reformer/docs/llms/30-type-safety-recipes.md)
-- [packages/reformer-ui-kit/llms.txt](packages/reformer-ui-kit/llms.txt) — после ре-генерации
-- [packages/reformer/llms.txt](packages/reformer/llms.txt) — после ре-генерации
-
-После правок `.md` нужно прогнать `npm run generate:llms` в каждом пакете (если такой скрипт есть) — судя по шапке `# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.`
+Цель — превратить N→N+1 цикл из «3 часа ручной работы» в `/iter 12` + ревью summary.
 
 ---
 
-## Часть A — schema.ts (mcp-credit-application-v9)
+## Архитектура (high-level)
 
-### A1. Исправить импорт `ValidationSchemaFn`
-
-[schema.ts:24-35](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L24-L35)
-
-```ts
-// Было
-import { createForm, type FormSchema, type FormProxy, type FieldPath } from '@reformer/core';
-import {
-  required,
-  min,
-  max,
-  minLength,
-  maxLength,
-  email as emailValidator,
-  pattern,
-  applyWhen,
-  apply,
-  type ValidationSchemaFn,
-} from '@reformer/core/validators';
-
-// Стало
-import {
-  createForm,
-  type FormSchema,
-  type FormProxy,
-  type FieldPath,
-  type ValidationSchemaFn,
-} from '@reformer/core';
-import {
-  required,
-  min,
-  max,
-  minLength,
-  maxLength,
-  email as emailValidator,
-  pattern,
-  applyWhen,
-  apply,
-} from '@reformer/core/validators';
 ```
-
-Эффект: 30 цепочечных ошибок исчезают.
-
-### A2. Аннотировать деструктуризацию в `computeFrom`-callback'ах
-
-[schema.ts:856-920](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L856-L920) — 7 callback'ов. Шаблон правки: добавить `: CreditApplicationForm` после деструктуризации, удалить связанные `as`-касты в теле.
-
-| Строка                                                                                           | Поля → target                                           | Удаляется                          |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ---------------------------------- |
-| [856](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L856)     | `personalData` → `fullName`                             | `as PersonalData \| undefined`     |
-| [863](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L863)     | `personalData` → `age`                                  | `as PersonalData \| undefined`     |
-| [870](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L870)     | `loanType` → `interestRate`                             | `as string`                        |
-| [875-883](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L875) | `loanAmount, loanTerm, interestRate` → `monthlyPayment` | 3× `as number \| null`             |
-| [887](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L887)     | `propertyValue` → `initialPayment`                      | `as number \| null`                |
-| [894-902](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L894) | `monthlyIncome, additionalIncome` → `totalIncome`       | 2× `as number \| null`             |
-| [905-914](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L905) | `monthlyPayment, totalIncome` → `paymentToIncomeRatio`  | 2× `as number \| null`             |
-| [917-920](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L917) | `coBorrowers` → `coBorrowersIncome`                     | `as CoBorrowerItem[] \| undefined` |
-
-Пример canonical-формы:
-
-```ts
-// Было
-computeFrom([path.loanType], path.interestRate, ({ loanType }) =>
-  ratePerLoanType(loanType as string)
-);
-
-// Стало
-computeFrom([path.loanType], path.interestRate, ({ loanType }: CreditApplicationForm) =>
-  ratePerLoanType(loanType)
-);
+[orchestrator: docs/iter-prompts/orchestrator.md]
+  ├─ pre-flight: создать .tmp/iter-artifacts/iter-N/ + bd issues
+  ├─ launch IN PARALLEL (one Agent message, 3 calls):
+  │     ├─ sub-agent #1 — target=core             (Agent + general-purpose)
+  │     ├─ sub-agent #2 — target=renderer-react   (Agent + general-purpose)
+  │     └─ sub-agent #3 — target=renderer-json    (Agent + general-purpose)
+  ├─ post-merge: обновить App.tsx routes (3 новых импорта)
+  ├─ aggregate: 3× dev-report.md → docs/iter-summaries/iter-N.md
+  ├─ verify: единый tsc/lint по playground
+  ├─ patch-draft: предложить MCP-patches как git-ready diffs (НЕ применять)
+  └─ stop check: gaps==0 OR iter>=MAX_ITER → finish, else handoff к юзеру
 ```
-
-```ts
-// Было
-computeFrom(
-  [path.loanAmount, path.loanTerm, path.interestRate],
-  path.monthlyPayment,
-  ({ loanAmount, loanTerm, interestRate }) => {
-    const a = (loanAmount as number | null) ?? 0;
-    const t = (loanTerm as number | null) ?? 0;
-    const r = (interestRate as number | null) ?? 0;
-    return annuityMonthly(a, t, r);
-  }
-);
-
-// Стало
-computeFrom(
-  [path.loanAmount, path.loanTerm, path.interestRate],
-  path.monthlyPayment,
-  ({ loanAmount, loanTerm, interestRate }: CreditApplicationForm) =>
-    annuityMonthly(loanAmount ?? 0, loanTerm ?? 0, interestRate ?? 0)
-);
-```
-
-```ts
-// Было
-computeFrom([path.coBorrowers], path.coBorrowersIncome, ({ coBorrowers }) => {
-  const arr = (coBorrowers as CoBorrowerItem[] | undefined) ?? [];
-  return arr.reduce((sum, c) => sum + (c?.monthlyIncome ?? 0), 0);
-});
-
-// Стало
-computeFrom([path.coBorrowers], path.coBorrowersIncome, ({ coBorrowers }: CreditApplicationForm) =>
-  coBorrowers.reduce((sum, c) => sum + (c?.monthlyIncome ?? 0), 0)
-);
-```
-
-### A3. Актуализировать комментарий в шапке
-
-[schema.ts:1-14](projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts#L1-L14): убрать упоминания «`as PersonalData | undefined` cast как Patch I» и описать актуальную идиому: «computeFrom callback'и аннотируются типом формы на параметре деструктуризации, без `as`-кастов; импорт `ValidationSchemaFn` — из `@reformer/core`, не из `/validators`».
 
 ---
 
-## Часть B — компоненты FormArray (cdk + ui-kit)
+## Жёсткое правило для sub-agent'а (Sandboxed MCP-only)
 
-### B1. `FormArrayAddButtonProps` → generic
+Sub-agent работает **только** со следующими источниками:
 
-[packages/reformer-cdk/src/components/form-array/types.ts:43-49](packages/reformer-cdk/src/components/form-array/types.ts#L43-L49)
+**Можно**:
+- `mcp__reformer__find_recipe`, `mcp__reformer__get_symbol_docs`, `mcp__reformer__report_issue`
+- Любые prompts/resources, экспонированные MCP-сервером (load via slash-commands если есть)
+- Чтение спеки: `docs/specs/<spec>.md` (read-only, см. CLAUDE.md)
+- Чтение собственного `.tmp/iter-artifacts/iter-N/<target>/` (свой workspace)
+- Запись кода в **новый** каталог `projects/react-playground/src/pages/examples/mcp-credit-application-{target}-v{N}/`
+- Запись e2e-теста в `projects/react-playground-e2e/tests/mcp-credit-{target}-v{N}.spec.ts`
+- Запуск tsc / eslint / playwright через Bash
+- node_modules/@reformer/* (потому что это то, что видит реальный консумент через `npm install`) — но желательно избегать, спрашивать через MCP
 
-```ts
-// Было
-export interface FormArrayAddButtonProps extends Omit<...> {
-  initialValue?: Partial<FormFields>;
-}
+**Нельзя** (orchestrator аудирует через grep по transcript'у):
+- Read/Glob/Grep по `packages/` (исходники библиотек)
+- Read/Glob/Grep по `projects/react-playground/src/pages/examples/` кроме своего нового каталога (нельзя смотреть на предыдущие итерации `v1..v{N-1}` или родственные `mcp-credit-application-*`)
+- Read/Glob/Grep по `projects/react-playground/src/components/`, `projects/react-playground/src/factories/` и подобным «общим» helper'ам
+- Любая правка `docs/specs/`
+- `git commit` / `git push`
 
-// Стало
-export interface FormArrayAddButtonProps<T extends FormFields = FormFields> extends Omit<...> {
-  initialValue?: Partial<T>;
-}
-```
-
-[packages/reformer-cdk/src/components/form-array/FormArrayAddButton.tsx:30](packages/reformer-cdk/src/components/form-array/FormArrayAddButton.tsx#L30) — обёртка `forwardRef<HTMLButtonElement, FormArrayAddButtonProps>` ломает generic. Применить тот же приём, что в [cdk/form-wizard/FormWizard.tsx:348](packages/reformer-cdk/src/components/form-wizard/FormWizard.tsx#L348):
-
-```ts
-const FormArrayAddButtonInner = <T extends FormFields>(
-  { children, initialValue, asChild = false, ...props }: FormArrayAddButtonProps<T>,
-  ref: React.ForwardedRef<HTMLButtonElement>
-) => {
-  // ... существующее тело ...
-};
-
-export const FormArrayAddButton = forwardRef(FormArrayAddButtonInner) as <T extends FormFields>(
-  props: FormArrayAddButtonProps<T> & { ref?: React.Ref<HTMLButtonElement> }
-) => React.ReactElement | null;
-```
-
-### B2. `FormArraySectionProps.initialValue: Partial<T>`
-
-[packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx:76](packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx#L76)
-
-```ts
-// Было
-initialValue?: Partial<FormFields>;
-
-// Стало
-initialValue?: Partial<T>;
-```
-
-После B1 тип `<FormArray.AddButton initialValue={initialValue} ...>` на [строке 190](packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx#L190) и [243](packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx#L243) корректно подхватит generic.
-
-Потенциальный риск: если внутри FormArraySection generic T выводится через `control: ArrayNode<T>` — нужно проверить что типы по всем 3 формам control (FormArrayProxy/ArrayNode/FieldPathNode) синхронизированы. Если FieldPathNode даёт `<unknown, unknown>`, то T выводится как FormFields-широкий — придётся явно указывать generic в callsite (`<FormArraySection<PropertyItem> ... />`). Это приемлемо.
-
-### B3. Снести unused import
-
-[packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx](packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx) или [projects/react-playground/src/components/RendererFormWizard.tsx:23](projects/react-playground/src/components/RendererFormWizard.tsx#L23) — удалить неиспользуемый импорт `UiKitFormWizardProps` (TS6133).
+Если sub-agent понимает, что MCP не отвечает на нужный вопрос — он фиксирует gap в `dev-report.md` и продолжает с best-effort решением (или помечает блокер).
 
 ---
 
-## Часть C — `FormWizard` generic-проброс
+## Файлы для создания
 
-### C1. Расширить constraint в FormWizardProps
+### `docs/iter-prompts/orchestrator.md`
+Промт главного агента. Принимает `{iter, max_iter?, spec?}`. Содержит:
+- pre-flight checklist (folder, bd, App.tsx baseline)
+- блок `Launch sub-agents in parallel` с 3 готовыми Agent-вызовами (target подставляется)
+- alg агрегации dev-report → iter-summary
+- алгоритм stop-check
+- ссылка на template iter-summary
 
-[packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx:65-67](packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx#L65-L67)
+### `docs/iter-prompts/sub-agent.template.md`
+Промт sub-agent'а. Принимает `{target, iter, spec_path}`. Шаги:
+1. Sandbox-acknowledgement (распечатать что можно/нельзя — strict)
+2. Discovery: вызвать `find_recipe` под ключевые сценарии формы (validation, computed, form-array, wizard, async-validator), `get_symbol_docs` для top-level символов
+3. Планирование: dev-plan.md
+4. Code generation: schema + index (или schema.json для renderer-json)
+5. Validation loop: tsc → lint → build (max 3 self-fix attempts на каждом)
+6. E2E: Playwright spec, 6 full-page скриншотов, video walkthrough
+7. dev-report.md: metrics + MCP gaps + recipe usage + screenshot index
 
-```ts
-// Было
-export interface FormWizardProps<
-  T extends Record<string, unknown>,
-> extends FormWizardHeadlessProps<T> {
+### `docs/iter-prompts/templates/dev-plan.template.md`
+Шаблон dev-plan с разделами Discovery / Architecture / Open questions.
 
-// Стало — синхронизировать с headless cdk (Record<string, any>)
-export interface FormWizardProps<
-  T extends Record<string, any>,
-> extends FormWizardHeadlessProps<T> {
+### `docs/iter-prompts/templates/dev-report.template.md`
+Шаблон dev-report:
+```md
+# dev-report — target={target}, iter={N}
+
+## Metrics
+| metric | value |
+|---|---|
+| iter version | v{N} |
+| target | {target} |
+| tokens used | {orchestrator parses from agent meta} |
+| wall time (min) | {start..end} |
+| tsc errors (initial) | N |
+| tsc errors (final) | N |
+| lint errors (final) | N |
+| runtime errors (e2e) | N |
+| status | ok / partial / blocked |
+
+## MCP gaps encountered
+- gap-id: ... severity: high/med/low
+  evidence: <quote from MCP response or absence>
+  proposed fix: <patch direction>
+
+## Recipes used
+- find_recipe(...) → ...
+
+## Screenshots
+- screenshots/mcp-credit-v{N}/{target}/page1-initial.png
+- ...
+
+## Video
+- videos/mcp-credit-v{N}/{target}/walkthrough.webm
+
+## Blockers
+- ...
 ```
 
-И аналогично:
+### `docs/iter-prompts/templates/iter-summary.template.md`
+Шаблон агрегатного отчёта.
 
-```ts
-// form-wizard.tsx:116
-function FormWizardInner<T extends Record<string, any>>(...)
+### `docs/iter-summaries/.keep`
+Каталог для агрегатных отчётов.
 
-// form-wizard.tsx:155
-const FormWizardForwarded = forwardRef(FormWizardInner) as <T extends Record<string, any>>(
-  props: FormWizardProps<T> & { ref?: React.Ref<FormWizardHandle<T>> }
-) => ReactElement | null;
+> Каталог `.tmp/iter-artifacts/` orchestrator'ом наполняется per-iter (`iter-{N}/{target}/dev-{plan,report}.md` + scratch). Сам `.tmp/` уже в корневом `.gitignore` (см. CLAUDE.md → File output locations), отдельный `.gitignore` не нужен.
+
+---
+
+## Файлы для изменения
+
+### `projects/react-playground-e2e/playwright.config.ts`
+- `use.video: 'on'` (или `'retain-on-failure'`, лучше `on` для walkthrough demo)
+- `use.viewport: { width: 1440, height: 900 }` зафиксировать
+- Принять env `ITER_OUTPUT_DIR` → `outputDir` (e.g. `screenshots/mcp-credit-v11/core/`)
+- `reporter: [['html', { outputFolder: '.tmp/playwright-html' }], ['list']]`
+
+### `projects/react-playground/src/App.tsx`
+- Orchestrator пишет туда автоматически после успеха sub-agent'ов: 3 импорта + 3 route + 3 nav-item для текущего iter
+- Старые iter (v1..v{N-1}) НЕ удаляются (история регрессии)
+- Naming: `mcp-credit-application-{target}-v{N}` → route `/mcp-credit-application-{target}-v{N}`
+
+### `.gitignore` (root)
+```
++ projects/react-playground-e2e/videos/  # опционально — если не хотим пушить webm
+```
+(`.tmp/` уже в `.gitignore`, отдельная строка под iter-artifacts не нужна.)
+
+### `CLAUDE.md`
+Добавить раздел «Iter prompt system»:
+- ссылка на orchestrator.md
+- напоминание что sub-agent — sandboxed MCP-only
+- запрет на правку iter-prompts промтов внутри iter-цикла (правки через отдельный PR)
+
+---
+
+## Логика orchestrator'а (детальная)
+
+```pseudo
+inputs: iter: number, max_iter?: number = 5, spec?: string = "credit-application-mcp.md"
+
+# 1. pre-flight
+assert iter > последнего существующего mcp-credit-application-core-v{N}
+assert spec exists in docs/specs/
+mkdir -p .tmp/iter-artifacts/iter-{iter}/{core,renderer-react,renderer-json}
+mkdir -p projects/react-playground-e2e/screenshots/mcp-credit-v{iter}
+mkdir -p projects/react-playground-e2e/videos/mcp-credit-v{iter}
+bd create epic "iter-{iter} MCP regression"
+
+# 2. launch in parallel — single message, 3 Agent calls
+Agent(subagent_type="general-purpose",
+      prompt=fill(sub-agent.template.md, target="core",
+                                          iter=iter,
+                                          spec_path=spec))
+Agent(subagent_type="general-purpose",
+      prompt=fill(sub-agent.template.md, target="renderer-react", iter, spec))
+Agent(subagent_type="general-purpose",
+      prompt=fill(sub-agent.template.md, target="renderer-json",  iter, spec))
+
+# 3. wait all → каждый возвращает structured summary в return string
+
+# 4. audit sandbox compliance
+for each transcript:
+   grep -q "Read.*packages/" → fail iter, mark sub-agent as "tainted"
+   grep -q "Read.*projects/react-playground/src/pages/examples/.*v[0-9]" → same
+
+# 5. App.tsx merge
+inject 3 new examples + routes + nav-items (idempotent — если уже есть, skip)
+
+# 6. aggregate
+parse 3× dev-report.md → metrics table + gap list
+write docs/iter-summaries/iter-{iter}.md from template
+
+# 7. verify
+cd projects/react-playground && npx tsc --noEmit -p tsconfig.app.json
+npm run lint -w react-playground
+# (e2e уже выполнен sub-agent'ами; тут — только sanity build)
+
+# 8. patch draft
+для каждого gap'а в summary с severity≥med:
+   написать «proposed patch» — путь к файлу MCP, краткий diff
+сохранить в .tmp/iter-artifacts/iter-{iter}/proposed-patches/
+
+# 9. stop check
+if (sum(gaps) == 0): print "iter-{iter} GREEN — MCP стабилен на этой спеке"
+elif (iter >= max_iter): print "iter-{iter} STOP — лимит итераций, escalate"
+else: print "iter-{iter} done. Review summary + patches, then run /iter {iter+1}"
+
+# 10. handoff (НЕ commit)
+print список изменённых файлов
+print «следующие шаги для пользователя»
 ```
 
-`Record<string, any>` плох семантически, но он совпадает с headless cdk и снимает блокер инференции в JSX. Альтернатива — `<T extends FormFields>`, но тогда `FormFields` придётся экспортировать из cdk (он живёт в core), что осложняет импорт-граф ui-kit'а. `any` здесь не утечка — он только для constraint, не для прямого использования.
+---
 
-### C2. Verification
+## Логика sub-agent'а (детальная)
 
-После C1 проверить:
+```pseudo
+inputs: target ∈ {core, renderer-react, renderer-json}, iter, spec_path
 
-- [v9/index.tsx:514](projects/react-playground/src/pages/examples/mcp-credit-application-v9/index.tsx#L514) — `<FormWizard ref={navRef} form={form} ...>` должен инферить `T = CreditApplicationForm`.
-- [complex-multy-step-form/CreditApplicationForm.tsx:109,111](projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx#L109) — то же.
-- Если инференция всё равно не сработает (известная проблема React + forwardRef + generic + JSX), fallback — добавить в callsite явный generic-каст один раз в module-scope:
-  ```ts
-  const TypedFormWizard = FormWizard as unknown as ComponentType<
-    FormWizardProps<CreditApplicationForm> & {
-      ref?: React.Ref<FormWizardHandle<CreditApplicationForm>>;
-    }
-  >;
+# step 0 — sandbox ack
+print «Working in MCP-only sandbox. Forbidden: Read/Grep on packages/, projects/.../examples/<other>/»
+
+# step 1 — discovery (NO file reads beyond spec)
+spec = Read(spec_path)
+recipes = []
+for kw in [validation, computed, form-array, wizard, async-validator, target-specific]:
+   recipes += mcp__reformer__find_recipe(topic=kw)
+symbols = []
+for sym in [createForm, FormProxy, FieldPath, ValidationSchemaFn, applyWhen, computeFrom, renderSchema (если target!=core)]:
+   symbols += mcp__reformer__get_symbol_docs(symbol=sym)
+
+# step 2 — planning
+write .tmp/iter-artifacts/iter-{N}/{target}/dev-plan.md
+   sections: form structure (из spec), planned files, recipes referenced, open questions
+
+# step 3 — code gen
+mkdir projects/react-playground/src/pages/examples/mcp-credit-application-{target}-v{N}/
+case target:
+  core: Write schema.ts (createForm, FormProxy, computeFrom, applyWhen) + index.tsx (FormWizard, FormArray, hooks)
+  renderer-react: schema.ts (renderSchema) + index.tsx (<Renderer schema=...>)
+  renderer-json: schema.json + index.tsx (<JsonRenderer schema=jsonSchema>)
+
+# step 4 — validation
+loop max 3:
+   tsc → if errors:
+      proceed: для каждой ошибки use MCP find_recipe / get_symbol_docs (NOT Read packages/)
+      apply fix
+      retry tsc
+   lint similarly
+   build similarly
+
+# step 5 — e2e
+write projects/react-playground-e2e/tests/mcp-credit-{target}-v{N}.spec.ts
+test "walk through 6 steps":
+   for page in 1..6:
+      navigate / fill / next
+      page.screenshot({ path: `screenshots/mcp-credit-v${N}/${target}/page${page}-{stage}.png`, fullPage: true })
+   submit
+playwright config выставит video на этот run в videos/mcp-credit-v{N}/{target}/walkthrough.webm
+
+run: ITER_OUTPUT_DIR=screenshots/mcp-credit-v{N}/{target}/ \
+     npx playwright test mcp-credit-{target}-v{N}.spec.ts
+
+# step 6 — report
+write .tmp/iter-artifacts/iter-{N}/{target}/dev-report.md
+   metrics (tokens self-report N/A — orchestrator парсит из run-meta)
+   MCP gaps section с конкретными цитатами «искал X через find_recipe — вернулось Y, не закрыло вопрос»
+   recipes used / symbols queried
+   screenshots index с ссылками
+   video link
+   blockers если есть
+
+# step 7 — exit
+return short structured summary для orchestrator'а:
+   status / metrics-shorthand / gaps-count
+```
+
+---
+
+## iter-summary.md схема
+
+```md
+# iter-{N} summary — {ISO date}
+
+## Run metrics
+| target | tokens | time (min) | tsc final | lint final | runtime | status |
+|---|---|---|---|---|---|---|
+| core | X | Y | 0 | 0 | 0 | ok |
+| renderer-react | X | Y | 2 | 0 | 0 | partial |
+| renderer-json | X | Y | 0 | 0 | 1 | ok |
+
+## Aggregated MCP gaps (deduplicated by category)
+
+### G1 [high] {category}
+- targets affected: core, renderer-react
+- evidence:
+  > quote from sub-agent dev-report
+- proposed patch direction: {short}
+
+## Proposed patches (drafts)
+- patch-iter{N}-1 → packages/reformer-mcp/src/prompts/templates/{file}.md
+  rationale: ...
+  diff: ```diff
+  ...
   ```
-  Тогда в JSX используется `<TypedFormWizard ...>`. Это решение консумер-уровня, его не закатываем в библиотеку, но это план B если C1 не помог.
-
----
-
-## Часть D — документация (чтобы MCP подхватил рекомендации)
-
-### D1. Понизить роль `(path: any)`-workaround
-
-[packages/reformer/docs/llms/04-common-patterns.md](packages/reformer/docs/llms/04-common-patterns.md) (если оттуда генерится секция «Validation callback canonical shape» в `llms.txt:285`) — пометить это как **legacy workaround только для TS2589 (forms with 6+ levels of nesting)**, и явно сказать: «для обычных форм используйте `ValidationSchemaFn<T>` сигнатуру с явным generic, без `any`». Найти исходник можно через `grep -rn "Validation callback canonical shape" packages/reformer/docs/llms/`.
-
-### D2. Новая секция: type-safe `computeFrom`
-
-Создать [packages/reformer/docs/llms/30-type-safety-recipes.md](packages/reformer/docs/llms/30-type-safety-recipes.md) (или дополнить [20-compute-vs-watch.md](packages/reformer/docs/llms/20-compute-vs-watch.md)) с разделом:
-
-```markdown
-## computeFrom — type-safe callback
-
-Annotate the destructured argument with the form type. Without annotation,
-TS infers field types as `unknown` because `computeFn: (values: TForm) => T`
-sees the full form, not a narrowed Pick.
-
-❌ DON'T — leads to `as` casts
-computeFrom([path.loanAmount, path.loanTerm], path.monthlyPayment,
-({ loanAmount, loanTerm }) => {
-const a = (loanAmount as number | null) ?? 0; // implicit cast
-return annuityMonthly(a, ...);
-}
-);
-
-✅ DO — annotated destructuring, no casts
-computeFrom([path.loanAmount, path.loanTerm], path.monthlyPayment,
-({ loanAmount, loanTerm }: MyForm) =>
-annuityMonthly(loanAmount ?? 0, loanTerm ?? 0, ...)
-);
-```
-
-Включить эту секцию в индекс llms (header в каждом `*.md` файле описывает что и где искать).
-
-### D3. Импорт-памятка — поднять выше
-
-В [packages/reformer/docs/llms/05-common-mistakes.md](packages/reformer/docs/llms/05-common-mistakes.md) или [07-complete-import.md](packages/reformer/docs/llms/07-complete-import.md) поднять блок «Imports — types from `@reformer/core`, validators from `/validators`» в самое начало раздела. Сейчас он в [llms.txt:441](packages/reformer/llms.txt#L441) ниже всех common patterns — MCP читает по порядку и часто не доходит.
-
-Конкретно — продублировать DO/DON'T-блок в шапку common-mistakes.md:
-
-```markdown
-### Imports rule (number 1 cause of cascading errors)
-
-Types come from `@reformer/core`. Functions come from submodules.
-
-❌ DON'T:
-import { type ValidationSchemaFn } from '@reformer/core/validators'; // TS2614
-
-✅ DO:
-import { type ValidationSchemaFn } from '@reformer/core';
-import { required, applyWhen } from '@reformer/core/validators';
-```
-
-### D4. UI-kit doc: FormArraySection generic
-
-[packages/reformer-ui-kit/docs/llms/](packages/reformer-ui-kit/docs/llms/) — раздел про FormArraySection (если есть `08-form-array-section.md` — упомянут в индексе) — добавить пример с typed-generic после части B:
-
-```markdown
-## Type-safe initialValue
-
-`initialValue` is typed as `Partial<T>` where T is the array element type.
-Pass a factory that returns the element shape; TS will check assignment.
-
-<FormArraySection<PropertyItem>
-control={control.properties}
-itemComponent={PropertyItemForm}
-initialValue={createPropertyItem()} // PropertyItem - checked
-/>
-```
-
-### D5. Регенерация `llms.txt`
-
-После правок `*.md`:
-
-```bash
-cd packages/reformer && npm run generate:llms
-cd packages/reformer-ui-kit && npm run generate:llms
-cd packages/reformer-cdk && npm run generate:llms
-```
-
-(если такого скрипта нет в package — проверить и спросить, как собирается llms.txt)
-
----
 
 ## Verification
+- npx tsc playground: PASS
+- npm run lint -w react-playground: PASS
+- App.tsx routes added: 3
+- screenshots: 18 (6 × 3 targets)
+- videos: 3
 
-1. **tsc по всему playground'у**:
+## Stop check
+- gaps after dedup: N
+- iter: {N} / {MAX}
+- decision: continue → /iter {N+1} | stop (green) | stop (limit)
 
-   ```bash
-   cd projects/react-playground && npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -c "error TS"
-   ```
+## Next session
+- Review patches in .tmp/iter-artifacts/iter-{N}/proposed-patches/
+- Apply manually to packages/reformer-mcp/
+- Validate: cd packages/reformer-mcp && npm run build
+- Re-run: /iter {N+1}
+```
 
-   Ожидаемое: `0`. Сейчас: `43`.
+---
 
-2. **Регрессия `as`-кастов в схеме**:
+## Edge cases
 
-   ```bash
-   grep -nE " as (string|number|PersonalData|CoBorrowerItem)" projects/react-playground/src/pages/examples/mcp-credit-application-v9/schema.ts
-   ```
+| case | handling |
+|------|----------|
+| Sub-agent читает запрещённый путь (нарушает sandbox) | Orchestrator в шаге 4 grep'ом находит, mark dev-report как `status=tainted`, gap-list игнорируется (нечестные данные) |
+| Sub-agent застрял в tsc-loop (3 try fails) | dev-report `status=blocked`, blocker в summary, screenshots пропускаются |
+| App.tsx merge conflict (две одновременных модификации) | Orchestrator выполняет merge **после** всех 3 sub-agent'ов, sub-agent'ы App.tsx не трогают |
+| Видеозапись забивает диск | `.gitignore`-ed videos/ + ротация: `find videos/ -mtime +14 -delete` в pre-flight |
+| Скриншот случайно ушёл в repo root | Pre-flight + post-flight: `find . -maxdepth 1 -name 'page-*.png' -newer .tmp/iter-artifacts/iter-{N}/.start` → fail iter |
+| Один и тот же gap из iter-{N-1} | В summary помечается `regression: true`, severity escalated |
+| Спека была изменена между iter'ами | Orchestrator в pre-flight: `git diff HEAD~5 -- docs/specs/` → если spec менялся, в summary раздел «Spec drift» |
+| MCP сервер недоступен | Sub-agent fail-fast в step 1, dev-report `status=blocked, reason="MCP unreachable"` |
+| Sub-agent попытался commit | Sub-agent prompt запрещает; orchestrator проверяет `git log --since=<start>` → если новые коммиты от sub-agent → fail iter |
+| Юзер вызвал /iter N + сразу /iter N+1 не ревьюя | Pre-flight: если iter-summaries/iter-{N-1}.md помечен `decision: continue` И patches в `proposed-patches/` не были применены (heuristic: ни один MCP файл не менялся между двумя iter'ами) → warn «MCP без правок — iter может зациклиться» |
 
-   Ожидаемое: пусто.
+---
 
-3. **Сборка пакетов** (после правок cdk/ui-kit):
+## Verification (как проверить что система работает)
 
-   ```bash
-   cd packages/reformer-cdk && npm run build
-   cd packages/reformer-ui-kit && npm run build
-   ```
+1. **Smoke (dry-run)**: создать только `docs/iter-prompts/*.md` файлы (без запуска), убедиться что промты внятные — `cat docs/iter-prompts/orchestrator.md | wc -l` ~150 строк, читается за 2 минуты.
 
-   Без ошибок типов.
+2. **Mini-run (1 target)**:
+   - Вручную (не через orchestrator) запустить sub-agent.template.md для target=core, iter=11
+   - Проверить артефакты:
+     - `.tmp/iter-artifacts/iter-11/core/dev-plan.md`, `dev-report.md` существуют
+     - `projects/react-playground/src/pages/examples/mcp-credit-application-core-v11/{schema.ts, index.tsx}` существуют
+     - `npx tsc --noEmit -p projects/react-playground/tsconfig.app.json` зелёный
+     - `projects/react-playground-e2e/screenshots/mcp-credit-v11/core/page{1..6}-*.png` существуют, все fullPage (проверить размер ≥ 1440×900)
+     - `projects/react-playground-e2e/videos/mcp-credit-v11/core/walkthrough.webm` существует
+     - В transcript нет `Read.*packages/` (sandbox compliance)
 
-4. **Runtime smoke** (после всех правок):
-   - `npm run dev` → открыть `/mcp-credit-application-v9`, нажать «🎭 Заполнить тестовыми данными».
-   - Пройти все 6 шагов мастера, дойти до submit.
-   - Проверить computed-поля (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`) обновляются как раньше — поведение runtime не должно меняться, всё compile-time-only.
-   - Открыть `/complex-multy-step-form` и `/mcp-credit-application-renderer-v9` для регрессии (FormWizard и FormArraySection используются там же).
+3. **Full-run (3 targets, parallel)**:
+   - Запустить orchestrator iter=11
+   - Проверить всё выше × 3 + `docs/iter-summaries/iter-11.md` корректен (метрики не пустые, gaps структурированы)
+   - App.tsx содержит 3 новых route, остальные iter не тронуты
 
-5. **Документация — проверка регенерации**:
+4. **Patch loop**:
+   - Применить 1 предложенный patch к MCP
+   - Запустить orchestrator iter=12
+   - В iter-12 summary: gap из iter-11 либо closed, либо severity downgraded
 
-   ```bash
-   grep -A 5 "computeFrom — type-safe callback" packages/reformer/llms.txt
-   ```
+5. **Stop condition**:
+   - При iter с gaps==0 orchestrator выводит «GREEN» и не предлагает iter+1
 
-   Раздел должен появиться после `npm run generate:llms`.
+---
 
-6. **MCP integration test** (опционально, если есть заготовки): прогнать MCP-генератор схемы для какой-нибудь spec'и и убедиться, что в выходе нет `(path: any)` и нет `as`-кастов в `computeFrom`.
+## Sequencing (как выкатывать)
 
-## Заметки про порядок выполнения
+| Step | Что | Почему отдельно |
+|------|-----|-----------------|
+| 1 | Создать `docs/iter-prompts/{orchestrator,sub-agent.template,templates/*}.md` + `docs/iter-summaries/.keep` | Pure docs, ничего не запускается, ревью промтов |
+| 2 | Изменить `playwright.config.ts` (video + ITER_OUTPUT_DIR), `.gitignore` (видео опционально) | Инфраструктура для запуска |
+| 3 | Mini-run iter=11 на target=core (manual, без orchestrator) | Валидация sub-agent промта end-to-end |
+| 4 | Update CLAUDE.md (раздел про iter system) | Закрепить рабочий процесс после mini-run |
+| 5 | Full-run iter=11 (orchestrator, 3 targets parallel) | Первая полная итерация |
+| 6 | После 1-2 циклов — рефакторинг промтов на основании опыта | Нормальная стабилизация |
 
-- A1 → A2 → A3 — **последовательно** в одном PR (schema-only).
-- B1 → B2 — **связаны** (B2 зависит от B1 для типа `initialValue`).
-- B3 — независимо.
-- C1 — независимо от B; ставить в один PR с B (общая тема: ui-kit/cdk generics).
-- D1–D5 — отдельный PR (только docs), после A/B/C мерджа, чтобы примеры в docs ссылались на актуальный API.
+Каждый step — отдельный PR.
+
+---
+
+## Files to create — checklist
+
+- [ ] `docs/iter-prompts/orchestrator.md`
+- [ ] `docs/iter-prompts/sub-agent.template.md`
+- [ ] `docs/iter-prompts/templates/dev-plan.template.md`
+- [ ] `docs/iter-prompts/templates/dev-report.template.md`
+- [ ] `docs/iter-prompts/templates/iter-summary.template.md`
+- [ ] `docs/iter-summaries/.keep`
+
+## Files to modify — checklist
+
+- [ ] `projects/react-playground-e2e/playwright.config.ts` — video + dynamic outputDir + viewport
+- [ ] `.gitignore` — добавить `projects/react-playground-e2e/videos/` (`.tmp/` уже включён)
+- [ ] `projects/react-playground/src/App.tsx` — будет автоматически дополняться orchestrator'ом, baseline без изменений
+- [ ] `CLAUDE.md` — раздел «Iter prompt system»
+
+---
+
+## Открытый вопрос (не блокирующий план — решается в PR)
+
+**Как orchestrator получает token-метрики sub-agent'а?** Anthropic SDK не экспонирует напрямую. Опции:
+- A. Sub-agent сам логирует в dev-report «approximate based on transcript size» (грубо)
+- B. Использовать Claude Code transcript log в `.claude/projects/.../`-jsonl (post-hoc парсинг)
+- C. Считать proxy-метрику: количество tool calls × wall time
+
+Дефолт — **B** (jsonl парсинг по `tokensUsed` полю), fallback — A.
