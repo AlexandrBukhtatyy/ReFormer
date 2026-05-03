@@ -8,11 +8,11 @@ on:
       - '.github/workflows/release-renderer-json.yml'
 
 concurrency:
-  # Все release-* workflow share одну очередь, чтобы предотвратить race
-  # на git push refs/notes/semantic-release. Параллельные releases ломали
-  # друг друга с "! [rejected] (fetch first)". cancel-in-progress: false
-  # — новый run ждёт текущий, не отменяет.
-  group: semantic-release-notes
+  # Per-workflow group — sequential для одного пакета (защита от двойного
+  # release на repeated push), parallel между пакетами. Race на
+  # git push refs/notes/semantic-release при одновременных релизах решается
+  # повторным запуском failed jobs (Re-run failed jobs в UI).
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
