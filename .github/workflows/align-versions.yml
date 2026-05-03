@@ -1,0 +1,131 @@
+name: Align package versions
+
+# Одноразовый/окказиональный workflow — выравнивает все @reformer/* пакеты
+# на одну major+minor версию. Запускается вручную через workflow_dispatch.
+# См. docs/versioning.md — почему major+minor синхронны.
+#
+# Этот workflow ОБХОДИТ semantic-release: вручную bumpает version в каждом
+# package.json, билдит, публикует на NPM (--tag develop) и создаёт git tags
+# по той же tagFormat, что использует semantic-release. После этого
+# semantic-release при следующем push продолжит с этой baseline и сделает
+# 3.0.0-beta.1 / 3.0.0-beta.2 / ... как обычно.
+#
+# Используй когда:
+#  - впервые синхронизируешь majors (как сейчас 1.x/3.x → 3.x)
+#  - после coordinated breaking change нужно перейти на 4.x для всех
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Target version (например 3.0.0-beta.0). Должна быть выше текущей у каждого пакета.'
+        required: true
+        type: string
+      dry_run:
+        description: 'Если true — показать diff но не публиковать и не push tags.'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: align-versions
+  cancel-in-progress: false
+
+jobs:
+  align:
+    name: Align all @reformer/* to ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages in dependency order
+        run: |
+          set -e
+          for pkg in @reformer/core @reformer/cdk @reformer/renderer-react \
+                    @reformer/ui-kit @reformer/renderer-json @reformer/mcp; do
+            echo "::group::Build $pkg"
+            npm run build -w "$pkg"
+            echo "::endgroup::"
+          done
+
+      - name: Bump versions
+        run: |
+          set -e
+          for dir in packages/reformer packages/reformer-cdk \
+                    packages/reformer-renderer-react packages/reformer-ui-kit \
+                    packages/reformer-renderer-json packages/reformer-mcp; do
+            echo "::group::Bump $dir → ${{ inputs.version }}"
+            (cd "$dir" && npm version "${{ inputs.version }}" --no-git-tag-version --allow-same-version)
+            echo "::endgroup::"
+          done
+          echo "=== Resulting package.json versions ==="
+          for dir in packages/reformer packages/reformer-cdk \
+                    packages/reformer-renderer-react packages/reformer-ui-kit \
+                    packages/reformer-renderer-json packages/reformer-mcp; do
+            jq -r '"\(.name) \(.version)"' "$dir/package.json"
+          done
+
+      - name: Diff (always shown)
+        run: git diff --stat
+
+      - name: Publish to NPM
+        if: ${{ !inputs.dry_run }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -e
+          for dir in packages/reformer packages/reformer-cdk \
+                    packages/reformer-renderer-react packages/reformer-ui-kit \
+                    packages/reformer-renderer-json packages/reformer-mcp; do
+            echo "::group::Publish $dir"
+            (cd "$dir" && npm publish --tag develop --access public)
+            echo "::endgroup::"
+          done
+
+      - name: Create + push git tags (semantic-release tagFormat)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -e
+          V="${{ inputs.version }}"
+          # tagFormat per package — см. .releaserc.json в каждом пакете
+          declare -A TAGS=(
+            [packages/reformer]="v$V"
+            [packages/reformer-cdk]="cdk-v$V"
+            [packages/reformer-renderer-react]="renderer-react-v$V"
+            [packages/reformer-ui-kit]="ui-kit-v$V"
+            [packages/reformer-renderer-json]="renderer-json-v$V"
+            [packages/reformer-mcp]="mcp-v$V"
+          )
+          for dir in "${!TAGS[@]}"; do
+            tag="${TAGS[$dir]}"
+            echo "Tagging $dir → $tag"
+            git tag -a "$tag" -m "Align all @reformer/* to $V" HEAD
+          done
+          git push origin --tags
+        shell: bash
+
+      - name: Commit version bumps
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add packages/*/package.json
+          git commit -m "chore(release): align all @reformer/* to ${{ inputs.version }} [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref_name }}
