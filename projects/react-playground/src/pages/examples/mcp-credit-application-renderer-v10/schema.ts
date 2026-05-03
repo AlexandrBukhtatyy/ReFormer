@@ -11,14 +11,15 @@
  * Patches J / K / L / M apply to render-schema.tsx and index.tsx (renderer-react flow).
  */
 
-import { createForm, type FormSchema, type FormProxy, type FieldPath } from '@reformer/core';
 import {
-  computeFrom,
-  enableWhen,
-  copyFrom,
-  watchField,
+  createForm,
+  type FormSchema,
+  type FormProxy,
+  type FieldPath,
+  type ValidationSchemaFn,
   type BehaviorSchemaFn,
-} from '@reformer/core/behaviors';
+} from '@reformer/core';
+import { computeFrom, enableWhen, copyFrom, watchField } from '@reformer/core/behaviors';
 import {
   required,
   min,
@@ -29,7 +30,6 @@ import {
   pattern,
   applyWhen,
   apply,
-  type ValidationSchemaFn,
 } from '@reformer/core/validators';
 import { Input, InputMask, Textarea, Select, RadioGroup, Checkbox } from '@reformer/ui-kit';
 

@@ -17,49 +17,49 @@ export type PropertyType = 'apartment' | 'house' | 'land' | 'commercial' | 'car'
 // Nested forms
 // -----------------------------------------------------------------------------
 
-export interface PersonalData {
+export type PersonalData = {
   lastName: string;
   firstName: string;
   middleName: string;
   birthDate: string;
   gender: Gender;
   birthPlace: string;
-}
+};
 
-export interface PassportData {
+export type PassportData = {
   series: string;
   number: string;
   issueDate: string;
   issuedBy: string;
   departmentCode: string;
-}
+};
 
-export interface Address {
+export type Address = {
   region: string;
   city: string;
   street: string;
   house: string;
   apartment: string;
   postalCode: string;
-}
+};
 
-export interface Property {
+export type Property = {
   type: PropertyType;
   description: string;
   estimatedValue: number;
   hasEncumbrance: boolean;
-}
+};
 
-export interface ExistingLoan {
+export type ExistingLoan = {
   bank: string;
   type: string;
   amount: number;
   remainingAmount: number;
   monthlyPayment: number;
   maturityDate: string;
-}
+};
 
-export interface CoBorrower {
+export type CoBorrower = {
   personalData: {
     lastName: string;
     firstName: string;
@@ -70,13 +70,13 @@ export interface CoBorrower {
   email: string;
   relationship: string;
   monthlyIncome: number;
-}
+};
 
 // -----------------------------------------------------------------------------
 // Root model
 // -----------------------------------------------------------------------------
 
-export interface CreditApplicationFormV10 {
+export type CreditApplicationFormV10 = {
   // Step 1 — Loan
   loanType: LoanType;
   loanAmount: number | null;
@@ -149,7 +149,7 @@ export interface CreditApplicationFormV10 {
   totalIncome: number;
   paymentToIncomeRatio: number;
   coBorrowersIncome: number;
-}
+};
 
 // -----------------------------------------------------------------------------
 // Constant option lists (used both in schema componentProps + reuse where needed)

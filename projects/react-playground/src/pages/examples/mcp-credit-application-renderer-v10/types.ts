@@ -20,72 +20,72 @@ export type PropertyType = 'apartment' | 'house' | 'car' | 'land' | 'commercial'
 // Nested sub-form types
 // ============================================================================
 
-export interface PersonalData {
+export type PersonalData = {
   lastName: string;
   firstName: string;
   middleName: string;
   birthDate: string;
   gender: Gender;
   birthPlace: string;
-}
+};
 
-export interface PassportData {
+export type PassportData = {
   series: string;
   number: string;
   issueDate: string;
   issuedBy: string;
   departmentCode: string;
-}
+};
 
-export interface Address {
+export type Address = {
   region: string;
   city: string;
   street: string;
   house: string;
   apartment: string;
   postalCode: string;
-}
+};
 
 // ============================================================================
 // Array item types
 // ============================================================================
 
-export interface PropertyItem {
+export type PropertyItem = {
   type: PropertyType;
   description: string;
   estimatedValue: number;
   hasEncumbrance: boolean;
-}
+};
 
-export interface ExistingLoanItem {
+export type ExistingLoanItem = {
   bank: string;
   type: string;
   amount: number;
   remainingAmount: number;
   monthlyPayment: number;
   maturityDate: string;
-}
+};
 
-export interface CoBorrowerPersonal {
+export type CoBorrowerPersonal = {
   lastName: string;
   firstName: string;
   middleName: string;
   birthDate: string;
-}
+};
 
-export interface CoBorrowerItem {
+export type CoBorrowerItem = {
   personalData: CoBorrowerPersonal;
   phone: string;
   email: string;
   relationship: string;
   monthlyIncome: number;
-}
+};
 
 // ============================================================================
 // Root form interface
 // ============================================================================
 
-export interface CreditApplicationForm {
+export type CreditApplicationForm = {
   // ----- Step 1: loan -----
   loanType: LoanType;
   loanAmount: number | null;
@@ -161,4 +161,4 @@ export interface CreditApplicationForm {
   totalIncome: number;
   paymentToIncomeRatio: number;
   coBorrowersIncome: number;
-}
+};
