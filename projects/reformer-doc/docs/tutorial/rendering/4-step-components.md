@@ -313,12 +313,12 @@ export function EmploymentForm({ control }: EmploymentFormProps) {
 
 ## Шаг 5: Дополнительная информация
 
-Демонстрирует работу с массивами через `FormArray` из `@reformer/ui`:
+Демонстрирует работу с массивами через `FormArray` из `@reformer/cdk`:
 
 ```tsx title="src/steps/AdditionalInfoForm.tsx"
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../sub-forms/property/PropertyForm';
 import { ExistingLoanForm } from '../sub-forms/existing-loan/ExistingLoanForm';
@@ -355,9 +355,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasProperty && (
           <FormArray.Root control={control.properties}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Имущество</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Имущество</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Добавить имущество
@@ -394,9 +396,13 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasExistingLoans && (
           <FormArray.Root control={control.existingLoans}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Существующие кредиты</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">
+                    {count} Существующие кредиты
+                  </span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Добавить кредит
@@ -433,9 +439,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
         {hasCoBorrower && (
           <FormArray.Root control={control.coBorrowers}>
             <div className="flex justify-between items-center">
-              <FormArray.Count render={(count) => (
-                <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
-              )} />
+              <FormArray.Count
+                render={(count) => (
+                  <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+                )}
+              />
               <FormArray.AddButton asChild>
                 <Button type="button" variant="outline" size="sm">
                   + Добавить созаёмщика

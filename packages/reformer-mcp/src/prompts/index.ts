@@ -1,1 +1,11 @@
 export { debugPromptDefinition, getDebugPrompt } from './debug.js';
+export { reviewPromptDefinition, getReviewPrompt } from './review.js';
+export { planFormPromptDefinition, getPlanFormPrompt } from './plan-form.js';
+export { createFormPromptDefinition, getCreateFormPrompt } from './create-form.js';
+export { addValidationPromptDefinition, getAddValidationPrompt } from './add-validation.js';
+export { addBehaviorPromptDefinition, getAddBehaviorPrompt } from './add-behavior.js';
+export { addFormArrayPromptDefinition, getAddFormArrayPrompt } from './add-form-array.js';
+export { addWizardPromptDefinition, getAddWizardPrompt } from './add-wizard.js';
+export { toRendererPromptDefinition, getToRendererPrompt } from './to-renderer.js';
+export { toRendererJsonPromptDefinition, getToRendererJsonPrompt } from './to-renderer-json.js';
+export { discoverContextPromptDefinition, getDiscoverContextPrompt } from './discover-context.js';

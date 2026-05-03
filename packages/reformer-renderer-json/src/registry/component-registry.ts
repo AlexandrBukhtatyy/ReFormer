@@ -1,0 +1,94 @@
+/**
+ * Реализация реестра компонентов
+ *
+ * @module reformer/renderer-json/registry/component-registry
+ */
+
+import type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './types';
+
+export class ComponentRegistryImpl implements ComponentRegistry {
+  private own = new Map<string, ComponentMetadata>();
+  private parent: ComponentRegistryImpl | null = null;
+
+  get(name: string): ComponentMetadata | undefined {
+    return this.own.get(name) ?? this.parent?.get(name);
+  }
+
+  getSource<T = unknown>(name: string): T | undefined {
+    const meta = this.get(name);
+    if (!meta || meta.type !== 'source') return undefined;
+    return meta.component as T;
+  }
+
+  has(name: string): boolean {
+    return this.own.has(name) || (this.parent?.has(name) ?? false);
+  }
+
+  names(): string[] {
+    const parentNames = this.parent?.names() ?? [];
+    const ownNames = Array.from(this.own.keys());
+    return [...new Set([...parentNames, ...ownNames])];
+  }
+
+  _set(name: string, metadata: ComponentMetadata): void {
+    if (this.own.has(name)) {
+      console.warn(`[ComponentRegistry] Overwriting entry: ${name}`);
+    }
+    this.own.set(name, metadata);
+  }
+
+  static withParent(parent: ComponentRegistry, child: ComponentRegistry): ComponentRegistry {
+    const merged = new ComponentRegistryImpl();
+    merged.parent = parent as ComponentRegistryImpl;
+    (child as ComponentRegistryImpl).own.forEach((meta, name) => {
+      merged.own.set(name, meta);
+    });
+    return merged;
+  }
+}
+
+/**
+ * Создаёт реестр компонентов через builder-callback.
+ *
+ * Реестр обязателен для работы {@link JsonFormRenderer} — иначе компоненты,
+ * упомянутые в JSON-схеме, не отрезолвятся.
+ *
+ * @param fn - Builder-callback. Получает {@link RegistryBuilder} с методами `field`, `container`, `source`.
+ * @returns Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
+ *
+ * @example
+ * ```typescript
+ * import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
+ * import { Input, Select, FormField } from '@reformer/ui-kit';
+ *
+ * const registry = defineRegistry((reg) => {
+ *   reg.field('Input', Input);
+ *   reg.field('Select', Select);
+ *   reg.container(FIELD_WRAPPER, FormField);
+ *   reg.source('LOAN_TYPES', [
+ *     { value: 'consumer', label: 'Потребительский' },
+ *     { value: 'mortgage', label: 'Ипотека' },
+ *   ]);
+ * });
+ * ```
+ *
+ * @see [docs/llms/03-registry.md](../../docs/llms/03-registry.md)
+ */
+export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentRegistry {
+  const registry = new ComponentRegistryImpl();
+
+  const builder: RegistryBuilder = {
+    field(name, component, description?) {
+      registry._set(name, { component, type: 'field', description });
+    },
+    container(name, component, description?) {
+      registry._set(name, { component, type: 'container', description });
+    },
+    source(name, value, description?) {
+      registry._set(name, { component: value, type: 'source', description });
+    },
+  };
+
+  fn(builder);
+  return registry;
+}

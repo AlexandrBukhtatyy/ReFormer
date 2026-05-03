@@ -20,13 +20,21 @@ export { pattern } from './validators/pattern';
 export { url } from './validators/url';
 export { phone, type PhoneFormat } from './validators/phone';
 export { number } from './validators/number';
-export { date } from './validators/date';
+
+// Date validators
+export { isDate } from './validators/is-date';
+export { minDate } from './validators/min-date';
+export { maxDate } from './validators/max-date';
+export { pastDate } from './validators/past-date';
+export { futureDate } from './validators/future-date';
+export { minAge } from './validators/min-age';
+export { maxAge } from './validators/max-age';
 
 // Валидаторы для массивов
 export { notEmpty, validateItems } from './validators/array-validators';
 
 // Утилиты для FieldPath
-export { createFieldPath, extractPath, extractKey, toFieldPath } from './field-path';
+export { createFieldPath, extractPath, extractKey, toFieldPath } from '../utils/field-path';
 
 // Утилита для валидации формы по схеме
 export { validateForm } from './validate-form';

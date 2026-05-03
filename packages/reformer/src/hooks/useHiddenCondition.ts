@@ -1,0 +1,79 @@
+/**
+ * useHiddenCondition - хук для реактивной проверки условия hidden
+ *
+ * Подписывается на изменения формы и пересчитывает условие hidden.
+ *
+ * @module hooks/useHiddenCondition
+ */
+
+import { useSyncExternalStore, useCallback } from 'react';
+import type { FormProxy, FieldPath } from '../core/types';
+
+type HiddenFn<T> = (form: FormProxy<T>, path: FieldPath<T>) => boolean;
+
+/**
+ * Хук для реактивной оценки функции hidden.
+ *
+ * Подписывается на изменения формы через сигналы и возвращает текущее
+ * значение hidden-условия.
+ *
+ * @param hiddenFn - Функция, определяющая скрытие.
+ * @param form - {@link FormProxy} формы.
+ * @param path - Текущий {@link FieldPath}.
+ * @returns `true`, если элемент должен быть скрыт.
+ *
+ * @example
+ * ```tsx
+ * import { useHiddenCondition } from '@reformer/core';
+ *
+ * function MaybeHidden({ form, path, children }) {
+ *   const hidden = useHiddenCondition((f) => !f.subscribeNewsletter.value, form, path);
+ *   return hidden ? null : <>{children}</>;
+ * }
+ * ```
+ */
+export function useHiddenCondition<T>(
+  hiddenFn: HiddenFn<T> | undefined,
+  form: FormProxy<T>,
+  path: FieldPath<T>
+): boolean {
+  // Создаём функцию подписки на все сигналы формы
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      // Получаем доступ к внутреннему состоянию формы
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formAny = form as any;
+
+      // Собираем все сигналы значений полей для подписки
+      const unsubscribes: (() => void)[] = [];
+
+      // Подписываемся на изменения всех полей первого уровня
+      for (const key of Object.keys(formAny)) {
+        const field = formAny[key];
+        if (
+          field &&
+          typeof field === 'object' &&
+          field.value &&
+          typeof field.value.subscribe === 'function'
+        ) {
+          const unsubscribe = field.value.subscribe(onStoreChange);
+          unsubscribes.push(unsubscribe);
+        }
+      }
+
+      return () => {
+        unsubscribes.forEach((unsub) => unsub());
+      };
+    },
+    [form]
+  );
+
+  // Функция получения текущего состояния (hidden значения).
+  // Если hiddenFn не задана — элемент всегда видим (false).
+  const getSnapshot = useCallback(() => {
+    return hiddenFn ? hiddenFn(form, path) : false;
+  }, [hiddenFn, form, path]);
+
+  // Используем useSyncExternalStore для синхронизации с React
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}

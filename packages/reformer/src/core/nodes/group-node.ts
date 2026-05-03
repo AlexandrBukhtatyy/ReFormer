@@ -26,15 +26,17 @@ import type {
 } from '../types';
 import type { FormProxy } from '../types/form-proxy';
 import { createFieldPath } from '../validation';
+import { uniqueId, SubscriptionKey } from '../utils/unique-id';
 import { ValidationApplicator } from '../validation/validation-applicator';
 import type { BehaviorSchemaFn } from '../behavior/types';
 import { BehaviorRegistry } from '../behavior/behavior-registry';
-import { createFieldPath as createBehaviorFieldPath } from '../behavior/create-field-path';
 import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
 import { ValidationRegistry } from '../validation/validation-registry';
-import { v4 as uuidv4 } from 'uuid';
+import { createAggregateSignals } from '../utils/aggregate-signals';
+import { buildFormProxy } from '../utils/form-proxy-builder';
+import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../utils/form-submitter';
 
 /**
  * GroupNode - узел для группы полей
@@ -80,7 +82,7 @@ export class GroupNode<T> extends FormNode<T> {
   // ============================================================================
   // Приватные поля
   // ============================================================================
-  public id = uuidv4();
+  public id = crypto.randomUUID();
 
   /**
    * Коллекция полей формы (упрощённый Map вместо FieldRegistry)
@@ -110,13 +112,15 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Реестр валидаторов для этой формы
+   * Может быть инжектирован через config._validationRegistry для тестирования
    */
-  private readonly validationRegistry = new ValidationRegistry();
+  private readonly validationRegistry: ValidationRegistry;
 
   /**
    * Реестр behaviors для этой формы
+   * Может быть инжектирован через config._behaviorRegistry для тестирования
    */
-  private readonly behaviorRegistry = new BehaviorRegistry();
+  private readonly behaviorRegistry: BehaviorRegistry;
 
   /**
    * Аппликатор для применения валидаторов к форме
@@ -127,8 +131,9 @@ export class GroupNode<T> extends FormNode<T> {
   // Приватные сигналы состояния (inline из StateManager)
   // ============================================================================
 
-  /** Флаг отправки формы */
-  private readonly _submitting: Signal<boolean> = signal(false);
+  /** Управление отправкой формы */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly formSubmitter: FormSubmitter<any>;
 
   /** Флаг disabled состояния */
   private readonly _disabled: Signal<boolean> = signal(false);
@@ -167,8 +172,13 @@ export class GroupNode<T> extends FormNode<T> {
   constructor(schemaOrConfig: FormSchema<T> | GroupNodeConfig<T>) {
     super();
 
+    // Инициализация FormSubmitter (должна быть первой, т.к. submitting сигнал используется ниже)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.formSubmitter = new FormSubmitter(this as any);
+
     // Определяем, что передано: schema или config
     const isConfig = 'form' in schemaOrConfig;
+    const config = isConfig ? (schemaOrConfig as GroupNodeConfig<T>) : undefined;
     const formSchema = isConfig
       ? (schemaOrConfig as GroupNodeConfig<T>).form
       : (schemaOrConfig as FormSchema<T>);
@@ -177,17 +187,23 @@ export class GroupNode<T> extends FormNode<T> {
       ? (schemaOrConfig as GroupNodeConfig<T>).validation
       : undefined;
 
+    // Инициализация реестров (с поддержкой DI для тестирования)
+    this.validationRegistry =
+      (config?._validationRegistry as ValidationRegistry) ?? new ValidationRegistry();
+    this.behaviorRegistry =
+      (config?._behaviorRegistry as BehaviorRegistry) ?? new BehaviorRegistry();
+
     // Создать поля из схемы с поддержкой вложенности
-    for (const [key, config] of Object.entries(formSchema)) {
-      const node = this.createNode(config);
+    for (const [key, fieldConfig] of Object.entries(formSchema)) {
+      const node = this.createNode(fieldConfig);
       this._fields.set(key as keyof T, node);
     }
 
     // ========================================================================
-    // Создание computed signals (inline из StateManager)
+    // Создание computed signals через createAggregateSignals
     // ========================================================================
 
-    // Computed signal для значения формы
+    // Computed signal для значения формы (специфичен для GroupNode)
     this.value = computed(() => {
       const result = {} as T;
       this._fields.forEach((field, key) => {
@@ -197,56 +213,29 @@ export class GroupNode<T> extends FormNode<T> {
       return result;
     });
 
-    // Computed signal для валидности формы
-    this.valid = computed(() => {
-      if (this._formErrors.value.length > 0) return false;
-      return Array.from(this._fields.values()).every((field) => field.valid.value);
+    // Агрегированные signals через общую утилиту
+    const aggregateSignals = createAggregateSignals({
+      getChildren: () => Array.from(this._fields.values()),
+      ownErrors: this._formErrors,
+      disabled: this._disabled,
     });
 
-    // Computed signal для невалидности
-    this.invalid = computed(() => !this.valid.value);
+    this.valid = aggregateSignals.valid;
+    this.invalid = aggregateSignals.invalid;
+    this.pending = aggregateSignals.pending;
+    this.touched = aggregateSignals.touched;
+    this.dirty = aggregateSignals.dirty;
+    this.errors = aggregateSignals.errors;
+    this.status = aggregateSignals.status;
 
-    // Computed signal для pending состояния
-    this.pending = computed(() =>
-      Array.from(this._fields.values()).some((field) => field.pending.value)
-    );
-
-    // Computed signal для touched состояния
-    this.touched = computed(() =>
-      Array.from(this._fields.values()).some((field) => field.touched.value)
-    );
-
-    // Computed signal для dirty состояния
-    this.dirty = computed(() =>
-      Array.from(this._fields.values()).some((field) => field.dirty.value)
-    );
-
-    // Computed signal для ошибок (form-level + field-level)
-    this.errors = computed(() => {
-      const allErrors: ValidationError[] = [...this._formErrors.value];
-      this._fields.forEach((field) => {
-        allErrors.push(...field.errors.value);
-      });
-      return allErrors;
-    });
-
-    // Computed signal для статуса формы
-    this.status = computed(() => {
-      if (this._disabled.value) return 'disabled';
-      if (this.pending.value) return 'pending';
-      if (this.invalid.value) return 'invalid';
-      return 'valid';
-    });
-
-    // Computed signal для submitting
-    this.submitting = computed(() => this._submitting.value);
+    // Делегирование submitting к FormSubmitter
+    this.submitting = this.formSubmitter.submitting;
 
     // ========================================================================
-    // Создание Proxy (inline из ProxyBuilder)
+    // Lazy Proxy Initialization
     // ========================================================================
-
-    const proxy = this.buildProxy();
-    this._proxyInstance = proxy;
+    // Proxy создаётся лениво при первом вызове getProxy()
+    // Это улучшает производительность для форм, где proxy не используется напрямую
 
     // Применяем схемы, если они переданы (новый API)
     if (behaviorSchema) {
@@ -256,69 +245,20 @@ export class GroupNode<T> extends FormNode<T> {
       this.applyValidationSchema(validationSchema);
     }
 
-    // Возвращаем Proxy для прямого доступа к полям (form.email вместо form.getField('email'))
-    return proxy as FormProxy<T>;
+    // Конструктор возвращает this (стандартное поведение)
+    // Для Proxy-доступа к полям используйте createForm() или getProxy()
   }
 
   // ============================================================================
-  // Приватный метод для создания Proxy (inline из ProxyBuilder)
+  // Приватный метод для создания Proxy
   // ============================================================================
 
   /**
    * Создать Proxy для типобезопасного доступа к полям
+   * @see buildFormProxy
    */
   private buildProxy(): FormProxy<T> {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-
-    return new Proxy(this, {
-      get: (target, prop: string | symbol) => {
-        // Приоритет 1: Собственные свойства и методы GroupNode
-        if (prop in target) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (target as any)[prop];
-        }
-        // Приоритет 2: Поля формы
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          return self._fields.get(prop as keyof T);
-        }
-        return undefined;
-      },
-
-      set: (target, prop: string | symbol, value: unknown) => {
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          if (import.meta.env.DEV) {
-            console.warn(
-              `[GroupNode] Cannot set field "${prop}" directly. Use .setValue() or .patchValue() instead.`
-            );
-          }
-          return false;
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (target as any)[prop] = value;
-        return true;
-      },
-
-      has: (target, prop: string | symbol) => {
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          return true;
-        }
-        return prop in target;
-      },
-
-      ownKeys: (target) => {
-        const nodeKeys = Reflect.ownKeys(target);
-        const fieldKeys = Array.from(self._fields.keys()) as (string | symbol)[];
-        return [...new Set([...nodeKeys, ...fieldKeys])];
-      },
-
-      getOwnPropertyDescriptor: (target, prop) => {
-        if (typeof prop === 'string' && self._fields.has(prop as keyof T)) {
-          return { enumerable: true, configurable: true };
-        }
-        return Reflect.getOwnPropertyDescriptor(target, prop);
-      },
-    }) as FormProxy<T>;
+    return buildFormProxy(this, this._fields as Map<keyof T, FormNode<unknown>>);
   }
 
   // ============================================================================
@@ -347,12 +287,14 @@ export class GroupNode<T> extends FormNode<T> {
 
   patchValue(value: Partial<T>): void {
     // Используем batch чтобы все обновления происходили атомарно
+    // emitEvent: false предотвращает N валидаций при обновлении N полей
+    // Валидация НЕ запускается автоматически - вызовите validate() если нужно
     batch(() => {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          field.setValue(fieldValue as any);
+          field.setValue(fieldValue as any, { emitEvent: false });
         }
       }
     });
@@ -410,7 +352,9 @@ export class GroupNode<T> extends FormNode<T> {
     }
 
     // Проверяем, все ли поля валидны
-    return Array.from(this._fields.values()).every((field) => field.valid.value);
+    return Array.from(this._fields.values()).every(
+      (field) => field.valid.value || field.disabled.value
+    );
   }
 
   /**
@@ -470,7 +414,11 @@ export class GroupNode<T> extends FormNode<T> {
    * ```
    */
   getProxy(): FormProxy<T> {
-    return (this._proxyInstance || this) as FormProxy<T>;
+    // Lazy initialization: создаём proxy только при первом обращении
+    if (!this._proxyInstance) {
+      this._proxyInstance = this.buildProxy();
+    }
+    return this._proxyInstance;
   }
 
   /**
@@ -506,22 +454,30 @@ export class GroupNode<T> extends FormNode<T> {
 
   /**
    * Отправить форму
+   *
+   * @param onSubmit - Callback для отправки данных
+   * @param options - Опции submit (skipValidation, skipTouch)
+   * @returns Результат от onSubmit или null если валидация не пройдена
    */
-  async submit<R>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> {
-    this.markAsTouched();
+  async submit<R>(
+    onSubmit: (values: T) => Promise<R> | R,
+    options?: SubmitOptions
+  ): Promise<R | null> {
+    return this.formSubmitter.submit(onSubmit, options);
+  }
 
-    const isValid = await this.validate();
-    if (!isValid) {
-      return null;
-    }
-
-    this._submitting.value = true;
-    try {
-      const result = await onSubmit(this.getValue());
-      return result;
-    } finally {
-      this._submitting.value = false;
-    }
+  /**
+   * Отправить форму с расширенным результатом
+   *
+   * @param onSubmit - Callback для отправки данных
+   * @param options - Опции submit
+   * @returns Объект SubmitResult с данными, статусом и возможной ошибкой
+   */
+  async submitWithResult<R>(
+    onSubmit: (values: T) => Promise<R> | R,
+    options?: SubmitOptions
+  ): Promise<SubmitResult<R>> {
+    return this.formSubmitter.submitWithResult(onSubmit, options);
   }
 
   /**
@@ -553,7 +509,7 @@ export class GroupNode<T> extends FormNode<T> {
     this.behaviorRegistry.beginRegistration();
 
     try {
-      const path = createBehaviorFieldPath<T>();
+      const path = createFieldPath<T>();
       schemaFn(path);
       const result = this.behaviorRegistry.endRegistration(this.getProxy());
       return result.cleanup;
@@ -694,12 +650,8 @@ export class GroupNode<T> extends FormNode<T> {
     const targetField = this._fields.get(targetKey);
 
     if (!sourceField || !targetField) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          `GroupNode.linkFields: field "${String(sourceKey)}" or "${String(targetKey)}" not found`
-        );
-      }
-      return () => {};
+      const missingField = !sourceField ? sourceKey : targetKey;
+      throw new Error(`GroupNode.linkFields: field "${String(missingField)}" not found`);
     }
 
     const dispose = effect(() => {
@@ -710,7 +662,7 @@ export class GroupNode<T> extends FormNode<T> {
       targetField.setValue(transformedValue as any, { emitEvent: false });
     });
 
-    const key = `linkFields-${Date.now()}-${Math.random()}`;
+    const key = uniqueId(SubscriptionKey.LinkFields);
     return this.disposers.add(key, dispose);
   }
 
@@ -748,10 +700,7 @@ export class GroupNode<T> extends FormNode<T> {
     const field = this.getFieldByPath(fieldPath as string);
 
     if (!field) {
-      if (import.meta.env.DEV) {
-        console.warn(`GroupNode.watchField: field "${fieldPath}" not found`);
-      }
-      return () => {}; // noop
+      throw new Error(`GroupNode.watchField: field "${fieldPath}" not found`);
     }
 
     const dispose = effect(() => {
@@ -761,7 +710,7 @@ export class GroupNode<T> extends FormNode<T> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watchField-${Date.now()}-${Math.random()}`;
+    const key = uniqueId(SubscriptionKey.WatchField);
     return this.disposers.add(key, dispose);
   }
 

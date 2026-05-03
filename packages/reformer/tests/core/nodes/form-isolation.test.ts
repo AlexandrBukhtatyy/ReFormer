@@ -186,7 +186,7 @@ describe('Form Isolation', () => {
       expect(form2.targetField2.value.value).toBe('Copy2: value2');
     });
 
-    it('должен изолировать enableWhen между формами', () => {
+    it('должен изолировать enableWhen между формами', async () => {
       interface EnableTestForm {
         condition: boolean;
         field1: string;
@@ -224,6 +224,9 @@ describe('Form Isolation', () => {
       form1.applyBehaviorSchema(behaviorSchema1);
       form2.applyBehaviorSchema(behaviorSchema2);
 
+      // Wait for queueMicrotask in enableWhen effect
+      await new Promise((r) => setTimeout(r, 10));
+
       // Проверяем начальное состояние: все поля disabled
       expect(form1.field1.status.value).toBe('disabled');
       expect(form1.field2.status.value).toBe('valid'); // не управляется behavior
@@ -233,6 +236,7 @@ describe('Form Isolation', () => {
 
       // Включаем условие в форме 1
       form1.condition.setValue(true);
+      await new Promise((r) => setTimeout(r, 10));
 
       // Форма 1: только field1 должен быть enabled
       expect(form1.field1.status.value).toBe('valid');
@@ -244,6 +248,7 @@ describe('Form Isolation', () => {
 
       // Включаем условие в форме 2
       form2.condition.setValue(true);
+      await new Promise((r) => setTimeout(r, 10));
 
       // Форма 2: только field2 должен быть enabled
       expect(form2.field1.status.value).toBe('valid');

@@ -11,13 +11,53 @@ Reactive form state management library for React with signals-based architecture
 - [Documentation](https://alexandrbukhtatyy.github.io/ReFormer/) - Full documentation and API reference
 - [Playground](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer?file=projects/react-playground/src/App.tsx) - Try ReFormer in StackBlitz
 
+## Commands
+
+### Общие команды
+
+```
+# Установка зависимостей @reformer/core
+npm install -w @reformer/core
+
+# Сборка пакета @reformer/core
+npm run build -w @reformer/core
+
+
+# Установка зависимостей @reformer/cdk
+npm install -w @reformer/cdk
+
+# Сборка пакета @reformer/cdk
+npm run build -w @reformer/cdk
+
+
+# Установка зависимостей @reformer/renderer-reac
+npm install -w @reformer/renderer-react
+
+# Сборка пакета @reformer/renderer-react
+npm run build -w @reformer/renderer-react
+
+
+# Установка зависимостей react-playground
+npm install -w react-playground
+
+# Сборка проекта react-playground
+npm run build -w react-playground
+
+# Запуск проекта react-playground в режиме разработки
+npm run dev -w react-playground
+```
+
+### Запуск тестов:
+
+Инструкция по настройке, запуску тестов и полный перечень команд находится в [README.md](./projects/react-playground-e2e/README.md)
+
 ## Packages
 
-| Package | Description | Version |
-|---------|-------------|---------|
-| [@reformer/core](./packages/reformer) | Core form state management | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
-| [@reformer/ui](./packages/reformer-ui) | Headless UI components (FormArray, FormNavigation) | [![npm](https://img.shields.io/npm/v/@reformer/ui.svg)](https://www.npmjs.com/package/@reformer/ui) |
-| [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp) |
+| Package                                  | Description                                    | Version                                                                                                 |
+| ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [@reformer/core](./packages/reformer)    | Core form state management                     | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
+| [@reformer/cdk](./packages/reformer-cdk) | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)   |
+| [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants                   | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)   |
 
 ## Features
 
@@ -38,7 +78,7 @@ Reactive form state management library for React with signals-based architecture
 npm install @reformer/core
 
 # Optional: Headless UI components
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 ## Quick Start
@@ -120,7 +160,7 @@ validation: (path) => {
     }
     return null;
   });
-}
+};
 ```
 
 ## Behaviors
@@ -130,9 +170,7 @@ import { computeFrom, enableWhen, watchField } from '@reformer/core';
 
 behavior: (path) => {
   // Computed field
-  computeFrom([path.price, path.quantity], path.total,
-    ({ price, quantity }) => price * quantity
-  );
+  computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
 
   // Conditional enable/disable
   enableWhen(path.shipping, (form) => form.needsShipping);
@@ -141,7 +179,7 @@ behavior: (path) => {
   watchField(path.country, (value, ctx) => {
     ctx.form.state.setValue('');
   });
-}
+};
 ```
 
 ## Headless UI Components
@@ -149,7 +187,7 @@ behavior: (path) => {
 ### FormArray
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 
 <FormArray.Root control={form.items}>
   <FormArray.Empty>No items</FormArray.Empty>
@@ -162,27 +200,27 @@ import { FormArray } from '@reformer/ui/form-array';
     )}
   </FormArray.List>
   <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
-### FormNavigation (Multi-step Wizard)
+### FormWizard (Multi-step Wizard)
 
 ```tsx
-import { FormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
-<FormNavigation form={form} config={config}>
-  <FormNavigation.Step component={Step1} control={form} />
-  <FormNavigation.Step component={Step2} control={form} />
+<FormWizard form={form} config={config}>
+  <FormWizard.Step component={Step1} control={form} />
+  <FormWizard.Step component={Step2} control={form} />
 
-  <FormNavigation.Actions onSubmit={handleSubmit}>
+  <FormWizard.Actions onSubmit={handleSubmit}>
     {({ prev, next, submit, isLastStep }) => (
       <>
         <button {...prev}>Back</button>
         {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
       </>
     )}
-  </FormNavigation.Actions>
-</FormNavigation>
+  </FormWizard.Actions>
+</FormWizard>;
 ```
 
 ## MCP Server (AI Integration)
@@ -194,6 +232,7 @@ npm install -g @reformer/mcp
 ```
 
 Add to your Claude config:
+
 ```json
 {
   "mcpServers": {

@@ -6,11 +6,11 @@
 
 ```typescript
 interface FieldConfig<T> {
-  value: T | null;              // Initial value (REQUIRED)
-  component: ComponentType;     // React component (REQUIRED)
-  componentProps?: object;      // Props passed to component
-  disabled?: boolean;           // Disable field initially
-  validators?: ValidatorFn[];   // Sync validators
+  value: T | null; // Initial value (REQUIRED)
+  component: ComponentType; // React component (REQUIRED)
+  componentProps?: object; // Props passed to component
+  disabled?: boolean; // Disable field initially
+  validators?: ValidatorFn[]; // Sync validators
   asyncValidators?: AsyncValidatorFn[]; // Async validators
   updateOn?: 'change' | 'blur' | 'submit';
   debounce?: number;
@@ -25,8 +25,8 @@ import { Input, Select, Checkbox } from '@/components/ui';
 const schema: FormSchema<MyForm> = {
   // String field
   name: {
-    value: '',                    // Initial value (REQUIRED)
-    component: Input,             // React component (REQUIRED)
+    value: '', // Initial value (REQUIRED)
+    component: Input, // React component (REQUIRED)
     componentProps: {
       label: 'Name',
       placeholder: 'Enter name',
@@ -35,7 +35,7 @@ const schema: FormSchema<MyForm> = {
 
   // Number field (optional)
   age: {
-    value: undefined,             // Use undefined, NOT null
+    value: undefined, // Use undefined, NOT null
     component: Input,
     componentProps: { type: 'number', label: 'Age' },
   },
@@ -83,7 +83,7 @@ const itemSchema = {
 };
 
 const schema: FormSchema<MyForm> = {
-  items: [itemSchema],  // Array with ONE template item
+  items: [itemSchema], // Array with ONE template item
 };
 ```
 
@@ -92,8 +92,8 @@ const schema: FormSchema<MyForm> = {
 ```typescript
 // Missing value and component - TypeScript will error!
 const schema = {
-  name: '',           // Wrong
-  email: '',          // Wrong
+  name: '', // Wrong
+  email: '', // Wrong
 };
 ```
 
@@ -102,9 +102,9 @@ const schema = {
 ```typescript
 // Full config with behavior and validation
 const form = createForm<MyForm>({
-  form: formSchema,              // Required: form schema with FieldConfig
-  behavior: behaviorSchema,      // Optional: behavior rules
-  validation: validationSchema,  // Optional: validation rules
+  form: formSchema, // Required: form schema with FieldConfig
+  behavior: behaviorSchema, // Optional: behavior rules
+  validation: validationSchema, // Optional: validation rules
 });
 
 // Access form controls

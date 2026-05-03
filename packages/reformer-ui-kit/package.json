@@ -1,0 +1,161 @@
+{
+  "name": "@reformer/ui-kit",
+  "version": "1.0.0-beta.2",
+  "description": "Styled form components with Tailwind CSS and Radix UI for @reformer ecosystem",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./form-array": {
+      "types": "./dist/form-array.d.ts",
+      "import": "./dist/form-array.js"
+    },
+    "./form-wizard": {
+      "types": "./dist/form-wizard.d.ts",
+      "import": "./dist/form-wizard.js"
+    },
+    "./form-field": {
+      "types": "./dist/form-field.d.ts",
+      "import": "./dist/form-field.js"
+    },
+    "./input": {
+      "types": "./dist/ui/input.d.ts",
+      "import": "./dist/ui/input.js"
+    },
+    "./select": {
+      "types": "./dist/ui/select.d.ts",
+      "import": "./dist/ui/select.js"
+    },
+    "./checkbox": {
+      "types": "./dist/ui/checkbox.d.ts",
+      "import": "./dist/ui/checkbox.js"
+    },
+    "./textarea": {
+      "types": "./dist/ui/textarea.d.ts",
+      "import": "./dist/ui/textarea.js"
+    },
+    "./radio-group": {
+      "types": "./dist/ui/radio-group.d.ts",
+      "import": "./dist/ui/radio-group.js"
+    },
+    "./button": {
+      "types": "./dist/ui/button.d.ts",
+      "import": "./dist/ui/button.js"
+    },
+    "./box": {
+      "types": "./dist/ui/box.d.ts",
+      "import": "./dist/ui/box.js"
+    },
+    "./section": {
+      "types": "./dist/ui/section.d.ts",
+      "import": "./dist/ui/section.js"
+    },
+    "./input-mask": {
+      "types": "./dist/ui/input-mask.d.ts",
+      "import": "./dist/ui/input-mask.js"
+    },
+    "./input-password": {
+      "types": "./dist/ui/input-password.d.ts",
+      "import": "./dist/ui/input-password.js"
+    },
+    "./collapsible": {
+      "types": "./dist/ui/collapsible.d.ts",
+      "import": "./dist/ui/collapsible.js"
+    },
+    "./async-boundary": {
+      "types": "./dist/ui/async-boundary.d.ts",
+      "import": "./dist/ui/async-boundary.js"
+    },
+    "./state": {
+      "types": "./dist/state.d.ts",
+      "import": "./dist/state.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "generate:llms": "node ../../scripts/generate-llms-txt .",
+    "build": "npm run generate:llms && vite build",
+    "build:stackblitz": "vite build",
+    "dev": "vite",
+    "test": "node ../../scripts/run-vitest.mjs",
+    "test:watch": "vitest watch"
+  },
+  "keywords": [
+    "react",
+    "forms",
+    "ui-components",
+    "tailwindcss",
+    "radix-ui",
+    "form-array",
+    "multi-step-form",
+    "wizard",
+    "reformer",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Alexandr Bukhtatyy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer.git",
+    "directory": "packages/reformer-ui-kit"
+  },
+  "homepage": "https://alexandrbukhtatyy.github.io/ReFormer/",
+  "bugs": {
+    "url": "https://github.com/AlexandrBukhtatyy/ReFormer/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt"
+  ],
+  "peerDependencies": {
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-slot": "^1.0.0",
+    "@reformer/cdk": ">=1.0.0-beta.0",
+    "@reformer/core": ">=1.1.0-beta.0",
+    "@reformer/renderer-react": ">=1.0.0-beta.0",
+    "lucide-react": "^0.400.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0 || ^3.0.0"
+  },
+  "devDependencies": {
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@reformer/cdk": "*",
+    "@reformer/core": "*",
+    "@reformer/renderer-react": "*",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitest/utils": "^4.0.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.553.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tailwind-merge": "^3.4.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  }
+}

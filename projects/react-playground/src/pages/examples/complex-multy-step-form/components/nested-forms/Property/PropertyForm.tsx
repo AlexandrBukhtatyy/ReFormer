@@ -1,8 +1,4 @@
-import { Checkbox } from '@/components/ui/checkbox';
-import { FormField } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Checkbox, FormField, Input, Select, Textarea } from '@reformer/ui-kit';
 import { memo } from 'react';
 import type { FormSchema, FormProxy } from '@reformer/core';
 import type { Property } from './types';

@@ -1,7 +1,4 @@
-import { FormField } from '@/components/ui/form-field';
-import { Input } from '@/components/ui/input';
-import { InputMask } from '@/components/ui/input-mask';
-import { Textarea } from '@/components/ui/textarea';
+import { FormField, Input, InputMask, Textarea } from '@reformer/ui-kit';
 import { memo } from 'react';
 import type { FormSchema, FormProxy } from '@reformer/core';
 import type { PassportData } from './types';
@@ -71,9 +68,11 @@ const PassportDataFormComponent = ({ control }: PassportDataFormProps) => {
         <FormField control={control.series} testId="passportData-series" />
         <FormField control={control.number} testId="passportData-number" />
       </div>
-      <FormField control={control.issueDate} testId="passportData-issueDate" />
       <FormField control={control.issuedBy} testId="passportData-issuedBy" />
-      <FormField control={control.departmentCode} testId="passportData-departmentCode" />
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control.issueDate} testId="passportData-issueDate" />
+        <FormField control={control.departmentCode} testId="passportData-departmentCode" />
+      </div>
     </div>
   );
 };

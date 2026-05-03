@@ -5,7 +5,7 @@
  * @category Core Functions
  */
 
-import { extractPath } from '../field-path';
+import { extractPath } from '../../utils/field-path';
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
 import type {
   ContextualAsyncValidatorFn,

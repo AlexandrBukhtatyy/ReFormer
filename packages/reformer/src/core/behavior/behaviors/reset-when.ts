@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode, FormFields, FormValue } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { BehaviorHandlerFn } from '../types';
 
 /**
@@ -32,25 +33,45 @@ export interface ResetWhenOptions {
  *
  * @param field - Поле для сброса
  * @param condition - Функция условия (true = reset)
- * @param options - Опции
+ * @param options - Опции (`resetValue`, `onlyIfDirty`, `debounce`)
  *
- * @example
+ * @example Сброс зависимого поля при смене типа платежа
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Сбросить поле при изменении типа кредита
- *   resetWhen(path.propertyValue, (form) => form.loanType !== 'mortgage');
+ * import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
  *
- *   // Сбросить с кастомным значением
- *   resetWhen(path.initialPayment, (form) => !form.propertyValue, {
- *     resetValue: 0
- *   });
+ * interface CheckoutForm {
+ *   paymentType: 'card' | 'cash';
+ *   cardNumber: string;
+ * }
  *
- *   // Сбросить только если поле было изменено пользователем
- *   resetWhen(path.carPrice, (form) => form.loanType !== 'car', {
- *     onlyIfDirty: true
+ * export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
+ *   // Когда выбрано НЕ card — обнуляем номер карты в пустую строку
+ *   resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', {
+ *     resetValue: '',
  *   });
  * };
  * ```
+ *
+ * @example `onlyIfDirty` — не трогаем нетронутые initial значения
+ * ```typescript
+ * import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface CarForm {
+ *   loanType: 'mortgage' | 'car' | 'consumer';
+ *   carPrice: number;
+ * }
+ *
+ * export const carBehavior: BehaviorSchemaFn<CarForm> = (path) => {
+ *   // Если пользователь не вводил carPrice — оставляем default из схемы.
+ *   // Сбрасываем только если поле dirty (была пользовательская правка).
+ *   resetWhen(path.carPrice, (form) => form.loanType !== 'car', {
+ *     resetValue: 0,
+ *     onlyIfDirty: true,
+ *   });
+ * };
+ * ```
+ *
+ * @see [docs/llms/25-reset-when.md](../../../../docs/llms/25-reset-when.md)
  */
 export function resetWhen<TForm extends FormFields>(
   field: FieldPathNode<TForm, FormValue>,
@@ -75,12 +96,15 @@ export function resetWhen<TForm extends FormFields>(
             return;
           }
 
-          // Сбрасываем значение
-          targetNode.setValue(resetValue);
+          // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+          runOutsideEffect(() => {
+            // Сбрасываем значение
+            targetNode.setValue(resetValue);
 
-          // Сбрасываем флаги dirty и touched
-          targetNode.markAsPristine();
-          targetNode.markAsUntouched();
+            // Сбрасываем флаги dirty и touched
+            targetNode.markAsPristine();
+            targetNode.markAsUntouched();
+          });
         }
       });
     });

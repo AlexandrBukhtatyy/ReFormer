@@ -29,7 +29,7 @@ watchField(path.insuranceType, (_, ctx) => {
     ctx.form.vehicle.vin.disable();
     ctx.form.vehicle.vin.setValue('');
   }
-});  // NO OPTIONS - BAD!
+}); // NO OPTIONS - BAD!
 
 watchField(path.insuranceType, (_, ctx) => {
   // Handler 2: property fields - CAUSES CYCLE!
@@ -37,7 +37,7 @@ watchField(path.insuranceType, (_, ctx) => {
     ctx.form.property.type.disable();
     ctx.form.property.type.setValue('');
   }
-});  // NO OPTIONS - BAD!
+}); // NO OPTIONS - BAD!
 
 // More watchers on same field = more cycles
 ```
@@ -50,63 +50,76 @@ watchField(path.insuranceType, (_, ctx) => {
 
 ```typescript
 // CORRECT - Single consolidated watcher with guards AND { immediate: false }
-watchField(path.insuranceType, (_value, ctx) => {
-  const insuranceType = ctx.form.insuranceType.value.value;
-  const isVehicle = insuranceType === 'casco' || insuranceType === 'osago';
-  const isProperty = insuranceType === 'property';
+watchField(
+  path.insuranceType,
+  (_value, ctx) => {
+    const insuranceType = ctx.form.insuranceType.value.value;
+    const isVehicle = insuranceType === 'casco' || insuranceType === 'osago';
+    const isProperty = insuranceType === 'property';
 
-  // Helper: check if array value needs update (compare by length, not reference)
-  const needsValueUpdate = <T>(current: T, defaultVal: T): boolean => {
-    if (Array.isArray(current) && Array.isArray(defaultVal)) {
-      return current.length !== defaultVal.length;
-    }
-    return current !== defaultVal;
-  };
-
-  // Helper: disable only if not already disabled, setValue only if different
-  const disableAndReset = <T>(
-    field: { disable: () => void; setValue: (v: T) => void; getValue: () => T; disabled: { value: boolean } } | undefined,
-    defaultValue: T
-  ) => {
-    if (field) {
-      if (!field.disabled.value) {
-        field.disable();
+    // Helper: check if array value needs update (compare by length, not reference)
+    const needsValueUpdate = <T>(current: T, defaultVal: T): boolean => {
+      if (Array.isArray(current) && Array.isArray(defaultVal)) {
+        return current.length !== defaultVal.length;
       }
-      if (needsValueUpdate(field.getValue(), defaultValue)) {
-        field.setValue(defaultValue);
+      return current !== defaultVal;
+    };
+
+    // Helper: disable only if not already disabled, setValue only if different
+    const disableAndReset = <T>(
+      field:
+        | {
+            disable: () => void;
+            setValue: (v: T) => void;
+            getValue: () => T;
+            disabled: { value: boolean };
+          }
+        | undefined,
+      defaultValue: T
+    ) => {
+      if (field) {
+        if (!field.disabled.value) {
+          field.disable();
+        }
+        if (needsValueUpdate(field.getValue(), defaultValue)) {
+          field.setValue(defaultValue);
+        }
       }
+    };
+
+    const enableField = (
+      field: { enable: () => void; disabled: { value: boolean } } | undefined
+    ) => {
+      if (field && field.disabled.value) {
+        field.enable();
+      }
+    };
+
+    // --- All vehicle fields in one place ---
+    if (isVehicle) {
+      enableField(ctx.form.vehicle.vin);
+      enableField(ctx.form.vehicle.brand);
+    } else {
+      disableAndReset(ctx.form.vehicle.vin, '');
+      disableAndReset(ctx.form.vehicle.brand, '');
     }
-  };
 
-  const enableField = (field: { enable: () => void; disabled: { value: boolean } } | undefined) => {
-    if (field && field.disabled.value) {
-      field.enable();
+    // --- All property fields in one place ---
+    if (isProperty) {
+      enableField(ctx.form.property.type);
+    } else {
+      disableAndReset(ctx.form.property.type, '');
     }
-  };
 
-  // --- All vehicle fields in one place ---
-  if (isVehicle) {
-    enableField(ctx.form.vehicle.vin);
-    enableField(ctx.form.vehicle.brand);
-  } else {
-    disableAndReset(ctx.form.vehicle.vin, '');
-    disableAndReset(ctx.form.vehicle.brand, '');
-  }
-
-  // --- All property fields in one place ---
-  if (isProperty) {
-    enableField(ctx.form.property.type);
-  } else {
-    disableAndReset(ctx.form.property.type, '');
-  }
-
-  // --- Arrays: compare by length ---
-  if (isVehicle) {
-    enableField(ctx.form.drivers);
-  } else {
-    disableAndReset(ctx.form.drivers, []); // Won't call setValue if already empty
-  }
-}, { immediate: false });  // REQUIRED!
+    // --- Arrays: compare by length ---
+    if (isVehicle) {
+      enableField(ctx.form.drivers);
+    } else {
+      disableAndReset(ctx.form.drivers, []); // Won't call setValue if already empty
+    }
+  },
+  { immediate: false }
+); // REQUIRED!
 ```
 
 ### Prefer Built-in Behaviors
@@ -115,15 +128,19 @@ watchField(path.insuranceType, (_value, ctx) => {
 
 ```typescript
 // ❌ COMPLEX - watchField with manual guards (error-prone)
-watchField(path.insuranceType, (_value, ctx) => {
-  const isVehicle = ctx.form.insuranceType.value.value === 'casco';
-  if (isVehicle) {
-    if (ctx.form.vehicle.vin.disabled.value) ctx.form.vehicle.vin.enable();
-  } else {
-    if (!ctx.form.vehicle.vin.disabled.value) ctx.form.vehicle.vin.disable();
-    if (ctx.form.vehicle.vin.getValue() !== '') ctx.form.vehicle.vin.setValue('');
-  }
-}, { immediate: false });
+watchField(
+  path.insuranceType,
+  (_value, ctx) => {
+    const isVehicle = ctx.form.insuranceType.value.value === 'casco';
+    if (isVehicle) {
+      if (ctx.form.vehicle.vin.disabled.value) ctx.form.vehicle.vin.enable();
+    } else {
+      if (!ctx.form.vehicle.vin.disabled.value) ctx.form.vehicle.vin.disable();
+      if (ctx.form.vehicle.vin.getValue() !== '') ctx.form.vehicle.vin.setValue('');
+    }
+  },
+  { immediate: false }
+);
 
 // ✅ SIMPLE - enableWhen with resetOnDisable (recommended)
 enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOnDisable: true });
@@ -144,23 +161,27 @@ enableWhen(path.vehicle.brand, (form) => form.insuranceType === 'casco', { reset
 For watchers on different fields (e.g., `path.health.isSmoker`), apply same guards:
 
 ```typescript
-watchField(path.health.isSmoker, (_value, ctx) => {
-  const isSmoker = ctx.form.health.isSmoker.value.value;
-  const smokingYearsField = ctx.form.health.smokingYears;
+watchField(
+  path.health.isSmoker,
+  (_value, ctx) => {
+    const isSmoker = ctx.form.health.isSmoker.value.value;
+    const smokingYearsField = ctx.form.health.smokingYears;
 
-  if (smokingYearsField) {
-    if (isSmoker) {
-      if (smokingYearsField.disabled.value) {
-        smokingYearsField.enable();
-      }
-    } else {
-      if (!smokingYearsField.disabled.value) {
-        smokingYearsField.disable();
-      }
-      if (smokingYearsField.getValue() !== null) {
-        smokingYearsField.setValue(null);
+    if (smokingYearsField) {
+      if (isSmoker) {
+        if (smokingYearsField.disabled.value) {
+          smokingYearsField.enable();
+        }
+      } else {
+        if (!smokingYearsField.disabled.value) {
+          smokingYearsField.disable();
+        }
+        if (smokingYearsField.getValue() !== null) {
+          smokingYearsField.setValue(null);
+        }
       }
     }
-  }
-}, { immediate: false });  // REQUIRED!
+  },
+  { immediate: false }
+); // REQUIRED!
 ```

@@ -12,7 +12,7 @@
 
 import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
 import type { Address } from './AddressForm';
-import type { FieldPath } from '@reformer/core';
+import type { FieldPath, FieldNode } from '@reformer/core';
 import { fetchCities } from '../../../api';
 
 /**
@@ -44,14 +44,17 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
       if (region) {
         try {
           const { data: cities } = await fetchCities(region);
-          ctx.form.city.updateComponentProps({ options: cities });
+          // Используем ctx.getFieldByPath для доступа к вложенному полю
+          const cityField = ctx.getFieldByPath(path.city.__path) as FieldNode<string> | undefined;
+          cityField?.updateComponentProps({ options: cities });
 
           if (import.meta.env.DEV) {
             console.log(`[addressBehavior] Loaded ${cities.length} cities for region:`, region);
           }
         } catch (error) {
           console.error('[addressBehavior] Failed to load cities:', error);
-          ctx.form.city.updateComponentProps({ options: [] });
+          const cityField = ctx.getFieldByPath(path.city.__path) as FieldNode<string> | undefined;
+          cityField?.updateComponentProps({ options: [] });
         }
       }
     },
@@ -67,7 +70,8 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
     path.region,
     (_region, ctx) => {
       // Очищаем город только если регион изменился
-      ctx.setFieldValue('city', '');
+      // Используем path.city.__path для получения полного пути (например "registrationAddress.city")
+      ctx.setFieldValue(path.city.__path, '');
 
       if (import.meta.env.DEV) {
         console.log('[addressBehavior] Region changed, clearing city');
@@ -87,7 +91,8 @@ export const addressBehavior: BehaviorSchemaFn<Address> = (path: FieldPath<Addre
       // Убираем все кроме цифр и ограничиваем длину
       const cleaned = postalCode?.replace(/\D/g, '').slice(0, 6);
       if (cleaned !== postalCode) {
-        ctx.setFieldValue('postalCode', cleaned || '');
+        // Используем path.postalCode.__path для корректного разрешения вложенного пути
+        ctx.setFieldValue(path.postalCode.__path, cleaned || '');
       }
     },
     { immediate: false }

@@ -4,7 +4,7 @@ sidebar_position: 9
 
 # Навигация в многошаговых формах
 
-Использование компонента `FormNavigation` из `@reformer/ui` для многошагового мастера форм с пошаговой валидацией.
+Использование компонента `FormWizard` из `@reformer/cdk` для многошагового мастера форм с пошаговой валидацией.
 
 ## Обзор
 
@@ -15,12 +15,12 @@ sidebar_position: 9
 3. **Отслеживать завершённые шаги** — разрешать навигацию только к посещённым шагам
 4. **Предоставлять методы навигации** — Далее, Назад, Перейти к шагу
 
-Пакет `@reformer/ui` предоставляет `FormNavigation` — headless compound component, который обрабатывает всю эту логику.
+Пакет `@reformer/cdk` предоставляет `FormWizard` — headless compound component, который обрабатывает всю эту логику.
 
 ## Установка
 
 ```bash
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 ## Проблема
@@ -39,9 +39,9 @@ createForm<CreditApplicationForm>({
 
 Нам нужен способ валидировать только определённые поля на каждом шаге, сохраняя полную валидацию для финальной отправки.
 
-## Решение: FormNavigation
+## Решение: FormWizard
 
-`FormNavigation` из `@reformer/ui` предоставляет:
+`FormWizard` из `@reformer/cdk` предоставляет:
 
 - **Пошаговую валидацию** через `validateForm` внутри
 - **Отслеживание прогресса** с завершёнными шагами
@@ -82,14 +82,14 @@ const STEP_VALIDATIONS = {
 };
 ```
 
-## Использование FormNavigation
+## Использование FormWizard
 
 ### Базовая структура
 
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 // Компоненты шагов
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
@@ -103,7 +103,7 @@ import { ConfirmationForm } from './steps/confirmation/ConfirmationForm';
 import { creditApplicationValidation } from './validators';
 
 function CreditApplicationForm() {
-  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+  const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
   const form = useMemo(
     () =>
@@ -136,19 +136,19 @@ function CreditApplicationForm() {
   };
 
   return (
-    <FormNavigation ref={navRef} form={form} config={navConfig}>
+    <FormWizard ref={navRef} form={form} config={navConfig}>
       {/* Compound components здесь */}
-    </FormNavigation>
+    </FormWizard>
   );
 }
 ```
 
-### FormNavigation.Indicator
+### FormWizard.Indicator
 
 Headless индикатор шагов с render props:
 
 ```tsx
-<FormNavigation.Indicator steps={STEPS}>
+<FormWizard.Indicator steps={STEPS}>
   {({ steps, goToStep }) => (
     <div className="flex justify-between mb-4">
       {steps.map((step) => (
@@ -169,59 +169,55 @@ Headless индикатор шагов с render props:
       ))}
     </div>
   )}
-</FormNavigation.Indicator>
+</FormWizard.Indicator>
 ```
 
 **Render props:**
 
-| Свойство       | Тип                          | Описание                      |
-| -------------- | ---------------------------- | ----------------------------- |
-| `steps`        | `StepWithState[]`            | Шаги с вычисленным состоянием |
-| `goToStep`     | `(step: number) => boolean`  | Перейти к шагу                |
-| `currentStep`  | `number`                     | Номер текущего шага           |
-| `totalSteps`   | `number`                     | Общее количество шагов        |
+| Свойство      | Тип                         | Описание                      |
+| ------------- | --------------------------- | ----------------------------- |
+| `steps`       | `StepWithState[]`           | Шаги с вычисленным состоянием |
+| `goToStep`    | `(step: number) => boolean` | Перейти к шагу                |
+| `currentStep` | `number`                    | Номер текущего шага           |
+| `totalSteps`  | `number`                    | Общее количество шагов        |
 
 **Состояние шага:**
 
-| Свойство      | Тип       | Описание                        |
-| ------------- | --------- | ------------------------------- |
-| `number`      | `number`  | Номер шага (с 1)                |
-| `title`       | `string`  | Заголовок шага                  |
-| `icon`        | `string?` | Иконка (опционально)            |
-| `isCurrent`   | `boolean` | Текущий шаг                     |
-| `isCompleted` | `boolean` | Завершён                        |
-| `canNavigate` | `boolean` | Можно перейти к этому шагу      |
+| Свойство      | Тип       | Описание                   |
+| ------------- | --------- | -------------------------- |
+| `number`      | `number`  | Номер шага (с 1)           |
+| `title`       | `string`  | Заголовок шага             |
+| `icon`        | `string?` | Иконка (опционально)       |
+| `isCurrent`   | `boolean` | Текущий шаг                |
+| `isCompleted` | `boolean` | Завершён                   |
+| `canNavigate` | `boolean` | Можно перейти к этому шагу |
 
-### FormNavigation.Step
+### FormWizard.Step
 
 Рендерит компонент, когда шаг активен:
 
 ```tsx
 <div className="bg-white p-8 rounded-lg shadow-md">
-  <FormNavigation.Step component={BasicInfoForm} control={form} />
-  <FormNavigation.Step component={PersonalInfoForm} control={form} />
-  <FormNavigation.Step component={ContactInfoForm} control={form} />
-  <FormNavigation.Step component={EmploymentForm} control={form} />
-  <FormNavigation.Step component={AdditionalInfoForm} control={form} />
-  <FormNavigation.Step component={ConfirmationForm} control={form} />
+  <FormWizard.Step component={BasicInfoForm} control={form} />
+  <FormWizard.Step component={PersonalInfoForm} control={form} />
+  <FormWizard.Step component={ContactInfoForm} control={form} />
+  <FormWizard.Step component={EmploymentForm} control={form} />
+  <FormWizard.Step component={AdditionalInfoForm} control={form} />
+  <FormWizard.Step component={ConfirmationForm} control={form} />
 </div>
 ```
 
 Шаги рендерятся по порядку — первый `Step` это шаг 1, второй — шаг 2 и т.д. Отображается только текущий шаг.
 
-### FormNavigation.Actions
+### FormWizard.Actions
 
 Headless кнопки навигации с render props:
 
 ```tsx
-<FormNavigation.Actions onSubmit={handleSubmit}>
+<FormWizard.Actions onSubmit={handleSubmit}>
   {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
     <div className="flex justify-between mt-6">
-      <Button
-        onClick={prev.onClick}
-        disabled={isFirstStep || prev.disabled}
-        variant="secondary"
-      >
+      <Button onClick={prev.onClick} disabled={isFirstStep || prev.disabled} variant="secondary">
         Назад
       </Button>
 
@@ -236,32 +232,32 @@ Headless кнопки навигации с render props:
       )}
     </div>
   )}
-</FormNavigation.Actions>
+</FormWizard.Actions>
 ```
 
 **Render props:**
 
-| Свойство       | Тип                 | Описание                       |
-| -------------- | ------------------- | ------------------------------ |
-| `prev`         | `ButtonProps`       | Props кнопки "Назад"           |
-| `next`         | `ButtonProps`       | Props кнопки "Далее"           |
-| `submit`       | `SubmitButtonProps` | Props кнопки "Отправить"       |
-| `isFirstStep`  | `boolean`           | На первом шаге                 |
-| `isLastStep`   | `boolean`           | На последнем шаге              |
-| `isValidating` | `boolean`           | Валидация в процессе           |
+| Свойство       | Тип                 | Описание                 |
+| -------------- | ------------------- | ------------------------ |
+| `prev`         | `ButtonProps`       | Props кнопки "Назад"     |
+| `next`         | `ButtonProps`       | Props кнопки "Далее"     |
+| `submit`       | `SubmitButtonProps` | Props кнопки "Отправить" |
+| `isFirstStep`  | `boolean`           | На первом шаге           |
+| `isLastStep`   | `boolean`           | На последнем шаге        |
+| `isValidating` | `boolean`           | Валидация в процессе     |
 
-### FormNavigation.Progress
+### FormWizard.Progress
 
 Headless отображение прогресса:
 
 ```tsx
-<FormNavigation.Progress>
+<FormWizard.Progress>
   {({ current, total, percent }) => (
     <div className="mt-4 text-center text-sm text-gray-600">
       Шаг {current} из {total} • {percent}% завершено
     </div>
   )}
-</FormNavigation.Progress>
+</FormWizard.Progress>
 ```
 
 ## Полный пример
@@ -269,7 +265,7 @@ Headless отображение прогресса:
 ```tsx title="src/forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo, useRef } from 'react';
 import { createForm } from '@reformer/core';
-import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 import { Button } from '@/components/ui/button';
 
 // Импорты шагов и валидаторов...
@@ -292,7 +288,7 @@ const STEP_VALIDATIONS = {
 };
 
 function CreditApplicationForm() {
-  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+  const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
   const form = useMemo(
     () =>
@@ -325,9 +321,9 @@ function CreditApplicationForm() {
   };
 
   return (
-    <FormNavigation ref={navRef} form={form} config={navConfig}>
+    <FormWizard ref={navRef} form={form} config={navConfig}>
       {/* Индикатор шагов */}
-      <FormNavigation.Indicator steps={STEPS}>
+      <FormWizard.Indicator steps={STEPS}>
         {({ steps, goToStep }) => (
           <div className="flex justify-between mb-4">
             {steps.map((step) => (
@@ -350,20 +346,20 @@ function CreditApplicationForm() {
             ))}
           </div>
         )}
-      </FormNavigation.Indicator>
+      </FormWizard.Indicator>
 
       {/* Контент шага */}
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <FormNavigation.Step component={BasicInfoForm} control={form} />
-        <FormNavigation.Step component={PersonalInfoForm} control={form} />
-        <FormNavigation.Step component={ContactInfoForm} control={form} />
-        <FormNavigation.Step component={EmploymentForm} control={form} />
-        <FormNavigation.Step component={AdditionalInfoForm} control={form} />
-        <FormNavigation.Step component={ConfirmationForm} control={form} />
+        <FormWizard.Step component={BasicInfoForm} control={form} />
+        <FormWizard.Step component={PersonalInfoForm} control={form} />
+        <FormWizard.Step component={ContactInfoForm} control={form} />
+        <FormWizard.Step component={EmploymentForm} control={form} />
+        <FormWizard.Step component={AdditionalInfoForm} control={form} />
+        <FormWizard.Step component={ConfirmationForm} control={form} />
       </div>
 
       {/* Кнопки навигации */}
-      <FormNavigation.Actions onSubmit={submitApplication}>
+      <FormWizard.Actions onSubmit={submitApplication}>
         {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
           <div className="flex justify-between mt-6">
             <Button
@@ -385,17 +381,17 @@ function CreditApplicationForm() {
             )}
           </div>
         )}
-      </FormNavigation.Actions>
+      </FormWizard.Actions>
 
       {/* Прогресс */}
-      <FormNavigation.Progress>
+      <FormWizard.Progress>
         {({ current, total, percent }) => (
           <div className="mt-4 text-center text-sm text-gray-600">
             Шаг {current} из {total} • {percent}% завершено
           </div>
         )}
-      </FormNavigation.Progress>
-    </FormNavigation>
+      </FormWizard.Progress>
+    </FormWizard>
   );
 }
 
@@ -407,7 +403,7 @@ export default CreditApplicationForm;
 Используйте ref handle для внешнего управления:
 
 ```tsx
-const navRef = useRef<FormNavigationHandle<MyForm>>(null);
+const navRef = useRef<FormWizardHandle<MyForm>>(null);
 
 // Программная навигация
 navRef.current?.goToStep(2);
@@ -420,19 +416,19 @@ const result = await navRef.current?.submit(async (values) => {
 });
 ```
 
-### API FormNavigationHandle
+### API FormWizardHandle
 
-| Свойство/Метод       | Тип                  | Описание                     |
-| -------------------- | -------------------- | ---------------------------- |
-| `currentStep`        | `number`             | Текущий шаг (с 1)            |
-| `completedSteps`     | `number[]`           | Завершённые шаги             |
-| `isFirstStep`        | `boolean`            | На первом шаге               |
-| `isLastStep`         | `boolean`            | На последнем шаге            |
-| `isValidating`       | `boolean`            | Валидация в процессе         |
-| `goToNextStep()`     | `Promise<boolean>`   | Валидация и переход далее    |
-| `goToPreviousStep()` | `void`               | Переход назад                |
-| `goToStep(step)`     | `boolean`            | Переход к шагу               |
-| `submit(onSubmit)`   | `Promise<R \| null>` | Полная валидация и отправка  |
+| Свойство/Метод       | Тип                  | Описание                    |
+| -------------------- | -------------------- | --------------------------- |
+| `currentStep`        | `number`             | Текущий шаг (с 1)           |
+| `completedSteps`     | `number[]`           | Завершённые шаги            |
+| `isFirstStep`        | `boolean`            | На первом шаге              |
+| `isLastStep`         | `boolean`            | На последнем шаге           |
+| `isValidating`       | `boolean`            | Валидация в процессе        |
+| `goToNextStep()`     | `Promise<boolean>`   | Валидация и переход далее   |
+| `goToPreviousStep()` | `void`               | Переход назад               |
+| `goToStep(step)`     | `boolean`            | Переход к шагу              |
+| `submit(onSubmit)`   | `Promise<R \| null>` | Полная валидация и отправка |
 
 ## Ключевые преимущества
 

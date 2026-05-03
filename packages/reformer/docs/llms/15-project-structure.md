@@ -56,8 +56,8 @@ export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
 
 ### Scaling
 
-| Complexity | Structure |
-|------------|-----------|
-| Simple | Single file: `ContactForm.tsx` |
-| Medium | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
-| Complex | Full colocation with `steps/` and `sub-forms/` |
+| Complexity | Structure                                                           |
+| ---------- | ------------------------------------------------------------------- |
+| Simple     | Single file: `ContactForm.tsx`                                      |
+| Medium     | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
+| Complex    | Full colocation with `steps/` and `sub-forms/`                      |

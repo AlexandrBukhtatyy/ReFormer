@@ -93,6 +93,7 @@ Create a registration form with email, password, and confirm password fields
 ```
 
 AI will automatically use @reformer/mcp tools to generate:
+
 - TypeScript type for the form
 - Form schema with components
 - Validation rules

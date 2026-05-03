@@ -31,4 +31,3 @@ export { apply, applyWhen, toBehaviorFieldPath } from './compose-behavior';
 // локальных экземпляров BehaviorRegistry в каждом GroupNode
 export { BehaviorRegistry } from './behavior-registry';
 export { BehaviorContextImpl } from './behavior-context';
-export { createFieldPath } from './create-field-path';

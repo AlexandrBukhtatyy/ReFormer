@@ -134,7 +134,7 @@ function HomepageFeatures(): ReactNode {
 }
 
 export default function Home(): ReactNode {
-  const { siteConfig } = useDocusaurusContext();
+  useDocusaurusContext();
   return (
     <Layout
       title={translate({

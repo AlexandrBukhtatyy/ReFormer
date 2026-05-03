@@ -1,12 +1,24 @@
 import { memo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
+import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer';
+import RegistrationFormRendererJson from './pages/examples/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson';
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-import Playground from './pages/examples/playground/Playground';
-
-type ExamplePage = 'simple' | 'validation' | 'behaviors' | 'complex' | 'playground';
+import McpCreditApplicationV10 from './pages/examples/mcp-credit-application-v10';
+import McpCreditApplicationRendererV10 from './pages/examples/mcp-credit-application-renderer-v10';
+import McpCreditApplicationRendererJsonV10 from './pages/examples/mcp-credit-application-renderer-json-v10';
+type ExamplePage =
+  | 'simple'
+  | 'validation'
+  | 'behaviors'
+  | 'complex'
+  | 'complex-renderer'
+  | 'json-renderer'
+  | 'mcp-credit-v10'
+  | 'mcp-credit-renderer-v10'
+  | 'mcp-credit-renderer-json-v10';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -22,6 +34,18 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     description: 'Многошаговая форма кредитной заявки',
   },
   {
+    id: 'complex-renderer',
+    path: '/examples/complex-renderer',
+    title: 'Комплексная (Renderer)',
+    description: 'Та же форма через renderSchema API',
+  },
+  {
+    id: 'json-renderer',
+    path: '/examples/json-renderer',
+    title: 'JSON Renderer',
+    description: 'Рендеринг формы из JSON-схемы через @reformer/renderer-json',
+  },
+  {
     id: 'validation',
     path: '/examples/validation',
     title: 'Валидация',
@@ -31,13 +55,25 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     id: 'behaviors',
     path: '/examples/behaviors',
     title: 'Поведения',
-    description: 'computeFrom, enableWhen и условная логика',
+    description: 'Реактивное поведение через декларативный подход',
   },
   {
-    id: 'playground',
-    path: '/examples/playground',
-    title: 'Песочница',
-    description: 'Страница для эксперементов',
+    id: 'mcp-credit-v10',
+    path: '/examples/mcp-credit-v10',
+    title: 'MCP Credit v10 (core)',
+    description: 'Iteration 10: target=core, regression test on patches G–M.',
+  },
+  {
+    id: 'mcp-credit-renderer-v10',
+    path: '/examples/mcp-credit-renderer-v10',
+    title: 'MCP Credit Renderer v10',
+    description: 'Iteration 10: target=renderer-react, regression test on patches G–M.',
+  },
+  {
+    id: 'mcp-credit-renderer-json-v10',
+    path: '/examples/mcp-credit-renderer-json-v10',
+    title: 'MCP Credit JSON v10',
+    description: 'Iteration 10: target=renderer-json, regression test on patches G–M.',
   },
 ];
 
@@ -109,7 +145,17 @@ function Layout() {
           <Route path="/examples/validation" element={<ValidationExamples />} />
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
-          <Route path="/examples/playground" element={<Playground />} />
+          <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
+          <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
+          <Route path="/examples/mcp-credit-v10" element={<McpCreditApplicationV10 />} />
+          <Route
+            path="/examples/mcp-credit-renderer-v10"
+            element={<McpCreditApplicationRendererV10 />}
+          />
+          <Route
+            path="/examples/mcp-credit-renderer-json-v10"
+            element={<McpCreditApplicationRendererJsonV10 />}
+          />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

@@ -32,7 +32,7 @@ const goToNextStep = async () => {
   const isValid = await validateForm(form, currentValidation);
 
   if (!isValid) {
-    form.markAsTouched();  // Show errors on current step fields
+    form.markAsTouched(); // Show errors on current step fields
     return;
   }
 

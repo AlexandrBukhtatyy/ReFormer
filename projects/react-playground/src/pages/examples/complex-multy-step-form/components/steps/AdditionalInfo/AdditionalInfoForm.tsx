@@ -11,11 +11,11 @@
 
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import { PropertyForm } from '../../nested-forms/Property/PropertyForm';
 import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanForm';
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
-import { FormArraySection } from '../../FormArraySection';
+import { FormArraySection } from '@reformer/ui-kit/form-array';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 interface AdditionalInfoFormProps {
@@ -82,7 +82,6 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           itemLabel="Созаемщик"
           addButtonLabel="+ Добавить созаемщика"
           emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
-          emptyMessageHint="CoBorrowerForm поддерживает вложенную группу personalData"
           hasItems={hasCoBorrower}
         />
       </div>

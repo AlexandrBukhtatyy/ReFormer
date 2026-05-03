@@ -37,11 +37,11 @@ sidebar_position: 1
 
 ## Supported IDEs
 
-| IDE | Status |
-|-----|--------|
-| Claude Code | ✅ Full support |
-| Cursor | ✅ Full support |
-| Windsurf | ✅ Full support |
+| IDE             | Status          |
+| --------------- | --------------- |
+| Claude Code     | ✅ Full support |
+| Cursor          | ✅ Full support |
+| Windsurf        | ✅ Full support |
 | Cline (VS Code) | ✅ Full support |
 
 ## Next Step

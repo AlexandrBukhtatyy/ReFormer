@@ -12,4 +12,12 @@ export { pattern } from './pattern';
 export { url } from './url';
 export { phone, type PhoneFormat } from './phone';
 export { number } from './number';
-export { date } from './date';
+
+// Date validators
+export { isDate } from './is-date';
+export { minDate } from './min-date';
+export { maxDate } from './max-date';
+export { pastDate } from './past-date';
+export { futureDate } from './future-date';
+export { minAge } from './min-age';
+export { maxAge } from './max-age';

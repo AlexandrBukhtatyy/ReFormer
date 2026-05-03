@@ -19,6 +19,7 @@ Report an issue encountered while working with ReFormer and its solution.
 **Returns:** Confirmation of successful report
 
 **Example:**
+
 ```json
 {
   "error": "Infinite loop in computeFrom when effect depends on target",
@@ -60,6 +61,7 @@ Complete ReFormer library documentation.
 **MIME Type:** `text/markdown`
 
 **Content:** Full llms.txt documentation including:
+
 - Installation
 - Quick Start
 - Architecture
@@ -81,6 +83,7 @@ API reference section only.
 **MIME Type:** `text/markdown`
 
 **Content:**
+
 - createForm
 - Node properties and methods
 - SetValueOptions
@@ -150,6 +153,7 @@ claude mcp add --transport stdio reformer -e REFORMER_DEBUG=true -- node /path/t
 ```
 
 Debug mode enables:
+
 - `debug` tool
 - `debug` prompt
 - `reformer://debug` resource

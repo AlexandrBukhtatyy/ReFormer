@@ -11,9 +11,17 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode } from './form-node';
 import type { SetValueOptions } from './form-node';
-import type { FieldConfig, ValidationError, ValidatorFn, AsyncValidatorFn } from '../types';
+import type {
+  FieldConfig,
+  FieldStatus,
+  ValidationError,
+  ValidatorFn,
+  AsyncValidatorFn,
+} from '../types';
 import { SubscriptionManager } from '../utils/subscription-manager';
+import { uniqueId, SubscriptionKey } from '../utils/unique-id';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
+import { FormStatusMachine } from '../utils/status-machine';
 
 /**
  * FieldNode - узел для отдельного поля формы
@@ -40,20 +48,30 @@ export class FieldNode<T> extends FormNode<T> {
 
   private _value: Signal<T>;
   private _errors: Signal<ValidationError[]>;
-  // _touched, _dirty, _status наследуются от FormNode (protected)
-  private _pending: Signal<boolean>;
+  // _touched, _dirty наследуются от FormNode (protected)
+  // _status управляется через statusMachine
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _componentProps: Signal<Record<string, any>>;
+
+  /**
+   * State machine для управления статусом поля
+   * Централизует логику переходов между valid/invalid/pending/disabled
+   */
+  private readonly statusMachine: FormStatusMachine;
 
   // ============================================================================
   // Публичные computed signals
   // ============================================================================
 
   public readonly value: ReadonlySignal<T>;
+  // valid, invalid, pending, status, disabled берутся из statusMachine
   public readonly valid: ReadonlySignal<boolean>;
   public readonly invalid: ReadonlySignal<boolean>;
-  // touched, dirty, status наследуются от FormNode
   public readonly pending: ReadonlySignal<boolean>;
+  // Override status и disabled из базового класса
+  public override readonly status: ReadonlySignal<FieldStatus>;
+  public override readonly disabled: ReadonlySignal<boolean>;
+  // touched, dirty наследуются от FormNode
   public readonly errors: ReadonlySignal<ValidationError[]>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public readonly componentProps: ReadonlySignal<Record<string, any>>;
@@ -72,10 +90,17 @@ export class FieldNode<T> extends FormNode<T> {
   private asyncValidators: AsyncValidatorFn<T>[];
   private updateOn: 'change' | 'blur' | 'submit';
   private initialValue: T;
-  private currentValidationId = 0;
+  private currentAbortController?: AbortController;
   private debounceMs: number;
   private validateDebounceTimer?: ReturnType<typeof setTimeout>;
-  private validateDebounceResolve?: (value: boolean) => void;
+  /**
+   * Pending debounced validation state
+   * Contains resolve function and AbortController for cancellation
+   */
+  private pendingValidation?: {
+    resolve: (value: boolean) => void;
+    abortController: AbortController;
+  };
 
   /**
    * Менеджер подписок для централизованного cleanup
@@ -105,25 +130,27 @@ export class FieldNode<T> extends FormNode<T> {
     // Инициализация приватных сигналов
     this._value = signal(config.value as T);
     this._errors = signal<ValidationError[]>([]);
-    // _touched, _dirty, _status инициализируются в FormNode
-    this._pending = signal(false);
+    // _touched, _dirty инициализируются в FormNode
     this._componentProps = signal(config.componentProps || {});
 
-    // Установка начального статуса если поле отключено
-    if (config.disabled) {
-      this._status.value = 'disabled';
-    }
+    // Инициализация state machine для управления статусом
+    // Начальный статус: disabled если config.disabled, иначе valid
+    this.statusMachine = new FormStatusMachine(config.disabled ? 'disabled' : 'valid');
 
     // Создание computed signals
     this.value = computed(() => this._value.value);
-    this.valid = computed(() => this._status.value === 'valid');
-    this.invalid = computed(() => this._status.value === 'invalid');
-    // touched, dirty, status создаются в FormNode
-    this.pending = computed(() => this._pending.value);
+    // Статусные signals - создаём computed мосты к statusMachine
+    // для избежания потенциальных циклических зависимостей
+    this.valid = computed(() => this.statusMachine.valid.value);
+    this.invalid = computed(() => this.statusMachine.invalid.value);
+    this.pending = computed(() => this.statusMachine.pending.value);
+    this.status = computed(() => this.statusMachine.status.value);
+    this.disabled = computed(() => this.statusMachine.disabled.value);
+    // touched, dirty создаются в FormNode
     this.errors = computed(() => this._errors.value);
     this.componentProps = computed(() => this._componentProps.value);
     this.shouldShowError = computed(
-      () => this._status.value === 'invalid' && (this._touched.value || this._dirty.value)
+      () => this.statusMachine.invalid.value && (this._touched.value || this._dirty.value)
     );
   }
 
@@ -196,7 +223,8 @@ export class FieldNode<T> extends FormNode<T> {
     this._errors.value = [];
     this._touched.value = false;
     this._dirty.value = false;
-    this._status.value = 'valid';
+    // Сбрасываем статус через statusMachine
+    this.statusMachine.setErrors(false);
   }
 
   /**
@@ -229,12 +257,42 @@ export class FieldNode<T> extends FormNode<T> {
   }
 
   /**
+   * Cancel any pending validation (debounced or running)
+   * @private
+   * @remarks
+   * Centralizes all cancellation logic:
+   * - Aborts pending debounced validation and resolves its promise
+   * - Clears debounce timer
+   * - Aborts currently running async validation
+   */
+  private cancelPendingValidation(): void {
+    // Cancel pending debounced validation
+    if (this.pendingValidation) {
+      this.pendingValidation.abortController.abort();
+      this.pendingValidation.resolve(false);
+      this.pendingValidation = undefined;
+    }
+
+    // Clear debounce timer
+    if (this.validateDebounceTimer) {
+      clearTimeout(this.validateDebounceTimer);
+      this.validateDebounceTimer = undefined;
+    }
+
+    // Abort currently running validation
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+      this.currentAbortController = undefined;
+    }
+  }
+
+  /**
    * Запустить валидацию поля
    * @param options - опции валидации
    * @returns `Promise<boolean>` - true если поле валидно
    *
    * @remarks
-   * Метод защищен от race conditions через validationId.
+   * Метод защищен от race conditions через AbortController.
    * При быстром вводе только последняя валидация применяет результаты.
    *
    * @example
@@ -247,61 +305,77 @@ export class FieldNode<T> extends FormNode<T> {
    * ```
    */
   async validate(options?: { debounce?: number }): Promise<boolean> {
-    const debounce = options?.debounce ?? this.debounceMs;
+    const debounceMs = options?.debounce ?? this.debounceMs;
 
-    // Если задан debounce, откладываем валидацию
-    if (debounce > 0 && this.asyncValidators.length > 0) {
-      return new Promise((resolve) => {
-        // Запоминаем текущий validationId перед debounce
-        const currentId = this.currentValidationId;
+    // Cancel any pending validation first
+    this.cancelPendingValidation();
 
-        // Resolve предыдущий promise (если есть) как cancelled
-        if (this.validateDebounceResolve) {
-          this.validateDebounceResolve(false);
-        }
-
-        // Отменяем предыдущий таймер
-        if (this.validateDebounceTimer) {
-          clearTimeout(this.validateDebounceTimer);
-        }
-
-        // Сохраняем resolver для возможности отмены
-        this.validateDebounceResolve = resolve;
-
-        this.validateDebounceTimer = setTimeout(async () => {
-          // Очищаем resolver
-          this.validateDebounceResolve = undefined;
-
-          // Проверяем, не была ли запущена новая валидация во время debounce
-          // (другой вызов validate увеличил бы currentValidationId в validateImmediate)
-          if (currentId !== this.currentValidationId) {
-            // Эта валидация устарела
-            resolve(false);
-            return;
-          }
-
-          const result = await this.validateImmediate();
-          resolve(result);
-        }, debounce);
-      });
+    // Without debounce - run immediately
+    if (debounceMs <= 0 || this.asyncValidators.length === 0) {
+      return this.validateImmediate();
     }
 
-    return this.validateImmediate();
+    // With debounce - create AbortController for this validation
+    const abortController = new AbortController();
+
+    return new Promise<boolean>((resolve) => {
+      // Save pending state for cancellation
+      this.pendingValidation = { resolve, abortController };
+
+      this.validateDebounceTimer = setTimeout(async () => {
+        this.validateDebounceTimer = undefined;
+
+        // Check if this validation was cancelled
+        if (abortController.signal.aborted) {
+          resolve(false);
+          return;
+        }
+
+        // Clear pending state before running
+        this.pendingValidation = undefined;
+
+        // Pass abortController to validateImmediate
+        const result = await this.validateImmediate(abortController);
+        resolve(result);
+      }, debounceMs);
+
+      // Listen for abort to resolve early
+      abortController.signal.addEventListener(
+        'abort',
+        () => {
+          if (this.validateDebounceTimer) {
+            clearTimeout(this.validateDebounceTimer);
+            this.validateDebounceTimer = undefined;
+          }
+          resolve(false);
+        },
+        { once: true }
+      );
+    });
   }
 
   /**
    * Немедленная валидация без debounce
    * @private
+   * @param providedController - AbortController from debounced validate()
    * @remarks
-   * Защищена от race conditions:
-   * - Проверка validationId после синхронной валидации
-   * - Проверка перед установкой pending
-   * - Проверка после Promise.all
-   * - Проверка перед обработкой async результатов
-   * - Проверка перед очисткой errors
+   * Защищена от race conditions через AbortController:
+   * - Отменяет предыдущую валидацию при запуске новой (if no controller provided)
+   * - Передаёт AbortSignal в async валидаторы для отмены операций (например, fetch)
+   * - Проверяет signal.aborted в ключевых точках
    */
-  private async validateImmediate(): Promise<boolean> {
-    const validationId = ++this.currentValidationId;
+  private async validateImmediate(providedController?: AbortController): Promise<boolean> {
+    // Use provided controller or create a new one
+    const abortController = providedController ?? new AbortController();
+
+    // Abort previous validation only if no controller was provided
+    // (i.e., called directly without debounce)
+    if (!providedController) {
+      this.currentAbortController?.abort();
+    }
+
+    this.currentAbortController = abortController;
+    const { signal } = abortController;
 
     // Синхронная валидация
     const syncErrors: ValidationError[] = [];
@@ -310,91 +384,120 @@ export class FieldNode<T> extends FormNode<T> {
       if (error) syncErrors.push(error);
     }
 
-    //  Проверка #1: после синхронной валидации
-    if (validationId !== this.currentValidationId) {
-      return false; // Эта валидация устарела
+    // Проверка abort после синхронной валидации
+    if (signal.aborted) {
+      return false;
     }
 
     if (syncErrors.length > 0) {
       this._errors.value = syncErrors;
-      this._status.value = 'invalid';
-      return false;
+      // Only blocking errors (not warnings) affect validity
+      const hasBlockingErrors = syncErrors.some((e) => e.severity !== 'warning');
+      this.statusMachine.setErrors(hasBlockingErrors);
+      if (hasBlockingErrors) {
+        return false;
+      }
     }
 
-    // Асинхронная валидация - ПАРАЛЛЕЛЬНО
+    // Асинхронная валидация - ПАРАЛЛЕЛЬНО с поддержкой отмены
     if (this.asyncValidators.length > 0) {
-      //  Проверка #2: перед установкой pending
-      if (validationId !== this.currentValidationId) {
+      if (signal.aborted) {
         return false;
       }
 
-      this._pending.value = true;
-      this._status.value = 'pending';
+      // Начинаем асинхронную валидацию через statusMachine
+      this.statusMachine.startValidation();
 
-      // Выполняем все async валидаторы параллельно
-      // Каждый validator обернут в try-catch для обработки исключений
-      const asyncResults = await Promise.all(
-        this.asyncValidators.map(async (validator) => {
-          try {
-            return await validator(this._value.value);
-          } catch (error) {
-            // Используем централизованный обработчик ошибок
-            return FormErrorHandler.handle(
-              error,
-              'FieldNode AsyncValidator',
-              ErrorStrategy.CONVERT
-            );
+      try {
+        // Выполняем все async валидаторы параллельно
+        // Передаём signal для возможности отмены (если валидатор поддерживает)
+        const asyncResults = await Promise.all(
+          this.asyncValidators.map(async (validator) => {
+            // Проверка abort перед каждым валидатором
+            if (signal.aborted) {
+              throw new DOMException('Validation aborted', 'AbortError');
+            }
+
+            try {
+              // Передаём signal в валидатор (опционально)
+              const result = await validator(this._value.value, { signal });
+
+              // Проверка abort после выполнения
+              if (signal.aborted) {
+                throw new DOMException('Validation aborted', 'AbortError');
+              }
+
+              return result;
+            } catch (error) {
+              // Пробрасываем AbortError
+              if (error instanceof DOMException && error.name === 'AbortError') {
+                throw error;
+              }
+              // Используем централизованный обработчик ошибок
+              return FormErrorHandler.handle(
+                error,
+                'FieldNode AsyncValidator',
+                ErrorStrategy.CONVERT
+              );
+            }
+          })
+        );
+
+        // Проверка abort после Promise.all
+        if (signal.aborted) {
+          return false;
+        }
+
+        const asyncErrors = asyncResults.filter(Boolean) as ValidationError[];
+        if (asyncErrors.length > 0) {
+          this._errors.value = asyncErrors;
+          // Only blocking errors (not warnings) affect validity
+          const hasBlockingErrors = asyncErrors.some((e) => e.severity !== 'warning');
+          this.statusMachine.completeValidation(hasBlockingErrors);
+          // Return valid if only warnings
+          if (hasBlockingErrors) {
+            return false;
           }
-        })
-      );
-
-      //  Проверка #3: после Promise.all (основная проверка)
-      if (validationId !== this.currentValidationId) {
-        // Не сбрасываем pending, т.к. новая валидация может еще выполняться
-        return false;
-      }
-
-      this._pending.value = false;
-
-      //  Проверка #4: перед обработкой async результатов
-      if (validationId !== this.currentValidationId) {
-        return false;
-      }
-
-      const asyncErrors = asyncResults.filter(Boolean) as ValidationError[];
-      if (asyncErrors.length > 0) {
-        this._errors.value = asyncErrors;
-        this._status.value = 'invalid';
-        return false;
+        }
+      } catch (error) {
+        // Валидация была отменена - это нормально
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return false;
+        }
+        throw error;
       }
     }
 
-    //  Проверка #5: перед очисткой errors (финальная проверка)
-    if (validationId !== this.currentValidationId) {
+    // Финальная проверка abort
+    if (signal.aborted) {
       return false;
     }
 
-    //  Очищаем ошибки только если у поля есть собственные валидаторы
+    // Очищаем ошибки только если у поля есть собственные валидаторы
     // Если валидаторов нет, значит используется ValidationSchema на уровне формы
     // и ошибки устанавливаются извне через setErrors()
     const hasOwnValidators = this.validators.length > 0 || this.asyncValidators.length > 0;
 
     if (hasOwnValidators) {
       this._errors.value = [];
-      this._status.value = 'valid';
+      // Завершаем валидацию успешно
+      this.statusMachine.completeValidation(false);
     }
 
-    return this._errors.value.length === 0;
+    // Return valid if no blocking errors (warnings don't block)
+    return !this._errors.value.some((e) => e.severity !== 'warning');
   }
 
   setErrors(errors: ValidationError[]): void {
     this._errors.value = errors;
-    this._status.value = errors.length > 0 ? 'invalid' : 'valid';
+    // Only blocking errors (not warnings) affect validity
+    const hasBlockingErrors = errors.some((e) => e.severity !== 'warning');
+    this.statusMachine.setErrors(hasBlockingErrors);
   }
 
   clearErrors(): void {
     this._errors.value = [];
-    this._status.value = 'valid';
+    this.statusMachine.setErrors(false);
   }
 
   // ============================================================================
@@ -415,18 +518,21 @@ export class FieldNode<T> extends FormNode<T> {
   /**
    * Hook: вызывается после disable()
    *
-   * Для FieldNode: очищаем ошибки валидации
+   * Для FieldNode: синхронизируем statusMachine и очищаем ошибки
    */
   protected onDisable(): void {
+    this.statusMachine.disable();
     this._errors.value = [];
   }
 
   /**
    * Hook: вызывается после enable()
    *
-   * Для FieldNode: запускаем валидацию
+   * Для FieldNode: синхронизируем statusMachine и запускаем валидацию
    */
   protected onEnable(): void {
+    // enable() определит статус (valid/invalid) на основе ошибок после валидации
+    this.statusMachine.enable(this._errors.value.length > 0);
     this.validate();
   }
 
@@ -497,28 +603,43 @@ export class FieldNode<T> extends FormNode<T> {
    * Подписка на изменения значения поля
    * Автоматически отслеживает изменения через @preact/signals effect
    *
-   * @param callback - Функция, вызываемая при изменении значения
+   * @param callback - Функция, вызываемая при изменении значения.
+   *   Для async операций передается AbortSignal во втором параметре.
    * @returns Функция отписки для cleanup
    *
    * @example
    * ```typescript
+   * // Синхронный callback
    * const unsubscribe = form.email.watch((value) => {
    *   console.log('Email changed:', value);
+   * });
+   *
+   * // Асинхронный callback с поддержкой отмены
+   * const unsubscribe = form.email.watch(async (value, signal) => {
+   *   const result = await fetch('/api/validate', { signal });
+   *   // ...
    * });
    *
    * // Cleanup
    * useEffect(() => unsubscribe, []);
    * ```
    */
-  watch(callback: (value: T) => void | Promise<void>): () => void {
+  watch(callback: (value: T, signal: AbortSignal) => void | Promise<void>): () => void {
+    // AbortController для отмены async операций при dispose
+    const abortController = new AbortController();
+
     const dispose = effect(() => {
       const currentValue = this.value.value; // track changes
-      callback(currentValue);
+      callback(currentValue, abortController.signal);
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watch-${Date.now()}-${Math.random()}`;
-    return this.disposers.add(key, dispose);
+    const key = uniqueId(SubscriptionKey.Watch);
+    return this.disposers.add(key, () => {
+      // Отменяем async операции перед dispose
+      abortController.abort();
+      dispose();
+    });
   }
 
   /**
@@ -560,13 +681,20 @@ export class FieldNode<T> extends FormNode<T> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `computeFrom-${Date.now()}-${Math.random()}`;
+    const key = uniqueId(SubscriptionKey.ComputeFrom);
     return this.disposers.add(key, dispose);
   }
 
   /**
    * Очистить все ресурсы и таймеры
    * Должен вызываться при unmount компонента
+   *
+   * @remarks
+   * Освобождает все ресурсы:
+   * - Отписывает все subscriptions через SubscriptionManager
+   * - Отменяет pending/running валидации через cancelPendingValidation()
+   *
+   * Использует try-finally для гарантированного cleanup даже при ошибках.
    *
    * @example
    * ```typescript
@@ -578,13 +706,13 @@ export class FieldNode<T> extends FormNode<T> {
    * ```
    */
   dispose(): void {
-    // Очищаем все subscriptions через SubscriptionManager
-    this.disposers.dispose();
-
-    // Очищаем debounce таймер если он есть
-    if (this.validateDebounceTimer) {
-      clearTimeout(this.validateDebounceTimer);
-      this.validateDebounceTimer = undefined;
+    try {
+      // Очищаем все subscriptions через SubscriptionManager
+      this.disposers.dispose();
+    } finally {
+      // Cancel all pending validations (debounced and running)
+      // Guaranteed to run even if disposers.dispose() throws
+      this.cancelPendingValidation();
     }
   }
 }

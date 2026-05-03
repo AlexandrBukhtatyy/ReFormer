@@ -100,5 +100,5 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 });
     }
     return HttpResponse.json(result.body, { status: result.status });
-  }),
+  })
 ];

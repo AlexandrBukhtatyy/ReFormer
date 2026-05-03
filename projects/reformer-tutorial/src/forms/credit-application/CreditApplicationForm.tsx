@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FormNavigation, type FormNavigationHandle } from '@reformer/ui/form-navigation';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 // Компоненты шагов
 import { BasicInfoForm } from './steps/loan-info/BasicInfoForm';
@@ -52,7 +52,7 @@ interface CreditApplicationFormProps {
 
 function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
   // Ref для доступа к методам навигации
-  const navRef = useRef<FormNavigationHandle<CreditApplicationFormType>>(null);
+  const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
   // Создаём экземпляр формы
   const form = useMemo(
@@ -144,9 +144,9 @@ function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
   // ============================================================================
 
   return (
-    <FormNavigation ref={navRef} form={form} config={navConfig}>
+    <FormWizard ref={navRef} form={form} config={navConfig}>
       {/* Индикатор шагов (headless) */}
-      <FormNavigation.Indicator steps={STEPS}>
+      <FormWizard.Indicator steps={STEPS}>
         {({ steps, goToStep }) => (
           <div className="flex justify-between mb-4">
             {steps.map((step) => (
@@ -169,20 +169,20 @@ function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
             ))}
           </div>
         )}
-      </FormNavigation.Indicator>
+      </FormWizard.Indicator>
 
       {/* Форма текущего шага */}
       <div className="bg-white p-8 rounded-lg shadow-md">
-        <FormNavigation.Step component={BasicInfoForm} control={form} />
-        <FormNavigation.Step component={PersonalInfoForm} control={form} />
-        <FormNavigation.Step component={ContactInfoForm} control={form} />
-        <FormNavigation.Step component={EmploymentForm} control={form} />
-        <FormNavigation.Step component={AdditionalInfoForm} control={form} />
-        <FormNavigation.Step component={ConfirmationForm} control={form} />
+        <FormWizard.Step component={BasicInfoForm} control={form} />
+        <FormWizard.Step component={PersonalInfoForm} control={form} />
+        <FormWizard.Step component={ContactInfoForm} control={form} />
+        <FormWizard.Step component={EmploymentForm} control={form} />
+        <FormWizard.Step component={AdditionalInfoForm} control={form} />
+        <FormWizard.Step component={ConfirmationForm} control={form} />
       </div>
 
       {/* Кнопки навигации (headless) */}
-      <FormNavigation.Actions onSubmit={submitApplication}>
+      <FormWizard.Actions onSubmit={submitApplication}>
         {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
           <div className="flex justify-between mt-6">
             <Button
@@ -204,17 +204,17 @@ function CreditApplicationForm({ applicationId }: CreditApplicationFormProps) {
             )}
           </div>
         )}
-      </FormNavigation.Actions>
+      </FormWizard.Actions>
 
       {/* Информация о прогрессе (headless) */}
-      <FormNavigation.Progress>
+      <FormWizard.Progress>
         {({ current, total, percent }) => (
           <div className="mt-4 text-center text-sm text-gray-600">
             Шаг {current} из {total} • {percent}% завершено
           </div>
         )}
-      </FormNavigation.Progress>
-    </FormNavigation>
+      </FormWizard.Progress>
+    </FormWizard>
   );
 }
 

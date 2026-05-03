@@ -52,6 +52,7 @@ type(scope): description
 ```
 
 **Types:**
+
 - `feat` - new feature
 - `fix` - bug fix
 - `docs` - documentation changes
@@ -64,12 +65,14 @@ type(scope): description
 - `chore` - other changes
 
 **Scopes:**
+
 - `reformer` - core library
 - `docs` - documentation
 - `ci` - CI/CD
 - `deps` - dependencies
 
 **Examples:**
+
 ```
 feat(reformer): add new validation rule for phone numbers
 fix(reformer): resolve race condition in async validation

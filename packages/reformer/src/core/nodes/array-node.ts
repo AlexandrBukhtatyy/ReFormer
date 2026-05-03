@@ -13,6 +13,9 @@ import { signal, computed, effect } from '@preact/signals-core';
 import type { Signal, ReadonlySignal } from '@preact/signals-core';
 import { FormNode, type SetValueOptions } from './form-node';
 import { GroupNode } from './group-node';
+import { uniqueId, SubscriptionKey } from '../utils/unique-id';
+import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
+import { createAggregateSignals } from '../utils/aggregate-signals';
 import type {
   FieldStatus,
   ValidationError,
@@ -56,6 +59,9 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    */
   private disposers = new SubscriptionManager();
 
+  /** Array-level validation errors (e.g., "минимум 1 элемент") */
+  private readonly _arrayErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
+
   // ============================================================================
   // Приватные поля для сохранения схем
   // ============================================================================
@@ -94,36 +100,26 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     }
 
     // ============================================================================
-    // Computed signals
+    // Computed signals через createAggregateSignals
     // ============================================================================
 
+    // Специфичные для ArrayNode
     this.length = computed(() => this.items.value.length);
-
     this.value = computed(() => this.items.value.map((item) => item.value.value as T));
 
-    this.valid = computed(() => this.items.value.every((item) => item.valid.value));
-
-    this.invalid = computed(() => !this.valid.value);
-
-    this.pending = computed(() => this.items.value.some((item) => item.pending.value));
-
-    this.touched = computed(() => this.items.value.some((item) => item.touched.value));
-
-    this.dirty = computed(() => this.items.value.some((item) => item.dirty.value));
-
-    this.errors = computed(() => {
-      const allErrors: ValidationError[] = [];
-      this.items.value.forEach((item) => {
-        allErrors.push(...item.errors.value);
-      });
-      return allErrors;
+    // Агрегированные signals через общую утилиту
+    const aggregateSignals = createAggregateSignals({
+      getChildren: () => this.items.value,
+      ownErrors: this._arrayErrors,
     });
 
-    this.status = computed(() => {
-      if (this.pending.value) return 'pending';
-      if (this.invalid.value) return 'invalid';
-      return 'valid';
-    });
+    this.valid = aggregateSignals.valid;
+    this.invalid = aggregateSignals.invalid;
+    this.pending = aggregateSignals.pending;
+    this.touched = aggregateSignals.touched;
+    this.dirty = aggregateSignals.dirty;
+    this.errors = aggregateSignals.errors;
+    this.status = aggregateSignals.status;
   }
 
   // ============================================================================
@@ -142,18 +138,32 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
   /**
    * Удалить элемент по индексу
    * @param index - Индекс элемента для удаления
+   *
+   * @remarks
+   * Вызывает dispose() на удаляемом элементе для очистки подписок
    */
   removeAt(index: number): void {
     if (index < 0 || index >= this.items.value.length) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          `ArrayNode: index ${index} out of bounds (length: ${this.items.value.length})`
-        );
-      }
+      FormErrorHandler.handle(
+        new Error(
+          `ArrayNode.removeAt: index ${index} out of bounds (length: ${this.items.value.length})`
+        ),
+        'ArrayNode.removeAt',
+        ErrorStrategy.LOG
+      );
       return;
     }
 
+    // Получаем элемент для dispose перед удалением
+    const itemToRemove = this.items.value[index];
+
+    // Удаляем из массива
     this.items.value = this.items.value.filter((_, i) => i !== index);
+
+    // Очищаем ресурсы удаленного элемента
+    if (itemToRemove && 'dispose' in itemToRemove && typeof itemToRemove.dispose === 'function') {
+      itemToRemove.dispose();
+    }
   }
 
   /**
@@ -163,11 +173,13 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    */
   insert(index: number, initialValue?: Partial<T>): void {
     if (index < 0 || index > this.items.value.length) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          `ArrayNode: index ${index} out of bounds (length: ${this.items.value.length})`
-        );
-      }
+      FormErrorHandler.handle(
+        new Error(
+          `ArrayNode.insert: index ${index} out of bounds (length: ${this.items.value.length})`
+        ),
+        'ArrayNode.insert',
+        ErrorStrategy.LOG
+      );
       return;
     }
 
@@ -179,18 +191,35 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
 
   /**
    * Удалить все элементы массива
+   *
+   * @remarks
+   * Вызывает dispose() на всех элементах для очистки подписок
    */
   clear(): void {
+    // Сохраняем ссылки на элементы для dispose
+    const itemsToDispose = [...this.items.value];
+
+    // Очищаем массив
     this.items.value = [];
+
+    // Очищаем ресурсы всех элементов
+    itemsToDispose.forEach((item) => {
+      if ('dispose' in item && typeof item.dispose === 'function') {
+        item.dispose();
+      }
+    });
   }
 
   /**
    * Получить элемент по индексу
    * @param index - Индекс элемента
-   * @returns Типизированный GroupNode или undefined если индекс вне границ
+   * @returns Типизированный GroupNode proxy или undefined если индекс вне границ
    */
   at(index: number): FormProxy<T> | undefined {
-    return this.items.value[index] as FormProxy<T> | undefined;
+    const item = this.items.value[index];
+    if (!item) return undefined;
+    // Возвращаем proxy для доступа к полям элемента
+    return (item as unknown as { getProxy: () => FormProxy<T> }).getProxy();
   }
 
   // ============================================================================
@@ -208,8 +237,10 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     // Запускаем валидацию если emitEvent !== false
     // Fire-and-forget (не ждем результат, как в FieldNode)
     if (options?.emitEvent !== false) {
-      this.validate().catch(() => {
-        // Игнорируем ошибки валидации (они будут в errors signal)
+      this.validate().catch((error) => {
+        // Логируем системные ошибки через централизованный обработчик
+        // Ошибки валидации уже обработаны и сохранены в errors signal
+        FormErrorHandler.handle(error, 'ArrayNode.setValue', ErrorStrategy.LOG);
       });
     }
   }
@@ -240,6 +271,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * ```
    */
   reset(values?: T[]): void {
+    this._arrayErrors.value = [];
     this.clear();
     if (values) {
       values.forEach((value) => this.push(value));
@@ -275,6 +307,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
    * ```
    */
   resetToInitial(): void {
+    this._arrayErrors.value = [];
     this.clear();
     this.initialItems.forEach((value) => this.push(value));
   }
@@ -284,12 +317,34 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     return results.every(Boolean);
   }
 
-  setErrors(_errors: ValidationError[]): void {
-    // ArrayNode level errors - можно реализовать позже
-    // Пока просто игнорируем
+  /**
+   * Установить array-level validation errors
+   *
+   * @param errors - Массив ошибок валидации уровня массива
+   *
+   * @example
+   * ```typescript
+   * arrayNode.setErrors([{
+   *   code: 'minItems',
+   *   message: 'Минимум 1 элемент обязателен',
+   * }]);
+   * ```
+   */
+  setErrors(errors: ValidationError[]): void {
+    this._arrayErrors.value = errors;
   }
 
+  /**
+   * Очистить все errors (array-level + item-level)
+   *
+   * @example
+   * ```typescript
+   * arrayNode.clearErrors();
+   * console.log(arrayNode.errors.value); // []
+   * ```
+   */
   clearErrors(): void {
+    this._arrayErrors.value = [];
     this.items.value.forEach((item) => item.clearErrors());
   }
 
@@ -339,22 +394,24 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
 
   /**
    * Итерировать по элементам массива
-   * @param callback - Функция, вызываемая для каждого элемента с типизированным GroupNode
+   * @param callback - Функция, вызываемая для каждого элемента с типизированным GroupNode proxy
    */
   forEach(callback: (item: FormProxy<T>, index: number) => void): void {
     this.items.value.forEach((item, index) => {
-      callback(item as FormProxy<T>, index);
+      const proxy = (item as unknown as { getProxy: () => FormProxy<T> }).getProxy();
+      callback(proxy, index);
     });
   }
 
   /**
    * Маппинг элементов массива
-   * @param callback - Функция преобразования с типизированным GroupNode
+   * @param callback - Функция преобразования с типизированным GroupNode proxy
    * @returns Новый массив результатов
    */
   map<R>(callback: (item: FormProxy<T>, index: number) => R): R[] {
     return this.items.value.map((item, index) => {
-      return callback(item as FormProxy<T>, index);
+      const proxy = (item as unknown as { getProxy: () => FormProxy<T> }).getProxy();
+      return callback(proxy, index);
     });
   }
 
@@ -519,7 +576,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watchItems-${Date.now()}-${Math.random()}`;
+    const key = uniqueId(SubscriptionKey.WatchItems);
     return this.disposers.add(key, dispose);
   }
 
@@ -552,7 +609,7 @@ export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
     });
 
     // Регистрируем через SubscriptionManager и возвращаем unsubscribe
-    const key = `watchLength-${Date.now()}-${Math.random()}`;
+    const key = uniqueId(SubscriptionKey.WatchLength);
     return this.disposers.add(key, dispose);
   }
 

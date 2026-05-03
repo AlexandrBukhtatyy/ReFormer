@@ -2,14 +2,14 @@
 sidebar_position: 3
 ---
 
-# FormNavigation
+# FormWizard
 
 Headless compound component для multi-step form wizard.
 
 ## Базовое использование
 
 ```tsx
-import { FormNavigation } from '@reformer/ui/form-navigation';
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
 const config = {
   stepValidations: {
@@ -19,35 +19,35 @@ const config = {
   fullValidation: fullFormSchema,
 };
 
-<FormNavigation form={form} config={config}>
-  <FormNavigation.Step component={Step1Form} control={form} />
-  <FormNavigation.Step component={Step2Form} control={form} />
+<FormWizard form={form} config={config}>
+  <FormWizard.Step component={Step1Form} control={form} />
+  <FormWizard.Step component={Step2Form} control={form} />
 
-  <FormNavigation.Actions onSubmit={handleSubmit}>
-    <FormNavigation.Prev>Назад</FormNavigation.Prev>
-    <FormNavigation.Next>Далее</FormNavigation.Next>
-    <FormNavigation.Submit>Отправить</FormNavigation.Submit>
-  </FormNavigation.Actions>
-</FormNavigation>
+  <FormWizard.Actions onSubmit={handleSubmit}>
+    <FormWizard.Prev>Назад</FormWizard.Prev>
+    <FormWizard.Next>Далее</FormWizard.Next>
+    <FormWizard.Submit>Отправить</FormWizard.Submit>
+  </FormWizard.Actions>
+</FormWizard>;
 ```
 
 ## Sub-компоненты
 
-| Компонент | Назначение |
-|-----------|------------|
-| `FormNavigation` | Root provider |
-| `FormNavigation.Step` | Рендерит компонент когда шаг активен |
-| `FormNavigation.Indicator` | Headless индикатор шагов (render props) |
-| `FormNavigation.Actions` | Контейнер для кнопок навигации (compound или render props) |
-| `FormNavigation.Prev` | Кнопка "Назад" |
-| `FormNavigation.Next` | Кнопка "Далее" |
-| `FormNavigation.Submit` | Кнопка отправки формы |
-| `FormNavigation.Progress` | Headless отображение прогресса (render props) |
+| Компонент              | Назначение                                                 |
+| ---------------------- | ---------------------------------------------------------- |
+| `FormWizard`           | Root provider                                              |
+| `FormWizard.Step`      | Рендерит компонент когда шаг активен                       |
+| `FormWizard.Indicator` | Headless индикатор шагов (render props)                    |
+| `FormWizard.Actions`   | Контейнер для кнопок навигации (compound или render props) |
+| `FormWizard.Prev`      | Кнопка "Назад"                                             |
+| `FormWizard.Next`      | Кнопка "Далее"                                             |
+| `FormWizard.Submit`    | Кнопка отправки формы                                      |
+| `FormWizard.Progress`  | Headless отображение прогресса (render props)              |
 
-## FormNavigation.Indicator
+## FormWizard.Indicator
 
 ```tsx
-<FormNavigation.Indicator steps={STEPS}>
+<FormWizard.Indicator steps={STEPS}>
   {({ steps, goToStep, currentStep }) => (
     <nav>
       {steps.map((step) => (
@@ -62,14 +62,14 @@ const config = {
       ))}
     </nav>
   )}
-</FormNavigation.Indicator>
+</FormWizard.Indicator>
 ```
 
 ### Определение шагов
 
 ```typescript
-interface FormNavigationIndicatorStep {
-  number: number;   // Номер шага (1-based)
+interface FormWizardIndicatorStep {
+  number: number; // Номер шага (1-based)
   title: string;
   icon?: string;
 }
@@ -78,15 +78,15 @@ interface FormNavigationIndicatorStep {
 ### Render Props
 
 ```typescript
-interface FormNavigationIndicatorRenderProps {
-  steps: FormNavigationIndicatorStepWithState[];
+interface FormWizardIndicatorRenderProps {
+  steps: FormWizardIndicatorStepWithState[];
   goToStep: (step: number) => boolean;
   currentStep: number;
   totalSteps: number;
   completedSteps: number[];
 }
 
-interface FormNavigationIndicatorStepWithState {
+interface FormWizardIndicatorStepWithState {
   number: number;
   title: string;
   icon?: string;
@@ -96,23 +96,22 @@ interface FormNavigationIndicatorStepWithState {
 }
 ```
 
-## FormNavigation.Actions
+## FormWizard.Actions
 
 Поддерживает два режима: **Compound Components** (рекомендуется) и **Render Props** (для сложных случаев).
 
 ### Compound Components (рекомендуется)
 
 ```tsx
-<FormNavigation.Actions onSubmit={handleSubmit} className="flex gap-4">
-  <FormNavigation.Prev>← Назад</FormNavigation.Prev>
-  <FormNavigation.Next>Далее →</FormNavigation.Next>
-  <FormNavigation.Submit loadingText="Отправка...">
-    Отправить
-  </FormNavigation.Submit>
-</FormNavigation.Actions>
+<FormWizard.Actions onSubmit={handleSubmit} className="flex gap-4">
+  <FormWizard.Prev>← Назад</FormWizard.Prev>
+  <FormWizard.Next>Далее →</FormWizard.Next>
+  <FormWizard.Submit loadingText="Отправка...">Отправить</FormWizard.Submit>
+</FormWizard.Actions>
 ```
 
 Кнопки автоматически становятся `disabled` когда недоступны:
+
 - `Prev` — на первом шаге
 - `Next` — на последнем шаге
 - `Submit` — не на последнем шаге
@@ -120,36 +119,36 @@ interface FormNavigationIndicatorStepWithState {
 ### С кастомными кнопками (asChild)
 
 ```tsx
-<FormNavigation.Actions onSubmit={handleSubmit} className="flex gap-4">
-  <FormNavigation.Prev asChild>
+<FormWizard.Actions onSubmit={handleSubmit} className="flex gap-4">
+  <FormWizard.Prev asChild>
     <Button variant="ghost">← Назад</Button>
-  </FormNavigation.Prev>
-  <FormNavigation.Next asChild>
+  </FormWizard.Prev>
+  <FormWizard.Next asChild>
     <Button variant="primary">Далее →</Button>
-  </FormNavigation.Next>
-  <FormNavigation.Submit asChild loadingText="Отправка...">
+  </FormWizard.Next>
+  <FormWizard.Submit asChild loadingText="Отправка...">
     <Button variant="success">Отправить</Button>
-  </FormNavigation.Submit>
-</FormNavigation.Actions>
+  </FormWizard.Submit>
+</FormWizard.Actions>
 ```
 
 ### Props кнопок
 
 ```typescript
-interface FormNavigationPrevProps {
+interface FormWizardPrevProps {
   children: ReactNode;
-  asChild?: boolean;      // Использовать child как элемент
-  disabled?: boolean;     // Дополнительное disabled (OR с автоматическим)
+  asChild?: boolean; // Использовать child как элемент
+  disabled?: boolean; // Дополнительное disabled (OR с автоматическим)
   // + все остальные button props
 }
 
-interface FormNavigationNextProps {
+interface FormWizardNextProps {
   children: ReactNode;
   asChild?: boolean;
   disabled?: boolean;
 }
 
-interface FormNavigationSubmitProps {
+interface FormWizardSubmitProps {
   children: ReactNode;
   asChild?: boolean;
   disabled?: boolean;
@@ -160,7 +159,7 @@ interface FormNavigationSubmitProps {
 ### Render Props (для сложных layout)
 
 ```tsx
-<FormNavigation.Actions onSubmit={handleSubmit}>
+<FormWizard.Actions onSubmit={handleSubmit}>
   {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
     <div>
       {!isFirstStep && (
@@ -179,13 +178,13 @@ interface FormNavigationSubmitProps {
       )}
     </div>
   )}
-</FormNavigation.Actions>
+</FormWizard.Actions>
 ```
 
 ### Render Props типы
 
 ```typescript
-interface FormNavigationActionsRenderProps {
+interface FormWizardActionsRenderProps {
   prev: { onClick: () => void; disabled: boolean };
   next: { onClick: () => void; disabled: boolean };
   submit: { onClick: () => void; disabled: boolean; isSubmitting: boolean };
@@ -196,23 +195,23 @@ interface FormNavigationActionsRenderProps {
 }
 ```
 
-## FormNavigation.Progress
+## FormWizard.Progress
 
 ```tsx
-<FormNavigation.Progress>
+<FormWizard.Progress>
   {({ current, total, percent }) => (
     <div>
       Шаг {current} из {total} ({percent}%)
       <div style={{ width: `${percent}%` }} />
     </div>
   )}
-</FormNavigation.Progress>
+</FormWizard.Progress>
 ```
 
 ### Render Props
 
 ```typescript
-interface FormNavigationProgressRenderProps {
+interface FormWizardProgressRenderProps {
   current: number;
   total: number;
   percent: number;
@@ -225,7 +224,7 @@ interface FormNavigationProgressRenderProps {
 ## Внешнее управление через Ref
 
 ```tsx
-const navRef = useRef<FormNavigationHandle<FormType>>(null);
+const navRef = useRef<FormWizardHandle<FormType>>(null);
 
 // Программная навигация
 navRef.current?.goToStep(2);
@@ -237,21 +236,22 @@ const result = await navRef.current?.submit(async (values) => {
   return api.submit(values);
 });
 
-<FormNavigation ref={navRef} form={form} config={config}>
+<FormWizard ref={navRef} form={form} config={config}>
   ...
-</FormNavigation>
+</FormWizard>;
 ```
 
 ## Конфигурация
 
 ```typescript
-interface FormNavigationConfig<T> {
+interface FormWizardConfig<T> {
   stepValidations: Record<number, ValidationSchemaFn<T>>;
   fullValidation: ValidationSchemaFn<T>;
 }
 ```
 
 Валидация происходит автоматически:
+
 - При `next.onClick`: валидируется текущий шаг
 - При `submit.onClick`: валидируется вся форма
 
@@ -265,17 +265,20 @@ const STEPS = [
 ];
 
 function MultiStepForm() {
-  const navRef = useRef<FormNavigationHandle<MyForm>>(null);
+  const navRef = useRef<FormWizardHandle<MyForm>>(null);
   const form = useMemo(() => createForm(), []);
 
-  const config = useMemo(() => ({
-    stepValidations: {
-      1: basicInfoSchema,
-      2: contactSchema,
-      3: confirmationSchema,
-    },
-    fullValidation: fullSchema,
-  }), []);
+  const config = useMemo(
+    () => ({
+      stepValidations: {
+        1: basicInfoSchema,
+        2: contactSchema,
+        3: confirmationSchema,
+      },
+      fullValidation: fullSchema,
+    }),
+    []
+  );
 
   const handleSubmit = async () => {
     const result = await navRef.current?.submit(async (values) => {
@@ -287,9 +290,9 @@ function MultiStepForm() {
   };
 
   return (
-    <FormNavigation ref={navRef} form={form} config={config}>
+    <FormWizard ref={navRef} form={form} config={config}>
       {/* Stepper */}
-      <FormNavigation.Indicator steps={STEPS}>
+      <FormWizard.Indicator steps={STEPS}>
         {({ steps, goToStep }) => (
           <div className="flex gap-4">
             {steps.map((step) => (
@@ -304,36 +307,36 @@ function MultiStepForm() {
             ))}
           </div>
         )}
-      </FormNavigation.Indicator>
+      </FormWizard.Indicator>
 
       {/* Steps */}
-      <FormNavigation.Step component={BasicInfoForm} control={form} />
-      <FormNavigation.Step component={ContactForm} control={form} />
-      <FormNavigation.Step component={ConfirmationForm} control={form} />
+      <FormWizard.Step component={BasicInfoForm} control={form} />
+      <FormWizard.Step component={ContactForm} control={form} />
+      <FormWizard.Step component={ConfirmationForm} control={form} />
 
       {/* Navigation (compound components) */}
-      <FormNavigation.Actions onSubmit={handleSubmit} className="flex justify-between mt-8">
-        <FormNavigation.Prev asChild>
+      <FormWizard.Actions onSubmit={handleSubmit} className="flex justify-between mt-8">
+        <FormWizard.Prev asChild>
           <Button>← Назад</Button>
-        </FormNavigation.Prev>
+        </FormWizard.Prev>
         <div className="flex-1" />
-        <FormNavigation.Next asChild>
+        <FormWizard.Next asChild>
           <Button>Далее →</Button>
-        </FormNavigation.Next>
-        <FormNavigation.Submit asChild loadingText="Отправка...">
+        </FormWizard.Next>
+        <FormWizard.Submit asChild loadingText="Отправка...">
           <Button>Отправить</Button>
-        </FormNavigation.Submit>
-      </FormNavigation.Actions>
+        </FormWizard.Submit>
+      </FormWizard.Actions>
 
       {/* Progress */}
-      <FormNavigation.Progress>
+      <FormWizard.Progress>
         {({ current, total, percent }) => (
           <div className="text-center mt-4 text-gray-600">
             Шаг {current} из {total} • {percent}% завершено
           </div>
         )}
-      </FormNavigation.Progress>
-    </FormNavigation>
+      </FormWizard.Progress>
+    </FormWizard>
   );
 }
 ```

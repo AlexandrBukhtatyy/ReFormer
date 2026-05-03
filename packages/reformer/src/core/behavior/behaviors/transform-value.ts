@@ -30,34 +30,52 @@ export interface TransformValueOptions {
  * @category Behavior Rules
  *
  * @param field - Поле для трансформации
- * @param transformer - Функция трансформации
- * @param options - Опции
+ * @param transformer - Функция трансформации (ОБЯЗАТЕЛЬНО идемпотентная: f(f(x)) === f(x))
+ * @param options - Опции (`onUserChangeOnly`, `emitEvent`, `debounce`)
  *
- * @example
+ * @example Базовая нормализация — uppercase + trim email
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Автоматически переводить текст в верхний регистр
- *   transformValue(path.code, (value) => value?.toUpperCase());
+ * import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
  *
- *   // Форматировать номер телефона
- *   transformValue(path.phone, (value) => {
- *     if (!value) return value;
- *     const digits = value.replace(/\D/g, '');
- *     if (digits.length === 11) {
- *       return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
- *     }
- *     return value;
- *   });
+ * interface RegistrationForm {
+ *   promoCode: string;
+ *   email: string;
+ * }
  *
- *   // Удалять пробелы из email
- *   transformValue(path.email, (value) => value?.trim().toLowerCase());
- *
- *   // Округлять числа
- *   transformValue(path.amount, (value) => {
- *     return typeof value === 'number' ? Math.round(value) : value;
- *   });
+ * export const registrationBehavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+ *   // Идемпотентно: toUpperCase(toUpperCase(x)) === toUpperCase(x) ✓
+ *   transformValue(path.promoCode, (value) => (value ?? '').toUpperCase());
+ *   transformValue(path.email, (value) => (value ?? '').trim().toLowerCase());
  * };
  * ```
+ *
+ * @example `onUserChangeOnly` + idempotent guard для не-тривиальных форматов
+ * ```typescript
+ * import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface ProfileForm {
+ *   inn: string; // ИНН — только цифры
+ *   prefixedCode: string; // должен иметь префикс "ID-"
+ * }
+ *
+ * export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+ *   // Цифры из ИНН: трансформер идемпотентный естественно
+ *   transformValue(path.inn, (v) => (v ?? '').replace(/\D/g, ''));
+ *
+ *   // Префикс — ВАЖНО guard «уже преобразовано», иначе бесконечный цикл
+ *   // f("ID-123") должно === "ID-123", а не "ID-ID-123"
+ *   transformValue(
+ *     path.prefixedCode,
+ *     (v) => (v?.startsWith('ID-') ? v : `ID-${v ?? ''}`),
+ *     {
+ *       onUserChangeOnly: true, // не трогаем значение из patchValue/preload
+ *       debounce: 200,
+ *     },
+ *   );
+ * };
+ * ```
+ *
+ * @see [docs/llms/26-transform-value.md](../../../../docs/llms/26-transform-value.md)
  */
 export function transformValue<TForm extends FormFields, TValue extends FormValue = FormValue>(
   field: FieldPathNode<TForm, TValue>,
@@ -94,18 +112,42 @@ export function transformValue<TForm extends FormFields, TValue extends FormValu
  * @group Behaviors
  * @category Behavior Rules
  *
- * @example
- * ```typescript
- * // Создаем переиспользуемые трансформеры
- * const toUpperCase = createTransformer<string>((value) => value?.toUpperCase());
- * const toLowerCase = createTransformer<string>((value) => value?.toLowerCase());
- * const trim = createTransformer<string>((value) => value?.trim());
+ * @param transformer - Идемпотентная функция преобразования значения
+ * @param defaultOptions - Опции, применяемые ко всем вызовам созданного трансформера
  *
- * // Используем в форме
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   toUpperCase(path.code);
- *   toLowerCase(path.email);
- *   trim(path.username);
+ * @example Доменно-специфичные трансформеры (банковский счёт, СНИЛС)
+ * ```typescript
+ * import { createTransformer, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * // Сохраняем только цифры и форматируем СНИЛС: 000-000-000 00
+ * const formatSnils = createTransformer<string>((v) => {
+ *   const d = (v ?? '').replace(/\D/g, '').slice(0, 11);
+ *   if (d.length < 9) return d;
+ *   return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6, 9)}${d.length > 9 ? ' ' + d.slice(9) : ''}`;
+ * });
+ *
+ * interface ProfileForm { snils: string }
+ *
+ * export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+ *   formatSnils(path.snils, { debounce: 100 });
+ * };
+ * ```
+ *
+ * @example С `defaultOptions` — единые настройки на серию полей
+ * ```typescript
+ * import { createTransformer, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * // Все коды должны быть uppercase, но только после правки пользователем
+ * const upperOnUserEdit = createTransformer<string>(
+ *   (v) => (v ?? '').toUpperCase(),
+ *   { onUserChangeOnly: true, debounce: 100 },
+ * );
+ *
+ * interface PromoForm { promoCode: string; partnerCode: string }
+ *
+ * export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
+ *   upperOnUserEdit(path.promoCode);
+ *   upperOnUserEdit(path.partnerCode);
  * };
  * ```
  */
@@ -122,10 +164,47 @@ export function createTransformer<TValue extends FormValue = FormValue>(
 }
 
 /**
- * Готовые трансформеры для частых случаев
+ * Готовые трансформеры для частых случаев. Все идемпотентны и безопасны для повторного применения.
  *
  * @group Behaviors
  * @category Behavior Rules
+ *
+ * @example Готовые трансформеры в схеме формы
+ * ```typescript
+ * import { transformers, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface RegistrationForm {
+ *   username: string;
+ *   email: string;
+ *   promoCode: string;
+ *   inn: string;
+ *   amount: number;
+ * }
+ *
+ * export const behavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+ *   transformers.trim(path.username);
+ *   transformers.toLowerCase(path.email);
+ *   transformers.toUpperCase(path.promoCode);
+ *   transformers.digitsOnly(path.inn);
+ *   transformers.roundTo2(path.amount);
+ * };
+ * ```
+ *
+ * @example Композиция готовых трансформеров через createTransformer
+ * ```typescript
+ * import { createTransformer, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * // trim + lowercase в одном трансформере (применяется как одна операция)
+ * const normalizeEmail = createTransformer<string>(
+ *   (v) => (v ?? '').trim().toLowerCase(),
+ * );
+ *
+ * interface ContactForm { email: string }
+ *
+ * export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+ *   normalizeEmail(path.email);
+ * };
+ * ```
  */
 export const transformers = {
   /** Перевести в верхний регистр */

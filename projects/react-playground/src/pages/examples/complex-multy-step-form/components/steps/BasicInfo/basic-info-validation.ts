@@ -29,10 +29,6 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
   min(path.loanTerm, 6, { message: 'Минимальный срок: 6 месяцев' });
   max(path.loanTerm, 240, { message: 'Максимальный срок: 240 месяцев (20 лет)' });
 
-  required(path.loanPurpose, { message: 'Укажите цель кредита' });
-  minLength(path.loanPurpose, 10, { message: 'Опишите цель подробнее (минимум 10 символов)' });
-  maxLength(path.loanPurpose, 500);
-
   // Условная валидация для ипотеки
   applyWhen(
     path.loanType,
@@ -67,7 +63,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
           ) {
             return {
               code: 'initialPaymentTooLow',
-              message: 'Первоначальный взнос не может быть меньше 20% от стоимость недвижимости',
+              message: 'Первоначальный взнос не может быть меньше 20% от стоимости недвижимости',
             };
           }
           return null;
@@ -82,6 +78,12 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
           if (form.loanAmount && form.propertyValue && form.initialPayment) {
             const maxLoanAmount = form.propertyValue - form.initialPayment;
+            if (maxLoanAmount <= 0) {
+              return {
+                code: 'initialPaymentExceedsProperty',
+                message: 'Первоначальный взнос не может превышать стоимость недвижимости',
+              };
+            }
             if (form.loanAmount > maxLoanAmount) {
               return {
                 code: 'loanAmountExceedsMax',
@@ -93,6 +95,17 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
         },
         { targetField: 'loanAmount' }
       );
+    }
+  );
+
+  // loanPurpose только для потребительского кредита и рефинансирования (не ипотека, не авто, не бизнес)
+  applyWhen(
+    path.loanType,
+    (type) => type !== 'mortgage' && type !== 'car',
+    (path) => {
+      required(path.loanPurpose, { message: 'Укажите цель кредита' });
+      minLength(path.loanPurpose, 10, { message: 'Опишите цель подробнее (минимум 10 символов)' });
+      maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символов' });
     }
   );
 
@@ -118,6 +131,20 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
       required(path.carPrice, { message: 'Укажите стоимость автомобиля' });
       min(path.carPrice, 300000, { message: 'Минимальная стоимость: 300 000 ₽' });
       max(path.carPrice, 10000000, { message: 'Максимальная стоимость: 10 000 000 ₽' });
+    }
+  );
+
+  // Условная валидация для кредита для бизнеса
+  applyWhen(
+    path.loanType,
+    (type) => type === 'business',
+    (path) => {
+      required(path.businessType, { message: 'Укажите тип бизнеса' });
+      required(path.businessInn, { message: 'Укажите ИНН ИП' });
+      required(path.businessActivity, { message: 'Опишите вид деятельности' });
+      minLength(path.businessActivity, 10, {
+        message: 'Опишите деятельность подробнее (минимум 10 символов)',
+      });
     }
   );
 };

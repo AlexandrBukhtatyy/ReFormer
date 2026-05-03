@@ -9,5 +9,6 @@
     "./projects/react-playground",
     "./projects/react-playground-e2e"
   ],
-  "prettier.configPath": "./.prettierrc.cjs"
+  "prettier.configPath": "./.prettierrc.cjs",
+  "editor.wordWrap": "off"
 }

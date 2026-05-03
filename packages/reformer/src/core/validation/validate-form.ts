@@ -42,7 +42,7 @@ import { GroupNode } from '../nodes/group-node';
 import type { ValidationSchemaFn, ValidatorRegistration, FormFields, FormValue } from '../types';
 import { isFieldNode, isGroupNode, isArrayNode } from '../utils/type-guards';
 import { ValidationRegistry } from './validation-registry';
-import { createFieldPath } from './field-path';
+import { createFieldPath } from '../utils/field-path';
 
 /**
  * Рекурсивно собирает все FieldNode из дерева формы
@@ -154,7 +154,13 @@ export async function validateForm<T extends FormFields>(
     // чтобы избежать вызова validate() на вложенных GroupNode/ArrayNode,
     // которые триггерят свой validationRegistry с полной схемой валидации
     const allFieldNodes = collectAllFieldNodes(form);
-    await Promise.all(allFieldNodes.map((field) => field.validate()));
+
+    // Используем Promise.allSettled вместо Promise.all:
+    // - Promise.all() провалится если любая валидация выбросит ошибку
+    // - Promise.allSettled() дождется завершения ВСЕХ валидаций
+    // Это важно: системная ошибка в одном валидаторе не должна
+    // останавливать валидацию остальных полей
+    await Promise.allSettled(allFieldNodes.map((field) => field.validate()));
 
     // Применяем contextual validators
     if (tempValidators.length > 0) {

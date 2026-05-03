@@ -991,7 +991,10 @@ describe('FieldNode', () => {
 
       await field.validate();
 
-      expect(asyncValidatorFn).toHaveBeenCalledWith('valid');
+      expect(asyncValidatorFn).toHaveBeenCalledWith(
+        'valid',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
     });
   });
 
@@ -1064,7 +1067,7 @@ describe('FieldNode', () => {
       field.watch(callback);
 
       expect(callback).toHaveBeenCalledTimes(1);
-      expect(callback).toHaveBeenCalledWith('initial');
+      expect(callback).toHaveBeenCalledWith('initial', expect.any(AbortSignal));
     });
 
     it('should call callback on value change', () => {
@@ -1079,7 +1082,7 @@ describe('FieldNode', () => {
       field.setValue('changed');
 
       expect(callback).toHaveBeenCalledTimes(2);
-      expect(callback).toHaveBeenLastCalledWith('changed');
+      expect(callback).toHaveBeenLastCalledWith('changed', expect.any(AbortSignal));
     });
 
     it('should return unsubscribe function', () => {

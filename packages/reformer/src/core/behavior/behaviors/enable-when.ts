@@ -9,6 +9,7 @@
 import { effect } from '@preact/signals-core';
 import type { FieldPathNode } from '../../types';
 import { getCurrentBehaviorRegistry } from '../../utils/registry-helpers';
+import { runOutsideEffect } from '../../utils/safe-effect';
 import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
 
 /**
@@ -19,17 +20,68 @@ import type { EnableWhenOptions, BehaviorHandlerFn } from '../types';
  *
  * @param field - Поле для включения/выключения
  * @param condition - Функция условия (true = enable, false = disable)
- * @param options - Опции
+ * @param options - Опции (`resetOnDisable`, `debounce`)
  *
- * @example
+ * @example Базовый сценарий с `resetOnDisable: true`
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Включить поле только для ипотеки
+ * import { enableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface LoanForm {
+ *   loanType: 'mortgage' | 'consumer' | 'car';
+ *   propertyValue: number;
+ *   initialPayment: number;
+ * }
+ *
+ * export const loanBehavior: BehaviorSchemaFn<LoanForm> = (path) => {
+ *   // Поля ипотеки активны только для loanType === 'mortgage'.
+ *   // resetOnDisable: true гарантирует чистые initial values при переключении.
  *   enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage', {
- *     resetOnDisable: true
+ *     resetOnDisable: true,
+ *   });
+ *   enableWhen(path.initialPayment, (form) => form.loanType === 'mortgage', {
+ *     resetOnDisable: true,
  *   });
  * };
  * ```
+ *
+ * @example Множественные independent условия + cycle prevention
+ * ```typescript
+ * import { enableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface ProfileForm {
+ *   sameAsRegistration: boolean;
+ *   employmentStatus: 'employed' | 'selfEmployed' | 'unemployed';
+ *   residenceAddress: { city: string; street: string };
+ *   companyName: string;
+ *   companyInn: string;
+ *   businessType: string;
+ * }
+ *
+ * export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
+ *   // Адрес проживания: enabled, когда НЕ совпадает с регистрационным
+ *   enableWhen(path.residenceAddress, (form) => form.sameAsRegistration === false, {
+ *     resetOnDisable: true,
+ *   });
+ *
+ *   // Поля работодателя: только для employed
+ *   enableWhen(path.companyName, (form) => form.employmentStatus === 'employed', {
+ *     resetOnDisable: true,
+ *   });
+ *   enableWhen(path.companyInn, (form) => form.employmentStatus === 'employed', {
+ *     resetOnDisable: true,
+ *   });
+ *
+ *   // ИП-поля: только для selfEmployed
+ *   enableWhen(path.businessType, (form) => form.employmentStatus === 'selfEmployed', {
+ *     resetOnDisable: true,
+ *   });
+ *
+ *   // ВАЖНО: condition не должен читать значение САМОГО поля — иначе цикл.
+ *   // condition зависит ТОЛЬКО от независимых триггеров (loanType, employmentStatus, ...).
+ * };
+ * ```
+ *
+ * @see [docs/llms/22-cycle-detection.md](../../../../docs/llms/22-cycle-detection.md)
  */
 export function enableWhen<TForm>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,14 +102,17 @@ export function enableWhen<TForm>(
       withDebounce(() => {
         const shouldEnable = condition(formValue);
 
-        if (shouldEnable) {
-          targetNode.enable();
-        } else {
-          targetNode.disable();
-          if (resetOnDisable) {
-            targetNode.reset();
+        // runOutsideEffect выходит из контекста effect, предотвращая "Cycle detected"
+        runOutsideEffect(() => {
+          if (shouldEnable) {
+            targetNode.enable();
+          } else {
+            targetNode.disable();
+            if (resetOnDisable) {
+              targetNode.reset();
+            }
           }
-        }
+        });
       });
     });
   };
@@ -74,13 +129,38 @@ export function enableWhen<TForm>(
  *
  * @param field - Поле для выключения
  * @param condition - Функция условия (true = disable, false = enable)
- * @param options - Опции
+ * @param options - Опции (`resetOnDisable`, `debounce`)
  *
- * @example
+ * @example Базовый сценарий — readonly после подтверждения
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Выключить поле для потребительского кредита
- *   disableWhen(path.propertyValue, (form) => form.loanType === 'consumer');
+ * import { disableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface ConfirmForm {
+ *   isConfirmed: boolean;
+ *   editableField: string;
+ * }
+ *
+ * export const confirmBehavior: BehaviorSchemaFn<ConfirmForm> = (path) => {
+ *   // Поле блокируется после установки чекбокса подтверждения
+ *   disableWhen(path.editableField, (form) => form.isConfirmed === true);
+ *   // resetOnDisable НЕ ставим — сохраняем введённый текст
+ * };
+ * ```
+ *
+ * @example С `resetOnDisable` для очистки заблокированного поля
+ * ```typescript
+ * import { disableWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface PromoForm {
+ *   loanType: 'mortgage' | 'consumer';
+ *   promoCode: string;
+ * }
+ *
+ * export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
+ *   // Промокод недоступен для потребительских кредитов и сбрасывается
+ *   disableWhen(path.promoCode, (form) => form.loanType === 'consumer', {
+ *     resetOnDisable: true,
+ *   });
  * };
  * ```
  */

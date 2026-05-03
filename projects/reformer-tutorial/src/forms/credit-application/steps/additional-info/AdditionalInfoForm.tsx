@@ -1,6 +1,6 @@
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import type { CreditApplicationForm } from '../../type';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../../sub-forms/property/PropertyForm';

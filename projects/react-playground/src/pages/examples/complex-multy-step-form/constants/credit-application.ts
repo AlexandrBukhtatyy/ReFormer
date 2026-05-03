@@ -1,14 +1,3 @@
-export const STEPS = [
-  { number: 1, title: 'Кредит', icon: '💰' },
-  { number: 2, title: 'Данные', icon: '👤' },
-  { number: 3, title: 'Контакты', icon: '📞' },
-  { number: 4, title: 'Работа', icon: '💼' },
-  { number: 5, title: 'Доп. инфо', icon: '📋' },
-  { number: 6, title: 'Подтверждение', icon: '✓' },
-];
-
-export const TOTAL_STEPS = STEPS.length;
-
 export const LOAN_TYPES = [
   { value: 'consumer', label: 'Потребительский кредит' },
   { value: 'mortgage', label: 'Ипотека' },

@@ -107,8 +107,10 @@ A text input that handles text and number types with proper validation:
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface InputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+export interface InputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+> {
   value?: string | number | null;
   onChange?: (value: string | number | null) => void;
   onBlur?: () => void;
@@ -177,8 +179,10 @@ import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export interface InputPasswordProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+export interface InputPasswordProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'type'
+> {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
@@ -236,8 +240,10 @@ Input with mask placeholder:
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface InputMaskProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+export interface InputMaskProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+> {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
@@ -283,8 +289,10 @@ import { SearchIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ResourceConfig, ResourceItem } from '@reformer/core';
 
-export interface InputSearchProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'resource'> {
+export interface InputSearchProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'resource'
+> {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
@@ -388,8 +396,10 @@ File input with validation and upload support:
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface InputFilesProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
+export interface InputFilesProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'onChange' | 'type'
+> {
   onChange?: (value: File | File[] | null) => void;
   onBlur?: () => void;
   multiple?: boolean;
@@ -479,8 +489,10 @@ Multi-line text input:
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface TextareaProps
-  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
+export interface TextareaProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'value' | 'onChange'
+> {
   value?: string | null;
   onChange?: (value: string | null) => void;
   onBlur?: () => void;
@@ -651,8 +663,10 @@ Checkbox for boolean values:
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface CheckboxProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+export interface CheckboxProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'type'
+> {
   value?: boolean;
   onChange?: (value: boolean) => void;
   onBlur?: () => void;

@@ -18,6 +18,7 @@ Get template and rules for creating FormSchema.
 | `formType` | string | Form type: "registration", "checkout", "settings", etc. |
 
 **Returns:**
+
 - Type to component mapping (string → Input, boolean → Checkbox, etc.)
 - Document masks for Russian documents (phone, INN, SNILS, passport)
 - Schema structure rules
@@ -35,6 +36,7 @@ Get template and rules for TypeScript form types.
 | `formType` | string | Form type for context |
 
 **Returns:**
+
 - Interface naming rules
 - Typing rules (undefined instead of null, no index signatures)
 - Type examples
@@ -51,6 +53,7 @@ Get template and rules for ValidationSchema.
 | `formType` | string | Form type for context |
 
 **Returns:**
+
 - List of all built-in validators
 - Usage syntax
 - Import rules (`@reformer/core/validators`)
@@ -68,6 +71,7 @@ Get template and rules for BehaviorSchema.
 | `formType` | string | Form type for context |
 
 **Returns:**
+
 - List of all behaviors (computeFrom, enableWhen, etc.)
 - Usage syntax
 - Import rules (`@reformer/core/behaviors`)
@@ -87,12 +91,14 @@ Analyze form code for errors and quality issues.
 | `code` | string | Yes | TypeScript code to analyze |
 
 **Returns:**
+
 - Quality score (0-100 points)
 - List of errors with explanations
 - Warnings
 - Fix recommendations
 
 **Checked rules:**
+
 - Correct validator and behavior imports
 - Presence of `value` in every field
 - Use of `useMemo` for `createForm`
@@ -113,6 +119,7 @@ Explain a ReFormer error with fix examples.
 | `error` | string | Yes | Error text or problem description |
 
 **Recognized issues:**
+
 - Field not updating on input
 - Validation not triggering
 - TypeScript type errors
@@ -132,6 +139,7 @@ Get usage pattern example.
 | `pattern` | string | Yes | Pattern name |
 
 **Available patterns:**
+
 - `conditional-fields` — conditional field display
 - `computed-fields` — computed fields
 - `cross-field-validation` — cross-field validation
@@ -152,6 +160,7 @@ Get recommended project file structure.
 | `complexity` | string | Complexity: "simple", "medium", "complex" |
 
 **Returns:**
+
 - Folder structure
 - File separation (types, schema, validation, behavior)
 - Naming conventions
@@ -166,30 +175,30 @@ Report an error and its solution for feedback collection.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `error` | string | Yes | Error message or problem description |
-| `solution` | string | Yes | Solution or fix |
-| `tags` | string[] | No | Tags for categorization and analytics |
-| `context` | object | No | Additional context (see below) |
+| Parameter  | Type     | Required | Description                           |
+| ---------- | -------- | -------- | ------------------------------------- |
+| `error`    | string   | Yes      | Error message or problem description  |
+| `solution` | string   | Yes      | Solution or fix                       |
+| `tags`     | string[] | No       | Tags for categorization and analytics |
+| `context`  | object   | No       | Additional context (see below)        |
 
 **Structure of `context`:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `examples` | array | Code examples with descriptions |
-| `examples[].description` | string | Example description |
-| `examples[].code` | string | Example code |
-| `relatedFiles` | string[] | Paths to related files |
-| `notes` | string | Additional notes |
+| Field                    | Type     | Description                     |
+| ------------------------ | -------- | ------------------------------- |
+| `examples`               | array    | Code examples with descriptions |
+| `examples[].description` | string   | Example description             |
+| `examples[].code`        | string   | Example code                    |
+| `relatedFiles`           | string[] | Paths to related files          |
+| `notes`                  | string   | Additional notes                |
 
 **Recommended tags:**
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| `category:<type>` | `category:behavior`, `category:validation` | Category: schema, validation, behavior, react, types, other |
-| `agent:<name>` | `agent:claude`, `agent:cursor` | AI agent name |
-| `severity:<level>` | `severity:critical`, `severity:minor` | Issue severity |
+| Format             | Example                                    | Description                                                 |
+| ------------------ | ------------------------------------------ | ----------------------------------------------------------- |
+| `category:<type>`  | `category:behavior`, `category:validation` | Category: schema, validation, behavior, react, types, other |
+| `agent:<name>`     | `agent:claude`, `agent:cursor`             | AI agent name                                               |
+| `severity:<level>` | `severity:critical`, `severity:minor`      | Issue severity                                              |
 
 **Returns:**
 

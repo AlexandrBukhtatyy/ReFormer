@@ -5,7 +5,7 @@
 watchField(
   path.parentField,
   async (value, ctx) => {
-    if (!value) return;  // Guard clause
+    if (!value) return; // Guard clause
 
     try {
       const { data } = await fetchData(value);
@@ -15,16 +15,17 @@ watchField(
       ctx.form.dependentField.updateComponentProps({ options: [] });
     }
   },
-  { immediate: false, debounce: 300 }  // REQUIRED options
+  { immediate: false, debounce: 300 } // REQUIRED options
 );
 
 // WRONG - missing safeguards
 watchField(path.field, async (value, ctx) => {
-  const { data } = await fetchData(value);  // Will fail silently!
+  const { data } = await fetchData(value); // Will fail silently!
 });
 ```
 
 ### Required Options for async watchField:
+
 - `immediate: false` - prevents execution during initialization
 - `debounce: 300` - prevents excessive API calls (300-500ms recommended)
 - Guard clause - skip if value is empty

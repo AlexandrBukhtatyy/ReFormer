@@ -308,18 +308,18 @@ export const ExistingLoanForm = memo(ExistingLoanFormComponent);
 | `map(callback)`   | Итерация по элементам массива                     |
 | `length`          | Получить текущую длину массива                    |
 
-### FormArray из @reformer/ui
+### FormArray из @reformer/cdk
 
-Пакет `@reformer/ui` предоставляет `FormArray` — headless compound component для управления массивами форм:
+Пакет `@reformer/cdk` предоставляет `FormArray` — headless compound component для управления массивами форм:
 
 ```bash
-npm install @reformer/ui
+npm install @reformer/cdk
 ```
 
 #### Базовое использование
 
 ```tsx
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { Button } from '@/components/ui/button';
 
 <FormArray.Root control={form.items}>
@@ -338,27 +338,27 @@ import { Button } from '@/components/ui/button';
   </FormArray.List>
 
   <FormArray.AddButton>Добавить элемент</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 #### Субкомпоненты
 
-| Компонент              | Props                        | Назначение                           |
-| ---------------------- | ---------------------------- | ------------------------------------ |
-| `FormArray.Root`       | `control: ArrayNode<T>`      | Провайдер контекста                  |
-| `FormArray.List`       | `children: (item) => Node`   | Итерация с render props              |
-| `FormArray.AddButton`  | `initialValue?: Partial<T>`  | Добавить новый элемент               |
-| `FormArray.Empty`      | `children: ReactNode`        | Показать когда массив пустой         |
-| `FormArray.Count`      | `render?: (count) => Node`   | Отображение количества               |
+| Компонент             | Props                       | Назначение                   |
+| --------------------- | --------------------------- | ---------------------------- |
+| `FormArray.Root`      | `control: ArrayNode<T>`     | Провайдер контекста          |
+| `FormArray.List`      | `children: (item) => Node`  | Итерация с render props      |
+| `FormArray.AddButton` | `initialValue?: Partial<T>` | Добавить новый элемент       |
+| `FormArray.Empty`     | `children: ReactNode`       | Показать когда массив пустой |
+| `FormArray.Count`     | `render?: (count) => Node`  | Отображение количества       |
 
 #### Render Props в List
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: FormProxy<T>;  // Контрол элемента
-  index: number;                       // Индекс (с 0)
-  id: string | number;                 // Уникальный ключ
-  remove: () => void;                  // Удалить этот элемент
+  control: FormProxy<T>; // Контрол элемента
+  index: number; // Индекс (с 0)
+  id: string | number; // Уникальный ключ
+  remove: () => void; // Удалить этот элемент
 }
 ```
 
@@ -366,7 +366,7 @@ interface FormArrayItemRenderProps<T> {
 
 ```tsx title="reformer-tutorial/src/forms/credit-application/steps/AdditionalInfoForm.tsx"
 import { useFormControlValue } from '@reformer/core';
-import { FormArray } from '@reformer/ui/form-array';
+import { FormArray } from '@reformer/cdk/form-array';
 import { FormField } from '@/components/ui/FormField';
 import { PropertyForm } from '../sub-forms/property/PropertyForm';
 import { CoBorrowerForm } from '../sub-forms/co-borrower/CoBorrowerForm';
@@ -382,9 +382,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       {hasProperty && (
         <FormArray.Root control={control.properties}>
           <div className="flex justify-between items-center">
-            <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Имущество</span>
-            )} />
+            <FormArray.Count
+              render={(count) => (
+                <span className="text-sm text-muted-foreground">{count} Имущество</span>
+              )}
+            />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
                 + Добавить имущество
@@ -418,9 +420,11 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
       {hasCoBorrower && (
         <FormArray.Root control={control.coBorrowers}>
           <div className="flex justify-between items-center">
-            <FormArray.Count render={(count) => (
-              <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
-            )} />
+            <FormArray.Count
+              render={(count) => (
+                <span className="text-sm text-muted-foreground">{count} Созаёмщики</span>
+              )}
+            />
             <FormArray.AddButton asChild>
               <Button type="button" variant="outline" size="sm">
                 + Добавить созаёмщика
@@ -459,7 +463,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
 Для полной кастомизации без compound components:
 
 ```tsx
-import { useFormArray } from '@reformer/ui/form-array';
+import { useFormArray } from '@reformer/cdk/form-array';
 
 function CustomList({ control }) {
   const { items, add, isEmpty, length } = useFormArray(control);

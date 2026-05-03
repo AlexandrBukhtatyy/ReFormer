@@ -106,5 +106,5 @@ export const routes = [
       const body = await readBody(req);
       return resolvers.registerUser(body);
     },
-  },
+  }
 ];

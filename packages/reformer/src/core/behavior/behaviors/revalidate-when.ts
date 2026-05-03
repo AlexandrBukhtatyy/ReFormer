@@ -19,18 +19,48 @@ import type { RevalidateWhenOptions, BehaviorHandlerFn } from '../types';
  * @category Behavior Rules
  *
  * @param target - Поле для перевалидации
- * @param triggers - Поля-триггеры
- * @param options - Опции
+ * @param triggers - Поля-триггеры (НЕ должно содержать `target`)
+ * @param options - Опции (`debounce`)
  *
- * @example
+ * @example Парная перевалидация — confirmPassword при смене password
  * ```typescript
- * const schema: BehaviorSchemaFn<MyForm> = (path) => {
- *   // Перевалидировать initialPayment при изменении propertyValue
- *   revalidateWhen(path.initialPayment, [path.propertyValue], {
- *     debounce: 300
- *   });
+ * import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ * import { equalTo } from '@reformer/core/validators';
+ * import type { FieldPath } from '@reformer/core';
+ *
+ * interface RegistrationForm { password: string; confirmPassword: string }
+ *
+ * export const validation = (path: FieldPath<RegistrationForm>) => {
+ *   equalTo(path.confirmPassword, path.password, { message: 'Пароли не совпадают' });
+ * };
+ *
+ * export const behavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
+ *   // Если пользователь сначала ввёл confirm, потом меняет password —
+ *   // без revalidateWhen ошибка confirmPassword останется устаревшей.
+ *   revalidateWhen(path.confirmPassword, [path.password]);
  * };
  * ```
+ *
+ * @example Несколько триггеров + `debounce` для async-валидаторов
+ * ```typescript
+ * import { revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+ *
+ * interface MortgageForm {
+ *   propertyValue: number;
+ *   loanAmount: number;
+ *   initialPayment: number; // правило: initialPayment >= propertyValue * 0.2 - loanAmount
+ * }
+ *
+ * export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+ *   revalidateWhen(
+ *     path.initialPayment,
+ *     [path.propertyValue, path.loanAmount],
+ *     { debounce: 300 }, // не дёргаем сервер на каждый keystroke
+ *   );
+ * };
+ * ```
+ *
+ * @see [docs/llms/27-revalidate-when.md](../../../../docs/llms/27-revalidate-when.md)
  */
 export function revalidateWhen<TForm>(
   target: FieldPathNode<TForm, FormValue>,

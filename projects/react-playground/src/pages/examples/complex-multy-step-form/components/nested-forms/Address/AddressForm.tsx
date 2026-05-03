@@ -1,8 +1,6 @@
 import { memo } from 'react';
 import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input } from '@/components/ui/input';
-import { InputMask } from '@/components/ui/input-mask';
-import { FormField } from '@/components/ui/form-field';
+import { Input, InputMask, FormField } from '@reformer/ui-kit';
 import type { Address } from './types';
 
 export type { Address } from './types';

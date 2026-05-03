@@ -10,11 +10,19 @@ import type { FormContext } from '../types/form-context';
 import type { FieldPathNode } from '../types/field-path';
 
 /**
- * Реализация BehaviorContext (FormContext)
+ * Реализация {@link FormContext} для behaviors. Создаётся фреймворком и передаётся
+ * в callback'и behaviors (`watchField`, `computeFrom`, …) — напрямую инстанцировать
+ * не нужно.
  *
- * Предоставляет:
- * - `form` - прямой типизированный доступ к форме
- * - `setFieldValue` - безопасная установка значения (emitEvent: false)
+ * @example
+ * ```typescript
+ * import { watchField } from '@reformer/core/behaviors/watch-field';
+ *
+ * watchField(path.country, (value, ctx) => {
+ *   // ctx — экземпляр BehaviorContextImpl
+ *   ctx.setFieldValue(path.city, '');
+ * });
+ * ```
  */
 export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
   /**
@@ -43,11 +51,25 @@ export class BehaviorContextImpl<TForm> implements FormContext<TForm> {
    */
   setFieldValue(path: string | FieldPathNode<TForm, unknown>, value: unknown): void {
     // Преобразуем FieldPath в строку если необходимо
-    const pathStr = typeof path === 'string' ? path : path.toString();
+    const pathStr = typeof path === 'string' ? path : path.__path;
     const node = this._form.getFieldByPath(pathStr);
     if (node) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       node.setValue(value as any, { emitEvent: false });
     }
+  }
+
+  /**
+   * Получить поле формы по строковому пути
+   *
+   * Используется для динамического доступа к вложенным полям, например:
+   * - `ctx.getFieldByPath('address.city')` -> FieldNode
+   * - `ctx.getFieldByPath(path.city.__path)` -> FieldNode (для nested behaviors)
+   *
+   * @param path - Строковый путь к полю (например "address.city")
+   * @returns FieldNode или undefined если поле не найдено
+   */
+  getFieldByPath(path: string) {
+    return this._form.getFieldByPath(path);
   }
 }

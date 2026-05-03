@@ -1,0 +1,58 @@
+{
+  "alwaysThinkingEnabled": true,
+  "attribution": {
+    "commit": "Co-Authored-By: Claude \u003cnoreply@anthropic.com\u003e",
+    "pr": ""
+  },
+  "autoUpdatesChannel": "stable",
+  "cleanupPeriodDays": 14,
+  "enableAllProjectMcpServers": true,
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
+    "ENABLE_TOOL_SEARCH": "auto:5"
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ]
+  },
+  "language": "russian",
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(git:*)",
+      "Edit(src/**)",
+      "Bash(bd:*)",
+      "mcp__playwright__*",
+      "mcp__reformer__*",
+      "mcp__github__*"
+    ],
+    "defaultMode": "acceptEdits",
+    "deny": ["Read(.env*)", "Read(**/credentials*)"]
+  },
+  "plansDirectory": "./docs/plans",
+  "respectGitignore": true,
+  "sandbox": {
+    "autoAllowBashIfSandboxed": true,
+    "enabled": true
+  }
+}

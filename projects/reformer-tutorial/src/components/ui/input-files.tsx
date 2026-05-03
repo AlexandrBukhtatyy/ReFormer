@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface InputFilesProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
+export interface InputFilesProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'onChange' | 'type'
+> {
   className?: string;
   onChange?: (value: File | File[] | null) => void;
   onBlur?: () => void;

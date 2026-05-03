@@ -1,6 +1,6 @@
 import type { FormProxy } from '@reformer/core';
 import { useFormControlValue } from '@reformer/core';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import type { CreditApplicationForm, LoanType } from '../../../types/credit-application';
 
 interface BasicInfoFormProps {
@@ -37,6 +37,15 @@ export function BasicInfoForm({ control }: BasicInfoFormProps) {
             <FormField control={control.carYear} testId="carYear" />
             <FormField control={control.carPrice} testId="carPrice" />
           </div>
+        </>
+      )}
+
+      {loanType === 'business' && (
+        <>
+          <h3 className="text-lg font-semibold mt-4">Информация о бизнесе</h3>
+          <FormField control={control.businessType} testId="businessType" />
+          <FormField control={control.businessInn} testId="businessInn" />
+          <FormField control={control.businessActivity} testId="businessActivity" />
         </>
       )}
     </div>

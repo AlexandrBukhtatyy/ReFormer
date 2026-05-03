@@ -121,7 +121,8 @@ describe('watchField behavior', () => {
 
       form.applyBehaviorSchema(behavior);
 
-      // Without waiting - callback should be called immediately
+      // Wait for queueMicrotask to complete (immediate: true uses queueMicrotask)
+      await new Promise((r) => setTimeout(r, 0));
       expect(callback).toHaveBeenCalledWith('Russia', expect.anything());
     });
 

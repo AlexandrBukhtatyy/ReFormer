@@ -4,8 +4,10 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ResourceConfig } from '@reformer/core';
 
-export interface SelectProps<T>
-  extends Omit<React.ComponentProps<typeof SelectPrimitive.Root>, 'value' | 'onValueChange'> {
+export interface SelectProps<T> extends Omit<
+  React.ComponentProps<typeof SelectPrimitive.Root>,
+  'value' | 'onValueChange'
+> {
   className?: string;
   value?: string | null;
   onChange?: (value: string | null) => void;

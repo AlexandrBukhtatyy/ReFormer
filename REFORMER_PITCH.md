@@ -6,12 +6,12 @@
 
 ## TL;DR
 
-| Что | Описание |
-|-----|----------|
-| **Технология** | Реактивные формы на [Preact Signals](https://preactjs.com/guide/v10/signals/) |
-| **Главное отличие** | Декларативные behaviors + типобезопасный доступ к полям |
-| **Для кого** | Сложные формы с зависимыми полями, wizard-формы, async валидация |
-| **Bundle size** | ~15kb (gzipped) |
+| Что                 | Описание                                                                      |
+| ------------------- | ----------------------------------------------------------------------------- |
+| **Технология**      | Реактивные формы на [Preact Signals](https://preactjs.com/guide/v10/signals/) |
+| **Главное отличие** | Декларативные behaviors + типобезопасный доступ к полям                       |
+| **Для кого**        | Сложные формы с зависимыми полями, wizard-формы, async валидация              |
+| **Bundle size**     | ~15kb (gzipped)                                                               |
 
 ---
 
@@ -50,17 +50,16 @@ form.adress.city.setValue('Moscow'); // ❌ ошибка TypeScript!
 ```tsx
 behavior: (path) => {
   // Автоматический расчёт
-  computeFrom([path.price, path.quantity], path.total,
-    (v) => v.price * v.quantity);
+  computeFrom([path.price, path.quantity], path.total, (v) => v.price * v.quantity);
 
   // Условное включение поля
   enableWhen(path.city, (form) => Boolean(form.country));
 
   // Копирование значений
   copyFrom(path.shippingAddress, path.billingAddress, {
-    when: (form) => form.sameAddress
+    when: (form) => form.sameAddress,
   });
-}
+};
 ```
 
 ### 4. Единая система валидации
@@ -74,10 +73,14 @@ validation: (path) => {
   email(path.email);
 
   // Асинхронная с debounce
-  validateAsync(path.email, async (value) => {
-    const exists = await checkEmailExists(value);
-    return exists ? { code: 'taken', message: 'Email занят' } : null;
-  }, { debounce: 500 });
+  validateAsync(
+    path.email,
+    async (value) => {
+      const exists = await checkEmailExists(value);
+      return exists ? { code: 'taken', message: 'Email занят' } : null;
+    },
+    { debounce: 500 }
+  );
 
   // Cross-field
   validate(path.confirmPassword, (value, ctx) => {
@@ -85,7 +88,7 @@ validation: (path) => {
       ? { code: 'mismatch', message: 'Пароли не совпадают' }
       : null;
   });
-}
+};
 ```
 
 ### 5. Framework-agnostic ядро
@@ -104,19 +107,19 @@ console.log(form.valid.value); // true/false
 
 ## Сравнение с конкурентами
 
-| Критерий | ReFormer | React Hook Form | Formik |
-|----------|:--------:|:---------------:|:------:|
-| **Реактивность** | Signals | Proxy + subscribe | Context |
-| **Типобезопасность путей** | `path.email` | строки `"email"` | строки |
-| **Computed fields** | `computeFrom` | ручной useEffect | ручной |
-| **Условное включение** | `enableWhen` | ручной | ручной |
-| **Копирование полей** | `copyFrom` | ручной | ручной |
-| **Async валидация** | debounce | есть | есть |
-| **Cross-field валидация** | `validateTree` | resolver | yup/zod |
-| **Вложенные формы** | GroupNode | FieldArray | FieldArray |
-| **Массивы** | ArrayNode | useFieldArray | FieldArray |
-| **Bundle size** | ~15kb | ~9kb | ~13kb |
-| **Зависимость от React** | только хуки | полная | полная |
+| Критерий                   |    ReFormer    |  React Hook Form  |   Formik   |
+| -------------------------- | :------------: | :---------------: | :--------: |
+| **Реактивность**           |    Signals     | Proxy + subscribe |  Context   |
+| **Типобезопасность путей** |  `path.email`  | строки `"email"`  |   строки   |
+| **Computed fields**        | `computeFrom`  | ручной useEffect  |   ручной   |
+| **Условное включение**     |  `enableWhen`  |      ручной       |   ручной   |
+| **Копирование полей**      |   `copyFrom`   |      ручной       |   ручной   |
+| **Async валидация**        |    debounce    |       есть        |    есть    |
+| **Cross-field валидация**  | `validateTree` |     resolver      |  yup/zod   |
+| **Вложенные формы**        |   GroupNode    |    FieldArray     | FieldArray |
+| **Массивы**                |   ArrayNode    |   useFieldArray   | FieldArray |
+| **Bundle size**            |     ~15kb      |       ~9kb        |   ~13kb    |
+| **Зависимость от React**   |  только хуки   |      полная       |   полная   |
 
 ---
 
@@ -148,16 +151,21 @@ function OrderForm() {
 
 ```tsx
 // ✅ ReFormer — декларативный behavior + чистая вёрстка
-const createOrderForm = () => createForm<OrderForm>({
-  form: {
-    price: { value: 0, component: Input, componentProps: { label: 'Цена', type: 'number' } },
-    quantity: { value: 1, component: Input, componentProps: { label: 'Количество', type: 'number' } },
-    total: { value: 0, component: Input, componentProps: { label: 'Итого', disabled: true } },
-  },
-  behavior: (path) => {
-    computeFrom([path.price, path.quantity], path.total, (v) => v.price * v.quantity);
-  },
-});
+const createOrderForm = () =>
+  createForm<OrderForm>({
+    form: {
+      price: { value: 0, component: Input, componentProps: { label: 'Цена', type: 'number' } },
+      quantity: {
+        value: 1,
+        component: Input,
+        componentProps: { label: 'Количество', type: 'number' },
+      },
+      total: { value: 0, component: Input, componentProps: { label: 'Итого', disabled: true } },
+    },
+    behavior: (path) => {
+      computeFrom([path.price, path.quantity], path.total, (v) => v.price * v.quantity);
+    },
+  });
 
 function OrderForm() {
   const form = useMemo(() => createOrderForm(), []);
@@ -199,22 +207,26 @@ function AddressForm() {
 
 ```tsx
 // ✅ ReFormer — декларативный enableWhen + чистая вёрстка
-const createAddressForm = () => createForm<AddressForm>({
-  form: {
-    country: {
-      value: '',
-      component: Select,
-      componentProps: {
-        label: 'Страна',
-        options: [{ value: 'ru', label: 'Россия' }, { value: 'us', label: 'США' }]
-      }
+const createAddressForm = () =>
+  createForm<AddressForm>({
+    form: {
+      country: {
+        value: '',
+        component: Select,
+        componentProps: {
+          label: 'Страна',
+          options: [
+            { value: 'ru', label: 'Россия' },
+            { value: 'us', label: 'США' },
+          ],
+        },
+      },
+      city: { value: '', component: Input, componentProps: { label: 'Город' } },
     },
-    city: { value: '', component: Input, componentProps: { label: 'Город' } },
-  },
-  behavior: (path) => {
-    enableWhen(path.city, (form) => Boolean(form.country), { resetOnDisable: true });
-  },
-});
+    behavior: (path) => {
+      enableWhen(path.city, (form) => Boolean(form.country), { resetOnDisable: true });
+    },
+  });
 
 function AddressForm() {
   const form = useMemo(() => createAddressForm(), []);
@@ -256,18 +268,23 @@ function CheckoutForm() {
 
 ```tsx
 // ✅ ReFormer — декларативный copyFrom + чистая вёрстка
-const createCheckoutForm = () => createForm<CheckoutForm>({
-  form: {
-    shippingAddress: { value: '', component: Input, componentProps: { label: 'Адрес доставки' } },
-    sameAddress: { value: false, component: Checkbox, componentProps: { label: 'Использовать для оплаты' } },
-    billingAddress: { value: '', component: Input, componentProps: { label: 'Адрес оплаты' } },
-  },
-  behavior: (path) => {
-    copyFrom(path.shippingAddress, path.billingAddress, {
-      when: (form) => form.sameAddress,
-    });
-  },
-});
+const createCheckoutForm = () =>
+  createForm<CheckoutForm>({
+    form: {
+      shippingAddress: { value: '', component: Input, componentProps: { label: 'Адрес доставки' } },
+      sameAddress: {
+        value: false,
+        component: Checkbox,
+        componentProps: { label: 'Использовать для оплаты' },
+      },
+      billingAddress: { value: '', component: Input, componentProps: { label: 'Адрес оплаты' } },
+    },
+    behavior: (path) => {
+      copyFrom(path.shippingAddress, path.billingAddress, {
+        when: (form) => form.sameAddress,
+      });
+    },
+  });
 
 function CheckoutForm() {
   const form = useMemo(() => createCheckoutForm(), []);
@@ -333,11 +350,17 @@ function WizardForm() {
         </>
       )}
 
-      <button type="button" onClick={prevStep} disabled={step === 0}>Назад</button>
+      <button type="button" onClick={prevStep} disabled={step === 0}>
+        Назад
+      </button>
       {step < 2 ? (
-        <button type="button" onClick={nextStep}>Далее</button>
+        <button type="button" onClick={nextStep}>
+          Далее
+        </button>
       ) : (
-        <button type="button" onClick={onSubmit}>Отправить</button>
+        <button type="button" onClick={onSubmit}>
+          Отправить
+        </button>
       )}
     </form>
   );
@@ -345,8 +368,8 @@ function WizardForm() {
 ```
 
 ```tsx
-// ✅ ReFormer — встроенный FormNavigation
-import { FormNavigation } from '@reformer/ui/form-navigation';
+// ✅ ReFormer — встроенный FormWizard
+import { FormWizard } from '@reformer/cdk/form-wizard';
 
 // Валидация по шагам
 const STEP_VALIDATIONS = {
@@ -357,7 +380,7 @@ const STEP_VALIDATIONS = {
 
 function WizardForm() {
   const form = useMemo(() => createForm({ ... }), []);
-  const navRef = useRef<FormNavigationHandle>(null);
+  const navRef = useRef<FormWizardHandle>(null);
 
   const handleSubmit = async () => {
     const result = await navRef.current?.submit(async (values) => {
@@ -366,28 +389,28 @@ function WizardForm() {
   };
 
   return (
-    <FormNavigation ref={navRef} form={form} config={{ stepValidations: STEP_VALIDATIONS }}>
+    <FormWizard ref={navRef} form={form} config={{ stepValidations: STEP_VALIDATIONS }}>
       {/* Шаг 1 */}
-      <FormNavigation.Step component={PersonalInfoStep} control={form} />
+      <FormWizard.Step component={PersonalInfoStep} control={form} />
       {/* Шаг 2 */}
-      <FormNavigation.Step component={AddressStep} control={form} />
+      <FormWizard.Step component={AddressStep} control={form} />
       {/* Шаг 3 */}
-      <FormNavigation.Step component={PaymentStep} control={form} />
+      <FormWizard.Step component={PaymentStep} control={form} />
 
       {/* Кнопки — автоматически скрываются/показываются */}
-      <FormNavigation.Actions onSubmit={handleSubmit}>
-        <FormNavigation.Prev>Назад</FormNavigation.Prev>
-        <FormNavigation.Next>Далее</FormNavigation.Next>
-        <FormNavigation.Submit>Отправить</FormNavigation.Submit>
-      </FormNavigation.Actions>
+      <FormWizard.Actions onSubmit={handleSubmit}>
+        <FormWizard.Prev>Назад</FormWizard.Prev>
+        <FormWizard.Next>Далее</FormWizard.Next>
+        <FormWizard.Submit>Отправить</FormWizard.Submit>
+      </FormWizard.Actions>
 
       {/* Прогресс */}
-      <FormNavigation.Progress>
+      <FormWizard.Progress>
         {({ current, total, percent }) => (
           <div>Шаг {current} из {total} ({percent}%)</div>
         )}
-      </FormNavigation.Progress>
-    </FormNavigation>
+      </FormWizard.Progress>
+    </FormWizard>
   );
 }
 ```
@@ -403,15 +426,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 // Zod схема — но async валидация отдельно!
-const schema = z.object({
-  username: z.string().min(3).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  password: z.string().min(8),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: 'Пароли не совпадают',
-  path: ['confirmPassword'],
-});
+const schema = z
+  .object({
+    username: z
+      .string()
+      .min(3)
+      .regex(/^[a-zA-Z0-9_]+$/),
+    email: z.string().email(),
+    password: z.string().min(8),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Пароли не совпадают',
+    path: ['confirmPassword'],
+  });
 
 function RegistrationForm() {
   const { register, handleSubmit, setError, formState } = useForm({
@@ -443,48 +471,57 @@ function RegistrationForm() {
 
 ```tsx
 // ✅ ReFormer — всё в одном месте + чистая вёрстка
-const createRegistrationForm = () => createForm<RegistrationForm>({
-  form: {
-    username: { value: '', component: Input, componentProps: { label: 'Логин' } },
-    email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } },
-    password: { value: '', component: InputPassword, componentProps: { label: 'Пароль' } },
-    confirmPassword: { value: '', component: InputPassword, componentProps: { label: 'Подтвердите пароль' } },
-  },
-  validation: (path) => {
-    // Синхронная
-    required(path.username, { message: 'Обязательное поле' });
-    minLength(path.username, 3, { message: 'Минимум 3 символа' });
-    pattern(path.username, /^[a-zA-Z0-9_]+$/, { message: 'Только латиница' });
+const createRegistrationForm = () =>
+  createForm<RegistrationForm>({
+    form: {
+      username: { value: '', component: Input, componentProps: { label: 'Логин' } },
+      email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } },
+      password: { value: '', component: InputPassword, componentProps: { label: 'Пароль' } },
+      confirmPassword: {
+        value: '',
+        component: InputPassword,
+        componentProps: { label: 'Подтвердите пароль' },
+      },
+    },
+    validation: (path) => {
+      // Синхронная
+      required(path.username, { message: 'Обязательное поле' });
+      minLength(path.username, 3, { message: 'Минимум 3 символа' });
+      pattern(path.username, /^[a-zA-Z0-9_]+$/, { message: 'Только латиница' });
 
-    required(path.email);
-    email(path.email);
-    required(path.password);
-    minLength(path.password, 8);
+      required(path.email);
+      email(path.email);
+      required(path.password);
+      minLength(path.password, 8);
 
-    // Кастомная
-    validate(path.password, (value) => {
-      if (!/[A-Z]/.test(value) || !/[a-z]/.test(value) || !/\d/.test(value)) {
-        return { code: 'weak', message: 'Нужны заглавные, строчные и цифры' };
-      }
-      return null;
-    });
+      // Кастомная
+      validate(path.password, (value) => {
+        if (!/[A-Z]/.test(value) || !/[a-z]/.test(value) || !/\d/.test(value)) {
+          return { code: 'weak', message: 'Нужны заглавные, строчные и цифры' };
+        }
+        return null;
+      });
 
-    // Cross-field
-    validate(path.confirmPassword, (value, ctx) => {
-      if (value !== ctx.form.password.value.value) {
-        return { code: 'mismatch', message: 'Пароли не совпадают' };
-      }
-      return null;
-    });
+      // Cross-field
+      validate(path.confirmPassword, (value, ctx) => {
+        if (value !== ctx.form.password.value.value) {
+          return { code: 'mismatch', message: 'Пароли не совпадают' };
+        }
+        return null;
+      });
 
-    // Async с debounce
-    validateAsync(path.username, async (value) => {
-      if (value.length < 3) return null;
-      const exists = await api.checkUsername(value);
-      return exists ? { code: 'taken', message: 'Логин занят' } : null;
-    }, { debounce: 500 });
-  },
-});
+      // Async с debounce
+      validateAsync(
+        path.username,
+        async (value) => {
+          if (value.length < 3) return null;
+          const exists = await api.checkUsername(value);
+          return exists ? { code: 'taken', message: 'Логин занят' } : null;
+        },
+        { debounce: 500 }
+      );
+    },
+  });
 
 function RegistrationForm() {
   const form = useMemo(() => createRegistrationForm(), []);
@@ -527,7 +564,8 @@ function AddressForm() {
   useEffect(() => {
     if (country) {
       setLoading(true);
-      api.getCities(country)
+      api
+        .getCities(country)
         .then(setCities)
         .finally(() => setLoading(false));
       setValue('city', ''); // сброс города
@@ -546,7 +584,11 @@ function AddressForm() {
 
       <select {...register('city')} disabled={!country || loading}>
         <option value="">{loading ? 'Загрузка...' : 'Выберите город'}</option>
-        {cities.map(city => <option key={city} value={city}>{city}</option>)}
+        {cities.map((city) => (
+          <option key={city} value={city}>
+            {city}
+          </option>
+        ))}
       </select>
     </form>
   );
@@ -555,36 +597,44 @@ function AddressForm() {
 
 ```tsx
 // ✅ ReFormer — декларативный watchField + чистая вёрстка
-const createAddressForm = () => createForm<AddressForm>({
-  form: {
-    country: {
-      value: '',
-      component: Select,
-      componentProps: {
-        label: 'Страна',
-        options: [{ value: 'ru', label: 'Россия' }, { value: 'us', label: 'США' }]
-      }
+const createAddressForm = () =>
+  createForm<AddressForm>({
+    form: {
+      country: {
+        value: '',
+        component: Select,
+        componentProps: {
+          label: 'Страна',
+          options: [
+            { value: 'ru', label: 'Россия' },
+            { value: 'us', label: 'США' },
+          ],
+        },
+      },
+      city: {
+        value: '',
+        component: Select,
+        componentProps: { label: 'Город', options: [] },
+      },
     },
-    city: {
-      value: '',
-      component: Select,
-      componentProps: { label: 'Город', options: [] }
-    },
-  },
-  behavior: (path) => {
-    watchField(path.country, async (country, ctx) => {
-      if (country) {
-        const cities = await api.getCities(country);
-        ctx.form.city.setComponentProps({
-          options: cities.map(c => ({ value: c, label: c })),
-        });
-        ctx.setFieldValue('city', '');
-      }
-    }, { debounce: 300 });
+    behavior: (path) => {
+      watchField(
+        path.country,
+        async (country, ctx) => {
+          if (country) {
+            const cities = await api.getCities(country);
+            ctx.form.city.setComponentProps({
+              options: cities.map((c) => ({ value: c, label: c })),
+            });
+            ctx.setFieldValue('city', '');
+          }
+        },
+        { debounce: 300 }
+      );
 
-    enableWhen(path.city, (form) => Boolean(form.country));
-  },
-});
+      enableWhen(path.city, (form) => Boolean(form.country));
+    },
+  });
 
 function AddressForm() {
   const form = useMemo(() => createAddressForm(), []);
@@ -709,7 +759,7 @@ function MyForm() {
 // ❌ React Hook Form — useFieldArray
 function OrderForm() {
   const { control, register, watch } = useForm({
-    defaultValues: { items: [{ title: '', price: 0 }] }
+    defaultValues: { items: [{ title: '', price: 0 }] },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
@@ -724,7 +774,9 @@ function OrderForm() {
         <div key={field.id}>
           <input {...register(`items.${index}.title`)} />
           <input {...register(`items.${index}.price`)} type="number" />
-          <button type="button" onClick={() => remove(index)}>Удалить</button>
+          <button type="button" onClick={() => remove(index)}>
+            Удалить
+          </button>
         </div>
       ))}
       <button type="button" onClick={() => append({ title: '', price: 0 })}>
@@ -845,46 +897,46 @@ sequenceDiagram
 
 ### Иерархия узлов
 
-| Узел | Описание | Пример |
-|------|----------|--------|
-| `FieldNode<T>` | Одиночное поле | `form.email`, `form.age` |
+| Узел           | Описание              | Пример                              |
+| -------------- | --------------------- | ----------------------------------- |
+| `FieldNode<T>` | Одиночное поле        | `form.email`, `form.age`            |
 | `GroupNode<T>` | Группа полей (объект) | `form.address` → `{ city, street }` |
-| `ArrayNode<T>` | Массив элементов | `form.items` → `[{ title, price }]` |
+| `ArrayNode<T>` | Массив элементов      | `form.items` → `[{ title, price }]` |
 
 ---
 
 ## Доступные Behaviors
 
-| Behavior | Описание | Пример |
-|----------|----------|--------|
-| `computeFrom` | Вычисляемое поле | `total = price × quantity` |
-| `enableWhen` | Условное включение | Город активен если выбрана страна |
-| `disableWhen` | Условное отключение | Поле readonly при подтверждении |
-| `copyFrom` | Копирование значений | Адрес доставки → адрес оплаты |
-| `watchField` | Отслеживание изменений | Загрузка городов при смене страны |
-| `transformValue` | Трансформация значения | Автоматический uppercase |
-| `resetWhen` | Сброс при условии | Очистить карту если оплата наличными |
-| `syncFields` | Синхронизация полей | Двусторонняя связь |
-| `revalidateWhen` | Перевалидация | Проверить сумму при изменении лимита |
+| Behavior         | Описание               | Пример                               |
+| ---------------- | ---------------------- | ------------------------------------ |
+| `computeFrom`    | Вычисляемое поле       | `total = price × quantity`           |
+| `enableWhen`     | Условное включение     | Город активен если выбрана страна    |
+| `disableWhen`    | Условное отключение    | Поле readonly при подтверждении      |
+| `copyFrom`       | Копирование значений   | Адрес доставки → адрес оплаты        |
+| `watchField`     | Отслеживание изменений | Загрузка городов при смене страны    |
+| `transformValue` | Трансформация значения | Автоматический uppercase             |
+| `resetWhen`      | Сброс при условии      | Очистить карту если оплата наличными |
+| `syncFields`     | Синхронизация полей    | Двусторонняя связь                   |
+| `revalidateWhen` | Перевалидация          | Проверить сумму при изменении лимита |
 
 ---
 
 ## Встроенные валидаторы
 
-| Валидатор | Описание |
-|-----------|----------|
-| `required` | Обязательное поле |
-| `email` | Формат email |
-| `minLength` / `maxLength` | Длина строки |
-| `min` / `max` | Числовой диапазон |
-| `pattern` | Регулярное выражение |
-| `url` | Формат URL |
-| `phone` | Формат телефона |
-| `date` | Валидация даты |
-| `number` | Числовая валидация |
-| `validate` | Кастомная синхронная |
-| `validateAsync` | Кастомная асинхронная |
-| `validateTree` | Cross-field валидация |
+| Валидатор                 | Описание              |
+| ------------------------- | --------------------- |
+| `required`                | Обязательное поле     |
+| `email`                   | Формат email          |
+| `minLength` / `maxLength` | Длина строки          |
+| `min` / `max`             | Числовой диапазон     |
+| `pattern`                 | Регулярное выражение  |
+| `url`                     | Формат URL            |
+| `phone`                   | Формат телефона       |
+| `date`                    | Валидация даты        |
+| `number`                  | Числовая валидация    |
+| `validate`                | Кастомная синхронная  |
+| `validateAsync`           | Кастомная асинхронная |
+| `validateTree`            | Cross-field валидация |
 
 ---
 

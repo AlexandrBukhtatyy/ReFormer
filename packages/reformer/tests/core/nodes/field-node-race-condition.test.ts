@@ -499,4 +499,135 @@ describe('FieldNode - Race Condition Protection', () => {
       expect(() => field.dispose()).not.toThrow();
     });
   });
+
+  describe('AbortController integration', () => {
+    it('should abort previous async validators when new validation starts', async () => {
+      const abortedFlags: boolean[] = [];
+
+      const validator: AsyncValidatorFn<string> = async (_value, options) => {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(resolve, 200);
+            options?.signal?.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+          return null;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') {
+            abortedFlags.push(true);
+          }
+          throw e;
+        }
+      };
+
+      const field = new FieldNode({
+        value: '',
+        component: null as ComponentInstance,
+        asyncValidators: [validator],
+      });
+
+      // Первая валидация
+      field.setValue('first');
+      const promise1 = field.validate();
+
+      // Через 50ms запускаем вторую
+      await new Promise((r) => setTimeout(r, 50));
+      field.setValue('second');
+      const promise2 = field.validate();
+
+      await Promise.all([promise1, promise2]);
+
+      // Первая валидация должна быть отменена
+      expect(abortedFlags.length).toBe(1);
+    });
+
+    it('should pass signal to validators for cancellation', async () => {
+      let receivedSignal: AbortSignal | undefined;
+
+      const validator: AsyncValidatorFn<string> = async (_value, options) => {
+        receivedSignal = options?.signal;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return null;
+      };
+
+      const field = new FieldNode({
+        value: '',
+        component: null as ComponentInstance,
+        asyncValidators: [validator],
+      });
+
+      field.setValue('test');
+      await field.validate();
+
+      expect(receivedSignal).toBeDefined();
+      expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('should abort validation on dispose', async () => {
+      let wasAborted = false;
+
+      const validator: AsyncValidatorFn<string> = async (_value, options) => {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(resolve, 500);
+            options?.signal?.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              wasAborted = true;
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+          return null;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') {
+            throw e;
+          }
+          return null;
+        }
+      };
+
+      const field = new FieldNode({
+        value: '',
+        component: null as ComponentInstance,
+        asyncValidators: [validator],
+      });
+
+      field.setValue('test');
+      const validatePromise = field.validate();
+
+      // Dispose через 50ms
+      await new Promise((r) => setTimeout(r, 50));
+      field.dispose();
+
+      await validatePromise;
+
+      expect(wasAborted).toBe(true);
+    });
+
+    it('should work with validators that ignore signal (backward compatible)', async () => {
+      // Валидатор без поддержки signal - должен работать как раньше
+      const validator: AsyncValidatorFn<string> = async (value) => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return value.length < 3 ? { code: 'minLength', message: 'Too short' } : null;
+      };
+
+      const field = new FieldNode({
+        value: '',
+        component: null as ComponentInstance,
+        asyncValidators: [validator],
+      });
+
+      field.setValue('ab');
+      await field.validate();
+
+      expect(field.valid.value).toBe(false);
+      expect(field.errors.value[0].code).toBe('minLength');
+
+      field.setValue('abc');
+      await field.validate();
+
+      expect(field.valid.value).toBe(true);
+    });
+  });
 });

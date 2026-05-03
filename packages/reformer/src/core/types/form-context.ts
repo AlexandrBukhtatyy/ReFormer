@@ -25,6 +25,8 @@
 
 import type { FormProxy } from './form-proxy';
 import type { FieldPathNode } from './field-path';
+import type { FormNode } from '../nodes/form-node';
+import type { FormValue } from './index';
 
 /**
  * Единый контекст для работы с формой
@@ -89,4 +91,27 @@ export interface FormContext<TForm> {
    * ```
    */
   setFieldValue(path: string | FieldPathNode<TForm, unknown>, value: unknown): void;
+
+  /**
+   * Получить поле формы по строковому пути
+   *
+   * Используется для динамического доступа к вложенным полям,
+   * особенно в модульных behavior схемах, применяемых через apply().
+   *
+   * @param path - Строковый путь к полю (например "address.city")
+   * @returns FormNode или undefined если поле не найдено
+   *
+   * @example
+   * ```typescript
+   * // В модульной behavior схеме, применяемой к вложенному полю:
+   * // apply([path.registrationAddress, path.residenceAddress], addressBehavior)
+   *
+   * watchField(path.region, (region, ctx) => {
+   *   // path.city.__path = "registrationAddress.city" или "residenceAddress.city"
+   *   const cityField = ctx.getFieldByPath(path.city.__path);
+   *   cityField?.updateComponentProps({ options: cities });
+   * });
+   * ```
+   */
+  getFieldByPath(path: string): FormNode<FormValue> | undefined;
 }

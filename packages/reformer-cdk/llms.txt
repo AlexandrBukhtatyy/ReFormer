@@ -1,0 +1,3282 @@
+# ReFormer CDK - LLM Integration Guide
+# AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
+
+> Headless UI components for @reformer/core - form arrays, multi-step wizards, and more
+> Package: @reformer/cdk  •  Version: 1.0.0-beta.2
+
+## Table of Contents
+- 01-overview.md — Overview
+- 02-form-array.md — FormArray
+- 03-form-navigation.md — FormWizard
+- 04-form-field.md — FormField
+- 05-recipes.md — Advanced Recipes
+- 06-troubleshooting.md — Troubleshooting / FAQ
+- API Reference (auto-generated from JSDoc)
+
+## 1. Key Concepts
+
+- **Headless**: No default UI or styles - you build the interface
+- **Compound Components**: Composable, declarative API
+- **Render Props**: Children as function for full control
+- **Context-based**: State shared via React Context
+
+## 2. Components
+
+| Component    | Purpose                    |
+| ------------ | -------------------------- |
+| `FormArray`  | Manage dynamic form arrays |
+| `FormWizard` | Multi-step form wizard     |
+
+## 3. Installation
+
+```bash
+npm install @reformer/cdk @reformer/core
+```
+
+## 4. Import Patterns
+
+```typescript
+// All components
+import { FormArray, FormWizard } from '@reformer/cdk';
+
+// Tree-shaking (recommended)
+import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
+```
+
+## 5. Basic Usage
+
+```tsx
+import { FormArray } from '@reformer/cdk/form-array';
+
+<FormArray.Root control={form.items}>
+  <FormArray.Empty>
+    <p>No items added</p>
+  </FormArray.Empty>
+
+  <FormArray.List>
+    {({ control, index, remove }) => (
+      <div key={control.id}>
+        <h4>Item #{index + 1}</h4>
+        <ItemForm control={control} />
+        <button onClick={remove}>Remove</button>
+      </div>
+    )}
+  </FormArray.List>
+
+  <FormArray.AddButton>Add Item</FormArray.AddButton>
+</FormArray.Root>
+```
+
+## 6. Sub-components
+
+| Component | Props | Purpose |
+|-----------|-------|---------|
+| `FormArray.Root` | `control: ArrayNode<T>` | Context provider |
+| `FormArray.List` | `children: (item) => ReactNode` | Iterates items (render props) |
+| `FormArray.AddButton` | `initialValue?: Partial<T>` | Adds new item |
+| `FormArray.RemoveButton` | - | Removes current item (inside List) |
+| `FormArray.Empty` | `children: ReactNode` | Shows when array is empty |
+| `FormArray.Count` | `render?: (count) => ReactNode` | Displays item count |
+| `FormArray.ItemIndex` | `render?: (index) => ReactNode` | Displays current index |
+
+## 7. List Render Props
+
+```typescript
+interface FormArrayItemRenderProps<T> {
+  control: FormProxy<T>;  // Form control for item
+  index: number;                       // Zero-based index
+  id: string | number;                 // Unique key
+  remove: () => void;                  // Remove this item
+}
+```
+
+## 8. External Control via Ref
+
+```tsx
+import { useRef } from 'react';
+import { FormArray, FormArrayHandle } from '@reformer/cdk/form-array';
+
+const arrayRef = useRef<FormArrayHandle<ItemType>>(null);
+
+// Control from outside
+arrayRef.current?.add({ name: 'New' });
+arrayRef.current?.removeAt(0);
+arrayRef.current?.clear();
+
+<FormArray.Root ref={arrayRef} control={form.items}>
+  ...
+</FormArray.Root>
+```
+
+## 9. FormArrayHandle API
+
+```typescript
+interface FormArrayHandle<T> {
+  add: (value?: Partial<T>) => void;
+  clear: () => void;
+  insert: (index: number, value?: Partial<T>) => void;
+  removeAt: (index: number) => void;
+  length: number;
+  isEmpty: boolean;
+  at: (index: number) => FormProxy<T> | undefined;
+}
+```
+
+## 10. useFormArray Hook
+
+For full customization without compound components:
+
+```tsx
+import { useFormArray } from '@reformer/cdk/form-array';
+
+function CustomList() {
+  const { items, add, isEmpty, length } = useFormArray(form.items);
+
+  return (
+    <div>
+      <span>Total: {length}</span>
+      {items.map(({ control, id, remove }) => (
+        <div key={id}>
+          <ItemForm control={control} />
+          <button onClick={remove}>X</button>
+        </div>
+      ))}
+      {isEmpty && <p>Empty</p>}
+      <button onClick={() => add()}>Add</button>
+    </div>
+  );
+}
+```
+
+## 11. Basic Usage
+
+```tsx
+import { FormWizard } from '@reformer/cdk/form-wizard';
+
+const config = {
+  stepValidations: {
+    1: step1Schema,
+    2: step2Schema,
+  },
+  fullValidation: fullFormSchema,
+};
+
+<FormWizard form={form} config={config}>
+  <FormWizard.Step component={Step1Form} control={form} />
+  <FormWizard.Step component={Step2Form} control={form} />
+
+  <FormWizard.Actions onSubmit={handleSubmit}>
+    {({ prev, next, submit, isFirstStep, isLastStep }) => (
+      <div>
+        {!isFirstStep && <button {...prev}>Back</button>}
+        {!isLastStep ? <button {...next}>Next</button> : <button {...submit}>Submit</button>}
+      </div>
+    )}
+  </FormWizard.Actions>
+</FormWizard>;
+```
+
+## 12. Sub-components
+
+| Component              | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `FormWizard`           | Root provider                              |
+| `FormWizard.Step`      | Renders component when step is current     |
+| `FormWizard.Indicator` | Headless step indicator (render props)     |
+| `FormWizard.Actions`   | Headless navigation buttons (render props) |
+| `FormWizard.Progress`  | Headless progress display (render props)   |
+
+## 13. FormWizard.Indicator
+
+```tsx
+<FormWizard.Indicator steps={STEPS}>
+  {({ steps, goToStep, currentStep }) => (
+    <nav>
+      {steps.map((step) => (
+        <button
+          key={step.number}
+          onClick={() => goToStep(step.number)}
+          disabled={!step.canNavigate}
+          aria-current={step.isCurrent ? 'step' : undefined}
+        >
+          {step.isCompleted ? '✓' : step.number} {step.title}
+        </button>
+      ))}
+    </nav>
+  )}
+</FormWizard.Indicator>
+```
+
+### Step Definition
+
+```typescript
+interface FormWizardIndicatorStep {
+  number: number; // 1-based step number
+  title: string;
+  icon?: string;
+}
+```
+
+### Render Props
+
+```typescript
+interface FormWizardIndicatorRenderProps {
+  steps: FormWizardIndicatorStepWithState[];
+  goToStep: (step: number) => boolean;
+  currentStep: number;
+  totalSteps: number;
+  completedSteps: number[];
+}
+
+interface FormWizardIndicatorStepWithState {
+  number: number;
+  title: string;
+  icon?: string;
+  isCurrent: boolean;
+  isCompleted: boolean;
+  canNavigate: boolean;
+}
+```
+
+## 14. FormWizard.Actions
+
+```tsx
+<FormWizard.Actions onSubmit={handleSubmit}>
+  {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
+    <div>
+      {!isFirstStep && (
+        <button onClick={prev.onClick} disabled={prev.disabled}>
+          Back
+        </button>
+      )}
+      {!isLastStep ? (
+        <button onClick={next.onClick} disabled={next.disabled}>
+          {isValidating ? 'Validating...' : 'Next'}
+        </button>
+      ) : (
+        <button onClick={submit.onClick} disabled={submit.disabled}>
+          {submit.isSubmitting ? 'Submitting...' : 'Submit'}
+        </button>
+      )}
+    </div>
+  )}
+</FormWizard.Actions>
+```
+
+### Render Props
+
+```typescript
+interface FormWizardActionsRenderProps {
+  prev: { onClick: () => void; disabled: boolean };
+  next: { onClick: () => void; disabled: boolean };
+  submit: { onClick: () => void; disabled: boolean; isSubmitting: boolean };
+  isFirstStep: boolean;
+  isLastStep: boolean;
+  isValidating: boolean;
+  isSubmitting: boolean;
+}
+```
+
+## 15. FormWizard.Progress
+
+```tsx
+<FormWizard.Progress>
+  {({ current, total, percent }) => (
+    <div>
+      Step {current} of {total} ({percent}%)
+      <div style={{ width: `${percent}%` }} />
+    </div>
+  )}
+</FormWizard.Progress>
+```
+
+### Render Props
+
+```typescript
+interface FormWizardProgressRenderProps {
+  current: number;
+  total: number;
+  percent: number;
+  completedCount: number;
+  isFirstStep: boolean;
+  isLastStep: boolean;
+}
+```
+
+## 16. External Control via Ref
+
+```tsx
+const navRef = useRef<FormWizardHandle<FormType>>(null);
+
+// Programmatic navigation
+navRef.current?.goToStep(2);
+navRef.current?.goToNextStep();
+navRef.current?.goToPreviousStep();
+
+// Submit with validation
+const result = await navRef.current?.submit(async (values) => {
+  return api.submit(values);
+});
+
+<FormWizard ref={navRef} form={form} config={config}>
+  ...
+</FormWizard>;
+```
+
+## 17. Configuration
+
+```typescript
+interface FormWizardConfig<T> {
+  stepValidations: Record<number, ValidationSchemaFn<T>>;
+  fullValidation: ValidationSchemaFn<T>;
+}
+```
+
+Validation happens automatically:
+
+- On `next.onClick`: validates current step
+- On `submit.onClick`: validates entire form
+
+## 18. Purpose
+
+- Дать минимальный «скелет» поля: label + control + description + error.
+- Не навязывать стилей — каждый sub-компонент рендерит обычные HTML-элементы (или `Slot` через `asChild`).
+- Подписаться на `FieldNode` ровно один раз в `Root` и раздать состояние детям через React Context.
+- Гарантировать корректные ARIA-атрибуты в нетривиальных сценариях (multi-error, отсутствие label, async pending).
+
+В отличие от `FormField` из `@reformer/ui-kit`, который рендерит готовый layout (label сверху, ошибка снизу), `FormField` из `@reformer/cdk` ничего не рендерит сверх минимально необходимого и нужен, когда требуется собственный layout.
+
+## 19. Components
+
+| Component | Purpose | Notes |
+|---|---|---|
+| `FormField.Root` | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`. | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение. |
+| `FormField.Label` | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`. | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label. |
+| `FormField.Control` | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur`. |
+| `FormField.Error` | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`. | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок). |
+| `FormField.Description` | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`. | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`. |
+| `useFormFieldContext<T>()` | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`. | Бросает `Error`, если вызван вне `FormField.Root`. |
+| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`. | Удобен, когда нужен полный контроль над DOM-структурой и пропсами. |
+
+## 20. Examples
+
+### Базовый сценарий — auto-render всех частей
+
+Минимум кода: `Label` и `Control` сами берут текст / компонент из конфига поля, `Error` прячется до touch.
+
+```tsx
+import { FormField } from '@reformer/cdk/form-field';
+
+function EmailField({ control }: { control: typeof form.email }) {
+  return (
+    <FormField.Root control={control}>
+      <FormField.Label />
+      <FormField.Control />
+      <FormField.Error />
+    </FormField.Root>
+  );
+}
+```
+
+`Label` рендерит текст из `componentProps.label`, `Control` — компонент, заданный через `component:` в схеме формы (`Input`, `InputPassword`, `Select`...).
+
+### Custom layout — обёртки и стилизация
+
+Когда требуется горизонтальный layout, иконка слева и helper-текст:
+
+```tsx
+<FormField.Root control={form.email} hasDescription>
+  <div className="grid grid-cols-[120px_1fr] items-start gap-3">
+    <FormField.Label className="pt-2 text-sm font-medium text-gray-700" />
+
+    <div className="space-y-1">
+      <FormField.Control asChild>
+        <Input type="email" leftIcon={<MailIcon />} className="w-full" />
+      </FormField.Control>
+      <FormField.Description className="text-xs text-gray-500">
+        Мы не передаём email третьим сторонам.
+      </FormField.Description>
+      <FormField.Error className="text-xs text-red-600" />
+    </div>
+  </div>
+</FormField.Root>
+```
+
+Передача `hasDescription` обязательна для того, чтобы `Control` прописал `aria-describedby={descriptionId}`.
+
+### Async-валидация с pending-индикатором
+
+Состояние асинхронной валидации (`pending`) доступно через `useFormFieldContext()`. Удобно показать спиннер или disabled у submit-кнопки.
+
+```tsx
+import { FormField, useFormFieldContext } from '@reformer/cdk/form-field';
+
+function PendingDot() {
+  const { pending } = useFormFieldContext();
+  if (!pending) return null;
+  return <Spinner size="sm" aria-label="Проверяем..." />;
+}
+
+<FormField.Root control={form.username}>
+  <div className="flex items-center gap-2">
+    <FormField.Label />
+    <PendingDot />
+  </div>
+  <FormField.Control />
+  <FormField.Error multi className="text-xs text-red-600" />
+</FormField.Root>
+```
+
+`multi` рендерит все ошибки из `errors[]` (например, async-валидатор может вернуть и «слишком короткое имя», и «уже занято»). Первая ошибка получит `id={errorId}` для `aria-errormessage`.
+
+### Интеграция с готовым `FormField` из `@reformer/ui-kit`
+
+`@reformer/ui-kit` экспортирует свой `FormField`, который собран на этих compound-блоках. В большинстве форм его достаточно — без необходимости опускаться на уровень CDK:
+
+```tsx
+import { FormField } from '@reformer/ui-kit';
+
+<form>
+  <FormField control={form.username} className="mb-4" />
+  <FormField control={form.email} className="mb-4" />
+</form>
+```
+
+Если нужен один кастомный кейс среди типовых — комбинируйте: `FormField` из ui-kit для большинства полей и `FormField.Root` из cdk для нестандартного:
+
+```tsx
+import { FormField } from '@reformer/ui-kit';
+import { FormField as FieldRoot } from '@reformer/cdk/form-field';
+
+<>
+  <FormField control={form.email} />
+  <FieldRoot.Root control={form.captcha}>
+    <FieldRoot.Label />
+    <div className="flex items-center gap-2">
+      <FieldRoot.Control asChild>
+        <Input className="flex-1" />
+      </FieldRoot.Control>
+      <CaptchaImage />
+    </div>
+    <FieldRoot.Error />
+  </FieldRoot.Root>
+</>
+```
+
+## 21. Anti-patterns
+
+- **Использовать `FormField.Label` / `Error` / `Control` без `FormField.Root`.** Каждый дочерний компонент вызывает `useFormFieldContext()` и бросает: `FormField.* components must be used within <FormField.Root>`.
+- **Подписываться на `useFormControl(control)` рядом с `FormField.Root`.** `Root` уже подписан — лишняя подписка приведёт к двойному ререндеру. Используйте `useFormFieldContext()` для доступа к состоянию.
+- **Передавать `id` руками в `Control` / `Label`.** ID назначаются автоматически из `useId()`. Если нужен предсказуемый ID для тестов, передайте `id="my-field"` в `Root` — все потомки получат `control-my-field`, `label-my-field`, …
+- **Забывать `hasDescription` при наличии `FormField.Description`.** Без флага `Control` не пропишет `aria-describedby={descriptionId}`, и screen reader не зачитает helper-текст.
+- **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `errors`/`shouldShowError`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
+- **Применять `asChild` к компоненту, который не пробрасывает `ref`/`...props`.** `Slot` объединяет пропсы и ref в дочерний элемент; если потомок их не принимает, `aria-*`-атрибуты потеряются.
+
+## 22. Troubleshooting
+
+- **`Error: FormField.* components must be used within <FormField.Root>`.** Проверьте, что вызов `FormField.Label` / `Control` / `Error` обёрнут в `FormField.Root` и компонент не рендерится в портале выше провайдера.
+- **`Label` ничего не показывает.** В схеме поля нет `componentProps.label`. Вариант: задайте `label` в схеме, или передайте `children` в `FormField.Label`, или поставьте `forceRender`.
+- **`Control` рендерит «голый» `<input>` без стилей.** Auto-mode рендерит `control.component` — убедитесь, что в схеме указан компонент (`component: Input`). Иначе используйте `asChild` + свой компонент.
+- **`aria-describedby` пустой при наличии `Description`.** Не передан `hasDescription` в `Root`. Это не «магический» флаг — без него `Control` не знает, что description есть в дереве.
+- **`FormField.Error` не появляется при наличии ошибки.** Поле не помечено как touched. Используйте `form.markAsTouched()` или `control.markAsTouched()` перед сабмитом, либо настройте `revalidateWhen` чтобы помечать touched по `change`.
+- **При async-валидации индикатор моргает.** `pending` переключается на каждый `setValue`. Дебаунсьте источник или добавьте задержку перед показом спиннера (например, `useDeferredValue`).
+- **Дубликаты `id` в DOM.** Несколько `FormField.Root` с одинаковым явным `id`. Опустите `id` (тогда работает `useId()`) или дайте уникальные значения.
+
+## 23. See also
+
+- [01-overview.md](01-overview.md) — общее введение в `@reformer/cdk`.
+- [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
+- [05-recipes.md](05-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
+- [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
+- `RegistrationForm.tsx` (monorepo example) — `FormField` из ui-kit вокруг каждого поля.
+- `CreditApplicationForm` (monorepo example) — поля внутри multi-step формы.
+- [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
+
+## 24. Nested FormArray
+
+### Problem
+
+В одной форме нужно несколько уровней вложенности массивов: например, `properties[]` (имущество клиента) и внутри каждого — `coOwners[]` (совладельцы). Контролы вложенных массивов — это `ArrayNode<T>` внутри `FormProxy<Property>`, и стандартного `FormArray.Root + List` достаточно, чтобы рендерить любую глубину.
+
+### Solution
+
+```tsx
+import { FormArray } from '@reformer/cdk/form-array';
+import { FormField } from '@reformer/ui-kit';
+
+<FormArray.Root control={form.properties}>
+  <FormArray.List className="space-y-4">
+    {({ control: property, index, remove }) => (
+      <fieldset className="border rounded p-4">
+        <legend className="flex justify-between w-full">
+          <span>Имущество #{index + 1}</span>
+          <button type="button" onClick={remove}>×</button>
+        </legend>
+
+        <FormField control={property.address} />
+        <FormField control={property.estimatedValue} />
+
+        <h4 className="mt-4 mb-2">Совладельцы</h4>
+        <FormArray.Root control={property.coOwners}>
+          <FormArray.List className="space-y-2">
+            {({ control: owner, index: ownerIdx, remove: removeOwner }) => (
+              <div className="flex gap-2">
+                <FormField control={owner.fullName} className="flex-1" />
+                <FormField control={owner.share} className="w-24" />
+                <button type="button" onClick={removeOwner}>×</button>
+              </div>
+            )}
+          </FormArray.List>
+          <FormArray.AddButton className="btn-secondary mt-2">
+            + Добавить совладельца
+          </FormArray.AddButton>
+        </FormArray.Root>
+      </fieldset>
+    )}
+  </FormArray.List>
+  <FormArray.AddButton className="btn-primary">+ Добавить имущество</FormArray.AddButton>
+</FormArray.Root>
+```
+
+### Notes
+
+- Каждый `FormArray.Root` создаёт собственный `FormArrayContext`. Внутренний `useFormArrayContext()` (например, в `AddButton`) видит ближайший провайдер — в примере выше `coOwners`, не `properties`.
+- `FormArray.List` мемоизирует элементы по `length` массива (см. `useFormArray`); смена порядка/количества внутреннего массива не дёргает внешний `List`.
+- `useFormArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
+- Рендер-проп `FormArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
+
+## 25. Custom AddButton
+
+### Problem
+
+`FormArray.AddButton` рендерит обычный `<button>` (или Slot через `asChild`). Иногда нужно совсем другое UI: dropdown с выбором типа, drag-drop файлов, шаблоны заготовок. Самый чистый путь — обойти compound-компонент и вызвать `useFormArrayContext()` напрямую.
+
+### Solution
+
+```tsx
+import { useFormArrayContext } from '@reformer/cdk/form-array';
+import { Menu } from '@/ui';
+
+function AddPropertyMenu() {
+  const { add } = useFormArrayContext<Property>();
+
+  return (
+    <Menu>
+      <Menu.Trigger className="btn-primary">+ Добавить имущество ▾</Menu.Trigger>
+      <Menu.Content>
+        <Menu.Item onSelect={() => add({ type: 'apartment' })}>Квартира</Menu.Item>
+        <Menu.Item onSelect={() => add({ type: 'house', estimatedValue: 0 })}>Дом</Menu.Item>
+        <Menu.Item onSelect={() => add({ type: 'commercial' })}>Коммерческое</Menu.Item>
+      </Menu.Content>
+    </Menu>
+  );
+}
+
+<FormArray.Root control={form.properties}>
+  <FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
+  <AddPropertyMenu />
+</FormArray.Root>
+```
+
+### Notes
+
+- Хук работает только внутри `FormArray.Root` — снаружи бросает `Error: FormArray.* components must be used within FormArray.Root`.
+- `add(value?: Partial<T>)` пропускает значение в `control.push(value)` — не задавать поля можно, ReFormer возьмёт значения по умолчанию из схемы.
+- Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FormArrayHandle<T>>` + `arrayRef.current?.add(...)`.
+- Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFormArray`).
+
+## 26. Conditional / dynamic step count in FormWizard
+
+### Problem
+
+`FormWizard` считает количество шагов через `Children.forEach` по `FormWizard.Step` детям (см. `FormWizard.tsx`). Если шаг условный (например, «верификация документов» нужна только для суммы > 1 000 000), достаточно условного рендера: `{showVerification && <FormWizard.Step ... />}`. `totalSteps` пересчитается, индикатор сожмётся.
+
+### Solution
+
+```tsx
+import { useFormControl } from '@reformer/core';
+import { FormWizard } from '@reformer/cdk/form-wizard';
+
+function CreditWizard({ form, navConfig }: Props) {
+  const { value: amount } = useFormControl(form.amount);
+  const needsVerification = amount > 1_000_000;
+
+  // Шаг 4 нужен только для крупных сумм
+  const stepValidations = useMemo(
+    () => ({
+      1: amountValidation,
+      2: personalValidation,
+      3: contactValidation,
+      ...(needsVerification && { 4: verificationValidation }),
+      // последний шаг — confirmation, его номер сдвигается автоматически
+      [needsVerification ? 5 : 4]: confirmationValidation,
+    }),
+    [needsVerification]
+  );
+
+  return (
+    <FormWizard form={form} config={{ stepValidations, fullValidation: full }}>
+      <FormWizard.Step component={AmountForm} control={form} />
+      <FormWizard.Step component={PersonalForm} control={form} />
+      <FormWizard.Step component={ContactForm} control={form} />
+      {needsVerification && <FormWizard.Step component={VerificationForm} control={form} />}
+      <FormWizard.Step component={ConfirmationForm} control={form} />
+
+      <FormWizard.Actions onSubmit={handleSubmit}>
+        {({ prev, next, submit, isLastStep }) => (
+          <div>
+            <button {...prev}>Назад</button>
+            {isLastStep ? <button {...submit}>Подтвердить</button> : <button {...next}>Далее</button>}
+          </div>
+        )}
+      </FormWizard.Actions>
+    </FormWizard>
+  );
+}
+```
+
+### Notes
+
+- **Номера шагов сдвигаются** при включении/выключении: `stepValidations[4]` будет либо `verificationValidation`, либо `confirmationValidation` в зависимости от `needsVerification`. Держите словарь валидаций в `useMemo` от того же флага.
+- `currentStep` в state `FormWizard` хранится как число. Если флаг изменился пока пользователь стоит на шаге 4 (где раньше была верификация, а теперь подтверждение), он останется на том же номере — но рендер увидит уже другой `Step`. В критичных кейсах вызывайте `navRef.current?.goToStep(1)` после переключения.
+- `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
+- Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
+
+## 27. Externally-controlled wizard via `useRef<FormWizardHandle>`
+
+### Problem
+
+Кнопка «Сохранить и выйти» лежит вне `FormWizard` (в шапке страницы), нужен программный submit. Аналогично — переход на шаг по клику в стороннем breadcrumb или после ответа из API.
+
+### Solution
+
+```tsx
+import { useRef } from 'react';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
+
+function Page({ form, config }: Props) {
+  const navRef = useRef<FormWizardHandle<CreditApplication>>(null);
+
+  const handleSaveAndExit = async () => {
+    // submit с полной валидацией; null если форма невалидна
+    const result = await navRef.current?.submit(async (values) => {
+      return api.saveDraft(values);
+    });
+    if (result) router.push('/dashboard');
+  };
+
+  const jumpToContacts = () => {
+    const ok = navRef.current?.goToStep(3);
+    if (!ok) toast('Сначала заполните предыдущие шаги');
+  };
+
+  return (
+    <>
+      <header className="flex justify-between p-4 border-b">
+        <button onClick={jumpToContacts}>Перейти к контактам</button>
+        <button onClick={handleSaveAndExit}>Сохранить и выйти</button>
+      </header>
+
+      <FormWizard ref={navRef} form={form} config={config}>
+        <FormWizard.Step component={Step1} control={form} />
+        <FormWizard.Step component={Step2} control={form} />
+        <FormWizard.Step component={Step3} control={form} />
+      </FormWizard>
+    </>
+  );
+}
+```
+
+### Notes
+
+- `FormWizardHandle` exposes: `currentStep`, `completedSteps`, `goToNextStep` (с валидацией), `goToPreviousStep`, `goToStep` (boolean — true если переход разрешён), `submit`, `validateCurrentStep`, `isFirstStep`, `isLastStep`, `isValidating`, `form`.
+- `submit(onSubmit)` сначала прогоняет `config.fullValidation`, затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
+- `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
+- Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
+- Эталон: `CreditApplicationForm.tsx` (monorepo example) — `submit` через ref + центральная кнопка отправки.
+
+## 28. See also
+
+- [02-form-array.md](02-form-array.md) — основы FormArray (compound API, ref-handle).
+- [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
+- [04-form-field.md](04-form-field.md) — компоновка одного поля.
+- [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки и пути их обхода.
+
+## 29. `FormArray.AddButton` не появляется на странице
+
+**Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
+
+**Решение.** Поместите `AddButton` в дерево `Root` либо вызывайте `useFormArrayContext().add()` из своей кнопки (см. [05-recipes.md → Custom AddButton](05-recipes.md)).
+
+```tsx
+<FormArray.Root control={form.items}>
+  <FormArray.List>{renderItem}</FormArray.List>
+  <FormArray.AddButton>+ Добавить</FormArray.AddButton>
+</FormArray.Root>
+```
+
+## 30. `FormArray.List` ререндерит весь массив при изменении одного элемента
+
+**Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FormArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
+
+**Решение.** Вынесите рендер элемента в отдельный компонент, обёрнутый в `React.memo`. Передавайте `control` (стабильный по identity на протяжении жизни элемента) и `id` для key.
+
+```tsx
+const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
+  <PropertyForm control={control} />
+));
+
+<FormArray.List>
+  {({ control, id }) => <Item key={id} control={control} />}
+</FormArray.List>
+```
+
+`useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
+
+## 31. `FormWizardHandle.goToStep` возвращает `false`
+
+**Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
+
+**Решение.**
+- Для последовательного перехода вперёд используйте `await navRef.current?.goToNextStep()` — он сам валидирует и помечает шаг completed.
+- Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
+- Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
+
+## 32. Шаг без `stepValidations[N]` пропускается без проверки
+
+**Причина.** `validateCurrentStep` сначала смотрит `config.stepValidations[currentStep]`. Если схемы нет — выводит `console.warn` и возвращает `true` (шаг считается валидным).
+
+**Решение.** Добавьте схему для каждого шага в `stepValidations`. Если шаг чисто информационный (например, «Подтверждение»), используйте схему-no-op: `() => ({})` (или импортируйте noop-validation из вашего набора).
+
+```typescript
+const config: FormWizardConfig<MyForm> = {
+  stepValidations: {
+    1: amountSchema,
+    2: personalSchema,
+    3: () => ({}), // подтверждение, нет полей для валидации
+  },
+  fullValidation: fullSchema,
+};
+```
+
+## 33. `useFormArrayContext` бросает исключение
+
+**Сообщение.** `Error: FormArray.* components must be used within FormArray.Root or RenderSchema FormArray`.
+
+**Причина.** Хук вызван вне дерева `FormArray.Root`. Часто — в компоненте, который рендерится через портал (Modal, Tooltip), либо рядом с `Root`, а не внутри.
+
+**Решение.** Поместите потребителя внутрь `FormArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FormArrayHandle` снаружи.
+
+## 34. `useFormFieldContext` бросает исключение
+
+**Сообщение.** `Error: FormField.* components must be used within <FormField.Root>`.
+
+**Причина.** Тот же сценарий: `FormField.Label` / `Control` / `Error` без обёрнутого `FormField.Root`. Также возникает, если `Root` рендерит `null` (например, когда поле скрыто `enableWhen`) — Label/Error всё равно бросят, если рендерятся параллельно.
+
+**Решение.** Перепроверьте дерево; если поле условное — выносите всю секцию в `if (!visible) return null;` снаружи `FormField.Root`.
+
+## 35. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
+
+**Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
+
+**Решение.**
+- На сабмите формы вызовите `form.markAsTouched()` перед `await form.validate()`.
+- Для немедленной валидации поля используйте `revalidateWhen({ when: 'change' })` behavior, либо вручную `control.markAsTouched()` в `onChange`.
+
+```tsx
+const handleSubmit = async () => {
+  form.markAsTouched();
+  await form.validate();
+  if (form.valid.value) { /* submit */ }
+};
+```
+
+## 36. `FormField.Description` есть в DOM, но `aria-describedby` пустой
+
+**Причина.** В `FormField.Root` не передан проп `hasDescription`. Без него `Control` не вписывает `descriptionId` в `aria-describedby` (это сделано осознанно — чтобы избежать двойного рендера от динамической регистрации).
+
+**Решение.** Установите `hasDescription` в `Root` явно.
+
+```tsx
+<FormField.Root control={form.email} hasDescription>
+  <FormField.Label />
+  <FormField.Control />
+  <FormField.Description>Hint</FormField.Description>
+</FormField.Root>
+```
+
+## 37. Multi-step submit срабатывает раньше валидации последнего шага
+
+**Причина.** `FormWizard.Actions` диспатчит `submit` сразу при `onClick`. Если пользователь нажал Submit, не пройдя валидацию последнего шага через Next, `goToNextStep` не вызывался — но `submit` всё равно запустит `config.fullValidation` поверх всей формы. Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно где именно проблема.
+
+**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Или используйте `FormWizard.Actions`-render, где `submit.disabled === true` пока поля не валидны (Actions сам отключает кнопку при `isValidating`).
+
+```tsx
+const handleSubmit = async () => {
+  const stepOk = await navRef.current?.validateCurrentStep();
+  if (!stepOk) return;
+  await navRef.current?.submit(api.submit);
+};
+```
+
+## 38. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
+
+**Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
+
+**Решение.** Используйте `id` из item-render-props, который ReFormer присваивает каждому элементу при `push`/`insert`:
+
+```tsx
+<FormArray.List>
+  {({ control, id, remove }) => (
+    <div key={id}>           {/* ✓ стабильный id */}
+      <ItemForm control={control} />
+    </div>
+  )}
+</FormArray.List>
+```
+
+Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
+
+## 39. `FormWizard` показывает «No validation schema for step N» в консоли
+
+**Причина.** `validateCurrentStep` warn'ит, если `config.stepValidations[currentStep]` отсутствует.
+
+**Решение.** Добавьте schema для шага N или, если шаг намеренно без валидации, передайте noop: `[N]: () => ({})`.
+
+## 40. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
+
+**Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
+
+**Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useFormControl(form.items).length` — это даст подписку.
+
+## 41. See also
+
+- [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [05-recipes.md](05-recipes.md).
+- [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.
+
+## 42. API Reference
+
+_Auto-generated from JSDoc on public exports._
+
+### FormArray
+
+**Kind:** `const`
+
+FormArray - Headless compound component for managing form arrays
+
+Provides complete flexibility for building array UI while handling
+all the form array state and actions internally.
+
+#### Features
+- **Headless** - complete freedom in building UI
+- **Compound Components** - declarative API via nested components
+- **External Control** - control from outside via ref (useImperativeHandle)
+- **Type Safe** - full TypeScript support
+
+#### Sub-components
+- `FormArray.Root` - context provider, accepts ref for external control
+- `FormArray.List` - iterates over array items
+- `FormArray.AddButton` - button to add item
+- `FormArray.RemoveButton` - button to remove item (inside List)
+- `FormArray.Empty` - content for empty state
+- `FormArray.Count` - display item count
+- `FormArray.ItemIndex` - display item index (inside List)
+
+#### FormArrayHandle API (ref)
+- `add(value?)` - add item to the end
+- `insert(index, value?)` - insert item at position
+- `removeAt(index)` - remove item by index
+- `clear()` - clear array
+- `at(index)` - get item control by index
+- `length` - current item count
+- `isEmpty` - empty array flag
+
+**Signature:**
+```typescript
+export const FormArray
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormArray.Root control={form.properties}>
+<h3>Properties (<FormArray.Count />)</h3>
+
+<FormArray.Empty>
+<p className="text-gray-500">No properties added</p>
+</FormArray.Empty>
+
+<FormArray.List className="space-y-4">
+{({ control }) => (
+<div className="p-4 border rounded">
+<div className="flex justify-between mb-2">
+ <h4>Property #<FormArray.ItemIndex /></h4>
+ <FormArray.RemoveButton className="text-red-500">
+   Remove
+ </FormArray.RemoveButton>
+</div>
+<PropertyForm control={control} />
+</div>
+)}
+</FormArray.List>
+
+<FormArray.AddButton className="mt-4 btn-primary">
++ Add Property
+</FormArray.AddButton>
+</FormArray.Root>
+```
+
+External control via ref
+```tsx
+import { useRef } from 'react';
+import { FormArray, FormArrayHandle } from '@reformer/cdk/form-array';
+
+function PropertiesManager() {
+const arrayRef = useRef<FormArrayHandle<Property>>(null);
+
+// Programmatic control from outside
+const handleAddApartment = () => {
+arrayRef.current?.add({ type: 'apartment', estimatedValue: 0 });
+};
+
+const handleClearAll = () => {
+if (confirm('Delete all items?')) {
+arrayRef.current?.clear();
+}
+};
+
+const handleRemoveFirst = () => {
+if (arrayRef.current && arrayRef.current.length > 0) {
+arrayRef.current.removeAt(0);
+}
+};
+
+const handleInsertAtStart = () => {
+arrayRef.current?.insert(0, { type: 'house' });
+};
+
+return (
+<div>
+<div className="toolbar">
+<button onClick={handleAddApartment}>+ Apartment</button>
+<button onClick={handleInsertAtStart}>Insert at start</button>
+<button onClick={handleRemoveFirst}>Remove first</button>
+<button onClick={handleClearAll}>Clear all</button>
+</div>
+
+<FormArray.Root ref={arrayRef} control={form.properties}>
+<FormArray.List>
+ {({ control }) => <PropertyForm control={control} />}
+</FormArray.List>
+</FormArray.Root>
+</div>
+);
+}
+```
+
+Using useFormArray hook for full customization
+```tsx
+import { useFormArray } from '@reformer/cdk/form-array';
+
+function CustomArrayUI() {
+const { items, add, isEmpty, length } = useFormArray(form.properties);
+
+return (
+<div>
+<span>Total: {length}</span>
+{items.map(({ control, id, remove }) => (
+<CustomCard key={id} onDelete={remove}>
+ <PropertyForm control={control} />
+</CustomCard>
+))}
+{isEmpty && <EmptyState />}
+<button onClick={() => add()}>Add</button>
+</div>
+);
+}
+```
+
+_Source: src/components/form-array/FormArray.tsx_
+
+### FormArrayAddButton
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const FormArrayAddButton
+```
+
+_Source: src/components/form-array/FormArrayAddButton.tsx_
+
+### FormArrayAddButtonProps
+
+**Kind:** `interface`
+
+Props for FormArray.AddButton component
+
+Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий) —
+для совместимости. Для type-safe initialValue передавайте generic явно
+(`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
+`FormArraySection<T>` из `@reformer/ui-kit`.
+
+**Signature:**
+```typescript
+export interface FormArrayAddButtonProps<T extends FormFields = FormFields> extends Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
+  /** Initial value for the new item */
+  initialValue?: Partial<T>;
+  /** Custom render function for the button */
+  asChild?: boolean;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayContext
+
+**Kind:** `const`
+
+React context, который снабжает дочерние компоненты `FormArray` (List, AddButton, …)
+текущим `ArrayNode` и хелперами. Создаётся `FormArray.Root`. Читать через {@link useFormArrayContext}.
+
+**Signature:**
+```typescript
+export const FormArrayContext
+```
+
+**Examples:**
+
+```tsx
+import { FormArrayContext } from '@reformer/cdk/form-array';
+
+function MyConsumer() {
+  const ctx = useContext(FormArrayContext);
+  return <span>items: {ctx?.items.length}</span>;
+}
+```
+
+_Source: src/components/form-array/FormArrayContext.tsx_
+
+### FormArrayContextValue
+
+**Kind:** `interface`
+
+Контекст уровня массива
+
+**Signature:**
+```typescript
+export interface FormArrayContextValue<T extends FormFields = FormFields> {
+  /** Массив элементов с контролами и действиями */
+  items: FormArrayItem<T>[];
+  /** Текущая длина массива */
+  length: number;
+  /** Пустой ли массив */
+  isEmpty: boolean;
+  /** Добавить новый элемент в конец */
+  add: (value?: Partial<T>) => void;
+  /** Удалить все элементы */
+  clear: () => void;
+  /** Вставить элемент на указанную позицию */
+  insert: (index: number, value?: Partial<T>) => void;
+  /** Оригинальный ArrayNode */
+  control: ArrayNode<T>;
+}
+```
+
+_Source: src/components/form-array/FormArrayContext.tsx_
+
+### FormArrayCount
+
+**Kind:** `function`
+
+FormArray.Count - Displays the number of items in the array
+
+**Signature:**
+```typescript
+export function FormArrayCount({ render }: FormArrayCountProps)
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<h3>Items (<FormArray.Count />)</h3>
+```
+
+With custom render
+```tsx
+<FormArray.Count render={(count) => (
+count === 0 ? 'No items' : `${count} item${count > 1 ? 's' : ''}`
+)} />
+```
+
+_Source: src/components/form-array/FormArrayCount.tsx_
+
+### FormArrayCountProps
+
+**Kind:** `interface`
+
+Props for FormArray.Count component
+
+**Signature:**
+```typescript
+export interface FormArrayCountProps {
+  /** Custom render function for the count */
+  render?: (count: number) => ReactNode;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayEmpty
+
+**Kind:** `function`
+
+FormArray.Empty - Renders children only when array is empty
+
+**Signature:**
+```typescript
+export function FormArrayEmpty({ children }: FormArrayEmptyProps)
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormArray.Empty>
+<p className="text-gray-500">No items added yet</p>
+</FormArray.Empty>
+```
+
+With call to action
+```tsx
+<FormArray.Empty>
+<div className="text-center p-8">
+<p>No properties</p>
+<FormArray.AddButton>Add your first property</FormArray.AddButton>
+</div>
+</FormArray.Empty>
+```
+
+_Source: src/components/form-array/FormArrayEmpty.tsx_
+
+### FormArrayEmptyProps
+
+**Kind:** `interface`
+
+Props for FormArray.Empty component
+
+**Signature:**
+```typescript
+export interface FormArrayEmptyProps {
+  /** Content to show when array is empty */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayHandle
+
+**Kind:** `interface`
+
+Handle exposed via ref for external control of {@link FormArray}.
+
+Имперо-API для случаев, когда триггер находится вне дерева `FormArray.Root`
+(тулбар страницы, диалог подтверждения, async-эффект). Получают через
+`useRef<FormArrayHandle<T>>(null)` и передают в `<FormArray.Root ref={...}>`.
+
+Свойства `length` / `isEmpty` — снимок на момент рендера. Реактивную длину
+для условного UI снаружи берите через `useFormControl(arrayNode).length`.
+
+**Signature:**
+```typescript
+export interface FormArrayHandle<T extends FormFields> {
+  /** Add a new item to the end of the array */
+  add: (value?: Partial<T>) => void;
+  /** Remove all items from the array */
+  clear: () => void;
+  /** Insert a new item at a specific index */
+  insert: (index: number, value?: Partial<T>) => void;
+  /** Remove item at specific index */
+  removeAt: (index: number) => void;
+  /** Current number of items */
+  length: number;
+  /** Whether the array is empty */
+  isEmpty: boolean;
+  /** Get item control at specific index */
+  at: (index: number) => FormProxy<T> | undefined;
+}
+```
+
+**Examples:**
+
+Тулбар «Добавить / Очистить» поверх массива
+```tsx
+import { useRef } from 'react';
+import { FormArray, type FormArrayHandle } from '@reformer/cdk/form-array';
+
+function PropertiesEditor({ form }: Props) {
+const arrayRef = useRef<FormArrayHandle<Property>>(null);
+
+return (
+<>
+<div className="toolbar">
+<button onClick={() => arrayRef.current?.add({ type: 'apartment' })}>
+ + Квартира
+</button>
+<button onClick={() => arrayRef.current?.add({ type: 'house' })}>
+ + Дом
+</button>
+<button onClick={() => confirm('Удалить всё?') && arrayRef.current?.clear()}>
+ Очистить
+</button>
+</div>
+<FormArray.Root ref={arrayRef} control={form.properties}>
+<FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
+</FormArray.Root>
+</>
+);
+}
+```
+
+Импорт массива из API: insert + at для проверки дублей
+```tsx
+const arrayRef = useRef<FormArrayHandle<Contact>>(null);
+
+async function importFromCSV(rows: Contact[]) {
+for (const row of rows) {
+// skip duplicates by email
+const existing = Array.from({ length: arrayRef.current?.length ?? 0 })
+.map((_, i) => arrayRef.current?.at(i)?.getValue());
+if (existing.some((c) => c?.email === row.email)) continue;
+arrayRef.current?.insert(0, row); // добавляем в начало
+}
+}
+```
+
+_Source: src/components/form-array/FormArray.tsx_
+
+### FormArrayItem
+
+**Kind:** `interface`
+
+Represents a single item in a form array with its control, index, and actions
+
+**Signature:**
+```typescript
+export interface FormArrayItem<T extends FormFields> {
+  /** The form control for this item */
+  control: FormProxy<T>;
+  /** Zero-based index of the item in the array */
+  index: number;
+  /** Unique identifier for React key (uses internal id or falls back to index) */
+  id: string | number;
+  /** Remove this item from the array */
+  remove: () => void;
+}
+```
+
+_Source: src/components/form-array/useFormArray.ts_
+
+### FormArrayItemContext
+
+**Kind:** `const`
+
+React context, видимый внутри `FormArray.List` для одного элемента массива.
+Содержит `index`, `path` и `remove()`. Читать через {@link useFormArrayItemContext}.
+
+**Signature:**
+```typescript
+export const FormArrayItemContext
+```
+
+**Examples:**
+
+```tsx
+import { FormArrayItemContext } from '@reformer/cdk/form-array';
+
+function CurrentIndex() {
+  const item = useContext(FormArrayItemContext);
+  return <small>#{item?.index}</small>;
+}
+```
+
+_Source: src/components/form-array/FormArrayContext.tsx_
+
+### FormArrayItemContextValue
+
+**Kind:** `interface`
+
+Контекст уровня элемента массива
+
+**Signature:**
+```typescript
+export interface FormArrayItemContextValue<T extends FormFields = FormFields> {
+  /** Контрол для данного элемента */
+  control: FormProxy<T>;
+  /** Индекс элемента (0-based) */
+  index: number;
+  /** Уникальный идентификатор для React key */
+  id: string | number;
+  /** Удалить этот элемент из массива */
+  remove: () => void;
+}
+```
+
+_Source: src/components/form-array/FormArrayContext.tsx_
+
+### FormArrayItemIndex
+
+**Kind:** `function`
+
+FormArray.ItemIndex - Displays the index of current item (must be inside FormArray.List)
+
+**Signature:**
+```typescript
+export function FormArrayItemIndex({ render }: FormArrayItemIndexProps)
+```
+
+**Examples:**
+
+Basic usage (1-based display)
+```tsx
+<FormArray.List>
+{() => (
+<h4>Item #<FormArray.ItemIndex render={(i) => i + 1} /></h4>
+)}
+</FormArray.List>
+```
+
+Zero-based index
+```tsx
+<FormArray.ItemIndex /> // Renders 0, 1, 2, ...
+```
+
+Custom render
+```tsx
+<FormArray.ItemIndex render={(index) => `Position: ${index + 1}`} />
+```
+
+_Source: src/components/form-array/FormArrayItemIndex.tsx_
+
+### FormArrayItemIndexProps
+
+**Kind:** `interface`
+
+Props for FormArray.ItemIndex component
+
+**Signature:**
+```typescript
+export interface FormArrayItemIndexProps {
+  /** Custom render function for the index (receives 0-based index) */
+  render?: (index: number) => ReactNode;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayItemRenderProps
+
+**Kind:** `interface`
+
+Props passed to the render function in FormArray.List
+
+**Signature:**
+```typescript
+export interface FormArrayItemRenderProps<T extends FormFields> {
+  /** The form control for this item */
+  control: FormProxy<T>;
+  /** Zero-based index of the item */
+  index: number;
+  /** Unique identifier for React key */
+  id: string | number;
+  /** Remove this item from the array */
+  remove: () => void;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayList
+
+**Kind:** `function`
+
+FormArray.List - Iterates over array items and provides item context
+
+**Signature:**
+```typescript
+export function FormArrayList<T extends FormFields>({
+  children,
+  className,
+  as = 'div',
+}: FormArrayListProps<T>)
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormArray.List>
+{({ control, index, remove }) => (
+<div>
+<span>Item #{index + 1}</span>
+<button onClick={remove}>Remove</button>
+<ItemForm control={control} />
+</div>
+)}
+</FormArray.List>
+```
+
+With custom container
+```tsx
+<FormArray.List className="space-y-4" as="ul">
+{(item) => <li><ItemForm control={item.control} /></li>}
+</FormArray.List>
+```
+
+_Source: src/components/form-array/FormArrayList.tsx_
+
+### FormArrayListProps
+
+**Kind:** `interface`
+
+Props for FormArray.List component
+
+**Signature:**
+```typescript
+export interface FormArrayListProps<T extends FormFields> {
+  /** Render function for each item */
+  children: (item: FormArrayItemRenderProps<T>) => ReactNode;
+  /** Optional className for the list container */
+  className?: string;
+  /** Optional element type for the container (default: 'div') */
+  as?: ElementType;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayRemoveButton
+
+**Kind:** `const`
+
+FormArray.RemoveButton - Button to remove current item (must be inside FormArray.List)
+
+**Signature:**
+```typescript
+export const FormArrayRemoveButton
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+<FormArray.List>
+{({ control }) => (
+<div>
+<ItemForm control={control} />
+<FormArray.RemoveButton className="text-red-500">
+Remove
+</FormArray.RemoveButton>
+</div>
+)}
+</FormArray.List>
+```
+
+With custom button (asChild)
+```tsx
+<FormArray.RemoveButton asChild>
+<IconButton icon="trash" aria-label="Remove" />
+</FormArray.RemoveButton>
+```
+
+_Source: src/components/form-array/FormArrayRemoveButton.tsx_
+
+### FormArrayRemoveButtonProps
+
+**Kind:** `interface`
+
+Props for FormArray.RemoveButton component
+
+**Signature:**
+```typescript
+export interface FormArrayRemoveButtonProps extends Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
+  /** Custom render function for the button */
+  asChild?: boolean;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormArrayRootProps
+
+**Kind:** `interface`
+
+Props for FormArray.Root component
+
+**Signature:**
+```typescript
+export interface FormArrayRootProps<T extends FormFields> {
+  /** The ArrayNode control from the form */
+  control: ArrayNode<T>;
+  /** Child components */
+  children: ReactNode;
+}
+```
+
+_Source: src/components/form-array/types.ts_
+
+### FormField
+
+**Kind:** `const`
+
+FormField - Headless compound component for accessible form field anatomy.
+
+Provides complete freedom in building field UI while handling all accessible
+ID wiring (htmlFor, aria-labelledby, aria-describedby, aria-errormessage)
+and field state management internally.
+
+#### Features
+- **Headless** — complete freedom in building UI, no styles imposed
+- **Compound Components** — declarative API via nested components
+- **Accessible by default** — all ARIA relationships wired automatically
+- **Type Safe** — full TypeScript support with generics
+
+#### Sub-components
+- `FormField.Root` — context provider, accepts `control` and optional `id`
+- `FormField.Label` — `<label>` with automatic `htmlFor` and required indicator
+- `FormField.Control` — auto-renders `control.component` or wraps custom children
+- `FormField.Error` — error message with `role="alert"`, supports multi-error
+- `FormField.Description` — helper text with stable `id` for `aria-describedby`
+
+**Signature:**
+```typescript
+export const FormField
+```
+
+**Examples:**
+
+Minimal (auto-renders everything from field config)
+```tsx
+<FormField.Root control={control.email}>
+<FormField.Label />
+<FormField.Control />
+<FormField.Error />
+</FormField.Root>
+```
+
+Full control with custom styling
+```tsx
+<FormField.Root control={control.email} hasDescription>
+<div className="space-y-1">
+<FormField.Label className="text-sm font-medium text-gray-700" />
+
+<FormField.Control asChild>
+<Input type="email" className="border rounded-md px-3 py-2 w-full" />
+</FormField.Control>
+
+<FormField.Description className="text-xs text-gray-500">
+We'll never share your email.
+</FormField.Description>
+
+<FormField.Error className="text-xs text-red-600" />
+</div>
+</FormField.Root>
+```
+
+Multiple errors with custom rendering
+```tsx
+<FormField.Root control={control.password}>
+<FormField.Label />
+<FormField.Control />
+<FormField.Error
+multi
+render={(err) => (
+<span className={err.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
+{err.message}
+</span>
+)}
+/>
+</FormField.Root>
+```
+
+Using useFormField hook for full customization
+```tsx
+import { useFormField } from '@reformer/cdk/form-field';
+
+function EmailField({ control }: { control: FieldNode<string> }) {
+const { labelProps, controlProps, errorProps, state, ids } = useFormField(control);
+
+return (
+<div>
+<label {...labelProps}>{state.label}</label>
+<Input
+{...controlProps}
+aria-describedby={ids.descriptionId}
+type="email"
+/>
+<p id={ids.descriptionId} className="text-xs text-gray-500">
+Helper text
+</p>
+{state.shouldShowError && (
+<p {...errorProps} className="text-xs text-red-600">{state.error}</p>
+)}
+</div>
+);
+}
+```
+
+_Source: src/components/form-field/FormField.tsx_
+
+### FormFieldContext
+
+**Kind:** `const`
+
+React context, который снабжает дочерние компоненты `FormField` (Label, Error,
+Hint, Control) текущим контролом. Создаётся `FormField.Root`. Читать через
+{@link useFormFieldContext}.
+
+**Signature:**
+```typescript
+export const FormFieldContext
+```
+
+**Examples:**
+
+```tsx
+import { FormFieldContext } from '@reformer/cdk/form-field';
+
+function CurrentValue() {
+  const ctx = useContext(FormFieldContext);
+  return <pre>{JSON.stringify(ctx?.control.value)}</pre>;
+}
+```
+
+_Source: src/components/form-field/FormFieldContext.tsx_
+
+### FormFieldContextValue
+
+**Kind:** `interface`
+
+Context value provided by FormField.Root
+
+**Signature:**
+```typescript
+export interface FormFieldContextValue<T extends FormValue = FormValue> {
+  // ─── Field state ──────────────────────────────────────────────────────────
+  value: T;
+  errors: ValidationError[];
+  pending: boolean;
+  disabled: boolean;
+  valid: boolean;
+  invalid: boolean;
+  touched: boolean;
+  shouldShowError: boolean;
+  /** First error message, only set when shouldShowError is true */
+  error: string | undefined;
+  // ─── Derived from componentProps ──────────────────────────────────────────
+  label: string | undefined;
+  required: boolean;
+  /** Full componentProps bag */
+  componentProps: Record<string, unknown>;
+  // ─── The control itself ───────────────────────────────────────────────────
+  control: FieldNode<T>;
+  // ─── Accessible IDs ───────────────────────────────────────────────────────
+  ids: FormFieldIds;
+  /** Whether a FormField.Description is present (drives aria-describedby on Control) */
+  hasDescription: boolean;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormFieldControl
+
+**Kind:** `const`
+
+FormField.Control - Renders the interactive form control.
+
+**Auto-render mode** (default): renders `control.component` with all necessary
+props pre-wired: `value`, `onChange`, `onBlur`, `disabled`, `aria-*` attributes,
+and all `componentProps` from the field config.
+
+**Custom children mode** (`asChild` or `children`): merges accessible props
+into the provided child element via Slot, letting you use any custom component.
+
+**Signature:**
+```typescript
+export const FormFieldControl
+```
+
+**Examples:**
+
+Auto-render (renders control.component)
+```tsx
+<FormField.Root control={control.email}>
+<FormField.Label />
+<FormField.Control />
+</FormField.Root>
+```
+
+Custom input with asChild (merges aria-* into your element)
+```tsx
+<FormField.Control asChild>
+<MyInput type="email" className="custom-input" />
+</FormField.Control>
+```
+
+Custom children (same as asChild)
+```tsx
+<FormField.Control>
+<MyInput type="email" />
+</FormField.Control>
+```
+
+_Source: src/components/form-field/FormFieldControl.tsx_
+
+### FormFieldControlProps
+
+**Kind:** `interface`
+
+Props for FormField.Control
+
+**Signature:**
+```typescript
+export interface FormFieldControlProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  'id' | 'onChange' | 'onBlur'
+> {
+  /**
+   * Merge accessible props into a custom child element instead of
+   * auto-rendering control.component.
+   */
+  asChild?: boolean;
+  /**
+   * Custom children. When provided, control.component is NOT auto-rendered.
+   * Accessible props are merged into the child via Slot.
+   */
+  children?: ReactNode;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormFieldDescription
+
+**Kind:** `const`
+
+FormField.Description - Helper text for the form field.
+
+Renders with a stable `id` (descriptionId) that can be wired to
+`aria-describedby` on the control. To enable automatic wiring, pass
+`hasDescription` to the parent `FormField.Root`.
+
+**Signature:**
+```typescript
+export const FormFieldDescription
+```
+
+**Examples:**
+
+```tsx
+<FormField.Root control={control.email} hasDescription>
+  <FormField.Label />
+  <FormField.Control />
+  <FormField.Description className="text-xs text-gray-500">
+    We'll never share your email with anyone.
+  </FormField.Description>
+  <FormField.Error />
+</FormField.Root>
+```
+
+With custom element (asChild)
+```tsx
+<FormField.Description asChild>
+<Tooltip content="More info">
+<InfoIcon />
+</Tooltip>
+</FormField.Description>
+```
+
+_Source: src/components/form-field/FormFieldDescription.tsx_
+
+### FormFieldDescriptionProps
+
+**Kind:** `interface`
+
+Props for FormField.Description
+
+**Signature:**
+```typescript
+export interface FormFieldDescriptionProps extends Omit<
+  HTMLAttributes<HTMLParagraphElement>,
+  'id'
+> {
+  asChild?: boolean;
+  children: ReactNode;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormFieldError
+
+**Kind:** `const`
+
+FormField.Error - Displays validation error message(s).
+
+Renders nothing when `shouldShowError` is false (field not touched or no errors).
+The first error paragraph receives `id={ids.errorId}` for `aria-errormessage` wiring.
+
+**Signature:**
+```typescript
+export const FormFieldError
+```
+
+**Examples:**
+
+Single error (default)
+```tsx
+<FormField.Error className="text-xs text-red-600" />
+```
+
+All errors
+```tsx
+<FormField.Error multi className="text-xs text-red-600" />
+```
+
+Custom render per error
+```tsx
+<FormField.Error
+render={(err) => (
+<span className={err.severity === 'warning' ? 'text-yellow-600' : 'text-red-600'}>
+{err.message}
+</span>
+)}
+/>
+```
+
+Custom error content
+```tsx
+<FormField.Error className="text-xs">
+This field is required
+</FormField.Error>
+```
+
+_Source: src/components/form-field/FormFieldError.tsx_
+
+### FormFieldErrorProps
+
+**Kind:** `interface`
+
+Props for FormField.Error
+
+**Signature:**
+```typescript
+export interface FormFieldErrorProps extends Omit<
+  HTMLAttributes<HTMLParagraphElement>,
+  'id' | 'role'
+> {
+  asChild?: boolean;
+  /**
+   * When true, renders all errors instead of only the first.
+   * @default false
+   */
+  multi?: boolean;
+  /**
+   * Custom render function per error. When provided, multi is implied true.
+   */
+  render?: (error: ValidationError, index: number) => ReactNode;
+  /**
+   * Override error content. Defaults to errors[0].message.
+   */
+  children?: ReactNode;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormFieldIds
+
+**Kind:** `interface`
+
+Stable IDs for all accessible elements of a form field
+
+**Signature:**
+```typescript
+export interface FormFieldIds {
+  /** ID placed on the interactive control element (<input>, etc.) */
+  controlId: string;
+  /** ID placed on the <label> element */
+  labelId: string;
+  /** ID placed on the description paragraph */
+  descriptionId: string;
+  /** ID placed on the first error paragraph */
+  errorId: string;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormFieldLabel
+
+**Kind:** `const`
+
+FormField.Label - Accessible label for the form field.
+
+Automatically wires `htmlFor` to the control ID and `id` to the label ID
+so that `aria-labelledby` on FormField.Control works correctly.
+
+The label text defaults to `componentProps.label` from the field config.
+Pass `children` to override or enrich the label content.
+
+A required indicator `*` is appended automatically when `componentProps.required` is set.
+
+**Signature:**
+```typescript
+export const FormFieldLabel
+```
+
+**Examples:**
+
+Auto label from field config
+```tsx
+<FormField.Root control={control.email}>
+<FormField.Label />  {/* renders componentProps.label *\/}
+<FormField.Control />
+</FormField.Root>
+```
+
+Custom label content
+```tsx
+<FormField.Label className="font-semibold">
+Email Address <span className="text-gray-400">(optional)</span>
+</FormField.Label>
+```
+
+With custom element (asChild)
+```tsx
+<FormField.Label asChild>
+<Typography variant="label">{label}</Typography>
+</FormField.Label>
+```
+
+_Source: src/components/form-field/FormFieldLabel.tsx_
+
+### FormFieldLabelProps
+
+**Kind:** `interface`
+
+Props for FormField.Label
+
+**Signature:**
+```typescript
+export interface FormFieldLabelProps extends Omit<
+  LabelHTMLAttributes<HTMLLabelElement>,
+  'htmlFor'
+> {
+  /** Render as child element via Slot (merges accessible props into the child) */
+  asChild?: boolean;
+  /**
+   * Override label text. Defaults to componentProps.label.
+   * Pass children explicitly when you need custom content inside the label.
+   */
+  children?: ReactNode;
+  /**
+   * If true, always renders even when no label text is available.
+   * Useful when the consumer provides children.
+   * @default false
+   */
+  forceRender?: boolean;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormFieldRoot
+
+**Kind:** `function`
+
+FormField.Root - Context provider for form field compound component.
+
+Computes stable accessible IDs (controlId, labelId, descriptionId, errorId)
+and provides all field state to child FormField.* components.
+
+**Signature:**
+```typescript
+function FormFieldRoot<T extends FormValue>({
+  control,
+  children,
+  id,
+  hasDescription = false,
+}: FormFieldRootProps<T>)
+```
+
+**Examples:**
+
+Minimal usage
+```tsx
+<FormField.Root control={control.email}>
+<FormField.Label />
+<FormField.Control />
+<FormField.Error />
+</FormField.Root>
+```
+
+With description (pass hasDescription to auto-wire aria-describedby)
+```tsx
+<FormField.Root control={control.email} hasDescription>
+<FormField.Label />
+<FormField.Control />
+<FormField.Description>Helper text</FormField.Description>
+<FormField.Error />
+</FormField.Root>
+```
+
+_Source: src/components/form-field/FormFieldRoot.tsx_
+
+### FormFieldRootProps
+
+**Kind:** `interface`
+
+Props for FormField.Root
+
+**Signature:**
+```typescript
+export interface FormFieldRootProps<T extends FormValue = FormValue> {
+  /** The FieldNode control from the form */
+  control: FieldNode<T>;
+  children: ReactNode;
+  /** Explicit id prefix; if omitted, useId() is used */
+  id?: string;
+  /**
+   * Set to true when the field has a description element so that
+   * FormField.Control automatically wires aria-describedby.
+   * Avoids the double-render caused by dynamic description registration.
+   * @default false
+   */
+  hasDescription?: boolean;
+}
+```
+
+_Source: src/components/form-field/types.ts_
+
+### FormWizard
+
+**Kind:** `const`
+
+Headless multi-step wizard. Compound-компонент: `FormWizard` + `FormWizard.Step`,
+`FormWizard.Actions`, `FormWizard.Indicator`, `FormWizard.Progress`,
+`FormWizard.Prev`, `FormWizard.Next`, `FormWizard.Submit`.
+
+**Signature:**
+```typescript
+export const FormWizard
+```
+
+**Examples:**
+
+```tsx
+import { FormWizard } from '@reformer/cdk/form-wizard';
+
+<FormWizard form={form} steps={[{ name: 'profile' }, { name: 'review' }]}>
+  <FormWizard.Step name="profile"><ProfileFields /></FormWizard.Step>
+  <FormWizard.Step name="review"><Review /></FormWizard.Step>
+  <FormWizard.Actions>
+    {({ prev, next, submit, isLastStep }) => (
+      <div>
+        <button {...prev}>Prev</button>
+        {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
+      </div>
+    )}
+  </FormWizard.Actions>
+</FormWizard>
+```
+
+**See also:**
+- [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
+
+_Source: src/components/form-wizard/FormWizard.tsx_
+
+### FormWizardActions
+
+**Kind:** `function`
+
+`FormWizard.Actions` — контейнер кнопок навигации мастера. Поддерживает два режима:
+compound-children (`FormWizard.Prev`/`Next`/`Submit`) и render-props.
+
+Render-props получают: `prev`, `next`, `submit` (все с `onClick`/`disabled`),
+`isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`.
+
+**Signature:**
+```typescript
+export function FormWizardActions({
+  onSubmit,
+  children,
+  className,
+  style,
+}: FormWizardActionsProps)
+```
+
+**Examples:**
+
+Compound mode
+```tsx
+<FormWizard.Actions onSubmit={handleSubmit}>
+<FormWizard.Prev>Back</FormWizard.Prev>
+<FormWizard.Next>Next</FormWizard.Next>
+<FormWizard.Submit loadingText="Submitting...">Submit</FormWizard.Submit>
+</FormWizard.Actions>
+```
+
+Render-props mode
+```tsx
+<FormWizard.Actions onSubmit={handleSubmit}>
+{({ prev, next, submit, isFirstStep, isLastStep }) => (
+<div className="flex justify-between">
+{!isFirstStep && <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>}
+{isLastStep
+? <button onClick={submit.onClick} disabled={submit.disabled}>{submit.isSubmitting ? '…' : 'Submit'}</button>
+: <button onClick={next.onClick} disabled={next.disabled}>Next</button>}
+</div>
+)}
+</FormWizard.Actions>
+```
+
+_Source: src/components/form-wizard/FormWizardActions.tsx_
+
+### FormWizardActionsProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Actions component
+
+**Signature:**
+```typescript
+export interface FormWizardActionsProps {
+  /** Submit handler (called on last step) */
+  onSubmit?: () => void | Promise<void>;
+  /** Children: render function (headless) or ReactNode (compound components) */
+  children: ReactNode | RenderFunction;
+  /** Optional className for wrapper (compound mode only) */
+  className?: string;
+  /** Optional style for wrapper (compound mode only) */
+  style?: CSSProperties;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardActions.tsx_
+
+### FormWizardActionsRenderProps
+
+**Kind:** `interface`
+
+Render props passed to children function
+
+**Signature:**
+```typescript
+export interface FormWizardActionsRenderProps {
+  /** Props for the "Previous" button */
+  prev: FormWizardButtonProps;
+  /** Props for the "Next" button */
+  next: FormWizardButtonProps;
+  /** Props for the "Submit" button */
+  submit: FormWizardSubmitProps;
+  /** Whether current step is the first step */
+  isFirstStep: boolean;
+  /** Whether current step is the last step */
+  isLastStep: boolean;
+  /** Whether validation is in progress */
+  isValidating: boolean;
+  /** Whether form is submitting */
+  isSubmitting: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardActions.tsx_
+
+### FormWizardButtonProps
+
+**Kind:** `interface`
+
+Props for a navigation button (prev/next)
+
+**Signature:**
+```typescript
+export interface FormWizardButtonProps {
+  /** Click handler */
+  onClick: () => void;
+  /** Whether the button is disabled */
+  disabled: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardActions.tsx_
+
+### FormWizardConfig
+
+**Kind:** `interface`
+
+Configuration for multi-step form navigation
+Note: totalSteps is inferred from children count
+
+**Signature:**
+```typescript
+export interface FormWizardConfig<T extends Record<string, any>> {
+  /** Validation schemas per step (1-based indexing) */
+  stepValidations: Record<number, ValidationSchemaFn<T>>;
+
+  /** Full validation schema for submit */
+  fullValidation: ValidationSchemaFn<T>;
+}
+```
+
+_Source: src/components/form-wizard/types.ts_
+
+### FormWizardContext
+
+**Kind:** `const`
+
+React context, который снабжает дочерние компоненты `FormWizard` (Step,
+Actions, Indicator, Progress) текущим состоянием мастера. Создаётся
+`FormWizard`. Читать через `useFormWizard()`.
+
+**Signature:**
+```typescript
+export const FormWizardContext
+```
+
+**Examples:**
+
+```tsx
+import { FormWizardContext } from '@reformer/cdk/form-wizard';
+
+function CurrentStep() {
+  const ctx = useContext(FormWizardContext);
+  return <span>step {ctx?.currentStep}</span>;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardContext.tsx_
+
+### FormWizardContextValue
+
+**Kind:** `interface`
+
+Context value for FormWizard
+Shares navigation state and methods with child components
+
+**Signature:**
+```typescript
+export interface FormWizardContextValue<T extends Record<string, any>> {
+  // ============================================================================
+  // State
+  // ============================================================================
+
+  /** Current step (1-based) */
+  currentStep: number;
+
+  /** Total number of steps */
+  totalSteps: number;
+
+  /** Completed steps */
+  completedSteps: number[];
+
+  /** Is this the first step */
+  isFirstStep: boolean;
+
+  /** Is this the last step */
+  isLastStep: boolean;
+
+  /** Is validation in progress */
+  isValidating: boolean;
+
+  /** Is form submitting */
+  isSubmitting: boolean;
+
+  /** Form instance */
+  form: FormProxy<T>;
+
+  // ============================================================================
+  // Navigation Methods
+  // ============================================================================
+
+  /** Go to next step (with validation) */
+  goToNextStep: () => Promise<boolean>;
+
+  /** Go to previous step */
+  goToPreviousStep: () => void;
+
+  /** Go to specific step */
+  goToStep: (step: number) => boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardContext.tsx_
+
+### FormWizardHandle
+
+**Kind:** `interface`
+
+Handle для внешнего управления {@link FormWizard} через `useRef`.
+
+Используется, когда submit/навигация инициируется снаружи дерева Wizard:
+шапка страницы, breadcrumbs, side-effect от API. Получают через
+`useRef<FormWizardHandle<T>>(null)` и передают в `<FormWizard ref={...}>`.
+
+- `goToNextStep()` / `submit()` запускают валидацию текущего шага / всей
+  формы соответственно.
+- `goToStep(n)` возвращает `false`, если предыдущий шаг не в `completedSteps`
+  (защита от пропуска валидации) либо `n` вне диапазона `[1; totalSteps]`.
+- `submit()` возвращает `R | null`. `null` — форма не прошла `fullValidation`.
+
+**Signature:**
+```typescript
+export interface FormWizardHandle<T extends Record<string, any>> {
+  /** Form instance — используется в RenderBehaviorFn для доступа к форме через ref */
+  form: FormProxy<T>;
+
+  /** Current step (1-based) */
+  currentStep: number;
+
+  /** Completed steps */
+  completedSteps: number[];
+
+  /** Validate current step */
+  validateCurrentStep: () => Promise<boolean>;
+
+  /** Go to next step (with validation) */
+  goToNextStep: () => Promise<boolean>;
+
+  /** Go to previous step */
+  goToPreviousStep: () => void;
+
+  /** Go to specific step */
+  goToStep: (step: number) => boolean;
+
+  /** Submit form (with full validation) */
+  submit: <R>(onSubmit: (values: T) => Promise<R> | R) => Promise<R | null>;
+
+  /** Is this the first step */
+  isFirstStep: boolean;
+
+  /** Is this the last step */
+  isLastStep: boolean;
+
+  /** Is validation in progress */
+  isValidating: boolean;
+}
+```
+
+**Examples:**
+
+«Сохранить и выйти» поверх wizard
+```tsx
+import { useRef } from 'react';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
+
+function Page({ form, config }: Props) {
+const navRef = useRef<FormWizardHandle<CreditApplication>>(null);
+
+const handleSaveAndExit = async () => {
+const saved = await navRef.current?.submit((values) => api.saveDraft(values));
+if (saved) router.push('/dashboard');
+};
+
+return (
+<>
+<header>
+<button onClick={handleSaveAndExit}>Сохранить и выйти</button>
+</header>
+<FormWizard ref={navRef} form={form} config={config}>
+<FormWizard.Step component={Step1} control={form} />
+<FormWizard.Step component={Step2} control={form} />
+</FormWizard>
+</>
+);
+}
+```
+
+Программный переход на шаг с проверкой доступности
+```tsx
+const handleClickContacts = () => {
+const ok = navRef.current?.goToStep(3);
+if (!ok) toast('Сначала заполните предыдущие шаги');
+};
+
+// Или с явной валидацией текущего шага:
+const moveOn = async () => {
+const valid = await navRef.current?.validateCurrentStep();
+if (!valid) return;
+await navRef.current?.goToNextStep();
+};
+```
+
+_Source: src/components/form-wizard/types.ts_
+
+### FormWizardIndicator
+
+**Kind:** `function`
+
+FormWizard.Indicator - Headless component for step indicator
+
+Provides step data with state for building custom step indicators.
+No default UI - you build exactly what you need.
+
+#### Render Props
+- `steps` - array of steps with state (`isCurrent`, `isCompleted`, `canNavigate`)
+- `goToStep` - function to navigate to a step
+- `currentStep` - current step number
+- `totalSteps` - total number of steps
+- `completedSteps` - array of completed step numbers
+
+**Signature:**
+```typescript
+export function FormWizardIndicator({ steps, children }: FormWizardIndicatorProps)
+```
+
+**Examples:**
+
+Basic stepper
+```tsx
+<FormWizard.Indicator steps={STEPS}>
+{({ steps, goToStep }) => (
+<nav className="flex gap-2">
+{steps.map((step) => (
+<button
+ key={step.number}
+ onClick={() => goToStep(step.number)}
+ disabled={!step.canNavigate}
+ className={cn(
+   'px-4 py-2 rounded',
+   step.isCurrent && 'bg-blue-500 text-white',
+   step.isCompleted && 'bg-green-100',
+   !step.canNavigate && 'opacity-50 cursor-not-allowed'
+ )}
+>
+ {step.icon} {step.title}
+</button>
+))}
+</nav>
+)}
+</FormWizard.Indicator>
+```
+
+With progress line
+```tsx
+<FormWizard.Indicator steps={STEPS}>
+{({ steps, goToStep }) => (
+<div className="flex items-center">
+{steps.map((step, index) => (
+<Fragment key={step.number}>
+ <StepCircle
+   active={step.isCurrent}
+   completed={step.isCompleted}
+   onClick={() => step.canNavigate && goToStep(step.number)}
+ >
+   {step.isCompleted ? '✓' : step.number}
+ </StepCircle>
+ {index < steps.length - 1 && (
+   <StepLine completed={step.isCompleted} />
+ )}
+</Fragment>
+))}
+</div>
+)}
+</FormWizard.Indicator>
+```
+
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+
+### FormWizardIndicatorProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Indicator component
+
+**Signature:**
+```typescript
+export interface FormWizardIndicatorProps {
+  /** Step definitions */
+  steps: FormWizardIndicatorStep[];
+  /** Render function for custom UI */
+  children: (props: FormWizardIndicatorRenderProps) => ReactNode;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+
+### FormWizardIndicatorRenderProps
+
+**Kind:** `interface`
+
+Render props passed to children function
+
+**Signature:**
+```typescript
+export interface FormWizardIndicatorRenderProps {
+  /** Steps with their current state */
+  steps: FormWizardIndicatorStepWithState[];
+  /** Navigate to a specific step */
+  goToStep: (step: number) => boolean;
+  /** Current step number */
+  currentStep: number;
+  /** Total number of steps */
+  totalSteps: number;
+  /** Completed step numbers */
+  completedSteps: number[];
+}
+```
+
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+
+### FormWizardIndicatorStep
+
+**Kind:** `interface`
+
+Step definition for the indicator
+
+**Signature:**
+```typescript
+export interface FormWizardIndicatorStep {
+  /** Step number (1-based) */
+  number: number;
+  /** Step title/label */
+  title: string;
+  /** Optional icon */
+  icon?: string;
+  /** Component to render for this step, or a ReactNode (pre-rendered element) */
+  component?:
+    | ComponentType<
+        {
+          control: FormProxy<unknown>;
+        } & Record<string, unknown>
+      >
+    | ReactNode;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+
+### FormWizardIndicatorStepWithState
+
+**Kind:** `interface`
+
+Enriched step with state information
+
+**Signature:**
+```typescript
+export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorStep {
+  /** Whether this is the current step */
+  isCurrent: boolean;
+  /** Whether this step is completed */
+  isCompleted: boolean;
+  /** Whether user can navigate to this step */
+  canNavigate: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+
+### FormWizardProgress
+
+**Kind:** `function`
+
+FormWizard.Progress - Headless component for progress display
+
+Provides progress data for building custom progress indicators.
+No default UI - you build exactly what you need.
+
+#### Render Props
+- `current` - current step number
+- `total` - total number of steps
+- `percent` - completion percentage (0-100)
+- `completedCount` - number of completed steps
+- `isFirstStep` - whether on first step
+- `isLastStep` - whether on last step
+
+**Signature:**
+```typescript
+export function FormWizardProgress({ children }: FormWizardProgressProps)
+```
+
+**Examples:**
+
+Simple text progress
+```tsx
+<FormWizard.Progress>
+{({ current, total, percent }) => (
+<div className="text-sm text-gray-600">
+Step {current} of {total} ({percent}% complete)
+</div>
+)}
+</FormWizard.Progress>
+```
+
+Progress bar
+```tsx
+<FormWizard.Progress>
+{({ percent, current, total }) => (
+<div className="space-y-2">
+<div className="flex justify-between text-sm">
+<span>Step {current}/{total}</span>
+<span>{percent}%</span>
+</div>
+<div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+<div
+ className="h-full bg-blue-500 transition-all"
+ style={{ width: `${percent}%` }}
+/>
+</div>
+</div>
+)}
+</FormWizard.Progress>
+```
+
+Circular progress
+```tsx
+<FormWizard.Progress>
+{({ percent }) => (
+<CircularProgress value={percent} />
+)}
+</FormWizard.Progress>
+```
+
+_Source: src/components/form-wizard/FormWizardProgress.tsx_
+
+### FormWizardProgressProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Progress component
+
+**Signature:**
+```typescript
+export interface FormWizardProgressProps {
+  /** Render function for custom UI */
+  children: (props: FormWizardProgressRenderProps) => ReactNode;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardProgress.tsx_
+
+### FormWizardProgressRenderProps
+
+**Kind:** `interface`
+
+Render props passed to children function
+
+**Signature:**
+```typescript
+export interface FormWizardProgressRenderProps {
+  /** Current step number (1-based) */
+  current: number;
+  /** Total number of steps */
+  total: number;
+  /** Completion percentage (0-100) */
+  percent: number;
+  /** Number of completed steps */
+  completedCount: number;
+  /** Whether on first step */
+  isFirstStep: boolean;
+  /** Whether on last step */
+  isLastStep: boolean;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardProgress.tsx_
+
+### FormWizardProps
+
+**Kind:** `interface`
+
+Props for FormWizard component
+
+**Signature:**
+```typescript
+export interface FormWizardProps<T extends Record<string, any>> {
+  /** Form instance */
+  form: FormProxy<T>;
+
+  /** Step configuration (validation schemas) */
+  config: FormWizardConfig<T>;
+
+  /** Children (Step components, Indicator, Actions, Progress, or any ReactNode) */
+  children?: ReactNode;
+
+  /** Callback when step changes */
+  onStepChange?: (step: number) => void;
+
+  /** Scroll to top on step change */
+  scrollToTop?: boolean;
+}
+```
+
+_Source: src/components/form-wizard/types.ts_
+
+### FormWizardStep
+
+**Kind:** `function`
+
+FormWizard.Step - renders a step component when it's the current step
+
+**Signature:**
+```typescript
+export function FormWizardStep<T extends Record<string, any>>({
+  component: Component,
+  control,
+  children,
+  _stepIndex,
+  ...restProps
+}: FormWizardStepInternalProps<T>)
+```
+
+**Examples:**
+
+Component-based (legacy)
+```tsx
+<FormWizard ref={navRef} form={form} config={config}>
+<FormWizard.Step component={Step1} control={form} />
+<FormWizard.Step component={Step2} control={form} extraProp="value" />
+</FormWizard>
+```
+
+Children-based (new)
+```tsx
+<FormWizard form={form} config={config}>
+<FormWizard.Step>
+<RenderNodeComponent node={step1Content} ... />
+</FormWizard.Step>
+<FormWizard.Step>
+<RenderNodeComponent node={step2Content} ... />
+</FormWizard.Step>
+</FormWizard>
+```
+
+_Source: src/components/form-wizard/FormWizardStep.tsx_
+
+### FormWizardStepProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Step component
+
+Supports two usage patterns:
+1. Component-based: `<FormWizard.Step component={Step1} control={form} />`
+2. Children-based: `<FormWizard.Step>{children}</FormWizard.Step>`
+
+**Signature:**
+```typescript
+export interface FormWizardStepProps<T extends Record<string, any>> {
+  /** Component to render for this step (legacy API) */
+  component?: ComponentType<{ control: FormProxy<T> } & Record<string, unknown>>;
+
+  /** Form control to pass to the component (legacy API) */
+  control?: FormProxy<T>;
+
+  /** Children to render (new API - for use with selector-based wizard) */
+  children?: ReactNode;
+
+  /** Any additional props to pass to the component */
+  [key: string]: unknown;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardStep.tsx_
+
+### FormWizardSubmitProps
+
+**Kind:** `interface`
+
+Props for FormWizard.Submit component
+
+**Signature:**
+```typescript
+export interface FormWizardSubmitProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick'
+> {
+  /** Button content */
+  children: ReactNode;
+  /** Render as child element (merge props into child) */
+  asChild?: boolean;
+  /** Additional disabled state (merged with automatic via OR) */
+  disabled?: boolean;
+  /** Content to show during submission (replaces children) */
+  loadingText?: ReactNode;
+}
+```
+
+_Source: src/components/form-wizard/FormWizardSubmit.tsx_
+
+### useFormArray
+
+**Kind:** `function`
+
+Headless hook for managing form arrays
+
+Provides reactive state and actions for form array manipulation
+without any UI - perfect for building custom array interfaces.
+
+**Signature:**
+```typescript
+export function useFormArray<T extends FormFields>(control: ArrayNode<T>): UseFormArrayReturn<T>
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+function PropertyList() {
+const { items, add, isEmpty } = useFormArray(form.properties);
+
+return (
+<div>
+{items.map(({ control, index, remove, id }) => (
+<div key={id}>
+ <span>Property #{index + 1}</span>
+ <button onClick={remove}>Remove</button>
+ <PropertyForm control={control} />
+</div>
+))}
+{isEmpty && <p>No properties added</p>}
+<button onClick={() => add()}>Add Property</button>
+</div>
+);
+}
+```
+
+With initial values + clear / insert
+```tsx
+function PropertyToolbar() {
+const { add, clear, insert, length } = useFormArray(form.properties);
+
+return (
+<div className="flex gap-2">
+<button onClick={() => add({ type: 'apartment', estimatedValue: 0 })}>
++ Квартира
+</button>
+<button onClick={() => insert(0, { type: 'house' })}>
++ Дом (в начало)
+</button>
+<button onClick={clear} disabled={length === 0}>Очистить</button>
+<span>{length} шт.</span>
+</div>
+);
+}
+```
+
+Кастомный AddButton снаружи compound API (drop-down)
+```tsx
+import { useFormArrayContext } from '@reformer/cdk/form-array';
+
+function AddPropertyMenu() {
+const { add } = useFormArrayContext<Property>();
+return (
+<Menu>
+<Menu.Trigger>+ Добавить ▾</Menu.Trigger>
+<Menu.Item onSelect={() => add({ type: 'apartment' })}>Квартира</Menu.Item>
+<Menu.Item onSelect={() => add({ type: 'house' })}>Дом</Menu.Item>
+</Menu>
+);
+}
+```
+
+_Source: src/components/form-array/useFormArray.ts_
+
+### useFormArrayContext
+
+**Kind:** `function`
+
+Хук для доступа к контексту `FormArray`. Бросает исключение, если вызван вне
+`FormArray.Root` или эквивалентного провайдера.
+
+**Signature:**
+```typescript
+export function useFormArrayContext<T extends FormFields = FormFields>(): FormArrayContextValue<T>
+```
+
+**Returns:** Текущий {@link FormArrayContextValue}.
+
+**Examples:**
+
+Кастомный AddButton с predefined значением
+```tsx
+import { useFormArrayContext } from '@reformer/cdk/form-array';
+
+function AddDraftButton() {
+const { add } = useFormArrayContext<Item>();
+return (
+<button onClick={() => add({ status: 'draft', createdAt: Date.now() })}>
++ Add Draft
+</button>
+);
+}
+```
+
+Счётчик и условный empty-state из произвольного места дерева
+```tsx
+function ItemsBadge() {
+const { length, isEmpty } = useFormArrayContext();
+if (isEmpty) return <span className="text-gray-400">Нет элементов</span>;
+return <span className="badge">{length}</span>;
+}
+```
+
+_Source: src/components/form-array/FormArrayContext.tsx_
+
+### useFormArrayItemContext
+
+**Kind:** `function`
+
+Хук для доступа к контексту текущего элемента внутри `FormArray.List`.
+
+**Signature:**
+```typescript
+export function useFormArrayItemContext<
+  T extends FormFields = FormFields,
+>(): FormArrayItemContextValue<T>
+```
+
+**Returns:** Текущий {@link FormArrayItemContextValue} (`index`, `path`, `remove`).
+
+**Examples:**
+
+Кнопка удаления текущего элемента
+```tsx
+import { useFormArrayItemContext } from '@reformer/cdk/form-array';
+
+function ItemRemoveButton() {
+const { remove } = useFormArrayItemContext();
+return <button onClick={remove}>×</button>;
+}
+```
+
+Доступ к control + index для условной валидации
+```tsx
+function ItemHeader() {
+const { control, index } = useFormArrayItemContext<Property>();
+const { value: type } = useFormControl(control.type);
+return (
+<h4>
+#{index + 1} — {type === 'house' ? 'Дом' : 'Квартира'}
+</h4>
+);
+}
+```
+
+_Source: src/components/form-array/FormArrayContext.tsx_
+
+### UseFormArrayReturn
+
+**Kind:** `interface`
+
+Return type for useFormArray hook
+
+**Signature:**
+```typescript
+export interface UseFormArrayReturn<T extends FormFields> {
+  /** Array of items with their controls and actions */
+  items: FormArrayItem<T>[];
+  /** Current number of items in the array */
+  length: number;
+  /** Whether the array is empty */
+  isEmpty: boolean;
+  /** Add a new item to the end of the array */
+  add: (value?: Partial<T>) => void;
+  /** Remove all items from the array */
+  clear: () => void;
+  /** Insert a new item at a specific index */
+  insert: (index: number, value?: Partial<T>) => void;
+}
+```
+
+_Source: src/components/form-array/useFormArray.ts_
+
+### useFormField
+
+**Kind:** `function`
+
+Primary hook for building accessible form fields.
+
+Returns partitioned prop collections and structured state that you can spread
+directly onto your own elements. No prescribed DOM structure.
+
+**Signature:**
+```typescript
+export function useFormField<T extends FormValue>(
+  control: FieldNode<T>,
+  id?: string
+): UseFormFieldReturn<T>
+```
+
+**Examples:**
+
+Basic usage
+```tsx
+function EmailField({ control }: { control: FieldNode<string> }) {
+const { labelProps, controlProps, errorProps, state } = useFormField(control);
+
+return (
+<div>
+<label {...labelProps}>{state.label}</label>
+<input {...controlProps} type="email" />
+{state.shouldShowError && (
+<p {...errorProps}>{state.error}</p>
+)}
+</div>
+);
+}
+```
+
+With description (manual aria-describedby wiring)
+```tsx
+const { labelProps, controlProps, errorProps, descriptionProps, state, ids } =
+useFormField(control);
+
+const enrichedControlProps = {
+...controlProps,
+'aria-describedby': [
+ids.descriptionId,
+state.shouldShowError ? ids.errorId : null,
+].filter(Boolean).join(' ') || undefined,
+};
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### useFormFieldContext
+
+**Kind:** `function`
+
+Хук для доступа к контексту `FormField`. Бросает исключение, если вызван
+вне `FormField.Root`.
+
+**Signature:**
+```typescript
+export function useFormFieldContext<T extends FormValue = FormValue>(): FormFieldContextValue<T>
+```
+
+**Returns:** Текущий {@link FormFieldContextValue}.
+
+**Examples:**
+
+Счётчик символов рядом с label
+```tsx
+import { useFormFieldContext } from '@reformer/cdk/form-field';
+
+function CharCount() {
+const { control } = useFormFieldContext<string>();
+return <small>{control.value.length} chars</small>;
+}
+```
+
+Async pending-индикатор и required-астериск
+```tsx
+function PendingBadge() {
+const { pending, required, error } = useFormFieldContext();
+if (pending) return <Spinner size="xs" aria-label="Проверяем..." />;
+if (error) return <span className="text-red-600 text-xs">!</span>;
+if (required) return <span className="text-gray-400">*</span>;
+return null;
+}
+
+<FormField.Root control={form.username}>
+<div className="flex items-center gap-2">
+<FormField.Label />
+<PendingBadge />
+</div>
+<FormField.Control />
+<FormField.Error />
+</FormField.Root>
+```
+
+_Source: src/components/form-field/FormFieldContext.tsx_
+
+### UseFormFieldControlProps
+
+**Kind:** `interface`
+
+Props to spread onto the interactive control element
+
+**Signature:**
+```typescript
+export interface UseFormFieldControlProps {
+  id: string;
+  disabled: boolean;
+  'aria-labelledby': string;
+  'aria-invalid': true | undefined;
+  'aria-errormessage': string | undefined;
+  'aria-required': true | undefined;
+  /** Direct-value onChange compatible with ReFormer field components */
+  onChange: (value: unknown) => void;
+  onBlur: () => void;
+}
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### UseFormFieldDescriptionProps
+
+**Kind:** `interface`
+
+Props to spread onto a description paragraph
+
+**Signature:**
+```typescript
+export interface UseFormFieldDescriptionProps {
+  id: string;
+}
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### UseFormFieldErrorProps
+
+**Kind:** `interface`
+
+Props to spread onto an error paragraph
+
+**Signature:**
+```typescript
+export interface UseFormFieldErrorProps {
+  id: string;
+  role: 'alert';
+}
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### UseFormFieldLabelProps
+
+**Kind:** `interface`
+
+Props to spread onto a <label> element
+
+**Signature:**
+```typescript
+export interface UseFormFieldLabelProps {
+  id: string;
+  htmlFor: string;
+}
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### UseFormFieldReturn
+
+**Kind:** `interface`
+
+Return type of useFormField hook
+
+**Signature:**
+```typescript
+export interface UseFormFieldReturn<T extends FormValue = FormValue> {
+  /** Spread onto <label> */
+  labelProps: UseFormFieldLabelProps;
+  /** Spread onto the interactive control; includes value */
+  controlProps: UseFormFieldControlProps & { value: T };
+  /** Spread onto the first error paragraph */
+  errorProps: UseFormFieldErrorProps;
+  /** Spread onto the description paragraph */
+  descriptionProps: UseFormFieldDescriptionProps;
+  /** Structured field state */
+  state: UseFormFieldState<T>;
+  /** Field actions */
+  actions: {
+    setValue: (value: T) => void;
+    markAsTouched: () => void;
+    markAsUntouched: () => void;
+    reset: (value?: T) => void;
+  };
+  /** Raw IDs for manual wiring (e.g. aria-describedby) */
+  ids: FormFieldIds;
+}
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### UseFormFieldState
+
+**Kind:** `interface`
+
+Field state returned by useFormField
+
+**Signature:**
+```typescript
+export interface UseFormFieldState<T extends FormValue = FormValue> {
+  value: T;
+  errors: ValidationError[];
+  /** First error message, only set when shouldShowError is true */
+  error: string | undefined;
+  isPending: boolean;
+  isDisabled: boolean;
+  isValid: boolean;
+  isInvalid: boolean;
+  isTouched: boolean;
+  shouldShowError: boolean;
+  label: string | undefined;
+  required: boolean;
+  /** Full componentProps bag from FieldNode config */
+  componentProps: Record<string, unknown>;
+}
+```
+
+_Source: src/components/form-field/useFormField.ts_
+
+### useFormWizard
+
+**Kind:** `function`
+
+Хук для доступа к контексту {@link FormWizard} из любого потомка.
+
+Возвращает текущее состояние мастера (`currentStep`, `totalSteps`,
+`completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`, `isSubmitting`,
+`form`) и методы навигации (`goToNextStep`, `goToPreviousStep`, `goToStep`).
+Бросает исключение, если вызван вне `<FormWizard>`.
+
+Для внешнего управления (вне дерева Wizard) используйте
+{@link FormWizardHandle} через `useRef`.
+
+**Signature:**
+```typescript
+export function useFormWizard<T extends Record<string, any>>(): FormWizardContextValue<T>
+```
+
+**Returns:** Текущий {@link FormWizardContextValue}.
+
+**Examples:**
+
+Минимальное использование внутри custom-step
+```tsx
+function MyStepComponent() {
+const { currentStep, isLastStep } = useFormWizard();
+return <p>Шаг {currentStep}{isLastStep && ' — последний'}</p>;
+}
+```
+
+Условный рендер кнопки на основе isValidating + completedSteps
+```tsx
+function ProgressBadge() {
+const { currentStep, totalSteps, completedSteps, isValidating } =
+useFormWizard<CreditApplication>();
+
+if (isValidating) return <span>Проверяем шаг {currentStep}...</span>;
+return (
+<span>
+Завершено {completedSteps.length} из {totalSteps}
+</span>
+);
+}
+```
+
+_Source: src/components/form-wizard/FormWizardContext.tsx_

@@ -1,10 +1,7 @@
 import { memo } from 'react';
 import { RELATIONSHIPS } from '../../../constants/credit-application';
 import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input } from '@/components/ui/input';
-import { InputMask } from '@/components/ui/input-mask';
-import { Select } from '@/components/ui/select';
-import { FormField } from '@/components/ui/form-field';
+import { Input, InputMask, Select, FormField } from '@reformer/ui-kit';
 import type { CoBorrower } from './types';
 
 export type { CoBorrower } from './types';

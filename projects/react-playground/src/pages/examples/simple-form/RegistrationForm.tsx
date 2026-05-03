@@ -9,12 +9,8 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, type FormProxy, type FormSchema } from '@reformer/core';
-import { Input } from '@/components/ui/input';
-import { InputPassword } from '@/components/ui/input-password';
-import { InputMask } from '@/components/ui/input-mask';
-import { Checkbox } from '@/components/ui/checkbox';
-import { FormField } from '@/components/ui/form-field';
+import { createForm, type FormProxy, type FormSchema } from '@reformer/core';
+import { Input, InputPassword, InputMask, Checkbox, FormField } from '@reformer/ui-kit';
 import { FormStateDisplay } from './FormSateDisplay';
 import { registrationValidation } from './validation/registration-validation';
 import { registrationBehavior } from './behaviors/registration-behavior';
@@ -39,6 +35,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Имя пользователя',
       placeholder: 'Введите логин (только латиница)',
+      testId: 'username',
     },
   },
   email: {
@@ -48,6 +45,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
       label: 'Email',
       placeholder: 'your@email.com',
       type: 'email',
+      testId: 'email',
     },
   },
   password: {
@@ -56,6 +54,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Пароль',
       placeholder: 'Минимум 8 символов',
+      testId: 'password',
     },
   },
   confirmPassword: {
@@ -64,6 +63,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Подтвердите пароль',
       placeholder: 'Повторите пароль',
+      testId: 'confirmPassword',
     },
   },
   fullName: {
@@ -72,6 +72,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Полное имя',
       placeholder: 'Иван Иванов',
+      testId: 'fullName',
     },
   },
   phone: {
@@ -81,6 +82,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
       label: 'Телефон',
       placeholder: '+7 (999) 123-45-67',
       mask: '+7 (999) 999-99-99',
+      testId: 'phone',
     },
   },
   captcha: {
@@ -89,6 +91,7 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     componentProps: {
       label: 'Введите captcha',
       placeholder: 'Подсказка: ABC123',
+      testId: 'captcha',
     },
   },
   acceptTerms: {
@@ -96,19 +99,18 @@ const registrationFormSchema: FormSchema<RegistrationFormData> = {
     component: Checkbox,
     componentProps: {
       label: 'Я принимаю условия использования',
+      testId: 'acceptTerms',
     },
   },
 };
 
 // Фабрика для создания формы
 function createRegistrationForm(): FormProxy<RegistrationFormData> {
-  const form = new GroupNode<RegistrationFormData>({
+  const form = createForm<RegistrationFormData>({
     form: registrationFormSchema,
     validation: registrationValidation,
+    behavior: registrationBehavior,
   });
-
-  // Применяем behavior для связанных полей
-  form.applyBehaviorSchema(registrationBehavior);
 
   return form;
 }
@@ -197,6 +199,13 @@ export default function RegistrationForm() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Состояние формы */}
+      <div className="flex-1 p-6 bg-white rounded-lg shadow">
+        <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
+
+        <FormStateDisplay form={form} />
 
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
           <h3 className="font-semibold mb-2">💡 Подсказки для тестирования:</h3>
@@ -213,12 +222,6 @@ export default function RegistrationForm() {
             </li>
           </ul>
         </div>
-      </div>
-
-      {/* Состояние формы */}
-      <div className="flex-1 p-6 bg-white rounded-lg shadow">
-        <h2 className="text-xl font-bold mb-4">Состояние формы</h2>
-        <FormStateDisplay form={form} />
       </div>
     </div>
   );

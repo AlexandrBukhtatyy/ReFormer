@@ -9,10 +9,10 @@
 
 import type { FormProxy } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
-import { FormField } from '@/components/ui/form-field';
+import { FormField } from '@reformer/ui-kit';
 import { AddressForm } from '../../nested-forms/Address/AddressForm';
 import type { CreditApplicationForm } from '../../../types/credit-application';
-import { Button } from '@/components/ui/button';
+import { ResidenceAddressSection } from '../../ui/ResidenceAddressSection';
 
 interface ContactInfoFormProps {
   control: FormProxy<CreditApplicationForm>;
@@ -20,17 +20,6 @@ interface ContactInfoFormProps {
 
 export function ContactInfoForm({ control }: ContactInfoFormProps) {
   const { value: sameAsRegistration } = useFormControl(control.sameAsRegistration);
-
-  // Копировать адрес регистрации в адрес проживания
-  const copyRegistrationAddress = () => {
-    const regAddress = control.registrationAddress?.getValue();
-    control.residenceAddress?.setValue(regAddress);
-  };
-
-  // Очистить адрес проживания
-  const clearResidenceAddress = () => {
-    control.residenceAddress?.reset();
-  };
 
   return (
     <div className="space-y-6" data-testid="step-contact-info">
@@ -47,6 +36,7 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
           <FormField control={control.email} testId="email" />
           <FormField control={control.emailAdditional} testId="emailAdditional" />
         </div>
+        <FormField control={control.sameEmail} testId="sameEmail" />
       </div>
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Адрес регистрации</h3>
@@ -54,20 +44,9 @@ export function ContactInfoForm({ control }: ContactInfoFormProps) {
       </div>
       <FormField control={control.sameAsRegistration} testId="sameAsRegistration" />
       {!sameAsRegistration && (
-        <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Адрес проживания</h3>
-            <Button size="sm" onClick={copyRegistrationAddress}>
-              Скопировать из адреса регистрации
-            </Button>
-          </div>
-
+        <ResidenceAddressSection>
           <AddressForm control={control.residenceAddress} testIdPrefix="residenceAddress" />
-
-          <Button size="sm" onClick={clearResidenceAddress}>
-            Очистить адрес проживания
-          </Button>
-        </div>
+        </ResidenceAddressSection>
       )}
     </div>
   );
