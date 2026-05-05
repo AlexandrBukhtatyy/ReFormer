@@ -94,22 +94,22 @@
 
 ## Step 3 — code generation
 
-> ## ⚠️ MINIMUM-VIABLE SCOPE — реализуй ТОЛЬКО subset спеки
+> ## ⚠️ SCOPE — структура из спеки, детали упрощённые
 >
-> Цель iter — проверить, что **MCP-only sub-agent делает форму без ошибок**, не подглядывая в исходники reformer. НЕ цель — реализовать ВСЮ спеку (1270 строк) или все 6 шагов формы.
+> Цель iter — проверить, что **MCP-only sub-agent делает форму без ошибок**, не подглядывая в исходники reformer. **Скелет формы (количество шагов, темы шагов, ключевые секции) должен соответствовать спеке.** Упрощать можно детали внутри шагов.
 >
 > **Реализуй**:
-> - **2 шага FormWizard** (вместо 6 из спеки) — выбери шаги, которые покрывают разные тип данных, например Step 1 (loanType + loanAmount + loanPurpose) и Step 2 (personal data — lastName/firstName/birthDate)
-> - **8-12 полей всего** (вместо 80+) — разные типы: text, number, date, select, checkbox, textarea
-> - **1 computed field** через `computeFrom` (например, `fullName = firstName + lastName`)
-> - **1 conditional rendering** через `applyWhen` (например, дополнительные поля при `loanType === 'mortgage'`)
-> - **БЕЗ FormArray sections** (skip arrays — слишком объёмно для iter)
-> - **БЕЗ async validators / async options loading** (skip async — слишком объёмно для iter)
-> - **Минимум валидации**: `required` + один `min`/`max`/`minLength`
+> - **6 шагов FormWizard** — ровно как в спеке. Темы шагов сохраняй (1. Кредит → 2. Личные данные → 3. Контакты → 4. Работа → 5. Доп. инфо → 6. Подтверждение). Не объединяй и не пропускай шаги.
+> - **2-4 поля per шаг** (16-24 поля всего вместо 80+) — выбирай ключевые поля каждого шага из спеки. Для каждого поля бери разные типы (text, number, date, select, checkbox, textarea).
+> - **1-2 computed fields** через `computeFrom` — выбери самые показательные из спеки (например `fullName = lastName + firstName + middleName` на step 2; `monthlyPayment = annuityFormula(loanAmount, loanTerm, interestRate)` на step 1). Остальные computed — n/a для iter.
+> - **1 conditional rendering** через `applyWhen` — берёшь из спеки (например mortgage section на step 1, или employed section на step 4).
+> - **1 FormArray section** (упрощённая) — берёшь любую из 3 в спеке (`properties` / `existingLoans` / `coBorrowers`). 2-3 поля per item, без сложной валидации.
+> - **Минимум валидации**: `required` на критичных полях + 1-2 `min`/`max`/`minLength` для демонстрации.
+> - **БЕЗ async validators / async options loading / InputMask** — это feature-completeness, не критично для MCP validation. Маркируй в dev-report как «out of iter-scope, not gap».
 >
-> Это покрывает ВСЕ ключевые механизмы ReFormer (form, computed, conditional, типы полей, FormWizard) — достаточно для validation MCP. Полная реализация спеки даёт **ту же информацию**, но в 5× больше токенов.
+> Это покрывает ВСЕ ключевые механизмы ReFormer (multi-step navigation, computed, conditional, array, типы полей, FormField pattern) при сохранении структуры формы из спеки.
 >
-> **Token budget per sub-agent: ~80k tokens / ~10 минут**. Если приближаешься к 60k — переходи к Step 4-5 без новых features.
+> **Token budget per sub-agent: ~120k tokens / ~15 минут**. Если приближаешься к 100k — переходи к Step 4-5 без новых features.
 
 ```bash
 mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}
@@ -190,7 +190,7 @@ npm run build -w react-playground 2>&1 | tail -30
 
 Создать `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts`:
 
-> **Minimum-viable walkthrough** — 2 шага (по числу шагов в твоей форме), 1 заполненный скриншот per шаг + 1 финальный. Итого 3 screenshots, не 7+.
+> **Walkthrough всех 6 шагов** — заполни минимально-достаточные required поля на каждом, fullPage screenshot после заполнения. Итого 7 screenshots (page1..page6 + page-final).
 
 ```ts
 import { test } from '@playwright/test';
@@ -202,20 +202,19 @@ const URL = `/mcp-credit-application-${TARGET}-v${N}`;
 test(`mcp-credit-${TARGET}-v${N} — walkthrough`, async ({ page }) => {
   await page.goto(URL);
 
-  // Step 1 — заполни поля шага 1
-  // ...
-  await page.screenshot({
-    path: `screenshots/mcp-credit-v${N}/${TARGET}/page1-filled.png`,
-    fullPage: true,
-  });
-  await page.getByRole('button', { name: /Далее|Next/i }).click();
+  for (const step of [1, 2, 3, 4, 5, 6]) {
+    // Step-specific: заполни required поля шага (минимум — те, которые ты определил в схеме)
+    // ...
 
-  // Step 2 — заполни поля шага 2
-  // ...
-  await page.screenshot({
-    path: `screenshots/mcp-credit-v${N}/${TARGET}/page2-filled.png`,
-    fullPage: true,
-  });
+    await page.screenshot({
+      path: `screenshots/mcp-credit-v${N}/${TARGET}/page${step}-filled.png`,
+      fullPage: true,
+    });
+
+    if (step < 6) {
+      await page.getByRole('button', { name: /Далее|Next/i }).click();
+    }
+  }
 
   // Submit
   await page.getByRole('button', { name: /Отправить|Submit/i }).click();
