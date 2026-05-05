@@ -54,11 +54,16 @@
    - Conditional rendering (applyWhen)
 
 2. **Discovery через MCP** — минимальный набор:
+   - `find_recipe(topic="quick-start")` — **ОБЯЗАТЕЛЬНО ПЕРВЫМ**, читай раздел про FormField внимательно
+   - `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")` — **ОБЯЗАТЕЛЬНО для ВСЕХ targets** (даже core: ui-kit это peer-dep, не нарушает архитектуру)
+   - `find_recipe(topic="ui-components")` — schema-driven UI правила
    - `find_recipe(topic="validation")`
    - `find_recipe(topic="compute-from")` (или `topic="computed"`)
    - `find_recipe(topic="form-array")`
    - `find_recipe(topic="form-wizard")`
    - `find_recipe(topic="async-validator")`
+   - `find_recipe(topic="type-safety-recipes")` — **ОБЯЗАТЕЛЬНО**, особенно Recipe 8 для union-type defaults
+   - `find_recipe(topic="common-mistakes")` — заранее знай про overload-error decoding
    - target-specific:
      - `core` → `find_recipe(topic="form-proxy")`, `find_recipe(topic="hooks")`
      - `renderer-react` → `find_recipe(topic="renderSchema")`, `find_recipe(topic="renderer-react")`
@@ -68,6 +73,7 @@
    - `get_symbol_docs(symbol="ValidationSchemaFn")`
    - `get_symbol_docs(symbol="computeFrom")`
    - `get_symbol_docs(symbol="applyWhen")`
+   - `get_symbol_docs(symbol="FormField")` — **ОБЯЗАТЕЛЬНО** (живёт в `@reformer/ui-kit`)
    - target-specific:
      - `renderer-react` → `get_symbol_docs(symbol="renderSchema")`, `get_symbol_docs(symbol="Renderer")`
      - `renderer-json` → `get_symbol_docs(symbol="JsonRenderer")`
@@ -101,6 +107,23 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 | `renderer-react` | `schema.ts` + `index.tsx`                              | `renderSchema` + `<Renderer schema=...>`   |
 | `renderer-json`  | `schema.json` + `index.tsx`                            | `<JsonRenderer schema={jsonSchema}>`       |
 
+### Schema-driven UI rule (CRITICAL — главная находка iter-11)
+
+**Компонент И его пропсы декларируются в СХЕМЕ**. JSX рендерит `<FormField control={form.x} />` БЕЗ дополнительных props. Это применимо ко ВСЕМ targets, включая core.
+
+```ts
+// schema.ts ✓
+{ email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } } }
+```
+```tsx
+// page.tsx ✓
+<FormField control={form.email} />
+```
+
+❌ **НЕ ДЕЛАЙ**: свои Input/Select/Checkbox компоненты с label-prop'ами в JSX. Это anti-pattern, ломает schema-driven архитектуру и удваивает код.
+
+`FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit'`. Это **peer-dependency**, не нарушает sandbox или архитектуру.
+
 ### Type-safety правила (must follow)
 
 - **type aliases** для FormFields, **НЕ interface** (avoids TS2344 cascade)
@@ -111,8 +134,13 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
   computeFrom([path.x], path.y, ({ x }: MyForm) => ...)  // ✓
   computeFrom([path.x], path.y, ({ x }) => x as number)  // ✗ never cast
   ```
+- **union-type defaults**: `value: 'male'` widening к `string`. Используй `satisfies FieldConfig<UnionType>` (Recipe 8 в `30-type-safety-recipes.md`):
+  ```ts
+  gender: { value: 'male', component: Radio, componentProps: { ... } } satisfies FieldConfig<Gender>
+  ```
+- **TS2769 `'form' does not exist in FormSchema<T>'`** — misleading. Это симптом literal-widening внутри. Extract `const form: FormSchema<T> = { ... }` чтобы получить реальную ошибку. См. `05-common-mistakes.md`.
 - никаких `as`-кастов для обхода типов в схеме
-- если `find_recipe(topic="type-safety")` доступно — следовать рецептам оттуда
+- следуй всем рецептам из `find_recipe(topic="type-safety-recipes")`
 
 ---
 
