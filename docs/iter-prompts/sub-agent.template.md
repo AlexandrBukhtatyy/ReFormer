@@ -53,30 +53,29 @@
    - FormArray sections (списки)
    - Conditional rendering (applyWhen)
 
-2. **Discovery через MCP** — минимальный набор:
+2. **Discovery через MCP** — минимальный обязательный набор (~5-7 вызовов, не 18):
    - `find_recipe(topic="quick-start")` — **ОБЯЗАТЕЛЬНО ПЕРВЫМ**, читай раздел про FormField внимательно
-   - `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")` — **ОБЯЗАТЕЛЬНО для ВСЕХ targets** (даже core: ui-kit это peer-dep, не нарушает архитектуру)
-   - `find_recipe(topic="ui-components")` — schema-driven UI правила
-   - `find_recipe(topic="validation")`
-   - `find_recipe(topic="compute-from")` (или `topic="computed"`)
-   - `find_recipe(topic="form-array")`
-   - `find_recipe(topic="form-wizard")`
-   - `find_recipe(topic="async-validator")`
+   - `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")` — **ОБЯЗАТЕЛЬНО для ВСЕХ targets**
    - `find_recipe(topic="type-safety-recipes")` — **ОБЯЗАТЕЛЬНО**, особенно Recipe 8 для union-type defaults
-   - `find_recipe(topic="common-mistakes")` — заранее знай про overload-error decoding
+   - `find_recipe(topic="form-wizard")` — для multi-step (если делаешь FormWizard)
+   - `find_recipe(topic="compute-from")` — для 1 computed field (alias map активен)
    - target-specific:
-     - `core` → `find_recipe(topic="form-proxy")`, `find_recipe(topic="hooks")`
-     - `renderer-react` → `find_recipe(topic="renderSchema")`, `find_recipe(topic="renderer-react")`
-     - `renderer-json` → `find_recipe(package="@reformer/renderer-json", topic="overview")` (показывает closure-pattern), `find_recipe(topic="json-schema")`
+     - `core` → `find_recipe(topic="hooks")` (если используешь useFormControlValue для conditional)
+     - `renderer-react` → `find_recipe(topic="renderer-react")` (overview + RenderSchema)
+     - `renderer-json` → `find_recipe(package="@reformer/renderer-json", topic="overview")` (closure-pattern)
+
+   **Доп. recipes — только по необходимости** (если ошибка / непонятно):
+   - `find_recipe(topic="common-mistakes")` — overload-error decoding (если столкнулся с TS2769)
+   - `find_recipe(topic="validation")` — расширенные patterns (если нужны)
+
+   **Symbols** (минимум):
    - `get_symbol_docs(symbol="createForm")`
-   - `get_symbol_docs(symbol="FormProxy")`
-   - `get_symbol_docs(symbol="ValidationSchemaFn")`
-   - `get_symbol_docs(symbol="computeFrom")`
-   - `get_symbol_docs(symbol="applyWhen")`
-   - `get_symbol_docs(symbol="FormField")` — **ОБЯЗАТЕЛЬНО** (живёт в `@reformer/ui-kit`)
+   - `get_symbol_docs(symbol="FormField")` (живёт в `@reformer/ui-kit`)
    - target-specific:
-     - `renderer-react` → `get_symbol_docs(symbol="renderSchema")`, `get_symbol_docs(symbol="Renderer")`
-     - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого экспорта НЕТ), `get_symbol_docs(symbol="createRenderSchemaFromJson")`
+     - `renderer-react` → `get_symbol_docs(symbol="createRenderSchema")`
+     - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого нет)
+
+   **НЕ нужно** в discovery: `find_recipe(form-array)`, `find_recipe(async-validator)`, `find_recipe(input-mask)` — потому что мы их НЕ реализуем (см. minimum-viable scope в Step 3).
 
 3. **Сохранить raw responses** в `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md` (для аудита и repro). Один блок на каждый MCP-вызов с заголовком и query.
 
@@ -95,6 +94,23 @@
 
 ## Step 3 — code generation
 
+> ## ⚠️ MINIMUM-VIABLE SCOPE — реализуй ТОЛЬКО subset спеки
+>
+> Цель iter — проверить, что **MCP-only sub-agent делает форму без ошибок**, не подглядывая в исходники reformer. НЕ цель — реализовать ВСЮ спеку (1270 строк) или все 6 шагов формы.
+>
+> **Реализуй**:
+> - **2 шага FormWizard** (вместо 6 из спеки) — выбери шаги, которые покрывают разные тип данных, например Step 1 (loanType + loanAmount + loanPurpose) и Step 2 (personal data — lastName/firstName/birthDate)
+> - **8-12 полей всего** (вместо 80+) — разные типы: text, number, date, select, checkbox, textarea
+> - **1 computed field** через `computeFrom` (например, `fullName = firstName + lastName`)
+> - **1 conditional rendering** через `applyWhen` (например, дополнительные поля при `loanType === 'mortgage'`)
+> - **БЕЗ FormArray sections** (skip arrays — слишком объёмно для iter)
+> - **БЕЗ async validators / async options loading** (skip async — слишком объёмно для iter)
+> - **Минимум валидации**: `required` + один `min`/`max`/`minLength`
+>
+> Это покрывает ВСЕ ключевые механизмы ReFormer (form, computed, conditional, типы полей, FormWizard) — достаточно для validation MCP. Полная реализация спеки даёт **ту же информацию**, но в 5× больше токенов.
+>
+> **Token budget per sub-agent: ~80k tokens / ~10 минут**. Если приближаешься к 60k — переходи к Step 4-5 без новых features.
+
 ```bash
 mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}
 ```
@@ -103,9 +119,9 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 
 | target           | files                                                  | стек                                       |
 | ---------------- | ------------------------------------------------------ | ------------------------------------------ |
-| `core`           | `schema.ts` + `index.tsx`                              | `createForm` + `FormWizard` + `FormArray`  |
-| `renderer-react` | `schema.ts` + `index.tsx`                              | `renderSchema` + `<Renderer schema=...>`   |
-| `renderer-json`  | `schema.json` + `index.tsx`                            | `<JsonRenderer schema={jsonSchema}>`       |
+| `core`           | `schema.ts` + `index.tsx`                              | `createForm` + `FormWizard` (ui-kit) + `FormField` (ui-kit) |
+| `renderer-react` | `schema.ts` + `index.tsx`                              | `createRenderSchema` + `<FormRenderer fieldWrapper=FormField>` |
+| `renderer-json`  | `schema.json` + `index.tsx`                            | `<JsonFormRenderer>` + closure pattern (НЕ `JsonRenderer` — такого нет) |
 
 ### Schema-driven UI rule (CRITICAL — главная находка iter-11)
 
@@ -174,6 +190,8 @@ npm run build -w react-playground 2>&1 | tail -30
 
 Создать `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts`:
 
+> **Minimum-viable walkthrough** — 2 шага (по числу шагов в твоей форме), 1 заполненный скриншот per шаг + 1 финальный. Итого 3 screenshots, не 7+.
+
 ```ts
 import { test } from '@playwright/test';
 
@@ -184,23 +202,24 @@ const URL = `/mcp-credit-application-${TARGET}-v${N}`;
 test(`mcp-credit-${TARGET}-v${N} — walkthrough`, async ({ page }) => {
   await page.goto(URL);
 
-  for (const step of [1, 2, 3, 4, 5, 6]) {
-    // Step-specific: заполни обязательные поля шага (из спеки)
-    // ... (твоё дело — каждый sub-agent рендерит свой код, сам знает поля)
+  // Step 1 — заполни поля шага 1
+  // ...
+  await page.screenshot({
+    path: `screenshots/mcp-credit-v${N}/${TARGET}/page1-filled.png`,
+    fullPage: true,
+  });
+  await page.getByRole('button', { name: /Далее|Next/i }).click();
 
-    await page.screenshot({
-      path: `screenshots/mcp-credit-v${N}/${TARGET}/page${step}-filled.png`,
-      fullPage: true,
-    });
+  // Step 2 — заполни поля шага 2
+  // ...
+  await page.screenshot({
+    path: `screenshots/mcp-credit-v${N}/${TARGET}/page2-filled.png`,
+    fullPage: true,
+  });
 
-    if (step < 6) {
-      await page.getByRole('button', { name: /Далее|Next/i }).click();
-    }
-  }
-
+  // Submit
   await page.getByRole('button', { name: /Отправить|Submit/i }).click();
   await page.waitForLoadState('networkidle');
-
   await page.screenshot({
     path: `screenshots/mcp-credit-v${N}/${TARGET}/page-final.png`,
     fullPage: true,
