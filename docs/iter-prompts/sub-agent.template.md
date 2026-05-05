@@ -67,7 +67,7 @@
    - target-specific:
      - `core` → `find_recipe(topic="form-proxy")`, `find_recipe(topic="hooks")`
      - `renderer-react` → `find_recipe(topic="renderSchema")`, `find_recipe(topic="renderer-react")`
-     - `renderer-json` → `find_recipe(topic="json-schema")`, `find_recipe(topic="renderer-json")`
+     - `renderer-json` → `find_recipe(package="@reformer/renderer-json", topic="overview")` (показывает closure-pattern), `find_recipe(topic="json-schema")`
    - `get_symbol_docs(symbol="createForm")`
    - `get_symbol_docs(symbol="FormProxy")`
    - `get_symbol_docs(symbol="ValidationSchemaFn")`
@@ -76,7 +76,7 @@
    - `get_symbol_docs(symbol="FormField")` — **ОБЯЗАТЕЛЬНО** (живёт в `@reformer/ui-kit`)
    - target-specific:
      - `renderer-react` → `get_symbol_docs(symbol="renderSchema")`, `get_symbol_docs(symbol="Renderer")`
-     - `renderer-json` → `get_symbol_docs(symbol="JsonRenderer")`
+     - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого экспорта НЕТ), `get_symbol_docs(symbol="createRenderSchemaFromJson")`
 
 3. **Сохранить raw responses** в `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md` (для аудита и repro). Один блок на каждый MCP-вызов с заголовком и query.
 

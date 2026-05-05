@@ -38,14 +38,38 @@ const steps: FormWizardStep<MyForm>[] = [
 // позволяет nullable-поля (`number | null`) внутри MyForm без TS-ошибок.
 const navRef = useRef<FormWizardHandle<MyForm>>(null);
 
+// ВАЖНО: prop-level `onSubmit` имеет signature `() => void | Promise<void>` —
+// БЕЗ аргумента values. Это by-design (см. FormWizardActionsProps в @reformer/cdk).
+// Чтобы получить values — читай их из form внутри handler:
+const handleSubmit = async () => {
+  const values = form.getValue();
+  await api.submit(values);
+};
+
 <FormWizard
   ref={navRef}
   form={form}
   config={{ stepValidations: STEP_VALIDATIONS, fullValidation }}
   steps={steps}
-  onSubmit={async (values) => api.submit(values)}
+  onSubmit={handleSubmit}
 />;
 ```
+
+### Альтернатива — imperative submit с values
+
+`navRef.current?.submit(callback)` — отдельный API, ПРИНИМАЕТ `(values: T) =>` callback.
+Удобно для save-and-exit flow:
+
+```tsx
+// FormWizardHandle.submit<R>(cb: (values: T) => Promise<R> | R): Promise<R | null>
+const handleSaveAndExit = async () => {
+  const result = await navRef.current?.submit((values) => api.saveDraft(values));
+  if (result) router.push('/dashboard');
+};
+```
+
+Различие — два разных entry point: `<FormWizard onSubmit={...}>` (no-arg, для submit-button click)
+и `navRef.current?.submit(values => ...)` (с values, для programmatic submit).
 
 ## Полиморфный `step.body`
 
