@@ -1,0 +1,239 @@
+{
+  "version": "1.0",
+  "root": {
+    "selector": "form-root",
+    "component": "FormRoot",
+    "children": [
+      {
+        "selector": "step1-body",
+        "component": "Box",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "model": "loanType",
+            "component": "Select",
+            "componentProps": {
+              "label": "Тип кредита",
+              "options": "LOAN_TYPE_OPTIONS",
+              "testId": "loanType"
+            }
+          },
+          {
+            "model": "loanAmount",
+            "component": "Input",
+            "componentProps": {
+              "label": "Сумма кредита (₽)",
+              "type": "number",
+              "placeholder": "Введите сумму",
+              "testId": "loanAmount"
+            }
+          },
+          {
+            "model": "loanTerm",
+            "component": "Input",
+            "componentProps": {
+              "label": "Срок кредита (месяцев)",
+              "type": "number",
+              "placeholder": "Введите срок",
+              "testId": "loanTerm"
+            }
+          },
+          {
+            "model": "loanPurpose",
+            "component": "Textarea",
+            "componentProps": {
+              "label": "Цель кредита",
+              "placeholder": "Опишите, на что планируете потратить средства",
+              "rows": 3,
+              "testId": "loanPurpose"
+            }
+          }
+        ]
+      },
+      {
+        "selector": "step2-body",
+        "component": "Box",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "model": "lastName",
+            "component": "Input",
+            "componentProps": { "label": "Фамилия", "placeholder": "Введите фамилию", "testId": "lastName" }
+          },
+          {
+            "model": "firstName",
+            "component": "Input",
+            "componentProps": { "label": "Имя", "placeholder": "Введите имя", "testId": "firstName" }
+          },
+          {
+            "model": "middleName",
+            "component": "Input",
+            "componentProps": { "label": "Отчество", "placeholder": "Введите отчество", "testId": "middleName" }
+          },
+          {
+            "model": "fullName",
+            "component": "Input",
+            "componentProps": { "label": "Полное имя (вычисляется)", "readOnly": true, "testId": "fullName" }
+          },
+          {
+            "model": "birthDate",
+            "component": "Input",
+            "componentProps": { "label": "Дата рождения", "type": "date", "testId": "birthDate" }
+          }
+        ]
+      },
+      {
+        "selector": "step3-body",
+        "component": "Box",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "model": "phoneMain",
+            "component": "Input",
+            "componentProps": { "label": "Основной телефон", "placeholder": "+7 (___) ___-__-__", "testId": "phoneMain" }
+          },
+          {
+            "model": "email",
+            "component": "Input",
+            "componentProps": { "label": "Email", "type": "email", "placeholder": "example@mail.com", "testId": "email" }
+          },
+          {
+            "model": "city",
+            "component": "Input",
+            "componentProps": { "label": "Город", "placeholder": "Введите город", "testId": "city" }
+          }
+        ]
+      },
+      {
+        "selector": "step4-body",
+        "component": "Box",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "model": "employmentStatus",
+            "component": "RadioGroup",
+            "componentProps": {
+              "label": "Статус занятости",
+              "options": "EMPLOYMENT_OPTIONS",
+              "testId": "employmentStatus"
+            }
+          },
+          {
+            "model": "companyName",
+            "component": "Input",
+            "componentProps": { "label": "Название компании", "placeholder": "Введите название", "testId": "companyName" }
+          },
+          {
+            "model": "monthlyIncome",
+            "component": "Input",
+            "componentProps": { "label": "Ежемесячный доход (₽)", "type": "number", "testId": "monthlyIncome" }
+          },
+          {
+            "model": "additionalIncome",
+            "component": "Input",
+            "componentProps": { "label": "Дополнительный доход (₽)", "type": "number", "testId": "additionalIncome" }
+          },
+          {
+            "model": "totalIncome",
+            "component": "Input",
+            "componentProps": { "label": "Общий доход (вычисляется)", "type": "number", "readOnly": true, "testId": "totalIncome" }
+          }
+        ]
+      },
+      {
+        "selector": "step5-body",
+        "component": "Box",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "model": "maritalStatus",
+            "component": "Select",
+            "componentProps": {
+              "label": "Семейное положение",
+              "options": "MARITAL_OPTIONS",
+              "testId": "maritalStatus"
+            }
+          },
+          {
+            "model": "dependents",
+            "component": "Input",
+            "componentProps": { "label": "Количество иждивенцев", "type": "number", "testId": "dependents" }
+          },
+          {
+            "model": "hasProperty",
+            "component": "Checkbox",
+            "componentProps": { "label": "У меня есть имущество", "testId": "hasProperty" }
+          },
+          {
+            "selector": "properties-section",
+            "component": "FormArraySection",
+            "componentProps": {
+              "control": "properties",
+              "title": "Имущество",
+              "addButtonLabel": "+ Добавить имущество",
+              "removeButtonLabel": "Удалить",
+              "initialValue": "PROPERTY_TEMPLATE",
+              "itemComponent": {
+                "$template": {
+                  "component": "Box",
+                  "componentProps": { "className": "space-y-3" },
+                  "children": [
+                    {
+                      "selector": "type",
+                      "component": "Select",
+                      "componentProps": {
+                        "label": "Тип имущества",
+                        "options": "PROPERTY_TYPE_OPTIONS",
+                        "testId": "property-type"
+                      }
+                    },
+                    {
+                      "selector": "description",
+                      "component": "Textarea",
+                      "componentProps": {
+                        "label": "Описание",
+                        "rows": 2,
+                        "testId": "property-description"
+                      }
+                    },
+                    {
+                      "selector": "estimatedValue",
+                      "component": "Input",
+                      "componentProps": {
+                        "label": "Оценочная стоимость (₽)",
+                        "type": "number",
+                        "testId": "property-estimatedValue"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "selector": "step6-body",
+        "component": "Box",
+        "componentProps": { "className": "space-y-4" },
+        "children": [
+          {
+            "model": "agreePersonalData",
+            "component": "Checkbox",
+            "componentProps": { "label": "Согласие на обработку персональных данных", "testId": "agreePersonalData" }
+          },
+          {
+            "model": "agreeTerms",
+            "component": "Checkbox",
+            "componentProps": { "label": "Согласие с условиями кредитования", "testId": "agreeTerms" }
+          },
+          {
+            "model": "confirmAccuracy",
+            "component": "Checkbox",
+            "componentProps": { "label": "Подтверждаю точность введенных данных", "testId": "confirmAccuracy" }
+          }
+        ]
+      }
+    ]
+  }
+}
