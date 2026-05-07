@@ -44,7 +44,7 @@ import type { FieldPathNode } from '../../types';
  * }
  * ```
  */
-export function email<TForm, TField extends string | undefined = string>(
+export function email<TForm, TField extends string | null | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions
 ): void {

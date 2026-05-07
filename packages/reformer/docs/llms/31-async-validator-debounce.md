@@ -5,9 +5,9 @@
 
 ```ts
 import { type FieldConfig, type FormSchema } from '@reformer/core';
-import { required, email, type AsyncValidator } from '@reformer/core/validators';
+import { required, email, type AsyncValidatorFn } from '@reformer/core/validators';
 
-const checkEmailUnique: AsyncValidator<string> = async (value) => {
+const checkEmailUnique: AsyncValidatorFn<string> = async (value) => {
   if (!value) return null; // empty = valid (sync `required` separately)
 
   try {
@@ -27,7 +27,7 @@ const schema: FormSchema<{ email: string }> = {
     component: Input,
     validators: [required(), email()], // sync first
     asyncValidators: [checkEmailUnique], // async after sync passed
-    asyncDebounceMs: 500, // debounce input → API
+    debounce: 500, // debounce input → API (поле `debounce`, не `asyncDebounceMs`)
   },
 };
 ```
@@ -35,7 +35,7 @@ const schema: FormSchema<{ email: string }> = {
 ### Lifecycle
 
 1. На каждое `setValue` запускается sync `validators` (`required`, `email`)
-2. Если sync passed — стартует таймер `asyncDebounceMs`
+2. Если sync passed — стартует таймер `debounce`
 3. По истечении debounce и стабильном value — вызывается каждый `asyncValidator`
 4. Во время async-проверки `useFormControl(...).pending === true` — UI может показать спиннер
 5. Результат записывается в `errors` поля

@@ -2,6 +2,86 @@
 
 Продвинутые рецепты для `@reformer/renderer-json`. Каждый рецепт описан на актуальном API: source-резолв и `$template` реализованы в [json-to-render-schema.ts](../../src/converter/json-to-render-schema.ts), реестр — в [component-registry.ts](../../src/registry/component-registry.ts).
 
+## JsonFormApp — компактная обёртка closure pattern { #json-form-app }
+
+**Problem.** `JsonFormRenderer` сам по себе НЕ принимает `form` prop (это by-design — JSON-схема статична, форма runtime). Каноничный mounting через closure pattern требует ~40-80 LOC boilerplate: `FormRoot.__selfManagedChildren = true`, `createRenderSchemaFromJson`, `createRenderSchema`, `<FormRenderer>` с `componentProps={{ form }}`.
+
+**Solution.** Скопируй компактную обёртку в свой проект (~30 LOC):
+
+```tsx
+import { useMemo, type ReactNode } from 'react';
+import type { FormProxy } from '@reformer/core';
+import {
+  FormRenderer,
+  RenderNodeComponent,
+  createRenderSchema,
+  type RenderNode,
+} from '@reformer/renderer-react';
+import {
+  createRenderSchemaFromJson,
+  type JsonFormSchema,
+  type ComponentRegistry,
+} from '@reformer/renderer-json';
+
+// FormRoot принимает form через componentProps closure и пробрасывает в children.
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children?: RenderNode<T>[] }): ReactNode {
+  return (
+    <>
+      {children?.map((node, i) => (
+        <RenderNodeComponent key={i} node={node} form={form} />
+      ))}
+    </>
+  );
+}
+// Маркер для converter — не итерировать children сам, FormRoot управляет ими.
+(FormRoot as unknown as { __selfManagedChildren: boolean }).__selfManagedChildren = true;
+
+interface JsonFormAppProps<T> {
+  schema: JsonFormSchema;
+  form: FormProxy<T>;
+  registry: ComponentRegistry;
+  fieldWrapper?: React.ComponentType<{ control: unknown }>;
+}
+
+export function JsonFormApp<T>({ schema, form, registry, fieldWrapper }: JsonFormAppProps<T>): ReactNode {
+  // Расширяем registry FormRoot'ом, не мутируя оригинал
+  const fullRegistry = useMemo(() => {
+    const r = registry.clone();
+    r.container('FormRoot', FormRoot as never);
+    return r;
+  }, [registry]);
+
+  const renderSchema = useMemo(() => {
+    const fn = createRenderSchemaFromJson<T>(schema, fullRegistry);
+    return createRenderSchema<T>(fn);
+  }, [schema, fullRegistry]);
+
+  return <FormRenderer render={renderSchema} settings={{ fieldWrapper }} />;
+}
+```
+
+В JSON-схеме root должен быть `FormRoot`:
+
+```json
+{
+  "version": "1.0",
+  "root": {
+    "component": "FormRoot",
+    "children": [
+      { "selector": "email", "model": "email", "component": "Input" }
+    ]
+  }
+}
+```
+
+Использование:
+
+```tsx
+<JsonFormApp schema={jsonSchema} form={form} registry={registry} fieldWrapper={FormField} />
+```
+
+**Note**: эта обёртка **app-level** (~30 LOC), не shipped библиотекой — design tradeoff между ergonomic API и flexibility (см. issue G3-iter15). Для большинства проектов `<JsonFormApp>` достаточно; для нестандартных layout'ов используй raw closure pattern (см. [01-overview.md](01-overview.md)).
+
 ## $template для массивов { #template-arrays }
 
 **Problem.** В JSON нельзя выразить функцию `(itemPath) => RenderNode`, которая нужна для item-шаблона `RendererFormArraySection`/любого FormArray-контейнера. JSON остаётся декларативным, шаблон — декларативным.

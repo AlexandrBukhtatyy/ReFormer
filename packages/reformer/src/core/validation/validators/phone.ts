@@ -32,7 +32,7 @@ export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
  * phone(path.phoneNumber, { format: 'international', message: 'Неверный формат телефона' });
  * ```
  */
-export function phone<TForm, TField extends string | undefined = string>(
+export function phone<TForm, TField extends string | null | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   options?: ValidateOptions & {
     /** Формат телефона */

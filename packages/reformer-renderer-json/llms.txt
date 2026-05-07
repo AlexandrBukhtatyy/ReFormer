@@ -363,7 +363,87 @@ reg.container(FIELD_WRAPPER, FormField);
 - [02-json-schema.md](02-json-schema.md)
 - [03-registry.md](03-registry.md)
 
-## 27. $template для массивов { #template-arrays }
+## 27. JsonFormApp — компактная обёртка closure pattern { #json-form-app }
+
+**Problem.** `JsonFormRenderer` сам по себе НЕ принимает `form` prop (это by-design — JSON-схема статична, форма runtime). Каноничный mounting через closure pattern требует ~40-80 LOC boilerplate: `FormRoot.__selfManagedChildren = true`, `createRenderSchemaFromJson`, `createRenderSchema`, `<FormRenderer>` с `componentProps={{ form }}`.
+
+**Solution.** Скопируй компактную обёртку в свой проект (~30 LOC):
+
+```tsx
+import { useMemo, type ReactNode } from 'react';
+import type { FormProxy } from '@reformer/core';
+import {
+  FormRenderer,
+  RenderNodeComponent,
+  createRenderSchema,
+  type RenderNode,
+} from '@reformer/renderer-react';
+import {
+  createRenderSchemaFromJson,
+  type JsonFormSchema,
+  type ComponentRegistry,
+} from '@reformer/renderer-json';
+
+// FormRoot принимает form через componentProps closure и пробрасывает в children.
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children?: RenderNode<T>[] }): ReactNode {
+  return (
+    <>
+      {children?.map((node, i) => (
+        <RenderNodeComponent key={i} node={node} form={form} />
+      ))}
+    </>
+  );
+}
+// Маркер для converter — не итерировать children сам, FormRoot управляет ими.
+(FormRoot as unknown as { __selfManagedChildren: boolean }).__selfManagedChildren = true;
+
+interface JsonFormAppProps<T> {
+  schema: JsonFormSchema;
+  form: FormProxy<T>;
+  registry: ComponentRegistry;
+  fieldWrapper?: React.ComponentType<{ control: unknown }>;
+}
+
+export function JsonFormApp<T>({ schema, form, registry, fieldWrapper }: JsonFormAppProps<T>): ReactNode {
+  // Расширяем registry FormRoot'ом, не мутируя оригинал
+  const fullRegistry = useMemo(() => {
+    const r = registry.clone();
+    r.container('FormRoot', FormRoot as never);
+    return r;
+  }, [registry]);
+
+  const renderSchema = useMemo(() => {
+    const fn = createRenderSchemaFromJson<T>(schema, fullRegistry);
+    return createRenderSchema<T>(fn);
+  }, [schema, fullRegistry]);
+
+  return <FormRenderer render={renderSchema} settings={{ fieldWrapper }} />;
+}
+```
+
+В JSON-схеме root должен быть `FormRoot`:
+
+```json
+{
+  "version": "1.0",
+  "root": {
+    "component": "FormRoot",
+    "children": [
+      { "selector": "email", "model": "email", "component": "Input" }
+    ]
+  }
+}
+```
+
+Использование:
+
+```tsx
+<JsonFormApp schema={jsonSchema} form={form} registry={registry} fieldWrapper={FormField} />
+```
+
+**Note**: эта обёртка **app-level** (~30 LOC), не shipped библиотекой — design tradeoff между ergonomic API и flexibility (см. issue G3-iter15). Для большинства проектов `<JsonFormApp>` достаточно; для нестандартных layout'ов используй raw closure pattern (см. [01-overview.md](01-overview.md)).
+
+## 28. $template для массивов { #template-arrays }
 
 **Problem.** В JSON нельзя выразить функцию `(itemPath) => RenderNode`, которая нужна для item-шаблона `RendererFormArraySection`/любого FormArray-контейнера. JSON остаётся декларативным, шаблон — декларативным.
 
@@ -404,7 +484,7 @@ reg.container(FIELD_WRAPPER, FormField);
 - Если сам контейнер не получает `itemPath` первым аргументом (нестандартный компонент) — `$template` всё равно сработает, но `selector` внутри будет резолвиться от корня формы; обычно это не то, что нужно.
 - Эталон: блок `properties-array` в `json-schema.ts` (monorepo example).
 
-## 28. Source-функции
+## 29. Source-функции
 
 **Problem.** Нужно передать в проп функцию (например `itemLabel: (form, index) => string`) или React-компонент (`LoadingComponent: LoadingState`) — а JSON хранит только примитивы и объекты.
 
@@ -457,7 +537,7 @@ const registry = defineRegistry((reg) => {
 - Source нельзя использовать как имя `component` в самом узле (`{ component: 'LoadingState' }` вне source-проп будет ошибкой `Entry "..." is a 'source' and cannot be used as component`). Source — только для значений в `componentProps`.
 - Эталон: реестр `registry.ts` (monorepo example).
 
-## 29. Control-пропсы
+## 30. Control-пропсы
 
 **Problem.** Нужно передать в компонент ссылку на FieldPath (например, `RendererFormArraySection` принимает `control={form.properties}`, FormWizard — `control={form}` для какого-то поля). Из JSON это нельзя сделать напрямую, потому что `FieldPathNode` строится на старте `RenderSchemaFn`.
 
@@ -494,7 +574,7 @@ const registry = defineRegistry((reg) => {
 - Если путь не существует в форме (`'addresses[0].city'` при пустом массиве) — `getFieldPathNode` бросит `Invalid field path: "..." - segment "..." not found` уже на этапе конверсии. Это значит: `control` на динамические индексы не работает, для item-полей пользуйся `$template`.
 - Параметр прокидывается как `FieldPathNode<unknown, unknown, unknown>` — компонент должен сам кастить к нужному типу или принимать `FieldPathNode<unknown>`.
 
-## 30. Migration from TS RenderSchema
+## 31. Migration from TS RenderSchema
 
 **Problem.** Есть готовая `RenderSchemaFn<T>` (TS-вариант с `path.email`, React-компонентами по ссылке) — нужно перенести её в JSON-схему. Ниже — точное соответствие конструкций.
 
@@ -561,7 +641,7 @@ const registry = defineRegistry((reg) => {
 - Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — оно остаётся TS-функцией `RenderBehaviorFn<T>` и применяется к финальной `RenderSchemaProxy` после `createRenderSchemaFromJson`. Полный пример организации — `CreditApplicationFormRendererJson` (monorepo example).
 - `createRenderSchema` оборачивает результат `createRenderSchemaFromJson` в Proxy — без этого `proxy.node(selector)` и behavior-helpers работать не будут.
 
-## 31. Динамические массивы — `RendererFormArraySection`
+## 32. Динамические массивы — `RendererFormArraySection`
 
 > **Это правильный путь для всех array-секций в renderer-json.** НЕ пиши per-page custom block components с `CreditFormProvider` — это нарушает обещание «форма полностью описана в JSON».
 
@@ -870,13 +950,13 @@ export function RendererFormArraySection<T extends FormFields>({
 (RendererFormArraySection as any).__selfManagedChildren = true;
 ```
 
-## 32. See also
+## 33. See also
 
 - [02-json-schema.md](02-json-schema.md) — справочник по полям `JsonNode`.
 - [03-registry.md](03-registry.md) — все методы `defineRegistry`.
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 
-## 33. API Reference
+## 34. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
