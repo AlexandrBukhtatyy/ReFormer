@@ -151,24 +151,44 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 
 `FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit'`. Это **peer-dependency**, не нарушает sandbox или архитектуру.
 
-### Convention testId = fieldName (CRITICAL — orchestrator запустит abstract tests)
+### Convention testId = path-with-dashes (CRITICAL — orchestrator запустит abstract tests)
 
-**КАЖДОЕ поле формы ОБЯЗАНО иметь `testId` равный имени поля** (camelCase, без префикса группы). Orchestrator после генерации запустит готовый abstract test suite (POM `CreditFormPage` + spec'и в `tests/pages/complex-multy-step-form/`), который ожидает selectors `data-testid="input-{testId}"`.
+**КАЖДОЕ поле формы ОБЯЗАНО иметь `testId` равный имени поля**. Для nested groups — **с префиксом группы через дефис** (path joining: `personalData.lastName` → `personalData-lastName`). Orchestrator после генерации запустит готовый abstract test suite (POM `CreditFormPage` + spec'и в `tests/pages/complex-multy-step-form/`), который ожидает selectors `data-testid="input-{testId}"`.
 
 ```ts
-// schema.ts ✓ — testId совпадает с именем поля, для nested groups — listает имена напрямую
+// schema.ts ✓
+// — top-level: testId === fieldName
+// — nested groups: testId === parentField '-' childField (через дефис, camelCase parts)
+// — array items: testId per item leaf БЕЗ префикса (POM ставит индекс сам)
 loanAmount: { value: null, component: Input, componentProps: { label: '...', testId: 'loanAmount' } },
 loanType:   { value: 'consumer', component: Select, componentProps: { label: '...', testId: 'loanType', options: [...] } } satisfies FieldConfig<LoanType>,
 
 personalData: {
-  // testId без префикса 'personalData-' — POM ожидает плоские имена
-  lastName:  { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'lastName' } },
-  firstName: { value: '', component: Input, componentProps: { label: 'Имя',     testId: 'firstName' } },
+  // testId с префиксом 'personalData-' — POM ожидает иерархические имена
+  lastName:  { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'personalData-lastName' } },
+  firstName: { value: '', component: Input, componentProps: { label: 'Имя',     testId: 'personalData-firstName' } },
+  birthDate: { value: '', component: Input, componentProps: { label: 'Дата рождения', testId: 'personalData-birthDate', type: 'date' } },
   // ...
 },
 
-// FormArraySection items — POM ожидает индексные testIds внутри;
-// ставь testId на leaf'ы item-template совпадающие с именами полей item.
+passportData: {
+  series: { value: '', component: Input, componentProps: { label: 'Серия', testId: 'passportData-series' } },
+  number: { value: '', component: Input, componentProps: { label: 'Номер', testId: 'passportData-number' } },
+  // ...
+},
+
+registrationAddress: {
+  region: { value: '', component: Input, componentProps: { label: 'Регион', testId: 'registrationAddress-region' } },
+  city:   { value: '', component: Input, componentProps: { label: 'Город',  testId: 'registrationAddress-city' } },
+  // ...
+},
+residenceAddress: {
+  region: { value: '', component: Input, componentProps: { label: 'Регион', testId: 'residenceAddress-region' } },
+  // ...
+},
+
+// FormArraySection items — POM ставит индекс сам (`data-testid="input-properties-0-type"`).
+// Внутри item-template используй имена полей item, БЕЗ префикса массива:
 properties: [{
   type:           { value: 'apartment', component: Select, componentProps: { label: 'Тип', testId: 'type', options: [...] } },
   description:    { value: '',          component: Textarea, componentProps: { label: 'Описание',  testId: 'description' } },
@@ -176,7 +196,7 @@ properties: [{
 }],
 ```
 
-**Почему**: orchestrator больше НЕ просит тебя писать e2e (см. Step 5). Вместо этого он запустит существующие abstract specs (~9 файлов: happy-path/arrays/computed/conditional/dependencies/...) против твоей формы через playwright project `iter-{target}`. Без convention testId=fieldName — abstract tests упадут на selector mismatch.
+**Почему**: orchestrator запустит abstract specs (~9 файлов: happy-path/arrays/computed/conditional/dependencies/...) против твоей формы через playwright project `iter-{target}`. POM использует `data-testid="input-{path}"` где path — иерархический. Без префикса для nested groups — abstract tests упадут на selector mismatch (это произошло в iter-17 → 1-2/63 pass).
 
 ### Type-safety правила (must follow)
 

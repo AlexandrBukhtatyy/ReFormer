@@ -1,0 +1,264 @@
+{
+  "version": "1.0",
+  "root": {
+    "selector": "credit-form-root",
+    "component": "FormRoot",
+    "children": [
+      {
+        "selector": "step-1",
+        "component": "Section",
+        "componentProps": { "title": "Шаг 1. Основная информация о кредите", "className": "space-y-4" },
+        "children": [
+          { "model": "loanType", "component": "Select" },
+          { "model": "loanAmount", "component": "Input" },
+          { "model": "loanTerm", "component": "Input" },
+          { "model": "loanPurpose", "component": "Textarea" },
+          {
+            "selector": "mortgage-block",
+            "component": "Box",
+            "componentProps": { "className": "space-y-4 border-l-2 border-blue-200 pl-3" },
+            "children": [
+              { "model": "propertyValue", "component": "Input" },
+              { "model": "initialPayment", "component": "Input" }
+            ]
+          },
+          {
+            "selector": "car-block",
+            "component": "Box",
+            "componentProps": { "className": "space-y-4 border-l-2 border-green-200 pl-3" },
+            "children": [
+              { "model": "carBrand", "component": "Input" },
+              { "model": "carModel", "component": "Select" },
+              { "model": "carYear", "component": "Input" },
+              { "model": "carPrice", "component": "Input" }
+            ]
+          },
+          {
+            "selector": "loan-summary",
+            "component": "Box",
+            "componentProps": { "className": "space-y-2 mt-4 p-3 bg-gray-50 rounded" },
+            "children": [
+              { "model": "interestRate", "component": "Input" },
+              { "model": "monthlyPayment", "component": "Input" }
+            ]
+          }
+        ]
+      },
+      {
+        "selector": "step-2",
+        "component": "Section",
+        "componentProps": { "title": "Шаг 2. Персональные данные", "className": "space-y-4" },
+        "children": [
+          {
+            "selector": "personal-data-group",
+            "component": "Box",
+            "componentProps": { "className": "space-y-3" },
+            "children": [
+              { "model": "personalData.lastName", "component": "Input" },
+              { "model": "personalData.firstName", "component": "Input" },
+              { "model": "personalData.middleName", "component": "Input" },
+              { "model": "personalData.birthDate", "component": "Input" },
+              { "model": "personalData.gender", "component": "RadioGroup" },
+              { "model": "personalData.birthPlace", "component": "Input" }
+            ]
+          },
+          { "model": "fullName", "component": "Input" },
+          { "model": "age", "component": "Input" },
+          {
+            "selector": "passport-data-group",
+            "component": "Box",
+            "componentProps": { "className": "space-y-3" },
+            "children": [
+              { "model": "passportData.series", "component": "InputMask" },
+              { "model": "passportData.number", "component": "InputMask" },
+              { "model": "passportData.issueDate", "component": "Input" },
+              { "model": "passportData.issuedBy", "component": "Input" },
+              { "model": "passportData.departmentCode", "component": "InputMask" }
+            ]
+          },
+          { "model": "inn", "component": "InputMask" },
+          { "model": "snils", "component": "InputMask" }
+        ]
+      },
+      {
+        "selector": "step-3",
+        "component": "Section",
+        "componentProps": { "title": "Шаг 3. Контактная информация", "className": "space-y-4" },
+        "children": [
+          { "model": "phoneMain", "component": "InputMask" },
+          { "model": "phoneAdditional", "component": "InputMask" },
+          { "model": "email", "component": "Input" },
+          { "model": "emailAdditional", "component": "Input" },
+          {
+            "selector": "registration-address-group",
+            "component": "Section",
+            "componentProps": { "title": "Адрес регистрации", "className": "space-y-3" },
+            "children": [
+              { "model": "registrationAddress.region", "component": "Input" },
+              { "model": "registrationAddress.city", "component": "Select" },
+              { "model": "registrationAddress.street", "component": "Input" },
+              { "model": "registrationAddress.house", "component": "Input" },
+              { "model": "registrationAddress.apartment", "component": "Input" },
+              { "model": "registrationAddress.postalCode", "component": "InputMask" }
+            ]
+          },
+          { "model": "sameAsRegistration", "component": "Checkbox" },
+          {
+            "selector": "residence-address-group",
+            "component": "Section",
+            "componentProps": { "title": "Адрес проживания", "className": "space-y-3" },
+            "children": [
+              { "model": "residenceAddress.region", "component": "Input" },
+              { "model": "residenceAddress.city", "component": "Select" },
+              { "model": "residenceAddress.street", "component": "Input" },
+              { "model": "residenceAddress.house", "component": "Input" },
+              { "model": "residenceAddress.apartment", "component": "Input" },
+              { "model": "residenceAddress.postalCode", "component": "InputMask" }
+            ]
+          }
+        ]
+      },
+      {
+        "selector": "step-4",
+        "component": "Section",
+        "componentProps": { "title": "Шаг 4. Информация о занятости", "className": "space-y-4" },
+        "children": [
+          { "model": "employmentStatus", "component": "RadioGroup" },
+          {
+            "selector": "employed-block",
+            "component": "Box",
+            "componentProps": { "className": "space-y-3 border-l-2 border-blue-200 pl-3" },
+            "children": [
+              { "model": "companyName", "component": "Input" },
+              { "model": "companyInn", "component": "InputMask" },
+              { "model": "companyPhone", "component": "InputMask" },
+              { "model": "companyAddress", "component": "Input" },
+              { "model": "position", "component": "Input" }
+            ]
+          },
+          {
+            "selector": "self-employed-block",
+            "component": "Box",
+            "componentProps": { "className": "space-y-3 border-l-2 border-green-200 pl-3" },
+            "children": [
+              { "model": "businessType", "component": "Input" },
+              { "model": "businessInn", "component": "InputMask" },
+              { "model": "businessActivity", "component": "Textarea" }
+            ]
+          },
+          { "model": "workExperienceTotal", "component": "Input" },
+          { "model": "workExperienceCurrent", "component": "Input" },
+          { "model": "monthlyIncome", "component": "Input" },
+          { "model": "additionalIncome", "component": "Input" },
+          { "model": "additionalIncomeSource", "component": "Input" },
+          { "model": "totalIncome", "component": "Input" }
+        ]
+      },
+      {
+        "selector": "step-5",
+        "component": "Section",
+        "componentProps": { "title": "Шаг 5. Дополнительная информация", "className": "space-y-4" },
+        "children": [
+          { "model": "maritalStatus", "component": "RadioGroup" },
+          { "model": "dependents", "component": "Input" },
+          { "model": "education", "component": "Select" },
+          { "model": "hasProperty", "component": "Checkbox" },
+          {
+            "selector": "properties-array",
+            "component": "FormArraySection",
+            "componentProps": {
+              "title": "Имущество",
+              "control": "properties",
+              "addButtonLabel": "+ Добавить имущество",
+              "removeButtonLabel": "Удалить",
+              "initialValue": "PROPERTY_TEMPLATE",
+              "itemComponent": {
+                "$template": {
+                  "component": "Box",
+                  "componentProps": { "className": "space-y-3" },
+                  "children": [
+                    { "selector": "type", "component": "Select" },
+                    { "selector": "description", "component": "Textarea" },
+                    { "selector": "estimatedValue", "component": "Input" },
+                    { "selector": "hasEncumbrance", "component": "Checkbox" }
+                  ]
+                }
+              }
+            }
+          },
+          { "model": "hasExistingLoans", "component": "Checkbox" },
+          {
+            "selector": "existing-loans-array",
+            "component": "FormArraySection",
+            "componentProps": {
+              "title": "Существующие кредиты",
+              "control": "existingLoans",
+              "addButtonLabel": "+ Добавить кредит",
+              "removeButtonLabel": "Удалить",
+              "initialValue": "EXISTING_LOAN_TEMPLATE",
+              "itemComponent": {
+                "$template": {
+                  "component": "Box",
+                  "componentProps": { "className": "space-y-3" },
+                  "children": [
+                    { "selector": "bank", "component": "Input" },
+                    { "selector": "type", "component": "Input" },
+                    { "selector": "amount", "component": "Input" },
+                    { "selector": "remainingAmount", "component": "Input" },
+                    { "selector": "monthlyPayment", "component": "Input" },
+                    { "selector": "maturityDate", "component": "Input" }
+                  ]
+                }
+              }
+            }
+          },
+          { "model": "hasCoBorrower", "component": "Checkbox" },
+          {
+            "selector": "co-borrowers-array",
+            "component": "FormArraySection",
+            "componentProps": {
+              "title": "Созаемщики",
+              "control": "coBorrowers",
+              "addButtonLabel": "+ Добавить созаемщика",
+              "removeButtonLabel": "Удалить",
+              "initialValue": "CO_BORROWER_TEMPLATE",
+              "itemComponent": {
+                "$template": {
+                  "component": "Box",
+                  "componentProps": { "className": "space-y-3" },
+                  "children": [
+                    { "selector": "personalData.lastName", "component": "Input" },
+                    { "selector": "personalData.firstName", "component": "Input" },
+                    { "selector": "personalData.middleName", "component": "Input" },
+                    { "selector": "personalData.birthDate", "component": "Input" },
+                    { "selector": "personalData.gender", "component": "RadioGroup" },
+                    { "selector": "personalData.birthPlace", "component": "Input" },
+                    { "selector": "phone", "component": "InputMask" },
+                    { "selector": "email", "component": "Input" },
+                    { "selector": "relationship", "component": "Input" },
+                    { "selector": "monthlyIncome", "component": "Input" }
+                  ]
+                }
+              }
+            }
+          },
+          { "model": "coBorrowersIncome", "component": "Input" },
+          { "model": "paymentToIncomeRatio", "component": "Input" }
+        ]
+      },
+      {
+        "selector": "step-6",
+        "component": "Section",
+        "componentProps": { "title": "Шаг 6. Подтверждение и согласия", "className": "space-y-4" },
+        "children": [
+          { "model": "agreePersonalData", "component": "Checkbox" },
+          { "model": "agreeCreditHistory", "component": "Checkbox" },
+          { "model": "agreeMarketing", "component": "Checkbox" },
+          { "model": "agreeTerms", "component": "Checkbox" },
+          { "model": "confirmAccuracy", "component": "Checkbox" },
+          { "model": "electronicSignature", "component": "InputMask" }
+        ]
+      }
+    ]
+  }
+}

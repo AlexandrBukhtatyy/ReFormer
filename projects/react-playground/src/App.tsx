@@ -6,13 +6,19 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
+import MccaCoreV17 from './pages/examples/mcp-credit-application-core-v17';
+import MccaRendererReactV17 from './pages/examples/mcp-credit-application-renderer-react-v17';
+import MccaRendererJsonV17 from './pages/examples/mcp-credit-application-renderer-json-v17';
 type ExamplePage =
   | 'simple'
   | 'validation'
   | 'behaviors'
   | 'complex'
   | 'complex-renderer'
-  | 'json-renderer';
+  | 'json-renderer'
+  | 'mcca-core-v17'
+  | 'mcca-renderer-react-v17'
+  | 'mcca-renderer-json-v17';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -50,6 +56,24 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/behaviors',
     title: 'Поведения',
     description: 'Реактивное поведение через декларативный подход',
+  },
+  {
+    id: 'mcca-core-v17',
+    path: '/mcp-credit-application-core-v17',
+    title: 'MCP credit (core) v17',
+    description: 'iter-17 full-spec, target=core',
+  },
+  {
+    id: 'mcca-renderer-react-v17',
+    path: '/mcp-credit-application-renderer-react-v17',
+    title: 'MCP credit (renderer-react) v17',
+    description: 'iter-17 full-spec, target=renderer-react',
+  },
+  {
+    id: 'mcca-renderer-json-v17',
+    path: '/mcp-credit-application-renderer-json-v17',
+    title: 'MCP credit (renderer-json) v17',
+    description: 'iter-17 full-spec, target=renderer-json',
   },
 ];
 
@@ -123,6 +147,9 @@ function Layout() {
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
+          <Route path="/mcp-credit-application-core-v17" element={<MccaCoreV17 />} />
+          <Route path="/mcp-credit-application-renderer-react-v17" element={<MccaRendererReactV17 />} />
+          <Route path="/mcp-credit-application-renderer-json-v17" element={<MccaRendererJsonV17 />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
