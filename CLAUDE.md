@@ -123,21 +123,26 @@ Sub-agent имитирует консумента MCP. Это **тест MCP**, 
 
 - **Workspace** (gitignored): `.tmp/iter-artifacts/iter-{N}/{target}/{dev-plan,dev-report,discovery}.md`, `.tmp/iter-artifacts/iter-{N}/proposed-patches/`
 - **Сгенерированный код** (в репо): `projects/react-playground/src/pages/examples/mcp-credit-application-{target}-v{N}/`
-- **E2E тесты** (в репо): `projects/react-playground-e2e/tests/iter/mcp-credit-{target}-v{N}.spec.ts`
-- **Скриншоты** (gitignored, fullPage): `projects/react-playground-e2e/screenshots/mcp-credit-v{N}/{target}/page{1..6}-*.png`
-- **Видео** (gitignored): `projects/react-playground-e2e/videos/mcp-credit-v{N}/{target}/walkthrough.webm`
-- **Агрегатный отчёт** (в репо, history): `docs/iter-summaries/iter-{N}.md`
+- **Smoke spec** (transient): `$TMPDIR/iter-{N}-{target}/smoke.spec.ts` — sub-agent пишет минимальный smoke check, abstract tests запустит orchestrator
+- **Скриншоты** (gitignored, fullPage): `projects/react-playground-e2e/screenshots/mcp-credit-v{N}/{target}/{smoke-final,...}.png`
+- **Видео** (gitignored): `projects/react-playground-e2e/videos/mcp-credit-v{N}/{target}/` — orchestrator пишет при abstract test run
+- **Агрегатный отчёт** (в репо, history): `docs/iter-summaries/iter-{N}.md` (включая раздел Abstract test results)
 
-### Запуск iter-N e2e
+### Запуск iter-N abstract tests (orchestrator)
+
+POM `CreditFormPage` + 9 spec файлов в `tests/pages/complex-multy-step-form/` переиспользуются для проверки iter-форм через 3 dynamic playwright projects:
 
 ```bash
 cd projects/react-playground-e2e
-ITER_MODE=on \
-  ITER_OUTPUT_DIR=videos/mcp-credit-v{N}/{target}/ \
-  npx playwright test --project=iter mcp-credit-{target}-v{N}.spec.ts
+for target in core renderer-react renderer-json; do
+  MCP_ITER_VERSION={N} ITER_MODE=on \
+    ITER_OUTPUT_DIR=videos/mcp-credit-v{N}/${target}/ \
+    npx playwright test --project=iter-${target} --reporter=json \
+    > $TMPDIR/iter-{N}-results/${target}.json
+done
 ```
 
-`ITER_MODE=on` включает video + viewport 1440×900 (без него обычные e2e не затронуты). Project `iter` обязателен — без него тесты в `tests/iter/` не подхватываются.
+Convention: sub-agent ОБЯЗАН задавать `componentProps.testId = fieldName` (camelCase, без префикса группы) — POM ожидает `data-testid="input-{testId}"`.
 
 ## Build & Test
 

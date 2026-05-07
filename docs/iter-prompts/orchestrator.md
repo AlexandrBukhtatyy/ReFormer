@@ -95,6 +95,44 @@ Idempotent — если строка уже есть (по id `mcca-${target}-v$
 
 ---
 
+## Step 3.5 — abstract test runs (NEW)
+
+После того как 3 страницы залиты в App.tsx и tsc/build проходят — запусти shared abstract test suite (POM `CreditFormPage` + 9 spec файлов) против каждого target. Это **главный сигнал качества формы**, заменяющий per-target walkthrough'и из старого Step 5 sub-agent'а.
+
+```bash
+cd projects/react-playground-e2e
+mkdir -p $TMPDIR/iter-${ITER}-results
+
+for target in core renderer-react renderer-json; do
+  MCP_ITER_VERSION=${ITER} ITER_MODE=on \
+    ITER_OUTPUT_DIR=videos/mcp-credit-v${ITER}/${target}/ \
+    npx playwright test --project=iter-${target} \
+      --reporter=json 2>"$TMPDIR/iter-${ITER}-results/${target}.err" \
+      > "$TMPDIR/iter-${ITER}-results/${target}.json" \
+      || true   # не падать на failed tests — собираем все результаты
+done
+```
+
+`MCP_ITER_VERSION` активирует 3 dynamic projects в `playwright.config.ts` (basePath `/mcp-credit-application-{target}-v${ITER}`). `iter-${target}` reuse'ит testDir `tests/pages/complex-multy-step-form/` — все existing abstract specs (happy-path/arrays/computed-fields/conditional-fields/dependencies/accessibility/loading-error) запускаются автоматически.
+
+Парсинг результатов — выдрать из `${target}.json` per spec pass/fail:
+
+```js
+// или Node-скрипт, или jq:
+// jq '.suites[].suites[] | { spec: .title, ok: ([.specs[] | select(.ok==true)] | length), total: (.specs | length) }'
+```
+
+Результат — таблица per spec × target, добавляется в iter-summary раздел **«Abstract test results»** (Step 4).
+
+**Falure attribution**: если spec упал — категоризируй:
+- (a) **MCP gap**: sub-agent не знал нужный паттерн → recipe-issue
+- (b) **Sub-agent error**: код корректный по архитектуре, но ошибка в реализации
+- (c) **testId convention violation**: sub-agent забыл `componentProps.testId = fieldName` → нашли selector mismatch
+
+Категория (a) → patch draft (Step 6). (b) → flag в next iter prompt. (c) → enforce convention в sub-agent.template.md.
+
+---
+
 ## Step 4 — aggregate dev-reports
 
 Read 3× `.tmp/iter-artifacts/iter-${ITER}/${target}/dev-report.md`. Распарсить:

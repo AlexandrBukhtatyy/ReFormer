@@ -16,7 +16,7 @@
 - Read спеки: `{SPEC_PATH}` (read-only — НЕ редактировать, см. CLAUDE.md → Specs are read-only)
 - Read/Write своего workspace: `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/`
 - Write нового кода: `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/`
-- Write e2e теста: `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts`
+- Write smoke spec в `$TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts` (см. Step 5). НЕ пиши в `tests/iter/` — каталог удалён, abstract tests запустит orchestrator.
 - Bash: tsc / eslint / playwright / mkdir / find (на свои каталоги)
 - `node_modules/@reformer/*` — это то, что видит реальный консумент через `npm install`. Используй ТОЛЬКО если MCP не дал ответа; зафиксируй такой случай как gap.
 
@@ -140,7 +140,7 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 
 ```ts
 // schema.ts ✓
-{ email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } } }
+{ email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email', testId: 'email' } } }
 ```
 ```tsx
 // page.tsx ✓
@@ -150,6 +150,33 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 ❌ **НЕ ДЕЛАЙ**: свои Input/Select/Checkbox компоненты с label-prop'ами в JSX. Это anti-pattern, ломает schema-driven архитектуру и удваивает код.
 
 `FormField` живёт в `@reformer/ui-kit`. Подключай через `import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit'`. Это **peer-dependency**, не нарушает sandbox или архитектуру.
+
+### Convention testId = fieldName (CRITICAL — orchestrator запустит abstract tests)
+
+**КАЖДОЕ поле формы ОБЯЗАНО иметь `testId` равный имени поля** (camelCase, без префикса группы). Orchestrator после генерации запустит готовый abstract test suite (POM `CreditFormPage` + spec'и в `tests/pages/complex-multy-step-form/`), который ожидает selectors `data-testid="input-{testId}"`.
+
+```ts
+// schema.ts ✓ — testId совпадает с именем поля, для nested groups — listает имена напрямую
+loanAmount: { value: null, component: Input, componentProps: { label: '...', testId: 'loanAmount' } },
+loanType:   { value: 'consumer', component: Select, componentProps: { label: '...', testId: 'loanType', options: [...] } } satisfies FieldConfig<LoanType>,
+
+personalData: {
+  // testId без префикса 'personalData-' — POM ожидает плоские имена
+  lastName:  { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'lastName' } },
+  firstName: { value: '', component: Input, componentProps: { label: 'Имя',     testId: 'firstName' } },
+  // ...
+},
+
+// FormArraySection items — POM ожидает индексные testIds внутри;
+// ставь testId на leaf'ы item-template совпадающие с именами полей item.
+properties: [{
+  type:           { value: 'apartment', component: Select, componentProps: { label: 'Тип', testId: 'type', options: [...] } },
+  description:    { value: '',          component: Textarea, componentProps: { label: 'Описание',  testId: 'description' } },
+  estimatedValue: { value: 0,           component: Input,  componentProps: { label: 'Стоимость', testId: 'estimatedValue', type: 'number' } },
+}],
+```
+
+**Почему**: orchestrator больше НЕ просит тебя писать e2e (см. Step 5). Вместо этого он запустит существующие abstract specs (~9 файлов: happy-path/arrays/computed/conditional/dependencies/...) против твоей формы через playwright project `iter-{target}`. Без convention testId=fieldName — abstract tests упадут на selector mismatch.
 
 ### Type-safety правила (must follow)
 
@@ -197,67 +224,42 @@ npm run build -w react-playground 2>&1 | tail -30
 
 ---
 
-## Step 5 — e2e walkthrough (Playwright)
+## Step 5 — smoke runtime check (НЕ полный walkthrough)
 
-Создать `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts`:
+> **Не пиши e2e тест!** Orchestrator запустит готовый abstract test suite (POM `CreditFormPage` + 9 spec файлов в `tests/pages/complex-multy-step-form/`) против твоей формы через playwright project `iter-{TARGET}` (`MCP_ITER_VERSION={ITER} npx playwright test --project=iter-{TARGET}`). Твоя задача в Step 5 — **только smoke check**: убедиться что страница рендерится, console чист, форма базово отзывчива.
 
-> **Walkthrough всех 6 шагов** — заполни **все required поля** каждого шага (по спеке), fullPage screenshot после заполнения. Итого 7 screenshots (page1..page6 + page-final). Цель — провести форму до submit, чтобы убедиться что всё работает end-to-end.
+Создай минимальный smoke spec в `$TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts` (вне обычных testDir, чтобы не подхватывался по умолчанию):
 
 ```ts
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
-const N = {ITER};
-const TARGET = '{TARGET}';
-const URL = `/mcp-credit-application-${TARGET}-v${N}`;
-
-test(`mcp-credit-${TARGET}-v${N} — walkthrough`, async ({ page }) => {
-  await page.goto(URL);
-
-  for (const step of [1, 2, 3, 4, 5, 6]) {
-    // Step-specific: заполни required поля шага (минимум — те, которые ты определил в схеме)
-    // ...
-
-    await page.screenshot({
-      path: `screenshots/mcp-credit-v${N}/${TARGET}/page${step}-filled.png`,
-      fullPage: true,
-    });
-
-    if (step < 6) {
-      await page.getByRole('button', { name: /Далее|Next/i }).click();
-    }
-  }
-
-  // Submit
-  await page.getByRole('button', { name: /Отправить|Submit/i }).click();
-  await page.waitForLoadState('networkidle');
+test(`mcp-credit-${TARGET}-v${ITER} — smoke`, async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  await page.goto('http://localhost:5173/mcp-credit-application-{TARGET}-v{ITER}');
+  // Ожидаем кнопку "Далее" (или "Submit" если 1 шаг) — page загрузилась
+  await expect(page.getByRole('button', { name: /Далее|Next|Отправить|Submit/i })).toBeVisible({ timeout: 5000 });
   await page.screenshot({
-    path: `screenshots/mcp-credit-v${N}/${TARGET}/page-final.png`,
+    path: 'projects/react-playground-e2e/screenshots/mcp-credit-v{ITER}/{TARGET}/smoke-final.png',
     fullPage: true,
   });
+  expect(errors, `Console errors: ${errors.join('; ')}`).toHaveLength(0);
 });
 ```
 
-Запустить (dev-server должен быть поднят orchestrator'ом):
+Запустить через playwright (по абсолютному пути spec'а, без проекта):
+
 ```bash
 cd projects/react-playground-e2e && \
-  ITER_MODE=on \
-  ITER_OUTPUT_DIR=videos/mcp-credit-v{ITER}/{TARGET}/ \
-  npx playwright test --project=iter mcp-credit-{TARGET}-v{ITER}.spec.ts \
-    2>&1 | tee /tmp/playwright-{TARGET}.log
+  npx playwright test "$TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts" \
+    --reporter=list 2>&1 | tee "$TMPDIR/playwright-{TARGET}-smoke.log"
 ```
 
-После теста переименовать видео в каноничный путь:
-```bash
-# Playwright кладёт в videos/.../<test-name>/video.webm — переименовать
-find projects/react-playground-e2e/videos/mcp-credit-v{ITER}/{TARGET} \
-  -name 'video.webm' -exec mv {} \
-  projects/react-playground-e2e/videos/mcp-credit-v{ITER}/{TARGET}/walkthrough.webm \;
-```
+Если smoke прошёл — Step 5 закрыт. Скриншот `smoke-final.png` сохранён. **Не делай полный walkthrough** — orchestrator сделает через abstract tests. **НЕ создавай файлов в `tests/iter/`** — этот каталог удалён.
 
-**Важно**:
-- `--project=iter` обязателен — иначе тест не подхватится (см. `playwright.config.ts` projects).
-- `ITER_MODE=on` включает video + viewport 1440×900.
-- Скриншоты обязательно `fullPage: true` (см. CLAUDE.md memory rule).
+Если smoke упал (page не загружается, console errors, нет кнопки) — это блокер для Step 6 (dev-report `status=blocked`, abstract tests тоже не запустятся).
+
+**Скриншоты обязательно `fullPage: true`** (CLAUDE.md memory rule).
 
 ---
 
@@ -288,11 +290,12 @@ gaps:
 files_written:
   - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/schema.ts
   - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}/index.tsx
-  - projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts
+  - $TMPDIR/iter-{ITER}-{TARGET}/smoke.spec.ts (smoke only — abstract tests запустит orchestrator)
 report_path: .tmp/iter-artifacts/iter-{ITER}/{TARGET}/dev-report.md
 discovery_path: .tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md
 screenshots_count: N
-video_path: projects/react-playground-e2e/videos/mcp-credit-v{ITER}/{TARGET}/walkthrough.webm
+smoke_screenshot: projects/react-playground-e2e/screenshots/mcp-credit-v{ITER}/{TARGET}/smoke-final.png
+# video_path удалён — orchestrator сам запишет видео при abstract test run, если ITER_MODE=on
 blockers:
   - (если есть)
 ```

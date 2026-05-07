@@ -18,6 +18,23 @@
 | renderer-json   | N            | N             | N          | 0         | 0          | 1           | 6           | yes   | ok         |
 | **total**       | N            | N             | (max — параллель) | 2         | 0          | 1           | 20          | 3     | mixed      |
 
+## Abstract test results (orchestrator-run)
+
+Запущены через `MCP_ITER_VERSION={ITER} npx playwright test --project=iter-{target}` (см. orchestrator.md Step 3.5). POM + abstract specs reuse'ятся из `tests/pages/complex-multy-step-form/`.
+
+| target          | happy-path | arrays | computed-fields | conditional-fields | dependencies | accessibility | loading-error | total pass |
+| --------------- | ---------- | ------ | --------------- | ------------------ | ------------ | ------------- | ------------- | ---------- |
+| core            | ✅ N/N      | ✅ N/N  | ✅ N/N          | ✅ N/N             | ✅ N/N        | ⚠️ N/N         | ✅ N/N         | N/total    |
+| renderer-react  | ✅ N/N      | ✅ N/N  | ✅ N/N          | ⚠️ N/N             | ✅ N/N        | ✅ N/N         | ✅ N/N         | N/total    |
+| renderer-json   | ✅ N/N      | ❌ N/N  | ✅ N/N          | ✅ N/N             | ✅ N/N        | ✅ N/N         | ✅ N/N         | N/total    |
+
+**Failed specs detail** (если есть):
+
+- `arrays.spec.ts > AR-003: добавление property` upsteam в `iter-renderer-json` — POM ожидает `data-testid="input-properties-0-type"`, на странице — `data-testid="input-type"`. **Categorization**: (c) testId convention violation.
+- ...
+
+**Cross-target расхождения**: `arrays` failed только в renderer-json — указывает на specific gap в renderer-json target.
+
 ## Sandbox audit
 
 | target          | packages/ reads | sibling reads | helpers reads | git mutations | verdict |
