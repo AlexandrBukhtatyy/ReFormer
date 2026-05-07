@@ -53,11 +53,12 @@
    - FormArray sections (списки)
    - Conditional rendering (applyWhen)
 
-2. **Discovery через MCP** — минимальный обязательный набор (~5-7 вызовов, не 18):
-   - `find_recipe(topic="quick-start")` — **ОБЯЗАТЕЛЬНО ПЕРВЫМ**, читай раздел про FormField внимательно
+2. **Discovery через MCP** — минимальный обязательный набор (~6-8 вызовов, не 18):
+   - `find_recipe(topic="quick-start")` — **ОБЯЗАТЕЛЬНО ПЕРВЫМ**, раздел про FormField + Arrays of objects
    - `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")` — **ОБЯЗАТЕЛЬНО для ВСЕХ targets**
    - `find_recipe(topic="type-safety-recipes")` — **ОБЯЗАТЕЛЬНО**, особенно Recipe 8 для union-type defaults
-   - `find_recipe(topic="form-wizard")` — для multi-step (если делаешь FormWizard)
+   - `find_recipe(topic="form-wizard")` — для multi-step (если делаешь FormWizard) + **читай раздел про STEP_VALIDATIONS shape** (Record<number, ...>, НЕ array — silent no-op!) + раздел про RenderContextProvider если используешь RenderNode body
+   - `find_recipe(topic="form-array")` — **ОБЯЗАТЕЛЬНО для reduced-scope iter** (1 array section). Tuple format `[itemSchema]`, **НЕ** `FieldConfig<T[]>`.
    - `find_recipe(topic="compute-from")` — для 1 computed field (alias map активен)
    - target-specific:
      - `core` → `find_recipe(topic="hooks")` (если используешь useFormControlValue для conditional)
@@ -75,7 +76,7 @@
      - `renderer-react` → `get_symbol_docs(symbol="createRenderSchema")`
      - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого нет)
 
-   **НЕ нужно** в discovery: `find_recipe(form-array)`, `find_recipe(async-validator)`, `find_recipe(input-mask)` — потому что мы их НЕ реализуем (см. minimum-viable scope в Step 3).
+   **НЕ нужно** в discovery: `find_recipe(async-validator)`, `find_recipe(input-mask)` — потому что мы их НЕ реализуем (см. minimum-viable scope в Step 3).
 
 3. **Сохранить raw responses** в `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md` (для аудита и repro). Один блок на каждый MCP-вызов с заголовком и query.
 

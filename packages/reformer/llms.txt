@@ -149,6 +149,30 @@ function FormStep({ form }: FormStepProps) {
 }
 ```
 
+### Arrays of objects — tuple format
+
+⚠️ Массивы объектов в схеме объявляются **через tuple `[itemSchema]`**, НЕ через `FieldConfig` с `value: []`:
+
+```typescript
+// ❌ DON'T — TS error: Type 'FieldConfig<PropertyItem[]>' is not assignable to type '[FormSchema<PropertyItem>]'
+const schema: FormSchema<{ properties: PropertyItem[] }> = {
+  properties: { value: [], component: Input },  // ← intuitive but WRONG
+};
+
+// ✅ DO — tuple [itemSchema]: ArrayNode infers item shape from первого элемента
+const schema: FormSchema<{ properties: PropertyItem[] }> = {
+  properties: [
+    {
+      type: { value: 'apartment', component: Select, componentProps: { ... } } satisfies FieldConfig<PropertyType>,
+      description: { value: '', component: Textarea, componentProps: { label: 'Описание' } },
+      estimatedValue: { value: 0, component: Input, componentProps: { label: 'Стоимость', type: 'number' } },
+    },
+  ],
+};
+```
+
+В runtime массив пуст (`form.properties.value === []`); tuple — это **template** для каждого item, который применяется при `form.properties.push()` / `.insert()`. См. подробности в `find_recipe(topic="form-array")` и `find_recipe(topic="array-operations")`.
+
 ### When to write your own field components (advanced — rare)
 
 Свои компоненты нужны ТОЛЬКО если:
