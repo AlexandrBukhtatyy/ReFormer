@@ -53,30 +53,36 @@
    - FormArray sections (списки)
    - Conditional rendering (applyWhen)
 
-2. **Discovery через MCP** — минимальный обязательный набор (~6-8 вызовов, не 18):
-   - `find_recipe(topic="quick-start")` — **ОБЯЗАТЕЛЬНО ПЕРВЫМ**, раздел про FormField + Arrays of objects
+2. **Discovery через MCP** — обязательный набор для полной реализации спеки:
+
+   **Обязательные recipes:**
+   - `find_recipe(topic="quick-start")` — **ПЕРВЫМ**, раздел про FormField + Arrays of objects
    - `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")` — **ОБЯЗАТЕЛЬНО для ВСЕХ targets**
-   - `find_recipe(topic="type-safety-recipes")` — **ОБЯЗАТЕЛЬНО**, особенно Recipe 8 для union-type defaults
-   - `find_recipe(topic="form-wizard")` — для multi-step (если делаешь FormWizard) + **читай раздел про STEP_VALIDATIONS shape** (Record<number, ...>, НЕ array — silent no-op!) + раздел про RenderContextProvider если используешь RenderNode body
-   - `find_recipe(topic="form-array")` — **ОБЯЗАТЕЛЬНО для reduced-scope iter** (1 array section). Tuple format `[itemSchema]`, **НЕ** `FieldConfig<T[]>`.
-   - `find_recipe(topic="compute-from")` — для 1 computed field (alias map активен)
-   - target-specific:
-     - `core` → `find_recipe(topic="hooks")` (если используешь useFormControlValue для conditional)
-     - `renderer-react` → `find_recipe(topic="renderer-react")` (overview + RenderSchema)
-     - `renderer-json` → `find_recipe(package="@reformer/renderer-json", topic="overview")` (closure-pattern)
+   - `find_recipe(topic="type-safety-recipes")` — Recipe 8 для union-type defaults
+   - `find_recipe(topic="form-wizard")` — multi-step. **Читай разделы про STEP_VALIDATIONS shape** (Record<number, ...>, НЕ array — silent no-op!) и **RenderContextProvider** если используешь RenderNode body
+   - `find_recipe(topic="form-array")` — tuple format `[itemSchema]`, для всех 3 array sections спеки
+   - `find_recipe(topic="compute-from")` — 8 computed fields (alias map активен)
+   - `find_recipe(topic="async-validator")` / `find_recipe(topic="async-validator-debounce")` — для email uniqueness, INN check
+   - `find_recipe(topic="async-options-loading")` — для cities by region, carModel by carBrand
+   - `find_recipe(package="@reformer/ui-kit", topic="input-mask")` — phones, passport, INN, SNILS
+   - `find_recipe(topic="copy-from")` — sameAsRegistration → residenceAddress
+   - `find_recipe(topic="validation")` — required/min/max/pattern/email + cross-field
+   - `find_recipe(topic="common-mistakes")` — overload-error decoding (превентивно)
 
-   **Доп. recipes — только по необходимости** (если ошибка / непонятно):
-   - `find_recipe(topic="common-mistakes")` — overload-error decoding (если столкнулся с TS2769)
-   - `find_recipe(topic="validation")` — расширенные patterns (если нужны)
+   **Target-specific:**
+   - `core` → `find_recipe(topic="hooks")` (useFormControlValue для conditional rendering)
+   - `renderer-react` → `find_recipe(topic="renderer-react")` (overview + RenderSchema)
+   - `renderer-json` → `find_recipe(package="@reformer/renderer-json", topic="overview")` (closure-pattern)
 
-   **Symbols** (минимум):
+   **Symbols (минимум):**
    - `get_symbol_docs(symbol="createForm")`
    - `get_symbol_docs(symbol="FormField")` (живёт в `@reformer/ui-kit`)
+   - `get_symbol_docs(symbol="ValidationSchemaFn")`
+   - `get_symbol_docs(symbol="computeFrom")`
+   - `get_symbol_docs(symbol="applyWhen")`
    - target-specific:
      - `renderer-react` → `get_symbol_docs(symbol="createRenderSchema")`
-     - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого нет)
-
-   **НЕ нужно** в discovery: `find_recipe(async-validator)`, `find_recipe(input-mask)` — потому что мы их НЕ реализуем (см. minimum-viable scope в Step 3).
+     - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого нет), `get_symbol_docs(symbol="createRenderSchemaFromJson")`
 
 3. **Сохранить raw responses** в `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/discovery.md` (для аудита и repro). Один блок на каждый MCP-вызов с заголовком и query.
 
@@ -95,22 +101,26 @@
 
 ## Step 3 — code generation
 
-> ## ⚠️ SCOPE — структура из спеки, детали упрощённые
+> ## SCOPE — реализуй ПОЛНУЮ спеку
 >
-> Цель iter — проверить, что **MCP-only sub-agent делает форму без ошибок**, не подглядывая в исходники reformer. **Скелет формы (количество шагов, темы шагов, ключевые секции) должен соответствовать спеке.** Упрощать можно детали внутри шагов.
+> Цель iter — проверить, что **MCP-only sub-agent делает форму ПО СПЕКЕ без ошибок**, не подглядывая в исходники reformer. Реализация должна **соответствовать оригинальной спецификации** в `{SPEC_PATH}`. 3 sub-agent'а (core/renderer-react/renderer-json) делают **ту же самую форму** — это позволит сравнить разные стеки реформера на одной задаче.
 >
-> **Реализуй**:
-> - **6 шагов FormWizard** — ровно как в спеке. Темы шагов сохраняй (1. Кредит → 2. Личные данные → 3. Контакты → 4. Работа → 5. Доп. инфо → 6. Подтверждение). Не объединяй и не пропускай шаги.
-> - **2-4 поля per шаг** (16-24 поля всего вместо 80+) — выбирай ключевые поля каждого шага из спеки. Для каждого поля бери разные типы (text, number, date, select, checkbox, textarea).
-> - **1-2 computed fields** через `computeFrom` — выбери самые показательные из спеки (например `fullName = lastName + firstName + middleName` на step 2; `monthlyPayment = annuityFormula(loanAmount, loanTerm, interestRate)` на step 1). Остальные computed — n/a для iter.
-> - **1 conditional rendering** через `applyWhen` — берёшь из спеки (например mortgage section на step 1, или employed section на step 4).
-> - **1 FormArray section** (упрощённая) — берёшь любую из 3 в спеке (`properties` / `existingLoans` / `coBorrowers`). 2-3 поля per item, без сложной валидации.
-> - **Минимум валидации**: `required` на критичных полях + 1-2 `min`/`max`/`minLength` для демонстрации.
-> - **БЕЗ async validators / async options loading / InputMask** — это feature-completeness, не критично для MCP validation. Маркируй в dev-report как «out of iter-scope, not gap».
+> **Реализуй ВСЁ что описано в спеке**:
+> - **Все 6 шагов FormWizard** с их полями и темами (Кредит → Личные → Контакты → Работа → Доп. инфо → Подтверждение)
+> - **Все поля** каждого шага (~80 полей всего) — не пропускать, не объединять, не упрощать
+> - **Все computed fields** через `computeFrom` (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`)
+> - **Все conditional rendering** через `applyWhen` (mortgage, car, employed, selfEmployed, sameAsRegistration, hasProperty, hasExistingLoans, hasCoBorrower)
+> - **Все FormArray sections** — `properties[]`, `existingLoans[]`, `coBorrowers[]` со всеми полями элементов
+> - **Все validators** из спеки — `required`, `min`/`max`, `minLength`/`maxLength`, `pattern`, `email`, cross-field validations
+> - **Async validators** где описаны в спеке (email uniqueness, INN validation)
+> - **Async options loading** где описаны (city by region, carModel by carBrand)
+> - **InputMask** для phone/passport/INN/SNILS/postalCode/etc
 >
-> Это покрывает ВСЕ ключевые механизмы ReFormer (multi-step navigation, computed, conditional, array, типы полей, FormField pattern) при сохранении структуры формы из спеки.
+> **Если что-то не понятно из спеки** — фиксируй в dev-report как «open question / spec ambiguity», но НЕ выбрасывай поле/механизм.
 >
-> **Token budget per sub-agent: ~120k tokens / ~15 минут**. Если приближаешься к 100k — переходи к Step 4-5 без новых features.
+> **Если что-то не получилось из-за gap в MCP** (recipe не помог, symbol не нашёлся) — фиксируй как gap **с конкретным указанием** какого ответа MCP не хватило. Это главный output iter.
+>
+> **Token budget per sub-agent: что нужно — то и трать**. Реализация полной спеки приоритетнее экономии токенов. iter-12 показал ~180k tokens / ~25-30 мин per target — это нормальный target.
 
 ```bash
 mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-v{ITER}
@@ -191,7 +201,7 @@ npm run build -w react-playground 2>&1 | tail -30
 
 Создать `projects/react-playground-e2e/tests/iter/mcp-credit-{TARGET}-v{ITER}.spec.ts`:
 
-> **Walkthrough всех 6 шагов** — заполни минимально-достаточные required поля на каждом, fullPage screenshot после заполнения. Итого 7 screenshots (page1..page6 + page-final).
+> **Walkthrough всех 6 шагов** — заполни **все required поля** каждого шага (по спеке), fullPage screenshot после заполнения. Итого 7 screenshots (page1..page6 + page-final). Цель — провести форму до submit, чтобы убедиться что всё работает end-to-end.
 
 ```ts
 import { test } from '@playwright/test';
