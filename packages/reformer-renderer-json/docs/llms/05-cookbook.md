@@ -6,10 +6,10 @@
 
 **Problem.** `JsonFormRenderer` сам по себе НЕ принимает `form` prop (это by-design — JSON-схема статична, форма runtime). Каноничный mounting через closure pattern требует ~40-80 LOC boilerplate: `FormRoot.__selfManagedChildren = true`, `createRenderSchemaFromJson`, `createRenderSchema`, `<FormRenderer>` с `componentProps={{ form }}`.
 
-**Solution.** Скопируй компактную обёртку в свой проект (~30 LOC):
+**Solution.** Скопируй компактную обёртку в свой проект (~35 LOC). Принимает **callback** для `defineRegistry`, не готовый `registry` — это согласуется с public API `ComponentRegistry` (read-only: get/has/names; нет публичного `clone()` или mutation).
 
 ```tsx
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, type ComponentType, type ReactNode } from 'react';
 import type { FormProxy } from '@reformer/core';
 import {
   FormRenderer,
@@ -18,9 +18,10 @@ import {
   type RenderNode,
 } from '@reformer/renderer-react';
 import {
+  defineRegistry,
   createRenderSchemaFromJson,
   type JsonFormSchema,
-  type ComponentRegistry,
+  type RegistryBuilder,
 } from '@reformer/renderer-json';
 
 // FormRoot принимает form через componentProps closure и пробрасывает в children.
@@ -39,22 +40,29 @@ function FormRoot<T>({ form, children }: { form: FormProxy<T>; children?: Render
 interface JsonFormAppProps<T> {
   schema: JsonFormSchema;
   form: FormProxy<T>;
-  registry: ComponentRegistry;
-  fieldWrapper?: React.ComponentType<{ control: unknown }>;
+  /**
+   * Callback для регистрации твоих field/container/source. JsonFormApp сам
+   * добавит `FormRoot` container поверх — твой код не должен этого делать.
+   */
+  buildRegistry: (reg: RegistryBuilder) => void;
+  fieldWrapper?: ComponentType<{ control: unknown }>;
 }
 
-export function JsonFormApp<T>({ schema, form, registry, fieldWrapper }: JsonFormAppProps<T>): ReactNode {
-  // Расширяем registry FormRoot'ом, не мутируя оригинал
-  const fullRegistry = useMemo(() => {
-    const r = registry.clone();
-    r.container('FormRoot', FormRoot as never);
-    return r;
-  }, [registry]);
+export function JsonFormApp<T>({ schema, form, buildRegistry, fieldWrapper }: JsonFormAppProps<T>): ReactNode {
+  // Собираем registry с нуля: пользовательские компоненты + FormRoot
+  const registry = useMemo(
+    () =>
+      defineRegistry((reg) => {
+        buildRegistry(reg);
+        reg.container('FormRoot', FormRoot as ComponentType<unknown>);
+      }),
+    [buildRegistry]
+  );
 
   const renderSchema = useMemo(() => {
-    const fn = createRenderSchemaFromJson<T>(schema, fullRegistry);
+    const fn = createRenderSchemaFromJson<T>(schema, registry);
     return createRenderSchema<T>(fn);
-  }, [schema, fullRegistry]);
+  }, [schema, registry]);
 
   return <FormRenderer render={renderSchema} settings={{ fieldWrapper }} />;
 }
@@ -77,7 +85,22 @@ export function JsonFormApp<T>({ schema, form, registry, fieldWrapper }: JsonFor
 Использование:
 
 ```tsx
-<JsonFormApp schema={jsonSchema} form={form} registry={registry} fieldWrapper={FormField} />
+import { Input, Select, Box, FormField } from '@reformer/ui-kit';
+
+const buildRegistry = (reg: RegistryBuilder) => {
+  reg.field('Input', Input);
+  reg.field('Select', Select);
+  reg.container('Box', Box);
+  reg.source('LOAN_TYPES', LOAN_TYPES);
+  // ...твои field/container/source. FormRoot добавляется JsonFormApp'ом сам.
+};
+
+<JsonFormApp
+  schema={jsonSchema}
+  form={form}
+  buildRegistry={buildRegistry}
+  fieldWrapper={FormField}
+/>
 ```
 
 **Note**: эта обёртка **app-level** (~30 LOC), не shipped библиотекой — design tradeoff между ergonomic API и flexibility (см. issue G3-iter15). Для большинства проектов `<JsonFormApp>` достаточно; для нестандартных layout'ов используй raw closure pattern (см. [01-overview.md](01-overview.md)).

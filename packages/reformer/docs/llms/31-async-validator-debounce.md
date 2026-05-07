@@ -4,8 +4,8 @@
 адреса по DaData» используй `asyncValidators` в `FieldConfig`:
 
 ```ts
-import { type FieldConfig, type FormSchema } from '@reformer/core';
-import { required, email, type AsyncValidatorFn } from '@reformer/core/validators';
+import { type FieldConfig, type FormSchema, type AsyncValidatorFn } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
 
 const checkEmailUnique: AsyncValidatorFn<string> = async (value) => {
   if (!value) return null; // empty = valid (sync `required` separately)

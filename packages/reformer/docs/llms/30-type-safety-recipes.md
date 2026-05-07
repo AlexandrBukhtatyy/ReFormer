@@ -158,7 +158,7 @@ type Gender = 'male' | 'female';
 const schema: FormSchema<{ gender: Gender }> = {
   gender: {
     value: 'male', // widens to string
-    component: Radio,
+    component: RadioGroup,
     componentProps: { options: [...] },
   },
 };
@@ -169,7 +169,7 @@ const schema: FormSchema<{ gender: Gender }> = {
 ```typescript
 gender: {
   value: 'male',
-  component: Radio,
+  component: RadioGroup,
   componentProps: { options: [...] },
 } satisfies FieldConfig<Gender>,
 ```
