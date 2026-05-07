@@ -9,6 +9,9 @@ import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import MccaCoreV14 from './pages/examples/mcp-credit-application-core-v14';
 import MccaRendererReactV14 from './pages/examples/mcp-credit-application-renderer-react-v14';
 import MccaRendererJsonV14 from './pages/examples/mcp-credit-application-renderer-json-v14';
+import MccaCoreV15 from './pages/examples/mcp-credit-application-core-v15';
+import MccaRendererReactV15 from './pages/examples/mcp-credit-application-renderer-react-v15';
+import MccaRendererJsonV15 from './pages/examples/mcp-credit-application-renderer-json-v15';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -18,7 +21,10 @@ type ExamplePage =
   | 'json-renderer'
   | 'mcca-core-v14'
   | 'mcca-renderer-react-v14'
-  | 'mcca-renderer-json-v14';
+  | 'mcca-renderer-json-v14'
+  | 'mcca-core-v15'
+  | 'mcca-renderer-react-v15'
+  | 'mcca-renderer-json-v15';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -74,6 +80,24 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/mcp-credit-application-renderer-json-v14',
     title: 'MCP credit (renderer-json) v14',
     description: 'iter-14 full-run, target=renderer-json',
+  },
+  {
+    id: 'mcca-core-v15',
+    path: '/mcp-credit-application-core-v15',
+    title: 'MCP credit (core) v15',
+    description: 'iter-15 full-spec, target=core',
+  },
+  {
+    id: 'mcca-renderer-react-v15',
+    path: '/mcp-credit-application-renderer-react-v15',
+    title: 'MCP credit (renderer-react) v15',
+    description: 'iter-15 full-spec, target=renderer-react',
+  },
+  {
+    id: 'mcca-renderer-json-v15',
+    path: '/mcp-credit-application-renderer-json-v15',
+    title: 'MCP credit (renderer-json) v15',
+    description: 'iter-15 full-spec, target=renderer-json',
   },
 ];
 
@@ -150,6 +174,9 @@ function Layout() {
           <Route path="/mcp-credit-application-core-v14" element={<MccaCoreV14 />} />
           <Route path="/mcp-credit-application-renderer-react-v14" element={<MccaRendererReactV14 />} />
           <Route path="/mcp-credit-application-renderer-json-v14" element={<MccaRendererJsonV14 />} />
+          <Route path="/mcp-credit-application-core-v15" element={<MccaCoreV15 />} />
+          <Route path="/mcp-credit-application-renderer-react-v15" element={<MccaRendererReactV15 />} />
+          <Route path="/mcp-credit-application-renderer-json-v15" element={<MccaRendererJsonV15 />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
