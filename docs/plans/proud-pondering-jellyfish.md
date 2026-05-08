@@ -1,184 +1,210 @@
-# Оптимизация iter-цикла: shared abstract e2e tests вместо per-target generation
+# Чистый эксперимент: минимальный sub-agent промт vs full orchestrator
 
 ## Context
 
-Текущий sub-agent (iter-11..16) тратит ~25-30k tokens на Step 5 — генерацию собственного e2e-walkthrough теста (~110 LOC). Это **дублирование**: 3 sub-agent'а пишут 3 разных теста, проверяющих одну и ту же спеку. Кроме токенов, пострадает cross-target consistency: каждый sub-agent выбирает свои selectors/testIds/assertions.
+Текущий iter-цикл (orchestrator + 3 sub-agent'а) достиг ~590k tokens на iter-18 при тяжёлой обвязке: ~330-строчный `sub-agent.template.md` с MCP discovery checklist, schema-driven UI rules, testId convention, type-safety recipes, sandbox compliance, smoke spec, dev-report шаблоном.
 
-**Идея пользователя**: написать abstract e2e tests **один раз** на основании спеки, запустить против результата каждого sub-agent'а. Уже сделано в репо для `complex-multy-step-form`! См. ниже.
+Пользователь хочет **чистый baseline эксперимент**: дать 3 sub-agent'ам максимально минимальный промт (только спека + краткий hint про MCP) и замерить **tokens / wall-clock / качество** без всей обвязки. Цель — понять, **сколько в реальности тратится на саму генерацию**, а сколько съедает orchestrator-инфраструктура.
 
-**Уже существующее переиспользуемое**:
-- [`projects/react-playground-e2e/tests/pages/complex-multy-step-form/credit-form-page.pom.ts`](projects/react-playground-e2e/tests/pages/complex-multy-step-form/credit-form-page.pom.ts) — POM `CreditFormPage` с параметризацией `basePath` + `variant: 'compound' | 'renderer' | 'json'`. Все методы `fillLoanAmount`, `fillStep2PersonalData`, `expectComputedField`, и т.п. — уже абстрактные.
-- 9 spec-файлов в том же каталоге: `happy-path.spec.ts`, `arrays.spec.ts`, `computed-fields.spec.ts`, `conditional-fields.spec.ts`, `dependencies.spec.ts`, `accessibility.spec.ts`, `loading-error.spec.ts`. **Полное покрытие спеки**.
-- POM использует convention `data-testid="input-{testId}"`. ui-kit `FormField` строит этот атрибут из `componentProps.testId` (или из JSX-prop `testId`).
-- В [`projects/react-playground-e2e/playwright.config.ts`](projects/react-playground-e2e/playwright.config.ts) уже есть 3 projects (`complex-multy-step-form`, `complex-multy-step-form-renderer`, `complex-multy-step-form-json`) с `metadata.basePath` + `metadata.variant`. POM читает их через fixture в `tests/shared/test-factory.ts`.
+Сравнения с iter-18 в отчёте делать **не надо** — отдельный standalone замер.
 
-**Цель**: убрать e2e generation из sub-agent'а; добавить 3 dynamic playwright projects (`iter-core` / `iter-renderer-react` / `iter-renderer-json`) с `basePath` из `MCP_ITER_VERSION` env; orchestrator запускает abstract specs против iter-форм. Cross-target расхождения становятся **первоклассным сигналом** (target X прошёл 9/9, target Y — 7/9 — конкретно какие spec'и).
+## Что создаём (файлы)
 
-Token saving: ~25-30k × 3 = ~75-90k tokens per iter (≈15% от текущего ~600k бюджета).
+### 1. `docs/iter-prompts/sub-agent-clean.md` (новый, ~40 строк)
 
-## Файлы для модификации
+Минимальный промт sub-agent'у. Содержит **только**:
 
-### `projects/react-playground-e2e/playwright.config.ts`
+- **Цель**: реализуй форму по `docs/specs/credit-application-mcp.md` (read-only)
+- **Target** (один из `core`, `renderer-react`, `renderer-json`)
+- **Куда писать**: `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/`
+- **Файлы** (per target):
+  - `core` → `schema.ts`, `index.tsx`
+  - `renderer-react` → `schema.ts`, `index.tsx`
+  - `renderer-json` → `schema.json`, `index.tsx`
+- **MCP hint** (3-4 строки, **директивно**): «У тебя есть MCP-сервер `@reformer/mcp` с tools `find_recipe` / `get_symbol_docs` / `report_issue`. **Используй его по максимуму** — это первоисточник recipes/symbol-docs для всех `@reformer/*` пакетов. Если перед написанием кода для механизма (валидация, computed-fields, FormArray, async, masks, и т.д.) ты не вызвал MCP — это пробел. Если recipe не подошёл — попробуй другой keyword. Если MCP вообще ничего не дал — это сигнал к `report_issue`.»
+- **testId convention** (короткий блок, ~10 строк):
+  - Каждое поле формы ОБЯЗАНО иметь `componentProps.testId` равный имени поля (camelCase).
+  - Top-level: `loanAmount` → `testId: 'loanAmount'`.
+  - Nested groups: `parentField-childField` через дефис (например `personalData.lastName` → `testId: 'personalData-lastName'`).
+  - Array items: `testId` per item-leaf БЕЗ префикса массива (POM ставит индекс сам).
+  - Пример (в схеме):
+    ```ts
+    loanAmount: { value: null, component: Input, componentProps: { label: '...', testId: 'loanAmount' } },
+    personalData: {
+      lastName: { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'personalData-lastName' } },
+    },
+    ```
+  - Зачем: единая convention для consumer'ов (POM, abstract tests). Даже без запуска тестов в этом эксперименте — convention остаётся ожидаемой нормой.
+- **Hard-rules** (3 пункта, не относятся к функционалу):
+  - НЕ редактируй `docs/specs/`
+  - НЕ делай `git commit/push`
+  - НЕ трогай `App.tsx` (orchestrator решит сам после)
+- **Verification (минимальная)**: `npx tsc --noEmit -p tsconfig.app.json` должен пройти
+- **Dev-report (обязательная секция в промте)**: sub-agent после генерации пишет короткий `dev-report.md` в `.tmp/iter-artifacts/iter-clean-1/{TARGET}/dev-report.md` со структурой:
+  ```md
+  # dev-report — target={TARGET}
 
-Добавить 3 dynamic projects, активные только когда `MCP_ITER_VERSION` env установлен:
+  ## Status
+  ok | partial | blocked
 
-```ts
-const ITER_VERSION = process.env.MCP_ITER_VERSION;
+  ## Files written
+  - projects/react-playground/src/pages/examples/.../schema.ts (LOC: N)
+  - ...
 
-// в массив projects, после существующих:
-...(ITER_VERSION
-  ? [
-      {
-        name: 'iter-core',
-        testDir: './tests/pages/complex-multy-step-form',
-        use: { ...devices['Desktop Chrome'] },
-        metadata: {
-          basePath: `/mcp-credit-application-core-v${ITER_VERSION}`,
-          variant: 'compound' as const,
-        },
-      },
-      {
-        name: 'iter-renderer-react',
-        testDir: './tests/pages/complex-multy-step-form',
-        use: { ...devices['Desktop Chrome'] },
-        metadata: {
-          basePath: `/mcp-credit-application-renderer-react-v${ITER_VERSION}`,
-          variant: 'renderer' as const,
-        },
-      },
-      {
-        name: 'iter-renderer-json',
-        testDir: './tests/pages/complex-multy-step-form',
-        use: { ...devices['Desktop Chrome'] },
-        metadata: {
-          basePath: `/mcp-credit-application-renderer-json-v${ITER_VERSION}`,
-          variant: 'json' as const,
-        },
-      },
-    ]
-  : [])
-```
+  ## MCP calls
+  Кол-во вызовов: N. Какие recipes/symbols пригодились (список).
 
-### `docs/iter-prompts/sub-agent.template.md`
+  ## MCP gaps
+  Каждый gap — список:
+  - **gap-id**: короткий slug (например `g-find_recipe-async-fail`)
+  - **severity**: high | med | low
+  - **evidence**: цитата ответа MCP или «MCP returned no recipe for X»
+  - **proposed fix**: что добавить в MCP (новый recipe / extra example)
 
-**Step 5 (e2e walkthrough)** — переписать. Сейчас sub-agent пишет ~110 LOC e2e теста с 7 screenshot'ами + walkthrough. Заменить на:
+  ## Notes
+  Особенности, blocker'ы, что не получилось.
+  ```
+- **Return**: одна строка структурированного summary `status: ok|fail, files_written: [...], report_path: .tmp/iter-artifacts/iter-clean-1/{TARGET}/dev-report.md`
 
-- **Smoke runtime check** (~10 LOC): `npx playwright test --project=smoke` (уже существующий smoke project) — проверить что страница рендерится без console errors. Один screenshot final.
-- **Convention testId = fieldName** (новое правило в Step 3 / Type-safety rules): для каждого поля схемы `componentProps.testId` ДОЛЖЕН совпадать с именем поля (camelCase). Например: `loanAmount: { ..., componentProps: { testId: 'loanAmount', ... } }`. POM обращается через `data-testid="input-loanAmount"`. **Без этого convention abstract tests упадут.**
-  - Для nested groups (personalData, passportData, registrationAddress): testId = `lastName`, `firstName`, `series` и т.п. (без префикса группы — POM ожидает плоские имена).
-  - Для array items: testId per item — это сложнее, POM использует индексы; sub-agent должен следовать convention внутри FormArraySection.
-- **Не писать** `tests/iter/mcp-credit-{target}-v{ITER}.spec.ts` — orchestrator запускает существующие abstract specs.
+Что **НЕ включено** (явно убрано vs текущий sub-agent.template.md):
 
-Token saving ожидаем ~25-30k per sub-agent.
+- MCP discovery checklist (~15 явно перечисленных recipes/symbols) — **MCP используется, но какие именно recipes искать sub-agent решает сам** через директиву «использовать по максимуму»
+- Schema-driven UI rule с примерами (sub-agent должен вытащить через MCP)
+- Type-safety recipes (Recipe 8, ValidationSchemaFn import path, и т.д.) — sub-agent должен вытащить через MCP
+- Sandbox compliance rules (read-only ограничения на `packages/`, sibling examples)
+- Smoke spec template
 
-### `docs/iter-prompts/orchestrator.md`
+Что **ВКЛЮЧЕНО** (минимум для consistency с consumer'ами):
 
-**Добавить Step 4.5** (после App.tsx merge, перед aggregate):
+- testId convention — короткий блок ~10 строк (см. выше)
+- Dev-report шаблон с **MCP gaps секцией** — главный output эксперимента
 
-```bash
-# Запуск abstract test suite против всех 3 iter-форм
-cd projects/react-playground-e2e
+**Важная разница vs «совсем чистый baseline»**: MCP не отключаем и не делаем «опциональным» — наоборот, директивно требуем использовать. Это замер сценария «sub-agent вооружён MCP, но без orchestrator-обвязки». Если bare MCP даёт качественный результат — это сильный сигнал в пользу инвестиции в MCP recipes vs orchestrator infrastructure.
 
-for target in core renderer-react renderer-json; do
-  MCP_ITER_VERSION=N npx playwright test \
-    --project=iter-${target} \
-    --reporter=json \
-    > /tmp/iter-${target}-results.json
-done
-```
+### 2. `docs/iter-prompts/orchestrator-clean.md` (новый, ~50 строк)
 
-Парсить результаты через `jq` или Node:
-- Per spec / per target — pass/fail
-- Total pass rate per target
-- Расхождения cross-target
+Минимальный runner — описание шагов для оркестратора без сбора gap'ов / patches / abstract tests.
 
-Записать в `iter-summary.md` секцию **"Abstract test results"**:
+Шаги:
 
-| target | happy-path | arrays | computed | conditional | dependencies | a11y | loading-error |
-|--------|-----------|--------|----------|-------------|--------------|------|---------------|
-| core | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ 2/3 | ✅ |
-| renderer-react | ✅ | ✅ | ✅ | ⚠️ 1/2 | ✅ | ✅ | ✅ |
-| renderer-json | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-
-Это **новый primary signal качества** — лучше чем «status=ok» от sub-agent'а.
-
-### Удалить `projects/react-playground-e2e/tests/iter/`
-
-Каталог больше не нужен — sub-agent'ы туда не пишут.
-
-### `CLAUDE.md` (раздел "Iter prompt system" → "Артефакты iter-N")
-
-Обновить:
-- Убрать `tests/iter/mcp-credit-{target}-v{N}.spec.ts` из списка артефактов
-- Добавить `MCP_ITER_VERSION=N npx playwright test --project=iter-{target}` как способ запуска abstract test suite
-
-### `docs/iter-prompts/templates/iter-summary.template.md`
-
-Добавить новую обязательную секцию **"Abstract test results"** с таблицей per spec × target.
-
-## Architecture flow (после оптимизации)
-
-```
-[orchestrator]
-  Step 0: pre-flight (placeholder каталоги, App.tsx routes — БЕЗ e2e specs)
-  Step 1: 3 sub-agent'а параллельно
-    └─ sub-agent: discovery → plan → code → tsc/lint/build → SMOKE check (1 page load, 1 screenshot) → dev-report
-       (БЕЗ Step 5 e2e generation)
-  Step 2: sandbox audit
-  Step 3: App.tsx merge (если нужно)
-  Step 4.5 (NEW): MCP_ITER_VERSION=N npx playwright test --project=iter-{core,renderer-react,renderer-json}
-                  ↳ парсинг JSON результатов → таблица per spec
-  Step 5: aggregate dev-reports + abstract test results → iter-summary.md
-  Step 6: patch drafts (новый источник: failing abstract tests = MCP gaps в форме генерации)
-  Step 7: stop check
-  Step 8: handoff
-```
-
-## Verification
-
-1. **Smoke test** — добавить только playwright.config changes (3 dynamic projects), запустить вручную против одной из существующих v* форм:
+1. **Pre-flight**:
    ```bash
-   MCP_ITER_VERSION=15 npx playwright test --project=iter-core --grep @smoke
+   mkdir -p .tmp/iter-artifacts/iter-clean-1/{core,renderer-react,renderer-json}
+   date -u +%FT%TZ > .tmp/iter-artifacts/iter-clean-1/.start
+   git rev-parse HEAD >> .tmp/iter-artifacts/iter-clean-1/.start
    ```
-   (но v15 удалена — нужно сначала восстановить тестовый артефакт или запустить против iter-17 после обновлений)
-2. **End-to-end** — обновить sub-agent.template.md, orchestrator.md, запустить iter-17 в новом режиме:
-   - sub-agent'ы должны быть быстрее (~155k тoken'ов вместо ~180-220k)
-   - orchestrator выводит таблицу abstract test results
-   - расхождения между targets видны явно
-3. **Token saving** — сравнить total iter-17 tokens с iter-15/iter-16 (~600-650k). Ожидаем ~500-550k.
-4. **Coverage** — abstract test coverage не должен упасть; наоборот должен возрасти (9 spec files vs ~7 шагов в собственном sub-agent walkthrough).
+2. **Launch 3 sub-agents** параллельно (single message, 3 `Agent` tool calls), `subagent_type=general-purpose`, `prompt=` содержимое `sub-agent-clean.md` с подставленным `{TARGET}`. Каждый sub-agent пишет в `.tmp/iter-artifacts/iter-clean-1/{target}/start.txt` и `end.txt` свои timestamps **первым и последним действием** для замера wall-clock per agent.
+3. **После завершения всех 3** (или таймаута 30 мин per agent):
+   - `date -u +%FT%TZ > .tmp/iter-artifacts/iter-clean-1/.end`
+   - Найти session jsonl каждого sub-agent'а: `~/.claude/projects/-Users-aleksandrbuhtatyj-Work-My-ReFormer/<uuid>.jsonl` (по timestamp)
+   - Просуммировать `usage.input_tokens` + `usage.output_tokens` per agent через `jq` или `node`
+4. **Quality check** per target:
+   ```bash
+   cd projects/react-playground && npx tsc --noEmit -p tsconfig.app.json 2>&1 | tee /tmp/tsc-clean.log
+   npm run build -w react-playground 2>&1 | tail -10
+   ```
+   (запускается **один раз** — все 3 страницы в одном `tsc` проходе; pass/fail per target определяется через `grep` по путям в логе)
+5. **Подсчитать LOC** сгенерированного кода per target:
+   ```bash
+   for t in core renderer-react renderer-json; do
+     wc -l projects/react-playground/src/pages/examples/mcp-credit-application-${t}-clean/*.{ts,tsx,json} 2>/dev/null
+   done
+   ```
+6. **App.tsx merge** — после успешной компиляции (или даже если tsc упал, но `index.tsx` существует) — orchestrator сам добавляет 3 routes для визуальной верификации. Аналогично существующему [orchestrator.md Step 3](../iter-prompts/orchestrator.md#L74), но с suffix `-clean` вместо `-v{N}`:
+   - Импорт: `import MccaCoreClean from './pages/examples/mcp-credit-application-core-clean';` (имя компонента: `Mcca{Pascal(target)}Clean`)
+   - Запись в `examples` массив:
+     ```ts
+     {
+       id: 'mcca-core-clean',
+       path: '/mcp-credit-application-core-clean',
+       title: 'MCP credit (core) clean',
+       description: 'baseline experiment — minimal prompt',
+     }
+     ```
+   - Route: `<Route path="/mcp-credit-application-core-clean" element={<MccaCoreClean />} />`
+   - Idempotent: если запись уже есть (по id) — skip.
+7. **Прочитать 3 dev-report'а** (`.tmp/iter-artifacts/iter-clean-1/{target}/dev-report.md`), агрегировать **MCP gaps** с дедупликацией по `gap-id`. Targets, попавшие в один gap — объединить через `targets affected: ...`.
+8. **Записать финал-отчёт** в `docs/iter-summaries/iter-clean-1.md` с таблицей метрик + секцией aggregated MCP gaps (см. формат ниже).
 
-## Compatibility
+**НЕТ** в orchestrator-clean.md:
 
-POM существующего `complex-multy-step-form/credit-form-page.pom.ts` использует convention `data-testid="input-{testId}"`. Если sub-agent'ы iter-15/iter-16 НЕ следовали этой convention (а исследование показало что в iter-15+ они использовали `testId={'fieldName'}` — что попадает в convention), abstract tests упадут на этих historical pages. Это **OK** — pages удалены в commit `d8ac252`, история сохранена в iter-summaries.
+- Sandbox compliance audit (grep по transcript'у на запрещённые Read/Glob)
+- Smoke spec runs / abstract test runs / playwright вообще
+- Patch drafts (`.tmp/.../proposed-patches/`) — gap'ы только агрегируются в отчёт, фикс-патчи не пишем (это можно делать отдельным циклом если эксперимент даст полезный список)
+- Stop-check / continue-decision
 
-**Sub-agent'ам в iter-17+** правило convention testId=fieldName становится обязательным.
+### 3. Сгенерированные артефакты (output эксперимента)
 
-## Sequencing (как раскатывать)
+- `.tmp/iter-artifacts/iter-clean-1/{target}/{start,end}.txt` — timestamps для wall-clock
+- `.tmp/iter-artifacts/iter-clean-1/{target}/agent-summary.txt` — return от Agent'а
+- `projects/react-playground/src/pages/examples/mcp-credit-application-{target}-clean/` — сгенерированный код (3 каталога, по target)
+- `docs/iter-summaries/iter-clean-1.md` — финал-отчёт
 
-| Step | Что | Почему отдельно |
-|------|-----|-----------------|
-| 1 | Расширить `playwright.config.ts` 3 iter-projects | Минимально-инвазивная инфраструктура |
-| 2 | Обновить `sub-agent.template.md`: убрать e2e gen, добавить convention testId=fieldName | Снижает sub-agent budget |
-| 3 | Обновить `orchestrator.md`: Step 4.5 abstract tests + parsing | Главная новизна цикла |
-| 4 | Обновить `iter-summary.template.md`: добавить раздел Abstract test results | Иначе summary неполный |
-| 5 | Удалить `tests/iter/` каталог + cleanup CLAUDE.md | Cleanup |
-| 6 | Smoke iter-17 в новом режиме | Валидация |
-| 7 | После 1-2 циклов — рефакторинг по обнаруженным edge cases | Стабилизация |
+## Формат финал-отчёта (`iter-clean-1.md`)
 
-Каждый step — отдельный commit.
+Один документ. Главная таблица — метрики per target + total:
 
-## Open questions (не блокирующие)
+```markdown
+# iter-clean-1 — baseline measurement
 
-1. **Array items testIds**: POM в `arrays.spec.ts` обращается к items через `data-testid="input-properties-{index}-type"` или похожее? Нужно проверить точную convention POM для FormArraySection и явно прописать в sub-agent.template.md. Решается при first-run (Step 6 sequencing).
-2. **`variant: 'compound' | 'renderer' | 'json'`** — POM может разное для каждого variant'а. Нужно проверить что POM работает с iter-формами «как есть» или нужны minor правки. Решается при smoke (Step 6 sequencing).
-3. **Failure attribution**: если abstract test упал — это либо (a) MCP не подсказал sub-agent'у нужную фичу, либо (b) sub-agent ошибся, либо (c) POM ожидает testId которого нет в convention. Orchestrator должен помочь различать через категорию failure (smoke / a11y / array / etc) → конкретный gap-id.
+> Чистый эксперимент: минимальный промт без MCP discovery checklist, без convention rules.
 
-## Token budget impact (ожидаемо)
+| target          | wall-clock (мин) | input tokens | output tokens | total tokens | tsc  | build | LOC |
+| --------------- | ---------------- | ------------ | ------------- | ------------ | ---- | ----- | --- |
+| core            | N                | N            | N             | N            | ✅/❌ | ✅/❌ | N   |
+| renderer-react  | N                | N            | N             | N            | ✅/❌ | ✅/❌ | N   |
+| renderer-json   | N                | N            | N             | N            | ✅/❌ | ✅/❌ | N   |
+| **total**       | **max(...)**     | **sum**      | **sum**       | **sum**      |      |       | sum |
 
-| iter | sub-agent budget | total (3 par) | abstract tests run | iter-summary |
-|------|------------------|---------------|--------------------|--------------|
-| iter-15 (current) | ~180-220k each | ~648k | ❌ (sub-agent сам пишет) | manual aggregation |
-| iter-17 (planned) | ~150-180k each | ~480-540k | ✅ (orchestrator runs once) | + table abstract test results |
+(wall-clock total = max, потому что 3 sub-agent'а параллельно)
 
-Saving ~15% tokens + значительно более качественный сигнал (per-spec breakdown vs «status: ok»).
+## Notes per target
+- core: что бросилось в глаза (ошибки tsc, **сколько MCP-вызовов** по их digest'у в jsonl, какие recipes пригодились, особенности)
+- renderer-react: ...
+- renderer-json: ...
+
+## MCP usage stats
+Из jsonl агентов — сколько вызовов `mcp__reformer__*` суммарно и per target. Это сам по себе сигнал: если sub-agent вызвал MCP мало — либо промт не убедил, либо MCP не помог.
+
+## MCP gaps (aggregated)
+
+Из 3× `.tmp/iter-artifacts/iter-clean-1/{target}/dev-report.md`, дедуп по `gap-id`:
+
+| gap-id | severity | targets affected | evidence | proposed fix |
+| ------ | -------- | ---------------- | -------- | ------------ |
+| g-... | high | core, renderer-react | «MCP returned no recipe for X» | добавить recipe Y в Z |
+| ...    | ...      | ...              | ...      | ...          |
+
+## Что промт содержал
+(копия `sub-agent-clean.md`)
+
+## Раннер
+(копия команд из `orchestrator-clean.md`)
+```
+
+**Важно**: «качество результата» — это _только_ tsc + build pass/fail + LOC. Без smoke, без abstract tests (по решению пользователя «без тестов»). Если sub-agent смог скомпилировать страницу — считаем «качественным» по grep-уровню.
+
+## Existing utilities to reuse
+
+- **Token sourcing pattern** — описан в [docs/iter-prompts/orchestrator.md:144](../iter-prompts/orchestrator.md#L144) (Step 4): jsonl файлы лежат в `~/.claude/projects/-Users-aleksandrbuhtatyj-Work-My-ReFormer/<uuid>.jsonl`. Просуммировать `usage.input_tokens` + `usage.output_tokens` через jq.
+- **Spec read-only enforcement** — CLAUDE.md → «Specs are read-only». Промт sub-agent'а ссылается, не дублирует.
+- **Existing 3-target naming** — `core` / `renderer-react` / `renderer-json`, такие же как в текущем cycle. Suffix `-clean` вместо `-v{N}` чтобы не путать с iter-N.
+
+## Verification (как проверить план end-to-end после реализации)
+
+1. **Файлы созданы**: `docs/iter-prompts/sub-agent-clean.md`, `docs/iter-prompts/orchestrator-clean.md` существуют.
+2. **Запуск эксперимента** (отдельным сообщением от пользователя): «играй роль orchestrator из orchestrator-clean.md». Orchestrator должен:
+   - Развернуть рабочую директорию `.tmp/iter-artifacts/iter-clean-1/`
+   - Запустить 3 Agent'а параллельно (видно в UI как 3 одновременных subagent'а)
+   - Дождаться завершения, собрать timestamps, jsonl-метрики
+   - Прогнать tsc + build
+   - Сгенерировать `docs/iter-summaries/iter-clean-1.md` с заполненной таблицей
+3. **Output expectation**:
+   - 3 каталога `mcp-credit-application-{target}-clean/` с файлами
+   - tsc может **не пройти** — это валидный сигнал baseline'а (без convention'ов sub-agent'ы могут сделать typing errors)
+   - Wall-clock total ожидаемо < полный iter-18 (нет smoke runs, нет dev-report'ов с MCP gaps анализом)
+4. **Cleanup после эксперимента**: каталоги `mcp-credit-application-{target}-clean/` можно удалить аналогично iter-N cleanup'у. Отчёт `iter-clean-1.md` сохраняется в repo (history).
+
+## Open question (не блокирующее)
+
+- **Если sub-agent захочет писать в `App.tsx`** (хотя промт это запрещает) — orchestrator должен заметить и откатить, либо просто игнорировать (страницы без route не помешают tsc). Решение: **игнорировать** — измерение поведения без orchestrator-полиции и есть смысл baseline'а.
