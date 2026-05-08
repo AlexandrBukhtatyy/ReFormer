@@ -320,7 +320,7 @@ const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
 - single-field validate с одной проверкой (`(value: boolean) => value === true ? null : {...}`);
 - applyWhen-body c 2-3 `required` вызовами без ветвлений.
 
-См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts) и [`mcp-credit-application-v10/schema.ts`](../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts).
+См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
 
 ---
 

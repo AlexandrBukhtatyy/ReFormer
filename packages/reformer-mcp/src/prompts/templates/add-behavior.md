@@ -178,8 +178,6 @@ computeFrom([path.personalData], path.fullName, (values) => {
     };
     ```
 
-    **Reference**: [`mcp-credit-application-v10/schema.ts`](../../../../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts) секция «Compute helpers» — 8 extracted typed functions, 0 `any`/`unknown` в behavior schema.
-
 ## 🎯 Hide vs Disable
 
 - **Hide** (JSX-conditional / `hideWhen` / `setHidden`) → field disappears from DOM. Use for type/status conditions (`loanType=mortgage`, `employmentStatus=employed`).

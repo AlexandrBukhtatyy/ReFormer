@@ -366,7 +366,7 @@ const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
 - watchField с 2-3 строками простой логики;
 - single computeFn на 1 line (`(v) => v.price * v.quantity`).
 
-См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts) и [`mcp-credit-application-v10/schema.ts`](../projects/react-playground/src/pages/examples/mcp-credit-application-v10/schema.ts) (секция «Compute helpers»).
+См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
 
 ---
 

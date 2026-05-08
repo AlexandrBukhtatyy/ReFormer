@@ -1,5 +1,41 @@
 ## 4. COMMON MISTAKES
 
+### TSC overload-resolution error: `'form' does not exist in FormSchema<T>`
+
+**Симптом**:
+
+```
+TS2769: Object literal may only specify known properties, and 'form' does not
+exist in type 'FormSchema<MyForm>'.
+```
+
+(или похожее с `validation` / `behavior` ключами).
+
+**Причина**: `createForm` имеет 2 overload — `GroupNodeConfig<T>` (с `form/validation/behavior`)
+и schema-only. Если в inline literal `form: { ... }` есть глубокая inference-проблема
+(чаще всего — literal default value у union-типа поля, см. Recipe 8 в
+[30-type-safety-recipes.md](30-type-safety-recipes.md)), TS отбрасывает Overload 1 и
+матчит Overload 2 (schema-only). В нём ключа `form` нет — получаешь misleading error.
+
+**Workaround** — extract `form` literal в typed local:
+
+```ts
+const form: FormSchema<MyForm> = {
+  fieldA: { value: 'foo', component: Input /* ... */ },
+  // ...
+};
+
+createForm({ form, validation, behavior });
+```
+
+Теперь TS репортит **реальную** per-field ошибку — например:
+
+```
+TS2322: Type '"male"' is not assignable to type 'Gender | null'
+```
+
+После этого решай конкретную проблему (Recipe 8 — `satisfies FieldConfig<UnionType>`).
+
 ### Imports rule (#1 cause of cascading errors — read first)
 
 Types live in `@reformer/core`. Functions live in submodules (`/validators`,

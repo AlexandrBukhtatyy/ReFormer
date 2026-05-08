@@ -9,10 +9,27 @@ import path from 'path';
  *   (POM оборачивает ключевые действия через PerformanceCollector,
  *   результаты пишутся в test-results/perf-summary.json и в консоль).
  *   По умолчанию — выключено, оверхед нулевой.
+ * - ITER_MODE: 'on' включает режим итеративного MCP regression-testing
+ *   (см. docs/iter-prompts/orchestrator.md). Активирует video recording
+ *   и фиксированный viewport 1440×900 для предсказуемых скриншотов.
+ *   Не влияет на обычные e2e — если не выставлен, поведение прежнее.
+ * - ITER_OUTPUT_DIR: переопределяет outputDir для test-результатов
+ *   (видео, traces). Используется sub-agent'ом, чтобы артефакты iter-N
+ *   падали в .tmp/iter-artifacts/iter-N/<target>/playwright/ или подобный
+ *   изолированный каталог.
+ * - MCP_ITER_VERSION: номер итерации для shared abstract test runs против
+ *   iter-форм. Активирует 3 dynamic projects (iter-core, iter-renderer-react,
+ *   iter-renderer-json) с basePath = /mcp-credit-application-{target}-v${N}.
+ *   Проекты используют тот же testDir что и complex-multy-step-form (POM +
+ *   abstract specs reused). Запуск: MCP_ITER_VERSION=N npx playwright test
+ *   --project=iter-{target}.
  */
 const E2E_PORT = parseInt(process.env.E2E_PORT || '5173', 10);
 const E2E_BASE_URL = process.env.E2E_BASE_URL || `http://localhost:${E2E_PORT}`;
 const PERF_ENABLED = process.env.PERF_ENABLED === 'true';
+const ITER_MODE = process.env.ITER_MODE === 'on';
+const ITER_OUTPUT_DIR = process.env.ITER_OUTPUT_DIR;
+const MCP_ITER_VERSION = process.env.MCP_ITER_VERSION;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -42,6 +59,9 @@ export default defineConfig({
   ],
   /* Expect timeout */
   expect: { timeout: 5000 },
+  /* outputDir для артефактов — переопределяется через ITER_OUTPUT_DIR
+     для изоляции iter-N runs от обычных e2e. */
+  ...(ITER_OUTPUT_DIR ? { outputDir: ITER_OUTPUT_DIR } : {}),
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
@@ -49,6 +69,16 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+
+    /* ITER mode: фиксированный viewport (предсказуемость fullPage скриншотов)
+       + видео для walkthrough demo. Активно только при ITER_MODE=on,
+       обычные e2e не затронуты. */
+    ...(ITER_MODE
+      ? {
+          video: 'on' as const,
+          viewport: { width: 1440, height: 900 },
+        }
+      : {}),
   },
 
   /* Configure projects for major browsers */
@@ -120,6 +150,41 @@ export default defineConfig({
       testDir: './tests/pages/behaviors',
       use: { ...devices['Desktop Chrome'] },
     },
+    // ITER abstract test projects — переиспользуют POM + spec файлы
+    // complex-multy-step-form для прогона против iter-форм. Активны только
+    // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md
+    // и docs/plans/proud-pondering-jellyfish.md.
+    ...(MCP_ITER_VERSION
+      ? [
+          {
+            name: 'iter-core',
+            testDir: './tests/pages/complex-multy-step-form',
+            use: { ...devices['Desktop Chrome'] },
+            metadata: {
+              basePath: `/mcp-credit-application-core-v${MCP_ITER_VERSION}`,
+              variant: 'compound' as const,
+            },
+          },
+          {
+            name: 'iter-renderer-react',
+            testDir: './tests/pages/complex-multy-step-form',
+            use: { ...devices['Desktop Chrome'] },
+            metadata: {
+              basePath: `/mcp-credit-application-renderer-react-v${MCP_ITER_VERSION}`,
+              variant: 'renderer' as const,
+            },
+          },
+          {
+            name: 'iter-renderer-json',
+            testDir: './tests/pages/complex-multy-step-form',
+            use: { ...devices['Desktop Chrome'] },
+            metadata: {
+              basePath: `/mcp-credit-application-renderer-json-v${MCP_ITER_VERSION}`,
+              variant: 'json' as const,
+            },
+          },
+        ]
+      : []),
   ],
 
   /* Run your local dev server before starting the tests */

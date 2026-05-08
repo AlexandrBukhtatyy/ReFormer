@@ -146,6 +146,44 @@ const navRef = useRef<FormWizardHandle<MyForm>>(null);
 />
 ```
 
+### Recipe 8 — enum-typed default values (union literal widening)
+
+Когда default `value` поля — литерал union-type, TS widens его до `string`,
+ломая `FormSchema<T>` assignability:
+
+```typescript
+type Gender = 'male' | 'female';
+
+// ❌ TS error: '"male"' is not assignable to 'Gender | null'
+const schema: FormSchema<{ gender: Gender }> = {
+  gender: {
+    value: 'male', // widens to string
+    component: RadioGroup,
+    componentProps: { options: [...] },
+  },
+};
+```
+
+**Fix** — `satisfies FieldConfig<UnionType>` сужает без `as`-каста:
+
+```typescript
+gender: {
+  value: 'male',
+  component: RadioGroup,
+  componentProps: { options: [...] },
+} satisfies FieldConfig<Gender>,
+```
+
+Альтернативы:
+
+- `value: 'male' as Gender` — works, но `as`-каст. Избегай (см. anti-patterns).
+- `value: null` (если `Gender | null` допустим) — нет widening проблемы, но требует
+  null-check в render/validation.
+
+Применяется к любому union-полю: `loanType`, `employmentStatus`, `maritalStatus`,
+`propertyType`, и т.п. Симптом без этого fix'а — misleading TS2769
+"`'form' does not exist in FormSchema<...>`" (см. `05-common-mistakes.md`).
+
 ### Anti-patterns to avoid
 
 - `import { type ValidationSchemaFn } from '@reformer/core/validators'` →

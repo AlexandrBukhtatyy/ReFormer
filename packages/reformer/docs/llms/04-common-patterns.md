@@ -235,4 +235,4 @@ const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
 };
 ```
 
-Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior.ts` and `mcp-credit-application-v10/schema.ts` (Compute helpers section).
+Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior.ts`.

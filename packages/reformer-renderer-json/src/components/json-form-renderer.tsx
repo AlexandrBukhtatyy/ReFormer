@@ -40,7 +40,7 @@ export interface JsonFormRendererProps<T> {
  * @example
  * ```tsx
  * import { useMemo } from 'react';
- * import { getReformerForm } from '@reformer/core';
+ * import { createForm } from '@reformer/core';
  * import { Input, FormField } from '@reformer/ui-kit';
  * import {
  *   JsonFormRenderer,
@@ -60,21 +60,35 @@ export interface JsonFormRendererProps<T> {
  *   },
  * };
  *
- * const registry = defineRegistry((reg) => {
- *   reg.field('Input', Input);
- *   reg.container('Box', ({ children }) => <div>{children}</div>);
- *   reg.container(FIELD_WRAPPER, FormField);
- * });
+ * type MyForm = { email: string };
  *
- * function MyForm() {
- *   const form = useMemo(() => getReformerForm({ email: '' }), []);
+ * function MyFormPage() {
+ *   // form живёт в page-state и передаётся в registry через closure (см. ниже)
+ *   const form = useMemo(() => createForm<MyForm>({
+ *     form: { email: { value: '', component: Input, componentProps: { label: 'Email' } } },
+ *   }), []);
+ *
+ *   // registry с FormRoot-closure: компоненты, использующие форму, получают её
+ *   // через componentProps closure (JsonFormRenderer НЕ имеет form-prop'а — это by-design,
+ *   // т.к. JSON-схема статична, а форма runtime).
+ *   const registry = useMemo(() => defineRegistry((reg) => {
+ *     reg.field('Input', Input);
+ *     reg.container('Box', ({ children }) => <div>{children}</div>);
+ *     reg.container(FIELD_WRAPPER, FormField);
+ *   }), []);
+ *
  *   return (
- *     <JsonRendererProvider settings={{ registry }}>
- *       <JsonFormRenderer schema={schema} form={form} />
+ *     <JsonRendererProvider settings={{ registry, form }}>
+ *       <JsonFormRenderer schema={schema} />
  *     </JsonRendererProvider>
  *   );
  * }
  * ```
+ *
+ * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady? }`.
+ * Форма передаётся в render-pipeline через {@link JsonRendererProvider} settings или через
+ * closure-pattern с {@link createRenderSchemaFromJson} + `FormRoot.__selfManagedChildren = true`
+ * (см. recipe `multi-step-from-json` в `docs/llms/`).
  *
  * @see [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
  */

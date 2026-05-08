@@ -47,7 +47,7 @@ import type { FieldPathNode } from '../../types';
  * }
  * ```
  */
-export function pattern<TForm, TField extends string | undefined = string>(
+export function pattern<TForm, TField extends string | null | undefined = string>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
   regex: RegExp,
   options?: ValidateOptions

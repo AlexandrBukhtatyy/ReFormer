@@ -6,9 +6,9 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-import McpCreditApplicationV10 from './pages/examples/mcp-credit-application-v10';
-import McpCreditApplicationRendererV10 from './pages/examples/mcp-credit-application-renderer-v10';
-import McpCreditApplicationRendererJsonV10 from './pages/examples/mcp-credit-application-renderer-json-v10';
+import MccaCoreClean from './pages/examples/mcp-credit-application-core-clean';
+import MccaRendererReactClean from './pages/examples/mcp-credit-application-renderer-react-clean';
+import MccaRendererJsonClean from './pages/examples/mcp-credit-application-renderer-json-clean';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -16,9 +16,9 @@ type ExamplePage =
   | 'complex'
   | 'complex-renderer'
   | 'json-renderer'
-  | 'mcp-credit-v10'
-  | 'mcp-credit-renderer-v10'
-  | 'mcp-credit-renderer-json-v10';
+  | 'mcca-core-clean'
+  | 'mcca-renderer-react-clean'
+  | 'mcca-renderer-json-clean';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -58,22 +58,22 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     description: 'Реактивное поведение через декларативный подход',
   },
   {
-    id: 'mcp-credit-v10',
-    path: '/examples/mcp-credit-v10',
-    title: 'MCP Credit v10 (core)',
-    description: 'Iteration 10: target=core, regression test on patches G–M.',
+    id: 'mcca-core-clean',
+    path: '/mcp-credit-application-core-clean',
+    title: 'MCP credit (core) clean',
+    description: 'baseline experiment — minimal prompt',
   },
   {
-    id: 'mcp-credit-renderer-v10',
-    path: '/examples/mcp-credit-renderer-v10',
-    title: 'MCP Credit Renderer v10',
-    description: 'Iteration 10: target=renderer-react, regression test on patches G–M.',
+    id: 'mcca-renderer-react-clean',
+    path: '/mcp-credit-application-renderer-react-clean',
+    title: 'MCP credit (renderer-react) clean',
+    description: 'baseline experiment — minimal prompt',
   },
   {
-    id: 'mcp-credit-renderer-json-v10',
-    path: '/examples/mcp-credit-renderer-json-v10',
-    title: 'MCP Credit JSON v10',
-    description: 'Iteration 10: target=renderer-json, regression test on patches G–M.',
+    id: 'mcca-renderer-json-clean',
+    path: '/mcp-credit-application-renderer-json-clean',
+    title: 'MCP credit (renderer-json) clean',
+    description: 'baseline experiment — minimal prompt',
   },
 ];
 
@@ -147,14 +147,14 @@ function Layout() {
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
-          <Route path="/examples/mcp-credit-v10" element={<McpCreditApplicationV10 />} />
+          <Route path="/mcp-credit-application-core-clean" element={<MccaCoreClean />} />
           <Route
-            path="/examples/mcp-credit-renderer-v10"
-            element={<McpCreditApplicationRendererV10 />}
+            path="/mcp-credit-application-renderer-react-clean"
+            element={<MccaRendererReactClean />}
           />
           <Route
-            path="/examples/mcp-credit-renderer-json-v10"
-            element={<McpCreditApplicationRendererJsonV10 />}
+            path="/mcp-credit-application-renderer-json-clean"
+            element={<MccaRendererJsonClean />}
           />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />

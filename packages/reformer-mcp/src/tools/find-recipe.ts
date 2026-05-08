@@ -34,6 +34,41 @@ export interface FindRecipeArgs {
   package?: string;
 }
 
+/**
+ * Common user-typed keywords → canonical recipe filename stems.
+ * Handles cases where the obvious search term doesn't match the actual
+ * filename (e.g. user types "form-array" but file is "10-arrays.md").
+ *
+ * Add aliases here when sub-agents repeatedly hit "no recipe found" for
+ * intuitive keywords. Each alias maps to a list of candidate stems
+ * (without NN- prefix); first match wins.
+ */
+const RECIPE_ALIASES: Record<string, string[]> = {
+  // computed fields
+  'compute-from': ['compute-vs-watch'],
+  computed: ['compute-vs-watch'],
+  derived: ['compute-vs-watch'],
+  // arrays
+  'form-array': ['arrays', 'array-operations', 'array-cleanup'],
+  array: ['arrays'],
+  // multi-step / wizard
+  'form-wizard': ['multi-step'],
+  wizard: ['multi-step'],
+  // async
+  'async-validator': ['async-validator-debounce', 'async-watchfield', 'async-preload'],
+  async: ['async-watchfield', 'async-preload'],
+  // ui-kit form-field
+  'form-field': ['form-field-integration'],
+  'field-component': ['form-field-integration'],
+  formfield: ['form-field-integration'],
+};
+
+function resolveAliases(topic: string): string[] {
+  const key = topic.toLowerCase();
+  const aliases = RECIPE_ALIASES[key];
+  return aliases && aliases.length > 0 ? [topic, ...aliases] : [topic];
+}
+
 export async function findRecipeTool(
   args: FindRecipeArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
@@ -44,16 +79,26 @@ export async function findRecipeTool(
   const targets: ReformerPackage[] =
     args.package && args.package !== '*' ? [args.package as ReformerPackage] : [...KNOWN_PACKAGES];
 
+  const candidates = resolveAliases(topic);
+
   // 1. Match by docs/llms/ filename (with or without NN- prefix).
-  for (const pkg of targets) {
-    const file = findDocFile(pkg, topic);
-    if (file) {
-      const body = readFileSync(file.absPath, 'utf-8');
-      return text(
-        `# Recipe: ${file.title}\n\n` +
-          `**Source:** ${pkg} · \`docs/llms/${file.fileName}\`\n\n` +
-          body.trim()
-      );
+  //    Tries the original topic first, then registered aliases.
+  for (const candidate of candidates) {
+    for (const pkg of targets) {
+      const file = findDocFile(pkg, candidate);
+      if (file) {
+        const body = readFileSync(file.absPath, 'utf-8');
+        const aliasNote =
+          candidate !== topic
+            ? `\n\n> _Note: searched for \`${topic}\`, matched alias → \`${candidate}\`. ` +
+              `Use \`${candidate}\` directly to suppress this hint._`
+            : '';
+        return text(
+          `# Recipe: ${file.title}\n\n` +
+            `**Source:** ${pkg} · \`docs/llms/${file.fileName}\`${aliasNote}\n\n` +
+            body.trim()
+        );
+      }
     }
   }
 

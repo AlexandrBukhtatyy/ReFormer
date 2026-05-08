@@ -28,8 +28,13 @@ docs/_temp/
 # Playwright smoke-test screenshots (mcp validation runs)
 projects/react-playground-e2e/screenshots/
 
+# Iter walkthrough videos (большие webm-файлы, локальные/CI-only)
+# См. docs/iter-prompts/orchestrator.md
+projects/react-playground-e2e/videos/
+
 # E2E
 */**/*.spec.ts-snapshots
+projects/react-playground-e2e/projects
 
 # Beads / Dolt files (added by bd init)
 .dolt/
