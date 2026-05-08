@@ -259,8 +259,10 @@ test(`mcp-credit-${TARGET}-v${ITER} — smoke`, async ({ page }) => {
   await page.goto('http://localhost:5173/mcp-credit-application-{TARGET}-v{ITER}');
   // Ожидаем кнопку "Далее" (или "Submit" если 1 шаг) — page загрузилась
   await expect(page.getByRole('button', { name: /Далее|Next|Отправить|Submit/i })).toBeVisible({ timeout: 5000 });
+  // path относительно cwd playwright-процесса (= projects/react-playground-e2e после cd ниже).
+  // Не префиксуй `projects/react-playground-e2e/` — иначе путь удвоится (gitignore:37 это уже ловил).
   await page.screenshot({
-    path: 'projects/react-playground-e2e/screenshots/mcp-credit-v{ITER}/{TARGET}/smoke-final.png',
+    path: 'screenshots/mcp-credit-v{ITER}/{TARGET}/smoke-final.png',
     fullPage: true,
   });
   expect(errors, `Console errors: ${errors.join('; ')}`).toHaveLength(0);
