@@ -64,20 +64,32 @@ type(scope): description
 - `ci` - CI/CD changes
 - `chore` - other changes
 
-**Scopes:**
+**Scopes** (для feat/fix scope **обязателен** — `semantic-release-monorepo` использует его, чтобы определить какому пакету принадлежит change):
 
-- `reformer` - core library
-- `docs` - documentation
-- `ci` - CI/CD
-- `deps` - dependencies
+Package scopes:
+
+- `core` — `@reformer/core` (`packages/reformer/`)
+- `cdk` — `@reformer/cdk`
+- `ui-kit` — `@reformer/ui-kit`
+- `renderer-react` — `@reformer/renderer-react`
+- `renderer-json` — `@reformer/renderer-json`
+- `mcp` — `@reformer/mcp`
+
+Other scopes (для chore/docs/ci типов, release не триггерят):
+
+- `docs`, `ci`, `deps`, `repo`
 
 **Examples:**
 
 ```
-feat(reformer): add new validation rule for phone numbers
-fix(reformer): resolve race condition in async validation
+feat(core): add new validation rule for phone numbers
+fix(core): resolve race condition in async validation
+feat(cdk,ui-kit): introduce new FormField hook + wrapper
+feat!(core): rewrite FormProxy<T> generic    # BREAKING
 docs: update installation instructions
 ```
+
+Подробности про release flow и scopes см. в [docs/guides/release-and-publishing.md](docs/guides/release-and-publishing.md).
 
 ### Pull Request Process
 
