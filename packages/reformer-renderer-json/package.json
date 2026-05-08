@@ -52,9 +52,9 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@reformer/core": "^4.0.0",
-    "@reformer/renderer-react": "^4.0.0",
-    "@reformer/ui-kit": "^4.0.0",
+    "@reformer/core": "^1.0.0",
+    "@reformer/renderer-react": "^1.0.0",
+    "@reformer/ui-kit": "^1.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },
