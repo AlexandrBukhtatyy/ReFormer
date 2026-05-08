@@ -36,26 +36,14 @@ import {
   copyFrom,
   revalidateWhen,
 } from '@reformer/core/behaviors';
-import {
-  Input,
-  Select,
-  Checkbox,
-  RadioGroup,
-  Textarea,
-  InputMask,
-} from '@reformer/ui-kit';
+import { Input, Select, Checkbox, RadioGroup, Textarea, InputMask } from '@reformer/ui-kit';
 
 // ============================================================================
 // Domain types
 // ============================================================================
 
 export type LoanType = 'consumer' | 'mortgage' | 'car' | 'business' | 'refinancing';
-export type EmploymentStatus =
-  | 'employed'
-  | 'selfEmployed'
-  | 'unemployed'
-  | 'retired'
-  | 'student';
+export type EmploymentStatus = 'employed' | 'selfEmployed' | 'unemployed' | 'retired' | 'student';
 export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
 export type EducationLevel = 'secondary' | 'specialized' | 'higher' | 'postgraduate';
 export type Gender = 'male' | 'female';
@@ -1256,14 +1244,11 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> = (path
   );
 
   // ---- computeFrom: fullName ----
-  computeFrom(
-    [path.personalData],
-    path.fullName,
-    ({ personalData }: CreditApplicationForm) =>
-      [personalData.lastName, personalData.firstName, personalData.middleName]
-        .filter(Boolean)
-        .join(' ')
-        .trim()
+  computeFrom([path.personalData], path.fullName, ({ personalData }: CreditApplicationForm) =>
+    [personalData.lastName, personalData.firstName, personalData.middleName]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
   );
 
   // ---- computeFrom: age ----
@@ -1276,10 +1261,7 @@ const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> = (path
     [path.coBorrowers],
     path.coBorrowersIncome,
     ({ coBorrowers }: CreditApplicationForm) =>
-      (coBorrowers ?? []).reduce(
-        (sum, cb) => sum + (Number(cb?.monthlyIncome) || 0),
-        0
-      )
+      (coBorrowers ?? []).reduce((sum, cb) => sum + (Number(cb?.monthlyIncome) || 0), 0)
   );
 
   // ---- computeFrom: totalIncome ----
@@ -1518,8 +1500,7 @@ const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   validateTree<CreditApplicationForm>(
     (ctx) => {
       const form = ctx.form.getValue();
-      if (form.workExperienceCurrent == null || form.workExperienceTotal == null)
-        return null;
+      if (form.workExperienceCurrent == null || form.workExperienceTotal == null) return null;
       if (form.workExperienceCurrent > form.workExperienceTotal) {
         return {
           code: 'currentExceedsTotal',
@@ -1632,21 +1613,18 @@ const requireTrue =
   };
 
 const step6Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validateTree<CreditApplicationForm>(
-    requireTrue('agreePersonalData', 'Необходимо согласие'),
-    { targetField: 'agreePersonalData' }
-  );
-  validateTree<CreditApplicationForm>(
-    requireTrue('agreeCreditHistory', 'Необходимо согласие'),
-    { targetField: 'agreeCreditHistory' }
-  );
+  validateTree<CreditApplicationForm>(requireTrue('agreePersonalData', 'Необходимо согласие'), {
+    targetField: 'agreePersonalData',
+  });
+  validateTree<CreditApplicationForm>(requireTrue('agreeCreditHistory', 'Необходимо согласие'), {
+    targetField: 'agreeCreditHistory',
+  });
   validateTree<CreditApplicationForm>(requireTrue('agreeTerms', 'Необходимо согласие'), {
     targetField: 'agreeTerms',
   });
-  validateTree<CreditApplicationForm>(
-    requireTrue('confirmAccuracy', 'Необходимо подтверждение'),
-    { targetField: 'confirmAccuracy' }
-  );
+  validateTree<CreditApplicationForm>(requireTrue('confirmAccuracy', 'Необходимо подтверждение'), {
+    targetField: 'confirmAccuracy',
+  });
 
   required(path.electronicSignature, { message: 'Введите код из СМС' });
   pattern(path.electronicSignature, /^\d{6}$/, { message: '6 цифр' });

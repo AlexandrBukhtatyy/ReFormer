@@ -6,6 +6,7 @@
 > ui-kit не подходит (другая design system, особый low-level input).
 >
 > Канонический schema-driven подход:
+>
 > - **компонент** объявляется в схеме как `component: Input` (или `Select`, `Checkbox`, etc.)
 > - **пропсы** компонента — в `componentProps: { label, placeholder, options, type, ... }`
 > - **JSX рендерит**: `<FormField control={form.x} />` БЕЗ дополнительных props
@@ -27,32 +28,33 @@ type RegistrationForm = {
 };
 
 function RegistrationPage() {
-  const form = useMemo(() =>
-    createForm<RegistrationForm>({
-      form: {
-        email: {
-          value: '',
-          component: Input,
-          componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-        },
-        country: {
-          value: 'ru',
-          component: Select,
-          componentProps: {
-            label: 'Country',
-            options: [
-              { value: 'ru', label: 'Россия' },
-              { value: 'by', label: 'Беларусь' },
-            ],
+  const form = useMemo(
+    () =>
+      createForm<RegistrationForm>({
+        form: {
+          email: {
+            value: '',
+            component: Input,
+            componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
           },
-        },
-        agree: {
-          value: false,
-          component: Checkbox,
-          componentProps: { label: 'I agree to terms' },
-        },
-      } satisfies FormSchema<RegistrationForm>,
-    }),
+          country: {
+            value: 'ru',
+            component: Select,
+            componentProps: {
+              label: 'Country',
+              options: [
+                { value: 'ru', label: 'Россия' },
+                { value: 'by', label: 'Беларусь' },
+              ],
+            },
+          },
+          agree: {
+            value: false,
+            component: Checkbox,
+            componentProps: { label: 'I agree to terms' },
+          },
+        } satisfies FormSchema<RegistrationForm>,
+      }),
     []
   );
 
@@ -75,6 +77,7 @@ function RegistrationPage() {
 ### Anti-patterns (не делай так)
 
 ❌ **Свои field-компоненты с label-prop'ами в JSX**:
+
 ```tsx
 // WRONG — дублирует логику FormField, ломает schema-driven архитектуру
 <Input control={form.email} label="Email" placeholder="..." />
@@ -82,12 +85,14 @@ function RegistrationPage() {
 ```
 
 ❌ **Передача компонент-пропсов через JSX вместо схемы**:
+
 ```tsx
 // WRONG — нарушает single source of truth (схема)
 <FormField control={form.email} label="Email" />
 ```
 
 ✅ Всё это в схеме:
+
 ```ts
 { email: { component: Input, componentProps: { label: 'Email' } } }
 ```
@@ -106,7 +111,7 @@ import { InputMask } from 'react-input-mask';
 
 <FormField control={form.phone} testId="phone">
   <InputMask mask="+7 (999) 999-99-99" />
-</FormField>
+</FormField>;
 ```
 
 `children` оборачивается в `CdkFormField.Control asChild` и получает все нужные
@@ -122,7 +127,7 @@ props (`value`, `onChange`, `onBlur`, `aria-invalid`).
 import type { FieldNode } from '@reformer/core';
 import { useFormControl } from '@reformer/core';
 
-type MyFormFieldProps<T> = { control: FieldNode<T> };  // ← ОДИН prop
+type MyFormFieldProps<T> = { control: FieldNode<T> }; // ← ОДИН prop
 
 function MyFormField<T>({ control }: MyFormFieldProps<T>) {
   const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
@@ -149,7 +154,7 @@ function MyFormField<T>({ control }: MyFormFieldProps<T>) {
 Использование — как у `FormField`:
 
 ```tsx
-<MyFormField control={form.email} />  // ← без label-prop
+<MyFormField control={form.email} /> // ← без label-prop
 ```
 
 ### Integration with UI libraries (shadcn etc.)

@@ -149,7 +149,7 @@ import { FormRenderer } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
 
 // FormWizard как root render-node — FormRenderer уже даёт RenderContextProvider:
-<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
+<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 ```
 
 **Если FormWizard рендерится напрямую** (не как root render-node, а внутри обычного React-tree, но с RenderNode bodies) — оберни вручную:

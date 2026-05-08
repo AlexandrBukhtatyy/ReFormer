@@ -106,6 +106,7 @@
 > Цель iter — проверить, что **MCP-only sub-agent делает форму ПО СПЕКЕ без ошибок**, не подглядывая в исходники reformer. Реализация должна **соответствовать оригинальной спецификации** в `{SPEC_PATH}`. 3 sub-agent'а (core/renderer-react/renderer-json) делают **ту же самую форму** — это позволит сравнить разные стеки реформера на одной задаче.
 >
 > **Реализуй ВСЁ что описано в спеке**:
+>
 > - **Все 6 шагов FormWizard** с их полями и темами (Кредит → Личные → Контакты → Работа → Доп. инфо → Подтверждение)
 > - **Все поля** каждого шага (~80 полей всего) — не пропускать, не объединять, не упрощать
 > - **Все computed fields** через `computeFrom` (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`)
@@ -128,11 +129,11 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 
 В зависимости от target:
 
-| target           | files                                                  | стек                                       |
-| ---------------- | ------------------------------------------------------ | ------------------------------------------ |
-| `core`           | `schema.ts` + `index.tsx`                              | `createForm` + `FormWizard` (ui-kit) + `FormField` (ui-kit) |
-| `renderer-react` | `schema.ts` + `index.tsx`                              | `createRenderSchema` + `<FormRenderer fieldWrapper=FormField>` |
-| `renderer-json`  | `schema.json` + `index.tsx`                            | `<JsonFormRenderer>` + closure pattern (НЕ `JsonRenderer` — такого нет) |
+| target           | files                       | стек                                                                    |
+| ---------------- | --------------------------- | ----------------------------------------------------------------------- |
+| `core`           | `schema.ts` + `index.tsx`   | `createForm` + `FormWizard` (ui-kit) + `FormField` (ui-kit)             |
+| `renderer-react` | `schema.ts` + `index.tsx`   | `createRenderSchema` + `<FormRenderer fieldWrapper=FormField>`          |
+| `renderer-json`  | `schema.json` + `index.tsx` | `<JsonFormRenderer>` + closure pattern (НЕ `JsonRenderer` — такого нет) |
 
 ### Schema-driven UI rule (CRITICAL — главная находка iter-11)
 
@@ -142,6 +143,7 @@ mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TA
 // schema.ts ✓
 { email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email', testId: 'email' } } }
 ```
+
 ```tsx
 // page.tsx ✓
 <FormField control={form.email} />
@@ -225,17 +227,20 @@ cd projects/react-playground && npx tsc --noEmit -p tsconfig.app.json 2>&1 | tee
 ```
 
 Если errors:
+
 - Распарсить (TS2614 / TS2322 / TS7006 / TS2589 — каждая категория имеет известный фикс)
 - **Использовать MCP** (`find_recipe`, `get_symbol_docs`) для уточнения сигнатуры
 - Применить fix
 - Retry tsc
 
 После tsc — lint:
+
 ```bash
 npm run lint -w react-playground 2>&1 | tail -50
 ```
 
 После lint — build:
+
 ```bash
 npm run build -w react-playground 2>&1 | tail -30
 ```
@@ -255,10 +260,14 @@ import { test, expect } from '@playwright/test';
 
 test(`mcp-credit-${TARGET}-v${ITER} — smoke`, async ({ page }) => {
   const errors: string[] = [];
-  page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+  });
   await page.goto('http://localhost:5173/mcp-credit-application-{TARGET}-v{ITER}');
   // Ожидаем кнопку "Далее" (или "Submit" если 1 шаг) — page загрузилась
-  await expect(page.getByRole('button', { name: /Далее|Next|Отправить|Submit/i })).toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole('button', { name: /Далее|Next|Отправить|Submit/i })).toBeVisible({
+    timeout: 5000,
+  });
   // path относительно cwd playwright-процесса (= projects/react-playground-e2e после cd ниже).
   // Не префиксуй `projects/react-playground-e2e/` — иначе путь удвоится (gitignore:37 это уже ловил).
   await page.screenshot({
@@ -290,6 +299,7 @@ cd projects/react-playground-e2e && \
 Записать `.tmp/iter-artifacts/iter-{ITER}/{TARGET}/dev-report.md` по шаблону [`docs/iter-prompts/templates/dev-report.template.md`](./templates/dev-report.template.md). Заполнить ВСЕ секции; пустые помечать `n/a — reason`.
 
 Особое внимание — **MCP gaps**: каждый gap должен иметь:
+
 - `gap-id`: короткий slug (`g-find_recipe-async-fail`)
 - `severity`: high / med / low
 - `evidence`: цитата ответа MCP или фраза «MCP returned no recipe for X»
@@ -303,8 +313,8 @@ cd projects/react-playground-e2e && \
 
 ```yaml
 status: ok | partial | blocked | tainted
-target: {TARGET}
-iter: {ITER}
+target: { TARGET }
+iter: { ITER }
 gaps:
   high: N
   med: N

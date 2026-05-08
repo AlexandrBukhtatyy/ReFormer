@@ -32,12 +32,7 @@ import {
   applyWhen,
   validateItems,
 } from '@reformer/core/validators';
-import {
-  computeFrom,
-  watchField,
-  copyFrom,
-  enableWhen,
-} from '@reformer/core/behaviors';
+import { computeFrom, watchField, copyFrom, enableWhen } from '@reformer/core/behaviors';
 import {
   Box,
   Section,
@@ -1446,13 +1441,10 @@ function baseInterestRate(loanType: LoanType): number {
 
 const behavior: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
   // -------- Computed: fullName ------------------------------------
-  computeFrom(
-    [path.personalData],
-    path.fullName,
-    ({ personalData }: CreditApplicationForm) =>
-      [personalData.lastName, personalData.firstName, personalData.middleName]
-        .filter(Boolean)
-        .join(' ')
+  computeFrom([path.personalData], path.fullName, ({ personalData }: CreditApplicationForm) =>
+    [personalData.lastName, personalData.firstName, personalData.middleName]
+      .filter(Boolean)
+      .join(' ')
   );
 
   // -------- Computed: age (from birthDate) ------------------------
@@ -1796,10 +1788,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                   titleClassName: 'text-lg font-semibold mt-4',
                   className: 'space-y-4',
                 },
-                children: [
-                  { component: path.propertyValue },
-                  { component: path.initialPayment },
-                ],
+                children: [{ component: path.propertyValue }, { component: path.initialPayment }],
               },
               {
                 selector: 'car-section',
@@ -1940,18 +1929,12 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                   {
                     component: Box,
                     componentProps: { className: 'grid grid-cols-2 gap-4' },
-                    children: [
-                      { component: path.phoneMain },
-                      { component: path.phoneAdditional },
-                    ],
+                    children: [{ component: path.phoneMain }, { component: path.phoneAdditional }],
                   },
                   {
                     component: Box,
                     componentProps: { className: 'grid grid-cols-2 gap-4' },
-                    children: [
-                      { component: path.email },
-                      { component: path.emailAdditional },
-                    ],
+                    children: [{ component: path.email }, { component: path.emailAdditional }],
                   },
                 ],
               },
@@ -2047,10 +2030,7 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                   {
                     component: Box,
                     componentProps: { className: 'grid grid-cols-2 gap-4' },
-                    children: [
-                      { component: path.companyInn },
-                      { component: path.companyPhone },
-                    ],
+                    children: [{ component: path.companyInn }, { component: path.companyPhone }],
                   },
                   { component: path.companyAddress },
                   { component: path.position },
@@ -2155,10 +2135,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       title: 'Имущество',
                       control: path.properties,
                       itemComponent: PropertyItemForm,
-                      itemLabel: (
-                        _: FormProxy<Property>,
-                        index: number
-                      ) => `Имущество #${index + 1}`,
+                      itemLabel: (_: FormProxy<Property>, index: number) =>
+                        `Имущество #${index + 1}`,
                       addButtonLabel: '+ Добавить имущество',
                       emptyMessage: 'Нажмите «Добавить имущество» для добавления записи',
                       initialValue: propertyTemplate(),
@@ -2178,10 +2156,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       title: 'Существующие кредиты',
                       control: path.existingLoans,
                       itemComponent: ExistingLoanItemForm,
-                      itemLabel: (
-                        _: FormProxy<ExistingLoan>,
-                        index: number
-                      ) => `Кредит #${index + 1}`,
+                      itemLabel: (_: FormProxy<ExistingLoan>, index: number) =>
+                        `Кредит #${index + 1}`,
                       addButtonLabel: '+ Добавить кредит',
                       emptyMessage: 'Нажмите «Добавить кредит» для добавления записи',
                       initialValue: existingLoanTemplate(),
@@ -2201,10 +2177,8 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       title: 'Созаёмщики',
                       control: path.coBorrowers,
                       itemComponent: CoBorrowerItemForm,
-                      itemLabel: (
-                        _: FormProxy<CoBorrower>,
-                        index: number
-                      ) => `Созаёмщик #${index + 1}`,
+                      itemLabel: (_: FormProxy<CoBorrower>, index: number) =>
+                        `Созаёмщик #${index + 1}`,
                       addButtonLabel: '+ Добавить созаёмщика',
                       emptyMessage: 'Нажмите «Добавить созаёмщика» для добавления записи',
                       initialValue: coBorrowerTemplate(),

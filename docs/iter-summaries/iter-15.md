@@ -8,58 +8,58 @@
 
 ## Run metrics
 
-| target          | tokens | tool_uses | tsc | lint own | build | runtime | screenshots | video       | status |
-| --------------- | ------ | --------- | --- | -------- | ----- | ------- | ----------- | ----------- | ------ |
-| core            | 183k   | 66        | 0   | 0        | OK    | 0       | 7           | 872 KB      | ok     |
-| renderer-react  | 223k   | 112       | 0   | 0        | OK    | 0       | 7           | 1.09 MB     | ok     |
-| renderer-json   | 242k   | 114       | 0   | 0        | OK    | 0       | 7           | 849 KB      | ok     |
-| **total**       | **648k** | **292**   | 0   | 0        | OK×3  | 0       | 21          | 3 видео     | ok×3   |
+| target         | tokens   | tool_uses | tsc | lint own | build | runtime | screenshots | video   | status |
+| -------------- | -------- | --------- | --- | -------- | ----- | ------- | ----------- | ------- | ------ |
+| core           | 183k     | 66        | 0   | 0        | OK    | 0       | 7           | 872 KB  | ok     |
+| renderer-react | 223k     | 112       | 0   | 0        | OK    | 0       | 7           | 1.09 MB | ok     |
+| renderer-json  | 242k     | 114       | 0   | 0        | OK    | 0       | 7           | 849 KB  | ok     |
+| **total**      | **648k** | **292**   | 0   | 0        | OK×3  | 0       | 21          | 3 видео | ok×3   |
 
 vs iter-12 (без reduction): ~547k tokens — **+18%** за счёт более комплексного покрытия (full async + InputMask + cross-target consistency).
 vs iter-14 (reduced): ~509k tokens — **+27%** за полное покрытие спеки.
 
 ## Spec coverage — ОДИНАКОВО ВО ВСЕХ 3 TARGETS
 
-| механизм спеки | core | renderer-react | renderer-json |
-| -------------- | ---- | -------------- | ------------- |
-| 6 шагов FormWizard (Кредит/Личные/Контакты/Работа/Доп.инфо/Подтверждение) | ✅ | ✅ | ✅ |
-| ~80 полей (по спеке) | ✅ | ✅ | ✅ |
-| 8 computed (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`) | ✅ 8/8 | ✅ 8/8 | ✅ 8/8 |
-| 8 applyWhen (mortgage/car/employed/selfEmployed/sameAsRegistration/hasProperty/hasExistingLoans/hasCoBorrower) | ✅ 8 | ✅ 8 | ✅ 8 |
-| 3 FormArray sections (`properties[]`, `existingLoans[]`, `coBorrowers[]`) | ✅ 3/3 | ✅ 3/3 | ✅ 3/3 |
-| Async validators (email uniqueness, INN check) | ✅ | ✅ | ✅ |
-| Async options loading (cities by region, carModel by carBrand) | ✅ | ✅ | ✅ (mocked) |
-| InputMask (phone/passport/INN/SNILS/postalCode/etc) | ✅ | ✅ | ✅ |
-| copyFrom (sameAsRegistration → residenceAddress) | ✅ | ✅ | ✅ |
+| механизм спеки                                                                                                                                 | core   | renderer-react | renderer-json |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------- | ------------- |
+| 6 шагов FormWizard (Кредит/Личные/Контакты/Работа/Доп.инфо/Подтверждение)                                                                      | ✅     | ✅             | ✅            |
+| ~80 полей (по спеке)                                                                                                                           | ✅     | ✅             | ✅            |
+| 8 computed (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`) | ✅ 8/8 | ✅ 8/8         | ✅ 8/8        |
+| 8 applyWhen (mortgage/car/employed/selfEmployed/sameAsRegistration/hasProperty/hasExistingLoans/hasCoBorrower)                                 | ✅ 8   | ✅ 8           | ✅ 8          |
+| 3 FormArray sections (`properties[]`, `existingLoans[]`, `coBorrowers[]`)                                                                      | ✅ 3/3 | ✅ 3/3         | ✅ 3/3        |
+| Async validators (email uniqueness, INN check)                                                                                                 | ✅     | ✅             | ✅            |
+| Async options loading (cities by region, carModel by carBrand)                                                                                 | ✅     | ✅             | ✅ (mocked)   |
+| InputMask (phone/passport/INN/SNILS/postalCode/etc)                                                                                            | ✅     | ✅             | ✅            |
+| copyFrom (sameAsRegistration → residenceAddress)                                                                                               | ✅     | ✅             | ✅            |
 
 **3 формы — одна и та же реализация** (по спеке). Сравнение между стеками core/renderer-react/renderer-json теперь имеет смысл.
 
 ## Patches regression check
 
-| patch | core | renderer-react | renderer-json |
-| ----- | ---- | -------------- | -------------- |
-| G1 (FormField + componentProps в схеме) | ✅ | ✅ | ✅ |
-| G2 (TS2769 overload-error) | ✅ | ✅ | ✅ |
-| G3 (alias-mapping в find_recipe) | ✅ | ✅ | ✅ |
-| G4 (Recipe 8 enum-literal `satisfies FieldConfig<UnionType>`) | ✅ | ✅ | ✅ |
-| G5-iter11 (async-validator recipe) | ✅ applied | ✅ applied | ✅ applied |
-| G2-iter12 (FormWizard onSubmit no-arg) | ✅ | ✅ | ✅ |
-| G3-iter12 (async-options-loading) | ✅ applied | ✅ applied | ✅ applied (mocked) |
-| G4-iter12 (input-mask) | ✅ applied | ✅ applied | ✅ applied |
-| G5-iter12 (JsonFormRenderer + closure pattern) | N/A | N/A | ✅ applied |
-| G1-iter14 (FormWizard STEP_VALIDATIONS shape) | ✅ Record used correctly | ✅ | ✅ |
-| G2-iter14 (array tuple-format) | ✅ | ✅ | ✅ |
-| G3-iter14 (RenderContextProvider wrapper) | N/A (TS-flow body) | ✅ | ✅ |
+| patch                                                         | core                     | renderer-react | renderer-json       |
+| ------------------------------------------------------------- | ------------------------ | -------------- | ------------------- |
+| G1 (FormField + componentProps в схеме)                       | ✅                       | ✅             | ✅                  |
+| G2 (TS2769 overload-error)                                    | ✅                       | ✅             | ✅                  |
+| G3 (alias-mapping в find_recipe)                              | ✅                       | ✅             | ✅                  |
+| G4 (Recipe 8 enum-literal `satisfies FieldConfig<UnionType>`) | ✅                       | ✅             | ✅                  |
+| G5-iter11 (async-validator recipe)                            | ✅ applied               | ✅ applied     | ✅ applied          |
+| G2-iter12 (FormWizard onSubmit no-arg)                        | ✅                       | ✅             | ✅                  |
+| G3-iter12 (async-options-loading)                             | ✅ applied               | ✅ applied     | ✅ applied (mocked) |
+| G4-iter12 (input-mask)                                        | ✅ applied               | ✅ applied     | ✅ applied          |
+| G5-iter12 (JsonFormRenderer + closure pattern)                | N/A                      | N/A            | ✅ applied          |
+| G1-iter14 (FormWizard STEP_VALIDATIONS shape)                 | ✅ Record used correctly | ✅             | ✅                  |
+| G2-iter14 (array tuple-format)                                | ✅                       | ✅             | ✅                  |
+| G3-iter14 (RenderContextProvider wrapper)                     | N/A (TS-flow body)       | ✅             | ✅                  |
 
 **Все patches применены / N/A. Zero regressions.**
 
 ## Sandbox audit
 
-| target | packages/ reads | sibling examples reads | helpers reads | git mutations | App.tsx edits | verdict |
-| ------ | --------------- | ---------------------- | ------------- | ------------- | ------------- | ------- |
-| core | 0 | 0 | 0 | 0 | 0 | clean |
-| renderer-react | 0 | 0 | 0 | 0 | 0 | clean |
-| renderer-json | 0 | 0 | 0 | 0 | 0 | clean |
+| target         | packages/ reads | sibling examples reads | helpers reads | git mutations | App.tsx edits | verdict |
+| -------------- | --------------- | ---------------------- | ------------- | ------------- | ------------- | ------- |
+| core           | 0               | 0                      | 0             | 0             | 0             | clean   |
+| renderer-react | 0               | 0                      | 0             | 0             | 0             | clean   |
+| renderer-json  | 0               | 0                      | 0             | 0             | 0             | clean   |
 
 `dangerouslyDisableSandbox: true` использовался для `npm run build` и `npx playwright test` (Unix-сокеты). renderer-json sub-agent самостоятельно поднял dev-server (orchestrator не подал сигнал, что он уже работает) — minor sandbox bypass, не reads.
 
@@ -123,6 +123,7 @@ vs iter-14 (reduced): ~509k tokens — **+27%** за полное покрыти
 ## Proposed patches (drafts)
 
 Top для применения в iter-16:
+
 1. **G1-iter15 (MED)** — расширить `pattern()` сигнатуру до `string | null | undefined` (изменение в core code, не recipe)
 2. **G2-iter15 (MED)** — исправить recipe `31-async-validator-debounce.md` (`asyncDebounceMs` → `debounce`)
 3. **G3-iter15 (MED)** — long-term: helper `<JsonFormApp>` для renderer-json. Short-term: cookbook улучшение
@@ -132,28 +133,28 @@ LOW gaps можно отложить.
 
 ## Verification (post-merge)
 
-| check | result |
-| ----- | ------ |
-| `npx tsc --noEmit -p tsconfig.app.json` | **PASS** (0 errors) |
-| `npm run lint -w react-playground` (own files iter-15) | **PASS** |
-| `npm run build -w react-playground` | **PASS** |
-| App.tsx routes added | 3 (mcca-{core,renderer-react,renderer-json}-v15) |
-| screenshots count | 21 (7×3, все fullPage) |
-| videos count | 3 (2.8 MB total, gitignored) |
-| leaked screenshots в repo root | 0 |
+| check                                                  | result                                           |
+| ------------------------------------------------------ | ------------------------------------------------ |
+| `npx tsc --noEmit -p tsconfig.app.json`                | **PASS** (0 errors)                              |
+| `npm run lint -w react-playground` (own files iter-15) | **PASS**                                         |
+| `npm run build -w react-playground`                    | **PASS**                                         |
+| App.tsx routes added                                   | 3 (mcca-{core,renderer-react,renderer-json}-v15) |
+| screenshots count                                      | 21 (7×3, все fullPage)                           |
+| videos count                                           | 3 (2.8 MB total, gitignored)                     |
+| leaked screenshots в repo root                         | 0                                                |
 
 ## Сравнение с предыдущими iter
 
-| метрика | iter-12 (full без reduction) | iter-14 (reduced) | **iter-15 (full-spec)** |
-| ------- | ---------------------------- | ----------------- | ----------------------- |
-| Targets | 3 | 3 | **3** |
-| Spec coverage | partial (per sub-agent choice) | reduced subset (per sub-agent choice) | **FULL (одинаково в 3)** |
-| Tokens (total) | ~547k | ~509k | ~648k |
-| TSC initial errors avg | 1 | 0 | 0 |
-| MCP gaps (deduped) | 8 | 9 | 10 (но 0H/4M/6L — лучшая структура) |
-| HIGH gaps | 0 | 1 | **0** |
-| Status across targets | 3/3 ok | 3/3 ok | **3/3 ok** |
-| Cross-target consistency | ❌ (3 разных subset) | ❌ (3 разных subset) | **✅ (одинаковая реализация)** |
+| метрика                  | iter-12 (full без reduction)   | iter-14 (reduced)                     | **iter-15 (full-spec)**             |
+| ------------------------ | ------------------------------ | ------------------------------------- | ----------------------------------- |
+| Targets                  | 3                              | 3                                     | **3**                               |
+| Spec coverage            | partial (per sub-agent choice) | reduced subset (per sub-agent choice) | **FULL (одинаково в 3)**            |
+| Tokens (total)           | ~547k                          | ~509k                                 | ~648k                               |
+| TSC initial errors avg   | 1                              | 0                                     | 0                                   |
+| MCP gaps (deduped)       | 8                              | 9                                     | 10 (но 0H/4M/6L — лучшая структура) |
+| HIGH gaps                | 0                              | 1                                     | **0**                               |
+| Status across targets    | 3/3 ok                         | 3/3 ok                                | **3/3 ok**                          |
+| Cross-target consistency | ❌ (3 разных subset)           | ❌ (3 разных subset)                  | **✅ (одинаковая реализация)**      |
 
 ## Stop check
 

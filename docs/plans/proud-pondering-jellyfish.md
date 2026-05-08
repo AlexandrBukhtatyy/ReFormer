@@ -1,210 +1,224 @@
-# Чистый эксперимент: минимальный sub-agent промт vs full orchestrator
+# Major bump v4.0.0 для всех @reformer/\* пакетов
 
 ## Context
 
-Текущий iter-цикл (orchestrator + 3 sub-agent'а) достиг ~590k tokens на iter-18 при тяжёлой обвязке: ~330-строчный `sub-agent.template.md` с MCP discovery checklist, schema-driven UI rules, testId convention, type-safety recipes, sandbox compliance, smoke spec, dev-report шаблоном.
+В монорепе 6 публикуемых пакетов. На npm + git они на разных major-номерах:
 
-Пользователь хочет **чистый baseline эксперимент**: дать 3 sub-agent'ам максимально минимальный промт (только спека + краткий hint про MCP) и замерить **tokens / wall-clock / качество** без всей обвязки. Цель — понять, **сколько в реальности тратится на саму генерацию**, а сколько съедает orchestrator-инфраструктура.
+- `@reformer/core` — **уже на 4.0.0** (тег `v4.0.0`, npm @latest)
+- `@reformer/cdk` / `@reformer/ui-kit` / `@reformer/renderer-react` / `@reformer/renderer-json` — все на **1.0.0**
+- `@reformer/mcp` — на **2.0.0**
 
-Сравнения с iter-18 в отчёте делать **не надо** — отдельный standalone замер.
+User хочет синхронизировать все 6 пакетов на **4.0.0** через semantic-release CI (без manual `npm publish`). Это требует bump 5 пакетов на несколько major'ов одновременно. Стандартный semantic-release делает только +1 major за итерацию (1.0.0 → 2.0.0), не +3. Чтобы прыгнуть сразу на 4.0.0 за один CI-run, используем **synth-tag baseline** на v3.0.0 — commit-analyzer берёт `last git tag` для расчёта next version, и `BREAKING CHANGE: ...` тогда выдаёт 4.0.0.
 
-## Что создаём (файлы)
+Особенности проекта (учтены в плане):
 
-### 1. `docs/iter-prompts/sub-agent-clean.md` (новый, ~40 строк)
+- `package.json` versions у всех пакетов **не синхронны** с реальными publish — semantic-release не использует `@semantic-release/git` plugin, обновлённые `version` поля никогда не пушатся обратно. Source-of-truth: git tags + npm registry. **`version` в package.json НЕ трогаем** — SR подставит сам.
+- Per-package tag prefix'ы: `v` (core), `cdk-v`, `ui-kit-v`, `renderer-react-v`, `renderer-json-v`, `mcp-v`.
+- CI workflow `.github/workflows/release.yml` запускается на `push` в `main`/`develop` с `paths: packages/**`. Sequential matrix-run для всех 6 пакетов; SR self-check на свой workspace path → если новых commits на свой scope нет, run завершается с «no release needed».
 
-Минимальный промт sub-agent'у. Содержит **только**:
+## План
 
-- **Цель**: реализуй форму по `docs/specs/credit-application-mcp.md` (read-only)
-- **Target** (один из `core`, `renderer-react`, `renderer-json`)
-- **Куда писать**: `projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/`
-- **Файлы** (per target):
-  - `core` → `schema.ts`, `index.tsx`
-  - `renderer-react` → `schema.ts`, `index.tsx`
-  - `renderer-json` → `schema.json`, `index.tsx`
-- **MCP hint** (3-4 строки, **директивно**): «У тебя есть MCP-сервер `@reformer/mcp` с tools `find_recipe` / `get_symbol_docs` / `report_issue`. **Используй его по максимуму** — это первоисточник recipes/symbol-docs для всех `@reformer/*` пакетов. Если перед написанием кода для механизма (валидация, computed-fields, FormArray, async, masks, и т.д.) ты не вызвал MCP — это пробел. Если recipe не подошёл — попробуй другой keyword. Если MCP вообще ничего не дал — это сигнал к `report_issue`.»
-- **testId convention** (короткий блок, ~10 строк):
-  - Каждое поле формы ОБЯЗАНО иметь `componentProps.testId` равный имени поля (camelCase).
-  - Top-level: `loanAmount` → `testId: 'loanAmount'`.
-  - Nested groups: `parentField-childField` через дефис (например `personalData.lastName` → `testId: 'personalData-lastName'`).
-  - Array items: `testId` per item-leaf БЕЗ префикса массива (POM ставит индекс сам).
-  - Пример (в схеме):
-    ```ts
-    loanAmount: { value: null, component: Input, componentProps: { label: '...', testId: 'loanAmount' } },
-    personalData: {
-      lastName: { value: '', component: Input, componentProps: { label: 'Фамилия', testId: 'personalData-lastName' } },
-    },
-    ```
-  - Зачем: единая convention для consumer'ов (POM, abstract tests). Даже без запуска тестов в этом эксперименте — convention остаётся ожидаемой нормой.
-- **Hard-rules** (3 пункта, не относятся к функционалу):
-  - НЕ редактируй `docs/specs/`
-  - НЕ делай `git commit/push`
-  - НЕ трогай `App.tsx` (orchestrator решит сам после)
-- **Verification (минимальная)**: `npx tsc --noEmit -p tsconfig.app.json` должен пройти
-- **Dev-report (обязательная секция в промте)**: sub-agent после генерации пишет короткий `dev-report.md` в `.tmp/iter-artifacts/iter-clean-1/{TARGET}/dev-report.md` со структурой:
-  ```md
-  # dev-report — target={TARGET}
+### 1. Создать synth git tags baseline = v3.0.0 (5 пакетов, кроме core)
 
-  ## Status
-  ok | partial | blocked
+**Цель**: дать `commit-analyzer` точку старта 3.0.0 для пакетов на 1.0.0, чтобы BREAKING → 4.0.0 (а не 2.0.0).
 
-  ## Files written
-  - projects/react-playground/src/pages/examples/.../schema.ts (LOC: N)
-  - ...
+```bash
+# на HEAD develop — где будем коммитить bump
+git tag cdk-v3.0.0 HEAD
+git tag ui-kit-v3.0.0 HEAD
+git tag renderer-react-v3.0.0 HEAD
+git tag renderer-json-v3.0.0 HEAD
+git tag mcp-v3.0.0 HEAD
 
-  ## MCP calls
-  Кол-во вызовов: N. Какие recipes/symbols пригодились (список).
-
-  ## MCP gaps
-  Каждый gap — список:
-  - **gap-id**: короткий slug (например `g-find_recipe-async-fail`)
-  - **severity**: high | med | low
-  - **evidence**: цитата ответа MCP или «MCP returned no recipe for X»
-  - **proposed fix**: что добавить в MCP (новый recipe / extra example)
-
-  ## Notes
-  Особенности, blocker'ы, что не получилось.
-  ```
-- **Return**: одна строка структурированного summary `status: ok|fail, files_written: [...], report_path: .tmp/iter-artifacts/iter-clean-1/{TARGET}/dev-report.md`
-
-Что **НЕ включено** (явно убрано vs текущий sub-agent.template.md):
-
-- MCP discovery checklist (~15 явно перечисленных recipes/symbols) — **MCP используется, но какие именно recipes искать sub-agent решает сам** через директиву «использовать по максимуму»
-- Schema-driven UI rule с примерами (sub-agent должен вытащить через MCP)
-- Type-safety recipes (Recipe 8, ValidationSchemaFn import path, и т.д.) — sub-agent должен вытащить через MCP
-- Sandbox compliance rules (read-only ограничения на `packages/`, sibling examples)
-- Smoke spec template
-
-Что **ВКЛЮЧЕНО** (минимум для consistency с consumer'ами):
-
-- testId convention — короткий блок ~10 строк (см. выше)
-- Dev-report шаблон с **MCP gaps секцией** — главный output эксперимента
-
-**Важная разница vs «совсем чистый baseline»**: MCP не отключаем и не делаем «опциональным» — наоборот, директивно требуем использовать. Это замер сценария «sub-agent вооружён MCP, но без orchestrator-обвязки». Если bare MCP даёт качественный результат — это сильный сигнал в пользу инвестиции в MCP recipes vs orchestrator infrastructure.
-
-### 2. `docs/iter-prompts/orchestrator-clean.md` (новый, ~50 строк)
-
-Минимальный runner — описание шагов для оркестратора без сбора gap'ов / patches / abstract tests.
-
-Шаги:
-
-1. **Pre-flight**:
-   ```bash
-   mkdir -p .tmp/iter-artifacts/iter-clean-1/{core,renderer-react,renderer-json}
-   date -u +%FT%TZ > .tmp/iter-artifacts/iter-clean-1/.start
-   git rev-parse HEAD >> .tmp/iter-artifacts/iter-clean-1/.start
-   ```
-2. **Launch 3 sub-agents** параллельно (single message, 3 `Agent` tool calls), `subagent_type=general-purpose`, `prompt=` содержимое `sub-agent-clean.md` с подставленным `{TARGET}`. Каждый sub-agent пишет в `.tmp/iter-artifacts/iter-clean-1/{target}/start.txt` и `end.txt` свои timestamps **первым и последним действием** для замера wall-clock per agent.
-3. **После завершения всех 3** (или таймаута 30 мин per agent):
-   - `date -u +%FT%TZ > .tmp/iter-artifacts/iter-clean-1/.end`
-   - Найти session jsonl каждого sub-agent'а: `~/.claude/projects/-Users-aleksandrbuhtatyj-Work-My-ReFormer/<uuid>.jsonl` (по timestamp)
-   - Просуммировать `usage.input_tokens` + `usage.output_tokens` per agent через `jq` или `node`
-4. **Quality check** per target:
-   ```bash
-   cd projects/react-playground && npx tsc --noEmit -p tsconfig.app.json 2>&1 | tee /tmp/tsc-clean.log
-   npm run build -w react-playground 2>&1 | tail -10
-   ```
-   (запускается **один раз** — все 3 страницы в одном `tsc` проходе; pass/fail per target определяется через `grep` по путям в логе)
-5. **Подсчитать LOC** сгенерированного кода per target:
-   ```bash
-   for t in core renderer-react renderer-json; do
-     wc -l projects/react-playground/src/pages/examples/mcp-credit-application-${t}-clean/*.{ts,tsx,json} 2>/dev/null
-   done
-   ```
-6. **App.tsx merge** — после успешной компиляции (или даже если tsc упал, но `index.tsx` существует) — orchestrator сам добавляет 3 routes для визуальной верификации. Аналогично существующему [orchestrator.md Step 3](../iter-prompts/orchestrator.md#L74), но с suffix `-clean` вместо `-v{N}`:
-   - Импорт: `import MccaCoreClean from './pages/examples/mcp-credit-application-core-clean';` (имя компонента: `Mcca{Pascal(target)}Clean`)
-   - Запись в `examples` массив:
-     ```ts
-     {
-       id: 'mcca-core-clean',
-       path: '/mcp-credit-application-core-clean',
-       title: 'MCP credit (core) clean',
-       description: 'baseline experiment — minimal prompt',
-     }
-     ```
-   - Route: `<Route path="/mcp-credit-application-core-clean" element={<MccaCoreClean />} />`
-   - Idempotent: если запись уже есть (по id) — skip.
-7. **Прочитать 3 dev-report'а** (`.tmp/iter-artifacts/iter-clean-1/{target}/dev-report.md`), агрегировать **MCP gaps** с дедупликацией по `gap-id`. Targets, попавшие в один gap — объединить через `targets affected: ...`.
-8. **Записать финал-отчёт** в `docs/iter-summaries/iter-clean-1.md` с таблицей метрик + секцией aggregated MCP gaps (см. формат ниже).
-
-**НЕТ** в orchestrator-clean.md:
-
-- Sandbox compliance audit (grep по transcript'у на запрещённые Read/Glob)
-- Smoke spec runs / abstract test runs / playwright вообще
-- Patch drafts (`.tmp/.../proposed-patches/`) — gap'ы только агрегируются в отчёт, фикс-патчи не пишем (это можно делать отдельным циклом если эксперимент даст полезный список)
-- Stop-check / continue-decision
-
-### 3. Сгенерированные артефакты (output эксперимента)
-
-- `.tmp/iter-artifacts/iter-clean-1/{target}/{start,end}.txt` — timestamps для wall-clock
-- `.tmp/iter-artifacts/iter-clean-1/{target}/agent-summary.txt` — return от Agent'а
-- `projects/react-playground/src/pages/examples/mcp-credit-application-{target}-clean/` — сгенерированный код (3 каталога, по target)
-- `docs/iter-summaries/iter-clean-1.md` — финал-отчёт
-
-## Формат финал-отчёта (`iter-clean-1.md`)
-
-Один документ. Главная таблица — метрики per target + total:
-
-```markdown
-# iter-clean-1 — baseline measurement
-
-> Чистый эксперимент: минимальный промт без MCP discovery checklist, без convention rules.
-
-| target          | wall-clock (мин) | input tokens | output tokens | total tokens | tsc  | build | LOC |
-| --------------- | ---------------- | ------------ | ------------- | ------------ | ---- | ----- | --- |
-| core            | N                | N            | N             | N            | ✅/❌ | ✅/❌ | N   |
-| renderer-react  | N                | N            | N             | N            | ✅/❌ | ✅/❌ | N   |
-| renderer-json   | N                | N            | N             | N            | ✅/❌ | ✅/❌ | N   |
-| **total**       | **max(...)**     | **sum**      | **sum**       | **sum**      |      |       | sum |
-
-(wall-clock total = max, потому что 3 sub-agent'а параллельно)
-
-## Notes per target
-- core: что бросилось в глаза (ошибки tsc, **сколько MCP-вызовов** по их digest'у в jsonl, какие recipes пригодились, особенности)
-- renderer-react: ...
-- renderer-json: ...
-
-## MCP usage stats
-Из jsonl агентов — сколько вызовов `mcp__reformer__*` суммарно и per target. Это сам по себе сигнал: если sub-agent вызвал MCP мало — либо промт не убедил, либо MCP не помог.
-
-## MCP gaps (aggregated)
-
-Из 3× `.tmp/iter-artifacts/iter-clean-1/{target}/dev-report.md`, дедуп по `gap-id`:
-
-| gap-id | severity | targets affected | evidence | proposed fix |
-| ------ | -------- | ---------------- | -------- | ------------ |
-| g-... | high | core, renderer-react | «MCP returned no recipe for X» | добавить recipe Y в Z |
-| ...    | ...      | ...              | ...      | ...          |
-
-## Что промт содержал
-(копия `sub-agent-clean.md`)
-
-## Раннер
-(копия команд из `orchestrator-clean.md`)
+# core НЕ трогаем — у него уже v4.0.0
 ```
 
-**Важно**: «качество результата» — это _только_ tsc + build pass/fail + LOC. Без smoke, без abstract tests (по решению пользователя «без тестов»). Если sub-agent смог скомпилировать страницу — считаем «качественным» по grep-уровню.
+Push tags нужен **до** push'а bump-коммита, чтобы SR увидел их при запуске на CI.
+
+### 2. Обновить cross-references peerDependencies
+
+В 5 package.json (всех кроме `@reformer/core`) обновить `peerDependencies` на `^4.0.0`:
+
+| Файл                                                                                           | Поле                                           | Было                        | Станет   |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------- | -------- |
+| [packages/reformer-cdk/package.json](packages/reformer-cdk/package.json)                       | `peerDependencies["@reformer/core"]`           | `>=1.1.0-beta.0`            | `^4.0.0` |
+| [packages/reformer-renderer-react/package.json](packages/reformer-renderer-react/package.json) | `peerDependencies["@reformer/core"]`           | `>=1.1.0-beta.0`            | `^4.0.0` |
+| [packages/reformer-ui-kit/package.json](packages/reformer-ui-kit/package.json)                 | `peerDependencies["@reformer/core"]`           | `>=1.1.0-beta.0`            | `^4.0.0` |
+|                                                                                                | `peerDependencies["@reformer/cdk"]`            | `>=1.0.0-beta.0`            | `^4.0.0` |
+|                                                                                                | `peerDependencies["@reformer/renderer-react"]` | `>=1.0.0-beta.0`            | `^4.0.0` |
+| [packages/reformer-renderer-json/package.json](packages/reformer-renderer-json/package.json)   | `peerDependencies["@reformer/core"]`           | `>=1.1.0-beta.0`            | `^4.0.0` |
+|                                                                                                | `peerDependencies["@reformer/renderer-react"]` | `>=1.0.0-beta.0`            | `^4.0.0` |
+|                                                                                                | `peerDependencies["@reformer/ui-kit"]`         | `>=1.0.0-beta.0` (optional) | `^4.0.0` |
+| [packages/reformer-mcp/package.json](packages/reformer-mcp/package.json)                       | `peerDependencies["@reformer/core"]`           | `>=1.0.0-beta.1` (optional) | `^4.0.0` |
+
+`devDependencies` оставить как есть (`*` — local workspace links).
+
+`version` field **не трогать** — semantic-release обновит сам в run-time перед publish.
+
+### 3. Скомпозировать BREAKING-commit
+
+Один общий commit, затрагивающий 5 пакетов (path filter `packages/**` без `packages/reformer/` для core):
+
+```
+feat!: sync all @reformer/* packages to v4.0.0
+
+BREAKING CHANGE: align cdk, ui-kit, renderer-react, renderer-json, mcp on
+v4.0.0 to match @reformer/core. peerDependencies between @reformer/*
+packages now require ^4.0.0.
+```
+
+Точечно — изменения только в `peerDependencies`. `package.json` для core НЕ модифицируется (CI matrix-run для `@reformer/core` тогда увидит «no commits on packages/reformer/» → skip → core остаётся на 4.0.0).
+
+### 4. Push на develop (beta) или main (stable)
+
+- `develop` push → SR @ `develop`-channel выпустит pre-release: `cdk-v4.0.0-beta.1`, ui-kit, renderer-react, renderer-json, mcp на npm `@beta`. Это **рекомендованный first step** — даёт обкатать prerelease перед stable.
+- `main` push → SR выпустит stable `v4.0.0` на npm `@latest`.
+
+User делает push сам.
+
+### 5. Verification
+
+После CI run:
+
+```bash
+# Проверить все теги созданы
+git fetch --tags
+git tag -l 'cdk-v4.0.0' 'ui-kit-v4.0.0' 'renderer-react-v4.0.0' 'renderer-json-v4.0.0' 'mcp-v4.0.0'
+
+# Проверить npm
+for pkg in @reformer/cdk @reformer/ui-kit @reformer/renderer-react @reformer/renderer-json @reformer/mcp; do
+  npm view "$pkg" version
+done
+# Все должны вывести 4.0.0
+```
+
+Также в GitHub Actions — workflow `Release` должен показать 6 sequential jobs:
+
+- `@reformer/core` → "no release needed" (skip, OK)
+- остальные 5 → published 4.0.0
+
+### 6. Cleanup synth tags (опционально)
+
+После того как реальные `cdk-v4.0.0` etc. созданы CI-runner'ом, synth `cdk-v3.0.0` etc. больше не используются. Можно оставить их (не мешают) или удалить:
+
+```bash
+git tag -d cdk-v3.0.0 ui-kit-v3.0.0 renderer-react-v3.0.0 renderer-json-v3.0.0 mcp-v3.0.0
+git push origin :refs/tags/cdk-v3.0.0  # ... etc
+```
+
+**Рекомендация**: оставить — это снимок «откуда стартовали 4.0.0 jump», и удаление может смутить будущие SR runs если что-то пойдёт не так.
+
+## Failure modes & mitigation
+
+| Риск                                                                                                                                             | Mitigation                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Synth tag создан не на HEAD develop, а на старом commit'е                                                                                        | `git tag <name> HEAD` явно; verify через `git log --oneline -1 <tag>`                                                                                                                                                                                                   |
+| BREAKING-commit задевает `packages/reformer/` (core) случайно                                                                                    | Diff перед commit: `git diff --stat HEAD -- packages/reformer/` должен быть пуст                                                                                                                                                                                        |
+| CI matrix запускает SR для core и тот видит синхро changes                                                                                       | Path filter в release.yml = `packages/**`, но SR self-check за scope (по `@semantic-release/commit-analyzer` + monorepo-aware plugins) — если коммитом изменены только `packages/reformer-{cdk,ui-kit,renderer-react,renderer-json,mcp}/`, core run выйдет «no release» |
+| `peerDependencies` несовместимы — npm install ломается у downstream                                                                              | После CI — manual smoke: `npx create-react-app test && cd test && npm i @reformer/core@4 @reformer/cdk@4 @reformer/ui-kit@4 @reformer/renderer-react@4`                                                                                                                 |
+| SR решит выпустить минорный bump вместо major (если BREAKING footer не распознан)                                                                | semantic-release строго парсит `BREAKING CHANGE:` (с двоеточием, на отдельной строке в footer'е) — соблюсти точный формат коммита                                                                                                                                       |
+| Уже опубликованный `mcp-v2.0.0` означает что MCP пройдёт от 2 → 4 (synth 3.0.0 baseline → BREAKING → 4.0.0). Проверить что 4 > 2 для npm publish | npm не требует sequential majors — публикация 4.0.0 поверх 2.0.0 валидна                                                                                                                                                                                                |
+
+## Out of scope
+
+- Migration guide для consumer'ов — user выбрал «conventional commits достаточно», SR сгенерирует release notes автоматически из BREAKING-commit'а.
+- `package.json version` field sync — SR не push'ит обратно (нет `@semantic-release/git` plugin'а), и это исторический pattern проекта.
+- Manual `npm publish` — обходим semantic-release CI (user выбрал CI-flow).
+- Удаление существующих 1.x / 2.x publish'ей с npm — npm не позволяет unpublish после 72ч; они останутся доступны через explicit `@1`-tag, что норма для major bump.
+
+## Файлы для создания
+
+### Prompt definitions + handlers (TypeScript, по существующему паттерну `create-form.ts`)
+
+1. [`packages/reformer-mcp/src/prompts/generate-form-core.ts`](packages/reformer-mcp/src/prompts/generate-form-core.ts) — `target=core`
+2. [`packages/reformer-mcp/src/prompts/generate-form-renderer-react.ts`](packages/reformer-mcp/src/prompts/generate-form-renderer-react.ts)
+3. [`packages/reformer-mcp/src/prompts/generate-form-json.ts`](packages/reformer-mcp/src/prompts/generate-form-json.ts)
+
+Каждый файл экспортирует:
+
+- `{target}PromptDefinition: { name, description, arguments }` для `ListPromptsRequestSchema` handler'а
+- `async function get{Target}Prompt(args)` для `GetPromptRequestSchema` switch
+
+### Handlebars-шаблоны (Markdown, по паттерну `create-form.md`)
+
+4. [`packages/reformer-mcp/src/prompts/templates/generate-form-core.md`](packages/reformer-mcp/src/prompts/templates/generate-form-core.md)
+5. [`packages/reformer-mcp/src/prompts/templates/generate-form-renderer-react.md`](packages/reformer-mcp/src/prompts/templates/generate-form-renderer-react.md)
+6. [`packages/reformer-mcp/src/prompts/templates/generate-form-json.md`](packages/reformer-mcp/src/prompts/templates/generate-form-json.md)
+
+## Файлы для модификации
+
+7. [`packages/reformer-mcp/src/prompts/index.ts`](packages/reformer-mcp/src/prompts/index.ts) — добавить 3 ре-экспорта рядом с существующими
+8. [`packages/reformer-mcp/src/index.ts`](packages/reformer-mcp/src/index.ts) — добавить 3 записи в массив `ListPromptsRequestSchema`-handler'а и 3 case'а в `GetPromptRequestSchema` switch
+
+## Контракт каждого prompt'а
+
+```ts
+{
+  name: 'generate-form-{target}',
+  description: 'Сгенерировать форму ReFormer для target={target} на основе полной спецификации',
+  arguments: [
+    { name: 'spec', required: true,  description: 'Полный текст спецификации (markdown). Например содержимое docs/specs/<form>.md.' },
+    { name: 'notes', required: false, description: 'Дополнительные инструкции в свободной форме (приоритеты, ограничения, prefill, специфика проекта).' },
+  ],
+}
+```
+
+Handler рендерит `templates/generate-form-{target}.md` через существующий `renderPromptTemplate(name, vars)` (Handlebars-loader, уже используется во всех 10 prompts) с переменными `{ spec, notes }`. Возвращает `{ messages: [{ role: 'user', content: { type: 'text', text: rendered } }] }`.
+
+## Структура каждого шаблона
+
+Общий каркас (одинаковый для всех 3 target'ов):
+
+1. **Цель** — реализуй форму по спеке для конкретного target.
+2. **Спецификация** — `{{spec}}` placeholder.
+3. **Дополнительные инструкции** — `{{#if notes}}{{notes}}{{/if}}`.
+4. **Hard rules** общие: schema-driven UI (component + componentProps в схеме), testId convention (top-level=fieldName camelCase, nested=`parent-child` через дефис, array items без префикса), type-safety (`satisfies FieldConfig<T>`, `type` не `interface`).
+5. **Target-specific stack + recipes pointers** (см. ниже).
+6. **Pitfalls** из iter-цикла (вшиваю как «частые ошибки» — они уже задокументированы в recipes, но в промте напоминаем явно).
+7. **Verification** — `npx tsc --noEmit -p tsconfig.app.json` + при наличии dev-сервера — runtime smoke.
+8. **Output expectations** — какие файлы создать, как структурировать.
+
+### Target-specific содержание шаблонов
+
+**`generate-form-core.md`**:
+
+- Stack: `@reformer/core` + `@reformer/ui-kit` + `FormWizard` (manual JSX). Output: `schema.ts` + `index.tsx`.
+- Reference recipes: `core/quick-start`, `core/multi-step`, `ui-kit/form-wizard` (с упором на `STEP_VALIDATIONS: Record<number, ValidationSchemaFn<T>>` — массив = silent no-op), `core/arrays` (tuple `[itemSchema]`, plain leaves для `AddButton.initialValue`), `core/compute-vs-watch`, `core/copy-from`, `core/api-signatures` (`applyWhen` из `validators` имеет 3 args: `triggerField, condition, validatorsFn`).
+- Pitfall: TS2769 `'form' does not exist in FormSchema<T>'` → extract `const form: FormSchema<T> = { ... }` для realного error message.
+
+**`generate-form-renderer-react.md`**:
+
+- Stack: `@reformer/renderer-react` + `createRenderSchema` + `<FormRenderer fieldWrapper=FormField>`. Output: `schema.ts` (form-schema + render-schema + behavior) + thin `index.tsx`.
+- Reference recipes: `renderer-react/render-schema`, `renderer-react/render-behavior`, `ui-kit/form-field-integration`, `ui-kit/form-array-section` (control: path.array, itemComponent: FC).
+- Pitfall: JSX в `.ts`-файле для `itemComponent` FC → либо `createElement`, либо вынеси FC в `.tsx`.
+
+**`generate-form-json.md`**:
+
+- Stack: `@reformer/renderer-json` + closure pattern + JSON-schema + Registry. Output: `schema.json` + `index.tsx`.
+- Reference recipes: `renderer-json/cookbook` (особенно секция `JsonFormApp` — closure pattern с `FormRoot.__selfManagedChildren = true`), `renderer-json/json-schema` ($template для arrays, model для leaf-полей), `renderer-json/registry` (defineRegistry, source/field/container).
+- Pitfall: `<FormRenderer componentProps={{ form }}>` НЕ работает (`componentProps` нет в `FormRendererProps<T>`). Корректный путь: `reg.source('FORM', form)` + в JSON `root: { component: 'FormRoot', componentProps: { form: 'FORM' }, children: [...] }`. Это закрытый G3-iter15 gap, описан в исправленном cookbook recipe.
 
 ## Existing utilities to reuse
 
-- **Token sourcing pattern** — описан в [docs/iter-prompts/orchestrator.md:144](../iter-prompts/orchestrator.md#L144) (Step 4): jsonl файлы лежат в `~/.claude/projects/-Users-aleksandrbuhtatyj-Work-My-ReFormer/<uuid>.jsonl`. Просуммировать `usage.input_tokens` + `usage.output_tokens` через jq.
-- **Spec read-only enforcement** — CLAUDE.md → «Specs are read-only». Промт sub-agent'а ссылается, не дублирует.
-- **Existing 3-target naming** — `core` / `renderer-react` / `renderer-json`, такие же как в текущем cycle. Suffix `-clean` вместо `-v{N}` чтобы не путать с iter-N.
+- `renderPromptTemplate(name, vars)` — Handlebars loader, путь к шаблонам автодетектится. Используется всеми 10 существующими prompts.
+- Существующий паттерн файла `create-form.ts` — образец с `description` arg + auto-detect target. Новые prompts проще: target захардкожен, нет stack-detection. Можно скопировать структуру и упростить.
+- Recipes из `packages/reformer-{core,cdk,ui-kit,renderer-react,renderer-json}/docs/llms/*.md` — **не дублирую содержимое** в шаблонах prompt'а, ссылаюсь по slug'у (`find_recipe(topic="form-wizard")` и т.п.). Это держит prompts тонкими и автоматически подтянет обновления recipes без правки prompts.
+- iter-baseline `sub-agent-clean.md` — содержит готовые testId-convention блок и hard-rules; перенесу формулировки 1:1 в шаблоны prompt'ов.
 
-## Verification (как проверить план end-to-end после реализации)
+## Verification
 
-1. **Файлы созданы**: `docs/iter-prompts/sub-agent-clean.md`, `docs/iter-prompts/orchestrator-clean.md` существуют.
-2. **Запуск эксперимента** (отдельным сообщением от пользователя): «играй роль orchestrator из orchestrator-clean.md». Orchestrator должен:
-   - Развернуть рабочую директорию `.tmp/iter-artifacts/iter-clean-1/`
-   - Запустить 3 Agent'а параллельно (видно в UI как 3 одновременных subagent'а)
-   - Дождаться завершения, собрать timestamps, jsonl-метрики
-   - Прогнать tsc + build
-   - Сгенерировать `docs/iter-summaries/iter-clean-1.md` с заполненной таблицей
-3. **Output expectation**:
-   - 3 каталога `mcp-credit-application-{target}-clean/` с файлами
-   - tsc может **не пройти** — это валидный сигнал baseline'а (без convention'ов sub-agent'ы могут сделать typing errors)
-   - Wall-clock total ожидаемо < полный iter-18 (нет smoke runs, нет dev-report'ов с MCP gaps анализом)
-4. **Cleanup после эксперимента**: каталоги `mcp-credit-application-{target}-clean/` можно удалить аналогично iter-N cleanup'у. Отчёт `iter-clean-1.md` сохраняется в repo (history).
+1. **Build**: `npm run build -w reformer-mcp` — должен пройти `tsc` без ошибок и скопировать 3 новых template'а в `dist/`.
+2. **Schema-валидация** (через MCP inspector или прямой вызов JSON-RPC):
+   - `prompts/list` возвращает 13 prompts (10 + 3 новых).
+   - `prompts/get` для каждого нового prompt'а с `arguments: { spec: '<dummy>', notes: '<dummy>' }` возвращает `messages` с rendered text без `{{spec}}` / `{{notes}}` плейсхолдеров (Handlebars сработал).
+3. **End-to-end smoke** (опционально): запросить `prompts/get` с реальной спекой `docs/specs/credit-application-form.md` и убедиться что output содержит:
+   - target-specific stack-блок
+   - вшитую спеку
+   - notes (если переданы)
+4. **Регрессия**: existing 10 prompts продолжают работать (`create-form`, `plan-form`, …) — выборочный smoke на 1-2 из них.
 
-## Open question (не блокирующее)
+## Out of scope
 
-- **Если sub-agent захочет писать в `App.tsx`** (хотя промт это запрещает) — orchestrator должен заметить и откатить, либо просто игнорировать (страницы без route не помешают tsc). Решение: **игнорировать** — измерение поведения без orchestrator-полиции и есть смысл baseline'а.
+- **Прогон самой генерации** на реальной форме (e.g. credit-application) — это работа консумера MCP-сервера (sub-agent или человек), а не самого prompt'а.
+- **Auto-detect target** — отсутствует by-design: имя prompt'а уже фиксирует target.
+- **Sampling / discover-context flow** — существующие prompts (`create-form` с `inferTarget()`) уже это делают; новые prompts — простой template render без sampling.

@@ -791,13 +791,10 @@ function createCreditApplicationForm() {
     });
 
     // Computed: full name
-    computeFrom(
-      [path.personalData],
-      path.fullName,
-      ({ personalData }: CreditApplicationForm) =>
-        [personalData.lastName, personalData.firstName, personalData.middleName]
-          .filter(Boolean)
-          .join(' ')
+    computeFrom([path.personalData], path.fullName, ({ personalData }: CreditApplicationForm) =>
+      [personalData.lastName, personalData.firstName, personalData.middleName]
+        .filter(Boolean)
+        .join(' ')
     );
 
     // Computed: age from birth date
@@ -1019,7 +1016,6 @@ export default function CreditApplicationFormRendererJsonClean() {
     created.form.patchValue(MOCK_DATA);
     return created;
   }, []);
-
 
   const handleSubmit = async () => {
     form.markAsTouched();

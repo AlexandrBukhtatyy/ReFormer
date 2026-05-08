@@ -6,26 +6,26 @@
 
 ## Run metrics
 
-| target          | tokens | tool_uses | tsc | smoke | abstract tests pass |
-| --------------- | ------ | --------- | --- | ----- | ------------------- |
-| core            | 200k   | 95        | 0   | ✅    | 2/63                |
-| renderer-react  | 187k   | 83        | 0   | ✅    | 1/63                |
-| renderer-json   | 207k   | 80        | 0   | ✅    | 2/63                |
-| **total**       | **594k** | **258** | 0   | ok×3  | 5/189 (2.6%)        |
+| target         | tokens   | tool_uses | tsc | smoke | abstract tests pass |
+| -------------- | -------- | --------- | --- | ----- | ------------------- |
+| core           | 200k     | 95        | 0   | ✅    | 2/63                |
+| renderer-react | 187k     | 83        | 0   | ✅    | 1/63                |
+| renderer-json  | 207k     | 80        | 0   | ✅    | 2/63                |
+| **total**      | **594k** | **258**   | 0   | ok×3  | 5/189 (2.6%)        |
 
 vs iter-16 (628k без shared abstract tests): -5%. Token saving скромнее ожидаемого — sub-agent'ы экономили на e2e generation, но добавили модулярную структуру (core: 5 файлов, renderer-json: 7 файлов).
 
 ## Spec coverage (заявлено sub-agent'ами)
 
-| механизм | core | renderer-react | renderer-json |
-| -------- | ---- | -------------- | ------------- |
-| 6 шагов FormWizard | ✅ | ✅ | ✅ |
-| ~80 полей | ✅ 85 | ✅ 80 | ✅ 80 |
-| 8/8 computed | ✅ | ✅ | ✅ |
-| applyWhen | 9 | 8 | 7 |
-| 3/3 FormArrays | ✅ | ✅ | ✅ |
-| async validators / options / InputMask | ✅ × 3 | ✅ × 3 | ✅ × 3 |
-| **testid_convention_followed (per sub-agent)** | yes | yes | yes |
+| механизм                                       | core   | renderer-react | renderer-json |
+| ---------------------------------------------- | ------ | -------------- | ------------- |
+| 6 шагов FormWizard                             | ✅     | ✅             | ✅            |
+| ~80 полей                                      | ✅ 85  | ✅ 80          | ✅ 80         |
+| 8/8 computed                                   | ✅     | ✅             | ✅            |
+| applyWhen                                      | 9      | 8              | 7             |
+| 3/3 FormArrays                                 | ✅     | ✅             | ✅            |
+| async validators / options / InputMask         | ✅ × 3 | ✅ × 3         | ✅ × 3        |
+| **testid_convention_followed (per sub-agent)** | yes    | yes            | yes           |
 
 Все 3 sub-agent'а **заявили** что convention соблюдена (по моему wrong правилу). Реально abstract tests показали что POM ожидает другое.
 
@@ -35,11 +35,11 @@ vs iter-16 (628k без shared abstract tests): -5%. Token saving скромне
 
 ## Abstract test results (orchestrator-run, Step 3.5)
 
-| target | smoke pass | full suite pass | failure category |
-| ------ | ---------- | --------------- | ---------------- |
-| core | 12/?? (быстрый smoke с `--grep @smoke` дал 12 passed) | 2/63 | (c) testId convention violation на ВСЕХ nested fields |
-| renderer-react | passed (smoke) | 1/63 | (c) testId convention violation |
-| renderer-json | passed (smoke) | 2/63 | (c) testId convention violation |
+| target         | smoke pass                                            | full suite pass | failure category                                      |
+| -------------- | ----------------------------------------------------- | --------------- | ----------------------------------------------------- |
+| core           | 12/?? (быстрый smoke с `--grep @smoke` дал 12 passed) | 2/63            | (c) testId convention violation на ВСЕХ nested fields |
+| renderer-react | passed (smoke)                                        | 1/63            | (c) testId convention violation                       |
+| renderer-json  | passed (smoke)                                        | 2/63            | (c) testId convention violation                       |
 
 Failures трассируются к одному корню: POM `fillLastName()` обращается к `data-testid="input-personalData-lastName"`, на странице есть `data-testid="input-lastName"` (без префикса группы — sub-agent следовал моему ошибочному правилу).
 
@@ -64,12 +64,12 @@ Failures трассируются к одному корню: POM `fillLastName(
 
 ## Verification
 
-| check | result |
-| ----- | ------ |
-| `npx tsc --noEmit -p tsconfig.app.json` | **PASS** (0 errors) |
-| Smoke screenshots | 3 (1 per target) |
-| Sub-agent dev-reports | 3 |
-| Abstract test JSON results | core/renderer-react/renderer-json (5/189 total pass) |
+| check                                   | result                                               |
+| --------------------------------------- | ---------------------------------------------------- |
+| `npx tsc --noEmit -p tsconfig.app.json` | **PASS** (0 errors)                                  |
+| Smoke screenshots                       | 3 (1 per target)                                     |
+| Sub-agent dev-reports                   | 3                                                    |
+| Abstract test JSON results              | core/renderer-react/renderer-json (5/189 total pass) |
 
 ## Stop check
 

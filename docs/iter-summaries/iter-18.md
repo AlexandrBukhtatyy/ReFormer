@@ -4,27 +4,27 @@
 
 ## Run metrics
 
-| target          | tokens | tool_uses | tsc | smoke | testid convention | abstract tests pass |
-| --------------- | ------ | --------- | --- | ----- | ----------------- | ------------------- |
-| core            | 179k   | 71        | 0   | ✅ (1 React warning) | ✅ yes | 1/63 |
-| renderer-react  | 206k   | 82        | 0   | ❌ (smoke failed на testId leak warning) | ✅ yes | 1/63 |
-| renderer-json   | 207k   | 89        | 0   | ✅    | ✅ yes | (test run прерван) |
-| **total**       | **592k** | **242**   | 0   | partial | yes×3 | низкий — см. ниже |
+| target         | tokens   | tool_uses | tsc | smoke                                    | testid convention | abstract tests pass |
+| -------------- | -------- | --------- | --- | ---------------------------------------- | ----------------- | ------------------- |
+| core           | 179k     | 71        | 0   | ✅ (1 React warning)                     | ✅ yes            | 1/63                |
+| renderer-react | 206k     | 82        | 0   | ❌ (smoke failed на testId leak warning) | ✅ yes            | 1/63                |
+| renderer-json  | 207k     | 89        | 0   | ✅                                       | ✅ yes            | (test run прерван)  |
+| **total**      | **592k** | **242**   | 0   | partial                                  | yes×3             | низкий — см. ниже   |
 
 vs iter-17 (594k): -0.3% — token spend стабилизировался.
 
 ## Spec coverage (одинаково в 3 targets)
 
-| механизм | core | renderer-react | renderer-json |
-| -------- | ---- | -------------- | ------------- |
-| 6 шагов FormWizard | ✅ | ✅ | ✅ |
-| ~80 полей | ✅ 83 | ✅ ~80 | ✅ ~80 |
-| 8/8 computed | ✅ | ✅ | ✅ |
-| applyWhen | 7 | 5 | 6 |
-| 3/3 FormArrays | ✅ | ✅ | ✅ |
-| async validators | ✅ | ✅ | ❌ no |
-| async options | ✅ | ✅ | ❌ no |
-| InputMask | ✅ | ✅ | ✅ |
+| механизм           | core  | renderer-react | renderer-json |
+| ------------------ | ----- | -------------- | ------------- |
+| 6 шагов FormWizard | ✅    | ✅             | ✅            |
+| ~80 полей          | ✅ 83 | ✅ ~80         | ✅ ~80        |
+| 8/8 computed       | ✅    | ✅             | ✅            |
+| applyWhen          | 7     | 5              | 6             |
+| 3/3 FormArrays     | ✅    | ✅             | ✅            |
+| async validators   | ✅    | ✅             | ❌ no         |
+| async options      | ✅    | ✅             | ❌ no         |
+| InputMask          | ✅    | ✅             | ✅            |
 
 ## testId convention compliance (iter-17 fix verification)
 
@@ -42,11 +42,11 @@ vs iter-17 (594k): -0.3% — token spend стабилизировался.
 
 ## Abstract test results — низкий pass, новый класс gap
 
-| target | passed | failed | дошло до конца |
-| ------ | ------ | ------ | -------------- |
-| core | 1/63 | 62/63 | yes |
-| renderer-react | 1/63 | 62/63 | yes |
-| renderer-json | (interrupted) | (interrupted) | no |
+| target         | passed        | failed        | дошло до конца |
+| -------------- | ------------- | ------------- | -------------- |
+| core           | 1/63          | 62/63         | yes            |
+| renderer-react | 1/63          | 62/63         | yes            |
+| renderer-json  | (interrupted) | (interrupted) | no             |
 
 vs iter-17 (1-2/63): улучшение **не произошло** — convention fix testId был необходим, но **недостаточен**. Открыт новый gap.
 
@@ -102,12 +102,12 @@ vs iter-17 (1-2/63): улучшение **не произошло** — conventi
 
 ## Verification
 
-| check | result |
-| ----- | ------ |
-| `npx tsc --noEmit -p tsconfig.app.json` | **PASS** (0 errors) |
-| Sub-agent smoke screenshots | 3 (1 per target) |
-| Sub-agent dev-reports | 3 |
-| Abstract test JSON results | core, renderer-react (renderer-json interrupted) |
+| check                                   | result                                           |
+| --------------------------------------- | ------------------------------------------------ |
+| `npx tsc --noEmit -p tsconfig.app.json` | **PASS** (0 errors)                              |
+| Sub-agent smoke screenshots             | 3 (1 per target)                                 |
+| Sub-agent dev-reports                   | 3                                                |
+| Abstract test JSON results              | core, renderer-react (renderer-json interrupted) |
 
 ## Stop check
 
@@ -118,17 +118,18 @@ vs iter-17 (1-2/63): улучшение **не произошло** — conventi
 
 ## Главный learning iter-цикла за всю сессию
 
-| iter | главный gap |
-|------|------|
-| 11 | FormField anti-pattern (sub-agent писал свои field-обёртки) |
-| 12 | 0 HIGH |
-| 14 | FormWizard STEP_VALIDATIONS Record vs array (silent no-op) |
-| 15 | 0 HIGH (MCP стабилизировался на полной спеке) |
-| 16 | regression на patch G3-iter15 (`registry.clone()` не существует) |
-| 17 | regression на моём convention testId в template (nested groups) |
+| iter   | главный gap                                                                           |
+| ------ | ------------------------------------------------------------------------------------- |
+| 11     | FormField anti-pattern (sub-agent писал свои field-обёртки)                           |
+| 12     | 0 HIGH                                                                                |
+| 14     | FormWizard STEP_VALIDATIONS Record vs array (silent no-op)                            |
+| 15     | 0 HIGH (MCP стабилизировался на полной спеке)                                         |
+| 16     | regression на patch G3-iter15 (`registry.clone()` не существует)                      |
+| 17     | regression на моём convention testId в template (nested groups)                       |
 | **18** | **POM ↔ spec UI mismatch (headings)** + ui-kit testId leak (regression на convention) |
 
 Каждый iter вскрывает 1-2 архитектурных gap'а. iter-цикл работает как **средство калибровки**:
+
 - MCP-сервер (recipes, type signatures, sub-agent guidance)
 - Моих собственных правил в template/plans
 - POM ↔ spec consistency (новый класс с iter-18)

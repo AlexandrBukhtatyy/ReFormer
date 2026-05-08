@@ -11,22 +11,22 @@
 
 ## Run metrics
 
-| target          | input tokens | output tokens | time (min) | tsc final | lint final | runtime err | screenshots | video | status     |
-| --------------- | ------------ | ------------- | ---------- | --------- | ---------- | ----------- | ----------- | ----- | ---------- |
-| core            | N            | N             | N          | 0         | 0          | 0           | 7           | yes   | ok         |
-| renderer-react  | N            | N             | N          | 2         | 0          | 0           | 7           | yes   | partial    |
-| renderer-json   | N            | N             | N          | 0         | 0          | 1           | 6           | yes   | ok         |
-| **total**       | N            | N             | (max — параллель) | 2         | 0          | 1           | 20          | 3     | mixed      |
+| target         | input tokens | output tokens | time (min)        | tsc final | lint final | runtime err | screenshots | video | status  |
+| -------------- | ------------ | ------------- | ----------------- | --------- | ---------- | ----------- | ----------- | ----- | ------- |
+| core           | N            | N             | N                 | 0         | 0          | 0           | 7           | yes   | ok      |
+| renderer-react | N            | N             | N                 | 2         | 0          | 0           | 7           | yes   | partial |
+| renderer-json  | N            | N             | N                 | 0         | 0          | 1           | 6           | yes   | ok      |
+| **total**      | N            | N             | (max — параллель) | 2         | 0          | 1           | 20          | 3     | mixed   |
 
 ## Abstract test results (orchestrator-run)
 
 Запущены через `MCP_ITER_VERSION={ITER} npx playwright test --project=iter-{target}` (см. orchestrator.md Step 3.5). POM + abstract specs reuse'ятся из `tests/pages/complex-multy-step-form/`.
 
-| target          | happy-path | arrays | computed-fields | conditional-fields | dependencies | accessibility | loading-error | total pass |
-| --------------- | ---------- | ------ | --------------- | ------------------ | ------------ | ------------- | ------------- | ---------- |
-| core            | ✅ N/N      | ✅ N/N  | ✅ N/N          | ✅ N/N             | ✅ N/N        | ⚠️ N/N         | ✅ N/N         | N/total    |
-| renderer-react  | ✅ N/N      | ✅ N/N  | ✅ N/N          | ⚠️ N/N             | ✅ N/N        | ✅ N/N         | ✅ N/N         | N/total    |
-| renderer-json   | ✅ N/N      | ❌ N/N  | ✅ N/N          | ✅ N/N             | ✅ N/N        | ✅ N/N         | ✅ N/N         | N/total    |
+| target         | happy-path | arrays | computed-fields | conditional-fields | dependencies | accessibility | loading-error | total pass |
+| -------------- | ---------- | ------ | --------------- | ------------------ | ------------ | ------------- | ------------- | ---------- |
+| core           | ✅ N/N     | ✅ N/N | ✅ N/N          | ✅ N/N             | ✅ N/N       | ⚠️ N/N        | ✅ N/N        | N/total    |
+| renderer-react | ✅ N/N     | ✅ N/N | ✅ N/N          | ⚠️ N/N             | ✅ N/N       | ✅ N/N        | ✅ N/N        | N/total    |
+| renderer-json  | ✅ N/N     | ❌ N/N | ✅ N/N          | ✅ N/N             | ✅ N/N       | ✅ N/N        | ✅ N/N        | N/total    |
 
 **Failed specs detail** (если есть):
 
@@ -37,11 +37,11 @@
 
 ## Sandbox audit
 
-| target          | packages/ reads | sibling reads | helpers reads | git mutations | verdict |
-| --------------- | --------------- | ------------- | ------------- | ------------- | ------- |
-| core            | 0               | 0             | 0             | 0             | clean   |
-| renderer-react  | 0               | 0             | 0             | 0             | clean   |
-| renderer-json   | 1               | 0             | 0             | 0             | tainted |
+| target         | packages/ reads | sibling reads | helpers reads | git mutations | verdict |
+| -------------- | --------------- | ------------- | ------------- | ------------- | ------- |
+| core           | 0               | 0             | 0             | 0             | clean   |
+| renderer-react | 0               | 0             | 0             | 0             | clean   |
+| renderer-json  | 1               | 0             | 0             | 0             | tainted |
 
 (Tainted-target gap'ы исключаются из агрегации gap'ов ниже.)
 
@@ -75,14 +75,14 @@
 
 ## Verification (post-merge)
 
-| check                                          | result      |
-| ---------------------------------------------- | ----------- |
-| `npx tsc --noEmit -p tsconfig.app.json` (playground) | PASS / FAIL |
-| `npm run lint -w react-playground`             | PASS / FAIL |
-| App.tsx routes added                           | 3 (or N)    |
-| screenshots count                              | N           |
-| videos count                                   | 3 (or N)    |
-| leaked screenshots in repo root                | 0 (or N — moved + flagged) |
+| check                                                | result                     |
+| ---------------------------------------------------- | -------------------------- |
+| `npx tsc --noEmit -p tsconfig.app.json` (playground) | PASS / FAIL                |
+| `npm run lint -w react-playground`                   | PASS / FAIL                |
+| App.tsx routes added                                 | 3 (or N)                   |
+| screenshots count                                    | N                          |
+| videos count                                         | 3 (or N)                   |
+| leaked screenshots in repo root                      | 0 (or N — moved + flagged) |
 
 ## Stop check
 

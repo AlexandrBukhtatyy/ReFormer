@@ -6,23 +6,23 @@
 
 ## Metrics
 
-| metric                  | value          | notes                                          |
-| ----------------------- | -------------- | ---------------------------------------------- |
-| iter version            | v{ITER}        |                                                |
-| target                  | {TARGET}       |                                                |
-| started at              | <ISO>          |                                                |
-| finished at             | <ISO>          |                                                |
-| wall time (min)         | N              |                                                |
-| approximate input tokens  | N            | grep tool calls в transcript × ~Y; orchestrator перепроверит |
-| approximate output tokens | N            | то же                                          |
-| tsc errors (initial)    | N              |                                                |
-| tsc errors (final)      | N              | 0 для status=ok                                |
-| lint errors (final)     | N              |                                                |
-| build errors (final)    | N              |                                                |
-| runtime errors (e2e)    | N              | Playwright failures + console errors           |
-| screenshots written     | N              | должно быть ≥7 (6 шагов + final)               |
-| video recorded          | yes/no         |                                                |
-| **status**              | ok / partial / blocked / tainted |                              |
+| metric                    | value                            | notes                                                        |
+| ------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| iter version              | v{ITER}                          |                                                              |
+| target                    | {TARGET}                         |                                                              |
+| started at                | <ISO>                            |                                                              |
+| finished at               | <ISO>                            |                                                              |
+| wall time (min)           | N                                |                                                              |
+| approximate input tokens  | N                                | grep tool calls в transcript × ~Y; orchestrator перепроверит |
+| approximate output tokens | N                                | то же                                                        |
+| tsc errors (initial)      | N                                |                                                              |
+| tsc errors (final)        | N                                | 0 для status=ok                                              |
+| lint errors (final)       | N                                |                                                              |
+| build errors (final)      | N                                |                                                              |
+| runtime errors (e2e)      | N                                | Playwright failures + console errors                         |
+| screenshots written       | N                                | должно быть ≥7 (6 шагов + final)                             |
+| video recorded            | yes/no                           |                                                              |
+| **status**                | ok / partial / blocked / tainted |                                                              |
 
 ## Sandbox compliance (self-attestation)
 
@@ -54,19 +54,19 @@
 
 ## Recipes used (final list)
 
-| recipe                                          | used for                            |
-| ----------------------------------------------- | ----------------------------------- |
-| `find_recipe(topic="validation")`               | required + min/max + pattern        |
-| `find_recipe(topic="compute-from")`             | derived fields                      |
-| ...                                             | ...                                 |
+| recipe                              | used for                     |
+| ----------------------------------- | ---------------------------- |
+| `find_recipe(topic="validation")`   | required + min/max + pattern |
+| `find_recipe(topic="compute-from")` | derived fields               |
+| ...                                 | ...                          |
 
 ## Symbols queried (final list)
 
-| symbol                          | used for                          |
-| ------------------------------- | --------------------------------- |
-| `createForm`                    | form bootstrap                    |
-| `ValidationSchemaFn`            | typed validation callback         |
-| ...                             | ...                               |
+| symbol               | used for                  |
+| -------------------- | ------------------------- |
+| `createForm`         | form bootstrap            |
+| `ValidationSchemaFn` | typed validation callback |
+| ...                  | ...                       |
 
 ## Files written
 

@@ -13,9 +13,7 @@ const checkEmailUnique: AsyncValidatorFn<string> = async (value) => {
   try {
     const res = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`);
     const { available } = (await res.json()) as { available: boolean };
-    return available
-      ? null
-      : { code: 'email-taken', message: 'Email уже зарегистрирован' };
+    return available ? null : { code: 'email-taken', message: 'Email уже зарегистрирован' };
   } catch {
     return { code: 'check-failed', message: 'Не удалось проверить email' };
   }

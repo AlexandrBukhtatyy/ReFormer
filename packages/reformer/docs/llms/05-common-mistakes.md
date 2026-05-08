@@ -3,6 +3,7 @@
 ### TSC overload-resolution error: `'form' does not exist in FormSchema<T>`
 
 **Симптом**:
+
 ```
 TS2769: Object literal may only specify known properties, and 'form' does not
 exist in type 'FormSchema<MyForm>'.
@@ -20,7 +21,7 @@ exist in type 'FormSchema<MyForm>'.
 
 ```ts
 const form: FormSchema<MyForm> = {
-  fieldA: { value: 'foo', component: Input, /* ... */ },
+  fieldA: { value: 'foo', component: Input /* ... */ },
   // ...
 };
 
@@ -28,6 +29,7 @@ createForm({ form, validation, behavior });
 ```
 
 Теперь TS репортит **реальную** per-field ошибку — например:
+
 ```
 TS2322: Type '"male"' is not assignable to type 'Gender | null'
 ```

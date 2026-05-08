@@ -6,38 +6,38 @@
 
 ## Run metrics
 
-| target          | tokens | tool_uses | tsc final | lint own | build | runtime err | screenshots | video      | status |
-| --------------- | ------ | --------- | --------- | -------- | ----- | ----------- | ----------- | ---------- | ------ |
-| core            | 165k   | 81        | 0         | 0        | OK    | 0           | 7           | 379 KB     | ok     |
-| renderer-react  | 164k   | 88        | 0         | 0        | OK    | 0           | 7           | 258 KB     | ok     |
-| renderer-json   | 180k   | 103       | 0         | 0        | OK    | 0           | 7           | 349 KB     | ok     |
-| **total**       | 509k   | 272       | 0         | 0        | OK×3  | 0           | 21          | 3 видео    | ok×3   |
+| target         | tokens | tool_uses | tsc final | lint own | build | runtime err | screenshots | video   | status |
+| -------------- | ------ | --------- | --------- | -------- | ----- | ----------- | ----------- | ------- | ------ |
+| core           | 165k   | 81        | 0         | 0        | OK    | 0           | 7           | 379 KB  | ok     |
+| renderer-react | 164k   | 88        | 0         | 0        | OK    | 0           | 7           | 258 KB  | ok     |
+| renderer-json  | 180k   | 103       | 0         | 0        | OK    | 0           | 7           | 349 KB  | ok     |
+| **total**      | 509k   | 272       | 0         | 0        | OK×3  | 0           | 21          | 3 видео | ok×3   |
 
 vs iter-12 (полный full-run без reduction): ~547k tokens. Reduction в **scope** (не в шагах) дала ~7% экономии токенов; основная стоимость — discovery + tsc/build/e2e overhead, не сами поля.
 
 ## Patches G1-G5 (iter-11) + G2-G5 (iter-12) — regression check
 
-| patch | core | renderer-react | renderer-json |
-| ----- | ---- | -------------- | -------------- |
-| G1 (FormField + componentProps в схеме) | ✅ applied | ✅ applied | ✅ applied |
-| G2 (TS2769 overload-error) | ✅ applied (extracted typed local) | ✅ applied | ✅ applied |
-| G3 (alias-mapping в find_recipe) | ✅ alias hit для compute-from | ✅ | ✅ |
-| G4 (Recipe 8 enum-literal `satisfies FieldConfig<UnionType>`) | ✅ applied для всех unions | ✅ applied | ✅ applied |
-| G5-iter11 (async-validator recipe) | N/A (out of scope) | N/A | N/A |
-| G2-iter12 (FormWizard onSubmit no-arg) | ✅ applied | ✅ applied | ✅ applied |
-| G3-iter12 (async-options-loading) | N/A | N/A | N/A |
-| G4-iter12 (input-mask) | N/A (out of scope) | N/A | N/A |
-| G5-iter12 (JsonFormRenderer + closure pattern) | N/A | N/A | ✅ applied (closure pattern) |
+| patch                                                         | core                               | renderer-react | renderer-json                |
+| ------------------------------------------------------------- | ---------------------------------- | -------------- | ---------------------------- |
+| G1 (FormField + componentProps в схеме)                       | ✅ applied                         | ✅ applied     | ✅ applied                   |
+| G2 (TS2769 overload-error)                                    | ✅ applied (extracted typed local) | ✅ applied     | ✅ applied                   |
+| G3 (alias-mapping в find_recipe)                              | ✅ alias hit для compute-from      | ✅             | ✅                           |
+| G4 (Recipe 8 enum-literal `satisfies FieldConfig<UnionType>`) | ✅ applied для всех unions         | ✅ applied     | ✅ applied                   |
+| G5-iter11 (async-validator recipe)                            | N/A (out of scope)                 | N/A            | N/A                          |
+| G2-iter12 (FormWizard onSubmit no-arg)                        | ✅ applied                         | ✅ applied     | ✅ applied                   |
+| G3-iter12 (async-options-loading)                             | N/A                                | N/A            | N/A                          |
+| G4-iter12 (input-mask)                                        | N/A (out of scope)                 | N/A            | N/A                          |
+| G5-iter12 (JsonFormRenderer + closure pattern)                | N/A                                | N/A            | ✅ applied (closure pattern) |
 
 **Все patches либо применены, либо N/A. Регрессий нет.**
 
 ## Sandbox audit
 
-| target | packages/ reads | sibling examples reads | helpers reads | git mutations | App.tsx edits | verdict |
-| ------ | --------------- | ---------------------- | ------------- | ------------- | ------------- | ------- |
-| core | 0 | 0 | 0 | 0 | 0 | clean |
-| renderer-react | 0 | 0 | 0 | 0 | 0 | clean |
-| renderer-json | 0 | 0 | 0 | 0 | 0 | clean |
+| target         | packages/ reads | sibling examples reads | helpers reads | git mutations | App.tsx edits | verdict |
+| -------------- | --------------- | ---------------------- | ------------- | ------------- | ------------- | ------- |
+| core           | 0               | 0                      | 0             | 0             | 0             | clean   |
+| renderer-react | 0               | 0                      | 0             | 0             | 0             | clean   |
+| renderer-json  | 0               | 0                      | 0             | 0             | 0             | clean   |
 
 `dangerouslyDisableSandbox: true` использовался для `npm run build` и `npx playwright test` (Unix-сокеты vite/playwright) + для `npm run dev` (core sub-agent — порт 5173/5174 был занят, поднял на 5175). Это infrastructure bypass, не reads запрещённых путей.
 
@@ -71,50 +71,56 @@ vs iter-12 (полный full-run без reduction): ~547k tokens. Reduction в 
 - **proposed patch**: в `packages/reformer-ui-kit/docs/llms/08-form-array-section.md` добавить «Item field config comes from form-schema tuple-template, not from itemComponent JSX prop».
 
 ### G5-iter14 [LOW] g-formfield-checkbox-data-testid (core)
+
 - minor — Checkbox не выставляет `data-testid="input-<id>"`; e2e нужно через `getByLabel`.
 
 ### G6-iter14 [LOW] g-radio-group-component-name (core)
+
 - minor — `RadioGroup` экспортируется только под этим именем (не `Radio`); recipe должен подсказать.
 
 ### G7-iter14 [LOW] g-formfield-default-export-not-mentioned (renderer-react)
+
 - standard imports `Section`/`FormField`/`Box` упоминаются только в `overview`, не в каждом feature-recipe.
 
 ### G8-iter14 [LOW] g-jsonformrenderer-vs-closure-pattern-canonical-path (renderer-json)
+
 - 3 paths to mount renderer-json forms в discovery (JsonFormRenderer + JsonRendererProvider, JsonFormRenderer alone, closure-pattern). Один canonical должен быть выделен как «recommended for production».
 
 ### G9-iter14 [LOW] g-rendererformarraysection-not-in-package (renderer-json)
+
 - acknowledged design choice — `RendererFormArraySection` (~80-150 LOC) копируется из cookbook каждый раз. Long-term: optional sub-package.
 
 ## Proposed patches (drafts)
 
 Top-3 для применения в iter-15:
+
 1. **G1-iter14 (HIGH)** — расширить `07-form-wizard.md` с canonical `STEP_VALIDATIONS: Record<number, ValidationSchemaFn<T>>` shape. **Критично**: silent no-op делает дебаг невозможным.
 2. **G2-iter14 (MED, 3-target trifecta)** — добавить «Arrays of objects» секцию в `02-quick-start.md` + восстановить `form-array` в обязательный discovery.
 3. **G3-iter14 (MED)** — `RenderContextProvider` wrapper note в form-wizard recipe.
 
 ## Verification (post-merge)
 
-| check | result |
-| ----- | ------ |
-| `npx tsc --noEmit -p tsconfig.app.json` | **PASS** (0 errors) |
-| `npm run lint -w react-playground` (own files iter-14) | **PASS** |
-| `npm run build -w react-playground` | **PASS** |
-| App.tsx routes added | 3 (mcca-{core,renderer-react,renderer-json}-v14) |
-| screenshots count | 21 (7×3, все fullPage) |
-| videos count | 3 (986 KB total, gitignored) |
-| leaked screenshots в repo root | 0 |
+| check                                                  | result                                           |
+| ------------------------------------------------------ | ------------------------------------------------ |
+| `npx tsc --noEmit -p tsconfig.app.json`                | **PASS** (0 errors)                              |
+| `npm run lint -w react-playground` (own files iter-14) | **PASS**                                         |
+| `npm run build -w react-playground`                    | **PASS**                                         |
+| App.tsx routes added                                   | 3 (mcca-{core,renderer-react,renderer-json}-v14) |
+| screenshots count                                      | 21 (7×3, все fullPage)                           |
+| videos count                                           | 3 (986 KB total, gitignored)                     |
+| leaked screenshots в repo root                         | 0                                                |
 
 ## Сравнение с предыдущими iter
 
-| метрика | iter-11 (mini, core) | iter-12 (full, 3) | iter-14 (full, 3, reduced scope) |
-| ------- | -------------------- | ----------------- | -------------------------------- |
-| Targets | 1 | 3 | 3 |
-| Tokens (total) | ~177k | ~547k | **~509k** |
-| TSC initial errors (avg) | 8 | 1 | **0** (упреждающе из patches) |
-| TSC cycles | 3 | 1-2 | **1** (все 3 target) |
-| MCP gaps (deduped) | 5 | 8 | **9** (но 7 LOW; HIGH+MED только 4) |
-| Высокие gaps | 1 (FormField anti-pattern) | 0 (после reduction) | 1 (FormWizard STEP_VALIDATIONS) |
-| Status across targets | 1/1 ok | 3/3 ok | **3/3 ok** |
+| метрика                  | iter-11 (mini, core)       | iter-12 (full, 3)   | iter-14 (full, 3, reduced scope)    |
+| ------------------------ | -------------------------- | ------------------- | ----------------------------------- |
+| Targets                  | 1                          | 3                   | 3                                   |
+| Tokens (total)           | ~177k                      | ~547k               | **~509k**                           |
+| TSC initial errors (avg) | 8                          | 1                   | **0** (упреждающе из patches)       |
+| TSC cycles               | 3                          | 1-2                 | **1** (все 3 target)                |
+| MCP gaps (deduped)       | 5                          | 8                   | **9** (но 7 LOW; HIGH+MED только 4) |
+| Высокие gaps             | 1 (FormField anti-pattern) | 0 (после reduction) | 1 (FormWizard STEP_VALIDATIONS)     |
+| Status across targets    | 1/1 ok                     | 3/3 ok              | **3/3 ok**                          |
 
 **Эффект reduced scope**: нет роста токенов (vs iter-12 net), все 3 target прошли в budget без timeout'ов. Главное — освободил место для **обработки edge cases** (array tuple-format, FormWizard config shape, RenderContextProvider).
 

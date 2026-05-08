@@ -148,8 +148,14 @@ function Layout() {
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
           <Route path="/mcp-credit-application-core-clean" element={<MccaCoreClean />} />
-          <Route path="/mcp-credit-application-renderer-react-clean" element={<MccaRendererReactClean />} />
-          <Route path="/mcp-credit-application-renderer-json-clean" element={<MccaRendererJsonClean />} />
+          <Route
+            path="/mcp-credit-application-renderer-react-clean"
+            element={<MccaRendererReactClean />}
+          />
+          <Route
+            path="/mcp-credit-application-renderer-json-clean"
+            element={<MccaRendererJsonClean />}
+          />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

@@ -74,9 +74,7 @@ const BasicInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({ cont
 // Step 2 — personal data
 // ============================================================================
 
-const PersonalDataStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
-  control,
-}) => (
+const PersonalDataStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({ control }) => (
   <div className="space-y-6" data-testid="step-personal-data">
     <h2 className="text-xl font-bold" data-testid="step-heading">
       Персональные данные
@@ -117,9 +115,7 @@ const PersonalDataStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
 // Step 3 — contact info
 // ============================================================================
 
-const ContactInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
-  control,
-}) => {
+const ContactInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({ control }) => {
   const sameAsRegistration = useFormControlValue(control.sameAsRegistration) as boolean;
 
   return (
@@ -170,12 +166,8 @@ const ContactInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
 // Step 4 — employment
 // ============================================================================
 
-const EmploymentStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
-  control,
-}) => {
-  const employmentStatus = useFormControlValue(
-    control.employmentStatus
-  ) as EmploymentStatus;
+const EmploymentStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({ control }) => {
+  const employmentStatus = useFormControlValue(control.employmentStatus) as EmploymentStatus;
 
   return (
     <div className="space-y-6" data-testid="step-employment">
@@ -237,9 +229,7 @@ const PropertyItemForm: FC<{ control: FormProxy<PropertyItem> }> = ({ control })
   </div>
 );
 
-const ExistingLoanItemForm: FC<{ control: FormProxy<ExistingLoanItem> }> = ({
-  control,
-}) => (
+const ExistingLoanItemForm: FC<{ control: FormProxy<ExistingLoanItem> }> = ({ control }) => (
   <div className="space-y-3">
     <FormField control={control.bank} />
     <FormField control={control.type} />
@@ -272,9 +262,7 @@ const CoBorrowerItemForm: FC<{ control: FormProxy<CoBorrowerItem> }> = ({ contro
   </div>
 );
 
-const AdditionalInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
-  control,
-}) => {
+const AdditionalInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({ control }) => {
   const hasProperty = useFormControlValue(control.hasProperty) as boolean;
   const hasExistingLoans = useFormControlValue(control.hasExistingLoans) as boolean;
   const hasCoBorrower = useFormControlValue(control.hasCoBorrower) as boolean;
@@ -367,9 +355,7 @@ const AdditionalInfoStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
 // Step 6 — confirmation
 // ============================================================================
 
-const ConfirmationStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({
-  control,
-}) => (
+const ConfirmationStep: FC<{ control: FormProxy<CreditApplicationForm> }> = ({ control }) => (
   <div className="space-y-6" data-testid="step-confirmation">
     <h2 className="text-xl font-bold" data-testid="step-heading">
       Подтверждение и согласия
@@ -499,13 +485,7 @@ const McpCreditApplicationCoreCleanPage: FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto p-6" data-testid="credit-application-form">
       <h1 className="text-2xl font-bold mb-6">Заявка на кредит (clean baseline)</h1>
-      <FormWizard
-        ref={navRef}
-        form={form}
-        config={config}
-        steps={STEPS}
-        onSubmit={handleSubmit}
-      />
+      <FormWizard ref={navRef} form={form} config={config} steps={STEPS} onSubmit={handleSubmit} />
     </div>
   );
 };

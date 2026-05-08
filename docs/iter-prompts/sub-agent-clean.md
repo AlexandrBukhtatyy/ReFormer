@@ -17,11 +17,11 @@
 
 Файлы per target:
 
-| target           | files                                |
-| ---------------- | ------------------------------------ |
-| `core`           | `schema.ts` + `index.tsx`            |
-| `renderer-react` | `schema.ts` + `index.tsx`            |
-| `renderer-json`  | `schema.json` + `index.tsx`          |
+| target           | files                       |
+| ---------------- | --------------------------- |
+| `core`           | `schema.ts` + `index.tsx`   |
+| `renderer-react` | `schema.ts` + `index.tsx`   |
+| `renderer-json`  | `schema.json` + `index.tsx` |
 
 ```bash
 mkdir -p projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean
@@ -95,17 +95,21 @@ cd projects/react-playground && npx tsc --noEmit -p tsconfig.app.json 2>&1 | tai
 # dev-report — target={TARGET}
 
 ## Status
+
 ok | partial | blocked
 
 ## Files written
+
 - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/schema.ts (LOC: N)
 - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/index.tsx (LOC: N)
 - ...
 
 ## MCP calls
+
 Кол-во вызовов: N
 
 Список используемых recipes / symbols (короткое описание что искал и пригодилось ли):
+
 - find_recipe(topic="...") → ✅/❌ — ...
 - get_symbol_docs(symbol="...") → ✅/❌ — ...
 
@@ -119,6 +123,7 @@ ok | partial | blocked
 - **proposed fix**: что добавить в MCP (новый recipe / extra example / правка существующего)
 
 ## Notes
+
 Особенности реализации, blocker'ы, что не получилось, неоднозначности в спеке.
 ```
 
@@ -130,7 +135,7 @@ ok | partial | blocked
 
 ```yaml
 status: ok | partial | blocked
-target: {TARGET}
+target: { TARGET }
 files_written:
   - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/schema.ts
   - projects/react-playground/src/pages/examples/mcp-credit-application-{TARGET}-clean/index.tsx

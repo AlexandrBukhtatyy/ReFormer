@@ -25,7 +25,13 @@ import {
 } from '@reformer/renderer-json';
 
 // FormRoot принимает form через componentProps closure и пробрасывает в children.
-function FormRoot<T>({ form, children }: { form: FormProxy<T>; children?: RenderNode<T>[] }): ReactNode {
+function FormRoot<T>({
+  form,
+  children,
+}: {
+  form: FormProxy<T>;
+  children?: RenderNode<T>[];
+}): ReactNode {
   return (
     <>
       {children?.map((node, i) => (
@@ -48,7 +54,12 @@ interface JsonFormAppProps<T> {
   fieldWrapper?: ComponentType<{ control: unknown }>;
 }
 
-export function JsonFormApp<T>({ schema, form, buildRegistry, fieldWrapper }: JsonFormAppProps<T>): ReactNode {
+export function JsonFormApp<T>({
+  schema,
+  form,
+  buildRegistry,
+  fieldWrapper,
+}: JsonFormAppProps<T>): ReactNode {
   // Собираем registry с нуля: пользовательские компоненты + FormRoot
   const registry = useMemo(
     () =>
@@ -75,9 +86,7 @@ export function JsonFormApp<T>({ schema, form, buildRegistry, fieldWrapper }: Js
   "version": "1.0",
   "root": {
     "component": "FormRoot",
-    "children": [
-      { "selector": "email", "model": "email", "component": "Input" }
-    ]
+    "children": [{ "selector": "email", "model": "email", "component": "Input" }]
   }
 }
 ```
@@ -100,7 +109,7 @@ const buildRegistry = (reg: RegistryBuilder) => {
   form={form}
   buildRegistry={buildRegistry}
   fieldWrapper={FormField}
-/>
+/>;
 ```
 
 **Note**: эта обёртка **app-level** (~30 LOC), не shipped библиотекой — design tradeoff между ergonomic API и flexibility (см. issue G3-iter15). Для большинства проектов `<JsonFormApp>` достаточно; для нестандартных layout'ов используй raw closure pattern (см. [01-overview.md](01-overview.md)).
