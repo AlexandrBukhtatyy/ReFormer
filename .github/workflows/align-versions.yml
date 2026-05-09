@@ -130,6 +130,14 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: |
           set -e
+          # `git tag -a` (annotated) требует git identity, иначе:
+          # `fatal: empty ident name (for <runner@...>) not allowed`.
+          # Раньше identity ставилась только в шаге Commit version bumps,
+          # из-за чего align-versions run #2 (5.0.2) упал на этом step,
+          # хотя npm publish уже прошёл — bump-commit и теги пришлось
+          # делать вручную локально.
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           V="${{ inputs.version }}"
           # tagFormat per package — см. .releaserc.json в каждом пакете
           declare -A TAGS=(
