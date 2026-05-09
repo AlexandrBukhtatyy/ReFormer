@@ -77,7 +77,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
   mcpSidebar: ['mcp/overview', 'mcp/quick-start', 'mcp/tools', 'mcp/prompts', 'mcp/examples'],
-  uiSidebar: ['ui-kit/overview', 'ui-kit/form-array', 'ui-kit/form-wizard'],
+  uiSidebar: ['ui-kit/overview', 'ui-kit/form-array', 'ui-kit/form-navigation'],
   apiSidebar: [
     // typedoc плагин генерирует разные категории в зависимости от того, что
     // есть в reformer/src (interfaces / type-aliases есть всегда, classes /
