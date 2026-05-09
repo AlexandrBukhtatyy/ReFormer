@@ -18,6 +18,7 @@ on:
     paths:
       - 'packages/**'
       - '.github/workflows/release.yml'
+  workflow_dispatch: # для ручного re-run без коммита (например после исправления git tags)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
