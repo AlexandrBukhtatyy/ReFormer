@@ -1,6 +1,6 @@
 {
   "name": "@reformer/ui-kit",
-  "version": "1.0.0-beta.2",
+  "version": "5.0.2",
   "description": "Styled form components with Tailwind CSS and Radix UI for @reformer ecosystem",
   "type": "module",
   "main": "./dist/index.js",
