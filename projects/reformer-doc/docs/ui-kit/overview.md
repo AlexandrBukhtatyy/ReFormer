@@ -18,7 +18,7 @@ sidebar_position: 1
 | Компонент                     | Назначение                              |
 | ----------------------------- | --------------------------------------- |
 | [`FormArray`](./form-array)   | Управление динамическими массивами форм |
-| [`FormWizard`](./form-wizard) | Multi-step wizard для форм              |
+| [`FormWizard`](./form-navigation) | Multi-step wizard для форм              |
 
 ## Установка
 
