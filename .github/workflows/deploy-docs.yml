@@ -33,7 +33,12 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: rm package-lock.json && npm install
+        # npm ci использует package-lock.json для повторяемой сборки.
+        # Раньше тут было `rm package-lock.json && npm install` — это давало
+        # каждый раз свежий resolve с npm, что приводило к несовместимости
+        # transitive deps (например webpackbar с новым webpack ProgressPlugin
+        # после bump Node 22).
+        run: npm ci
 
       - name: Build documentation
         run: npm run build -w reformer-doc
