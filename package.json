@@ -56,6 +56,7 @@
     "@playwright/test": "^1.56.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
+    "@size-limit/file": "^11.0.0",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
@@ -67,9 +68,9 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "prettier": "^3.6.2",
-    "semantic-release": "^21.1.2",
+    "semantic-release": "^25.0.3",
+    "semantic-release-monorepo": "^8.0.2",
     "size-limit": "^11.0.0",
-    "@size-limit/file": "^11.0.0",
     "vitest": "^4.0.8"
   },
   "dependencies": {

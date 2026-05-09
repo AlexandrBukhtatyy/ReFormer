@@ -1,10 +1,5 @@
 {
+  "extends": "semantic-release-monorepo",
   "branches": ["main", { "name": "develop", "prerelease": "beta" }],
-  "tagFormat": "ui-kit-v${version}",
-  "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
-    "@semantic-release/npm",
-    "@semantic-release/github"
-  ]
+  "tagFormat": "ui-kit-v${version}"
 }

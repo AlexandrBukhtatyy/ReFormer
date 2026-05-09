@@ -18,6 +18,7 @@ on:
     paths:
       - 'packages/**'
       - '.github/workflows/release.yml'
+  workflow_dispatch: # для ручного re-run без коммита (например после исправления git tags)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -76,7 +77,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
 
