@@ -1,70 +1,40 @@
 /**
- * Валидатор проверки формата даты
+ * Валидатор проверки формата даты (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/is-date
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
 import { parseDate } from './date-utils';
 
 /**
- * Проверяет, что значение является валидной датой
+ * Фабрика валидатора, проверяющего что значение — валидная дата.
  *
  * Пустые значения пропускаются (используйте `required` для обязательности).
  *
- * @group Validation
- * @category Validators
- *
- * @param fieldPath - Путь к полю для валидации
- * @param options - Опции валидации (message, params)
- *
  * @example
  * ```typescript
- * // Базовое использование
- * validationSchema: (path) => [
- *   isDate(path.birthDate),
- *   isDate(path.eventDate),
- * ]
- *
- * // С кастомным сообщением
- * isDate(path.birthDate, { message: 'Введите корректную дату' })
- * ```
- *
- * @example
- * ```typescript
- * // Ошибка валидации
- * {
- *   code: 'date_invalid',
- *   message: 'Неверный формат даты',
- *   params: {}
- * }
+ * validate(path.birthDate, isDate());
+ * validate(path.eventDate, isDate({ message: 'Введите корректную дату' }));
  * ```
  */
-export function isDate<TForm, TField extends string | Date | undefined = string | Date>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
+export function isDate<TForm = unknown, TField extends string | Date | undefined = string | Date>(
   options?: ValidateOptions
-): void {
-  if (!fieldPath) return;
-
-  validate(fieldPath, (value) => {
+): Validator<TForm, TField> {
+  return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-
     const parsed = parseDate(value as string | Date);
-
     if (parsed === null) {
       return {
         code: 'date_invalid',
-        message: options?.message || 'Неверный формат даты',
+        message: options?.message ?? 'Неверный формат даты',
         params: options?.params,
       };
     }
-
     return null;
-  });
+  };
 }

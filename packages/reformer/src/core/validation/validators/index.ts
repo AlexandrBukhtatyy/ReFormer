@@ -15,4 +15,13 @@ export { pattern } from './pattern';
 export { url, type UrlValidatorOptions } from './url';
 export { phone, type PhoneFormat, type PhoneValidatorOptions } from './phone';
 export { number, type NumberValidatorOptions } from './number';
+// Date validator factories
+export { isDate } from './is-date';
+export { minDate } from './min-date';
+export { maxDate } from './max-date';
+export { pastDate } from './past-date';
+export { futureDate } from './future-date';
+export { minAge } from './min-age';
+export { maxAge } from './max-age';
+// Array validators
 export { notEmpty } from './array-validators';

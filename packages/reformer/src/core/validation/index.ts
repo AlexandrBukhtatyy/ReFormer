@@ -21,6 +21,15 @@ export { url } from './validators/url';
 export { phone, type PhoneFormat } from './validators/phone';
 export { number } from './validators/number';
 
+// Date validator factories
+export { isDate } from './validators/is-date';
+export { minDate } from './validators/min-date';
+export { maxDate } from './validators/max-date';
+export { pastDate } from './validators/past-date';
+export { futureDate } from './validators/future-date';
+export { minAge } from './validators/min-age';
+export { maxAge } from './validators/max-age';
+
 // Array validators
 export { notEmpty, validateItems } from './validators/array-validators';
 
