@@ -211,7 +211,7 @@ If validation doesn't work as expected:
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   console.log('Registering Step 1 validation');
 
-  required(path.loanAmount, { message: 'Loan amount is required' });
+  validate(path.loanAmount, required({ message: 'Loan amount is required' }));
   console.log('Added required validator for loanAmount');
 };
 ```
@@ -222,10 +222,10 @@ Incorrect field paths cause validation to silently fail:
 
 ```typescript
 // ❌ Wrong - typo in field name
-required(path.loanAmmount, { message: '...' });
+validate(path.loanAmmount, required({ message: '...' }));
 
 // ✅ Correct
-required(path.loanAmount, { message: '...' });
+validate(path.loanAmount, required({ message: '...' }));
 ```
 
 ### 3. Check Form Registration

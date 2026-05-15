@@ -1,7 +1,8 @@
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
 import {
   applyWhen,
-  validateTree,
+  validate,
+  validateGroup,
   required,
   min,
   max,
@@ -17,47 +18,52 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  required(path.employmentStatus, { message: 'Укажите статус занятости' });
+  validate(path.employmentStatus, required({ message: 'Укажите статус занятости' }));
 
   // Условная валидация для работающих
   applyWhen(
     path.employmentStatus,
     (status) => status === 'employed',
     (path) => {
-      required(path.companyName, { message: 'Укажите название компании' });
-      minLength(path.companyName, 3, { message: 'Минимум 3 символа' });
-      maxLength(path.companyName, 200, { message: 'Максимум 200 символов' });
+      validate(path.companyName, required({ message: 'Укажите название компании' }));
+      validate(path.companyName, minLength(3, { message: 'Минимум 3 символа' }));
+      validate(path.companyName, maxLength(200, { message: 'Максимум 200 символов' }));
 
-      required(path.companyInn, { message: 'ИНН компании обязателен' });
-      pattern(path.companyInn, /^\d{10}$/, {
-        message: 'ИНН компании должен содержать 10 цифр',
-      });
+      validate(path.companyInn, required({ message: 'ИНН компании обязателен' }));
+      validate(
+        path.companyInn,
+        pattern(/^\d{10}$/, { message: 'ИНН компании должен содержать 10 цифр' })
+      );
 
-      required(path.companyPhone, { message: 'Телефон компании обязателен' });
-      pattern(path.companyPhone, /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
-        message: 'Формат: +7 (___) ___-__-__',
-      });
+      validate(path.companyPhone, required({ message: 'Телефон компании обязателен' }));
+      validate(
+        path.companyPhone,
+        pattern(/^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
+          message: 'Формат: +7 (___) ___-__-__',
+        })
+      );
 
-      required(path.companyAddress, { message: 'Адрес компании обязателен' });
-      minLength(path.companyAddress, 10, { message: 'Минимум 10 символов' });
-      maxLength(path.companyAddress, 300, { message: 'Максимум 300 символов' });
+      validate(path.companyAddress, required({ message: 'Адрес компании обязателен' }));
+      validate(path.companyAddress, minLength(10, { message: 'Минимум 10 символов' }));
+      validate(path.companyAddress, maxLength(300, { message: 'Максимум 300 символов' }));
 
-      required(path.position, { message: 'Укажите должность' });
-      minLength(path.position, 3, { message: 'Минимум 3 символа' });
-      maxLength(path.position, 100, { message: 'Максимум 100 символов' });
+      validate(path.position, required({ message: 'Укажите должность' }));
+      validate(path.position, minLength(3, { message: 'Минимум 3 символа' }));
+      validate(path.position, maxLength(100, { message: 'Максимум 100 символов' }));
 
-      required(path.workExperienceTotal, { message: 'Укажите общий стаж работы' });
-      min(path.workExperienceTotal, 0, { message: 'Стаж не может быть отрицательным' });
-      max(path.workExperienceTotal, 720, { message: 'Максимальный стаж: 60 лет (720 месяцев)' });
+      validate(path.workExperienceTotal, required({ message: 'Укажите общий стаж работы' }));
+      validate(path.workExperienceTotal, min(0, { message: 'Стаж не может быть отрицательным' }));
+      validate(path.workExperienceTotal, max(60, { message: 'Максимальный стаж: 60 лет' }));
 
-      required(path.workExperienceCurrent, { message: 'Укажите стаж на текущем месте' });
-      min(path.workExperienceCurrent, 0, { message: 'Стаж не может быть отрицательным' });
-      max(path.workExperienceCurrent, 720, { message: 'Максимальный стаж: 60 лет (720 месяцев)' });
+      validate(path.workExperienceCurrent, required({ message: 'Укажите стаж на текущем месте' }));
+      validate(path.workExperienceCurrent, min(0, { message: 'Стаж не может быть отрицательным' }));
+      validate(path.workExperienceCurrent, max(60, { message: 'Максимальный стаж: 60 лет' }));
 
-      // Cross-field: стаж на текущем месте не больше общего стажа
-      validateTree<CreditApplicationForm>(
-        (ctx) => {
-          const form = ctx.form.getValue();
+      // Cross-field: стаж на текущем месте ≤ общему стажу
+      validateGroup(
+        path,
+        (scope) => {
+          const form = scope.getValue();
           if (
             form.workExperienceCurrent &&
             form.workExperienceTotal &&
@@ -70,7 +76,7 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
           }
           return null;
         },
-        { targetField: 'workExperienceCurrent' }
+        { targetField: path.workExperienceCurrent }
       );
     }
   );
@@ -80,51 +86,54 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
     path.employmentStatus,
     (status) => status === 'selfEmployed',
     (path) => {
-      required(path.businessType, { message: 'Укажите тип бизнеса' });
+      validate(path.businessType, required({ message: 'Укажите тип бизнеса' }));
 
-      required(path.businessInn, { message: 'ИНН ИП обязателен' });
-      pattern(path.businessInn, /^\d{12}$/, {
-        message: 'ИНН ИП должен содержать 12 цифр',
-      });
+      validate(path.businessInn, required({ message: 'ИНН ИП обязателен' }));
+      validate(
+        path.businessInn,
+        pattern(/^\d{12}$/, { message: 'ИНН ИП должен содержать 12 цифр' })
+      );
 
-      required(path.businessActivity, { message: 'Укажите вид деятельности' });
-      minLength(path.businessActivity, 10, { message: 'Минимум 10 символов' });
-      maxLength(path.businessActivity, 300, { message: 'Максимум 300 символов' });
+      validate(path.businessActivity, required({ message: 'Укажите вид деятельности' }));
+      validate(path.businessActivity, minLength(10, { message: 'Минимум 10 символов' }));
+      validate(path.businessActivity, maxLength(300, { message: 'Максимум 300 символов' }));
     }
   );
 
-  // Валидация дохода (для всех статусов)
-  required(path.monthlyIncome, { message: 'Укажите ежемесячный доход' });
-  min(path.monthlyIncome, 10000, { message: 'Минимальный доход: 10 000 ₽' });
-  max(path.monthlyIncome, 10000000, { message: 'Максимальный доход: 10 000 000 ₽' });
+  // Доход (для всех статусов)
+  validate(path.monthlyIncome, required({ message: 'Укажите ежемесячный доход' }));
+  validate(path.monthlyIncome, min(10000, { message: 'Минимальный доход: 10 000 ₽' }));
+  validate(path.monthlyIncome, max(10000000, { message: 'Максимальный доход: 10 000 000 ₽' }));
 
-  // Валидация дополнительного дохода (опциональный)
-  // Если указан, должен быть положительным и требует указания источника
-  min(path.additionalIncome, 0, { message: 'Дополнительный доход не может быть отрицательным' });
-  max(path.additionalIncome, 10000000, { message: 'Максимальный доход: 10 000 000 ₽' });
+  // Дополнительный доход (опциональный)
+  validate(
+    path.additionalIncome,
+    min(0, { message: 'Дополнительный доход не может быть отрицательным' })
+  );
+  validate(path.additionalIncome, max(10000000, { message: 'Максимальный доход: 10 000 000 ₽' }));
 
-  // Cross-field: платеж не должен превышать 50% от дохода (paymentToIncome)
-  validateTree<CreditApplicationForm>(
-    (ctx) => {
-      const form = ctx.form.getValue();
+  // Cross-field: платеж ≤ 50% дохода
+  validateGroup(
+    path,
+    (scope) => {
+      const form = scope.getValue();
       const ratio = form.paymentToIncomeRatio;
-
       if (ratio && ratio > 50) {
         return {
           code: 'paymentToIncomeExceeded',
           message: `Ежемесячный платеж не должен превышать 50% от дохода (текущий: ${ratio}%)`,
-          severity: 'warning',
         };
       }
       return null;
     },
-    { targetField: 'monthlyIncome' }
+    { targetField: path.monthlyIncome }
   );
 
-  // Если указан дополнительный доход, требуется указать источник
-  validateTree<CreditApplicationForm>(
-    (ctx) => {
-      const form = ctx.form.getValue();
+  // Если есть дополнительный доход, требуется источник
+  validateGroup(
+    path,
+    (scope) => {
+      const form = scope.getValue();
       if (form.additionalIncome && form.additionalIncome > 0 && !form.additionalIncomeSource) {
         return {
           code: 'additionalIncomeSourceRequired',
@@ -133,10 +142,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
       }
       return null;
     },
-    { targetField: 'additionalIncomeSource' }
+    { targetField: path.additionalIncomeSource }
   );
 
-  // Валидация источника дополнительного дохода
-  minLength(path.additionalIncomeSource, 5, { message: 'Минимум 5 символов' });
-  maxLength(path.additionalIncomeSource, 200, { message: 'Максимум 200 символов' });
+  validate(path.additionalIncomeSource, minLength(5, { message: 'Минимум 5 символов' }));
+  validate(path.additionalIncomeSource, maxLength(200, { message: 'Максимум 200 символов' }));
 };

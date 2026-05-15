@@ -1,70 +1,64 @@
 /**
- * Валидатор URL
+ * Валидатор URL (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/url
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
+
+const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+const URL_REQUIRE_PROTOCOL = /^https?:\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+
+export interface UrlValidatorOptions extends ValidateOptions {
+  /** Требовать наличие протокола (http:// или https://) */
+  requireProtocol?: boolean;
+  /** Разрешенные протоколы */
+  allowedProtocols?: string[];
+}
 
 /**
- * Адаптер для URL валидатора
- * Поддерживает опциональные поля (string | undefined)
+ * Фабрика валидатора URL.
  *
- * @group Validation
- * @category Validators
+ * Пустые значения пропускаются (используйте `required` для обязательности).
  *
  * @example
  * ```typescript
- * url(path.website);
- * url(path.website, { message: 'Введите корректный URL' });
- * url(path.website, { requireProtocol: true });
+ * validate(path.website, url());
+ * validate(path.website, url({ requireProtocol: true }));
+ * validate(path.website, url({ allowedProtocols: ['https'] }));
  * ```
  */
-export function url<TForm, TField extends string | null | undefined = string>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
-  options?: ValidateOptions & {
-    /** Требовать наличие протокола (http:// или https://) */
-    requireProtocol?: boolean;
-    /** Разрешенные протоколы */
-    allowedProtocols?: string[];
-  }
-): void {
-  if (!fieldPath) return; // Защита от undefined fieldPath
-
-  // URL regex с опциональным протоколом
-  const urlRegexWithProtocol = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
-  const urlRegexRequireProtocol = /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
-
-  validate(fieldPath, (value) => {
+export function url<TForm = unknown, TField extends string | undefined = string>(
+  options?: UrlValidatorOptions
+): Validator<TForm, TField> {
+  return (value) => {
     if (!value) {
       return null;
     }
 
-    const regex = options?.requireProtocol ? urlRegexRequireProtocol : urlRegexWithProtocol;
+    const v = value as string;
+    const regex = options?.requireProtocol ? URL_REQUIRE_PROTOCOL : URL_WITH_PROTOCOL;
 
-    if (!regex.test(value)) {
+    if (!regex.test(v)) {
       return {
         code: 'url',
-        message: options?.message || 'Неверный формат URL',
+        message: options?.message ?? 'Неверный формат URL',
         params: options?.params,
       };
     }
 
-    // Проверка разрешенных протоколов
     if (options?.allowedProtocols && options.allowedProtocols.length > 0) {
       const hasAllowedProtocol = options.allowedProtocols.some((protocol) =>
-        value.toLowerCase().startsWith(`${protocol}://`)
+        v.toLowerCase().startsWith(`${protocol}://`)
       );
 
       if (!hasAllowedProtocol) {
         return {
           code: 'url_protocol',
           message:
-            options?.message ||
+            options?.message ??
             `URL должен использовать один из протоколов: ${options.allowedProtocols.join(', ')}`,
           params: { allowedProtocols: options.allowedProtocols, ...options?.params },
         };
@@ -72,5 +66,5 @@ export function url<TForm, TField extends string | null | undefined = string>(
     }
 
     return null;
-  });
+  };
 }

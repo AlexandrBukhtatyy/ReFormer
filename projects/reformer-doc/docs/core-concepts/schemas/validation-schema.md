@@ -24,10 +24,10 @@ const form = new GroupNode({
     email: { value: '' },
   },
   validation: (path) => {
-    required(path.name);
-    minLength(path.name, 2);
-    required(path.email);
-    email(path.email);
+    validate(path.name, required());
+    validate(path.name, minLength(2));
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 ```
@@ -47,10 +47,10 @@ interface User {
 }
 
 validation: (path: FieldPath<User>) => {
-  required(path.name); // ✅ Valid
-  required(path.email); // ✅ Valid
-  required(path.address.city); // ✅ Valid - nested access
-  required(path.phone); // ❌ TypeScript error!
+  validate(path.name, required()); // ✅ Valid
+  validate(path.email, required()); // ✅ Valid
+  validate(path.address.city, required()); // ✅ Valid - nested access
+  validate(path.phone, required()); // ❌ TypeScript error!
 };
 ```
 
@@ -64,13 +64,13 @@ validation: (path: FieldPath<User>) => {
 
 | Validator                    | Description           |
 | ---------------------------- | --------------------- |
-| `required(path.field)`       | Field must have value |
-| `email(path.field)`          | Valid email format    |
-| `minLength(path.field, n)`   | Minimum string length |
-| `maxLength(path.field, n)`   | Maximum string length |
-| `min(path.field, n)`         | Minimum number        |
-| `max(path.field, n)`         | Maximum number        |
-| `pattern(path.field, regex)` | Match regex           |
+| `validate(path.field, required())`       | Field must have value |
+| `validate(path.field, email())`          | Valid email format    |
+| `validate(path.field, minLength(n))`   | Minimum string length |
+| `validate(path.field, maxLength(n))`   | Maximum string length |
+| `validate(path.field, min(n))`         | Minimum number        |
+| `validate(path.field, max(n))`         | Maximum number        |
+| `validate(path.field, pattern(regex))` | Match regex           |
 
 See [Built-in Validators](/docs/validation/built-in) for full list.
 
@@ -79,17 +79,18 @@ See [Built-in Validators](/docs/validation/built-in) for full list.
 Apply validators based on conditions:
 
 ```typescript
-import { when } from '@reformer/core/validators';
+import { applyWhen, validate, required, pattern } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.email);
+  validate(path.email, required());
 
   // Only validate phone if user wants SMS
-  when(
-    () => form.controls.wantsSms.value === true,
-    () => {
-      required(path.phone);
-      pattern(path.phone, /^\d{10}$/);
+  applyWhen(
+    path.wantsSms,
+    (wantsSms) => wantsSms === true,
+    (path) => {
+      validate(path.phone, required());
+      validate(path.phone, pattern(/^\d{10}$/));
     }
   );
 };
@@ -113,12 +114,12 @@ interface Order {
 
 validation: (path) => {
   // Nested object
-  required(path.customer.name);
-  email(path.customer.email);
+  validate(path.customer.name, required());
+  validate(path.customer.email, email());
 
   // Array items (validates each item's template)
-  required(path.items.product);
-  min(path.items.quantity, 1);
+  validate(path.items.product, required());
+  validate(path.items.quantity, min(1));
 };
 ```
 
@@ -130,11 +131,11 @@ Validate fields against each other:
 import { custom } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.password);
-  required(path.confirmPassword);
+  validate(path.password, required());
+  validate(path.confirmPassword, required());
 
-  custom(path.confirmPassword, (value, ctx) => {
-    const password = ctx.form.password.value;
+  custom(path.confirmPassword, (value, _control, root) => {
+    const password = root.password.value;
     if (value !== password) {
       return { match: 'Passwords must match' };
     }
@@ -151,7 +152,7 @@ Server-side validation:
 import { asyncValidator } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.username);
+  validate(path.username, required());
 
   asyncValidator(path.username, async (value) => {
     const exists = await checkUsername(value);
@@ -175,11 +176,11 @@ import { required, email, minLength } from '@reformer/core/validators';
 
 // Reusable validation set
 export function validatePerson(path: FieldPath<Person>) {
-  required(path.firstName);
-  minLength(path.firstName, 2);
-  required(path.lastName);
-  required(path.email);
-  email(path.email);
+  validate(path.firstName, required());
+  validate(path.firstName, minLength(2));
+  validate(path.lastName, required());
+  validate(path.email, required());
+  validate(path.email, email());
 }
 
 // Usage

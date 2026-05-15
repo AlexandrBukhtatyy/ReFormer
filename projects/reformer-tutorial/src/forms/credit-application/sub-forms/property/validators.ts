@@ -1,13 +1,13 @@
-import { required, min, minLength } from '@reformer/core/validators';
+import { validate, required, min, minLength } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { Property } from './type';
 
 export const propertyValidation: ValidationSchemaFn<Property> = (path: FieldPath<Property>) => {
-  required(path.type, { message: 'Тип имущества обязателен' });
+  validate(path.type, required({ message: 'Тип имущества обязателен' }));
 
-  required(path.description, { message: 'Описание имущества обязательно' });
-  minLength(path.description, 10, { message: 'Минимум 10 символов для описания' });
+  validate(path.description, required({ message: 'Описание имущества обязательно' }));
+  validate(path.description, minLength(10, { message: 'Минимум 10 символов для описания' }));
 
-  required(path.estimatedValue, { message: 'Приблизительная стоимость обязательна' });
-  min(path.estimatedValue, 0, { message: 'Стоимость должна быть неотрицательной' });
+  validate(path.estimatedValue, required({ message: 'Приблизительная стоимость обязательна' }));
+  validate(path.estimatedValue, min(0, { message: 'Стоимость должна быть неотрицательной' }));
 };

@@ -58,28 +58,28 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Тип кредита
   // ==========================================
-  required(path.loanType, { message: 'Пожалуйста, выберите тип кредита' });
+  validate(path.loanType, required({ message: 'Пожалуйста, выберите тип кредита' }));
 
   // ==========================================
   // Сумма кредита
   // ==========================================
-  required(path.loanAmount, { message: 'Сумма кредита обязательна' });
-  min(path.loanAmount, 50000, { message: 'Минимальная сумма: 50 000' });
-  max(path.loanAmount, 10000000, { message: 'Максимальная сумма: 10 000 000' });
+  validate(path.loanAmount, required({ message: 'Сумма кредита обязательна' }));
+  validate(path.loanAmount, min(50000, { message: 'Минимальная сумма: 50 000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Максимальная сумма: 10 000 000' }));
 
   // ==========================================
   // Срок кредита
   // ==========================================
-  required(path.loanTerm, { message: 'Срок кредита обязателен' });
-  min(path.loanTerm, 6, { message: 'Минимальный срок: 6 месяцев' });
-  max(path.loanTerm, 360, { message: 'Максимальный срок: 360 месяцев (30 лет)' });
+  validate(path.loanTerm, required({ message: 'Срок кредита обязателен' }));
+  validate(path.loanTerm, min(6, { message: 'Минимальный срок: 6 месяцев' }));
+  validate(path.loanTerm, max(360, { message: 'Максимальный срок: 360 месяцев (30 лет)' }));
 
   // ==========================================
   // Цель кредита
   // ==========================================
-  required(path.loanPurpose, { message: 'Цель кредита обязательна' });
-  minLength(path.loanPurpose, 10, { message: 'Пожалуйста, укажите не менее 10 символов' });
-  maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символов' });
+  validate(path.loanPurpose, required({ message: 'Цель кредита обязательна' }));
+  validate(path.loanPurpose, minLength(10, { message: 'Пожалуйста, укажите не менее 10 символов' }));
+  validate(path.loanPurpose, maxLength(500, { message: 'Максимум 500 символов' }));
 
   // Условная валидация будет добавлена дальше...
 };
@@ -174,28 +174,28 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Тип кредита
   // ==========================================
-  required(path.loanType, { message: 'Пожалуйста, выберите тип кредита' });
+  validate(path.loanType, required({ message: 'Пожалуйста, выберите тип кредита' }));
 
   // ==========================================
   // Сумма кредита
   // ==========================================
-  required(path.loanAmount, { message: 'Сумма кредита обязательна' });
-  min(path.loanAmount, 50000, { message: 'Минимальная сумма: 50 000' });
-  max(path.loanAmount, 10000000, { message: 'Максимальная сумма: 10 000 000' });
+  validate(path.loanAmount, required({ message: 'Сумма кредита обязательна' }));
+  validate(path.loanAmount, min(50000, { message: 'Минимальная сумма: 50 000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Максимальная сумма: 10 000 000' }));
 
   // ==========================================
   // Срок кредита
   // ==========================================
-  required(path.loanTerm, { message: 'Срок кредита обязателен' });
-  min(path.loanTerm, 6, { message: 'Минимальный срок: 6 месяцев' });
-  max(path.loanTerm, 360, { message: 'Максимальный срок: 360 месяцев (30 лет)' });
+  validate(path.loanTerm, required({ message: 'Срок кредита обязателен' }));
+  validate(path.loanTerm, min(6, { message: 'Минимальный срок: 6 месяцев' }));
+  validate(path.loanTerm, max(360, { message: 'Максимальный срок: 360 месяцев (30 лет)' }));
 
   // ==========================================
   // Цель кредита
   // ==========================================
-  required(path.loanPurpose, { message: 'Цель кредита обязательна' });
-  minLength(path.loanPurpose, 10, { message: 'Пожалуйста, укажите не менее 10 символов' });
-  maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символов' });
+  validate(path.loanPurpose, required({ message: 'Цель кредита обязательна' }));
+  validate(path.loanPurpose, minLength(10, { message: 'Пожалуйста, укажите не менее 10 символов' }));
+  validate(path.loanPurpose, maxLength(500, { message: 'Максимум 500 символов' }));
 
   // ==========================================
   // Условно: Поля ипотеки
@@ -242,7 +242,7 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Валидаторы required
 
 ```typescript
-required(path.loanAmount, { message: 'Сумма кредита обязательна' });
+validate(path.loanAmount, required({ message: 'Сумма кредита обязательна' }));
 ```
 
 - Срабатывает когда поле пусто, null или undefined
@@ -251,8 +251,8 @@ required(path.loanAmount, { message: 'Сумма кредита обязател
 ### Валидаторы диапазонов
 
 ```typescript
-min(path.loanAmount, 50000, { message: 'Минимальная сумма: 50 000' });
-max(path.loanAmount, 10000000, { message: 'Максимальная сумма: 10 000 000' });
+validate(path.loanAmount, min(50000, { message: 'Минимальная сумма: 50 000' }));
+validate(path.loanAmount, max(10000000, { message: 'Максимальная сумма: 10 000 000' }));
 ```
 
 - `min`: Срабатывает когда значение < минимума

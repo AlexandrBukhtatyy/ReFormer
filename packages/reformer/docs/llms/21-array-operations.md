@@ -4,18 +4,18 @@
 
 ```typescript
 // WRONG - bracket notation does NOT work!
-const first = form.items[0]; // undefined or error
-const second = form.items[1]; // undefined or error
+const first = form.items[0];        // undefined or error
+const second = form.items[1];       // undefined or error
 
 // CORRECT - use .at() method
-const first = form.items.at(0); // FormProxy<ItemType> | undefined
-const second = form.items.at(1); // FormProxy<ItemType> | undefined
+const first = form.items.at(0);     // FormProxy<ItemType> | undefined
+const second = form.items.at(1);    // FormProxy<ItemType> | undefined
 
 // CORRECT - iterate with map (most common pattern)
 form.items.map((item, index) => {
   // item is fully typed GroupNode
   item.name.setValue('New Name');
-  item.price.value.value; // read value
+  item.price.value.value;  // read value
 });
 ```
 
@@ -58,7 +58,9 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
       {length === 0 && <p>No items yet</p>}
 
-      <button onClick={() => form.items.push({ name: '', price: 0 })}>Add Item</button>
+      <button onClick={() => form.items.push({ name: '', price: 0 })}>
+        Add Item
+      </button>
     </div>
   );
 }
@@ -66,33 +68,32 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
 ### Array Cross-Validation
 
+Use `validateGroup` with scope = root form (`path` as the first argument).
+
 ```typescript
 // Validate uniqueness across array items
-validateTree(
-  (ctx: { form: MyForm }) => {
-    const items = ctx.form.items;
-    const names = items.map((item) => item.name.value.value);
-    const uniqueNames = new Set(names);
+validateGroup(path, (scope, _root) => {
+  const items = scope.items;
+  const names = items.map((item) => item.name.value.value);
+  const uniqueNames = new Set(names);
 
-    if (names.length !== uniqueNames.size) {
-      return { code: 'duplicate', message: 'Item names must be unique' };
-    }
-    return null;
-  },
-  { targetField: 'items' }
-);
+  if (names.length !== uniqueNames.size) {
+    return { code: 'duplicate', message: 'Item names must be unique' };
+  }
+  return null;
+}, { targetField: path.items });
 
 // Validate sum of percentages
-validateTree(
-  (ctx: { form: MyForm }) => {
-    const items = ctx.form.items;
-    const totalPercent = items.reduce((sum, item) => sum + (item.percentage.value.value || 0), 0);
+validateGroup(path, (scope, _root) => {
+  const items = scope.items;
+  const totalPercent = items.reduce(
+    (sum, item) => sum + (item.percentage.value.value || 0),
+    0
+  );
 
-    if (Math.abs(totalPercent - 100) > 0.01) {
-      return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
-    }
-    return null;
-  },
-  { targetField: 'items' }
-);
+  if (Math.abs(totalPercent - 100) > 0.01) {
+    return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
+  }
+  return null;
+}, { targetField: path.items });
 ```

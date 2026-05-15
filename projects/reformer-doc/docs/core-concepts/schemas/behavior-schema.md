@@ -164,7 +164,7 @@ behavior: (path) => {
   watchField(path.country, (value, ctx) => {
     // Load states/provinces for selected country
     loadStates(value).then((states) => {
-      ctx.form.stateOptions.setValue(states);
+      root.stateOptions.setValue(states);
     });
   });
 };

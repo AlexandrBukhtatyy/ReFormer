@@ -5,26 +5,33 @@
 
 ### Validators
 
+Operators register validators in the schema. Validator factories return pure
+`Validator<TForm, TField>` functions of shape `(value, control, root) => ValidationError | null`.
+
 ```typescript
-// Basic validators
-required(path, options?: { message?: string })
-min(path, value: number, options?: { message?: string })
-max(path, value: number, options?: { message?: string })
-minLength(path, length: number, options?: { message?: string })
-maxLength(path, length: number, options?: { message?: string })
-email(path, options?: { message?: string })
+// Operators (register validators in schema)
+validate(path, validator: Validator<TForm, TField>, options?: { message?: string })
+validateAsync(path, validator: AsyncValidator<TForm, TField>, options?: { message?: string; debounce?: number })
+validateGroup(scopePath, validator: GroupValidator<TForm, TScope>, options?: { targetField?: FieldPathNode })
 
-// Additional validators
-pattern(path, regex: RegExp, options?: { message?: string })
-url(path, options?: { message?: string })
-phone(path, options?: { message?: string; format?: PhoneFormat })
-number(path, options?: { message?: string })
-date(path, options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
+// Validator factories (return Validator). Pass to validate().
+required(options?: { message?: string })
+min(value: number, options?: { message?: string })
+max(value: number, options?: { message?: string })
+minLength(length: number, options?: { message?: string })
+maxLength(length: number, options?: { message?: string })
+email(options?: { message?: string })
+pattern(regex: RegExp, options?: { message?: string })
+url(options?: { message?: string; requireProtocol?: boolean })
+phone(options?: { message?: string; format?: PhoneFormat })
+number(options?: { message?: string; min?: number; max?: number; integer?: boolean })
+date(options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
+notEmpty(options?: { message?: string })
 
-// Custom validators
-validate(path, validator: (value, ctx) => ValidationError | null)
-validateAsync(path, validator: async (value, ctx) => ValidationError | null)
-validateTree(validator: (ctx) => ValidationError | null, options?: { targetField?: string })
+// Usage: pass a factory result to validate()
+validate(path.email, required());
+validate(path.age, min(18));
+validate(path.amount, number({ min: 0, max: 1000 }));
 
 // Conditional validation (3 arguments!)
 applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
@@ -37,8 +44,8 @@ applyWhen(
   path.loanType,                    // 1st: field to watch
   (type) => type === 'mortgage',    // 2nd: condition on field value
   (p) => {                          // 3rd: validators to apply
-    required(p.propertyValue);
-    min(p.propertyValue, 100000);
+    validate(p.propertyValue, required());
+    validate(p.propertyValue, min(100000));
   }
 );
 
@@ -47,8 +54,8 @@ applyWhen(
   path.address.country,
   (country) => country === 'US',
   (p) => {
-    required(p.address.state);
-    pattern(p.address.zip, /^\d{5}(-\d{4})?$/);
+    validate(p.address.state, required());
+    validate(p.address.zip, pattern(/^\d{5}(-\d{4})?$/));
   }
 );
 
@@ -57,19 +64,18 @@ applyWhen(
   path.hasInsurance,
   (has) => has === true,
   (p) => {
-    required(p.insuranceCompany);
-    required(p.policyNumber);
+    validate(p.insuranceCompany, required());
+    validate(p.policyNumber, required());
   }
 );
 
 // WRONG - only 2 arguments (React Hook Form pattern)
 applyWhen(
   (form) => form.loanType === 'mortgage',  // WRONG!
-  () => { required(path.propertyValue); }
+  () => { validate(path.propertyValue, required()); }
 );
 
-// Array validators
-notEmpty(path, options?: { message?: string })
+// Array item schema operator
 validateItems(arrayPath, itemValidatorsFn: (itemPath) => void)
 ```
 

@@ -139,13 +139,13 @@ export type { FieldPath, FieldPathNode } from '../types/field-path';
 // ============================================================================
 
 export type {
-  ContextualValidatorFn,
-  ContextualAsyncValidatorFn,
-  TreeValidatorFn,
+  Validator,
+  AsyncValidator,
+  GroupValidator,
+  ValidateGroupOptions,
   ConditionFn,
   ValidateOptions,
   ValidateAsyncOptions,
-  ValidateTreeOptions,
   ValidationSchemaFn,
   ValidatorRegistration,
 } from './validation-schema';

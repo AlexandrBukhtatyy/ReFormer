@@ -63,13 +63,13 @@ import type { CreditApplicationForm } from '@/types';
  * Validation for element of properties array
  */
 const propertyValidation: ValidationSchemaFn<Property> = (path: FieldPath<Property>) => {
-  required(path.type, { message: 'Property type is required' });
+  validate(path.type, required({ message: 'Property type is required' }));
 
-  required(path.description, { message: 'Property description is required' });
-  minLength(path.description, 10, { message: 'Minimum 10 characters for description' });
+  validate(path.description, required({ message: 'Property description is required' }));
+  validate(path.description, minLength(10, { message: 'Minimum 10 characters for description' }));
 
-  required(path.estimatedValue, { message: 'Estimated value is required' });
-  min(path.estimatedValue, 0, { message: 'Value must be non-negative' });
+  validate(path.estimatedValue, required({ message: 'Estimated value is required' }));
+  validate(path.estimatedValue, min(0, { message: 'Value must be non-negative' }));
 };
 
 /**
@@ -130,15 +130,15 @@ Add validation for existing loans:
 const existingLoanValidation: ValidationSchemaFn<ExistingLoan> = (
   path: FieldPath<ExistingLoan>
 ) => {
-  required(path.bank, { message: 'Bank name is required' });
+  validate(path.bank, required({ message: 'Bank name is required' }));
 
-  required(path.amount, { message: 'Loan amount is required' });
-  min(path.amount, 0, { message: 'Amount must be non-negative' });
+  validate(path.amount, required({ message: 'Loan amount is required' }));
+  validate(path.amount, min(0, { message: 'Amount must be non-negative' }));
 
-  min(path.remainingAmount, 0, { message: 'Remaining amount must be non-negative' });
+  validate(path.remainingAmount, min(0, { message: 'Remaining amount must be non-negative' }));
 
-  required(path.monthlyPayment, { message: 'Monthly payment is required' });
-  min(path.monthlyPayment, 0, { message: 'Monthly payment must be non-negative' });
+  validate(path.monthlyPayment, required({ message: 'Monthly payment is required' }));
+  validate(path.monthlyPayment, min(0, { message: 'Monthly payment must be non-negative' }));
 };
 
 export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
@@ -179,19 +179,19 @@ Add validation for co-borrowers with nested object validation:
  * Validation for element of co-borrowers array
  */
 const coBorrowerValidation: ValidationSchemaFn<CoBorrower> = (path: FieldPath<CoBorrower>) => {
-  required(path.personalData.firstName, { message: 'First name is required' });
-  required(path.personalData.lastName, { message: 'Last name is required' });
+  validate(path.personalData.firstName, required({ message: 'First name is required' }));
+  validate(path.personalData.lastName, required({ message: 'Last name is required' }));
 
-  required(path.phone, { message: 'Phone number is required' });
-  phone(path.phone, { message: 'Invalid phone format' });
+  validate(path.phone, required({ message: 'Phone number is required' }));
+  validate(path.phone, phone({ message: 'Invalid phone format' }));
 
-  required(path.email, { message: 'Email is required' });
-  email(path.email, { message: 'Invalid email format' });
+  validate(path.email, required({ message: 'Email is required' }));
+  validate(path.email, email({ message: 'Invalid email format' }));
 
-  required(path.monthlyIncome, { message: 'Monthly income is required' });
-  min(path.monthlyIncome, 0, { message: 'Income must be non-negative' });
+  validate(path.monthlyIncome, required({ message: 'Monthly income is required' }));
+  validate(path.monthlyIncome, min(0, { message: 'Income must be non-negative' }));
 
-  required(path.relationship, { message: 'Relationship is required' });
+  validate(path.relationship, required({ message: 'Relationship is required' }));
 };
 
 export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
@@ -365,8 +365,8 @@ Use `validateItems()` to validate all array elements:
 ```typescript
 // Define validation schema for array element
 const propertyValidation: ValidationSchemaFn<Property> = (path: FieldPath<Property>) => {
-  required(path.type, { message: 'Property type is required' });
-  minLength(path.description, 10, { message: 'Minimum 10 characters for description' });
+  validate(path.type, required({ message: 'Property type is required' }));
+  validate(path.description, minLength(10, { message: 'Minimum 10 characters for description' }));
 };
 
 // Apply to all items in the array
@@ -388,8 +388,8 @@ Validate fields within nested objects in arrays:
 ```typescript
 const coBorrowerValidation: ValidationSchemaFn<CoBorrower> = (path: FieldPath<CoBorrower>) => {
   // Validates firstName inside personalData inside each co-borrower
-  required(path.personalData.firstName, { message: 'First name is required' });
-  required(path.personalData.lastName, { message: 'Last name is required' });
+  validate(path.personalData.firstName, required({ message: 'First name is required' }));
+  validate(path.personalData.lastName, required({ message: 'Last name is required' }));
 };
 
 validateItems(path.coBorrowers, coBorrowerValidation);
@@ -494,8 +494,8 @@ Test these scenarios:
 ```typescript
 // Define element validation
 const itemValidation: ValidationSchemaFn<Item> = (path: FieldPath<Item>) => {
-  required(path.name, { message: 'Name is required' });
-  min(path.value, 0, { message: 'Value must be non-negative' });
+  validate(path.name, required({ message: 'Name is required' }));
+  validate(path.value, min(0, { message: 'Value must be non-negative' }));
 };
 
 // Array must not be empty when checkbox is true
@@ -528,7 +528,7 @@ validate(path.items, (items) => {
 ```typescript
 // Validate fields within nested objects
 const itemValidation: ValidationSchemaFn<Item> = (path: FieldPath<Item>) => {
-  required(path.contact.email, { message: 'Email is required' });
+  validate(path.contact.email, required({ message: 'Email is required' }));
 };
 
 validateItems(path.items, itemValidation);

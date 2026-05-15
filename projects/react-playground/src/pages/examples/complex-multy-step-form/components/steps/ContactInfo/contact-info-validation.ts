@@ -2,14 +2,14 @@ import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
 import {
   apply,
   applyWhen,
-  validateTree,
+  validate,
+  validateGroup,
   required,
   pattern,
   email,
 } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
-// Импортируем модульную validation схему для Address
 import { addressValidation } from '../../nested-forms/Address/address-validation';
 
 /**
@@ -19,31 +19,35 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Основной телефон
-  required(path.phoneMain, { message: 'Телефон обязателен' });
-  pattern(path.phoneMain, /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
-    message: 'Формат: +7 (___) ___-__-__',
-  });
+  validate(path.phoneMain, required({ message: 'Телефон обязателен' }));
+  validate(
+    path.phoneMain,
+    pattern(/^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
+      message: 'Формат: +7 (___) ___-__-__',
+    })
+  );
 
   // Дополнительный телефон (опциональный)
-  // Если указан, должен быть в правильном формате и отличаться от основного
-  pattern(path.phoneAdditional, /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
-    message: 'Формат: +7 (___) ___-__-__',
-  });
+  validate(
+    path.phoneAdditional,
+    pattern(/^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/, {
+      message: 'Формат: +7 (___) ___-__-__',
+    })
+  );
 
   // Email
-  required(path.email, { message: 'Email обязателен' });
-  email(path.email);
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, email());
 
   // Дополнительный email (опциональный)
-  // Если указан, должен быть в правильном формате и отличаться от основного
-  email(path.emailAdditional);
+  validate(path.emailAdditional, email());
 
-  // Кросс-полевая валидация: дополнительный телефон должен отличаться от основного
-  validateTree<CreditApplicationForm>(
-    (ctx) => {
-      const form = ctx.form.getValue();
+  // Cross-field: дополнительный телефон отличается от основного
+  validateGroup(
+    path,
+    (scope) => {
+      const form = scope.getValue();
       if (!form.phoneAdditional) return null;
-
       if (form.phoneMain === form.phoneAdditional) {
         return {
           code: 'phoneDuplicate',
@@ -52,15 +56,15 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
       }
       return null;
     },
-    { targetField: 'phoneAdditional' }
+    { targetField: path.phoneAdditional }
   );
 
-  // Кросс-полевая валидация: дополнительный email должен отличаться от основного
-  validateTree<CreditApplicationForm>(
-    (ctx) => {
-      const form = ctx.form.getValue();
+  // Cross-field: дополнительный email отличается от основного
+  validateGroup(
+    path,
+    (scope) => {
+      const form = scope.getValue();
       if (!form.emailAdditional) return null;
-
       if (form.email.toLowerCase() === form.emailAdditional.toLowerCase()) {
         return {
           code: 'emailDuplicate',
@@ -69,13 +73,13 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
       }
       return null;
     },
-    { targetField: 'emailAdditional' }
+    { targetField: path.emailAdditional }
   );
 
-  //  Валидация адреса регистрации через композицию
+  // Адрес регистрации через композицию
   apply(path.registrationAddress, addressValidation);
 
-  //  Условная валидация адреса проживания через композицию
+  // Условная валидация адреса проживания через композицию
   applyWhen(
     path.sameAsRegistration,
     (value) => value === false,

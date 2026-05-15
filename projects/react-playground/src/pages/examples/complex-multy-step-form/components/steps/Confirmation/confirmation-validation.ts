@@ -1,5 +1,12 @@
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
-import { validateAsync, required, minLength, maxLength, pattern } from '@reformer/core/validators';
+import {
+  validate,
+  validateAsync,
+  required,
+  minLength,
+  maxLength,
+  pattern,
+} from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 /**
@@ -8,49 +15,41 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 export const confirmationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  // Согласие на обработку персональных данных (обязательно)
-  // required() уже проверяет что boolean === true, дополнительный validate не нужен
-  required(path.agreePersonalData, {
-    message: 'Согласие на обработку персональных данных обязательно',
-  });
+  // Обязательные согласия (boolean === true проверяется внутри required())
+  validate(
+    path.agreePersonalData,
+    required({ message: 'Согласие на обработку персональных данных обязательно' })
+  );
+  validate(
+    path.agreeCreditHistory,
+    required({ message: 'Согласие на получение кредитной истории обязательно' })
+  );
+  validate(path.agreeTerms, required({ message: 'Согласие с условиями кредитования обязательно' }));
+  validate(
+    path.confirmAccuracy,
+    required({ message: 'Подтверждение точности данных обязательно' })
+  );
 
-  // Согласие на получение кредитной истории (обязательно)
-  required(path.agreeCreditHistory, {
-    message: 'Согласие на получение кредитной истории обязательно',
-  });
-
-  // Согласие с условиями кредитования (обязательно)
-  required(path.agreeTerms, { message: 'Согласие с условиями кредитования обязательно' });
-
-  // Подтверждение точности данных (обязательно)
-  required(path.confirmAccuracy, { message: 'Подтверждение точности данных обязательно' });
-
-  // Согласие на маркетинговые рассылки (опциональное)
-  // Это согласие не требует обязательного true, пользователь может отказаться
+  // Согласие на маркетинговые рассылки — опциональное.
 
   // Электронная подпись (код из СМС)
-  required(path.electronicSignature, { message: 'Введите код из СМС' });
-  minLength(path.electronicSignature, 6, { message: 'Код должен содержать 6 символов' });
-  maxLength(path.electronicSignature, 6, { message: 'Код должен содержать 6 символов' });
-  pattern(path.electronicSignature, /^\d{6}$/, {
-    message: 'Код должен содержать только цифры',
-  });
+  validate(path.electronicSignature, required({ message: 'Введите код из СМС' }));
+  validate(path.electronicSignature, minLength(6, { message: 'Код должен содержать 6 символов' }));
+  validate(path.electronicSignature, maxLength(6, { message: 'Код должен содержать 6 символов' }));
+  validate(
+    path.electronicSignature,
+    pattern(/^\d{6}$/, { message: 'Код должен содержать только цифры' })
+  );
 
-  // Асинхронная проверка кода подписи
+  // Async проверка кода подписи
   validateAsync(
     path.electronicSignature,
     async (value) => {
-      const code = value;
+      if (!value || value.length !== 6) return null;
 
-      // Проверяем только если код полностью введен
-      if (!code || code.length !== 6) return null;
-
-      // Для демонстрации: симулируем задержку API
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Пример валидации: код должен быть "123456" для демо
-      // В продакшене это должна быть реальная проверка на сервере
-      if (code !== '123456') {
+      if (value !== '123456') {
         return {
           code: 'invalidSmsCode',
           message: 'Неверный код подтверждения. Для демо используйте: 123456',

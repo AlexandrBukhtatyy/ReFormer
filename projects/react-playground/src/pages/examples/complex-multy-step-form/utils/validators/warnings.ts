@@ -1,23 +1,21 @@
 /**
- * Warnings (предупреждения) для формы заявки на кредит
+ * Warnings (предупреждения) для формы заявки на кредит.
  *
- * Согласно спецификации, предупреждения показываются пользователю,
- * но не блокируют отправку формы (severity: 'warning')
+ * severity: 'warning' — показываются пользователю, но не блокируют отправку.
  */
 
-import type { FormContext, ValidationError } from '@reformer/core';
+import type { GroupValidator } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
- * Предупреждение о высокой долговой нагрузке (> 40%)
+ * Предупреждение о высокой долговой нагрузке (> 40%, ≤ 50%).
  */
-export function warnHighDebtLoad(ctx: FormContext<CreditApplicationForm>): ValidationError | null {
-  const form = ctx.form.getValue();
+export const warnHighDebtLoad: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
   const ratio = form.paymentToIncomeRatio;
 
   if (!ratio) return null;
 
-  // Предупреждение при > 40%, но ошибка только при > 50% (в другом валидаторе)
   if (ratio > 40 && ratio <= 50) {
     return {
       code: 'highDebtLoad',
@@ -27,13 +25,13 @@ export function warnHighDebtLoad(ctx: FormContext<CreditApplicationForm>): Valid
   }
 
   return null;
-}
+};
 
 /**
- * Предупреждение о возрасте > 60 лет
+ * Предупреждение о возрасте > 60 лет.
  */
-export function warnSeniorAge(ctx: FormContext<CreditApplicationForm>): ValidationError | null {
-  const form = ctx.form.getValue();
+export const warnSeniorAge: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
   const age = form.age;
 
   if (!age) return null;
@@ -47,15 +45,13 @@ export function warnSeniorAge(ctx: FormContext<CreditApplicationForm>): Validati
   }
 
   return null;
-}
+};
 
 /**
- * Предупреждение о малом стаже на текущем месте работы (< 3 месяцев)
+ * Предупреждение о малом стаже на текущем месте работы (< 3 месяцев).
  */
-export function warnLowWorkExperience(
-  ctx: FormContext<CreditApplicationForm>
-): ValidationError | null {
-  const form = ctx.form.getValue();
+export const warnLowWorkExperience: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
   const experience = form.workExperienceCurrent;
 
   if (experience === null || experience === undefined) return null;
@@ -69,4 +65,4 @@ export function warnLowWorkExperience(
   }
 
   return null;
-}
+};

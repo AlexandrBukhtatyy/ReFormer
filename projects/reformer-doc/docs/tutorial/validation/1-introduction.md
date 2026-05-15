@@ -52,12 +52,12 @@ Use declarative validation:
 ```tsx
 // ✅ Declarative approach - validation schema
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.loanAmount, { message: 'Loan amount is required' });
-  min(path.loanAmount, 50000, { message: 'Minimum amount: 50,000' });
-  max(path.loanAmount, 10000000, { message: 'Maximum amount: 10,000,000' });
+  validate(path.loanAmount, required({ message: 'Loan amount is required' }));
+  validate(path.loanAmount, min(50000, { message: 'Minimum amount: 50,000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Maximum amount: 10,000,000' }));
 
-  required(path.email, { message: 'Email is required' });
-  email(path.email, { message: 'Invalid email format' });
+  validate(path.email, required({ message: 'Email is required' }));
+  validate(path.email, email({ message: 'Invalid email format' }));
 };
 ```
 
@@ -82,15 +82,15 @@ Basic validation for common scenarios:
 import { required, min, max, minLength, maxLength } from '@reformer/core/validators';
 
 // Required field
-required(path.loanAmount, { message: 'Loan amount is required' });
+validate(path.loanAmount, required({ message: 'Loan amount is required' }));
 
 // Numeric boundaries
-min(path.loanAmount, 50000, { message: 'Minimum: 50,000' });
-max(path.loanAmount, 10000000, { message: 'Maximum: 10,000,000' });
+validate(path.loanAmount, min(50000, { message: 'Minimum: 50,000' }));
+validate(path.loanAmount, max(10000000, { message: 'Maximum: 10,000,000' }));
 
 // String length
-minLength(path.loanPurpose, 10, { message: 'Minimum 10 characters' });
-maxLength(path.loanPurpose, 500, { message: 'Maximum 500 characters' });
+validate(path.loanPurpose, minLength(10, { message: 'Minimum 10 characters' }));
+validate(path.loanPurpose, maxLength(500, { message: 'Maximum 500 characters' }));
 ```
 
 ### Format Validators
@@ -101,15 +101,15 @@ Validate common formats:
 import { email, phone, pattern } from '@reformer/core/validators';
 
 // Email format
-email(path.email, { message: 'Invalid email format' });
+validate(path.email, email({ message: 'Invalid email format' }));
 
 // Phone format
-phone(path.phoneMain, { message: 'Invalid phone format' });
+validate(path.phoneMain, phone({ message: 'Invalid phone format' }));
 
 // Custom pattern (Russian passport)
-pattern(path.passportData.series, /^\d{4}$/, {
+validate(path.passportData.series, pattern(/^\d{4}$/, {
   message: 'Series must be 4 digits',
-});
+}));
 ```
 
 ### Conditional Validators

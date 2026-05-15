@@ -57,12 +57,12 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 1. Down Payment >= 20% of Property Value
   // ==========================================
-  validate(path.initialPayment, (initialPayment, ctx) => {
-    const loanType = ctx.form.loanType.value.value;
+  validate(path.initialPayment, (initialPayment, _control, root) => {
+    const loanType = root.loanType.value.value;
     // Only validate for mortgage loans
     if (loanType !== 'mortgage') return null;
 
-    const propertyValue = ctx.form.propertyValue.value.value;
+    const propertyValue = root.propertyValue.value.value;
     if (!propertyValue || !initialPayment) return null;
 
     const minPayment = propertyValue * 0.2;
@@ -89,9 +89,9 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
   // ==========================================
   // 2. Monthly Payment <= 50% of Income
   // ==========================================
-  validate(path.monthlyPayment, (monthlyPayment, ctx) => {
-    const totalIncome = ctx.form.totalIncome.value.value || 0;
-    const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  validate(path.monthlyPayment, (monthlyPayment, _control, root) => {
+    const totalIncome = root.totalIncome.value.value || 0;
+    const coBorrowersIncome = root.coBorrowersIncome.value.value || 0;
     const householdIncome = totalIncome + coBorrowersIncome;
 
     // Can't validate without income information
@@ -121,12 +121,12 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
   // ==========================================
   // 3. Loan Amount <= Car Price
   // ==========================================
-  validate(path.loanAmount, (loanAmount, ctx) => {
-    const loanType = ctx.form.loanType.value.value;
+  validate(path.loanAmount, (loanAmount, _control, root) => {
+    const loanType = root.loanType.value.value;
     // Only validate for car loans
     if (loanType !== 'car') return null;
 
-    const carPrice = ctx.form.carPrice.value.value;
+    const carPrice = root.carPrice.value.value;
     if (!carPrice || !loanAmount) return null;
 
     if (loanAmount > carPrice) {
@@ -552,10 +552,10 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Custom Validators with Dependencies
 
 ```typescript
-validate(path.monthlyPayment, (monthlyPayment, ctx) => {
+validate(path.monthlyPayment, (monthlyPayment, _control, root) => {
   // Access dependencies via context
-  const totalIncome = ctx.form.totalIncome.value.value || 0;
-  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  const totalIncome = root.totalIncome.value.value || 0;
+  const coBorrowersIncome = root.coBorrowersIncome.value.value || 0;
 
   // Validation logic
   // Return null if valid
@@ -567,7 +567,7 @@ validate(path.monthlyPayment, (monthlyPayment, ctx) => {
 
 - First parameter: field being validated
 - Second parameter: validation function receiving value and context
-- Access other fields via `ctx.form`
+- Access other fields via `root`
 - Validator re-runs when dependencies change
 - Use `code` property instead of `type`
 
@@ -698,11 +698,11 @@ For testing, create mock API endpoints:
 ### 1. Early Returns
 
 ```typescript
-validate(path.field, (value, ctx) => {
+validate(path.field, (value, _control, root) => {
   // Return early for cases that don't need validation
   if (!value) return null;
 
-  const dep = ctx.form.dependency.value.value;
+  const dep = root.dependency.value.value;
   if (!dep) return null;
   if (someCondition) return null;
 

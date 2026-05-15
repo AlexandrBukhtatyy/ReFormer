@@ -1,4 +1,4 @@
-import { required, minLength } from '@reformer/core/validators';
+import { validate, required, minLength } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
@@ -9,16 +9,24 @@ export const confirmationValidation: ValidationSchemaFn<CreditApplicationForm> =
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Обязательные согласия
-  required(path.agreePersonalData, {
-    message: 'Необходимо согласие на обработку персональных данных',
-  });
-  required(path.agreeCreditHistory, {
-    message: 'Необходимо согласие на проверку кредитной истории',
-  });
-  required(path.agreeTerms, { message: 'Необходимо согласие с условиями кредитования' });
-  required(path.confirmAccuracy, { message: 'Необходимо подтверждение достоверности данных' });
+  validate(
+    path.agreePersonalData,
+    required({ message: 'Необходимо согласие на обработку персональных данных' })
+  );
+  validate(
+    path.agreeCreditHistory,
+    required({ message: 'Необходимо согласие на проверку кредитной истории' })
+  );
+  validate(path.agreeTerms, required({ message: 'Необходимо согласие с условиями кредитования' }));
+  validate(
+    path.confirmAccuracy,
+    required({ message: 'Необходимо подтверждение достоверности данных' })
+  );
 
   // Электронная подпись
-  required(path.electronicSignature, { message: 'Введите код из СМС' });
-  minLength(path.electronicSignature, 4, { message: 'Код должен содержать минимум 4 символа' });
+  validate(path.electronicSignature, required({ message: 'Введите код из СМС' }));
+  validate(
+    path.electronicSignature,
+    minLength(4, { message: 'Код должен содержать минимум 4 символа' })
+  );
 };

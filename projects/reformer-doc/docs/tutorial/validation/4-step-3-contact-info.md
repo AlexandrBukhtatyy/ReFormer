@@ -58,22 +58,22 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
 
   // Main phone (required)
-  required(path.phoneMain, { message: 'Main phone number is required' });
-  phone(path.phoneMain, { message: 'Invalid phone format' });
+  validate(path.phoneMain, required({ message: 'Main phone number is required' }));
+  validate(path.phoneMain, phone({ message: 'Invalid phone format' }));
 
   // Additional phone (optional, but must be valid if provided)
-  phone(path.phoneAdditional, { message: 'Invalid phone format' });
+  validate(path.phoneAdditional, phone({ message: 'Invalid phone format' }));
 
   // ==========================================
   // Email Addresses
   // ==========================================
 
   // Main email (required)
-  required(path.email, { message: 'Email is required' });
-  email(path.email, { message: 'Invalid email format' });
+  validate(path.email, required({ message: 'Email is required' }));
+  validate(path.email, email({ message: 'Invalid email format' }));
 
   // Additional email (optional, but must be valid if provided)
-  email(path.emailAdditional, { message: 'Invalid email format' });
+  validate(path.emailAdditional, email({ message: 'Invalid email format' }));
 };
 ```
 
@@ -93,18 +93,18 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
   // Registration Address (Always Required)
   // ==========================================
 
-  required(path.registrationAddress.city, { message: 'City is required' });
+  validate(path.registrationAddress.city, required({ message: 'City is required' }));
 
-  required(path.registrationAddress.street, { message: 'Street is required' });
+  validate(path.registrationAddress.street, required({ message: 'Street is required' }));
 
-  required(path.registrationAddress.house, { message: 'House number is required' });
+  validate(path.registrationAddress.house, required({ message: 'House number is required' }));
 
   // Apartment is optional, no validation needed
 
   // Postal code (optional, but must be 6 digits if provided)
-  pattern(path.registrationAddress.postalCode, /^\d{6}$/, {
+  validate(path.registrationAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Postal code must be 6 digits',
-  });
+  }));
 };
 ```
 
@@ -130,9 +130,9 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
     }
   );
 
-  pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
+  validate(path.residenceAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Postal code must be 6 digits',
-  });
+  }));
 };
 ```
 
@@ -161,31 +161,31 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Phone Numbers
   // ==========================================
 
-  required(path.phoneMain, { message: 'Main phone number is required' });
-  phone(path.phoneMain, { message: 'Invalid phone format' });
+  validate(path.phoneMain, required({ message: 'Main phone number is required' }));
+  validate(path.phoneMain, phone({ message: 'Invalid phone format' }));
 
-  phone(path.phoneAdditional, { message: 'Invalid phone format' });
+  validate(path.phoneAdditional, phone({ message: 'Invalid phone format' }));
 
   // ==========================================
   // Email Addresses
   // ==========================================
 
-  required(path.email, { message: 'Email is required' });
-  email(path.email, { message: 'Invalid email format' });
+  validate(path.email, required({ message: 'Email is required' }));
+  validate(path.email, email({ message: 'Invalid email format' }));
 
-  email(path.emailAdditional, { message: 'Invalid email format' });
+  validate(path.emailAdditional, email({ message: 'Invalid email format' }));
 
   // ==========================================
   // Registration Address (Always Required)
   // ==========================================
 
-  required(path.registrationAddress.city, { message: 'City is required' });
-  required(path.registrationAddress.street, { message: 'Street is required' });
-  required(path.registrationAddress.house, { message: 'House number is required' });
+  validate(path.registrationAddress.city, required({ message: 'City is required' }));
+  validate(path.registrationAddress.street, required({ message: 'Street is required' }));
+  validate(path.registrationAddress.house, required({ message: 'House number is required' }));
 
-  pattern(path.registrationAddress.postalCode, /^\d{6}$/, {
+  validate(path.registrationAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Postal code must be 6 digits',
-  });
+  }));
 
   // ==========================================
   // Residence Address (Conditionally Required)
@@ -201,9 +201,9 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
     }
   );
 
-  pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
+  validate(path.residenceAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Postal code must be 6 digits',
-  });
+  }));
 };
 ```
 
@@ -212,7 +212,7 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Email Validator
 
 ```typescript
-email(path.email, { message: 'Invalid email format' });
+validate(path.email, email({ message: 'Invalid email format' }));
 ```
 
 - Built-in email format validation
@@ -223,7 +223,7 @@ email(path.email, { message: 'Invalid email format' });
 ### Phone Validator
 
 ```typescript
-phone(path.phoneMain, { message: 'Invalid phone format' });
+validate(path.phoneMain, phone({ message: 'Invalid phone format' }));
 ```
 
 - Built-in phone format validation
@@ -366,23 +366,23 @@ The `email()` validator follows standard email format:
 ### Required Email
 
 ```typescript
-required(path.email, { message: 'Email is required' });
-email(path.email, { message: 'Invalid email format' });
+validate(path.email, required({ message: 'Email is required' }));
+validate(path.email, email({ message: 'Invalid email format' }));
 ```
 
 ### Optional Email (validates format if provided)
 
 ```typescript
-email(path.emailAdditional, { message: 'Invalid email format' });
+validate(path.emailAdditional, email({ message: 'Invalid email format' }));
 // No required() - field is optional
 ```
 
 ### Russian Postal Code
 
 ```typescript
-pattern(path.postalCode, /^\d{6}$/, {
+validate(path.postalCode, pattern(/^\d{6}$/, {
   message: 'Postal code must be 6 digits',
-});
+}));
 ```
 
 ## What's Next?

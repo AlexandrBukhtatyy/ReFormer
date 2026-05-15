@@ -1,50 +1,48 @@
 /**
- * Применение валидаторов к форме
+ * Применение валидаторов к форме.
  *
- * Извлечено из GroupNode для соблюдения SRP (Single Responsibility Principle).
  * Отвечает только за логику применения валидаторов к полям формы.
  *
+ * Новый контракт:
+ * - Sync/Async валидаторы вызываются как `(value, controlProxy, rootProxy)`.
+ * - Group валидаторы — как `(scopeProxy, rootProxy)`.
+ *
  * @template T Тип формы
- *
- * @example
- * ```typescript
- * class GroupNode {
- *   private readonly validationApplicator = new ValidationApplicator(this);
- *
- *   async applyContextualValidators(validators: ValidatorRegistration[]) {
- *     await this.validationApplicator.apply(validators);
- *   }
- * }
- * ```
  */
 
 import type { GroupNode } from '../nodes/group-node';
 import type {
   ValidatorRegistration,
   ValidationError,
-  TreeValidatorFn,
-  ContextualValidatorFn,
-  ContextualAsyncValidatorFn,
+  Validator,
+  AsyncValidator,
+  GroupValidator,
+  FormProxy,
 } from '../types';
-import {
-  ValidationContextImpl,
-  TreeValidationContextImpl,
-  ArrayValidationContextImpl,
-} from './validation-context';
-import { isFieldNode, isArrayNode } from '../utils/type-guards';
+import { isFieldNode, isArrayNode, isGroupNode } from '../utils/type-guards';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
- * Класс для применения валидаторов к форме
- *
- * Выполняет:
- * - Группировку валидаторов по полям
- * - Фильтрацию по условиям (condition)
- * - Применение sync/async валидаторов к FieldNode
- * - Применение tree валидаторов (кросс-полевая валидация)
- *
- * @template T Тип формы (объект)
+ * Узел, у которого можно получить FormProxy.
+ * GroupNode/ArrayNode имеют getProxy(); FieldNode выступает сам себе FormProxy.
  */
+interface ProxyCarrier<TField> {
+  getProxy?: () => FormProxy<TField>;
+}
+
+/**
+ * Получить FormProxy для узла-control.
+ * - GroupNode/ArrayNode: вызываем getProxy().
+ * - FieldNode: сам node является FormProxy<TField> для лиф-типов (см. form-proxy.ts).
+ */
+function controlProxyOf<TField>(control: unknown): FormProxy<TField> {
+  const c = control as ProxyCarrier<TField>;
+  if (typeof c.getProxy === 'function') {
+    return c.getProxy();
+  }
+  return control as FormProxy<TField>;
+}
+
 export class ValidationApplicator<T> {
   private readonly form: GroupNode<T>;
 
@@ -53,72 +51,49 @@ export class ValidationApplicator<T> {
   }
 
   /**
-   * Применить валидаторы к полям формы
-   *
-   * Этапы применения:
-   * 1. Разделение валидаторов на field и tree
-   * 2. Применение field валидаторов (sync/async)
-   * 3. Применение tree валидаторов (кросс-полевая валидация)
-   *
-   * @param validators Зарегистрированные валидаторы
+   * Применить валидаторы к полям формы.
    */
   async apply(validators: ValidatorRegistration[]): Promise<void> {
-    // 1. Группировка валидаторов
-    const { validatorsByField, treeValidators } = this.groupValidators(validators);
+    const { validatorsByField, groupValidators } = this.groupValidators(validators);
 
-    // 2. Применение field валидаторов
     await this.applyFieldValidators(validatorsByField);
-
-    // 3. Применение tree валидаторов
-    this.applyTreeValidators(treeValidators);
+    this.applyGroupValidators(groupValidators);
   }
 
-  /**
-   * Группировка валидаторов по типам
-   *
-   * Разделяет валидаторы на:
-   * - Field validators (sync/async) - группируются по fieldPath
-   * - Tree validators - применяются ко всей форме
-   *
-   * @param validators Все зарегистрированные валидаторы
-   * @returns Сгруппированные валидаторы
-   */
   private groupValidators(validators: ValidatorRegistration[]): {
     validatorsByField: Map<string, ValidatorRegistration[]>;
-    treeValidators: ValidatorRegistration[];
+    groupValidators: ValidatorRegistration[];
   } {
     const validatorsByField = new Map<string, ValidatorRegistration[]>();
-    const treeValidators: ValidatorRegistration[] = [];
+    const groupValidators: ValidatorRegistration[] = [];
 
     for (const registration of validators) {
-      if (registration.type === 'tree') {
-        treeValidators.push(registration);
-      } else {
-        const existing = validatorsByField.get(registration.fieldPath) || [];
-        existing.push(registration);
-        validatorsByField.set(registration.fieldPath, existing);
+      if (registration.type === 'group') {
+        groupValidators.push(registration);
+        continue;
       }
+      if (registration.type === 'array-items') {
+        // array-items обрабатываются в ValidationRegistry.applyArrayItemValidators
+        continue;
+      }
+      const existing = validatorsByField.get(registration.fieldPath) || [];
+      existing.push(registration);
+      validatorsByField.set(registration.fieldPath, existing);
     }
 
-    return { validatorsByField, treeValidators };
+    return { validatorsByField, groupValidators };
   }
 
   /**
-   * Применение field валидаторов к полям
-   *
-   * Для каждого поля:
-   * 1. Найти FieldNode по пути
-   * 2. Проверить условия (condition)
-   * 3. Выполнить sync/async валидаторы
-   * 4. Установить ошибки на поле
-   *
-   * @param validatorsByField Валидаторы, сгруппированные по полям
+   * Применение sync/async валидаторов к полям.
    */
   private async applyFieldValidators(
     validatorsByField: Map<string, ValidatorRegistration[]>
   ): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rootProxy = this.form.getProxy() as FormProxy<any>;
+
     for (const [fieldPath, fieldValidators] of validatorsByField) {
-      // Поддержка вложенных путей (например, "personalData.lastName")
       const control = this.form.getFieldByPath(fieldPath);
 
       if (!control) {
@@ -129,7 +104,8 @@ export class ValidationApplicator<T> {
         continue;
       }
 
-      // Валидация работает с FieldNode и ArrayNode
+      // Валидация работает только с FieldNode и ArrayNode.
+      // GroupNode-валидация делается через validateGroup со scope.
       if (!isFieldNode(control) && !isArrayNode(control)) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn(`Validation can only run on FieldNode or ArrayNode, skipping ${fieldPath}`);
@@ -139,42 +115,32 @@ export class ValidationApplicator<T> {
 
       const errors: ValidationError[] = [];
 
-      // Создаем контекст в зависимости от типа ноды
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let context: any;
+      // Значение поля для передачи валидатору.
+      // FieldNode: control.value.value; ArrayNode: control.getValue() (массив значений).
+      let value: unknown;
       if (isArrayNode(control)) {
-        // Для ArrayNode получаем значение через getValue()
-        const arrayValue = control.getValue();
-        context = new ArrayValidationContextImpl(this.form, fieldPath as keyof T, arrayValue);
+        value = control.getValue();
       } else {
-        context = new ValidationContextImpl(this.form, fieldPath as keyof T, control);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        value = (control as any).value.value;
       }
 
-      // Выполнение валидаторов с учетом условий
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const controlProxy = controlProxyOf<any>(control);
+
       for (const registration of fieldValidators) {
-        // Проверка условия (condition)
         if (registration.condition) {
-          const shouldApply = this.checkCondition(registration.condition);
-          if (!shouldApply) {
-            continue;
-          }
+          if (!this.checkCondition(registration.condition)) continue;
         }
 
-        // Выполнение валидатора
-        // Новый паттерн: (value, ctx) => ValidationError | null
         try {
           let error: ValidationError | null = null;
-          const value = context.value();
-
           if (registration.type === 'sync') {
-            const validator = registration.validator as ContextualValidatorFn<unknown, unknown>;
-            error = validator(value, context);
+            const validator = registration.validator as Validator<unknown, unknown>;
+            error = validator(value, controlProxy, rootProxy);
           } else if (registration.type === 'async') {
-            const validator = registration.validator as ContextualAsyncValidatorFn<
-              unknown,
-              unknown
-            >;
-            error = await validator(value, context);
+            const validator = registration.validator as AsyncValidator<unknown, unknown>;
+            error = await validator(value, controlProxy, rootProxy);
           }
 
           if (error) {
@@ -189,73 +155,91 @@ export class ValidationApplicator<T> {
         }
       }
 
-      // Установка ошибок на ноду
-      // Contextual validators полностью управляют ошибками полей, для которых они зарегистрированы
       if (errors.length > 0) {
         control.setErrors(errors);
       } else {
-        // Если contextual validators прошли без ошибок, очищаем ошибки поля
-        // Это обеспечивает консистентное поведение: setErrors() и clearErrors()
-        // одинаково управляют состоянием ошибок
-        control.clearErrors();
+        // Очистить ошибки, если они были contextual
+        if (
+          control.errors.value.length > 0 &&
+          !control.errors.value.some((e) => e.code !== 'contextual')
+        ) {
+          control.clearErrors();
+        }
       }
     }
   }
 
   /**
-   * Применение tree валидаторов (кросс-полевая валидация)
+   * Применение group (cross-field) валидаторов.
    *
-   * Tree валидаторы имеют доступ ко всей форме через TreeValidationContext.
-   * Ошибки устанавливаются на targetField (если указано).
+   * Scope определяется `registration.scopePath`:
+   * - '' (пустая строка) → scope = root form;
+   * - 'foo.bar' → scope = FormProxy подузла по пути.
    *
-   * @param treeValidators Список tree валидаторов
+   * Ошибка ставится на `options.targetField` (FieldPathNode → строка пути).
+   * Если `targetField` не задан, ошибка теряется (диагностика в DEV).
    */
-  private applyTreeValidators(treeValidators: ValidatorRegistration[]): void {
-    for (const registration of treeValidators) {
-      const context = new TreeValidationContextImpl(this.form);
+  private applyGroupValidators(groupValidators: ValidatorRegistration[]): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rootProxy = this.form.getProxy() as FormProxy<any>;
 
-      // Проверка условия (condition)
+    for (const registration of groupValidators) {
       if (registration.condition) {
-        const shouldApply = this.checkCondition(registration.condition);
-        if (!shouldApply) {
-          continue;
-        }
+        if (!this.checkCondition(registration.condition)) continue;
       }
 
-      // Выполнение tree валидатора
+      // Определяем scope proxy.
+      let scopeProxy: FormProxy<unknown>;
+      const scopePath = registration.scopePath ?? '';
+      if (!scopePath) {
+        scopeProxy = rootProxy;
+      } else {
+        const scopeNode = this.form.getFieldByPath(scopePath);
+        if (!scopeNode) {
+          if (import.meta.env.DEV) {
+            console.warn(`validateGroup: scope path "${scopePath}" not found`);
+          }
+          continue;
+        }
+        scopeProxy = isGroupNode(scopeNode)
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (scopeNode as any).getProxy()
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (scopeNode as any);
+      }
+
       try {
-        // Tree валидаторы должны использовать TreeValidatorFn
-        if (registration.type !== 'tree') {
+        const validator = registration.validator as GroupValidator<unknown, unknown>;
+        const error = validator(scopeProxy, rootProxy);
+
+        if (!error) continue;
+
+        // Привязка ошибки к targetField (если задан).
+        const targetPath =
+          registration.fieldPath && registration.fieldPath !== '__group__'
+            ? registration.fieldPath
+            : null;
+
+        if (!targetPath) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              'validateGroup: error returned, but targetField not specified — error is dropped'
+            );
+          }
           continue;
         }
 
-        const validator = registration.validator as TreeValidatorFn<unknown>;
-        const error = validator(context);
-        if (error && registration.options && 'targetField' in registration.options) {
-          const targetField = registration.options.targetField;
-          if (targetField) {
-            const targetControl = this.form.getFieldByPath(String(targetField));
-            if (targetControl && isFieldNode(targetControl)) {
-              const existingErrors = targetControl.errors.value;
-              targetControl.setErrors([...existingErrors, error]);
-            }
-          }
+        const targetControl = this.form.getFieldByPath(targetPath);
+        if (targetControl && isFieldNode(targetControl)) {
+          const existingErrors = targetControl.errors.value;
+          targetControl.setErrors([...existingErrors, error]);
         }
       } catch (e) {
-        FormErrorHandler.handle(e, 'ValidationApplicator: tree validator', ErrorStrategy.LOG);
+        FormErrorHandler.handle(e, 'ValidationApplicator: group validator', ErrorStrategy.LOG);
       }
     }
   }
 
-  /**
-   * Проверка условия (condition) для валидатора
-   *
-   * Условие определяет, должен ли валидатор выполняться.
-   * Использует getFieldByPath для поддержки вложенных путей.
-   *
-   * @param condition Условие валидатора
-   * @returns true, если условие выполнено
-   */
   private checkCondition(condition: {
     fieldPath: string;
     conditionFn: (value: unknown) => boolean;
@@ -264,8 +248,8 @@ export class ValidationApplicator<T> {
     if (!conditionField) {
       return false;
     }
-
-    const conditionValue = conditionField.value.value;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conditionValue = (conditionField as any).value.value;
     return condition.conditionFn(conditionValue);
   }
 }

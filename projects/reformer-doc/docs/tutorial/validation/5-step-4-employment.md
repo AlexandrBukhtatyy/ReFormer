@@ -63,18 +63,18 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
 
   // Employment status (always required)
-  required(path.employmentStatus, { message: 'Employment status is required' });
+  validate(path.employmentStatus, required({ message: 'Employment status is required' }));
 
   // Monthly income (always required, minimum threshold)
-  required(path.monthlyIncome, { message: 'Monthly income is required' });
-  min(path.monthlyIncome, 10000, {
+  validate(path.monthlyIncome, required({ message: 'Monthly income is required' }));
+  validate(path.monthlyIncome, min(10000, {
     message: 'Minimum monthly income: 10,000',
-  });
+  }));
 
   // Additional income (optional, but must be non-negative if provided)
-  min(path.additionalIncome, 0, {
+  validate(path.additionalIncome, min(0, {
     message: 'Additional income cannot be negative',
-  });
+  }));
 };
 ```
 
@@ -132,9 +132,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
     }
   );
 
-  pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
+  validate(path.businessInn, pattern(/^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
-  });
+  }));
 };
 ```
 
@@ -163,16 +163,16 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Basic Employment Fields
   // ==========================================
 
-  required(path.employmentStatus, { message: 'Employment status is required' });
+  validate(path.employmentStatus, required({ message: 'Employment status is required' }));
 
-  required(path.monthlyIncome, { message: 'Monthly income is required' });
-  min(path.monthlyIncome, 10000, {
+  validate(path.monthlyIncome, required({ message: 'Monthly income is required' }));
+  validate(path.monthlyIncome, min(10000, {
     message: 'Minimum monthly income: 10,000',
-  });
+  }));
 
-  min(path.additionalIncome, 0, {
+  validate(path.additionalIncome, min(0, {
     message: 'Additional income cannot be negative',
-  });
+  }));
 
   // ==========================================
   // Conditional: Employed Fields
@@ -210,9 +210,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
     }
   );
 
-  pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
+  validate(path.businessInn, pattern(/^\d{10}$|^\d{12}$/, {
     message: 'Business INN must be 10 or 12 digits',
-  });
+  }));
 };
 ```
 
@@ -223,9 +223,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
 These fields are required regardless of employment status:
 
 ```typescript
-required(path.employmentStatus, { message: 'Employment status is required' });
-required(path.monthlyIncome, { message: 'Monthly income is required' });
-min(path.monthlyIncome, 10000, { message: 'Minimum monthly income: 10,000' });
+validate(path.employmentStatus, required({ message: 'Employment status is required' }));
+validate(path.monthlyIncome, required({ message: 'Monthly income is required' }));
+validate(path.monthlyIncome, min(10000, { message: 'Minimum monthly income: 10,000' }));
 ```
 
 ### Conditionally Required Fields
@@ -366,9 +366,9 @@ applyWhen(
 
 ```typescript
 // No required(), just min(0) to prevent negatives
-min(path.additionalIncome, 0, {
+validate(path.additionalIncome, min(0, {
   message: 'Cannot be negative',
-});
+}));
 ```
 
 ## What's Next?

@@ -13,7 +13,7 @@ import {
   type FieldNode,
   type FieldPath,
 } from '@reformer/core';
-import { required, min, max } from '@reformer/core/validators';
+import { required, min, max, validate } from '@reformer/core/validators';
 import {
   computeFrom,
   enableWhen,
@@ -192,13 +192,13 @@ const behaviorsFormSchema: FormSchema<BehaviorsDemoForm> = {
 
 // Валидация
 const behaviorsFormValidation = (path: FieldPath<BehaviorsDemoForm>) => {
-  required(path.price, { message: 'Укажите цену' });
-  min(path.price, 0, { message: 'Цена не может быть отрицательной' });
-  required(path.quantity, { message: 'Укажите количество' });
-  min(path.quantity, 1, { message: 'Минимум 1' });
+  validate(path.price, required({ message: 'Укажите цену' }));
+  validate(path.price, min(0, { message: 'Цена не может быть отрицательной' }));
+  validate(path.quantity, required({ message: 'Укажите количество' }));
+  validate(path.quantity, min(1, { message: 'Минимум 1' }));
 
   // Динамическая валидация: amount <= maxAmount
-  max(path.amount, 1000, { message: 'Превышен лимит' });
+  validate(path.amount, max(1000, { message: 'Превышен лимит' }));
 };
 
 // Behavior схема

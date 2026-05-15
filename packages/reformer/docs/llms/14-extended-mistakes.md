@@ -89,17 +89,29 @@ enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOn
 
 See `22-cycle-detection.md` for complete pattern.
 
-### validateTree Typing
+### validateGroup Typing
 
 ```typescript
-// WRONG - implicit any
-validateTree((ctx) => { ... });
+// validateGroup signature: (scopePath, validator, options?)
+// validator: (scope, root) => ValidationError | null
 
-// CORRECT - explicit typing
-validateTree((ctx: { form: MyForm }) => {
-  if (ctx.form.field1 > ctx.form.field2) {
+// CORRECT - scope = root form (pass path as scopePath)
+validateGroup(path, (scope, root) => {
+  const v = scope.getValue();           // typed as TForm
+  if (v.field1 > v.field2) {
     return { code: 'error', message: 'Invalid' };
   }
   return null;
+}, { targetField: path.field1 });
+
+// CORRECT - scope = subtree
+validateGroup(path.address, (address, root) => {
+  if (address.city.value.value === '') {
+    return { code: 'cityRequired', message: 'City required' };
+  }
+  return null;
 });
+
+// WRONG - old API removed
+validateTree((ctx) => { ... });        // validateTree no longer exists
 ```

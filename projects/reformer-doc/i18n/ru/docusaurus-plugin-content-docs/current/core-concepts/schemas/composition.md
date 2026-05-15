@@ -136,11 +136,11 @@ import { required, pattern } from '@reformer/core/validators';
 import { Address } from '../schemas/address-schema';
 
 export function validateAddress(path: FieldPath<Address>) {
-  required(path.street);
-  required(path.city);
-  required(path.state);
-  required(path.zipCode);
-  pattern(path.zipCode, /^\d{5}(-\d{4})?$/, 'Некорректный почтовый индекс');
+  validate(path.street, required());
+  validate(path.city, required());
+  validate(path.state, required());
+  validate(path.zipCode, required());
+  validate(path.zipCode, pattern(/^\d{5}(-\d{4})?$/, { message: 'Некорректный почтовый индекс' }));
 }
 ```
 
@@ -150,11 +150,11 @@ import { required, email, minLength } from '@reformer/core/validators';
 import { Person } from '../schemas/person-schema';
 
 export function validatePerson(path: FieldPath<Person>) {
-  required(path.firstName);
-  minLength(path.firstName, 2);
-  required(path.lastName);
-  required(path.email);
-  email(path.email);
+  validate(path.firstName, required());
+  validate(path.firstName, minLength(2));
+  validate(path.lastName, required());
+  validate(path.email, required());
+  validate(path.email, email());
 }
 ```
 
@@ -247,10 +247,10 @@ import { required, email, pattern } from '@reformer/core/validators';
 import { ContactInfo } from './schema';
 
 export function validateContactInfo(path: FieldPath<ContactInfo>) {
-  required(path.email);
-  email(path.email);
-  required(path.phone);
-  pattern(path.phone, /^\d{10}$/, 'Должно быть 10 цифр');
+  validate(path.email, required());
+  validate(path.email, email());
+  validate(path.phone, required());
+  validate(path.phone, pattern(/^\d{10}$/, { message: 'Должно быть 10 цифр' }));
 }
 ```
 
@@ -297,7 +297,7 @@ const form = new GroupNode<MyForm>({
     contactInfo: contactInfoSchema(),
   },
   validation: (path) => {
-    required(path.name);
+    validate(path.name, required());
     validateContactInfo(path.contactInfo);
   },
   behavior: (path) => {

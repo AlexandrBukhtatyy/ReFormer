@@ -1,70 +1,41 @@
 /**
- * Валидатор минимальной длины строки
+ * Валидатор минимальной длины (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/minLength
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
 
 /**
- * Валидатор минимальной длины строки
+ * Фабрика валидатора минимальной длины строки или массива.
  *
- * Проверяет, что длина строки не меньше указанного минимума.
  * Пустые значения пропускаются (используйте `required` для обязательности).
  *
- * @group Validation
- * @category Validators
- *
- * @param fieldPath - Путь к полю для валидации
- * @param minLen - Минимальная допустимая длина строки
- * @param options - Опции валидации (message, params)
- *
  * @example
  * ```typescript
- * // Базовое использование
- * validationSchema: (path) => [
- *   minLength(path.name, 2),
- *   minLength(path.password, 8),
- * ]
- *
- * // С кастомным сообщением
- * minLength(path.password, 8, { message: 'Пароль должен быть не менее 8 символов' })
- * ```
- *
- * @example
- * ```typescript
- * // Ошибка валидации
- * {
- *   code: 'minLength',
- *   message: 'Минимальная длина: 8 символов',
- *   params: { minLength: 8, actualLength: 3 }
- * }
+ * validate(path.name, minLength(2));
+ * validate(path.password, minLength(8, { message: 'Min 8 символов' }));
  * ```
  */
-export function minLength<TForm, TField extends string | null | undefined = string>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
+export function minLength<TForm = unknown, TField = unknown>(
   minLen: number,
   options?: ValidateOptions
-): void {
-  if (!fieldPath) return; // Защита от undefined fieldPath
-
-  validate(fieldPath, (value) => {
-    if (!value) {
+): Validator<TForm, TField> {
+  return (value) => {
+    if (value === null || value === undefined || value === '') {
       return null;
     }
-
-    if (value.length < minLen) {
+    const len = (value as { length?: number }).length;
+    if (typeof len !== 'number') return null;
+    if (len < minLen) {
       return {
         code: 'minLength',
-        message: options?.message || `Минимальная длина: ${minLen} символов`,
-        params: { minLength: minLen, actualLength: value.length, ...options?.params },
+        message: options?.message ?? `Минимальная длина: ${minLen} символов`,
+        params: { minLength: minLen, actualLength: len, ...options?.params },
       };
     }
-
     return null;
-  });
+  };
 }

@@ -171,10 +171,10 @@ import type { CreditApplicationForm } from '../../type';
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  required(path.loanType, { message: 'Select loan type' });
-  required(path.loanAmount, { message: 'Enter loan amount' });
-  min(path.loanAmount, 50000, { message: 'Minimum 50,000' });
-  max(path.loanAmount, 10000000, { message: 'Maximum 10,000,000' });
+  validate(path.loanType, required({ message: 'Select loan type' }));
+  validate(path.loanAmount, required({ message: 'Enter loan amount' }));
+  validate(path.loanAmount, min(50000, { message: 'Minimum 50,000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Maximum 10,000,000' }));
 
   // Conditional validation for mortgage
   applyWhen(
@@ -224,9 +224,9 @@ import { personalValidation } from './steps/personal-info/validators';
 // Cross-step validation
 const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // Initial payment must be >= 20% of property value
-  validate(path.initialPayment, (value, ctx) => {
-    if (ctx.form.loanType.value.value !== 'mortgage') return null;
-    const propertyValue = ctx.form.propertyValue.value.value;
+  validate(path.initialPayment, (value, _control, root) => {
+    if (root.loanType.value.value !== 'mortgage') return null;
+    const propertyValue = root.propertyValue.value.value;
     if (!propertyValue || !value) return null;
     const minPayment = propertyValue * 0.2;
     if (value < minPayment) {

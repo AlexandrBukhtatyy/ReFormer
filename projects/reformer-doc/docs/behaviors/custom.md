@@ -83,7 +83,7 @@ export function autoSave<T>(options: AutoSaveOptions): Behavior<T> {
 
       timeoutId = setTimeout(async () => {
         try {
-          await onSave(ctx.form.getValue());
+          await onSave(root.getValue());
           console.log('Auto-saved');
         } catch (error) {
           console.error('Auto-save failed:', error);
@@ -169,11 +169,11 @@ export function conditionalSync<T>(options: ConditionalSyncOptions<T>): Behavior
     key: 'conditionalSync',
     paths: [sourcePath],
     run: (values, ctx) => {
-      const formValue = ctx.form.getValue();
+      const formValue = root.getValue();
 
       if (condition(formValue)) {
         const sourceValue = values[sourcePath.__key];
-        ctx.form[targetPath.__key].setValue(sourceValue);
+        root[targetPath.__key].setValue(sourceValue);
       }
     },
   };
@@ -220,14 +220,14 @@ export function autoComplete<T>(options: AutoCompleteOptions): Behavior<T> {
       const query = values[searchPath.__key];
 
       if (!query || query.length < minLength) {
-        ctx.form[resultPath.__key].setValue([]);
+        root[resultPath.__key].setValue([]);
         return;
       }
 
       timeoutId = setTimeout(async () => {
         try {
           const results = await fetchResults(query);
-          ctx.form[resultPath.__key].setValue(results);
+          root[resultPath.__key].setValue(results);
         } catch (error) {
           console.error('Auto-complete failed:', error);
         }
@@ -306,17 +306,17 @@ behaviors: (path, { use }) => [
       {
         key: 's',
         ctrl: true,
-        action: (ctx) => {
-          ctx.form.markAsTouched();
-          if (ctx.form.valid.value) {
-            console.log('Saving...', ctx.form.getValue());
+        action: (scope, _root) => {
+          root.markAsTouched();
+          if (root.valid.value) {
+            console.log('Saving...', root.getValue());
           }
         },
       },
       {
         key: 'Escape',
-        action: (ctx) => {
-          ctx.form.reset();
+        action: (scope, _root) => {
+          root.reset();
         },
       },
     ])
@@ -345,10 +345,10 @@ export function analytics<T>(options: AnalyticsOptions = {}): Behavior<T> {
       if (trackChanges) {
         // Track field changes
         Object.keys(values).forEach((key) => {
-          const field = ctx.form[key];
+          const field = root[key];
           if (field?.touched?.value) {
             window.analytics?.track('Form Field Changed', {
-              form: ctx.form.constructor.name,
+              form: root.constructor.name,
               field: key,
               hasError: !!field.errors?.value,
             });
@@ -359,10 +359,10 @@ export function analytics<T>(options: AnalyticsOptions = {}): Behavior<T> {
       if (trackErrors) {
         // Track validation errors
         Object.keys(values).forEach((key) => {
-          const field = ctx.form[key];
+          const field = root[key];
           if (field?.errors?.value) {
             window.analytics?.track('Form Validation Error', {
-              form: ctx.form.constructor.name,
+              form: root.constructor.name,
               field: key,
               errors: Object.keys(field.errors.value),
             });
@@ -406,7 +406,7 @@ export function localStorageSync<T>(options: LocalStorageSyncOptions): Behavior<
 
       timeoutId = setTimeout(() => {
         try {
-          const data = ctx.form.getValue();
+          const data = root.getValue();
           localStorage.setItem(key, JSON.stringify(data));
         } catch (error) {
           console.error('Failed to save to localStorage:', error);
@@ -459,8 +459,8 @@ export function visibilityWatcher<T>(options: VisibilityWatcherOptions): Behavio
     key: 'visibilityWatcher',
     paths: [], // Listen to all fields
     run: (_values, ctx) => {
-      Object.keys(ctx.form).forEach((key) => {
-        const field = ctx.form[key];
+      Object.keys(root).forEach((key) => {
+        const field = root[key];
         const currentlyVisible = field?.visible?.value ?? true;
         const wasVisible = previousState.get(key);
 
@@ -525,7 +525,7 @@ const form = new GroupNode({
         {
           key: 's',
           ctrl: true,
-          action: (ctx) => console.log('Saving...'),
+          action: (scope, _root) => console.log('Saving...'),
         },
       ])
     ),
@@ -584,7 +584,7 @@ paths: [];
 use({
   key: 'myBehavior',
   paths: [path.field],
-  run: async (values, ctx) => {
+  run: async (values, _control, root) => {
     try {
       await someAsyncOperation(values);
     } catch (error) {

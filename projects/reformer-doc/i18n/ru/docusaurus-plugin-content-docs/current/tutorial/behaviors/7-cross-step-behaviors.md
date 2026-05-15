@@ -121,8 +121,8 @@ paymentToIncomeRatio ← totalIncome (Шаг 4)
 ```typescript
 // Правило валидации (реализуется в разделе Валидация)
 validate(path.monthlyPayment, (payment, ctx) => {
-  const totalIncome = ctx.form.totalIncome.value.value || 0;
-  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  const totalIncome = root.totalIncome.value.value || 0;
+  const coBorrowersIncome = root.coBorrowersIncome.value.value || 0;
   const total = totalIncome + coBorrowersIncome;
 
   if (payment > total * 0.5) {
