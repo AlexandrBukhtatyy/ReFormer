@@ -24,10 +24,10 @@ const form = new GroupNode({
     email: { value: '' },
   },
   validation: (path) => {
-    required(path.name);
-    minLength(path.name, 2);
-    required(path.email);
-    email(path.email);
+    validate(path.name, required());
+    validate(path.name, minLength(2));
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 ```
@@ -47,10 +47,10 @@ interface User {
 }
 
 validation: (path: FieldPath<User>) => {
-  required(path.name); // ✅ Корректно
-  required(path.email); // ✅ Корректно
-  required(path.address.city); // ✅ Корректно - вложенный доступ
-  required(path.phone); // ❌ Ошибка TypeScript!
+  validate(path.name, required()); // ✅ Корректно
+  validate(path.email, required()); // ✅ Корректно
+  validate(path.address.city, required()); // ✅ Корректно - вложенный доступ
+  validate(path.phone, required()); // ❌ Ошибка TypeScript!
 };
 ```
 
@@ -64,12 +64,12 @@ validation: (path: FieldPath<User>) => {
 
 | Валидатор                    | Описание                       |
 | ---------------------------- | ------------------------------ |
-| `required(path.field)`       | Поле должно иметь значение     |
-| `email(path.field)`          | Корректный формат email        |
-| `minLength(path.field, n)`   | Минимальная длина строки       |
-| `maxLength(path.field, n)`   | Максимальная длина строки      |
-| `min(path.field, n)`         | Минимальное числовое значение  |
-| `max(path.field, n)`         | Максимальное числовое значение |
+| `validate(path.field, required())`       | Поле должно иметь значение     |
+| `validate(path.field, email())`          | Корректный формат email        |
+| `validate(path.field, minLength(n))`   | Минимальная длина строки       |
+| `validate(path.field, maxLength(n))`   | Максимальная длина строки      |
+| `validate(path.field, min(n))`         | Минимальное числовое значение  |
+| `validate(path.field, max(n))`         | Максимальное числовое значение |
 | `pattern(path.field, regex)` | Соответствие regex             |
 
 Полный список см. в [Встроенные валидаторы](/docs/validation/built-in).
@@ -82,14 +82,14 @@ validation: (path: FieldPath<User>) => {
 import { when } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.email);
+  validate(path.email, required());
 
   // Валидировать телефон только если пользователь хочет SMS
   when(
     () => form.controls.wantsSms.value === true,
     () => {
-      required(path.phone);
-      pattern(path.phone, /^\d{10}$/);
+      validate(path.phone, required());
+      validate(path.phone, pattern(/^\d{10}$/));
     }
   );
 };
@@ -113,12 +113,12 @@ interface Order {
 
 validation: (path) => {
   // Вложенный объект
-  required(path.customer.name);
-  email(path.customer.email);
+  validate(path.customer.name, required());
+  validate(path.customer.email, email());
 
   // Элементы массива (валидирует шаблон каждого элемента)
-  required(path.items.product);
-  min(path.items.quantity, 1);
+  validate(path.items.product, required());
+  validate(path.items.quantity, min(1));
 };
 ```
 
@@ -130,11 +130,11 @@ validation: (path) => {
 import { custom } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.password);
-  required(path.confirmPassword);
+  validate(path.password, required());
+  validate(path.confirmPassword, required());
 
-  custom(path.confirmPassword, (value, ctx) => {
-    const password = ctx.form.password.value;
+  custom(path.confirmPassword, (value, _control, root) => {
+    const password = root.password.value;
     if (value !== password) {
       return { match: 'Пароли должны совпадать' };
     }
@@ -151,7 +151,7 @@ validation: (path) => {
 import { asyncValidator } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.username);
+  validate(path.username, required());
 
   asyncValidator(path.username, async (value) => {
     const exists = await checkUsername(value);
@@ -175,11 +175,11 @@ import { required, email, minLength } from '@reformer/core/validators';
 
 // Переиспользуемый набор валидации
 export function validatePerson(path: FieldPath<Person>) {
-  required(path.firstName);
-  minLength(path.firstName, 2);
-  required(path.lastName);
-  required(path.email);
-  email(path.email);
+  validate(path.firstName, required());
+  validate(path.firstName, minLength(2));
+  validate(path.lastName, required());
+  validate(path.email, required());
+  validate(path.email, email());
 }
 
 // Использование

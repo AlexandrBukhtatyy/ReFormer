@@ -164,7 +164,7 @@ behavior: (path) => {
   watchField(path.country, (value, ctx) => {
     // Загрузить регионы для выбранной страны
     loadStates(value).then((states) => {
-      ctx.form.stateOptions.setValue(states);
+      root.stateOptions.setValue(states);
     });
   });
 };

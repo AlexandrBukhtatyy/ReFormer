@@ -70,8 +70,8 @@ Sync, async и cross-field валидация в одном месте:
 ```tsx
 validation: (path) => {
   // Синхронная
-  required(path.email);
-  email(path.email);
+  validate(path.email, required());
+  validate(path.email, email());
 
   // Асинхронная с debounce
   validateAsync(path.email, async (value) => {
@@ -81,7 +81,7 @@ validation: (path) => {
 
   // Cross-field
   validate(path.confirmPassword, (value, ctx) => {
-    return value !== ctx.form.password.value.value
+    return value !== root.password.value.value
       ? { code: 'mismatch', message: 'Пароли не совпадают' }
       : null;
   });
@@ -112,7 +112,7 @@ console.log(form.valid.value); // true/false
 | **Условное включение** | `enableWhen` | ручной | ручной |
 | **Копирование полей** | `copyFrom` | ручной | ручной |
 | **Async валидация** | debounce | есть | есть |
-| **Cross-field валидация** | `validateTree` | resolver | yup/zod |
+| **Cross-field валидация** | `validateGroup` | resolver | yup/zod |
 | **Вложенные формы** | GroupNode | FieldArray | FieldArray |
 | **Массивы** | ArrayNode | useFieldArray | FieldArray |
 | **Bundle size** | ~15kb | ~9kb | ~13kb |
@@ -350,9 +350,9 @@ import { FormNavigation } from '@reformer/ui/form-navigation';
 
 // Валидация по шагам
 const STEP_VALIDATIONS = {
-  0: (path) => { required(path.name); required(path.email); email(path.email); },
-  1: (path) => { required(path.address); required(path.city); },
-  2: (path) => { required(path.cardNumber); required(path.cvv); },
+  0: (path) => { validate(path.name, required()); validate(path.email, required()); validate(path.email, email()); },
+  1: (path) => { validate(path.address, required()); validate(path.city, required()); },
+  2: (path) => { validate(path.cardNumber, required()); validate(path.cvv, required()); },
 };
 
 function WizardForm() {
@@ -452,14 +452,14 @@ const createRegistrationForm = () => createForm<RegistrationForm>({
   },
   validation: (path) => {
     // Синхронная
-    required(path.username, { message: 'Обязательное поле' });
-    minLength(path.username, 3, { message: 'Минимум 3 символа' });
-    pattern(path.username, /^[a-zA-Z0-9_]+$/, { message: 'Только латиница' });
+    validate(path.username, required({ message: 'Обязательное поле' }));
+    validate(path.username, minLength(3, { message: 'Минимум 3 символа' }));
+    validate(path.username, pattern(/^[a-zA-Z0-9_]+$/, { message: 'Только латиница' }));
 
-    required(path.email);
-    email(path.email);
-    required(path.password);
-    minLength(path.password, 8);
+    validate(path.email, required());
+    validate(path.email, email());
+    validate(path.password, required());
+    validate(path.password, minLength(8));
 
     // Кастомная
     validate(path.password, (value) => {
@@ -471,7 +471,7 @@ const createRegistrationForm = () => createForm<RegistrationForm>({
 
     // Cross-field
     validate(path.confirmPassword, (value, ctx) => {
-      if (value !== ctx.form.password.value.value) {
+      if (value !== root.password.value.value) {
         return { code: 'mismatch', message: 'Пароли не совпадают' };
       }
       return null;
@@ -572,10 +572,10 @@ const createAddressForm = () => createForm<AddressForm>({
     },
   },
   behavior: (path) => {
-    watchField(path.country, async (country, ctx) => {
+    watchField(path.country, async (country, _control, root) => {
       if (country) {
         const cities = await api.getCities(country);
-        ctx.form.city.setComponentProps({
+        root.city.setComponentProps({
           options: cities.map(c => ({ value: c, label: c })),
         });
         ctx.setFieldValue('city', '');
@@ -884,7 +884,7 @@ sequenceDiagram
 | `number` | Числовая валидация |
 | `validate` | Кастомная синхронная |
 | `validateAsync` | Кастомная асинхронная |
-| `validateTree` | Cross-field валидация |
+| `validateGroup` | Cross-field валидация |
 
 ---
 
@@ -912,19 +912,19 @@ const form = createForm<RegistrationForm>({
 
   validation: (path) => {
     // Синхронная валидация
-    required(path.username);
-    minLength(path.username, 3);
-    pattern(path.username, /^[a-zA-Z0-9_]+$/);
+    validate(path.username, required());
+    validate(path.username, minLength(3));
+    validate(path.username, pattern(/^[a-zA-Z0-9_]+$/));
 
-    required(path.email);
-    email(path.email);
+    validate(path.email, required());
+    validate(path.email, email());
 
-    required(path.password);
-    minLength(path.password, 8);
+    validate(path.password, required());
+    validate(path.password, minLength(8));
 
     // Cross-field: проверка совпадения паролей
     validate(path.confirmPassword, (value, ctx) => {
-      if (value !== ctx.form.password.value.value) {
+      if (value !== root.password.value.value) {
         return { code: 'mismatch', message: 'Пароли не совпадают' };
       }
       return null;
@@ -1008,8 +1008,8 @@ const form = createForm({
     email: { value: '', component: Input },
   },
   validation: (path) => {
-    required(path.email);
-    email(path.email);
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 

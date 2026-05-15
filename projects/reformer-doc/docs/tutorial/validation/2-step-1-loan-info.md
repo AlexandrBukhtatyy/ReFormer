@@ -58,28 +58,28 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Loan Type
   // ==========================================
-  required(path.loanType, { message: 'Please select loan type' });
+  validate(path.loanType, required({ message: 'Please select loan type' }));
 
   // ==========================================
   // Loan Amount
   // ==========================================
-  required(path.loanAmount, { message: 'Loan amount is required' });
-  min(path.loanAmount, 50000, { message: 'Minimum amount: 50,000' });
-  max(path.loanAmount, 10000000, { message: 'Maximum amount: 10,000,000' });
+  validate(path.loanAmount, required({ message: 'Loan amount is required' }));
+  validate(path.loanAmount, min(50000, { message: 'Minimum amount: 50,000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Maximum amount: 10,000,000' }));
 
   // ==========================================
   // Loan Term
   // ==========================================
-  required(path.loanTerm, { message: 'Loan term is required' });
-  min(path.loanTerm, 6, { message: 'Minimum term: 6 months' });
-  max(path.loanTerm, 360, { message: 'Maximum term: 360 months (30 years)' });
+  validate(path.loanTerm, required({ message: 'Loan term is required' }));
+  validate(path.loanTerm, min(6, { message: 'Minimum term: 6 months' }));
+  validate(path.loanTerm, max(360, { message: 'Maximum term: 360 months (30 years)' }));
 
   // ==========================================
   // Loan Purpose
   // ==========================================
-  required(path.loanPurpose, { message: 'Loan purpose is required' });
-  minLength(path.loanPurpose, 10, { message: 'Please provide at least 10 characters' });
-  maxLength(path.loanPurpose, 500, { message: 'Maximum 500 characters' });
+  validate(path.loanPurpose, required({ message: 'Loan purpose is required' }));
+  validate(path.loanPurpose, minLength(10, { message: 'Please provide at least 10 characters' }));
+  validate(path.loanPurpose, maxLength(500, { message: 'Maximum 500 characters' }));
 
   // Conditional validation will be added next...
 };
@@ -169,28 +169,28 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // Loan Type
   // ==========================================
-  required(path.loanType, { message: 'Please select loan type' });
+  validate(path.loanType, required({ message: 'Please select loan type' }));
 
   // ==========================================
   // Loan Amount
   // ==========================================
-  required(path.loanAmount, { message: 'Loan amount is required' });
-  min(path.loanAmount, 50000, { message: 'Minimum amount: 50,000' });
-  max(path.loanAmount, 10000000, { message: 'Maximum amount: 10,000,000' });
+  validate(path.loanAmount, required({ message: 'Loan amount is required' }));
+  validate(path.loanAmount, min(50000, { message: 'Minimum amount: 50,000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Maximum amount: 10,000,000' }));
 
   // ==========================================
   // Loan Term
   // ==========================================
-  required(path.loanTerm, { message: 'Loan term is required' });
-  min(path.loanTerm, 6, { message: 'Minimum term: 6 months' });
-  max(path.loanTerm, 360, { message: 'Maximum term: 360 months (30 years)' });
+  validate(path.loanTerm, required({ message: 'Loan term is required' }));
+  validate(path.loanTerm, min(6, { message: 'Minimum term: 6 months' }));
+  validate(path.loanTerm, max(360, { message: 'Maximum term: 360 months (30 years)' }));
 
   // ==========================================
   // Loan Purpose
   // ==========================================
-  required(path.loanPurpose, { message: 'Loan purpose is required' });
-  minLength(path.loanPurpose, 10, { message: 'Please provide at least 10 characters' });
-  maxLength(path.loanPurpose, 500, { message: 'Maximum 500 characters' });
+  validate(path.loanPurpose, required({ message: 'Loan purpose is required' }));
+  validate(path.loanPurpose, minLength(10, { message: 'Please provide at least 10 characters' }));
+  validate(path.loanPurpose, maxLength(500, { message: 'Maximum 500 characters' }));
 
   // ==========================================
   // Conditional: Mortgage Fields
@@ -237,7 +237,7 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Required Validators
 
 ```typescript
-required(path.loanAmount, { message: 'Loan amount is required' });
+validate(path.loanAmount, required({ message: 'Loan amount is required' }));
 ```
 
 - Triggers when field is empty, null, or undefined
@@ -246,8 +246,8 @@ required(path.loanAmount, { message: 'Loan amount is required' });
 ### Range Validators
 
 ```typescript
-min(path.loanAmount, 50000, { message: 'Minimum amount: 50,000' });
-max(path.loanAmount, 10000000, { message: 'Maximum amount: 10,000,000' });
+validate(path.loanAmount, min(50000, { message: 'Minimum amount: 50,000' }));
+validate(path.loanAmount, max(10000000, { message: 'Maximum amount: 10,000,000' }));
 ```
 
 - `min`: Triggers when value < minimum

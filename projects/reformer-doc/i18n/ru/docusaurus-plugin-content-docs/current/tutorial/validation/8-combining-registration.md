@@ -211,7 +211,7 @@ src/
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   console.log('Регистрирую валидацию Шага 1');
 
-  required(path.loanAmount, { message: 'Сумма кредита обязательна' });
+  validate(path.loanAmount, required({ message: 'Сумма кредита обязательна' }));
   console.log('Добавил валидатор required для loanAmount');
 };
 ```
@@ -222,10 +222,10 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) 
 
 ```typescript
 // ❌ Неправильно - опечатка в имени поля
-required(path.loanAmmount, { message: '...' });
+validate(path.loanAmmount, required({ message: '...' }));
 
 // ✅ Правильно
-required(path.loanAmount, { message: '...' });
+validate(path.loanAmount, required({ message: '...' }));
 ```
 
 ### 3. Проверьте регистрацию формы

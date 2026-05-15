@@ -30,10 +30,10 @@ const form = new GroupNode({
 
   // 2. Validation Schema - rules
   validation: (path) => {
-    required(path.firstName);
-    required(path.lastName);
-    required(path.email);
-    email(path.email);
+    validate(path.firstName, required());
+    validate(path.lastName, required());
+    validate(path.email, required());
+    validate(path.email, email());
   },
 
   // 3. Behavior Schema - logic
@@ -72,9 +72,9 @@ const addressSchema = (): FormSchema<Address> => ({
 
 // 2. Reusable validation schema
 const addressValidation: ValidationSchemaFn<Address> = (path) => {
-  required(path.street);
-  required(path.city);
-  required(path.zipCode);
+  validate(path.street, required());
+  validate(path.city, required());
+  validate(path.zipCode, required());
 };
 
 // 3. Reusable behavior schema
@@ -153,8 +153,8 @@ All three schemas use `FieldPath<T>` for compile-time type checking:
 
 ```typescript
 validation: (path) => {
-  required(path.firstName); // ✅ TypeScript knows this exists
-  required(path.middleName); // ❌ Error: 'middleName' doesn't exist
+  validate(path.firstName, required()); // ✅ TypeScript knows this exists
+  validate(path.middleName, required()); // ❌ Error: 'middleName' doesn't exist
 };
 ```
 

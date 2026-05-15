@@ -59,23 +59,23 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
 
   // Фамилия
-  required(path.personalData.lastName, { message: 'Фамилия обязательна' });
-  minLength(path.personalData.lastName, 2, { message: 'Минимум 2 символа' });
-  pattern(path.personalData.lastName, /^[А-ЯЁа-яё\s-]+$/, {
+  validate(path.personalData.lastName, required({ message: 'Фамилия обязательна' }));
+  validate(path.personalData.lastName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.lastName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
     message: 'Используйте только кириллицу',
-  });
+  }));
 
   // Имя
-  required(path.personalData.firstName, { message: 'Имя обязательно' });
-  minLength(path.personalData.firstName, 2, { message: 'Минимум 2 символа' });
-  pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
+  validate(path.personalData.firstName, required({ message: 'Имя обязательно' }));
+  validate(path.personalData.firstName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.firstName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
     message: 'Используйте только кириллицу',
-  });
+  }));
 
   // Отчество (опционально, но должно быть кириллицей если указано)
-  pattern(path.personalData.middleName, /^[А-ЯЁа-яё\s-]+$/, {
+  validate(path.personalData.middleName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
     message: 'Используйте только кириллицу',
-  });
+  }));
 };
 ```
 
@@ -99,7 +99,7 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
   // Дата рождения
   // ==========================================
 
-  required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
+  validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
 
   // Пользовательская: Не в будущем
   validate(path.personalData.birthDate, (birthDate) => {
@@ -165,19 +165,19 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
   // ==========================================
 
   // Серия паспорта (4 цифры)
-  required(path.passportData.series, { message: 'Серия паспорта обязательна' });
-  pattern(path.passportData.series, /^\d{4}$/, {
+  validate(path.passportData.series, required({ message: 'Серия паспорта обязательна' }));
+  validate(path.passportData.series, pattern(/^\d{4}$/, {
     message: 'Серия должна быть ровно 4 цифры',
-  });
+  }));
 
   // Номер паспорта (6 цифр)
-  required(path.passportData.number, { message: 'Номер паспорта обязателен' });
-  pattern(path.passportData.number, /^\d{6}$/, {
+  validate(path.passportData.number, required({ message: 'Номер паспорта обязателен' }));
+  validate(path.passportData.number, pattern(/^\d{6}$/, {
     message: 'Номер должен быть ровно 6 цифр',
-  });
+  }));
 
   // Дата выдачи
-  required(path.passportData.issueDate, { message: 'Дата выдачи обязательна' });
+  validate(path.passportData.issueDate, required({ message: 'Дата выдачи обязательна' }));
 
   // Пользовательская: Дата выдачи не в будущем
   validate(path.passportData.issueDate, (issueDate) => {
@@ -201,7 +201,7 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
   validate(path.passportData.issueDate, (issueDate, ctx) => {
     if (!issueDate) return null;
 
-    const birthDate = ctx.form.personalData.birthDate.value.value;
+    const birthDate = root.personalData.birthDate.value.value;
     if (!birthDate) return null;
 
     const issue = new Date(issueDate as string);
@@ -218,8 +218,8 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
   });
 
   // Орган выдачи
-  required(path.passportData.issuedBy, { message: 'Орган выдачи обязателен' });
-  minLength(path.passportData.issuedBy, 10, { message: 'Минимум 10 символов' });
+  validate(path.passportData.issuedBy, required({ message: 'Орган выдачи обязателен' }));
+  validate(path.passportData.issuedBy, minLength(10, { message: 'Минимум 10 символов' }));
 };
 ```
 
@@ -235,19 +235,19 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (pa
   // ИНН (Индивидуальный номер налогоплательщика)
   // ==========================================
 
-  required(path.inn, { message: 'ИНН обязателен' });
-  pattern(path.inn, /^\d{10}$|^\d{12}$/, {
+  validate(path.inn, required({ message: 'ИНН обязателен' }));
+  validate(path.inn, pattern(/^\d{10}$|^\d{12}$/, {
     message: 'ИНН должен быть 10 или 12 цифр',
-  });
+  }));
 
   // ==========================================
   // СНИЛС (Страховой номер)
   // ==========================================
 
-  required(path.snils, { message: 'СНИЛС обязателен' });
-  pattern(path.snils, /^\d{11}$/, {
+  validate(path.snils, required({ message: 'СНИЛС обязателен' }));
+  validate(path.snils, pattern(/^\d{11}$/, {
     message: 'СНИЛС должен быть ровно 11 цифр',
-  });
+  }));
 };
 ```
 
@@ -276,27 +276,27 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Личные данные: Имена
   // ==========================================
 
-  required(path.personalData.lastName, { message: 'Фамилия обязательна' });
-  minLength(path.personalData.lastName, 2, { message: 'Минимум 2 символа' });
-  pattern(path.personalData.lastName, /^[А-ЯЁа-яё\s-]+$/, {
+  validate(path.personalData.lastName, required({ message: 'Фамилия обязательна' }));
+  validate(path.personalData.lastName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.lastName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
     message: 'Используйте только кириллицу',
-  });
+  }));
 
-  required(path.personalData.firstName, { message: 'Имя обязательно' });
-  minLength(path.personalData.firstName, 2, { message: 'Минимум 2 символа' });
-  pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
+  validate(path.personalData.firstName, required({ message: 'Имя обязательно' }));
+  validate(path.personalData.firstName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.firstName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
     message: 'Используйте только кириллицу',
-  });
+  }));
 
-  pattern(path.personalData.middleName, /^[А-ЯЁа-яё\s-]+$/, {
+  validate(path.personalData.middleName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
     message: 'Используйте только кириллицу',
-  });
+  }));
 
   // ==========================================
   // Дата рождения
   // ==========================================
 
-  required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
+  validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
 
   createValidator(path.personalData.birthDate, [], (birthDate) => {
     if (!birthDate) return null;
@@ -349,17 +349,17 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Данные паспорта
   // ==========================================
 
-  required(path.passportData.series, { message: 'Серия паспорта обязательна' });
-  pattern(path.passportData.series, /^\d{4}$/, {
+  validate(path.passportData.series, required({ message: 'Серия паспорта обязательна' }));
+  validate(path.passportData.series, pattern(/^\d{4}$/, {
     message: 'Серия должна быть ровно 4 цифры',
-  });
+  }));
 
-  required(path.passportData.number, { message: 'Номер паспорта обязателен' });
-  pattern(path.passportData.number, /^\d{6}$/, {
+  validate(path.passportData.number, required({ message: 'Номер паспорта обязателен' }));
+  validate(path.passportData.number, pattern(/^\d{6}$/, {
     message: 'Номер должен быть ровно 6 цифр',
-  });
+  }));
 
-  required(path.passportData.issueDate, { message: 'Дата выдачи обязательна' });
+  validate(path.passportData.issueDate, required({ message: 'Дата выдачи обязательна' }));
 
   createValidator(path.passportData.issueDate, [], (issueDate) => {
     if (!issueDate) return null;
@@ -398,22 +398,22 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
     }
   );
 
-  required(path.passportData.issuedBy, { message: 'Орган выдачи обязателен' });
-  minLength(path.passportData.issuedBy, 10, { message: 'Минимум 10 символов' });
+  validate(path.passportData.issuedBy, required({ message: 'Орган выдачи обязателен' }));
+  validate(path.passportData.issuedBy, minLength(10, { message: 'Минимум 10 символов' }));
 
   // ==========================================
   // ИНН и СНИЛС
   // ==========================================
 
-  required(path.inn, { message: 'ИНН обязателен' });
-  pattern(path.inn, /^\d{10}$|^\d{12}$/, {
+  validate(path.inn, required({ message: 'ИНН обязателен' }));
+  validate(path.inn, pattern(/^\d{10}$|^\d{12}$/, {
     message: 'ИНН должен быть 10 или 12 цифр',
-  });
+  }));
 
-  required(path.snils, { message: 'СНИЛС обязателен' });
-  pattern(path.snils, /^\d{11}$/, {
+  validate(path.snils, required({ message: 'СНИЛС обязателен' }));
+  validate(path.snils, pattern(/^\d{11}$/, {
     message: 'СНИЛС должен быть ровно 11 цифр',
-  });
+  }));
 };
 ```
 
@@ -422,9 +422,9 @@ export const personalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Валидаторы паттерна
 
 ```typescript
-pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
+validate(path.personalData.firstName, pattern(/^[А-ЯЁа-яё\s-]+$/, {
   message: 'Используйте только кириллицу',
-});
+}));
 ```
 
 - Тестирует значение против регулярного выражения
@@ -457,7 +457,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
   if (!issueDate) return null;
 
   // Получите зависимые значения через контекст
-  const birthDate = ctx.form.personalData.birthDate.value.value;
+  const birthDate = root.personalData.birthDate.value.value;
   if (!birthDate) return null;
 
   const issue = new Date(issueDate as string);
@@ -477,7 +477,7 @@ validate(path.passportData.issueDate, (issueDate, ctx) => {
 **Зависимости**:
 
 - Валидатор переиспускается когда изменяется любое поле формы
-- Используйте `ctx.form` для доступа к другим полям
+- Используйте `root` для доступа к другим полям
 - Полезна для валидации между полями
 
 ## Тестирование валидации

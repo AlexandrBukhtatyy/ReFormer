@@ -63,18 +63,18 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
 
   // Статус занятости (всегда требуется)
-  required(path.employmentStatus, { message: 'Статус занятости обязателен' });
+  validate(path.employmentStatus, required({ message: 'Статус занятости обязателен' }));
 
   // Ежемесячный доход (всегда требуется, минимальный порог)
-  required(path.monthlyIncome, { message: 'Ежемесячный доход обязателен' });
-  min(path.monthlyIncome, 10000, {
+  validate(path.monthlyIncome, required({ message: 'Ежемесячный доход обязателен' }));
+  validate(path.monthlyIncome, min(10000, {
     message: 'Минимальный ежемесячный доход: 10 000',
-  });
+  }));
 
   // Дополнительный доход (опционален, но не может быть отрицательным если указан)
-  min(path.additionalIncome, 0, {
+  validate(path.additionalIncome, min(0, {
     message: 'Дополнительный доход не может быть отрицательным',
-  });
+  }));
 };
 ```
 
@@ -133,9 +133,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   );
 
   // Валидация паттерна для ИНН бизнеса
-  pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
+  validate(path.businessInn, pattern(/^\d{10}$|^\d{12}$/, {
     message: 'ИНН бизнеса должен быть 10 или 12 цифр',
-  });
+  }));
 };
 ```
 
@@ -164,16 +164,16 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Базовые поля занятости
   // ==========================================
 
-  required(path.employmentStatus, { message: 'Статус занятости обязателен' });
+  validate(path.employmentStatus, required({ message: 'Статус занятости обязателен' }));
 
-  required(path.monthlyIncome, { message: 'Ежемесячный доход обязателен' });
-  min(path.monthlyIncome, 10000, {
+  validate(path.monthlyIncome, required({ message: 'Ежемесячный доход обязателен' }));
+  validate(path.monthlyIncome, min(10000, {
     message: 'Минимальный ежемесячный доход: 10 000',
-  });
+  }));
 
-  min(path.additionalIncome, 0, {
+  validate(path.additionalIncome, min(0, {
     message: 'Дополнительный доход не может быть отрицательным',
-  });
+  }));
 
   // ==========================================
   // Условно: Поля работающих
@@ -211,9 +211,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
     }
   );
 
-  pattern(path.businessInn, /^\d{10}$|^\d{12}$/, {
+  validate(path.businessInn, pattern(/^\d{10}$|^\d{12}$/, {
     message: 'ИНН бизнеса должен быть 10 или 12 цифр',
-  });
+  }));
 };
 ```
 
@@ -224,9 +224,9 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
 Эти поля требуются независимо от статуса занятости:
 
 ```typescript
-required(path.employmentStatus, { message: 'Статус занятости обязателен' });
-required(path.monthlyIncome, { message: 'Ежемесячный доход обязателен' });
-min(path.monthlyIncome, 10000, { message: 'Минимальный ежемесячный доход: 10 000' });
+validate(path.employmentStatus, required({ message: 'Статус занятости обязателен' }));
+validate(path.monthlyIncome, required({ message: 'Ежемесячный доход обязателен' }));
+validate(path.monthlyIncome, min(10000, { message: 'Минимальный ежемесячный доход: 10 000' }));
 ```
 
 ### Условно требуемые поля
@@ -368,9 +368,9 @@ applyWhen(
 
 ```typescript
 // Нет required(), просто min(0) чтобы предотвратить отрицательные значения
-min(path.additionalIncome, 0, {
+validate(path.additionalIncome, min(0, {
   message: 'Не может быть отрицательным',
-});
+}));
 ```
 
 ## Что дальше?

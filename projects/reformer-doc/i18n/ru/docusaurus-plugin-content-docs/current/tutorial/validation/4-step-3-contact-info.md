@@ -58,22 +58,22 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
 
   // Главный телефон (обязателен)
-  required(path.phoneMain, { message: 'Главный номер телефона обязателен' });
-  phone(path.phoneMain, { message: 'Неверный формат телефона' });
+  validate(path.phoneMain, required({ message: 'Главный номер телефона обязателен' }));
+  validate(path.phoneMain, phone({ message: 'Неверный формат телефона' }));
 
   // Дополнительный телефон (опционален, но должен быть валидным если указан)
-  phone(path.phoneAdditional, { message: 'Неверный формат телефона' });
+  validate(path.phoneAdditional, phone({ message: 'Неверный формат телефона' }));
 
   // ==========================================
   // Адреса email
   // ==========================================
 
   // Главный email (обязателен)
-  required(path.email, { message: 'Email обязателен' });
-  email(path.email, { message: 'Неверный формат email' });
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, email({ message: 'Неверный формат email' }));
 
   // Дополнительный email (опционален, но должен быть валидным если указан)
-  email(path.emailAdditional, { message: 'Неверный формат email' });
+  validate(path.emailAdditional, email({ message: 'Неверный формат email' }));
 };
 ```
 
@@ -93,18 +93,18 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
   // Адрес регистрации (Всегда обязателен)
   // ==========================================
 
-  required(path.registrationAddress.city, { message: 'Город обязателен' });
+  validate(path.registrationAddress.city, required({ message: 'Город обязателен' }));
 
-  required(path.registrationAddress.street, { message: 'Улица обязательна' });
+  validate(path.registrationAddress.street, required({ message: 'Улица обязательна' }));
 
-  required(path.registrationAddress.house, { message: 'Номер дома обязателен' });
+  validate(path.registrationAddress.house, required({ message: 'Номер дома обязателен' }));
 
   // Квартира опциональна, валидация не требуется
 
   // Почтовый код (опционален, но должен быть 6 цифр если указан)
-  pattern(path.registrationAddress.postalCode, /^\d{6}$/, {
+  validate(path.registrationAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Почтовый код должен быть 6 цифр',
-  });
+  }));
 };
 ```
 
@@ -133,9 +133,9 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (pat
   // Квартира опциональна
 
   // Почтовый код (опционален, но должен быть 6 цифр если указан)
-  pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
+  validate(path.residenceAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Почтовый код должен быть 6 цифр',
-  });
+  }));
 };
 ```
 
@@ -164,31 +164,31 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // Номера телефонов
   // ==========================================
 
-  required(path.phoneMain, { message: 'Главный номер телефона обязателен' });
-  phone(path.phoneMain, { message: 'Неверный формат телефона' });
+  validate(path.phoneMain, required({ message: 'Главный номер телефона обязателен' }));
+  validate(path.phoneMain, phone({ message: 'Неверный формат телефона' }));
 
-  phone(path.phoneAdditional, { message: 'Неверный формат телефона' });
+  validate(path.phoneAdditional, phone({ message: 'Неверный формат телефона' }));
 
   // ==========================================
   // Адреса email
   // ==========================================
 
-  required(path.email, { message: 'Email обязателен' });
-  email(path.email, { message: 'Неверный формат email' });
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, email({ message: 'Неверный формат email' }));
 
-  email(path.emailAdditional, { message: 'Неверный формат email' });
+  validate(path.emailAdditional, email({ message: 'Неверный формат email' }));
 
   // ==========================================
   // Адрес регистрации (Всегда обязателен)
   // ==========================================
 
-  required(path.registrationAddress.city, { message: 'Город обязателен' });
-  required(path.registrationAddress.street, { message: 'Улица обязательна' });
-  required(path.registrationAddress.house, { message: 'Номер дома обязателен' });
+  validate(path.registrationAddress.city, required({ message: 'Город обязателен' }));
+  validate(path.registrationAddress.street, required({ message: 'Улица обязательна' }));
+  validate(path.registrationAddress.house, required({ message: 'Номер дома обязателен' }));
 
-  pattern(path.registrationAddress.postalCode, /^\d{6}$/, {
+  validate(path.registrationAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Почтовый код должен быть 6 цифр',
-  });
+  }));
 
   // ==========================================
   // Адрес проживания (Условно обязателен)
@@ -206,9 +206,9 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
     message: 'Номер дома обязателен',
   });
 
-  pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
+  validate(path.residenceAddress.postalCode, pattern(/^\d{6}$/, {
     message: 'Почтовый код должен быть 6 цифр',
-  });
+  }));
 };
 ```
 
@@ -217,7 +217,7 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Валидатор email
 
 ```typescript
-email(path.email, { message: 'Неверный формат email' });
+validate(path.email, email({ message: 'Неверный формат email' }));
 ```
 
 - Встроенная валидация формата email
@@ -228,7 +228,7 @@ email(path.email, { message: 'Неверный формат email' });
 ### Валидатор телефона
 
 ```typescript
-phone(path.phoneMain, { message: 'Неверный формат телефона' });
+validate(path.phoneMain, phone({ message: 'Неверный формат телефона' }));
 ```
 
 - Встроенная валидация формата телефона
@@ -372,14 +372,14 @@ applyWhen(
 ### Требуемый email
 
 ```typescript
-required(path.email, { message: 'Email обязателен' });
-email(path.email, { message: 'Неверный формат email' });
+validate(path.email, required({ message: 'Email обязателен' }));
+validate(path.email, email({ message: 'Неверный формат email' }));
 ```
 
 ### Опциональный email (валидирует формат если указан)
 
 ```typescript
-email(path.emailAdditional, { message: 'Неверный формат email' });
+validate(path.emailAdditional, email({ message: 'Неверный формат email' }));
 // Нет required() - поле опционально
 ```
 
@@ -398,9 +398,9 @@ applyWhen(
 ### Русский почтовый код
 
 ```typescript
-pattern(path.postalCode, /^\d{6}$/, {
+validate(path.postalCode, pattern(/^\d{6}$/, {
   message: 'Почтовый код должен быть 6 цифр',
-});
+}));
 ```
 
 ## Что дальше?

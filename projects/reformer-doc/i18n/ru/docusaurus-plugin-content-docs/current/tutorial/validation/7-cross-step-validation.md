@@ -57,11 +57,11 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ==========================================
   // 1. Первоначальный платёж >= 20% от имущества
   // ==========================================
-  validate(path.initialPayment, (initialPayment, ctx) => {
-    const loanType = ctx.form.loanType.value.value;
+  validate(path.initialPayment, (initialPayment, _control, root) => {
+    const loanType = root.loanType.value.value;
     if (loanType !== 'mortgage') return null;
 
-    const propertyValue = ctx.form.propertyValue.value.value;
+    const propertyValue = root.propertyValue.value.value;
     if (!propertyValue || !initialPayment) return null;
 
     const minPayment = propertyValue * 0.2;
@@ -88,9 +88,9 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
   // ==========================================
   // 2. Ежемесячный платёж <= 50% дохода
   // ==========================================
-  validate(path.monthlyPayment, (monthlyPayment, ctx) => {
-    const totalIncome = ctx.form.totalIncome.value.value || 0;
-    const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  validate(path.monthlyPayment, (monthlyPayment, _control, root) => {
+    const totalIncome = root.totalIncome.value.value || 0;
+    const coBorrowersIncome = root.coBorrowersIncome.value.value || 0;
     const householdIncome = totalIncome + coBorrowersIncome;
 
     if (!householdIncome || !monthlyPayment) return null;
@@ -119,11 +119,11 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (p
   // ==========================================
   // 3. Сумма кредита <= цена автомобиля
   // ==========================================
-  validate(path.loanAmount, (loanAmount, ctx) => {
-    const loanType = ctx.form.loanType.value.value;
+  validate(path.loanAmount, (loanAmount, _control, root) => {
+    const loanType = root.loanType.value.value;
     if (loanType !== 'car') return null;
 
-    const carPrice = ctx.form.carPrice.value.value;
+    const carPrice = root.carPrice.value.value;
     if (!carPrice || !loanAmount) return null;
 
     if (loanAmount > carPrice) {
@@ -516,10 +516,10 @@ export const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (
 ### Пользовательские валидаторы с доступом к контексту
 
 ```typescript
-validate(path.monthlyPayment, (monthlyPayment, ctx) => {
+validate(path.monthlyPayment, (monthlyPayment, _control, root) => {
   // Получите зависимые значения через контекст
-  const totalIncome = ctx.form.totalIncome.value.value || 0;
-  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  const totalIncome = root.totalIncome.value.value || 0;
+  const coBorrowersIncome = root.coBorrowersIncome.value.value || 0;
 
   // Логика валидации
   // Возвращайте null если валидно
@@ -531,7 +531,7 @@ validate(path.monthlyPayment, (monthlyPayment, ctx) => {
 
 - Первый параметр: поле для валидации
 - Второй параметр: функция валидации с доступом к значению и контексту
-- Используйте `ctx.form` для доступа к другим полям формы
+- Используйте `root` для доступа к другим полям формы
 - Валидатор переиспускается когда любое поле формы изменяется
 
 ### Асинхронные валидаторы
@@ -649,7 +649,7 @@ validateAsync(
 ## Ключевые выводы
 
 1. **Пользовательские валидаторы** - Создавайте сложные бизнес-правила с `validate()`
-2. **Доступ к контексту** - Используйте `ctx.form` для доступа к другим полям
+2. **Доступ к контексту** - Используйте `root` для доступа к другим полям
 3. **Асинхронные валидаторы** - Делайте серверные вызовы валидации с `validateAsync()`
 4. **Debouncing** - Уменьшайте ненужные API вызовы
 5. **Обработка ошибок** - Грациозно обрабатывайте сетевые ошибки
@@ -660,11 +660,11 @@ validateAsync(
 ### 1. Ранние возвраты
 
 ```typescript
-validate(path.field, (value, ctx) => {
+validate(path.field, (value, _control, root) => {
   // Возвращайте ранее для случаев которые не нуждаются в валидации
   if (!value) return null;
 
-  const dep = ctx.form.dependency.value.value;
+  const dep = root.dependency.value.value;
   if (!dep) return null;
 
   // Основная логика валидации

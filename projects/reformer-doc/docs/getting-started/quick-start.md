@@ -148,12 +148,12 @@ export const createContactForm = () =>
       message: { value: '', component: Textarea, componentProps: { label: 'Message' } },
     },
     validation: (path) => {
-      required(path.name);
-      minLength(path.name, 2);
-      required(path.email);
-      email(path.email);
-      required(path.message);
-      minLength(path.message, 10);
+      validate(path.name, required());
+      validate(path.name, minLength(2));
+      validate(path.email, required());
+      validate(path.email, email());
+      validate(path.message, required());
+      validate(path.message, minLength(10));
     },
   });
 ```

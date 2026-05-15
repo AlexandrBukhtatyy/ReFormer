@@ -121,8 +121,8 @@ When income changes, we need to revalidate the payment:
 ```typescript
 // Validation rule (implemented in Validation section)
 validate(path.monthlyPayment, (payment, ctx) => {
-  const totalIncome = ctx.form.totalIncome.value.value || 0;
-  const coBorrowersIncome = ctx.form.coBorrowersIncome.value.value || 0;
+  const totalIncome = root.totalIncome.value.value || 0;
+  const coBorrowersIncome = root.coBorrowersIncome.value.value || 0;
   const total = totalIncome + coBorrowersIncome;
 
   if (payment > total * 0.5) {

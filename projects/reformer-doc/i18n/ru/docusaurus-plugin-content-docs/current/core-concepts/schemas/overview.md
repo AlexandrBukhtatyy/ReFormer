@@ -30,10 +30,10 @@ const form = new GroupNode({
 
   // 2. Схема валидации - правила
   validation: (path) => {
-    required(path.firstName);
-    required(path.lastName);
-    required(path.email);
-    email(path.email);
+    validate(path.firstName, required());
+    validate(path.lastName, required());
+    validate(path.email, required());
+    validate(path.email, email());
   },
 
   // 3. Схема поведений - логика
@@ -72,9 +72,9 @@ const addressSchema = (): FormSchema<Address> => ({
 
 // 2. Переиспользуемая схема валидации
 const addressValidation: ValidationSchemaFn<Address> = (path) => {
-  required(path.street);
-  required(path.city);
-  required(path.zipCode);
+  validate(path.street, required());
+  validate(path.city, required());
+  validate(path.zipCode, required());
 };
 
 // 3. Переиспользуемая схема поведений
@@ -153,8 +153,8 @@ describe('validatePerson', () => {
 
 ```typescript
 validation: (path) => {
-  required(path.firstName); // ✅ TypeScript знает, что это поле существует
-  required(path.middleName); // ❌ Ошибка: 'middleName' не существует
+  validate(path.firstName, required()); // ✅ TypeScript знает, что это поле существует
+  validate(path.middleName, required()); // ❌ Ошибка: 'middleName' не существует
 };
 ```
 

@@ -171,10 +171,10 @@ import type { CreditApplicationForm } from '../../type';
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  required(path.loanType, { message: 'Выберите тип кредита' });
-  required(path.loanAmount, { message: 'Введите сумму кредита' });
-  min(path.loanAmount, 50000, { message: 'Минимум 50 000' });
-  max(path.loanAmount, 10000000, { message: 'Максимум 10 000 000' });
+  validate(path.loanType, required({ message: 'Выберите тип кредита' }));
+  validate(path.loanAmount, required({ message: 'Введите сумму кредита' }));
+  validate(path.loanAmount, min(50000, { message: 'Минимум 50 000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Максимум 10 000 000' }));
 
   // Условная валидация для ипотеки
   applyWhen(
@@ -224,9 +224,9 @@ import { personalValidation } from './steps/personal-info/validators';
 // Кросс-шаговая валидация
 const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // Первоначальный взнос >= 20% от стоимости недвижимости
-  validate(path.initialPayment, (value, ctx) => {
-    if (ctx.form.loanType.value.value !== 'mortgage') return null;
-    const propertyValue = ctx.form.propertyValue.value.value;
+  validate(path.initialPayment, (value, _control, root) => {
+    if (root.loanType.value.value !== 'mortgage') return null;
+    const propertyValue = root.propertyValue.value.value;
     if (!propertyValue || !value) return null;
     const minPayment = propertyValue * 0.2;
     if (value < minPayment) {

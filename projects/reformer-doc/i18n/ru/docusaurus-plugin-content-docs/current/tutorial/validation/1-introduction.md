@@ -52,12 +52,12 @@ function validateForm(formData) {
 ```tsx
 // ✅ Декларативный подход - схема валидации
 export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.loanAmount, { message: 'Сумма кредита обязательна' });
-  min(path.loanAmount, 50000, { message: 'Минимальная сумма: 50 000' });
-  max(path.loanAmount, 10000000, { message: 'Максимальная сумма: 10 000 000' });
+  validate(path.loanAmount, required({ message: 'Сумма кредита обязательна' }));
+  validate(path.loanAmount, min(50000, { message: 'Минимальная сумма: 50 000' }));
+  validate(path.loanAmount, max(10000000, { message: 'Максимальная сумма: 10 000 000' }));
 
-  required(path.email, { message: 'Email обязателен' });
-  email(path.email, { message: 'Неверный формат email' });
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, email({ message: 'Неверный формат email' }));
 };
 ```
 
@@ -82,15 +82,15 @@ ReFormer предоставляет несколько категорий вал
 import { required, min, max, minLength, maxLength } from '@reformer/core/validators';
 
 // Обязательное поле
-required(path.loanAmount, { message: 'Сумма кредита обязательна' });
+validate(path.loanAmount, required({ message: 'Сумма кредита обязательна' }));
 
 // Числовые границы
-min(path.loanAmount, 50000, { message: 'Минимум: 50 000' });
-max(path.loanAmount, 10000000, { message: 'Максимум: 10 000 000' });
+validate(path.loanAmount, min(50000, { message: 'Минимум: 50 000' }));
+validate(path.loanAmount, max(10000000, { message: 'Максимум: 10 000 000' }));
 
 // Длина строки
-minLength(path.loanPurpose, 10, { message: 'Минимум 10 символов' });
-maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символов' });
+validate(path.loanPurpose, minLength(10, { message: 'Минимум 10 символов' }));
+validate(path.loanPurpose, maxLength(500, { message: 'Максимум 500 символов' }));
 ```
 
 ### Валидаторы формата
@@ -101,15 +101,15 @@ maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символо
 import { email, phone, pattern } from '@reformer/core/validators';
 
 // Формат email
-email(path.email, { message: 'Неверный формат email' });
+validate(path.email, email({ message: 'Неверный формат email' }));
 
 // Формат телефона
-phone(path.phoneMain, { message: 'Неверный формат телефона' });
+validate(path.phoneMain, phone({ message: 'Неверный формат телефона' }));
 
 // Пользовательский паттерн (российский паспорт)
-pattern(path.passportData.series, /^\d{4}$/, {
+validate(path.passportData.series, pattern(/^\d{4}$/, {
   message: 'Серия должна быть 4 цифры',
-});
+}));
 ```
 
 ### Условные валидаторы

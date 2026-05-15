@@ -18,8 +18,8 @@ const form = new GroupNode({
     username: { value: '', updateOn: 'change' },
   },
   validation: (path) => {
-    required(path.username);
-    minLength(path.username, 3);
+    validate(path.username, required());
+    validate(path.username, minLength(3));
   },
 });
 ```
@@ -45,8 +45,8 @@ const form = new GroupNode({
     email: { value: '', updateOn: 'blur' },
   },
   validation: (path) => {
-    required(path.email);
-    email(path.email);
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 ```
@@ -67,8 +67,8 @@ const form = new GroupNode({
     feedback: { value: '', updateOn: 'submit' },
   },
   validation: (path) => {
-    required(path.feedback);
-    minLength(path.feedback, 10);
+    validate(path.feedback, required());
+    validate(path.feedback, minLength(10));
   },
 });
 
@@ -100,10 +100,10 @@ const form = new GroupNode({
   },
   validation: (path, { validateAsync }) => {
     // Sync validation first
-    required(path.username);
-    minLength(path.username, 3);
-    maxLength(path.username, 20);
-    pattern(path.username, /^[a-zA-Z0-9_]+$/, 'Invalid characters');
+    validate(path.username, required());
+    validate(path.username, minLength(3));
+    validate(path.username, maxLength(20));
+    validate(path.username, pattern(/^[a-zA-Z0-9_]+$/, { message: 'Invalid characters' }));
 
     // Async validation only if sync passes
     validateAsync(
@@ -179,12 +179,13 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Only validate company fields if hasCompany is true
-    when(
-      () => form.controls.hasCompany.value.value,
+    applyWhen(
+      path.hasCompany,
+      (hasCompany) => hasCompany === true,
       (path) => {
-        required(path.companyName);
-        required(path.companyTaxId);
-        pattern(path.companyTaxId, /^\d{9}$/, 'Invalid Tax ID');
+        validate(path.companyName, required());
+        validate(path.companyTaxId, required());
+        validate(path.companyTaxId, pattern(/^\d{9}$/, { message: 'Invalid Tax ID' }));
       }
     );
   },
@@ -204,24 +205,26 @@ const form = new GroupNode({
     ssn: { value: '' },
   },
   validation: (path) => {
-    required(path.accountType);
+    validate(path.accountType, required());
 
     // Business account validation
-    when(
-      () => form.controls.accountType.value.value === 'business',
+    applyWhen(
+      path.accountType,
+      (accountType) => accountType === 'business',
       (path) => {
-        required(path.businessName);
-        required(path.ein);
-        pattern(path.ein, /^\d{2}-\d{7}$/, 'Invalid EIN');
+        validate(path.businessName, required());
+        validate(path.ein, required());
+        validate(path.ein, pattern(/^\d{2}-\d{7}$/, { message: 'Invalid EIN' }));
       }
     );
 
     // Personal account validation
-    when(
-      () => form.controls.accountType.value.value === 'personal',
+    applyWhen(
+      path.accountType,
+      (accountType) => accountType === 'personal',
       (path) => {
-        required(path.ssn);
-        pattern(path.ssn, /^\d{3}-\d{2}-\d{4}$/, 'Invalid SSN');
+        validate(path.ssn, required());
+        validate(path.ssn, pattern(/^\d{3}-\d{2}-\d{4}$/, { message: 'Invalid SSN' }));
       }
     );
   },
@@ -241,10 +244,10 @@ const form = new GroupNode({
     confirmPassword: { value: '' },
   },
   validation: (path) => {
-    required(path.password);
-    minLength(path.password, 8);
+    validate(path.password, required());
+    validate(path.password, minLength(8));
 
-    required(path.confirmPassword);
+    validate(path.confirmPassword, required());
 
     // Validate confirmPassword matches password
     validate(path.confirmPassword, (value, _control, root) => {
@@ -269,8 +272,8 @@ const form = new GroupNode({
     endDate: { value: null as Date | null },
   },
   validation: (path) => {
-    required(path.startDate);
-    required(path.endDate);
+    validate(path.startDate, required());
+    validate(path.endDate, required());
 
     // Validate end date is after start date
     validate(path.endDate, (value, _control, root) => {
@@ -318,10 +321,10 @@ const form = new GroupNode({
     maxPrice: { value: 0 },
   },
   validation: (path) => {
-    required(path.minPrice);
-    required(path.maxPrice);
-    min(path.minPrice, 0);
-    min(path.maxPrice, 0);
+    validate(path.minPrice, required());
+    validate(path.maxPrice, required());
+    validate(path.minPrice, min(0));
+    validate(path.maxPrice, min(0));
 
     // Validate price range
     validate(path.maxPrice, (value, _control, root) => {
@@ -355,10 +358,10 @@ const form = new GroupNode({
     bankAccount: { value: '' },
   },
   validation: (path) => {
-    required(path.paymentMethod);
+    validate(path.paymentMethod, required());
 
     // Form-level validation
-    validateTree((ctx) => {
+    validateGroup(path, (scope, _root) => {
       const { paymentMethod, cardNumber, bankAccount } = root.getValue();
 
       if (paymentMethod === 'card' && !cardNumber) {
@@ -390,8 +393,8 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Each email must be valid
-    required(path.emails.$each);
-    email(path.emails.$each);
+    validate(path.emails.$each, required());
+    validate(path.emails.$each, email());
   },
 });
 ```
@@ -404,11 +407,11 @@ const form = new GroupNode({
     phoneNumbers: [{ value: '' }],
   },
   validation: (path) => {
-    required(path.phoneNumbers.$each);
-    pattern(path.phoneNumbers.$each, /^\d{10}$/, 'Invalid phone');
+    validate(path.phoneNumbers.$each, required());
+    validate(path.phoneNumbers.$each, pattern(/^\d{10}$/, { message: 'Invalid phone' }));
 
     // Custom validator for array length
-    validateTree((ctx) => {
+    validateGroup(path, (scope, _root) => {
       const phones = root.phoneNumbers.getValue();
 
       if (phones.length < 1) {
@@ -441,10 +444,10 @@ const form = new GroupNode({
     tags: [{ value: '' }],
   },
   validation: (path) => {
-    required(path.tags.$each);
+    validate(path.tags.$each, required());
 
     // Validate tags are unique
-    validateTree((ctx) => {
+    validateGroup(path, (scope, _root) => {
       const tags = root.tags.getValue();
       const uniqueTags = new Set(tags);
 
@@ -515,12 +518,13 @@ const form = new GroupNode({
     },
   },
   validation: (path) => {
-    // Only validate if section is visible/enabled
-    when(
-      () => form.controls.optionalSection.visible.value,
+    // Only validate when a guard field is set (e.g. `enabled: boolean` in the form)
+    applyWhen(
+      path.optionalSection.enabled,
+      (enabled) => enabled === true,
       (path) => {
-        required(path.optionalSection.field1);
-        required(path.optionalSection.field2);
+        validate(path.optionalSection.field1, required());
+        validate(path.optionalSection.field2, required());
       }
     );
   },
@@ -541,24 +545,24 @@ const form = new GroupNode({
   },
   validation: (path, { validateAsync }) => {
     // Username: sync + async
-    required(path.username);
-    minLength(path.username, 3);
+    validate(path.username, required());
+    validate(path.username, minLength(3));
     validateAsync(path.username, checkUsernameAvailability(), {
       debounce: 500,
     });
 
     // Email: sync + async
-    required(path.email);
-    email(path.email);
+    validate(path.email, required());
+    validate(path.email, email());
     validateAsync(path.email, checkEmailAvailability(), { debounce: 500 });
 
     // Password: sync only
-    required(path.password);
-    minLength(path.password, 8);
+    validate(path.password, required());
+    validate(path.password, minLength(8));
     validate(path.password, strongPassword());
 
     // Confirm password: sync dependent
-    required(path.confirmPassword);
+    validate(path.confirmPassword, required());
     validate(path.confirmPassword, matchesPassword());
   },
 });
@@ -578,11 +582,11 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Query: minimal validation, immediate
-    minLength(path.query, 2);
+    validate(path.query, minLength(2));
 
     // Filters: validate on submit
-    min(path.filters.minPrice, 0);
-    min(path.filters.maxPrice, 0);
+    validate(path.filters.minPrice, min(0));
+    validate(path.filters.maxPrice, min(0));
     validate(path.filters.maxPrice, (value, _control, root) => {
       const minPrice = root.filters.minPrice.value.value;
       if (value && minPrice && value < minPrice) {
@@ -606,23 +610,23 @@ const form = new GroupNode({
   },
   validation: (path, { validateAsync }) => {
     // Card number: sync + async
-    required(path.cardNumber);
+    validate(path.cardNumber, required());
     validate(path.cardNumber, creditCard());
     validateAsync(path.cardNumber, validateCardWithBank(), {
       debounce: 1000,
     });
 
     // Expiry: sync only
-    required(path.expiryDate);
+    validate(path.expiryDate, required());
     validate(path.expiryDate, notExpired());
 
     // CVV: sync only
-    required(path.cvv);
-    pattern(path.cvv, /^\d{3,4}$/, 'Invalid CVV');
+    validate(path.cvv, required());
+    validate(path.cvv, pattern(/^\d{3,4}$/, { message: 'Invalid CVV' }));
 
     // ZIP: sync only
-    required(path.billingZip);
-    pattern(path.billingZip, /^\d{5}$/, 'Invalid ZIP');
+    validate(path.billingZip, required());
+    validate(path.billingZip, pattern(/^\d{5}$/, { message: 'Invalid ZIP' }));
   },
 });
 ```
@@ -633,8 +637,8 @@ const form = new GroupNode({
 
 ```typescript
 // ✅ Good - multiple validation checks
-required(path.password);
-minLength(path.password, 8);
+validate(path.password, required());
+validate(path.password, minLength(8));
 validate(path.password, strongPassword());
 
 // ❌ Bad - single generic validation
@@ -672,13 +676,14 @@ validateAsync(path.username, checkAvailability());
 
 ```typescript
 // ✅ Good - only validate when needed
-when(
-  () => form.controls.hasCompany.value.value,
-  (path) => required(path.companyName)
+applyWhen(
+  path.hasCompany,
+  (hasCompany) => hasCompany === true,
+  (path) => validate(path.companyName, required())
 );
 
 // ❌ Bad - always validate, hide errors
-required(path.companyName);
+validate(path.companyName, required());
 // Then hide errors in UI - wasteful
 ```
 
@@ -686,8 +691,8 @@ required(path.companyName);
 
 ```typescript
 // ✅ Good - sync first, then async
-required(path.email);
-email(path.email);
+validate(path.email, required());
+validate(path.email, email());
 validateAsync(path.email, checkEmailAvailability());
 
 // ❌ Bad - only async (slower feedback)

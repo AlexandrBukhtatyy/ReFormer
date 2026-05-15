@@ -62,7 +62,7 @@ import { required } from '@reformer/core/validators';
 import { strongPassword } from './validators/password';
 
 validation: (path) => {
-  required(path.password);
+  validate(path.password, required());
   validate(path.password, strongPassword());
 };
 ```
@@ -113,7 +113,7 @@ export function range(min: number, max: number) {
 import { range } from './validators/range';
 
 validation: (path) => {
-  required(path.quantity);
+  validate(path.quantity, required());
   validate(path.quantity, range(1, 100));
 };
 ```
@@ -192,7 +192,7 @@ export function username() {
 
 // Usage
 validation: (path) => {
-  required(path.username);
+  validate(path.username, required());
   validate(path.username, username());
 };
 ```
@@ -255,11 +255,11 @@ const form = new GroupNode<ContactForm>({
     emails: [{ value: '' }],
   },
   validation: (path) => {
-    required(path.name);
+    validate(path.name, required());
 
     // Validate each email in the array
-    required(path.emails.$each);
-    email(path.emails.$each);
+    validate(path.emails.$each, required());
+    validate(path.emails.$each, email());
   },
 });
 ```
@@ -400,7 +400,7 @@ export function phoneNumber(countryCode: string = 'US') {
 
 // Usage
 validation: (path) => {
-  required(path.phone);
+  validate(path.phone, required());
   validate(path.phone, phoneNumber('US'));
 };
 ```
@@ -445,7 +445,7 @@ export function fileValidator(options: FileValidatorOptions = {}) {
 
 // Usage
 validation: (path) => {
-  required(path.avatar);
+  validate(path.avatar, required());
   validate(
     path.avatar,
     fileValidator({

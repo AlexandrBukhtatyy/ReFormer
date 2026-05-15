@@ -1,9 +1,9 @@
 /**
- * Единый контекст для работы с формой
+ * Единый контекст для работы с формой (используется в Behavior схемах).
  *
- * Используется в:
- * - Behavior схемах (watchField, copyFrom, transformValue, etc.)
- * - Validation схемах (validate, validateAsync, validateTree)
+ * Используется в behavior-операторах (watchField, copyFrom, transformValue, ...).
+ * В новом контракте валидации FormContext **не используется** — валидаторы получают
+ * `(value, control, root)` напрямую (см. {@link Validator}, {@link GroupValidator}).
  *
  * @example
  * ```typescript
@@ -11,14 +11,6 @@
  * watchField(path.country, (country, ctx) => {
  *   ctx.form.city.updateComponentProps({ options: cities });
  *   ctx.setFieldValue('city', null);
- * });
- *
- * // Validation
- * validate(path.email, (value, ctx) => {
- *   if (!value) return { code: 'required', message: 'Required' };
- *   const confirm = ctx.form.confirmEmail.value.value;
- *   if (value !== confirm) return { code: 'mismatch', message: 'Emails must match' };
- *   return null;
  * });
  * ```
  */
