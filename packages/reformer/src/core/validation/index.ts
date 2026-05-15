@@ -2,14 +2,14 @@
 // Validation Schema API
 // ============================================================================
 
-// Core validation functions
+// Core validation operators
 export { validate } from './core/validate';
 export { validateAsync } from './core/validate-async';
-export { validateTree } from './core/validate-tree';
+export { validateGroup } from './core/validate-group';
 export { apply } from './core/apply';
 export { applyWhen } from './core/apply-when';
 
-// Reusable validators
+// Reusable validator factories
 export { required } from './validators/required';
 export { min } from './validators/min';
 export { max } from './validators/max';
@@ -22,19 +22,14 @@ export { phone, type PhoneFormat } from './validators/phone';
 export { number } from './validators/number';
 export { date } from './validators/date';
 
-// Валидаторы для массивов
+// Array validators
 export { notEmpty, validateItems } from './validators/array-validators';
 
-// Утилиты для FieldPath
+// FieldPath utilities
 export { createFieldPath, extractPath, extractKey, toFieldPath } from './field-path';
 
-// Утилита для валидации формы по схеме
+// Form validation utility
 export { validateForm } from './validate-form';
 
-// ValidationRegistry (для внутреннего использования)
-// Примечание: ValidationRegistry (глобальный singleton) был удален в пользу
-// локальных экземпляров ValidationRegistry в каждом GroupNode
+// Validation registry (для внутреннего использования)
 export { ValidationRegistry } from './validation-registry';
-
-// Контексты валидации
-export { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';

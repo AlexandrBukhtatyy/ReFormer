@@ -26,26 +26,29 @@ const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 
 ### Validation Priority (IMPORTANT)
 
-**Always prefer built-in validators over custom ones:**
+**Operators register validators; built-in factories return validators. Pass factories to `validate()`.**
+
+Operators: `validate`, `validateAsync`, `validateGroup`, `applyWhen`, `apply`, `validateItems`.
+Factories (return `Validator<TForm, TField>`): `required`, `email`, `min`, `max`, `minLength`, `maxLength`,
+`pattern`, `url`, `phone`, `number`, `date`, `notEmpty`.
 
 ```typescript
-// 1. BEST: Use built-in validators when available
-required(path.email);
-email(path.email);
-min(path.age, 18);
-minLength(path.password, 8);
-pattern(path.phone, /^\+7\d{10}$/);
+// 1. BEST: Pass built-in factories to validate()
+validate(path.email, required());
+validate(path.email, email());
+validate(path.age, min(18));
+validate(path.password, minLength(8));
+validate(path.phone, pattern(/^\+7\d{10}$/));
 
-// 2. GOOD: Use validate() only when no built-in validator exists
-validate(path.customField, (value, ctx) => {
-  // Custom logic that can't be expressed with built-in validators
+// 2. GOOD: Custom validator when no factory fits. Signature: (value, control, root).
+validate(path.customField, (value, control, root) => {
   if (customCondition(value)) {
     return { code: 'custom', message: 'Custom error' };
   }
   return null;
 });
 
-// 3. WRONG: Don't recreate built-in validators
+// 3. WRONG: Don't recreate built-in validators inline
 validate(path.email, (value) => {
   if (!value) return { code: 'required', message: 'Required' };  // Use required() instead!
   if (!value.includes('@')) return { code: 'email', message: 'Invalid' };  // Use email() instead!

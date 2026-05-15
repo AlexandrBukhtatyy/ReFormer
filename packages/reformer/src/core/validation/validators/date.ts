@@ -1,56 +1,49 @@
 /**
- * Валидатор даты
+ * Валидатор даты (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/date
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
+
+export interface DateValidatorOptions extends ValidateOptions {
+  /** Минимальная дата (включительно) */
+  minDate?: Date;
+  /** Максимальная дата (включительно) */
+  maxDate?: Date;
+  /** Минимальный возраст (для дат рождения) */
+  minAge?: number;
+  /** Максимальный возраст (для дат рождения) */
+  maxAge?: number;
+  /** Не разрешать будущие даты */
+  noFuture?: boolean;
+  /** Не разрешать прошлые даты */
+  noPast?: boolean;
+}
+
+type DateInput = string | Date | undefined;
 
 /**
- * Адаптер для date валидатора
- * Проверяет, что значение является валидной датой и соответствует ограничениям
+ * Фабрика валидатора даты.
  *
- * @group Validation
- * @category Validators
+ * Принимает Date или строку, конвертирует в Date, проверяет валидность и ограничения.
  *
  * @example
  * ```typescript
- * date(path.birthDate);
- * date(path.birthDate, { maxDate: new Date() }); // Не позже сегодня
- * date(path.eventDate, { minDate: new Date(), message: 'Дата не может быть в прошлом' });
- * date(path.age, { minAge: 18, maxAge: 100 });
+ * validate(path.birthDate, date({ noFuture: true, minAge: 18 }));
+ * validate(path.eventDate, date({ minDate: new Date() }));
  * ```
  */
-export function date<TForm, TField extends string | Date | undefined = string | Date>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
-  options?: ValidateOptions & {
-    /** Минимальная дата (включительно) */
-    minDate?: Date;
-    /** Максимальная дата (включительно) */
-    maxDate?: Date;
-    /** Минимальный возраст (для дат рождения) */
-    minAge?: number;
-    /** Максимальный возраст (для дат рождения) */
-    maxAge?: number;
-    /** Не разрешать будущие даты */
-    noFuture?: boolean;
-    /** Не разрешать прошлые даты */
-    noPast?: boolean;
-  }
-): void {
-  if (!fieldPath) return; // Защита от undefined fieldPath
-
-  validate(fieldPath, (value) => {
-    // Пропускаем null/undefined
+export function date<TForm = unknown, TField extends DateInput = DateInput>(
+  options?: DateValidatorOptions
+): Validator<TForm, TField> {
+  return (value) => {
     if (!value) {
       return null;
     }
 
-    // Конвертируем в Date
     let dateValue: Date;
     if (value instanceof Date) {
       dateValue = value;
@@ -59,16 +52,15 @@ export function date<TForm, TField extends string | Date | undefined = string | 
     } else {
       return {
         code: 'date_invalid',
-        message: options?.message || 'Неверный формат даты',
+        message: options?.message ?? 'Неверный формат даты',
         params: options?.params,
       };
     }
 
-    // Проверка на валидность даты
     if (isNaN(dateValue.getTime())) {
       return {
         code: 'date_invalid',
-        message: options?.message || 'Неверный формат даты',
+        message: options?.message ?? 'Неверный формат даты',
         params: options?.params,
       };
     }
@@ -76,20 +68,18 @@ export function date<TForm, TField extends string | Date | undefined = string | 
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // Проверка минимальной даты
     if (options?.minDate) {
       const minDate = new Date(options.minDate);
       minDate.setHours(0, 0, 0, 0);
       if (dateValue < minDate) {
         return {
           code: 'date_min',
-          message: options?.message || `Дата должна быть не ранее ${minDate.toLocaleDateString()}`,
+          message: options?.message ?? `Дата должна быть не ранее ${minDate.toLocaleDateString()}`,
           params: { minDate: options.minDate, ...options?.params },
         };
       }
     }
 
-    // Проверка максимальной даты
     if (options?.maxDate) {
       const maxDate = new Date(options.maxDate);
       maxDate.setHours(0, 0, 0, 0);
@@ -97,31 +87,28 @@ export function date<TForm, TField extends string | Date | undefined = string | 
         return {
           code: 'date_max',
           message:
-            options?.message || `Дата должна быть не позднее ${maxDate.toLocaleDateString()}`,
+            options?.message ?? `Дата должна быть не позднее ${maxDate.toLocaleDateString()}`,
           params: { maxDate: options.maxDate, ...options?.params },
         };
       }
     }
 
-    // Проверка на будущую дату
     if (options?.noFuture && dateValue > now) {
       return {
         code: 'date_future',
-        message: options?.message || 'Дата не может быть в будущем',
+        message: options?.message ?? 'Дата не может быть в будущем',
         params: options?.params,
       };
     }
 
-    // Проверка на прошлую дату
     if (options?.noPast && dateValue < now) {
       return {
         code: 'date_past',
-        message: options?.message || 'Дата не может быть в прошлом',
+        message: options?.message ?? 'Дата не может быть в прошлом',
         params: options?.params,
       };
     }
 
-    // Проверка возраста
     if (options?.minAge !== undefined || options?.maxAge !== undefined) {
       const age = Math.floor(
         (now.getTime() - dateValue.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
@@ -130,7 +117,7 @@ export function date<TForm, TField extends string | Date | undefined = string | 
       if (options?.minAge !== undefined && age < options.minAge) {
         return {
           code: 'date_min_age',
-          message: options?.message || `Минимальный возраст: ${options.minAge} лет`,
+          message: options?.message ?? `Минимальный возраст: ${options.minAge} лет`,
           params: { minAge: options.minAge, currentAge: age, ...options?.params },
         };
       }
@@ -138,12 +125,12 @@ export function date<TForm, TField extends string | Date | undefined = string | 
       if (options?.maxAge !== undefined && age > options.maxAge) {
         return {
           code: 'date_max_age',
-          message: options?.message || `Максимальный возраст: ${options.maxAge} лет`,
+          message: options?.message ?? `Максимальный возраст: ${options.maxAge} лет`,
           params: { maxAge: options.maxAge, currentAge: age, ...options?.params },
         };
       }
     }
 
     return null;
-  });
+  };
 }

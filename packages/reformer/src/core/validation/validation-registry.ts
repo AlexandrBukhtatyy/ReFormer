@@ -11,13 +11,13 @@ import type { GroupNode } from '../nodes/group-node';
 import { FormFields } from '../types';
 import type {
   ValidatorRegistration,
-  ContextualValidatorFn,
-  ContextualAsyncValidatorFn,
-  TreeValidatorFn,
+  Validator,
+  AsyncValidator,
+  GroupValidator,
   ConditionFn,
   ValidateOptions,
   ValidateAsyncOptions,
-  ValidateTreeOptions,
+  ValidateGroupOptions,
 } from '../types/validation-schema';
 import { RegistryStack } from '../utils/registry-stack';
 
@@ -186,7 +186,7 @@ export class ValidationRegistry {
    */
   registerSync<TForm = unknown, TField = unknown>(
     fieldPath: string,
-    validator: ContextualValidatorFn<TForm, TField>,
+    validator: Validator<TForm, TField>,
     options?: ValidateOptions
   ): void {
     const context = this.getCurrentContext();
@@ -197,7 +197,7 @@ export class ValidationRegistry {
     context.addValidator({
       fieldPath,
       type: 'sync',
-      validator: validator as ContextualValidatorFn<unknown, unknown>,
+      validator: validator as Validator<unknown, unknown>,
       options,
     });
   }
@@ -207,7 +207,7 @@ export class ValidationRegistry {
    */
   registerAsync<TForm = unknown, TField = unknown>(
     fieldPath: string,
-    validator: ContextualAsyncValidatorFn<TForm, TField>,
+    validator: AsyncValidator<TForm, TField>,
     options?: ValidateAsyncOptions
   ): void {
     const context = this.getCurrentContext();
@@ -218,28 +218,47 @@ export class ValidationRegistry {
     context.addValidator({
       fieldPath,
       type: 'async',
-      validator: validator as ContextualAsyncValidatorFn<unknown, unknown>,
+      validator: validator as AsyncValidator<unknown, unknown>,
       options,
     });
   }
 
   /**
-   * Зарегистрировать tree валидатор
+   * Зарегистрировать cross-field (group) валидатор
+   *
+   * @param validator - Чистая функция (scope, root) => error | null
+   * @param options - Опции (targetField для привязки ошибки)
+   * @param scopePath - Путь до scope. Для root формы — пустая строка ''.
    */
-  registerTree<TForm = unknown>(
-    validator: TreeValidatorFn<TForm>,
-    options?: ValidateTreeOptions
+  registerGroup<TForm = unknown, TScope = unknown>(
+    validator: GroupValidator<TForm, TScope>,
+    options: ValidateGroupOptions<TForm> | undefined,
+    scopePath: string
   ): void {
     const context = this.getCurrentContext();
     if (!context) {
       throw new Error('Validators can only be registered inside a validation schema function');
     }
 
+    // fieldPath используется как ключ для группировки/таргетинга ошибок.
+    // Если targetField задан — берём его (через extractPath ниже).
+    // Иначе используем '__group__' как marker для default-таргета (scopePath).
+    let targetPath = '__group__';
+    if (options?.targetField) {
+      // targetField — FieldPathNode. Получаем строковый путь.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fp = (options.targetField as any).__path;
+      if (typeof fp === 'string') {
+        targetPath = fp;
+      }
+    }
+
     context.addValidator({
-      fieldPath: options?.targetField || '__tree__',
-      type: 'tree',
-      validator: validator as TreeValidatorFn<unknown>,
-      options,
+      fieldPath: targetPath,
+      type: 'group',
+      validator: validator as GroupValidator<unknown, unknown>,
+      options: options as ValidateGroupOptions<unknown> | undefined,
+      scopePath,
     });
   }
 
@@ -317,9 +336,8 @@ export class ValidationRegistry {
     const validatorsByField = new Map<string, ValidatorRegistration[]>();
 
     for (const registration of validators) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (registration.type === 'tree' || (registration as any).type === 'array-items') {
-        // Tree и array-items валидаторы обрабатываются отдельно
+      if (registration.type === 'group' || registration.type === 'array-items') {
+        // Group и array-items валидаторы обрабатываются отдельно
         continue;
       }
 

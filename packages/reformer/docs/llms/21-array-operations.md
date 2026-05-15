@@ -68,22 +68,24 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
 ### Array Cross-Validation
 
+Use `validateGroup` with scope = root form (`path` as the first argument).
+
 ```typescript
 // Validate uniqueness across array items
-validateTree((ctx: { form: MyForm }) => {
-  const items = ctx.form.items;
-  const names = items.map(item => item.name.value.value);
+validateGroup(path, (scope, _root) => {
+  const items = scope.items;
+  const names = items.map((item) => item.name.value.value);
   const uniqueNames = new Set(names);
 
   if (names.length !== uniqueNames.size) {
     return { code: 'duplicate', message: 'Item names must be unique' };
   }
   return null;
-}, { targetField: 'items' });
+}, { targetField: path.items });
 
 // Validate sum of percentages
-validateTree((ctx: { form: MyForm }) => {
-  const items = ctx.form.items;
+validateGroup(path, (scope, _root) => {
+  const items = scope.items;
   const totalPercent = items.reduce(
     (sum, item) => sum + (item.percentage.value.value || 0),
     0
@@ -93,5 +95,5 @@ validateTree((ctx: { form: MyForm }) => {
     return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
   }
   return null;
-}, { targetField: 'items' });
+}, { targetField: path.items });
 ```

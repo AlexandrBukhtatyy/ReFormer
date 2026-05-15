@@ -1,27 +1,23 @@
-import { required, minLength, pattern, validate } from '@reformer/core/validators';
+import { validate, required, minLength, pattern } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { PassportData } from './type';
 
 export const passportDataValidation: ValidationSchemaFn<PassportData> = (
   path: FieldPath<PassportData>
 ) => {
-  required(path.series, { message: 'Серия паспорта обязательна' });
-  pattern(path.series, /^\d{4}$/, {
-    message: 'Серия должна быть ровно 4 цифры',
-  });
+  validate(path.series, required({ message: 'Серия паспорта обязательна' }));
+  validate(path.series, pattern(/^\d{4}$/, { message: 'Серия должна быть ровно 4 цифры' }));
 
-  required(path.number, { message: 'Номер паспорта обязателен' });
-  pattern(path.number, /^\d{6}$/, {
-    message: 'Номер должен быть ровно 6 цифр',
-  });
+  validate(path.number, required({ message: 'Номер паспорта обязателен' }));
+  validate(path.number, pattern(/^\d{6}$/, { message: 'Номер должен быть ровно 6 цифр' }));
 
-  required(path.issueDate, { message: 'Дата выдачи обязательна' });
+  validate(path.issueDate, required({ message: 'Дата выдачи обязательна' }));
 
   // Проверка: дата выдачи не в будущем
   validate(path.issueDate, (issueDate) => {
     if (!issueDate) return null;
 
-    const date = new Date(issueDate);
+    const date = new Date(issueDate as string);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -31,10 +27,9 @@ export const passportDataValidation: ValidationSchemaFn<PassportData> = (
         message: 'Дата выдачи не может быть в будущем',
       };
     }
-
     return null;
   });
 
-  required(path.issuedBy, { message: 'Орган выдачи обязателен' });
-  minLength(path.issuedBy, 10, { message: 'Минимум 10 символов' });
+  validate(path.issuedBy, required({ message: 'Орган выдачи обязателен' }));
+  validate(path.issuedBy, minLength(10, { message: 'Минимум 10 символов' }));
 };

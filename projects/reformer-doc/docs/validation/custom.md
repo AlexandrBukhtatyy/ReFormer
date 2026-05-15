@@ -8,21 +8,21 @@ Create reusable validators for your application.
 
 ## Simple Custom Validator
 
-Use `validate()` for inline custom validators:
+Use `validate()` for inline custom validators. The validator receives
+`(value, control, root)`:
 
 ```typescript
 import { validate } from '@reformer/core/validators';
 
 validation: (path) => {
   // Inline custom validator
-  validate(path.age, (value) => {
+  validate(path.age, (value, _control, _root) => {
     if (value < 18) {
-      return { mustBeAdult: true };
+      return { code: 'mustBeAdult', message: 'Must be 18+' };
     }
     return null;
   });
 };
-// Error: { mustBeAdult: true }
 ```
 
 ## Reusable Validator Factory
@@ -138,12 +138,14 @@ Access the entire form during validation:
 /**
  * Validates that field matches another field
  */
-export function matchesPassword() {
-  return (value: string, ctx) => {
-    const password = ctx.form.password.value.value;
+import type { Validator } from '@reformer/core';
+
+export function matchesPassword<TForm extends { password: string }>(): Validator<TForm, string> {
+  return (value, _control, root) => {
+    const password = root.password.value.value;
 
     if (value && password && value !== password) {
-      return { passwordMismatch: true };
+      return { code: 'passwordMismatch', message: 'Passwords do not match' };
     }
     return null;
   };
@@ -151,8 +153,8 @@ export function matchesPassword() {
 
 // Usage
 validation: (path) => {
-  required(path.password);
-  required(path.confirmPassword);
+  validate(path.password, required());
+  validate(path.confirmPassword, required());
   validate(path.confirmPassword, matchesPassword());
 };
 ```
@@ -197,22 +199,43 @@ validation: (path) => {
 
 ## Cross-Field Validation
 
-Validate relationships between fields:
+Validate relationships between fields. The third argument `root` gives access to the entire form proxy.
 
 ```typescript
 validation: (path) => {
-  required(path.startDate);
-  required(path.endDate);
+  validate(path.startDate, required());
+  validate(path.endDate, required());
 
   // Validate end date is after start date
-  validate(path.endDate, (value, ctx) => {
-    const startDate = ctx.form.startDate.value.value;
+  validate(path.endDate, (value, _control, root) => {
+    const startDate = root.startDate.value.value;
 
-    if (value && startDate && new Date(value) < new Date(startDate)) {
-      return { endBeforeStart: true };
+    if (value && startDate && new Date(value as string) < new Date(startDate)) {
+      return { code: 'endBeforeStart', message: 'End date must be after start date' };
     }
     return null;
   });
+};
+```
+
+For validation that depends on multiple fields and attaches the error to a specific field,
+use `validateGroup`:
+
+```typescript
+import { validateGroup } from '@reformer/core/validators';
+
+validation: (path) => {
+  validateGroup(
+    path,
+    (scope, _root) => {
+      const v = scope.getValue();
+      if (v.startDate && v.endDate && new Date(v.endDate) < new Date(v.startDate)) {
+        return { code: 'endBeforeStart', message: 'End date must be after start date' };
+      }
+      return null;
+    },
+    { targetField: path.endDate }
+  );
 };
 ```
 
@@ -243,22 +266,23 @@ const form = new GroupNode<ContactForm>({
 
 ## Conditional Validation with Custom Logic
 
-Use `when()` for conditional custom validators:
+Use `applyWhen()` for conditional custom validators:
 
 ```typescript
-import { when } from '@reformer/core/validators';
+import { applyWhen, validate, required } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.country);
+  validate(path.country, required());
 
   // Require tax ID only for US users
-  when(
-    () => form.controls.country.value === 'US',
+  applyWhen(
+    path.country,
+    (country) => country === 'US',
     (path) => {
-      required(path.taxId);
+      validate(path.taxId, required());
       validate(path.taxId, (value) => {
-        if (!/^\d{9}$/.test(value)) {
-          return { invalidTaxId: true };
+        if (!/^\d{9}$/.test(value as string)) {
+          return { code: 'invalidTaxId', message: 'Tax ID must be 9 digits' };
         }
         return null;
       });
@@ -291,13 +315,15 @@ export function checkUsernameAvailability() {
 }
 
 // Usage
-import { validateAsync } from '@reformer/core/validators';
+import { validateAsync, validate, required } from '@reformer/core/validators';
 
-validation: (path, { validateAsync }) => {
-  required(path.username);
+validation: (path) => {
+  validate(path.username, required());
   validate(path.username, username());
 
-  // Async validation with debounce
+  // Async validation with debounce. Note: pass the async function directly
+  // (signature: `(value, control, root) => Promise<ValidationError | null>`),
+  // not a factory invocation.
   validateAsync(path.username, checkUsernameAvailability(), {
     debounce: 500,
   });

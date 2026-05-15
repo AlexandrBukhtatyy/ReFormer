@@ -11,7 +11,7 @@
 | `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
 | `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |
-| `validate`, `validateAsync`, `validateTree`, `applyWhen`                                    | `@reformer/core/validators` |
+| `validate`, `validateAsync`, `validateGroup`, `applyWhen`, `apply`                          | `@reformer/core/validators` |
 | `notEmpty`, `validateItems`                                                                 | `@reformer/core/validators` |
 | `computeFrom`, `enableWhen`, `disableWhen`, `watchField`, `copyFrom`                        | `@reformer/core/behaviors`  |
 | `resetWhen`, `revalidateWhen`, `syncFields`                                                 | `@reformer/core/behaviors`  |
@@ -119,26 +119,33 @@ function FormStep({ form }: FormStepProps) {
 
 ### Validators
 
+Operators register validators in the schema. Validator factories return pure
+`Validator<TForm, TField>` functions of shape `(value, control, root) => ValidationError | null`.
+
 ```typescript
-// Basic validators
-required(path, options?: { message?: string })
-min(path, value: number, options?: { message?: string })
-max(path, value: number, options?: { message?: string })
-minLength(path, length: number, options?: { message?: string })
-maxLength(path, length: number, options?: { message?: string })
-email(path, options?: { message?: string })
+// Operators (register validators in schema)
+validate(path, validator: Validator<TForm, TField>, options?: { message?: string })
+validateAsync(path, validator: AsyncValidator<TForm, TField>, options?: { message?: string; debounce?: number })
+validateGroup(scopePath, validator: GroupValidator<TForm, TScope>, options?: { targetField?: FieldPathNode })
 
-// Additional validators
-pattern(path, regex: RegExp, options?: { message?: string })
-url(path, options?: { message?: string })
-phone(path, options?: { message?: string; format?: PhoneFormat })
-number(path, options?: { message?: string })
-date(path, options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
+// Validator factories (return Validator). Pass to validate().
+required(options?: { message?: string })
+min(value: number, options?: { message?: string })
+max(value: number, options?: { message?: string })
+minLength(length: number, options?: { message?: string })
+maxLength(length: number, options?: { message?: string })
+email(options?: { message?: string })
+pattern(regex: RegExp, options?: { message?: string })
+url(options?: { message?: string; requireProtocol?: boolean })
+phone(options?: { message?: string; format?: PhoneFormat })
+number(options?: { message?: string; min?: number; max?: number; integer?: boolean })
+date(options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
+notEmpty(options?: { message?: string })
 
-// Custom validators
-validate(path, validator: (value, ctx) => ValidationError | null)
-validateAsync(path, validator: async (value, ctx) => ValidationError | null)
-validateTree(validator: (ctx) => ValidationError | null, options?: { targetField?: string })
+// Usage: pass a factory result to validate()
+validate(path.email, required());
+validate(path.age, min(18));
+validate(path.amount, number({ min: 0, max: 1000 }));
 
 // Conditional validation (3 arguments!)
 applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)
@@ -151,8 +158,8 @@ applyWhen(
   path.loanType,                    // 1st: field to watch
   (type) => type === 'mortgage',    // 2nd: condition on field value
   (p) => {                          // 3rd: validators to apply
-    required(p.propertyValue);
-    min(p.propertyValue, 100000);
+    validate(p.propertyValue, required());
+    validate(p.propertyValue, min(100000));
   }
 );
 
@@ -161,8 +168,8 @@ applyWhen(
   path.address.country,
   (country) => country === 'US',
   (p) => {
-    required(p.address.state);
-    pattern(p.address.zip, /^\d{5}(-\d{4})?$/);
+    validate(p.address.state, required());
+    validate(p.address.zip, pattern(/^\d{5}(-\d{4})?$/));
   }
 );
 
@@ -171,19 +178,18 @@ applyWhen(
   path.hasInsurance,
   (has) => has === true,
   (p) => {
-    required(p.insuranceCompany);
-    required(p.policyNumber);
+    validate(p.insuranceCompany, required());
+    validate(p.policyNumber, required());
   }
 );
 
 // WRONG - only 2 arguments (React Hook Form pattern)
 applyWhen(
   (form) => form.loanType === 'mortgage',  // WRONG!
-  () => { required(path.propertyValue); }
+  () => { validate(path.propertyValue, required()); }
 );
 
-// Array validators
-notEmpty(path, options?: { message?: string })
+// Array item schema operator
 validateItems(arrayPath, itemValidatorsFn: (itemPath) => void)
 ```
 
@@ -252,26 +258,29 @@ const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 
 ### Validation Priority (IMPORTANT)
 
-**Always prefer built-in validators over custom ones:**
+**Operators register validators; built-in factories return validators. Pass factories to `validate()`.**
+
+Operators: `validate`, `validateAsync`, `validateGroup`, `applyWhen`, `apply`, `validateItems`.
+Factories (return `Validator<TForm, TField>`): `required`, `email`, `min`, `max`, `minLength`, `maxLength`,
+`pattern`, `url`, `phone`, `number`, `date`, `notEmpty`.
 
 ```typescript
-// 1. BEST: Use built-in validators when available
-required(path.email);
-email(path.email);
-min(path.age, 18);
-minLength(path.password, 8);
-pattern(path.phone, /^\+7\d{10}$/);
+// 1. BEST: Pass built-in factories to validate()
+validate(path.email, required());
+validate(path.email, email());
+validate(path.age, min(18));
+validate(path.password, minLength(8));
+validate(path.phone, pattern(/^\+7\d{10}$/));
 
-// 2. GOOD: Use validate() only when no built-in validator exists
-validate(path.customField, (value, ctx) => {
-  // Custom logic that can't be expressed with built-in validators
+// 2. GOOD: Custom validator when no factory fits. Signature: (value, control, root).
+validate(path.customField, (value, control, root) => {
   if (customCondition(value)) {
     return { code: 'custom', message: 'Custom error' };
   }
   return null;
 });
 
-// 3. WRONG: Don't recreate built-in validators
+// 3. WRONG: Don't recreate built-in validators inline
 validate(path.email, (value) => {
   if (!value) return { code: 'required', message: 'Required' };  // Use required() instead!
   if (!value.includes('@')) return { code: 'email', message: 'Invalid' };  // Use email() instead!
@@ -818,19 +827,31 @@ enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOn
 
 See `22-cycle-detection.md` for complete pattern.
 
-### validateTree Typing
+### validateGroup Typing
 
 ```typescript
-// WRONG - implicit any
-validateTree((ctx) => { ... });
+// validateGroup signature: (scopePath, validator, options?)
+// validator: (scope, root) => ValidationError | null
 
-// CORRECT - explicit typing
-validateTree((ctx: { form: MyForm }) => {
-  if (ctx.form.field1 > ctx.form.field2) {
+// CORRECT - scope = root form (pass path as scopePath)
+validateGroup(path, (scope, root) => {
+  const v = scope.getValue();           // typed as TForm
+  if (v.field1 > v.field2) {
     return { code: 'error', message: 'Invalid' };
   }
   return null;
+}, { targetField: path.field1 });
+
+// CORRECT - scope = subtree
+validateGroup(path.address, (address, root) => {
+  if (address.city.value.value === '') {
+    return { code: 'cityRequired', message: 'City required' };
+  }
+  return null;
 });
+
+// WRONG - old API removed
+validateTree((ctx) => { ... });        // validateTree no longer exists
 ```
 
 ## 14. PROJECT STRUCTURE (COLOCATION)
@@ -1243,22 +1264,24 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
 ### Array Cross-Validation
 
+Use `validateGroup` with scope = root form (`path` as the first argument).
+
 ```typescript
 // Validate uniqueness across array items
-validateTree((ctx: { form: MyForm }) => {
-  const items = ctx.form.items;
-  const names = items.map(item => item.name.value.value);
+validateGroup(path, (scope, _root) => {
+  const items = scope.items;
+  const names = items.map((item) => item.name.value.value);
   const uniqueNames = new Set(names);
 
   if (names.length !== uniqueNames.size) {
     return { code: 'duplicate', message: 'Item names must be unique' };
   }
   return null;
-}, { targetField: 'items' });
+}, { targetField: path.items });
 
 // Validate sum of percentages
-validateTree((ctx: { form: MyForm }) => {
-  const items = ctx.form.items;
+validateGroup(path, (scope, _root) => {
+  const items = scope.items;
   const totalPercent = items.reduce(
     (sum, item) => sum + (item.percentage.value.value || 0),
     0
@@ -1268,7 +1291,7 @@ validateTree((ctx: { form: MyForm }) => {
     return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
   }
   return null;
-}, { targetField: 'items' });
+}, { targetField: path.items });
 ```
 
 ## Cycle Detection Prevention Checklist

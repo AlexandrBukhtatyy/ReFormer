@@ -1,4 +1,4 @@
-import { required, email, phone, pattern, applyWhen } from '@reformer/core/validators';
+import { validate, required, email, phone, pattern, applyWhen } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
@@ -9,35 +9,37 @@ export const contactValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Номера телефонов
-  required(path.phoneMain, { message: 'Главный номер телефона обязателен' });
-  phone(path.phoneMain, { message: 'Неверный формат телефона' });
-  phone(path.phoneAdditional, { message: 'Неверный формат телефона' });
+  validate(path.phoneMain, required({ message: 'Главный номер телефона обязателен' }));
+  validate(path.phoneMain, phone({ message: 'Неверный формат телефона' }));
+  validate(path.phoneAdditional, phone({ message: 'Неверный формат телефона' }));
 
   // Адреса email
-  required(path.email, { message: 'Email обязателен' });
-  email(path.email, { message: 'Неверный формат email' });
-  email(path.emailAdditional, { message: 'Неверный формат email' });
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, email({ message: 'Неверный формат email' }));
+  validate(path.emailAdditional, email({ message: 'Неверный формат email' }));
 
   // Адрес регистрации
-  required(path.registrationAddress.city, { message: 'Город обязателен' });
-  required(path.registrationAddress.street, { message: 'Улица обязательна' });
-  required(path.registrationAddress.house, { message: 'Номер дома обязателен' });
-  pattern(path.registrationAddress.postalCode, /^\d{6}$/, {
-    message: 'Почтовый код должен быть 6 цифр',
-  });
+  validate(path.registrationAddress.city, required({ message: 'Город обязателен' }));
+  validate(path.registrationAddress.street, required({ message: 'Улица обязательна' }));
+  validate(path.registrationAddress.house, required({ message: 'Номер дома обязателен' }));
+  validate(
+    path.registrationAddress.postalCode,
+    pattern(/^\d{6}$/, { message: 'Почтовый код должен быть 6 цифр' })
+  );
 
   // Адрес проживания (условно обязателен)
   applyWhen(
     path.sameAsRegistration,
     (same) => !same,
     (p) => {
-      required(p.residenceAddress.city, { message: 'Город обязателен' });
-      required(p.residenceAddress.street, { message: 'Улица обязательна' });
-      required(p.residenceAddress.house, { message: 'Номер дома обязателен' });
+      validate(p.residenceAddress.city, required({ message: 'Город обязателен' }));
+      validate(p.residenceAddress.street, required({ message: 'Улица обязательна' }));
+      validate(p.residenceAddress.house, required({ message: 'Номер дома обязателен' }));
     }
   );
 
-  pattern(path.residenceAddress.postalCode, /^\d{6}$/, {
-    message: 'Почтовый код должен быть 6 цифр',
-  });
+  validate(
+    path.residenceAddress.postalCode,
+    pattern(/^\d{6}$/, { message: 'Почтовый код должен быть 6 цифр' })
+  );
 };

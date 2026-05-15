@@ -247,8 +247,8 @@ const form = new GroupNode({
     required(path.confirmPassword);
 
     // Validate confirmPassword matches password
-    validate(path.confirmPassword, (value, ctx) => {
-      const password = ctx.form.password.value.value;
+    validate(path.confirmPassword, (value, _control, root) => {
+      const password = root.password.value.value;
       if (value && password && value !== password) {
         return { passwordMismatch: true };
       }
@@ -273,8 +273,8 @@ const form = new GroupNode({
     required(path.endDate);
 
     // Validate end date is after start date
-    validate(path.endDate, (value, ctx) => {
-      const startDate = ctx.form.startDate.value.value;
+    validate(path.endDate, (value, _control, root) => {
+      const startDate = root.startDate.value.value;
 
       if (!value || !startDate) return null;
 
@@ -286,8 +286,8 @@ const form = new GroupNode({
     });
 
     // Validate date range is not more than 1 year
-    validate(path.endDate, (value, ctx) => {
-      const startDate = ctx.form.startDate.value.value;
+    validate(path.endDate, (value, _control, root) => {
+      const startDate = root.startDate.value.value;
 
       if (!value || !startDate) return null;
 
@@ -324,8 +324,8 @@ const form = new GroupNode({
     min(path.maxPrice, 0);
 
     // Validate price range
-    validate(path.maxPrice, (value, ctx) => {
-      const minPrice = ctx.form.minPrice.value.value;
+    validate(path.maxPrice, (value, _control, root) => {
+      const minPrice = root.minPrice.value.value;
 
       if (value && minPrice && value < minPrice) {
         return {
@@ -346,7 +346,7 @@ const form = new GroupNode({
 Validate entire form:
 
 ```typescript
-import { validateTree } from '@reformer/core/validators';
+import { validateGroup } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -359,7 +359,7 @@ const form = new GroupNode({
 
     // Form-level validation
     validateTree((ctx) => {
-      const { paymentMethod, cardNumber, bankAccount } = ctx.form.getValue();
+      const { paymentMethod, cardNumber, bankAccount } = root.getValue();
 
       if (paymentMethod === 'card' && !cardNumber) {
         return {
@@ -409,7 +409,7 @@ const form = new GroupNode({
 
     // Custom validator for array length
     validateTree((ctx) => {
-      const phones = ctx.form.phoneNumbers.getValue();
+      const phones = root.phoneNumbers.getValue();
 
       if (phones.length < 1) {
         return {
@@ -445,7 +445,7 @@ const form = new GroupNode({
 
     // Validate tags are unique
     validateTree((ctx) => {
-      const tags = ctx.form.tags.getValue();
+      const tags = root.tags.getValue();
       const uniqueTags = new Set(tags);
 
       if (uniqueTags.size !== tags.length) {
@@ -583,8 +583,8 @@ const form = new GroupNode({
     // Filters: validate on submit
     min(path.filters.minPrice, 0);
     min(path.filters.maxPrice, 0);
-    validate(path.filters.maxPrice, (value, ctx) => {
-      const minPrice = ctx.form.filters.minPrice.value.value;
+    validate(path.filters.maxPrice, (value, _control, root) => {
+      const minPrice = root.filters.minPrice.value.value;
       if (value && minPrice && value < minPrice) {
         return { invalidRange: true };
       }

@@ -1,21 +1,21 @@
-import { required, min, email, phone } from '@reformer/core/validators';
+import { validate, required, min, email, phone } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
 import type { CoBorrower } from './type';
 
 export const coBorrowerValidation: ValidationSchemaFn<CoBorrower> = (
   path: FieldPath<CoBorrower>
 ) => {
-  required(path.personalData.firstName, { message: 'Имя обязательно' });
-  required(path.personalData.lastName, { message: 'Фамилия обязательна' });
+  validate(path.personalData.firstName, required({ message: 'Имя обязательно' }));
+  validate(path.personalData.lastName, required({ message: 'Фамилия обязательна' }));
 
-  required(path.phone, { message: 'Номер телефона обязателен' });
-  phone(path.phone, { message: 'Неверный формат телефона' });
+  validate(path.phone, required({ message: 'Номер телефона обязателен' }));
+  validate(path.phone, phone({ message: 'Неверный формат телефона' }));
 
-  required(path.email, { message: 'Email обязателен' });
-  email(path.email, { message: 'Неверный формат email' });
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, email({ message: 'Неверный формат email' }));
 
-  required(path.monthlyIncome, { message: 'Ежемесячный доход обязателен' });
-  min(path.monthlyIncome, 0, { message: 'Доход должен быть неотрицательным' });
+  validate(path.monthlyIncome, required({ message: 'Ежемесячный доход обязателен' }));
+  validate(path.monthlyIncome, min(0, { message: 'Доход должен быть неотрицательным' }));
 
-  required(path.relationship, { message: 'Связь с заявителем обязательна' });
+  validate(path.relationship, required({ message: 'Связь с заявителем обязательна' }));
 };

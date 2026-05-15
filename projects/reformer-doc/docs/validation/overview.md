@@ -8,11 +8,14 @@ ReFormer provides declarative validation with built-in validators and support fo
 
 ## Basic Usage
 
-Define validation in `validation`:
+Define validation in `validation`. ReFormer separates **operators** (`validate`, `validateAsync`,
+`validateGroup`, `applyWhen`, `apply`, `validateItems`) that register validators in the schema
+from **validator factories** (`required`, `email`, `min`, …) that return pure
+`Validator<TForm, TField>` functions of shape `(value, control, root) => ValidationError | null`.
 
 ```typescript
 import { GroupNode } from '@reformer/core';
-import { required, email, minLength } from '@reformer/core/validators';
+import { validate, required, email, minLength } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -20,10 +23,10 @@ const form = new GroupNode({
     email: { value: '' },
   },
   validation: (path) => {
-    required(path.name);
-    minLength(path.name, 2);
-    required(path.email);
-    email(path.email);
+    validate(path.name, required());
+    validate(path.name, minLength(2));
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 ```
@@ -53,34 +56,38 @@ name.errors;
 // { minLength: { required: 2, actual: 1 } } - when minLength fails
 ```
 
-## Built-in Validators
+## Built-in Validator Factories
 
-| Validator                    | Description           | Error Key   |
-| ---------------------------- | --------------------- | ----------- |
-| `required(path.field)`       | Field must have value | `required`  |
-| `email(path.field)`          | Valid email format    | `email`     |
-| `minLength(path.field, n)`   | Minimum string length | `minLength` |
-| `maxLength(path.field, n)`   | Maximum string length | `maxLength` |
-| `min(path.field, n)`         | Minimum number value  | `min`       |
-| `max(path.field, n)`         | Maximum number value  | `max`       |
-| `pattern(path.field, regex)` | Match regex pattern   | `pattern`   |
-| `url(path.field)`            | Valid URL format      | `url`       |
-| `phone(path.field)`          | Valid phone format    | `phone`     |
-| `number(path.field)`         | Must be a number      | `number`    |
-| `date(path.field)`           | Valid date            | `date`      |
+All factories return a `Validator<TForm, TField>`. Pass them to `validate()`.
+
+| Factory                | Used as                                  | Error Key   |
+| ---------------------- | ---------------------------------------- | ----------- |
+| `required()`           | `validate(path.field, required())`       | `required`  |
+| `email()`              | `validate(path.field, email())`          | `email`     |
+| `minLength(n)`         | `validate(path.field, minLength(n))`     | `minLength` |
+| `maxLength(n)`         | `validate(path.field, maxLength(n))`     | `maxLength` |
+| `min(n)`               | `validate(path.field, min(n))`           | `min`       |
+| `max(n)`               | `validate(path.field, max(n))`           | `max`       |
+| `pattern(regex)`       | `validate(path.field, pattern(regex))`   | `pattern`   |
+| `url()`                | `validate(path.field, url())`            | `url`       |
+| `phone()`              | `validate(path.field, phone())`          | `phone`     |
+| `number()`             | `validate(path.field, number())`         | `number`    |
+| `date()`               | `validate(path.field, date())`           | `date`      |
+| `notEmpty()`           | `validate(path.array, notEmpty())`       | `minLength` |
 
 ## Conditional Validation
 
 Apply validation only when condition is met:
 
 ```typescript
-import { when } from '@reformer/core/validators';
+import { applyWhen, validate, required } from '@reformer/core/validators';
 
 validation: (path) => {
-  when(
-    () => form.controls.contactByPhone.value === true,
+  applyWhen(
+    path.contactByPhone,
+    (value) => value === true,
     (path) => {
-      required(path.phone);
+      validate(path.phone, required());
     }
   );
 };

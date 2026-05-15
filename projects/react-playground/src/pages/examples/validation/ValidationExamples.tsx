@@ -106,57 +106,61 @@ const validationFormSchema: FormSchema<ValidationDemoForm> = {
 // Валидация формы - path это FieldPath<T>
 const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
   // Required
-  required(path.requiredField, { message: 'Это поле обязательно' });
+  validate(path.requiredField, required({ message: 'Это поле обязательно' }));
 
   // Email
-  required(path.emailField, { message: 'Email обязателен' });
-  email(path.emailField, { message: 'Введите корректный email' });
+  validate(path.emailField, required({ message: 'Email обязателен' }));
+  validate(path.emailField, email({ message: 'Введите корректный email' }));
 
   // MinLength
-  required(path.minLengthField, { message: 'Поле обязательно' });
-  minLength(path.minLengthField, 5, { message: 'Минимум 5 символов' });
+  validate(path.minLengthField, required({ message: 'Поле обязательно' }));
+  validate(path.minLengthField, minLength(5, { message: 'Минимум 5 символов' }));
 
   // MaxLength
-  maxLength(path.maxLengthField, 10, { message: 'Максимум 10 символов' });
+  validate(path.maxLengthField, maxLength(10, { message: 'Максимум 10 символов' }));
 
   // Min
-  required(path.minField, { message: 'Введите число' });
-  min(path.minField, 10, { message: 'Минимум 10' });
+  validate(path.minField, required({ message: 'Введите число' }));
+  validate(path.minField, min(10, { message: 'Минимум 10' }));
 
   // Max
-  required(path.maxField, { message: 'Введите число' });
-  max(path.maxField, 100, { message: 'Максимум 100' });
+  validate(path.maxField, required({ message: 'Введите число' }));
+  validate(path.maxField, max(100, { message: 'Максимум 100' }));
 
   // Pattern
-  required(path.patternField, { message: 'Поле обязательно' });
-  pattern(path.patternField, /^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' });
+  validate(path.patternField, required({ message: 'Поле обязательно' }));
+  validate(path.patternField, pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' }));
 
   // URL
-  required(path.urlField, { message: 'URL обязателен' });
-  url(path.urlField, { message: 'Введите корректный URL' });
+  validate(path.urlField, required({ message: 'URL обязателен' }));
+  validate(path.urlField, url({ message: 'Введите корректный URL' }));
 
   // Phone
-  required(path.phoneField, { message: 'Телефон обязателен' });
-  phone(path.phoneField, { format: 'ru', message: 'Введите российский номер телефона' });
+  validate(path.phoneField, required({ message: 'Телефон обязателен' }));
+  validate(path.phoneField, phone({ format: 'ru', message: 'Введите российский номер телефона' }));
 
   // Number (с расширенными опциями)
-  required(path.numberField, { message: 'Число обязательно' });
-  number(path.numberField, { integer: true, min: 1, max: 100, message: 'Целое число от 1 до 100' });
+  validate(path.numberField, required({ message: 'Число обязательно' }));
+  validate(
+    path.numberField,
+    number({ integer: true, min: 1, max: 100, message: 'Целое число от 1 до 100' })
+  );
 
   // Date
-  required(path.dateField, { message: 'Дата обязательна' });
-  date(path.dateField, { noFuture: true, message: 'Дата не может быть в будущем' });
+  validate(path.dateField, required({ message: 'Дата обязательна' }));
+  validate(path.dateField, date({ noFuture: true, message: 'Дата не может быть в будущем' }));
 
   // Validate
-  required(path.customField, { message: 'Пароль обязателен' });
-  validate(path.customField, (value: string) => {
-    if (!value || value.length < 8) {
+  validate(path.customField, required({ message: 'Пароль обязателен' }));
+  validate(path.customField, (value) => {
+    const v = value as string;
+    if (!v || v.length < 8) {
       return { code: 'too-short', message: 'Минимум 8 символов' };
     }
-    if (!/[0-9]/.test(value)) {
+    if (!/[0-9]/.test(v)) {
       return { code: 'no-digit', message: 'Должна быть хотя бы одна цифра' };
     }
-    if (!/[a-zA-Z]/.test(value)) {
+    if (!/[a-zA-Z]/.test(v)) {
       return { code: 'no-letter', message: 'Должна быть хотя бы одна буква' };
     }
     return null;

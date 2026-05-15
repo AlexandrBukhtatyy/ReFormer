@@ -9,7 +9,7 @@
 | `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
 | `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |
-| `validate`, `validateAsync`, `validateTree`, `applyWhen`                                    | `@reformer/core/validators` |
+| `validate`, `validateAsync`, `validateGroup`, `applyWhen`, `apply`                          | `@reformer/core/validators` |
 | `notEmpty`, `validateItems`                                                                 | `@reformer/core/validators` |
 | `computeFrom`, `enableWhen`, `disableWhen`, `watchField`, `copyFrom`                        | `@reformer/core/behaviors`  |
 | `resetWhen`, `revalidateWhen`, `syncFields`                                                 | `@reformer/core/behaviors`  |

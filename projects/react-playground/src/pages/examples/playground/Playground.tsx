@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useMemo } from 'react';
 import { createForm, useFormControl, type FieldNode } from '@reformer/core';
-import { required, email, minLength } from '@reformer/core/validators';
+import { required, email, minLength, validate } from '@reformer/core/validators';
 
 // ============================================================================
 // Шаг 1: Компоненты для полей
@@ -116,12 +116,12 @@ const createContactForm = () =>
       message: { value: '', component: Textarea, componentProps: { label: 'Сообщение' } },
     },
     validation: (path) => {
-      required(path.name);
-      minLength(path.name, 2);
-      required(path.email);
-      email(path.email);
-      required(path.message);
-      minLength(path.message, 10);
+      validate(path.name, required());
+      validate(path.name, minLength(2));
+      validate(path.email, required());
+      validate(path.email, email());
+      validate(path.message, required());
+      validate(path.message, minLength(10));
     },
   });
 

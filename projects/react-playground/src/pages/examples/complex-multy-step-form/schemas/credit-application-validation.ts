@@ -1,6 +1,6 @@
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
-import { apply, validateTree } from '@reformer/core/validators';
+import { apply, validateGroup } from '@reformer/core/validators';
 
 // Импортируем все схемы шагов
 import { basicInfoValidation } from '../components/steps/BasicInfo/basic-info-validation';
@@ -10,7 +10,7 @@ import { employmentValidation } from '../components/steps/Employment/employment-
 import { additionalValidation } from '../components/steps/AdditionalInfo/additional-validation';
 import { confirmationValidation } from '../components/steps/Confirmation/confirmation-validation';
 
-// Импортируем validator функции для вычисляемых полей
+// Импортируем cross-field валидаторы
 import {
   validatePaymentToIncome,
   validateAge,
@@ -20,17 +20,11 @@ import {
 } from '../utils';
 
 /**
- * Главная схема валидации формы заявки на кредит
+ * Главная схема валидации формы заявки на кредит.
  *
- * ✅ Валидирует ВСЮ форму целиком (все шаги)
- * ✅ Централизованное управление валидацией
- * ✅ Модульные схемы шагов (каждый в отдельном файле)
- * ✅ Дополнительные кросс-полевые валидации для вычисляемых полей
- *
- * Использование:
- * 1. При создании формы: form.applyValidationSchema(creditApplicationValidation)
- * 2. При переходе между шагами: используй STEP_VALIDATIONS[step] для валидации конкретного шага
- * 3. При финальной отправке: form.validate() проверит все поля
+ * Валидирует ВСЮ форму целиком (все шаги). Модульные схемы шагов
+ * подключаются через `apply`. Дополнительные кросс-полевые валидации
+ * для вычисляемых полей применяются через `validateGroup` со scope = root.
  */
 const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
@@ -50,25 +44,23 @@ const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ===================================================================
 
   // Платежеспособность (процент платежа от дохода <= 50%)
-  validateTree<CreditApplicationForm>(validatePaymentToIncome, { targetField: 'monthlyPayment' });
+  validateGroup(path, validatePaymentToIncome, { targetField: path.monthlyPayment });
 
   // Возраст заемщика (18-70 лет)
-  validateTree<CreditApplicationForm>(validateAge, { targetField: 'age' });
+  validateGroup(path, validateAge, { targetField: path.age });
 
   // ===================================================================
   // 3. Предупреждения (warnings) - не блокируют отправку формы
   // ===================================================================
 
-  // Предупреждение о высокой долговой нагрузке (> 40%)
-  validateTree<CreditApplicationForm>(warnHighDebtLoad, { targetField: 'paymentToIncomeRatio' });
+  // Высокая долговая нагрузка (> 40%)
+  validateGroup(path, warnHighDebtLoad, { targetField: path.paymentToIncomeRatio });
 
-  // Предупреждение о возрасте > 60 лет
-  validateTree<CreditApplicationForm>(warnSeniorAge, { targetField: 'age' });
+  // Возраст > 60 лет
+  validateGroup(path, warnSeniorAge, { targetField: path.age });
 
-  // Предупреждение о малом стаже на текущем месте работы (< 3 месяцев)
-  validateTree<CreditApplicationForm>(warnLowWorkExperience, {
-    targetField: 'workExperienceCurrent',
-  });
+  // Малый стаж на текущем месте работы (< 3 месяцев)
+  validateGroup(path, warnLowWorkExperience, { targetField: path.workExperienceCurrent });
 };
 
 export default creditApplicationValidation;

@@ -1,77 +1,86 @@
 /**
- * Типы для validation schema паттерна
+ * Типы для validation schema.
  *
- * Основано на Angular Signal Forms подходе:
- * - Валидация определяется отдельно от схемы полей
- * - Поддержка условной валидации (applyWhen)
- * - Cross-field валидация (validateTree)
- * - Асинхронная валидация с контекстом
+ * Контракт валидаторов: операторы vs валидаторы.
+ * - Операторы (validate, validateAsync, validateGroup, apply, applyWhen, validateItems)
+ *   регистрируют валидаторы в схеме. Единственная точка контакта с реестром.
+ * - Валидаторы — чистые функции (value, control, root) => error | null.
+ *   Не знают про реестр. Импортируются как фабрики из `@reformer/core/validators`.
+ *
+ * См. docs/plans/atomic-meandering-wreath.md для деталей.
  */
 
 import type { FormFields, ValidationError } from './index';
-import type { FieldPath } from './field-path';
-import type { FormContext } from './form-context';
+import type { FieldPath, FieldPathNode } from './field-path';
+import type { FormProxy } from './form-proxy';
 
 // ============================================================================
-// Функции валидации
+// Validator types (чистые функции)
 // ============================================================================
 
 /**
- * Функция валидации поля с контекстом
+ * Чистый синхронный валидатор поля.
  *
- * Новый паттерн: (value, ctx: FormContext) => ValidationError | null
+ * Принимает значение поля, прокси текущего поля (control) и прокси корня формы (root).
+ * Возвращает ValidationError либо null. Не знает про реестр валидации.
  *
  * @example
  * ```typescript
- * validate(path.email, (value, ctx) => {
- *   if (!value) return { code: 'required', message: 'Email required' };
- *   const confirm = ctx.form.confirmEmail.value.value;
- *   if (value !== confirm) return { code: 'mismatch', message: 'Must match' };
+ * const isAdult: Validator<MyForm, number> = (value, control, root) => {
+ *   if (value < 18) return { code: 'tooYoung', message: '18+' };
  *   return null;
- * });
+ * };
+ * validate(path.age, isAdult);
  * ```
  */
-export type ContextualValidatorFn<TForm, TField> = (
+export type Validator<TForm, TField> = (
   value: TField,
-  ctx: FormContext<TForm>
+  control: FormProxy<TField>,
+  root: FormProxy<TForm>
 ) => ValidationError | null;
 
 /**
- * Асинхронная функция валидации поля с контекстом
+ * Чистый асинхронный валидатор поля.
  *
- * @example
- * ```typescript
- * validateAsync(path.email, async (value, ctx) => {
- *   const exists = await checkEmailExists(value);
- *   if (exists) return { code: 'exists', message: 'Email already taken' };
- *   return null;
- * });
- * ```
+ * Регистрируется через `validateAsync(path, validator, { debounce })`.
  */
-export type ContextualAsyncValidatorFn<TForm, TField> = (
+export type AsyncValidator<TForm, TField> = (
   value: TField,
-  ctx: FormContext<TForm>
+  control: FormProxy<TField>,
+  root: FormProxy<TForm>
 ) => Promise<ValidationError | null>;
 
 /**
- * Функция cross-field валидации
+ * Cross-field валидатор. Принимает scope (поддерево формы или корень) и корень формы.
+ *
+ * По умолчанию `TScope = TForm` — валидация всей формы.
+ * Scope можно ограничить поддеревом, передав в `validateGroup` соответствующий путь.
  *
  * @example
  * ```typescript
- * validateTree((ctx) => {
- *   const password = ctx.form.password.value.value;
- *   const confirm = ctx.form.confirmPassword.value.value;
- *   if (password !== confirm) {
- *     return { code: 'mismatch', message: 'Passwords must match' };
+ * // Scope = root form
+ * validateGroup(path, (scope, root) => {
+ *   const v = scope.getValue();
+ *   if (v.startDate > v.endDate) return { code: 'badRange', message: '...' };
+ *   return null;
+ * });
+ *
+ * // Scope = поддерево
+ * validateGroup(path.address, (address, root) => {
+ *   if (address.city.value.value === '' && address.region.value.value !== '') {
+ *     return { code: 'inconsistent', message: '...' };
  *   }
  *   return null;
  * });
  * ```
  */
-export type TreeValidatorFn<TForm> = (ctx: FormContext<TForm>) => ValidationError | null;
+export type GroupValidator<TForm, TScope = TForm> = (
+  scope: FormProxy<TScope>,
+  root: FormProxy<TForm>
+) => ValidationError | null;
 
 /**
- * Функция условия для applyWhen
+ * Функция условия для applyWhen.
  */
 export type ConditionFn<T> = (value: T) => boolean;
 
@@ -80,7 +89,7 @@ export type ConditionFn<T> = (value: T) => boolean;
 // ============================================================================
 
 /**
- * Опции для функции validate
+ * Опции для функции validate.
  */
 export interface ValidateOptions {
   /** Сообщение об ошибке */
@@ -90,7 +99,7 @@ export interface ValidateOptions {
 }
 
 /**
- * Опции для функции validateAsync
+ * Опции для функции validateAsync.
  */
 export interface ValidateAsyncOptions extends ValidateOptions {
   /** Задержка перед выполнением валидации (в мс) */
@@ -98,11 +107,18 @@ export interface ValidateAsyncOptions extends ValidateOptions {
 }
 
 /**
- * Опции для функции validateTree
+ * Опции для функции validateGroup.
+ *
+ * @remarks
+ * `targetField` принимает любой `FieldPathNode`, так как при доступе к вложенным
+ * полям (`path.foo.bar`) первый generic становится типом ближайшего родителя
+ * (`FieldPathNode<Foo, …>`), а не корня формы. Строгая привязка к `TForm`
+ * приводит к type errors на legitimate use cases вроде `targetField: path.passportData.issueDate`.
  */
-export interface ValidateTreeOptions {
-  /** Поле, к которому привязать ошибку */
-  targetField?: string;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export interface ValidateGroupOptions<TForm = unknown> {
+  /** Поле, к которому привязать ошибку. */
+  targetField?: FieldPathNode<unknown, unknown>;
 }
 
 // ============================================================================
@@ -110,9 +126,9 @@ export interface ValidateTreeOptions {
 // ============================================================================
 
 /**
- * Функция validation schema
+ * Функция validation schema.
  *
- * Принимает FieldPath и определяет все правила валидации для формы
+ * Принимает FieldPath и определяет все правила валидации для формы.
  */
 export type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
 
@@ -126,12 +142,15 @@ export type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
  */
 export interface ValidatorRegistration {
   fieldPath: string;
-  type: 'sync' | 'async' | 'tree';
+  type: 'sync' | 'async' | 'group' | 'array-items';
   validator:
-    | ContextualValidatorFn<unknown, unknown>
-    | ContextualAsyncValidatorFn<unknown, unknown>
-    | TreeValidatorFn<unknown>;
-  options?: ValidateOptions | ValidateAsyncOptions | ValidateTreeOptions;
+    | Validator<unknown, unknown>
+    | AsyncValidator<unknown, unknown>
+    | GroupValidator<unknown, unknown>;
+  options?: ValidateOptions | ValidateAsyncOptions | ValidateGroupOptions<unknown>;
+  /** Для group-валидатора — путь до scope (для root формы — пустая строка ''). */
+  scopePath?: string;
+  /** Для условной валидации (applyWhen). */
   condition?: {
     fieldPath: string;
     conditionFn: ConditionFn<unknown>;
