@@ -24,14 +24,21 @@ email(options?: { message?: string })
 pattern(regex: RegExp, options?: { message?: string })
 url(options?: { message?: string; requireProtocol?: boolean })
 phone(options?: { message?: string; format?: PhoneFormat })
-number(options?: { message?: string; min?: number; max?: number; integer?: boolean })
+// Number validator factories (atomic — compose via several validate() calls)
+isNumber(options?: { message?: string })
+integer(options?: { message?: string })
+multipleOf(divisor: number, options?: { message?: string })
+nonNegative(options?: { message?: string })       // value >= 0
+nonZero(options?: { message?: string })           // value !== 0
 date(options?: { message?: string; minAge?: number; maxAge?: number; noFuture?: boolean; noPast?: boolean })
 notEmpty(options?: { message?: string })
 
 // Usage: pass a factory result to validate()
 validate(path.email, required());
 validate(path.age, min(18));
-validate(path.amount, number({ min: 0, max: 1000 }));
+validate(path.amount, integer());
+validate(path.amount, min(0));
+validate(path.amount, max(1000));
 
 // Conditional validation (3 arguments!)
 applyWhen(fieldPath, condition: (fieldValue) => boolean, validatorsFn: (path) => void)

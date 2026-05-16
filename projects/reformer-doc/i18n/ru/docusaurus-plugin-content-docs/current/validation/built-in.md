@@ -96,15 +96,66 @@ validate(path.phone, phone());
 // Ошибка: { code: 'phone', message: '...' }
 ```
 
-## number
+## isNumber
 
-Должно быть валидным числом.
+Значение — конечное число (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { number } from '@reformer/core/validators';
+import { validate, isNumber } from '@reformer/core/validators';
 
-validate(path.amount, number());
-// Ошибка: { code: 'number', message: '...' }
+validate(path.amount, isNumber());
+```
+
+## integer
+
+Число должно быть целым. Не-числа пропускаются (комбинируйте с `isNumber` для строгой проверки типа).
+
+```typescript
+import { validate, integer } from '@reformer/core/validators';
+
+validate(path.count, integer());
+```
+
+## multipleOf
+
+Число должно быть кратно указанному делителю.
+
+```typescript
+import { validate, multipleOf } from '@reformer/core/validators';
+
+validate(path.price, multipleOf(0.01));
+validate(path.rating, multipleOf(0.5));
+```
+
+## nonNegative
+
+Число должно быть `>= 0`.
+
+```typescript
+import { validate, nonNegative } from '@reformer/core/validators';
+
+validate(path.quantity, nonNegative());
+```
+
+## nonZero
+
+Число не должно равняться нулю.
+
+```typescript
+import { validate, nonZero } from '@reformer/core/validators';
+
+validate(path.divisor, nonZero());
+```
+
+Композируйте атомарные проверки — единой фабрики `number()` больше нет:
+
+```typescript
+import { validate, isNumber, integer, min, max } from '@reformer/core/validators';
+
+validate(path.percent, isNumber());
+validate(path.percent, integer());
+validate(path.percent, min(0));
+validate(path.percent, max(100));
 ```
 
 ## date

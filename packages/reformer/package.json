@@ -55,9 +55,25 @@
       "types": "./dist/validators/phone.d.ts",
       "import": "./dist/validators/phone.js"
     },
-    "./validators/number": {
-      "types": "./dist/validators/number.d.ts",
-      "import": "./dist/validators/number.js"
+    "./validators/is-number": {
+      "types": "./dist/validators/is-number.d.ts",
+      "import": "./dist/validators/is-number.js"
+    },
+    "./validators/integer": {
+      "types": "./dist/validators/integer.d.ts",
+      "import": "./dist/validators/integer.js"
+    },
+    "./validators/multiple-of": {
+      "types": "./dist/validators/multiple-of.d.ts",
+      "import": "./dist/validators/multiple-of.js"
+    },
+    "./validators/non-negative": {
+      "types": "./dist/validators/non-negative.d.ts",
+      "import": "./dist/validators/non-negative.js"
+    },
+    "./validators/non-zero": {
+      "types": "./dist/validators/non-zero.d.ts",
+      "import": "./dist/validators/non-zero.js"
     },
     "./validators/date": {
       "types": "./dist/validators/date.d.ts",

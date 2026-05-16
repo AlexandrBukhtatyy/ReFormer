@@ -19,7 +19,12 @@ export { email } from './validators/email';
 export { pattern } from './validators/pattern';
 export { url } from './validators/url';
 export { phone, type PhoneFormat } from './validators/phone';
-export { number } from './validators/number';
+// Number validator factories
+export { isNumber } from './validators/is-number';
+export { integer } from './validators/integer';
+export { multipleOf } from './validators/multiple-of';
+export { nonNegative } from './validators/non-negative';
+export { nonZero } from './validators/non-zero';
 
 // Date validator factories
 export { isDate } from './validators/is-date';

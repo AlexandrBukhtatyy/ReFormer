@@ -8,7 +8,7 @@
 | `ValidationSchemaFn`, `BehaviorSchemaFn`, `FieldPath`, `FormProxy`, `FieldNode` | `@reformer/core`            |
 | `FormSchema`, `FieldConfig`, `ArrayNode`                                                    | `@reformer/core`            |
 | `required`, `min`, `max`, `minLength`, `maxLength`, `email`                                 | `@reformer/core/validators` |
-| `pattern`, `url`, `phone`, `number`, `date`                                                 | `@reformer/core/validators` |
+| `pattern`, `url`, `phone`, `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero`    | `@reformer/core/validators` |
 | `validate`, `validateAsync`, `validateGroup`, `applyWhen`, `apply`                          | `@reformer/core/validators` |
 | `notEmpty`, `validateItems`                                                                 | `@reformer/core/validators` |
 | `computeFrom`, `enableWhen`, `disableWhen`, `watchField`, `copyFrom`                        | `@reformer/core/behaviors`  |

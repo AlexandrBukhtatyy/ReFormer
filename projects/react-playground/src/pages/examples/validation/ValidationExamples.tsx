@@ -15,7 +15,7 @@ import {
   pattern,
   url,
   phone,
-  number,
+  integer,
   pastDate,
   validate,
 } from '@reformer/core/validators';
@@ -139,12 +139,11 @@ const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
   validate(path.phoneField, required({ message: 'Телефон обязателен' }));
   validate(path.phoneField, phone({ format: 'ru', message: 'Введите российский номер телефона' }));
 
-  // Number (с расширенными опциями)
+  // Number (композиция атомарных валидаторов)
   validate(path.numberField, required({ message: 'Число обязательно' }));
-  validate(
-    path.numberField,
-    number({ integer: true, min: 1, max: 100, message: 'Целое число от 1 до 100' })
-  );
+  validate(path.numberField, integer({ message: 'Должно быть целым числом' }));
+  validate(path.numberField, min(1, { message: 'Не менее 1' }));
+  validate(path.numberField, max(100, { message: 'Не более 100' }));
 
   // Date
   validate(path.dateField, required({ message: 'Дата обязательна' }));
@@ -297,11 +296,9 @@ email(path.emailField, {
           title="Number"
           description="Целое число от 1 до 100"
           bgColor="bg-white"
-          code={`number(path.numberField, {
-  integer: true,
-  min: 1,
-  max: 100
-})`}
+          code={`validate(path.numberField, integer());
+validate(path.numberField, min(1));
+validate(path.numberField, max(100));`}
         >
           <FormField control={form.numberField} />
         </ExampleCard>

@@ -71,8 +71,12 @@ All factories return a `Validator<TForm, TField>`. Pass them to `validate()`.
 | `pattern(regex)`       | `validate(path.field, pattern(regex))`   | `pattern`   |
 | `url()`                | `validate(path.field, url())`            | `url`       |
 | `phone()`              | `validate(path.field, phone())`          | `phone`     |
-| `number()`             | `validate(path.field, number())`         | `number`    |
-| `date()`               | `validate(path.field, date())`           | `date`      |
+| `isNumber()`           | `validate(path.field, isNumber())`       | `isNumber`  |
+| `integer()`            | `validate(path.field, integer())`        | `integer`   |
+| `multipleOf(n)`        | `validate(path.field, multipleOf(n))`    | `multipleOf`|
+| `nonNegative()`        | `validate(path.field, nonNegative())`    | `nonNegative`|
+| `nonZero()`            | `validate(path.field, nonZero())`        | `nonZero`   |
+| `isDate()`             | `validate(path.field, isDate())`         | `date_invalid` |
 | `notEmpty()`           | `validate(path.array, notEmpty())`       | `minLength` |
 
 ## Conditional Validation

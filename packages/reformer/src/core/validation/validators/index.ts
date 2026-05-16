@@ -14,7 +14,12 @@ export { email } from './email';
 export { pattern } from './pattern';
 export { url, type UrlValidatorOptions } from './url';
 export { phone, type PhoneFormat, type PhoneValidatorOptions } from './phone';
-export { number, type NumberValidatorOptions } from './number';
+// Number validator factories
+export { isNumber } from './is-number';
+export { integer } from './integer';
+export { multipleOf } from './multiple-of';
+export { nonNegative } from './non-negative';
+export { nonZero } from './non-zero';
 // Date validator factories
 export { isDate } from './is-date';
 export { minDate } from './min-date';

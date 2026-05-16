@@ -96,15 +96,66 @@ validate(path.phone, phone());
 validate(path.phone, phone({ format: 'ru' }));
 ```
 
-## number
+## isNumber
 
-Must be a valid number with optional constraints.
+Value must be a finite number (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { validate, number } from '@reformer/core/validators';
+import { validate, isNumber } from '@reformer/core/validators';
 
-validate(path.amount, number());
-validate(path.amount, number({ min: 0, max: 1000, integer: true }));
+validate(path.amount, isNumber());
+```
+
+## integer
+
+Number must be an integer. Skips non-numbers (compose with `isNumber` for strict type check).
+
+```typescript
+import { validate, integer } from '@reformer/core/validators';
+
+validate(path.count, integer());
+```
+
+## multipleOf
+
+Number must be a multiple of the given divisor.
+
+```typescript
+import { validate, multipleOf } from '@reformer/core/validators';
+
+validate(path.price, multipleOf(0.01));
+validate(path.rating, multipleOf(0.5));
+```
+
+## nonNegative
+
+Number must be `>= 0`.
+
+```typescript
+import { validate, nonNegative } from '@reformer/core/validators';
+
+validate(path.quantity, nonNegative());
+```
+
+## nonZero
+
+Number must not equal zero.
+
+```typescript
+import { validate, nonZero } from '@reformer/core/validators';
+
+validate(path.divisor, nonZero());
+```
+
+Compose for richer constraints — there is no single `number()` factory anymore:
+
+```typescript
+import { validate, isNumber, integer, min, max } from '@reformer/core/validators';
+
+validate(path.percent, isNumber());
+validate(path.percent, integer());
+validate(path.percent, min(0));
+validate(path.percent, max(100));
 ```
 
 ## date

@@ -66,8 +66,12 @@ name.errors;
 | `validate(path.field, pattern(regex))` | Соответствие регулярному выражению | `pattern`   |
 | `validate(path.field, url())`            | Корректный формат URL              | `url`       |
 | `validate(path.field, phone())`          | Корректный формат телефона         | `phone`     |
-| `validate(path.field, number())`         | Должно быть числом                 | `number`    |
-| `validate(path.field, date())`           | Корректная дата                    | `date`      |
+| `validate(path.field, isNumber())`       | Значение — число                   | `isNumber`  |
+| `validate(path.field, integer())`        | Целое число                        | `integer`   |
+| `validate(path.field, multipleOf(n))`    | Кратно n                           | `multipleOf`|
+| `validate(path.field, nonNegative())`    | `≥ 0`                              | `nonNegative`|
+| `validate(path.field, nonZero())`        | `≠ 0`                              | `nonZero`   |
+| `validate(path.field, isDate())`         | Корректная дата                    | `date_invalid` |
 
 ## Условная валидация
 
