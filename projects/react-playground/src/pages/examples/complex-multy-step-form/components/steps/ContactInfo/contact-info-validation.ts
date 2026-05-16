@@ -1,4 +1,4 @@
-import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
+import type { FieldPath, GroupValidator, ValidationSchemaFn } from '@reformer/core';
 import {
   apply,
   applyWhen,
@@ -12,8 +12,48 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 
 import { addressValidation } from '../../nested-forms/Address/address-validation';
 
+// ============================================================================
+// Cross-field правила
+// ============================================================================
+
+const phoneAdditionalDiffersFromMain: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
+  if (!form.phoneAdditional) return null;
+  if (form.phoneMain === form.phoneAdditional) {
+    return {
+      code: 'phoneDuplicate',
+      message: 'Дополнительный телефон должен отличаться от основного',
+    };
+  }
+  return null;
+};
+
+const emailAdditionalDiffersFromMain: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
+  if (!form.emailAdditional) return null;
+  if (form.email.toLowerCase() === form.emailAdditional.toLowerCase()) {
+    return {
+      code: 'emailDuplicate',
+      message: 'Дополнительный email должен отличаться от основного',
+    };
+  }
+  return null;
+};
+
+// ============================================================================
+// Под-схемы для applyWhen
+// ============================================================================
+
+const residenceAddressRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  apply(path.residenceAddress, addressValidation);
+};
+
+// ============================================================================
+// Главная схема
+// ============================================================================
+
 /**
- * Схема валидации для Шага 3: Контактная информация
+ * Схема валидации для Шага 3: Контактная информация.
  */
 export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
@@ -42,49 +82,12 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
   // Дополнительный email (опциональный)
   validate(path.emailAdditional, email({ message: 'Введите корректный email' }));
 
-  // Cross-field: дополнительный телефон отличается от основного
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (!form.phoneAdditional) return null;
-      if (form.phoneMain === form.phoneAdditional) {
-        return {
-          code: 'phoneDuplicate',
-          message: 'Дополнительный телефон должен отличаться от основного',
-        };
-      }
-      return null;
-    },
-    { targetField: path.phoneAdditional }
-  );
-
-  // Cross-field: дополнительный email отличается от основного
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (!form.emailAdditional) return null;
-      if (form.email.toLowerCase() === form.emailAdditional.toLowerCase()) {
-        return {
-          code: 'emailDuplicate',
-          message: 'Дополнительный email должен отличаться от основного',
-        };
-      }
-      return null;
-    },
-    { targetField: path.emailAdditional }
-  );
+  validateGroup(path, phoneAdditionalDiffersFromMain, { targetField: path.phoneAdditional });
+  validateGroup(path, emailAdditionalDiffersFromMain, { targetField: path.emailAdditional });
 
   // Адрес регистрации через композицию
   apply(path.registrationAddress, addressValidation);
 
-  // Условная валидация адреса проживания через композицию
-  applyWhen(
-    path.sameAsRegistration,
-    (value) => value === false,
-    (path) => {
-      apply(path.residenceAddress, addressValidation);
-    }
-  );
+  // Адрес проживания (если не совпадает с регистрацией)
+  applyWhen(path.sameAsRegistration, (value) => value === false, residenceAddressRules);
 };

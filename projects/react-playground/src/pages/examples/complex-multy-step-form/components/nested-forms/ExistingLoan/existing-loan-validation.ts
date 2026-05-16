@@ -4,6 +4,7 @@
  * Применяется к каждому элементу массива existingLoans через ArrayNode.applyValidationSchema().
  */
 
+import type { GroupValidator } from '@reformer/core';
 import {
   createFieldPath,
   validate,
@@ -16,11 +17,38 @@ import {
 } from '@reformer/core/validators';
 import type { ExistingLoan } from './ExistingLoanForm';
 
+const remainingNotExceedAmount: GroupValidator<ExistingLoan> = (scope) => {
+  const loan = scope.getValue();
+  if (loan.remainingAmount > loan.amount) {
+    return {
+      code: 'remainingExceedsAmount',
+      message: 'Остаток долга не может превышать сумму кредита',
+    };
+  }
+  return null;
+};
+
+const maturityDateInFuture: GroupValidator<ExistingLoan> = (scope) => {
+  const loan = scope.getValue();
+  if (!loan.maturityDate) return null;
+
+  const maturityDate = new Date(loan.maturityDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (maturityDate < today) {
+    return {
+      code: 'maturityDateInPast',
+      message: 'Дата погашения должна быть в будущем',
+    };
+  }
+  return null;
+};
+
 /**
  * Валидация элемента существующего кредита
  */
 export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<ExistingLoan>>) => {
-  // Название банка
   validate(path.bank, required({ message: 'Укажите название банка' }));
   validate(
     path.bank,
@@ -45,41 +73,6 @@ export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<E
 
   validate(path.maturityDate, required({ message: 'Укажите дату погашения кредита' }));
 
-  // Cross-field: остаток ≤ сумме кредита
-  validateGroup(
-    path,
-    (scope) => {
-      const loan = scope.getValue();
-      if (loan.remainingAmount > loan.amount) {
-        return {
-          code: 'remainingExceedsAmount',
-          message: 'Остаток долга не может превышать сумму кредита',
-        };
-      }
-      return null;
-    },
-    { targetField: path.remainingAmount }
-  );
-
-  // Cross-field: дата погашения в будущем
-  validateGroup(
-    path,
-    (scope) => {
-      const loan = scope.getValue();
-      if (!loan.maturityDate) return null;
-
-      const maturityDate = new Date(loan.maturityDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (maturityDate < today) {
-        return {
-          code: 'maturityDateInPast',
-          message: 'Дата погашения должна быть в будущем',
-        };
-      }
-      return null;
-    },
-    { targetField: path.maturityDate }
-  );
+  validateGroup(path, remainingNotExceedAmount, { targetField: path.remainingAmount });
+  validateGroup(path, maturityDateInFuture, { targetField: path.maturityDate });
 };

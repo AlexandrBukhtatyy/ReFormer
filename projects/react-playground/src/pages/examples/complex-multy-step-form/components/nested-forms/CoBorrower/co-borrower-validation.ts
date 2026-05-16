@@ -5,6 +5,7 @@
  * Содержит вложенную группу personalData.
  */
 
+import type { GroupValidator } from '@reformer/core';
 import {
   createFieldPath,
   validate,
@@ -18,11 +19,36 @@ import {
 } from '@reformer/core/validators';
 import type { CoBorrower } from './CoBorrowerForm';
 
+const coBorrowerAge18to80: GroupValidator<CoBorrower> = (scope) => {
+  const coBorrower = scope.getValue();
+  const birthDate = new Date(coBorrower.personalData.birthDate);
+  const today = new Date();
+
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  const dayDiff = today.getDate() - birthDate.getDate();
+
+  const finalAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+
+  if (finalAge < 18) {
+    return {
+      code: 'coBorrowerTooYoung',
+      message: 'Созаемщику должно быть не менее 18 лет',
+    };
+  }
+  if (finalAge > 80) {
+    return {
+      code: 'coBorrowerTooOld',
+      message: 'Созаемщику должно быть не более 80 лет',
+    };
+  }
+  return null;
+};
+
 /**
  * Валидация элемента созаемщика
  */
 export const coBorrowerValidation = (path: ReturnType<typeof createFieldPath<CoBorrower>>) => {
-  // Вложенная группа personalData
   validate(path.personalData.lastName, required({ message: 'Фамилия обязательна' }));
   validate(
     path.personalData.lastName,
@@ -73,38 +99,8 @@ export const coBorrowerValidation = (path: ReturnType<typeof createFieldPath<CoB
 
   validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
 
-  // Cross-field: возраст 18-80
-  validateGroup(
-    path,
-    (scope) => {
-      const coBorrower = scope.getValue();
-      const birthDate = new Date(coBorrower.personalData.birthDate);
-      const today = new Date();
+  validateGroup(path, coBorrowerAge18to80, { targetField: path.personalData.birthDate });
 
-      const age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      const dayDiff = today.getDate() - birthDate.getDate();
-
-      const finalAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
-
-      if (finalAge < 18) {
-        return {
-          code: 'coBorrowerTooYoung',
-          message: 'Созаемщику должно быть не менее 18 лет',
-        };
-      }
-      if (finalAge > 80) {
-        return {
-          code: 'coBorrowerTooOld',
-          message: 'Созаемщику должно быть не более 80 лет',
-        };
-      }
-      return null;
-    },
-    { targetField: path.personalData.birthDate }
-  );
-
-  // Остальные поля
   validate(path.phone, required({ message: 'Телефон созаемщика обязателен' }));
 
   validate(path.email, required({ message: 'Email созаемщика обязателен' }));

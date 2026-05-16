@@ -2,7 +2,7 @@
  * Валидация формы регистрации (sync + async).
  */
 
-import { type FieldPath } from '@reformer/core';
+import { type FieldPath, type Validator, type AsyncValidator } from '@reformer/core';
 import {
   required,
   email,
@@ -12,6 +12,94 @@ import {
   validateAsync,
 } from '@reformer/core/validators';
 import type { RegistrationFormData } from '../RegistrationForm';
+
+const checkUsernameAvailable: AsyncValidator<RegistrationFormData, string | undefined> = async (
+  value
+) => {
+  if (!value || value.length < 3) return null;
+
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const response = await fetch(`/api/v1/auth/check-username?username=${encodeURIComponent(value)}`);
+  const result = await response.json();
+
+  if (!result.available) {
+    return {
+      code: 'username-taken',
+      message: result.message || 'Имя пользователя занято',
+    };
+  }
+  return null;
+};
+
+const checkEmailAvailable: AsyncValidator<RegistrationFormData, string | undefined> = async (
+  value
+) => {
+  if (!value || !value.includes('@')) return null;
+
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const response = await fetch(`/api/v1/auth/check-email?email=${encodeURIComponent(value)}`);
+  const result = await response.json();
+
+  if (!result.available) {
+    return {
+      code: 'email-taken',
+      message: result.message || 'Email уже зарегистрирован',
+    };
+  }
+  return null;
+};
+
+const validatePasswordStrength: Validator<RegistrationFormData, string | undefined> = (value) => {
+  if (!value) return null;
+  const hasUpperCase = /[A-Z]/.test(value);
+  const hasLowerCase = /[a-z]/.test(value);
+  const hasDigit = /\d/.test(value);
+
+  if (!hasUpperCase || !hasLowerCase || !hasDigit) {
+    return {
+      code: 'weak-password',
+      message: 'Пароль должен содержать заглавные, строчные буквы и цифры',
+    };
+  }
+  return null;
+};
+
+const validatePasswordsMatch: Validator<RegistrationFormData, string | undefined> = (
+  value,
+  _control,
+  root
+) => {
+  const passwordValue = root.password.value.value;
+  if (value && passwordValue && value !== passwordValue) {
+    return {
+      code: 'passwords-mismatch',
+      message: 'Пароли не совпадают',
+    };
+  }
+  return null;
+};
+
+const validateCaptchaCode: Validator<RegistrationFormData, string | undefined> = (value) => {
+  if (value !== 'ABC123') {
+    return {
+      code: 'invalid-captcha',
+      message: 'Неверная captcha. Попробуйте ABC123',
+    };
+  }
+  return null;
+};
+
+const validateTermsAccepted: Validator<RegistrationFormData, boolean | undefined> = (value) => {
+  if (!value) {
+    return {
+      code: 'terms-required',
+      message: 'Необходимо принять условия использования',
+    };
+  }
+  return null;
+};
 
 export const registrationValidation = (path: FieldPath<RegistrationFormData>) => {
   // Username — латиница, цифры, подчёркивания, 3-20 символов
@@ -23,92 +111,21 @@ export const registrationValidation = (path: FieldPath<RegistrationFormData>) =>
       message: 'Только латиница, цифры и подчеркивания (3-20 символов)',
     })
   );
-
-  // Async проверка уникальности username
-  validateAsync(
-    path.username,
-    async (value) => {
-      if (!value || (value as string).length < 3) return null;
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const response = await fetch(
-        `/api/v1/auth/check-username?username=${encodeURIComponent(value as string)}`
-      );
-      const result = await response.json();
-
-      if (!result.available) {
-        return {
-          code: 'username-taken',
-          message: result.message || 'Имя пользователя занято',
-        };
-      }
-      return null;
-    },
-    { debounce: 500 }
-  );
+  validateAsync(path.username, checkUsernameAvailable, { debounce: 500 });
 
   // Email
   validate(path.email, required({ message: 'Email обязателен' }));
   validate(path.email, email({ message: 'Некорректный email' }));
+  validateAsync(path.email, checkEmailAvailable, { debounce: 500 });
 
-  // Async проверка уникальности email
-  validateAsync(
-    path.email,
-    async (value) => {
-      if (!value || !(value as string).includes('@')) return null;
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const response = await fetch(
-        `/api/v1/auth/check-email?email=${encodeURIComponent(value as string)}`
-      );
-      const result = await response.json();
-
-      if (!result.available) {
-        return {
-          code: 'email-taken',
-          message: result.message || 'Email уже зарегистрирован',
-        };
-      }
-      return null;
-    },
-    { debounce: 500 }
-  );
-
-  // Password — минимум 8 символов, заглавные/строчные/цифры
+  // Password
   validate(path.password, required({ message: 'Пароль обязателен' }));
   validate(path.password, minLength(8, { message: 'Минимум 8 символов' }));
-
-  validate(path.password, (value) => {
-    const v = value as string;
-    const hasUpperCase = /[A-Z]/.test(v);
-    const hasLowerCase = /[a-z]/.test(v);
-    const hasDigit = /\d/.test(v);
-
-    if (!hasUpperCase || !hasLowerCase || !hasDigit) {
-      return {
-        code: 'weak-password',
-        message: 'Пароль должен содержать заглавные, строчные буквы и цифры',
-      };
-    }
-    return null;
-  });
+  validate(path.password, validatePasswordStrength);
 
   // Confirm Password
   validate(path.confirmPassword, required({ message: 'Подтвердите пароль' }));
-
-  // Cross-field: совпадение паролей
-  validate(path.confirmPassword, (value, _control, root) => {
-    const passwordValue = root.password.value.value;
-    if (value && passwordValue && value !== passwordValue) {
-      return {
-        code: 'passwords-mismatch',
-        message: 'Пароли не совпадают',
-      };
-    }
-    return null;
-  });
+  validate(path.confirmPassword, validatePasswordsMatch);
 
   // Full Name
   validate(path.fullName, required({ message: 'Полное имя обязательно' }));
@@ -125,24 +142,8 @@ export const registrationValidation = (path: FieldPath<RegistrationFormData>) =>
 
   // Captcha
   validate(path.captcha, required({ message: 'Введите captcha' }));
-  validate(path.captcha, (value) => {
-    if (value !== 'ABC123') {
-      return {
-        code: 'invalid-captcha',
-        message: 'Неверная captcha. Попробуйте ABC123',
-      };
-    }
-    return null;
-  });
+  validate(path.captcha, validateCaptchaCode);
 
   // Accept Terms
-  validate(path.acceptTerms, (value) => {
-    if (!value) {
-      return {
-        code: 'terms-required',
-        message: 'Необходимо принять условия использования',
-      };
-    }
-    return null;
-  });
+  validate(path.acceptTerms, validateTermsAccepted);
 };

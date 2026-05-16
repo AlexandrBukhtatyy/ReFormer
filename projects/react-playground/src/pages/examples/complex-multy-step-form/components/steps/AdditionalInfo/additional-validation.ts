@@ -14,8 +14,34 @@ import { propertyValidation } from '../../nested-forms/Property/property-validat
 import { existingLoanValidation } from '../../nested-forms/ExistingLoan/existing-loan-validation';
 import { coBorrowerValidation } from '../../nested-forms/CoBorrower/co-borrower-validation';
 
+// ============================================================================
+// Под-схемы для applyWhen — массивы (notEmpty + validateItems)
+// ============================================================================
+
+const propertiesArrayRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.properties, notEmpty({ message: 'Добавьте хотя бы один объект имущества' }));
+  validateItems(path.properties, propertyValidation);
+};
+
+const existingLoansArrayRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(
+    path.existingLoans,
+    notEmpty({ message: 'Добавьте информацию о существующих кредитах' })
+  );
+  validateItems(path.existingLoans, existingLoanValidation);
+};
+
+const coBorrowersArrayRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.coBorrowers, notEmpty({ message: 'Добавьте информацию о созаемщике' }));
+  validateItems(path.coBorrowers, coBorrowerValidation);
+};
+
+// ============================================================================
+// Главная схема
+// ============================================================================
+
 /**
- * Схема валидации для Шага 5: Дополнительная информация
+ * Схема валидации для Шага 5: Дополнительная информация.
  */
 export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
@@ -28,36 +54,7 @@ export const additionalValidation: ValidationSchemaFn<CreditApplicationForm> = (
 
   validate(path.education, required({ message: 'Укажите уровень образования' }));
 
-  // Имущество: массив + элементы
-  applyWhen(
-    path.hasProperty,
-    (value) => value === true,
-    (path) => {
-      validate(path.properties, notEmpty({ message: 'Добавьте хотя бы один объект имущества' }));
-      validateItems(path.properties, propertyValidation);
-    }
-  );
-
-  // Существующие кредиты: массив + элементы
-  applyWhen(
-    path.hasExistingLoans,
-    (value) => value === true,
-    (path) => {
-      validate(
-        path.existingLoans,
-        notEmpty({ message: 'Добавьте информацию о существующих кредитах' })
-      );
-      validateItems(path.existingLoans, existingLoanValidation);
-    }
-  );
-
-  // Созаемщики: массив + элементы
-  applyWhen(
-    path.hasCoBorrower,
-    (value) => value === true,
-    (path) => {
-      validate(path.coBorrowers, notEmpty({ message: 'Добавьте информацию о созаемщике' }));
-      validateItems(path.coBorrowers, coBorrowerValidation);
-    }
-  );
+  applyWhen(path.hasProperty, (value) => value === true, propertiesArrayRules);
+  applyWhen(path.hasExistingLoans, (value) => value === true, existingLoansArrayRules);
+  applyWhen(path.hasCoBorrower, (value) => value === true, coBorrowersArrayRules);
 };

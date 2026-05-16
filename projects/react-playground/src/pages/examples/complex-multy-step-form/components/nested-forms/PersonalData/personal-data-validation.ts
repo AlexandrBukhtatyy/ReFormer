@@ -1,4 +1,4 @@
-import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
+import type { FieldPath, GroupValidator, ValidationSchemaFn, Validator } from '@reformer/core';
 import {
   validate,
   validateGroup,
@@ -9,8 +9,71 @@ import {
 } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
+// ============================================================================
+// Inline validators
+// ============================================================================
+
+const validateAdultAge: Validator<CreditApplicationForm, string | undefined> = (value) => {
+  if (!value) return null;
+  const birthDate = new Date(value);
+  const today = new Date();
+  const age = today.getFullYear() - birthDate.getFullYear();
+
+  if (age < 18) {
+    return { code: 'tooYoung', message: 'Заемщику должно быть не менее 18 лет' };
+  }
+  if (age > 70) {
+    return { code: 'tooOld', message: 'Максимальный возраст заемщика: 70 лет' };
+  }
+  return null;
+};
+
+const validatePassportIssueDateNotFuture: Validator<CreditApplicationForm, string | undefined> = (
+  value
+) => {
+  if (!value) return null;
+  const issueDate = new Date(value);
+  const today = new Date();
+  if (issueDate > today) {
+    return {
+      code: 'issueDateInFuture',
+      message: 'Дата выдачи не может быть в будущем',
+    };
+  }
+  return null;
+};
+
+// ============================================================================
+// Cross-field правила
+// ============================================================================
+
+const passportIssuedAfter14: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
+  if (!form.personalData.birthDate || !form.passportData.issueDate) {
+    return null;
+  }
+
+  const birthDate = new Date(form.personalData.birthDate);
+  const issueDate = new Date(form.passportData.issueDate);
+
+  const minIssueDate = new Date(birthDate);
+  minIssueDate.setFullYear(birthDate.getFullYear() + 14);
+
+  if (issueDate < minIssueDate) {
+    return {
+      code: 'passportIssuedBeforeMinAge',
+      message: 'Паспорт не может быть выдан ранее достижения 14 лет',
+    };
+  }
+  return null;
+};
+
+// ============================================================================
+// Главная схема
+// ============================================================================
+
 /**
- * Схема валидации для Шага 2: Персональные данные
+ * Схема валидации для Шага 2: Персональные данные.
  */
 export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
@@ -41,21 +104,7 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
   );
 
   validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
-
-  // Кастомная валидация возраста
-  validate(path.personalData.birthDate, (value) => {
-    const birthDate = new Date(value as string);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-
-    if (age < 18) {
-      return { code: 'tooYoung', message: 'Заемщику должно быть не менее 18 лет' };
-    }
-    if (age > 70) {
-      return { code: 'tooOld', message: 'Максимальный возраст заемщика: 70 лет' };
-    }
-    return null;
-  });
+  validate(path.personalData.birthDate, validateAdultAge);
 
   validate(path.personalData.gender, required({ message: 'Выберите пол' }));
 
@@ -74,19 +123,7 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
   );
 
   validate(path.passportData.issueDate, required({ message: 'Дата выдачи обязательна' }));
-
-  // Кастомная валидация даты выдачи паспорта
-  validate(path.passportData.issueDate, (value) => {
-    const issueDate = new Date(value as string);
-    const today = new Date();
-    if (issueDate > today) {
-      return {
-        code: 'issueDateInFuture',
-        message: 'Дата выдачи не может быть в будущем',
-      };
-    }
-    return null;
-  });
+  validate(path.passportData.issueDate, validatePassportIssueDateNotFuture);
 
   validate(path.passportData.issuedBy, required({ message: 'Кем выдан обязательно' }));
   validate(path.passportData.issuedBy, minLength(10, { message: 'Минимум 10 символов' }));
@@ -98,31 +135,7 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
     pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' })
   );
 
-  // Cross-field: паспорт выдан после 14 лет
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (!form.personalData.birthDate || !form.passportData.issueDate) {
-        return null;
-      }
-
-      const birthDate = new Date(form.personalData.birthDate);
-      const issueDate = new Date(form.passportData.issueDate);
-
-      const minIssueDate = new Date(birthDate);
-      minIssueDate.setFullYear(birthDate.getFullYear() + 14);
-
-      if (issueDate < minIssueDate) {
-        return {
-          code: 'passportIssuedBeforeMinAge',
-          message: 'Паспорт не может быть выдан ранее достижения 14 лет',
-        };
-      }
-      return null;
-    },
-    { targetField: path.passportData.issueDate }
-  );
+  validateGroup(path, passportIssuedAfter14, { targetField: path.passportData.issueDate });
 
   // ИНН
   validate(path.inn, required({ message: 'ИНН обязателен' }));

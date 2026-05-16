@@ -704,6 +704,98 @@ validateAsync(path.email, async (value) => {
 });
 ```
 
+## Извлечение Вложенных Правил
+
+Когда тело `applyWhen`, `validateGroup` или `validate` разрастается дальше нескольких строк,
+вынесите его в **именованную top-level-функцию**, типизированную одним из публичных типов
+из `@reformer/core`. Это делает основную схему плоской (читается как оглавление) и
+выводит **намерение** каждого правила в его имя.
+
+Используйте существующие публичные типы:
+
+- `ValidationSchemaFn<TForm>` — вложенная схема для `applyWhen` или `apply`.
+- `GroupValidator<TForm, TScope = TForm>` — кросс-полевой валидатор для `validateGroup`.
+- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — валидатор поля для
+  `validate` / `validateAsync`.
+
+### До — inline callbacks
+
+```typescript
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (path) => {
+      validate(path.propertyValue, required());
+      validate(path.propertyValue, min(1000000));
+      validate(path.initialPayment, required());
+
+      validateGroup(
+        path,
+        (scope) => {
+          const form = scope.getValue();
+          if (
+            form.initialPayment &&
+            form.propertyValue &&
+            form.initialPayment > form.propertyValue
+          ) {
+            return { code: 'initialPaymentTooHigh', message: '...' };
+          }
+          return null;
+        },
+        { targetField: path.initialPayment }
+      );
+    }
+  );
+};
+```
+
+### После — извлечённые именованные функции
+
+```typescript
+import type { GroupValidator, ValidationSchemaFn } from '@reformer/core';
+
+const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
+  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+    return { code: 'initialPaymentTooHigh', message: '...' };
+  }
+  return null;
+};
+
+const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.propertyValue, required());
+  validate(path.propertyValue, min(1000000));
+  validate(path.initialPayment, required());
+  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
+};
+
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+};
+```
+
+### Конвенция именования
+
+Используйте **смысловые** имена (а не дублирующие название оператора):
+
+- Вложенная схема `applyWhen` → описывает условную ветку:
+  `mortgageFieldsRules`, `employedFieldsRules`, `residenceAddressRules`.
+- `GroupValidator` → описывает проверяемый инвариант:
+  `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`, `currentExperienceVsTotal`.
+- `Validator` → описывает проверку поля:
+  `validateAdultAge`, `validatePasswordsMatch`, `validatePassportIssueDateNotFuture`.
+
+### Когда выносить
+
+- **Выносить** любое тело длиннее ~3 строк или содержащее вложенный
+  `validateGroup` / `applyWhen`.
+- **Оставлять inline** короткие одно-строчные условия внутри `applyWhen` —
+  `(type) => type === 'mortgage'` ничего не выигрывает от именования.
+
 ## Следующие Шаги
 
 - [Обработка Ошибок](/docs/validation/error-handling) — Обработка и отображение ошибок валидации

@@ -704,6 +704,98 @@ validateAsync(path.email, async (value) => {
 });
 ```
 
+## Extracting Nested Rules
+
+When the body of `applyWhen`, `validateGroup` or `validate` grows beyond a few lines,
+extract it to a **named top-level function** typed with one of the public types from
+`@reformer/core`. This keeps the schema body flat (reads like a table of contents) and
+surfaces the **intent** of each rule via a meaningful name.
+
+Use the existing public types:
+
+- `ValidationSchemaFn<TForm>` — sub-schema for `applyWhen` or `apply`.
+- `GroupValidator<TForm, TScope = TForm>` — cross-field validator for `validateGroup`.
+- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field-level validator
+  for `validate` / `validateAsync`.
+
+### Before — inline callbacks
+
+```typescript
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (path) => {
+      validate(path.propertyValue, required());
+      validate(path.propertyValue, min(1000000));
+      validate(path.initialPayment, required());
+
+      validateGroup(
+        path,
+        (scope) => {
+          const form = scope.getValue();
+          if (
+            form.initialPayment &&
+            form.propertyValue &&
+            form.initialPayment > form.propertyValue
+          ) {
+            return { code: 'initialPaymentTooHigh', message: '...' };
+          }
+          return null;
+        },
+        { targetField: path.initialPayment }
+      );
+    }
+  );
+};
+```
+
+### After — extracted named functions
+
+```typescript
+import type { GroupValidator, ValidationSchemaFn } from '@reformer/core';
+
+const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
+  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+    return { code: 'initialPaymentTooHigh', message: '...' };
+  }
+  return null;
+};
+
+const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.propertyValue, required());
+  validate(path.propertyValue, min(1000000));
+  validate(path.initialPayment, required());
+  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
+};
+
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+};
+```
+
+### Naming convention
+
+Use **semantic** names (not just echoing the operator):
+
+- `applyWhen` sub-schema → describes the conditional branch:
+  `mortgageFieldsRules`, `employedFieldsRules`, `residenceAddressRules`.
+- `GroupValidator` → describes the invariant being checked:
+  `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`, `currentExperienceVsTotal`.
+- `Validator` → describes the field-level check:
+  `validateAdultAge`, `validatePasswordsMatch`, `validatePassportIssueDateNotFuture`.
+
+### When to extract
+
+- **Extract** any body that spans more than ~3 lines or contains a nested
+  `validateGroup` / `applyWhen`.
+- **Keep inline** short one-line conditions inside `applyWhen` —
+  `(type) => type === 'mortgage'` doesn't benefit from being named.
+
 ## Next Steps
 
 - [Error Handling](/docs/validation/error-handling) — Handle and display validation errors

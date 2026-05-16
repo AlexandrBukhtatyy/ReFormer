@@ -239,3 +239,63 @@ const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
 ```
 
 Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior.ts`.
+
+### Extracting Nested Rules
+
+When the body of `applyWhen` / `validateGroup` / `validate` grows beyond a few lines,
+extract it to a **named top-level function** typed with one of the public types from
+`@reformer/core`:
+
+- `ValidationSchemaFn<TForm>` — sub-schema passed to `applyWhen` or `apply`.
+- `GroupValidator<TForm, TScope = TForm>` — cross-field validator passed to `validateGroup`.
+- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field validator passed to `validate` / `validateAsync`.
+
+This keeps the schema body flat (reads like a table of contents) and surfaces the
+**intent** of each rule via a meaningful name.
+
+```typescript
+import type { GroupValidator, ValidationSchemaFn, Validator } from '@reformer/core';
+
+// 1. Cross-field rule — extracted GroupValidator
+const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
+  const form = scope.getValue();
+  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+    return { code: 'initialPaymentTooHigh', message: 'Взнос не может превышать стоимость' };
+  }
+  return null;
+};
+
+// 2. Custom field validator — extracted Validator
+const validateAdultAge: Validator<CreditApplicationForm, string | undefined> = (value) => {
+  if (!value) return null;
+  const age = new Date().getFullYear() - new Date(value).getFullYear();
+  if (age < 18) return { code: 'tooYoung', message: 'Минимум 18 лет' };
+  return null;
+};
+
+// 3. Nested schema for applyWhen — extracted ValidationSchemaFn
+const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.propertyValue, required());
+  validate(path.propertyValue, min(1000000));
+  validate(path.initialPayment, required());
+  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
+};
+
+// 4. Main schema — flat, reads as a table of contents
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+  validate(path.personalData.birthDate, validateAdultAge);
+  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+};
+```
+
+**Naming convention** (camelCase, semantic — not echoing the operator name):
+
+- `applyWhen` sub-schema → describes the conditional branch: `mortgageFieldsRules`, `employedFieldsRules`.
+- `GroupValidator` → describes the invariant: `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`.
+- `Validator` → describes the check: `validateAdultAge`, `validatePasswordsMatch`.
+
+**When to extract.** Inline lambdas are fine for short one-liners
+(`applyWhen(path.x, (v) => v === 'mortgage', mortgageFieldsRules)` — the condition stays inline).
+Extract whenever the body spans more than ~3 lines or contains a `validateGroup` /
+nested rules.
