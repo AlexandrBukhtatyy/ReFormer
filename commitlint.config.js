@@ -29,7 +29,6 @@ export default {
         'reformer-mcp',
         'react-playground',
         'react-playground-e2e',
-        'reformer-tutorial',
         'docs',
         'ci',
         'deps',

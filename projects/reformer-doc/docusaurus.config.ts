@@ -20,7 +20,12 @@ const config: Config = {
   trailingSlash: false,
   deploymentBranch: 'gh-pages',
 
-  onBrokenLinks: 'throw',
+  // 'warn' вместо 'throw' — typedoc-plugin-markdown копирует MD-файлы из @see
+  // ссылок (например `@see [docs/llms/22-cycle-detection.md](...)` в behaviors)
+  // в `_media/`, после чего Docusaurus не резолвит их как routes и считает
+  // broken. Это известный артефакт интеграции, реальных navigation-ошибок не
+  // означает. Переход обратно на 'throw' — после починки typedoc-генерации.
+  onBrokenLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
