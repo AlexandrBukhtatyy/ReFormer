@@ -127,15 +127,15 @@ type CoBorrower = {
 export type CreditApplicationForm = {
   // Step 1
   loanType: LoanType;
-  loanAmount: number | null;
+  loanAmount: number | undefined;
   loanTerm: number;
   loanPurpose: string;
-  propertyValue: number | null;
-  initialPayment: number | null;
-  carBrand: string | null;
-  carModel: string | null;
-  carYear: number | null;
-  carPrice: number | null;
+  propertyValue: number | undefined;
+  initialPayment: number | undefined;
+  carBrand: string | undefined;
+  carModel: string | undefined;
+  carYear: number | undefined;
+  carPrice: number | undefined;
 
   // Step 2
   personalData: PersonalData;
@@ -145,28 +145,28 @@ export type CreditApplicationForm = {
 
   // Step 3
   phoneMain: string;
-  phoneAdditional: string | null;
+  phoneAdditional: string | undefined;
   email: string;
-  emailAdditional: string | null;
+  emailAdditional: string | undefined;
   registrationAddress: Address;
   sameAsRegistration: boolean;
   residenceAddress: Address;
 
   // Step 4
   employmentStatus: EmploymentStatus;
-  companyName: string | null;
-  companyInn: string | null;
-  companyPhone: string | null;
-  companyAddress: string | null;
-  position: string | null;
-  workExperienceTotal: number | null;
-  workExperienceCurrent: number | null;
-  monthlyIncome: number | null;
-  additionalIncome: number | null;
-  additionalIncomeSource: string | null;
-  businessType: string | null;
-  businessInn: string | null;
-  businessActivity: string | null;
+  companyName: string | undefined;
+  companyInn: string | undefined;
+  companyPhone: string | undefined;
+  companyAddress: string | undefined;
+  position: string | undefined;
+  workExperienceTotal: number | undefined;
+  workExperienceCurrent: number | undefined;
+  monthlyIncome: number | undefined;
+  additionalIncome: number | undefined;
+  additionalIncomeSource: string | undefined;
+  businessType: string | undefined;
+  businessInn: string | undefined;
+  businessActivity: string | undefined;
 
   // Step 5
   maritalStatus: MaritalStatus;
@@ -1182,23 +1182,23 @@ const formSchema: FormSchema<CreditApplicationForm> = {
 // =====================================================================
 
 const step1Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.loanType, { message: 'Выберите тип кредита' });
-  required(path.loanAmount, { message: 'Введите сумму кредита' });
-  min(path.loanAmount, 50000);
-  max(path.loanAmount, 10000000);
-  required(path.loanTerm, { message: 'Введите срок кредита' });
-  min(path.loanTerm, 6);
-  max(path.loanTerm, 240);
-  required(path.loanPurpose, { message: 'Опишите цель кредита' });
-  minLength(path.loanPurpose, 10);
-  maxLength(path.loanPurpose, 500);
+  validate(path.loanType, required({ message: 'Выберите тип кредита' }));
+  validate(path.loanAmount, required({ message: 'Введите сумму кредита' }));
+  validate(path.loanAmount, min(50000));
+  validate(path.loanAmount, max(10000000));
+  validate(path.loanTerm, required({ message: 'Введите срок кредита' }));
+  validate(path.loanTerm, min(6));
+  validate(path.loanTerm, max(240));
+  validate(path.loanPurpose, required({ message: 'Опишите цель кредита' }));
+  validate(path.loanPurpose, minLength(10));
+  validate(path.loanPurpose, maxLength(500));
 
   applyWhen(
     path.loanType,
     (t) => t === 'mortgage',
     (p) => {
-      required(p.propertyValue, { message: 'Введите стоимость недвижимости' });
-      min(p.propertyValue, 1000000);
+      validate(p.propertyValue, required({ message: 'Введите стоимость недвижимости' }));
+      validate(p.propertyValue, min(1000000));
     }
   );
 
@@ -1206,39 +1206,39 @@ const step1Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
     path.loanType,
     (t) => t === 'car',
     (p) => {
-      required(p.carBrand, { message: 'Введите марку' });
-      minLength(p.carBrand, 2);
-      maxLength(p.carBrand, 50);
-      required(p.carModel, { message: 'Введите модель' });
-      minLength(p.carModel, 1);
-      maxLength(p.carModel, 50);
-      required(p.carYear, { message: 'Введите год выпуска' });
-      min(p.carYear, 2000);
-      max(p.carYear, new Date().getFullYear() + 1);
-      required(p.carPrice, { message: 'Введите стоимость' });
-      min(p.carPrice, 300000);
-      max(p.carPrice, 10000000);
+      validate(p.carBrand, required({ message: 'Введите марку' }));
+      validate(p.carBrand, minLength(2));
+      validate(p.carBrand, maxLength(50));
+      validate(p.carModel, required({ message: 'Введите модель' }));
+      validate(p.carModel, minLength(1));
+      validate(p.carModel, maxLength(50));
+      validate(p.carYear, required({ message: 'Введите год выпуска' }));
+      validate(p.carYear, min(2000));
+      validate(p.carYear, max(new Date().getFullYear() + 1));
+      validate(p.carPrice, required({ message: 'Введите стоимость' }));
+      validate(p.carPrice, min(300000));
+      validate(p.carPrice, max(10000000));
     }
   );
 };
 
 const step2Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.personalData.lastName, { message: 'Фамилия обязательна' });
-  required(path.personalData.firstName, { message: 'Имя обязательно' });
-  required(path.personalData.middleName, { message: 'Отчество обязательно' });
-  required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
-  required(path.personalData.gender);
-  required(path.personalData.birthPlace, { message: 'Место рождения обязательно' });
+  validate(path.personalData.lastName, required({ message: 'Фамилия обязательна' }));
+  validate(path.personalData.firstName, required({ message: 'Имя обязательно' }));
+  validate(path.personalData.middleName, required({ message: 'Отчество обязательно' }));
+  validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
+  validate(path.personalData.gender, required());
+  validate(path.personalData.birthPlace, required({ message: 'Место рождения обязательно' }));
 
-  required(path.passportData.series);
-  required(path.passportData.number);
-  required(path.passportData.issueDate);
-  required(path.passportData.issuedBy);
-  required(path.passportData.departmentCode);
+  validate(path.passportData.series, required());
+  validate(path.passportData.number, required());
+  validate(path.passportData.issueDate, required());
+  validate(path.passportData.issuedBy, required());
+  validate(path.passportData.departmentCode, required());
 
-  required(path.inn, { message: 'ИНН обязателен' });
-  pattern(path.inn, /^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' });
-  required(path.snils, { message: 'СНИЛС обязателен' });
+  validate(path.inn, required({ message: 'ИНН обязателен' }));
+  validate(path.inn, pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }));
+  validate(path.snils, required({ message: 'СНИЛС обязателен' }));
 
   // Age 18-70 cross-validation
   validate(path.personalData.birthDate, (value) => {
@@ -1256,38 +1256,41 @@ const step2Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
 };
 
 const step3Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.phoneMain, { message: 'Телефон обязателен' });
-  pattern(path.phoneMain, /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, {
-    message: 'Неверный формат телефона',
-  });
-  required(path.email, { message: 'Email обязателен' });
-  emailValidator(path.email);
+  validate(path.phoneMain, required({ message: 'Телефон обязателен' }));
+  validate(
+    path.phoneMain,
+    pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, {
+      message: 'Неверный формат телефона',
+    })
+  );
+  validate(path.email, required({ message: 'Email обязателен' }));
+  validate(path.email, emailValidator());
 
-  required(path.registrationAddress.region);
-  required(path.registrationAddress.city);
-  required(path.registrationAddress.street);
-  required(path.registrationAddress.house);
-  required(path.registrationAddress.postalCode);
+  validate(path.registrationAddress.region, required());
+  validate(path.registrationAddress.city, required());
+  validate(path.registrationAddress.street, required());
+  validate(path.registrationAddress.house, required());
+  validate(path.registrationAddress.postalCode, required());
 
   applyWhen(
     path.sameAsRegistration,
     (s) => s === false,
     (p) => {
-      required(p.residenceAddress.region);
-      required(p.residenceAddress.city);
-      required(p.residenceAddress.street);
-      required(p.residenceAddress.house);
-      required(p.residenceAddress.postalCode);
+      validate(p.residenceAddress.region, required());
+      validate(p.residenceAddress.city, required());
+      validate(p.residenceAddress.street, required());
+      validate(p.residenceAddress.house, required());
+      validate(p.residenceAddress.postalCode, required());
     }
   );
 };
 
 const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.employmentStatus);
-  required(path.workExperienceTotal);
-  min(path.workExperienceTotal, 0);
-  required(path.workExperienceCurrent);
-  min(path.workExperienceCurrent, 0);
+  validate(path.employmentStatus, required());
+  validate(path.workExperienceTotal, required());
+  validate(path.workExperienceTotal, min(0));
+  validate(path.workExperienceCurrent, required());
+  validate(path.workExperienceCurrent, min(0));
 
   // Cross: workExperienceCurrent <= workExperienceTotal
   validate(path.workExperienceCurrent, (value, ctx) => {
@@ -1301,19 +1304,19 @@ const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
     return null;
   });
 
-  required(path.monthlyIncome, { message: 'Введите доход' });
-  min(path.monthlyIncome, 10000);
+  validate(path.monthlyIncome, required({ message: 'Введите доход' }));
+  validate(path.monthlyIncome, min(10000));
 
   applyWhen(
     path.employmentStatus,
     (s) => s === 'employed',
     (p) => {
-      required(p.companyName, { message: 'Название компании обязательно' });
-      required(p.companyInn, { message: 'ИНН компании обязателен' });
-      pattern(p.companyInn, /^\d{10}$/, { message: 'ИНН компании — 10 цифр' });
-      required(p.companyPhone);
-      required(p.companyAddress);
-      required(p.position);
+      validate(p.companyName, required({ message: 'Название компании обязательно' }));
+      validate(p.companyInn, required({ message: 'ИНН компании обязателен' }));
+      validate(p.companyInn, pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' }));
+      validate(p.companyPhone, required());
+      validate(p.companyAddress, required());
+      validate(p.position, required());
     }
   );
 
@@ -1321,38 +1324,38 @@ const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
     path.employmentStatus,
     (s) => s === 'selfEmployed',
     (p) => {
-      required(p.businessType);
-      required(p.businessInn);
-      pattern(p.businessInn, /^\d{12}$/, { message: 'ИНН — 12 цифр' });
-      required(p.businessActivity);
+      validate(p.businessType, required());
+      validate(p.businessInn, required());
+      validate(p.businessInn, pattern(/^\d{12}$/, { message: 'ИНН — 12 цифр' }));
+      validate(p.businessActivity, required());
     }
   );
 };
 
 const step5Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.maritalStatus);
-  required(path.dependents);
-  min(path.dependents, 0);
-  max(path.dependents, 10);
-  required(path.education);
+  validate(path.maritalStatus, required());
+  validate(path.dependents, required());
+  validate(path.dependents, min(0));
+  validate(path.dependents, max(10));
+  validate(path.education, required());
 
   validateItems(path.properties, (itemPath) => {
-    required(itemPath.type);
-    required(itemPath.description);
-    required(itemPath.estimatedValue);
-    min(itemPath.estimatedValue, 0);
+    validate(itemPath.type, required());
+    validate(itemPath.description, required());
+    validate(itemPath.estimatedValue, required());
+    validate(itemPath.estimatedValue, min(0));
   });
 
   validateItems(path.existingLoans, (itemPath) => {
-    required(itemPath.bank);
-    required(itemPath.type);
-    required(itemPath.amount);
-    min(itemPath.amount, 0);
-    required(itemPath.remainingAmount);
-    min(itemPath.remainingAmount, 0);
-    required(itemPath.monthlyPayment);
-    min(itemPath.monthlyPayment, 0);
-    required(itemPath.maturityDate);
+    validate(itemPath.bank, required());
+    validate(itemPath.type, required());
+    validate(itemPath.amount, required());
+    validate(itemPath.amount, min(0));
+    validate(itemPath.remainingAmount, required());
+    validate(itemPath.remainingAmount, min(0));
+    validate(itemPath.monthlyPayment, required());
+    validate(itemPath.monthlyPayment, min(0));
+    validate(itemPath.maturityDate, required());
     // Cross: remainingAmount <= amount
     validate(itemPath.remainingAmount, (value, ctx) => {
       // value is the remainingAmount; need amount from same item.
@@ -1378,8 +1381,8 @@ const step6Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   validate(path.confirmAccuracy, (v) =>
     v === true ? null : { code: 'mustConfirm', message: 'Подтвердите точность данных' }
   );
-  required(path.electronicSignature);
-  pattern(path.electronicSignature, /^\d{6}$/, { message: 'Код — 6 цифр' });
+  validate(path.electronicSignature, required());
+  validate(path.electronicSignature, pattern(/^\d{6}$/, { message: 'Код — 6 цифр' }));
 };
 
 export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<CreditApplicationForm>> = {

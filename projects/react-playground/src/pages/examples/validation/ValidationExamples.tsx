@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react';
-import { GroupNode, type FormProxy, type FormSchema, type FieldPath } from '@reformer/core';
+import { createForm, type FormProxy, type FormSchema, type FieldPath } from '@reformer/core';
 import {
   required,
   email,
@@ -15,13 +15,12 @@ import {
   pattern,
   url,
   phone,
+  isNumber,
   integer,
   pastDate,
   validate,
 } from '@reformer/core/validators';
-import { Input } from '@/components/ui/input';
-import { ExampleCard } from '@/components/ui/example-card';
-import { FormField } from '@/components/ui/form-field';
+import { Input, FormField, ExampleCard } from '@reformer/ui-kit';
 
 // Тип формы для демонстрации валидаторов
 interface ValidationDemoForm {
@@ -139,13 +138,14 @@ const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
   validate(path.phoneField, required({ message: 'Телефон обязателен' }));
   validate(path.phoneField, phone({ format: 'ru', message: 'Введите российский номер телефона' }));
 
-  // Number (композиция атомарных валидаторов)
+  // Number — атомарные фабрики: число + целое + диапазон
   validate(path.numberField, required({ message: 'Число обязательно' }));
-  validate(path.numberField, integer({ message: 'Должно быть целым числом' }));
-  validate(path.numberField, min(1, { message: 'Не менее 1' }));
-  validate(path.numberField, max(100, { message: 'Не более 100' }));
+  validate(path.numberField, isNumber({ message: 'Должно быть числом' }));
+  validate(path.numberField, integer({ message: 'Только целое число' }));
+  validate(path.numberField, min(1, { message: 'Минимум 1' }));
+  validate(path.numberField, max(100, { message: 'Максимум 100' }));
 
-  // Date
+  // Date — фабрика pastDate проверяет, что дата не в будущем
   validate(path.dateField, required({ message: 'Дата обязательна' }));
   validate(path.dateField, pastDate({ message: 'Дата не может быть в будущем' }));
 
@@ -167,7 +167,7 @@ const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
 };
 
 function createValidationForm(): FormProxy<ValidationDemoForm> {
-  return new GroupNode<ValidationDemoForm>({
+  return createForm<ValidationDemoForm>({
     form: validationFormSchema,
     validation: validationFormValidation,
   });
@@ -195,9 +195,9 @@ export default function ValidationExamples() {
           title="Required"
           description="Обязательное поле"
           bgColor="bg-white"
-          code={`required(path.requiredField, {
+          code={`validate(path.requiredField, required({
   message: 'Это поле обязательно'
-})`}
+}))`}
         >
           <FormField control={form.requiredField} />
         </ExampleCard>
@@ -206,10 +206,10 @@ export default function ValidationExamples() {
           title="Email"
           description="Валидация email адреса"
           bgColor="bg-white"
-          code={`required(path.emailField, { message: 'Email обязателен' });
-email(path.emailField, {
+          code={`validate(path.emailField, required({ message: 'Email обязателен' }));
+validate(path.emailField, email({
   message: 'Введите корректный email'
-})`}
+}))`}
         >
           <FormField control={form.emailField} />
         </ExampleCard>
@@ -218,9 +218,9 @@ email(path.emailField, {
           title="MinLength"
           description="Минимум 5 символов"
           bgColor="bg-white"
-          code={`minLength(path.minLengthField, 5, {
+          code={`validate(path.minLengthField, minLength(5, {
   message: 'Минимум 5 символов'
-})`}
+}))`}
         >
           <FormField control={form.minLengthField} />
         </ExampleCard>
@@ -229,9 +229,9 @@ email(path.emailField, {
           title="MaxLength"
           description="Максимум 10 символов"
           bgColor="bg-white"
-          code={`maxLength(path.maxLengthField, 10, {
+          code={`validate(path.maxLengthField, maxLength(10, {
   message: 'Максимум 10 символов'
-})`}
+}))`}
         >
           <FormField control={form.maxLengthField} />
         </ExampleCard>
@@ -240,9 +240,9 @@ email(path.emailField, {
           title="Min"
           description="Минимальное значение 10"
           bgColor="bg-white"
-          code={`min(path.minField, 10, {
+          code={`validate(path.minField, min(10, {
   message: 'Минимум 10'
-})`}
+}))`}
         >
           <FormField control={form.minField} />
         </ExampleCard>
@@ -251,9 +251,9 @@ email(path.emailField, {
           title="Max"
           description="Максимальное значение 100"
           bgColor="bg-white"
-          code={`max(path.maxField, 100, {
+          code={`validate(path.maxField, max(100, {
   message: 'Максимум 100'
-})`}
+}))`}
         >
           <FormField control={form.maxField} />
         </ExampleCard>
@@ -262,9 +262,9 @@ email(path.emailField, {
           title="Pattern"
           description="Только буквы (regex)"
           bgColor="bg-white"
-          code={`pattern(path.patternField, /^[a-zA-Zа-яА-Я]+$/, {
+          code={`validate(path.patternField, pattern(/^[a-zA-Zа-яА-Я]+$/, {
   message: 'Только буквы'
-})`}
+}))`}
         >
           <FormField control={form.patternField} />
         </ExampleCard>
@@ -273,9 +273,9 @@ email(path.emailField, {
           title="URL"
           description="Валидация URL адреса"
           bgColor="bg-white"
-          code={`url(path.urlField, {
+          code={`validate(path.urlField, url({
   message: 'Введите корректный URL'
-})`}
+}))`}
         >
           <FormField control={form.urlField} />
         </ExampleCard>
@@ -284,10 +284,10 @@ email(path.emailField, {
           title="Phone"
           description="Номер телефона (формат РФ)"
           bgColor="bg-white"
-          code={`phone(path.phoneField, {
+          code={`validate(path.phoneField, phone({
   format: 'ru',
   message: 'Введите российский номер'
-})`}
+}))`}
         >
           <FormField control={form.phoneField} />
         </ExampleCard>
@@ -296,7 +296,9 @@ email(path.emailField, {
           title="Number"
           description="Целое число от 1 до 100"
           bgColor="bg-white"
-          code={`validate(path.numberField, integer());
+          code={`// Атомарные фабрики:
+validate(path.numberField, isNumber());
+validate(path.numberField, integer());
 validate(path.numberField, min(1));
 validate(path.numberField, max(100));`}
         >
@@ -307,10 +309,9 @@ validate(path.numberField, max(100));`}
           title="Date"
           description="Дата (не в будущем)"
           bgColor="bg-white"
-          code={`date(path.dateField, {
-  noFuture: true,
+          code={`validate(path.dateField, pastDate({
   message: 'Дата не может быть в будущем'
-})`}
+}))`}
         >
           <FormField control={form.dateField} />
         </ExampleCard>
