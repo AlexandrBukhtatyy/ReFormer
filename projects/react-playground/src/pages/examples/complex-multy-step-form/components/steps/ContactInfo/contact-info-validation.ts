@@ -37,10 +37,10 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
 
   // Email
   validate(path.email, required({ message: 'Email обязателен' }));
-  validate(path.email, email());
+  validate(path.email, email({ message: 'Введите корректный email' }));
 
   // Дополнительный email (опциональный)
-  validate(path.emailAdditional, email());
+  validate(path.emailAdditional, email({ message: 'Введите корректный email' }));
 
   // Cross-field: дополнительный телефон отличается от основного
   validateGroup(

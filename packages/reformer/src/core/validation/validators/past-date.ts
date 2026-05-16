@@ -36,7 +36,7 @@ export function pastDate<TForm = unknown, TField extends string | Date | undefin
     if (normalizedValue > today) {
       return {
         code: 'date_future',
-        message: options?.message ?? 'Дата не может быть в будущем',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }

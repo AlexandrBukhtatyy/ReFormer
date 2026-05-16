@@ -16,7 +16,7 @@ import {
   url,
   phone,
   number,
-  date,
+  pastDate,
   validate,
 } from '@reformer/core/validators';
 import { Input } from '@/components/ui/input';
@@ -148,7 +148,7 @@ const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
 
   // Date
   validate(path.dateField, required({ message: 'Дата обязательна' }));
-  validate(path.dateField, date({ noFuture: true, message: 'Дата не может быть в будущем' }));
+  validate(path.dateField, pastDate({ message: 'Дата не может быть в будущем' }));
 
   // Validate
   validate(path.customField, required({ message: 'Пароль обязателен' }));

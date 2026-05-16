@@ -36,7 +36,7 @@ export function maxAge<
     if (age > maxAgeValue) {
       return {
         code: 'date_max_age',
-        message: options?.message ?? `Максимальный возраст: ${maxAgeValue} лет`,
+        message: options?.message ?? 'invalid',
         params: { maxAge: maxAgeValue, currentAge: age, ...options?.params },
       };
     }

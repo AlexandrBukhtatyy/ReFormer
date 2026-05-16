@@ -31,7 +31,7 @@ export function isDate<TForm = unknown, TField extends string | Date | undefined
     if (parsed === null) {
       return {
         code: 'date_invalid',
-        message: options?.message ?? 'Неверный формат даты',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }

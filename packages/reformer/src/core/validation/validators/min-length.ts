@@ -32,7 +32,7 @@ export function minLength<TForm = unknown, TField = unknown>(
     if (len < minLen) {
       return {
         code: 'minLength',
-        message: options?.message ?? `Минимальная длина: ${minLen} символов`,
+        message: options?.message ?? 'invalid',
         params: { minLength: minLen, actualLength: len, ...options?.params },
       };
     }

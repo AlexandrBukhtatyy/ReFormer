@@ -38,7 +38,7 @@ export function futureDate<
     if (normalizedValue < today) {
       return {
         code: 'date_past',
-        message: options?.message ?? 'Дата не может быть в прошлом',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }

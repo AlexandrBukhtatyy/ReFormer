@@ -32,7 +32,7 @@ export function maxLength<TForm = unknown, TField = unknown>(
     if (len > maxLen) {
       return {
         code: 'maxLength',
-        message: options?.message ?? `Максимальная длина: ${maxLen} символов`,
+        message: options?.message ?? 'invalid',
         params: { maxLength: maxLen, actualLength: len, ...options?.params },
       };
     }

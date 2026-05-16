@@ -38,7 +38,7 @@ export function notEmpty<TForm = unknown, TField = unknown>(
     }
     return {
       code: 'minLength',
-      message: options?.message ?? 'Массив не должен быть пустым',
+      message: options?.message ?? 'invalid',
       params: { minLength: 1, ...options?.params },
     };
   };

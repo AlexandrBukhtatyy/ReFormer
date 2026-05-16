@@ -30,7 +30,7 @@ export function pattern<TForm = unknown, TField extends string | undefined = str
     if (!regex.test(value as string)) {
       return {
         code: 'pattern',
-        message: options?.message ?? 'Значение не соответствует требуемому формату',
+        message: options?.message ?? 'invalid',
         params: { pattern: regex.source, ...options?.params },
       };
     }

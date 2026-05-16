@@ -33,14 +33,14 @@ export function required<TForm = unknown, TField = unknown>(
     if (value === null || value === undefined || value === '') {
       return {
         code: 'required',
-        message: options?.message ?? 'Поле обязательно для заполнения',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
     if (typeof value === 'boolean' && value !== true) {
       return {
         code: 'required',
-        message: options?.message ?? 'Поле обязательно для заполнения',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }

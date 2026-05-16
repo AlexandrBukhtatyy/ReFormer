@@ -33,7 +33,7 @@ export function min<TForm = unknown, TField extends number | undefined = number>
     if ((value as number) < minValue) {
       return {
         code: 'min',
-        message: options?.message ?? `Минимальное значение: ${minValue}`,
+        message: options?.message ?? 'invalid',
         params: { min: minValue, actual: value, ...options?.params },
       };
     }

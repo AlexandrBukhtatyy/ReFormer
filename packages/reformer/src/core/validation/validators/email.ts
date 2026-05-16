@@ -31,7 +31,7 @@ export function email<TForm = unknown, TField extends string | undefined = strin
     if (!EMAIL_REGEX.test(value as string)) {
       return {
         code: 'email',
-        message: options?.message ?? 'Неверный формат email',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }

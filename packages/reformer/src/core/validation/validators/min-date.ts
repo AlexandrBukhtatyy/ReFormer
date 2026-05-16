@@ -38,8 +38,7 @@ export function minDate<
     if (normalizedValue < normalizedMin) {
       return {
         code: 'date_min',
-        message:
-          options?.message ?? `Дата должна быть не ранее ${normalizedMin.toLocaleDateString()}`,
+        message: options?.message ?? 'invalid',
         params: { minDate: minDateValue, ...options?.params },
       };
     }

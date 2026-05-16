@@ -8,8 +8,8 @@
 
 import type { Validator, ValidateOptions } from '../../types/validation-schema';
 
-const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-const URL_REQUIRE_PROTOCOL = /^https?:\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+const URL_WITH_PROTOCOL = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
+const URL_REQUIRE_PROTOCOL = /^https?:\/\/([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
 
 export interface UrlValidatorOptions extends ValidateOptions {
   /** Требовать наличие протокола (http:// или https://) */
@@ -44,7 +44,7 @@ export function url<TForm = unknown, TField extends string | undefined = string>
     if (!regex.test(v)) {
       return {
         code: 'url',
-        message: options?.message ?? 'Неверный формат URL',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
@@ -57,9 +57,7 @@ export function url<TForm = unknown, TField extends string | undefined = string>
       if (!hasAllowedProtocol) {
         return {
           code: 'url_protocol',
-          message:
-            options?.message ??
-            `URL должен использовать один из протоколов: ${options.allowedProtocols.join(', ')}`,
+          message: options?.message ?? 'invalid',
           params: { allowedProtocols: options.allowedProtocols, ...options?.params },
         };
       }

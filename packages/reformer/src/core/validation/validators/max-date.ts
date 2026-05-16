@@ -38,8 +38,7 @@ export function maxDate<
     if (normalizedValue > normalizedMax) {
       return {
         code: 'date_max',
-        message:
-          options?.message ?? `Дата должна быть не позднее ${normalizedMax.toLocaleDateString()}`,
+        message: options?.message ?? 'invalid',
         params: { maxDate: maxDateValue, ...options?.params },
       };
     }

@@ -36,7 +36,7 @@ export function minAge<
     if (age < minAgeValue) {
       return {
         code: 'date_min_age',
-        message: options?.message ?? `Минимальный возраст: ${minAgeValue} лет`,
+        message: options?.message ?? 'invalid',
         params: { minAge: minAgeValue, currentAge: age, ...options?.params },
       };
     }

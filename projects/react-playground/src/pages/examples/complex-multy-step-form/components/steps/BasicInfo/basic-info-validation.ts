@@ -32,7 +32,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
     path.loanPurpose,
     minLength(10, { message: 'Опишите цель подробнее (минимум 10 символов)' })
   );
-  validate(path.loanPurpose, maxLength(500));
+  validate(path.loanPurpose, maxLength(500, { message: 'Не более 500 символов' }));
 
   // Условная валидация для ипотеки
   applyWhen(
@@ -43,7 +43,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
       validate(path.propertyValue, min(1000000, { message: 'Минимальная стоимость: 1 000 000 ₽' }));
 
       validate(path.initialPayment, required({ message: 'Укажите первоначальный взнос' }));
-      validate(path.initialPayment, min(0));
+      validate(path.initialPayment, min(0, { message: 'Взнос не может быть отрицательным' }));
 
       // Cross-field валидация для первоначального взноса
       validateGroup(

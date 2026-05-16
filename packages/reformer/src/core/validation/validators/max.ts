@@ -33,7 +33,7 @@ export function max<TForm = unknown, TField extends number | undefined = number>
     if ((value as number) > maxValue) {
       return {
         code: 'max',
-        message: options?.message ?? `Максимальное значение: ${maxValue}`,
+        message: options?.message ?? 'invalid',
         params: { max: maxValue, actual: value, ...options?.params },
       };
     }

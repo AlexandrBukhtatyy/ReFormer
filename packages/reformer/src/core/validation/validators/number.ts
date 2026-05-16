@@ -45,7 +45,7 @@ export function number<TForm = unknown, TField extends number | undefined = numb
     if (typeof value !== 'number' || isNaN(value as number)) {
       return {
         code: 'number',
-        message: options?.message ?? 'Значение должно быть числом',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
@@ -54,42 +54,42 @@ export function number<TForm = unknown, TField extends number | undefined = numb
     if (options?.integer && !Number.isInteger(num)) {
       return {
         code: 'number_integer',
-        message: options?.message ?? 'Значение должно быть целым числом',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
     if (options?.min !== undefined && num < options.min) {
       return {
         code: 'number_min',
-        message: options?.message ?? `Значение должно быть не менее ${options.min}`,
+        message: options?.message ?? 'invalid',
         params: { min: options.min, ...options?.params },
       };
     }
     if (options?.max !== undefined && num > options.max) {
       return {
         code: 'number_max',
-        message: options?.message ?? `Значение должно быть не более ${options.max}`,
+        message: options?.message ?? 'invalid',
         params: { max: options.max, ...options?.params },
       };
     }
     if (options?.multipleOf !== undefined && num % options.multipleOf !== 0) {
       return {
         code: 'number_multiple',
-        message: options?.message ?? `Значение должно быть кратно ${options.multipleOf}`,
+        message: options?.message ?? 'invalid',
         params: { multipleOf: options.multipleOf, ...options?.params },
       };
     }
     if (options?.allowNegative === false && num < 0) {
       return {
         code: 'number_negative',
-        message: options?.message ?? 'Отрицательные числа не допускаются',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
     if (options?.allowZero === false && num === 0) {
       return {
         code: 'number_zero',
-        message: options?.message ?? 'Ноль не допускается',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
