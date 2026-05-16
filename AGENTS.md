@@ -27,7 +27,7 @@ claude mcp add --transport stdio reformer -- reformer-mcp
 
 ### Эталонные примеры
 
-- Простая форма: [projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx](projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx)
+- Простая форма: [projects/react-playground/src/pages/examples/registration-form/RegistrationForm.tsx](projects/react-playground/src/pages/examples/registration-form/RegistrationForm.tsx)
 - Multi-step wizard + FormArray: [projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx](projects/react-playground/src/pages/examples/complex-multy-step-form/CreditApplicationForm.tsx)
 - JSON-renderer: [projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/](projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/)
 

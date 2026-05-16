@@ -19,16 +19,16 @@
 
 ## Принятые решения
 
-| Решение | Выбор |
-|---|---|
-| `control` в чистом валидаторе | `FormProxy<TField>` |
-| `root` в чистом валидаторе | `FormProxy<TForm>` |
-| Совместимость | Breaking change (clean break) |
-| Tree-валидаторы | Отдельный тип `GroupValidator<TForm, TScope = TForm>` со scope |
-| Имя оператора cross-field | `validateGroup` |
+| Решение                          | Выбор                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| `control` в чистом валидаторе    | `FormProxy<TField>`                                                           |
+| `root` в чистом валидаторе       | `FormProxy<TForm>`                                                            |
+| Совместимость                    | Breaking change (clean break)                                                 |
+| Tree-валидаторы                  | Отдельный тип `GroupValidator<TForm, TScope = TForm>` со scope                |
+| Имя оператора cross-field        | `validateGroup`                                                               |
 | Примитивы (`required`, `min`, …) | Фабрики валидаторов из `@reformer/core/validators`, передаются в `validate()` |
-| Async-валидаторы | Отдельный оператор `validateAsync(path, asyncFn, { debounce })` |
-| `targetField` | Только `FieldPathNode` (type-safe) |
+| Async-валидаторы                 | Отдельный оператор `validateAsync(path, asyncFn, { debounce })`               |
+| `targetField`                    | Только `FieldPathNode` (type-safe)                                            |
 
 ---
 
@@ -213,15 +213,20 @@ export function validateGroup<TForm, TScope = TForm>(
 ```
 
 **Использование:**
+
 ```typescript
 // Scope = вся форма (path передаётся как FieldPathNode<TForm, TForm>)
-validateGroup(path, (root, _root) => {
-  const v = root.getValue();
-  if (v.initialPayment > v.propertyValue) {
-    return { code: 'tooHigh', message: 'Взнос > стоимости' };
-  }
-  return null;
-}, { targetField: path.initialPayment });
+validateGroup(
+  path,
+  (root, _root) => {
+    const v = root.getValue();
+    if (v.initialPayment > v.propertyValue) {
+      return { code: 'tooHigh', message: 'Взнос > стоимости' };
+    }
+    return null;
+  },
+  { targetField: path.initialPayment }
+);
 
 // Scope = поддерево personalData
 validateGroup(path.personalData, (scope, root) => {
@@ -247,6 +252,7 @@ validateGroup(path.personalData, (scope, root) => {
 ### Эталон — required
 
 **Было** (`required.ts:51-78`):
+
 ```typescript
 export function required<TForm, TField>(
   fieldPath: FieldPathNode<TForm, TField> | undefined,
@@ -266,6 +272,7 @@ export function required<TForm, TField>(
 ```
 
 **Стало:**
+
 ```typescript
 export function required<TForm = unknown, TField = unknown>(
   options?: ValidateOptions
@@ -291,6 +298,7 @@ export function required<TForm = unknown, TField = unknown>(
 ```
 
 **Использование:**
+
 ```typescript
 import { required, min } from '@reformer/core/validators';
 import { validate } from '@reformer/core';
@@ -301,6 +309,7 @@ validate(path.loanAmount, min(50000, { message: 'Min 50 000 ₽' }));
 ```
 
 Тот же паттерн для всех остальных:
+
 - [required.ts](packages/reformer/src/core/validation/validators/required.ts)
 - [min.ts](packages/reformer/src/core/validation/validators/min.ts), [max.ts](packages/reformer/src/core/validation/validators/max.ts)
 - [min-length.ts](packages/reformer/src/core/validation/validators/min-length.ts), [max-length.ts](packages/reformer/src/core/validation/validators/max-length.ts)
@@ -328,6 +337,7 @@ validate(path.loanAmount, min(50000, { message: 'Min 50 000 ₽' }));
   - `ArrayNode<TItem>` — нужно решить, что такое `FormProxy<TItem[]>`. Скорее всего — обёртка над `getValue()` + item proxies.
 
 **`applyTreeValidators` → `applyGroupValidators` (строки 213–248):**
+
 - Переименовать.
 - В registration всегда есть `scopePath`. Если `scopePath === ''` — `scopeProxy = rootProxy`. Иначе — навигация по `getFieldByPath(scopePath)` + `.getProxy()`.
 - Вызывать `validator(scopeProxy, rootProxy)` вместо `validator(context)`.
@@ -346,6 +356,7 @@ validate(path.loanAmount, min(50000, { message: 'Min 50 000 ₽' }));
 [packages/reformer/src/core/validation/validation-context.ts](packages/reformer/src/core/validation/validation-context.ts) — **удалить весь файл.**
 
 Классы `ValidationContextImpl`, `TreeValidationContextImpl`, `ArrayValidationContextImpl` больше не нужны:
+
 - `ValidationContextImpl` — данные (control, root) теперь передаются в валидатор аргументами.
 - `TreeValidationContextImpl` — то же самое для group.
 - `ArrayValidationContextImpl.value()` — в новом API `value` приходит первым аргументом валидатора. Для ArrayNode передаётся `control.getValue()` в applicator'е.
@@ -362,11 +373,11 @@ validate(path.loanAmount, min(50000, { message: 'Min 50 000 ₽' }));
 
 ### Внутри пакета `@reformer/core` (тесты + примитивы)
 
-| Группа | Файлы | Кол-во |
-|---|---|---|
-| Типы и runtime | `validation-schema.ts`, `validation-applicator.ts`, `validation-registry.ts`, `validate.ts`, `validate-async.ts`, `validate-tree.ts`→`validate-group.ts`, `validation-context.ts` (удалить), `form-context.ts` (удалить), `validation/index.ts` | 9 |
-| Примитивы → фабрики | `validators/*.ts` (без `index.ts` и `date-utils.ts`) | 16 |
-| Тесты | `packages/reformer/src/__tests__/**/validation*`, `packages/reformer/src/__tests__/**/validators*` | ~20 |
+| Группа              | Файлы                                                                                                                                                                                                                                           | Кол-во |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Типы и runtime      | `validation-schema.ts`, `validation-applicator.ts`, `validation-registry.ts`, `validate.ts`, `validate-async.ts`, `validate-tree.ts`→`validate-group.ts`, `validation-context.ts` (удалить), `form-context.ts` (удалить), `validation/index.ts` | 9      |
+| Примитивы → фабрики | `validators/*.ts` (без `index.ts` и `date-utils.ts`)                                                                                                                                                                                            | 16     |
+| Тесты               | `packages/reformer/src/__tests__/**/validation*`, `packages/reformer/src/__tests__/**/validators*`                                                                                                                                              | ~20    |
 
 ### Use-site код в playground / tutorials
 
@@ -383,7 +394,7 @@ validate(path.loanAmount, min(50000, { message: 'Min 50 000 ₽' }));
 - [components/nested-forms/CoBorrower/co-borrower-validation.ts](projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/CoBorrower/co-borrower-validation.ts)
 - [components/nested-forms/ExistingLoan/existing-loan-validation.ts](projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/ExistingLoan/existing-loan-validation.ts)
 - [components/nested-forms/Property/property-validation.ts](projects/react-playground/src/pages/examples/complex-multy-step-form/components/nested-forms/Property/property-validation.ts)
-- [simple-form/validation/registration-validation.ts](projects/react-playground/src/pages/examples/simple-form/validation/registration-validation.ts)
+- [simple-form/validation/registration-validation.ts](projects/react-playground/src/pages/examples/registration-form/validation/registration-validation.ts)
 
 Плюс [complex-multy-step-form/utils/validators/validate-age.ts](projects/react-playground/src/pages/examples/complex-multy-step-form/utils/validators/validate-age.ts), [warnings.ts](projects/react-playground/src/pages/examples/complex-multy-step-form/utils/validators/warnings.ts).
 

@@ -268,13 +268,13 @@
 
 - `projects/react-playground/src/pages/examples/behaviors/BehaviorsExamples.tsx`
 - `projects/react-playground/src/pages/examples/validation/ValidationExamples.tsx`
-- `projects/react-playground/src/pages/examples/simple-form/RegistrationForm.tsx`
+- `projects/react-playground/src/pages/examples/registration-form/RegistrationForm.tsx`
 
 ### POM файлы (обновить селекторы)
 
 - `projects/react-playground-e2e/tests/pages/behaviors/behaviors-page.pom.ts`
 - `projects/react-playground-e2e/tests/pages/validation/validation-page.pom.ts`
-- `projects/react-playground-e2e/tests/pages/simple-form/simple-form-page.pom.ts`
+- `projects/react-playground-e2e/tests/pages/registration-form/simple-form-page.pom.ts`
 - `projects/react-playground-e2e/tests/pages/complex-multy-step-form/credit-form-page.pom.ts`
 
 ### Компоненты (если выбран Вариант C)

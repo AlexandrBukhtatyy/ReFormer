@@ -46,7 +46,7 @@ npx playwright codegen http://localhost:5173
 npm run test:e2e:report
 
 # Запуск конкретного файла
-npx playwright test tests/pages/simple-form/registration.spec.ts
+npx playwright test tests/pages/registration-form/registration.spec.ts
 
 # Запуск конкретного проекта
 npx playwright test --project=simple-form
