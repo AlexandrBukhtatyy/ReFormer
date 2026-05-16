@@ -65,29 +65,29 @@ import { FormArray } from '@reformer/cdk/form-array';
   </FormArray.List>
 
   <FormArray.AddButton>Add Item</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ## 6. Sub-components
 
-| Component | Props | Purpose |
-|-----------|-------|---------|
-| `FormArray.Root` | `control: ArrayNode<T>` | Context provider |
-| `FormArray.List` | `children: (item) => ReactNode` | Iterates items (render props) |
-| `FormArray.AddButton` | `initialValue?: Partial<T>` | Adds new item |
-| `FormArray.RemoveButton` | - | Removes current item (inside List) |
-| `FormArray.Empty` | `children: ReactNode` | Shows when array is empty |
-| `FormArray.Count` | `render?: (count) => ReactNode` | Displays item count |
-| `FormArray.ItemIndex` | `render?: (index) => ReactNode` | Displays current index |
+| Component                | Props                           | Purpose                            |
+| ------------------------ | ------------------------------- | ---------------------------------- |
+| `FormArray.Root`         | `control: ArrayNode<T>`         | Context provider                   |
+| `FormArray.List`         | `children: (item) => ReactNode` | Iterates items (render props)      |
+| `FormArray.AddButton`    | `initialValue?: Partial<T>`     | Adds new item                      |
+| `FormArray.RemoveButton` | -                               | Removes current item (inside List) |
+| `FormArray.Empty`        | `children: ReactNode`           | Shows when array is empty          |
+| `FormArray.Count`        | `render?: (count) => ReactNode` | Displays item count                |
+| `FormArray.ItemIndex`    | `render?: (index) => ReactNode` | Displays current index             |
 
 ## 7. List Render Props
 
 ```typescript
 interface FormArrayItemRenderProps<T> {
-  control: FormProxy<T>;  // Form control for item
-  index: number;                       // Zero-based index
-  id: string | number;                 // Unique key
-  remove: () => void;                  // Remove this item
+  control: FormProxy<T>; // Form control for item
+  index: number; // Zero-based index
+  id: string | number; // Unique key
+  remove: () => void; // Remove this item
 }
 ```
 
@@ -106,7 +106,7 @@ arrayRef.current?.clear();
 
 <FormArray.Root ref={arrayRef} control={form.items}>
   ...
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ## 9. FormArrayHandle API
@@ -349,15 +349,15 @@ Validation happens automatically:
 
 ## 19. Components
 
-| Component | Purpose | Notes |
-|---|---|---|
-| `FormField.Root` | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`. | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение. |
-| `FormField.Label` | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`. | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label. |
-| `FormField.Control` | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur`. |
-| `FormField.Error` | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`. | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок). |
-| `FormField.Description` | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`. | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`. |
-| `useFormFieldContext<T>()` | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`. | Бросает `Error`, если вызван вне `FormField.Root`. |
-| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`. | Удобен, когда нужен полный контроль над DOM-структурой и пропсами. |
+| Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `FormField.Root`             | Context provider; принимает `control: FieldNode<T>` и опциональный `id`/`hasDescription`.                                                                             | Подписывается на `useFormControl(control)` один раз. Без `Root` дети бросают исключение.                                      |
+| `FormField.Label`            | `<label>` с автоматическим `htmlFor`. Текст по умолчанию из `componentProps.label`. Required-индикатор `*` добавляется при `required`.                                | Возвращает `null`, если нет ни `componentProps.label`, ни `children`. Используйте `forceRender` чтобы рендерить пустой label. |
+| `FormField.Control`          | Auto-renders `control.component` со всеми пропсами и a11y-атрибутами. С `asChild`/`children` — вмёрживает a11y-атрибуты в произвольный дочерний элемент через `Slot`. | Auto-mode прокидывает `componentProps`, `value`, `disabled`, `onChange`, `onBlur`.                                            |
+| `FormField.Error`            | `<p role="alert">` с `errors[0].message`. Поддерживает `multi`, `render`, кастомные `children`.                                                                       | Не рендерится, пока `shouldShowError === false` (поле не touched / нет ошибок).                                               |
+| `FormField.Description`      | `<p>` с стабильным `id={ids.descriptionId}` для `aria-describedby`.                                                                                                   | Чтобы `Control` автоматически прописал `aria-describedby`, передайте `hasDescription` в `Root`.                               |
+| `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                            |
+| `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`.                               | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                            |
 
 ## 20. Examples
 
@@ -425,7 +425,7 @@ function PendingDot() {
   </div>
   <FormField.Control />
   <FormField.Error multi className="text-xs text-red-600" />
-</FormField.Root>
+</FormField.Root>;
 ```
 
 `multi` рендерит все ошибки из `errors[]` (например, async-валидатор может вернуть и «слишком короткое имя», и «уже занято»). Первая ошибка получит `id={errorId}` для `aria-errormessage`.
@@ -440,7 +440,7 @@ import { FormField } from '@reformer/ui-kit';
 <form>
   <FormField control={form.username} className="mb-4" />
   <FormField control={form.email} className="mb-4" />
-</form>
+</form>;
 ```
 
 Если нужен один кастомный кейс среди типовых — комбинируйте: `FormField` из ui-kit для большинства полей и `FormField.Root` из cdk для нестандартного:
@@ -461,7 +461,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
     </div>
     <FieldRoot.Error />
   </FieldRoot.Root>
-</>
+</>;
 ```
 
 ## 21. Anti-patterns
@@ -511,7 +511,9 @@ import { FormField } from '@reformer/ui-kit';
       <fieldset className="border rounded p-4">
         <legend className="flex justify-between w-full">
           <span>Имущество #{index + 1}</span>
-          <button type="button" onClick={remove}>×</button>
+          <button type="button" onClick={remove}>
+            ×
+          </button>
         </legend>
 
         <FormField control={property.address} />
@@ -524,7 +526,9 @@ import { FormField } from '@reformer/ui-kit';
               <div className="flex gap-2">
                 <FormField control={owner.fullName} className="flex-1" />
                 <FormField control={owner.share} className="w-24" />
-                <button type="button" onClick={removeOwner}>×</button>
+                <button type="button" onClick={removeOwner}>
+                  ×
+                </button>
               </div>
             )}
           </FormArray.List>
@@ -536,7 +540,7 @@ import { FormField } from '@reformer/ui-kit';
     )}
   </FormArray.List>
   <FormArray.AddButton className="btn-primary">+ Добавить имущество</FormArray.AddButton>
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ### Notes
@@ -576,7 +580,7 @@ function AddPropertyMenu() {
 <FormArray.Root control={form.properties}>
   <FormArray.List>{({ control }) => <PropertyForm control={control} />}</FormArray.List>
   <AddPropertyMenu />
-</FormArray.Root>
+</FormArray.Root>;
 ```
 
 ### Notes
@@ -627,7 +631,11 @@ function CreditWizard({ form, navConfig }: Props) {
         {({ prev, next, submit, isLastStep }) => (
           <div>
             <button {...prev}>Назад</button>
-            {isLastStep ? <button {...submit}>Подтвердить</button> : <button {...next}>Далее</button>}
+            {isLastStep ? (
+              <button {...submit}>Подтвердить</button>
+            ) : (
+              <button {...next}>Далее</button>
+            )}
           </div>
         )}
       </FormWizard.Actions>
@@ -727,9 +735,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
   <PropertyForm control={control} />
 ));
 
-<FormArray.List>
-  {({ control, id }) => <Item key={id} control={control} />}
-</FormArray.List>
+<FormArray.List>{({ control, id }) => <Item key={id} control={control} />}</FormArray.List>;
 ```
 
 `useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
@@ -739,6 +745,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 **Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
 
 **Решение.**
+
 - Для последовательного перехода вперёд используйте `await navRef.current?.goToNextStep()` — он сам валидирует и помечает шаг completed.
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
@@ -781,6 +788,7 @@ const config: FormWizardConfig<MyForm> = {
 **Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
 
 **Решение.**
+
 - На сабмите формы вызовите `form.markAsTouched()` перед `await form.validate()`.
 - Для немедленной валидации поля используйте `revalidateWhen({ when: 'change' })` behavior, либо вручную `control.markAsTouched()` в `onChange`.
 
@@ -788,7 +796,9 @@ const config: FormWizardConfig<MyForm> = {
 const handleSubmit = async () => {
   form.markAsTouched();
   await form.validate();
-  if (form.valid.value) { /* submit */ }
+  if (form.valid.value) {
+    /* submit */
+  }
 };
 ```
 
@@ -829,7 +839,9 @@ const handleSubmit = async () => {
 ```tsx
 <FormArray.List>
   {({ control, id, remove }) => (
-    <div key={id}>           {/* ✓ стабильный id */}
+    <div key={id}>
+      {' '}
+      {/* ✓ стабильный id */}
       <ItemForm control={control} />
     </div>
   )}
