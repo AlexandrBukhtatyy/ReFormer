@@ -28,15 +28,20 @@ import type { AnyFunction } from './index';
  * };
  * ```
  */
-export type FieldPath<T> = {
-  [K in keyof T]: NonNullable<T[K]> extends Array<unknown>
-    ? FieldPathNode<T, T[K], K> // Массивы - не рекурсим (обрабатываются отдельно)
-    : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
-      ? FieldPathNode<T, T[K], K> // Специальные объекты - не рекурсим
-      : NonNullable<T[K]> extends object
-        ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> // Обычные объекты - рекурсия!
-        : FieldPathNode<T, T[K], K>; // Примитивы
-};
+export type FieldPath<T> =
+  NonNullable<T> extends object
+    ? NonNullable<T> extends Array<unknown> | Date | File | Blob | AnyFunction
+      ? FieldPathNode<unknown, T> // Опаковые объекты — не разворачиваем в mapped type
+      : {
+          [K in keyof T]: NonNullable<T[K]> extends Array<unknown>
+            ? FieldPathNode<T, T[K], K> // Массивы - не рекурсим (обрабатываются отдельно)
+            : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
+              ? FieldPathNode<T, T[K], K> // Специальные объекты - не рекурсим
+              : NonNullable<T[K]> extends object
+                ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>> // Обычные объекты - рекурсия!
+                : FieldPathNode<T, T[K], K>; // Примитивы
+        }
+    : FieldPathNode<unknown, T>; // Примитивы как корневой T — единый узел
 
 /**
  * Узел в пути поля
