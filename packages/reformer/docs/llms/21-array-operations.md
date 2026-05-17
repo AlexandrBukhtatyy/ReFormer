@@ -68,12 +68,13 @@ function ItemsList({ form }: { form: FormProxy<MyForm> }) {
 
 ### Array Cross-Validation
 
-Use `validateGroup` with scope = root form (`path` as the first argument).
+Cross-field правила по массиву пишутся как обычный `Validator`, вешаются на сам массив
+(или на любое поле-носитель ошибки), а данные читаются через `root`.
 
 ```typescript
 // Validate uniqueness across array items
-validateGroup(path, (scope, _root) => {
-  const items = scope.items;
+validate(path.items, (_value, _control, root) => {
+  const items = root.items;
   const names = items.map((item) => item.name.value.value);
   const uniqueNames = new Set(names);
 
@@ -81,11 +82,11 @@ validateGroup(path, (scope, _root) => {
     return { code: 'duplicate', message: 'Item names must be unique' };
   }
   return null;
-}, { targetField: path.items });
+});
 
 // Validate sum of percentages
-validateGroup(path, (scope, _root) => {
-  const items = scope.items;
+validate(path.items, (_value, _control, root) => {
+  const items = root.items;
   const totalPercent = items.reduce(
     (sum, item) => sum + (item.percentage.value.value || 0),
     0
@@ -95,5 +96,5 @@ validateGroup(path, (scope, _root) => {
     return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
   }
   return null;
-}, { targetField: path.items });
+});
 ```

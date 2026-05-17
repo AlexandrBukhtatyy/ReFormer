@@ -1,12 +1,5 @@
-import type { FieldPath, GroupValidator, ValidationSchemaFn, Validator } from '@reformer/core';
-import {
-  validate,
-  validateGroup,
-  required,
-  minLength,
-  maxLength,
-  pattern,
-} from '@reformer/core/validators';
+import type { FieldPath, ValidationSchemaFn, Validator } from '@reformer/core';
+import { validate, required, minLength, maxLength, pattern } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 // ============================================================================
@@ -47,8 +40,12 @@ const validatePassportIssueDateNotFuture: Validator<CreditApplicationForm, strin
 // Cross-field правила
 // ============================================================================
 
-const passportIssuedAfter14: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const passportIssuedAfter14: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (!form.personalData.birthDate || !form.passportData.issueDate) {
     return null;
   }
@@ -135,7 +132,7 @@ export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> =
     pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' })
   );
 
-  validateGroup(path, passportIssuedAfter14, { targetField: path.passportData.issueDate });
+  validate(path.passportData.issueDate, passportIssuedAfter14);
 
   // ИНН
   validate(path.inn, required({ message: 'ИНН обязателен' }));

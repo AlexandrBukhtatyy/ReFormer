@@ -133,7 +133,7 @@ const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 
 **Operators register validators; built-in factories return validators. Pass factories to `validate()`.**
 
-Operators: `validate`, `validateAsync`, `validateGroup`, `applyWhen`, `apply`, `validateItems`.
+Operators: `validate`, `validateAsync`, `applyWhen`, `apply`, `validateItems`.
 Factories (return `Validator<TForm, TField>`): `required`, `email`, `min`, `max`, `minLength`, `maxLength`,
 `pattern`, `url`, `phone`, `number`, `date`, `notEmpty`.
 
@@ -242,23 +242,26 @@ Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior
 
 ### Extracting Nested Rules
 
-When the body of `applyWhen` / `validateGroup` / `validate` grows beyond a few lines,
+When the body of `applyWhen` / `validate` grows beyond a few lines,
 extract it to a **named top-level function** typed with one of the public types from
 `@reformer/core`:
 
 - `ValidationSchemaFn<TForm>` — sub-schema passed to `applyWhen` or `apply`.
-- `GroupValidator<TForm, TScope = TForm>` — cross-field validator passed to `validateGroup`.
-- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field validator passed to `validate` / `validateAsync`.
+- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field validator passed to `validate` / `validateAsync`. Cross-field правила пишутся в той же сигнатуре — `(value, control, root) => …` — и навешиваются на конкретное поле-носитель ошибки.
 
 This keeps the schema body flat (reads like a table of contents) and surfaces the
 **intent** of each rule via a meaningful name.
 
 ```typescript
-import type { GroupValidator, ValidationSchemaFn, Validator } from '@reformer/core';
+import type { ValidationSchemaFn, Validator } from '@reformer/core';
 
-// 1. Cross-field rule — extracted GroupValidator
-const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+// 1. Cross-field rule — extracted Validator (reads other fields via `root`)
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
     return { code: 'initialPaymentTooHigh', message: 'Взнос не может превышать стоимость' };
   }
@@ -278,7 +281,7 @@ const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) =>
   validate(path.propertyValue, required());
   validate(path.propertyValue, min(1000000));
   validate(path.initialPayment, required());
-  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
 };
 
 // 4. Main schema — flat, reads as a table of contents
@@ -292,10 +295,9 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 **Naming convention** (camelCase, semantic — not echoing the operator name):
 
 - `applyWhen` sub-schema → describes the conditional branch: `mortgageFieldsRules`, `employedFieldsRules`.
-- `GroupValidator` → describes the invariant: `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`.
-- `Validator` → describes the check: `validateAdultAge`, `validatePasswordsMatch`.
+- Cross-field `Validator` → describes the invariant: `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`.
+- Field-level `Validator` → describes the check: `validateAdultAge`, `validatePasswordsMatch`.
 
 **When to extract.** Inline lambdas are fine for short one-liners
 (`applyWhen(path.x, (v) => v === 'mortgage', mortgageFieldsRules)` — the condition stays inline).
-Extract whenever the body spans more than ~3 lines or contains a `validateGroup` /
-nested rules.
+Extract whenever the body spans more than ~3 lines or contains nested rules.

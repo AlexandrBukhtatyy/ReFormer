@@ -12,7 +12,6 @@ Operators register validators in the schema. Validator factories return pure
 // Operators (register validators in schema)
 validate(path, validator: Validator<TForm, TField>, options?: { message?: string })
 validateAsync(path, validator: AsyncValidator<TForm, TField>, options?: { message?: string; debounce?: number })
-validateGroup(scopePath, validator: GroupValidator<TForm, TScope>, options?: { targetField?: FieldPathNode })
 
 // Validator factories (return Validator). Pass to validate().
 required(options?: { message?: string })

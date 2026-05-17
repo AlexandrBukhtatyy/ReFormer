@@ -141,8 +141,6 @@ export type { FieldPath, FieldPathNode } from '../types/field-path';
 export type {
   Validator,
   AsyncValidator,
-  GroupValidator,
-  ValidateGroupOptions,
   ConditionFn,
   ValidateOptions,
   ValidateAsyncOptions,

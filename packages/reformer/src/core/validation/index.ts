@@ -5,7 +5,6 @@
 // Core validation operators
 export { validate } from './core/validate';
 export { validateAsync } from './core/validate-async';
-export { validateGroup } from './core/validate-group';
 export { apply } from './core/apply';
 export { applyWhen } from './core/apply-when';
 

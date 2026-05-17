@@ -3,9 +3,9 @@
  *
  * Отвечает только за логику применения валидаторов к полям формы.
  *
- * Новый контракт:
- * - Sync/Async валидаторы вызываются как `(value, controlProxy, rootProxy)`.
- * - Group валидаторы — как `(scopeProxy, rootProxy)`.
+ * Контракт: sync/async валидаторы вызываются как `(value, controlProxy, rootProxy)`.
+ * Cross-field валидация выражается через тот же `(value, control, root)` контракт —
+ * валидатор читает соседние поля через `root`.
  *
  * @template T Тип формы
  */
@@ -16,10 +16,9 @@ import type {
   ValidationError,
   Validator,
   AsyncValidator,
-  GroupValidator,
   FormProxy,
 } from '../types';
-import { isFieldNode, isArrayNode, isGroupNode } from '../utils/type-guards';
+import { isFieldNode, isArrayNode } from '../utils/type-guards';
 import { FormErrorHandler, ErrorStrategy } from '../utils/error-handler';
 
 /**
@@ -54,24 +53,16 @@ export class ValidationApplicator<T> {
    * Применить валидаторы к полям формы.
    */
   async apply(validators: ValidatorRegistration[]): Promise<void> {
-    const { validatorsByField, groupValidators } = this.groupValidators(validators);
-
+    const validatorsByField = this.groupValidators(validators);
     await this.applyFieldValidators(validatorsByField);
-    this.applyGroupValidators(groupValidators);
   }
 
-  private groupValidators(validators: ValidatorRegistration[]): {
-    validatorsByField: Map<string, ValidatorRegistration[]>;
-    groupValidators: ValidatorRegistration[];
-  } {
+  private groupValidators(
+    validators: ValidatorRegistration[]
+  ): Map<string, ValidatorRegistration[]> {
     const validatorsByField = new Map<string, ValidatorRegistration[]>();
-    const groupValidators: ValidatorRegistration[] = [];
 
     for (const registration of validators) {
-      if (registration.type === 'group') {
-        groupValidators.push(registration);
-        continue;
-      }
       if (registration.type === 'array-items') {
         // array-items обрабатываются в ValidationRegistry.applyArrayItemValidators
         continue;
@@ -81,7 +72,7 @@ export class ValidationApplicator<T> {
       validatorsByField.set(registration.fieldPath, existing);
     }
 
-    return { validatorsByField, groupValidators };
+    return validatorsByField;
   }
 
   /**
@@ -105,7 +96,7 @@ export class ValidationApplicator<T> {
       }
 
       // Валидация работает только с FieldNode и ArrayNode.
-      // GroupNode-валидация делается через validateGroup со scope.
+      // Cross-field логика реализуется через root-аргумент в Validator.
       if (!isFieldNode(control) && !isArrayNode(control)) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn(`Validation can only run on FieldNode or ArrayNode, skipping ${fieldPath}`);
@@ -165,77 +156,6 @@ export class ValidationApplicator<T> {
         ) {
           control.clearErrors();
         }
-      }
-    }
-  }
-
-  /**
-   * Применение group (cross-field) валидаторов.
-   *
-   * Scope определяется `registration.scopePath`:
-   * - '' (пустая строка) → scope = root form;
-   * - 'foo.bar' → scope = FormProxy подузла по пути.
-   *
-   * Ошибка ставится на `options.targetField` (FieldPathNode → строка пути).
-   * Если `targetField` не задан, ошибка теряется (диагностика в DEV).
-   */
-  private applyGroupValidators(groupValidators: ValidatorRegistration[]): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rootProxy = this.form.getProxy() as FormProxy<any>;
-
-    for (const registration of groupValidators) {
-      if (registration.condition) {
-        if (!this.checkCondition(registration.condition)) continue;
-      }
-
-      // Определяем scope proxy.
-      let scopeProxy: FormProxy<unknown>;
-      const scopePath = registration.scopePath ?? '';
-      if (!scopePath) {
-        scopeProxy = rootProxy;
-      } else {
-        const scopeNode = this.form.getFieldByPath(scopePath);
-        if (!scopeNode) {
-          if (import.meta.env.DEV) {
-            console.warn(`validateGroup: scope path "${scopePath}" not found`);
-          }
-          continue;
-        }
-        scopeProxy = isGroupNode(scopeNode)
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (scopeNode as any).getProxy()
-          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (scopeNode as any);
-      }
-
-      try {
-        const validator = registration.validator as GroupValidator<unknown, unknown>;
-        const error = validator(scopeProxy, rootProxy);
-
-        if (!error) continue;
-
-        // Привязка ошибки к targetField (если задан).
-        const targetPath =
-          registration.fieldPath && registration.fieldPath !== '__group__'
-            ? registration.fieldPath
-            : null;
-
-        if (!targetPath) {
-          if (import.meta.env.DEV) {
-            console.warn(
-              'validateGroup: error returned, but targetField not specified — error is dropped'
-            );
-          }
-          continue;
-        }
-
-        const targetControl = this.form.getFieldByPath(targetPath);
-        if (targetControl && isFieldNode(targetControl)) {
-          const existingErrors = targetControl.errors.value;
-          targetControl.setErrors([...existingErrors, error]);
-        }
-      } catch (e) {
-        FormErrorHandler.handle(e, 'ValidationApplicator: group validator', ErrorStrategy.LOG);
       }
     }
   }

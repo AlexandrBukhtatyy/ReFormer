@@ -349,7 +349,7 @@ const form = new GroupNode({
 Валидация всей формы:
 
 ```typescript
-import { validateGroup } from '@reformer/core/validators';
+import { validate } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -360,22 +360,20 @@ const form = new GroupNode({
   validation: (path) => {
     validate(path.paymentMethod, required());
 
-    // Валидация на уровне формы
-    validateGroup(path, (scope, _root) => {
-      const { paymentMethod, cardNumber, bankAccount } = scope.getValue();
-
-      if (paymentMethod === 'card' && !cardNumber) {
-        return {
-          cardNumber: { required: true },
-        };
+    // Cross-field правило: вешаем на поле-носитель ошибки, читаем соседей через `root`
+    validate(path.cardNumber, (value, _control, root) => {
+      const form = root.getValue();
+      if (form.paymentMethod === 'card' && !value) {
+        return { code: 'required', message: 'Номер карты обязателен' };
       }
+      return null;
+    });
 
-      if (paymentMethod === 'bank' && !bankAccount) {
-        return {
-          bankAccount: { required: true },
-        };
+    validate(path.bankAccount, (value, _control, root) => {
+      const form = root.getValue();
+      if (form.paymentMethod === 'bank' && !value) {
+        return { code: 'required', message: 'Реквизиты счёта обязательны' };
       }
-
       return null;
     });
   },
@@ -410,26 +408,16 @@ const form = new GroupNode({
     validate(path.phoneNumbers.$each, required());
     validate(path.phoneNumbers.$each, pattern(/^\d{10}$/, { message: 'Неверный телефон' }));
 
-    // Кастомный валидатор для длины массива
-    validateGroup(path, (scope, _root) => {
+    // Кастомный валидатор для длины массива — вешаем на сам массив
+    validate(path.phoneNumbers, (_value, _control, root) => {
       const phones = root.phoneNumbers.getValue();
 
       if (phones.length < 1) {
-        return {
-          phoneNumbers: {
-            minItems: { required: 1, actual: phones.length },
-          },
-        };
+        return { code: 'minItems', message: 'Нужен хотя бы один телефон' };
       }
-
       if (phones.length > 5) {
-        return {
-          phoneNumbers: {
-            maxItems: { max: 5, actual: phones.length },
-          },
-        };
+        return { code: 'maxItems', message: 'Не более 5 телефонов' };
       }
-
       return null;
     });
   },
@@ -447,16 +435,12 @@ const form = new GroupNode({
     validate(path.tags.$each, required());
 
     // Валидация уникальности тегов
-    validateGroup(path, (scope, _root) => {
+    validate(path.tags, (_value, _control, root) => {
       const tags = root.tags.getValue();
       const uniqueTags = new Set(tags);
 
       if (uniqueTags.size !== tags.length) {
-        return {
-          tags: {
-            notUnique: { message: 'Теги должны быть уникальными' },
-          },
-        };
+        return { code: 'notUnique', message: 'Теги должны быть уникальными' };
       }
 
       return null;
@@ -706,7 +690,7 @@ validateAsync(path.email, async (value) => {
 
 ## Извлечение Вложенных Правил
 
-Когда тело `applyWhen`, `validateGroup` или `validate` разрастается дальше нескольких строк,
+Когда тело `applyWhen` или `validate` разрастается дальше нескольких строк,
 вынесите его в **именованную top-level-функцию**, типизированную одним из публичных типов
 из `@reformer/core`. Это делает основную схему плоской (читается как оглавление) и
 выводит **намерение** каждого правила в его имя.
@@ -714,9 +698,9 @@ validateAsync(path.email, async (value) => {
 Используйте существующие публичные типы:
 
 - `ValidationSchemaFn<TForm>` — вложенная схема для `applyWhen` или `apply`.
-- `GroupValidator<TForm, TScope = TForm>` — кросс-полевой валидатор для `validateGroup`.
 - `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — валидатор поля для
-  `validate` / `validateAsync`.
+  `validate` / `validateAsync`. Cross-field правила пишутся в той же сигнатуре —
+  соседние поля читаются через `root`.
 
 ### До — inline callbacks
 
@@ -732,21 +716,17 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
       validate(path.propertyValue, min(1000000));
       validate(path.initialPayment, required());
 
-      validateGroup(
-        path,
-        (scope) => {
-          const form = scope.getValue();
-          if (
-            form.initialPayment &&
-            form.propertyValue &&
-            form.initialPayment > form.propertyValue
-          ) {
-            return { code: 'initialPaymentTooHigh', message: '...' };
-          }
-          return null;
-        },
-        { targetField: path.initialPayment }
-      );
+      validate(path.initialPayment, (_value, _control, root) => {
+        const form = root.getValue();
+        if (
+          form.initialPayment &&
+          form.propertyValue &&
+          form.initialPayment > form.propertyValue
+        ) {
+          return { code: 'initialPaymentTooHigh', message: '...' };
+        }
+        return null;
+      });
     }
   );
 };
@@ -755,10 +735,14 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 ### После — извлечённые именованные функции
 
 ```typescript
-import type { GroupValidator, ValidationSchemaFn } from '@reformer/core';
+import type { Validator, ValidationSchemaFn } from '@reformer/core';
 
-const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
     return { code: 'initialPaymentTooHigh', message: '...' };
   }
@@ -769,7 +753,7 @@ const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) =>
   validate(path.propertyValue, required());
   validate(path.propertyValue, min(1000000));
   validate(path.initialPayment, required());
-  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
 };
 
 export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
@@ -784,15 +768,14 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 - Вложенная схема `applyWhen` → описывает условную ветку:
   `mortgageFieldsRules`, `employedFieldsRules`, `residenceAddressRules`.
-- `GroupValidator` → описывает проверяемый инвариант:
+- Cross-field `Validator` → описывает проверяемый инвариант:
   `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`, `currentExperienceVsTotal`.
-- `Validator` → описывает проверку поля:
+- Field-level `Validator` → описывает проверку поля:
   `validateAdultAge`, `validatePasswordsMatch`, `validatePassportIssueDateNotFuture`.
 
 ### Когда выносить
 
-- **Выносить** любое тело длиннее ~3 строк или содержащее вложенный
-  `validateGroup` / `applyWhen`.
+- **Выносить** любое тело длиннее ~3 строк или содержащее вложенный `applyWhen`.
 - **Оставлять inline** короткие одно-строчные условия внутри `applyWhen` —
   `(type) => type === 'mortgage'` ничего не выигрывает от именования.
 

@@ -1,8 +1,7 @@
-import type { FieldPath, GroupValidator, ValidationSchemaFn } from '@reformer/core';
+import type { FieldPath, Validator, ValidationSchemaFn } from '@reformer/core';
 import {
   applyWhen,
   validate,
-  validateGroup,
   required,
   min,
   max,
@@ -15,8 +14,12 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 // Cross-field правила
 // ============================================================================
 
-const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
 
   if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
     return {
@@ -34,8 +37,12 @@ const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (sc
   return null;
 };
 
-const loanAmountVsPropertyMinusPayment: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const loanAmountVsPropertyMinusPayment: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
 
   if (form.loanAmount && form.propertyValue && form.initialPayment) {
     const maxLoanAmount = form.propertyValue - form.initialPayment;
@@ -60,8 +67,8 @@ const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) =>
   validate(path.initialPayment, required({ message: 'Укажите первоначальный взнос' }));
   validate(path.initialPayment, min(0, { message: 'Взнос не может быть отрицательным' }));
 
-  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
-  validateGroup(path, loanAmountVsPropertyMinusPayment, { targetField: path.loanAmount });
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
+  validate(path.loanAmount, loanAmountVsPropertyMinusPayment);
 };
 
 const carFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {

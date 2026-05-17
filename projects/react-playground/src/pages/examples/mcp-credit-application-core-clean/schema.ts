@@ -15,7 +15,7 @@ import {
   type FormProxy,
   type FieldConfig,
   type ValidationSchemaFn,
-  type GroupValidator,
+  type Validator,
   type BehaviorSchemaFn,
 } from '@reformer/core';
 import {
@@ -28,7 +28,6 @@ import {
   pattern,
   applyWhen,
   validateItems,
-  validateGroup,
   validate,
 } from '@reformer/core/validators';
 import {
@@ -1396,23 +1395,19 @@ const step1Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   );
 
   // loanAmount must not exceed (propertyValue - initialPayment) — cross-field
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (form.loanType !== 'mortgage') return null;
-      if (!form.propertyValue || !form.loanAmount) return null;
-      const initialPay = form.initialPayment ?? form.propertyValue * 0.2;
-      if (form.loanAmount > form.propertyValue - initialPay) {
-        return {
-          code: 'loanAmountTooHigh',
-          message: 'Сумма кредита превышает стоимость минус первоначальный взнос',
-        };
-      }
-      return null;
-    },
-    { targetField: path.loanAmount }
-  );
+  validate(path.loanAmount, (_value, _control, root) => {
+    const form = root.getValue();
+    if (form.loanType !== 'mortgage') return null;
+    if (!form.propertyValue || !form.loanAmount) return null;
+    const initialPay = form.initialPayment ?? form.propertyValue * 0.2;
+    if (form.loanAmount > form.propertyValue - initialPay) {
+      return {
+        code: 'loanAmountTooHigh',
+        message: 'Сумма кредита превышает стоимость минус первоначальный взнос',
+      };
+    }
+    return null;
+  });
 
   // Car-specific
   applyWhen(
@@ -1515,21 +1510,17 @@ const step4Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   validate(path.workExperienceCurrent, min(0, { message: 'Не может быть отрицательным' }));
 
   // Cross-field: workExperienceCurrent <= workExperienceTotal
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (form.workExperienceCurrent == null || form.workExperienceTotal == null) return null;
-      if (form.workExperienceCurrent > form.workExperienceTotal) {
-        return {
-          code: 'currentExceedsTotal',
-          message: 'Стаж на текущем месте не может быть больше общего стажа',
-        };
-      }
-      return null;
-    },
-    { targetField: path.workExperienceCurrent }
-  );
+  validate(path.workExperienceCurrent, (_value, _control, root) => {
+    const form = root.getValue();
+    if (form.workExperienceCurrent == null || form.workExperienceTotal == null) return null;
+    if (form.workExperienceCurrent > form.workExperienceTotal) {
+      return {
+        code: 'currentExceedsTotal',
+        message: 'Стаж на текущем месте не может быть больше общего стажа',
+      };
+    }
+    return null;
+  });
 
   validate(path.monthlyIncome, required({ message: 'Укажите ежемесячный доход' }));
   validate(path.monthlyIncome, min(10000, { message: 'Минимум 10 000 ₽' }));
@@ -1628,25 +1619,15 @@ const step5Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
 };
 
 const requireTrue =
-  (field: keyof CreditApplicationForm, message: string): GroupValidator<CreditApplicationForm> =>
-  (scope) => {
-    const v = scope.getValue()[field];
-    return v === true ? null : { code: 'mustBeTrue', message };
-  };
+  (message: string): Validator<CreditApplicationForm, boolean> =>
+  (value) =>
+    value === true ? null : { code: 'mustBeTrue', message };
 
 const step6Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validateGroup(path, requireTrue('agreePersonalData', 'Необходимо согласие'), {
-    targetField: path.agreePersonalData,
-  });
-  validateGroup(path, requireTrue('agreeCreditHistory', 'Необходимо согласие'), {
-    targetField: path.agreeCreditHistory,
-  });
-  validateGroup(path, requireTrue('agreeTerms', 'Необходимо согласие'), {
-    targetField: path.agreeTerms,
-  });
-  validateGroup(path, requireTrue('confirmAccuracy', 'Необходимо подтверждение'), {
-    targetField: path.confirmAccuracy,
-  });
+  validate(path.agreePersonalData, requireTrue('Необходимо согласие'));
+  validate(path.agreeCreditHistory, requireTrue('Необходимо согласие'));
+  validate(path.agreeTerms, requireTrue('Необходимо согласие'));
+  validate(path.confirmAccuracy, requireTrue('Необходимо подтверждение'));
 
   validate(path.electronicSignature, required({ message: 'Введите код из СМС' }));
   validate(path.electronicSignature, pattern(/^\d{6}$/, { message: '6 цифр' }));
@@ -1655,38 +1636,30 @@ const step6Validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
 // Cross-field validations applied to whole form
 const crossFieldValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   // Age range 18..70
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (form.age == null) return null;
-      if (form.age < 18 || form.age > 70) {
-        return {
-          code: 'ageOutOfRange',
-          message: 'Возраст должен быть от 18 до 70 лет',
-        };
-      }
-      return null;
-    },
-    { targetField: path.age }
-  );
+  validate(path.age, (_value, _control, root) => {
+    const form = root.getValue();
+    if (form.age == null) return null;
+    if (form.age < 18 || form.age > 70) {
+      return {
+        code: 'ageOutOfRange',
+        message: 'Возраст должен быть от 18 до 70 лет',
+      };
+    }
+    return null;
+  });
 
   // Payment-to-income ratio <= 50%
-  validateGroup(
-    path,
-    (scope) => {
-      const form = scope.getValue();
-      if (!form.paymentToIncomeRatio) return null;
-      if (form.paymentToIncomeRatio > 50) {
-        return {
-          code: 'paymentRatioTooHigh',
-          message: 'Ежемесячный платеж не должен превышать 50% от дохода',
-        };
-      }
-      return null;
-    },
-    { targetField: path.monthlyPayment }
-  );
+  validate(path.monthlyPayment, (_value, _control, root) => {
+    const form = root.getValue();
+    if (!form.paymentToIncomeRatio) return null;
+    if (form.paymentToIncomeRatio > 50) {
+      return {
+        code: 'paymentRatioTooHigh',
+        message: 'Ежемесячный платеж не должен превышать 50% от дохода',
+      };
+    }
+    return null;
+  });
 };
 
 export const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<CreditApplicationForm>> = {

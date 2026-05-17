@@ -2,7 +2,7 @@
  * Валидация возраста заемщика (18-70 лет)
  */
 
-import type { GroupValidator } from '@reformer/core';
+import type { Validator } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
@@ -10,8 +10,8 @@ import type { CreditApplicationForm } from '../../types/credit-application';
  *
  * Cross-field validator: вычисляет возраст из birthDate (если age — computed) или берёт age напрямую.
  */
-export const validateAge: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+export const validateAge: Validator<CreditApplicationForm, unknown> = (_value, _control, root) => {
+  const form = root.getValue();
   const age = form.age;
 
   if (!age) {

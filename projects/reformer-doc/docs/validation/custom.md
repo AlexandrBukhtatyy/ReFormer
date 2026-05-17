@@ -219,23 +219,19 @@ validation: (path) => {
 ```
 
 For validation that depends on multiple fields and attaches the error to a specific field,
-use `validateGroup`:
+attach a `validate` to the chosen target field and read siblings through `root`:
 
 ```typescript
-import { validateGroup } from '@reformer/core/validators';
+import { validate } from '@reformer/core/validators';
 
 validation: (path) => {
-  validateGroup(
-    path,
-    (scope, _root) => {
-      const v = scope.getValue();
-      if (v.startDate && v.endDate && new Date(v.endDate) < new Date(v.startDate)) {
-        return { code: 'endBeforeStart', message: 'End date must be after start date' };
-      }
-      return null;
-    },
-    { targetField: path.endDate }
-  );
+  validate(path.endDate, (value, _control, root) => {
+    const startDate = root.startDate.value.value;
+    if (startDate && value && new Date(value) < new Date(startDate)) {
+      return { code: 'endBeforeStart', message: 'End date must be after start date' };
+    }
+    return null;
+  });
 };
 ```
 

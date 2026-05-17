@@ -1,6 +1,6 @@
 import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
 import type { CreditApplicationForm } from '../types/credit-application';
-import { apply, validateGroup } from '@reformer/core/validators';
+import { apply, validate } from '@reformer/core/validators';
 
 // Импортируем все схемы шагов
 import { basicInfoValidation } from '../components/steps/BasicInfo/basic-info-validation';
@@ -24,7 +24,8 @@ import {
  *
  * Валидирует ВСЮ форму целиком (все шаги). Модульные схемы шагов
  * подключаются через `apply`. Дополнительные кросс-полевые валидации
- * для вычисляемых полей применяются через `validateGroup` со scope = root.
+ * для вычисляемых полей применяются через `validate` с привязкой к конкретному
+ * полю-носителю ошибки (validator читает данные из `root`).
  */
 const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
@@ -44,23 +45,23 @@ const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (
   // ===================================================================
 
   // Платежеспособность (процент платежа от дохода <= 50%)
-  validateGroup(path, validatePaymentToIncome, { targetField: path.monthlyPayment });
+  validate(path.monthlyPayment, validatePaymentToIncome);
 
   // Возраст заемщика (18-70 лет)
-  validateGroup(path, validateAge, { targetField: path.age });
+  validate(path.age, validateAge);
 
   // ===================================================================
   // 3. Предупреждения (warnings) - не блокируют отправку формы
   // ===================================================================
 
   // Высокая долговая нагрузка (> 40%)
-  validateGroup(path, warnHighDebtLoad, { targetField: path.paymentToIncomeRatio });
+  validate(path.paymentToIncomeRatio, warnHighDebtLoad);
 
   // Возраст > 60 лет
-  validateGroup(path, warnSeniorAge, { targetField: path.age });
+  validate(path.age, warnSeniorAge);
 
   // Малый стаж на текущем месте работы (< 3 месяцев)
-  validateGroup(path, warnLowWorkExperience, { targetField: path.workExperienceCurrent });
+  validate(path.workExperienceCurrent, warnLowWorkExperience);
 };
 
 export default creditApplicationValidation;

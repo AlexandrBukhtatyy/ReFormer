@@ -3,7 +3,7 @@
  *
  * Используется в behavior-операторах (watchField, copyFrom, transformValue, ...).
  * В новом контракте валидации FormContext **не используется** — валидаторы получают
- * `(value, control, root)` напрямую (см. {@link Validator}, {@link GroupValidator}).
+ * `(value, control, root)` напрямую (см. {@link Validator}).
  *
  * @example
  * ```typescript

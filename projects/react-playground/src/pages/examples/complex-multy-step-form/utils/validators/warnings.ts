@@ -4,14 +4,18 @@
  * severity: 'warning' — показываются пользователю, но не блокируют отправку.
  */
 
-import type { GroupValidator } from '@reformer/core';
+import type { Validator } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
  * Предупреждение о высокой долговой нагрузке (> 40%, ≤ 50%).
  */
-export const warnHighDebtLoad: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+export const warnHighDebtLoad: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   const ratio = form.paymentToIncomeRatio;
 
   if (!ratio) return null;
@@ -30,8 +34,12 @@ export const warnHighDebtLoad: GroupValidator<CreditApplicationForm> = (scope) =
 /**
  * Предупреждение о возрасте > 60 лет.
  */
-export const warnSeniorAge: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+export const warnSeniorAge: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   const age = form.age;
 
   if (!age) return null;
@@ -50,8 +58,12 @@ export const warnSeniorAge: GroupValidator<CreditApplicationForm> = (scope) => {
 /**
  * Предупреждение о малом стаже на текущем месте работы (< 3 месяцев).
  */
-export const warnLowWorkExperience: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+export const warnLowWorkExperience: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   const experience = form.workExperienceCurrent;
 
   if (experience === null || experience === undefined) return null;

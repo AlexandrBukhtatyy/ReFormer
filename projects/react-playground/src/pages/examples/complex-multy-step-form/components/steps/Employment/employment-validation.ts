@@ -1,8 +1,7 @@
-import type { FieldPath, GroupValidator, ValidationSchemaFn } from '@reformer/core';
+import type { FieldPath, Validator, ValidationSchemaFn } from '@reformer/core';
 import {
   applyWhen,
   validate,
-  validateGroup,
   required,
   min,
   max,
@@ -16,8 +15,12 @@ import type { CreditApplicationForm } from '../../../types/credit-application';
 // Cross-field правила
 // ============================================================================
 
-const currentExperienceVsTotal: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const currentExperienceVsTotal: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (
     form.workExperienceCurrent &&
     form.workExperienceTotal &&
@@ -31,8 +34,12 @@ const currentExperienceVsTotal: GroupValidator<CreditApplicationForm> = (scope) 
   return null;
 };
 
-const paymentToIncomeUnderHalf: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const paymentToIncomeUnderHalf: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   const ratio = form.paymentToIncomeRatio;
   if (ratio && ratio > 50) {
     return {
@@ -43,8 +50,12 @@ const paymentToIncomeUnderHalf: GroupValidator<CreditApplicationForm> = (scope) 
   return null;
 };
 
-const additionalIncomeSourceProvided: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const additionalIncomeSourceProvided: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (form.additionalIncome && form.additionalIncome > 0 && !form.additionalIncomeSource) {
     return {
       code: 'additionalIncomeSourceRequired',
@@ -93,7 +104,7 @@ const employedFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) =>
   validate(path.workExperienceCurrent, min(0, { message: 'Стаж не может быть отрицательным' }));
   validate(path.workExperienceCurrent, max(60, { message: 'Максимальный стаж: 60 лет' }));
 
-  validateGroup(path, currentExperienceVsTotal, { targetField: path.workExperienceCurrent });
+  validate(path.workExperienceCurrent, currentExperienceVsTotal);
 };
 
 const selfEmployedFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
@@ -133,8 +144,8 @@ export const employmentValidation: ValidationSchemaFn<CreditApplicationForm> = (
   );
   validate(path.additionalIncome, max(10000000, { message: 'Максимальный доход: 10 000 000 ₽' }));
 
-  validateGroup(path, paymentToIncomeUnderHalf, { targetField: path.monthlyIncome });
-  validateGroup(path, additionalIncomeSourceProvided, { targetField: path.additionalIncomeSource });
+  validate(path.monthlyIncome, paymentToIncomeUnderHalf);
+  validate(path.additionalIncomeSource, additionalIncomeSourceProvided);
 
   validate(path.additionalIncomeSource, minLength(5, { message: 'Минимум 5 символов' }));
   validate(path.additionalIncomeSource, maxLength(200, { message: 'Максимум 200 символов' }));

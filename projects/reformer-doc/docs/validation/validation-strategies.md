@@ -349,7 +349,7 @@ const form = new GroupNode({
 Validate entire form:
 
 ```typescript
-import { validateGroup } from '@reformer/core/validators';
+import { validate } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -360,22 +360,20 @@ const form = new GroupNode({
   validation: (path) => {
     validate(path.paymentMethod, required());
 
-    // Form-level validation
-    validateGroup(path, (scope, _root) => {
-      const { paymentMethod, cardNumber, bankAccount } = root.getValue();
-
-      if (paymentMethod === 'card' && !cardNumber) {
-        return {
-          cardNumber: { required: true },
-        };
+    // Cross-field rule: attach to the most relevant target field, read others via `root`
+    validate(path.cardNumber, (value, _control, root) => {
+      const form = root.getValue();
+      if (form.paymentMethod === 'card' && !value) {
+        return { code: 'required', message: 'Card number is required' };
       }
+      return null;
+    });
 
-      if (paymentMethod === 'bank' && !bankAccount) {
-        return {
-          bankAccount: { required: true },
-        };
+    validate(path.bankAccount, (value, _control, root) => {
+      const form = root.getValue();
+      if (form.paymentMethod === 'bank' && !value) {
+        return { code: 'required', message: 'Bank account is required' };
       }
-
       return null;
     });
   },
@@ -410,26 +408,16 @@ const form = new GroupNode({
     validate(path.phoneNumbers.$each, required());
     validate(path.phoneNumbers.$each, pattern(/^\d{10}$/, { message: 'Invalid phone' }));
 
-    // Custom validator for array length
-    validateGroup(path, (scope, _root) => {
+    // Custom validator for array length — attached to the array itself
+    validate(path.phoneNumbers, (_value, _control, root) => {
       const phones = root.phoneNumbers.getValue();
 
       if (phones.length < 1) {
-        return {
-          phoneNumbers: {
-            minItems: { required: 1, actual: phones.length },
-          },
-        };
+        return { code: 'minItems', message: 'At least one phone number is required' };
       }
-
       if (phones.length > 5) {
-        return {
-          phoneNumbers: {
-            maxItems: { max: 5, actual: phones.length },
-          },
-        };
+        return { code: 'maxItems', message: 'No more than 5 phone numbers allowed' };
       }
-
       return null;
     });
   },
@@ -447,16 +435,12 @@ const form = new GroupNode({
     validate(path.tags.$each, required());
 
     // Validate tags are unique
-    validateGroup(path, (scope, _root) => {
+    validate(path.tags, (_value, _control, root) => {
       const tags = root.tags.getValue();
       const uniqueTags = new Set(tags);
 
       if (uniqueTags.size !== tags.length) {
-        return {
-          tags: {
-            notUnique: { message: 'Tags must be unique' },
-          },
-        };
+        return { code: 'notUnique', message: 'Tags must be unique' };
       }
 
       return null;
@@ -706,7 +690,7 @@ validateAsync(path.email, async (value) => {
 
 ## Extracting Nested Rules
 
-When the body of `applyWhen`, `validateGroup` or `validate` grows beyond a few lines,
+When the body of `applyWhen` or `validate` grows beyond a few lines,
 extract it to a **named top-level function** typed with one of the public types from
 `@reformer/core`. This keeps the schema body flat (reads like a table of contents) and
 surfaces the **intent** of each rule via a meaningful name.
@@ -714,9 +698,9 @@ surfaces the **intent** of each rule via a meaningful name.
 Use the existing public types:
 
 - `ValidationSchemaFn<TForm>` — sub-schema for `applyWhen` or `apply`.
-- `GroupValidator<TForm, TScope = TForm>` — cross-field validator for `validateGroup`.
 - `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field-level validator
-  for `validate` / `validateAsync`.
+  for `validate` / `validateAsync`. Cross-field rules use the same signature —
+  read sibling fields through the `root` argument.
 
 ### Before — inline callbacks
 
@@ -732,21 +716,17 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
       validate(path.propertyValue, min(1000000));
       validate(path.initialPayment, required());
 
-      validateGroup(
-        path,
-        (scope) => {
-          const form = scope.getValue();
-          if (
-            form.initialPayment &&
-            form.propertyValue &&
-            form.initialPayment > form.propertyValue
-          ) {
-            return { code: 'initialPaymentTooHigh', message: '...' };
-          }
-          return null;
-        },
-        { targetField: path.initialPayment }
-      );
+      validate(path.initialPayment, (_value, _control, root) => {
+        const form = root.getValue();
+        if (
+          form.initialPayment &&
+          form.propertyValue &&
+          form.initialPayment > form.propertyValue
+        ) {
+          return { code: 'initialPaymentTooHigh', message: '...' };
+        }
+        return null;
+      });
     }
   );
 };
@@ -755,10 +735,14 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 ### After — extracted named functions
 
 ```typescript
-import type { GroupValidator, ValidationSchemaFn } from '@reformer/core';
+import type { Validator, ValidationSchemaFn } from '@reformer/core';
 
-const initialPaymentVsPropertyValue: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
     return { code: 'initialPaymentTooHigh', message: '...' };
   }
@@ -769,7 +753,7 @@ const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) =>
   validate(path.propertyValue, required());
   validate(path.propertyValue, min(1000000));
   validate(path.initialPayment, required());
-  validateGroup(path, initialPaymentVsPropertyValue, { targetField: path.initialPayment });
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
 };
 
 export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
@@ -784,15 +768,14 @@ Use **semantic** names (not just echoing the operator):
 
 - `applyWhen` sub-schema → describes the conditional branch:
   `mortgageFieldsRules`, `employedFieldsRules`, `residenceAddressRules`.
-- `GroupValidator` → describes the invariant being checked:
+- Cross-field `Validator` → describes the invariant being checked:
   `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`, `currentExperienceVsTotal`.
-- `Validator` → describes the field-level check:
+- Field-level `Validator` → describes the field-level check:
   `validateAdultAge`, `validatePasswordsMatch`, `validatePassportIssueDateNotFuture`.
 
 ### When to extract
 
-- **Extract** any body that spans more than ~3 lines or contains a nested
-  `validateGroup` / `applyWhen`.
+- **Extract** any body that spans more than ~3 lines or contains a nested `applyWhen`.
 - **Keep inline** short one-line conditions inside `applyWhen` —
   `(type) => type === 'mortgage'` doesn't benefit from being named.
 

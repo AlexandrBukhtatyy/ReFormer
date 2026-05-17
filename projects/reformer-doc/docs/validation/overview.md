@@ -9,7 +9,7 @@ ReFormer provides declarative validation with built-in validators and support fo
 ## Basic Usage
 
 Define validation in `validation`. ReFormer separates **operators** (`validate`, `validateAsync`,
-`validateGroup`, `applyWhen`, `apply`, `validateItems`) that register validators in the schema
+`applyWhen`, `apply`, `validateItems`) that register validators in the schema
 from **validator factories** (`required`, `email`, `min`, …) that return pure
 `Validator<TForm, TField>` functions of shape `(value, control, root) => ValidationError | null`.
 

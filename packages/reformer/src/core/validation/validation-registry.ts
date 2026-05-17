@@ -13,11 +13,9 @@ import type {
   ValidatorRegistration,
   Validator,
   AsyncValidator,
-  GroupValidator,
   ConditionFn,
   ValidateOptions,
   ValidateAsyncOptions,
-  ValidateGroupOptions,
 } from '../types/validation-schema';
 import { RegistryStack } from '../utils/registry-stack';
 
@@ -224,45 +222,6 @@ export class ValidationRegistry {
   }
 
   /**
-   * Зарегистрировать cross-field (group) валидатор
-   *
-   * @param validator - Чистая функция (scope, root) => error | null
-   * @param options - Опции (targetField для привязки ошибки)
-   * @param scopePath - Путь до scope. Для root формы — пустая строка ''.
-   */
-  registerGroup<TForm = unknown, TScope = unknown>(
-    validator: GroupValidator<TForm, TScope>,
-    options: ValidateGroupOptions<TForm> | undefined,
-    scopePath: string
-  ): void {
-    const context = this.getCurrentContext();
-    if (!context) {
-      throw new Error('Validators can only be registered inside a validation schema function');
-    }
-
-    // fieldPath используется как ключ для группировки/таргетинга ошибок.
-    // Если targetField задан — берём его (через extractPath ниже).
-    // Иначе используем '__group__' как marker для default-таргета (scopePath).
-    let targetPath = '__group__';
-    if (options?.targetField) {
-      // targetField — FieldPathNode. Получаем строковый путь.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fp = (options.targetField as any).__path;
-      if (typeof fp === 'string') {
-        targetPath = fp;
-      }
-    }
-
-    context.addValidator({
-      fieldPath: targetPath,
-      type: 'group',
-      validator: validator as GroupValidator<unknown, unknown>,
-      options: options as ValidateGroupOptions<unknown> | undefined,
-      scopePath,
-    });
-  }
-
-  /**
    * Войти в условный блок
    */
   enterCondition(fieldPath: string, conditionFn: ConditionFn<unknown>): void {
@@ -336,8 +295,8 @@ export class ValidationRegistry {
     const validatorsByField = new Map<string, ValidatorRegistration[]>();
 
     for (const registration of validators) {
-      if (registration.type === 'group' || registration.type === 'array-items') {
-        // Group и array-items валидаторы обрабатываются отдельно
+      if (registration.type === 'array-items') {
+        // array-items валидаторы обрабатываются отдельно
         continue;
       }
 

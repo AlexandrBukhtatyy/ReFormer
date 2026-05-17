@@ -2,11 +2,15 @@
  * Валидация платежеспособности (процент платежа от дохода ≤ 50%).
  */
 
-import type { GroupValidator } from '@reformer/core';
+import type { Validator } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
-export const validatePaymentToIncome: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+export const validatePaymentToIncome: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   const paymentRatio = form.paymentToIncomeRatio;
 
   if (!paymentRatio) {

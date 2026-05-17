@@ -4,11 +4,10 @@
  * Применяется к каждому элементу массива existingLoans через ArrayNode.applyValidationSchema().
  */
 
-import type { GroupValidator } from '@reformer/core';
+import type { Validator } from '@reformer/core';
 import {
   createFieldPath,
   validate,
-  validateGroup,
   required,
   minLength,
   maxLength,
@@ -17,8 +16,8 @@ import {
 } from '@reformer/core/validators';
 import type { ExistingLoan } from './ExistingLoanForm';
 
-const remainingNotExceedAmount: GroupValidator<ExistingLoan> = (scope) => {
-  const loan = scope.getValue();
+const remainingNotExceedAmount: Validator<ExistingLoan, unknown> = (_value, _control, root) => {
+  const loan = root.getValue();
   if (loan.remainingAmount > loan.amount) {
     return {
       code: 'remainingExceedsAmount',
@@ -28,8 +27,8 @@ const remainingNotExceedAmount: GroupValidator<ExistingLoan> = (scope) => {
   return null;
 };
 
-const maturityDateInFuture: GroupValidator<ExistingLoan> = (scope) => {
-  const loan = scope.getValue();
+const maturityDateInFuture: Validator<ExistingLoan, unknown> = (_value, _control, root) => {
+  const loan = root.getValue();
   if (!loan.maturityDate) return null;
 
   const maturityDate = new Date(loan.maturityDate);
@@ -73,6 +72,6 @@ export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<E
 
   validate(path.maturityDate, required({ message: 'Укажите дату погашения кредита' }));
 
-  validateGroup(path, remainingNotExceedAmount, { targetField: path.remainingAmount });
-  validateGroup(path, maturityDateInFuture, { targetField: path.maturityDate });
+  validate(path.remainingAmount, remainingNotExceedAmount);
+  validate(path.maturityDate, maturityDateInFuture);
 };

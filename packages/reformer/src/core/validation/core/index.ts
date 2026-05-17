@@ -4,6 +4,5 @@
 
 export { validate } from './validate';
 export { validateAsync } from './validate-async';
-export { validateGroup } from './validate-group';
 export { applyWhen } from './apply-when';
 export { apply } from './apply';

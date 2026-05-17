@@ -1,13 +1,5 @@
-import type { FieldPath, GroupValidator, ValidationSchemaFn } from '@reformer/core';
-import {
-  apply,
-  applyWhen,
-  validate,
-  validateGroup,
-  required,
-  pattern,
-  email,
-} from '@reformer/core/validators';
+import type { FieldPath, Validator, ValidationSchemaFn } from '@reformer/core';
+import { apply, applyWhen, validate, required, pattern, email } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
 import { addressValidation } from '../../nested-forms/Address/address-validation';
@@ -16,8 +8,12 @@ import { addressValidation } from '../../nested-forms/Address/address-validation
 // Cross-field правила
 // ============================================================================
 
-const phoneAdditionalDiffersFromMain: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const phoneAdditionalDiffersFromMain: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (!form.phoneAdditional) return null;
   if (form.phoneMain === form.phoneAdditional) {
     return {
@@ -28,8 +24,12 @@ const phoneAdditionalDiffersFromMain: GroupValidator<CreditApplicationForm> = (s
   return null;
 };
 
-const emailAdditionalDiffersFromMain: GroupValidator<CreditApplicationForm> = (scope) => {
-  const form = scope.getValue();
+const emailAdditionalDiffersFromMain: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
   if (!form.emailAdditional) return null;
   if (form.email.toLowerCase() === form.emailAdditional.toLowerCase()) {
     return {
@@ -82,8 +82,8 @@ export const contactInfoValidation: ValidationSchemaFn<CreditApplicationForm> = 
   // Дополнительный email (опциональный)
   validate(path.emailAdditional, email({ message: 'Введите корректный email' }));
 
-  validateGroup(path, phoneAdditionalDiffersFromMain, { targetField: path.phoneAdditional });
-  validateGroup(path, emailAdditionalDiffersFromMain, { targetField: path.emailAdditional });
+  validate(path.phoneAdditional, phoneAdditionalDiffersFromMain);
+  validate(path.emailAdditional, emailAdditionalDiffersFromMain);
 
   // Адрес регистрации через композицию
   apply(path.registrationAddress, addressValidation);

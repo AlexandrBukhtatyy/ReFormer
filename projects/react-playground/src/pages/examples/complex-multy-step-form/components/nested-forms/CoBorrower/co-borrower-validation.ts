@@ -5,11 +5,10 @@
  * Содержит вложенную группу personalData.
  */
 
-import type { GroupValidator } from '@reformer/core';
+import type { Validator } from '@reformer/core';
 import {
   createFieldPath,
   validate,
-  validateGroup,
   required,
   minLength,
   maxLength,
@@ -19,8 +18,8 @@ import {
 } from '@reformer/core/validators';
 import type { CoBorrower } from './CoBorrowerForm';
 
-const coBorrowerAge18to80: GroupValidator<CoBorrower> = (scope) => {
-  const coBorrower = scope.getValue();
+const coBorrowerAge18to80: Validator<CoBorrower, unknown> = (_value, _control, root) => {
+  const coBorrower = root.getValue();
   const birthDate = new Date(coBorrower.personalData.birthDate);
   const today = new Date();
 
@@ -99,7 +98,7 @@ export const coBorrowerValidation = (path: ReturnType<typeof createFieldPath<CoB
 
   validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
 
-  validateGroup(path, coBorrowerAge18to80, { targetField: path.personalData.birthDate });
+  validate(path.personalData.birthDate, coBorrowerAge18to80);
 
   validate(path.phone, required({ message: 'Телефон созаемщика обязателен' }));
 
