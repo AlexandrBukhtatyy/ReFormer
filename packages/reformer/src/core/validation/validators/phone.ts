@@ -1,82 +1,54 @@
 /**
- * Валидатор номера телефона
+ * Валидатор номера телефона (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/phone
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
 
-/**
- * Формат телефона для валидации
- *
- * @group Validation
- * @category Validators
- */
 export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
 
+const PHONE_PATTERNS: Record<PhoneFormat, RegExp> = {
+  international: /^\+?[1-9]\d{1,14}$/,
+  ru: /^(\+7|7|8)?[\s-]?\(?[489][0-9]{2}\)?[\s-]?[0-9]{3}[\s-]?[0-9]{2}[\s-]?[0-9]{2}$/,
+  us: /^(\+?1)?[\s-]?\(?[2-9]\d{2}\)?[\s-]?\d{3}[\s-]?\d{4}$/,
+  any: /^\+?\(?[0-9]{1,4}\)?[-\s.]?\(?[0-9]{1,4}\)?[-\s.]?[0-9]{1,9}$/,
+};
+
+export interface PhoneValidatorOptions extends ValidateOptions {
+  format?: PhoneFormat;
+}
+
 /**
- * Адаптер для phone валидатора
- * Поддерживает опциональные поля (string | undefined)
+ * Фабрика валидатора номера телефона.
  *
- * @group Validation
- * @category Validators
+ * Пустые значения пропускаются (используйте `required` для обязательности).
  *
  * @example
  * ```typescript
- * phone(path.phoneNumber);
- * phone(path.phoneNumber, { format: 'ru' });
- * phone(path.phoneNumber, { format: 'international', message: 'Неверный формат телефона' });
+ * validate(path.phone, phone());
+ * validate(path.phone, phone({ format: 'ru' }));
  * ```
  */
-export function phone<TForm, TField extends string | null | undefined = string>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
-  options?: ValidateOptions & {
-    /** Формат телефона */
-    format?: PhoneFormat;
-  }
-): void {
-  if (!fieldPath) return; // Защита от undefined fieldPath
+export function phone<TForm = unknown, TField extends string | undefined = string>(
+  options?: PhoneValidatorOptions
+): Validator<TForm, TField> {
+  const format: PhoneFormat = options?.format ?? 'any';
+  const regex = PHONE_PATTERNS[format];
 
-  const format = options?.format || 'any';
-
-  // Регулярные выражения для разных форматов
-  const patterns: Record<PhoneFormat, RegExp> = {
-    // Международный формат: +1234567890 или +1 234 567 8900
-    international: /^\+?[1-9]\d{1,14}$/,
-    // Российский формат: +7 (XXX) XXX-XX-XX, 8 (XXX) XXX-XX-XX, и вариации
-    ru: /^(\+7|7|8)?[\s-]?\(?[489][0-9]{2}\)?[\s-]?[0-9]{3}[\s-]?[0-9]{2}[\s-]?[0-9]{2}$/,
-    // US формат: (123) 456-7890, 123-456-7890, 1234567890
-    us: /^(\+?1)?[\s-]?\(?[2-9]\d{2}\)?[\s-]?\d{3}[\s-]?\d{4}$/,
-    // Любой формат: минимум 10 цифр с возможными разделителями
-    any: /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/,
-  };
-
-  validate(fieldPath, (value) => {
+  return (value) => {
     if (!value) {
       return null;
     }
-
-    const regex = patterns[format];
-
-    if (!regex.test(value)) {
-      const formatMessages: Record<PhoneFormat, string> = {
-        international: 'Введите телефон в международном формате (например, +1234567890)',
-        ru: 'Введите российский номер телефона (например, +7 900 123-45-67)',
-        us: 'Введите американский номер телефона (например, (123) 456-7890)',
-        any: 'Неверный формат телефона',
-      };
-
+    if (!regex.test(value as string)) {
       return {
         code: 'phone',
-        message: options?.message || formatMessages[format],
+        message: options?.message ?? 'invalid',
         params: { format, ...options?.params },
       };
     }
-
     return null;
-  });
+  };
 }

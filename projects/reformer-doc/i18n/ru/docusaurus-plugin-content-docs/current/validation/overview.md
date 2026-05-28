@@ -20,10 +20,10 @@ const form = new GroupNode({
     email: { value: '' },
   },
   validation: (path) => {
-    required(path.name);
-    minLength(path.name, 2);
-    required(path.email);
-    email(path.email);
+    validate(path.name, required());
+    validate(path.name, minLength(2));
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 ```
@@ -57,30 +57,35 @@ name.errors;
 
 | Валидатор                    | Описание                           | Ключ ошибки |
 | ---------------------------- | ---------------------------------- | ----------- |
-| `required(path.field)`       | Поле должно иметь значение         | `required`  |
-| `email(path.field)`          | Корректный формат email            | `email`     |
-| `minLength(path.field, n)`   | Минимальная длина строки           | `minLength` |
-| `maxLength(path.field, n)`   | Максимальная длина строки          | `maxLength` |
-| `min(path.field, n)`         | Минимальное числовое значение      | `min`       |
-| `max(path.field, n)`         | Максимальное числовое значение     | `max`       |
-| `pattern(path.field, regex)` | Соответствие регулярному выражению | `pattern`   |
-| `url(path.field)`            | Корректный формат URL              | `url`       |
-| `phone(path.field)`          | Корректный формат телефона         | `phone`     |
-| `number(path.field)`         | Должно быть числом                 | `number`    |
-| `date(path.field)`           | Корректная дата                    | `date`      |
+| `validate(path.field, required())`       | Поле должно иметь значение         | `required`  |
+| `validate(path.field, email())`          | Корректный формат email            | `email`     |
+| `validate(path.field, minLength(n))`   | Минимальная длина строки           | `minLength` |
+| `validate(path.field, maxLength(n))`   | Максимальная длина строки          | `maxLength` |
+| `validate(path.field, min(n))`         | Минимальное числовое значение      | `min`       |
+| `validate(path.field, max(n))`         | Максимальное числовое значение     | `max`       |
+| `validate(path.field, pattern(regex))` | Соответствие регулярному выражению | `pattern`   |
+| `validate(path.field, url())`            | Корректный формат URL              | `url`       |
+| `validate(path.field, phone())`          | Корректный формат телефона         | `phone`     |
+| `validate(path.field, isNumber())`       | Значение — число                   | `isNumber`  |
+| `validate(path.field, integer())`        | Целое число                        | `integer`   |
+| `validate(path.field, multipleOf(n))`    | Кратно n                           | `multipleOf`|
+| `validate(path.field, nonNegative())`    | `≥ 0`                              | `nonNegative`|
+| `validate(path.field, nonZero())`        | `≠ 0`                              | `nonZero`   |
+| `validate(path.field, isDate())`         | Корректная дата                    | `date_invalid` |
 
 ## Условная валидация
 
 Применять валидацию только при выполнении условия:
 
 ```typescript
-import { when } from '@reformer/core/validators';
+import { applyWhen, validate, required } from '@reformer/core/validators';
 
 validation: (path) => {
-  when(
-    () => form.controls.contactByPhone.value === true,
+  applyWhen(
+    path.contactByPhone,
+    (value) => value === true,
     (path) => {
-      required(path.phone);
+      validate(path.phone, required());
     }
   );
 };

@@ -39,6 +39,9 @@ const MIN_RUN_MS = Number(process.env.VITEST_MIN_RUN_MS ?? 5000);
 const child = spawn('npx', ['vitest', 'run', '--passWithNoTests', ...args], {
   stdio: ['inherit', 'pipe', 'pipe'],
   env: process.env,
+  // shell: true — needed on Windows to resolve `npx` .cmd shim. Cross-platform safe:
+  // on POSIX the args list is still passed verbatim to /bin/sh -c, no quoting issues.
+  shell: true,
 });
 
 const startedAt = Date.now();

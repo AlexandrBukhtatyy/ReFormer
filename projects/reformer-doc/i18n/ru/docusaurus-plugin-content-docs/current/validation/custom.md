@@ -101,12 +101,12 @@ validate(path.confirmPassword, matchField('password'));
 
 ```typescript
 validation: (path) => {
-  required(path.startDate);
-  required(path.endDate);
+  validate(path.startDate, required());
+  validate(path.endDate, required());
 
   // Валидация, что дата окончания после даты начала
-  validate(path.endDate, (value, ctx) => {
-    const startDate = ctx.form.startDate.value.value;
+  validate(path.endDate, (value, _control, root) => {
+    const startDate = root.startDate.value.value;
 
     if (value && startDate && new Date(value) < new Date(startDate)) {
       return { endBeforeStart: true };
@@ -132,11 +132,11 @@ const form = new GroupNode<ContactForm>({
     emails: [{ value: '' }],
   },
   validation: (path) => {
-    required(path.name);
+    validate(path.name, required());
 
     // Валидация каждого email в массиве
-    required(path.emails.$each);
-    email(path.emails.$each);
+    validate(path.emails.$each, required());
+    validate(path.emails.$each, email());
   },
 });
 ```
@@ -149,13 +149,13 @@ const form = new GroupNode<ContactForm>({
 import { when } from '@reformer/core/validators';
 
 validation: (path) => {
-  required(path.country);
+  validate(path.country, required());
 
   // Требовать tax ID только для пользователей из США
   when(
     () => form.controls.country.value === 'US',
     (path) => {
-      required(path.taxId);
+      validate(path.taxId, required());
       validate(path.taxId, (value) => {
         if (!/^\d{9}$/.test(value)) {
           return { invalidTaxId: true };

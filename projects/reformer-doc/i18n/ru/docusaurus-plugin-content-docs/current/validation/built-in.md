@@ -13,7 +13,7 @@ sidebar_position: 2
 ```typescript
 import { required } from '@reformer/core/validators';
 
-required(path.name);
+validate(path.name, required());
 // Ошибка: { code: 'required', message: '...' }
 ```
 
@@ -26,7 +26,7 @@ required(path.name);
 ```typescript
 import { email } from '@reformer/core/validators';
 
-email(path.email);
+validate(path.email, email());
 // Ошибка: { code: 'email', message: '...' }
 ```
 
@@ -37,10 +37,10 @@ email(path.email);
 ```typescript
 import { minLength, maxLength } from '@reformer/core/validators';
 
-minLength(path.name, 2);
+validate(path.name, minLength(2));
 // Ошибка: { code: 'minLength', params: { required: 2, actual: 1 } }
 
-maxLength(path.bio, 500);
+validate(path.bio, maxLength(500));
 // Ошибка: { code: 'maxLength', params: { required: 500, actual: 501 } }
 ```
 
@@ -51,10 +51,10 @@ maxLength(path.bio, 500);
 ```typescript
 import { min, max } from '@reformer/core/validators';
 
-min(path.age, 18);
+validate(path.age, min(18));
 // Ошибка: { code: 'min', params: { min: 18, actual: 16 } }
 
-max(path.quantity, 100);
+validate(path.quantity, max(100));
 // Ошибка: { code: 'max', params: { max: 100, actual: 150 } }
 ```
 
@@ -66,11 +66,11 @@ max(path.quantity, 100);
 import { pattern } from '@reformer/core/validators';
 
 // Только буквы
-pattern(path.code, /^[A-Z]+$/);
+validate(path.code, pattern(/^[A-Z]+$/));
 // Ошибка: { code: 'pattern', params: { pattern: '/^[A-Z]+$/' } }
 
 // Кастомный ключ ошибки
-pattern(path.code, /^[A-Z]+$/, 'uppercase');
+validate(path.code, pattern(/^[A-Z]+$/, { message: 'uppercase' }));
 // Ошибка: { code: 'uppercase' }
 ```
 
@@ -81,7 +81,7 @@ pattern(path.code, /^[A-Z]+$/, 'uppercase');
 ```typescript
 import { url } from '@reformer/core/validators';
 
-url(path.website);
+validate(path.website, url());
 // Ошибка: { code: 'url', message: '...' }
 ```
 
@@ -92,19 +92,70 @@ url(path.website);
 ```typescript
 import { phone } from '@reformer/core/validators';
 
-phone(path.phone);
+validate(path.phone, phone());
 // Ошибка: { code: 'phone', message: '...' }
 ```
 
-## number
+## isNumber
 
-Должно быть валидным числом.
+Значение — конечное число (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { number } from '@reformer/core/validators';
+import { validate, isNumber } from '@reformer/core/validators';
 
-number(path.amount);
-// Ошибка: { code: 'number', message: '...' }
+validate(path.amount, isNumber());
+```
+
+## integer
+
+Число должно быть целым. Не-числа пропускаются (комбинируйте с `isNumber` для строгой проверки типа).
+
+```typescript
+import { validate, integer } from '@reformer/core/validators';
+
+validate(path.count, integer());
+```
+
+## multipleOf
+
+Число должно быть кратно указанному делителю.
+
+```typescript
+import { validate, multipleOf } from '@reformer/core/validators';
+
+validate(path.price, multipleOf(0.01));
+validate(path.rating, multipleOf(0.5));
+```
+
+## nonNegative
+
+Число должно быть `>= 0`.
+
+```typescript
+import { validate, nonNegative } from '@reformer/core/validators';
+
+validate(path.quantity, nonNegative());
+```
+
+## nonZero
+
+Число не должно равняться нулю.
+
+```typescript
+import { validate, nonZero } from '@reformer/core/validators';
+
+validate(path.divisor, nonZero());
+```
+
+Композируйте атомарные проверки — единой фабрики `number()` больше нет:
+
+```typescript
+import { validate, isNumber, integer, min, max } from '@reformer/core/validators';
+
+validate(path.percent, isNumber());
+validate(path.percent, integer());
+validate(path.percent, min(0));
+validate(path.percent, max(100));
 ```
 
 ## date
@@ -114,7 +165,7 @@ number(path.amount);
 ```typescript
 import { date } from '@reformer/core/validators';
 
-date(path.birthDate);
+validate(path.birthDate, date());
 // Ошибка: { code: 'date', message: '...' }
 ```
 
@@ -124,10 +175,10 @@ date(path.birthDate);
 
 ```typescript
 validation: (path) => {
-  required(path.password);
-  minLength(path.password, 8);
-  pattern(path.password, /[A-Z]/, 'uppercase');
-  pattern(path.password, /[0-9]/, 'hasNumber');
+  validate(path.password, required());
+  validate(path.password, minLength(8));
+  validate(path.password, pattern(/[A-Z]/, { message: 'uppercase' }));
+  validate(path.password, pattern(/[0-9]/, { message: 'hasNumber' }));
 };
 ```
 

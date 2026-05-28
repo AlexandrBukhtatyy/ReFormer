@@ -2,16 +2,16 @@
  * Валидация возраста заемщика (18-70 лет)
  */
 
-import type { FormContext, ValidationError } from '@reformer/core';
+import type { Validator } from '@reformer/core';
 import type { CreditApplicationForm } from '../../types/credit-application';
 
 /**
- * Валидация возраста заемщика (18-70 лет)
- * @param ctx - контекст валидации с доступом к полям формы
- * @returns ошибка валидации или null
+ * Валидация возраста заемщика (18-70 лет).
+ *
+ * Cross-field validator: вычисляет возраст из birthDate (если age — computed) или берёт age напрямую.
  */
-export function validateAge(ctx: FormContext<CreditApplicationForm>): ValidationError | null {
-  const form = ctx.form.getValue();
+export const validateAge: Validator<CreditApplicationForm, unknown> = (_value, _control, root) => {
+  const form = root.getValue();
   const age = form.age;
 
   if (!age) {
@@ -33,4 +33,4 @@ export function validateAge(ctx: FormContext<CreditApplicationForm>): Validation
   }
 
   return null;
-}
+};

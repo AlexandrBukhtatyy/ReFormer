@@ -1,78 +1,49 @@
 /**
- * Валидатор обязательного поля
+ * Валидатор обязательного поля (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/required
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
 
 /**
- * Валидатор обязательного поля
+ * Фабрика валидатора обязательного поля.
  *
- * Проверяет, что поле имеет непустое значение.
+ * Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
+ *
  * Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
  * Для boolean полей требуется значение `true`.
  *
- * @group Validation
- * @category Validators
- *
- * @param fieldPath - Путь к полю для валидации
- * @param options - Опции валидации (message, params)
- *
  * @example
  * ```typescript
- * // Базовое использование
- * validationSchema: (path, { validate }) => [
- *   required(path.name),
- *   required(path.email),
- * ]
+ * import { validate } from '@reformer/core';
+ * import { required } from '@reformer/core/validators';
  *
- * // С кастомным сообщением
- * required(path.phone, { message: 'Укажите номер телефона' })
- *
- * // Для checkbox (требует true)
- * required(path.agreeToTerms, { message: 'Необходимо принять условия' })
- * ```
- *
- * @example
- * ```typescript
- * // Ошибка валидации
- * {
- *   code: 'required',
- *   message: 'Поле обязательно для заполнения',
- *   params: {}
- * }
+ * validate(path.email, required());
+ * validate(path.phone, required({ message: 'Укажите номер телефона' }));
+ * validate(path.agreeToTerms, required({ message: 'Необходимо принять условия' }));
  * ```
  */
-export function required<TForm, TField>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
+export function required<TForm = unknown, TField = unknown>(
   options?: ValidateOptions
-): void {
-  if (!fieldPath) return; // Защита от undefined fieldPath
-
-  validate(fieldPath, (value) => {
-    // Проверка на пустое значение
+): Validator<TForm, TField> {
+  return (value) => {
     if (value === null || value === undefined || value === '') {
       return {
         code: 'required',
-        message: options?.message || 'Поле обязательно для заполнения',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
-
-    // Для булевых значений требуем true
     if (typeof value === 'boolean' && value !== true) {
       return {
         code: 'required',
-        message: options?.message || 'Поле обязательно для заполнения',
+        message: options?.message ?? 'invalid',
         params: options?.params,
       };
     }
-
     return null;
-  });
+  };
 }

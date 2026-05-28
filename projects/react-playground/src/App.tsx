@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 're
 import CreditApplicationForm from './pages/examples/complex-multy-step-form/CreditApplicationForm';
 import CreditApplicationFormRenderer from './pages/examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer';
 import RegistrationFormRendererJson from './pages/examples/complex-multy-step-form-renderer-json/CreditApplicationFormRendererJson';
-import RegistrationForm from './pages/examples/simple-form/RegistrationForm';
+import RegistrationForm from './pages/examples/registration-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import MccaCoreClean from './pages/examples/mcp-credit-application-core-clean';

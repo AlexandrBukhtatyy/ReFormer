@@ -1,9 +1,8 @@
 /**
- * Валидаторы для массивов
+ * Валидаторы для массивов.
  *
- * Предоставляет специализированные функции для валидации ArrayNode:
- * - notEmpty: проверка что массив не пустой
- * - validateItems: применение validation schema к каждому элементу
+ * - `notEmpty` — фабрика валидатора (передаётся в `validate(path, notEmpty(...))`).
+ * - `validateItems` — оператор схемы (вызывается напрямую).
  *
  * @group Validation
  * @category Validators
@@ -11,77 +10,56 @@
 
 import { getCurrentValidationRegistry } from '../../utils/registry-helpers';
 import { extractPath } from '../../utils/field-path';
-import { minLength } from './min-length';
-import type { ValidateOptions, ValidationSchemaFn } from '../../types/validation-schema';
+import type { Validator, ValidateOptions, ValidationSchemaFn } from '../../types/validation-schema';
 import type { FieldPathNode } from '../../types';
 
 // ============================================================================
-// notEmpty - Проверка что массив не пустой
+// notEmpty — фабрика валидатора
 // ============================================================================
 
 /**
- * Проверить что массив содержит хотя бы один элемент
- *
- * Это удобный алиас для `minLength(field, 1)`, оптимизированный для массивов.
- *
- * @group Validation
- * @category Validators
- *
- * @param fieldPath - Поле-массив для валидации
- * @param options - Опции валидации (message, params и т.д.)
+ * Фабрика валидатора, проверяющего что массив (или строка) не пустой.
  *
  * @example
  * ```typescript
- * // Простая проверка
- * notEmpty(path.properties, { message: 'Добавьте хотя бы один объект имущества' });
- *
- * // С дополнительными параметрами
- * notEmpty(path.coBorrowers, {
- *   message: 'Требуется хотя бы один созаемщик',
- *   params: { minItems: 1 }
- * });
+ * validate(path.properties, notEmpty({ message: 'Добавьте хотя бы один элемент' }));
  * ```
  */
-export function notEmpty<TForm, TItem>(
-  fieldPath: FieldPathNode<TForm, TItem[] | undefined> | undefined,
+export function notEmpty<TForm = unknown, TField = unknown>(
   options?: ValidateOptions
-): void {
-  if (!fieldPath) return;
-
-  // Используем minLength как базовую реализацию
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  minLength(fieldPath as any, 1, {
-    message: options?.message || 'Массив не должен быть пустым',
-    params: { minLength: 1, ...options?.params },
-  });
+): Validator<TForm, TField> {
+  return (value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const len = (value as { length?: number }).length;
+    if (typeof len !== 'number' || len >= 1) {
+      return null;
+    }
+    return {
+      code: 'minLength',
+      message: options?.message ?? 'invalid',
+      params: { minLength: 1, ...options?.params },
+    };
+  };
 }
 
 // ============================================================================
-// validateItems - Валидация элементов массива
+// validateItems — оператор схемы (регистрирует item-схему в реестре)
 // ============================================================================
 
 /**
- * Применить validation schema к каждому элементу массива
+ * Применить validation schema к каждому элементу массива.
  *
  * Регистрирует схему валидации, которая будет автоматически применяться
  * к каждому элементу ArrayNode (как существующим, так и новым).
- *
- * @group Validation
- * @category Validators
- *
- * @param fieldPath - Поле-массив для валидации элементов
- * @param itemSchemaFn - Validation schema для одного элемента
  *
  * @example
  * ```typescript
  * import { propertyValidation } from './property-validation';
  *
- * // В additionalValidation
  * applyWhen(path.hasProperty, (value) => value === true, (path) => {
- *   // Проверка что массив не пустой
- *   notEmpty(path.properties, { message: 'Добавьте хотя бы один объект имущества' });
- *
- *   // Валидация каждого элемента
+ *   validate(path.properties, notEmpty({ message: 'Добавьте хотя бы один объект' }));
  *   validateItems(path.properties, propertyValidation);
  * });
  * ```
@@ -91,10 +69,6 @@ export function validateItems<TForm, TItem>(
   itemSchemaFn: ValidationSchemaFn<TItem>
 ): void {
   if (!fieldPath) return;
-
   const path = extractPath(fieldPath);
-
-  // Регистрируем схему валидации для элементов массива
-  //  Используем текущий активный реестр из context stack
   getCurrentValidationRegistry().registerArrayItemValidation(path, itemSchemaFn);
 }

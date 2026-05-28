@@ -18,8 +18,8 @@ const form = new GroupNode({
     username: { value: '', updateOn: 'change' },
   },
   validation: (path) => {
-    required(path.username);
-    minLength(path.username, 3);
+    validate(path.username, required());
+    validate(path.username, minLength(3));
   },
 });
 ```
@@ -45,8 +45,8 @@ const form = new GroupNode({
     email: { value: '', updateOn: 'blur' },
   },
   validation: (path) => {
-    required(path.email);
-    email(path.email);
+    validate(path.email, required());
+    validate(path.email, email());
   },
 });
 ```
@@ -67,8 +67,8 @@ const form = new GroupNode({
     feedback: { value: '', updateOn: 'submit' },
   },
   validation: (path) => {
-    required(path.feedback);
-    minLength(path.feedback, 10);
+    validate(path.feedback, required());
+    validate(path.feedback, minLength(10));
   },
 });
 
@@ -100,10 +100,10 @@ const form = new GroupNode({
   },
   validation: (path, { validateAsync }) => {
     // Сначала синхронная валидация
-    required(path.username);
-    minLength(path.username, 3);
-    maxLength(path.username, 20);
-    pattern(path.username, /^[a-zA-Z0-9_]+$/, 'Недопустимые символы');
+    validate(path.username, required());
+    validate(path.username, minLength(3));
+    validate(path.username, maxLength(20));
+    validate(path.username, pattern(/^[a-zA-Z0-9_]+$/, { message: 'Недопустимые символы' }));
 
     // Асинхронная валидация только если синхронная прошла
     validateAsync(
@@ -179,12 +179,13 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Валидировать поля компании только если hasCompany истинно
-    when(
-      () => form.controls.hasCompany.value.value,
+    applyWhen(
+      path.hasCompany,
+      (hasCompany) => hasCompany === true,
       (path) => {
-        required(path.companyName);
-        required(path.companyTaxId);
-        pattern(path.companyTaxId, /^\d{10}$/, 'Неверный ИНН');
+        validate(path.companyName, required());
+        validate(path.companyTaxId, required());
+        validate(path.companyTaxId, pattern(/^\d{10}$/, { message: 'Неверный ИНН' }));
       }
     );
   },
@@ -204,24 +205,26 @@ const form = new GroupNode({
     ssn: { value: '' },
   },
   validation: (path) => {
-    required(path.accountType);
+    validate(path.accountType, required());
 
     // Валидация бизнес-аккаунта
-    when(
-      () => form.controls.accountType.value.value === 'business',
+    applyWhen(
+      path.accountType,
+      (accountType) => accountType === 'business',
       (path) => {
-        required(path.businessName);
-        required(path.ein);
-        pattern(path.ein, /^\d{10}$/, 'Неверный ИНН');
+        validate(path.businessName, required());
+        validate(path.ein, required());
+        validate(path.ein, pattern(/^\d{10}$/, { message: 'Неверный ИНН' }));
       }
     );
 
     // Валидация личного аккаунта
-    when(
-      () => form.controls.accountType.value.value === 'personal',
+    applyWhen(
+      path.accountType,
+      (accountType) => accountType === 'personal',
       (path) => {
-        required(path.ssn);
-        pattern(path.ssn, /^\d{3}-\d{2}-\d{4}$/, 'Неверный СНИЛС');
+        validate(path.ssn, required());
+        validate(path.ssn, pattern(/^\d{3}-\d{2}-\d{4}$/, { message: 'Неверный СНИЛС' }));
       }
     );
   },
@@ -241,14 +244,14 @@ const form = new GroupNode({
     confirmPassword: { value: '' },
   },
   validation: (path) => {
-    required(path.password);
-    minLength(path.password, 8);
+    validate(path.password, required());
+    validate(path.password, minLength(8));
 
-    required(path.confirmPassword);
+    validate(path.confirmPassword, required());
 
     // Валидация совпадения confirmPassword с password
-    validate(path.confirmPassword, (value, ctx) => {
-      const password = ctx.form.password.value.value;
+    validate(path.confirmPassword, (value, _control, root) => {
+      const password = root.password.value.value;
       if (value && password && value !== password) {
         return { passwordMismatch: true };
       }
@@ -269,12 +272,12 @@ const form = new GroupNode({
     endDate: { value: null as Date | null },
   },
   validation: (path) => {
-    required(path.startDate);
-    required(path.endDate);
+    validate(path.startDate, required());
+    validate(path.endDate, required());
 
     // Валидация, что дата окончания после даты начала
-    validate(path.endDate, (value, ctx) => {
-      const startDate = ctx.form.startDate.value.value;
+    validate(path.endDate, (value, _control, root) => {
+      const startDate = root.startDate.value.value;
 
       if (!value || !startDate) return null;
 
@@ -286,8 +289,8 @@ const form = new GroupNode({
     });
 
     // Валидация, что диапазон не более 1 года
-    validate(path.endDate, (value, ctx) => {
-      const startDate = ctx.form.startDate.value.value;
+    validate(path.endDate, (value, _control, root) => {
+      const startDate = root.startDate.value.value;
 
       if (!value || !startDate) return null;
 
@@ -318,14 +321,14 @@ const form = new GroupNode({
     maxPrice: { value: 0 },
   },
   validation: (path) => {
-    required(path.minPrice);
-    required(path.maxPrice);
-    min(path.minPrice, 0);
-    min(path.maxPrice, 0);
+    validate(path.minPrice, required());
+    validate(path.maxPrice, required());
+    validate(path.minPrice, min(0));
+    validate(path.maxPrice, min(0));
 
     // Валидация диапазона цен
-    validate(path.maxPrice, (value, ctx) => {
-      const minPrice = ctx.form.minPrice.value.value;
+    validate(path.maxPrice, (value, _control, root) => {
+      const minPrice = root.minPrice.value.value;
 
       if (value && minPrice && value < minPrice) {
         return {
@@ -346,7 +349,7 @@ const form = new GroupNode({
 Валидация всей формы:
 
 ```typescript
-import { validateTree } from '@reformer/core/validators';
+import { validate } from '@reformer/core/validators';
 
 const form = new GroupNode({
   form: {
@@ -355,24 +358,22 @@ const form = new GroupNode({
     bankAccount: { value: '' },
   },
   validation: (path) => {
-    required(path.paymentMethod);
+    validate(path.paymentMethod, required());
 
-    // Валидация на уровне формы
-    validateTree((ctx) => {
-      const { paymentMethod, cardNumber, bankAccount } = ctx.form.getValue();
-
-      if (paymentMethod === 'card' && !cardNumber) {
-        return {
-          cardNumber: { required: true },
-        };
+    // Cross-field правило: вешаем на поле-носитель ошибки, читаем соседей через `root`
+    validate(path.cardNumber, (value, _control, root) => {
+      const form = root.getValue();
+      if (form.paymentMethod === 'card' && !value) {
+        return { code: 'required', message: 'Номер карты обязателен' };
       }
+      return null;
+    });
 
-      if (paymentMethod === 'bank' && !bankAccount) {
-        return {
-          bankAccount: { required: true },
-        };
+    validate(path.bankAccount, (value, _control, root) => {
+      const form = root.getValue();
+      if (form.paymentMethod === 'bank' && !value) {
+        return { code: 'required', message: 'Реквизиты счёта обязательны' };
       }
-
       return null;
     });
   },
@@ -390,8 +391,8 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Каждый email должен быть валидным
-    required(path.emails.$each);
-    email(path.emails.$each);
+    validate(path.emails.$each, required());
+    validate(path.emails.$each, email());
   },
 });
 ```
@@ -404,29 +405,19 @@ const form = new GroupNode({
     phoneNumbers: [{ value: '' }],
   },
   validation: (path) => {
-    required(path.phoneNumbers.$each);
-    pattern(path.phoneNumbers.$each, /^\d{10}$/, 'Неверный телефон');
+    validate(path.phoneNumbers.$each, required());
+    validate(path.phoneNumbers.$each, pattern(/^\d{10}$/, { message: 'Неверный телефон' }));
 
-    // Кастомный валидатор для длины массива
-    validateTree((ctx) => {
-      const phones = ctx.form.phoneNumbers.getValue();
+    // Кастомный валидатор для длины массива — вешаем на сам массив
+    validate(path.phoneNumbers, (_value, _control, root) => {
+      const phones = root.phoneNumbers.getValue();
 
       if (phones.length < 1) {
-        return {
-          phoneNumbers: {
-            minItems: { required: 1, actual: phones.length },
-          },
-        };
+        return { code: 'minItems', message: 'Нужен хотя бы один телефон' };
       }
-
       if (phones.length > 5) {
-        return {
-          phoneNumbers: {
-            maxItems: { max: 5, actual: phones.length },
-          },
-        };
+        return { code: 'maxItems', message: 'Не более 5 телефонов' };
       }
-
       return null;
     });
   },
@@ -441,19 +432,15 @@ const form = new GroupNode({
     tags: [{ value: '' }],
   },
   validation: (path) => {
-    required(path.tags.$each);
+    validate(path.tags.$each, required());
 
     // Валидация уникальности тегов
-    validateTree((ctx) => {
-      const tags = ctx.form.tags.getValue();
+    validate(path.tags, (_value, _control, root) => {
+      const tags = root.tags.getValue();
       const uniqueTags = new Set(tags);
 
       if (uniqueTags.size !== tags.length) {
-        return {
-          tags: {
-            notUnique: { message: 'Теги должны быть уникальными' },
-          },
-        };
+        return { code: 'notUnique', message: 'Теги должны быть уникальными' };
       }
 
       return null;
@@ -516,11 +503,12 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Валидировать только если секция видима/включена
-    when(
-      () => form.controls.optionalSection.visible.value,
+    applyWhen(
+      path.optionalSection.enabled,
+      (enabled) => enabled === true,
       (path) => {
-        required(path.optionalSection.field1);
-        required(path.optionalSection.field2);
+        validate(path.optionalSection.field1, required());
+        validate(path.optionalSection.field2, required());
       }
     );
   },
@@ -541,24 +529,24 @@ const form = new GroupNode({
   },
   validation: (path, { validateAsync }) => {
     // Username: синхронная + асинхронная
-    required(path.username);
-    minLength(path.username, 3);
+    validate(path.username, required());
+    validate(path.username, minLength(3));
     validateAsync(path.username, checkUsernameAvailability(), {
       debounce: 500,
     });
 
     // Email: синхронная + асинхронная
-    required(path.email);
-    email(path.email);
+    validate(path.email, required());
+    validate(path.email, email());
     validateAsync(path.email, checkEmailAvailability(), { debounce: 500 });
 
     // Password: только синхронная
-    required(path.password);
-    minLength(path.password, 8);
+    validate(path.password, required());
+    validate(path.password, minLength(8));
     validate(path.password, strongPassword());
 
     // Confirm password: синхронная зависимая
-    required(path.confirmPassword);
+    validate(path.confirmPassword, required());
     validate(path.confirmPassword, matchesPassword());
   },
 });
@@ -578,13 +566,13 @@ const form = new GroupNode({
   },
   validation: (path) => {
     // Запрос: минимальная валидация, мгновенная
-    minLength(path.query, 2);
+    validate(path.query, minLength(2));
 
     // Фильтры: валидировать при отправке
-    min(path.filters.minPrice, 0);
-    min(path.filters.maxPrice, 0);
-    validate(path.filters.maxPrice, (value, ctx) => {
-      const minPrice = ctx.form.filters.minPrice.value.value;
+    validate(path.filters.minPrice, min(0));
+    validate(path.filters.maxPrice, min(0));
+    validate(path.filters.maxPrice, (value, _control, root) => {
+      const minPrice = root.filters.minPrice.value.value;
       if (value && minPrice && value < minPrice) {
         return { invalidRange: true };
       }
@@ -606,23 +594,23 @@ const form = new GroupNode({
   },
   validation: (path, { validateAsync }) => {
     // Номер карты: синхронная + асинхронная
-    required(path.cardNumber);
+    validate(path.cardNumber, required());
     validate(path.cardNumber, creditCard());
     validateAsync(path.cardNumber, validateCardWithBank(), {
       debounce: 1000,
     });
 
     // Срок действия: только синхронная
-    required(path.expiryDate);
+    validate(path.expiryDate, required());
     validate(path.expiryDate, notExpired());
 
     // CVV: только синхронная
-    required(path.cvv);
-    pattern(path.cvv, /^\d{3,4}$/, 'Неверный CVV');
+    validate(path.cvv, required());
+    validate(path.cvv, pattern(/^\d{3,4}$/, { message: 'Неверный CVV' }));
 
     // Индекс: только синхронная
-    required(path.billingZip);
-    pattern(path.billingZip, /^\d{6}$/, 'Неверный индекс');
+    validate(path.billingZip, required());
+    validate(path.billingZip, pattern(/^\d{6}$/, { message: 'Неверный индекс' }));
   },
 });
 ```
@@ -633,8 +621,8 @@ const form = new GroupNode({
 
 ```typescript
 // ✅ Хорошо - множественные проверки валидации
-required(path.password);
-minLength(path.password, 8);
+validate(path.password, required());
+validate(path.password, minLength(8));
 validate(path.password, strongPassword());
 
 // ❌ Плохо - единая общая валидация
@@ -672,13 +660,14 @@ validateAsync(path.username, checkAvailability());
 
 ```typescript
 // ✅ Хорошо - валидировать только при необходимости
-when(
-  () => form.controls.hasCompany.value.value,
-  (path) => required(path.companyName)
+applyWhen(
+  path.hasCompany,
+  (hasCompany) => hasCompany === true,
+  (path) => validate(path.companyName, required())
 );
 
 // ❌ Плохо - всегда валидировать, скрывать ошибки
-required(path.companyName);
+validate(path.companyName, required());
 // Затем скрывать ошибки в UI - расточительно
 ```
 
@@ -686,8 +675,8 @@ required(path.companyName);
 
 ```typescript
 // ✅ Хорошо - сначала синхронная, затем асинхронная
-required(path.email);
-email(path.email);
+validate(path.email, required());
+validate(path.email, email());
 validateAsync(path.email, checkEmailAvailability());
 
 // ❌ Плохо - только асинхронная (медленнее обратная связь)
@@ -698,6 +687,97 @@ validateAsync(path.email, async (value) => {
   return available ? null : { taken: true };
 });
 ```
+
+## Извлечение Вложенных Правил
+
+Когда тело `applyWhen` или `validate` разрастается дальше нескольких строк,
+вынесите его в **именованную top-level-функцию**, типизированную одним из публичных типов
+из `@reformer/core`. Это делает основную схему плоской (читается как оглавление) и
+выводит **намерение** каждого правила в его имя.
+
+Используйте существующие публичные типы:
+
+- `ValidationSchemaFn<TForm>` — вложенная схема для `applyWhen` или `apply`.
+- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — валидатор поля для
+  `validate` / `validateAsync`. Cross-field правила пишутся в той же сигнатуре —
+  соседние поля читаются через `root`.
+
+### До — inline callbacks
+
+```typescript
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (path) => {
+      validate(path.propertyValue, required());
+      validate(path.propertyValue, min(1000000));
+      validate(path.initialPayment, required());
+
+      validate(path.initialPayment, (_value, _control, root) => {
+        const form = root.getValue();
+        if (
+          form.initialPayment &&
+          form.propertyValue &&
+          form.initialPayment > form.propertyValue
+        ) {
+          return { code: 'initialPaymentTooHigh', message: '...' };
+        }
+        return null;
+      });
+    }
+  );
+};
+```
+
+### После — извлечённые именованные функции
+
+```typescript
+import type { Validator, ValidationSchemaFn } from '@reformer/core';
+
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
+  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+    return { code: 'initialPaymentTooHigh', message: '...' };
+  }
+  return null;
+};
+
+const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.propertyValue, required());
+  validate(path.propertyValue, min(1000000));
+  validate(path.initialPayment, required());
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
+};
+
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+};
+```
+
+### Конвенция именования
+
+Используйте **смысловые** имена (а не дублирующие название оператора):
+
+- Вложенная схема `applyWhen` → описывает условную ветку:
+  `mortgageFieldsRules`, `employedFieldsRules`, `residenceAddressRules`.
+- Cross-field `Validator` → описывает проверяемый инвариант:
+  `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`, `currentExperienceVsTotal`.
+- Field-level `Validator` → описывает проверку поля:
+  `validateAdultAge`, `validatePasswordsMatch`, `validatePassportIssueDateNotFuture`.
+
+### Когда выносить
+
+- **Выносить** любое тело длиннее ~3 строк или содержащее вложенный `applyWhen`.
+- **Оставлять inline** короткие одно-строчные условия внутри `applyWhen` —
+  `(type) => type === 'mortgage'` ничего не выигрывает от именования.
 
 ## Следующие Шаги
 

@@ -2,14 +2,13 @@
 // Validation Schema API
 // ============================================================================
 
-// Core validation functions
+// Core validation operators
 export { validate } from './core/validate';
 export { validateAsync } from './core/validate-async';
-export { validateTree } from './core/validate-tree';
 export { apply } from './core/apply';
 export { applyWhen } from './core/apply-when';
 
-// Reusable validators
+// Reusable validator factories
 export { required } from './validators/required';
 export { min } from './validators/min';
 export { max } from './validators/max';
@@ -19,9 +18,14 @@ export { email } from './validators/email';
 export { pattern } from './validators/pattern';
 export { url } from './validators/url';
 export { phone, type PhoneFormat } from './validators/phone';
-export { number } from './validators/number';
+// Number validator factories
+export { isNumber } from './validators/is-number';
+export { integer } from './validators/integer';
+export { multipleOf } from './validators/multiple-of';
+export { nonNegative } from './validators/non-negative';
+export { nonZero } from './validators/non-zero';
 
-// Date validators
+// Date validator factories
 export { isDate } from './validators/is-date';
 export { minDate } from './validators/min-date';
 export { maxDate } from './validators/max-date';
@@ -30,19 +34,14 @@ export { futureDate } from './validators/future-date';
 export { minAge } from './validators/min-age';
 export { maxAge } from './validators/max-age';
 
-// Валидаторы для массивов
+// Array validators
 export { notEmpty, validateItems } from './validators/array-validators';
 
-// Утилиты для FieldPath
+// FieldPath utilities
 export { createFieldPath, extractPath, extractKey, toFieldPath } from '../utils/field-path';
 
-// Утилита для валидации формы по схеме
+// Form validation utility
 export { validateForm } from './validate-form';
 
-// ValidationRegistry (для внутреннего использования)
-// Примечание: ValidationRegistry (глобальный singleton) был удален в пользу
-// локальных экземпляров ValidationRegistry в каждом GroupNode
+// Validation registry (для внутреннего использования)
 export { ValidationRegistry } from './validation-registry';
-
-// Контексты валидации
-export { ValidationContextImpl, TreeValidationContextImpl } from './validation-context';

@@ -131,7 +131,7 @@ creditForm: async ({ page, perf }, use, testInfo) => {
 Затрагиваются:
 
 - [credit-form-page.pom.ts](projects/react-playground-e2e/tests/pages/complex-multy-step-form/credit-form-page.pom.ts) — главный
-- [simple-form-page.pom.ts](projects/react-playground-e2e/tests/pages/simple-form/simple-form-page.pom.ts)
+- [simple-form-page.pom.ts](projects/react-playground-e2e/tests/pages/registration-form/simple-form-page.pom.ts)
 - [behaviors-page.pom.ts](projects/react-playground-e2e/tests/pages/behaviors/behaviors-page.pom.ts)
 - [validation-page.pom.ts](projects/react-playground-e2e/tests/pages/validation/validators-page.pom.ts)
 
@@ -200,7 +200,7 @@ private async _gotoImpl(options?: { disableMsw?: boolean }): Promise<void> {
 - [tests/shared/performance-collector.ts](projects/react-playground-e2e/tests/shared/performance-collector.ts) — **новый**
 - [tests/shared/performance-reporter.ts](projects/react-playground-e2e/tests/shared/performance-reporter.ts) — **новый**
 - [tests/pages/complex-multy-step-form/credit-form-page.pom.ts](projects/react-playground-e2e/tests/pages/complex-multy-step-form/credit-form-page.pom.ts) — обёртки ключевых методов
-- [tests/pages/simple-form/simple-form-page.pom.ts](projects/react-playground-e2e/tests/pages/simple-form/simple-form-page.pom.ts), [tests/pages/behaviors/behaviors-page.pom.ts](projects/react-playground-e2e/tests/pages/behaviors/behaviors-page.pom.ts), [tests/pages/validation/validation-page.pom.ts](projects/react-playground-e2e/tests/pages/validation/validation-page.pom.ts) — по ключевым методам
+- [tests/pages/registration-form/simple-form-page.pom.ts](projects/react-playground-e2e/tests/pages/registration-form/simple-form-page.pom.ts), [tests/pages/behaviors/behaviors-page.pom.ts](projects/react-playground-e2e/tests/pages/behaviors/behaviors-page.pom.ts), [tests/pages/validation/validation-page.pom.ts](projects/react-playground-e2e/tests/pages/validation/validation-page.pom.ts) — по ключевым методам
 - [package.json](projects/react-playground-e2e/package.json) — скрипты и `cross-env`
 
 Сами `.spec.ts` **не трогаем** — это ключевой плюс подхода, изменения

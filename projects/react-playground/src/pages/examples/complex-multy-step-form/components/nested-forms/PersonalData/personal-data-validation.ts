@@ -1,146 +1,147 @@
-import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
-import {
-  validate,
-  validateTree,
-  required,
-  minLength,
-  maxLength,
-  pattern,
-} from '@reformer/core/validators';
+import type { FieldPath, ValidationSchemaFn, Validator } from '@reformer/core';
+import { validate, required, minLength, maxLength, pattern } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
+// ============================================================================
+// Inline validators
+// ============================================================================
+
+const validateAdultAge: Validator<CreditApplicationForm, string | undefined> = (value) => {
+  if (!value) return null;
+  const birthDate = new Date(value);
+  const today = new Date();
+  const age = today.getFullYear() - birthDate.getFullYear();
+
+  if (age < 18) {
+    return { code: 'tooYoung', message: 'Заемщику должно быть не менее 18 лет' };
+  }
+  if (age > 70) {
+    return { code: 'tooOld', message: 'Максимальный возраст заемщика: 70 лет' };
+  }
+  return null;
+};
+
+const validatePassportIssueDateNotFuture: Validator<CreditApplicationForm, string | undefined> = (
+  value
+) => {
+  if (!value) return null;
+  const issueDate = new Date(value);
+  const today = new Date();
+  if (issueDate > today) {
+    return {
+      code: 'issueDateInFuture',
+      message: 'Дата выдачи не может быть в будущем',
+    };
+  }
+  return null;
+};
+
+// ============================================================================
+// Cross-field правила
+// ============================================================================
+
+const passportIssuedAfter14: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
+  if (!form.personalData.birthDate || !form.passportData.issueDate) {
+    return null;
+  }
+
+  const birthDate = new Date(form.personalData.birthDate);
+  const issueDate = new Date(form.passportData.issueDate);
+
+  const minIssueDate = new Date(birthDate);
+  minIssueDate.setFullYear(birthDate.getFullYear() + 14);
+
+  if (issueDate < minIssueDate) {
+    return {
+      code: 'passportIssuedBeforeMinAge',
+      message: 'Паспорт не может быть выдан ранее достижения 14 лет',
+    };
+  }
+  return null;
+};
+
+// ============================================================================
+// Главная схема
+// ============================================================================
+
 /**
- * Схема валидации для Шага 2: Персональные данные
+ * Схема валидации для Шага 2: Персональные данные.
  */
 export const personalDataValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  // Валидация личных данных
-  required(path.personalData.lastName, { message: 'Фамилия обязательна' });
-  minLength(path.personalData.lastName, 2, { message: 'Минимум 2 символа' });
-  maxLength(path.personalData.lastName, 50, { message: 'Максимум 50 символов' });
-  pattern(path.personalData.lastName, /^[А-ЯЁа-яё\s-]+$/, {
-    message: 'Только русские буквы, пробелы и дефис',
-  });
-
-  required(path.personalData.firstName, { message: 'Имя обязательно' });
-  minLength(path.personalData.firstName, 2, { message: 'Минимум 2 символа' });
-  maxLength(path.personalData.firstName, 50, { message: 'Максимум 50 символов' });
-  pattern(path.personalData.firstName, /^[А-ЯЁа-яё\s-]+$/, {
-    message: 'Только русские буквы, пробелы и дефис',
-  });
-
-  required(path.personalData.middleName, { message: 'Отчество обязательно' });
-  minLength(path.personalData.middleName, 2, { message: 'Минимум 2 символа' });
-  maxLength(path.personalData.middleName, 50, { message: 'Максимум 50 символов' });
-  pattern(path.personalData.middleName, /^[А-ЯЁа-яё\s-]+$/, {
-    message: 'Только русские буквы, пробелы и дефис',
-  });
-
-  required(path.personalData.birthDate, { message: 'Дата рождения обязательна' });
-
-  // Валидация возраста
-  validate(path.personalData.birthDate, (value) => {
-    const birthDate = new Date(value);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-
-    if (age < 18) {
-      return {
-        code: 'tooYoung',
-        message: 'Заемщику должно быть не менее 18 лет',
-      };
-    }
-
-    if (age > 70) {
-      return {
-        code: 'tooOld',
-        message: 'Максимальный возраст заемщика: 70 лет',
-      };
-    }
-
-    return null;
-  });
-
-  required(path.personalData.gender, { message: 'Выберите пол' });
-
-  required(path.personalData.birthPlace, { message: 'Место рождения обязательно' });
-  minLength(path.personalData.birthPlace, 5, { message: 'Минимум 5 символов' });
-  maxLength(path.personalData.birthPlace, 100, { message: 'Максимум 100 символов' });
-
-  // Валидация паспортных данных
-  required(path.passportData.series, { message: 'Серия паспорта обязательна' });
-  pattern(path.passportData.series, /^\d{2}\s\d{2}$/, {
-    message: 'Формат: 00 00',
-  });
-
-  required(path.passportData.number, { message: 'Номер паспорта обязателен' });
-  pattern(path.passportData.number, /^\d{6}$/, {
-    message: 'Номер должен содержать 6 цифр',
-  });
-
-  required(path.passportData.issueDate, { message: 'Дата выдачи обязательна' });
-
-  // Валидация даты выдачи паспорта
-  validate(path.passportData.issueDate, (value) => {
-    const issueDate = new Date(value);
-    const today = new Date();
-
-    if (issueDate > today) {
-      return {
-        code: 'issueDateInFuture',
-        message: 'Дата выдачи не может быть в будущем',
-      };
-    }
-
-    return null;
-  });
-
-  required(path.passportData.issuedBy, { message: 'Кем выдан обязательно' });
-  minLength(path.passportData.issuedBy, 10, { message: 'Минимум 10 символов' });
-  maxLength(path.passportData.issuedBy, 200, { message: 'Максимум 200 символов' });
-
-  required(path.passportData.departmentCode, { message: 'Код подразделения обязателен' });
-  pattern(path.passportData.departmentCode, /^\d{3}-\d{3}$/, {
-    message: 'Формат: 000-000',
-  });
-
-  // Кросс-полевая валидация: дата выдачи паспорта должна быть после достижения 14 лет
-  validateTree<CreditApplicationForm>(
-    (ctx) => {
-      const form = ctx.form.getValue();
-      if (!form.personalData.birthDate || !form.passportData.issueDate) {
-        return null;
-      }
-
-      const birthDate = new Date(form.personalData.birthDate);
-      const issueDate = new Date(form.passportData.issueDate);
-
-      // Минимальный возраст получения паспорта - 14 лет
-      const minIssueDate = new Date(birthDate);
-      minIssueDate.setFullYear(birthDate.getFullYear() + 14);
-
-      if (issueDate < minIssueDate) {
-        return {
-          code: 'passportIssuedBeforeMinAge',
-          message: 'Паспорт не может быть выдан ранее достижения 14 лет',
-        };
-      }
-
-      return null;
-    },
-    { targetField: 'passportData.issueDate' }
+  // Личные данные
+  validate(path.personalData.lastName, required({ message: 'Фамилия обязательна' }));
+  validate(path.personalData.lastName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.lastName, maxLength(50, { message: 'Максимум 50 символов' }));
+  validate(
+    path.personalData.lastName,
+    pattern(/^[А-ЯЁа-яё\s-]+$/, { message: 'Только русские буквы, пробелы и дефис' })
   );
 
-  // Валидация ИНН
-  required(path.inn, { message: 'ИНН обязателен' });
-  pattern(path.inn, /^\d{12}$/, {
-    message: 'ИНН должен содержать 12 цифр',
-  });
+  validate(path.personalData.firstName, required({ message: 'Имя обязательно' }));
+  validate(path.personalData.firstName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.firstName, maxLength(50, { message: 'Максимум 50 символов' }));
+  validate(
+    path.personalData.firstName,
+    pattern(/^[А-ЯЁа-яё\s-]+$/, { message: 'Только русские буквы, пробелы и дефис' })
+  );
 
-  // Валидация СНИЛС
-  required(path.snils, { message: 'СНИЛС обязателен' });
-  pattern(path.snils, /^\d{3}-\d{3}-\d{3}\s\d{2}$/, {
-    message: 'Формат СНИЛС: 000-000-000 00',
-  });
+  validate(path.personalData.middleName, required({ message: 'Отчество обязательно' }));
+  validate(path.personalData.middleName, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.personalData.middleName, maxLength(50, { message: 'Максимум 50 символов' }));
+  validate(
+    path.personalData.middleName,
+    pattern(/^[А-ЯЁа-яё\s-]+$/, { message: 'Только русские буквы, пробелы и дефис' })
+  );
+
+  validate(path.personalData.birthDate, required({ message: 'Дата рождения обязательна' }));
+  validate(path.personalData.birthDate, validateAdultAge);
+
+  validate(path.personalData.gender, required({ message: 'Выберите пол' }));
+
+  validate(path.personalData.birthPlace, required({ message: 'Место рождения обязательно' }));
+  validate(path.personalData.birthPlace, minLength(5, { message: 'Минимум 5 символов' }));
+  validate(path.personalData.birthPlace, maxLength(100, { message: 'Максимум 100 символов' }));
+
+  // Паспортные данные
+  validate(path.passportData.series, required({ message: 'Серия паспорта обязательна' }));
+  validate(path.passportData.series, pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' }));
+
+  validate(path.passportData.number, required({ message: 'Номер паспорта обязателен' }));
+  validate(
+    path.passportData.number,
+    pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' })
+  );
+
+  validate(path.passportData.issueDate, required({ message: 'Дата выдачи обязательна' }));
+  validate(path.passportData.issueDate, validatePassportIssueDateNotFuture);
+
+  validate(path.passportData.issuedBy, required({ message: 'Кем выдан обязательно' }));
+  validate(path.passportData.issuedBy, minLength(10, { message: 'Минимум 10 символов' }));
+  validate(path.passportData.issuedBy, maxLength(200, { message: 'Максимум 200 символов' }));
+
+  validate(path.passportData.departmentCode, required({ message: 'Код подразделения обязателен' }));
+  validate(
+    path.passportData.departmentCode,
+    pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' })
+  );
+
+  validate(path.passportData.issueDate, passportIssuedAfter14);
+
+  // ИНН
+  validate(path.inn, required({ message: 'ИНН обязателен' }));
+  validate(path.inn, pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }));
+
+  // СНИЛС
+  validate(path.snils, required({ message: 'СНИЛС обязателен' }));
+  validate(
+    path.snils,
+    pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат СНИЛС: 000-000-000 00' })
+  );
 };

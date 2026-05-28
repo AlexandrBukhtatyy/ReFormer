@@ -17,7 +17,7 @@ const form = new GroupNode({
     username: { value: '' },
   },
   validation: (path, { validateAsync }) => {
-    required(path.username);
+    validate(path.username, required());
 
     validateAsync(path.username, async (value) => {
       const response = await fetch(`/api/check-username?name=${value}`);
@@ -79,8 +79,8 @@ function UsernameField() {
 
 ```typescript
 validation: (path, { validateAsync }) => {
-  validateAsync(path.email, async (value, ctx) => {
-    const userId = ctx.form.userId.value.value;
+  validateAsync(path.email, async (value, _control, root) => {
+    const userId = root.userId.value.value;
 
     const response = await fetch('/api/check-email', {
       method: 'POST',
@@ -100,8 +100,8 @@ validation: (path, { validateAsync }) => {
 ```typescript
 validation: (path, { validateAsync }) => {
   // Синхронно: выполняется сразу
-  required(path.username);
-  minLength(path.username, 3);
+  validate(path.username, required());
+  validate(path.username, minLength(3));
 
   // Асинхронно: только если синхронные валидаторы прошли
   validateAsync(path.username, checkUsernameAvailable);

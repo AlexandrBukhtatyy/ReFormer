@@ -1,7 +1,7 @@
-import type { FieldPath, ValidationSchemaFn } from '@reformer/core';
+import type { FieldPath, Validator, ValidationSchemaFn } from '@reformer/core';
 import {
   applyWhen,
-  validateTree,
+  validate,
   required,
   min,
   max,
@@ -10,141 +10,117 @@ import {
 } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../../../types/credit-application';
 
+// ============================================================================
+// Cross-field правила
+// ============================================================================
+
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
+
+  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+    return {
+      code: 'initialPaymentTooHigh',
+      message: 'Первоначальный взнос не может превышать стоимость недвижимости',
+    };
+  }
+
+  if (form.initialPayment && form.propertyValue && form.initialPayment < form.propertyValue * 0.2) {
+    return {
+      code: 'initialPaymentTooLow',
+      message: 'Первоначальный взнос не может быть меньше 20% от стоимости недвижимости',
+    };
+  }
+  return null;
+};
+
+const loanAmountVsPropertyMinusPayment: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
+
+  if (form.loanAmount && form.propertyValue && form.initialPayment) {
+    const maxLoanAmount = form.propertyValue - form.initialPayment;
+    if (form.loanAmount > maxLoanAmount) {
+      return {
+        code: 'loanAmountExceedsMax',
+        message: `Сумма кредита не может превышать ${maxLoanAmount.toLocaleString('ru-RU')} ₽ (стоимость недвижимости минус первоначальный взнос)`,
+      };
+    }
+  }
+  return null;
+};
+
+// ============================================================================
+// Под-схемы для applyWhen
+// ============================================================================
+
+const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.propertyValue, required({ message: 'Укажите стоимость недвижимости' }));
+  validate(path.propertyValue, min(1000000, { message: 'Минимальная стоимость: 1 000 000 ₽' }));
+
+  validate(path.initialPayment, required({ message: 'Укажите первоначальный взнос' }));
+  validate(path.initialPayment, min(0, { message: 'Взнос не может быть отрицательным' }));
+
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
+  validate(path.loanAmount, loanAmountVsPropertyMinusPayment);
+};
+
+const carFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.carBrand, required({ message: 'Укажите марку автомобиля' }));
+  validate(path.carBrand, minLength(2, { message: 'Минимум 2 символа' }));
+  validate(path.carBrand, maxLength(50, { message: 'Максимум 50 символов' }));
+
+  validate(path.carModel, required({ message: 'Укажите модель автомобиля' }));
+  validate(path.carModel, minLength(1, { message: 'Минимум 1 символ' }));
+  validate(path.carModel, maxLength(50, { message: 'Максимум 50 символов' }));
+
+  validate(path.carYear, required({ message: 'Укажите год выпуска' }));
+  validate(path.carYear, min(2000, { message: 'Год выпуска не ранее 2000' }));
+  validate(
+    path.carYear,
+    max(new Date().getFullYear() + 1, {
+      message: `Год выпуска не позднее ${new Date().getFullYear() + 1}`,
+    })
+  );
+
+  validate(path.carPrice, required({ message: 'Укажите стоимость автомобиля' }));
+  validate(path.carPrice, min(300000, { message: 'Минимальная стоимость: 300 000 ₽' }));
+  validate(path.carPrice, max(10000000, { message: 'Максимальная стоимость: 10 000 000 ₽' }));
+};
+
+// ============================================================================
+// Главная схема — плоская
+// ============================================================================
+
 /**
- * Схема валидации для Шага 1: Основная информация о кредите
- *
- * ✅ Чистая схема БЕЗ условия на currentStep
- * ✅ Содержит только бизнес-логику валидации полей шага 1
+ * Схема валидации для Шага 1: Основная информация о кредите.
  */
 export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
-  required(path.loanType, { message: 'Выберите тип кредита' });
+  validate(path.loanType, required({ message: 'Выберите тип кредита' }));
 
-  required(path.loanAmount, { message: 'Укажите сумму кредита' });
-  min(path.loanAmount, 50000, { message: 'Минимальная сумма кредита: 50 000 ₽' });
-  max(path.loanAmount, 10000000, { message: 'Максимальная сумма кредита: 10 000 000 ₽' });
+  validate(path.loanAmount, required({ message: 'Укажите сумму кредита' }));
+  validate(path.loanAmount, min(50000, { message: 'Минимальная сумма кредита: 50 000 ₽' }));
+  validate(path.loanAmount, max(10000000, { message: 'Максимальная сумма кредита: 10 000 000 ₽' }));
 
-  required(path.loanTerm, { message: 'Укажите срок кредита' });
-  min(path.loanTerm, 6, { message: 'Минимальный срок: 6 месяцев' });
-  max(path.loanTerm, 240, { message: 'Максимальный срок: 240 месяцев (20 лет)' });
+  validate(path.loanTerm, required({ message: 'Укажите срок кредита' }));
+  validate(path.loanTerm, min(6, { message: 'Минимальный срок: 6 месяцев' }));
+  validate(path.loanTerm, max(240, { message: 'Максимальный срок: 240 месяцев (20 лет)' }));
 
-  // Условная валидация для ипотеки
-  applyWhen(
-    path.loanType,
-    (type) => type === 'mortgage',
-    (path) => {
-      required(path.propertyValue, { message: 'Укажите стоимость недвижимости' });
-      min(path.propertyValue, 1000000, { message: 'Минимальная стоимость: 1 000 000 ₽' });
-
-      required(path.initialPayment, { message: 'Укажите первоначальный взнос' });
-      min(path.initialPayment, 0);
-
-      // Cross-field валидация для первоначального взноса
-      validateTree<CreditApplicationForm>(
-        (ctx) => {
-          const form = ctx.form.getValue();
-
-          if (
-            form.initialPayment &&
-            form.propertyValue &&
-            form.initialPayment > form.propertyValue
-          ) {
-            return {
-              code: 'initialPaymentTooHigh',
-              message: 'Первоначальный взнос не может превышать стоимость недвижимости',
-            };
-          }
-
-          if (
-            form.initialPayment &&
-            form.propertyValue &&
-            form.initialPayment < form.propertyValue * 0.2
-          ) {
-            return {
-              code: 'initialPaymentTooLow',
-              message: 'Первоначальный взнос не может быть меньше 20% от стоимости недвижимости',
-            };
-          }
-          return null;
-        },
-        { targetField: 'initialPayment' }
-      );
-
-      // Cross-field валидация: сумма кредита не может превышать (стоимость - взнос)
-      validateTree<CreditApplicationForm>(
-        (ctx) => {
-          const form = ctx.form.getValue();
-
-          if (form.loanAmount && form.propertyValue && form.initialPayment) {
-            const maxLoanAmount = form.propertyValue - form.initialPayment;
-            if (maxLoanAmount <= 0) {
-              return {
-                code: 'initialPaymentExceedsProperty',
-                message: 'Первоначальный взнос не может превышать стоимость недвижимости',
-              };
-            }
-            if (form.loanAmount > maxLoanAmount) {
-              return {
-                code: 'loanAmountExceedsMax',
-                message: `Сумма кредита не может превышать ${maxLoanAmount.toLocaleString('ru-RU')} ₽ (стоимость недвижимости минус первоначальный взнос)`,
-              };
-            }
-          }
-          return null;
-        },
-        { targetField: 'loanAmount' }
-      );
-    }
+  validate(path.loanPurpose, required({ message: 'Укажите цель кредита' }));
+  validate(
+    path.loanPurpose,
+    minLength(10, { message: 'Опишите цель подробнее (минимум 10 символов)' })
   );
+  validate(path.loanPurpose, maxLength(500, { message: 'Не более 500 символов' }));
 
-  // loanPurpose только для потребительского кредита и рефинансирования (не ипотека, не авто, не бизнес)
-  applyWhen(
-    path.loanType,
-    (type) => type !== 'mortgage' && type !== 'car',
-    (path) => {
-      required(path.loanPurpose, { message: 'Укажите цель кредита' });
-      minLength(path.loanPurpose, 10, { message: 'Опишите цель подробнее (минимум 10 символов)' });
-      maxLength(path.loanPurpose, 500, { message: 'Максимум 500 символов' });
-    }
-  );
-
-  // Условная валидация для автокредита
-  applyWhen(
-    path.loanType,
-    (type) => type === 'car',
-    (path) => {
-      required(path.carBrand, { message: 'Укажите марку автомобиля' });
-      minLength(path.carBrand, 2, { message: 'Минимум 2 символа' });
-      maxLength(path.carBrand, 50, { message: 'Максимум 50 символов' });
-
-      required(path.carModel, { message: 'Укажите модель автомобиля' });
-      minLength(path.carModel, 1, { message: 'Минимум 1 символ' });
-      maxLength(path.carModel, 50, { message: 'Максимум 50 символов' });
-
-      required(path.carYear, { message: 'Укажите год выпуска' });
-      min(path.carYear, 2000, { message: 'Год выпуска не ранее 2000' });
-      max(path.carYear, new Date().getFullYear() + 1, {
-        message: `Год выпуска не позднее ${new Date().getFullYear() + 1}`,
-      });
-
-      required(path.carPrice, { message: 'Укажите стоимость автомобиля' });
-      min(path.carPrice, 300000, { message: 'Минимальная стоимость: 300 000 ₽' });
-      max(path.carPrice, 10000000, { message: 'Максимальная стоимость: 10 000 000 ₽' });
-    }
-  );
-
-  // Условная валидация для кредита для бизнеса
-  applyWhen(
-    path.loanType,
-    (type) => type === 'business',
-    (path) => {
-      required(path.businessType, { message: 'Укажите тип бизнеса' });
-      required(path.businessInn, { message: 'Укажите ИНН ИП' });
-      required(path.businessActivity, { message: 'Опишите вид деятельности' });
-      minLength(path.businessActivity, 10, {
-        message: 'Опишите деятельность подробнее (минимум 10 символов)',
-      });
-    }
-  );
+  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+  applyWhen(path.loanType, (type) => type === 'car', carFieldsRules);
 };

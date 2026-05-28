@@ -131,26 +131,29 @@ const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
 
 ### Validation Priority (IMPORTANT)
 
-**Always prefer built-in validators over custom ones:**
+**Operators register validators; built-in factories return validators. Pass factories to `validate()`.**
+
+Operators: `validate`, `validateAsync`, `applyWhen`, `apply`, `validateItems`.
+Factories (return `Validator<TForm, TField>`): `required`, `email`, `min`, `max`, `minLength`, `maxLength`,
+`pattern`, `url`, `phone`, `number`, `date`, `notEmpty`.
 
 ```typescript
-// 1. BEST: Use built-in validators when available
-required(path.email);
-email(path.email);
-min(path.age, 18);
-minLength(path.password, 8);
-pattern(path.phone, /^\+7\d{10}$/);
+// 1. BEST: Pass built-in factories to validate()
+validate(path.email, required());
+validate(path.email, email());
+validate(path.age, min(18));
+validate(path.password, minLength(8));
+validate(path.phone, pattern(/^\+7\d{10}$/));
 
-// 2. GOOD: Use validate() only when no built-in validator exists
-validate(path.customField, (value, ctx) => {
-  // Custom logic that can't be expressed with built-in validators
+// 2. GOOD: Custom validator when no factory fits. Signature: (value, control, root).
+validate(path.customField, (value, control, root) => {
   if (customCondition(value)) {
     return { code: 'custom', message: 'Custom error' };
   }
   return null;
 });
 
-// 3. WRONG: Don't recreate built-in validators
+// 3. WRONG: Don't recreate built-in validators inline
 validate(path.email, (value) => {
   if (!value) return { code: 'required', message: 'Required' }; // Use required() instead!
   if (!value.includes('@')) return { code: 'email', message: 'Invalid' }; // Use email() instead!
@@ -236,3 +239,65 @@ const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
 ```
 
 Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior.ts`.
+
+### Extracting Nested Rules
+
+When the body of `applyWhen` / `validate` grows beyond a few lines,
+extract it to a **named top-level function** typed with one of the public types from
+`@reformer/core`:
+
+- `ValidationSchemaFn<TForm>` — sub-schema passed to `applyWhen` or `apply`.
+- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field validator passed to `validate` / `validateAsync`. Cross-field правила пишутся в той же сигнатуре — `(value, control, root) => …` — и навешиваются на конкретное поле-носитель ошибки.
+
+This keeps the schema body flat (reads like a table of contents) and surfaces the
+**intent** of each rule via a meaningful name.
+
+```typescript
+import type { ValidationSchemaFn, Validator } from '@reformer/core';
+
+// 1. Cross-field rule — extracted Validator (reads other fields via `root`)
+const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+  _value,
+  _control,
+  root
+) => {
+  const form = root.getValue();
+  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+    return { code: 'initialPaymentTooHigh', message: 'Взнос не может превышать стоимость' };
+  }
+  return null;
+};
+
+// 2. Custom field validator — extracted Validator
+const validateAdultAge: Validator<CreditApplicationForm, string | undefined> = (value) => {
+  if (!value) return null;
+  const age = new Date().getFullYear() - new Date(value).getFullYear();
+  if (age < 18) return { code: 'tooYoung', message: 'Минимум 18 лет' };
+  return null;
+};
+
+// 3. Nested schema for applyWhen — extracted ValidationSchemaFn
+const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.propertyValue, required());
+  validate(path.propertyValue, min(1000000));
+  validate(path.initialPayment, required());
+  validate(path.initialPayment, initialPaymentVsPropertyValue);
+};
+
+// 4. Main schema — flat, reads as a table of contents
+export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.loanType, required());
+  validate(path.personalData.birthDate, validateAdultAge);
+  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+};
+```
+
+**Naming convention** (camelCase, semantic — not echoing the operator name):
+
+- `applyWhen` sub-schema → describes the conditional branch: `mortgageFieldsRules`, `employedFieldsRules`.
+- Cross-field `Validator` → describes the invariant: `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`.
+- Field-level `Validator` → describes the check: `validateAdultAge`, `validatePasswordsMatch`.
+
+**When to extract.** Inline lambdas are fine for short one-liners
+(`applyWhen(path.x, (v) => v === 'mortgage', mortgageFieldsRules)` — the condition stays inline).
+Extract whenever the body spans more than ~3 lines or contains nested rules.

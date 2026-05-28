@@ -89,17 +89,30 @@ enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOn
 
 See `22-cycle-detection.md` for complete pattern.
 
-### validateTree Typing
+### Cross-field валидация — через `validate` + `root`
 
 ```typescript
-// WRONG - implicit any
-validateTree((ctx) => { ... });
+// Validator signature: (value, control, root) => ValidationError | null
+// Cross-field правило вешается на ПОЛЕ-НОСИТЕЛЬ ошибки. Соседние поля читаются через `root`.
 
-// CORRECT - explicit typing
-validateTree((ctx: { form: MyForm }) => {
-  if (ctx.form.field1 > ctx.form.field2) {
+// CORRECT — ошибка ложится на path.field1
+validate(path.field1, (_value, _control, root) => {
+  const form = root.getValue();         // typed as TForm
+  if (form.field1 > form.field2) {
     return { code: 'error', message: 'Invalid' };
   }
   return null;
 });
+
+// CORRECT — те же поля через reactive-доступ
+validate(path.address.city, (value, _control, root) => {
+  if (!value && root.address.region.value.value) {
+    return { code: 'cityRequired', message: 'City required when region is set' };
+  }
+  return null;
+});
+
+// WRONG - old API removed
+validateGroup(scopePath, (scope, root) => { ... });  // validateGroup убран
+validateTree((ctx) => { ... });                       // validateTree no longer exists
 ```

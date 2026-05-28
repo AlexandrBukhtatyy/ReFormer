@@ -1,98 +1,77 @@
 /**
- * Validation schema для ExistingLoan
+ * Validation schema для ExistingLoan.
  *
- * Валидация элементов массива existingLoans.
- * Применяется к каждому элементу через ArrayNode.applyValidationSchema()
+ * Применяется к каждому элементу массива existingLoans через ArrayNode.applyValidationSchema().
  */
 
+import type { Validator } from '@reformer/core';
 import {
   createFieldPath,
+  validate,
   required,
   minLength,
   maxLength,
   min,
   max,
-  validateTree,
 } from '@reformer/core/validators';
 import type { ExistingLoan } from './ExistingLoanForm';
+
+const remainingNotExceedAmount: Validator<ExistingLoan, unknown> = (_value, _control, root) => {
+  const loan = root.getValue();
+  if (loan.remainingAmount > loan.amount) {
+    return {
+      code: 'remainingExceedsAmount',
+      message: 'Остаток долга не может превышать сумму кредита',
+    };
+  }
+  return null;
+};
+
+const maturityDateInFuture: Validator<ExistingLoan, unknown> = (_value, _control, root) => {
+  const loan = root.getValue();
+  if (!loan.maturityDate) return null;
+
+  const maturityDate = new Date(loan.maturityDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (maturityDate < today) {
+    return {
+      code: 'maturityDateInPast',
+      message: 'Дата погашения должна быть в будущем',
+    };
+  }
+  return null;
+};
 
 /**
  * Валидация элемента существующего кредита
  */
 export const existingLoanValidation = (path: ReturnType<typeof createFieldPath<ExistingLoan>>) => {
-  // Название банка обязательно
-  required(path.bank, { message: 'Укажите название банка' });
-  minLength(path.bank, 3, {
-    message: 'Название банка должно содержать минимум 3 символа',
-  });
-  maxLength(path.bank, 100, {
-    message: 'Название банка не может превышать 100 символов',
-  });
-
-  // Тип кредита обязателен
-  required(path.type, { message: 'Укажите тип кредита' });
-
-  // Сумма кредита должна быть положительной
-  required(path.amount, { message: 'Укажите сумму кредита' });
-  min(path.amount, 1000, {
-    message: 'Минимальная сумма кредита: 1 000 ₽',
-  });
-  max(path.amount, 100000000, {
-    message: 'Максимальная сумма кредита: 100 000 000 ₽',
-  });
-
-  // Остаток долга не может быть отрицательным
-  required(path.remainingAmount, { message: 'Укажите остаток долга' });
-  min(path.remainingAmount, 0, {
-    message: 'Остаток долга не может быть отрицательным',
-  });
-
-  // Ежемесячный платеж должен быть положительным
-  required(path.monthlyPayment, { message: 'Укажите ежемесячный платеж' });
-  min(path.monthlyPayment, 100, {
-    message: 'Минимальный ежемесячный платеж: 100 ₽',
-  });
-
-  // Дата погашения обязательна
-  required(path.maturityDate, { message: 'Укажите дату погашения кредита' });
-
-  // Кросс-полевая валидация: остаток не может превышать сумму кредита
-  validateTree<ExistingLoan>(
-    (ctx) => {
-      const loan = ctx.form.getValue();
-
-      if (loan.remainingAmount > loan.amount) {
-        return {
-          code: 'remainingExceedsAmount',
-          message: 'Остаток долга не может превышать сумму кредита',
-        };
-      }
-
-      return null;
-    },
-    { targetField: 'remainingAmount' }
+  validate(path.bank, required({ message: 'Укажите название банка' }));
+  validate(
+    path.bank,
+    minLength(3, { message: 'Название банка должно содержать минимум 3 символа' })
+  );
+  validate(
+    path.bank,
+    maxLength(100, { message: 'Название банка не может превышать 100 символов' })
   );
 
-  // Кросс-полевая валидация: дата погашения должна быть в будущем
-  validateTree<ExistingLoan>(
-    (ctx) => {
-      const loan = ctx.form.getValue();
+  validate(path.type, required({ message: 'Укажите тип кредита' }));
 
-      if (!loan.maturityDate) return null;
+  validate(path.amount, required({ message: 'Укажите сумму кредита' }));
+  validate(path.amount, min(1000, { message: 'Минимальная сумма кредита: 1 000 ₽' }));
+  validate(path.amount, max(100000000, { message: 'Максимальная сумма кредита: 100 000 000 ₽' }));
 
-      const maturityDate = new Date(loan.maturityDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+  validate(path.remainingAmount, required({ message: 'Укажите остаток долга' }));
+  validate(path.remainingAmount, min(0, { message: 'Остаток долга не может быть отрицательным' }));
 
-      if (maturityDate < today) {
-        return {
-          code: 'maturityDateInPast',
-          message: 'Дата погашения должна быть в будущем',
-        };
-      }
+  validate(path.monthlyPayment, required({ message: 'Укажите ежемесячный платеж' }));
+  validate(path.monthlyPayment, min(100, { message: 'Минимальный ежемесячный платеж: 100 ₽' }));
 
-      return null;
-    },
-    { targetField: 'maturityDate' }
-  );
+  validate(path.maturityDate, required({ message: 'Укажите дату погашения кредита' }));
+
+  validate(path.remainingAmount, remainingNotExceedAmount);
+  validate(path.maturityDate, maturityDateInFuture);
 };

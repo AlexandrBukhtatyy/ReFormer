@@ -1,78 +1,47 @@
 /**
- * Валидатор максимальной даты
+ * Валидатор максимальной даты (фабрика).
  *
  * @group Validation
  * @category Validators
  * @module validators/max-date
  */
 
-import { validate } from '../core/validate';
-import type { ValidateOptions } from '../../types/validation-schema';
-import type { FieldPathNode } from '../../types';
+import type { Validator, ValidateOptions } from '../../types/validation-schema';
 import { parseDate, normalizeDate } from './date-utils';
 
 /**
- * Проверяет, что дата не позже указанной максимальной
+ * Фабрика валидатора максимальной даты (включительно).
  *
- * Пустые значения и невалидные даты пропускаются (используйте `required` и `isDate`).
- *
- * @group Validation
- * @category Validators
- *
- * @param fieldPath - Путь к полю для валидации
- * @param maxDateValue - Максимально допустимая дата (включительно)
- * @param options - Опции валидации (message, params)
+ * Пустые и невалидные даты пропускаются.
  *
  * @example
  * ```typescript
- * // Базовое использование
- * validationSchema: (path) => [
- *   maxDate(path.birthDate, new Date()), // Не позже сегодня
- * ]
- *
- * // С кастомным сообщением
- * maxDate(path.endDate, new Date('2025-12-31'), { message: 'Дата не может быть позже конца года' })
- * ```
- *
- * @example
- * ```typescript
- * // Ошибка валидации
- * {
- *   code: 'date_max',
- *   message: 'Дата должна быть не позднее 31.12.2025',
- *   params: { maxDate: Date }
- * }
+ * validate(path.birthDate, maxDate(new Date())); // не позже сегодня
+ * validate(path.endDate, maxDate(new Date('2025-12-31')));
  * ```
  */
-export function maxDate<TForm, TField extends string | Date | null | undefined = string | Date>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
-  maxDateValue: Date,
-  options?: ValidateOptions
-): void {
-  if (!fieldPath) return;
-
-  validate(fieldPath, (value) => {
+export function maxDate<
+  TForm = unknown,
+  TField extends string | Date | null | undefined = string | Date,
+>(maxDateValue: Date, options?: ValidateOptions): Validator<TForm, TField> {
+  return (value) => {
     if (value === null || value === undefined || value === '') {
       return null;
     }
-
     const parsed = parseDate(value as string | Date);
     if (parsed === null) {
-      return null; // Невалидные даты пропускаем, это проверяет isDate
+      return null;
     }
-
     const normalizedValue = normalizeDate(parsed);
     const normalizedMax = normalizeDate(maxDateValue);
 
     if (normalizedValue > normalizedMax) {
       return {
         code: 'date_max',
-        message:
-          options?.message || `Дата должна быть не позднее ${normalizedMax.toLocaleDateString()}`,
+        message: options?.message ?? 'invalid',
         params: { maxDate: maxDateValue, ...options?.params },
       };
     }
-
     return null;
-  });
+  };
 }

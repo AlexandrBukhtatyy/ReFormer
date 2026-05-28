@@ -39,7 +39,18 @@ export default defineConfig({
         'validators/pattern': resolve(__dirname, 'src/core/validation/validators/pattern.ts'),
         'validators/url': resolve(__dirname, 'src/core/validation/validators/url.ts'),
         'validators/phone': resolve(__dirname, 'src/core/validation/validators/phone.ts'),
-        'validators/number': resolve(__dirname, 'src/core/validation/validators/number.ts'),
+        // Number validators (atomic)
+        'validators/is-number': resolve(__dirname, 'src/core/validation/validators/is-number.ts'),
+        'validators/integer': resolve(__dirname, 'src/core/validation/validators/integer.ts'),
+        'validators/multiple-of': resolve(
+          __dirname,
+          'src/core/validation/validators/multiple-of.ts'
+        ),
+        'validators/non-negative': resolve(
+          __dirname,
+          'src/core/validation/validators/non-negative.ts'
+        ),
+        'validators/non-zero': resolve(__dirname, 'src/core/validation/validators/non-zero.ts'),
         // Date validators (atomic)
         'validators/is-date': resolve(__dirname, 'src/core/validation/validators/is-date.ts'),
         'validators/min-date': resolve(__dirname, 'src/core/validation/validators/min-date.ts'),

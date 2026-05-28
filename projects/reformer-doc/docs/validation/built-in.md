@@ -2,59 +2,60 @@
 sidebar_position: 2
 ---
 
-# Built-in Validators
+# Built-in Validator Factories
 
-All validators are imported from `reformer/validators`.
+All factories are imported from `@reformer/core/validators`. They return a `Validator<TForm, TField>`
+and are passed to the `validate()` operator.
 
 ## required
 
 Field must have a non-empty value.
 
 ```typescript
-import { required } from '@reformer/core/validators';
+import { validate, required } from '@reformer/core/validators';
 
-required(path.name);
+validate(path.name, required());
 // Error: { code: 'required', message: '...' }
 ```
 
-Empty values: `''`, `null`, `undefined`, `[]`
+Empty values: `''`, `null`, `undefined`. For booleans, requires `true`.
 
 ## email
 
 Valid email format.
 
 ```typescript
-import { email } from '@reformer/core/validators';
+import { validate, email } from '@reformer/core/validators';
 
-email(path.email);
+validate(path.email, email());
 // Error: { code: 'email', message: '...' }
 ```
 
 ## minLength / maxLength
 
-String length constraints.
+String or array length constraints. Skipped for empty values.
 
 ```typescript
-import { minLength, maxLength } from '@reformer/core/validators';
+import { validate, minLength, maxLength } from '@reformer/core/validators';
 
-minLength(path.name, 2);
-// Error: { code: 'minLength', params: { required: 2, actual: 1 } }
+validate(path.name, minLength(2));
+// Error: { code: 'minLength', params: { minLength: 2, actualLength: 1 } }
 
-maxLength(path.bio, 500);
-// Error: { code: 'maxLength', params: { required: 500, actual: 501 } }
+validate(path.bio, maxLength(500));
+// Error: { code: 'maxLength', params: { maxLength: 500, actualLength: 501 } }
 ```
 
 ## min / max
 
-Number value constraints.
+Number value constraints. Skipped for empty values.
 
 ```typescript
-import { min, max } from '@reformer/core/validators';
+import { validate, min, max } from '@reformer/core/validators';
 
-min(path.age, 18);
+validate(path.age, min(18));
 // Error: { code: 'min', params: { min: 18, actual: 16 } }
 
-max(path.quantity, 100);
+validate(path.quantity, max(100));
 // Error: { code: 'max', params: { max: 100, actual: 150 } }
 ```
 
@@ -63,15 +64,13 @@ max(path.quantity, 100);
 Match regex pattern.
 
 ```typescript
-import { pattern } from '@reformer/core/validators';
+import { validate, pattern } from '@reformer/core/validators';
 
-// Only letters
-pattern(path.code, /^[A-Z]+$/);
-// Error: { code: 'pattern', params: { pattern: '/^[A-Z]+$/' } }
+validate(path.code, pattern(/^[A-Z]+$/));
+// Error: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
 
-// Custom error key
-pattern(path.code, /^[A-Z]+$/, 'uppercase');
-// Error: { code: 'uppercase' }
+// With custom message
+validate(path.code, pattern(/^[A-Z]+$/, { message: 'Must be uppercase' }));
 ```
 
 ## url
@@ -79,10 +78,11 @@ pattern(path.code, /^[A-Z]+$/, 'uppercase');
 Valid URL format.
 
 ```typescript
-import { url } from '@reformer/core/validators';
+import { validate, url } from '@reformer/core/validators';
 
-url(path.website);
-// Error: { code: 'url', message: '...' }
+validate(path.website, url());
+validate(path.website, url({ requireProtocol: true }));
+validate(path.website, url({ allowedProtocols: ['https'] }));
 ```
 
 ## phone
@@ -90,55 +90,114 @@ url(path.website);
 Valid phone number format.
 
 ```typescript
-import { phone } from '@reformer/core/validators';
+import { validate, phone } from '@reformer/core/validators';
 
-phone(path.phone);
-// Error: { code: 'phone', message: '...' }
+validate(path.phone, phone());
+validate(path.phone, phone({ format: 'ru' }));
 ```
 
-## number
+## isNumber
 
-Must be a valid number.
+Value must be a finite number (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { number } from '@reformer/core/validators';
+import { validate, isNumber } from '@reformer/core/validators';
 
-number(path.amount);
-// Error: { code: 'number', message: '...' }
+validate(path.amount, isNumber());
+```
+
+## integer
+
+Number must be an integer. Skips non-numbers (compose with `isNumber` for strict type check).
+
+```typescript
+import { validate, integer } from '@reformer/core/validators';
+
+validate(path.count, integer());
+```
+
+## multipleOf
+
+Number must be a multiple of the given divisor.
+
+```typescript
+import { validate, multipleOf } from '@reformer/core/validators';
+
+validate(path.price, multipleOf(0.01));
+validate(path.rating, multipleOf(0.5));
+```
+
+## nonNegative
+
+Number must be `>= 0`.
+
+```typescript
+import { validate, nonNegative } from '@reformer/core/validators';
+
+validate(path.quantity, nonNegative());
+```
+
+## nonZero
+
+Number must not equal zero.
+
+```typescript
+import { validate, nonZero } from '@reformer/core/validators';
+
+validate(path.divisor, nonZero());
+```
+
+Compose for richer constraints — there is no single `number()` factory anymore:
+
+```typescript
+import { validate, isNumber, integer, min, max } from '@reformer/core/validators';
+
+validate(path.percent, isNumber());
+validate(path.percent, integer());
+validate(path.percent, min(0));
+validate(path.percent, max(100));
 ```
 
 ## date
 
-Valid date value.
+Valid date value with optional constraints.
 
 ```typescript
-import { date } from '@reformer/core/validators';
+import { validate, date } from '@reformer/core/validators';
 
-date(path.birthDate);
-// Error: { code: 'date', message: '...' }
+validate(path.birthDate, date({ noFuture: true, minAge: 18 }));
+validate(path.eventDate, date({ minDate: new Date() }));
+```
+
+## notEmpty
+
+Array must not be empty.
+
+```typescript
+import { validate, notEmpty } from '@reformer/core/validators';
+
+validate(path.items, notEmpty({ message: 'Add at least one item' }));
 ```
 
 ## Combining Validators
 
-Apply multiple validators to one field:
+Apply multiple validators to one field. All run, errors are collected:
 
 ```typescript
 validation: (path) => {
-  required(path.password);
-  minLength(path.password, 8);
-  pattern(path.password, /[A-Z]/, 'uppercase');
-  pattern(path.password, /[0-9]/, 'hasNumber');
+  validate(path.password, required());
+  validate(path.password, minLength(8));
+  validate(path.password, pattern(/[A-Z]/, { message: 'Must contain uppercase' }));
+  validate(path.password, pattern(/[0-9]/, { message: 'Must contain a number' }));
 };
 ```
-
-All validators run, errors are collected:
 
 ```typescript
 // If password is "abc"
 errors: [
-  { code: 'minLength', params: { required: 8, actual: 3 } },
-  { code: 'uppercase' },
-  { code: 'hasNumber' },
+  { code: 'minLength', message: 'Min 8 chars', params: { minLength: 8, actualLength: 3 } },
+  { code: 'pattern', message: 'Must contain uppercase', params: { pattern: '[A-Z]' } },
+  { code: 'pattern', message: 'Must contain a number', params: { pattern: '[0-9]' } },
 ];
 ```
 
