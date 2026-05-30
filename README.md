@@ -13,51 +13,54 @@ Reactive form state management library for React with signals-based architecture
 
 ## Commands
 
-### Общие команды
+### Common commands
 
 ```
-# Установка зависимостей @reformer/core
+# Install dependencies for @reformer/core
 npm install -w @reformer/core
 
-# Сборка пакета @reformer/core
+# Build @reformer/core
 npm run build -w @reformer/core
 
 
-# Установка зависимостей @reformer/cdk
+# Install dependencies for @reformer/cdk
 npm install -w @reformer/cdk
 
-# Сборка пакета @reformer/cdk
+# Build @reformer/cdk
 npm run build -w @reformer/cdk
 
 
-# Установка зависимостей @reformer/renderer-reac
+# Install dependencies for @reformer/renderer-react
 npm install -w @reformer/renderer-react
 
-# Сборка пакета @reformer/renderer-react
+# Build @reformer/renderer-react
 npm run build -w @reformer/renderer-react
 
 
-# Установка зависимостей react-playground
+# Install dependencies for react-playground
 npm install -w react-playground
 
-# Сборка проекта react-playground
+# Build react-playground
 npm run build -w react-playground
 
-# Запуск проекта react-playground в режиме разработки
+# Run react-playground in dev mode
 npm run dev -w react-playground
 ```
 
-### Запуск тестов:
+### Running tests
 
-Инструкция по настройке, запуску тестов и полный перечень команд находится в [README.md](./projects/react-playground-e2e/README.md)
+Setup instructions, test commands, and the full command reference live in [README.md](./projects/react-playground-e2e/README.md).
 
 ## Packages
 
-| Package                                  | Description                                    | Version                                                                                                 |
-| ---------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [@reformer/core](./packages/reformer)    | Core form state management                     | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core) |
-| [@reformer/cdk](./packages/reformer-cdk) | Headless UI components (FormArray, FormWizard) | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)   |
-| [@reformer/mcp](./packages/reformer-mcp) | MCP server for AI assistants                   | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)   |
+| Package                                                            | Description                                                                | Version                                                                                                                     |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [@reformer/core](./packages/reformer)                              | Core form state management with signals-based architecture                 | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
+| [@reformer/cdk](./packages/reformer-cdk)                           | Headless compound components — `FormArray`, `FormWizard`, `FormField`      | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
+| [@reformer/ui-kit](./packages/reformer-ui-kit)                     | Styled form components built on Tailwind CSS + Radix UI                    | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
+| [@reformer/renderer-react](./packages/reformer-renderer-react)     | Schema-driven React renderer — TS `RenderSchema` → JSX                     | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
+| [@reformer/renderer-json](./packages/reformer-renderer-json)       | JSON-based renderer — `JsonFormSchema` + component registry                | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
+| [@reformer/mcp](./packages/reformer-mcp)                           | MCP server — provides docs, recipes and JSDoc symbols to AI assistants     | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
 
 ## Features
 
@@ -77,7 +80,10 @@ npm run dev -w react-playground
 # Core library
 npm install @reformer/core
 
-# Optional: Headless UI components
+# Styled inputs + FormField wrapper (used in Quick Start below)
+npm install @reformer/ui-kit
+
+# Optional: Headless compound components (FormArray, FormWizard)
 npm install @reformer/cdk
 ```
 
@@ -85,99 +91,160 @@ npm install @reformer/cdk
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, useFormControl, required, email } from '@reformer/core';
+import { createForm, type FormSchema, type ValidationSchemaFn } from '@reformer/core';
+import { validate, required, email, minLength } from '@reformer/core/validators';
+import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
 interface LoginForm {
   email: string;
   password: string;
 }
 
+// Schema-driven: each field declares its `component` + `componentProps`.
+// In JSX we render a single `<FormField control={form.x} />` per field — no per-field wrappers.
+const formSchema: FormSchema<LoginForm> = {
+  email: {
+    value: '',
+    component: Input,
+    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+  },
+  password: {
+    value: '',
+    component: InputPassword,
+    componentProps: { label: 'Password' },
+  },
+};
+
+// `required()`, `email()`, … are factories that return pure Validator functions.
+// Register them on a field via the `validate` operator.
+const validationSchema: ValidationSchemaFn<LoginForm> = (path) => {
+  validate(path.email, required());
+  validate(path.email, email());
+  validate(path.password, required());
+  validate(path.password, minLength(8));
+};
+
 function LoginFormExample() {
   const form = useMemo(
-    () =>
-      createForm<LoginForm>({
-        form: {
-          email: { value: '' },
-          password: { value: '' },
-        },
-        validation: (path) => {
-          required(path.email);
-          email(path.email);
-          required(path.password);
-        },
-      }),
+    () => createForm<LoginForm>({ form: formSchema, validation: validationSchema }),
     []
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Canonical submit flow: markAsTouched → await validate → check valid → getValue
+    form.markAsTouched();
     await form.validate();
-    if (form.valid.value) {
-      console.log('Form data:', form.getValue());
-    }
+    if (!form.valid.value) return;
+
+    const payload = form.getValue();
+    console.log('Form data:', payload);
+    form.reset();
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <EmailField control={form.email} />
-      <PasswordField control={form.password} />
-      <button type="submit">Login</button>
-    </form>
-  );
-}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* FormField renders Label → Control → Error and wires value/onChange/onBlur from the FieldNode */}
+      <FormField control={form.email} testId="email" />
+      <FormField control={form.password} testId="password" />
 
-function EmailField({ control }) {
-  const { value, errors } = useFormControl(control);
-  return (
-    <div>
-      <input
-        type="email"
-        value={value}
-        onChange={(e) => control.setValue(e.target.value)}
-        onBlur={() => control.markAsTouched()}
-      />
-      {errors[0] && <span>{errors[0].message}</span>}
-    </div>
+      <Button type="submit" disabled={form.invalid.value || form.pending.value}>
+        {form.pending.value ? 'Checking…' : 'Login'}
+      </Button>
+    </form>
   );
 }
 ```
 
+> Don't want `@reformer/ui-kit`? You can also pass any React component into `component` /
+> `componentProps` (your own design system) or write a thin per-field wrapper around
+> `useFormControl(control)` — see [@reformer/core README](./packages/reformer/README.md).
+
 ## Validators
 
+Validators are wired through the **`validate` operator** inside `ValidationSchemaFn`. Factories
+(`required()`, `email()`, …) return pure `(value, control, root) => ValidationError | null`
+functions; for cross-field rules pass an inline validator and read other fields from `root`.
+
 ```tsx
-import { required, email, minLength, pattern, validate } from '@reformer/core';
+import {
+  validate,
+  applyWhen,
+  required,
+  email,
+  minLength,
+  min,
+  max,
+  pattern,
+} from '@reformer/core/validators';
+import type { ValidationSchemaFn } from '@reformer/core';
 
-validation: (path) => {
-  required(path.username);
-  email(path.email);
-  minLength(path.password, 8);
-  pattern(path.phone, /^\+?[0-9]{10,14}$/);
+const validation: ValidationSchemaFn<RegistrationForm> = (path) => {
+  // Built-in factories — pass through `validate`
+  validate(path.username, required());
+  validate(path.email, required());
+  validate(path.email, email());
+  validate(path.password, minLength(8));
+  validate(path.phone, pattern(/^\+?[0-9]{10,14}$/));
+  validate(path.age, min(18));
+  validate(path.age, max(120));
 
-  // Custom cross-field validation: вешается на поле-носитель ошибки, соседнее поле читается через `root`
+  // Custom cross-field rule — error lives on the field that owns it; siblings via `root`
   validate(path.confirmPassword, (value, _control, root) => {
     if (value !== root.password.value.value) {
       return { code: 'mismatch', message: 'Passwords do not match' };
     }
     return null;
   });
+
+  // Conditional validation — applyWhen(triggerField, condition, validatorsFn)
+  applyWhen(
+    path.loanType,
+    (type) => type === 'mortgage',
+    (p) => {
+      validate(p.propertyValue, required());
+      validate(p.propertyValue, min(100000));
+    }
+  );
 };
 ```
 
 ## Behaviors
 
+Behaviors live in a separate `BehaviorSchemaFn` and are composed from declarative operators:
+`computeFrom`, `enableWhen`, `watchField`, `copyFrom`, `syncFields`, `resetWhen`, `transformValue`,
+`revalidateWhen`. Each handles its own subscription cleanup and cycle prevention.
+
 ```tsx
-import { computeFrom, enableWhen, watchField } from '@reformer/core';
+import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/behaviors';
+import type { BehaviorSchemaFn } from '@reformer/core';
 
-behavior: (path) => {
-  // Computed field
-  computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
+const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
+  // Computed field — sources array, target, compute fn receives full form snapshot
+  computeFrom(
+    [path.price, path.quantity],
+    path.total,
+    (values) => (values.price ?? 0) * (values.quantity ?? 0)
+  );
 
-  // Conditional enable/disable
-  enableWhen(path.shipping, (form) => form.needsShipping);
+  // Conditional enable/disable — condition is read from form values, not the field itself
+  enableWhen(path.shippingAddress, (form) => form.needsShipping === true, {
+    resetOnDisable: true,
+  });
 
-  // Watch field changes
-  watchField(path.country, (value, ctx) => {
-    ctx.form.state.setValue('');
+  // Watch field — second arg is `ctx: BehaviorContext`, with `ctx.form` to read/write neighbours
+  watchField(
+    path.country,
+    (_country, ctx) => {
+      ctx.form.state.setValue('');
+    },
+    { immediate: false }
+  );
+
+  // Copy values declaratively — `copyFrom` handles `runOutsideEffect` for you, no cycle risk
+  copyFrom(path.shippingAddress, path.billingAddress, {
+    when: (form) => form.useShippingAsBilling === true,
   });
 };
 ```
@@ -190,38 +257,244 @@ behavior: (path) => {
 import { FormArray } from '@reformer/cdk/form-array';
 
 <FormArray.Root control={form.items}>
-  <FormArray.Empty>No items</FormArray.Empty>
+  <FormArray.Empty>
+    <p>No items added</p>
+  </FormArray.Empty>
+
   <FormArray.List>
-    {({ control, remove }) => (
-      <div>
+    {({ control, index, remove }) => (
+      <div key={control.id}>
+        <h4>Item #{index + 1}</h4>
         <ItemFields control={control} />
-        <button onClick={remove}>Remove</button>
+        <button type="button" onClick={remove}>Remove</button>
       </div>
     )}
   </FormArray.List>
+
   <FormArray.AddButton>Add Item</FormArray.AddButton>
 </FormArray.Root>;
 ```
 
 ### FormWizard (Multi-step Wizard)
 
+`FormWizardConfig` requires `stepValidations` (per-step schemas) and `fullValidation`
+(used on final submit). Both follow the same `ValidationSchemaFn<T>` shape as `validation`
+in `createForm`.
+
 ```tsx
 import { FormWizard } from '@reformer/cdk/form-wizard';
+import type { FormWizardConfig } from '@reformer/cdk/form-wizard';
 
-<FormWizard form={form} config={config}>
+const wizardConfig: FormWizardConfig<MyForm> = {
+  stepValidations: {
+    1: step1Validation,
+    2: step2Validation,
+  },
+  fullValidation: (path) => {
+    step1Validation(path);
+    step2Validation(path);
+  },
+};
+
+<FormWizard form={form} config={wizardConfig}>
   <FormWizard.Step component={Step1} control={form} />
   <FormWizard.Step component={Step2} control={form} />
 
   <FormWizard.Actions onSubmit={handleSubmit}>
-    {({ prev, next, submit, isLastStep }) => (
+    {({ prev, next, submit, isFirstStep, isLastStep, isValidating, isSubmitting }) => (
       <>
-        <button {...prev}>Back</button>
-        {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
+        {!isFirstStep && (
+          <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>
+        )}
+        {!isLastStep ? (
+          <button onClick={next.onClick} disabled={next.disabled}>
+            {isValidating ? 'Validating…' : 'Next'}
+          </button>
+        ) : (
+          <button onClick={submit.onClick} disabled={submit.disabled}>
+            {isSubmitting ? 'Submitting…' : 'Submit'}
+          </button>
+        )}
       </>
     )}
   </FormWizard.Actions>
 </FormWizard>;
 ```
+
+## Schema-driven rendering
+
+When the form layout (sections, columns, nesting, conditional visibility) is itself data —
+admin-built forms, A/B-tested layouts, server-driven UI — write a **render schema** instead
+of hand-written JSX. Two flavours:
+
+- `@reformer/renderer-react` — render schema is **TypeScript** code (`RenderSchemaFn<T>`).
+  Type-safe paths, IDE go-to-definition, refactor-friendly. Good default.
+- `@reformer/renderer-json` — render schema is **plain JSON**. Components are referenced by
+  string name and resolved through a registry. Good when the schema lives in a database, in a
+  CMS, or comes from a server.
+
+Both share the same `RenderNode` tree underneath and the same render pipeline; JSON is just an
+extra serialization layer on top.
+
+### @reformer/renderer-react
+
+```tsx
+import { useMemo } from 'react';
+import { createForm, type FormProxy, type FormFields } from '@reformer/core';
+import {
+  FormRenderer,
+  RenderNodeComponent,
+  createRenderSchema,
+  type RenderNode,
+  type RenderSchemaFn,
+} from '@reformer/renderer-react';
+import { Box, FormField, Input, InputPassword } from '@reformer/ui-kit';
+
+type LoginForm = FormFields & { email: string; password: string };
+
+// User-defined root container — receives `form` via componentProps and forwards it down.
+// Required because FormRenderer has no `form` prop; without this fields render as null.
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
+  return (
+    <>
+      {children.map((c, i) => (
+        <RenderNodeComponent key={i} node={c} form={form} />
+      ))}
+    </>
+  );
+}
+// Tells the renderer NOT to auto-render children as React elements — we render them ourselves.
+(FormRoot as unknown as { __selfManagedChildren: boolean }).__selfManagedChildren = true;
+
+function createLoginRenderSchema(form: FormProxy<LoginForm>): RenderSchemaFn<LoginForm> {
+  return (path) => ({
+    component: FormRoot,
+    componentProps: { form }, // captured via closure — propagates to all field children
+    children: [                // NB: `children` is a top-level node property, NOT in componentProps
+      {
+        component: Box,
+        componentProps: { className: 'space-y-4' },
+        children: [
+          { component: path.email },
+          { component: path.password },
+        ],
+      },
+    ],
+  });
+}
+
+function LoginPage() {
+  const form = useMemo(
+    () =>
+      createForm<LoginForm>({
+        form: {
+          email: { value: '', component: Input, componentProps: { label: 'Email', type: 'email' } },
+          password: { value: '', component: InputPassword, componentProps: { label: 'Password' } },
+        },
+      }),
+    []
+  );
+  const schema = useMemo(() => createRenderSchema(createLoginRenderSchema(form)), [form]);
+
+  // `fieldWrapper` wraps every field node (Label → Control → Error). Use ui-kit's FormField.
+  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+}
+```
+
+> Two non-obvious requirements: (1) `FormRoot.__selfManagedChildren = true` — otherwise the
+> renderer pre-renders `children` to React elements and `RenderNodeComponent` blows up;
+> (2) container `children` lives at the **node** level, not inside `componentProps`. Both are
+> covered in [@reformer/renderer-react overview](./packages/reformer-renderer-react/README.md).
+
+### @reformer/renderer-json
+
+```tsx
+import { useMemo } from 'react';
+import { createForm, type FormProxy, type FormFields } from '@reformer/core';
+import {
+  FormRenderer,
+  RenderNodeComponent,
+  createRenderSchema,
+  type RenderNode,
+  type RenderSchemaFn,
+} from '@reformer/renderer-react';
+import {
+  defineRegistry,
+  FIELD_WRAPPER,
+  createRenderSchemaFromJson,
+  type JsonFormSchema,
+} from '@reformer/renderer-json';
+import { Box, FormField, Input, InputPassword } from '@reformer/ui-kit';
+
+type LoginForm = FormFields & { email: string; password: string };
+
+// 1. Layout schema as plain data. Could be loaded from an API / CMS.
+const jsonSchema: JsonFormSchema = {
+  version: '1.0',
+  root: {
+    component: 'FormRoot',
+    children: [
+      {
+        component: 'Box',
+        componentProps: { className: 'space-y-4' },
+        children: [
+          { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email', type: 'email' } },
+          { selector: 'password', model: 'password', component: 'InputPassword', componentProps: { label: 'Password' } },
+        ],
+      },
+    ],
+  },
+};
+
+// 2. Same FormRoot as renderer-react — reused unchanged.
+function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
+  return (
+    <>
+      {children.map((c, i) => (
+        <RenderNodeComponent key={i} node={c} form={form} />
+      ))}
+    </>
+  );
+}
+(FormRoot as unknown as { __selfManagedChildren: boolean }).__selfManagedChildren = true;
+
+// 3. Registry maps string component names from JSON to React components.
+const registry = defineRegistry((reg) => {
+  reg.container('FormRoot', FormRoot);
+  reg.container('Box', Box);
+  reg.field('Input', Input);
+  reg.field('InputPassword', InputPassword);
+  reg.container(FIELD_WRAPPER, FormField);
+});
+
+function createLoginRenderSchema(form: FormProxy<LoginForm>): RenderSchemaFn<LoginForm> {
+  const baseFn = createRenderSchemaFromJson<LoginForm>(jsonSchema, registry);
+  return (path) => {
+    const root = baseFn(path);
+    return { ...root, componentProps: { ...root.componentProps, form } };
+  };
+}
+
+function LoginPage() {
+  const form = useMemo(
+    () =>
+      createForm<LoginForm>({
+        form: {
+          email: { value: '', component: Input },
+          password: { value: '', component: InputPassword },
+        },
+      }),
+    []
+  );
+  const schema = useMemo(() => createRenderSchema(createLoginRenderSchema(form)), [form]);
+  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+}
+```
+
+> `JsonFormRenderer` exists for trivial demos but has no way to inject your live `form` into
+> the root container — wrap the JSON-derived schema with a closure (as above) for any real
+> form. Field nodes use `selector` (unique id), `model` (path into the form), `component`
+> (registry key); container nodes drop `selector`/`model` and add `children`.
 
 ## MCP Server (AI Integration)
 
