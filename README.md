@@ -153,9 +153,9 @@ validation: (path) => {
   minLength(path.password, 8);
   pattern(path.phone, /^\+?[0-9]{10,14}$/);
 
-  // Custom validation
-  validate(path.confirmPassword, (value, ctx) => {
-    if (value !== ctx.form.password.value.value) {
+  // Custom cross-field validation: вешается на поле-носитель ошибки, соседнее поле читается через `root`
+  validate(path.confirmPassword, (value, _control, root) => {
+    if (value !== root.password.value.value) {
       return { code: 'mismatch', message: 'Passwords do not match' };
     }
     return null;

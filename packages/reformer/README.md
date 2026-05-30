@@ -40,6 +40,8 @@ import {
   validate,
   watchField,
   FieldNode,
+  type ValidationSchemaFn,
+  type BehaviorSchemaFn,
 } from '@reformer/core';
 
 // 0. Simple FormField component
@@ -76,7 +78,7 @@ const formSchema = {
 };
 
 // 3. Validation schema
-validationSchema = (path) => {
+const validationSchema: ValidationSchemaFn<RegistrationForm> = (path) => {
   required(path.username);
 
   required(path.email);
@@ -85,9 +87,9 @@ validationSchema = (path) => {
   required(path.password);
   required(path.confirmPassword);
 
-  // Cross-field validation: passwords must match
-  validate(path.confirmPassword, (value, ctx) => {
-    const password = ctx.form.password.value.value;
+  // Cross-field validation: вешается на поле-носитель ошибки, соседнее поле читается через `root`
+  validate(path.confirmPassword, (value, _control, root) => {
+    const password = root.password.value.value;
     if (value && password && value !== password) {
       return { code: 'mismatch', message: 'Passwords do not match' };
     }
@@ -96,7 +98,7 @@ validationSchema = (path) => {
 };
 
 // 4. Behavior schema
-behavior = (path) => {
+const behaviorSchema: BehaviorSchemaFn<RegistrationForm> = (path) => {
   // Clear confirmPassword when password changes (if not empty)
   watchField(path.password, (_, ctx) => {
     const confirmValue = ctx.form.confirmPassword.value.value;
