@@ -334,7 +334,9 @@ of hand-written JSX. Two flavours:
   CMS, or comes from a server.
 
 Both share the same `RenderNode` tree underneath and the same render pipeline; JSON is just an
-extra serialization layer on top.
+extra serialization layer on top. Configuration (form, fieldWrapper, registry) flows down via
+**React Context** — `FormRenderer` sets up `RenderContextProvider` automatically;
+`JsonRendererProvider` is explicit and required for `JsonFormRenderer`.
 
 ### @reformer/renderer-react
 
@@ -397,6 +399,8 @@ function LoginPage() {
   const schema = useMemo(() => createRenderSchema(createLoginRenderSchema(form)), [form]);
 
   // `fieldWrapper` wraps every field node (Label → Control → Error). Use ui-kit's FormField.
+  // FormRenderer internally wraps the tree in <RenderContextProvider value={{ form, settings, path }}>,
+  // so every child reads `form`/`settings` from React context — no prop drilling.
   return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
@@ -405,30 +409,36 @@ function LoginPage() {
 > renderer pre-renders `children` to React elements and `RenderNodeComponent` blows up;
 > (2) container `children` lives at the **node** level, not inside `componentProps`. Both are
 > covered in [@reformer/renderer-react overview](./packages/reformer-renderer-react/README.md).
+> Need `RenderContextProvider` explicitly? Only when you bypass `FormRenderer` and mount nodes
+> manually with `RenderNodeComponent`.
 
 ### @reformer/renderer-json
 
+The canonical mount path is `<JsonRendererProvider settings={{ registry, fieldWrapper }}>` wrapping
+`<JsonFormRenderer schema={…} />`. The provider injects the registry and field wrapper through
+React Context; `JsonFormRenderer` reads them via `useJsonRendererSettings()` and renders the
+schema. The live `form` instance is captured in the registry via a closure on a user-defined
+`FormRoot` container — JSON itself stays pure data.
+
 ```tsx
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { createForm, type FormProxy, type FormFields } from '@reformer/core';
 import {
-  FormRenderer,
   RenderNodeComponent,
-  createRenderSchema,
   type RenderNode,
-  type RenderSchemaFn,
 } from '@reformer/renderer-react';
 import {
+  JsonFormRenderer,
+  JsonRendererProvider,
   defineRegistry,
   FIELD_WRAPPER,
-  createRenderSchemaFromJson,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { Box, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
 type LoginForm = FormFields & { email: string; password: string };
 
-// 1. Layout schema as plain data. Could be loaded from an API / CMS.
+// 1. Layout schema as plain data — could come from an API / CMS / DB.
 const jsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
@@ -446,7 +456,7 @@ const jsonSchema: JsonFormSchema = {
   },
 };
 
-// 2. Same FormRoot as renderer-react — reused unchanged.
+// 2. FormRoot — receives `form` via componentProps and forwards it to each child node.
 function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
   return (
     <>
@@ -457,23 +467,6 @@ function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderN
   );
 }
 (FormRoot as unknown as { __selfManagedChildren: boolean }).__selfManagedChildren = true;
-
-// 3. Registry maps string component names from JSON to React components.
-const registry = defineRegistry((reg) => {
-  reg.container('FormRoot', FormRoot);
-  reg.container('Box', Box);
-  reg.field('Input', Input);
-  reg.field('InputPassword', InputPassword);
-  reg.container(FIELD_WRAPPER, FormField);
-});
-
-function createLoginRenderSchema(form: FormProxy<LoginForm>): RenderSchemaFn<LoginForm> {
-  const baseFn = createRenderSchemaFromJson<LoginForm>(jsonSchema, registry);
-  return (path) => {
-    const root = baseFn(path);
-    return { ...root, componentProps: { ...root.componentProps, form } };
-  };
-}
 
 function LoginPage() {
   const form = useMemo(
@@ -486,15 +479,36 @@ function LoginPage() {
       }),
     []
   );
-  const schema = useMemo(() => createRenderSchema(createLoginRenderSchema(form)), [form]);
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+
+  // 3. Registry maps string names → React components. The live `form` is injected
+  // into FormRoot via a closure here, so the JSON schema stays form-agnostic.
+  const registry = useMemo(
+    () =>
+      defineRegistry((reg) => {
+        reg.container('FormRoot', (props: { children: RenderNode<LoginForm>[] }) => (
+          <FormRoot {...props} form={form} />
+        ));
+        reg.container('Box', Box);
+        reg.field('Input', Input);
+        reg.field('InputPassword', InputPassword);
+        reg.container(FIELD_WRAPPER, FormField);
+      }),
+    [form]
+  );
+
+  // 4. Provider passes registry + fieldWrapper into JsonFormRenderer via React Context.
+  return (
+    <JsonRendererProvider settings={{ registry, fieldWrapper: FormField }}>
+      <JsonFormRenderer<LoginForm> schema={jsonSchema} />
+    </JsonRendererProvider>
+  );
 }
 ```
 
-> `JsonFormRenderer` exists for trivial demos but has no way to inject your live `form` into
-> the root container — wrap the JSON-derived schema with a closure (as above) for any real
-> form. Field nodes use `selector` (unique id), `model` (path into the form), `component`
-> (registry key); container nodes drop `selector`/`model` and add `children`.
+> Field nodes use `selector` (unique id), `model` (path into the form), `component` (registry
+> key); container nodes drop `selector`/`model` and add `children`. The schema is pure data —
+> nothing form- or React-specific lives in it. Need to override settings deeper in the tree?
+> Wrap a subtree in another `JsonRendererProvider`; inner settings merge with outer.
 
 ## MCP Server (AI Integration)
 
