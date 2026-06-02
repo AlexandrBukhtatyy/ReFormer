@@ -22,6 +22,18 @@ type ExamplePage =
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
+    id: 'validation',
+    path: '/examples/validation',
+    title: 'Валидация',
+    description: 'Встроенные валидаторы',
+  },
+  {
+    id: 'behaviors',
+    path: '/examples/behaviors',
+    title: 'Поведения',
+    description: 'Реактивное поведение через декларативный подход',
+  },
+  {
     id: 'simple',
     path: '/examples/simple',
     title: 'Форма регистрации',
@@ -44,18 +56,6 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/json-renderer',
     title: 'JSON Renderer',
     description: 'Рендеринг формы из JSON-схемы через @reformer/renderer-json',
-  },
-  {
-    id: 'validation',
-    path: '/examples/validation',
-    title: 'Валидация',
-    description: 'Встроенные валидаторы',
-  },
-  {
-    id: 'behaviors',
-    path: '/examples/behaviors',
-    title: 'Поведения',
-    description: 'Реактивное поведение через декларативный подход',
   },
   {
     id: 'mcca-core-clean',
