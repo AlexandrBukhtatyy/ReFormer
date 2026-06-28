@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { required, email } from '../../../src/core/validation/validators';
+import { validate } from '../../../src/core/validation/core/validate';
 import { computeFrom, enableWhen } from '../../../src/core/behavior/behaviors';
 import type { ValidationSchemaFn } from '../../../src/core/types/validation-schema';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
@@ -31,14 +32,14 @@ describe('Form Isolation', () => {
     it('должен изолировать валидаторы между двумя формами', async () => {
       // Форма 1: требует email и name
       const validationSchema1: ValidationSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
-        required(path.email, { message: 'Email обязателен' });
-        email(path.email);
-        required(path.name, { message: 'Имя обязательно' });
+        validate(path.email, required({ message: 'Email обязателен' }));
+        validate(path.email, email());
+        validate(path.name, required({ message: 'Имя обязательно' }));
       };
 
       // Форма 2: требует только age
       const validationSchema2: ValidationSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
-        required(path.age, { message: 'Возраст обязателен' });
+        validate(path.age, required({ message: 'Возраст обязателен' }));
       };
 
       // Создаем две формы с одинаковой структурой
@@ -90,11 +91,11 @@ describe('Form Isolation', () => {
         // Каждая форма имеет свою уникальную схему валидации
         const schema: ValidationSchemaFn<TestForm> = (path: FieldPath<TestForm>) => {
           if (i === 0) {
-            required(path.email, { message: `Form ${i}: Email обязателен` });
+            validate(path.email, required({ message: `Form ${i}: Email обязателен` }));
           } else if (i === 1) {
-            required(path.name, { message: `Form ${i}: Имя обязательно` });
+            validate(path.name, required({ message: `Form ${i}: Имя обязательно` }));
           } else {
-            required(path.age, { message: `Form ${i}: Возраст обязателен` });
+            validate(path.age, required({ message: `Form ${i}: Возраст обязателен` }));
           }
         };
 
@@ -272,8 +273,8 @@ describe('Form Isolation', () => {
           autoFill: { value: false, component: Input },
         },
         validation: (path: FieldPath<FullTestForm>) => {
-          required(path.email);
-          email(path.email);
+          validate(path.email, required());
+          validate(path.email, email());
         },
         behavior: (path: FieldPath<FullTestForm>) => {
           computeFrom([path.email, path.autoFill], path.confirmEmail, ({ email, autoFill }) =>
@@ -290,8 +291,8 @@ describe('Form Isolation', () => {
           autoFill: { value: false, component: Input },
         },
         validation: (path: FieldPath<FullTestForm>) => {
-          required(path.confirmEmail);
-          email(path.confirmEmail);
+          validate(path.confirmEmail, required());
+          validate(path.confirmEmail, email());
         },
         behavior: (_path: FieldPath<FullTestForm>) => {
           // Нет behaviors для этой формы

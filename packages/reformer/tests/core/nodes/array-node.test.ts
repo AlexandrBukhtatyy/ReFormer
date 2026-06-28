@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ArrayNode } from '../../../src/core/nodes/array-node';
 import type { BehaviorSchemaFn } from '../../../src/core/behavior/types';
 import { required, minLength } from '../../../src/core/validation/validators';
+import { validate } from '../../../src/core/validation/core/validate';
 import type { FieldPath, ValidationSchemaFn } from '../../../src/core/types';
 import { ComponentInstance } from '../../test-utils/types';
 
@@ -181,7 +182,7 @@ describe('ArrayNode', () => {
 
     it('should update valid signal based on item validity', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -211,8 +212,8 @@ describe('ArrayNode', () => {
 
     it('should collect errors from all items', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
-        minLength(path.title, 3, { message: 'Min 3 chars' });
+        validate(path.title, required({ message: 'Title is required' }));
+        validate(path.title, minLength(3, { message: 'Min 3 chars' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -232,7 +233,7 @@ describe('ArrayNode', () => {
       arrayNode.push({ title: 'Item 2', price: 200 });
 
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -245,7 +246,7 @@ describe('ArrayNode', () => {
 
     it('should auto-apply validation schema to new items', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -261,7 +262,7 @@ describe('ArrayNode', () => {
 
     it('should auto-apply validation schema to inserted items', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -278,7 +279,7 @@ describe('ArrayNode', () => {
 
     it('should validate all items in parallel', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -514,7 +515,7 @@ describe('ArrayNode', () => {
 
     it('should clear errors from all items', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
@@ -549,7 +550,7 @@ describe('ArrayNode', () => {
 
     it('should combine array-level and item-level errors', async () => {
       const validationSchema: ValidationSchemaFn<ItemForm> = (path: FieldPath<ItemForm>) => {
-        required(path.title, { message: 'Title is required' });
+        validate(path.title, required({ message: 'Title is required' }));
       };
 
       arrayNode.applyValidationSchema(validationSchema);
