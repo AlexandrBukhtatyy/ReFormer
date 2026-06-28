@@ -103,4 +103,36 @@ describe('Массивы под M1 (model-owned + per-item createForm)', () => {
     itemForm.relationship.setValue('друг');
     expect(model.get().coBorrowers[0].relationship).toBe('друг');
   });
+
+  it('createForm с array-узлом материализует form.<array> как ModelArrayNode', () => {
+    const model = createModel<Form>({ loanAmount: 0, coBorrowers: [] });
+    const schema = {
+      children: [
+        { value: model.$.loanAmount, component: InputStub },
+        // массив-узел: { array: model.<path>, item: (itemModel) => schema }
+        { array: model.coBorrowers, item: (it: FormModel<CoBorrower>) => itemSchema(it) },
+      ],
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const form = createForm<Form>({ model, schema }) as any;
+
+    expect(form.coBorrowers).toBeDefined();
+    expect(form.coBorrowers.length.value).toBe(0);
+
+    form.coBorrowers.push({
+      personalData: { lastName: 'Иванов' },
+      relationship: 'брат',
+      monthlyIncome: 100,
+    });
+    expect(form.coBorrowers.length.value).toBe(1);
+    expect(model.get().coBorrowers[0].personalData.lastName).toBe('Иванов');
+
+    const item0 = form.coBorrowers.at(0);
+    expect(item0.relationship.value.value).toBe('брат');
+    item0.relationship.setValue('сестра');
+    expect(model.get().coBorrowers[0].relationship).toBe('сестра');
+
+    form.coBorrowers.removeAt(0);
+    expect(form.coBorrowers.length.value).toBe(0);
+  });
 });

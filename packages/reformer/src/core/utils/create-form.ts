@@ -20,6 +20,7 @@
 
 import { Signal } from '@preact/signals-core';
 import { GroupNode } from '../nodes/group-node';
+import { ModelArrayNode } from '../nodes/model-array-node';
 import { registerSignalNode } from './signal-node-registry';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from '../types';
 import type { FormModel } from '../model/types';
@@ -49,19 +50,33 @@ const isPlainObj = (v: unknown): v is Record<string, unknown> =>
   !(typeof File !== 'undefined' && v instanceof File);
 
 type HarvestedConfig = Map<Signal<unknown>, Partial<FieldConfig<unknown>>>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ArrayItemBuilders = Map<string, (item: any) => unknown>;
 
 /**
- * Глубокий обход схемы: собирает конфиг поля по сигналу. Устойчив к разной вложенности
- * (children / componentProps.steps / любые вложенные узлы). Функции (itemComponent массивов)
- * пропускаются — элементы массива строятся отдельно.
+ * Глубокий обход схемы: собирает конфиг поля по сигналу + item-схемы массивов по пути.
+ * Устойчив к разной вложенности (children / componentProps.steps / любые вложенные узлы).
+ * Массив-узел: `{ array: <model-массив с __path>, item: (itemModel) => schemaNode }`.
  */
-function harvestFieldConfig(schema: unknown, map: HarvestedConfig): void {
+function harvestFieldConfig(
+  schema: unknown,
+  map: HarvestedConfig,
+  arrayItems: ArrayItemBuilders
+): void {
   if (schema == null || typeof schema !== 'object') return;
   if (Array.isArray(schema)) {
-    for (const child of schema) harvestFieldConfig(child, map);
+    for (const child of schema) harvestFieldConfig(child, map, arrayItems);
     return;
   }
   const node = schema as Record<string, unknown>;
+
+  // Массив-узел модели: { array: model.<path>, item: (itemModel) => schema }
+  const arr = node.array as { __path?: string } | undefined;
+  if (arr && typeof arr.__path === 'string' && typeof node.item === 'function') {
+    arrayItems.set(arr.__path, node.item as (item: unknown) => unknown);
+    return; // внутрь item-фабрики не идём (вызовется per-item при построении)
+  }
+
   if (node.value instanceof Signal) {
     map.set(node.value as Signal<unknown>, {
       component: node.component as FieldConfig<unknown>['component'],
@@ -75,7 +90,7 @@ function harvestFieldConfig(schema: unknown, map: HarvestedConfig): void {
   }
   for (const [key, child] of Object.entries(node)) {
     if (key === 'value') continue; // сам сигнал не разворачиваем
-    harvestFieldConfig(child, map);
+    harvestFieldConfig(child, map, arrayItems);
   }
 }
 
@@ -138,9 +153,27 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
 export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormProxy<T> {
   const { model, schema } = args;
   const bySignal: HarvestedConfig = new Map();
-  if (schema !== undefined) harvestFieldConfig(schema, bySignal);
+  const arrayItems: ArrayItemBuilders = new Map();
+  if (schema !== undefined) harvestFieldConfig(schema, bySignal, arrayItems);
   const config = buildModelConfig(model, model.get() as Record<string, unknown>, '', bySignal);
   const groupNode = new GroupNode<T>(config as unknown as GroupNodeConfig<T>);
+
+  // Материализация top-level массивов как ModelArrayNode (делегируют массиву модели).
+  // Нужна item-схема из единой схемы (`{ array: model.<path>, item }`); без неё массив пропускается.
+  const shape = model.get() as Record<string, unknown>;
+  for (const [key, val] of Object.entries(shape)) {
+    if (!Array.isArray(val)) continue;
+    const itemFn = arrayItems.get(key);
+    if (!itemFn) continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const control = (model as any)[key];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buildItem = (im: any): FormProxy<any> =>
+      createFormFromModel({ model: im, schema: itemFn(im) });
+    const node = new ModelArrayNode(control, buildItem);
+    groupNode.fields.set(key as keyof T, node as never);
+  }
+
   const proxy = groupNode.getProxy();
 
   // Реестр сигнал→нода: для state-операций behavior (enableWhen) и in-form роутинга валидации.
