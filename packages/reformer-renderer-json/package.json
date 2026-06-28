@@ -1,6 +1,6 @@
 {
   "name": "@reformer/renderer-json",
-  "version": "1.0.0-beta.0",
+  "version": "5.0.2",
   "description": "JSON-based form renderer for @reformer ecosystem",
   "type": "module",
   "main": "./dist/index.js",
