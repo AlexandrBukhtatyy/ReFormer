@@ -10,6 +10,7 @@
  */
 
 import type { ComponentType } from 'react';
+import type { Signal } from '@preact/signals-core';
 import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './index';
 
 // ============================================================================
@@ -22,9 +23,22 @@ import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './i
  * @category Configuration Types
  */
 export interface FieldConfig<T> {
-  value: T | null;
+  /**
+   * Начальное значение-литерал (legacy-путь). Под архитектурой M1 значение приходит из
+   * {@link FieldConfig.valueSignal} (сигнал {@link FormModel}); тогда `value` не требуется.
+   */
+  value?: T | null;
+  /**
+   * Сигнал значения из {@link FormModel} (M1). Если задан — служит источником истины значения
+   * поля (нода не владеет значением, а ссылается на этот сигнал). Имеет приоритет над `value`.
+   */
+  valueSignal?: Signal<T>;
+  /**
+   * UI-компонент поля. Опционален: core-часть можно использовать без ссылки на компонент
+   * (значение/валидация работают без UI; компонент нужен только для рендеринга).
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: ComponentType<any>;
+  component?: ComponentType<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   componentProps?: any;
   validators?: ValidatorFn<T>[];

@@ -118,17 +118,20 @@ export class FieldNode<T> extends FormNode<T> {
     super();
 
     // Сохраняем конфигурацию
-    // FieldConfig.value имеет тип T | null, но FieldNode всегда работает с T
-    // null трактуется как начальное значение типа T
-    this.initialValue = config.value as T;
     this.validators = config.validators || [];
     this.asyncValidators = config.asyncValidators || [];
     this.updateOn = config.updateOn || 'blur';
     this.debounceMs = config.debounce || 0;
     this.component = config.component;
 
-    // Инициализация приватных сигналов
-    this._value = signal(config.value as T);
+    // Инициализация приватных сигналов.
+    // M1: если передан valueSignal (из FormModel) — используем его как источник истины значения
+    // (нода НЕ владеет значением, а ссылается на сигнал модели). Иначе создаём собственный сигнал
+    // из литерала config.value (legacy-путь). FieldConfig.value имеет тип T | null, но FieldNode
+    // всегда работает с T; null трактуется как начальное значение типа T.
+    this._value = config.valueSignal ?? signal(config.value as T);
+    // initialValue — снимок значения на момент построения (для reset/resetToInitial)
+    this.initialValue = this._value.peek();
     this._errors = signal<ValidationError[]>([]);
     // _touched, _dirty инициализируются в FormNode
     this._componentProps = signal(config.componentProps || {});

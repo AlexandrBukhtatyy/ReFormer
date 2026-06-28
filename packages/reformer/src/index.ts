@@ -2,6 +2,9 @@ export * from './core/types';
 export * from './core/factories';
 export * from './core/utils';
 
+// Слой данных FormModel (M1)
+export * from './core/model';
+
 export { FormNode } from './core/nodes/form-node';
 export { FieldNode } from './core/nodes/field-node';
 export { GroupNode } from './core/nodes/group-node';
