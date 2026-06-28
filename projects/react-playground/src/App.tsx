@@ -6,19 +6,13 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/registration-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-import MccaCoreClean from './pages/examples/mcp-credit-application-core-clean';
-import MccaRendererReactClean from './pages/examples/mcp-credit-application-renderer-react-clean';
-import MccaRendererJsonClean from './pages/examples/mcp-credit-application-renderer-json-clean';
 type ExamplePage =
   | 'simple'
   | 'validation'
   | 'behaviors'
   | 'complex'
   | 'complex-renderer'
-  | 'json-renderer'
-  | 'mcca-core-clean'
-  | 'mcca-renderer-react-clean'
-  | 'mcca-renderer-json-clean';
+  | 'json-renderer';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -56,24 +50,6 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/json-renderer',
     title: 'JSON Renderer',
     description: 'Рендеринг формы из JSON-схемы через @reformer/renderer-json',
-  },
-  {
-    id: 'mcca-core-clean',
-    path: '/mcp-credit-application-core-clean',
-    title: 'MCP credit (core) clean',
-    description: 'baseline experiment — minimal prompt',
-  },
-  {
-    id: 'mcca-renderer-react-clean',
-    path: '/mcp-credit-application-renderer-react-clean',
-    title: 'MCP credit (renderer-react) clean',
-    description: 'baseline experiment — minimal prompt',
-  },
-  {
-    id: 'mcca-renderer-json-clean',
-    path: '/mcp-credit-application-renderer-json-clean',
-    title: 'MCP credit (renderer-json) clean',
-    description: 'baseline experiment — minimal prompt',
   },
 ];
 
@@ -147,15 +123,6 @@ function Layout() {
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
-          <Route path="/mcp-credit-application-core-clean" element={<MccaCoreClean />} />
-          <Route
-            path="/mcp-credit-application-renderer-react-clean"
-            element={<MccaRendererReactClean />}
-          />
-          <Route
-            path="/mcp-credit-application-renderer-json-clean"
-            element={<MccaRendererJsonClean />}
-          />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
