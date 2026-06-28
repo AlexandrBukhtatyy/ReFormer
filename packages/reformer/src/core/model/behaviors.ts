@@ -149,4 +149,131 @@ export function disableWhen(
   return enableWhen(target, () => !condition(), options);
 }
 
+/**
+ * Трансформация значения поля (идемпотентная): при изменении пишет `transformer(value)` обратно.
+ * Запись отложена (`runOutsideEffect`) во избежание «Cycle detected» (эффект читает и пишет один сигнал).
+ *
+ * @group Model
+ * @example
+ * ```typescript
+ * transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
+ * ```
+ */
+export function transformValue<T>(
+  target: Signal<T>,
+  transformer: (value: T) => T
+): BehaviorCleanup {
+  let applying = false;
+  return effect(() => {
+    const value = target.value;
+    if (applying) return; // игнорируем собственную запись (не зацикливаемся)
+    runOutsideEffect(() => {
+      const next = transformer(value);
+      if (target.peek() === next) return;
+      applying = true;
+      try {
+        target.value = next;
+      } finally {
+        applying = false;
+      }
+    });
+  });
+}
+
+/**
+ * Сброс значения поля к `resetValue` (по умолчанию `null`), когда `condition` истинно.
+ *
+ * @group Model
+ * @example
+ * ```typescript
+ * resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
+ * ```
+ */
+export function resetWhen<T>(
+  target: Signal<T>,
+  condition: () => boolean,
+  options?: { resetValue?: T }
+): BehaviorCleanup {
+  const resetValue = (options?.resetValue ?? null) as T;
+  return effect(() => {
+    const should = condition();
+    runOutsideEffect(() => {
+      if (should && target.peek() !== resetValue) target.value = resetValue;
+    });
+  });
+}
+
+/**
+ * Двусторонняя синхронизация двух полей (опционально с трансформом `a → b`).
+ * Сходимость обеспечивается peek-guard'ом; флаг предотвращает лишние круги.
+ *
+ * @group Model
+ * @example
+ * ```typescript
+ * syncFields(model.$.field1, model.$.field2);
+ * ```
+ */
+export function syncFields<T>(
+  a: Signal<T>,
+  b: Signal<T>,
+  options?: { transform?: (value: T) => T }
+): BehaviorCleanup {
+  const transform = options?.transform;
+  let updating = false;
+  const d1 = effect(() => {
+    const v = a.value;
+    if (updating) return;
+    runOutsideEffect(() => {
+      updating = true;
+      try {
+        const next = transform ? transform(v) : v;
+        if (b.peek() !== next) b.value = next;
+      } finally {
+        updating = false;
+      }
+    });
+  });
+  const d2 = effect(() => {
+    const v = b.value;
+    if (updating) return;
+    runOutsideEffect(() => {
+      updating = true;
+      try {
+        if (a.peek() !== v) a.value = v;
+      } finally {
+        updating = false;
+      }
+    });
+  });
+  return () => {
+    d1();
+    d2();
+  };
+}
+
+/**
+ * Вызывает `revalidate()` при изменении зависимостей (не на инициализации). Под M1 валидация
+ * on-demand (`validateFormModel`), поэтому ревалидация выражается явным колбэком.
+ *
+ * @group Model
+ * @example
+ * ```typescript
+ * revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema));
+ * ```
+ */
+export function revalidateWhen(
+  deps: ReadonlySignal<unknown>[],
+  revalidate: () => void
+): BehaviorCleanup {
+  let initial = true;
+  return effect(() => {
+    deps.forEach((d) => d.value); // подписка на зависимости
+    if (initial) {
+      initial = false;
+      return;
+    }
+    runOutsideEffect(() => revalidate());
+  });
+}
+
 /* eslint-enable @typescript-eslint/no-explicit-any */

@@ -4,7 +4,19 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createModel, computeFrom, copyFrom, watchField } from '../../../src/core/model';
+import {
+  createModel,
+  computeFrom,
+  copyFrom,
+  watchField,
+  transformValue,
+  resetWhen,
+  syncFields,
+  revalidateWhen,
+} from '../../../src/core/model';
+
+// микротаск-флаш (transformValue/resetWhen/syncFields/revalidateWhen пишут через runOutsideEffect)
+const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe('computeFrom (signals)', () => {
   it('вычисляет target из источников и реагирует на изменения', () => {
@@ -102,6 +114,54 @@ describe('watchField (signals)', () => {
     m.x = 1;
     stop();
     m.x = 2;
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('transformValue (signals)', () => {
+  it('идемпотентно трансформирует значение поля', async () => {
+    const m = createModel<{ code: string }>({ code: '' });
+    transformValue(m.$.code, (v) => (v ?? '').toUpperCase());
+    m.code = 'abc';
+    await tick();
+    expect(m.code).toBe('ABC');
+  });
+});
+
+describe('resetWhen (signals)', () => {
+  it('сбрасывает значение при истинном условии', async () => {
+    const m = createModel<{ type: string; card: string }>({ type: 'card', card: '1234' });
+    resetWhen(m.$.card, () => m.type !== 'card', { resetValue: '' });
+    await tick();
+    expect(m.card).toBe('1234'); // условие ложно
+    m.type = 'cash';
+    await tick();
+    expect(m.card).toBe(''); // сброшено
+  });
+});
+
+describe('syncFields (signals)', () => {
+  it('двусторонняя синхронизация', async () => {
+    const m = createModel<{ a: string; b: string }>({ a: '', b: '' });
+    syncFields(m.$.a, m.$.b);
+    m.a = 'x';
+    await tick();
+    expect(m.b).toBe('x');
+    m.b = 'y';
+    await tick();
+    expect(m.a).toBe('y');
+  });
+});
+
+describe('revalidateWhen (signals)', () => {
+  it('вызывает колбэк при изменении зависимостей (не на инициализации)', async () => {
+    const m = createModel<{ maxAmount: number }>({ maxAmount: 1000 });
+    const cb = vi.fn();
+    revalidateWhen([m.$.maxAmount], cb);
+    await tick();
+    expect(cb).not.toHaveBeenCalled();
+    m.maxAmount = 500;
+    await tick();
     expect(cb).toHaveBeenCalledTimes(1);
   });
 });
