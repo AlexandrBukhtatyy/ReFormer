@@ -1,10 +1,10 @@
 /**
- * Примеры валидации с ReFormer
- * Демонстрирует встроенные валидаторы
+ * Примеры валидации с ReFormer — новая архитектура (M1).
+ * Демонстрирует встроенные валидаторы через единую schema + validateFormModel.
  */
 
 import { useMemo } from 'react';
-import { createForm, type FormProxy, type FormSchema, type FieldPath } from '@reformer/core';
+import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
 import {
   required,
   email,
@@ -18,11 +18,9 @@ import {
   isNumber,
   integer,
   pastDate,
-  validate,
 } from '@reformer/core/validators';
 import { Input, FormField, ExampleCard } from '@reformer/ui-kit';
 
-// Тип формы для демонстрации валидаторов
 interface ValidationDemoForm {
   requiredField: string;
   emailField: string;
@@ -38,152 +36,147 @@ interface ValidationDemoForm {
   customField: string;
 }
 
-// Схема формы
-const validationFormSchema: FormSchema<ValidationDemoForm> = {
-  requiredField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'Обязательное поле' },
-  },
-  emailField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'email@example.com', type: 'email' },
-  },
-  minLengthField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'Минимум 5 символов' },
-  },
-  maxLengthField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'Максимум 10 символов' },
-  },
-  minField: {
-    value: 0,
-    component: Input,
-    componentProps: { placeholder: 'Минимум 10', type: 'number' },
-  },
-  maxField: {
-    value: 0,
-    component: Input,
-    componentProps: { placeholder: 'Максимум 100', type: 'number' },
-  },
-  patternField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'Только буквы' },
-  },
-  urlField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'https://example.com' },
-  },
-  phoneField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: '+7 900 123-45-67', type: 'tel' },
-  },
-  numberField: {
-    value: 0,
-    component: Input,
-    componentProps: { placeholder: 'Целое число', type: 'number' },
-  },
-  dateField: {
-    value: '',
-    component: Input,
-    componentProps: { type: 'date' },
-  },
-  customField: {
-    value: '',
-    component: Input,
-    componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)' },
-  },
+const INITIAL: ValidationDemoForm = {
+  requiredField: '',
+  emailField: '',
+  minLengthField: '',
+  maxLengthField: '',
+  minField: 0,
+  maxField: 0,
+  patternField: '',
+  urlField: '',
+  phoneField: '',
+  numberField: 0,
+  dateField: '',
+  customField: '',
 };
 
-// Валидация формы - path это FieldPath<T>
-const validationFormValidation = (path: FieldPath<ValidationDemoForm>) => {
-  // Required
-  validate(path.requiredField, required({ message: 'Это поле обязательно' }));
-
-  // Email
-  validate(path.emailField, required({ message: 'Email обязателен' }));
-  validate(path.emailField, email({ message: 'Введите корректный email' }));
-
-  // MinLength
-  validate(path.minLengthField, required({ message: 'Поле обязательно' }));
-  validate(path.minLengthField, minLength(5, { message: 'Минимум 5 символов' }));
-
-  // MaxLength
-  validate(path.maxLengthField, maxLength(10, { message: 'Максимум 10 символов' }));
-
-  // Min
-  validate(path.minField, required({ message: 'Введите число' }));
-  validate(path.minField, min(10, { message: 'Минимум 10' }));
-
-  // Max
-  validate(path.maxField, required({ message: 'Введите число' }));
-  validate(path.maxField, max(100, { message: 'Максимум 100' }));
-
-  // Pattern
-  validate(path.patternField, required({ message: 'Поле обязательно' }));
-  validate(path.patternField, pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' }));
-
-  // URL
-  validate(path.urlField, required({ message: 'URL обязателен' }));
-  validate(path.urlField, url({ message: 'Введите корректный URL' }));
-
-  // Phone
-  validate(path.phoneField, required({ message: 'Телефон обязателен' }));
-  validate(path.phoneField, phone({ format: 'ru', message: 'Введите российский номер телефона' }));
-
-  // Number — атомарные фабрики: число + целое + диапазон
-  validate(path.numberField, required({ message: 'Число обязательно' }));
-  validate(path.numberField, isNumber({ message: 'Должно быть числом' }));
-  validate(path.numberField, integer({ message: 'Только целое число' }));
-  validate(path.numberField, min(1, { message: 'Минимум 1' }));
-  validate(path.numberField, max(100, { message: 'Максимум 100' }));
-
-  // Date — фабрика pastDate проверяет, что дата не в будущем
-  validate(path.dateField, required({ message: 'Дата обязательна' }));
-  validate(path.dateField, pastDate({ message: 'Дата не может быть в будущем' }));
-
-  // Validate
-  validate(path.customField, required({ message: 'Пароль обязателен' }));
-  validate(path.customField, (value) => {
-    const v = value as string;
-    if (!v || v.length < 8) {
-      return { code: 'too-short', message: 'Минимум 8 символов' };
-    }
-    if (!/[0-9]/.test(v)) {
-      return { code: 'no-digit', message: 'Должна быть хотя бы одна цифра' };
-    }
-    if (!/[a-zA-Z]/.test(v)) {
-      return { code: 'no-letter', message: 'Должна быть хотя бы одна буква' };
-    }
-    return null;
-  });
+// Кастомный валидатор пароля (value, model) — здесь использует только value.
+const customPassword: ModelValidator<string> = (value) => {
+  const v = value;
+  if (!v || v.length < 8) return { code: 'too-short', message: 'Минимум 8 символов' };
+  if (!/[0-9]/.test(v)) return { code: 'no-digit', message: 'Должна быть хотя бы одна цифра' };
+  if (!/[a-zA-Z]/.test(v)) return { code: 'no-letter', message: 'Должна быть хотя бы одна буква' };
+  return null;
 };
 
-function createValidationForm(): FormProxy<ValidationDemoForm> {
-  return createForm<ValidationDemoForm>({
-    form: validationFormSchema,
-    validation: validationFormValidation,
-  });
+function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) {
+  return {
+    children: [
+      {
+        value: model.$.requiredField,
+        component: Input,
+        componentProps: { placeholder: 'Обязательное поле' },
+        validators: [required({ message: 'Это поле обязательно' })],
+      },
+      {
+        value: model.$.emailField,
+        component: Input,
+        componentProps: { placeholder: 'email@example.com', type: 'email' },
+        validators: [
+          required({ message: 'Email обязателен' }),
+          email({ message: 'Введите корректный email' }),
+        ],
+      },
+      {
+        value: model.$.minLengthField,
+        component: Input,
+        componentProps: { placeholder: 'Минимум 5 символов' },
+        validators: [
+          required({ message: 'Поле обязательно' }),
+          minLength(5, { message: 'Минимум 5 символов' }),
+        ],
+      },
+      {
+        value: model.$.maxLengthField,
+        component: Input,
+        componentProps: { placeholder: 'Максимум 10 символов' },
+        validators: [maxLength(10, { message: 'Максимум 10 символов' })],
+      },
+      {
+        value: model.$.minField,
+        component: Input,
+        componentProps: { placeholder: 'Минимум 10', type: 'number' },
+        validators: [required({ message: 'Введите число' }), min(10, { message: 'Минимум 10' })],
+      },
+      {
+        value: model.$.maxField,
+        component: Input,
+        componentProps: { placeholder: 'Максимум 100', type: 'number' },
+        validators: [required({ message: 'Введите число' }), max(100, { message: 'Максимум 100' })],
+      },
+      {
+        value: model.$.patternField,
+        component: Input,
+        componentProps: { placeholder: 'Только буквы' },
+        validators: [
+          required({ message: 'Поле обязательно' }),
+          pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' }),
+        ],
+      },
+      {
+        value: model.$.urlField,
+        component: Input,
+        componentProps: { placeholder: 'https://example.com' },
+        validators: [
+          required({ message: 'URL обязателен' }),
+          url({ message: 'Введите корректный URL' }),
+        ],
+      },
+      {
+        value: model.$.phoneField,
+        component: Input,
+        componentProps: { placeholder: '+7 900 123-45-67', type: 'tel' },
+        validators: [
+          required({ message: 'Телефон обязателен' }),
+          phone({ format: 'ru', message: 'Введите российский номер телефона' }),
+        ],
+      },
+      {
+        value: model.$.numberField,
+        component: Input,
+        componentProps: { placeholder: 'Целое число', type: 'number' },
+        validators: [
+          required({ message: 'Число обязательно' }),
+          isNumber({ message: 'Должно быть числом' }),
+          integer({ message: 'Только целое число' }),
+          min(1, { message: 'Минимум 1' }),
+          max(100, { message: 'Максимум 100' }),
+        ],
+      },
+      {
+        value: model.$.dateField,
+        component: Input,
+        componentProps: { type: 'date' },
+        validators: [
+          required({ message: 'Дата обязательна' }),
+          pastDate({ message: 'Дата не может быть в будущем' }),
+        ],
+      },
+      {
+        value: model.$.customField,
+        component: Input,
+        componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)' },
+        validators: [required({ message: 'Пароль обязателен' }), customPassword],
+      },
+    ],
+  };
 }
 
 export default function ValidationExamples() {
-  const form = useMemo(() => createValidationForm(), []);
+  const { form, model, schema } = useMemo(() => {
+    const m = createModel<ValidationDemoForm>({ ...INITIAL });
+    const s = buildSchema(m);
+    const f = createForm<ValidationDemoForm>({ model: m, schema: s });
+    return { form: f, model: m, schema: s };
+  }, []);
 
   const handleValidateAll = async () => {
     form.markAsTouched();
-    await form.validate();
+    await validateFormModel(model, schema);
   };
 
-  const handleReset = () => {
-    form.reset();
-  };
+  const handleReset = () => form.reset();
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -195,140 +188,95 @@ export default function ValidationExamples() {
           title="Required"
           description="Обязательное поле"
           bgColor="bg-white"
-          code={`validate(path.requiredField, required({
-  message: 'Это поле обязательно'
-}))`}
+          code={`validators: [required()]`}
         >
           <FormField control={form.requiredField} />
         </ExampleCard>
-
         <ExampleCard
           title="Email"
           description="Валидация email адреса"
           bgColor="bg-white"
-          code={`validate(path.emailField, required({ message: 'Email обязателен' }));
-validate(path.emailField, email({
-  message: 'Введите корректный email'
-}))`}
+          code={`validators: [required(), email()]`}
         >
           <FormField control={form.emailField} />
         </ExampleCard>
-
         <ExampleCard
           title="MinLength"
           description="Минимум 5 символов"
           bgColor="bg-white"
-          code={`validate(path.minLengthField, minLength(5, {
-  message: 'Минимум 5 символов'
-}))`}
+          code={`validators: [minLength(5)]`}
         >
           <FormField control={form.minLengthField} />
         </ExampleCard>
-
         <ExampleCard
           title="MaxLength"
           description="Максимум 10 символов"
           bgColor="bg-white"
-          code={`validate(path.maxLengthField, maxLength(10, {
-  message: 'Максимум 10 символов'
-}))`}
+          code={`validators: [maxLength(10)]`}
         >
           <FormField control={form.maxLengthField} />
         </ExampleCard>
-
         <ExampleCard
           title="Min"
           description="Минимальное значение 10"
           bgColor="bg-white"
-          code={`validate(path.minField, min(10, {
-  message: 'Минимум 10'
-}))`}
+          code={`validators: [min(10)]`}
         >
           <FormField control={form.minField} />
         </ExampleCard>
-
         <ExampleCard
           title="Max"
           description="Максимальное значение 100"
           bgColor="bg-white"
-          code={`validate(path.maxField, max(100, {
-  message: 'Максимум 100'
-}))`}
+          code={`validators: [max(100)]`}
         >
           <FormField control={form.maxField} />
         </ExampleCard>
-
         <ExampleCard
           title="Pattern"
           description="Только буквы (regex)"
           bgColor="bg-white"
-          code={`validate(path.patternField, pattern(/^[a-zA-Zа-яА-Я]+$/, {
-  message: 'Только буквы'
-}))`}
+          code={`validators: [pattern(/^[a-zA-Zа-яА-Я]+$/)]`}
         >
           <FormField control={form.patternField} />
         </ExampleCard>
-
         <ExampleCard
           title="URL"
           description="Валидация URL адреса"
           bgColor="bg-white"
-          code={`validate(path.urlField, url({
-  message: 'Введите корректный URL'
-}))`}
+          code={`validators: [url()]`}
         >
           <FormField control={form.urlField} />
         </ExampleCard>
-
         <ExampleCard
           title="Phone"
           description="Номер телефона (формат РФ)"
           bgColor="bg-white"
-          code={`validate(path.phoneField, phone({
-  format: 'ru',
-  message: 'Введите российский номер'
-}))`}
+          code={`validators: [phone({ format: 'ru' })]`}
         >
           <FormField control={form.phoneField} />
         </ExampleCard>
-
         <ExampleCard
           title="Number"
           description="Целое число от 1 до 100"
           bgColor="bg-white"
-          code={`// Атомарные фабрики:
-validate(path.numberField, isNumber());
-validate(path.numberField, integer());
-validate(path.numberField, min(1));
-validate(path.numberField, max(100));`}
+          code={`validators: [isNumber(), integer(), min(1), max(100)]`}
         >
           <FormField control={form.numberField} />
         </ExampleCard>
-
         <ExampleCard
           title="Date"
           description="Дата (не в будущем)"
           bgColor="bg-white"
-          code={`validate(path.dateField, pastDate({
-  message: 'Дата не может быть в будущем'
-}))`}
+          code={`validators: [pastDate()]`}
         >
           <FormField control={form.dateField} />
         </ExampleCard>
-
         <ExampleCard
-          title="Validate"
-          description="Кастомная валидация пароля через validate"
+          title="Custom"
+          description="Кастомная валидация (value, model)"
           bgColor="bg-white"
-          code={`validate(path.customField, (value) => {
-  if (!value || value.length < 8)
-    return { code: 'too-short', message: 'Минимум 8 символов' };
-  if (!/[0-9]/.test(value))
-    return { code: 'no-digit', message: 'Должна быть хотя бы одна цифра' };
-  if (!/[a-zA-Z]/.test(value))
-    return { code: 'no-letter', message: 'Должна быть хотя бы одна буква' };
-  return null;
-})`}
+          code={`validators: [(v) => v.length < 8 ? err : null]`}
         >
           <FormField control={form.customField} />
         </ExampleCard>
