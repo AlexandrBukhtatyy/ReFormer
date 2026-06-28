@@ -700,6 +700,12 @@ navigator (если не нужны), старые типы/экспорты; п
   Стабильная идентичность элемента — кэш фасадов под-модели по `GroupNode` (`form-model.ts`) +
   стабильный React-key. Проверено в `render-model.test.tsx` (per-item ноды существуют).
   Остаётся (часть Ф6): интеграция с `selector`/`hideWhen`/`createRenderSchema`-оверрайдами (под Ф8).
+- ✅ **ModelArrayNode (материализация массивов в createForm)** — `core/nodes/model-array-node.ts`:
+  узел массива, делегирующий данные массиву модели (`model.<path>`); per-item GroupNode-формы
+  (на сигналах под-моделей) синхронизированы с длиной; контракт ArrayNode (value/length/valid/errors/
+  at/map/push/removeAt/insert/clear) для `FormArraySection`/`useFormControl`. `createForm({model,schema})`
+  материализует top-level массивы из узла `{ array: model.<path>, item }` → `form.<array>` работает.
+  Тесты: `model-array-node.test.ts` (7) + интеграционный в `create-form-arrays.test.ts`. **Разблокирует флагман.**
 
 - ✅ **Ф8 пилот: `registration-form`** — мигрирован на новый API:
   `createModel(initial)` + единая schema (component/componentProps/**validators `(value, model)`**) +
