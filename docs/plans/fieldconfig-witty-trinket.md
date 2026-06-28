@@ -687,7 +687,8 @@ navigator (если не нужны), старые типы/экспорты; п
 - ✅ **Ф5 behavior** — `core/model/behaviors.ts`: value-операции `computeFrom`/`copyFrom`/`watchField`
   (model-level, синхронная запись с peek-guard) + state-операции `enableWhen`/`disableWhen`
   (через реестр сигнал→нода `core/utils/signal-node-registry.ts`, заполняется `createForm`; запись
-  состояния через `runOutsideEffect`). Тесты: `behaviors.test.ts` (9), `in-form-state.test.ts` (4).
+  состояния через `runOutsideEffect`) + `transformValue`/`resetWhen`/`syncFields`/`revalidateWhen`
+  (transformValue с guard от self-write цикла). Тесты: `behaviors.test.ts` (13), `in-form-state.test.ts` (4).
 
 - ✅ **Ф6 рендерер (единая схема)** — `packages/reformer-renderer-react/src/core/render-model.tsx`:
   `RenderModelNode` (field-узел: разворот сигнала через ноду из реестра, `value`+`onChange`, UI-kit
@@ -710,6 +711,12 @@ navigator (если не нужны), старые типы/экспорты; п
   (панель «Состояние формы» = `model.get()`); submit пустой формы → корректные ошибки на всех полях
   (sync+required); валидный username → ошибка очищается после async-проверки доступности (MSW).
   Скриншот: `projects/react-playground-e2e/screenshots/m1-migration/registration-validation.png`.
+- ✅ **Ф8: ещё 2 примера** (браузер-проверены):
+  - `validation-examples` — 12 встроенных валидаторов через `validateFormModel`.
+  - `behaviors-examples` — все 9 behaviors на сигналах (computeFrom/enableWhen/disableWhen/copyFrom/
+    watchField/transformValue/resetWhen/syncFields/revalidateWhen); проверено live: computeFrom (итого),
+    enableWhen (city), transformValue (uppercase), syncFields, disableWhen.
+  Скриншоты: `screenshots/m1-migration/{validation,behaviors}-examples.png`.
   - Коренная правка для когерентности: `createForm` **не кладёт `validators` в FieldNode** (контракт
     `(value, model)` исполняет движок `validateModel`/`validateFormModel` по схеме, а не `node.validate(value)`).
 
