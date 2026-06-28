@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { useFormControl, type ArrayNode, type FormFields, type FormProxy } from '@reformer/core';
+import { useFormControl, type ArrayNode, type FormProxy } from '@reformer/core';
 
 /**
  * Represents a single item in a form array with its control, index, and actions
  */
-export interface FormArrayItem<T extends FormFields> {
+export interface FormArrayItem<T extends object> {
   /** The form control for this item */
   control: FormProxy<T>;
   /** Zero-based index of the item in the array */
@@ -18,7 +18,7 @@ export interface FormArrayItem<T extends FormFields> {
 /**
  * Return type for useFormArray hook
  */
-export interface UseFormArrayReturn<T extends FormFields> {
+export interface UseFormArrayReturn<T extends object> {
   /** Array of items with their controls and actions */
   items: FormArrayItem<T>[];
   /** Current number of items in the array */
@@ -96,7 +96,7 @@ export interface UseFormArrayReturn<T extends FormFields> {
  * }
  * ```
  */
-export function useFormArray<T extends FormFields>(control: ArrayNode<T>): UseFormArrayReturn<T> {
+export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormArrayReturn<T> {
   // Subscribe to array length changes to trigger re-renders
   const { length } = useFormControl(control);
 

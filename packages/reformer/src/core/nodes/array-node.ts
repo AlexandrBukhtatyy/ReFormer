@@ -21,7 +21,6 @@ import type {
   ValidationError,
   WithValidationSchema,
   WithBehaviorSchema,
-  FormFields,
 } from '../types';
 import type { FormSchema } from '../types/deep-schema';
 import type { FormProxy } from '../types/form-proxy';
@@ -44,7 +43,10 @@ import { SubscriptionManager } from '../utils/subscription-manager';
  * console.log(array.length.value); // 1
  * ```
  */
-export class ArrayNode<T extends FormFields> extends FormNode<T[]> {
+// Констрейнт `object` (а не `Record<string, FormValue>`): пользовательские модели
+// элементов почти всегда объявлены через `interface`, который не assignable к
+// Record-типу (нет неявной index signature). `object` принимает и interface, и type.
+export class ArrayNode<T extends object> extends FormNode<T[]> {
   // ============================================================================
   // Приватные поля
   // ============================================================================

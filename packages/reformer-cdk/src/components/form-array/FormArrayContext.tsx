@@ -11,7 +11,7 @@ import type { ArrayNode, FormFields, FormProxy } from '@reformer/core';
 /**
  * Представляет элемент массива с контролом, индексом и действиями
  */
-export interface FormArrayItem<T extends FormFields> {
+export interface FormArrayItem<T extends object> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -25,7 +25,7 @@ export interface FormArrayItem<T extends FormFields> {
 /**
  * Контекст уровня массива
  */
-export interface FormArrayContextValue<T extends FormFields = FormFields> {
+export interface FormArrayContextValue<T extends object = FormFields> {
   /** Массив элементов с контролами и действиями */
   items: FormArrayItem<T>[];
   /** Текущая длина массива */
@@ -45,7 +45,7 @@ export interface FormArrayContextValue<T extends FormFields = FormFields> {
 /**
  * Контекст уровня элемента массива
  */
-export interface FormArrayItemContextValue<T extends FormFields = FormFields> {
+export interface FormArrayItemContextValue<T extends object = FormFields> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -120,7 +120,7 @@ export const FormArrayItemContext = createContext<FormArrayItemContextValue<any>
  * }
  * ```
  */
-export function useFormArrayContext<T extends FormFields = FormFields>(): FormArrayContextValue<T> {
+export function useFormArrayContext<T extends object = FormFields>(): FormArrayContextValue<T> {
   const context = useContext(FormArrayContext) as FormArrayContextValue<T> | null;
   if (!context) {
     throw new Error(
@@ -160,7 +160,7 @@ export function useFormArrayContext<T extends FormFields = FormFields>(): FormAr
  * ```
  */
 export function useFormArrayItemContext<
-  T extends FormFields = FormFields,
+  T extends object = FormFields,
 >(): FormArrayItemContextValue<T> {
   const context = useContext(FormArrayItemContext) as FormArrayItemContextValue<T> | null;
   if (!context) {

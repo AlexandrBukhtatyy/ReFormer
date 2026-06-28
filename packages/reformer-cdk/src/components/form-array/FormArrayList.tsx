@@ -1,5 +1,4 @@
 import { createElement } from 'react';
-import type { FormFields } from '@reformer/core';
 import { FormArrayItemContext, useFormArrayContext } from './FormArrayContext';
 import type { FormArrayListProps } from './types';
 
@@ -26,7 +25,7 @@ import type { FormArrayListProps } from './types';
  * </FormArray.List>
  * ```
  */
-export function FormArrayList<T extends FormFields>({
+export function FormArrayList<T extends object>({
   children,
   className,
   as = 'div',

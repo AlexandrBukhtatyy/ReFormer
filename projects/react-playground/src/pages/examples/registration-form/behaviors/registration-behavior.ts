@@ -29,7 +29,7 @@ export const registrationBehavior: BehaviorSchemaFn<RegistrationFormData> = (
         ]);
       } else {
         // Очищаем ошибку совпадения, если пароли совпали
-        ctx.form.confirmPassword.clearErrors({ code: 'passwords-mismatch' });
+        ctx.form.confirmPassword.clearErrors();
       }
     }
   });
@@ -48,7 +48,7 @@ export const registrationBehavior: BehaviorSchemaFn<RegistrationFormData> = (
         ]);
       } else {
         // Очищаем ошибку совпадения, если пароли совпали
-        ctx.form.confirmPassword.clearErrors({ code: 'passwords-mismatch' });
+        ctx.form.confirmPassword.clearErrors();
       }
     }
   });

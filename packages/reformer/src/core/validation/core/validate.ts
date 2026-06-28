@@ -33,9 +33,9 @@ import type { Validator, FieldPathNode, ValidateOptions } from '../../types';
  * validate(path.loanAmount, min(50000, { message: 'Min 50 000' }));
  * ```
  */
-export function validate<TForm, TField>(
-  fieldPath: FieldPathNode<TForm, TField> | undefined,
-  validator: Validator<TForm, TField>,
+export function validate<TField, TRoot>(
+  fieldPath: FieldPathNode<unknown, TField, unknown, TRoot> | undefined,
+  validator: Validator<TRoot, TField>,
   options?: ValidateOptions
 ): void {
   if (!fieldPath) return;

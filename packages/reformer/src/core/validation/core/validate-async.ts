@@ -37,9 +37,9 @@ import type { AsyncValidator, FieldPathNode, ValidateAsyncOptions } from '../../
  * );
  * ```
  */
-export function validateAsync<TForm, TField>(
-  fieldPath: FieldPathNode<TForm, TField>,
-  validator: AsyncValidator<TForm, TField>,
+export function validateAsync<TField, TRoot>(
+  fieldPath: FieldPathNode<unknown, TField, unknown, TRoot>,
+  validator: AsyncValidator<TRoot, TField>,
   options?: ValidateAsyncOptions
 ): void {
   const path = extractPath(fieldPath);

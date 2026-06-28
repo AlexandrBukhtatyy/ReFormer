@@ -25,13 +25,12 @@ import {
   type ArrayNode,
   type FieldPathNode,
   type FormArrayProxy,
-  type FormFields,
   type FormProxy,
 } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
 import type { FieldWrapperProps } from '@reformer/renderer-react';
 
-export interface FormArraySectionProps<T extends FormFields> {
+export interface FormArraySectionProps<T extends object> {
   /**
    * Резолвится автоматически: уже-резолвленный ArrayNode/FormArrayProxy ИЛИ
    * FieldPathNode (path.<arrayField>) — в этом случае через `form` + navigator.
@@ -103,7 +102,7 @@ export interface FormArraySectionProps<T extends FormFields> {
 
 const navigator = new FieldPathNavigator();
 
-function resolveArrayNode<T extends FormFields>(
+function resolveArrayNode<T extends object>(
   control: FormArraySectionProps<T>['control'],
   form: FormProxy<unknown> | undefined
 ): ArrayNode<T> | null {
@@ -145,7 +144,7 @@ function resolveArrayNode<T extends FormFields>(
   }
 }
 
-export function FormArraySection<T extends FormFields>({
+export function FormArraySection<T extends object>({
   control,
   itemComponent: ItemComponent,
   title,

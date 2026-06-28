@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle } from 'react';
-import type { FormFields, FormProxy } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import { useFormArray } from './useFormArray';
 import { FormArrayContext } from './FormArrayContext';
 import { FormArrayList } from './FormArrayList';
@@ -66,7 +66,7 @@ import type { FormArrayRootProps } from './types';
  * }
  * ```
  */
-export interface FormArrayHandle<T extends FormFields> {
+export interface FormArrayHandle<T extends object> {
   /** Add a new item to the end of the array */
   add: (value?: Partial<T>) => void;
   /** Remove all items from the array */
@@ -112,7 +112,7 @@ export interface FormArrayHandle<T extends FormFields> {
  * </FormArray.Root>
  * ```
  */
-function FormArrayRootInner<T extends FormFields>(
+function FormArrayRootInner<T extends object>(
   { control, children }: FormArrayRootProps<T>,
   ref: React.ForwardedRef<FormArrayHandle<T>>
 ) {
@@ -141,7 +141,7 @@ function FormArrayRootInner<T extends FormFields>(
 }
 
 // Typed forwardRef for generic component
-const FormArrayRoot = forwardRef(FormArrayRootInner) as <T extends FormFields>(
+const FormArrayRoot = forwardRef(FormArrayRootInner) as <T extends object>(
   props: FormArrayRootProps<T> & { ref?: React.ForwardedRef<FormArrayHandle<T>> }
 ) => React.ReactElement;
 
