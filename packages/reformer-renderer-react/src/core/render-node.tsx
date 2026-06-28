@@ -68,6 +68,15 @@ const FieldRenderer = memo(function FieldRenderer({
   const state = useFormControl(fieldNode as FieldNode<any>);
   const Component = fieldNode.component;
 
+  // M1: component опционален в core. Поле без компонента не рендерится автоматически
+  // (значение/валидация работают без UI; компонент нужен только для отрисовки).
+  if (!Component) {
+    if (typeof console !== 'undefined') {
+      console.warn('[RenderSchema] Field has no component — nothing to render.');
+    }
+    return null;
+  }
+
   // Только props для UI компонента (без state props которые не должны попадать в DOM)
   const inputProps: Record<string, unknown> = {
     value: state.value,
