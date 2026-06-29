@@ -1,85 +1,9 @@
 import { memo } from 'react';
-import { RELATIONSHIPS } from '../../../constants/credit-application';
-import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input, InputMask, Select, FormField } from '@reformer/ui-kit';
+import type { FormProxy } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
 import type { CoBorrower } from './types';
 
 export type { CoBorrower } from './types';
-
-export const coBorrowersFormSchema: FormSchema<CoBorrower> = {
-  personalData: {
-    lastName: {
-      value: '',
-      component: Input,
-      componentProps: {
-        label: 'Фамилия',
-        placeholder: 'Введите фамилию',
-      },
-    },
-    firstName: {
-      value: '',
-      component: Input,
-      componentProps: {
-        label: 'Имя',
-        placeholder: 'Введите имя',
-      },
-    },
-    middleName: {
-      value: '',
-      component: Input,
-      componentProps: {
-        label: 'Отчество',
-        placeholder: 'Введите отчество',
-      },
-    },
-    birthDate: {
-      value: '',
-      component: Input,
-      componentProps: {
-        label: 'Дата рождения',
-        type: 'date',
-      },
-    },
-  },
-  phone: {
-    value: '',
-    component: InputMask,
-    componentProps: {
-      label: 'Телефон',
-      placeholder: '+7 (___) ___-__-__',
-      mask: '+7 (999) 999-99-99',
-    },
-  },
-  email: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Email',
-      placeholder: 'example@mail.com',
-      type: 'email',
-    },
-  },
-  relationship: {
-    value: 'spouse',
-    component: Select,
-    componentProps: {
-      label: 'Отношение к заемщику',
-      placeholder: 'Выберите отношение',
-      options: RELATIONSHIPS,
-    },
-  },
-  monthlyIncome: {
-    value: 0,
-    component: Input,
-    componentProps: {
-      label: 'Ежемесячный доход (₽)',
-      placeholder: '0',
-      type: 'number',
-      min: 0,
-      step: 1000,
-    },
-  },
-};
 
 interface CoBorrowerFormProps {
   // GroupProxy для элемента массива coBorrowers

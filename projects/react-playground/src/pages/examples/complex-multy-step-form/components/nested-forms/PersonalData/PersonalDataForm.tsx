@@ -1,69 +1,9 @@
 import { memo } from 'react';
-import { GENDERS } from '../../../constants/credit-application';
-import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input, RadioGroup, FormField } from '@reformer/ui-kit';
+import type { FormProxy } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
 import type { PersonalData } from './types';
 
 export type { PersonalData } from './types';
-
-/**
- * Схема формы с личными данными
- */
-export const personalDataSchema: FormSchema<PersonalData> = {
-  lastName: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Фамилия',
-      placeholder: 'Введите фамилию',
-    },
-  },
-
-  firstName: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Имя',
-      placeholder: 'Введите имя',
-    },
-  },
-
-  middleName: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Отчество',
-      placeholder: 'Введите отчество',
-    },
-  },
-
-  birthDate: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Дата рождения',
-      type: 'date',
-    },
-  },
-
-  gender: {
-    value: 'male',
-    component: RadioGroup,
-    componentProps: {
-      label: 'Пол',
-      options: GENDERS,
-    },
-  },
-
-  birthPlace: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Место рождения',
-      placeholder: 'Введите место рождения',
-    },
-  },
-};
 
 interface PersonalDataFormProps {
   // GroupProxy для вложенной формы personalData (используем any для обхода ограничений TypeScript)

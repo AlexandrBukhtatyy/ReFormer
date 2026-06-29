@@ -1,71 +1,9 @@
 import { memo } from 'react';
-import { EXISTING_LOAN_TYPES } from '../../../constants/credit-application';
-import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input, Select, FormField } from '@reformer/ui-kit';
+import type { FormProxy } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
 import type { ExistingLoan } from './types';
 
 export type { ExistingLoan } from './types';
-
-export const existingLoansFormSchema: FormSchema<ExistingLoan> = {
-  bank: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Банк',
-      placeholder: 'Название банка',
-    },
-  },
-  type: {
-    value: 'consumer',
-    component: Select,
-    componentProps: {
-      label: 'Тип кредита',
-      placeholder: 'Выберите тип',
-      options: EXISTING_LOAN_TYPES,
-    },
-  },
-  amount: {
-    value: 0,
-    component: Input,
-    componentProps: {
-      label: 'Сумма кредита (₽)',
-      placeholder: '0',
-      type: 'number',
-      min: 0,
-      step: 1000,
-    },
-  },
-  remainingAmount: {
-    value: 0,
-    component: Input,
-    componentProps: {
-      label: 'Остаток долга (₽)',
-      placeholder: '0',
-      type: 'number',
-      min: 0,
-      step: 1000,
-    },
-  },
-  monthlyPayment: {
-    value: 0,
-    component: Input,
-    componentProps: {
-      label: 'Ежемесячный платеж (₽)',
-      placeholder: '0',
-      type: 'number',
-      min: 0,
-      step: 100,
-    },
-  },
-  maturityDate: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Дата погашения',
-      type: 'date',
-    },
-  },
-};
 
 interface ExistingLoanFormProps {
   control: FormProxy<ExistingLoan>;
