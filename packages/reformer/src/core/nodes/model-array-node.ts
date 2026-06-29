@@ -35,6 +35,16 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   private readonly initial: T[];
   private readonly _arrayErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
   private readonly disposeSync: () => void;
+  // Схема валидации элемента (legacy validateItems): применяется к существующим и новым элементам.
+  private itemValidationSchema?: unknown;
+
+  /**
+   * Сигнал per-item форм. Публичен в т.ч. чтобы `isArrayNode` распознавал узел как массив
+   * (duck-typing проверяет наличие `items`), и legacy-валидация работала наравне с {@link ArrayNode}.
+   */
+  get items(): Signal<FormProxy<T>[]> {
+    return this.itemNodes;
+  }
 
   public readonly value: ReadonlySignal<T[]>;
   public readonly valid: ReadonlySignal<boolean>;
@@ -69,6 +79,12 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
         let node = this.cache.get(itemModel as unknown as object);
         if (!node) {
           node = buildItem(itemModel);
+          // Применяем item-схему валидации к новому элементу (legacy validateItems).
+          if (this.itemValidationSchema) {
+            (node as { applyValidationSchema?: (fn: unknown) => void }).applyValidationSchema?.(
+              this.itemValidationSchema
+            );
+          }
           this.cache.set(itemModel as unknown as object, node);
         }
         next.push(node);
@@ -145,6 +161,17 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   }
   setErrors(errors: ValidationError[]): void {
     this._arrayErrors.value = errors;
+  }
+
+  /**
+   * Применить legacy validation schema к элементам (для `validateItems`). Сохраняется и применяется
+   * к существующим и будущим элементам. Каждый элемент — GroupNode-форма со своим реестром.
+   */
+  applyValidationSchema(schemaFn: unknown): void {
+    this.itemValidationSchema = schemaFn;
+    this.itemNodes.value.forEach((form) => {
+      (form as { applyValidationSchema?: (fn: unknown) => void }).applyValidationSchema?.(schemaFn);
+    });
   }
   clearErrors(): void {
     this._arrayErrors.value = [];
