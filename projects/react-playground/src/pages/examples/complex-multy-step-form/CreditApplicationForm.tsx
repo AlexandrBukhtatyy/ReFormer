@@ -11,8 +11,9 @@
  * - Полную типизацию TypeScript
  */
 
-import { useMemo, useRef } from 'react';
-import { createCreditApplicationForm } from './schemas/create-credit-application-form';
+import { useEffect, useMemo, useRef } from 'react';
+import { createCreditApplicationFormM1 } from './schemas/m1/create-form';
+import { setupCreditApplicationBehavior } from './schemas/m1/behavior';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
 import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm';
@@ -45,8 +46,12 @@ function CreditApplicationForm() {
   // Ref для доступа к методам навигации
   const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
-  //  Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
-  const form = useMemo(() => createCreditApplicationForm(), []);
+  //  Инициализируем модель + форму (M1) — мемоизируем, чтобы не пересоздавать при рендере
+  const { form, model } = useMemo(() => createCreditApplicationFormM1(), []);
+
+  //  Подключаем реактивное поведение (computeFrom/enableWhen/watchField) на модели + нодах.
+  //  Настраивается после createForm (нужен реестр сигнал→нода) и до загрузки данных.
+  useEffect(() => setupCreditApplicationBehavior(model, form), [model, form]);
 
   // Конфигурация навигации (totalSteps вычисляется автоматически из Step children)
   const navConfig = useMemo(

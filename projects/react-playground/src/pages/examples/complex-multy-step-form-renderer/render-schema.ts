@@ -1,22 +1,39 @@
 /**
- * RenderSchema для формы кредитной заявки
+ * Единая схема кредитной заявки (M1) для renderer-варианта.
  *
- * Фабрика: принимает форму и возвращает RenderSchemaProxy с применённым поведением.
- * Переиспользует типы, валидацию и поведение из complex-multy-step-form.
+ * Одна схема — и форма, и рендер: лист несёт `value` (СИГНАЛ модели) + `component` + `componentProps`
+ * (как в схеме формы), массив — узел `{ array: model.<path>, item }`. По этому дереву:
+ *  - `createForm({ model, schema })` строит форму (harvest листьев по сигналу + материализация массивов);
+ *  - `FormRenderer` рендерит то же дерево (лист резолвит ноду по сигналу через реестр).
+ * Отдельная схема формы (m1/schema.ts) для renderer НЕ нужна — конфиг полей вшит сюда.
+ *
+ * Layout (Wizard/Step/Section/Box), селекторы (hideWhen/createRenderSchema) и render-поведение —
+ * без изменений относительно legacy-варианта.
  */
 
-import type { FieldPath, FormProxy } from '@reformer/core';
+import type { FormProxy, FormModel } from '@reformer/core';
 import { createRenderSchema } from '@reformer/renderer-react';
 import type { RenderNode } from '@reformer/renderer-react';
 import { createCreditApplicationRenderBehavior } from './render-behavior';
 import { Step } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import type { Property } from '../complex-multy-step-form/components/nested-forms/Property/types';
-import type { ExistingLoan } from '../complex-multy-step-form/components/nested-forms/ExistingLoan/types';
-import type { CoBorrower } from '../complex-multy-step-form/components/nested-forms/CoBorrower/types';
 import creditApplicationValidation, {
   STEP_VALIDATIONS,
 } from '../complex-multy-step-form/schemas/credit-application-validation';
+import {
+  createBlankProperty,
+  createBlankExistingLoan,
+  createBlankCoBorrower,
+} from '../complex-multy-step-form/schemas/m1/model';
+import {
+  LOAN_TYPES,
+  EMPLOYMENT_STATUSES,
+  MARITAL_STATUSES,
+  EDUCATIONS,
+  GENDERS,
+  RELATIONSHIPS,
+  EXISTING_LOAN_TYPES,
+} from '../complex-multy-step-form/constants/credit-application';
 import { RendererFormWizard } from '../../../components/RendererFormWizard';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
@@ -29,29 +46,46 @@ import {
   NextStepsInfo,
   ElectronicSignatureHint,
 } from '../complex-multy-step-form/components/ui/ConfirmationComponents';
-import { AsyncBoundary, Section, Box, ErrorState, LoadingState } from '@reformer/ui-kit';
-import { RendererFormArraySection } from '../../../components/RendererFormArraySection';
+import {
+  AsyncBoundary,
+  Section,
+  Box,
+  ErrorState,
+  LoadingState,
+  Select,
+  Checkbox,
+  Input,
+  InputMask,
+  RadioGroup,
+  Textarea,
+} from '@reformer/ui-kit';
 import { createElement } from 'react';
 
 const ErrorStateDefault = () => createElement(ErrorState, { error: 'Не удалось загрузить заявку' });
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Лист единой схемы: значение из сигнала модели + UI-компонент + props. */
+const f = (value: unknown, component: unknown, componentProps?: Record<string, unknown>) => ({
+  value,
+  component,
+  ...(componentProps ? { componentProps } : {}),
+});
+const num = (props: Record<string, unknown>) => ({ type: 'number', ...props });
+
 /**
- * RenderSchema для кредитной заявки
- *
- * Структура:
- * - RendererFormWizard (корень) - пользовательский wizard-компонент
- *   - indicator: StepIndicator
- *   - step:1-6: содержимое шагов (с title/icon в componentProps)
- *   - actions: FormWizardActions
- *   - progress: FormWizardProgress
+ * Построить дерево единой схемы. `form` нужен только wizard-узлу (рендер); при сборке формы
+ * (`createForm`) передаём дерево БЕЗ form, чтобы harvest не обходил FormProxy.
  */
-export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplicationForm>) {
-  const schema = createRenderSchema<CreditApplicationForm>((path) => ({
+export function buildCreditApplicationSchema(
+  model: FormModel<CreditApplicationForm>,
+  form?: FormProxy<CreditApplicationForm>
+): RenderNode<CreditApplicationForm> {
+  const m = model.$;
+  return {
     selector: 'data-boundary',
     component: AsyncBoundary,
     componentProps: {
-      // status подставляет render-behavior через patchProps (loading | error | ready).
-      status: 'loading',
+      status: 'loading', // render-behavior подставит loading | error | ready
       LoadingComponent: LoadingState,
       ErrorComponent: ErrorStateDefault,
     },
@@ -60,28 +94,20 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
         selector: 'wizard',
         component: RendererFormWizard,
         componentProps: {
-          form,
+          ...(form ? { form } : {}),
           stepValidations: STEP_VALIDATIONS,
           fullValidation: creditApplicationValidation,
           className: 'bg-white p-8 rounded-lg shadow-md',
           steps: [
-            // ========================================
-            // Шаг 1: Основная информация о кредите
-            // ========================================
+            // ── Шаг 1: Основная информация ──────────────────────────────
             {
               component: Step,
-              componentProps: {
-                title: 'Кредит',
-                icon: '💰',
-              },
+              componentProps: { title: 'Кредит', icon: '💰' },
               children: [
                 {
                   component: Box,
-                  componentProps: {
-                    className: 'space-y-6',
-                  },
+                  componentProps: { className: 'space-y-6' },
                   children: [
-                    // Заголовок
                     {
                       component: Section,
                       componentProps: {
@@ -91,13 +117,40 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-6',
                       },
                       children: [
-                        { selector: 'loanType', component: path.loanType },
-                        { selector: 'loanAmount', component: path.loanAmount },
-                        { component: path.loanTerm },
-                        { component: path.loanPurpose },
+                        f(m.loanType, Select, {
+                          label: 'Тип кредита',
+                          placeholder: 'Выберите тип кредита',
+                          options: LOAN_TYPES,
+                        }),
+                        f(
+                          m.loanAmount,
+                          Input,
+                          num({
+                            label: 'Сумма кредита (₽)',
+                            placeholder: 'Введите сумму',
+                            min: 50000,
+                            max: 10000000,
+                            step: 10000,
+                          })
+                        ),
+                        f(
+                          m.loanTerm,
+                          Input,
+                          num({
+                            label: 'Срок кредита (месяцев)',
+                            placeholder: 'Введите срок',
+                            min: 6,
+                            max: 240,
+                          })
+                        ),
+                        f(m.loanPurpose, Textarea, {
+                          label: 'Цель кредита',
+                          placeholder: 'Опишите, на что планируете потратить средства',
+                          rows: 4,
+                          maxLength: 500,
+                        }),
                       ],
                     },
-                    // Секция для ипотеки
                     {
                       selector: 'mortgage-section',
                       component: Section,
@@ -107,11 +160,28 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.propertyValue },
-                        { component: path.initialPayment },
+                        f(
+                          m.propertyValue,
+                          Input,
+                          num({
+                            label: 'Стоимость недвижимости (₽)',
+                            placeholder: 'Введите стоимость',
+                            min: 1000000,
+                            step: 100000,
+                          })
+                        ),
+                        f(
+                          m.initialPayment,
+                          Input,
+                          num({
+                            label: 'Первоначальный взнос (₽)',
+                            placeholder: 'Введите сумму',
+                            min: 0,
+                            step: 10000,
+                          })
+                        ),
                       ],
                     },
-                    // Секция для автокредита
                     {
                       selector: 'car-section',
                       component: Section,
@@ -121,14 +191,30 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.carBrand },
-                        { component: path.carModel },
+                        f(m.carBrand, Input, {
+                          label: 'Марка автомобиля',
+                          placeholder: 'Например: Toyota',
+                        }),
+                        f(m.carModel, Select, {
+                          label: 'Модель автомобиля',
+                          placeholder: 'Например: Camry',
+                        }),
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
-                          children: [{ component: path.carYear }, { component: path.carPrice }],
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
+                          children: [
+                            f(m.carYear, Input, num({ label: 'Год выпуска', placeholder: '2020' })),
+                            f(
+                              m.carPrice,
+                              Input,
+                              num({
+                                label: 'Стоимость автомобиля (₽)',
+                                placeholder: 'Введите стоимость',
+                                min: 300000,
+                                step: 10000,
+                              })
+                            ),
+                          ],
                         },
                       ],
                     },
@@ -137,15 +223,10 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
               ],
             },
 
-            // ========================================
-            // Шаг 2: Персональные данные
-            // ========================================
+            // ── Шаг 2: Персональные данные ──────────────────────────────
             {
               component: Step,
-              componentProps: {
-                title: 'Данные',
-                icon: '👤',
-              },
+              componentProps: { title: 'Данные', icon: '👤' },
               children: [
                 {
                   component: Section,
@@ -156,7 +237,6 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                     className: 'space-y-6',
                   },
                   children: [
-                    // Личные данные
                     {
                       component: Section,
                       componentProps: {
@@ -167,29 +247,42 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       children: [
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-3 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-3 gap-4' },
                           children: [
-                            { component: path.personalData.lastName },
-                            { component: path.personalData.firstName },
-                            { component: path.personalData.middleName },
+                            f(m.personalData.lastName, Input, {
+                              label: 'Фамилия',
+                              placeholder: 'Введите фамилию',
+                            }),
+                            f(m.personalData.firstName, Input, {
+                              label: 'Имя',
+                              placeholder: 'Введите имя',
+                            }),
+                            f(m.personalData.middleName, Input, {
+                              label: 'Отчество',
+                              placeholder: 'Введите отчество',
+                            }),
                           ],
                         },
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.personalData.birthDate },
-                            { component: path.personalData.gender },
+                            f(m.personalData.birthDate, Input, {
+                              label: 'Дата рождения',
+                              type: 'date',
+                            }),
+                            f(m.personalData.gender, RadioGroup, {
+                              label: 'Пол',
+                              options: GENDERS,
+                            }),
                           ],
                         },
-                        { component: path.personalData.birthPlace },
+                        f(m.personalData.birthPlace, Input, {
+                          label: 'Место рождения',
+                          placeholder: 'Введите место рождения',
+                        }),
                       ],
                     },
-                    // Паспортные данные
                     {
                       component: Section,
                       componentProps: {
@@ -200,28 +293,42 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       children: [
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.passportData.series },
-                            { component: path.passportData.number },
+                            f(m.passportData.series, InputMask, {
+                              label: 'Серия паспорта',
+                              placeholder: '00 00',
+                              mask: '99 99',
+                            }),
+                            f(m.passportData.number, InputMask, {
+                              label: 'Номер паспорта',
+                              placeholder: '000000',
+                              mask: '999999',
+                            }),
                           ],
                         },
-                        { component: path.passportData.issuedBy },
+                        f(m.passportData.issuedBy, Textarea, {
+                          label: 'Кем выдан',
+                          placeholder: 'Введите наименование органа',
+                          rows: 3,
+                        }),
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.passportData.issueDate },
-                            { component: path.passportData.departmentCode },
+                            f(m.passportData.issueDate, Input, {
+                              label: 'Дата выдачи',
+                              type: 'date',
+                            }),
+                            f(m.passportData.departmentCode, InputMask, {
+                              label: 'Код подразделения',
+                              placeholder: '000-000',
+                              mask: '999-999',
+                            }),
                           ],
                         },
                       ],
                     },
-                    // ИНН и СНИЛС
                     {
                       component: Section,
                       componentProps: {
@@ -232,10 +339,19 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       children: [
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
-                          children: [{ component: path.inn }, { component: path.snils }],
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
+                          children: [
+                            f(m.inn, InputMask, {
+                              label: 'ИНН',
+                              placeholder: '123456789012',
+                              mask: '999999999999',
+                            }),
+                            f(m.snils, InputMask, {
+                              label: 'СНИЛС',
+                              placeholder: '123-456-789 00',
+                              mask: '999-999-999 99',
+                            }),
+                          ],
                         },
                       ],
                     },
@@ -244,15 +360,10 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
               ],
             },
 
-            // ========================================
-            // Шаг 3: Контактная информация
-            // ========================================
+            // ── Шаг 3: Контактная информация ────────────────────────────
             {
               component: Step,
-              componentProps: {
-                title: 'Контакты',
-                icon: '📞',
-              },
+              componentProps: { title: 'Контакты', icon: '📞' },
               children: [
                 {
                   component: Section,
@@ -263,7 +374,6 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                     className: 'space-y-6',
                   },
                   children: [
-                    // Контакты (телефоны и email в одной секции)
                     {
                       component: Section,
                       componentProps: {
@@ -274,27 +384,38 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       children: [
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.phoneMain },
-                            { component: path.phoneAdditional },
+                            f(m.phoneMain, InputMask, {
+                              label: 'Основной телефон',
+                              placeholder: '+7 (___) ___-__-__',
+                              mask: '+7 (999) 999-99-99',
+                            }),
+                            f(m.phoneAdditional, InputMask, {
+                              label: 'Дополнительный телефон',
+                              placeholder: '+7 (___) ___-__-__',
+                              mask: '+7 (999) 999-99-99',
+                            }),
                           ],
                         },
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.email },
-                            { component: path.emailAdditional },
+                            f(m.email, Input, {
+                              label: 'Email',
+                              placeholder: 'example@mail.com',
+                              type: 'email',
+                            }),
+                            f(m.emailAdditional, Input, {
+                              label: 'Дополнительный email',
+                              placeholder: 'example@mail.com',
+                              type: 'email',
+                            }),
                           ],
                         },
                       ],
                     },
-                    // Адрес регистрации
                     {
                       component: Section,
                       componentProps: {
@@ -305,31 +426,46 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                       children: [
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.registrationAddress.region },
-                            { component: path.registrationAddress.city },
+                            f(m.registrationAddress.region, Input, {
+                              label: 'Регион',
+                              placeholder: 'Введите регион',
+                            }),
+                            f(m.registrationAddress.city, Input, {
+                              label: 'Город',
+                              placeholder: 'Введите город',
+                            }),
                           ],
                         },
-                        { component: path.registrationAddress.street },
+                        f(m.registrationAddress.street, Input, {
+                          label: 'Улица',
+                          placeholder: 'Введите улицу',
+                        }),
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-3 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-3 gap-4' },
                           children: [
-                            { component: path.registrationAddress.house },
-                            { component: path.registrationAddress.apartment! },
-                            { component: path.registrationAddress.postalCode },
+                            f(m.registrationAddress.house, Input, {
+                              label: 'Дом',
+                              placeholder: '№',
+                            }),
+                            f(m.registrationAddress.apartment, Input, {
+                              label: 'Квартира',
+                              placeholder: '№',
+                            }),
+                            f(m.registrationAddress.postalCode, InputMask, {
+                              label: 'Индекс',
+                              placeholder: '000000',
+                              mask: '999999',
+                            }),
                           ],
                         },
                       ],
                     },
-                    // Флаг совпадения адресов
-                    { component: path.sameAsRegistration },
-                    // Адрес проживания (со специальной стилизацией и кнопками)
+                    f(m.sameAsRegistration, Checkbox, {
+                      label: 'Адрес проживания совпадает с адресом регистрации',
+                    }),
                     {
                       selector: 'residence-address-section',
                       component: Box,
@@ -339,24 +475,39 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                           children: [
                             {
                               component: Box,
-                              componentProps: {
-                                className: 'grid grid-cols-2 gap-4',
-                              },
+                              componentProps: { className: 'grid grid-cols-2 gap-4' },
                               children: [
-                                { component: path.residenceAddress.region },
-                                { component: path.residenceAddress.city },
+                                f(m.residenceAddress.region, Input, {
+                                  label: 'Регион',
+                                  placeholder: 'Введите регион',
+                                }),
+                                f(m.residenceAddress.city, Input, {
+                                  label: 'Город',
+                                  placeholder: 'Введите город',
+                                }),
                               ],
                             },
-                            { component: path.residenceAddress.street },
+                            f(m.residenceAddress.street, Input, {
+                              label: 'Улица',
+                              placeholder: 'Введите улицу',
+                            }),
                             {
                               component: Box,
-                              componentProps: {
-                                className: 'grid grid-cols-3 gap-4',
-                              },
+                              componentProps: { className: 'grid grid-cols-3 gap-4' },
                               children: [
-                                { component: path.residenceAddress.house },
-                                { component: path.residenceAddress.apartment! },
-                                { component: path.residenceAddress.postalCode },
+                                f(m.residenceAddress.house, Input, {
+                                  label: 'Дом',
+                                  placeholder: '№',
+                                }),
+                                f(m.residenceAddress.apartment, Input, {
+                                  label: 'Квартира',
+                                  placeholder: '№',
+                                }),
+                                f(m.residenceAddress.postalCode, InputMask, {
+                                  label: 'Индекс',
+                                  placeholder: '000000',
+                                  mask: '999999',
+                                }),
                               ],
                             },
                           ],
@@ -368,15 +519,10 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
               ],
             },
 
-            // ========================================
-            // Шаг 4: Информация о занятости
-            // ========================================
+            // ── Шаг 4: Занятость ────────────────────────────────────────
             {
               component: Step,
-              componentProps: {
-                title: 'Работа',
-                icon: '💼',
-              },
+              componentProps: { title: 'Работа', icon: '💼' },
               children: [
                 {
                   component: Section,
@@ -387,15 +533,16 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                     className: 'space-y-6',
                   },
                   children: [
-                    // Статус занятости
                     {
                       component: Box,
-                      componentProps: {
-                        className: 'space-y-4',
-                      },
-                      children: [{ component: path.employmentStatus }],
+                      componentProps: { className: 'space-y-4' },
+                      children: [
+                        f(m.employmentStatus, RadioGroup, {
+                          label: 'Статус занятости',
+                          options: EMPLOYMENT_STATUSES,
+                        }),
+                      ],
                     },
-                    // Информация о работодателе (для employed)
                     {
                       selector: 'employer-section',
                       component: Section,
@@ -405,19 +552,30 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.companyName },
+                        f(m.companyName, Input, {
+                          label: 'Название компании',
+                          placeholder: 'Введите название',
+                        }),
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.companyInn },
-                            { component: path.companyPhone },
+                            f(m.companyInn, InputMask, {
+                              label: 'ИНН компании',
+                              placeholder: '1234567890',
+                              mask: '9999999999',
+                            }),
+                            f(m.companyPhone, InputMask, {
+                              label: 'Телефон компании',
+                              placeholder: '+7 (___) ___-__-__',
+                              mask: '+7 (999) 999-99-99',
+                            }),
                           ],
                         },
-                        { component: path.companyAddress },
-                        // Должность и стаж
+                        f(m.companyAddress, Input, {
+                          label: 'Адрес компании',
+                          placeholder: 'Полный адрес',
+                        }),
                         {
                           component: Section,
                           componentProps: {
@@ -426,22 +584,38 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                             className: 'space-y-4',
                           },
                           children: [
-                            { component: path.position },
+                            f(m.position, Input, {
+                              label: 'Должность',
+                              placeholder: 'Ваша должность',
+                            }),
                             {
                               component: Box,
-                              componentProps: {
-                                className: 'grid grid-cols-2 gap-4',
-                              },
+                              componentProps: { className: 'grid grid-cols-2 gap-4' },
                               children: [
-                                { component: path.workExperienceTotal },
-                                { component: path.workExperienceCurrent },
+                                f(
+                                  m.workExperienceTotal,
+                                  Input,
+                                  num({
+                                    label: 'Общий стаж работы (месяцев)',
+                                    placeholder: '0',
+                                    min: 0,
+                                  })
+                                ),
+                                f(
+                                  m.workExperienceCurrent,
+                                  Input,
+                                  num({
+                                    label: 'Стаж на текущем месте (месяцев)',
+                                    placeholder: '0',
+                                    min: 0,
+                                  })
+                                ),
                               ],
                             },
                           ],
                         },
                       ],
                     },
-                    // Информация о бизнесе (для selfEmployed)
                     {
                       selector: 'business-section',
                       component: Section,
@@ -451,12 +625,22 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.businessType },
-                        { component: path.businessInn },
-                        { component: path.businessActivity },
+                        f(m.businessType, Input, {
+                          label: 'Тип бизнеса',
+                          placeholder: 'ИП, ООО и т.д.',
+                        }),
+                        f(m.businessInn, InputMask, {
+                          label: 'ИНН ИП',
+                          placeholder: '123456789012',
+                          mask: '999999999999',
+                        }),
+                        f(m.businessActivity, Textarea, {
+                          label: 'Вид деятельности',
+                          placeholder: 'Опишите вид деятельности',
+                          rows: 3,
+                        }),
                       ],
                     },
-                    // Доход (показывается когда не unemployed)
                     {
                       selector: 'income-section',
                       component: Section,
@@ -466,41 +650,52 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.monthlyIncome },
+                        f(
+                          m.monthlyIncome,
+                          Input,
+                          num({
+                            label: 'Ежемесячный доход (₽)',
+                            placeholder: '0',
+                            min: 10000,
+                            step: 1000,
+                          })
+                        ),
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            { component: path.additionalIncome },
-                            { component: path.additionalIncomeSource },
+                            f(
+                              m.additionalIncome,
+                              Input,
+                              num({
+                                label: 'Дополнительный доход (₽)',
+                                placeholder: '0',
+                                min: 0,
+                                step: 1000,
+                              })
+                            ),
+                            f(m.additionalIncomeSource, Input, {
+                              label: 'Источник дополнительного дохода',
+                              placeholder: 'Опишите источник',
+                            }),
                           ],
                         },
                       ],
                     },
-                    // Предупреждение для безработных
                     {
                       selector: 'unemployed-warning',
                       component: UnemployedWarning,
-                      componentProps: {
-                        className: 'mt-6',
-                      },
+                      componentProps: { className: 'mt-6' },
                     },
                   ],
                 },
               ],
             },
 
-            // ========================================
-            // Шаг 5: Дополнительная информация
-            // ========================================
+            // ── Шаг 5: Дополнительная информация ────────────────────────
             {
               component: Step,
-              componentProps: {
-                title: 'Доп. инфо',
-                icon: '📋',
-              },
+              componentProps: { title: 'Доп. инфо', icon: '📋' },
               children: [
                 {
                   component: Section,
@@ -511,7 +706,6 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                     className: 'space-y-6',
                   },
                   children: [
-                    // Общая информация
                     {
                       component: Section,
                       componentProps: {
@@ -520,225 +714,267 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.maritalStatus },
+                        f(m.maritalStatus, RadioGroup, {
+                          label: 'Семейное положение',
+                          options: MARITAL_STATUSES,
+                        }),
                         {
                           component: Box,
-                          componentProps: {
-                            className: 'grid grid-cols-2 gap-4',
-                          },
-                          children: [{ component: path.dependents }, { component: path.education }],
+                          componentProps: { className: 'grid grid-cols-2 gap-4' },
+                          children: [
+                            f(
+                              m.dependents,
+                              Input,
+                              num({
+                                label: 'Количество иждивенцев',
+                                placeholder: '0',
+                                min: 0,
+                                max: 10,
+                              })
+                            ),
+                            f(m.education, Select, {
+                              label: 'Образование',
+                              placeholder: 'Выберите уровень образования',
+                              options: EDUCATIONS,
+                            }),
+                          ],
                         },
                       ],
                     },
                     // Имущество
                     {
                       component: Section,
-                      componentProps: {
-                        className: 'space-y-4',
-                      },
+                      componentProps: { className: 'space-y-4' },
                       children: [
-                        { component: path.hasProperty },
+                        f(m.hasProperty, Checkbox, { label: 'У меня есть имущество' }),
                         {
                           selector: 'properties-array',
-                          component: RendererFormArraySection,
+                          array: model.properties,
+                          initialValue: createBlankProperty,
                           componentProps: {
                             title: 'Имущество',
-                            control: path.properties,
-                            itemLabel: (
-                              _: FormProxy<CreditApplicationForm['properties'][0]>,
-                              index: number
-                            ) => `Имущество #${index + 1}`,
+                            itemLabel: 'Имущество',
                             addButtonLabel: '+ Добавить имущество',
                             emptyMessage: 'Нажмите "Добавить имущество" для добавления информации',
-                            itemComponent: (itemPath: FieldPath<Property>) => ({
-                              component: Box,
-                              componentProps: {
-                                className: 'space-y-3',
-                              },
-                              children: [
-                                {
-                                  component: itemPath.type,
-                                  componentProps: { testId: 'property-type' },
-                                },
-                                {
-                                  component: itemPath.description,
-                                  componentProps: { testId: 'property-description' },
-                                },
-                                {
-                                  component: itemPath.estimatedValue,
-                                  componentProps: { testId: 'property-estimatedValue' },
-                                },
-                                {
-                                  component: itemPath.hasEncumbrance,
-                                  componentProps: { testId: 'property-hasEncumbrance' },
-                                },
-                              ],
-                            }),
                           },
+                          item: (im: any) => ({
+                            component: Box,
+                            componentProps: { className: 'space-y-3' },
+                            children: [
+                              f(im.$.type, Select, {
+                                label: 'Тип имущества',
+                                placeholder: 'Выберите тип',
+                                testId: 'property-type',
+                                options: [
+                                  { value: 'apartment', label: 'Квартира' },
+                                  { value: 'house', label: 'Дом' },
+                                  { value: 'land', label: 'Земельный участок' },
+                                  { value: 'commercial', label: 'Коммерческая недвижимость' },
+                                  { value: 'car', label: 'Автомобиль' },
+                                  { value: 'other', label: 'Другое' },
+                                ],
+                              }),
+                              f(im.$.description, Textarea, {
+                                label: 'Описание',
+                                placeholder: 'Опишите имущество',
+                                rows: 2,
+                                testId: 'property-description',
+                              }),
+                              f(
+                                im.$.estimatedValue,
+                                Input,
+                                num({
+                                  label: 'Оценочная стоимость',
+                                  placeholder: '0',
+                                  min: 0,
+                                  step: 1000,
+                                  testId: 'property-estimatedValue',
+                                })
+                              ),
+                              f(im.$.hasEncumbrance, Checkbox, {
+                                label: 'Имеется обременение (залог)',
+                                testId: 'property-hasEncumbrance',
+                              }),
+                            ],
+                          }),
                         },
                       ],
                     },
                     // Существующие кредиты
                     {
                       component: Section,
-                      componentProps: {
-                        className: 'space-y-4',
-                      },
+                      componentProps: { className: 'space-y-4' },
                       children: [
-                        { component: path.hasExistingLoans },
+                        f(m.hasExistingLoans, Checkbox, { label: 'У меня есть другие кредиты' }),
                         {
                           selector: 'existing-loans-array',
-                          component: RendererFormArraySection,
+                          array: model.existingLoans,
+                          initialValue: createBlankExistingLoan,
                           componentProps: {
                             title: 'Существующие кредиты',
-                            control: path.existingLoans,
-                            itemLabel: (
-                              _: FormProxy<CreditApplicationForm['existingLoans'][0]>,
-                              index: number
-                            ) => `Кредит #${index + 1}`,
+                            itemLabel: 'Кредит',
                             addButtonLabel: '+ Добавить кредит',
                             emptyMessage: 'Нажмите "Добавить кредит" для добавления информации',
-                            itemComponent: (itemPath: FieldPath<ExistingLoan>) => ({
-                              component: Box,
-                              componentProps: {
-                                className: 'space-y-3',
-                              },
-                              children: [
-                                // testId явно задан для совместимости с e2e POM
-                                // (compound-вариант использует единый testId для всех item-ов массива)
-                                {
-                                  component: itemPath.bank,
-                                  componentProps: { testId: 'existingLoan-bank' },
-                                },
-                                {
-                                  component: itemPath.type,
-                                  componentProps: { testId: 'existingLoan-type' },
-                                },
-                                {
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'grid grid-cols-2 gap-4',
-                                  },
-                                  children: [
-                                    {
-                                      component: itemPath.amount,
-                                      componentProps: { testId: 'existingLoan-amount' },
-                                    },
-                                    {
-                                      component: itemPath.remainingAmount,
-                                      componentProps: { testId: 'existingLoan-remainingAmount' },
-                                    },
-                                  ],
-                                },
-                                {
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'grid grid-cols-2 gap-4',
-                                  },
-                                  children: [
-                                    {
-                                      component: itemPath.monthlyPayment,
-                                      componentProps: { testId: 'existingLoan-monthlyPayment' },
-                                    },
-                                    {
-                                      component: itemPath.maturityDate,
-                                      componentProps: { testId: 'existingLoan-maturityDate' },
-                                    },
-                                  ],
-                                },
-                              ],
-                            }),
                           },
+                          item: (im: any) => ({
+                            component: Box,
+                            componentProps: { className: 'space-y-3' },
+                            children: [
+                              f(im.$.bank, Input, {
+                                label: 'Банк',
+                                placeholder: 'Название банка',
+                                testId: 'existingLoan-bank',
+                              }),
+                              f(im.$.type, Select, {
+                                label: 'Тип кредита',
+                                placeholder: 'Выберите тип',
+                                options: EXISTING_LOAN_TYPES,
+                                testId: 'existingLoan-type',
+                              }),
+                              {
+                                component: Box,
+                                componentProps: { className: 'grid grid-cols-2 gap-4' },
+                                children: [
+                                  f(
+                                    im.$.amount,
+                                    Input,
+                                    num({
+                                      label: 'Сумма кредита (₽)',
+                                      placeholder: '0',
+                                      min: 0,
+                                      step: 1000,
+                                      testId: 'existingLoan-amount',
+                                    })
+                                  ),
+                                  f(
+                                    im.$.remainingAmount,
+                                    Input,
+                                    num({
+                                      label: 'Остаток долга (₽)',
+                                      placeholder: '0',
+                                      min: 0,
+                                      step: 1000,
+                                      testId: 'existingLoan-remainingAmount',
+                                    })
+                                  ),
+                                ],
+                              },
+                              {
+                                component: Box,
+                                componentProps: { className: 'grid grid-cols-2 gap-4' },
+                                children: [
+                                  f(
+                                    im.$.monthlyPayment,
+                                    Input,
+                                    num({
+                                      label: 'Ежемесячный платеж (₽)',
+                                      placeholder: '0',
+                                      min: 0,
+                                      step: 100,
+                                      testId: 'existingLoan-monthlyPayment',
+                                    })
+                                  ),
+                                  f(im.$.maturityDate, Input, {
+                                    label: 'Дата погашения',
+                                    type: 'date',
+                                    testId: 'existingLoan-maturityDate',
+                                  }),
+                                ],
+                              },
+                            ],
+                          }),
                         },
                       ],
                     },
                     // Созаёмщики
                     {
                       component: Section,
-                      componentProps: {
-                        className: 'space-y-4',
-                      },
+                      componentProps: { className: 'space-y-4' },
                       children: [
-                        { component: path.hasCoBorrower },
+                        f(m.hasCoBorrower, Checkbox, { label: 'Добавить созаемщика' }),
                         {
                           selector: 'co-borrowers-array',
-                          component: RendererFormArraySection,
+                          array: model.coBorrowers,
+                          initialValue: createBlankCoBorrower,
                           componentProps: {
                             title: 'Созаемщики',
-                            control: path.coBorrowers,
-                            itemLabel: (
-                              _: FormProxy<CreditApplicationForm['coBorrowers'][0]>,
-                              index: number
-                            ) => `Созаемщик #${index + 1}`,
+                            itemLabel: 'Созаемщик',
                             addButtonLabel: '+ Добавить созаемщика',
                             emptyMessage: 'Нажмите "Добавить созаемщика" для добавления информации',
-                            emptyMessageHint:
-                              'CoBorrowerForm поддерживает вложенную группу personalData',
-                            itemComponent: (itemPath: FieldPath<CoBorrower>) => ({
-                              component: Box,
-                              componentProps: {
-                                className: 'space-y-3',
-                              },
-                              children: [
-                                {
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'grid grid-cols-3 gap-4',
-                                  },
-                                  children: [
-                                    {
-                                      component: itemPath.personalData.lastName,
-                                      componentProps: { testId: 'coBorrower-lastName' },
-                                    },
-                                    {
-                                      component: itemPath.personalData.firstName,
-                                      componentProps: { testId: 'coBorrower-firstName' },
-                                    },
-                                    {
-                                      component: itemPath.personalData.middleName,
-                                      componentProps: { testId: 'coBorrower-middleName' },
-                                    },
-                                  ],
-                                },
-                                {
-                                  component: itemPath.personalData.birthDate,
-                                  componentProps: { testId: 'coBorrower-birthDate' },
-                                },
-                                {
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'grid grid-cols-2 gap-4',
-                                  },
-                                  children: [
-                                    {
-                                      component: itemPath.phone,
-                                      componentProps: { testId: 'coBorrower-phone' },
-                                    },
-                                    {
-                                      component: itemPath.email,
-                                      componentProps: { testId: 'coBorrower-email' },
-                                    },
-                                  ],
-                                },
-                                {
-                                  component: Box,
-                                  componentProps: {
-                                    className: 'grid grid-cols-2 gap-4',
-                                  },
-                                  children: [
-                                    {
-                                      component: itemPath.relationship,
-                                      componentProps: { testId: 'coBorrower-relationship' },
-                                    },
-                                    {
-                                      component: itemPath.monthlyIncome,
-                                      componentProps: { testId: 'coBorrower-monthlyIncome' },
-                                    },
-                                  ],
-                                },
-                              ],
-                            }),
                           },
+                          item: (im: any) => ({
+                            component: Box,
+                            componentProps: { className: 'space-y-3' },
+                            children: [
+                              {
+                                component: Box,
+                                componentProps: { className: 'grid grid-cols-3 gap-4' },
+                                children: [
+                                  f(im.$.personalData.lastName, Input, {
+                                    label: 'Фамилия',
+                                    placeholder: 'Введите фамилию',
+                                    testId: 'coBorrower-lastName',
+                                  }),
+                                  f(im.$.personalData.firstName, Input, {
+                                    label: 'Имя',
+                                    placeholder: 'Введите имя',
+                                    testId: 'coBorrower-firstName',
+                                  }),
+                                  f(im.$.personalData.middleName, Input, {
+                                    label: 'Отчество',
+                                    placeholder: 'Введите отчество',
+                                    testId: 'coBorrower-middleName',
+                                  }),
+                                ],
+                              },
+                              f(im.$.personalData.birthDate, Input, {
+                                label: 'Дата рождения',
+                                type: 'date',
+                                testId: 'coBorrower-birthDate',
+                              }),
+                              {
+                                component: Box,
+                                componentProps: { className: 'grid grid-cols-2 gap-4' },
+                                children: [
+                                  f(im.$.phone, InputMask, {
+                                    label: 'Телефон',
+                                    placeholder: '+7 (___) ___-__-__',
+                                    mask: '+7 (999) 999-99-99',
+                                    testId: 'coBorrower-phone',
+                                  }),
+                                  f(im.$.email, Input, {
+                                    label: 'Email',
+                                    placeholder: 'example@mail.com',
+                                    type: 'email',
+                                    testId: 'coBorrower-email',
+                                  }),
+                                ],
+                              },
+                              {
+                                component: Box,
+                                componentProps: { className: 'grid grid-cols-2 gap-4' },
+                                children: [
+                                  f(im.$.relationship, Select, {
+                                    label: 'Отношение к заемщику',
+                                    placeholder: 'Выберите отношение',
+                                    options: RELATIONSHIPS,
+                                    testId: 'coBorrower-relationship',
+                                  }),
+                                  f(
+                                    im.$.monthlyIncome,
+                                    Input,
+                                    num({
+                                      label: 'Ежемесячный доход (₽)',
+                                      placeholder: '0',
+                                      min: 0,
+                                      step: 1000,
+                                      testId: 'coBorrower-monthlyIncome',
+                                    })
+                                  ),
+                                ],
+                              },
+                            ],
+                          }),
                         },
                       ],
                     },
@@ -747,15 +983,10 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
               ],
             },
 
-            // ========================================
-            // Шаг 6: Подтверждение
-            // ========================================
+            // ── Шаг 6: Подтверждение ────────────────────────────────────
             {
               component: Step,
-              componentProps: {
-                title: 'Подтверждение',
-                icon: '✓',
-              },
+              componentProps: { title: 'Подтверждение', icon: '✓' },
               children: [
                 {
                   component: Section,
@@ -766,22 +997,16 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                     className: 'space-y-6',
                   },
                   children: [
-                    // Информационные блоки
                     {
                       component: Box,
-                      componentProps: {
-                        className: 'space-y-4',
-                      },
+                      componentProps: { className: 'space-y-4' },
                       children: [
                         { component: ConfirmationInfoBlock },
                         { component: HighPaymentWarning },
                       ],
                     },
-                    // Секция "Итого"
                     { component: LoanSummarySection },
-                    // Секция вычисляемых полей заемщика
                     { component: ApplicantSummarySection },
-                    // Обязательные согласия
                     {
                       component: Section,
                       componentProps: {
@@ -790,22 +1015,30 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-3',
                       },
                       children: [
-                        { component: path.agreePersonalData },
-                        { component: path.agreeCreditHistory },
-                        { component: path.agreeTerms },
-                        { component: path.confirmAccuracy },
+                        f(m.agreePersonalData, Checkbox, {
+                          label: 'Согласие на обработку персональных данных',
+                        }),
+                        f(m.agreeCreditHistory, Checkbox, {
+                          label: 'Согласие на проверку кредитной истории',
+                        }),
+                        f(m.agreeTerms, Checkbox, { label: 'Согласие с условиями кредитования' }),
+                        f(m.confirmAccuracy, Checkbox, {
+                          label: 'Подтверждаю точность введенных данных',
+                        }),
                       ],
                     },
-                    // Опциональные согласия
                     {
                       component: Section,
                       componentProps: {
                         title: 'Опциональные согласия',
                         titleClassName: 'text-lg font-semibold mt-6',
                       },
-                      children: [{ component: path.agreeMarketing }],
+                      children: [
+                        f(m.agreeMarketing, Checkbox, {
+                          label: 'Согласие на получение маркетинговых материалов',
+                        }),
+                      ],
                     },
-                    // Электронная подпись
                     {
                       component: Section,
                       componentProps: {
@@ -814,26 +1047,39 @@ export function createCreditApplicationRenderSchema(form: FormProxy<CreditApplic
                         className: 'space-y-4',
                       },
                       children: [
-                        { component: path.electronicSignature },
+                        f(m.electronicSignature, InputMask, {
+                          label: 'Код подтверждения из СМС',
+                          placeholder: '123456',
+                          mask: '999999',
+                        }),
                         { component: ElectronicSignatureHint },
                       ],
                     },
-                    // Предупреждение
                     { component: SubmitWarning },
-                    // Что будет дальше
                     { component: NextStepsInfo },
                   ],
                 },
               ],
             },
-          ] as unknown as RenderNode<CreditApplicationForm>[],
+          ],
         },
       },
     ],
-  }));
+  } as unknown as RenderNode<CreditApplicationForm>;
+}
 
-  // TODO: Не очень нравится контракт
+/**
+ * RenderSchemaProxy для FormRenderer + применённое render-поведение.
+ * Форма (для wizard-узла) уже создана из этой же схемы — см. компонент-страницу.
+ */
+export function createCreditApplicationRenderSchema(
+  model: FormModel<CreditApplicationForm>,
+  form: FormProxy<CreditApplicationForm>
+) {
+  const schema = createRenderSchema<CreditApplicationForm>(() =>
+    buildCreditApplicationSchema(model, form)
+  );
   createCreditApplicationRenderBehavior(form)(schema);
-
   return schema;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */

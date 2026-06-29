@@ -12,22 +12,38 @@
  *   реестр/behavior, рендерит JsonFormRenderer внутри JsonRendererProvider.
  */
 
-import { useMemo } from 'react';
-import { JsonFormRenderer, JsonRendererProvider } from '@reformer/renderer-json';
-import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/create-credit-application-form';
+import { useEffect, useMemo } from 'react';
+import { createForm } from '@reformer/core';
+import {
+  JsonFormRenderer,
+  JsonRendererProvider,
+  convertJsonToM1Tree,
+} from '@reformer/renderer-json';
+import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/m1/model';
+import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/m1/behavior';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { creditApplicationJsonSchema } from './json-schema';
 import { createCreditApplicationRegistry } from './registry';
 import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
 
 export default function CreditApplicationFormRendererJson() {
-  const form = useMemo(() => createCreditApplicationForm(), []);
   const registry = useMemo(() => createCreditApplicationRegistry(), []);
+  // M1, единая схема: модель + форма строятся ИЗ JSON-схемы (без отдельной схемы формы).
+  const { model, form } = useMemo(() => {
+    const model = createCreditApplicationModel();
+    const form = createForm<CreditApplicationForm>({
+      model,
+      schema: convertJsonToM1Tree(creditApplicationJsonSchema, registry, model),
+    });
+    return { model, form };
+  }, [registry]);
+  // Реактивное поведение (computeFrom/enableWhen/watchField) на модели + нодах
+  useEffect(() => setupCreditApplicationBehavior(model, form), [model, form]);
   const renderBehavior = useMemo(() => createCreditApplicationJsonRenderBehavior(form), [form]);
 
   return (
     <div className="w-full">
-      <JsonRendererProvider settings={{ registry }}>
+      <JsonRendererProvider settings={{ registry, model }}>
         <JsonFormRenderer<CreditApplicationForm>
           schema={creditApplicationJsonSchema}
           renderBehavior={renderBehavior}
