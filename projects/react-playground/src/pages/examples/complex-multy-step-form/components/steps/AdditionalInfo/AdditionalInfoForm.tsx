@@ -21,7 +21,7 @@ import {
   createBlankProperty,
   createBlankExistingLoan,
   createBlankCoBorrower,
-} from '../../../schemas/m1/model';
+} from '../../../schemas/model';
 
 interface AdditionalInfoFormProps {
   control: FormProxy<CreditApplicationForm>;

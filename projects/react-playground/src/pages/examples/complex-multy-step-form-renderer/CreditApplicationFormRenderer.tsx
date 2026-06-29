@@ -13,8 +13,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createForm } from '@reformer/core';
-import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/m1/model';
-import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/m1/behavior';
+import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
+import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';

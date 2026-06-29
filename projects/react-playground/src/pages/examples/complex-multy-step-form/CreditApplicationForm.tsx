@@ -12,15 +12,15 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import { createCreditApplicationFormM1 } from './schemas/m1/create-form';
-import { setupCreditApplicationBehavior } from './schemas/m1/behavior';
+import { createCreditApplicationFormM1 } from './schemas/create-form';
+import { setupCreditApplicationBehavior } from './schemas/behavior';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
 import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm';
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import { makeCreditValidationConfig } from './schemas/m1/validation';
+import { makeCreditValidationConfig } from './schemas/validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';

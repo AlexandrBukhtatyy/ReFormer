@@ -20,10 +20,10 @@ import {
   pattern,
   email,
 } from '@reformer/core/validators';
-import type { CreditApplicationForm } from '../../types/credit-application';
-import type { Property } from '../../components/nested-forms/Property/types';
-import type { ExistingLoan } from '../../components/nested-forms/ExistingLoan/types';
-import type { CoBorrower } from '../../components/nested-forms/CoBorrower/types';
+import type { CreditApplicationForm } from '../types/credit-application';
+import type { Property } from '../components/nested-forms/Property/types';
+import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/types';
+import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

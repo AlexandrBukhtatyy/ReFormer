@@ -19,14 +19,14 @@ import {
   GENDERS,
   RELATIONSHIPS,
   EXISTING_LOAN_TYPES,
-} from '../../constants/credit-application';
-import type { CreditApplicationForm } from '../../types/credit-application';
-import type { PersonalData } from '../../components/nested-forms/PersonalData/types';
-import type { PassportData } from '../../components/nested-forms/PassportData/types';
-import type { Address } from '../../components/nested-forms/Address/types';
-import type { Property } from '../../components/nested-forms/Property/types';
-import type { ExistingLoan } from '../../components/nested-forms/ExistingLoan/types';
-import type { CoBorrower } from '../../components/nested-forms/CoBorrower/types';
+} from '../constants/credit-application';
+import type { CreditApplicationForm } from '../types/credit-application';
+import type { PersonalData } from '../components/nested-forms/PersonalData/types';
+import type { PassportData } from '../components/nested-forms/PassportData/types';
+import type { Address } from '../components/nested-forms/Address/types';
+import type { Property } from '../components/nested-forms/Property/types';
+import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/types';
+import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
 
 // ============================================================================
 // Под-схемы вложенных групп (получают сигналы под-модели через model.$.<group>)

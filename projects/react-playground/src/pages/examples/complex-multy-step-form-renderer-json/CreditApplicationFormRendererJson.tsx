@@ -19,8 +19,8 @@ import {
   JsonRendererProvider,
   convertJsonToM1Tree,
 } from '@reformer/renderer-json';
-import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/m1/model';
-import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/m1/behavior';
+import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
+import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import { creditApplicationJsonSchema } from './json-schema';
 import { createCreditApplicationRegistry } from './registry';

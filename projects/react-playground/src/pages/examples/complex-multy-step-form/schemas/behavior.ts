@@ -20,10 +20,10 @@ import {
   type ModelSignals,
   type BehaviorCleanup,
 } from '@reformer/core';
-import type { CreditApplicationForm } from '../../types/credit-application';
-import type { PersonalData } from '../../components/nested-forms/PersonalData/types';
-import type { CoBorrower } from '../../components/nested-forms/CoBorrower/types';
-import type { Address } from '../../components/nested-forms/Address/types';
+import type { CreditApplicationForm } from '../types/credit-application';
+import type { PersonalData } from '../components/nested-forms/PersonalData/types';
+import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
+import type { Address } from '../components/nested-forms/Address/types';
 import {
   computeInterestRate,
   computeMonthlyPayment,
@@ -33,8 +33,8 @@ import {
   computeTotalIncome,
   computePaymentRatio,
   computeCoBorrowersIncome,
-} from '../../utils';
-import { fetchCarModels, fetchCities } from '../../api';
+} from '../utils';
+import { fetchCarModels, fetchCities } from '../api';
 
 /** Узел поля с UI/состоянием (то, что нужно из формы для node-операций). */
 interface NodeOps {

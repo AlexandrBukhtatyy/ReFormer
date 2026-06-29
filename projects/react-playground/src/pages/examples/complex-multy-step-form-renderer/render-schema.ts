@@ -17,12 +17,12 @@ import type { RenderNode } from '@reformer/renderer-react';
 import { createCreditApplicationRenderBehavior } from './render-behavior';
 import { Step } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/m1/validation';
+import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/validation';
 import {
   createBlankProperty,
   createBlankExistingLoan,
   createBlankCoBorrower,
-} from '../complex-multy-step-form/schemas/m1/model';
+} from '../complex-multy-step-form/schemas/model';
 import {
   LOAN_TYPES,
   EMPLOYMENT_STATUSES,

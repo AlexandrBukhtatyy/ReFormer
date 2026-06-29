@@ -10,7 +10,7 @@
 
 import { createForm, type FormProxy } from '@reformer/core';
 import type { FormModel } from '@reformer/core';
-import type { CreditApplicationForm } from '../../types/credit-application';
+import type { CreditApplicationForm } from '../types/credit-application';
 import { createCreditApplicationModel } from './model';
 import { creditApplicationSchema } from './schema';
 
