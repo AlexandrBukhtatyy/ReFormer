@@ -20,9 +20,7 @@ import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm'
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import creditApplicationValidation, {
-  STEP_VALIDATIONS,
-} from './schemas/credit-application-validation';
+import { makeCreditValidationConfig } from './schemas/m1/validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
@@ -53,14 +51,8 @@ function CreditApplicationForm() {
   //  Настраивается после createForm (нужен реестр сигнал→нода) и до загрузки данных.
   useEffect(() => setupCreditApplicationBehavior(model, form), [model, form]);
 
-  // Конфигурация навигации (totalSteps вычисляется автоматически из Step children)
-  const navConfig = useMemo(
-    () => ({
-      stepValidations: STEP_VALIDATIONS,
-      fullValidation: creditApplicationValidation,
-    }),
-    []
-  );
+  // Конфигурация навигации: M1-валидация (validateFormModel) per-step + полная
+  const navConfig = useMemo(() => makeCreditValidationConfig(model), [model]);
 
   // ============================================================================
   // Загрузка данных

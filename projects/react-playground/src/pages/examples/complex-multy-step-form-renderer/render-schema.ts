@@ -17,9 +17,7 @@ import type { RenderNode } from '@reformer/renderer-react';
 import { createCreditApplicationRenderBehavior } from './render-behavior';
 import { Step } from '@reformer/cdk/form-wizard';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import creditApplicationValidation, {
-  STEP_VALIDATIONS,
-} from '../complex-multy-step-form/schemas/credit-application-validation';
+import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/m1/validation';
 import {
   createBlankProperty,
   createBlankExistingLoan,
@@ -95,8 +93,7 @@ export function buildCreditApplicationSchema(
         component: RendererFormWizard,
         componentProps: {
           ...(form ? { form } : {}),
-          stepValidations: STEP_VALIDATIONS,
-          fullValidation: creditApplicationValidation,
+          ...makeCreditValidationConfig(model),
           className: 'bg-white p-8 rounded-lg shadow-md',
           steps: [
             // ── Шаг 1: Основная информация ──────────────────────────────

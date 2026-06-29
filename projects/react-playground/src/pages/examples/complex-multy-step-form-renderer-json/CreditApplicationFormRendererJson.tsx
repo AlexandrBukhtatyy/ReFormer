@@ -39,7 +39,10 @@ export default function CreditApplicationFormRendererJson() {
   }, [registry]);
   // Реактивное поведение (computeFrom/enableWhen/watchField) на модели + нодах
   useEffect(() => setupCreditApplicationBehavior(model, form), [model, form]);
-  const renderBehavior = useMemo(() => createCreditApplicationJsonRenderBehavior(form), [form]);
+  const renderBehavior = useMemo(
+    () => createCreditApplicationJsonRenderBehavior(form, model),
+    [form, model]
+  );
 
   return (
     <div className="w-full">

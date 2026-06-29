@@ -41,6 +41,9 @@ export interface RendererFormWizardProps<T extends Record<string, unknown>> {
   steps: LegacyRendererStep[];
   stepValidations?: FormWizardConfig<T>['stepValidations'];
   fullValidation?: FormWizardConfig<T>['fullValidation'];
+  /** M1: per-step / full validation callbacks (validateFormModel). Приоритетнее legacy-схем. */
+  validateStep?: FormWizardConfig<T>['validateStep'];
+  validateAll?: FormWizardConfig<T>['validateAll'];
   onSubmit?: (values: T) => void | Promise<void>;
   onStepChange?: (step: number) => void;
   scrollToTop?: boolean;
@@ -56,6 +59,8 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
     steps: legacySteps,
     stepValidations,
     fullValidation,
+    validateStep,
+    validateAll,
     onSubmit,
     onStepChange,
     scrollToTop,
@@ -75,6 +80,8 @@ export function RendererFormWizard<T extends Record<string, unknown>>(
   const config: FormWizardConfig<T> = {
     stepValidations: stepValidations ?? {},
     fullValidation: fullValidation ?? (() => ({})),
+    ...(validateStep ? { validateStep } : {}),
+    ...(validateAll ? { validateAll } : {}),
   };
 
   const handleSubmit = onSubmit

@@ -18,17 +18,16 @@ import {
   renderEffect,
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
-import type { FormProxy } from '@reformer/core';
+import type { FormProxy, FormModel } from '@reformer/core';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import creditApplicationValidation, {
-  STEP_VALIDATIONS,
-} from '../complex-multy-step-form/schemas/credit-application-validation';
+import { makeCreditValidationConfig } from '../complex-multy-step-form/schemas/m1/validation';
 import { createCreditApplicationRenderBehavior } from '../complex-multy-step-form-renderer/render-behavior';
 import { submitCreditApplication } from '../complex-multy-step-form/api';
 import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
 
 export function createCreditApplicationJsonRenderBehavior(
-  form: FormProxy<CreditApplicationForm>
+  form: FormProxy<CreditApplicationForm>,
+  model: FormModel<CreditApplicationForm>
 ): RenderBehaviorFn<CreditApplicationForm> {
   return (schema) => {
     const wizardRef = schema.node('wizard').getRef<FormWizardHandle<CreditApplicationForm>>();
@@ -93,8 +92,7 @@ export function createCreditApplicationJsonRenderBehavior(
     onInit(schema.node('wizard'), () => {
       schema.node('wizard').patchProps({
         form,
-        stepValidations: STEP_VALIDATIONS,
-        fullValidation: creditApplicationValidation,
+        ...makeCreditValidationConfig(model),
       });
     });
 
