@@ -1,16 +1,8 @@
 /**
  * FormArraySection — переиспользуемый wrapper для FormArray управления.
  *
- * Унифицированный API для TS-flow и renderer-flow:
- * - `control` принимает `FormArrayProxy<T>`, уже-резолвленный `ArrayNode<T>`,
- *   ИЛИ `FieldPathNode` (резолвится через `FieldPathNavigator + extractPath`
- *   когда компонент используется внутри RenderSchema).
- * - `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
- *   Никаких node-factory `(itemPath) => RenderNode<T>`.
- *
- * Для renderer-json consumer-ов: `itemComponent: "PropertyForm"` строкой
- * резолвится через registry, `itemComponent: { $template: ... }` оборачивается
- * в FC конвертером — оба варианта на выходе единый FC-shape.
+ * `control` принимает `FormArrayProxy<T>` или уже-резолвленный `ArrayNode<T>`/`ModelArrayNode<T>`
+ * (M1). `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
  *
  * Маркер `__selfManagedChildren = true` гарантирует автоинъекцию `form` +
  * `fieldWrapper` от родителя-renderer'а.
@@ -19,11 +11,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ComponentType, type ReactNode } from 'react';
 import {
-  FieldPathNavigator,
-  extractPath,
   useFormControl,
   type ArrayNode,
-  type FieldPathNode,
   type FormArrayProxy,
   type FormProxy,
 } from '@reformer/core';
@@ -31,11 +20,8 @@ import { FormArray } from '@reformer/cdk/form-array';
 import type { FieldWrapperProps } from '@reformer/renderer-react';
 
 export interface FormArraySectionProps<T extends object> {
-  /**
-   * Резолвится автоматически: уже-резолвленный ArrayNode/FormArrayProxy ИЛИ
-   * FieldPathNode (path.<arrayField>) — в этом случае через `form` + navigator.
-   */
-  control: FormArrayProxy<T> | ArrayNode<T> | FieldPathNode<unknown, unknown> | undefined;
+  /** Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy. */
+  control: FormArrayProxy<T> | ArrayNode<T> | undefined;
 
   /** React FC получает `control: FormProxy<T>` для каждого элемента. */
   itemComponent: ComponentType<{ control: FormProxy<T> }>;
@@ -100,14 +86,11 @@ export interface FormArraySectionProps<T extends object> {
   fieldWrapper?: ComponentType<FieldWrapperProps>;
 }
 
-const navigator = new FieldPathNavigator();
-
 function resolveArrayNode<T extends object>(
-  control: FormArraySectionProps<T>['control'],
-  form: FormProxy<unknown> | undefined
+  control: FormArraySectionProps<T>['control']
 ): ArrayNode<T> | null {
   if (!control) return null;
-  // Already an ArrayNode / FormArrayProxy
+  // ArrayNode / ModelArrayNode / FormArrayProxy — распознаём по array-методам.
   if (
     typeof control === 'object' &&
     typeof (control as ArrayNode<T>).push === 'function' &&
@@ -115,33 +98,10 @@ function resolveArrayNode<T extends object>(
   ) {
     return control as ArrayNode<T>;
   }
-  // FieldPathNode → resolve via navigator
-  if (!form) {
-    if (typeof console !== 'undefined') {
-      console.warn(
-        '[FormArraySection] control is a FieldPath but no `form` prop available. ' +
-          'Ensure this component is rendered inside FormRenderer with form available, ' +
-          'or pass form explicitly.'
-      );
-    }
-    return null;
+  if (typeof console !== 'undefined') {
+    console.warn('[FormArraySection] control is not an ArrayNode/FormArrayProxy.');
   }
-  try {
-    const pathStr = extractPath(control as FieldPathNode<unknown, unknown>);
-    const node = navigator.getNodeByPath(form, pathStr);
-    if (!node) {
-      if (typeof console !== 'undefined') {
-        console.warn(`[FormArraySection] No ArrayNode at path "${pathStr}".`);
-      }
-      return null;
-    }
-    return node as unknown as ArrayNode<T>;
-  } catch (err) {
-    if (typeof console !== 'undefined') {
-      console.warn('[FormArraySection] Failed to resolve control:', err);
-    }
-    return null;
-  }
+  return null;
 }
 
 export function FormArraySection<T extends object>({
@@ -159,9 +119,8 @@ export function FormArraySection<T extends object>({
   maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-white rounded border',
-  form,
 }: FormArraySectionProps<T>): ReactNode {
-  const arrayNode = resolveArrayNode<T>(control, form);
+  const arrayNode = resolveArrayNode<T>(control);
 
   // Subscribe to length so add/remove triggers re-render of empty/full state.
   // Hook is called unconditionally; for missing arrayNode we pass a no-op

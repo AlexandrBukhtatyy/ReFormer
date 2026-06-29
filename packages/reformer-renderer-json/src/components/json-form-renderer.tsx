@@ -13,10 +13,7 @@ import {
 } from '@reformer/renderer-react';
 import type { JsonFormSchema } from '../types/json-schema';
 import { useJsonRendererSettings } from '../context/json-renderer-context';
-import {
-  createRenderSchemaFromJson,
-  createRenderSchemaFromJsonM1,
-} from '../converter/json-to-render-schema';
+import { createRenderSchemaFromJsonM1 } from '../converter/json-to-render-schema';
 
 /**
  * Props of {@link JsonFormRenderer}.
@@ -89,9 +86,8 @@ export interface JsonFormRendererProps<T> {
  * ```
  *
  * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady? }`.
- * Форма передаётся в render-pipeline через {@link JsonRendererProvider} settings или через
- * closure-pattern с {@link createRenderSchemaFromJson} + `FormRoot.__selfManagedChildren = true`
- * (см. recipe `multi-step-from-json` в `docs/llms/`).
+ * Под M1 модель (`FormModel`) передаётся через {@link JsonRendererProvider} settings (`model`);
+ * листья JSON-схемы биндятся к её сигналам конвертером `convertJsonToM1Tree`.
  *
  * @see [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
  */
@@ -103,10 +99,14 @@ export function JsonFormRenderer<T>({
   const { registry, model, ...rendererSettings } = useJsonRendererSettings();
 
   const schemaProxy = useMemo(() => {
-    // M1 (единая схема): если задана модель — листья биндятся к её сигналам.
-    const fn = model
-      ? createRenderSchemaFromJsonM1<T>(schema, registry!, model)
-      : createRenderSchemaFromJson<T>(schema, registry!);
+    // M1 (единая схема): листья биндятся к сигналам модели. Модель обязательна (legacy
+    // FieldPath-конвертер удалён в Ф7) — передаётся через JsonRendererProvider settings.
+    if (!model) {
+      throw new Error(
+        'JsonFormRenderer: settings.model is required (M1). Pass the FormModel via JsonRendererProvider.'
+      );
+    }
+    const fn = createRenderSchemaFromJsonM1<T>(schema, registry!, model);
     const proxy = createRenderSchema<T>(fn);
     if (renderBehavior) {
       renderBehavior(proxy);

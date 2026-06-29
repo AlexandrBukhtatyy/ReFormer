@@ -1,14 +1,13 @@
 // ============================================================================
-// Validation Schema API
+// Validation API (M1)
 // ============================================================================
+//
+// После Ф7 в ядре остаётся только M1-движок (`validateModel`/`validateFormModel`,
+// экспортируется из `core/model`) + чистые фабрики валидаторов ниже. Legacy-движок
+// (`validate`/`validateAsync`/`apply`/`applyWhen`/`validateForm`/`ValidationRegistry`/FieldPath)
+// удалён.
 
-// Core validation operators
-export { validate } from './core/validate';
-export { validateAsync } from './core/validate-async';
-export { apply } from './core/apply';
-export { applyWhen } from './core/apply-when';
-
-// Reusable validator factories
+// Reusable validator factories (чистые: возвращают (value) => error)
 export { required } from './validators/required';
 export { min } from './validators/min';
 export { max } from './validators/max';
@@ -33,15 +32,3 @@ export { pastDate } from './validators/past-date';
 export { futureDate } from './validators/future-date';
 export { minAge } from './validators/min-age';
 export { maxAge } from './validators/max-age';
-
-// Array validators
-export { notEmpty, validateItems } from './validators/array-validators';
-
-// FieldPath utilities
-export { createFieldPath, extractPath, extractKey, toFieldPath } from '../utils/field-path';
-
-// Form validation utility
-export { validateForm } from './validate-form';
-
-// Validation registry (для внутреннего использования)
-export { ValidationRegistry } from './validation-registry';

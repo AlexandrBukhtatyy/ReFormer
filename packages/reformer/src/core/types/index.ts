@@ -132,10 +132,9 @@ export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
 
 // Import and re-export FieldConfig from deep-schema for single source of truth
 export type { FieldConfig } from './deep-schema';
-export type { FieldPath, FieldPathNode } from '../types/field-path';
 
 // ============================================================================
-// Re-exports from validation-schema
+// Re-exports from validation-schema (чистые валидаторы M1)
 // ============================================================================
 
 export type {
@@ -144,8 +143,6 @@ export type {
   ConditionFn,
   ValidateOptions,
   ValidateAsyncOptions,
-  ValidationSchemaFn,
-  ValidatorRegistration,
 } from './validation-schema';
 
 // ============================================================================
@@ -155,28 +152,22 @@ export type {
 export type { FormSchema, ArrayConfig } from './deep-schema';
 
 // ============================================================================
-// Re-exports from form-context (Unified Context)
-// ============================================================================
-
-export type { FormContext } from './form-context';
-
-// ============================================================================
 // Re-exports from form-proxy (Typed Proxy Access)
 // ============================================================================
 
 export type { FormControlsProxy, FormProxy, FormArrayProxy } from './form-proxy';
 
 // ============================================================================
-// GroupNode Configuration (with schemas)
+// GroupNode Configuration
 // ============================================================================
 
-import type { BehaviorSchemaFn } from '../behavior/types';
 import type { FormSchema } from './deep-schema';
-import type { ValidationSchemaFn } from './validation-schema';
 
 /**
- * Конфигурация GroupNode с поддержкой схем
- * Используется для создания форм с автоматическим применением behavior и validation схем
+ * Конфигурация GroupNode.
+ *
+ * Под M1 группа создаётся из плоской {@link FormSchema} (дерево field-конфигов). Обёртка
+ * `{ form }` сохранена для совместимости вызова, legacy behavior/validation-схемы удалены (Ф7).
  *
  * @group Types
  * @category Configuration Types
@@ -184,26 +175,6 @@ import type { ValidationSchemaFn } from './validation-schema';
 export interface GroupNodeConfig<T> {
   /** Схема структуры формы (поля и их конфигурация) */
   form: FormSchema<T>;
-
-  /** Схема реактивного поведения (copyFrom, enableWhen, computeFrom и т.д.) */
-  behavior?: BehaviorSchemaFn<T>;
-
-  /** Схема валидации (required, email, minLength и т.д.) */
-  validation?: ValidationSchemaFn<T>;
-
-  /**
-   * Опциональный ValidationRegistry для dependency injection
-   * Используется для тестирования с mock-реестрами
-   * @internal
-   */
-  _validationRegistry?: unknown;
-
-  /**
-   * Опциональный BehaviorRegistry для dependency injection
-   * Используется для тестирования с mock-реестрами
-   * @internal
-   */
-  _behaviorRegistry?: unknown;
 }
 
 // ============================================================================

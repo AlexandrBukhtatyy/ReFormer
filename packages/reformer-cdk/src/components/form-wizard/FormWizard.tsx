@@ -8,7 +8,6 @@ import {
   isValidElement,
   cloneElement,
 } from 'react';
-import { validateForm } from '@reformer/core/validators';
 import { FormWizardContext } from './FormWizardContext';
 import { FormWizardStep } from './FormWizardStep';
 import { FormWizardIndicator } from './FormWizardIndicator';
@@ -107,30 +106,18 @@ function FormWizardInner<T extends Record<string, any>>(
   // ============================================================================
 
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
-    // M1: колбэк-валидация (validateFormModel) имеет приоритет над legacy-схемами.
-    if (config.validateStep) {
-      setIsValidating(true);
-      try {
-        return await config.validateStep(currentStep);
-      } finally {
-        setIsValidating(false);
-      }
-    }
-
-    const schema = config.stepValidations?.[currentStep];
-
-    if (!schema) {
-      console.warn(`No validation schema for step ${currentStep}`);
+    // M1: валидация шага через колбэк (например, validateFormModel).
+    if (!config.validateStep) {
+      console.warn(`No validateStep callback configured for step ${currentStep}`);
       return true;
     }
-
     setIsValidating(true);
     try {
-      return await validateForm(form, schema);
+      return await config.validateStep(currentStep);
     } finally {
       setIsValidating(false);
     }
-  }, [form, currentStep, config]);
+  }, [currentStep, config]);
 
   // ============================================================================
   // Navigation
@@ -211,12 +198,8 @@ function FormWizardInner<T extends Record<string, any>>(
     async <R,>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> => {
       setIsValidating(true);
       try {
-        // Validate entire form: M1 колбэк (validateFormModel) приоритетнее legacy-схемы.
-        const isValid = config.validateAll
-          ? await config.validateAll()
-          : config.fullValidation
-            ? await validateForm(form, config.fullValidation)
-            : true;
+        // Validate entire form: M1 колбэк (validateFormModel). Нет колбэка → submit без блока.
+        const isValid = config.validateAll ? await config.validateAll() : true;
 
         if (!isValid) {
           form.markAsTouched();

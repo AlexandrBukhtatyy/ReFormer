@@ -8,7 +8,7 @@
  */
 
 import { createContext, useContext, type ReactNode } from 'react';
-import type { FormProxy, FieldPath } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import type { RendererSettings } from './types';
 
 /**
@@ -17,8 +17,6 @@ import type { RendererSettings } from './types';
 export interface RenderContextValue<T = unknown> {
   /** Proxy формы (опционально — может быть предоставлена wizard-компонентом через props) */
   form?: FormProxy<T>;
-  /** Корневой FieldPath (опционально) */
-  path?: FieldPath<T>;
   /** Настройки рендерера */
   settings?: RendererSettings;
 }
@@ -60,17 +58,12 @@ export function RenderContextProvider<T>({
  * @example
  * ```tsx
  * function MyWizard({ children }) {
- *   const { form, path, settings } = useRenderContext();
+ *   const { form, settings } = useRenderContext();
  *
  *   return (
  *     <FormWizard form={form}>
  *       {children.map(child => (
- *         <RenderNodeComponent
- *           node={child}
- *           form={form}
- *           path={path}
- *           settings={settings}
- *         />
+ *         <RenderNodeComponent node={child} form={form} />
  *       ))}
  *     </FormWizard>
  *   );

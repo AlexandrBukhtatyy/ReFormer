@@ -43,7 +43,6 @@ export type {
 // ============================================================================
 
 export {
-  createRenderSchemaFromJson,
   createRenderSchemaFromJsonM1,
   convertJsonToM1Tree,
 } from './converter/json-to-render-schema';

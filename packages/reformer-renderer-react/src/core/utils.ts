@@ -7,7 +7,6 @@
 import { Signal } from '@preact/signals-core';
 import type {
   RenderNode,
-  FieldRenderNode,
   ContainerRenderNode,
   ModelFieldRenderNode,
   ArrayRenderNode,
@@ -28,35 +27,6 @@ export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFie
 export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T> {
   const n = node as ArrayRenderNode<T>;
   return n.array != null && typeof n.array === 'object' && typeof n.item === 'function';
-}
-
-/**
- * Type guard для FieldRenderNode
- *
- * Проверяет, что узел является полем формы (ссылкой через path.fieldName).
- * Поля идентифицируются по наличию свойства __path в component.
- *
- * NOTE: Используем прямой доступ к __path вместо 'in' оператора,
- * потому что вложенные Proxy (для path.nested.field) не имеют 'has' trap,
- * и 'in' оператор не работает корректно для них.
- *
- * @example
- * ```typescript
- * if (isFieldRenderNode(node)) {
- *   // node.component имеет __path
- *   const fieldPath = node.component.__path;
- * }
- * ```
- */
-export function isFieldRenderNode<T>(node: RenderNode<T>): node is FieldRenderNode {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const component = (node as any).component;
-  if (component == null || typeof component !== 'object') {
-    return false;
-  }
-  // Прямой доступ к __path через get trap Proxy
-  const path = component.__path;
-  return typeof path === 'string' && path.length > 0;
 }
 
 /**

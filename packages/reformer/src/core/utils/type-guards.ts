@@ -98,8 +98,8 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
 /**
  * Проверить, является ли значение GroupNode (объект с вложенными полями)
  *
- * GroupNode представляет объект с вложенными полями формы
- * и имеет методы для применения validation/behavior схем
+ * GroupNode представляет объект с вложенными полями формы: имеет навигацию по полям
+ * (`getFieldByPath`/`fields`) и НЕ имеет array-методов (`items`/`push`/`removeAt`).
  *
  * @param value - Значение для проверки
  * @returns true если value является GroupNode
@@ -107,7 +107,6 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
  * @example
  * ```typescript
  * if (isGroupNode(node)) {
- *   node.applyValidationSchema(schema); //  OK
  *   node.getFieldByPath('user.email'); //  OK
  * }
  * ```
@@ -119,10 +118,9 @@ export function isGroupNode(value: unknown): value is GroupNode<FormFields> {
 
   return (
     isFormNode(value) &&
-    'applyValidationSchema' in value &&
-    'applyBehaviorSchema' in value &&
     'getFieldByPath' in value &&
-    // GroupNode НЕ имеет items/push/removeAt (это ArrayNode)
+    'fields' in value &&
+    // GroupNode НЕ имеет items/push/removeAt (это ArrayNode/ModelArrayNode)
     !('items' in value) &&
     !('push' in value) &&
     !('removeAt' in value)

@@ -8,7 +8,6 @@
  */
 
 import type { ComponentType, ElementType } from 'react';
-import type { FieldPath, FieldPathNode } from '@reformer/core';
 import type { Signal } from '@preact/signals-core';
 
 // ============================================================================
@@ -16,26 +15,23 @@ import type { Signal } from '@preact/signals-core';
 // ============================================================================
 
 /**
- * Функция создания RenderSchema
+ * Функция создания RenderSchema (M1).
  *
- * Принимает типизированный path для доступа к полям и возвращает
- * дерево узлов рендеринга.
+ * Возвращает дерево узлов рендеринга. Привязка к данным — через сигналы модели в листьях
+ * (`value: model.$.x`), поэтому аргумент-путь больше не нужен (legacy FieldPath удалён).
  *
  * @example
  * ```typescript
- * const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
+ * const renderSchema: RenderSchemaFn<MyForm> = () => ({
  *   component: Box,
- *   componentProps: {
- *     className: 'flex flex-col gap-4',
- *     children: [
- *       { component: path.email },
- *       { component: path.password },
- *     ],
- *   },
+ *   children: [
+ *     { value: model.$.email, component: Input },
+ *     { value: model.$.password, component: InputPassword },
+ *   ],
  * });
  * ```
  */
-export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
+export type RenderSchemaFn<T> = () => RenderNode<T>;
 
 // ============================================================================
 // RENDER NODE - дискриминированный union
@@ -47,14 +43,9 @@ export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
  * Дискриминированный union из типов узлов:
  * - ModelFieldRenderNode — поле формы, привязанное к СИГНАЛУ модели (M1, единая схема)
  * - ArrayRenderNode — массив модели (M1): данные `{ array, item }`, рендер-секция
- * - FieldRenderNode — поле формы по FieldPath (legacy)
  * - ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
  */
-export type RenderNode<T> =
-  | ModelFieldRenderNode
-  | ArrayRenderNode<T>
-  | FieldRenderNode
-  | ContainerRenderNode<T>;
+export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 
 // ============================================================================
 // MODEL FIELD / ARRAY RENDER NODE (M1 — единая схема, привязка через сигнал)
@@ -129,63 +120,6 @@ export interface ArrayRenderNode<T> {
     cardClassName?: string;
     [key: string]: unknown;
   };
-}
-
-// ============================================================================
-// FIELD RENDER NODE
-// ============================================================================
-
-/**
- * Props для FieldRenderNode
- */
-export interface FieldRenderNodeProps {
-  /** CSS класс для wrapper элемента */
-  className?: string;
-
-  /** Wrapper элемент (по умолчанию 'div') */
-  wrapper?: ElementType;
-
-  /**
-   * Компонент-обёртка для этого поля (переопределяет глобальный fieldWrapper)
-   *
-   * @example
-   * ```typescript
-   * { component: path.email, componentProps: { fieldWrapper: CustomFieldWrapper } }
-   * ```
-   */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
-
-  /**
-   * Явный testId для поля. Если не задан — выводится из FieldPath:
-   * `personalData.lastName` → `personalData-lastName`.
-   */
-  testId?: string;
-}
-
-/**
- * Узел рендеринга поля формы
- *
- * Ссылается на поле через FieldPathNode из path.
- *
- * @example
- * ```typescript
- * { component: path.email }
- * { component: path.email, componentProps: { className: 'col-span-2' } }
- * { selector: 'email-field', component: path.email }  // selector для renderBehavior
- * ```
- */
-export interface FieldRenderNode {
-  /**
-   * Идентификатор узла для renderBehavior (b.hideWhen).
-   * Необязателен — нужен только если к полю привязано поведение.
-   */
-  selector?: string;
-
-  /** Ссылка на поле формы (path.fieldName) */
-  component: FieldPathNode<unknown, unknown, unknown>;
-
-  /** Props для рендеринга поля */
-  componentProps?: FieldRenderNodeProps;
 }
 
 // ============================================================================
