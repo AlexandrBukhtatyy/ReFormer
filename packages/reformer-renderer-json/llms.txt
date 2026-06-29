@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > JSON-based form renderer for @reformer ecosystem
-> Package: @reformer/renderer-json  •  Version: 1.0.0-beta.0
+> Package: @reformer/renderer-json  •  Version: 5.0.2
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -1046,6 +1046,23 @@ registry.names(); // ['Input', 'Box', 'LOAN_TYPES', ...]
 
 _Source: src/registry/types.ts_
 
+### convertJsonToM1Tree
+
+**Kind:** `function`
+
+Сырое дерево RenderNode из JSON под M1 (для `createForm({ model, schema })`).
+
+**Signature:**
+```typescript
+export function convertJsonToM1Tree<T>(
+  schema: JsonFormSchema,
+  registry: ComponentRegistry,
+  model: FormModel<T>
+): RenderNode<T>
+```
+
+_Source: src/converter/json-to-render-schema.ts_
+
 ### createRenderSchemaFromJson
 
 **Kind:** `function`
@@ -1085,6 +1102,24 @@ children: [
 const renderSchema = createRenderSchemaFromJson(jsonSchema, registry);
 
 <FormRenderer render={renderSchema} settings={{ fieldWrapper: FormField }} />
+```
+
+_Source: src/converter/json-to-render-schema.ts_
+
+### createRenderSchemaFromJsonM1
+
+**Kind:** `function`
+
+`RenderSchemaFn` из JSON под M1 (для `FormRenderer`/`JsonFormRenderer`). Листья привязываются
+к сигналам модели (`model.signalAt(selector)`), компоненты резолвятся из реестра.
+
+**Signature:**
+```typescript
+export function createRenderSchemaFromJsonM1<T>(
+  schema: JsonFormSchema,
+  registry: ComponentRegistry,
+  model: FormModel<T>
+): RenderSchemaFn<T>
 ```
 
 _Source: src/converter/json-to-render-schema.ts_
@@ -1478,6 +1513,12 @@ _Source: src/context/json-renderer-context.tsx_
 export interface JsonRendererSettings extends RendererSettings {
   /** Реестр компонентов и source-значений. См. {@link defineRegistry}. */
   registry?: ComponentRegistry;
+  /**
+   * Модель данных (M1, единая схема). Если задана — JSON-листья биндятся к сигналам модели
+   * (`model.signalAt(selector)`), а форма строится из той же JSON-схемы (без отдельной схемы формы).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  model?: FormModel<any>;
 }
 ```
 

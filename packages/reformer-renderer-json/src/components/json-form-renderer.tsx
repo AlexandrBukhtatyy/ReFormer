@@ -13,7 +13,10 @@ import {
 } from '@reformer/renderer-react';
 import type { JsonFormSchema } from '../types/json-schema';
 import { useJsonRendererSettings } from '../context/json-renderer-context';
-import { createRenderSchemaFromJson } from '../converter/json-to-render-schema';
+import {
+  createRenderSchemaFromJson,
+  createRenderSchemaFromJsonM1,
+} from '../converter/json-to-render-schema';
 
 /**
  * Props of {@link JsonFormRenderer}.
@@ -97,16 +100,19 @@ export function JsonFormRenderer<T>({
   renderBehavior,
   onSchemaReady,
 }: JsonFormRendererProps<T>): ReactNode {
-  const { registry, ...rendererSettings } = useJsonRendererSettings();
+  const { registry, model, ...rendererSettings } = useJsonRendererSettings();
 
   const schemaProxy = useMemo(() => {
-    const fn = createRenderSchemaFromJson<T>(schema, registry!);
+    // M1 (единая схема): если задана модель — листья биндятся к её сигналам.
+    const fn = model
+      ? createRenderSchemaFromJsonM1<T>(schema, registry!, model)
+      : createRenderSchemaFromJson<T>(schema, registry!);
     const proxy = createRenderSchema<T>(fn);
     if (renderBehavior) {
       renderBehavior(proxy);
     }
     return proxy;
-  }, [schema, registry, renderBehavior]);
+  }, [schema, registry, renderBehavior, model]);
 
   useMemo(() => {
     if (onSchemaReady) onSchemaReady(schemaProxy);
