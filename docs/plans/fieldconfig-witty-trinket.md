@@ -725,6 +725,76 @@ navigator (если не нужны), старые типы/экспорты; п
   Скриншоты: `screenshots/m1-migration/{validation,behaviors}-examples.png`.
   - Коренная правка для когерентности: `createForm` **не кладёт `validators` в FieldNode** (контракт
     `(value, model)` исполняет движок `validateModel`/`validateFormModel` по схеме, а не `node.validate(value)`).
+- ✅ **Ф8 флагман (база): `complex-multy-step-form`** — кредитный wizard мигрирован на M1
+  **аддитивно, без слома renderer-вариантов** (они импортируют `createCreditApplicationForm` —
+  оставлен как есть; новые M1-файлы в `schemas/m1/{model,schema,behavior,create-form}.ts`).
+  - **Модель** `createCreditApplicationModel()` (≈60 скаляров + 6 вложенных групп + 3 массива + 8 computed),
+    blank-item фабрики `createBlank{Property,ExistingLoan,CoBorrower}` (полный объект — иначе под-модель
+    элемента без сигналов). **Единая схема** `creditApplicationSchema(model)` (value=сигнал + component/props,
+    sub-schemas вложенных групп, `{ array: model.<path>, item }` для массивов).
+  - **Behavior** `setupCreditApplicationBehavior(model, form)` — гибрид: 8 computeFrom через generic
+    `effect`-helper (агрегаты над вложенными объектами/массивами читаются value-прокси), copyFrom email +
+    адрес-целиком, 14 enableWhen скаляров (M1 `enableWhen` через реестр) + residenceAddress-группа
+    через `form.<group>.enable/disable`, watchField (загрузка моделей авто, динамические лимиты
+    `updateComponentProps`, очистка массивов), загрузка городов по региону. Подключается в `useEffect`.
+  - **Валидация + FormWizard — оставлены legacy**: contextual-валидаторы читают значения через proxy формы,
+    а под M1 ноды привязаны к сигналам модели → легаси-движок `validateForm`/`ValidationSchemaFn` работает
+    поверх M1-формы без изменений. Загрузка — `form.patchValue(data)` (доезжает в модель) + node
+    `updateComponentProps` для справочников (`useLoadCreditApplication` не тронут, общий).
+  - **ModelArrayNode → паритет с ArrayNode**: добавлены `get items()` (чтобы `isArrayNode` распознавал узел)
+    и `applyValidationSchema` (legacy `validateItems` per-item) → `notEmpty`/per-item валидация массивов
+    работает, предупреждения «Validation can only run…» исчезли.
+  - **Браузер-прогон (playwright) ✅ end-to-end**: рендер + загрузка данных (app '1'); условные поля
+    (loanType→ипотека); computeFrom (initialPayment=20%, все 8 computed, в т.ч. `coBorrowersIncome`
+    реагирует на доход внутри элемента массива); массивы (добавление созаёмщика с вложенным personalData +
+    двусторонняя привязка); пошаговая валидация (пустой массив блокирует переход через `notEmpty`); submit
+    (`model.get()` → успех «Заявка отправлена»). **0 ошибок консоли** (2 warning — только React Router).
+    Скриншоты: `screenshots/m1-migration/credit-base-step{1-mortgage,6-confirmation}.png`.
+  - ⚠️ Найдено и устранено: playground потребляет `@reformer/core` из `dist` (не src) — после правок ядра
+    нужен `npm run build` пакета (иначе материализация массивов отсутствует в бандле).
+  - Дивергенция: убран авто-сброс города при смене региона (затирал загруженное значение; city — Input).
+- ✅ **Ф8 флагман (renderer): `complex-multy-step-form-renderer` на ЕДИНОЙ схеме** — реализовано
+  слияние FormSchema ⊕ RenderSchema: render-схема стала единственным источником, отдельная схема формы
+  не нужна (по требованию пользователя «при renderer обходимся без схемы формы — она вшита в render-схему»).
+  - **Контракт листа = как в схеме формы**: `{ value: model.$.x, component, componentProps }` вместо
+    `{ component: path.x }`. Массив — узел `{ array: model.<path>, item: (im) => поддерево, initialValue }`.
+    По одному дереву: `createForm({ model, schema })` строит форму (harvest листьев по сигналу +
+    материализация `ModelArrayNode`), `FormRenderer` рендерит то же дерево.
+  - **Движок `@reformer/renderer-react` (аддитивно)**: `types.ts` — `ModelFieldRenderNode`/`ArrayRenderNode`;
+    `utils.ts` — `isModelFieldRenderNode` (`value instanceof Signal`) / `isArrayRenderNode` (`{array,item}`);
+    `render-node.tsx` — `ModelFieldRenderer` (резолв ноды по сигналу `getNodeForSignal`, рендер
+    `node.component` + state + `fieldWrapper` + testId из `__path`) и `ModelArraySectionRenderer` (итерация
+    `node.array` модели, поддерево `item(itemModel)` через рекурсивный рендер, карточки/add/remove,
+    `fieldWrapper`). Старый FieldPath-путь и `selector`/`hideWhen`/`patchProps`/lifecycle — сохранены.
+  - **`createForm`** не менялся: harvest рекурсивно обходит layout-дерево (Wizard→Step→Section→листья),
+    собирает value-листья по сигналу и `{array,item}` (массивы модели top-level → `ModelArrayNode`).
+  - Форма строится из дерева БЕЗ `form` (чтобы harvest не обходил FormProxy); `form` инъектится в
+    wizard-узел только для рендера. `render-behavior.ts` (hideWhen/AsyncBoundary/submit) — без изменений.
+  - **Браузер-прогон (playwright) ✅ end-to-end**: загрузка данных; value-листья с label (fieldWrapper);
+    hideWhen (секция ипотеки); computeFrom (initialPayment=20%, все 8 computed, в т.ч. `coBorrowersIncome`
+    реагирует на доход внутри элемента массива); **native array-секция** (добавление созаёмщика с вложенным
+    personalData + двусторонняя привязка); submit (успех). **0 ошибок консоли**. `createRenderSchema`-панель
+    (setHidden/patchProps) — механизм не тронут. Тесты renderer-react 4/4. Скриншот:
+    `screenshots/m1-migration/credit-renderer-unified-step6.png`.
+- ✅ **Ф8 флагман (json): `complex-multy-step-form-renderer-json` на ЕДИНОЙ JSON-схеме** — форма строится
+  из той же JSON-схемы, отдельная схема формы не нужна. JSON сериализуем → биндинг по строковому пути
+  (`selector`), а не по сигналу-объекту.
+  - **Движок `@reformer/renderer-json` (аддитивно, M1-режим)**: `converter` — `convertNodeM1`/
+    `convertJsonToM1Tree`/`createRenderSchemaFromJsonM1`: лист `{ selector, component:'Select', componentProps }`
+    → `{ value: model.signalAt(selector), component: registry.resolve('Select'), componentProps }`;
+    `{ control:'coBorrowers', itemComponent:{ $template } }` → `{ array: model.coBorrowers, item: (im)=>convert($template,im),
+    initialValue: blank-из-value-дефолтов-шаблона }`; source-строки (`'LOAN_TYPES'`/itemLabel/`CURRENT_YEAR…`)
+    резолвятся через registry. `JsonRendererSettings.model` + `JsonFormRenderer` выбирает M1-конвертер,
+    когда модель задана. Старый FieldPath-конвертер сохранён.
+  - **Компонент**: `createCreditApplicationModel()` → `createForm({ model, schema: convertJsonToM1Tree(json, registry, model) })`
+    → `setupCreditApplicationBehavior` → `<JsonRendererProvider settings={{ registry, model }}>`. `render-behavior.ts`
+    (hideWhen/onInit-инъекция form/submit) — без изменений (работает над M1-нодами).
+  - **`value`-дефолты JSON** теперь полезны: задают «пустой» элемент массива (`buildBlankFromTemplate`).
+  - **Браузер-прогон (playwright) ✅ end-to-end**: загрузка; value-листья с label; hideWhen (ипотека);
+    computeFrom (initialPayment=20%, все 8 computed, `coBorrowersIncome` реагирует на доход в элементе
+    массива); JSON `$template`-массив (добавление созаёмщика, blank из дефолтов, вложенный personalData,
+    двусторонняя привязка); submit (успех). **0 ошибок консоли**. Скриншот:
+    `screenshots/m1-migration/credit-json-unified-step6.png`.
 
 **Итого новых тестов: зелёные; регрессий 0; `tsc` добавил 0 ошибок** (5 ошибок core — пред-существующие,
 из коммита `1f6e8df`; renderer-react — 0; playground app — 0).
@@ -739,7 +809,11 @@ navigator (если не нужны), старые типы/экспорты; п
 и по буферу выдаёт ложное «passes») — `npm test` сейчас вводит в заблуждение.
 
 ### Остаётся
-Ф6-остаток (интеграция selector/hideWhen/`createRenderSchema`-оверрайдов — под Ф8) ·
-Ф7 (удалить legacy: FieldPath/navigator, старые схемы/createForm) ·
-Ф8 (переписать ~50 примеров на новый API) ·
+Все 3 варианта флагмана мигрированы на M1 (база на FormField + 2 renderer на единой схеме). Консолидация
+(вне Ф8): заменить legacy-валидацию флагмана (`validateForm`/`ValidationSchemaFn`) на `validateFormModel`
+и привести базовый вариант к единой схеме (как renderer-ы) — тогда уйдут `m1/schema.ts` + step-компоненты ·
+Ф6-остаток (интеграция selector/hideWhen/`createRenderSchema`-оверрайдов) ·
+Ф7 (удалить legacy: FieldPath/navigator, старые схемы/createForm; в т.ч. старые
+`creditApplicationSchema/behavior/create-credit-application-form` после миграции renderer-вариантов) ·
+Ф8 (остальные примеры на новый API) ·
 Ф9 (зелёные тесты, включая чинку/перепись ~86 валидационных под контракт `(value, model)`).
