@@ -1,4 +1,5 @@
 {
+  "$schema": "./form-schema.schema.json",
   "version": "1.0",
   "root": {
     "selector": "data-boundary",

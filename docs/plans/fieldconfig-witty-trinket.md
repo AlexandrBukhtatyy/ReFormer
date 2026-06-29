@@ -1172,3 +1172,141 @@ literal-`createForm`-пути (FieldPath не тянут, компилируют
 - **M2.4**: grep — 0 ссылок на удалённые API в `docs/llms`+MCP; `npm run build` всех пакетов; `llms.txt`
   перегенерены; spot-check 2-3 страниц.
 - Коммиты — **только по явному запросу** пользователя (правило репозитория).
+
+---
+
+## M3: JSON Schema (мета-схема) для form-DSL — валидация + autocomplete
+
+### Context
+JSON form-DSL (operators-as-strings) пишется/приходит как данные — легко ошибиться в структуре или
+опечататься в имени компонента/source. Идея пользователя: формальная **IETF JSON Schema** (мета-схема),
+которая определяет структуру узлов + синтаксис операторов (`$model`/`$component`/`$dataSource`). Базовая
+схема живёт в `@reformer/renderer-json`; в `react-playground` она **дополняется именами зарегистрированных**
+компонентов/ресурсов (из реестра). Цель — меньше ошибок + возможность проверять схему (тест/CI + IDE).
+`$model(path)` валидируется только синтаксически (пути динамичны, в каждой форме свои).
+
+### Решения (форки)
+- **Способ**: ТРИ поверхности — ajv (тест/CI), `$schema` (IDE/VSCode), runtime-панель ошибок в `JsonFormRenderer`.
+- **Интеграция**: чистая `convertJsonToM1Tree`-функция НЕ хукается; runtime-валидация — в КОМПОНЕНТЕ
+  `JsonFormRenderer` через prop `validate?: boolean` (default `import.meta.env.DEV`); ajv грузится
+  ДИНАМИЧЕСКИ (`import('./validate')`) только когда включено → prod-бандл без ajv по умолчанию.
+- **Диалект**: JSON Schema draft-07 (макс. совместимость ajv + VSCode).
+- **Граница проверки имён**: `$component` (top-level ключ узла) — через enum в схеме; `$dataSource`
+  (вложен в произвольный `componentProps`) — JSON Schema'й не покрыть (object opaque) → доп. рекурсивный
+  обход по `parseOperator`+реестр внутри `validateFormSchema`. `$model` — синтаксис.
+
+### Дизайн
+
+**1. `@reformer/renderer-json` — базовая мета-схема + утилиты:**
+- `src/schema/form-schema.schema.json` — hand-authored draft-07: `definitions` для node (oneOf
+  field/array/container), паттерны операторов (`value`: `^\$model\(.+\)$`, `component`: `^\$component\(.+\)$`,
+  `array`: `^\$model\(.+\)$`), `item.$template`→node, `initialValue`/`componentProps`/`selector`/`children`,
+  root `{ version?, $schema?, root: node }` (разрешить ключ `$schema`). Имена компонентов/source в базе —
+  только синтаксис (без enum).
+- `src/schema/index.ts` (лёгкое, без ajv) — экспорт `formSchemaMetaSchema` (импорт JSON),
+  `buildFormSchemaMetaSchema({ componentNames, sourceNames })` (возвращает КОНКРЕТНУЮ схему: паттерн
+  `$component` сужается до `^\$component\((Input|Select|…)\)$`), `getComponentNames(registry)` /
+  `getSourceNames(registry)` (фильтр `registry.names()` по `get().type`: field+container / source).
+  Реэкспорт из `src/index.ts`.
+- `src/validate.ts` — `validateFormSchema(schema, opts?: { registry?, componentNames?, sourceNames? }):
+  { valid, errors }`: (a) ajv против `buildFormSchemaMetaSchema(...)` (структура + синтаксис + `$component`-имена);
+  (b) рекурсивный обход дерева — каждый operator-string через `parseOperator`: `component`→должно быть в
+  componentNames, `dataSource`→в sourceNames, `model`→только синтаксис. Возвращает объединённые ошибки.
+  **Subpath-экспорт `@reformer/renderer-json/validate`** (изолирует `ajv` от основного render-бандла).
+- Зависимости: `ajv` (dependency, тянется только через `./validate`). vite.config: добавить entry
+  `validate`; package.json: `exports['./validate']` + ajv; мета-схема шипится (бандлится через `schema/index.ts`).
+
+**2. `react-playground` — расширение + проверка:**
+- Тест `…/complex-multy-step-form-renderer-json/json-schema.validate.test.ts` (vitest): строит реестр
+  `createCreditApplicationRegistry()`, `validateFormSchema(creditApplicationJsonSchema, { registry })` →
+  `expect(valid).toBe(true)`; негативный кейс (битый узел / неизвестное имя компонента → `valid:false` +
+  понятная ошибка).
+- IDE: gen-скрипт (tsx, `scripts/gen-form-json-schema.ts`) — из реестра строит КОНКРЕТНУЮ
+  `form-schema.schema.json` (`buildFormSchemaMetaSchema` + имена) рядом с `json-schema.json`; в `json-schema.json`
+  добавить `"$schema": "./form-schema.schema.json"` (VSCode подсветит структуру/синтаксис/имена `$component`;
+  узел `$schema` уже разрешён мета-схемой и игнорируется конвертером).
+
+**3. Runtime-показ ошибок (`JsonFormRenderer`):**
+- Новый prop `validate?: boolean` (default `import.meta.env.DEV`). Когда включён — компонент валидирует
+  схему **до конвертации** и при ошибках рендерит панель ошибок вместо формы (невалидную схему всё равно
+  нельзя отрендерить; иначе `resolveComponent` кинул бы исключение → пустой экран).
+- ajv грузится **динамически**: `validate` включён → `await import('@reformer/renderer-json/validate')`,
+  затем `validateFormSchema(schema, { registry })` (registry из `JsonRendererProvider` settings); результат
+  в state; **рендер гейтится** на результат (placeholder, пока валидатор грузится/считает). При
+  `validate:false` (prod по умолчанию) — динамический импорт не вызывается, ajv не попадает в бандл.
+- Новый компонент `SchemaErrorPanel` (renderer-json) — читаемый список ошибок (path + message).
+- ⚠️ В json-примере конвертация идёт и в потребителе (`convertJsonToM1Tree` для `createForm`) — там обернуть
+  в try/catch (или валидировать перед `createForm`), чтобы исключение не опередило панель `JsonFormRenderer`.
+
+### Критичные файлы
+- renderer-json: `src/schema/form-schema.schema.json` (new), `src/schema/index.ts` (new), `src/validate.ts` (new),
+  `src/components/schema-error-panel.tsx` (new), `src/components/json-form-renderer.tsx` (+`validate` prop +
+  динамический импорт + гейт), `src/index.ts`, `vite.config.ts`, `package.json`.
+- playground: `…/json-schema.validate.test.ts` (new), `scripts/gen-form-json-schema.ts` (new),
+  `…/json-schema.json` (+`$schema`), сгенерированный `…/form-schema.schema.json` (new),
+  `CreditApplicationFormRendererJson.tsx` (guard вокруг `createForm`-конвертации).
+
+### Верификация
+- renderer-json: `vitest` на `validate` (валидный фикстур → ok; битый оператор/неизвестное имя → ошибки);
+  сборка пакета (vite+dts) — `./validate` entry собирается, основной бандл без ajv.
+- playground: запустить validate-тест на реальном `creditApplicationJsonSchema` (→ valid); gen-скрипт пишет
+  `form-schema.schema.json`; `tsc` playground 0; IDE-проверка: внести опечатку в имя компонента → squiggle.
+- **Runtime**: dev (`validate` авто-on) — временно подменить имя компонента/оператор на битый в JSON →
+  `/examples/json-renderer` показывает панель ошибок вместо формы (а не пустой экран/исключение); вернуть.
+  Prod-сборка (`validate:false`) — проверить, что ajv НЕ попал в основной бандл (chunk только при динамическом
+  импорте). 0 ошибок консоли в норме.
+- Ограничения отметить в TSDoc: `$dataSource`-имена проверяет обход (не чистая JSON Schema), `$model`-пути — нет.
+- Коммит — только по явному запросу.
+
+### M3: выполнено ✅
+Все три поверхности реализованы и проверены; изменения **не закоммичены** (ждут явного запроса).
+
+- **`@reformer/renderer-json` — мета-схема + утилиты (ajv-free) + валидатор (subpath):**
+  - `src/schema/form-schema.schema.json` — базовая draft-07 мета-схема: `root { $schema?, version?, root }`,
+    `definitions` node = `oneOf(field|array|container)` (`additionalProperties:false` делает варианты
+    дизъюнктными), паттерны операторов `modelOp`/`componentOp` (`^\$model\(.+\)$` / `^\$component\(.+\)$`),
+    `arrayNode.item.$template`→node, `initialValue`/`componentProps`/`selector`/`children`.
+  - `src/schema/index.ts` (без ajv) — `formSchemaMetaSchema` (импорт JSON, Vite инлайнит в бандл),
+    `buildFormSchemaMetaSchema({ componentNames })` (клон + сужение `componentOp.pattern` до enum имён),
+    `getComponentNames`/`getSourceNames` (фильтр `registry.names()` по `get().type`).
+  - `src/validate.ts` → subpath `@reformer/renderer-json/validate` (изолирует ajv): `validateFormSchema(schema, { registry })`
+    = (a) ajv против БАЗОВОЙ схемы (структура + синтаксис операторов, БЕЗ enum), (b) рекурсивный
+    `walkOperatorNames` — имена `$component`/`$dataSource` по ВСЕМУ дереву. **Поправка против исходного дизайна**:
+    реальная форма вкладывает дерево узлов в `componentProps.steps` (проп `RendererFormWizard`), который JSON Schema
+    видит как opaque `object` → enum достал бы только верхние уровни. Поэтому ИМЕНА проверяет обход (доходит до
+    любой глубины), а ajv — только структуру/синтаксис; enum-схема (`buildFormSchemaMetaSchema`) остаётся для IDE.
+  - `src/components/schema-error-panel.tsx` — `SchemaErrorPanel` (читаемый список ошибок, без UI-зависимостей).
+  - `src/components/json-form-renderer.tsx` — prop `validate?: boolean` (дефолт **`false`**, см. ниже): при `true`
+    динамически `import('../validate')`, валидирует ДО конвертации, рендер гейтится (`null` пока считает →
+    `SchemaErrorPanel` при ошибках → форма). `index.ts` реэкспортит ajv-free утилиты + `SchemaErrorPanel`
+    (валидатор — только через subpath). `vite.config` — entry `validate`; `package.json` — `exports['./validate']` + `ajv`.
+  - **Сборка ✓**: `index.js` 7 kB (БЕЗ ajv — grep 0), `validate.js` 165 kB (ajv изолирован), динамический импорт
+    → `./validate.js`. tsc ✓. **Unit `src/validate.test.ts` 6/6**: валидная схема, любой `$model`-путь,
+    неизвестный `$component`, не-`$model` value (битый синтаксис), неизвестный `$dataSource` в componentProps,
+    узел без дискриминатора.
+
+- **Поправка по дефолту `validate` (находка из браузера):** `import.meta.env.DEV` **инлайнится в `false` при
+  production-сборке самого пакета** (`vite build`), поэтому дефолт `import.meta.env?.DEV ?? false` в собранном dist
+  всегда `false`. Детекцию dev нельзя «запечь» в пакет → дефолт пакета = `false`, а **приложение передаёт
+  `validate={import.meta.env.DEV}`** (вычисляется в ЕГО vite-env). Задокументировано в TSDoc prop'а.
+
+- **`react-playground`:**
+  - `scripts/gen-form-json-schema.ts` (tsx, инструмент/CI-гейт): из `createCreditApplicationRegistry()` строит
+    конкретную `form-schema.schema.json` (enum 25 имён) рядом с `json-schema.json`, затем валидирует реальную
+    `json-schema.json` (exit 1 при ошибках). Прогон: **✓ записано (25 имён), json-schema.json валидна.**
+  - `json-schema.json` — добавлен `"$schema": "./form-schema.schema.json"` (тип `JsonFormSchema.$schema?` + мета-схема
+    его разрешают, конвертер игнорирует). Сгенерированный `form-schema.schema.json` — в репо (artefact для IDE).
+  - `CreditApplicationFormRendererJson.tsx` — конвертация в try/catch (form=null при битой схеме → renderBehavior
+    не вешаем, guard от рассинхрона; `JsonFormRenderer` сам покажет панель), `validate={import.meta.env.DEV}`.
+  - tsc playground — **0 ошибок**.
+
+- **Браузер (playwright) ✅** (`/examples/json-renderer`, dev → validate on):
+  - Валидная схема → форма рендерится, данные загружены, **0 ошибок консоли** (async-ajv прошёл, гейт открылся).
+  - Битый `$component(TextareaBROKEN)` глубоко в `componentProps.steps[0]...children[3]` → `SchemaErrorPanel`
+    с **точным путём** `root.children[0].componentProps.steps[0].children[0].children[0].children[3].component:
+    unknown component "TextareaBROKEN"` (доказывает: обход достаёт имена из opaque componentProps); формы нет,
+    краша нет (2 console.error — намеренные guard-логи потребителя ×StrictMode, не uncaught).
+  - Revert → снова чистая форма, 0 ошибок. Скриншот: `screenshots/m3-schema-validation/broken-schema-panel.png`.
+
+**Остаётся (вне M3):** З7 (доки про внешнюю мутацию модели), З8 (TSDoc + llms.txt + MCP-шаблоны), группа 1
+(элиминация `$`, отдельная сессия). Коммит M3 — по явному запросу.

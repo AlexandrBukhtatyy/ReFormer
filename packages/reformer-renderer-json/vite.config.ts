@@ -12,6 +12,9 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
+        // Отдельная точка входа: тянет ajv, поэтому изолирована от основного бандла
+        // (экспортируется как `@reformer/renderer-json/validate`).
+        validate: resolve(__dirname, 'src/validate.ts'),
       },
       formats: ['es'],
     },

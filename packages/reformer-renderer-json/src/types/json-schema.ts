@@ -76,6 +76,11 @@ export type JsonNode = JsonFieldNode | JsonArrayNode | JsonContainerNode;
  * ```
  */
 export interface JsonFormSchema {
+  /**
+   * Путь к мета-схеме для IDE (VSCode подсветит структуру/синтаксис/имена `$component`).
+   * Игнорируется конвертером. Сгенерировать конкретную мета-схему: `gen-form-json-schema.ts`.
+   */
+  $schema?: string;
   /** Версия схемы (для миграций). */
   version?: string;
   /** Корневой узел. */

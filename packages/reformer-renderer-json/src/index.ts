@@ -12,6 +12,8 @@
 
 export { JsonFormRenderer } from './components/json-form-renderer';
 export type { JsonFormRendererProps } from './components/json-form-renderer';
+export { SchemaErrorPanel } from './components/schema-error-panel';
+export type { SchemaErrorPanelProps } from './components/schema-error-panel';
 
 // ============================================================================
 // JSON Schema Types
@@ -56,3 +58,17 @@ export {
   createRenderSchemaFromJsonM1,
   convertJsonToM1Tree,
 } from './converter/json-to-render-schema';
+
+// ============================================================================
+// JSON Schema (мета-схема form-DSL) — ajv-free утилиты
+// ============================================================================
+//
+// Сам валидатор `validateFormSchema` (тянет ajv) живёт в subpath-экспорте
+// `@reformer/renderer-json/validate`, чтобы ajv не попадал в основной render-бандл.
+
+export {
+  formSchemaMetaSchema,
+  buildFormSchemaMetaSchema,
+  getComponentNames,
+  getSourceNames,
+} from './schema';

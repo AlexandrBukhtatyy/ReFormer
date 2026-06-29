@@ -20,6 +20,7 @@ import {
   JsonRendererProvider,
   convertJsonToM1Tree,
   type JsonFormSchema,
+  type ComponentRegistry,
 } from '@reformer/renderer-json';
 import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
 import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
@@ -32,21 +33,39 @@ import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
 // поэтому приводим к JsonFormSchema (это и есть сценарий «схема пришла строкой с сервера»).
 const creditApplicationJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
 
-export default function CreditApplicationFormRendererJson() {
-  const registry = useMemo(() => createCreditApplicationRegistry(), []);
-  // M1, единая схема: модель + форма строятся ИЗ JSON-схемы (без отдельной схемы формы).
-  const { model, form } = useMemo(() => {
-    const model = createCreditApplicationModel();
+/**
+ * Строит модель + форму из JSON-схемы. Конвертация обёрнута в try/catch: при битой схеме
+ * (напр. неизвестный `$component`) `convertJsonToM1Tree` кинул бы ДО рендера JsonFormRenderer
+ * и опередил его панель ошибок. На ошибке `form=null` → renderBehavior не вешаем, а
+ * JsonFormRenderer (`validate`) сам покажет SchemaErrorPanel вместо формы.
+ *
+ * Вынесено из `useMemo` отдельной функцией: try/catch в теле мемо ломает React-Compiler
+ * (`preserve-manual-memoization`), а вызов-одной-строкой компилятор сохраняет.
+ */
+function buildModelAndForm(registry: ComponentRegistry) {
+  const model = createCreditApplicationModel();
+  try {
     const form = createForm<CreditApplicationForm>({
       model,
       schema: convertJsonToM1Tree(creditApplicationJsonSchema, registry, model),
     });
     return { model, form };
-  }, [registry]);
+  } catch (err) {
+    console.error('[json-renderer] schema conversion failed:', err);
+    return { model, form: null };
+  }
+}
+
+export default function CreditApplicationFormRendererJson() {
+  const registry = useMemo(() => createCreditApplicationRegistry(), []);
+  // M1, единая схема: модель + форма строятся ИЗ JSON-схемы (без отдельной схемы формы).
+  const { model, form } = useMemo(() => buildModelAndForm(registry), [registry]);
   // Реактивное поведение (computeFrom/enableWhen/watchField) на модели + нодах
-  useEffect(() => setupCreditApplicationBehavior(model, form), [model, form]);
+  useEffect(() => {
+    if (form) return setupCreditApplicationBehavior(model, form);
+  }, [model, form]);
   const renderBehavior = useMemo(
-    () => createCreditApplicationJsonRenderBehavior(form, model),
+    () => (form ? createCreditApplicationJsonRenderBehavior(form, model) : undefined),
     [form, model]
   );
 
@@ -56,6 +75,7 @@ export default function CreditApplicationFormRendererJson() {
         <JsonFormRenderer<CreditApplicationForm>
           schema={creditApplicationJsonSchema}
           renderBehavior={renderBehavior}
+          validate={import.meta.env.DEV}
         />
       </JsonRendererProvider>
     </div>
