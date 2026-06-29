@@ -1037,22 +1037,55 @@ literal-`createForm`-пути (FieldPath не тянут, компилируют
 - **Замечание 7 (внешняя мутация модели)** → **только документация** (без новых API).
 - **Замечания 4/6 (JSON-операторы)** → **строгие операторы** (обязательны), bare-строки убрать.
 
-### Фаза M2.1 — JSON-операторы `$model`/`$dataSource`/`$component` (замечания 4, 6) ✅ реализуем
-**Что:** заменить строковые эвристики JSON-конвертера типизированными операторами-маркерами.
-- **Новые хелперы** в `@reformer/renderer-json` (напр. `src/operators.ts`), возвращают сериализуемые
-  discriminated-маркеры: `$model(path)`→`{ $op:'model', path }`, `$dataSource(name)`→`{ $op:'dataSource', name }`,
-  `$component(name)`→`{ $op:'component', name }`. Экспорт из `src/index.ts`. JSON с сервера тоже валиден
-  (маркер — обычный объект).
-- **Типы** `types/json-schema.ts`: `JsonNode` переводится на операторы — лист `{ value: $model('loanType'),
-  component: $component('Select'), componentProps: { options: $dataSource('LOAN_TYPES') } }`; массив
-  `{ array: $model('coBorrowers'), item: { $template: … } }`; `selector` остаётся **plain-строкой**
-  (это id для render-behavior `schema.node('…')`, НЕ путь модели — разделяем понятия).
-- **Конвертер** `converter/json-to-render-schema.ts`: `resolveFieldPath`/`resolveSourceString`/`looksLikeJsonNode`
-  заменить на dispatch по `$op`. Лист = есть `value:$model(...)`; контейнер/компонент — `$component(...)`;
-  source-значения (options/itemLabel/LoadingComponent) — `$dataSource(...)`. **Bare-строковые эвристики удалить.**
-- **Пример** `complex-multy-step-form-renderer-json/json-schema.ts` + `registry.ts` — переписать на операторы.
-- Критич. файлы: `packages/reformer-renderer-json/src/{operators.ts(new),index.ts,types/json-schema.ts,
+### Фаза M2.1 — JSON-операторы (замечания 4, 6) ✅ берём в работу — **СТРОКОВЫЙ DSL**
+**Ключевая поправка пользователя:** в JSON нельзя вызвать функцию → операторы должны быть **СТРОКАМИ**,
+а не функциями/объектами. Схема обязана оставаться чистым JSON (копируется в `.json` / приходит с сервера).
+
+**Решения (форки):** (A) форма узла зеркалит TS render-схему (`value`/`array`/`component`), `selector` — plain-id.
+(B) формат оператора — **строка функц-стиля** `"$model(loanType)"` / `"$component(Select)"` / `"$dataSource(LOAN_TYPES)"`.
+(C) **чистые литеральные строки** в примере (без функций-хелперов); типобезопасность — через template-literal типы.
+(D) путь — plain-строка; 3 оператора; bare-строки (не-`$`) больше не резолвятся.
+
+> ⚠️ Это **ревизия** уже написанной (но не закоммиченной) реализации M2.1, где операторы были
+> функциями→объектами `{ $op, ... }`. Меняем представление объект→строка во всех 5 файлах.
+
+**Шаги:**
+1. **`packages/reformer-renderer-json/src/operators.ts`** — БЕЗ функций-фабрик. Только:
+   ```ts
+   export type ModelOp = `$model(${string})`;
+   export type ComponentOp = `$component(${string})`;
+   export type DataSourceOp = `$dataSource(${string})`;
+   export type JsonOperator = ModelOp | ComponentOp | DataSourceOp;
+   export function parseOperator(v: unknown): { op: 'model'|'component'|'dataSource'; arg: string } | null;
+   //  /^\$(model|component|dataSource)\((.+)\)$/  — иначе null (plain-строка)
+   export const isModelOp / isComponentOp / isDataSourceOp = (v) => parseOperator(v)?.op === …;
+   ```
+   Экспорт типов + guards + `parseOperator` из `src/index.ts`. **Функции `$model()` НЕ экспортируем.**
+2. **`types/json-schema.ts`** — `JsonNode` дискриминированный union, поля типизированы op-строками:
+   `JsonFieldNode { selector?, value: ModelOp, component?: ComponentOp, componentProps?, wrapper? }`,
+   `JsonArrayNode { selector?, array: ModelOp, item: { $template }, initialValue?: object, componentProps? }`,
+   `JsonContainerNode { selector?, component: ComponentOp, componentProps?, children? }`. Литерал
+   `value: '$model(loanType)'` проверяется template-literal типом. Guards: field=`isModelOp(value)`,
+   array=`isModelOp(array)`+`item.$template`, container=`isComponentOp(component)` без value/array.
+3. **`converter/json-to-render-schema.ts`** — dispatch по op-строкам (через `parseOperator`); bare-строки
+   не резолвятся:
+   - array: `resolveModelPath(scope, parseOperator(node.array).arg)` (value-proxy массива), `item`, `initialValue: () => clone(node.initialValue ?? {})`.
+   - field: `value: scope.signalAt(parseOperator(node.value).arg)`, `component: resolveComponent(node.component)`.
+   - container: `component: resolveComponent(node.component)`, рекурсия `children`.
+   - `resolveComponent(op)`: parse → `registry.get(name)`; throw если нет / `type==='source'`.
+   - `transformPropValue`: `isDataSourceOp`→`registry.get(arg).component`; `isComponentOp`→resolveComponent;
+     вложенный node→рекурсия; массив/объект→рекурсия; иначе plain (label/placeholder/testId/инлайн-массивы).
+   - дефолт элемента массива — из `node.initialValue` (как в текущей реализации).
+4. **Пример** `complex-multy-step-form-renderer-json/json-schema.ts` — **убрать import операторов**, заменить
+   все вызовы на литеральные строки: `value: '$model(hasProperty)'`, `component: '$component(Checkbox)'`,
+   `options: '$dataSource(LOAN_TYPES)'`, `array: '$model(properties)'`, `itemLabel: '$dataSource(PROPERTY_ITEM_LABEL_SOURCE_FN)'`.
+   `initialValue`-объекты и инлайн-массивы (`PROPERTY_TYPE_OPTIONS`) — без изменений. `registry.ts` — без изменений.
+- Критич. файлы: `packages/reformer-renderer-json/src/{operators.ts,index.ts,types/json-schema.ts,
   converter/json-to-render-schema.ts}`, `projects/.../complex-multy-step-form-renderer-json/json-schema.ts`.
+- **Верификация:** сборка `@reformer/renderer-json`; `tsc` playground 0 (template-literal типы ловят
+  пропущенный `$`-обёртку в `value`/`array`/`component`); vite `--force`; **браузер-smoke `/examples/json-renderer`**
+  — листья+options, hideWhen, шаги 1→5, add элемента массива (blank из `initialValue`, вложенный personalData,
+  опции RELATIONSHIPS); 0 ошибок консоли. Коммит — только по явному запросу.
 
 ### Фаза M2.2 — единый render-behavior для renderer + json (замечание 5) ✅ реализуем
 **Что:** одна shared render-behavior-функция вместо дублирования.

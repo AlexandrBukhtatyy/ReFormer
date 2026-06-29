@@ -4,7 +4,8 @@
  * Та же форма кредитной заявки, но layout описан в JSON-схеме.
  *
  * Архитектура (файлы в папке):
- * - [json-schema.ts] — layout формы.
+ * - [json-schema.json] — layout формы как ЧИСТЫЙ JSON (операторы — строки `$model(...)` и т.п.;
+ *   так схема может прийти строкой с сервера/CMS).
  * - [registry.ts] — реестр компонентов и source-значений.
  * - [render-behavior.ts] — обёртка над TS-variant behavior-ом: инжектит форму
  *   в wizard через `onInit`, делегирует остальное.
@@ -18,13 +19,18 @@ import {
   JsonFormRenderer,
   JsonRendererProvider,
   convertJsonToM1Tree,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
 import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
-import { creditApplicationJsonSchema } from './json-schema';
+import rawJsonSchema from './json-schema.json';
 import { createCreditApplicationRegistry } from './registry';
 import { createCreditApplicationJsonRenderBehavior } from './render-behavior';
+
+// Чистый JSON импортируется как данные; операторы-строки (`$model(...)`) типизируются как `string`,
+// поэтому приводим к JsonFormSchema (это и есть сценарий «схема пришла строкой с сервера»).
+const creditApplicationJsonSchema = rawJsonSchema as unknown as JsonFormSchema;
 
 export default function CreditApplicationFormRendererJson() {
   const registry = useMemo(() => createCreditApplicationRegistry(), []);

@@ -1,207 +1,154 @@
 /**
- * Конвертер JSON-схемы в RenderSchema
+ * Конвертер JSON-схемы (M1) → RenderNode-дерево `@reformer/renderer-react`.
+ *
+ * Привязки — СТРОКИ-операторы (`operators.ts`); голые строки НЕ резолвятся:
+ * - лист:      `{ value: '$model(path)', component: '$component(Name)', componentProps: { options: '$dataSource(NAME)' } }`
+ * - массив:    `{ array: '$model(arr)', item: { $template: <JsonNode> }, initialValue?: {…} }`
+ * - контейнер: `{ component: '$component(Name)', children: [...] }`
+ *
+ * `selector` — plain-строка (id для render-behavior), НЕ путь модели.
  *
  * @module reformer/renderer-json/converter
  */
 
 import { type RenderSchemaFn, type RenderNode } from '@reformer/renderer-react';
 import type { FormModel } from '@reformer/core';
-import type { JsonFormSchema, JsonNode } from '../types/json-schema';
+import {
+  isArrayNode,
+  isFieldNode,
+  isContainerNode,
+  type JsonFormSchema,
+  type JsonNode,
+} from '../types/json-schema';
+import { parseOperator, isModelOp, isComponentOp, isDataSourceOp } from '../operators';
 import type { ComponentRegistry } from '../registry/types';
 
-/**
- * Эвристика: похож ли объект на JsonNode (имеет `model` или `component`-строку).
- */
-function looksLikeJsonNode(value: unknown): value is JsonNode {
-  if (value === null || typeof value !== 'object') return false;
-  const obj = value as Record<string, unknown>;
-  return typeof obj.model === 'string' || typeof obj.component === 'string';
-}
-
-/**
- * Шаблон-обёртка: `{ $template: <JsonNode> }` превращается в функцию
- * `(itemPath) => RenderNode`, где `model:` внутри шаблона резолвится против `itemPath`.
- * Используется для itemComponent в RendererFormArraySection и подобных мест,
- * где callable нельзя выразить чистым JSON.
- */
-function isTemplateRef(value: unknown): value is { $template: JsonNode } {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    looksLikeJsonNode((value as { $template?: unknown }).$template)
-  );
-}
-
-/**
- * Возвращает path к полю из JsonNode, если нода — поле.
- * Поддерживает 2 формы:
- *   a) { model: 'path.to.field', ... }
- *   b) { selector: 'path.to.field', component: 'Select', componentProps: {...} } —
- *      `component` должен резолвиться в field-type запись реестра.
- * Возвращает null для контейнеров.
- */
-function resolveFieldPath(jsonNode: JsonNode, registry: ComponentRegistry): string | null {
-  if (typeof jsonNode.model === 'string' && jsonNode.model.length > 0) {
-    return jsonNode.model;
-  }
-  if (
-    typeof jsonNode.selector === 'string' &&
-    typeof jsonNode.component === 'string' &&
-    !jsonNode.children
-  ) {
-    const meta = registry.get(jsonNode.component);
-    if (meta?.type === 'field') {
-      return jsonNode.selector;
-    }
-  }
-  return null;
-}
-
-// ============================================================================
-// M1: единая схема — конвертация JSON в дерево с value-сигналами модели
-// ============================================================================
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Резолв строки-source через реестр (options/itemLabel/LoadingComponent/CURRENT_YEAR…). */
-function resolveSourceString(value: string, registry: ComponentRegistry): unknown {
-  const meta = registry.get(value);
-  if (meta && meta.type === 'source') return meta.component;
-  return value;
+/** Резолв компонента реестра по строке `'$component(name)'` (тип field|container). */
+function resolveComponent(op: string | undefined, registry: ComponentRegistry): any {
+  if (!op) return undefined;
+  const name = parseOperator(op)?.arg;
+  if (!name) throw new Error(`Invalid $component operator: "${op}"`);
+  const meta = registry.get(name);
+  if (!meta) {
+    throw new Error(
+      `Component "${name}" not found in registry. Available: ${registry.names().join(', ')}`
+    );
+  }
+  if (meta.type === 'source') {
+    throw new Error(`Entry "${name}" is a 'source' and cannot be used as $component(...)`);
+  }
+  return meta.component;
 }
 
-/** Значение по dot-пути в модели (value-доступ): 'properties' → model.properties (массив-прокси). */
+/** Резолв registry-source по имени из `'$dataSource(name)'` (options/itemLabel/константа/loading-компонент). */
+function resolveDataSource(name: string, registry: ComponentRegistry): unknown {
+  const meta = registry.get(name);
+  if (!meta) {
+    throw new Error(
+      `Data source "${name}" not found in registry. Available: ${registry.names().join(', ')}`
+    );
+  }
+  return meta.component;
+}
+
+/** Значение по dot-пути в value-прокси модели ('properties' → model.properties массив-прокси). */
 function resolveModelPath(scope: any, path: string): any {
   return path.split('.').reduce((acc, seg) => (acc == null ? acc : acc[seg]), scope);
 }
 
-function setByPath(obj: Record<string, any>, path: string, value: unknown): void {
-  const segs = path.split('.');
-  let cur = obj;
-  for (let i = 0; i < segs.length - 1; i++) {
-    if (cur[segs[i]] == null) cur[segs[i]] = {};
-    cur = cur[segs[i]];
-  }
-  cur[segs[segs.length - 1]] = value;
+/** Похож ли объект на JsonNode (несёт строку-оператор в value/array/component). */
+function looksLikeNode(v: unknown): v is JsonNode {
+  if (v === null || typeof v !== 'object') return false;
+  const n = v as Record<string, unknown>;
+  return isModelOp(n.value) || isModelOp(n.array) || isComponentOp(n.component);
 }
 
-/** «Пустой» элемент массива из value-дефолтов полей шаблона (для кнопки «Добавить»). */
-function buildBlankFromTemplate(template: JsonNode): Record<string, unknown> {
-  const blank: Record<string, unknown> = {};
-  const walk = (node: JsonNode): void => {
-    if (node.selector && !node.children && 'value' in node) {
-      setByPath(blank, node.selector, (node as { value?: unknown }).value);
-    }
-    node.children?.forEach(walk);
-  };
-  walk(template);
-  return blank;
+/** Глубокий клон литерал-объекта (initialValue нового элемента массива — без shared-ссылок). */
+function cloneLiteral<T>(v: T): T {
+  return v == null ? v : (JSON.parse(JSON.stringify(v)) as T);
 }
 
-function transformPropValueM1<T>(
-  value: unknown,
-  scope: FormModel<T>,
-  registry: ComponentRegistry
-): unknown {
-  if (typeof value === 'string') return resolveSourceString(value, registry);
-  if (isTemplateRef(value)) return value; // обрабатывается в array-ветке
-  if (looksLikeJsonNode(value)) return convertNodeM1(value, scope, registry);
-  if (Array.isArray(value)) return value.map((v) => transformPropValueM1(v, scope, registry));
+/**
+ * Рекурсивная трансформация значений `componentProps`: резолв строк-операторов + вложенных узлов.
+ * Обычные значения (label/placeholder/className/testId, инлайн-массивы options) — как есть.
+ */
+function transformPropValue(value: unknown, scope: any, registry: ComponentRegistry): unknown {
+  if (isDataSourceOp(value)) return resolveDataSource(parseOperator(value)!.arg, registry);
+  if (isComponentOp(value)) return resolveComponent(value, registry);
+  if (isModelOp(value)) return (scope as FormModel<unknown>).signalAt(parseOperator(value)!.arg);
+  if (looksLikeNode(value)) return convertNodeM1(value, scope, registry);
+  if (Array.isArray(value)) return value.map((v) => transformPropValue(v, scope, registry));
   if (value !== null && typeof value === 'object') {
     const src = value as Record<string, unknown>;
     const out: Record<string, unknown> = {};
-    for (const k of Object.keys(src)) out[k] = transformPropValueM1(src[k], scope, registry);
+    for (const k of Object.keys(src)) out[k] = transformPropValue(src[k], scope, registry);
     return out;
   }
   return value;
 }
 
-function transformComponentPropsM1<T>(
-  props: Record<string, unknown>,
-  scope: FormModel<T>,
+function transformProps(
+  props: Record<string, unknown> | undefined,
+  scope: any,
   registry: ComponentRegistry
-): Record<string, unknown> {
+): Record<string, unknown> | undefined {
+  if (!props) return undefined;
   const out: Record<string, unknown> = {};
-  for (const k of Object.keys(props)) out[k] = transformPropValueM1(props[k], scope, registry);
+  for (const k of Object.keys(props)) out[k] = transformPropValue(props[k], scope, registry);
   return out;
 }
 
 /**
- * Конвертирует JsonNode в RenderNode под M1: поле → лист с `value: model.signalAt(selector)` +
- * `component` из реестра; `{ control, itemComponent: { $template } }` → ArrayRenderNode
- * (`array: model.<control>`, `item: (im) => convert(template, im)`, blank из value-дефолтов).
+ * Конвертирует JsonNode в RenderNode (M1). Дискриминация — по строке-оператору:
+ * массив (`array`+`item`) → field (`value`) → контейнер (`component`).
  */
-function convertNodeM1<T>(
-  jsonNode: JsonNode,
-  scope: FormModel<T>,
-  registry: ComponentRegistry
-): RenderNode<T> {
-  const cp = jsonNode.componentProps;
-
-  // Array-секция: control (строка-путь) + itemComponent.$template
-  if (cp && typeof cp.control === 'string' && isTemplateRef(cp.itemComponent)) {
-    const template = (cp.itemComponent as { $template: JsonNode }).$template;
-    const arrayControl = resolveModelPath(scope as any, cp.control);
+function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistry): RenderNode<T> {
+  // Массив: данные из модели (value-прокси массива), элемент — из $template
+  if (isArrayNode(node)) {
+    const arrayControl = resolveModelPath(scope, parseOperator(node.array)!.arg);
+    const template = node.item.$template;
+    const initial = node.initialValue;
     return {
-      ...(jsonNode.selector ? { selector: jsonNode.selector } : {}),
+      ...(node.selector ? { selector: node.selector } : {}),
       array: arrayControl,
-      initialValue: () => buildBlankFromTemplate(template),
+      initialValue: () => (initial ? cloneLiteral(initial) : {}),
       item: (im: FormModel<unknown>) => convertNodeM1(template, im, registry),
-      componentProps: {
-        title: cp.title,
-        addButtonLabel: cp.addButtonLabel,
-        removeButtonLabel: cp.removeButtonLabel,
-        emptyMessage: cp.emptyMessage,
-        emptyMessageHint: cp.emptyMessageHint,
-        itemLabel:
-          typeof cp.itemLabel === 'string'
-            ? resolveSourceString(cp.itemLabel, registry)
-            : cp.itemLabel,
-      },
+      componentProps: transformProps(node.componentProps, scope, registry),
     } as unknown as RenderNode<T>;
   }
 
-  // Поле: value = сигнал модели по selector
-  const fieldPath = resolveFieldPath(jsonNode, registry);
-  if (fieldPath !== null) {
-    const signal = scope.signalAt(fieldPath);
+  // Лист: value = сигнал модели по пути из '$model(...)'
+  if (isFieldNode(node)) {
+    const path = parseOperator(node.value)!.arg;
+    const signal = (scope as FormModel<unknown>).signalAt(path);
     if (!signal && typeof console !== 'undefined') {
-      console.warn(`[JsonRenderer/M1] No model signal for "${fieldPath}".`);
+      console.warn(`[JsonRenderer/M1] No model signal for "${path}".`);
     }
-    const meta = jsonNode.component ? registry.get(jsonNode.component) : undefined;
     return {
-      ...(jsonNode.selector ? { selector: jsonNode.selector } : {}),
+      ...(node.selector ? { selector: node.selector } : {}),
       value: signal,
-      component: meta?.component,
-      componentProps: jsonNode.componentProps
-        ? transformComponentPropsM1(jsonNode.componentProps, scope, registry)
-        : undefined,
+      component: resolveComponent(node.component, registry),
+      componentProps: transformProps(node.componentProps, scope, registry),
     } as unknown as RenderNode<T>;
   }
 
   // Контейнер
-  if (jsonNode.component) {
-    const meta = registry.get(jsonNode.component);
-    if (!meta) {
-      throw new Error(
-        `Component "${jsonNode.component}" not found in registry. ` +
-          `Available: ${registry.names().join(', ')}`
-      );
-    }
+  if (isContainerNode(node)) {
     return {
-      ...(jsonNode.selector ? { selector: jsonNode.selector } : {}),
-      component: meta.component as any,
-      componentProps: jsonNode.componentProps
-        ? transformComponentPropsM1(jsonNode.componentProps, scope, registry)
-        : undefined,
-      children: jsonNode.children?.map((c) => convertNodeM1(c, scope, registry)),
+      ...(node.selector ? { selector: node.selector } : {}),
+      component: resolveComponent(node.component, registry),
+      componentProps: transformProps(node.componentProps, scope, registry),
+      children: node.children?.map((c) => convertNodeM1(c, scope, registry)),
     } as unknown as RenderNode<T>;
   }
 
-  throw new Error(`Invalid JSON node (M1): ${JSON.stringify(jsonNode)}`);
+  throw new Error(`Invalid JSON node (M1): ${JSON.stringify(node)}`);
 }
 
 /**
- * Сырое дерево RenderNode из JSON под M1 (для `createForm({ model, schema })`).
+ * Сырое дерево RenderNode из JSON (M1) — для `createForm({ model, schema })`.
  * @group Converter
  */
 export function convertJsonToM1Tree<T>(
@@ -213,8 +160,8 @@ export function convertJsonToM1Tree<T>(
 }
 
 /**
- * `RenderSchemaFn` из JSON под M1 (для `FormRenderer`/`JsonFormRenderer`). Листья привязываются
- * к сигналам модели (`model.signalAt(selector)`), компоненты резолвятся из реестра.
+ * `RenderSchemaFn` из JSON (M1) — для `FormRenderer`/`JsonFormRenderer`. Листья привязываются к
+ * сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из реестра.
  * @group Converter
  */
 export function createRenderSchemaFromJsonM1<T>(

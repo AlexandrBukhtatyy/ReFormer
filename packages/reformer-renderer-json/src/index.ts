@@ -17,8 +17,18 @@ export type { JsonFormRendererProps } from './components/json-form-renderer';
 // JSON Schema Types
 // ============================================================================
 
-export type { JsonFormSchema, JsonNode } from './types/json-schema';
-export { isFieldNode, isContainerNode } from './types/json-schema';
+export type {
+  JsonFormSchema,
+  JsonNode,
+  JsonFieldNode,
+  JsonArrayNode,
+  JsonContainerNode,
+} from './types/json-schema';
+export { isFieldNode, isArrayNode, isContainerNode } from './types/json-schema';
+
+// Операторы JSON-схемы (M1): СТРОКОВЫЕ ссылки на модель/реестр ("$model(path)" и т.д.)
+export { parseOperator, isModelOp, isComponentOp, isDataSourceOp } from './operators';
+export type { ModelOp, ComponentOp, DataSourceOp, JsonOperator, ParsedOperator } from './operators';
 
 // ============================================================================
 // Component Registry
