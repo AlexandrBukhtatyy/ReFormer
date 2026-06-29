@@ -1,5 +1,9 @@
 /**
- * Поведение схемы рендера кредитной заявки
+ * Поведение схемы рендера кредитной заявки — ЕДИНЫЙ источник для обоих рендеров.
+ *
+ * Содержит всю visibility/navigation/submit/lifecycle + загрузку данных (через `data-boundary`).
+ * Переиспользуется JSON-вариантом (`complex-multy-step-form-renderer-json/render-behavior.ts`),
+ * который лишь до-инъектит `form`/validation в wizard и зовёт это поведение.
  *
  * Условия видимости нод и реактивные эффекты вынесены отдельно от layout-схемы.
  * Форма читается через ref wizard-компонента (FormWizardHandle.form).
