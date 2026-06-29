@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > UI renderer for @reformer/core
-> Package: @reformer/renderer-react  •  Version: 1.0.0-beta.2
+> Package: @reformer/renderer-react  •  Version: 5.0.2
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -950,6 +950,72 @@ isRenderSchemaProxy(renderSchemaFn); // false
 
 _Source: src/core/render-schema-proxy.ts_
 
+### ModelArrayControl
+
+**Kind:** `interface`
+
+Реактивный массив модели (минимальный контракт, используемый рендерером).
+
+**Signature:**
+```typescript
+export interface ModelArrayControl {
+  length: number;
+  at(index: number): unknown;
+  push(item: unknown): void;
+  removeAt(index: number): void;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### ModelContainerNode
+
+**Kind:** `interface`
+
+Узел-контейнер: React-компонент + дочерние узлы.
+
+**Signature:**
+```typescript
+export interface ModelContainerNode {
+  component: ComponentType<any>;
+  componentProps?: Record<string, unknown>;
+  children?: ModelNode[];
+  selector?: string;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### ModelFieldNode
+
+**Kind:** `interface`
+
+Узел-поле единой схемы: значение — сигнал модели.
+
+**Signature:**
+```typescript
+export interface ModelFieldNode {
+  value: Signal<any>;
+  component: ComponentType<any>;
+  componentProps?: Record<string, unknown>;
+  selector?: string;
+  testId?: string;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### ModelNode
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type ModelNode = ModelFieldNode | ModelContainerNode;
+```
+
+_Source: src/core/render-model.tsx_
+
 ### NodeLifecycleHooks
 
 **Kind:** `interface`
@@ -1211,19 +1277,78 @@ export interface RendererSettings {
 
 _Source: src/core/types.ts_
 
+### RenderModelArray
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const RenderModelArray
+```
+
+_Source: src/core/render-model.tsx_
+
+### RenderModelArrayProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface RenderModelArrayProps {
+  /** Массив модели (`model.coBorrowers`). */
+  control: ModelArrayControl;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  itemComponent: (item: unknown) => ModelNode;
+  /** Обёртка элементов (по умолчанию 'div'). */
+  wrapper?: ElementType;
+  className?: string;
+  /** Значение/фабрика для кнопки «Добавить» (если задано — рендерится кнопка). */
+  newItem?: unknown | (() => unknown);
+  addButtonLabel?: string;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### RenderModelNode
+
+**Kind:** `const`
+
+Рекурсивный рендер узла единой схемы: field → контрол (разворот сигнала), container → компонент
+с дочерними узлами.
+
+**Signature:**
+```typescript
+export const RenderModelNode
+```
+
+**Examples:**
+
+```tsx
+<RenderModelNode node={schema} />
+```
+
+_Source: src/core/render-model.tsx_
+
 ### RenderNode
 
 **Kind:** `type`
 
 Узел рендеринга формы
 
-Дискриминированный union из двух типов узлов:
-- FieldRenderNode - поле формы
-- ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
+Дискриминированный union из типов узлов:
+- ModelFieldRenderNode — поле формы, привязанное к СИГНАЛУ модели (M1, единая схема)
+- ArrayRenderNode — массив модели (M1): данные `{ array, item }`, рендер-секция
+- FieldRenderNode — поле формы по FieldPath (legacy)
+- ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
 
 **Signature:**
 ```typescript
-export type RenderNode<T> = FieldRenderNode | ContainerRenderNode<T>;
+export type RenderNode<T> =
+  | ModelFieldRenderNode
+  | ArrayRenderNode<T>
+  | FieldRenderNode
+  | ContainerRenderNode<T>;
 ```
 
 _Source: src/core/types.ts_

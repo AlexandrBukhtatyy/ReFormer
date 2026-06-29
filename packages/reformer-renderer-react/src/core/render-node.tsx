@@ -4,11 +4,23 @@
  * @module reformer/renderer-react/render-node
  */
 
-import { memo, type ReactNode } from 'react';
+import { memo, useSyncExternalStore, type ReactNode } from 'react';
+import { effect } from '@preact/signals-core';
 import type { FieldNode, FormProxy, FieldPath } from '@reformer/core';
-import { FieldPathNavigator, useFormControl, extractPath } from '@reformer/core';
-import type { RenderNode, FieldWrapperProps } from './types';
-import { isFieldRenderNode, isContainerRenderNode } from './utils';
+import { FieldPathNavigator, useFormControl, extractPath, getNodeForSignal } from '@reformer/core';
+import type {
+  RenderNode,
+  FieldWrapperProps,
+  ModelFieldRenderNode,
+  ArrayRenderNode,
+  RenderModelArrayControl,
+} from './types';
+import {
+  isFieldRenderNode,
+  isContainerRenderNode,
+  isModelFieldRenderNode,
+  isArrayRenderNode,
+} from './utils';
 import { useRenderContext } from './render-context';
 import { useContext } from 'react';
 import {
@@ -110,6 +122,203 @@ const FieldRenderer = memo(function FieldRenderer({
   return content;
 });
 
+// ============================================================================
+// M1: единая схема — лист на сигнале модели + массив модели
+// ============================================================================
+
+/**
+ * Поле единой схемы (M1): значение из сигнала модели; state-нода резолвится по сигналу через реестр.
+ * `component`/`componentProps` берутся из схемы (как в схеме формы); `fieldWrapper` оборачивает.
+ */
+const ModelFieldRenderer = memo(function ModelFieldRenderer({
+  node,
+  fieldNode,
+  fieldWrapper: FieldWrapper,
+}: {
+  node: ModelFieldRenderNode;
+  fieldNode: FieldNode<unknown>;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const state = useFormControl(fieldNode as FieldNode<any>);
+  const Component = node.component;
+  if (!Component) {
+    if (typeof console !== 'undefined') {
+      console.warn('[RenderSchema] Model field has no component — nothing to render.');
+    }
+    return null;
+  }
+
+  const {
+    className,
+    wrapper: Wrapper = 'div',
+    fieldWrapper: perFieldWrapper,
+    testId: explicitTestId,
+    ...inputComponentProps
+  } = node.componentProps ?? {};
+
+  // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const path = (node.value as any).__path as string | undefined;
+  const testId =
+    typeof explicitTestId === 'string'
+      ? explicitTestId
+      : path
+        ? path.replace(/\./g, '-')
+        : undefined;
+
+  const inputProps: Record<string, unknown> = {
+    value: state.value,
+    disabled: state.disabled,
+    ...inputComponentProps,
+  };
+  if (testId && inputProps['data-testid'] === undefined) {
+    inputProps['data-testid'] = `input-${testId}`;
+  }
+
+  const input = (
+    <Component
+      control={fieldNode}
+      {...inputProps}
+      onChange={(value: unknown) => fieldNode.setValue(value as never)}
+      onBlur={() => fieldNode.markAsTouched()}
+    />
+  );
+
+  const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
+  return EffectiveWrapper ? (
+    <EffectiveWrapper control={fieldNode} className={className} testId={testId}>
+      {input}
+    </EffectiveWrapper>
+  ) : (
+    <Wrapper className={className}>{input}</Wrapper>
+  );
+});
+
+/** Реактивная подписка на длину массива модели (ре-рендер при push/removeAt). SSR-safe. */
+function useModelArrayLength(control: RenderModelArrayControl): number {
+  return useSyncExternalStore(
+    (cb) =>
+      effect(() => {
+        void control.length;
+        cb();
+      }),
+    () => control.length,
+    () => control.length
+  );
+}
+
+// Стабильный React-ключ по идентичности под-модели элемента (фасад кэшируется в core).
+const itemKeys = new WeakMap<object, number>();
+let keyCounter = 0;
+function stableKey(item: unknown): number {
+  if (item == null || typeof item !== 'object') return keyCounter++;
+  let k = itemKeys.get(item as object);
+  if (k === undefined) {
+    k = keyCounter++;
+    itemKeys.set(item as object, k);
+  }
+  return k;
+}
+
+const resolveInitial = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
+  typeof init === 'function' ? (init as () => unknown)() : init;
+
+/**
+ * Секция массива единой схемы (M1): данные принадлежат модели (`node.array`), поддерево элемента
+ * строит `node.item(itemModel)` и рендерит {@link RenderNodeComponent} (листья на сигналах под-модели
+ * резолвятся через реестр — per-item формы создаёт `ModelArrayNode`, материализованный `createForm`).
+ * Оформление совместимо с `FormArraySection` (карточки/кнопки/empty), поддерживает `fieldWrapper`.
+ */
+const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
+  node,
+  fieldWrapper,
+}: {
+  node: ArrayRenderNode<unknown>;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
+  const control = node.array;
+  const length = useModelArrayLength(control);
+  const cp = node.componentProps ?? {};
+  const {
+    title,
+    addButtonLabel = '+ Добавить',
+    removeButtonLabel = 'Удалить',
+    emptyMessage,
+    itemLabel,
+    className = 'space-y-3 mt-2',
+    cardClassName = 'mb-4 p-4 bg-white rounded border',
+  } = cp;
+
+  const getItemLabel = (im: unknown, index: number): string =>
+    typeof itemLabel === 'function'
+      ? itemLabel(im, index)
+      : `${(itemLabel as string) ?? title ?? 'Элемент'} #${index + 1}`;
+
+  const addBtnClass =
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
+  const removeBtnClass =
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2';
+
+  const addButton = (cls: string) => (
+    <button
+      type="button"
+      data-testid="array-add"
+      className={cls}
+      onClick={() => control.push(resolveInitial(node.initialValue))}
+    >
+      {addButtonLabel}
+    </button>
+  );
+
+  return (
+    <section className={className}>
+      {title ? (
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          {addButton(addBtnClass)}
+        </div>
+      ) : null}
+
+      {Array.from({ length }, (_, i) => {
+        const im = control.at(i);
+        const subtree = node.item(im) as RenderNode<unknown>;
+        const showRemove = length > 1;
+        return (
+          <div key={stableKey(im)} className={cardClassName} data-testid={`array-item-${i}`}>
+            {title || itemLabel ? (
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-medium">{getItemLabel(im, i)}</h4>
+                {showRemove ? (
+                  <button
+                    type="button"
+                    data-testid={`array-item-${i}-remove`}
+                    className={removeBtnClass}
+                    onClick={() => control.removeAt(i)}
+                  >
+                    {removeButtonLabel}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <RenderNodeComponent node={subtree} fieldWrapper={fieldWrapper} />
+          </div>
+        );
+      })}
+
+      {length === 0 && emptyMessage ? (
+        <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
+          {emptyMessage}
+        </div>
+      ) : null}
+
+      {!title ? (
+        <div>{addButton('text-sm text-blue-600 hover:text-blue-700 hover:underline')}</div>
+      ) : null}
+    </section>
+  );
+});
+
 /**
  * Рекурсивный рендеринг узла `RenderSchema`. Определяет тип узла и рендерит
  * соответственно: `FieldRenderNode` → компонент поля с wrapper,
@@ -158,6 +367,31 @@ export function RenderNodeComponent<T>({
 
   if (isHidden) {
     return null;
+  }
+
+  // ========================================
+  // M1: ModelFieldRenderNode — лист на сигнале модели
+  // ========================================
+  if (isModelFieldRenderNode(node)) {
+    const fieldNode = getNodeForSignal(node.value) as FieldNode<unknown> | undefined;
+    if (!fieldNode) {
+      if (typeof console !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p = (node.value as any).__path;
+        console.warn(
+          `[RenderSchema] No form node for signal${p ? ` "${p}"` : ''} — render value-leaf after createForm.`
+        );
+      }
+      return null;
+    }
+    return <ModelFieldRenderer node={node} fieldNode={fieldNode} fieldWrapper={fieldWrapper} />;
+  }
+
+  // ========================================
+  // M1: ArrayRenderNode — массив модели { array, item }
+  // ========================================
+  if (isArrayRenderNode(node)) {
+    return <ModelArraySectionRenderer node={node} fieldWrapper={fieldWrapper} />;
   }
 
   // ========================================

@@ -9,6 +9,7 @@
 
 import type { ComponentType, ElementType } from 'react';
 import type { FieldPath, FieldPathNode } from '@reformer/core';
+import type { Signal } from '@preact/signals-core';
 
 // ============================================================================
 // RENDER SCHEMA
@@ -43,11 +44,92 @@ export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
 /**
  * Узел рендеринга формы
  *
- * Дискриминированный union из двух типов узлов:
- * - FieldRenderNode - поле формы
- * - ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
+ * Дискриминированный union из типов узлов:
+ * - ModelFieldRenderNode — поле формы, привязанное к СИГНАЛУ модели (M1, единая схема)
+ * - ArrayRenderNode — массив модели (M1): данные `{ array, item }`, рендер-секция
+ * - FieldRenderNode — поле формы по FieldPath (legacy)
+ * - ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
  */
-export type RenderNode<T> = FieldRenderNode | ContainerRenderNode<T>;
+export type RenderNode<T> =
+  | ModelFieldRenderNode
+  | ArrayRenderNode<T>
+  | FieldRenderNode
+  | ContainerRenderNode<T>;
+
+// ============================================================================
+// MODEL FIELD / ARRAY RENDER NODE (M1 — единая схема, привязка через сигнал)
+// ============================================================================
+
+/**
+ * Узел-поле единой схемы (M1): значение приходит из СИГНАЛА модели (`model.$.x`),
+ * `component` + `componentProps` — конфиг поля (как в схеме формы). State-нода (errors/disabled)
+ * резолвится по сигналу через реестр сигнал→нода (заполняется `createForm`).
+ *
+ * @example
+ * ```typescript
+ * { value: model.$.loanType, component: Select, componentProps: { label: 'Тип', options } }
+ * ```
+ */
+export interface ModelFieldRenderNode {
+  selector?: string;
+  /** Сигнал значения из модели (`model.$.<path>`). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value: Signal<any>;
+  /** UI-компонент поля. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
+  /** Props компонента (+ опц. `testId`/`className`/`fieldWrapper`/`wrapper`). */
+  componentProps?: Record<string, unknown> & {
+    testId?: string;
+    className?: string;
+    fieldWrapper?: ComponentType<FieldWrapperProps>;
+    wrapper?: ElementType;
+  };
+}
+
+/** Минимальный контракт реактивного массива модели (`model.<path>`), используемый рендерером. */
+export interface RenderModelArrayControl {
+  readonly __path: string;
+  readonly length: number;
+  at(index: number): unknown;
+  push(item: unknown): void;
+  removeAt(index: number): void;
+}
+
+/**
+ * Узел-массив единой схемы (M1): данные принадлежат модели (`array`), форма элемента описывается
+ * `item(itemModel)`. `createForm` материализует `ModelArrayNode` (по `{ array, item }`), рендерер
+ * итерирует элементы и рисует поддерево `item(itemModel)` (листья на сигналах под-модели).
+ *
+ * @example
+ * ```typescript
+ * { array: model.coBorrowers, initialValue: createBlankCoBorrower,
+ *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+ * ```
+ */
+export interface ArrayRenderNode<T> {
+  selector?: string;
+  /** Реактивный массив модели (`model.<path>`). */
+  array: RenderModelArrayControl;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<T>;
+  /** Значение (или фабрика) нового элемента для кнопки «Добавить». */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialValue?: unknown | (() => any);
+  /** Оформление секции массива. */
+  componentProps?: {
+    title?: string;
+    addButtonLabel?: string;
+    removeButtonLabel?: string;
+    emptyMessage?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemLabel?: string | ((itemModel: any, index: number) => string);
+    className?: string;
+    cardClassName?: string;
+    [key: string]: unknown;
+  };
+}
 
 // ============================================================================
 // FIELD RENDER NODE
