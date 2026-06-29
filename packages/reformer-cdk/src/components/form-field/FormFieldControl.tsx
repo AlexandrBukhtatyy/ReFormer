@@ -76,10 +76,18 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
     }
 
     const Component = control.component as React.ComponentType<Record<string, unknown>>;
+    // `testId` — мета-проп поля: его потребляет FormField для генерации `data-testid`
+    // (field/label/input/error). В DOM-контрол его пробрасывать нельзя (React-варнинг
+    // «unknown prop testId»), поэтому исключаем из spread componentProps.
+    const { testId: _testId, ...domComponentProps } = (componentProps ?? {}) as Record<
+      string,
+      unknown
+    >;
+    void _testId;
     return (
       <Component
         ref={ref}
-        {...(componentProps as Record<string, unknown>)}
+        {...domComponentProps}
         {...(accessibleProps as Record<string, unknown>)}
         {...(props as Record<string, unknown>)}
         value={value}
