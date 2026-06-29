@@ -808,12 +808,21 @@ navigator (если не нужны), старые типы/экспорты; п
 ⚠️ Эти падения **маскируются** обёрткой `scripts/run-vitest.mjs` (при зависании vitest не печатает итог
 и по буферу выдаёт ложное «passes») — `npm test` сейчас вводит в заблуждение.
 
+### Ф7 (частично): удалён мёртвый legacy кредитной формы
+После миграции всех 3 вариантов на M1 старый кластер больше никем не импортировался — удалён:
+`schemas/create-credit-application-form.ts`, `schemas/credit-application-schema.ts`,
+`schemas/credit-application-behavior.ts`, `components/nested-forms/Address/address-behavior.ts`, и
+мёртвые `FormSchema`-консты из 6 nested-form файлов (`personalDataSchema`/`addressFormSchema`/… —
+компоненты и типы сохранены, они используются step-компонентами базового варианта). Валидация
+(`credit-application-validation` + per-step) и `useLoadCreditApplication` остаются (нужны всем 3 вариантам).
+Проверено: `tsc` playground — 0; браузер-smoke всех 3 маршрутов — 0 ошибок; базовый шаг 2 (вложенные
+PersonalData/Passport-формы) рендерится.
+
 ### Остаётся
-Все 3 варианта флагмана мигрированы на M1 (база на FormField + 2 renderer на единой схеме). Консолидация
-(вне Ф8): заменить legacy-валидацию флагмана (`validateForm`/`ValidationSchemaFn`) на `validateFormModel`
+Консолидация флагмана: заменить legacy-валидацию (`validateForm`/`ValidationSchemaFn`) на `validateFormModel`
 и привести базовый вариант к единой схеме (как renderer-ы) — тогда уйдут `m1/schema.ts` + step-компоненты ·
 Ф6-остаток (интеграция selector/hideWhen/`createRenderSchema`-оверрайдов) ·
-Ф7 (удалить legacy: FieldPath/navigator, старые схемы/createForm; в т.ч. старые
-`creditApplicationSchema/behavior/create-credit-application-form` после миграции renderer-вариантов) ·
+Ф7-остаток (библиотечный: удалить `FieldPath`/navigator и старый `createForm(schema)`-путь — после миграции
+остальных примеров и валидации) ·
 Ф8 (остальные примеры на новый API) ·
 Ф9 (зелёные тесты, включая чинку/перепись ~86 валидационных под контракт `(value, model)`).
