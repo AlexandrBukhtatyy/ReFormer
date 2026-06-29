@@ -818,11 +818,31 @@ navigator (если не нужны), старые типы/экспорты; п
 Проверено: `tsc` playground — 0; браузер-smoke всех 3 маршрутов — 0 ошибок; базовый шаг 2 (вложенные
 PersonalData/Passport-формы) рендерится.
 
+### Ф9: валидация флагмана на `validateFormModel`
+Все 3 варианта валидируются через M1 `validateFormModel` (контракт `(value, model, root)`), без
+`validateForm`/`ValidationSchemaFn`/`FieldPath`.
+- **CDK `FormWizard`** (аддитивно): `FormWizardConfig` принял `validateStep(step)`/`validateAll()`; заданы —
+  используются вместо легаси `validateForm`. Оба легаси-поля стали опциональны, путь сохранён.
+- **`schemas/m1/validation.ts`** (общий для 3 вариантов): порт всех валидаторов на `(value, model, root)`
+  (встроенные фабрики — value-only как есть; cross-field/conditional/async/per-item переписаны), per-step +
+  полная схемы, `makeCreditValidationConfig(model)` → `{ validateStep, validateAll }`; warnings
+  (`severity:'warning'`) не блокируют.
+- **3 варианта**: база — `navConfig`; renderer — wizard `componentProps`; json — `onInit` patchProps
+  (`RendererFormWizard` пробрасывает колбэки). Попутно убран testId-leak в `FormFieldControl` (CDK).
+- **Браузер ✅** (0 ошибок): per-step блокировка на всех 3 (пустая «Цель кредита» → переход заблокирован +
+  ошибка); валидный шаг проходит; полный submit базы (`validateAll` + async-код СМС + фильтр warnings).
+
+### Ф7 (частично-2): удалена осиротевшая legacy-валидация
+После Ф9 легаси-валидация никем не используется — удалена: `credit-application-validation` (агрегатор),
+5 per-step схем, 5 nested-схем, cross-field/warning-валидаторы из `utils/validators/*` + их реэкспорт из
+`utils/index` (compute-функции остались). Валидация живёт только в `schemas/m1/validation.ts`.
+`tsc` playground — 0; база грузится (0 ошибок).
+
 ### Остаётся
-Консолидация флагмана: заменить legacy-валидацию (`validateForm`/`ValidationSchemaFn`) на `validateFormModel`
-и привести базовый вариант к единой схеме (как renderer-ы) — тогда уйдут `m1/schema.ts` + step-компоненты ·
-Ф6-остаток (интеграция selector/hideWhen/`createRenderSchema`-оверрайдов) ·
-Ф7-остаток (библиотечный: удалить `FieldPath`/navigator и старый `createForm(schema)`-путь — после миграции
-остальных примеров и валидации) ·
-Ф8 (остальные примеры на новый API) ·
-Ф9 (зелёные тесты, включая чинку/перепись ~86 валидационных под контракт `(value, model)`).
+Ф7-остаток (библиотечный): удалить `FieldPath`/navigator, `validateForm`/`ValidationSchemaFn`, легаси
+behavior-систему и `createFieldPath`/старый `createForm(schema)`-путь из `@reformer/core`. Блокер — рендереры
+(`createRenderSchema`/`render-node` legacy-ветка/`FormArraySection` navigator) и `RendererFormArraySection`-shim
+ещё опираются на `FieldPath` (нужна их перепись/удаление) ·
+Консолидация базы: перевести `complex-multy-step-form` на единую схему (убрать `m1/schema.ts` + step-компоненты) ·
+Ф6-остаток (selector/hideWhen/`createRenderSchema`-оверрайды) ·
+Ф9-хвост (зелёные тесты: ~86 валидационных под контракт `(value, model)`).
