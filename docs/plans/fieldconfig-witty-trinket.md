@@ -1015,3 +1015,127 @@ Legacy вырезан из ядра + рендереров + ui-kit + playground
 и `reformer-mcp` prompt-templates (ссылаются на удалённый `validateForm`/`FieldPath`/`@reformer/core/behaviors`);
 опц. чистка осиротевших `abstract-registry`/`registry-stack`/`form-observer` и legacy `ArrayNode`/
 literal-`createForm`-пути (FieldPath не тянут, компилируются). Консолидация базовой формы на единую схему.
+
+---
+
+## M2: эргономика API и операторы (замечания пользователя, post-Ф7)
+
+### Context
+После Ф7 пользователь дал 8 замечаний по эргономике M1-API. Цель — убрать «протекающие» детали
+реализации из авторинга (escape-hatch `$`, bare-строки в JSON), устранить дублирование и
+актуализировать документацию. Решения по форкам приняты (см. ниже); часть отложена в отдельную сессию.
+
+### Корневой факт (из разведки)
+Привязка листа к ноде работает **по идентичности сигнала**: `createForm` ищет в схеме `node.value instanceof Signal`
+и кладёт в WeakMap-реестр сигнал→нода. Получить сигнал из `FormModel` можно только через `$` (`model.$.x`).
+`model.x` отдаёт **значение** (нужно для `===`-условий, `model.get()`, сериализации, массивов).
+Сигнал НЕ может быть одновременно `===`-сравнимым значением (`===` не зовёт `valueOf`/`toPrimitive`) →
+отсюда дуализм `model.x`(значение) / `model.$.x`(сигнал) и весь набор замечаний 1-3.
+
+### Решения по форкам
+- **Замечания 1-3 (`$`-элиминация)** → **ОТЛОЖЕНО**, отдельное обсуждение (анализ ниже, не реализуем сейчас).
+- **Замечание 7 (внешняя мутация модели)** → **только документация** (без новых API).
+- **Замечания 4/6 (JSON-операторы)** → **строгие операторы** (обязательны), bare-строки убрать.
+
+### Фаза M2.1 — JSON-операторы `$model`/`$dataSource`/`$component` (замечания 4, 6) ✅ реализуем
+**Что:** заменить строковые эвристики JSON-конвертера типизированными операторами-маркерами.
+- **Новые хелперы** в `@reformer/renderer-json` (напр. `src/operators.ts`), возвращают сериализуемые
+  discriminated-маркеры: `$model(path)`→`{ $op:'model', path }`, `$dataSource(name)`→`{ $op:'dataSource', name }`,
+  `$component(name)`→`{ $op:'component', name }`. Экспорт из `src/index.ts`. JSON с сервера тоже валиден
+  (маркер — обычный объект).
+- **Типы** `types/json-schema.ts`: `JsonNode` переводится на операторы — лист `{ value: $model('loanType'),
+  component: $component('Select'), componentProps: { options: $dataSource('LOAN_TYPES') } }`; массив
+  `{ array: $model('coBorrowers'), item: { $template: … } }`; `selector` остаётся **plain-строкой**
+  (это id для render-behavior `schema.node('…')`, НЕ путь модели — разделяем понятия).
+- **Конвертер** `converter/json-to-render-schema.ts`: `resolveFieldPath`/`resolveSourceString`/`looksLikeJsonNode`
+  заменить на dispatch по `$op`. Лист = есть `value:$model(...)`; контейнер/компонент — `$component(...)`;
+  source-значения (options/itemLabel/LoadingComponent) — `$dataSource(...)`. **Bare-строковые эвристики удалить.**
+- **Пример** `complex-multy-step-form-renderer-json/json-schema.ts` + `registry.ts` — переписать на операторы.
+- Критич. файлы: `packages/reformer-renderer-json/src/{operators.ts(new),index.ts,types/json-schema.ts,
+  converter/json-to-render-schema.ts}`, `projects/.../complex-multy-step-form-renderer-json/json-schema.ts`.
+
+### Фаза M2.2 — единый render-behavior для renderer + json (замечание 5) ✅ реализуем
+**Что:** одна shared render-behavior-функция вместо дублирования.
+- Сейчас: `complex-multy-step-form-renderer/render-behavior.ts` (`createCreditApplicationRenderBehavior(form)`)
+  содержит весь hideWhen/renderEffect/onComponentEvent/lifecycle; json-вариант
+  (`complex-multy-step-form-renderer-json/render-behavior.ts`) **дублирует** этот же блок **и** делегирует —
+  смелл (двойное применение).
+- Стать: shared-функция (живёт в renderer-примере) — единственный источник visibility/submit/lifecycle.
+  Json-вариант **только** добавляет своё (onInit-инъекция `form` + `makeCreditValidationConfig(model)` в wizard)
+  и зовёт shared; дублированный hideWhen-блок удалить. По требованию — «одна на 2 рендера, лежит в renderer,
+  переиспользуется в json».
+- Критич. файлы: оба `render-behavior.ts`.
+
+#### M2.2 — конкретные шаги (берём в работу первым)
+1. **`complex-multy-step-form-renderer/render-behavior.ts`** — оставить как есть (это единый источник:
+   data-loading через `data-boundary`, renderEffect-навигация, 11× hideWhen, onSubmit, onMount/onUnmount).
+   Опц.: уточнить TSDoc, что это shared-поведение для обоих рендеров.
+2. **`complex-multy-step-form-renderer-json/render-behavior.ts`** — свести к тонкой обёртке:
+   ```ts
+   export function createCreditApplicationJsonRenderBehavior(form, model): RenderBehaviorFn<…> {
+     return (schema) => {
+       // JSON не выражает form/validation — инъектим в wizard до первого рендера
+       onInit(schema.node('wizard'), () =>
+         schema.node('wizard').patchProps({ form, ...makeCreditValidationConfig(model) })
+       );
+       // вся visibility/submit/lifecycle/data-loading — из shared
+       createCreditApplicationRenderBehavior(form)(schema);
+     };
+   }
+   ```
+   Удалить дублированные `renderEffect`/11× `hideWhen`/`onComponentEvent`/`onMount`/`onUnmount`
+   (устраняет двойную регистрацию). Почистить импорты (`hideWhen`/`renderEffect`/`onComponentEvent`/
+   `onMount`/`onUnmount`, `FormWizardHandle`, типы — оставить `onInit`, `RenderBehaviorFn`, `FormProxy`/
+   `FormModel`, `makeCreditValidationConfig`, `createCreditApplicationRenderBehavior`).
+3. **Верификация**: tsc playground 0; vite `--force`; браузер-smoke `/examples/complex-renderer` и
+   `/examples/json-renderer` — идентичное поведение (hideWhen ипотека/авто/занятость/массивы, submit,
+   загрузка данных «Ремонт квартиры»), 0 ошибок консоли. Без коммита (по правилу — только по явному запросу).
+
+### Фаза M2.3 — семантика внешней мутации модели (замечание 7) ✅ только документация
+**Что задокументировать** (TSDoc `core/model/{form-model.ts ModelApi, types.ts}` + новый
+`packages/reformer/docs/llms/NN-model-mutation.md`):
+- `model.set(dto)` / `model.x = v` пишут сигналы → реактивно доезжают до UI/computed/effects/behaviors.
+- Валидация **on-demand** (не авто): ошибки появятся только при явном `validateFormModel(model, schema)`.
+- Node-`touched`/`errors` при внешней записи **не** меняются; `model.isDirty()` = value-diff к initial-снимку.
+- После загрузки с сервера — `model.captureInitial()` сдвигает «точку отсчёта» (тогда isDirty=false).
+- Новые API НЕ добавляем.
+
+### Фаза M2.4 — TSDoc + llms.txt + MCP-шаблоны (замечание 8) ✅ реализуем, делать ПОСЛЕДНЕЙ
+**Что:** актуализировать документацию под M1/Ф7 + новые операторы, перегенерить артефакты.
+- Hand-written `docs/llms/*.md` (≈23 в reformer, renderer-json overview, cdk form-navigation) — убрать ссылки
+  на удалённые `validateForm`/`FieldPath`/`ValidationSchemaFn`/`@reformer/core/behaviors`/`createRenderSchemaFromJson`/
+  literal-`createForm(schema)`; переписать на M1 (`createModel`+`createForm({model,schema})`+`validateFormModel`)
+  и JSON-операторы.
+- `reformer-mcp/src/prompts/templates/*.md` (9 файлов, особенно `create-form.md`) — на M1/операторы.
+- TSDoc в разреженных internal-файлах: `core/model/form-model.ts` (`LeafNode`/`GroupNode`/`ArrayNode` + утилиты).
+- Перегенерить `llms.txt` всех пакетов: `npm run build` (или `generate:llms`) — скрипт
+  `scripts/generate-llms-txt` читает `src/index.ts` JSDoc + `docs/llms/*.md` (идемпотентен).
+- **Делать после M2.1/M2.2** (иначе докинг дважды).
+
+### Отложено — Замечания 1-3: убрать `$` из авторинга (отдельная сессия)
+Зафиксированный анализ для будущего обсуждения. Корневой факт см. выше. Три формы решения:
+- **A. `model.x` = сигнал-хэндл везде.** Доступ к полю всегда отдаёт сигнал; значения — через `.value` /
+  `model.get()` / value-аргументы колбэков. Полностью убирает `$`, единый режим. Ломает семантику `model.x`
+  (было значение): правки в core-proxy (leaf-доступ → сигнал) + behavior-хелперах (передавать value в колбэки) +
+  во всех 3 примерах. Массивы/объекты остаются фасадами, `model.get()/set()` — как есть. У либы нет внешних
+  потребителей → breaking приемлем.
+- **B. Билдеры получают сигнальное дерево.** `model.x` в рантайме остаётся значением; schema/validation/behavior-
+  билдеры принимают `model.$` как параметр `model` (внутри `model.x`/`item.x` = сигнал). Значения в условиях —
+  через value-аргументы колбэков. Ядро proxy не меняется; минус — `model` значит разное внутри/вне билдера +
+  `array:` в схеме требует value-фасада (смешанный доступ).
+- **C. Точечно.** Только: callback элемента массива получает сигналы (#2), `setupAddress` берёт под-модель (#1),
+  validation-билдер получает сигналы (#3). Top-level листья схемы — с явным доступом к сигналу. Минимум риска,
+  не полностью единообразно.
+- Связанная под-задача (для A/B): сейчас вложенный объект `model.x` отдаёт bare value-proxy (без `$`/`signalAt`),
+  а элемент массива `.at(i)` — полноценный `FormModel` (с `$`). Унификация nested-доступа — часть решения.
+
+### Верификация M2 (по фазам)
+- **M2.1**: сборка `@reformer/renderer-json` (tsc/vite ✓); конвертер-юниты (если есть) или новый тест на dispatch
+  операторов; tsc playground 0; **браузер-smoke `/examples/json-renderer`** — рендер листьев/массивов/hideWhen/
+  submit, 0 ошибок консоли. Скрин → `screenshots/m2/json-operators.png`.
+- **M2.2**: сборка; браузер-smoke `/examples/complex-renderer` и `/examples/json-renderer` — поведение идентично
+  до рефакторинга (hideWhen секций, submit), 0 ошибок.
+- **M2.3**: TSDoc/доки собираются; `npm run build` (llms) проходит.
+- **M2.4**: grep — 0 ссылок на удалённые API в `docs/llms`+MCP; `npm run build` всех пакетов; `llms.txt`
+  перегенерены; spot-check 2-3 страниц.
+- Коммиты — **только по явному запросу** пользователя (правило репозитория).
