@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > Headless UI components for @reformer/core - form arrays, multi-step wizards, and more
-> Package: @reformer/cdk  •  Version: 1.0.0-beta.2
+> Package: @reformer/cdk  •  Version: 5.0.2
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -1036,7 +1036,7 @@ Generic `T` — тип элемента массива. По умолчанию 
 
 **Signature:**
 ```typescript
-export interface FormArrayAddButtonProps<T extends FormFields = FormFields> extends Omit<
+export interface FormArrayAddButtonProps<T extends object = FormFields> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -1082,7 +1082,7 @@ _Source: src/components/form-array/FormArrayContext.tsx_
 
 **Signature:**
 ```typescript
-export interface FormArrayContextValue<T extends FormFields = FormFields> {
+export interface FormArrayContextValue<T extends object = FormFields> {
   /** Массив элементов с контролами и действиями */
   items: FormArrayItem<T>[];
   /** Текущая длина массива */
@@ -1208,7 +1208,7 @@ Handle exposed via ref for external control of {@link FormArray}.
 
 **Signature:**
 ```typescript
-export interface FormArrayHandle<T extends FormFields> {
+export interface FormArrayHandle<T extends object> {
   /** Add a new item to the end of the array */
   add: (value?: Partial<T>) => void;
   /** Remove all items from the array */
@@ -1282,7 +1282,7 @@ Represents a single item in a form array with its control, index, and actions
 
 **Signature:**
 ```typescript
-export interface FormArrayItem<T extends FormFields> {
+export interface FormArrayItem<T extends object> {
   /** The form control for this item */
   control: FormProxy<T>;
   /** Zero-based index of the item in the array */
@@ -1329,7 +1329,7 @@ _Source: src/components/form-array/FormArrayContext.tsx_
 
 **Signature:**
 ```typescript
-export interface FormArrayItemContextValue<T extends FormFields = FormFields> {
+export interface FormArrayItemContextValue<T extends object = FormFields> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -1401,7 +1401,7 @@ Props passed to the render function in FormArray.List
 
 **Signature:**
 ```typescript
-export interface FormArrayItemRenderProps<T extends FormFields> {
+export interface FormArrayItemRenderProps<T extends object> {
   /** The form control for this item */
   control: FormProxy<T>;
   /** Zero-based index of the item */
@@ -1423,7 +1423,7 @@ FormArray.List - Iterates over array items and provides item context
 
 **Signature:**
 ```typescript
-export function FormArrayList<T extends FormFields>({
+export function FormArrayList<T extends object>({
   children,
   className,
   as = 'div',
@@ -1462,7 +1462,7 @@ Props for FormArray.List component
 
 **Signature:**
 ```typescript
-export interface FormArrayListProps<T extends FormFields> {
+export interface FormArrayListProps<T extends object> {
   /** Render function for each item */
   children: (item: FormArrayItemRenderProps<T>) => ReactNode;
   /** Optional className for the list container */
@@ -1537,7 +1537,7 @@ Props for FormArray.Root component
 
 **Signature:**
 ```typescript
-export interface FormArrayRootProps<T extends FormFields> {
+export interface FormArrayRootProps<T extends object> {
   /** The ArrayNode control from the form */
   control: ArrayNode<T>;
   /** Child components */
@@ -2244,11 +2244,24 @@ Note: totalSteps is inferred from children count
 **Signature:**
 ```typescript
 export interface FormWizardConfig<T extends Record<string, any>> {
-  /** Validation schemas per step (1-based indexing) */
-  stepValidations: Record<number, ValidationSchemaFn<T>>;
+  /**
+   * Legacy: validation schemas per step (1-based). Optional — under M1 use {@link validateStep}.
+   */
+  stepValidations?: Record<number, ValidationSchemaFn<T>>;
 
-  /** Full validation schema for submit */
-  fullValidation: ValidationSchemaFn<T>;
+  /** Legacy: full validation schema for submit. Optional — under M1 use {@link validateAll}. */
+  fullValidation?: ValidationSchemaFn<T>;
+
+  /**
+   * M1: валидация шага (1-based) через колбэк (например, `validateFormModel`). Если задан —
+   * имеет приоритет над {@link stepValidations}. Возвращает `true`, если шаг валиден.
+   */
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+
+  /**
+   * M1: валидация всей формы перед submit. Если задан — приоритет над {@link fullValidation}.
+   */
+  validateAll?: () => boolean | Promise<boolean>;
 }
 ```
 
@@ -2841,7 +2854,7 @@ without any UI - perfect for building custom array interfaces.
 
 **Signature:**
 ```typescript
-export function useFormArray<T extends FormFields>(control: ArrayNode<T>): UseFormArrayReturn<T>
+export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormArrayReturn<T>
 ```
 
 **Examples:**
@@ -2914,7 +2927,7 @@ _Source: src/components/form-array/useFormArray.ts_
 
 **Signature:**
 ```typescript
-export function useFormArrayContext<T extends FormFields = FormFields>(): FormArrayContextValue<T>
+export function useFormArrayContext<T extends object = FormFields>(): FormArrayContextValue<T>
 ```
 
 **Returns:** Текущий {@link FormArrayContextValue}.
@@ -2955,7 +2968,7 @@ _Source: src/components/form-array/FormArrayContext.tsx_
 **Signature:**
 ```typescript
 export function useFormArrayItemContext<
-  T extends FormFields = FormFields,
+  T extends object = FormFields,
 >(): FormArrayItemContextValue<T>
 ```
 
@@ -2996,7 +3009,7 @@ Return type for useFormArray hook
 
 **Signature:**
 ```typescript
-export interface UseFormArrayReturn<T extends FormFields> {
+export interface UseFormArrayReturn<T extends object> {
   /** Array of items with their controls and actions */
   items: FormArrayItem<T>[];
   /** Current number of items in the array */

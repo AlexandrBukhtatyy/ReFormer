@@ -7,11 +7,24 @@ import type { FormProxy, ValidationSchemaFn } from '@reformer/core';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FormWizardConfig<T extends Record<string, any>> {
-  /** Validation schemas per step (1-based indexing) */
-  stepValidations: Record<number, ValidationSchemaFn<T>>;
+  /**
+   * Legacy: validation schemas per step (1-based). Optional — under M1 use {@link validateStep}.
+   */
+  stepValidations?: Record<number, ValidationSchemaFn<T>>;
 
-  /** Full validation schema for submit */
-  fullValidation: ValidationSchemaFn<T>;
+  /** Legacy: full validation schema for submit. Optional — under M1 use {@link validateAll}. */
+  fullValidation?: ValidationSchemaFn<T>;
+
+  /**
+   * M1: валидация шага (1-based) через колбэк (например, `validateFormModel`). Если задан —
+   * имеет приоритет над {@link stepValidations}. Возвращает `true`, если шаг валиден.
+   */
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+
+  /**
+   * M1: валидация всей формы перед submit. Если задан — приоритет над {@link fullValidation}.
+   */
+  validateAll?: () => boolean | Promise<boolean>;
 }
 
 /**

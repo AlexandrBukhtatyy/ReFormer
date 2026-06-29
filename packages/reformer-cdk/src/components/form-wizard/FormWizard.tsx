@@ -107,7 +107,17 @@ function FormWizardInner<T extends Record<string, any>>(
   // ============================================================================
 
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
-    const schema = config.stepValidations[currentStep];
+    // M1: колбэк-валидация (validateFormModel) имеет приоритет над legacy-схемами.
+    if (config.validateStep) {
+      setIsValidating(true);
+      try {
+        return await config.validateStep(currentStep);
+      } finally {
+        setIsValidating(false);
+      }
+    }
+
+    const schema = config.stepValidations?.[currentStep];
 
     if (!schema) {
       console.warn(`No validation schema for step ${currentStep}`);
@@ -120,7 +130,7 @@ function FormWizardInner<T extends Record<string, any>>(
     } finally {
       setIsValidating(false);
     }
-  }, [form, currentStep, config.stepValidations]);
+  }, [form, currentStep, config]);
 
   // ============================================================================
   // Navigation
@@ -201,8 +211,12 @@ function FormWizardInner<T extends Record<string, any>>(
     async <R,>(onSubmit: (values: T) => Promise<R> | R): Promise<R | null> => {
       setIsValidating(true);
       try {
-        // Validate entire form with full schema
-        const isValid = await validateForm(form, config.fullValidation);
+        // Validate entire form: M1 колбэк (validateFormModel) приоритетнее legacy-схемы.
+        const isValid = config.validateAll
+          ? await config.validateAll()
+          : config.fullValidation
+            ? await validateForm(form, config.fullValidation)
+            : true;
 
         if (!isValid) {
           form.markAsTouched();
@@ -215,7 +229,7 @@ function FormWizardInner<T extends Record<string, any>>(
         setIsValidating(false);
       }
     },
-    [form, config.fullValidation]
+    [form, config]
   );
 
   // ============================================================================
