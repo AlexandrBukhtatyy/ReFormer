@@ -64,6 +64,18 @@ export type {
 } from './components/form-field';
 
 // ============================================================================
+// Validation messages - i18n resolver for field error display (code → message)
+// ============================================================================
+export {
+  ValidationMessagesProvider,
+  useValidationErrorResolver,
+  createMessageResolver,
+  defaultErrorResolver,
+} from './validation/error-resolver';
+
+export type { ValidationErrorResolver, ValidationMessageTable } from './validation/error-resolver';
+
+// ============================================================================
 // FormWizard - Headless compound component for multi-step form wizards
 // ============================================================================
 export {
