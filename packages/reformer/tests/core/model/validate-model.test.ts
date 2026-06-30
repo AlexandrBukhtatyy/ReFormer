@@ -144,3 +144,82 @@ describe('validateModel (headless, M1)', () => {
     expect(res.errors['profile.lastName']?.[0]?.code).toBe('required');
   });
 });
+
+describe('validateModel — узел-ветка { when, children }', () => {
+  interface BForm {
+    kind: 'a' | 'b';
+    aField: string;
+    bField: string;
+  }
+  const makeB = (kind: 'a' | 'b' = 'a') => createModel<BForm>({ kind, aField: '', bField: '' });
+
+  const bSchema = (model: ReturnType<typeof makeB>) => ({
+    children: [
+      {
+        when: (_scope: unknown, root: BForm) => root.kind === 'a',
+        children: [{ value: model.$.aField, component: InputStub, validators: [required] }],
+      },
+      {
+        when: (_scope: unknown, root: BForm) => root.kind === 'b',
+        children: [{ value: model.$.bField, component: InputStub, validators: [required] }],
+      },
+    ],
+  });
+
+  it('активная ветка валидируется, выключенная — пропускается', async () => {
+    const model = makeB('a');
+    const res = await validateModel(model, bSchema(model));
+    expect(res.errors['aField']?.[0]?.code).toBe('required');
+    expect(res.errors['bField']).toBeUndefined();
+  });
+
+  it('переключение условия меняет активную ветку', async () => {
+    const model = makeB('b');
+    const res = await validateModel(model, bSchema(model));
+    expect(res.errors['aField']).toBeUndefined();
+    expect(res.errors['bField']?.[0]?.code).toBe('required');
+  });
+
+  it('validateModelSync понимает узел-ветку', () => {
+    const model = makeB('a');
+    const res = validateModelSync(model, bSchema(model));
+    expect(res.errors['aField']?.[0]?.code).toBe('required');
+    expect(res.errors['bField']).toBeUndefined();
+  });
+
+  it('предикат branch читает scope элемента массива (per-item)', async () => {
+    interface IForm {
+      items: { flag: boolean; note: string }[];
+    }
+    const model = createModel<IForm>({
+      items: [
+        { flag: true, note: '' },
+        { flag: false, note: '' },
+      ],
+    });
+    const schema = {
+      children: [
+        {
+          component: BoxStub,
+          componentProps: {
+            control: model.items,
+            itemComponent: (item: {
+              flag: boolean;
+              $: { note: import('@preact/signals-core').Signal<string> };
+            }) => ({
+              children: [
+                {
+                  when: (scope: { flag: boolean }) => scope.flag,
+                  children: [{ value: item.$.note, component: InputStub, validators: [required] }],
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    };
+    const res = await validateModel(model, schema);
+    expect(res.errors['items.0.note']?.[0]?.code).toBe('required'); // flag=true → валидируется
+    expect(res.errors['items.1.note']).toBeUndefined(); // flag=false → ветка выключена
+  });
+});

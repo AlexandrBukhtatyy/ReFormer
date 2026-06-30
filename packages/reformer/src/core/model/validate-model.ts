@@ -45,6 +45,14 @@ interface FieldTask {
   scope: unknown;
 }
 
+/** Результат обхода схемы: что валидировать и что очистить. */
+interface CollectResult {
+  /** Активные поля с валидаторами (прогоняются). */
+  tasks: FieldTask[];
+  /** Сигналы полей в ВЫКЛЮЧЕННЫХ ветках — их ошибки нужно очистить (`setErrors([])`). */
+  clearSignals: PathAwareSignal<unknown>[];
+}
+
 const isArraySection = (n: Record<string, any>): boolean => {
   const cp = n.componentProps;
   return (
@@ -57,20 +65,38 @@ const isArraySection = (n: Record<string, any>): boolean => {
   );
 };
 
+/** Узел-ветка: `{ when: (scope, root) => boolean, children: [...] }` (условное поддерево). */
+const isBranchNode = (n: Record<string, any>): boolean =>
+  typeof n.when === 'function' && Array.isArray(n.children);
+
 /**
  * Обходит дерево схемы, собирая задачи валидации (поле + его scope-модель).
- * - field-узел (есть `value`-сигнал) → задача с его валидаторами;
+ * - branch-узел (`{ when, children }`) → вычисляет условие ОДИН раз; при ложном поддерево становится
+ *   `active=false` — его поля не валидируются, но их сигналы собираются для очистки ошибок;
  * - array-секция (`componentProps.itemComponent` + `control`) → для каждого элемента модели
  *   вызывает `itemComponent(itemModel)` и рекурсивно обходит поддерево со scope = под-модель;
+ * - field-узел (есть `value`-сигнал) → активная задача (если `active`) либо сигнал на очистку;
  * - контейнер → рекурсия по всем свойствам.
  */
-function walk(node: unknown, scope: unknown, root: unknown, out: FieldTask[]): void {
+function walk(
+  node: unknown,
+  scope: unknown,
+  root: unknown,
+  active: boolean,
+  out: CollectResult
+): void {
   if (node == null || typeof node !== 'object') return;
   if (Array.isArray(node)) {
-    for (const child of node) walk(child, scope, root, out);
+    for (const child of node) walk(child, scope, root, active, out);
     return;
   }
   const n = node as Record<string, any>;
+
+  if (isBranchNode(n)) {
+    const childActive = active && Boolean(n.when(scope, root));
+    for (const child of n.children) walk(child, scope, root, childActive, out);
+    return;
+  }
 
   if (isArraySection(n)) {
     const control = n.componentProps.control as { length: number; at: (i: number) => unknown };
@@ -78,7 +104,7 @@ function walk(node: unknown, scope: unknown, root: unknown, out: FieldTask[]): v
     const len = control.length;
     for (let i = 0; i < len; i++) {
       const itemModel = control.at(i);
-      walk(itemComponent(itemModel), itemModel, root, out);
+      walk(itemComponent(itemModel), itemModel, root, active, out);
     }
     return;
   }
@@ -86,16 +112,25 @@ function walk(node: unknown, scope: unknown, root: unknown, out: FieldTask[]): v
   if (n.value instanceof Signal) {
     const validators = (n.validators as ModelValidator[] | undefined) ?? [];
     if (validators.length > 0) {
-      out.push({ signal: n.value as PathAwareSignal<unknown>, validators, scope });
+      if (active)
+        out.tasks.push({ signal: n.value as PathAwareSignal<unknown>, validators, scope });
+      else out.clearSignals.push(n.value as PathAwareSignal<unknown>);
     }
     for (const [key, child] of Object.entries(n)) {
       if (key === 'value' || key === 'validators') continue;
-      walk(child, scope, root, out);
+      walk(child, scope, root, active, out);
     }
     return;
   }
 
-  for (const child of Object.values(n)) walk(child, scope, root, out);
+  for (const child of Object.values(n)) walk(child, scope, root, active, out);
+}
+
+/** Один обход схемы → задачи (активные) + сигналы на очистку (выключенные ветки). */
+function collect(model: unknown, schema: unknown): CollectResult {
+  const out: CollectResult = { tasks: [], clearSignals: [] };
+  walk(schema, model, model, true, out);
+  return out;
 }
 
 const pushError = (
@@ -112,8 +147,7 @@ const pushError = (
  * @group Model
  */
 export function validateModelSync<T>(model: FormModel<T>, schema: unknown): ModelValidationResult {
-  const tasks: FieldTask[] = [];
-  walk(schema, model, model, tasks);
+  const { tasks } = collect(model, schema);
   const errors: Record<string, ValidationError[]> = {};
   for (const { signal, validators, scope } of tasks) {
     const value = signal.peek();
@@ -140,8 +174,16 @@ export async function validateModel<T>(
   model: FormModel<T>,
   schema: unknown
 ): Promise<ModelValidationResult> {
-  const tasks: FieldTask[] = [];
-  walk(schema, model, model, tasks);
+  const { tasks } = collect(model, schema);
+  const errors = await runTasks(tasks, model);
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+/** Прогон задач (sync + async): возвращает ошибки по пути. */
+async function runTasks(
+  tasks: FieldTask[],
+  model: unknown
+): Promise<Record<string, ValidationError[]>> {
   const errors: Record<string, ValidationError[]> = {};
   await Promise.all(
     tasks.map(async ({ signal, validators, scope }) => {
@@ -152,12 +194,13 @@ export async function validateModel<T>(
       }
     })
   );
-  return { valid: Object.keys(errors).length === 0, errors };
+  return errors;
 }
 
 /**
  * In-form валидация: прогоняет {@link validateModel} и роутит ошибки в ноды формы
- * (через реестр сигнал→нода): `node.setErrors(errors[path] ?? [])` — заодно очищает прошедшие поля.
+ * (через реестр сигнал→нода): `node.setErrors(errors[path] ?? [])` — заодно очищает прошедшие поля
+ * И поля выключенных веток (`{ when, children }` с ложным условием). Дерево обходится ОДИН раз.
  *
  * @group Model
  * @remarks Поля, не материализованные в форме (элементы массива — строятся per-item), не роутятся
@@ -167,14 +210,15 @@ export async function validateFormModel<T>(
   model: FormModel<T>,
   schema: unknown
 ): Promise<ModelValidationResult> {
-  const result = await validateModel(model, schema);
-  const tasks: FieldTask[] = [];
-  walk(schema, model, model, tasks);
+  const { tasks, clearSignals } = collect(model, schema);
+  const errors = await runTasks(tasks, model);
   for (const { signal } of tasks) {
-    const node = getNodeForSignal(signal);
-    if (node) node.setErrors(result.errors[signal.__path] ?? []);
+    getNodeForSignal(signal)?.setErrors(errors[signal.__path] ?? []);
   }
-  return result;
+  for (const signal of clearSignals) {
+    getNodeForSignal(signal)?.setErrors([]);
+  }
+  return { valid: Object.keys(errors).length === 0, errors };
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
