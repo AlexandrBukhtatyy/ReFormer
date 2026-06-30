@@ -1,16 +1,27 @@
 /**
- * M1: единый слой валидации кредитной заявки (контракт `(value, model, root)`).
+ * Единый слой валидации кредитной заявки (контракт `(value, scope, root)` + `validateFormModel`).
  *
- * Заменяет легаси `validateForm` + `ValidationSchemaFn` (FieldPath). Валидаторы живут в
- * validation-схемах (дерево `{ value: model.$.x, validators: [...] }`), которые исполняет
- * `validateFormModel(model, schema)` — он же роутит ошибки в ноды формы по сигналу.
+ * Схема — дерево узлов движка M1: поле `field(model.$.x, [rules])`, контейнер `{ children }`,
+ * условная группа `applyWhen(cond, [...])`, секция массива `arraySection(control, item)`.
+ * Исполняется `validateFormModel(model, schema)` — он же роутит ошибки в ноды формы по сигналу.
+ *
+ * Авторские хелперы (`field`/`when`/`applyWhen`/`crossField`) типобезопасны: `field` выводит тип
+ * поля из сигнала и проверяет правила против него; cross-field читают зависимости через типизированный
+ * `root`/`scope` без `as Root`. Встроенные фабрики (`required`/`min`/…) переиспользуются как есть.
  *
  * Используется всеми 3 вариантами флагмана через `makeCreditValidationConfig(model)` →
- * `{ validateStep, validateAll }` (колбэки для `FormWizard`). Встроенные фабрики
- * (`required`/`min`/`pattern`/…) переиспользуются как есть (они value-only).
+ * `{ validateStep, validateAll }` (колбэки для `FormWizard`).
  */
 
-import { validateFormModel, type ModelValidator, type FormModel } from '@reformer/core';
+import {
+  validateFormModel,
+  type ModelValidator,
+  type FormModel,
+  type ModelSignals,
+  type ModelArray,
+  type PathAwareSignal,
+  type ValidationError,
+} from '@reformer/core';
 import {
   required,
   min,
@@ -19,45 +30,85 @@ import {
   maxLength,
   pattern,
   email,
+  minAge,
+  maxAge,
+  pastDate,
 } from '@reformer/core/validators';
 import type { CreditApplicationForm } from '../types/credit-application';
+import type { Address } from '../components/nested-forms/Address/types';
 import type { Property } from '../components/nested-forms/Property/types';
 import type { ExistingLoan } from '../components/nested-forms/ExistingLoan/types';
 import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 type Root = CreditApplicationForm;
-type V = ModelValidator;
+type M = FormModel<CreditApplicationForm>;
 
-/** Встроенные фабрики value-only → ModelValidator (игнорируют model/root). */
-const mv = (validator: unknown): V => validator as V;
+/**
+ * Правило поля типа `TField`. Проверяется ТОЛЬКО значение (`value`): движок игнорирует scope/root
+ * для value-only фабрик, а cross-field/async читают их через свои типы (`crossField`/`when`/именованный
+ * `ModelValidator`). Поэтому scope/root помечены `never` — благодаря этому `field(m.loanAmount, [email()])`
+ * подсветится ошибкой (поле `number`, `email` ждёт `string`), а фабрики/cross-field присваиваются без `any`.
+ */
+type Rule<TField> = (
+  value: TField,
+  scope: never,
+  root: never
+) => ValidationError | null | Promise<ValidationError | null>;
 
-/** Список валидаторов поля (приведение фабрик к ModelValidator). */
-const vs = (...validators: unknown[]): V[] => validators as V[];
+/** Узел схемы движка (плоский объект, движок типизирует схему как `unknown`). */
+type SchemaNode = Record<string, unknown>;
 
-/** Условные валидаторы: применяются только когда `cond(root)` истинно. */
-const when =
-  (cond: (root: Root) => boolean) =>
-  (...validators: unknown[]): V[] =>
-    (validators as V[]).map(
-      (val): V =>
-        (value, scope, root) =>
-          cond(root as Root) ? val(value, scope, root) : null
-    );
+/** Узел поля: `{ value: сигнал, validators }`. Единственный каст правил→ModelValidator — здесь. */
+const field = <TField>(signal: PathAwareSignal<TField>, rules: Rule<TField>[]): SchemaNode => ({
+  value: signal,
+  validators: rules as unknown as ModelValidator[],
+});
 
-/** Узел валидации поля. */
-const vf = (signal: any, validators: V[]) => ({ value: signal, validators });
+/** Cross-field правило: читает корень формы типобезопасно, без `root as Root`. */
+const crossField =
+  (fn: (form: Root) => ValidationError | null): ModelValidator<unknown, unknown, Root> =>
+  (_value, _scope, root) =>
+    fn(root);
 
+/**
+ * Одно условное правило внутри поля (элемент массива, без spread): применяется, только если `cond(root)`.
+ * Для синхронных правил (cross-field/фабрики). Для async-правил условность задаётся иначе.
+ */
+const when = <TField>(cond: (form: Root) => boolean, ...rules: Rule<TField>[]): Rule<TField> =>
+  ((value: TField, scope: unknown, root: unknown) => {
+    if (!cond(root as Root)) return null;
+    for (const rule of rules) {
+      const err = (rule as unknown as ModelValidator)(value, scope, root);
+      if (err) return err;
+    }
+    return null;
+  }) as unknown as Rule<TField>;
+
+/**
+ * Условная группа узлов (= аналог legacy `applyWhen`): применяется, только если `cond(root)` истинно.
+ * Эмитит нативный узел движка `{ when, children }` — `walk` вычисляет условие ОДИН раз; при ложном
+ * поддерево пропускается, а ошибки его полей очищаются движком (`setErrors([])`).
+ */
+const applyWhen = (cond: (form: Root) => boolean, children: SchemaNode[]): SchemaNode => ({
+  when: (_scope: unknown, root: unknown) => cond(root as Root),
+  children,
+});
+
+/** Секция массива: per-item под-схема для каждого элемента модели. */
+const arraySection = <T>(
+  control: ModelArray<T>,
+  itemComponent: (item: FormModel<T>) => unknown
+): SchemaNode => ({ componentProps: { control, itemComponent } });
+
+const CURRENT_YEAR = new Date().getFullYear();
 const RU_NAME = /^[А-ЯЁа-яё\s-]+$/;
 const PHONE = /^\+7\s\(\d{3}\)\s\d{3}-\d{2}-\d{2}$/;
 
 // ============================================================================
-// Кастомные cross-field валидаторы (root — value-proxy модели)
+// Cross-field правила уровня формы (читают корень)
 // ============================================================================
 
-const initialPaymentVsProperty: V = (_v, _s, root) => {
-  const f = root as Root;
+const initialPaymentVsProperty = crossField((f) => {
   if (f.initialPayment && f.propertyValue && f.initialPayment > f.propertyValue)
     return {
       code: 'initialPaymentTooHigh',
@@ -69,10 +120,9 @@ const initialPaymentVsProperty: V = (_v, _s, root) => {
       message: 'Первоначальный взнос не может быть меньше 20% от стоимости недвижимости',
     };
   return null;
-};
+});
 
-const loanAmountVsPropertyMinusPayment: V = (_v, _s, root) => {
-  const f = root as Root;
+const loanAmountVsPropertyMinusPayment = crossField((f) => {
   if (f.loanAmount && f.propertyValue && f.initialPayment) {
     const maxLoan = f.propertyValue - f.initialPayment;
     if (f.loanAmount > maxLoan)
@@ -82,26 +132,23 @@ const loanAmountVsPropertyMinusPayment: V = (_v, _s, root) => {
       };
   }
   return null;
-};
+});
 
-const phoneAdditionalDiffers: V = (_v, _s, root) => {
-  const f = root as Root;
+const phoneAdditionalDiffers = crossField((f) => {
   if (!f.phoneAdditional) return null;
   return f.phoneMain === f.phoneAdditional
     ? { code: 'phoneDuplicate', message: 'Дополнительный телефон должен отличаться от основного' }
     : null;
-};
+});
 
-const emailAdditionalDiffers: V = (_v, _s, root) => {
-  const f = root as Root;
+const emailAdditionalDiffers = crossField((f) => {
   if (!f.emailAdditional) return null;
   return f.email.toLowerCase() === f.emailAdditional.toLowerCase()
     ? { code: 'emailDuplicate', message: 'Дополнительный email должен отличаться от основного' }
     : null;
-};
+});
 
-const passportIssuedAfter14: V = (_v, _s, root) => {
-  const f = root as Root;
+const passportIssuedAfter14 = crossField((f) => {
   if (!f.personalData.birthDate || !f.passportData.issueDate) return null;
   const birth = new Date(f.personalData.birthDate);
   const issue = new Date(f.passportData.issueDate);
@@ -113,622 +160,439 @@ const passportIssuedAfter14: V = (_v, _s, root) => {
         message: 'Паспорт не может быть выдан ранее достижения 14 лет',
       }
     : null;
-};
+});
 
-const passportIssueNotFuture: V = (value) => {
-  if (!value) return null;
-  return new Date(value as string) > new Date()
-    ? { code: 'issueDateInFuture', message: 'Дата выдачи не может быть в будущем' }
-    : null;
-};
-
-const adultAge: V = (value) => {
-  if (!value) return null;
-  const age = new Date().getFullYear() - new Date(value as string).getFullYear();
-  if (age < 18) return { code: 'tooYoung', message: 'Заемщику должно быть не менее 18 лет' };
-  if (age > 70) return { code: 'tooOld', message: 'Максимальный возраст заемщика: 70 лет' };
-  return null;
-};
-
-const currentExperienceVsTotal: V = (_v, _s, root) => {
-  const f = root as Root;
-  return f.workExperienceCurrent &&
-    f.workExperienceTotal &&
-    f.workExperienceCurrent > f.workExperienceTotal
+const currentExperienceVsTotal = crossField((f) =>
+  f.workExperienceCurrent &&
+  f.workExperienceTotal &&
+  f.workExperienceCurrent > f.workExperienceTotal
     ? {
         code: 'currentExperienceExceedsTotal',
         message: 'Стаж на текущем месте не может превышать общий стаж',
       }
-    : null;
-};
+    : null
+);
 
-const additionalIncomeSourceRequired: V = (_v, _s, root) => {
-  const f = root as Root;
-  return f.additionalIncome && f.additionalIncome > 0 && !f.additionalIncomeSource
+const additionalIncomeSourceRequired = crossField((f) =>
+  f.additionalIncome && f.additionalIncome > 0 && !f.additionalIncomeSource
     ? { code: 'additionalIncomeSourceRequired', message: 'Укажите источник дополнительного дохода' }
-    : null;
-};
+    : null
+);
 
 // Cross-field / warnings уровня всей формы (полная валидация)
-const paymentToIncome: V = (_v, _s, root) => {
-  const ratio = (root as Root).paymentToIncomeRatio;
-  return ratio && ratio > 50
+const paymentToIncome = crossField((f) =>
+  f.paymentToIncomeRatio && f.paymentToIncomeRatio > 50
     ? {
         code: 'paymentTooHigh',
-        message: `Ежемесячный платеж не должен превышать 50% дохода (сейчас ${ratio}%)`,
+        message: `Ежемесячный платеж не должен превышать 50% дохода (сейчас ${f.paymentToIncomeRatio}%)`,
       }
-    : null;
-};
-const validateAge: V = (_v, _s, root) => {
-  const age = (root as Root).age;
-  if (!age) return null;
-  if (age < 18) return { code: 'ageTooYoung', message: 'Заемщик должен быть старше 18 лет' };
-  if (age > 70) return { code: 'ageTooOld', message: 'Заемщик должен быть младше 70 лет' };
+    : null
+);
+
+const validateAge = crossField((f) => {
+  if (!f.age) return null;
+  if (f.age < 18) return { code: 'ageTooYoung', message: 'Заемщик должен быть старше 18 лет' };
+  if (f.age > 70) return { code: 'ageTooOld', message: 'Заемщик должен быть младше 70 лет' };
   return null;
-};
-const warnHighDebt: V = (_v, _s, root) => {
-  const r = (root as Root).paymentToIncomeRatio;
-  return r && r > 40 && r <= 50
+});
+
+const warnHighDebt = crossField((f) =>
+  f.paymentToIncomeRatio && f.paymentToIncomeRatio > 40 && f.paymentToIncomeRatio <= 50
     ? {
         code: 'highDebtLoad',
         message: 'Высокая долговая нагрузка. Рекомендуем уменьшить сумму или увеличить срок.',
         severity: 'warning',
       }
-    : null;
-};
-const warnSeniorAge: V = (_v, _s, root) => {
-  const a = (root as Root).age;
-  return a && a > 60 && a <= 70
+    : null
+);
+
+const warnSeniorAge = crossField((f) =>
+  f.age && f.age > 60 && f.age <= 70
     ? {
         code: 'seniorAge',
         message: 'Могут потребоваться дополнительные гарантии в связи с возрастом.',
         severity: 'warning',
       }
-    : null;
-};
-const warnLowExperience: V = (_v, _s, root) => {
-  const e = (root as Root).workExperienceCurrent;
-  return e !== null && e !== undefined && e < 3
+    : null
+);
+
+const warnLowExperience = crossField((f) =>
+  f.workExperienceCurrent !== null &&
+  f.workExperienceCurrent !== undefined &&
+  f.workExperienceCurrent < 3
     ? {
         code: 'lowWorkExperience',
         message: 'Малый стаж на текущем месте может повлиять на решение.',
         severity: 'warning',
       }
-    : null;
-};
+    : null
+);
 
-// Per-item cross-field (scope — под-модель элемента; root — корень)
-const remainingNotExceedAmount: V = (_v, scope) => {
-  const loan = scope as { remainingAmount: number; amount: number };
-  return loan.remainingAmount > loan.amount
+// Per-item cross-field (scope — под-модель элемента массива)
+const remainingNotExceedAmount: ModelValidator<number, ExistingLoan> = (_value, loan) =>
+  loan.remainingAmount > loan.amount
     ? { code: 'remainingExceedsAmount', message: 'Остаток долга не может превышать сумму кредита' }
     : null;
-};
-const maturityInFuture: V = (_v, scope) => {
-  const loan = scope as { maturityDate: string };
+
+const maturityInFuture: ModelValidator<string, ExistingLoan> = (_value, loan) => {
   if (!loan.maturityDate) return null;
-  const d = new Date(loan.maturityDate);
+  const date = new Date(loan.maturityDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return d < today
+  return date < today
     ? { code: 'maturityDateInPast', message: 'Дата погашения должна быть в будущем' }
     : null;
-};
-const coBorrowerAge18to80: V = (value) => {
-  if (!value) return null;
-  const birth = new Date(value as string);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  if (age < 18)
-    return { code: 'coBorrowerTooYoung', message: 'Созаемщику должно быть не менее 18 лет' };
-  if (age > 80)
-    return { code: 'coBorrowerTooOld', message: 'Созаемщику должно быть не более 80 лет' };
-  return null;
 };
 
 // Array-level: «добавьте хотя бы один…», навешено на чекбокс-носитель
 const notEmptyWhen =
-  (flag: keyof Root, arr: keyof Root, message: string): V =>
-  (_value, _s, root) =>
-    (root as any)[flag] && ((root as any)[arr] as { length: number }).length === 0
-      ? { code: 'arrayEmpty', message }
-      : null;
+  (flag: keyof Root, arr: keyof Root, message: string): ModelValidator<unknown, unknown, Root> =>
+  (_value, _scope, root) => {
+    const arrValue = root[arr] as unknown as { length: number };
+    return root[flag] && arrValue.length === 0 ? { code: 'arrayEmpty', message } : null;
+  };
+
+// ============================================================================
+// Переиспользуемые наборы правил
+// ============================================================================
+
+/** Правила ФИО (русское имя). Переиспользуется в step2 и в созаёмщике. */
+export const ruName = (label: string): Rule<string>[] => [
+  required({ message: `${label} обязательно` }),
+  minLength(2, { message: 'Минимум 2 символа' }),
+  maxLength(50, { message: 'Максимум 50 символов' }),
+  pattern(RU_NAME, { message: 'Только русские буквы, пробелы и дефис' }),
+];
 
 // ============================================================================
 // Под-схемы вложенных групп / элементов массивов
 // ============================================================================
 
-const addressChildren = (s: any) => [
-  vf(
-    s.region,
-    vs(
-      required({ message: 'Укажите регион' }),
-      minLength(2, { message: 'Минимум 2 символа' }),
-      maxLength(100, { message: 'Максимум 100 символов' })
-    )
-  ),
-  vf(
-    s.city,
-    vs(
-      required({ message: 'Укажите город' }),
-      minLength(2, { message: 'Минимум 2 символа' }),
-      maxLength(100, { message: 'Максимум 100 символов' })
-    )
-  ),
-  vf(
-    s.street,
-    vs(
-      required({ message: 'Укажите улицу' }),
-      minLength(3, { message: 'Минимум 3 символа' }),
-      maxLength(200, { message: 'Максимум 200 символов' })
-    )
-  ),
-  vf(
-    s.house,
-    vs(
-      required({ message: 'Укажите номер дома' }),
-      maxLength(10, { message: 'Максимум 10 символов' })
-    )
-  ),
-  vf(s.apartment, vs(maxLength(10, { message: 'Максимум 10 символов' }))),
-  vf(
-    s.postalCode,
-    vs(
-      required({ message: 'Укажите почтовый индекс' }),
-      pattern(/^\d{6}$/, { message: 'Индекс должен содержать 6 цифр' })
-    )
-  ),
+const addressFields = (s: ModelSignals<Address>): SchemaNode[] => [
+  field(s.region, [
+    required({ message: 'Укажите регион' }),
+    minLength(2, { message: 'Минимум 2 символа' }),
+    maxLength(100, { message: 'Максимум 100 символов' }),
+  ]),
+  field(s.city, [
+    required({ message: 'Укажите город' }),
+    minLength(2, { message: 'Минимум 2 символа' }),
+    maxLength(100, { message: 'Максимум 100 символов' }),
+  ]),
+  field(s.street, [
+    required({ message: 'Укажите улицу' }),
+    minLength(3, { message: 'Минимум 3 символа' }),
+    maxLength(200, { message: 'Максимум 200 символов' }),
+  ]),
+  field(s.house, [
+    required({ message: 'Укажите номер дома' }),
+    maxLength(10, { message: 'Максимум 10 символов' }),
+  ]),
+  // apartment опционален в типе Address, но всегда материализован в модели
+  field(s.apartment!, [maxLength(10, { message: 'Максимум 10 символов' })]),
+  field(s.postalCode, [
+    required({ message: 'Укажите почтовый индекс' }),
+    pattern(/^\d{6}$/, { message: 'Индекс должен содержать 6 цифр' }),
+  ]),
 ];
 
-const propertyItem = (im: FormModel<Property>) => ({
+const propertyItem = (im: FormModel<Property>): SchemaNode => ({
   children: [
-    vf(im.$.type, vs(required({ message: 'Укажите тип имущества' }))),
-    vf(
-      im.$.description,
-      vs(
-        required({ message: 'Добавьте описание имущества' }),
-        minLength(10, { message: 'Минимум 10 символов' }),
-        maxLength(500, { message: 'Максимум 500 символов' })
-      )
-    ),
-    vf(
-      im.$.estimatedValue,
-      vs(
-        required({ message: 'Укажите оценочную стоимость' }),
-        min(10000, { message: 'Минимальная стоимость: 10 000 ₽' })
-      )
-    ),
+    field(im.$.type, [required({ message: 'Укажите тип имущества' })]),
+    field(im.$.description, [
+      required({ message: 'Добавьте описание имущества' }),
+      minLength(10, { message: 'Минимум 10 символов' }),
+      maxLength(500, { message: 'Максимум 500 символов' }),
+    ]),
+    field(im.$.estimatedValue, [
+      required({ message: 'Укажите оценочную стоимость' }),
+      min(10000, { message: 'Минимальная стоимость: 10 000 ₽' }),
+    ]),
   ],
 });
 
-const existingLoanItem = (im: FormModel<ExistingLoan>) => ({
+const existingLoanItem = (im: FormModel<ExistingLoan>): SchemaNode => ({
   children: [
-    vf(
-      im.$.bank,
-      vs(
-        required({ message: 'Укажите название банка' }),
-        minLength(3, { message: 'Минимум 3 символа' }),
-        maxLength(100, { message: 'Максимум 100 символов' })
-      )
-    ),
-    vf(im.$.type, vs(required({ message: 'Укажите тип кредита' }))),
-    vf(
-      im.$.amount,
-      vs(
-        required({ message: 'Укажите сумму кредита' }),
-        min(1000, { message: 'Минимум 1 000 ₽' }),
-        max(100000000, { message: 'Максимум 100 000 000 ₽' })
-      )
-    ),
-    vf(
-      im.$.remainingAmount,
-      vs(
-        required({ message: 'Укажите остаток долга' }),
-        min(0, { message: 'Не может быть отрицательным' }),
-        remainingNotExceedAmount
-      )
-    ),
-    vf(
-      im.$.monthlyPayment,
-      vs(
-        required({ message: 'Укажите ежемесячный платеж' }),
-        min(100, { message: 'Минимум 100 ₽' })
-      )
-    ),
-    vf(im.$.maturityDate, vs(required({ message: 'Укажите дату погашения' }), maturityInFuture)),
+    field(im.$.bank, [
+      required({ message: 'Укажите название банка' }),
+      minLength(3, { message: 'Минимум 3 символа' }),
+      maxLength(100, { message: 'Максимум 100 символов' }),
+    ]),
+    field(im.$.type, [required({ message: 'Укажите тип кредита' })]),
+    field(im.$.amount, [
+      required({ message: 'Укажите сумму кредита' }),
+      min(1000, { message: 'Минимум 1 000 ₽' }),
+      max(100000000, { message: 'Максимум 100 000 000 ₽' }),
+    ]),
+    field(im.$.remainingAmount, [
+      required({ message: 'Укажите остаток долга' }),
+      min(0, { message: 'Не может быть отрицательным' }),
+      remainingNotExceedAmount,
+    ]),
+    field(im.$.monthlyPayment, [
+      required({ message: 'Укажите ежемесячный платеж' }),
+      min(100, { message: 'Минимум 100 ₽' }),
+    ]),
+    field(im.$.maturityDate, [required({ message: 'Укажите дату погашения' }), maturityInFuture]),
   ],
 });
 
-const coBorrowerItem = (im: FormModel<CoBorrower>) => ({
+const coBorrowerItem = (im: FormModel<CoBorrower>): SchemaNode => ({
   children: [
-    vf(
-      im.$.personalData.lastName,
-      vs(
-        required({ message: 'Фамилия обязательна' }),
-        minLength(2, { message: 'Минимум 2 символа' }),
-        maxLength(50, { message: 'Максимум 50 символов' }),
-        pattern(RU_NAME, { message: 'Только русские буквы' })
-      )
-    ),
-    vf(
-      im.$.personalData.firstName,
-      vs(
-        required({ message: 'Имя обязательно' }),
-        minLength(2, { message: 'Минимум 2 символа' }),
-        maxLength(50, { message: 'Максимум 50 символов' }),
-        pattern(RU_NAME, { message: 'Только русские буквы' })
-      )
-    ),
-    vf(
-      im.$.personalData.middleName,
-      vs(
-        required({ message: 'Отчество обязательно' }),
-        minLength(2, { message: 'Минимум 2 символа' }),
-        maxLength(50, { message: 'Максимум 50 символов' }),
-        pattern(RU_NAME, { message: 'Только русские буквы' })
-      )
-    ),
-    vf(
-      im.$.personalData.birthDate,
-      vs(required({ message: 'Дата рождения обязательна' }), coBorrowerAge18to80)
-    ),
-    vf(im.$.phone, vs(required({ message: 'Телефон обязателен' }))),
-    vf(
-      im.$.email,
-      vs(required({ message: 'Email обязателен' }), email({ message: 'Введите корректный email' }))
-    ),
-    vf(im.$.relationship, vs(required({ message: 'Укажите отношение к заемщику' }))),
-    vf(
-      im.$.monthlyIncome,
-      vs(
-        required({ message: 'Укажите доход созаемщика' }),
-        min(10000, { message: 'Минимум 10 000 ₽' })
-      )
-    ),
+    field(im.$.personalData.lastName, ruName('Фамилия')),
+    field(im.$.personalData.firstName, ruName('Имя')),
+    field(im.$.personalData.middleName, ruName('Отчество')),
+    field(im.$.personalData.birthDate, [
+      required({ message: 'Дата рождения обязательна' }),
+      minAge(18, { message: 'Созаемщику должно быть не менее 18 лет' }),
+      maxAge(80, { message: 'Созаемщику должно быть не более 80 лет' }),
+    ]),
+    field(im.$.phone, [required({ message: 'Телефон обязателен' })]),
+    field(im.$.email, [
+      required({ message: 'Email обязателен' }),
+      email({ message: 'Введите корректный email' }),
+    ]),
+    field(im.$.relationship, [required({ message: 'Укажите отношение к заемщику' })]),
+    field(im.$.monthlyIncome, [
+      required({ message: 'Укажите доход созаемщика' }),
+      min(10000, { message: 'Минимум 10 000 ₽' }),
+    ]),
   ],
-});
-
-const arraySection = (control: any, itemComponent: (im: any) => unknown) => ({
-  componentProps: { control, itemComponent },
 });
 
 // ============================================================================
 // Per-step схемы валидации
 // ============================================================================
 
-type M = FormModel<CreditApplicationForm>;
-
-const step1 = (model: M) => {
+const step1 = (model: M): SchemaNode => {
   const m = model.$;
-  const mortgage = (r: Root) => r.loanType === 'mortgage';
-  const car = (r: Root) => r.loanType === 'car';
-  const w = when(mortgage);
-  const wc = when(car);
+  const isMortgage = (r: Root) => r.loanType === 'mortgage';
+  const isCar = (r: Root) => r.loanType === 'car';
   return {
     children: [
-      vf(m.loanType, vs(required({ message: 'Выберите тип кредита' }))),
-      vf(m.loanAmount, [
-        ...vs(
-          required({ message: 'Укажите сумму кредита' }),
-          min(50000, { message: 'Минимум 50 000 ₽' }),
-          max(10000000, { message: 'Максимум 10 000 000 ₽' })
-        ),
-        ...w(loanAmountVsPropertyMinusPayment),
+      field(m.loanType, [required({ message: 'Выберите тип кредита' })]),
+      field(m.loanAmount, [
+        required({ message: 'Укажите сумму кредита' }),
+        min(50000, { message: 'Минимум 50 000 ₽' }),
+        max(10000000, { message: 'Максимум 10 000 000 ₽' }),
+        when(isMortgage, loanAmountVsPropertyMinusPayment),
       ]),
-      vf(
-        m.loanTerm,
-        vs(
-          required({ message: 'Укажите срок кредита' }),
-          min(6, { message: 'Минимум 6 месяцев' }),
-          max(240, { message: 'Максимум 240 месяцев' })
-        )
-      ),
-      vf(
-        m.loanPurpose,
-        vs(
-          required({ message: 'Укажите цель кредита' }),
-          minLength(10, { message: 'Минимум 10 символов' }),
-          maxLength(500, { message: 'Не более 500 символов' })
-        )
-      ),
-      vf(
-        m.propertyValue,
-        w(
+      field(m.loanTerm, [
+        required({ message: 'Укажите срок кредита' }),
+        min(6, { message: 'Минимум 6 месяцев' }),
+        max(240, { message: 'Максимум 240 месяцев' }),
+      ]),
+      field(m.loanPurpose, [
+        required({ message: 'Укажите цель кредита' }),
+        minLength(10, { message: 'Минимум 10 символов' }),
+        maxLength(500, { message: 'Не более 500 символов' }),
+      ]),
+      applyWhen(isMortgage, [
+        field(m.propertyValue, [
           required({ message: 'Укажите стоимость недвижимости' }),
-          min(1000000, { message: 'Минимум 1 000 000 ₽' })
-        )
-      ),
-      vf(m.initialPayment, [
-        ...w(
+          min(1000000, { message: 'Минимум 1 000 000 ₽' }),
+        ]),
+        field(m.initialPayment, [
           required({ message: 'Укажите первоначальный взнос' }),
-          min(0, { message: 'Не может быть отрицательным' })
-        ),
-        ...w(initialPaymentVsProperty),
+          min(0, { message: 'Не может быть отрицательным' }),
+          initialPaymentVsProperty,
+        ]),
       ]),
-      vf(
-        m.carBrand,
-        wc(
+      applyWhen(isCar, [
+        field(m.carBrand, [
           required({ message: 'Укажите марку автомобиля' }),
           minLength(2, { message: 'Минимум 2 символа' }),
-          maxLength(50, { message: 'Максимум 50 символов' })
-        )
-      ),
-      vf(
-        m.carModel,
-        wc(
+          maxLength(50, { message: 'Максимум 50 символов' }),
+        ]),
+        field(m.carModel, [
           required({ message: 'Укажите модель автомобиля' }),
           minLength(1, { message: 'Минимум 1 символ' }),
-          maxLength(50, { message: 'Максимум 50 символов' })
-        )
-      ),
-      vf(
-        m.carYear,
-        wc(
+          maxLength(50, { message: 'Максимум 50 символов' }),
+        ]),
+        field(m.carYear, [
           required({ message: 'Укажите год выпуска' }),
           min(2000, { message: 'Не ранее 2000' }),
-          max(new Date().getFullYear() + 1, {
-            message: `Не позднее ${new Date().getFullYear() + 1}`,
-          })
-        )
-      ),
-      vf(
-        m.carPrice,
-        wc(
+          max(CURRENT_YEAR + 1, { message: `Не позднее ${CURRENT_YEAR + 1}` }),
+        ]),
+        field(m.carPrice, [
           required({ message: 'Укажите стоимость автомобиля' }),
           min(300000, { message: 'Минимум 300 000 ₽' }),
-          max(10000000, { message: 'Максимум 10 000 000 ₽' })
-        )
-      ),
+          max(10000000, { message: 'Максимум 10 000 000 ₽' }),
+        ]),
+      ]),
     ],
   };
 };
 
-const step2 = (model: M) => {
+const step2 = (model: M): SchemaNode => {
   const m = model.$;
-  const nameRules = (label: string) =>
-    vs(
-      required({ message: `${label} обязательно` }),
-      minLength(2, { message: 'Минимум 2 символа' }),
-      maxLength(50, { message: 'Максимум 50 символов' }),
-      pattern(RU_NAME, { message: 'Только русские буквы, пробелы и дефис' })
-    );
   return {
     children: [
-      vf(m.personalData.lastName, nameRules('Фамилия')),
-      vf(m.personalData.firstName, nameRules('Имя')),
-      vf(m.personalData.middleName, nameRules('Отчество')),
-      vf(
-        m.personalData.birthDate,
-        vs(required({ message: 'Дата рождения обязательна' }), adultAge)
-      ),
-      vf(m.personalData.gender, vs(required({ message: 'Выберите пол' }))),
-      vf(
-        m.personalData.birthPlace,
-        vs(
-          required({ message: 'Место рождения обязательно' }),
-          minLength(5, { message: 'Минимум 5 символов' }),
-          maxLength(100, { message: 'Максимум 100 символов' })
-        )
-      ),
-      vf(
-        m.passportData.series,
-        vs(
-          required({ message: 'Серия паспорта обязательна' }),
-          pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' })
-        )
-      ),
-      vf(
-        m.passportData.number,
-        vs(
-          required({ message: 'Номер паспорта обязателен' }),
-          pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' })
-        )
-      ),
-      vf(
-        m.passportData.issueDate,
-        vs(
-          required({ message: 'Дата выдачи обязательна' }),
-          passportIssueNotFuture,
-          passportIssuedAfter14
-        )
-      ),
-      vf(
-        m.passportData.issuedBy,
-        vs(
-          required({ message: 'Кем выдан обязательно' }),
-          minLength(10, { message: 'Минимум 10 символов' }),
-          maxLength(200, { message: 'Максимум 200 символов' })
-        )
-      ),
-      vf(
-        m.passportData.departmentCode,
-        vs(
-          required({ message: 'Код подразделения обязателен' }),
-          pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' })
-        )
-      ),
-      vf(
-        m.inn,
-        vs(
-          required({ message: 'ИНН обязателен' }),
-          pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' })
-        )
-      ),
-      vf(
-        m.snils,
-        vs(
-          required({ message: 'СНИЛС обязателен' }),
-          pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат: 000-000-000 00' })
-        )
-      ),
+      field(m.personalData.lastName, ruName('Фамилия')),
+      field(m.personalData.firstName, ruName('Имя')),
+      field(m.personalData.middleName, ruName('Отчество')),
+      field(m.personalData.birthDate, [
+        required({ message: 'Дата рождения обязательна' }),
+        minAge(18, { message: 'Заемщику должно быть не менее 18 лет' }),
+        maxAge(70, { message: 'Максимальный возраст заемщика: 70 лет' }),
+      ]),
+      field(m.personalData.gender, [required({ message: 'Выберите пол' })]),
+      field(m.personalData.birthPlace, [
+        required({ message: 'Место рождения обязательно' }),
+        minLength(5, { message: 'Минимум 5 символов' }),
+        maxLength(100, { message: 'Максимум 100 символов' }),
+      ]),
+      field(m.passportData.series, [
+        required({ message: 'Серия паспорта обязательна' }),
+        pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' }),
+      ]),
+      field(m.passportData.number, [
+        required({ message: 'Номер паспорта обязателен' }),
+        pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' }),
+      ]),
+      field(m.passportData.issueDate, [
+        required({ message: 'Дата выдачи обязательна' }),
+        pastDate({ message: 'Дата выдачи не может быть в будущем' }),
+        passportIssuedAfter14,
+      ]),
+      field(m.passportData.issuedBy, [
+        required({ message: 'Кем выдан обязательно' }),
+        minLength(10, { message: 'Минимум 10 символов' }),
+        maxLength(200, { message: 'Максимум 200 символов' }),
+      ]),
+      field(m.passportData.departmentCode, [
+        required({ message: 'Код подразделения обязателен' }),
+        pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' }),
+      ]),
+      field(m.inn, [
+        required({ message: 'ИНН обязателен' }),
+        pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }),
+      ]),
+      field(m.snils, [
+        required({ message: 'СНИЛС обязателен' }),
+        pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат: 000-000-000 00' }),
+      ]),
     ],
   };
 };
 
-const step3 = (model: M) => {
+const step3 = (model: M): SchemaNode => {
   const m = model.$;
-  const wRes = when((r) => r.sameAsRegistration === false);
+  const notSameAddress = (r: Root) => r.sameAsRegistration === false;
   return {
     children: [
-      vf(
-        m.phoneMain,
-        vs(
-          required({ message: 'Телефон обязателен' }),
-          pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' })
-        )
-      ),
-      vf(
-        m.phoneAdditional,
-        vs(pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }), phoneAdditionalDiffers)
-      ),
-      vf(
-        m.email,
-        vs(
-          required({ message: 'Email обязателен' }),
-          email({ message: 'Введите корректный email' })
-        )
-      ),
-      vf(
-        m.emailAdditional,
-        vs(email({ message: 'Введите корректный email' }), emailAdditionalDiffers)
-      ),
-      { children: addressChildren(m.registrationAddress) },
-      // адрес проживания — только если не совпадает
-      {
-        children: addressChildren(m.residenceAddress).map((node) => ({
-          ...node,
-          validators: wRes(...node.validators),
-        })),
-      },
+      field(m.phoneMain, [
+        required({ message: 'Телефон обязателен' }),
+        pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
+      ]),
+      field(m.phoneAdditional, [
+        pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
+        phoneAdditionalDiffers,
+      ]),
+      field(m.email, [
+        required({ message: 'Email обязателен' }),
+        email({ message: 'Введите корректный email' }),
+      ]),
+      field(m.emailAdditional, [
+        email({ message: 'Введите корректный email' }),
+        emailAdditionalDiffers,
+      ]),
+      { children: addressFields(m.registrationAddress) },
+      // адрес проживания — только если не совпадает с регистрацией
+      applyWhen(notSameAddress, addressFields(m.residenceAddress)),
     ],
   };
 };
 
-const step4 = (model: M) => {
+const step4 = (model: M): SchemaNode => {
   const m = model.$;
-  const emp = when((r) => r.employmentStatus === 'employed');
-  const self = when((r) => r.employmentStatus === 'selfEmployed');
+  const isEmployed = (r: Root) => r.employmentStatus === 'employed';
+  const isSelfEmployed = (r: Root) => r.employmentStatus === 'selfEmployed';
   return {
     children: [
-      vf(m.employmentStatus, vs(required({ message: 'Укажите статус занятости' }))),
-      vf(
-        m.companyName,
-        emp(
+      field(m.employmentStatus, [required({ message: 'Укажите статус занятости' })]),
+      applyWhen(isEmployed, [
+        field(m.companyName, [
           required({ message: 'Укажите название компании' }),
           minLength(3, { message: 'Минимум 3 символа' }),
-          maxLength(200, { message: 'Максимум 200 символов' })
-        )
-      ),
-      vf(
-        m.companyInn,
-        emp(
+          maxLength(200, { message: 'Максимум 200 символов' }),
+        ]),
+        field(m.companyInn, [
           required({ message: 'ИНН компании обязателен' }),
-          pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' })
-        )
-      ),
-      vf(
-        m.companyPhone,
-        emp(
+          pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' }),
+        ]),
+        field(m.companyPhone, [
           required({ message: 'Телефон компании обязателен' }),
-          pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' })
-        )
-      ),
-      vf(
-        m.companyAddress,
-        emp(
+          pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
+        ]),
+        field(m.companyAddress, [
           required({ message: 'Адрес компании обязателен' }),
           minLength(10, { message: 'Минимум 10 символов' }),
-          maxLength(300, { message: 'Максимум 300 символов' })
-        )
-      ),
-      vf(
-        m.position,
-        emp(
+          maxLength(300, { message: 'Максимум 300 символов' }),
+        ]),
+        field(m.position, [
           required({ message: 'Укажите должность' }),
           minLength(3, { message: 'Минимум 3 символа' }),
-          maxLength(100, { message: 'Максимум 100 символов' })
-        )
-      ),
-      vf(
-        m.workExperienceTotal,
-        emp(
+          maxLength(100, { message: 'Максимум 100 символов' }),
+        ]),
+        field(m.workExperienceTotal, [
           required({ message: 'Укажите общий стаж' }),
           min(0, { message: 'Не может быть отрицательным' }),
-          max(60, { message: 'Максимум 60 лет' })
-        )
-      ),
-      vf(m.workExperienceCurrent, [
-        ...emp(
+          max(60, { message: 'Максимум 60 лет' }),
+        ]),
+        field(m.workExperienceCurrent, [
           required({ message: 'Укажите стаж на текущем месте' }),
           min(0, { message: 'Не может быть отрицательным' }),
-          max(60, { message: 'Максимум 60 лет' })
-        ),
-        ...emp(currentExperienceVsTotal),
+          max(60, { message: 'Максимум 60 лет' }),
+          currentExperienceVsTotal,
+        ]),
       ]),
-      vf(m.businessType, self(required({ message: 'Укажите тип бизнеса' }))),
-      vf(
-        m.businessInn,
-        self(
+      applyWhen(isSelfEmployed, [
+        field(m.businessType, [required({ message: 'Укажите тип бизнеса' })]),
+        field(m.businessInn, [
           required({ message: 'ИНН ИП обязателен' }),
-          pattern(/^\d{12}$/, { message: 'ИНН ИП — 12 цифр' })
-        )
-      ),
-      vf(
-        m.businessActivity,
-        self(
+          pattern(/^\d{12}$/, { message: 'ИНН ИП — 12 цифр' }),
+        ]),
+        field(m.businessActivity, [
           required({ message: 'Укажите вид деятельности' }),
           minLength(10, { message: 'Минимум 10 символов' }),
-          maxLength(300, { message: 'Максимум 300 символов' })
-        )
-      ),
-      vf(
-        m.monthlyIncome,
-        vs(
-          required({ message: 'Укажите ежемесячный доход' }),
-          min(10000, { message: 'Минимум 10 000 ₽' }),
-          max(10000000, { message: 'Максимум 10 000 000 ₽' })
-        )
-      ),
-      vf(
-        m.additionalIncome,
-        vs(
-          min(0, { message: 'Не может быть отрицательным' }),
-          max(10000000, { message: 'Максимум 10 000 000 ₽' })
-        )
-      ),
-      vf(m.additionalIncomeSource, vs(additionalIncomeSourceRequired)),
+          maxLength(300, { message: 'Максимум 300 символов' }),
+        ]),
+      ]),
+      field(m.monthlyIncome, [
+        required({ message: 'Укажите ежемесячный доход' }),
+        min(10000, { message: 'Минимум 10 000 ₽' }),
+        max(10000000, { message: 'Максимум 10 000 000 ₽' }),
+      ]),
+      field(m.additionalIncome, [
+        min(0, { message: 'Не может быть отрицательным' }),
+        max(10000000, { message: 'Максимум 10 000 000 ₽' }),
+      ]),
+      field(m.additionalIncomeSource, [additionalIncomeSourceRequired]),
     ],
   };
 };
 
-const step5 = (model: M) => {
+const step5 = (model: M): SchemaNode => {
   const m = model.$;
   return {
     children: [
-      vf(m.maritalStatus, vs(required({ message: 'Укажите семейное положение' }))),
-      vf(
-        m.dependents,
-        vs(
-          required({ message: 'Укажите количество иждивенцев' }),
-          min(0, { message: 'Не может быть отрицательным' }),
-          max(10, { message: 'Максимум 10' })
-        )
-      ),
-      vf(m.education, vs(required({ message: 'Укажите уровень образования' }))),
-      vf(
-        m.hasProperty,
-        vs(notEmptyWhen('hasProperty', 'properties', 'Добавьте хотя бы один объект имущества'))
-      ),
-      vf(
-        m.hasExistingLoans,
-        vs(notEmptyWhen('hasExistingLoans', 'existingLoans', 'Добавьте информацию о кредите'))
-      ),
-      vf(
-        m.hasCoBorrower,
-        vs(notEmptyWhen('hasCoBorrower', 'coBorrowers', 'Добавьте информацию о созаемщике'))
-      ),
+      field(m.maritalStatus, [required({ message: 'Укажите семейное положение' })]),
+      field(m.dependents, [
+        required({ message: 'Укажите количество иждивенцев' }),
+        min(0, { message: 'Не может быть отрицательным' }),
+        max(10, { message: 'Максимум 10' }),
+      ]),
+      field(m.education, [required({ message: 'Укажите уровень образования' })]),
+      field(m.hasProperty, [
+        notEmptyWhen('hasProperty', 'properties', 'Добавьте хотя бы один объект имущества'),
+      ]),
+      field(m.hasExistingLoans, [
+        notEmptyWhen('hasExistingLoans', 'existingLoans', 'Добавьте информацию о кредите'),
+      ]),
+      field(m.hasCoBorrower, [
+        notEmptyWhen('hasCoBorrower', 'coBorrowers', 'Добавьте информацию о созаемщике'),
+      ]),
       arraySection(model.properties, propertyItem),
       arraySection(model.existingLoans, existingLoanItem),
       arraySection(model.coBorrowers, coBorrowerItem),
@@ -736,11 +600,11 @@ const step5 = (model: M) => {
   };
 };
 
-const step6 = (model: M) => {
+const step6 = (model: M): SchemaNode => {
   const m = model.$;
-  const smsCode: V = async (value) => {
-    if (!value || (value as string).length !== 6) return null;
-    await new Promise((r) => setTimeout(r, 200));
+  const smsCode: ModelValidator<string, unknown, Root> = async (value) => {
+    if (!value || value.length !== 6) return null;
+    await new Promise((resolve) => setTimeout(resolve, 200));
     return value !== '123456'
       ? {
           code: 'invalidSmsCode',
@@ -750,36 +614,32 @@ const step6 = (model: M) => {
   };
   return {
     children: [
-      vf(m.agreePersonalData, vs(required({ message: 'Согласие на обработку ПД обязательно' }))),
-      vf(
-        m.agreeCreditHistory,
-        vs(required({ message: 'Согласие на проверку кредитной истории обязательно' }))
-      ),
-      vf(m.agreeTerms, vs(required({ message: 'Согласие с условиями обязательно' }))),
-      vf(m.confirmAccuracy, vs(required({ message: 'Подтверждение точности обязательно' }))),
-      vf(
-        m.electronicSignature,
-        vs(
-          required({ message: 'Введите код из СМС' }),
-          minLength(6, { message: 'Код — 6 символов' }),
-          maxLength(6, { message: 'Код — 6 символов' }),
-          pattern(/^\d{6}$/, { message: 'Только цифры' }),
-          mv(smsCode)
-        )
-      ),
+      field(m.agreePersonalData, [required({ message: 'Согласие на обработку ПД обязательно' })]),
+      field(m.agreeCreditHistory, [
+        required({ message: 'Согласие на проверку кредитной истории обязательно' }),
+      ]),
+      field(m.agreeTerms, [required({ message: 'Согласие с условиями обязательно' })]),
+      field(m.confirmAccuracy, [required({ message: 'Подтверждение точности обязательно' })]),
+      field(m.electronicSignature, [
+        required({ message: 'Введите код из СМС' }),
+        minLength(6, { message: 'Код — 6 символов' }),
+        maxLength(6, { message: 'Код — 6 символов' }),
+        pattern(/^\d{6}$/, { message: 'Только цифры' }),
+        smsCode,
+      ]),
     ],
   };
 };
 
 /** Cross-field/warnings уровня всей формы (вне per-step). */
-const fullExtras = (model: M) => {
+const fullExtras = (model: M): SchemaNode => {
   const m = model.$;
   return {
     children: [
-      vf(m.monthlyPayment, vs(paymentToIncome)),
-      vf(m.age, vs(validateAge, warnSeniorAge)),
-      vf(m.paymentToIncomeRatio, vs(warnHighDebt)),
-      vf(m.workExperienceCurrent, vs(warnLowExperience)),
+      field(m.monthlyPayment, [paymentToIncome]),
+      field(m.age, [validateAge, warnSeniorAge]),
+      field(m.paymentToIncomeRatio, [warnHighDebt]),
+      field(m.workExperienceCurrent, [warnLowExperience]),
     ],
   };
 };
@@ -787,12 +647,12 @@ const fullExtras = (model: M) => {
 const STEP_BUILDERS = [step1, step2, step3, step4, step5, step6] as const;
 
 /** Схема валидации конкретного шага (1-based). */
-export const creditStepSchema = (step: number, model: M) =>
+export const creditStepSchema = (step: number, model: M): SchemaNode =>
   STEP_BUILDERS[step - 1]?.(model) ?? { children: [] };
 
 /** Полная схема валидации (все шаги + form-level cross-field/warnings). */
-export const creditFullSchema = (model: M) => ({
-  children: [...STEP_BUILDERS.map((b) => b(model)), fullExtras(model)],
+export const creditFullSchema = (model: M): SchemaNode => ({
+  children: [...STEP_BUILDERS.map((build) => build(model)), fullExtras(model)],
 });
 
 /** Истинно, если среди ошибок нет блокирующих (severity ≠ 'warning'). */
@@ -804,18 +664,23 @@ const noBlocking = (errors: Record<string, { severity?: string }[]>): boolean =>
 /**
  * Конфиг валидации для `FormWizard` (M1): per-step и полная валидация через `validateFormModel`.
  * Ошибки роутятся в ноды формы; warnings (severity: 'warning') не блокируют.
+ *
+ * Схема зависит только от ФОРМЫ модели, не от значений (значения читаются через `signal.peek()`
+ * в момент прогона, а длина/элементы массивов — через живой `control.length`/`control.at(i)`).
+ * Поэтому дерево схемы строится ОДИН раз на `model`, а не пересобирается на каждый вызов —
+ * убирает ~300–400 одноразовых аллокаций на `validateAll`.
  */
 export function makeCreditValidationConfig(model: M) {
+  const stepSchemas = STEP_BUILDERS.map((build) => build(model));
+  const fullSchema: SchemaNode = { children: [...stepSchemas, fullExtras(model)] };
   return {
     validateStep: async (step: number): Promise<boolean> => {
-      const res = await validateFormModel(model, creditStepSchema(step, model));
+      const res = await validateFormModel(model, stepSchemas[step - 1] ?? { children: [] });
       return noBlocking(res.errors);
     },
     validateAll: async (): Promise<boolean> => {
-      const res = await validateFormModel(model, creditFullSchema(model));
+      const res = await validateFormModel(model, fullSchema);
       return noBlocking(res.errors);
     },
   };
 }
-
-/* eslint-enable @typescript-eslint/no-explicit-any */
