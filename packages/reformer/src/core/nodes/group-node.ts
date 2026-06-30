@@ -29,6 +29,7 @@ import { SubscriptionManager } from '../utils/subscription-manager';
 import { createAggregateSignals } from '../utils/aggregate-signals';
 import { buildFormProxy } from '../utils/form-proxy-builder';
 import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../utils/form-submitter';
+import { isDerived } from '../utils/derived-registry';
 
 /** Сегмент пути к полю: ключ + опциональный индекс массива (`items[0]` → `{ key: 'items', index: 0 }`). */
 interface PathSegment {
@@ -94,6 +95,11 @@ export class GroupNode<T> extends FormNode<T> {
    * Ссылка на Proxy-инстанс
    */
   private _proxyInstance?: FormProxy<T>;
+
+  /**
+   * Cleanup декларативной схемы поведения (createForm({ behavior })). Вызывается в dispose().
+   */
+  private _behaviorCleanup?: () => void;
 
   /**
    * Фабрика для создания узлов формы
@@ -227,6 +233,8 @@ export class GroupNode<T> extends FormNode<T> {
     for (const [key, fieldValue] of Object.entries(value as any)) {
       const field = this._fields.get(key as keyof T);
       if (field) {
+        // F9: производные поля (цели compute) не затираем при bulk-set.
+        if (isDerived(field.value as Signal<unknown>)) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         field.setValue(fieldValue as any, options);
       }
@@ -241,6 +249,8 @@ export class GroupNode<T> extends FormNode<T> {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
+          // F9: производные поля (цели compute) не затираем при bulk-patch.
+          if (isDerived(field.value as Signal<unknown>)) continue;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           field.setValue(fieldValue as any, { emitEvent: false });
         }
@@ -618,9 +628,19 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
+   * Прикрепить cleanup декларативной схемы поведения (вызывается createForm).
+   * @internal
+   */
+  attachBehaviorCleanup(cleanup: () => void): void {
+    this._behaviorCleanup = cleanup;
+  }
+
+  /**
    * Очистить все ресурсы узла
    */
   dispose(): void {
+    this._behaviorCleanup?.();
+    this._behaviorCleanup = undefined;
     this.disposers.dispose();
     this._fields.forEach((field) => {
       if ('dispose' in field && typeof field.dispose === 'function') {

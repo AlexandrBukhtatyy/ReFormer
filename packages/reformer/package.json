@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./behaviors": {
+      "types": "./dist/behaviors.d.ts",
+      "import": "./dist/behaviors.js"
+    },
     "./validators": {
       "types": "./dist/validators.d.ts",
       "import": "./dist/validators.js"

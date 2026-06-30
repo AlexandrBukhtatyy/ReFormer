@@ -10,6 +10,7 @@
 
 import { signal, type Signal } from '@preact/signals-core';
 import type { FormModel, PathAwareSignal } from './types';
+import { isDerived } from '../utils/derived-registry';
 
 // ============================================================================
 // Утилиты
@@ -129,7 +130,10 @@ class GroupNode {
     if (value == null || typeof value !== 'object') return;
     const v = value as Record<string, unknown>;
     for (const [key, node] of this.children) {
-      if (key in v) node.set(v[key]);
+      if (!(key in v)) continue;
+      // F9: производные поля (цели compute) не затираем значением из payload — ими владеет compute.
+      if (node.kind === 'leaf' && isDerived(node.signal)) continue;
+      node.set(v[key]);
     }
   }
   resetToInitial(): void {
@@ -307,6 +311,7 @@ function signalsProxy(node: ModelNode): any {
       {},
       {
         get: (_t, key) => {
+          if (key === '__path') return node.path;
           if (typeof key !== 'string') return undefined;
           const child = node.children.get(key);
           return child ? signalsProxy(child) : undefined;
@@ -329,6 +334,7 @@ function signalsProxy(node: ModelNode): any {
     },
     {
       get: (target, key, recv) => {
+        if (key === '__path') return arr.path;
         if (typeof key === 'string' && isIndexKey(key)) {
           const item = arr.items.value[Number(key)];
           return item ? signalsProxy(item) : undefined;

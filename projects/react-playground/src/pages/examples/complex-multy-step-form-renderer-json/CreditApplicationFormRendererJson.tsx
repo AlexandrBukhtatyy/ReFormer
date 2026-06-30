@@ -13,7 +13,7 @@
  *   реестр/behavior, рендерит JsonFormRenderer внутри JsonRendererProvider.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { createForm } from '@reformer/core';
 import {
   JsonFormRenderer,
@@ -23,7 +23,7 @@ import {
   type ComponentRegistry,
 } from '@reformer/renderer-json';
 import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
-import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
+import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 import rawJsonSchema from './json-schema.json';
 import { createCreditApplicationRegistry } from './registry';
@@ -48,6 +48,7 @@ function buildModelAndForm(registry: ComponentRegistry) {
     const form = createForm<CreditApplicationForm>({
       model,
       schema: convertJsonToM1Tree(creditApplicationJsonSchema, registry, model),
+      behavior: creditApplicationBehavior,
     });
     return { model, form };
   } catch (err) {
@@ -59,11 +60,8 @@ function buildModelAndForm(registry: ComponentRegistry) {
 export default function CreditApplicationFormRendererJson() {
   const registry = useMemo(() => createCreditApplicationRegistry(), []);
   // M1, единая схема: модель + форма строятся ИЗ JSON-схемы (без отдельной схемы формы).
+  // Поведение (compute/enableWhen/onChange) запускается внутри createForm({ behavior }).
   const { model, form } = useMemo(() => buildModelAndForm(registry), [registry]);
-  // Реактивное поведение (computeFrom/enableWhen/watchField) на модели + нодах
-  useEffect(() => {
-    if (form) return setupCreditApplicationBehavior(model, form);
-  }, [model, form]);
   const renderBehavior = useMemo(
     () => (form ? createCreditApplicationJsonRenderBehavior(form, model) : undefined),
     [form, model]

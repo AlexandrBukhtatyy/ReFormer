@@ -25,6 +25,9 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
+        // Декларативный контракт схемы поведения. Импортирует примитивы из index → общий chunk
+        // (единый реестр сигнал→нода и единый ambient-сток).
+        behaviors: resolve(__dirname, 'src/behaviors.ts'),
         // Re-export file that imports from index to ensure single module instance.
         validators: resolve(__dirname, 'src/validators.ts'),
         // Granular validator exports for tree-shaking

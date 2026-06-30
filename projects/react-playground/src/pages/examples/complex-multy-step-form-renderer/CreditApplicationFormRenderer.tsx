@@ -10,11 +10,11 @@
  * - Переиспользует типы, схему, валидацию и API из complex-multy-step-form
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createForm } from '@reformer/core';
 import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
-import { setupCreditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
+import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
@@ -119,11 +119,10 @@ function CreditApplicationFormRenderer() {
     const form = createForm<CreditApplicationForm>({
       model,
       schema: buildCreditApplicationSchema(model),
+      behavior: creditApplicationBehavior,
     });
     return { model, form };
   }, []);
-  // Реактивное поведение (computeFrom/enableWhen/watchField) на модели + нодах
-  useEffect(() => setupCreditApplicationBehavior(model, form), [model, form]);
   // Render-схема (то же дерево + form для wizard) + применённое render-поведение
   const schema = useMemo(() => createCreditApplicationRenderSchema(model, form), [model, form]);
 

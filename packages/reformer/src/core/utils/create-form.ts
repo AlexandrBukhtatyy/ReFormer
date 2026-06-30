@@ -24,6 +24,7 @@ import { ModelArrayNode } from '../nodes/model-array-node';
 import { registerSignalNode } from './signal-node-registry';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from '../types';
 import type { FormModel } from '../model/types';
+import type { FormBehavior } from '../../behaviors';
 
 /**
  * Аргументы createForm под архитектуру M1: данные приходят из {@link FormModel},
@@ -39,6 +40,11 @@ export interface CreateFormFromModelArgs<T> {
    * по идентичности сигнала (`node.value === model.$.path`). Опциональна.
    */
   schema?: unknown;
+  /**
+   * Декларативная схема поведения ({@link defineFormBehavior}). Запускается ПОСЛЕ построения нод и
+   * заполнения реестра сигнал→нода; cleanup живёт на форме и вызывается в `form.dispose()`.
+   */
+  behavior?: FormBehavior<T>;
 }
 
 const isPlainObj = (v: unknown): v is Record<string, unknown> =>
@@ -151,7 +157,7 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
 }
 
 export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormProxy<T> {
-  const { model, schema } = args;
+  const { model, schema, behavior } = args;
   const bySignal: HarvestedConfig = new Map();
   const arrayItems: ArrayItemBuilders = new Map();
   if (schema !== undefined) harvestFieldConfig(schema, bySignal, arrayItems);
@@ -183,6 +189,12 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormPr
     const sig = model.signalAt(path);
     const node = groupNode.getFieldByPath(path);
     if (sig && node) registerSignalNode(sig as Signal<unknown>, node);
+  }
+
+  // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),
+  // cleanup отдаём форме — отпишется в groupNode.dispose().
+  if (behavior) {
+    groupNode.attachBehaviorCleanup(behavior.__run(model, proxy));
   }
 
   return proxy;
