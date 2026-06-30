@@ -50,18 +50,10 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
     );
     compute(model.$.monthlyPayment, () => computeMonthlyPayment(model));
     // Первоначальный взнос (20% стоимости) — только для ипотеки
-    compute(
-      model.$.initialPayment,
-      () => computeInitialPayment({ propertyValue: model.propertyValue }),
-      {
-        when: () => model.loanType === 'mortgage',
-      }
-    );
-    compute(model.$.fullName, () =>
-      computeFullName({
-        personalData: model.personalData as PersonalData,
-      })
-    );
+    compute(model.$.initialPayment, () => computeInitialPayment(model), {
+      when: () => model.loanType === 'mortgage',
+    });
+    compute(model.$.fullName, () => computeFullName(model));
     compute(model.$.age, () =>
       computeAge({ personalData: { birthDate: model.personalData.birthDate } as PersonalData })
     );
@@ -72,19 +64,8 @@ export const creditApplicationBehavior = defineFormBehavior<CreditApplicationFor
         })) as CoBorrower[],
       })
     );
-    compute(model.$.totalIncome, () =>
-      computeTotalIncome({
-        monthlyIncome: model.monthlyIncome,
-        additionalIncome: model.additionalIncome,
-        coBorrowersIncome: model.coBorrowersIncome,
-      })
-    );
-    compute(model.$.paymentToIncomeRatio, () =>
-      computePaymentRatio({
-        monthlyPayment: model.monthlyPayment,
-        totalIncome: model.totalIncome,
-      })
-    );
+    compute(model.$.totalIncome, () => computeTotalIncome(model));
+    compute(model.$.paymentToIncomeRatio, () => computePaymentRatio(model));
 
     // ===================================================================
     // 2. copyFrom — копирование значений (скаляр + группа)
