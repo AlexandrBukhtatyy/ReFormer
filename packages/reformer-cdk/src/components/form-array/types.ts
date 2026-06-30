@@ -35,6 +35,14 @@ export interface FormArrayItemRenderProps<T extends object> {
   id: string | number;
   /** Remove this item from the array */
   remove: () => void;
+  /** Move this item one position up (no-op when first) */
+  moveUp: () => void;
+  /** Move this item one position down (no-op when last) */
+  moveDown: () => void;
+  /** Whether this item can move up (index > 0) */
+  canMoveUp: boolean;
+  /** Whether this item can move down (index < length - 1) */
+  canMoveDown: boolean;
 }
 
 /**

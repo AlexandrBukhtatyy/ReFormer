@@ -192,6 +192,71 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
   }
 
   /**
+   * Переместить элемент массива с позиции `from` на позицию `to`
+   *
+   * @param from - Индекс перемещаемого элемента
+   * @param to - Целевой индекс
+   *
+   * @remarks
+   * Реордер не уничтожает элемент (dispose НЕ вызывается) — тот же инстанс под-формы
+   * переезжает на новую позицию, состояние/валидация сохраняются. Длина не меняется.
+   *
+   * @example
+   * ```typescript
+   * // Поднять элемент #2 на одну позицию вверх
+   * form.items.move(2, 1);
+   * ```
+   */
+  move(from: number, to: number): void {
+    const len = this.items.value.length;
+    if (from < 0 || from >= len || to < 0 || to >= len) {
+      FormErrorHandler.handle(
+        new Error(`ArrayNode.move: index out of bounds (from=${from}, to=${to}, length=${len})`),
+        'ArrayNode.move',
+        ErrorStrategy.LOG
+      );
+      return;
+    }
+    if (from === to) return;
+
+    const next = [...this.items.value];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    this.items.value = next;
+  }
+
+  /**
+   * Поменять местами два элемента массива
+   *
+   * @param a - Индекс первого элемента
+   * @param b - Индекс второго элемента
+   *
+   * @remarks
+   * Как и {@link move}, не уничтожает элементы — меняет только их порядок.
+   *
+   * @example
+   * ```typescript
+   * form.items.swap(0, 2);
+   * ```
+   */
+  swap(a: number, b: number): void {
+    const len = this.items.value.length;
+    if (a < 0 || a >= len || b < 0 || b >= len) {
+      FormErrorHandler.handle(
+        new Error(`ArrayNode.swap: index out of bounds (a=${a}, b=${b}, length=${len})`),
+        'ArrayNode.swap',
+        ErrorStrategy.LOG
+      );
+      return;
+    }
+    if (a === b) return;
+
+    const next = [...this.items.value];
+    [next[a], next[b]] = [next[b], next[a]];
+    this.items.value = next;
+  }
+
+  /**
    * Удалить все элементы массива
    *
    * @remarks

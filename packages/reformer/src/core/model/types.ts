@@ -76,6 +76,8 @@ export interface ModelArray<U> {
   removeAt(index: number): void;
   /** Переместить элемент. */
   move(from: number, to: number): void;
+  /** Поменять местами два элемента. */
+  swap(a: number, b: number): void;
   /** Очистить массив. */
   clear(): void;
   /** Под-модель элемента по индексу (для объектных элементов) или значение (для примитивных). */

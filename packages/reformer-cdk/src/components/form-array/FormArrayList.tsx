@@ -30,13 +30,25 @@ export function FormArrayList<T extends object>({
   className,
   as = 'div',
 }: FormArrayListProps<T>) {
-  const { items } = useFormArrayContext<T>();
+  const { items, move } = useFormArrayContext<T>();
+  const total = items.length;
 
-  const content = items.map((item) => (
-    <FormArrayItemContext.Provider key={item.id} value={item}>
-      {children(item)}
-    </FormArrayItemContext.Provider>
-  ));
+  const content = items.map((item) => {
+    // Производные хелперы реордера вычисляются здесь (нужна текущая длина), чтобы не раздувать
+    // базовую запись item в useFormArray/контексте.
+    const enriched = {
+      ...item,
+      moveUp: () => move(item.index, item.index - 1),
+      moveDown: () => move(item.index, item.index + 1),
+      canMoveUp: item.index > 0,
+      canMoveDown: item.index < total - 1,
+    };
+    return (
+      <FormArrayItemContext.Provider key={item.id} value={enriched}>
+        {children(enriched)}
+      </FormArrayItemContext.Provider>
+    );
+  });
 
   // If no className, render fragment to avoid extra DOM node
   if (!className) {

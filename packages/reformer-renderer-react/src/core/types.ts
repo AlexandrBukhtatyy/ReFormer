@@ -85,6 +85,8 @@ export interface RenderModelArrayControl {
   at(index: number): unknown;
   push(item: unknown): void;
   removeAt(index: number): void;
+  /** Переместить элемент (реордер; runtime-фасад модель-массива это уже умеет). */
+  move(from: number, to: number): void;
 }
 
 /**
@@ -118,6 +120,8 @@ export interface ArrayRenderNode<T> {
     itemLabel?: string | ((itemModel: any, index: number) => string);
     className?: string;
     cardClassName?: string;
+    /** Показывать кнопки ↑/↓ перестановки элементов. По умолчанию `false`. */
+    reorderable?: boolean;
     [key: string]: unknown;
   };
 }

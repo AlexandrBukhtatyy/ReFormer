@@ -61,6 +61,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           emptyMessage='Нажмите "Добавить имущество" для добавления информации'
           hasItems={hasProperty}
           initialValue={createBlankProperty()}
+          reorderable
         />
       </div>
 
@@ -76,6 +77,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           emptyMessage='Нажмите "Добавить кредит" для добавления информации'
           hasItems={hasExistingLoans}
           initialValue={createBlankExistingLoan()}
+          reorderable
         />
       </div>
 
@@ -91,6 +93,7 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
           hasItems={hasCoBorrower}
           initialValue={createBlankCoBorrower()}
+          reorderable
         />
       </div>
     </div>

@@ -4,7 +4,7 @@
  * @module reformer/renderer-react/render-node
  */
 
-import { memo, useSyncExternalStore, type ReactNode } from 'react';
+import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { effect } from '@preact/signals-core';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import { useFormControl, getNodeForSignal } from '@reformer/core';
@@ -115,16 +115,30 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   );
 });
 
-/** Реактивная подписка на длину массива модели (ре-рендер при push/removeAt). SSR-safe. */
-function useModelArrayLength(control: RenderModelArrayControl): number {
-  return useSyncExternalStore(
-    (cb) =>
+/**
+ * Реактивная подписка на структурные изменения массива модели (push/removeAt/insert/**reorder**).
+ * Возвращает ревизию-счётчик, а не длину: реордер сохраняет длину, поэтому snapshot=length НЕ менялся
+ * бы и React не перерисовал список. Чтение `control.length` внутри `effect` подписывает на сигнал
+ * `items` (его ссылка реассайнится при любой мутации, включая перестановку), а ревизия инкрементится
+ * на каждое срабатывание — snapshot меняется → ре-рендер. SSR-safe.
+ */
+function useModelArrayRevision(control: RenderModelArrayControl): number {
+  const revRef = useRef(0);
+  // subscribe ОБЯЗАН быть стабильным: иначе React переподписывается каждый рендер, effect
+  // повторно инкрементит revRef → снапшот меняется → ре-рендер → бесконечный цикл (краш).
+  const subscribe = useCallback(
+    (cb: () => void) =>
       effect(() => {
-        void control.length;
+        void control.length; // зависимость от сигнала items (меняет identity при reorder)
+        revRef.current += 1;
         cb();
       }),
-    () => control.length,
-    () => control.length
+    [control]
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => revRef.current,
+    () => revRef.current
   );
 }
 
@@ -158,7 +172,8 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
   const control = node.array;
-  const length = useModelArrayLength(control);
+  useModelArrayRevision(control); // ре-рендер при структурных изменениях массива, включая reorder
+  const length = control.length;
   const cp = node.componentProps ?? {};
   const {
     title,
@@ -166,6 +181,7 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
     removeButtonLabel = 'Удалить',
     emptyMessage,
     itemLabel,
+    reorderable = false,
     className = 'space-y-3 mt-2',
     cardClassName = 'mb-4 p-4 bg-white rounded border',
   } = cp;
@@ -179,6 +195,8 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
   const removeBtnClass =
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2';
+  const moveBtnClass =
+    'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 h-9 w-9';
 
   const addButton = (cls: string) => (
     <button
@@ -209,16 +227,42 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
             {title || itemLabel ? (
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-medium">{getItemLabel(im, i)}</h4>
-                {showRemove ? (
-                  <button
-                    type="button"
-                    data-testid={`array-item-${i}-remove`}
-                    className={removeBtnClass}
-                    onClick={() => control.removeAt(i)}
-                  >
-                    {removeButtonLabel}
-                  </button>
-                ) : null}
+                <div className="flex items-center gap-2">
+                  {reorderable ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Переместить вверх"
+                        data-testid={`array-item-${i}-move-up`}
+                        className={moveBtnClass}
+                        disabled={i === 0}
+                        onClick={() => control.move(i, i - 1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Переместить вниз"
+                        data-testid={`array-item-${i}-move-down`}
+                        className={moveBtnClass}
+                        disabled={i === length - 1}
+                        onClick={() => control.move(i, i + 1)}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  ) : null}
+                  {showRemove ? (
+                    <button
+                      type="button"
+                      data-testid={`array-item-${i}-remove`}
+                      className={removeBtnClass}
+                      onClick={() => control.removeAt(i)}
+                    >
+                      {removeButtonLabel}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             <RenderNodeComponent node={subtree} fieldWrapper={fieldWrapper} />

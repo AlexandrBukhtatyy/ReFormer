@@ -75,6 +75,10 @@ export interface FormArrayHandle<T extends object> {
   insert: (index: number, value?: Partial<T>) => void;
   /** Remove item at specific index */
   removeAt: (index: number) => void;
+  /** Move an item from one index to another (reorder, state preserved) */
+  move: (from: number, to: number) => void;
+  /** Swap two items by index (reorder, state preserved) */
+  swap: (a: number, b: number) => void;
   /** Current number of items */
   length: number;
   /** Whether the array is empty */
@@ -126,6 +130,8 @@ function FormArrayRootInner<T extends object>(
       clear: arrayState.clear,
       insert: arrayState.insert,
       removeAt: (index: number) => control.removeAt(index),
+      move: arrayState.move,
+      swap: arrayState.swap,
       length: arrayState.length,
       isEmpty: arrayState.isEmpty,
       at: (index: number) => control.at(index),
@@ -181,6 +187,8 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * - `add(value?)` - add item to the end
  * - `insert(index, value?)` - insert item at position
  * - `removeAt(index)` - remove item by index
+ * - `move(from, to)` - reorder item (state preserved)
+ * - `swap(a, b)` - swap two items (state preserved)
  * - `clear()` - clear array
  * - `at(index)` - get item control by index
  * - `length` - current item count

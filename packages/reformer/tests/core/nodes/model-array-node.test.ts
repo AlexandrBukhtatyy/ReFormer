@@ -105,4 +105,61 @@ describe('ModelArrayNode', () => {
     arr.reset(); // к initial (пустой)
     expect(arr.length.value).toBe(0);
   });
+
+  it('move переупорядочивает модель и формы элементов', () => {
+    const { model, arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+    arr.push({ name: 'B', qty: 2 });
+    arr.push({ name: 'C', qty: 3 });
+
+    arr.move(0, 2); // A в конец
+    expect(arr.map((i) => i.name.value.value)).toEqual(['B', 'C', 'A']);
+    expect(model.get().rows.map((r) => r.name)).toEqual(['B', 'C', 'A']);
+    expect(arr.length.value).toBe(3);
+  });
+
+  it('move сохраняет состояние под-формы (тот же инстанс едет на новую позицию)', () => {
+    const { model, arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+    arr.push({ name: 'B', qty: 2 });
+    const itemA = arr.at(0)!;
+    itemA.qty.setValue(42); // правим элемент A до перестановки
+
+    arr.move(0, 1); // A → индекс 1
+
+    const movedA = arr.at(1)!;
+    expect(movedA).toBe(itemA); // идентичность сохранена (кеш по фасаду под-модели)
+    expect(movedA.qty.value.value).toBe(42);
+    expect(model.get().rows).toEqual([
+      { name: 'B', qty: 2 },
+      { name: 'A', qty: 42 },
+    ]);
+  });
+
+  it('swap меняет местами два элемента', () => {
+    const { model, arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+    arr.push({ name: 'B', qty: 2 });
+    arr.push({ name: 'C', qty: 3 });
+
+    arr.swap(0, 2);
+    expect(arr.map((i) => i.name.value.value)).toEqual(['C', 'B', 'A']);
+    expect(model.get().rows.map((r) => r.name)).toEqual(['C', 'B', 'A']);
+  });
+
+  it('move реактивен (effect перезапускается при перестановке)', () => {
+    const { arr } = build();
+    arr.push({ name: 'A', qty: 1 });
+    arr.push({ name: 'B', qty: 2 });
+
+    const order: string[][] = [];
+    const dispose = effect(() => {
+      order.push(arr.value.value.map((r) => r.name));
+    });
+    arr.move(0, 1);
+    dispose();
+
+    expect(order[0]).toEqual(['A', 'B']);
+    expect(order[order.length - 1]).toEqual(['B', 'A']);
+  });
 });

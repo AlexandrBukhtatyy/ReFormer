@@ -930,6 +930,7 @@
                           },
                           "componentProps": {
                             "title": "Имущество",
+                            "reorderable": true,
                             "itemLabel": "$dataSource(PROPERTY_ITEM_LABEL_SOURCE_FN)",
                             "addButtonLabel": "+ Добавить имущество",
                             "emptyMessage": "Нажмите \"Добавить имущество\" для добавления информации"
@@ -1038,6 +1039,7 @@
                           },
                           "componentProps": {
                             "title": "Существующие кредиты",
+                            "reorderable": true,
                             "itemLabel": "$dataSource(EXISTING_LOAN_ITEM_LABEL_SOURCE_FN)",
                             "addButtonLabel": "+ Добавить кредит",
                             "emptyMessage": "Нажмите \"Добавить кредит\" для добавления информации"
@@ -1165,6 +1167,7 @@
                           },
                           "componentProps": {
                             "title": "Созаемщики",
+                            "reorderable": true,
                             "itemLabel": "$dataSource(CO_BORROWER_ITEM_LABEL_SOURCE_FN)",
                             "addButtonLabel": "+ Добавить созаемщика",
                             "emptyMessage": "Нажмите \"Добавить созаемщика\" для добавления информации",

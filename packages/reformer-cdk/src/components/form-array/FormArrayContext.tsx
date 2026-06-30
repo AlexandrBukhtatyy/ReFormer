@@ -38,6 +38,10 @@ export interface FormArrayContextValue<T extends object = FormFields> {
   clear: () => void;
   /** Вставить элемент на указанную позицию */
   insert: (index: number, value?: Partial<T>) => void;
+  /** Переместить элемент (реордер, состояние сохраняется) */
+  move: (from: number, to: number) => void;
+  /** Поменять местами два элемента (реордер, состояние сохраняется) */
+  swap: (a: number, b: number) => void;
   /** Оригинальный ArrayNode */
   control: ArrayNode<T>;
 }
@@ -54,6 +58,14 @@ export interface FormArrayItemContextValue<T extends object = FormFields> {
   id: string | number;
   /** Удалить этот элемент из массива */
   remove: () => void;
+  /** Переместить элемент на одну позицию вверх (no-op если он первый) */
+  moveUp: () => void;
+  /** Переместить элемент на одну позицию вниз (no-op если он последний) */
+  moveDown: () => void;
+  /** Можно ли переместить вверх (index > 0) */
+  canMoveUp: boolean;
+  /** Можно ли переместить вниз (index < length - 1) */
+  canMoveDown: boolean;
 }
 
 /**

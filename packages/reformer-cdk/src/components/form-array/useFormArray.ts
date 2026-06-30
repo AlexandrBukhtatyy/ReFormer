@@ -31,6 +31,10 @@ export interface UseFormArrayReturn<T extends object> {
   clear: () => void;
   /** Insert a new item at a specific index */
   insert: (index: number, value?: Partial<T>) => void;
+  /** Move an item from one index to another (reorder, state preserved) */
+  move: (from: number, to: number) => void;
+  /** Swap two items by index (reorder, state preserved) */
+  swap: (a: number, b: number) => void;
 }
 
 /**
@@ -97,11 +101,11 @@ export interface UseFormArrayReturn<T extends object> {
  * ```
  */
 export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormArrayReturn<T> {
-  // Subscribe to array length changes to trigger re-renders
-  const { length } = useFormControl(control);
+  // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
+  // the same length — without it the memo below would not recompute and the UI would not reorder.
+  const { length, value } = useFormControl(control);
 
-  // Memoize items array - recalculates when length changes
-  // Length is intentionally in deps to trigger recalculation when array changes
+  // Memoize items array - recalculates when length OR order changes.
   const items = useMemo(
     () =>
       control.map((itemControl, index) => ({
@@ -110,7 +114,8 @@ export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormAr
         id: itemControl.id ?? index,
         remove: () => control.removeAt(index),
       })),
-    [control, length]
+    // `value` is intentionally in deps: its reference changes on add/remove/reorder.
+    [control, length, value]
   );
 
   return {
@@ -120,5 +125,7 @@ export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormAr
     add: (value?: Partial<T>) => control.push(value),
     clear: () => control.clear(),
     insert: (index: number, value?: Partial<T>) => control.insert(index, value),
+    move: (from: number, to: number) => control.move(from, to),
+    swap: (a: number, b: number) => control.swap(a, b),
   };
 }

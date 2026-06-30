@@ -63,6 +63,12 @@ export interface FormArraySectionProps<T extends object> {
   /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
   showRemoveOnSingle?: boolean;
 
+  /**
+   * Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false`
+   * (обратная совместимость — существующие массивы не меняются).
+   */
+  reorderable?: boolean;
+
   /** Максимум items — AddButton отключается при достижении. */
   maxItems?: number;
 
@@ -116,6 +122,7 @@ export function FormArraySection<T extends object>({
   hasItems,
   initialValue,
   showRemoveOnSingle = false,
+  reorderable = false,
   maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-white rounded border',
@@ -159,7 +166,7 @@ export function FormArraySection<T extends object>({
         ) : null}
 
         <FormArray.List className="space-y-3">
-          {({ control: itemForm, index, remove }) => {
+          {({ control: itemForm, index, remove, moveUp, moveDown, canMoveUp, canMoveDown }) => {
             const showRemove = showRemoveOnSingle || length > 1;
             return (
               <div className={cardClassName} data-testid={`array-item-${index}`}>
@@ -168,16 +175,42 @@ export function FormArraySection<T extends object>({
                     <h4 className="font-medium">
                       {getItemLabel(itemForm as unknown as FormProxy<T>, index)}
                     </h4>
-                    {showRemove ? (
-                      <button
-                        type="button"
-                        onClick={remove}
-                        data-testid={`array-item-${index}-remove`}
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2"
-                      >
-                        {removeButtonLabel}
-                      </button>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      {reorderable ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={moveUp}
+                            disabled={!canMoveUp}
+                            aria-label="Переместить вверх"
+                            data-testid={`array-item-${index}-move-up`}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={moveDown}
+                            disabled={!canMoveDown}
+                            aria-label="Переместить вниз"
+                            data-testid={`array-item-${index}-move-down`}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      ) : null}
+                      {showRemove ? (
+                        <button
+                          type="button"
+                          onClick={remove}
+                          data-testid={`array-item-${index}-remove`}
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2"
+                        >
+                          {removeButtonLabel}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
                 <ItemComponent control={itemForm as unknown as FormProxy<T>} />

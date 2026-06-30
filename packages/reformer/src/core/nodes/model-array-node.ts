@@ -24,6 +24,8 @@ export interface ModelArrayControl<TItem extends object> {
   push(item: TItem): void;
   insertAt(index: number, item: TItem): void;
   removeAt(index: number): void;
+  move(from: number, to: number): void;
+  swap(a: number, b: number): void;
   clear(): void;
   toArray(): TItem[];
 }
@@ -120,6 +122,17 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   }
   removeAt(index: number): void {
     this.control.removeAt(index);
+  }
+  /**
+   * Переместить элемент модель-массива. Делегирует мутацию массиву модели; внутренний `effect`
+   * пересоберёт `itemNodes` в новом порядке (per-item формы сохраняются по кешу идентичности).
+   */
+  move(from: number, to: number): void {
+    this.control.move(from, to);
+  }
+  /** Поменять местами два элемента модель-массива (см. {@link move}). */
+  swap(a: number, b: number): void {
+    this.control.swap(a, b);
   }
   clear(): void {
     this.control.clear();

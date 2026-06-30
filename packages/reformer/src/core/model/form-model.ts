@@ -193,6 +193,13 @@ class ArrayNode {
     this.items.value = arr;
     this.reindex();
   }
+  swap(a: number, b: number): void {
+    const arr = [...this.items.peek()];
+    if (a < 0 || b < 0 || a >= arr.length || b >= arr.length || a === b) return;
+    [arr[a], arr[b]] = [arr[b], arr[a]];
+    this.items.value = arr;
+    this.reindex();
+  }
   clear(): void {
     this.items.value = [];
   }
@@ -274,6 +281,7 @@ function arrayValueProxy(arr: ArrayNode): any {
     insertAt: (i: number, v: unknown) => arr.insertAt(i, v),
     removeAt: (i: number) => arr.removeAt(i),
     move: (f: number, t: number) => arr.move(f, t),
+    swap: (a: number, b: number) => arr.swap(a, b),
     clear: () => arr.clear(),
     at: (i: number) => itemFacade(arr.items.value[i]),
     map: (fn: (item: unknown, i: number) => unknown) =>

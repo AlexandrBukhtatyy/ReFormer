@@ -750,6 +750,7 @@ export function buildCreditApplicationSchema(
                           initialValue: createBlankProperty,
                           componentProps: {
                             title: 'Имущество',
+                            reorderable: true,
                             itemLabel: 'Имущество',
                             addButtonLabel: '+ Добавить имущество',
                             emptyMessage: 'Нажмите "Добавить имущество" для добавления информации',
@@ -809,6 +810,7 @@ export function buildCreditApplicationSchema(
                           initialValue: createBlankExistingLoan,
                           componentProps: {
                             title: 'Существующие кредиты',
+                            reorderable: true,
                             itemLabel: 'Кредит',
                             addButtonLabel: '+ Добавить кредит',
                             emptyMessage: 'Нажмите "Добавить кредит" для добавления информации',
@@ -895,6 +897,7 @@ export function buildCreditApplicationSchema(
                           initialValue: createBlankCoBorrower,
                           componentProps: {
                             title: 'Созаемщики',
+                            reorderable: true,
                             itemLabel: 'Созаемщик',
                             addButtonLabel: '+ Добавить созаемщика',
                             emptyMessage: 'Нажмите "Добавить созаемщика" для добавления информации',
