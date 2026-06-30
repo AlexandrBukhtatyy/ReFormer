@@ -7,6 +7,12 @@
  * владеет форма (`createForm({ behavior })`). Операторы — тонкие обёртки над примитивами слоя данных
  * ({@link module:core/model/behaviors}); пользовательские операторы пишутся так же и неотличимы от встроенных.
  *
+ * Граница ответственности: контракт НЕ управляет валидацией — это отдельный слой (`validateFormModel`
+ * + схема валидации), он остаётся владельцем `errors`. Это сделано намеренно. Для редких крайних случаев
+ * behavior-driven валидации (cross-field, async-uniqueness) можно написать собственный оператор поверх
+ * `effect`/`onChange` + `node.setErrors(...)` — он будет неотличим от встроенного; примеры см. в
+ * tests/behaviors/web-scenarios (W1/W3). В общем случае правила валидности держите в слое валидации.
+ *
  * Импортирует примитивы из `./index` (общий chunk → единый реестр сигнал→нода). Собственный ambient-сток
  * единственный в этом модуле; `createForm` запускает поведение через `FormBehavior.__run` (без runtime-связи).
  *
@@ -352,12 +358,42 @@ function getByPath(root: unknown, path: string): any {
 }
 
 /**
+ * Заглушка формы строки для НЕматериализованного массива: бросает понятную ошибку при доступе к ноде.
+ * Value-операции (row.$.*) её не трогают; ошибка возникает только при попытке node-операции (form.x).
+ */
+function unmaterializedRowForm(path: string): FormProxy<unknown> {
+  return new Proxy(
+    {},
+    {
+      get(_t, key) {
+        if (typeof key === 'symbol' || key === 'then') return undefined;
+        throw new Error(
+          `[@reformer/core/behaviors] applyEach: форма строки массива "${path}" недоступна (form.${String(
+            key
+          )}) — массив не материализован в схеме формы. Per-row node-операции ` +
+            `(enableWhen/updateComponentProps/reset) требуют узла { array, item } в схеме; ` +
+            `value-операции (row.$.*: compute/copyFrom/transformValue) работают и без материализации.`
+        );
+      },
+    }
+  ) as FormProxy<unknown>;
+}
+
+/**
  * Применить под-схему к КАЖДОМУ элементу динамического массива (per-item поведение).
  * Реагирует на добавление/удаление строк: новым строкам поведение применяется, удалённым — отписывается.
  *
+ * Под-схема получает scope строки: `model` (под-модель строки — `row.$.field`) и `form` (нода строки).
+ * - Value-операции (`compute`/`copyFrom`/`transformValue` на `row.$.*`) работают всегда.
+ * - Node-операции (`enableWhen`/`updateComponentProps`/`reset` через `form.*`) требуют, чтобы массив был
+ *   МАТЕРИАЛИЗОВАН в форме (узел `{ array, item }` в схеме) — тогда `form` строки = та же нода, что
+ *   рендерится, а её сигналы зарегистрированы (`enableWhen` резолвит ноду). Без материализации доступ
+ *   к `form.*` бросит понятную ошибку (см. {@link unmaterializedRowForm}).
+ *
  * @example
- * applyEach(model.$.items, defineFormBehavior<Item>(({ model }) => {
- *   compute(model.$.lineTotal, () => model.qty * model.price);
+ * applyEach(model.$.items, defineFormBehavior<Item>(({ model: row, form }) => {
+ *   compute(row.$.lineTotal, () => row.qty * row.price);    // value-op — всегда
+ *   enableWhen(row.$.discount, () => row.qty > 10);          // node-op — нужна материализация массива
  * }));
  */
 export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>): void {
@@ -368,24 +404,27 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
   if (!arrValue) return;
   const arrNode = (rootForm as unknown as { getFieldByPath(p: string): unknown }).getFieldByPath(
     path
-  ) as { at?: (i: number) => unknown } | undefined;
+  ) as { at?: (i: number) => unknown; length?: { value: number } } | undefined;
+  // Длину берём из НОДЫ массива (её сигнал обновляется ПОСЛЕ построения форм строк) — так rowForm готов
+  // к запуску row-поведения независимо от порядка effect'ов. Фолбэк — длина value-proxy модели
+  // (немат­ериализованный массив: форм строк нет, node-операции недоступны).
+  const lengthSignal = arrNode?.length;
 
   // key = под-модель строки (стабильна по идентичности GroupNode через facadeCache)
   const activeByRow = new Map<unknown, BehaviorCleanup>();
 
   effect(() => {
-    const len = arrValue.length as number; // подписка на длину/идентичность массива
+    const len = lengthSignal ? lengthSignal.value : (arrValue.length as number);
     const seen = new Set<unknown>();
     for (let i = 0; i < len; i++) {
       const rowModel = arrValue.at(i);
       if (rowModel == null) continue;
       seen.add(rowModel);
       if (!activeByRow.has(rowModel)) {
-        const rowForm = arrNode?.at?.(i) as FormProxy<TItem> | undefined;
-        activeByRow.set(
-          rowModel,
-          itemSchema.__run(rowModel as FormModel<TItem>, rowForm as FormProxy<TItem>)
-        );
+        const rowForm =
+          (arrNode?.at?.(i) as FormProxy<TItem> | undefined) ??
+          (unmaterializedRowForm(path) as FormProxy<TItem>);
+        activeByRow.set(rowModel, itemSchema.__run(rowModel as FormModel<TItem>, rowForm));
       }
     }
     // отписать исчезнувшие строки

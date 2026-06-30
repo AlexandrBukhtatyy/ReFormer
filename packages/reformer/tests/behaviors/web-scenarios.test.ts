@@ -17,9 +17,8 @@ import {
   effect,
   defer,
   applyEach,
-  type ReadonlySignal,
-  type Signal,
 } from '../../src/behaviors';
+import { convertBetween, onChangeThrottled } from './custom-operators';
 import type { FormProxy } from '../../src/core/types';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
@@ -36,8 +35,8 @@ describe('W1 · cross-field equality (confirm password)', () => {
     }
     const model = createModel<F>({ password: '', confirm: '' });
     const behavior = defineFormBehavior<F>(({ model: m, form }) => {
-      // F1: cross-field валидацию приходится выражать через effect + setErrors —
-      // нет first-class оператора вроде fieldError/validateWhen.
+      // Крайний случай (F1, по дизайну): в общем случае cross-field валидация живёт в слое валидации.
+      // Здесь — пользовательский оператор-валидатор поверх effect + setErrors (контракт это позволяет).
       effect(() => {
         const ok = m.password === m.confirm;
         defer(() =>
@@ -129,8 +128,8 @@ describe('W3 · conditional required', () => {
     }
     const model = createModel<F>({ contactMethod: 'phone', email: '' });
     const behavior = defineFormBehavior<F>(({ model: m, form }) => {
-      // F1/F3: «conditional required» выражается через behavior+setErrors, но это ДРУГОЙ слой,
-      // чем декларативная схема валидации (validateFormModel) — два места для правил валидации.
+      // Крайний случай (F1, по дизайну): «conditional required» в общем случае — в слое валидации.
+      // Здесь — пользовательский оператор поверх effect + setErrors как исключение.
       effect(() => {
         const need = m.contactMethod === 'email' && !m.email;
         defer(() =>
@@ -294,33 +293,12 @@ describe('W7 · dependent select (local options)', () => {
 // W8 — Двусторонняя конвертация (last-edited-wins) — как пользовательский оператор
 // ============================================================================
 describe('W8 · bidirectional convert (meters ↔ cm)', () => {
-  it('правка любого поля пересчитывает другое (last-edited-wins)', async () => {
+  it('правка любого поля пересчитывает другое (last-edited-wins) — оператор convertBetween', async () => {
     interface F {
       meters: number;
       cm: number;
     }
-    // F4: нет встроенного оператора двусторонней конвертации (syncFields умеет только зеркало
-    // + однонаправленный transform). Пишем кастомный оператор с guard-флагом.
-    const convertBetween = (
-      a: Signal<number>,
-      b: Signal<number>,
-      aToB: (x: number) => number,
-      bToA: (x: number) => number
-    ) => {
-      let internal = false;
-      onChange(a, (x) => {
-        if (internal) return;
-        internal = true;
-        b.value = aToB(x);
-        internal = false;
-      });
-      onChange(b, (x) => {
-        if (internal) return;
-        internal = true;
-        a.value = bToA(x);
-        internal = false;
-      });
-    };
+    // F4 (по дизайну — пользовательский оператор): см. tests/behaviors/custom-operators.ts.
     const model = createModel<F>({ meters: 0, cm: 0 });
     const behavior = defineFormBehavior<F>(({ model: m }) => {
       convertBetween(
@@ -428,37 +406,34 @@ describe('W11 · at-least-one-of', () => {
 // W12 — Throttle как пользовательский оператор (F3: нет встроенного throttle)
 // ============================================================================
 describe('W12 · throttle (custom operator)', () => {
-  it('throttle ограничивает частоту вызовов', async () => {
+  it('throttle (leading-edge) ограничивает частоту по времени — оператор onChangeThrottled', async () => {
     interface F {
       term: string;
     }
     const calls: string[] = [];
-    // F3: onChange умеет только debounce; throttle пишем как кастомный low-level оператор.
-    const onChangeThrottled = <T>(s: ReadonlySignal<T>, cb: (v: T) => void, ms: number) => {
-      let last = -Infinity;
-      let now = 0; // монотонный «таймер» через счётчик тиков (детерминизм в тесте)
-      onChange(s, (v) => {
-        now += 1;
-        if (now - last >= ms) {
-          last = now;
-          cb(v);
-        }
-      });
-    };
+    let clock = 0;
+    // F3 (по дизайну — пользовательский оператор): см. tests/behaviors/custom-operators.ts.
+    // clock инъектируется для детерминизма (в проде по умолчанию Date.now).
     const model = createModel<F>({ term: '' });
     const behavior = defineFormBehavior<F>(({ model: m }) => {
-      onChangeThrottled(m.$.term, (v) => calls.push(v), 2);
+      onChangeThrottled(
+        m.$.term,
+        (v) => calls.push(v),
+        100,
+        () => clock
+      );
     });
     createForm<F>({ model, behavior });
 
     model.term = 'a';
+    await tick(); // t=0 → срабатывает 'a'
+    clock = 50;
     model.term = 'b';
+    await tick(); // 50-0 < 100 → подавлено
+    clock = 130;
     model.term = 'c';
-    model.term = 'd';
-    await tick();
-    // при шаге throttle=2: пропускаются часть вызовов (не все 4)
-    expect(calls.length).toBeGreaterThan(0);
-    expect(calls.length).toBeLessThan(4);
+    await tick(); // 130-0 ≥ 100 → срабатывает 'c'
+    expect(calls).toEqual(['a', 'c']);
   });
 });
 
@@ -498,8 +473,10 @@ describe('W13 · per-row validation', () => {
 
 /**
  * НАЙДЕННЫЕ ОГРАНИЧЕНИЯ (для развития концепции):
- * F1 — Валидация не first-class в контракте: cross-field/conditional-required выражаются через
- *      effect + form.field.setErrors(). Нет операторов вроде fieldError()/validateWhen().
+ * F1 — ПО ДИЗАЙНУ (не недостаток): схема поведения НЕ управляет валидацией — это отдельный слой
+ *      (validateFormModel + схема валидации), он владеет errors. Крайние случаи behavior-driven
+ *      валидации (cross-field, async-uniqueness) пишутся пользовательским оператором поверх
+ *      effect/onChange + node.setErrors (см. W1/W3) — контракт это позволяет, но это исключение.
  * F2 — РЕШЕНО примитивом: onChange отдаёт AbortSignal (аннулируется при следующей смене значения).
  *      Колбэк передаёт signal в fetch или проверяет signal.aborted перед применением → гонки
  *      устаревших ответов устранены. Async-ВАЛИДАЦИЯ намеренно НЕ в behavior (это слой валидации,
