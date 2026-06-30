@@ -1,6 +1,6 @@
 {
   "name": "@reformer/cdk",
-  "version": "5.0.2",
+  "version": "6.0.0",
   "description": "Headless UI components for @reformer/core - form arrays, multi-step wizards, and more",
   "type": "module",
   "main": "./dist/index.js",
