@@ -11,11 +11,14 @@
 ## Алгоритм миграции одного вызова
 
 Каждый вызов в форме:
+
 ```ts
 validateGroup(path, fn, { targetField: path.X });
 // где fn: GroupValidator<TForm> = (scope) => { const f = scope.getValue(); … }
 ```
+
 становится:
+
 ```ts
 validate(path.X, fn);
 // где fn: Validator<TForm, TFieldOfX> = (_value, _ctrl, root) => { const f = root.getValue(); … }
@@ -52,25 +55,27 @@ validate(path.X, fn);
 
 Опираемся на карту, собранную Explore-агентом:
 
-| Файл | Изменение |
-|---|---|
-| [packages/reformer/src/core/validation/core/validate-group.ts](packages/reformer/src/core/validation/core/validate-group.ts) | Удалить целиком |
-| [packages/reformer/src/core/validation/core/index.ts](packages/reformer/src/core/validation/core/index.ts) | Удалить `export { validateGroup } from './validate-group'` (стр. 7) |
-| [packages/reformer/src/core/validation/index.ts](packages/reformer/src/core/validation/index.ts) | Удалить `export { validateGroup } from './core/validate-group'` (стр. 8) |
-| [packages/reformer/src/core/types/validation-schema.ts](packages/reformer/src/core/types/validation-schema.ts) | Удалить тип `GroupValidator` (77–80) и интерфейс `ValidateGroupOptions` (119–122). В `ValidatorRegistration` (str ~145, ~149) убрать ветвь `'group'` и `GroupValidator` из union. Обновить вступительный комментарий (стр. 5, 19, 54–75). |
-| [packages/reformer/src/core/types/index.ts](packages/reformer/src/core/types/index.ts) | Удалить `GroupValidator,` и `ValidateGroupOptions,` из экспортов (стр. 144–145) |
-| [packages/reformer/src/core/validation/validation-registry.ts](packages/reformer/src/core/validation/validation-registry.ts) | Удалить метод `registerGroup()` (~233–263). Удалить импорты `GroupValidator`, `ValidateGroupOptions` (стр. 16, 20). В `groupValidators`-методе (~336–347) убрать ветвь `registration.type === 'group'`. |
+| Файл                                                                                                                             | Изменение                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [packages/reformer/src/core/validation/core/validate-group.ts](packages/reformer/src/core/validation/core/validate-group.ts)     | Удалить целиком                                                                                                                                                                                                                                                                              |
+| [packages/reformer/src/core/validation/core/index.ts](packages/reformer/src/core/validation/core/index.ts)                       | Удалить `export { validateGroup } from './validate-group'` (стр. 7)                                                                                                                                                                                                                          |
+| [packages/reformer/src/core/validation/index.ts](packages/reformer/src/core/validation/index.ts)                                 | Удалить `export { validateGroup } from './core/validate-group'` (стр. 8)                                                                                                                                                                                                                     |
+| [packages/reformer/src/core/types/validation-schema.ts](packages/reformer/src/core/types/validation-schema.ts)                   | Удалить тип `GroupValidator` (77–80) и интерфейс `ValidateGroupOptions` (119–122). В `ValidatorRegistration` (str ~145, ~149) убрать ветвь `'group'` и `GroupValidator` из union. Обновить вступительный комментарий (стр. 5, 19, 54–75).                                                    |
+| [packages/reformer/src/core/types/index.ts](packages/reformer/src/core/types/index.ts)                                           | Удалить `GroupValidator,` и `ValidateGroupOptions,` из экспортов (стр. 144–145)                                                                                                                                                                                                              |
+| [packages/reformer/src/core/validation/validation-registry.ts](packages/reformer/src/core/validation/validation-registry.ts)     | Удалить метод `registerGroup()` (~233–263). Удалить импорты `GroupValidator`, `ValidateGroupOptions` (стр. 16, 20). В `groupValidators`-методе (~336–347) убрать ветвь `registration.type === 'group'`.                                                                                      |
 | [packages/reformer/src/core/validation/validation-applicator.ts](packages/reformer/src/core/validation/validation-applicator.ts) | Удалить метод `applyGroupValidators()` (~182–241). В `apply()` (~56–61) убрать деструктуризацию `groupValidators` и вызов applicator'а. В private `groupValidators()` (~63–85) убрать ветвь `'group'`, возвращать только `{ validatorsByField }`. Импорт `GroupValidator` (стр. 19) удалить. |
-| [packages/reformer/src/core/types/form-context.ts](packages/reformer/src/core/types/form-context.ts) | В JSDoc на строке 6 убрать `{@link GroupValidator}` (заменить на просто `Validator`) |
+| [packages/reformer/src/core/types/form-context.ts](packages/reformer/src/core/types/form-context.ts)                             | В JSDoc на строке 6 убрать `{@link GroupValidator}` (заменить на просто `Validator`)                                                                                                                                                                                                         |
 
 ### Шаг 4 — обновить документацию
 
 **`packages/reformer/llms.txt`** — 13 упоминаний:
+
 - Удалить JSDoc-секцию `validateGroup` (8775–8830) и сигнатуру (198).
 - Убрать из таблицы импортов (52) и перечислений операторов (444, 553).
 - Переписать примеры на строках 589, 1360, 1369, 1946, 1958, 6528, 6535 на `validate(path.X, (v,_,root) => …)`.
 
 **`packages/reformer/docs/llms/*.md`** — 5 файлов:
+
 - [01-api-reference.md:12](packages/reformer/docs/llms/01-api-reference.md) — убрать из таблицы импортов.
 - [03-api-signatures.md](packages/reformer/docs/llms/03-api-signatures.md) — удалить сигнатуру (15), переписать пример (44–56).
 - [04-common-patterns.md](packages/reformer/docs/llms/04-common-patterns.md) — убрать из перечисления (136), переписать пример (246–281) на `validate`.
@@ -78,6 +83,7 @@ validate(path.X, fn);
 - [21-array-operations.md](packages/reformer/docs/llms/21-array-operations.md) — оба примера (71–98) переписать на `validate` с inline-логикой.
 
 **`projects/reformer-doc/`** — переписать примеры (не удалять разделы):
+
 - [docs/validation/overview.md](projects/reformer-doc/docs/validation/overview.md) — стр. 14, убрать из перечисления операторов.
 - [docs/validation/custom.md](projects/reformer-doc/docs/validation/custom.md) — пример 228–239 на `validate(path.endDate, …)`.
 - [docs/validation/validation-strategies.md](projects/reformer-doc/docs/validation/validation-strategies.md) — 3 примера (352–382, 414–435, 450–465) переписать; раздел «Extracting Nested Rules» (709–798) — убрать упоминания типа.

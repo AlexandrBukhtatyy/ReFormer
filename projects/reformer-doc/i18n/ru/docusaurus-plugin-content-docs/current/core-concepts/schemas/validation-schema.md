@@ -62,15 +62,15 @@ validation: (path: FieldPath<User>) => {
 
 ## Встроенные валидаторы
 
-| Валидатор                    | Описание                       |
-| ---------------------------- | ------------------------------ |
-| `validate(path.field, required())`       | Поле должно иметь значение     |
-| `validate(path.field, email())`          | Корректный формат email        |
-| `validate(path.field, minLength(n))`   | Минимальная длина строки       |
-| `validate(path.field, maxLength(n))`   | Максимальная длина строки      |
-| `validate(path.field, min(n))`         | Минимальное числовое значение  |
-| `validate(path.field, max(n))`         | Максимальное числовое значение |
-| `pattern(path.field, regex)` | Соответствие regex             |
+| Валидатор                            | Описание                       |
+| ------------------------------------ | ------------------------------ |
+| `validate(path.field, required())`   | Поле должно иметь значение     |
+| `validate(path.field, email())`      | Корректный формат email        |
+| `validate(path.field, minLength(n))` | Минимальная длина строки       |
+| `validate(path.field, maxLength(n))` | Максимальная длина строки      |
+| `validate(path.field, min(n))`       | Минимальное числовое значение  |
+| `validate(path.field, max(n))`       | Максимальное числовое значение |
+| `pattern(path.field, regex)`         | Соответствие regex             |
 
 Полный список см. в [Встроенные валидаторы](/docs/validation/built-in).
 

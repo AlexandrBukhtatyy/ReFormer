@@ -55,23 +55,23 @@ name.errors;
 
 ## Встроенные валидаторы
 
-| Валидатор                    | Описание                           | Ключ ошибки |
-| ---------------------------- | ---------------------------------- | ----------- |
-| `validate(path.field, required())`       | Поле должно иметь значение         | `required`  |
-| `validate(path.field, email())`          | Корректный формат email            | `email`     |
-| `validate(path.field, minLength(n))`   | Минимальная длина строки           | `minLength` |
-| `validate(path.field, maxLength(n))`   | Максимальная длина строки          | `maxLength` |
-| `validate(path.field, min(n))`         | Минимальное числовое значение      | `min`       |
-| `validate(path.field, max(n))`         | Максимальное числовое значение     | `max`       |
-| `validate(path.field, pattern(regex))` | Соответствие регулярному выражению | `pattern`   |
-| `validate(path.field, url())`            | Корректный формат URL              | `url`       |
-| `validate(path.field, phone())`          | Корректный формат телефона         | `phone`     |
-| `validate(path.field, isNumber())`       | Значение — число                   | `isNumber`  |
-| `validate(path.field, integer())`        | Целое число                        | `integer`   |
-| `validate(path.field, multipleOf(n))`    | Кратно n                           | `multipleOf`|
-| `validate(path.field, nonNegative())`    | `≥ 0`                              | `nonNegative`|
-| `validate(path.field, nonZero())`        | `≠ 0`                              | `nonZero`   |
-| `validate(path.field, isDate())`         | Корректная дата                    | `date_invalid` |
+| Валидатор                              | Описание                           | Ключ ошибки    |
+| -------------------------------------- | ---------------------------------- | -------------- |
+| `validate(path.field, required())`     | Поле должно иметь значение         | `required`     |
+| `validate(path.field, email())`        | Корректный формат email            | `email`        |
+| `validate(path.field, minLength(n))`   | Минимальная длина строки           | `minLength`    |
+| `validate(path.field, maxLength(n))`   | Максимальная длина строки          | `maxLength`    |
+| `validate(path.field, min(n))`         | Минимальное числовое значение      | `min`          |
+| `validate(path.field, max(n))`         | Максимальное числовое значение     | `max`          |
+| `validate(path.field, pattern(regex))` | Соответствие регулярному выражению | `pattern`      |
+| `validate(path.field, url())`          | Корректный формат URL              | `url`          |
+| `validate(path.field, phone())`        | Корректный формат телефона         | `phone`        |
+| `validate(path.field, isNumber())`     | Значение — число                   | `isNumber`     |
+| `validate(path.field, integer())`      | Целое число                        | `integer`      |
+| `validate(path.field, multipleOf(n))`  | Кратно n                           | `multipleOf`   |
+| `validate(path.field, nonNegative())`  | `≥ 0`                              | `nonNegative`  |
+| `validate(path.field, nonZero())`      | `≠ 0`                              | `nonZero`      |
+| `validate(path.field, isDate())`       | Корректная дата                    | `date_invalid` |
 
 ## Условная валидация
 

@@ -718,11 +718,7 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
       validate(path.initialPayment, (_value, _control, root) => {
         const form = root.getValue();
-        if (
-          form.initialPayment &&
-          form.propertyValue &&
-          form.initialPayment > form.propertyValue
-        ) {
+        if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
           return { code: 'initialPaymentTooHigh', message: '...' };
         }
         return null;

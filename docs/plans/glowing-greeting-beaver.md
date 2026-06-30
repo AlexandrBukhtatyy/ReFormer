@@ -172,14 +172,32 @@ swap(a: number, b: number): void {
   с кнопкой «Удалить» отрисовать ↑/↓, используя хелперы из render-prop `FormArray.List`
   (`moveUp/moveDown/canMoveUp/canMoveDown`). `disabled` на границах. testId по конвенции POM:
   ```tsx
-  {reorderable && (
-    <div className="flex gap-1">
-      <button type="button" onClick={moveUp} disabled={!canMoveUp}
-        data-testid={`array-item-${index}-move-up`} aria-label="Переместить вверх" className={iconBtnClass}>↑</button>
-      <button type="button" onClick={moveDown} disabled={!canMoveDown}
-        data-testid={`array-item-${index}-move-down`} aria-label="Переместить вниз" className={iconBtnClass}>↓</button>
-    </div>
-  )}
+  {
+    reorderable && (
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={moveUp}
+          disabled={!canMoveUp}
+          data-testid={`array-item-${index}-move-up`}
+          aria-label="Переместить вверх"
+          className={iconBtnClass}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={moveDown}
+          disabled={!canMoveDown}
+          data-testid={`array-item-${index}-move-down`}
+          aria-label="Переместить вниз"
+          className={iconBtnClass}
+        >
+          ↓
+        </button>
+      </div>
+    );
+  }
   ```
   (Для этого `FormArray.List` render-prop расширяется в шаге 4; деструктуризация в строке 162 дополняется.)
 
@@ -197,9 +215,14 @@ swap(a: number, b: number): void {
   function useModelArrayRevision(control: RenderModelArrayControl): void {
     const rev = useRef(0);
     useSyncExternalStore(
-      (cb) => effect(() => { void control.length; rev.current++; cb(); }), // читает arr.items.value → подписка на сигнал
+      (cb) =>
+        effect(() => {
+          void control.length;
+          rev.current++;
+          cb();
+        }), // читает arr.items.value → подписка на сигнал
       () => rev.current,
-      () => rev.current,
+      () => rev.current
     );
   }
   ```

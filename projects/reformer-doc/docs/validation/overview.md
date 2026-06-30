@@ -60,24 +60,24 @@ name.errors;
 
 All factories return a `Validator<TForm, TField>`. Pass them to `validate()`.
 
-| Factory                | Used as                                  | Error Key   |
-| ---------------------- | ---------------------------------------- | ----------- |
-| `required()`           | `validate(path.field, required())`       | `required`  |
-| `email()`              | `validate(path.field, email())`          | `email`     |
-| `minLength(n)`         | `validate(path.field, minLength(n))`     | `minLength` |
-| `maxLength(n)`         | `validate(path.field, maxLength(n))`     | `maxLength` |
-| `min(n)`               | `validate(path.field, min(n))`           | `min`       |
-| `max(n)`               | `validate(path.field, max(n))`           | `max`       |
-| `pattern(regex)`       | `validate(path.field, pattern(regex))`   | `pattern`   |
-| `url()`                | `validate(path.field, url())`            | `url`       |
-| `phone()`              | `validate(path.field, phone())`          | `phone`     |
-| `isNumber()`           | `validate(path.field, isNumber())`       | `isNumber`  |
-| `integer()`            | `validate(path.field, integer())`        | `integer`   |
-| `multipleOf(n)`        | `validate(path.field, multipleOf(n))`    | `multipleOf`|
-| `nonNegative()`        | `validate(path.field, nonNegative())`    | `nonNegative`|
-| `nonZero()`            | `validate(path.field, nonZero())`        | `nonZero`   |
-| `isDate()`             | `validate(path.field, isDate())`         | `date_invalid` |
-| `notEmpty()`           | `validate(path.array, notEmpty())`       | `minLength` |
+| Factory          | Used as                                | Error Key      |
+| ---------------- | -------------------------------------- | -------------- |
+| `required()`     | `validate(path.field, required())`     | `required`     |
+| `email()`        | `validate(path.field, email())`        | `email`        |
+| `minLength(n)`   | `validate(path.field, minLength(n))`   | `minLength`    |
+| `maxLength(n)`   | `validate(path.field, maxLength(n))`   | `maxLength`    |
+| `min(n)`         | `validate(path.field, min(n))`         | `min`          |
+| `max(n)`         | `validate(path.field, max(n))`         | `max`          |
+| `pattern(regex)` | `validate(path.field, pattern(regex))` | `pattern`      |
+| `url()`          | `validate(path.field, url())`          | `url`          |
+| `phone()`        | `validate(path.field, phone())`        | `phone`        |
+| `isNumber()`     | `validate(path.field, isNumber())`     | `isNumber`     |
+| `integer()`      | `validate(path.field, integer())`      | `integer`      |
+| `multipleOf(n)`  | `validate(path.field, multipleOf(n))`  | `multipleOf`   |
+| `nonNegative()`  | `validate(path.field, nonNegative())`  | `nonNegative`  |
+| `nonZero()`      | `validate(path.field, nonZero())`      | `nonZero`      |
+| `isDate()`       | `validate(path.field, isDate())`       | `date_invalid` |
+| `notEmpty()`     | `validate(path.array, notEmpty())`     | `minLength`    |
 
 ## Conditional Validation
 
