@@ -21,7 +21,6 @@
 
 import { effect as preactEffect, type Signal, type ReadonlySignal } from '@preact/signals-core';
 import {
-  computeFrom as coreComputeFrom,
   copyFrom as coreCopyFrom,
   watchField as coreWatchField,
   enableWhen as coreEnableWhen,
@@ -188,6 +187,30 @@ function nestedModel<T>(groupSignals: GroupSignals): FormModel<T> {
 // Операторы
 // ============================================================================
 
+/**
+ * Guard от расходящихся циклов пересчёта (F7). Расходящийся взаимный compute/computeFrom (без
+ * стабилизации) preact обрывает невнятным «Cycle detected» — перехватываем и заменяем понятной
+ * ошибкой с именем поля и подсказкой. Сходящиеся compute (упираются в peek-guard) и массовые
+ * синхронные мутации цикла не порождают → не затрагиваются.
+ */
+function makeCycleGuard(target: Signal<unknown>): (write: () => void) => void {
+  return (write) => {
+    try {
+      write();
+    } catch (err) {
+      if (err instanceof Error && /cycle detected/i.test(err.message)) {
+        const path = (target as { __path?: string }).__path ?? '?';
+        throw new Error(
+          `[@reformer/core/behaviors] compute("${path}"): расходящийся цикл пересчёта — взаимные ` +
+            `compute/computeFrom без стабилизации. Проверьте зависимости или добавьте стабилизирующее ` +
+            `условие (when) / разорвите цикл через peek.`
+        );
+      }
+      throw err;
+    }
+  };
+}
+
 /** Вычисляемое поле с auto-tracking: `target = read()` при изменении прочитанных сигналов. */
 export function compute<R>(
   target: Signal<R>,
@@ -195,10 +218,14 @@ export function compute<R>(
   options?: { when?: () => boolean }
 ): void {
   markDerived(target); // F9: bulk-load (set/patch/patchValue) не затирает вычисляемое поле
+  const guard = makeCycleGuard(target as Signal<unknown>); // F7: детект расходящегося цикла
   effect(() => {
     if (options?.when && !options.when()) return;
     const next = read();
-    if (target.peek() !== next) target.value = next;
+    if (target.peek() === next) return;
+    guard(() => {
+      target.value = next;
+    });
   });
 }
 
@@ -210,7 +237,16 @@ export function computeFrom<R>(
   options?: { when?: (...values: any[]) => boolean }
 ): void {
   markDerived(target); // F9: см. compute
-  onDispose(coreComputeFrom(sources, target, fn, options));
+  const guard = makeCycleGuard(target as Signal<unknown>); // F7
+  effect(() => {
+    const values = sources.map((s) => s.value); // подписка на источники
+    if (options?.when && !options.when(...values)) return;
+    const next = fn(...values);
+    if (target.peek() === next) return;
+    guard(() => {
+      target.value = next;
+    });
+  });
 }
 
 /** Копирование `source → target` — скаляр или группа (объект целиком). */
