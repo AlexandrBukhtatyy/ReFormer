@@ -58,3 +58,8 @@ jobs:
 
       - name: Run @reformer/renderer-json tests
         run: npm run test -w @reformer/renderer-json
+
+      - name: Check generated form-schema is up to date
+        run: |
+          npm run gen:form-schema -w react-playground
+          git diff --exit-code -- 'projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'

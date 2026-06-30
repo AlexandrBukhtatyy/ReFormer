@@ -5,7 +5,6 @@
  */
 
 import { type ReactNode } from 'react';
-import { createFieldPath } from '@reformer/core';
 import type { FormRendererProps } from './types';
 import { RenderNodeComponent } from './render-node';
 import { RenderContextProvider } from './render-context';
@@ -39,8 +38,7 @@ import { RenderBehaviorEffects } from './render-behavior';
  * ```
  */
 export function FormRenderer<T>({ render, settings }: FormRendererProps<T>): ReactNode {
-  const path = createFieldPath<T>();
-  const rootNode = render(path);
+  const rootNode = render();
 
   const inner: ReactNode = (
     <RenderContextProvider value={{ settings }}>

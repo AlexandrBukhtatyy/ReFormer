@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://reformer.dev/schemas/form-schema.schema.json",
+  "title": "ReFormer JSON form schema (M1, string-operator DSL)",
+  "description": "Base meta-schema: validates node structure + operator string syntax ($model/$component/$dataSource). Component-name enum is tightened per-app via buildFormSchemaMetaSchema; $dataSource names and $model paths are checked outside this schema.",
+  "type": "object",
+  "required": ["root"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "string" },
+    "root": { "$ref": "#/definitions/node" }
+  },
+  "definitions": {
+    "modelOp": {
+      "type": "string",
+      "pattern": "^\\$model\\(.+\\)$",
+      "description": "Model binding: \"$model(path)\" — path resolved at runtime (not validated here)."
+    },
+    "componentOp": {
+      "type": "string",
+      "pattern": "^\\$component\\(.+\\)$",
+      "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema."
+    },
+    "node": {
+      "oneOf": [
+        { "$ref": "#/definitions/fieldNode" },
+        { "$ref": "#/definitions/arrayNode" },
+        { "$ref": "#/definitions/containerNode" }
+      ]
+    },
+    "fieldNode": {
+      "type": "object",
+      "required": ["value"],
+      "additionalProperties": false,
+      "properties": {
+        "selector": { "type": "string" },
+        "value": { "$ref": "#/definitions/modelOp" },
+        "component": { "$ref": "#/definitions/componentOp" },
+        "componentProps": { "type": "object" },
+        "wrapper": { "$ref": "#/definitions/node" }
+      }
+    },
+    "arrayNode": {
+      "type": "object",
+      "required": ["array", "item"],
+      "additionalProperties": false,
+      "properties": {
+        "selector": { "type": "string" },
+        "array": { "$ref": "#/definitions/modelOp" },
+        "item": {
+          "type": "object",
+          "required": ["$template"],
+          "additionalProperties": false,
+          "properties": {
+            "$template": { "$ref": "#/definitions/node" }
+          }
+        },
+        "initialValue": { "type": "object" },
+        "componentProps": { "type": "object" }
+      }
+    },
+    "containerNode": {
+      "type": "object",
+      "required": ["component"],
+      "additionalProperties": false,
+      "properties": {
+        "selector": { "type": "string" },
+        "component": { "$ref": "#/definitions/componentOp" },
+        "componentProps": { "type": "object" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/node" }
+        }
+      }
+    }
+  }
+}

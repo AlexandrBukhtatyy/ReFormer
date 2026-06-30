@@ -572,6 +572,43 @@ export class CreditFormPage extends BasePage {
   }
 
   // ============================================================================
+  // Array reorder (move up / down) — общие хелперы
+  // ============================================================================
+
+  /**
+   * Секция массива (карточка-обёртка) по заголовку. Нужна для скоупа кнопок
+   * реордера/удаления, т.к. data-testid `array-item-${i}-*` повторяется между
+   * секциями (имущество / кредиты / созаёмщики) на одном шаге.
+   */
+  arraySection(titlePattern: RegExp): Locator {
+    return this.page.locator('.bg-gray-50').filter({ hasText: titlePattern });
+  }
+
+  /** Кнопка «вверх» элемента массива (внутри секции, если она передана). */
+  moveItemUp(index: number, section?: Locator) {
+    const scope = section ?? this.page;
+    return scope.locator(`[data-testid="array-item-${index}-move-up"]`).click();
+  }
+
+  /** Кнопка «вниз» элемента массива (внутри секции, если она передана). */
+  moveItemDown(index: number, section?: Locator) {
+    const scope = section ?? this.page;
+    return scope.locator(`[data-testid="array-item-${index}-move-down"]`).click();
+  }
+
+  /** Локатор кнопки «вверх» (для проверки disabled/visible). */
+  moveUpButton(index: number, section?: Locator): Locator {
+    const scope = section ?? this.page;
+    return scope.locator(`[data-testid="array-item-${index}-move-up"]`);
+  }
+
+  /** Локатор кнопки «вниз» (для проверки disabled/visible). */
+  moveDownButton(index: number, section?: Locator): Locator {
+    const scope = section ?? this.page;
+    return scope.locator(`[data-testid="array-item-${index}-move-down"]`);
+  }
+
+  // ============================================================================
   // Step 6: Confirmation
   // ============================================================================
 

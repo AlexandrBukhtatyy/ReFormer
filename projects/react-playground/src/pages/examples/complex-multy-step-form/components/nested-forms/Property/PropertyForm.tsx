@@ -1,55 +1,9 @@
-import { Checkbox, FormField, Input, Select, Textarea } from '@reformer/ui-kit';
+import { FormField } from '@reformer/ui-kit';
 import { memo } from 'react';
-import type { FormSchema, FormProxy } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import type { Property } from './types';
 
 export type { Property, PropertyType } from './types';
-
-export const propertyFormSchema: FormSchema<Property> = {
-  type: {
-    value: 'apartment',
-    component: Select,
-    componentProps: {
-      label: 'Тип имущества',
-      placeholder: 'Выберите тип',
-      options: [
-        { value: 'apartment', label: 'Квартира' },
-        { value: 'house', label: 'Дом' },
-        { value: 'land', label: 'Земельный участок' },
-        { value: 'commercial', label: 'Коммерческая недвижимость' },
-        { value: 'car', label: 'Автомобиль' },
-        { value: 'other', label: 'Другое' },
-      ],
-    },
-  },
-  description: {
-    value: '',
-    component: Textarea,
-    componentProps: {
-      label: 'Описание',
-      placeholder: 'Опишите имущество',
-      rows: 2,
-    },
-  },
-  estimatedValue: {
-    value: 0,
-    component: Input,
-    componentProps: {
-      label: 'Оценочная стоимость',
-      placeholder: '0',
-      type: 'number',
-      min: 0,
-      step: 1000,
-    },
-  },
-  hasEncumbrance: {
-    value: false,
-    component: Checkbox,
-    componentProps: {
-      label: 'Имеется обременение (залог)',
-    },
-  },
-};
 
 interface PropertyFormProps {
   // GroupProxy для элемента массива properties

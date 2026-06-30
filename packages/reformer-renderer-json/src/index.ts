@@ -12,13 +12,25 @@
 
 export { JsonFormRenderer } from './components/json-form-renderer';
 export type { JsonFormRendererProps } from './components/json-form-renderer';
+export { SchemaErrorPanel } from './components/schema-error-panel';
+export type { SchemaErrorPanelProps } from './components/schema-error-panel';
 
 // ============================================================================
 // JSON Schema Types
 // ============================================================================
 
-export type { JsonFormSchema, JsonNode } from './types/json-schema';
-export { isFieldNode, isContainerNode } from './types/json-schema';
+export type {
+  JsonFormSchema,
+  JsonNode,
+  JsonFieldNode,
+  JsonArrayNode,
+  JsonContainerNode,
+} from './types/json-schema';
+export { isFieldNode, isArrayNode, isContainerNode } from './types/json-schema';
+
+// Операторы JSON-схемы (M1): СТРОКОВЫЕ ссылки на модель/реестр ("$model(path)" и т.д.)
+export { parseOperator, isModelOp, isComponentOp, isDataSourceOp } from './operators';
+export type { ModelOp, ComponentOp, DataSourceOp, JsonOperator, ParsedOperator } from './operators';
 
 // ============================================================================
 // Component Registry
@@ -42,4 +54,21 @@ export type {
 // Converter (for advanced use cases)
 // ============================================================================
 
-export { createRenderSchemaFromJson } from './converter/json-to-render-schema';
+export {
+  createRenderSchemaFromJsonM1,
+  convertJsonToM1Tree,
+} from './converter/json-to-render-schema';
+
+// ============================================================================
+// JSON Schema (мета-схема form-DSL) — ajv-free утилиты
+// ============================================================================
+//
+// Сам валидатор `validateFormSchema` (тянет ajv) живёт в subpath-экспорте
+// `@reformer/renderer-json/validate`, чтобы ajv не попадал в основной render-бандл.
+
+export {
+  formSchemaMetaSchema,
+  buildFormSchemaMetaSchema,
+  getComponentNames,
+  getSourceNames,
+} from './schema';

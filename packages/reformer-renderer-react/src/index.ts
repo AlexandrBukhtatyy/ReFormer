@@ -8,28 +8,23 @@
  *
  * @example
  * ```tsx
- * import { FormRenderer, Box, Section, type RenderSchemaFn } from '@reformer/core';
+ * import { FormRenderer, Box, Section, type RenderSchemaFn } from '@reformer/renderer-react';
  *
- * const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
+ * const renderSchema: RenderSchemaFn<MyForm> = () => ({
  *   component: Box,
- *   componentProps: {
- *     className: 'flex flex-col gap-6',
- *     children: [
- *       {
- *         component: Section,
- *         componentProps: {
- *           title: 'Личные данные',
- *           children: [
- *             { component: path.firstName },
- *             { component: path.lastName },
- *           ],
- *         },
- *       },
- *     ],
- *   },
+ *   children: [
+ *     {
+ *       component: Section,
+ *       componentProps: { title: 'Личные данные' },
+ *       children: [
+ *         { value: model.$.firstName, component: Input },
+ *         { value: model.$.lastName, component: Input },
+ *       ],
+ *     },
+ *   ],
  * });
  *
- * <FormRenderer form={form} render={renderSchema} />
+ * <FormRenderer render={renderSchema} />
  * ```
  */
 
@@ -37,8 +32,6 @@
 export type {
   RenderSchemaFn,
   RenderNode,
-  FieldRenderNode,
-  FieldRenderNodeProps,
   ContainerRenderNode,
   ContainerRenderNodeProps,
   FormRendererProps,
@@ -51,6 +44,16 @@ export type {
 export { FormRenderer } from './core/form-renderer';
 export { RenderNodeComponent } from './core/render-node';
 
+// Единая Schema (M1): рендер дерева узлов на сигналах модели
+export { RenderModelNode, RenderModelArray } from './core/render-model';
+export type {
+  ModelNode,
+  ModelFieldNode,
+  ModelContainerNode,
+  RenderModelArrayProps,
+  ModelArrayControl,
+} from './core/render-model';
+
 // Render Context
 export {
   useRenderContext,
@@ -59,7 +62,7 @@ export {
 } from './core/render-context';
 
 // Utils
-export { isFieldRenderNode, isContainerRenderNode } from './core/utils';
+export { isModelFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './core/utils';
 
 // Programmatic render schema control
 export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-proxy';

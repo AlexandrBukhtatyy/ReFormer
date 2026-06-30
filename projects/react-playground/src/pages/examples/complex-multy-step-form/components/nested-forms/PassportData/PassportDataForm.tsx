@@ -1,60 +1,9 @@
-import { FormField, Input, InputMask, Textarea } from '@reformer/ui-kit';
+import { FormField } from '@reformer/ui-kit';
 import { memo } from 'react';
-import type { FormSchema, FormProxy } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 import type { PassportData } from './types';
 
 export type { PassportData } from './types';
-
-export const passportDataSchema: FormSchema<PassportData> = {
-  series: {
-    value: '',
-    component: InputMask,
-    componentProps: {
-      label: 'Серия паспорта',
-      placeholder: '00 00',
-      mask: '99 99',
-    },
-  },
-
-  number: {
-    value: '',
-    component: InputMask,
-    componentProps: {
-      label: 'Номер паспорта',
-      placeholder: '000000',
-      mask: '999999',
-    },
-  },
-
-  issueDate: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Дата выдачи',
-      type: 'date',
-    },
-  },
-
-  issuedBy: {
-    value: '',
-    component: Textarea,
-    componentProps: {
-      label: 'Кем выдан',
-      placeholder: 'Введите наименование органа',
-      rows: 3,
-    },
-  },
-
-  departmentCode: {
-    value: '',
-    component: InputMask,
-    componentProps: {
-      label: 'Код подразделения',
-      placeholder: '000-000',
-      mask: '999-999',
-    },
-  },
-};
 
 interface PassportDataFormProps {
   // GroupProxy для вложенной формы passportData (используем any для обхода ограничений TypeScript)

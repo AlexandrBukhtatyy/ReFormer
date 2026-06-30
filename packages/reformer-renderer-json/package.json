@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./validate": {
+      "types": "./dist/validate.d.ts",
+      "import": "./dist/validate.js"
     }
   },
   "sideEffects": false,
@@ -62,6 +66,9 @@
     "@reformer/ui-kit": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
   },
   "devDependencies": {
     "@reformer/core": "*",

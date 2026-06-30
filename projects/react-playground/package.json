@@ -7,7 +7,8 @@
     "dev": "vite",
     "dev:stackblitz": "cross-env STACKBLITZ=true vite",
     "generate:mocks": "npx tsx scripts/generate-mocks.ts",
-    "build": "npm run generate:mocks && tsc -b && vite build",
+    "gen:form-schema": "npx tsx scripts/gen-form-json-schema.ts",
+    "build": "npm run generate:mocks && npm run gen:form-schema && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

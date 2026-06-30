@@ -255,9 +255,11 @@ export class NodeFactory {
    * ```
    */
   isFieldConfig(config: unknown): boolean {
-    return (
-      config != null && typeof config === 'object' && 'value' in config && 'component' in config
-    );
+    if (config == null || typeof config !== 'object') return false;
+    // M1: новый путь — поле распознаётся по наличию сигнала значения.
+    if ('valueSignal' in config) return true;
+    // Legacy-путь: поле = value + component (component участвует в различении field/group).
+    return 'value' in config && 'component' in config;
   }
 
   /**

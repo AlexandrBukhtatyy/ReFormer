@@ -6,6 +6,7 @@ import {
   type ValidationError,
 } from '@reformer/core';
 import type { FormFieldIds } from './types';
+import { useValidationErrorResolver } from '../../validation/error-resolver';
 
 /**
  * Field state returned by useFormField
@@ -125,6 +126,7 @@ export function useFormField<T extends FormValue>(
 ): UseFormFieldReturn<T> {
   const reactId = useId();
   const baseId = id ?? reactId;
+  const resolveError = useValidationErrorResolver();
 
   const ids = useMemo<FormFieldIds>(
     () => ({
@@ -179,7 +181,7 @@ export function useFormField<T extends FormValue>(
       state: {
         value: value as T,
         errors,
-        error: shouldShowError ? errors[0]?.message : undefined,
+        error: shouldShowError && errors[0] ? resolveError(errors[0]) : undefined,
         isPending: pending,
         isDisabled: disabled,
         isValid: valid,
@@ -197,5 +199,5 @@ export function useFormField<T extends FormValue>(
         reset: (v?: T) => control.reset(v),
       },
     };
-  }, [raw, control, ids]);
+  }, [raw, control, ids, resolveError]);
 }

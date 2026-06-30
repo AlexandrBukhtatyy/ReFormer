@@ -32,7 +32,7 @@ import type { FormArrayAddButtonProps } from './types';
  * </FormArray.AddButton>
  * ```
  */
-function FormArrayAddButtonInner<T extends FormFields>(
+function FormArrayAddButtonInner<T extends object>(
   { children, initialValue, asChild = false, ...props }: FormArrayAddButtonProps<T>,
   ref: ForwardedRef<HTMLButtonElement>
 ) {
@@ -53,7 +53,7 @@ function FormArrayAddButtonInner<T extends FormFields>(
 }
 
 const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
-  T extends FormFields = FormFields,
+  T extends object = FormFields,
 >(
   props: FormArrayAddButtonProps<T> & { ref?: React.Ref<HTMLButtonElement> }
 ) => ReactElement | null;

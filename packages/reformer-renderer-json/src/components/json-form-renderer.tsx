@@ -4,7 +4,7 @@
  * @module reformer/renderer-json/components
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   FormRenderer,
   createRenderSchema,
@@ -13,7 +13,8 @@ import {
 } from '@reformer/renderer-react';
 import type { JsonFormSchema } from '../types/json-schema';
 import { useJsonRendererSettings } from '../context/json-renderer-context';
-import { createRenderSchemaFromJson } from '../converter/json-to-render-schema';
+import { createRenderSchemaFromJsonM1 } from '../converter/json-to-render-schema';
+import { SchemaErrorPanel } from './schema-error-panel';
 
 /**
  * Props of {@link JsonFormRenderer}.
@@ -27,6 +28,16 @@ export interface JsonFormRendererProps<T> {
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
   onSchemaReady?: (schema: RenderSchemaProxy<T>) => void;
+  /**
+   * Валидировать JSON-схему против мета-схемы перед рендером. При ошибках рисует
+   * {@link SchemaErrorPanel} вместо формы. ajv грузится **динамически** (`import('../validate')`) —
+   * в prod-бандл не попадает, пока `validate` не включён.
+   *
+   * По умолчанию `false`. Чтобы валидировать только в dev, приложение передаёт значение из
+   * СВОЕГО окружения: `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет,
+   * т.к. `import.meta.env.DEV` инлайнится в `false` при production-сборке самого пакета.
+   */
+  validate?: boolean;
 }
 
 /**
@@ -86,9 +97,8 @@ export interface JsonFormRendererProps<T> {
  * ```
  *
  * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady? }`.
- * Форма передаётся в render-pipeline через {@link JsonRendererProvider} settings или через
- * closure-pattern с {@link createRenderSchemaFromJson} + `FormRoot.__selfManagedChildren = true`
- * (см. recipe `multi-step-from-json` в `docs/llms/`).
+ * Под M1 модель (`FormModel`) передаётся через {@link JsonRendererProvider} settings (`model`);
+ * листья JSON-схемы биндятся к её сигналам конвертером `convertJsonToM1Tree`.
  *
  * @see [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
  */
@@ -96,21 +106,65 @@ export function JsonFormRenderer<T>({
   schema,
   renderBehavior,
   onSchemaReady,
+  validate = false,
 }: JsonFormRendererProps<T>): ReactNode {
-  const { registry, ...rendererSettings } = useJsonRendererSettings();
+  const { registry, model, ...rendererSettings } = useJsonRendererSettings();
+
+  // Результат валидации схемы: `undefined` — ещё считаем (validate вкл.), `null` — выключена/прошла,
+  // непустой массив — невалидна (рисуем панель вместо формы). ajv грузится динамически.
+  const [schemaErrors, setSchemaErrors] = useState<string[] | null | undefined>(
+    validate ? undefined : null
+  );
+
+  useEffect(() => {
+    if (!validate) {
+      setSchemaErrors(null);
+      return;
+    }
+    let cancelled = false;
+    setSchemaErrors(undefined);
+    import('../validate')
+      .then(({ validateFormSchema }) => {
+        if (cancelled) return;
+        const { valid, errors } = validateFormSchema(schema, { registry });
+        setSchemaErrors(valid ? null : errors);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setSchemaErrors([`Schema validator failed to load: ${String(err)}`]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [validate, schema, registry]);
 
   const schemaProxy = useMemo(() => {
-    const fn = createRenderSchemaFromJson<T>(schema, registry!);
+    // M1 (единая схема): листья биндятся к сигналам модели. Модель обязательна (legacy
+    // FieldPath-конвертер удалён в Ф7) — передаётся через JsonRendererProvider settings.
+    if (!model) {
+      throw new Error(
+        'JsonFormRenderer: settings.model is required (M1). Pass the FormModel via JsonRendererProvider.'
+      );
+    }
+    // Не строим дерево, пока валидация не прошла: невалидную схему `resolveComponent` всё равно
+    // не сконвертирует (кинет до показа панели). null → форму рендерим; иначе — ждём/показываем ошибки.
+    if (schemaErrors !== null) return null;
+    const fn = createRenderSchemaFromJsonM1<T>(schema, registry!, model);
     const proxy = createRenderSchema<T>(fn);
     if (renderBehavior) {
       renderBehavior(proxy);
     }
     return proxy;
-  }, [schema, registry, renderBehavior]);
+  }, [schema, registry, renderBehavior, model, schemaErrors]);
 
   useMemo(() => {
-    if (onSchemaReady) onSchemaReady(schemaProxy);
+    if (schemaProxy && onSchemaReady) onSchemaReady(schemaProxy);
   }, [schemaProxy]);
 
+  if (schemaErrors && schemaErrors.length > 0) {
+    return <SchemaErrorPanel errors={schemaErrors} />;
+  }
+  if (!schemaProxy) {
+    return null; // валидация ещё считается (динамический импорт ajv)
+  }
   return <FormRenderer render={schemaProxy} settings={rendererSettings} />;
 }

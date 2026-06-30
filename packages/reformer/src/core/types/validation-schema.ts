@@ -11,7 +11,6 @@
  */
 
 import type { FormFields, ValidationError } from './index';
-import type { FieldPath } from './field-path';
 import type { FormProxy } from './form-proxy';
 
 // ============================================================================
@@ -75,35 +74,4 @@ export interface ValidateOptions {
 export interface ValidateAsyncOptions extends ValidateOptions {
   /** Задержка перед выполнением валидации (в мс) */
   debounce?: number;
-}
-
-// ============================================================================
-// Тип функции validation schema
-// ============================================================================
-
-/**
- * Функция validation schema.
- *
- * Принимает FieldPath и определяет все правила валидации для формы.
- */
-export type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
-
-// ============================================================================
-// Внутренние типы для реализации
-// ============================================================================
-
-/**
- * Регистрация валидатора в системе
- * @internal
- */
-export interface ValidatorRegistration {
-  fieldPath: string;
-  type: 'sync' | 'async' | 'array-items';
-  validator: Validator<unknown, unknown> | AsyncValidator<unknown, unknown>;
-  options?: ValidateOptions | ValidateAsyncOptions;
-  /** Для условной валидации (applyWhen). */
-  condition?: {
-    fieldPath: string;
-    conditionFn: ConditionFn<unknown>;
-  };
 }

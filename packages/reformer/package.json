@@ -78,38 +78,6 @@
     "./validators/date": {
       "types": "./dist/validators/date.d.ts",
       "import": "./dist/validators/date.js"
-    },
-    "./behaviors/copy-from": {
-      "types": "./dist/behaviors/copy-from.d.ts",
-      "import": "./dist/behaviors/copy-from.js"
-    },
-    "./behaviors/enable-when": {
-      "types": "./dist/behaviors/enable-when.d.ts",
-      "import": "./dist/behaviors/enable-when.js"
-    },
-    "./behaviors/compute-from": {
-      "types": "./dist/behaviors/compute-from.d.ts",
-      "import": "./dist/behaviors/compute-from.js"
-    },
-    "./behaviors/watch-field": {
-      "types": "./dist/behaviors/watch-field.d.ts",
-      "import": "./dist/behaviors/watch-field.js"
-    },
-    "./behaviors/revalidate-when": {
-      "types": "./dist/behaviors/revalidate-when.d.ts",
-      "import": "./dist/behaviors/revalidate-when.js"
-    },
-    "./behaviors/sync-fields": {
-      "types": "./dist/behaviors/sync-fields.d.ts",
-      "import": "./dist/behaviors/sync-fields.js"
-    },
-    "./behaviors/reset-when": {
-      "types": "./dist/behaviors/reset-when.d.ts",
-      "import": "./dist/behaviors/reset-when.js"
-    },
-    "./behaviors/transform-value": {
-      "types": "./dist/behaviors/transform-value.d.ts",
-      "import": "./dist/behaviors/transform-value.js"
     }
   },
   "sideEffects": false,

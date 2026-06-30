@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > UI renderer for @reformer/core
-> Package: @reformer/renderer-react  •  Version: 1.0.0-beta.2
+> Package: @reformer/renderer-react  •  Version: 5.0.2
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -678,76 +678,6 @@ schema.node('extra-section').resetHidden();
 
 _Source: src/core/render-schema-proxy.ts_
 
-### FieldRenderNode
-
-**Kind:** `interface`
-
-Узел рендеринга поля формы
-
-Ссылается на поле через FieldPathNode из path.
-
-**Signature:**
-```typescript
-export interface FieldRenderNode {
-  /**
-   * Идентификатор узла для renderBehavior (b.hideWhen).
-   * Необязателен — нужен только если к полю привязано поведение.
-   */
-  selector?: string;
-
-  /** Ссылка на поле формы (path.fieldName) */
-  component: FieldPathNode<unknown, unknown, unknown>;
-
-  /** Props для рендеринга поля */
-  componentProps?: FieldRenderNodeProps;
-}
-```
-
-**Examples:**
-
-```typescript
-{ component: path.email }
-{ component: path.email, componentProps: { className: 'col-span-2' } }
-{ selector: 'email-field', component: path.email }  // selector для renderBehavior
-```
-
-_Source: src/core/types.ts_
-
-### FieldRenderNodeProps
-
-**Kind:** `interface`
-
-Props для FieldRenderNode
-
-**Signature:**
-```typescript
-export interface FieldRenderNodeProps {
-  /** CSS класс для wrapper элемента */
-  className?: string;
-
-  /** Wrapper элемент (по умолчанию 'div') */
-  wrapper?: ElementType;
-
-  /**
-   * Компонент-обёртка для этого поля (переопределяет глобальный fieldWrapper)
-   *
-   * @example
-   * ```typescript
-   * { component: path.email, componentProps: { fieldWrapper: CustomFieldWrapper } }
-   * ```
-   */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
-
-  /**
-   * Явный testId для поля. Если не задан — выводится из FieldPath:
-   * `personalData.lastName` → `personalData-lastName`.
-   */
-  testId?: string;
-}
-```
-
-_Source: src/core/types.ts_
-
 ### FieldWrapperProps
 
 **Kind:** `interface`
@@ -864,6 +794,20 @@ hideWhen(schema.node('mortgage-section'), () =>
 
 _Source: src/core/render-behavior.ts_
 
+### isArrayRenderNode
+
+**Kind:** `function`
+
+Type guard для ArrayRenderNode (M1): массив модели `{ array, item }`.
+Проверяется до контейнера (у array-узла нет `component`).
+
+**Signature:**
+```typescript
+export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T>
+```
+
+_Source: src/core/utils.ts_
+
 ### isContainerRenderNode
 
 **Kind:** `function`
@@ -893,31 +837,16 @@ if (isContainerRenderNode(node)) {
 
 _Source: src/core/utils.ts_
 
-### isFieldRenderNode
+### isModelFieldRenderNode
 
 **Kind:** `function`
 
-Type guard для FieldRenderNode
-
-Проверяет, что узел является полем формы (ссылкой через path.fieldName).
-Поля идентифицируются по наличию свойства __path в component.
-
-NOTE: Используем прямой доступ к __path вместо 'in' оператора,
-потому что вложенные Proxy (для path.nested.field) не имеют 'has' trap,
-и 'in' оператор не работает корректно для них.
+Type guard для ModelFieldRenderNode (M1): лист, привязанный к сигналу модели.
+Проверяется ПЕРВЫМ — такой узел несёт реальный `component`, иначе спутается с контейнером.
 
 **Signature:**
 ```typescript
-export function isFieldRenderNode<T>(node: RenderNode<T>): node is FieldRenderNode
-```
-
-**Examples:**
-
-```typescript
-if (isFieldRenderNode(node)) {
-  // node.component имеет __path
-  const fieldPath = node.component.__path;
-}
+export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFieldRenderNode
 ```
 
 _Source: src/core/utils.ts_
@@ -949,6 +878,72 @@ isRenderSchemaProxy(renderSchemaFn); // false
 ```
 
 _Source: src/core/render-schema-proxy.ts_
+
+### ModelArrayControl
+
+**Kind:** `interface`
+
+Реактивный массив модели (минимальный контракт, используемый рендерером).
+
+**Signature:**
+```typescript
+export interface ModelArrayControl {
+  length: number;
+  at(index: number): unknown;
+  push(item: unknown): void;
+  removeAt(index: number): void;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### ModelContainerNode
+
+**Kind:** `interface`
+
+Узел-контейнер: React-компонент + дочерние узлы.
+
+**Signature:**
+```typescript
+export interface ModelContainerNode {
+  component: ComponentType<any>;
+  componentProps?: Record<string, unknown>;
+  children?: ModelNode[];
+  selector?: string;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### ModelFieldNode
+
+**Kind:** `interface`
+
+Узел-поле единой схемы: значение — сигнал модели.
+
+**Signature:**
+```typescript
+export interface ModelFieldNode {
+  value: Signal<any>;
+  component: ComponentType<any>;
+  componentProps?: Record<string, unknown>;
+  selector?: string;
+  testId?: string;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### ModelNode
+
+**Kind:** `type`
+
+**Signature:**
+```typescript
+export type ModelNode = ModelFieldNode | ModelContainerNode;
+```
+
+_Source: src/core/render-model.tsx_
 
 ### NodeLifecycleHooks
 
@@ -1149,8 +1144,6 @@ _Source: src/core/render-context.tsx_
 export interface RenderContextValue<T = unknown> {
   /** Proxy формы (опционально — может быть предоставлена wizard-компонентом через props) */
   form?: FormProxy<T>;
-  /** Корневой FieldPath (опционально) */
-  path?: FieldPath<T>;
   /** Настройки рендерера */
   settings?: RendererSettings;
 }
@@ -1211,19 +1204,73 @@ export interface RendererSettings {
 
 _Source: src/core/types.ts_
 
+### RenderModelArray
+
+**Kind:** `const`
+
+**Signature:**
+```typescript
+export const RenderModelArray
+```
+
+_Source: src/core/render-model.tsx_
+
+### RenderModelArrayProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface RenderModelArrayProps {
+  /** Массив модели (`model.coBorrowers`). */
+  control: ModelArrayControl;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  itemComponent: (item: unknown) => ModelNode;
+  /** Обёртка элементов (по умолчанию 'div'). */
+  wrapper?: ElementType;
+  className?: string;
+  /** Значение/фабрика для кнопки «Добавить» (если задано — рендерится кнопка). */
+  newItem?: unknown | (() => unknown);
+  addButtonLabel?: string;
+}
+```
+
+_Source: src/core/render-model.tsx_
+
+### RenderModelNode
+
+**Kind:** `const`
+
+Рекурсивный рендер узла единой схемы: field → контрол (разворот сигнала), container → компонент
+с дочерними узлами.
+
+**Signature:**
+```typescript
+export const RenderModelNode
+```
+
+**Examples:**
+
+```tsx
+<RenderModelNode node={schema} />
+```
+
+_Source: src/core/render-model.tsx_
+
 ### RenderNode
 
 **Kind:** `type`
 
 Узел рендеринга формы
 
-Дискриминированный union из двух типов узлов:
-- FieldRenderNode - поле формы
-- ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
+Дискриминированный union из типов узлов:
+- ModelFieldRenderNode — поле формы, привязанное к СИГНАЛУ модели (M1, единая схема)
+- ArrayRenderNode — массив модели (M1): данные `{ array, item }`, рендер-секция
+- ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
 
 **Signature:**
 ```typescript
-export type RenderNode<T> = FieldRenderNode | ContainerRenderNode<T>;
+export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 ```
 
 _Source: src/core/types.ts_
@@ -1242,7 +1289,6 @@ _Source: src/core/types.ts_
 export function RenderNodeComponent<T>({
   node,
   form,
-  path,
   fieldWrapper: fieldWrapperProp,
 }: RenderNodeComponentProps<T>): ReactNode
 ```
@@ -1296,28 +1342,25 @@ _Source: src/core/render-schema-proxy.ts_
 
 **Kind:** `type`
 
-Функция создания RenderSchema
+Функция создания RenderSchema (M1).
 
-Принимает типизированный path для доступа к полям и возвращает
-дерево узлов рендеринга.
+Возвращает дерево узлов рендеринга. Привязка к данным — через сигналы модели в листьях
+(`value: model.$.x`), поэтому аргумент-путь больше не нужен (legacy FieldPath удалён).
 
 **Signature:**
 ```typescript
-export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
+export type RenderSchemaFn<T> = () => RenderNode<T>;
 ```
 
 **Examples:**
 
 ```typescript
-const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
+const renderSchema: RenderSchemaFn<MyForm> = () => ({
   component: Box,
-  componentProps: {
-    className: 'flex flex-col gap-4',
-    children: [
-      { component: path.email },
-      { component: path.password },
-    ],
-  },
+  children: [
+    { value: model.$.email, component: Input },
+    { value: model.$.password, component: InputPassword },
+  ],
 });
 ```
 
@@ -1361,17 +1404,12 @@ export function useRenderContext<T = unknown>(): RenderContextValue<T>
 
 ```tsx
 function MyWizard({ children }) {
-  const { form, path, settings } = useRenderContext();
+  const { form, settings } = useRenderContext();
 
   return (
     <FormWizard form={form}>
       {children.map(child => (
-        <RenderNodeComponent
-          node={child}
-          form={form}
-          path={path}
-          settings={settings}
-        />
+        <RenderNodeComponent node={child} form={form} />
       ))}
     </FormWizard>
   );

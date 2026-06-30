@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > Styled form components with Tailwind CSS and Radix UI for @reformer ecosystem
-> Package: @reformer/ui-kit  •  Version: 1.0.0-beta.2
+> Package: @reformer/ui-kit  •  Version: 5.0.2
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -2470,7 +2470,7 @@ _Source: src/components/ui/example-card.tsx_
 
 **Signature:**
 ```typescript
-export function FormArraySection<T extends FormFields>({
+export function FormArraySection<T extends object>({
   control,
   itemComponent: ItemComponent,
   title,
@@ -2497,7 +2497,7 @@ _Source: src/components/form-array/form-array-section.tsx_
 
 **Signature:**
 ```typescript
-export interface FormArraySectionProps<T extends FormFields> {
+export interface FormArraySectionProps<T extends object> {
   /**
    * Резолвится автоматически: уже-резолвленный ArrayNode/FormArrayProxy ИЛИ
    * FieldPathNode (path.<arrayField>) — в этом случае через `form` + navigator.

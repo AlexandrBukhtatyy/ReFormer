@@ -3,8 +3,8 @@
  *
  * Содержит:
  * - Базовые ui-kit компоненты (Input, Select, Box, Section и т.д.).
- * - App-specific контейнеры (RendererFormWizard, Step, RendererFormArraySection
- *   и UI-блоки шага подтверждения).
+ * - App-specific контейнеры (RendererFormWizard, Step и UI-блоки шага подтверждения).
+ *   Массивы под M1 рендерятся native-веткой конвертера (`{ array, item }`), без shim.
  * - Source-функции (itemLabel-и, validation-фабрики).
  * - Константы options (LOAN_TYPES, GENDERS и т.д.).
  *
@@ -32,7 +32,6 @@ import {
 } from '@reformer/ui-kit';
 import { Step } from '@reformer/cdk/form-wizard';
 import { RendererFormWizard } from '../../../components/RendererFormWizard';
-import { RendererFormArraySection } from '../../../components/RendererFormArraySection';
 import { ResidenceAddressSection } from '../complex-multy-step-form/components/ui/ResidenceAddressSection';
 import { UnemployedWarning } from '../complex-multy-step-form/components/ui/UnemployedWarning';
 import { LoadingState, ErrorState } from '@reformer/ui-kit';
@@ -79,7 +78,6 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     // App-specific контейнеры
     reg.container('RendererFormWizard', RendererFormWizard);
     reg.container('Step', Step);
-    reg.container('RendererFormArraySection', RendererFormArraySection);
     reg.container('ResidenceAddressSection', ResidenceAddressSection);
     reg.container('UnemployedWarning', UnemployedWarning);
     reg.container('ConfirmationInfoBlock', ConfirmationInfoBlock);

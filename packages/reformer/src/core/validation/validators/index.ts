@@ -28,5 +28,3 @@ export { pastDate } from './past-date';
 export { futureDate } from './future-date';
 export { minAge } from './min-age';
 export { maxAge } from './max-age';
-// Array validators
-export { notEmpty } from './array-validators';

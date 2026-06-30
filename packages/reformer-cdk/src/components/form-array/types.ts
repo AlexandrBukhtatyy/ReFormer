@@ -4,7 +4,7 @@ import type { ArrayNode, FormFields, FormProxy } from '@reformer/core';
 /**
  * Props for FormArray.Root component
  */
-export interface FormArrayRootProps<T extends FormFields> {
+export interface FormArrayRootProps<T extends object> {
   /** The ArrayNode control from the form */
   control: ArrayNode<T>;
   /** Child components */
@@ -14,7 +14,7 @@ export interface FormArrayRootProps<T extends FormFields> {
 /**
  * Props for FormArray.List component
  */
-export interface FormArrayListProps<T extends FormFields> {
+export interface FormArrayListProps<T extends object> {
   /** Render function for each item */
   children: (item: FormArrayItemRenderProps<T>) => ReactNode;
   /** Optional className for the list container */
@@ -26,7 +26,7 @@ export interface FormArrayListProps<T extends FormFields> {
 /**
  * Props passed to the render function in FormArray.List
  */
-export interface FormArrayItemRenderProps<T extends FormFields> {
+export interface FormArrayItemRenderProps<T extends object> {
   /** The form control for this item */
   control: FormProxy<T>;
   /** Zero-based index of the item */
@@ -35,6 +35,14 @@ export interface FormArrayItemRenderProps<T extends FormFields> {
   id: string | number;
   /** Remove this item from the array */
   remove: () => void;
+  /** Move this item one position up (no-op when first) */
+  moveUp: () => void;
+  /** Move this item one position down (no-op when last) */
+  moveDown: () => void;
+  /** Whether this item can move up (index > 0) */
+  canMoveUp: boolean;
+  /** Whether this item can move down (index < length - 1) */
+  canMoveDown: boolean;
 }
 
 /**
@@ -45,7 +53,7 @@ export interface FormArrayItemRenderProps<T extends FormFields> {
  * (`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
  * `FormArraySection<T>` из `@reformer/ui-kit`.
  */
-export interface FormArrayAddButtonProps<T extends FormFields = FormFields> extends Omit<
+export interface FormArrayAddButtonProps<T extends object = FormFields> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {

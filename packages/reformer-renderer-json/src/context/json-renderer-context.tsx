@@ -6,6 +6,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode, type ComponentType } from 'react';
 import type { RendererSettings, FieldWrapperProps } from '@reformer/renderer-react';
+import type { FormModel } from '@reformer/core';
 import type { ComponentRegistry } from '../registry/types';
 import { ComponentRegistryImpl } from '../registry/component-registry';
 import { FIELD_WRAPPER } from '../registry/constants';
@@ -16,6 +17,12 @@ import { FIELD_WRAPPER } from '../registry/constants';
 export interface JsonRendererSettings extends RendererSettings {
   /** Реестр компонентов и source-значений. См. {@link defineRegistry}. */
   registry?: ComponentRegistry;
+  /**
+   * Модель данных (M1, единая схема). Если задана — JSON-листья биндятся к сигналам модели
+   * (`model.signalAt(selector)`), а форма строится из той же JSON-схемы (без отдельной схемы формы).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  model?: FormModel<any>;
 }
 
 const JsonRendererContext = createContext<JsonRendererSettings>({});

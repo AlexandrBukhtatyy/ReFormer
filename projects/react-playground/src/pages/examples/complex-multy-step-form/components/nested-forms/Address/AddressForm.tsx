@@ -1,69 +1,9 @@
 import { memo } from 'react';
-import type { FormSchema, FormProxy } from '@reformer/core';
-import { Input, InputMask, FormField } from '@reformer/ui-kit';
+import type { FormProxy } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
 import type { Address } from './types';
 
 export type { Address } from './types';
-
-/**
- * Переиспользуемая схема формы
- */
-export const addressFormSchema: FormSchema<Address> = {
-  region: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Регион',
-      placeholder: 'Введите регион',
-    },
-  },
-
-  city: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Город',
-      placeholder: 'Введите город',
-    },
-  },
-
-  street: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Улица',
-      placeholder: 'Введите улицу',
-    },
-  },
-
-  house: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Дом',
-      placeholder: '№',
-    },
-  },
-
-  apartment: {
-    value: '',
-    component: Input,
-    componentProps: {
-      label: 'Квартира',
-      placeholder: '№',
-    },
-  },
-
-  postalCode: {
-    value: '',
-    component: InputMask,
-    componentProps: {
-      label: 'Индекс',
-      placeholder: '000000',
-      mask: '999999',
-    },
-  },
-};
 
 interface AddressFormProps {
   // GroupProxy для вложенной формы address (используем any для обхода ограничений TypeScript)

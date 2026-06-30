@@ -4,11 +4,18 @@
  * @module reformer/renderer-react/render-node
  */
 
-import { memo, type ReactNode } from 'react';
-import type { FieldNode, FormProxy, FieldPath } from '@reformer/core';
-import { FieldPathNavigator, useFormControl, extractPath } from '@reformer/core';
-import type { RenderNode, FieldWrapperProps } from './types';
-import { isFieldRenderNode, isContainerRenderNode } from './utils';
+import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { effect } from '@preact/signals-core';
+import type { FieldNode, FormProxy } from '@reformer/core';
+import { useFormControl, getNodeForSignal } from '@reformer/core';
+import type {
+  RenderNode,
+  FieldWrapperProps,
+  ModelFieldRenderNode,
+  ArrayRenderNode,
+  RenderModelArrayControl,
+} from './types';
+import { isContainerRenderNode, isModelFieldRenderNode, isArrayRenderNode } from './utils';
 import { useRenderContext } from './render-context';
 import { useContext } from 'react';
 import {
@@ -26,79 +33,254 @@ interface RenderNodeComponentProps<T> {
   node: RenderNode<T>;
   /** Proxy формы (опционально — предоставляется wizard-компонентом через props или контекст) */
   form?: FormProxy<T>;
-  /** Текущий FieldPath (опционально) */
-  path?: FieldPath<T>;
   /**
    * Компонент-обёртка для полей (опционально).
    * Переопределяет глобальный fieldWrapper из settings.
-   * Используется в user-space компонентах (RendererFormArraySection, RendererFormWizard и т.д.)
+   * Используется в user-space компонентах (RendererFormWizard и т.д.)
    * при рендеринге дочерних узлов с нестандартным контекстом формы.
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }
 
-/** Navigator для получения узлов по пути */
-const navigator = new FieldPathNavigator();
+// ============================================================================
+// M1: единая схема — лист на сигнале модели + массив модели
+// ============================================================================
 
 /**
- * Компонент рендеринга поля формы
- *
- * Использует компонент из FieldNode.component и передаёт ему
- * control prop для доступа к состоянию.
- *
- * Если указан fieldWrapper, поле оборачивается им для рендеринга
- * label, errors и т.д.
+ * Поле единой схемы (M1): значение из сигнала модели; state-нода резолвится по сигналу через реестр.
+ * `component`/`componentProps` берутся из схемы (как в схеме формы); `fieldWrapper` оборачивает.
  */
-interface FieldRendererProps {
-  fieldNode: FieldNode<unknown>;
-  className?: string;
-  wrapper?: React.ElementType;
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
-  testId?: string;
-}
-
-const FieldRenderer = memo(function FieldRenderer({
+const ModelFieldRenderer = memo(function ModelFieldRenderer({
+  node,
   fieldNode,
-  className,
-  wrapper: Wrapper = 'div',
   fieldWrapper: FieldWrapper,
-  testId,
-}: FieldRendererProps): ReactNode {
+}: {
+  node: ModelFieldRenderNode;
+  fieldNode: FieldNode<unknown>;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const state = useFormControl(fieldNode as FieldNode<any>);
-  const Component = fieldNode.component;
+  const Component = node.component;
+  if (!Component) {
+    if (typeof console !== 'undefined') {
+      console.warn('[RenderSchema] Model field has no component — nothing to render.');
+    }
+    return null;
+  }
 
-  // Только props для UI компонента (без state props которые не должны попадать в DOM)
+  const {
+    className,
+    wrapper: Wrapper = 'div',
+    fieldWrapper: perFieldWrapper,
+    testId: explicitTestId,
+    ...inputComponentProps
+  } = node.componentProps ?? {};
+
+  // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const path = (node.value as any).__path as string | undefined;
+  const testId =
+    typeof explicitTestId === 'string'
+      ? explicitTestId
+      : path
+        ? path.replace(/\./g, '-')
+        : undefined;
+
   const inputProps: Record<string, unknown> = {
     value: state.value,
     disabled: state.disabled,
-    ...state.componentProps,
+    ...inputComponentProps,
   };
-
-  // Прокидываем data-testid в UI-компонент (RadioGroup/Select/Checkbox используют его
-  // для генерации child-testid вида `input-${testId}-${optionValue}`)
   if (testId && inputProps['data-testid'] === undefined) {
     inputProps['data-testid'] = `input-${testId}`;
   }
 
-  // Handlers для UI компонентов
-  const handlers = {
-    onChange: (value: unknown) => fieldNode.setValue(value),
-    onBlur: () => fieldNode.markAsTouched(),
-  };
+  const input = (
+    <Component
+      control={fieldNode}
+      {...inputProps}
+      onChange={(value: unknown) => fieldNode.setValue(value as never)}
+      onBlur={() => fieldNode.markAsTouched()}
+    />
+  );
 
-  const input = <Component control={fieldNode} {...inputProps} {...handlers} />;
-
-  // Если есть fieldWrapper, оборачиваем им
-  const content = FieldWrapper ? (
-    <FieldWrapper control={fieldNode} className={className} testId={testId}>
+  const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
+  return EffectiveWrapper ? (
+    <EffectiveWrapper control={fieldNode} className={className} testId={testId}>
       {input}
-    </FieldWrapper>
+    </EffectiveWrapper>
   ) : (
     <Wrapper className={className}>{input}</Wrapper>
   );
+});
 
-  return content;
+/**
+ * Реактивная подписка на структурные изменения массива модели (push/removeAt/insert/**reorder**).
+ * Возвращает ревизию-счётчик, а не длину: реордер сохраняет длину, поэтому snapshot=length НЕ менялся
+ * бы и React не перерисовал список. Чтение `control.length` внутри `effect` подписывает на сигнал
+ * `items` (его ссылка реассайнится при любой мутации, включая перестановку), а ревизия инкрементится
+ * на каждое срабатывание — snapshot меняется → ре-рендер. SSR-safe.
+ */
+function useModelArrayRevision(control: RenderModelArrayControl): number {
+  const revRef = useRef(0);
+  // subscribe ОБЯЗАН быть стабильным: иначе React переподписывается каждый рендер, effect
+  // повторно инкрементит revRef → снапшот меняется → ре-рендер → бесконечный цикл (краш).
+  const subscribe = useCallback(
+    (cb: () => void) =>
+      effect(() => {
+        void control.length; // зависимость от сигнала items (меняет identity при reorder)
+        revRef.current += 1;
+        cb();
+      }),
+    [control]
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => revRef.current,
+    () => revRef.current
+  );
+}
+
+// Стабильный React-ключ по идентичности под-модели элемента (фасад кэшируется в core).
+const itemKeys = new WeakMap<object, number>();
+let keyCounter = 0;
+function stableKey(item: unknown): number {
+  if (item == null || typeof item !== 'object') return keyCounter++;
+  let k = itemKeys.get(item as object);
+  if (k === undefined) {
+    k = keyCounter++;
+    itemKeys.set(item as object, k);
+  }
+  return k;
+}
+
+const resolveInitial = (init: ArrayRenderNode<unknown>['initialValue']): unknown =>
+  typeof init === 'function' ? (init as () => unknown)() : init;
+
+/**
+ * Секция массива единой схемы (M1): данные принадлежат модели (`node.array`), поддерево элемента
+ * строит `node.item(itemModel)` и рендерит {@link RenderNodeComponent} (листья на сигналах под-модели
+ * резолвятся через реестр — per-item формы создаёт `ModelArrayNode`, материализованный `createForm`).
+ * Оформление совместимо с `FormArraySection` (карточки/кнопки/empty), поддерживает `fieldWrapper`.
+ */
+const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
+  node,
+  fieldWrapper,
+}: {
+  node: ArrayRenderNode<unknown>;
+  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+}): ReactNode {
+  const control = node.array;
+  useModelArrayRevision(control); // ре-рендер при структурных изменениях массива, включая reorder
+  const length = control.length;
+  const cp = node.componentProps ?? {};
+  const {
+    title,
+    addButtonLabel = '+ Добавить',
+    removeButtonLabel = 'Удалить',
+    emptyMessage,
+    itemLabel,
+    reorderable = false,
+    className = 'space-y-3 mt-2',
+    cardClassName = 'mb-4 p-4 bg-white rounded border',
+  } = cp;
+
+  const getItemLabel = (im: unknown, index: number): string =>
+    typeof itemLabel === 'function'
+      ? itemLabel(im, index)
+      : `${(itemLabel as string) ?? title ?? 'Элемент'} #${index + 1}`;
+
+  const addBtnClass =
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
+  const removeBtnClass =
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2';
+  const moveBtnClass =
+    'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 h-9 w-9';
+
+  const addButton = (cls: string) => (
+    <button
+      type="button"
+      data-testid="array-add"
+      className={cls}
+      onClick={() => control.push(resolveInitial(node.initialValue))}
+    >
+      {addButtonLabel}
+    </button>
+  );
+
+  return (
+    <section className={className}>
+      {title ? (
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          {addButton(addBtnClass)}
+        </div>
+      ) : null}
+
+      {Array.from({ length }, (_, i) => {
+        const im = control.at(i);
+        const subtree = node.item(im) as RenderNode<unknown>;
+        const showRemove = length > 1;
+        return (
+          <div key={stableKey(im)} className={cardClassName} data-testid={`array-item-${i}`}>
+            {title || itemLabel ? (
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-medium">{getItemLabel(im, i)}</h4>
+                <div className="flex items-center gap-2">
+                  {reorderable ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Переместить вверх"
+                        data-testid={`array-item-${i}-move-up`}
+                        className={moveBtnClass}
+                        disabled={i === 0}
+                        onClick={() => control.move(i, i - 1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Переместить вниз"
+                        data-testid={`array-item-${i}-move-down`}
+                        className={moveBtnClass}
+                        disabled={i === length - 1}
+                        onClick={() => control.move(i, i + 1)}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  ) : null}
+                  {showRemove ? (
+                    <button
+                      type="button"
+                      data-testid={`array-item-${i}-remove`}
+                      className={removeBtnClass}
+                      onClick={() => control.removeAt(i)}
+                    >
+                      {removeButtonLabel}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            <RenderNodeComponent node={subtree} fieldWrapper={fieldWrapper} />
+          </div>
+        );
+      })}
+
+      {length === 0 && emptyMessage ? (
+        <div className="p-4 bg-gray-100 border border-gray-300 rounded text-center text-gray-600">
+          {emptyMessage}
+        </div>
+      ) : null}
+
+      {!title ? (
+        <div>{addButton('text-sm text-blue-600 hover:text-blue-700 hover:underline')}</div>
+      ) : null}
+    </section>
+  );
 });
 
 /**
@@ -119,7 +301,6 @@ const FieldRenderer = memo(function FieldRenderer({
 export function RenderNodeComponent<T>({
   node,
   form,
-  path,
   fieldWrapper: fieldWrapperProp,
 }: RenderNodeComponentProps<T>): ReactNode {
   const { settings } = useRenderContext();
@@ -152,49 +333,28 @@ export function RenderNodeComponent<T>({
   }
 
   // ========================================
-  // FieldRenderNode - поле формы
+  // M1: ModelFieldRenderNode — лист на сигнале модели
   // ========================================
-  if (isFieldRenderNode(node)) {
-    if (!form) {
-      console.warn(
-        '[RenderSchema] Field node rendered without form — pass form via wizard componentProps'
-      );
-      return null;
-    }
-    const fieldPath = extractPath(node.component);
-    const fieldNode = navigator.getNodeByPath(form, fieldPath) as FieldNode<unknown> | null;
-
+  if (isModelFieldRenderNode(node)) {
+    const fieldNode = getNodeForSignal(node.value) as FieldNode<unknown> | undefined;
     if (!fieldNode) {
-      console.warn(`[RenderSchema] Field not found: ${fieldPath}`);
+      if (typeof console !== 'undefined') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p = (node.value as any).__path;
+        console.warn(
+          `[RenderSchema] No form node for signal${p ? ` "${p}"` : ''} — render value-leaf after createForm.`
+        );
+      }
       return null;
     }
+    return <ModelFieldRenderer node={node} fieldNode={fieldNode} fieldWrapper={fieldWrapper} />;
+  }
 
-    const {
-      className,
-      wrapper,
-      fieldWrapper: perFieldWrapper,
-      testId: explicitTestId,
-    } = node.componentProps || {};
-    // Per-field wrapper имеет приоритет над глобальным
-    const effectiveWrapper = perFieldWrapper ?? fieldWrapper;
-    // Если testId задан явно в componentProps — используем его, иначе деривируем из path
-    // (`personalData.lastName` → `personalData-lastName`). Пустой path (root) → undefined.
-    const testId =
-      typeof explicitTestId === 'string'
-        ? explicitTestId
-        : fieldPath
-          ? fieldPath.replace(/\./g, '-')
-          : undefined;
-
-    return (
-      <FieldRenderer
-        fieldNode={fieldNode}
-        className={className}
-        wrapper={wrapper}
-        fieldWrapper={effectiveWrapper}
-        testId={testId}
-      />
-    );
+  // ========================================
+  // M1: ArrayRenderNode — массив модели { array, item }
+  // ========================================
+  if (isArrayRenderNode(node)) {
+    return <ModelArraySectionRenderer node={node} fieldWrapper={fieldWrapper} />;
   }
 
   // ========================================
@@ -246,7 +406,7 @@ export function RenderNodeComponent<T>({
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
       >
         {children?.map((child, i) => (
-          <RenderNodeComponent key={i} node={child} form={form} path={path} />
+          <RenderNodeComponent key={i} node={child} form={form} />
         ))}
       </Component>
     );

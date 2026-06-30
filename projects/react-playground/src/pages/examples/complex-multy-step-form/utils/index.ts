@@ -1,9 +1,8 @@
 /**
- * Утилиты формы кредитной заявки
+ * Утилиты формы кредитной заявки.
  *
- * Содержит:
- * - Compute функции для вычисляемых полей
- * - Validator функции для кросс-полевой валидации
+ * Содержит compute-функции для вычисляемых полей. Валидация переехала в
+ * `schemas/validation.ts` (контракт `(value, model, root)` + `validateFormModel`).
  */
 
 // Реэкспорт типов
@@ -20,13 +19,3 @@ export {
   computePaymentRatio,
   computeCoBorrowersIncome,
 } from './compute';
-
-// Реэкспорт validator функций
-export {
-  validateInitialPayment,
-  validatePaymentToIncome,
-  validateAge,
-  warnHighDebtLoad,
-  warnSeniorAge,
-  warnLowWorkExperience,
-} from './validators';

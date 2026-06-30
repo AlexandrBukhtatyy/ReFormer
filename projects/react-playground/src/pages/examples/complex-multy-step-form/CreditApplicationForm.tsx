@@ -12,16 +12,14 @@
  */
 
 import { useMemo, useRef } from 'react';
-import { createCreditApplicationForm } from './schemas/create-credit-application-form';
+import { createCreditApplicationFormM1 } from './schemas/create-form';
 import { BasicInfoForm } from './components/steps/BasicInfo/BasicInfoForm';
 import { PersonalInfoForm } from './components/steps/PersonalInfo/PersonalInfoForm';
 import { ContactInfoForm } from './components/steps/ContactInfo/ContactInfoForm';
 import { EmploymentForm } from './components/steps/Employment/EmploymentForm';
 import { AdditionalInfoForm } from './components/steps/AdditionalInfo/AdditionalInfoForm';
 import { ConfirmationForm } from './components/steps/Confirmation/ConfirmationForm';
-import creditApplicationValidation, {
-  STEP_VALIDATIONS,
-} from './schemas/credit-application-validation';
+import { makeCreditValidationConfig } from './schemas/validation';
 import { useLoadCreditApplication } from './hooks/useLoadCreditApplication';
 import { submitCreditApplication } from './api';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types/credit-application';
@@ -45,17 +43,12 @@ function CreditApplicationForm() {
   // Ref для доступа к методам навигации
   const navRef = useRef<FormWizardHandle<CreditApplicationFormType>>(null);
 
-  //  Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
-  const form = useMemo(() => createCreditApplicationForm(), []);
+  //  Инициализируем модель + форму (M1) — мемоизируем, чтобы не пересоздавать при рендере.
+  //  Поведение (compute/enableWhen/onChange) запускается внутри createForm({ behavior }).
+  const { form, model } = useMemo(() => createCreditApplicationFormM1(), []);
 
-  // Конфигурация навигации (totalSteps вычисляется автоматически из Step children)
-  const navConfig = useMemo(
-    () => ({
-      stepValidations: STEP_VALIDATIONS,
-      fullValidation: creditApplicationValidation,
-    }),
-    []
-  );
+  // Конфигурация навигации: M1-валидация (validateFormModel) per-step + полная
+  const navConfig = useMemo(() => makeCreditValidationConfig(model), [model]);
 
   // ============================================================================
   // Загрузка данных

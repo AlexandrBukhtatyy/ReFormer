@@ -1,16 +1,8 @@
 /**
  * FormArraySection — переиспользуемый wrapper для FormArray управления.
  *
- * Унифицированный API для TS-flow и renderer-flow:
- * - `control` принимает `FormArrayProxy<T>`, уже-резолвленный `ArrayNode<T>`,
- *   ИЛИ `FieldPathNode` (резолвится через `FieldPathNavigator + extractPath`
- *   когда компонент используется внутри RenderSchema).
- * - `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
- *   Никаких node-factory `(itemPath) => RenderNode<T>`.
- *
- * Для renderer-json consumer-ов: `itemComponent: "PropertyForm"` строкой
- * резолвится через registry, `itemComponent: { $template: ... }` оборачивается
- * в FC конвертером — оба варианта на выходе единый FC-shape.
+ * `control` принимает `FormArrayProxy<T>` или уже-резолвленный `ArrayNode<T>`/`ModelArrayNode<T>`
+ * (M1). `itemComponent` — единственный shape: `ComponentType<{ control: FormProxy<T> }>`.
  *
  * Маркер `__selfManagedChildren = true` гарантирует автоинъекцию `form` +
  * `fieldWrapper` от родителя-renderer'а.
@@ -19,24 +11,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type ComponentType, type ReactNode } from 'react';
 import {
-  FieldPathNavigator,
-  extractPath,
   useFormControl,
   type ArrayNode,
-  type FieldPathNode,
   type FormArrayProxy,
-  type FormFields,
   type FormProxy,
 } from '@reformer/core';
 import { FormArray } from '@reformer/cdk/form-array';
 import type { FieldWrapperProps } from '@reformer/renderer-react';
 
-export interface FormArraySectionProps<T extends FormFields> {
-  /**
-   * Резолвится автоматически: уже-резолвленный ArrayNode/FormArrayProxy ИЛИ
-   * FieldPathNode (path.<arrayField>) — в этом случае через `form` + navigator.
-   */
-  control: FormArrayProxy<T> | ArrayNode<T> | FieldPathNode<unknown, unknown> | undefined;
+export interface FormArraySectionProps<T extends object> {
+  /** Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy. */
+  control: FormArrayProxy<T> | ArrayNode<T> | undefined;
 
   /** React FC получает `control: FormProxy<T>` для каждого элемента. */
   itemComponent: ComponentType<{ control: FormProxy<T> }>;
@@ -78,6 +63,12 @@ export interface FormArraySectionProps<T extends FormFields> {
   /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
   showRemoveOnSingle?: boolean;
 
+  /**
+   * Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false`
+   * (обратная совместимость — существующие массивы не меняются).
+   */
+  reorderable?: boolean;
+
   /** Максимум items — AddButton отключается при достижении. */
   maxItems?: number;
 
@@ -101,14 +92,11 @@ export interface FormArraySectionProps<T extends FormFields> {
   fieldWrapper?: ComponentType<FieldWrapperProps>;
 }
 
-const navigator = new FieldPathNavigator();
-
-function resolveArrayNode<T extends FormFields>(
-  control: FormArraySectionProps<T>['control'],
-  form: FormProxy<unknown> | undefined
+function resolveArrayNode<T extends object>(
+  control: FormArraySectionProps<T>['control']
 ): ArrayNode<T> | null {
   if (!control) return null;
-  // Already an ArrayNode / FormArrayProxy
+  // ArrayNode / ModelArrayNode / FormArrayProxy — распознаём по array-методам.
   if (
     typeof control === 'object' &&
     typeof (control as ArrayNode<T>).push === 'function' &&
@@ -116,36 +104,13 @@ function resolveArrayNode<T extends FormFields>(
   ) {
     return control as ArrayNode<T>;
   }
-  // FieldPathNode → resolve via navigator
-  if (!form) {
-    if (typeof console !== 'undefined') {
-      console.warn(
-        '[FormArraySection] control is a FieldPath but no `form` prop available. ' +
-          'Ensure this component is rendered inside FormRenderer with form available, ' +
-          'or pass form explicitly.'
-      );
-    }
-    return null;
+  if (typeof console !== 'undefined') {
+    console.warn('[FormArraySection] control is not an ArrayNode/FormArrayProxy.');
   }
-  try {
-    const pathStr = extractPath(control as FieldPathNode<unknown, unknown>);
-    const node = navigator.getNodeByPath(form, pathStr);
-    if (!node) {
-      if (typeof console !== 'undefined') {
-        console.warn(`[FormArraySection] No ArrayNode at path "${pathStr}".`);
-      }
-      return null;
-    }
-    return node as unknown as ArrayNode<T>;
-  } catch (err) {
-    if (typeof console !== 'undefined') {
-      console.warn('[FormArraySection] Failed to resolve control:', err);
-    }
-    return null;
-  }
+  return null;
 }
 
-export function FormArraySection<T extends FormFields>({
+export function FormArraySection<T extends object>({
   control,
   itemComponent: ItemComponent,
   title,
@@ -157,12 +122,12 @@ export function FormArraySection<T extends FormFields>({
   hasItems,
   initialValue,
   showRemoveOnSingle = false,
+  reorderable = false,
   maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-white rounded border',
-  form,
 }: FormArraySectionProps<T>): ReactNode {
-  const arrayNode = resolveArrayNode<T>(control, form);
+  const arrayNode = resolveArrayNode<T>(control);
 
   // Subscribe to length so add/remove triggers re-render of empty/full state.
   // Hook is called unconditionally; for missing arrayNode we pass a no-op
@@ -201,7 +166,7 @@ export function FormArraySection<T extends FormFields>({
         ) : null}
 
         <FormArray.List className="space-y-3">
-          {({ control: itemForm, index, remove }) => {
+          {({ control: itemForm, index, remove, moveUp, moveDown, canMoveUp, canMoveDown }) => {
             const showRemove = showRemoveOnSingle || length > 1;
             return (
               <div className={cardClassName} data-testid={`array-item-${index}`}>
@@ -210,16 +175,42 @@ export function FormArraySection<T extends FormFields>({
                     <h4 className="font-medium">
                       {getItemLabel(itemForm as unknown as FormProxy<T>, index)}
                     </h4>
-                    {showRemove ? (
-                      <button
-                        type="button"
-                        onClick={remove}
-                        data-testid={`array-item-${index}-remove`}
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2"
-                      >
-                        {removeButtonLabel}
-                      </button>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      {reorderable ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={moveUp}
+                            disabled={!canMoveUp}
+                            aria-label="Переместить вверх"
+                            data-testid={`array-item-${index}-move-up`}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={moveDown}
+                            disabled={!canMoveDown}
+                            aria-label="Переместить вниз"
+                            data-testid={`array-item-${index}-move-down`}
+                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      ) : null}
+                      {showRemove ? (
+                        <button
+                          type="button"
+                          onClick={remove}
+                          data-testid={`array-item-${index}-remove`}
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2"
+                        >
+                          {removeButtonLabel}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
                 <ItemComponent control={itemForm as unknown as FormProxy<T>} />

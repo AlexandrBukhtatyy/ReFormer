@@ -17,65 +17,61 @@ import { FormNode, type SetValueOptions } from './form-node';
 import type {
   ValidationError,
   FieldStatus,
-  ValidationSchemaFn,
-  ValidatorRegistration,
   FormSchema,
   GroupNodeConfig,
   FormValue,
   ArrayNodeLike,
 } from '../types';
 import type { FormProxy } from '../types/form-proxy';
-import { createFieldPath } from '../validation';
 import { uniqueId, SubscriptionKey } from '../utils/unique-id';
-import { ValidationApplicator } from '../validation/validation-applicator';
-import type { BehaviorSchemaFn } from '../behavior/types';
-import { BehaviorRegistry } from '../behavior/behavior-registry';
-import { FieldPathNavigator } from '../utils/field-path-navigator';
 import { NodeFactory } from '../factories/node-factory';
 import { SubscriptionManager } from '../utils/subscription-manager';
-import { ValidationRegistry } from '../validation/validation-registry';
 import { createAggregateSignals } from '../utils/aggregate-signals';
 import { buildFormProxy } from '../utils/form-proxy-builder';
 import { FormSubmitter, type SubmitOptions, type SubmitResult } from '../utils/form-submitter';
+import { isDerived } from '../utils/derived-registry';
+
+/** Сегмент пути к полю: ключ + опциональный индекс массива (`items[0]` → `{ key: 'items', index: 0 }`). */
+interface PathSegment {
+  key: string;
+  index?: number;
+}
+
+/**
+ * Разбор строкового пути в сегменты (заменяет legacy `FieldPathNavigator.parsePath`).
+ * Поддерживает `a`, `a.b.c`, `items[0]`, `items[0].name`. Возвращает `[]` для некорректного пути.
+ */
+function parsePathSegments(path: string): PathSegment[] {
+  const out: PathSegment[] = [];
+  for (const raw of path.split('.')) {
+    const m = /^([^[\]]+)(?:\[(\d+)\])?$/.exec(raw);
+    if (!m) return [];
+    out.push(m[2] !== undefined ? { key: m[1], index: Number(m[2]) } : { key: m[1] });
+  }
+  return out;
+}
 
 /**
  * GroupNode - узел для группы полей
  *
- * Поддерживает два API:
- * 1. Старый API (только schema) - обратная совместимость
- * 2. Новый API (config с form, behavior, validation) - автоматическое применение схем
+ * Создаётся из {@link FormSchema} (дерево field-конфигов). Обычно строится через `createForm`
+ * (M1: `createForm({ model, schema })`); валидация/behavior живут на слое модели
+ * (`validateFormModel`, `computeFrom`/`enableWhen`/…), а не на ноде.
  *
  * @group Nodes
  *
  * @example
  * ```typescript
- * // 1. Старый способ (обратная совместимость)
- * const simpleForm = new GroupNode({
- *   email: { value: '', component: Input },
- *   password: { value: '', component: Input },
- * });
- *
- * // 2. Новый способ (с behavior и validation схемами)
- * const fullForm = new GroupNode({
- *   form: {
- *     email: { value: '', component: Input },
- *     password: { value: '', component: Input },
- *   },
- *   behavior: (path) => {
- *     computeFrom(path.email, [path.email], (values) => values[0]?.trim());
- *   },
- *   validation: (path) => {
- *     required(path.email, { message: 'Email обязателен' });
- *     email(path.email);
- *     required(path.password);
- *     minLength(path.password, 8);
- *   },
+ * const form = new GroupNode({
+ *   email: { valueSignal: model.$.email, component: Input },
+ *   password: { valueSignal: model.$.password, component: Input },
  * });
  *
  * // Прямой доступ к полям через Proxy
- * fullForm.email.setValue('test@mail.com');
- * await fullForm.validate();
- * console.log(fullForm.valid.value); // true
+ * const proxy = form.getProxy();
+ * proxy.email.setValue('test@mail.com');
+ * await proxy.validate();
+ * console.log(proxy.valid.value);
  * ```
  */
 export class GroupNode<T> extends FormNode<T> {
@@ -96,36 +92,19 @@ export class GroupNode<T> extends FormNode<T> {
   private disposers = new SubscriptionManager();
 
   /**
-   * Ссылка на Proxy-инстанс для использования в BehaviorContext
+   * Ссылка на Proxy-инстанс
    */
   private _proxyInstance?: FormProxy<T>;
 
   /**
-   * Навигатор для работы с путями к полям
+   * Cleanup декларативной схемы поведения (createForm({ behavior })). Вызывается в dispose().
    */
-  private readonly pathNavigator = new FieldPathNavigator();
+  private _behaviorCleanup?: () => void;
 
   /**
    * Фабрика для создания узлов формы
    */
   private readonly nodeFactory = new NodeFactory();
-
-  /**
-   * Реестр валидаторов для этой формы
-   * Может быть инжектирован через config._validationRegistry для тестирования
-   */
-  private readonly validationRegistry: ValidationRegistry;
-
-  /**
-   * Реестр behaviors для этой формы
-   * Может быть инжектирован через config._behaviorRegistry для тестирования
-   */
-  private readonly behaviorRegistry: BehaviorRegistry;
-
-  /**
-   * Аппликатор для применения валидаторов к форме
-   */
-  private readonly validationApplicator = new ValidationApplicator(this);
 
   // ============================================================================
   // Приватные сигналы состояния (inline из StateManager)
@@ -176,22 +155,11 @@ export class GroupNode<T> extends FormNode<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.formSubmitter = new FormSubmitter(this as any);
 
-    // Определяем, что передано: schema или config
+    // Принимаем либо плоскую FormSchema (M1-путь createForm), либо обёртку `{ form }`.
     const isConfig = 'form' in schemaOrConfig;
-    const config = isConfig ? (schemaOrConfig as GroupNodeConfig<T>) : undefined;
     const formSchema = isConfig
       ? (schemaOrConfig as GroupNodeConfig<T>).form
       : (schemaOrConfig as FormSchema<T>);
-    const behaviorSchema = isConfig ? (schemaOrConfig as GroupNodeConfig<T>).behavior : undefined;
-    const validationSchema = isConfig
-      ? (schemaOrConfig as GroupNodeConfig<T>).validation
-      : undefined;
-
-    // Инициализация реестров (с поддержкой DI для тестирования)
-    this.validationRegistry =
-      (config?._validationRegistry as ValidationRegistry) ?? new ValidationRegistry();
-    this.behaviorRegistry =
-      (config?._behaviorRegistry as BehaviorRegistry) ?? new BehaviorRegistry();
 
     // Создать поля из схемы с поддержкой вложенности
     for (const [key, fieldConfig] of Object.entries(formSchema)) {
@@ -231,22 +199,8 @@ export class GroupNode<T> extends FormNode<T> {
     // Делегирование submitting к FormSubmitter
     this.submitting = this.formSubmitter.submitting;
 
-    // ========================================================================
-    // Lazy Proxy Initialization
-    // ========================================================================
-    // Proxy создаётся лениво при первом вызове getProxy()
-    // Это улучшает производительность для форм, где proxy не используется напрямую
-
-    // Применяем схемы, если они переданы (новый API)
-    if (behaviorSchema) {
-      this.applyBehaviorSchema(behaviorSchema);
-    }
-    if (validationSchema) {
-      this.applyValidationSchema(validationSchema);
-    }
-
-    // Конструктор возвращает this (стандартное поведение)
-    // Для Proxy-доступа к полям используйте createForm() или getProxy()
+    // Proxy создаётся лениво при первом вызове getProxy().
+    // Для Proxy-доступа к полям используйте createForm() или getProxy().
   }
 
   // ============================================================================
@@ -279,6 +233,8 @@ export class GroupNode<T> extends FormNode<T> {
     for (const [key, fieldValue] of Object.entries(value as any)) {
       const field = this._fields.get(key as keyof T);
       if (field) {
+        // F9: производные поля (цели compute) не затираем при bulk-set.
+        if (isDerived(field.value as Signal<unknown>)) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         field.setValue(fieldValue as any, options);
       }
@@ -293,6 +249,8 @@ export class GroupNode<T> extends FormNode<T> {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
+          // F9: производные поля (цели compute) не затираем при bulk-patch.
+          if (isDerived(field.value as Signal<unknown>)) continue;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           field.setValue(fieldValue as any, { emitEvent: false });
         }
@@ -342,14 +300,9 @@ export class GroupNode<T> extends FormNode<T> {
     // Очищаем ошибки перед валидацией
     this.clearErrors();
 
-    // Валидация всех полей
+    // Валидация всех полей. Контекстная (cross-field) валидация под M1 выполняется
+    // движком validateFormModel(model, schema), а не нодой.
     await Promise.all(Array.from(this._fields.values()).map((field) => field.validate()));
-
-    // Применение contextual валидаторов из validation schema
-    const validators = this.validationRegistry.getValidators();
-    if (validators && validators.length > 0) {
-      await this.applyContextualValidators(validators);
-    }
 
     // Проверяем, все ли поля валидны
     return Array.from(this._fields.values()).every(
@@ -481,45 +434,6 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
-   * Применить validation schema к форме
-   *
-   * Использует локальный реестр валидаторов (this.validationRegistry)
-   * вместо глобального Singleton для изоляции форм друг от друга.
-   */
-  applyValidationSchema(schemaFn: ValidationSchemaFn<T>): void {
-    this.validationRegistry.beginRegistration();
-
-    try {
-      const path = createFieldPath<T>();
-      schemaFn(path);
-      //  Используем публичный метод getProxy() для получения proxy-инстанса
-      const formToUse = this.getProxy();
-      this.validationRegistry.endRegistration(formToUse);
-    } catch (error) {
-      console.error('Error applying validation schema:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Применить behavior schema к форме
-   * @returns Функция cleanup для отписки от всех behaviors
-   */
-  applyBehaviorSchema(schemaFn: BehaviorSchemaFn<T>): () => void {
-    this.behaviorRegistry.beginRegistration();
-
-    try {
-      const path = createFieldPath<T>();
-      schemaFn(path);
-      const result = this.behaviorRegistry.endRegistration(this.getProxy());
-      return result.cleanup;
-    } catch (error) {
-      console.error('Error applying behavior schema:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Получить вложенное поле по пути
    *
    * Поддерживаемые форматы путей:
@@ -554,8 +468,7 @@ export class GroupNode<T> extends FormNode<T> {
       return undefined;
     }
 
-    //  Используем FieldPathNavigator вместо ручного парсинга
-    const segments = this.pathNavigator.parsePath(path);
+    const segments = parsePathSegments(path);
     if (segments.length === 0) {
       return undefined;
     }
@@ -591,22 +504,6 @@ export class GroupNode<T> extends FormNode<T> {
     }
 
     return current;
-  }
-
-  /**
-   * Применить contextual валидаторы к полям
-   *
-   * ✅ РЕФАКТОРИНГ: Делегирование ValidationApplicator (SRP)
-   *
-   * Логика применения валидаторов извлечена в ValidationApplicator для:
-   * - Соблюдения Single Responsibility Principle
-   * - Уменьшения размера GroupNode (~120 строк)
-   * - Улучшения тестируемости
-   *
-   * @param validators Зарегистрированные валидаторы
-   */
-  async applyContextualValidators(validators: ValidatorRegistration[]): Promise<void> {
-    await this.validationApplicator.apply(validators);
   }
 
   // ============================================================================
@@ -731,9 +628,19 @@ export class GroupNode<T> extends FormNode<T> {
   }
 
   /**
+   * Прикрепить cleanup декларативной схемы поведения (вызывается createForm).
+   * @internal
+   */
+  attachBehaviorCleanup(cleanup: () => void): void {
+    this._behaviorCleanup = cleanup;
+  }
+
+  /**
    * Очистить все ресурсы узла
    */
   dispose(): void {
+    this._behaviorCleanup?.();
+    this._behaviorCleanup = undefined;
     this.disposers.dispose();
     this._fields.forEach((field) => {
       if ('dispose' in field && typeof field.dispose === 'function') {

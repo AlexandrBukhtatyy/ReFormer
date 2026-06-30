@@ -8,33 +8,30 @@
  */
 
 import type { ComponentType, ElementType } from 'react';
-import type { FieldPath, FieldPathNode } from '@reformer/core';
+import type { Signal } from '@preact/signals-core';
 
 // ============================================================================
 // RENDER SCHEMA
 // ============================================================================
 
 /**
- * Функция создания RenderSchema
+ * Функция создания RenderSchema (M1).
  *
- * Принимает типизированный path для доступа к полям и возвращает
- * дерево узлов рендеринга.
+ * Возвращает дерево узлов рендеринга. Привязка к данным — через сигналы модели в листьях
+ * (`value: model.$.x`), поэтому аргумент-путь больше не нужен (legacy FieldPath удалён).
  *
  * @example
  * ```typescript
- * const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
+ * const renderSchema: RenderSchemaFn<MyForm> = () => ({
  *   component: Box,
- *   componentProps: {
- *     className: 'flex flex-col gap-4',
- *     children: [
- *       { component: path.email },
- *       { component: path.password },
- *     ],
- *   },
+ *   children: [
+ *     { value: model.$.email, component: Input },
+ *     { value: model.$.password, component: InputPassword },
+ *   ],
  * });
  * ```
  */
-export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
+export type RenderSchemaFn<T> = () => RenderNode<T>;
 
 // ============================================================================
 // RENDER NODE - дискриминированный union
@@ -43,67 +40,90 @@ export type RenderSchemaFn<T> = (path: FieldPath<T>) => RenderNode<T>;
 /**
  * Узел рендеринга формы
  *
- * Дискриминированный union из двух типов узлов:
- * - FieldRenderNode - поле формы
- * - ContainerRenderNode - контейнер (Box, Section, wizard и т.д.)
+ * Дискриминированный union из типов узлов:
+ * - ModelFieldRenderNode — поле формы, привязанное к СИГНАЛУ модели (M1, единая схема)
+ * - ArrayRenderNode — массив модели (M1): данные `{ array, item }`, рендер-секция
+ * - ContainerRenderNode — контейнер (Box, Section, wizard и т.д.)
  */
-export type RenderNode<T> = FieldRenderNode | ContainerRenderNode<T>;
+export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 
 // ============================================================================
-// FIELD RENDER NODE
+// MODEL FIELD / ARRAY RENDER NODE (M1 — единая схема, привязка через сигнал)
 // ============================================================================
 
 /**
- * Props для FieldRenderNode
- */
-export interface FieldRenderNodeProps {
-  /** CSS класс для wrapper элемента */
-  className?: string;
-
-  /** Wrapper элемент (по умолчанию 'div') */
-  wrapper?: ElementType;
-
-  /**
-   * Компонент-обёртка для этого поля (переопределяет глобальный fieldWrapper)
-   *
-   * @example
-   * ```typescript
-   * { component: path.email, componentProps: { fieldWrapper: CustomFieldWrapper } }
-   * ```
-   */
-  fieldWrapper?: ComponentType<FieldWrapperProps>;
-
-  /**
-   * Явный testId для поля. Если не задан — выводится из FieldPath:
-   * `personalData.lastName` → `personalData-lastName`.
-   */
-  testId?: string;
-}
-
-/**
- * Узел рендеринга поля формы
- *
- * Ссылается на поле через FieldPathNode из path.
+ * Узел-поле единой схемы (M1): значение приходит из СИГНАЛА модели (`model.$.x`),
+ * `component` + `componentProps` — конфиг поля (как в схеме формы). State-нода (errors/disabled)
+ * резолвится по сигналу через реестр сигнал→нода (заполняется `createForm`).
  *
  * @example
  * ```typescript
- * { component: path.email }
- * { component: path.email, componentProps: { className: 'col-span-2' } }
- * { selector: 'email-field', component: path.email }  // selector для renderBehavior
+ * { value: model.$.loanType, component: Select, componentProps: { label: 'Тип', options } }
  * ```
  */
-export interface FieldRenderNode {
-  /**
-   * Идентификатор узла для renderBehavior (b.hideWhen).
-   * Необязателен — нужен только если к полю привязано поведение.
-   */
+export interface ModelFieldRenderNode {
   selector?: string;
+  /** Сигнал значения из модели (`model.$.<path>`). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  value: Signal<any>;
+  /** UI-компонент поля. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: ComponentType<any>;
+  /** Props компонента (+ опц. `testId`/`className`/`fieldWrapper`/`wrapper`). */
+  componentProps?: Record<string, unknown> & {
+    testId?: string;
+    className?: string;
+    fieldWrapper?: ComponentType<FieldWrapperProps>;
+    wrapper?: ElementType;
+  };
+}
 
-  /** Ссылка на поле формы (path.fieldName) */
-  component: FieldPathNode<unknown, unknown, unknown>;
+/** Минимальный контракт реактивного массива модели (`model.<path>`), используемый рендерером. */
+export interface RenderModelArrayControl {
+  readonly __path: string;
+  readonly length: number;
+  at(index: number): unknown;
+  push(item: unknown): void;
+  removeAt(index: number): void;
+  /** Переместить элемент (реордер; runtime-фасад модель-массива это уже умеет). */
+  move(from: number, to: number): void;
+}
 
-  /** Props для рендеринга поля */
-  componentProps?: FieldRenderNodeProps;
+/**
+ * Узел-массив единой схемы (M1): данные принадлежат модели (`array`), форма элемента описывается
+ * `item(itemModel)`. `createForm` материализует `ModelArrayNode` (по `{ array, item }`), рендерер
+ * итерирует элементы и рисует поддерево `item(itemModel)` (листья на сигналах под-модели).
+ *
+ * @example
+ * ```typescript
+ * { array: model.coBorrowers, initialValue: createBlankCoBorrower,
+ *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
+ * ```
+ */
+export interface ArrayRenderNode<T> {
+  selector?: string;
+  /** Реактивный массив модели (`model.<path>`). */
+  array: RenderModelArrayControl;
+  /** Схема элемента: под-модель элемента → узел поддерева. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: (itemModel: any) => RenderNode<T>;
+  /** Значение (или фабрика) нового элемента для кнопки «Добавить». */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialValue?: unknown | (() => any);
+  /** Оформление секции массива. */
+  componentProps?: {
+    title?: string;
+    addButtonLabel?: string;
+    removeButtonLabel?: string;
+    emptyMessage?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    itemLabel?: string | ((itemModel: any, index: number) => string);
+    className?: string;
+    cardClassName?: string;
+    /** Показывать кнопки ↑/↓ перестановки элементов. По умолчанию `false`. */
+    reorderable?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 // ============================================================================

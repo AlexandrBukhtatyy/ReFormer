@@ -12,11 +12,13 @@
 
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { createCreditApplicationForm } from '../complex-multy-step-form/schemas/create-credit-application-form';
+import { createForm } from '@reformer/core';
+import { createCreditApplicationModel } from '../complex-multy-step-form/schemas/model';
+import { creditApplicationBehavior } from '../complex-multy-step-form/schemas/behavior';
 import { FormRenderer } from '@reformer/renderer-react';
 import type { RenderSchemaProxy } from '@reformer/renderer-react';
 import { FormField } from '@reformer/ui-kit';
-import { createCreditApplicationRenderSchema } from './render-schema';
+import { buildCreditApplicationSchema, createCreditApplicationRenderSchema } from './render-schema';
 import type { CreditApplicationForm } from '../complex-multy-step-form/types/credit-application';
 
 // Демо-панель для демонстрации программного управления схемой
@@ -110,10 +112,19 @@ function SchemaControlPanel({ schema }: { schema: RenderSchemaProxy<CreditApplic
 }
 
 function CreditApplicationFormRenderer() {
-  // Инициализируем форму (мемоизируем, чтобы не пересоздавать при каждом рендере)
-  const form = useMemo(() => createCreditApplicationForm(), []);
-  // Создаём схему с формой и применённым поведением
-  const schema = useMemo(() => createCreditApplicationRenderSchema(form), [form]);
+  // M1, единая схема: форма строится ИЗ render-схемы (без отдельной схемы формы).
+  const { form, model } = useMemo(() => {
+    const model = createCreditApplicationModel();
+    // Дерево БЕЗ form (чтобы harvest не обходил FormProxy) → createForm строит ноды + массивы.
+    const form = createForm<CreditApplicationForm>({
+      model,
+      schema: buildCreditApplicationSchema(model),
+      behavior: creditApplicationBehavior,
+    });
+    return { model, form };
+  }, []);
+  // Render-схема (то же дерево + form для wizard) + применённое render-поведение
+  const schema = useMemo(() => createCreditApplicationRenderSchema(model, form), [model, form]);
 
   return (
     <div className="w-full">

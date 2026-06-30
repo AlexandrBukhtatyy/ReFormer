@@ -1,17 +1,22 @@
 import type { ReactNode } from 'react';
-import type { FormProxy, ValidationSchemaFn } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 
 /**
- * Configuration for multi-step form navigation
- * Note: totalSteps is inferred from children count
+ * Configuration for multi-step form navigation.
+ * Note: totalSteps is inferred from children count. Валидация под M1 — через колбэки,
+ * не зависит от типа формы, поэтому конфиг не дженерик.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FormWizardConfig<T extends Record<string, any>> {
-  /** Validation schemas per step (1-based indexing) */
-  stepValidations: Record<number, ValidationSchemaFn<T>>;
+export interface FormWizardConfig {
+  /**
+   * M1: валидация шага (1-based) через колбэк (например, `validateFormModel`).
+   * Возвращает `true`, если шаг валиден. Нет колбэка → шаг считается валидным.
+   */
+  validateStep?: (step: number) => boolean | Promise<boolean>;
 
-  /** Full validation schema for submit */
-  fullValidation: ValidationSchemaFn<T>;
+  /**
+   * M1: валидация всей формы перед submit. Нет колбэка → submit без блокировки.
+   */
+  validateAll?: () => boolean | Promise<boolean>;
 }
 
 /**
@@ -25,7 +30,7 @@ export interface FormWizardConfig<T extends Record<string, any>> {
  *   формы соответственно.
  * - `goToStep(n)` возвращает `false`, если предыдущий шаг не в `completedSteps`
  *   (защита от пропуска валидации) либо `n` вне диапазона `[1; totalSteps]`.
- * - `submit()` возвращает `R | null`. `null` — форма не прошла `fullValidation`.
+ * - `submit()` возвращает `R | null`. `null` — форма не прошла `validateAll`.
  *
  * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
  *
@@ -115,8 +120,8 @@ export interface FormWizardProps<T extends Record<string, any>> {
   /** Form instance */
   form: FormProxy<T>;
 
-  /** Step configuration (validation schemas) */
-  config: FormWizardConfig<T>;
+  /** Step configuration (validation callbacks) */
+  config: FormWizardConfig;
 
   /** Children (Step components, Indicator, Actions, Progress, or any ReactNode) */
   children?: ReactNode;

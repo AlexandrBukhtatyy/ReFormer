@@ -17,6 +17,11 @@ import { ExistingLoanForm } from '../../nested-forms/ExistingLoan/ExistingLoanFo
 import { CoBorrowerForm } from '../../nested-forms/CoBorrower/CoBorrowerForm';
 import { FormArraySection } from '@reformer/ui-kit/form-array';
 import type { CreditApplicationForm } from '../../../types/credit-application';
+import {
+  createBlankProperty,
+  createBlankExistingLoan,
+  createBlankCoBorrower,
+} from '../../../schemas/model';
 
 interface AdditionalInfoFormProps {
   control: FormProxy<CreditApplicationForm>;
@@ -55,6 +60,8 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           addButtonLabel="+ Добавить имущество"
           emptyMessage='Нажмите "Добавить имущество" для добавления информации'
           hasItems={hasProperty}
+          initialValue={createBlankProperty()}
+          reorderable
         />
       </div>
 
@@ -69,6 +76,8 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           addButtonLabel="+ Добавить кредит"
           emptyMessage='Нажмите "Добавить кредит" для добавления информации'
           hasItems={hasExistingLoans}
+          initialValue={createBlankExistingLoan()}
+          reorderable
         />
       </div>
 
@@ -83,6 +92,8 @@ export function AdditionalInfoForm({ control }: AdditionalInfoFormProps) {
           addButtonLabel="+ Добавить созаемщика"
           emptyMessage='Нажмите "Добавить созаемщика" для добавления информации'
           hasItems={hasCoBorrower}
+          initialValue={createBlankCoBorrower()}
+          reorderable
         />
       </div>
     </div>

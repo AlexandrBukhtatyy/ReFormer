@@ -11,7 +11,7 @@ import type { ArrayNode, FormFields, FormProxy } from '@reformer/core';
 /**
  * Представляет элемент массива с контролом, индексом и действиями
  */
-export interface FormArrayItem<T extends FormFields> {
+export interface FormArrayItem<T extends object> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -25,7 +25,7 @@ export interface FormArrayItem<T extends FormFields> {
 /**
  * Контекст уровня массива
  */
-export interface FormArrayContextValue<T extends FormFields = FormFields> {
+export interface FormArrayContextValue<T extends object = FormFields> {
   /** Массив элементов с контролами и действиями */
   items: FormArrayItem<T>[];
   /** Текущая длина массива */
@@ -38,6 +38,10 @@ export interface FormArrayContextValue<T extends FormFields = FormFields> {
   clear: () => void;
   /** Вставить элемент на указанную позицию */
   insert: (index: number, value?: Partial<T>) => void;
+  /** Переместить элемент (реордер, состояние сохраняется) */
+  move: (from: number, to: number) => void;
+  /** Поменять местами два элемента (реордер, состояние сохраняется) */
+  swap: (a: number, b: number) => void;
   /** Оригинальный ArrayNode */
   control: ArrayNode<T>;
 }
@@ -45,7 +49,7 @@ export interface FormArrayContextValue<T extends FormFields = FormFields> {
 /**
  * Контекст уровня элемента массива
  */
-export interface FormArrayItemContextValue<T extends FormFields = FormFields> {
+export interface FormArrayItemContextValue<T extends object = FormFields> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -54,6 +58,14 @@ export interface FormArrayItemContextValue<T extends FormFields = FormFields> {
   id: string | number;
   /** Удалить этот элемент из массива */
   remove: () => void;
+  /** Переместить элемент на одну позицию вверх (no-op если он первый) */
+  moveUp: () => void;
+  /** Переместить элемент на одну позицию вниз (no-op если он последний) */
+  moveDown: () => void;
+  /** Можно ли переместить вверх (index > 0) */
+  canMoveUp: boolean;
+  /** Можно ли переместить вниз (index < length - 1) */
+  canMoveDown: boolean;
 }
 
 /**
@@ -120,7 +132,7 @@ export const FormArrayItemContext = createContext<FormArrayItemContextValue<any>
  * }
  * ```
  */
-export function useFormArrayContext<T extends FormFields = FormFields>(): FormArrayContextValue<T> {
+export function useFormArrayContext<T extends object = FormFields>(): FormArrayContextValue<T> {
   const context = useContext(FormArrayContext) as FormArrayContextValue<T> | null;
   if (!context) {
     throw new Error(
@@ -160,7 +172,7 @@ export function useFormArrayContext<T extends FormFields = FormFields>(): FormAr
  * ```
  */
 export function useFormArrayItemContext<
-  T extends FormFields = FormFields,
+  T extends object = FormFields,
 >(): FormArrayItemContextValue<T> {
   const context = useContext(FormArrayItemContext) as FormArrayItemContextValue<T> | null;
   if (!context) {
