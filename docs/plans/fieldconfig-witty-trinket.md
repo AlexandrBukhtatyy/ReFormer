@@ -1308,5 +1308,107 @@ JSON form-DSL (operators-as-strings) пишется/приходит как да
     краша нет (2 console.error — намеренные guard-логи потребителя ×StrictMode, не uncaught).
   - Revert → снова чистая форма, 0 ошибок. Скриншот: `screenshots/m3-schema-validation/broken-schema-panel.png`.
 
-**Остаётся (вне M3):** З7 (доки про внешнюю мутацию модели), З8 (TSDoc + llms.txt + MCP-шаблоны), группа 1
-(элиминация `$`, отдельная сессия). Коммит M3 — по явному запросу.
+**Остаётся (вне M3):** З7 (доки про внешнюю мутацию модели), З8 (TSDoc + llms.txt + MCP-шаблоны).
+Коммит M3 — по явному запросу.
+
+---
+
+## Группа 1 (З1–З3): элиминация `$` из авторинга — РЕШЕНО НЕ ДЕЛАТЬ ❌
+
+> **Решение (финальное):** оставляем `model.$.*` как есть — рефакторинг НЕ делаем.
+> Рационал: `$` явно и однозначно маркирует сигнал (vs значение); любой вариант сокрытия (`двойной
+> хэндл`, `$`-суффикс) вводит дуализм handle-ов (`model$`/`model`, `item$`/`item`) и конвенцию имён —
+> когнитивной нагрузки больше, чем экономии от убранного `$`. Явный `model.$.field` читается честнее.
+> Замечания З1/З2/З3 закрыты как «принято текущее поведение». Ниже — проведённый анализ (история).
+
+> Заменяет раздел «Отложено — Замечания 1-3» выше (анализ A/B/C оставлен там как история).
+
+### Context
+В авторинге форм `$` мелькает непоследовательно: `$` = «сигнал поля» (реактивная ячейка для привязки/
+подписки/идентификации), без `$` = «значение». Корневой факт: `model.x` НЕ может быть одновременно
+`===`-сравнимым значением И сигналом (`===` не зовёт `valueOf`/`toPrimitive`), отсюда дуализм
+`model.x`(значение) / `model.$.x`(сигнал). Три замечания — три места, где `$` особенно мозолит:
+- **З1**: `setupAddress(model.$.registrationAddress, …)` — `$` в точке вызова.
+- **З2**: `value: item.$.hasEncumbrance` — `$` у каждого поля элемента массива (×68).
+- **З3**: валидация ссылается на сигналы (уже `const m = model.$`), нужна единообразность.
+
+Разведка (3 агента) подтвердила: код **уже наполовину** в целевой форме — `validation.ts` и
+`render-schema.ts` используют идиом `const m = model.$; … m.field`; под-билдеры (`personalDataNodes`,
+`addressNodes`, `setupAddress`) уже принимают `ModelSignals` и пишут `s.field`. Непоследовательны
+только: главный билдер `schema.ts` (inline `model.$.x` ×57), item-колбэки (`item.$.x` ×68), вызов
+`setupAddress(model.$.…)`.
+
+### Ключевой факт из разведки (почему «только значения» в behavior/validation невозможно)
+Behavior/validation **структурно требуют сигналов** — но как ССЫЛКУ на поле, не как «значение логики»:
+`computeFrom([sources], target, fn)` (источники/цель — сигналы: подписка + запись), `enableWhen(target, …)`
+(сигнал → `getNodeForSignal` для enable/disable), `vf(signal, […])` (привязка валидатора + роутинг ошибок),
+`watchField(source, cb)`, `transformValue(target, …)`. Значение не умеет подписываться/идентифицировать
+поле. ВСЯ ЛОГИКА при этом — значения (тело валидатора `(value, scope, root)`, аргументы `computeFrom`/
+`watchField`, свободные условия). Сигнал «руками не достаётся» — пишется имя поля. Если бы handle в
+behavior/validation был значением, для ссылок пришлось бы `model.$.field` → `$` вернулся бы. Поэтому
+основной handle привязок везде — сигналы; значения — через аргументы колбэков и второй (value) handle.
+
+### Именная конвенция (выбрана: `$`-суффикс — RxJS-style)
+Сигнальный handle несёт суффикс `$` («это реактивный сигнал»), value-handle — без суффикса.
+Самоочевидно из имени: `model$.x` = СИГНАЛ (привязка/ссылка), `model.x` = ЗНАЧЕНИЕ (чтение).
+То же для элементов массива: `item$` = сигналы элемента, `item` = значения элемента.
+
+### Решение: «двойной хэндл» (правок ядра/рендерера/createForm НЕТ)
+Все билдеры (schema / render-schema / behavior / validation) **сохраняют сигнатуру** `(model: FormModel<T>, …)`
+(call-site'ы НЕ меняются) и первой строкой делают `const model$ = model.$`:
+- **`model$.field` = сигнал** — привязки и ссылки: `value: model$.loanType`, `computeFrom([model$.a, model$.b], model$.target, fn)`,
+  `enableWhen(model$.section, …)`, `vf(model$.field, […])`, `setupAddress(model$.registrationAddress, …)`.
+- **`model.field` = значение** — чтение в свободных условиях/агрегатах: `when: () => model.loanType === 'mortgage'`,
+  `compute(() => model.coBorrowers.reduce(…), model$.target)`.
+- **Массивы**: `array: model.coBorrowers` (value-фасад напрямую) — без изменений.
+- **Item-колбэки**: получают value-элемент `item`; первой строкой `const item$ = item.$`; привязка `value: item$.field`,
+  чтение `item.field`.
+- **Cross-field валидаторы** `(value, scope, root)` — без изменений (движок подставляет value-объекты).
+
+Почему ноль правок ядра: привязочный сигнал `model$.field`/`item$.field` — тот же объект, что и сейчас регистрирует
+`createForm` (`model.signalAt(path)` ≡ `model.$.…` ≡ `element.$.…`); рендерер/валидатор резолвят его по
+идентичности как и прежде. Меняется только ТЕКСТ авторинга, не семантика привязки. Массивы остаются value-
+фасадом (`model.<array>`), item-колбэки по-прежнему получают value-элемент от фреймворка.
+
+### Паттерн правок (было → станет)
+| Место | Было | Станет |
+|---|---|---|
+| top-level лист | `value: model.$.loanType` | `const model$ = model.$` → `value: model$.loanType` |
+| item-лист | `value: item.$.relationship` | `const item$ = item.$` → `value: item$.relationship` |
+| вложенный лист элемента | `value: item.$.personalData.lastName` | `value: item$.personalData.lastName` |
+| массив | `array: model.coBorrowers` | без изменений |
+| setupAddress (вызов) | `setupAddress(model.$.registrationAddress, …)` | `setupAddress(model$.registrationAddress, …)` |
+| computeFrom цель/источник | `model.$.monthlyPayment` | `model$.monthlyPayment` |
+| свободное условие (значение) | `model.loanType === 'mortgage'` | без изменений |
+| vf-привязка | `vf(m.loanAmount, …)` | `vf(model$.loanAmount, …)` (переименовать `m`→`model$`) |
+
+Под-билдеры (`personalDataNodes(s: ModelSignals)`, `addressNodes`, `addressChildren`) — без изменений
+(уже `s.field`); вызываются как `personalDataNodes(model$.personalData)`. Локальный алиас в существующих
+билдерах `const m = model.$` переименовать в `const model$ = model.$` (и `im`→`item`, `im.$`→`item$`) для
+единообразия суффикс-конвенции.
+
+### Критичные файлы (паттерн один, перечислены представительно)
+- `projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/schema.ts` — `const model$ = model.$`,
+  57× `model.$.x→model$.x`, item-колбэки `const item$ = item.$` (18× `item.$.x→item$.x`).
+- `…/complex-multy-step-form/schemas/behavior.ts` — `const model$ = model.$`; цели/источники `model$.x`; чтения остаются
+  `model.x`; `setupAddress(model$.registrationAddress, …)`/`setupAddress(model$.residenceAddress, …)`.
+- `…/complex-multy-step-form/schemas/m1/validation.ts` — item-билдеры `const item$ = item.$` (~25× `im.$.x→item$.x`);
+  шаги: переименовать существующий `const m = model.$` → `const model$ = model.$`.
+- `…/complex-multy-step-form-renderer/render-schema.ts` — item-лямбды `const item$ = item.$` (36×); top-level
+  `const m = model.$` → `const model$ = model.$`.
+- **Call-sites** (`CreditApplicationForm*.tsx` всех 3 вариантов) — **без изменений** (билдеры по-прежнему
+  принимают value-модель).
+- **JSON-вариант** (`complex-multy-step-form-renderer-json`) — JSON path-string DSL, `$` нет → **не затрагивается**.
+
+### Верификация
+- `tsc -p tsconfig.app.json` playground = 0 (типы ловят несоответствие сигнал/значение в `value:`/`array:`).
+- Ядро/рендереры НЕ трогаем → их сборка/тесты не нужны; playground берёт текущий `dist`.
+- **Браузер (playwright)** 3 варианта `/examples/{complex,complex-renderer,json-renderer}`: загрузка app '1';
+  условные секции (ипотека/авто/занятость, sameAsRegistration); computeFrom (initialPayment=20%, все 8 computed,
+  `coBorrowersIncome` реагирует на доход внутри элемента массива); массивы add/remove + вложенный personalData +
+  two-way; per-step валидация блокирует невалидный шаг; submit `model.get()`. 0 ошибок консоли. Скрины →
+  `projects/react-playground-e2e/screenshots/group1-no-dollar/{base,renderer,json}.png`.
+- **grep-аудит**: в телах 4 файлов исчезли `model\.\$\.` и `\.\$\.<field>`; остались только алиас-строки
+  `const model$ = model.$` / `const item$ = item.$`. Старые алиасы `const m = model.$`/`im` тоже исчезли.
+- Замечания: **З1** ✓ (`setupAddress(model$.…)`), **З2** ✓ (`item$.field`), **З3** ✓ (единообразно `const model$ = model.$`).
+- Коммит — только по явному запросу пользователя.
