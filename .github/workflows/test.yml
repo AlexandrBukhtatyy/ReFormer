@@ -31,6 +31,14 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Typecheck
+        # tsc --noEmit across packages + playground. Package "build" is vite/esbuild
+        # (transpile only, no type check), so type errors slip past CI and only
+        # surface later in typedoc (Deploy Documentation). This gate catches them
+        # before merge to main. @reformer/cdk is excluded pending a fix of its
+        # generic React-Context variance errors (tracked separately).
+        run: npm run typecheck
+
       - name: Build @reformer/core
         run: npm run build -w @reformer/core
 

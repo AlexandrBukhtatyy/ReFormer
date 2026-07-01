@@ -397,7 +397,7 @@ function getByPath(root: unknown, path: string): any {
  * Заглушка формы строки для НЕматериализованного массива: бросает понятную ошибку при доступе к ноде.
  * Value-операции (row.$.*) её не трогают; ошибка возникает только при попытке node-операции (form.x).
  */
-function unmaterializedRowForm(path: string): FormProxy<unknown> {
+function unmaterializedRowForm<T>(path: string): FormProxy<T> {
   return new Proxy(
     {},
     {
@@ -412,7 +412,7 @@ function unmaterializedRowForm(path: string): FormProxy<unknown> {
         );
       },
     }
-  ) as FormProxy<unknown>;
+  ) as FormProxy<T>;
 }
 
 /**
@@ -458,8 +458,7 @@ export function applyEach<TItem>(array: object, itemSchema: FormBehavior<TItem>)
       seen.add(rowModel);
       if (!activeByRow.has(rowModel)) {
         const rowForm =
-          (arrNode?.at?.(i) as FormProxy<TItem> | undefined) ??
-          (unmaterializedRowForm(path) as FormProxy<TItem>);
+          (arrNode?.at?.(i) as FormProxy<TItem> | undefined) ?? unmaterializedRowForm<TItem>(path);
         activeByRow.set(rowModel, itemSchema.__run(rowModel as FormModel<TItem>, rowForm));
       }
     }

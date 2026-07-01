@@ -7,7 +7,11 @@ You add validation to an existing `@reformer/core` form (architecture M1).
 ## Current form code
 
 ```typescript
-{{code}}
+{
+  {
+    code;
+  }
+}
 ```
 
 ## Critical inline rules
@@ -17,7 +21,7 @@ You add validation to an existing `@reformer/core` form (architecture M1).
 - **Conditional validation** — a `ModelValidator` reads `root` and returns `null` when its condition is off (e.g. `(_v, _s, root) => root.loanType !== 'mortgage' ? null : min(1000000)(_v)`), OR wrap a conditional sub-tree in a `{ when, children }` node so the engine skips it entirely when the condition is false. There is no `applyWhen`-in-validators anymore.
 - **Custom / cross-field rule = `ModelValidator<TField, TScope, TRoot>`**. Signature `(value, scope, root) => null | { code, message }`. **Cross-field validations** read sibling fields via the typed `root` (whole form) or `scope` (enclosing sub-model for array items), and are attached to the field that should carry the error. Do NOT reach into node internals (`ctx.form.X.value.value` is implementation detail, not public API).
 - **Async**: an `async ModelValidator` (returns a `Promise`). Debounce network calls and guard against stale results; never `await fetch` unconditionally on every keystroke — short-circuit with `if (!value || value.length < 3) return null;` first.
-- **Re-validation on dependency change** — a cross-field rule only re-runs when its host field changes. To re-run it when a *dependency* changes, add `revalidateWhen([model.$.dependency], () => validateFormModel(model, schema))`.
+- **Re-validation on dependency change** — a cross-field rule only re-runs when its host field changes. To re-run it when a _dependency_ changes, add `revalidateWhen([model.$.dependency], () => validateFormModel(model, schema))`.
 - **TS2589 on 70+ field forms** — annotate the model/schema types rather than casting validators. Prefer fixing the field type in `types.ts` (`number | null` → `number | undefined` if a `min`/`max` complains) over an `as never` cast; if a cast is unavoidable, narrow it to the single call-site, not the whole schema.
 - **Extract named rules for anything non-trivial**. Inline is fine for a 1-line check (`(v) => v === true ? null : {...}`). Extract module-level, typed as `ModelValidator<TField, TScope, TRoot>`, for: bodies >5 lines, cross-field rules with branching, async validators with try/catch, reused checks. Name by semantics, not by operator (`passwordsMatch`, `initialPaymentVsProperty` — not `validateField1`).
 
