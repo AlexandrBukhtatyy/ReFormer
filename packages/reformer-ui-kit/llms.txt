@@ -1465,14 +1465,14 @@ const hasValue = Boolean(value);
 
 ## 35. 11. JSON-renderer: `Select`-`options` хранятся в реестре, но в дропдауне пусто
 
-**Симптом.** Регистрируется source `LOAN_TYPES` через `reg.source('LOAN_TYPES', list)`,
+**Симптом.** Регистрируется dataSource `LOAN_TYPES` через `reg.dataSource('LOAN_TYPES', list)`,
 в JSON-схеме `componentProps: { options: '$LOAN_TYPES' }`, но опции пустые.
 
 **Причина.** `Select` ждёт `options: Array<{value, label, group?}>`, а из
 реестра приходит уже обработанная строкой ссылка `'$LOAN_TYPES'`. Нужен
-правильный синтаксис source-ссылки в реестре.
+правильный синтаксис dataSource-ссылки в реестре.
 
-**Решение.** Проверь convention для source-ссылок в
+**Решение.** Проверь convention для dataSource-ссылок в
 [`renderer-json/03-registry.md`](../../../reformer-renderer-json/docs/llms/03-registry.md).
 Внутри `Select` дальнейших магий нет — он просто читает `directOptions`
 один в один.

@@ -6,7 +6,7 @@
 
 - **field component** — компонент, который привязывается к полю формы (через `model`). Регистрируется через `reg.field(name, Component)`.
 - **container component** — компонент-обёртка, рендерит `children`. Регистрируется через `reg.container(name, Component)`.
-- **source value** — именованная константа или функция, на которую можно ссылаться строкой из `componentProps`. Регистрируется через `reg.source(name, value)`.
+- **dataSource value** — именованная константа или функция, на которую можно ссылаться строкой из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
 - **`FIELD_WRAPPER`** — зарезервированное имя для контейнера-обёртки полей (label, error, hint). Обычно регистрируется как `FormField` из `@reformer/ui-kit`.
 
 ## Builder API
@@ -15,7 +15,7 @@
 | -------------------------------- | ----------------------------------------------------- |
 | `reg.field(name, Component)`     | Регистрирует field-компонент.                         |
 | `reg.container(name, Component)` | Регистрирует container-компонент.                     |
-| `reg.source(name, value)`        | Регистрирует source-значение (константу или функцию). |
+| `reg.dataSource(name, value)`    | Регистрирует dataSource-значение (константу или функцию). |
 
 ## Examples
 
@@ -33,12 +33,12 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-Source values для `componentProps`:
+dataSource values для `componentProps`:
 
 ```typescript
 const registry = defineRegistry((reg) => {
   reg.field('Select', Select);
-  reg.source('LOAN_TYPES', [
+  reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
   ]);
@@ -53,7 +53,7 @@ const registry = defineRegistry((reg) => {
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
 - **Регистрировать React-element вместо компонента** — `reg.field('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.field('Input', Input)`.
 - **Ожидать наследования между вложенными `JsonRendererProvider`** — реестр сливается через `withParent`, дубли решаются по приоритету (внешний > внутренний).
-- **Использовать source-ссылку в `componentProps` без регистрации** — строка просто прокинется в проп как есть.
+- **Использовать dataSource-ссылку в `componentProps` без регистрации** — строка просто прокинется в проп как есть.
 
 ## See also
 

@@ -3,7 +3,7 @@ import { validateFormSchema } from './validate';
 
 const opts = {
   componentNames: ['Input', 'Select', 'Box', 'Section'],
-  sourceNames: ['LOAN_TYPES'],
+  dataSourceNames: ['LOAN_TYPES'],
 };
 
 const validSchema = {

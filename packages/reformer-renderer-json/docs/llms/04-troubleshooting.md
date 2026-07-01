@@ -28,7 +28,7 @@ reg.container(FIELD_WRAPPER, FormField);
 
 ## componentProps string passes through as plain string
 
-Строка в `componentProps` ссылается на source, но он не зарегистрирован. Используй `reg.source('NAME', value)` либо передавай значение объектом напрямую.
+Строка в `componentProps` ссылается на dataSource, но он не зарегистрирован. Используй `reg.dataSource('NAME', value)` либо передавай значение объектом напрямую.
 
 ## useJsonRendererSettings throws outside provider
 

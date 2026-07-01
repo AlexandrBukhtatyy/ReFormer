@@ -36,8 +36,8 @@ function resolveComponent(op: string | undefined, registry: ComponentRegistry): 
       `Component "${name}" not found in registry. Available: ${registry.names().join(', ')}`
     );
   }
-  if (meta.type === 'source') {
-    throw new Error(`Entry "${name}" is a 'source' and cannot be used as $component(...)`);
+  if (meta.type === 'dataSource') {
+    throw new Error(`Entry "${name}" is a 'dataSource' and cannot be used as $component(...)`);
   }
   return meta.component;
 }

@@ -3,7 +3,7 @@
  *
  * - {@link formSchemaMetaSchema} — базовая мета-схема (структура узлов + синтаксис операторов).
  * - {@link buildFormSchemaMetaSchema} — конкретная схема: сужает `$component(...)` до enum имён.
- * - {@link getComponentNames}/{@link getSourceNames} — извлечь имена из реестра по типу.
+ * - {@link getComponentNames}/{@link getDataSourceNames} — извлечь имена из реестра по типу.
  *
  * Не тянет ajv (лёгкое; ajv — в `validate.ts`/`@reformer/renderer-json/validate`).
  *
@@ -24,9 +24,9 @@ export function getComponentNames(registry: ComponentRegistry): string[] {
   });
 }
 
-/** Имена registry-source (`reg.source`): options/itemLabel/константы/loading-компоненты. */
-export function getSourceNames(registry: ComponentRegistry): string[] {
-  return registry.names().filter((n) => registry.get(n)?.type === 'source');
+/** Имена registry-dataSource (`reg.dataSource`): options/itemLabel/константы/loading-компоненты. */
+export function getDataSourceNames(registry: ComponentRegistry): string[] {
+  return registry.names().filter((n) => registry.get(n)?.type === 'dataSource');
 }
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

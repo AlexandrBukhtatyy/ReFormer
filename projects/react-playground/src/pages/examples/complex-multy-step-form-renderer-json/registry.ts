@@ -5,7 +5,7 @@
  * - Базовые ui-kit компоненты (Input, Select, Box, Section и т.д.).
  * - App-specific контейнеры (RendererFormWizard, Step и UI-блоки шага подтверждения).
  *   Массивы под M1 рендерятся native-веткой конвертера (`{ array, item }`), без shim.
- * - Source-функции (itemLabel-и, validation-фабрики).
+ * - dataSource-функции (itemLabel-и, validation-фабрики).
  * - Константы options (LOAN_TYPES, GENDERS и т.д.).
  *
  * Форма в реестр НЕ регистрируется — она живёт в closure behavior-а и попадает
@@ -91,34 +91,34 @@ export function createCreditApplicationRegistry(): ComponentRegistry {
     // Системный компонент
     reg.container(FIELD_WRAPPER, FormField);
 
-    // Source-компоненты (ComponentType для AsyncBoundary)
-    reg.source('LoadingState', LoadingState);
-    reg.source('ErrorStateDefault', () =>
+    // dataSource-компоненты (ComponentType для AsyncBoundary)
+    reg.dataSource('LoadingState', LoadingState);
+    reg.dataSource('ErrorStateDefault', () =>
       createElement(ErrorState, { error: 'Не удалось загрузить заявку' })
     );
 
-    // Source-функции: itemLabel
-    reg.source(
+    // dataSource-функции: itemLabel
+    reg.dataSource(
       'PROPERTY_ITEM_LABEL_SOURCE_FN',
       (_: FormProxy<Property>, index: number) => `Имущество #${index + 1}`
     );
-    reg.source(
+    reg.dataSource(
       'EXISTING_LOAN_ITEM_LABEL_SOURCE_FN',
       (_: FormProxy<ExistingLoan>, index: number) => `Кредит #${index + 1}`
     );
-    reg.source(
+    reg.dataSource(
       'CO_BORROWER_ITEM_LABEL_SOURCE_FN',
       (_: FormProxy<CoBorrower>, index: number) => `Созаемщик #${index + 1}`
     );
 
     // Константы options
-    reg.source('LOAN_TYPES', LOAN_TYPES);
-    reg.source('EMPLOYMENT_STATUSES', EMPLOYMENT_STATUSES);
-    reg.source('MARITAL_STATUSES', MARITAL_STATUSES);
-    reg.source('EDUCATIONS', EDUCATIONS);
-    reg.source('GENDERS', GENDERS);
-    reg.source('EXISTING_LOAN_TYPES', EXISTING_LOAN_TYPES);
-    reg.source('RELATIONSHIPS', RELATIONSHIPS);
-    reg.source('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
+    reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+    reg.dataSource('EMPLOYMENT_STATUSES', EMPLOYMENT_STATUSES);
+    reg.dataSource('MARITAL_STATUSES', MARITAL_STATUSES);
+    reg.dataSource('EDUCATIONS', EDUCATIONS);
+    reg.dataSource('GENDERS', GENDERS);
+    reg.dataSource('EXISTING_LOAN_TYPES', EXISTING_LOAN_TYPES);
+    reg.dataSource('RELATIONSHIPS', RELATIONSHIPS);
+    reg.dataSource('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
   });
 }

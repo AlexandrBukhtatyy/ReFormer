@@ -70,5 +70,5 @@ export {
   formSchemaMetaSchema,
   buildFormSchemaMetaSchema,
   getComponentNames,
-  getSourceNames,
+  getDataSourceNames,
 } from './schema';

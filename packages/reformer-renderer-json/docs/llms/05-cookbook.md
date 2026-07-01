@@ -100,7 +100,7 @@ const buildRegistry = (reg: RegistryBuilder) => {
   reg.field('Input', Input);
   reg.field('Select', Select);
   reg.container('Box', Box);
-  reg.source('LOAN_TYPES', LOAN_TYPES);
+  reg.dataSource('LOAN_TYPES', LOAN_TYPES);
   // ...твои field/container/source. FormRoot добавляется JsonFormApp'ом сам.
 };
 
@@ -155,11 +155,11 @@ const buildRegistry = (reg: RegistryBuilder) => {
 - Если сам контейнер не получает `itemPath` первым аргументом (нестандартный компонент) — `$template` всё равно сработает, но `selector` внутри будет резолвиться от корня формы; обычно это не то, что нужно.
 - Эталон: блок `properties-array` в `json-schema.ts` (monorepo example).
 
-## Source-функции
+## dataSource-функции
 
 **Problem.** Нужно передать в проп функцию (например `itemLabel: (form, index) => string`) или React-компонент (`LoadingComponent: LoadingState`) — а JSON хранит только примитивы и объекты.
 
-**Solution.** Регистрируешь значение через `reg.source('NAME', value)`, в JSON-схеме ссылаешься строкой. Конвертер при обходе `componentProps` подставит зарегистрированное значение. Если source — функция, то она оборачивается так: возвращаемый ею `JsonNode` автоматически конвертируется в `RenderNode` (то же, что делает `$template`).
+**Solution.** Регистрируешь значение через `reg.dataSource('NAME', value)`, в JSON-схеме ссылаешься строкой. Конвертер при обходе `componentProps` подставит зарегистрированное значение. Если dataSource — функция, то она оборачивается так: возвращаемый ею `JsonNode` автоматически конвертируется в `RenderNode` (то же, что делает `$template`).
 
 ```typescript
 import { defineRegistry } from '@reformer/renderer-json';
@@ -167,19 +167,19 @@ import { LoadingState } from './LoadingState';
 
 const registry = defineRegistry((reg) => {
   // 1. Константа: массив options.
-  reg.source('LOAN_TYPES', [
+  reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
   ]);
 
-  // 2. React-компонент как source (для AsyncBoundary.LoadingComponent).
-  reg.source('LoadingState', LoadingState);
+  // 2. React-компонент как dataSource (для AsyncBoundary.LoadingComponent).
+  reg.dataSource('LoadingState', LoadingState);
 
   // 3. Функция: itemLabel для FormArraySection.
-  reg.source('PROPERTY_ITEM_LABEL_SOURCE_FN', (_, index: number) => `Имущество #${index + 1}`);
+  reg.dataSource('PROPERTY_ITEM_LABEL_SOURCE_FN', (_, index: number) => `Имущество #${index + 1}`);
 
   // 4. Computed-константа.
-  reg.source('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
+  reg.dataSource('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
 });
 ```
 
@@ -203,9 +203,9 @@ const registry = defineRegistry((reg) => {
 
 **Notes.**
 
-- Резолв строки в source происходит только если строка зарегистрирована. Если имени в реестре нет — строка останется строкой (никакой ошибки), что часто становится молчаливым багом. Перепроверь имя при «приходит литерал вместо значения».
-- Source-функция, возвращающая объект, **не** конвертируется автоматически — только если результат «выглядит как `JsonNode`» (есть `model: string` или `component: string`). Для функций-итем-лейблов (возвращают строку) — никаких сюрпризов.
-- Source нельзя использовать как имя `component` в самом узле (`{ component: 'LoadingState' }` вне source-проп будет ошибкой `Entry "..." is a 'source' and cannot be used as component`). Source — только для значений в `componentProps`.
+- Резолв строки в dataSource происходит только если строка зарегистрирована. Если имени в реестре нет — строка останется строкой (никакой ошибки), что часто становится молчаливым багом. Перепроверь имя при «приходит литерал вместо значения».
+- dataSource-функция, возвращающая объект, **не** конвертируется автоматически — только если результат «выглядит как `JsonNode`» (есть `model: string` или `component: string`). Для функций-итем-лейблов (возвращают строку) — никаких сюрпризов.
+- dataSource нельзя использовать как имя `component` в самом узле (`{ component: 'LoadingState' }` вне dataSource-проп будет ошибкой `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
 - Эталон: реестр `registry.ts` (monorepo example).
 
 ## Control-пропсы
@@ -259,9 +259,9 @@ const registry = defineRegistry((reg) => {
 | `{ component: Box, componentProps: { className: 'grid', children: [...] } }` _(старый стиль)_ или `{ component: Box, children: [...] }` | `{ component: 'Box', componentProps: { className: 'grid' }, children: [...] }`                                                         |
 | `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                                                               | `{ component: 'Section', componentProps: { title: 'X' }, children: [...] }`                                                            |
 | `{ selector: 'mortgage-section', component: Section, ... }`                                                                             | то же — `selector` сохраняется                                                                                                         |
-| `componentProps: { options: LOAN_TYPES }` (импорт константы)                                                                            | `componentProps: { options: 'LOAN_TYPES' }` + `reg.source('LOAN_TYPES', LOAN_TYPES)`                                                   |
-| `componentProps: { LoadingComponent: LoadingState }`                                                                                    | `componentProps: { LoadingComponent: 'LoadingState' }` + `reg.source('LoadingState', LoadingState)`                                    |
-| `componentProps: { control: path.properties, itemLabel: (_, i) => '#' + i, itemComponent: (itemPath) => ({ ... }) }`                    | `componentProps: { control: 'properties', itemLabel: 'NAME_FN', itemComponent: { $template: { ... } } }` + `reg.source('NAME_FN', fn)` |
+| `componentProps: { options: LOAN_TYPES }` (импорт константы)                                                                            | `componentProps: { options: 'LOAN_TYPES' }` + `reg.dataSource('LOAN_TYPES', LOAN_TYPES)`                                                   |
+| `componentProps: { LoadingComponent: LoadingState }`                                                                                    | `componentProps: { LoadingComponent: 'LoadingState' }` + `reg.dataSource('LoadingState', LoadingState)`                                    |
+| `componentProps: { control: path.properties, itemLabel: (_, i) => '#' + i, itemComponent: (itemPath) => ({ ... }) }`                    | `componentProps: { control: 'properties', itemLabel: 'NAME_FN', itemComponent: { $template: { ... } } }` + `reg.dataSource('NAME_FN', fn)` |
 | `createCreditApplicationRenderBehavior(form)(schema)` (поведение в TS)                                                                  | то же поведение — переиспользуется как есть, через `JsonFormSchema → createRenderSchemaFromJson → behavior(schema)`                    |
 
 ```typescript
@@ -386,12 +386,12 @@ export const registry = defineRegistry((reg) => {
   // Field wrapper (label + error + pending)
   reg.container(FIELD_WRAPPER, FormField);
   // Sources for option lists + initial-value templates
-  reg.source('PROPERTY_TYPES', [
+  reg.dataSource('PROPERTY_TYPES', [
     /* ... */
   ]);
-  reg.source('PROPERTY_TEMPLATE', propertyTemplate);
-  reg.source('EXISTING_LOAN_TEMPLATE', existingLoanTemplate);
-  reg.source('CO_BORROWER_TEMPLATE', coBorrowerTemplate);
+  reg.dataSource('PROPERTY_TEMPLATE', propertyTemplate);
+  reg.dataSource('EXISTING_LOAN_TEMPLATE', existingLoanTemplate);
+  reg.dataSource('CO_BORROWER_TEMPLATE', coBorrowerTemplate);
 });
 ```
 
