@@ -2,3 +2,9 @@ node_modules
 dist
 build
 *.log
+
+# generated — produced/validated by their own generators, not prettier
+# (formatting these here conflicts with gen scripts / the form-schema CI gate)
+.docusaurus/
+**/docs/llms/
+projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json

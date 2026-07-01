@@ -2,150 +2,113 @@
 
 ## Purpose
 
-`syncFields` создаёт двунаправленную связь между двумя полями: изменение любого из них переписывает второе. Применяется для дублей одного значения в разных частях формы (тех. поле + видимое представление, мобильный/десктопный input, mirror-поля для отчётов). Внутренний флаг `isUpdating` плюс `runOutsideEffect` исключают петли. Если нужно одностороннее копирование — берите [`copyFrom`](./23-copy-from.md), для расчётов — [`computeFrom`](./03-api-signatures.md).
+`syncFields` создаёт двунаправленную связь между двумя полями: изменение любого из них
+переписывает второе. Применяется для дублей одного значения в разных частях формы
+(тех. поле + видимое представление, mirror-поля). Внутренний флаг + `runOutsideEffect`
+исключают петли. Для одностороннего копирования — [`copyFrom`](./23-copy-from.md); для
+расчётов — [`compute`](./20-compute-vs-watch.md).
 
 ## API
 
+Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
+
 ```typescript
-function syncFields<TForm extends FormFields, T extends FormValue>(
-  field1: FieldPathNode<TForm, T>,
-  field2: FieldPathNode<TForm, T>,
-  options?: SyncFieldsOptions<T>
-): void;
+// примитив: возвращает cleanup
+function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (value: T) => T }): () => void;
 
-interface SyncFieldsOptions<T> {
-  /** Преобразование при синхронизации field1 → field2 (НЕ применяется в обратную сторону). */
-  transform?: (value: T) => T;
-
-  /** Debounce в миллисекундах. */
-  debounce?: number;
-}
+// DSL: cleanup управляется формой
+function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (value: T) => T }): void;
 ```
 
-Поля должны иметь совместимый тип `T`. `transform` асимметричен: он работает только при движении значения от `field1` к `field2`.
+`a`/`b` — сигналы (`model.$.field`) совместимого типа `T`. `transform` **асимметричен**:
+применяется только при движении значения `a → b`. Опции `debounce`/`when` нет.
 
 ## Examples
 
 ### Базовый сценарий — отзеркаливание текста
 
 ```typescript
-import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, syncFields } from '@reformer/core/behaviors';
 
-interface MirrorForm {
-  syncField1: string;
-  syncField2: string;
-}
+type MirrorForm = { syncField1: string; syncField2: string };
 
-export const mirrorBehavior: BehaviorSchemaFn<MirrorForm> = (path) => {
-  syncFields(path.syncField1, path.syncField2);
-};
+export const mirrorBehavior = defineFormBehavior<MirrorForm>(({ model }) => {
+  syncFields(model.$.syncField1, model.$.syncField2);
+});
 ```
 
-Source: `BehaviorsExamples.tsx:249` (monorepo example).
+Source: `BehaviorsExamples.tsx` (monorepo example): `syncFields(model.$.syncField1, model.$.syncField2)`.
 
 ### С трансформацией — нормализация при прямой записи
 
 ```typescript
-import { syncFields, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, syncFields } from '@reformer/core/behaviors';
 
-interface DisplayForm {
-  internalCode: string; // канонический формат
-  displayCode: string; // показываем пользователю
-}
+type DisplayForm = { internalCode: string; displayCode: string };
 
-export const codeBehavior: BehaviorSchemaFn<DisplayForm> = (path) => {
-  // internalCode → displayCode: нормализация в верхний регистр
-  // displayCode → internalCode: значение пишется как есть
-  syncFields(path.internalCode, path.displayCode, {
+export const codeBehavior = defineFormBehavior<DisplayForm>(({ model }) => {
+  // internalCode → displayCode: uppercase; обратно значение пишется как есть
+  syncFields(model.$.internalCode, model.$.displayCode, {
     transform: (value) => (typeof value === 'string' ? value.toUpperCase() : value),
-    debounce: 150,
   });
-};
+});
 ```
 
-### Edge case — sync с независимой валидацией
+### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { syncFields, revalidateWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
-import { required, pattern } from '@reformer/core/validators';
-
-interface ContactForm {
-  phoneA: string;
-  phoneB: string;
-}
-
-export const contactValidation = (path: FieldPath<ContactForm>) => {
-  required(path.phoneA);
-  pattern(path.phoneB, /^\+\d{10,12}$/);
-};
-
-export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
-  syncFields(path.phoneA, path.phoneB);
-
-  // Когда явно нужно перезапустить валидацию обоих после синхронизации
-  revalidateWhen(path.phoneA, [path.phoneB]);
-  revalidateWhen(path.phoneB, [path.phoneA]);
-};
+import { syncFields } from '@reformer/core';
+const stop = syncFields(model.$.syncField1, model.$.syncField2);
+// stop() — отписаться
 ```
 
 ## Anti-patterns
 
 ```typescript
-// ❌ Симметрично через два copyFrom — приведёт к "Cycle detected"
-copyFrom(path.a, path.b);
-copyFrom(path.b, path.a);
+// ❌ Симметрично через два copyFrom — конфликт направлений
+copyFrom(model.$.a, model.$.b);
+copyFrom(model.$.b, model.$.a);
 
-// ✅ syncFields умеет двусторонней связь без циклов
-syncFields(path.a, path.b);
+// ✅ syncFields умеет двустороннюю связь без петель
+syncFields(model.$.a, model.$.b);
 ```
 
 ```typescript
 // ❌ Ожидание, что transform применится в обе стороны
-syncFields(path.a, path.b, { transform: (v) => v.trim() });
+syncFields(model.$.a, model.$.b, { transform: (v) => v.trim() });
 // при записи в b значение НЕ trim-ается
 
-// ✅ Если нужны симметричные трансформы, делайте syncFields + transformValue
-import { transformValue } from '@reformer/core/behaviors';
-syncFields(path.a, path.b);
-transformValue(path.a, (v) => (typeof v === 'string' ? v.trim() : v));
-transformValue(path.b, (v) => (typeof v === 'string' ? v.trim() : v));
+// ✅ Симметричные трансформы — syncFields + transformValue на обоих полях
+syncFields(model.$.a, model.$.b);
+transformValue(model.$.a, (v) => (typeof v === 'string' ? v.trim() : v));
+transformValue(model.$.b, (v) => (typeof v === 'string' ? v.trim() : v));
 ```
 
 ```typescript
 // ❌ Поля разного типа — рантайм-приведение и баги
-syncFields(path.amountString, path.amountNumber); // string ↔ number
+syncFields(model.$.amountString, model.$.amountNumber); // string ↔ number
 
-// ✅ Используйте computeFrom + ручное обратное связывание
-computeFrom([path.amountString], path.amountNumber, (v) => Number(v.amountString));
-```
-
-```typescript
-// ❌ Sync для FormArray/FormGroup — компонент не сравнивает по содержимому
-syncFields(path.itemsA, path.itemsB); // ссылочное равенство, потенциально лишние перезаписи
-
-// ✅ Для коллекций — copyFrom + явный fields/transform либо ручной watchField
+// ✅ Для конвертации — compute в обе стороны или один канонический формат + computed отображение
+compute(model.$.amountNumber, () => Number(model.amountString));
 ```
 
 ## Troubleshooting
 
-**Q: Поля «дёргаются», вижу несколько перезаписей.**
-A: Чаще всего внутри одного из полей висит `transformValue` или `computeFrom`. Передайте `debounce: 100…300` в `syncFields`, и/или проверьте, что у источника transform идемпотентен (`f(f(x)) === f(x)`).
+**Q: Поля «дёргаются», несколько перезаписей.**
+A: Чаще всего на одном из полей висит `transformValue`/`compute`. Убедитесь, что transform
+идемпотентен (`f(f(x)) === f(x)`).
 
-**Q: Курсор/каретка прыгает в input.**
-A: Симптом частых `setValue`. Поднимите `debounce` (минимум 150 ms) и убедитесь, что `transform` стабильный (не возвращает `new String(...)` или другой объект-обёртку). Лучше — храните «канонический» формат в одном поле и считайте отображаемый через `computeFrom`.
-
-**Q: Sync не работает после `form.reset()`.**
-A: `reset()` устанавливает оба поля одновременно. Это нормально — sync догонится при первом следующем изменении. Если нужна согласованность сразу после reset — задайте одинаковые initial values в схеме.
-
-**Q: «Cycle detected» при включённом `syncFields`.**
-A: Не вешайте `watchField(path.a, …)` + `watchField(path.b, …)`, которые сами пишут друг в друга. `syncFields` уже занимает оба направления. Перенесите side-эффекты в `watchField` на одно поле и не трогайте второе изнутри callback.
+**Q: «Cycle detected» при `syncFields`.**
+A: Не вешайте дополнительно `onChange`/`watchField`, которые сами пишут в эти же поля.
+`syncFields` уже занимает оба направления.
 
 **Q: Как ограничить sync условием (как `when` у copyFrom)?**
-A: У `syncFields` нет `when`. Сэмулируйте через `apply` под условием либо комбинируйте `copyFrom(a → b, { when })` и `copyFrom(b → a, { when })` с разными флагами, разрешая только одну активную сторону за раз.
+A: У `syncFields` нет `when`. Эмулируй через два `copyFrom(a→b, { when })` / `copyFrom(b→a, { when })`
+с флагами, разрешающими только одну активную сторону, либо через `apply` под условием.
 
 ## See also
 
 - [23-copy-from.md](./23-copy-from.md) — однонаправленное копирование с `when`
 - [26-transform-value.md](./26-transform-value.md) — нормализация значений на месте
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему симметричный copy ломается
-- [03-api-signatures.md](./03-api-signatures.md) — `computeFrom` для производных значений
+- [20-compute-vs-watch.md](./20-compute-vs-watch.md) — `compute` для производных значений

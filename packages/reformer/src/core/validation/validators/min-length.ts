@@ -11,12 +11,26 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора минимальной длины строки или массива.
  *
- * Пустые значения пропускаются (используйте `required` для обязательности).
+ * Работает со строкой или массивом (проверяется `value.length`). Пустые значения
+ * (`null`/`undefined`/`''`) и значения без числового `length` пропускаются
+ * (используйте {@link required} для обязательности).
  *
- * @example
+ * @param minLen - Минимально допустимая длина (включительно)
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадают `minLength` и `actualLength`.
+ * @returns Чистый валидатор {@link Validator} для строки или массива
+ *
+ * @example Минимальная длина строки
  * ```typescript
- * validate(path.name, minLength(2));
- * validate(path.password, minLength(8, { message: 'Min 8 символов' }));
+ * import { required, minLength } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * name: { value: model.$.name, component: Input, validators: [minLength(2)] },
+ * password: {
+ *   value: model.$.password,
+ *   component: Input,
+ *   validators: [required(), minLength(8, { message: 'Минимум 8 символов' })],
+ * },
  * ```
  */
 export function minLength<TForm = unknown, TField = unknown>(

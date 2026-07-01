@@ -1,4 +1,6 @@
-You add a dynamic field array to a `@reformer/*` form.
+You add a dynamic field array to a `@reformer/*` form (M1 signal-based architecture).
+
+An array is declared in the schema as a dedicated node: `{ array: model.<path>, item: (itemModel) => <sub-schema> }`. `createForm({ model, schema })` materializes it as a `ModelArrayNode` (`form.<array>`), which `FormArraySection` (ui-kit) consumes. There is NO tuple `arrField: [itemSchema]` shape and NO `array(itemSchema, {…})` factory — those are removed legacy forms.
 
 ## Args
 
@@ -29,9 +31,9 @@ You add a dynamic field array to a `@reformer/*` form.
 
 3. **renderer-react Checkbox in array item**: don't wrap in `CdkFormField.Label` — Checkbox draws its own label, double-rendered otherwise. Pass label via `componentProps.label`.
 
-4. **FormSchema array shape = tuple**: `arrField: [itemSchema]`, NEVER `{ value: [], itemSchema: {...} }` (silent corruption).
+4. **Schema array node = `{ array: model.<path>, item }`**: `properties: { array: model.properties, item: (im) => ({ … }) }`, NEVER a tuple `arrField: [itemSchema]` and NEVER `{ value: [], itemSchema: {…} }` (both are removed legacy shapes → silent corruption). The `item` callback receives the element sub-model (`FormModel<Item>`); bind leaves via its signals `im.$.<field>`.
 
-5. **Element access**: `form.<arr>.at(i)` (NOT brackets), `.length.value`, `.items.value`. Mutations: `add`, `removeAt`, `insert`, `move`, `clear` — never mutate `.items` directly.
+5. **Element access**: `form.<arr>.at(i)` (NOT brackets), `.length.value`, `.items.value`. Mutations: `add`, `removeAt`, `insert`, `move`, `clear` — never mutate `.items` directly. From the model side, `model.<arr>.map(...)` subscribes to length/items (useful inside `compute`).
 
 6. **renderer-react self-managed FormArray block**: must resolve `FieldPath → ArrayNode` via `FieldPathNavigator` + `extractPath`, AND mark `(Block as any).__selfManagedChildren = true` (otherwise `form` prop not injected). Generic resolver utilities will need `<T extends FormFields>` because `ArrayNode<T>` carries that constraint — add it to your resolver function signature, not a workaround.
 
@@ -74,7 +76,7 @@ You add a dynamic field array to a `@reformer/*` form.
    />;
    ```
 
-   **renderer-json:** consumer registers `PropertyForm` via `reg.container('PropertyForm', PropertyForm)` and references by string in JSON — `"itemComponent": "PropertyForm"`. Or uses inline `$template`:
+   **renderer-json:** consumer registers `PropertyForm` via `reg.component('PropertyForm', PropertyForm)` and references by string in JSON — `"itemComponent": "PropertyForm"`. Or uses inline `$template`:
 
    ```jsonc
    { "itemComponent": { "$template": { "component": "Section", "children": [...] } } }
@@ -95,28 +97,28 @@ You add a dynamic field array to a `@reformer/*` form.
 - `reformer://docs/cdk/external-control-via-ref`
 - `reformer://docs/cdk/nested-formarray`
 - `reformer://docs/cdk/custom-addbutton`
-- `reformer://docs/renderer-json` (aggregator — for `RendererFormArraySection` cookbook + `$template` semantics)
+- `reformer://docs/renderer-json` (aggregator — for `FormArraySection` cookbook + `$template` semantics)
 
 ## Task
 
-1. Extend FormSchema — field becomes `array(itemSchema, { initialItems?, ... })`.
-2. UI via `<FormArray.Root control={form.<arr>}>` + `<FormArray.List>` + `<FormArray.AddButton>`.
-3. Validation via `validateItems` (item-level) or `validate(path.<arr>, ...)` (cross-item).
-4. Cleanup on external trigger via `watchField` with length-guard.
-5. Nested arrays: separate `array(...)` inside item schema; UI nests `FormArray.Root`.
-6. Template-factory returns PLAIN leaf values (never FieldConfig).
+1. Extend the schema — add an array node `{ array: model.<path>, item: (im) => <sub-schema> }`; seed `model` with `<path>: []` in initial values, plus a blank-item factory returning the FULL item object (all fields) for AddButton/`add`.
+2. UI: **default** = `FormArraySection` from `@reformer/ui-kit/form-array` (rule #8). Need custom compound layout? `<FormArray.Root control={form.<arr>}>` + `<FormArray.List>` + `<FormArray.AddButton>` (CDK).
+3. Validation: per-item sub-schema inside `validateFormModel(model, schema)` — each item's rules live in an `item` schema built from `im.$.<field>` leaves; cross-item / item-level rules are `ModelValidator`s whose `scope` arg is the element sub-model (`(value, item) => …`). Array-level "must not be empty" rules read `root.<arr>.length` in a root `ModelValidator`.
+4. Cleanup on external trigger (e.g. flag turned off) via `watchField`/`onChange` calling `form.<arr>.clear()` (guard by `.length`); DSL: `clearWhenOff(model.$.flag, form.<arr>)`.
+5. Nested arrays: nest another `{ array: im.<path>, item }` inside the item sub-schema; UI nests `FormArraySection` / `FormArray.Root`.
+6. Blank-item factory returns PLAIN leaf values (never FieldConfig `{ value, component }`).
 7. (renderer-react) self-managed array block — resolve FieldPath→ArrayNode + `__selfManagedChildren = true`.
 8. **All targets**: use `FormArraySection` from `@reformer/ui-kit/form-array` (single FC `itemComponent`). For renderer-json: registry-name string OR inline `$template` — both produce FC.
 
 ## Output checklist
 
 - [ ] Прочитал все ресурсы из Prerequisites: yes/no
-- [ ] Tuple-literal `[itemSchema]` in FormSchema
-- [ ] Template-factory returns PLAIN leaf values (no `component`/`componentProps`)
+- [ ] Array node `{ array: model.<path>, item }` in schema (NOT tuple `[itemSchema]`, NOT `array(...)` factory)
+- [ ] Blank-item factory returns PLAIN leaf values (no `component`/`componentProps`)
 - [ ] Conditional visibility via JSX/`hideWhen`/`setHidden`, NOT `enableWhen + resetOnDisable`
-- [ ] Validation: `validateItems` / `applyWhen` covered
-- [ ] Cleanup wired (if applicable)
+- [ ] Validation: per-item sub-schema + `ModelValidator` (scope = item sub-model) via `validateFormModel`; array-empty rules read `root.<arr>.length`
+- [ ] Cleanup wired (`form.<arr>.clear()` guarded by length / `clearWhenOff`) if applicable
 - [ ] (renderer-react) Checkbox without `CdkFormField.Label` wrapper
 - [ ] (renderer-react self-managed) `__selfManagedChildren = true` set
 - [ ] All targets: `FormArraySection` from `@reformer/ui-kit/form-array` used; `itemComponent` is FC (`ComponentType<{ control }>`)
-- [ ] (renderer-json) item FC registered via `reg.container('Name', FC)` OR inline `$template` used (converter wraps to FC)
+- [ ] (renderer-json) item FC registered via `reg.component('Name', FC)` OR inline `$template` used (converter wraps to FC)

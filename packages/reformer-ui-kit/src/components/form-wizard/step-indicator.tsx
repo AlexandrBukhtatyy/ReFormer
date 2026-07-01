@@ -11,7 +11,13 @@ import type {
   FormWizardIndicatorRenderProps,
 } from '@reformer/cdk/form-wizard';
 
+/**
+ * Пропсы {@link StepIndicator}: render-props индикатора из слота
+ * `<FormWizard.Indicator>` (`steps` со статусами, `goToStep`) плюс `className`
+ * и настройка aria-меток.
+ */
 export interface StepIndicatorProps extends FormWizardIndicatorRenderProps {
+  /** Внешний CSS-класс контейнера. */
   className?: string;
   /** Aria-label контейнера навигации. По умолчанию «Шаги формы». */
   navAriaLabel?: string;
@@ -24,6 +30,27 @@ const defaultStepAriaLabel = (step: FormWizardIndicatorStepWithState): string =>
   (step.isCurrent ? ' (текущий)' : '') +
   (step.isCompleted ? ' (завершён)' : '');
 
+/**
+ * Визуальная цепочка шагов wizard'а — иконки, заголовки и соединительные линии
+ * с подсветкой текущего / завершённого шага. Клик (и Enter) по доступному шагу
+ * вызывает `goToStep`; недоступные шаги приглушены и не кликабельны. Разметка
+ * доступна для скринридеров (`role="navigation"`, `aria-current="step"`,
+ * настраиваемые aria-метки).
+ *
+ * Рендерится из headless-слота `<FormWizard.Indicator>` через render-prop
+ * (`steps` со статусами и `goToStep` приходят автоматически). Готовый
+ * {@link FormWizard} уже подключает этот компонент; напрямую нужен только для
+ * кастомной раскладки.
+ *
+ * @example Индикатор с кастомной aria-меткой контейнера
+ * ```tsx
+ * <FormWizard.Indicator steps={steps}>
+ *   {(indicator) => (
+ *     <StepIndicator {...indicator} navAriaLabel="Этапы заявки" className="mb-8" />
+ *   )}
+ * </FormWizard.Indicator>
+ * ```
+ */
 export const StepIndicator: FC<StepIndicatorProps> = ({
   steps,
   goToStep,

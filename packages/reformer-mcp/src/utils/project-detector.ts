@@ -269,11 +269,13 @@ export function renderLayoutSkeletonBlock(stack: ProjectStack, target: string): 
     lines.push('      component: Box,');
     lines.push("      componentProps: { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },");
     lines.push('      children: [');
-    lines.push('        { component: path.step1.loanAmount },  // testId="step1.loanAmount"');
-    lines.push('        { component: path.step1.loanTerm },');
+    lines.push(
+      "        { value: model.$.step1.loanAmount, component: Input, componentProps: { testId: 'step1.loanAmount' } },"
+    );
+    lines.push('        { value: model.$.step1.loanTerm, component: Input },');
     lines.push('      ],');
     lines.push('    },');
-    lines.push('    { component: path.step1.loanPurpose },  // full-width');
+    lines.push('    { value: model.$.step1.loanPurpose, component: Textarea },  // full-width');
     lines.push('  ],');
     lines.push('}');
     lines.push('```');

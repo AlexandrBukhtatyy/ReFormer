@@ -44,10 +44,17 @@ export interface JsonRendererProviderProps {
  * Поддерживает вложенность: внутренний провайдер сливается с внешним
  * (внешний имеет приоритет в случае дублей имён в реестре).
  *
- * @example
+ * @example M1: реестр + модель через settings
  * ```tsx
- * <JsonRendererProvider settings={{ registry, fieldWrapper: FormField }}>
- *   <JsonFormRenderer schema={schema} form={form} />
+ * // Модель — источник истины (M1); листья схемы биндятся к её сигналам.
+ * const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
+ * const registry = useMemo(() => defineRegistry((reg) => {
+ *   reg.component('Input', Input);
+ *   reg.component(FIELD_WRAPPER, FormField);
+ * }), []);
+ *
+ * <JsonRendererProvider settings={{ registry, model }}>
+ *   <JsonFormRenderer<MyForm> schema={schema} />
  * </JsonRendererProvider>
  * ```
  */

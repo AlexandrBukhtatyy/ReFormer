@@ -15,7 +15,24 @@ export interface SchemaErrorPanelProps {
   errors: string[];
 }
 
-/** Список ошибок схемы (path + message), с пометкой источника. Без внешних UI-зависимостей. */
+/**
+ * Список ошибок схемы (path + message), с пометкой источника. Без внешних UI-зависимостей
+ * (инлайн-стили), помечен `role="alert"` и `data-testid="schema-error-panel"`.
+ *
+ * Обычно рендерится автоматически внутри {@link JsonFormRenderer} (при `validate` и невалидной
+ * схеме). Можно использовать напрямую для показа результата `validateFormSchema().errors`.
+ *
+ * @param props - {@link SchemaErrorPanelProps} (массив `errors`).
+ * @returns Панель со списком ошибок.
+ *
+ * @example Показать ошибки валидации схемы вручную
+ * ```tsx
+ * import { validateFormSchema } from '@reformer/renderer-json/validate';
+ *
+ * const { valid, errors } = validateFormSchema(schema, { registry });
+ * if (!valid) return <SchemaErrorPanel errors={errors} />;
+ * ```
+ */
 export function SchemaErrorPanel({ errors }: SchemaErrorPanelProps): ReactNode {
   return (
     <div

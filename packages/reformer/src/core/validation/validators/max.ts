@@ -11,15 +11,24 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора максимального числового значения.
  *
- * Пустые значения пропускаются (используйте `required` для обязательности).
+ * Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
  *
- * @example
+ * @param maxValue - Максимально допустимое значение (включительно)
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадают `max` и `actual`.
+ * @returns Чистый валидатор {@link Validator} для числового поля
+ *
+ * @example Максимальное значение числового поля
  * ```typescript
- * import { validate } from '@reformer/core';
- * import { max } from '@reformer/core/validators';
+ * import { required, max } from '@reformer/core/validators';
  *
- * validate(path.quantity, max(100));
- * validate(path.discount, max(50, { message: 'Не более 50%' }));
+ * // Внутри FieldConfig схемы формы:
+ * quantity: { value: model.$.quantity, component: Input, validators: [max(100)] },
+ * discount: {
+ *   value: model.$.discount,
+ *   component: Input,
+ *   validators: [required(), max(50, { message: 'Не более 50%' })],
+ * },
  * ```
  */
 export function max<TForm = unknown, TField extends number | undefined = number>(

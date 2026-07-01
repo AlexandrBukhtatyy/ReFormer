@@ -57,9 +57,9 @@ export interface FormArrayAddButtonProps<T extends object = FormFields> extends 
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
-  /** Initial value for the new item */
+  /** Начальное значение нового элемента (передаётся в `add()` → `ArrayNode.push`) */
   initialValue?: Partial<T>;
-  /** Custom render function for the button */
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
   asChild?: boolean;
 }
 
@@ -70,7 +70,7 @@ export interface FormArrayRemoveButtonProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
-  /** Custom render function for the button */
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
   asChild?: boolean;
 }
 

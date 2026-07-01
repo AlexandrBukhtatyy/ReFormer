@@ -1,11 +1,29 @@
 import type { ReactNode } from 'react';
 
 interface LoadingStateProps {
+  /** Основной текст. По умолчанию `'Загрузка данных...'`. */
   title?: string;
+  /** Вспомогательный текст под спиннером. По умолчанию `'Пожалуйста, подождите'`. */
   subtitle?: string;
+  /** Внешний CSS-класс контейнера. По умолчанию центрирует спиннер с отступами. */
   className?: string;
 }
 
+/**
+ * Состояние загрузки — центрированный спиннер с заголовком и подзаголовком.
+ * Типовое применение — показать вместо формы, пока грузятся данные заявки.
+ *
+ * @param props - Пропсы: `title`, `subtitle`, `className` (все опциональны).
+ * @returns Разметку блока загрузки.
+ *
+ * @example Загрузка перед рендером формы
+ * ```tsx
+ * const { isLoading } = useLoadCreditApplication(form, '1');
+ * if (isLoading) {
+ *   return <LoadingState />;
+ * }
+ * ```
+ */
 export function LoadingState({
   title = 'Загрузка данных...',
   subtitle = 'Пожалуйста, подождите',

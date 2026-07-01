@@ -63,6 +63,49 @@ function findEntry(pkgRoot: string): string | null {
 }
 
 /**
+ * All entry files to index: the main `src/index.ts` plus top-level subpath
+ * entries declared in `package.json` `exports` (e.g. `./behaviors`,
+ * `./validators`, `./validate`). Without this, symbols only reachable through a
+ * subpath (like the `defineFormBehavior`/`compute` DSL of `@reformer/core/behaviors`,
+ * or `validateFormSchema` of `@reformer/renderer-json/validate`) are invisible.
+ * Nested subpaths (`./validators/required`) are skipped — they're already covered
+ * by their parent namespace entry.
+ */
+function findEntries(pkgRoot: string): string[] {
+  const entries: string[] = [];
+  const main = findEntry(pkgRoot);
+  if (main) entries.push(main);
+
+  try {
+    const pkgJson = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf-8'));
+    const exp = pkgJson.exports ?? {};
+    for (const [key, val] of Object.entries(exp)) {
+      if (key === '.') continue;
+      // Skip nested subpaths like "./validators/required" (covered by "./validators").
+      if (key.split('/').length > 2) continue;
+      const imp = typeof val === 'string' ? val : (val as { import?: string })?.import;
+      if (!imp) continue;
+      // Map the built entry back to source: ./dist/behaviors.js → src/behaviors.ts
+      const srcRel = imp
+        .replace(/^\.\//, '')
+        .replace(/^dist\//, 'src/')
+        .replace(/\.(js|mjs|cjs)$/, '');
+      for (const ext of ['.ts', '.tsx']) {
+        const abs = resolve(pkgRoot, srcRel + ext);
+        if (existsSync(abs)) {
+          entries.push(abs);
+          break;
+        }
+      }
+    }
+  } catch {
+    /* no package.json / unreadable exports — main entry only */
+  }
+
+  return [...new Set(entries)];
+}
+
+/**
  * Parse public symbols of a single package and return them sorted alphabetically.
  * Cached on first invocation.
  */
@@ -75,15 +118,17 @@ export function getPublicSymbols(pkg: string): PublicSymbol[] {
     symbolsCache.set(pkg, []);
     return [];
   }
-  const entry = findEntry(root);
-  if (!entry) {
+  const entries = findEntries(root);
+  if (entries.length === 0) {
     symbolsCache.set(pkg, []);
     return [];
   }
 
   const collected = new Map<string, PublicSymbol>();
   const visited = new Set<string>();
-  collectFromFile(entry, visited, collected, null, pkg);
+  for (const entry of entries) {
+    collectFromFile(entry, visited, collected, null, pkg);
+  }
 
   const result = [...collected.values()].sort((a, b) => a.name.localeCompare(b.name));
   symbolsCache.set(pkg, result);
@@ -104,27 +149,6 @@ export function findSymbol(symbolName: string, pkg: string = '*'): PublicSymbol 
     }
   }
   return null;
-}
-
-/**
- * Concise list of symbol headers for a given package, suitable for "API index"
- * resources. One line per symbol: kind + name + (optional) one-line description.
- */
-export function listSymbols(pkg: string): string {
-  const symbols = getPublicSymbols(pkg);
-  if (symbols.length === 0) {
-    return `No public symbols found for ${pkg}.`;
-  }
-  const lines = [`# ${pkg} — Public API (${symbols.length} symbols)`, ''];
-  for (const s of symbols) {
-    const oneLineDesc = s.description.split(/\r?\n/)[0].trim();
-    lines.push(`- **${s.name}** (${s.kind})${oneLineDesc ? ' — ' + oneLineDesc : ''}`);
-  }
-  return lines.join('\n');
-}
-
-export function clearSymbolsCache(): void {
-  symbolsCache.clear();
 }
 
 // ---------------------------------------------------------------------------

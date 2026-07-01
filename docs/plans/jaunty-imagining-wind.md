@@ -5,6 +5,7 @@
 Пользователь готовит презентацию о ReFormer и хочет один лаконичный, но исчерпывающий пример, показывающий ВСЁ о схеме валидации: встроенные валидаторы, композиция, кастомный sync, async + debounce, cross-field, условная валидация, переиспользуемые под-схемы и валидация массивов.
 
 В кодовой базе уже есть три источника, на которых можно опереться:
+
 - [registration-validation.ts](../../projects/react-playground/src/pages/examples/registration-form/validation/registration-validation.ts) — реальный пример sync + async + cross-field.
 - [basic-info-validation.ts](../../projects/react-playground/src/pages/examples/complex-multy-step-form/components/steps/BasicInfo/basic-info-validation.ts) — applyWhen + validateGroup + переиспользуемые под-схемы.
 - [ValidationExamples.tsx](../../projects/react-playground/src/pages/examples/validation/ValidationExamples.tsx) — галерея built-in валидаторов.
@@ -14,6 +15,7 @@
 ## Решения по объёму и формату
 
 Зафиксировано из уточняющих вопросов:
+
 - **Формат**: только validation-schema (без JSX, без отображения ошибок).
 - **Домен**: регистрация пользователя — узнаваемая и компактная.
 - **Целевой файл**: `docs/presentation/validation-example.ts` (новый каталог).
@@ -23,16 +25,16 @@
 
 Один файл, одна форма, восемь механизмов:
 
-| # | Механизм | Как показать |
-|---|---|---|
-| 1 | Композиция built-in валидаторов на одном поле | `validate(path.password, required(...))` + `minLength` + `pattern` |
-| 2 | Конфигурация сообщений | `required({ message: '...' })` |
-| 3 | Кастомный sync-валидатор | `validatePasswordStrength: Validator<...>` |
-| 4 | Cross-field валидатор (через `root`) | `validatePasswordsMatch` — читает `root.password.value.value` |
-| 5 | Async + debounce | `validateAsync(path.username, checkUsernameAvailable, { debounce: 500 })` |
-| 6 | Условная валидация (`applyWhen`) | `applyWhen(path.accountType, v => v === 'business', businessRules)` |
-| 7 | Переиспользуемая под-схема (`apply`) | `apply(path.business, businessProfileValidation)` |
-| 8 | Валидация элементов массива (`validateItems`) | `validateItems(path.phones, phoneItemValidation)` |
+| #   | Механизм                                      | Как показать                                                              |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | Композиция built-in валидаторов на одном поле | `validate(path.password, required(...))` + `minLength` + `pattern`        |
+| 2   | Конфигурация сообщений                        | `required({ message: '...' })`                                            |
+| 3   | Кастомный sync-валидатор                      | `validatePasswordStrength: Validator<...>`                                |
+| 4   | Cross-field валидатор (через `root`)          | `validatePasswordsMatch` — читает `root.password.value.value`             |
+| 5   | Async + debounce                              | `validateAsync(path.username, checkUsernameAvailable, { debounce: 500 })` |
+| 6   | Условная валидация (`applyWhen`)              | `applyWhen(path.accountType, v => v === 'business', businessRules)`       |
+| 7   | Переиспользуемая под-схема (`apply`)          | `apply(path.business, businessProfileValidation)`                         |
+| 8   | Валидация элементов массива (`validateItems`) | `validateItems(path.phones, phoneItemValidation)`                         |
 
 Cross-field через `validateGroup` сознательно опускаем — его роль уже играет `validatePasswordsMatch` (механизм 4) на root. Включение и validateGroup, и `root`-валидатора одновременно раздуло бы пример и заставило объяснять две альтернативы для одной задачи. Оставлю однострочный комментарий, что `validateGroup` — альтернатива для сценариев, где нужен общий scope.
 
@@ -78,12 +80,14 @@ interface RegistrationData {
 Изменить определение типа `FieldPath<T>` в [packages/reformer/src/core/types/field-path.ts](../../packages/reformer/src/core/types/field-path.ts) (строки 31–39): добавить ветку для случая, когда `T` не объект (или относится к опаковым объектным типам, которые уже сейчас не рекурсятся — Array/Date/File/Blob/AnyFunction). В этой ветке возвращать сам узел `FieldPathNode<unknown, T>` вместо mapped type.
 
 Концептуально:
+
 ```ts
 export type FieldPath<T> =
   NonNullable<T> extends object
     ? NonNullable<T> extends Array<unknown> | Date | File | Blob | AnyFunction
-      ? FieldPathNode<unknown, T>          // опаковые объекты — единый узел
-      : {                                   // обычные объекты — рекурсивный mapped type как сейчас
+      ? FieldPathNode<unknown, T> // опаковые объекты — единый узел
+      : {
+          // обычные объекты — рекурсивный mapped type как сейчас
           [K in keyof T]: NonNullable<T[K]> extends Array<unknown>
             ? FieldPathNode<T, T[K], K>
             : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
@@ -92,10 +96,11 @@ export type FieldPath<T> =
                 ? FieldPathNode<T, T[K], K> & FieldPath<NonNullable<T[K]>>
                 : FieldPathNode<T, T[K], K>;
         }
-    : FieldPathNode<unknown, T>;           // примитивы — единый узел (NEW)
+    : FieldPathNode<unknown, T>; // примитивы — единый узел (NEW)
 ```
 
 После правки:
+
 - `FieldPath<RegistrationData>` сохраняет mapped-type поведение — изменений в существующих схемах нет.
 - `FieldPath<string>` становится `FieldPathNode<unknown, string>`, и сигнатура `validate(path: FieldPathNode<TForm, TField>, ...)` принимает её.
 - Overload `apply<TForm, TField>(field: FieldPathNode<TForm, TField>, schema: ValidationSchemaFn<TField>)` начинает работать для примитивного TField без явных приведений.
@@ -137,6 +142,7 @@ export type FieldPath<T> =
 ## Verification
 
 После записи файла:
+
 1. Открыть `docs/presentation/validation-example.ts` в IDE — TS-сервер должен подсветить корректность типов (плагины `@reformer/core` уже доступны в репо).
 2. Прогнать через `tsc --noEmit` в контексте `projects/react-playground/tsconfig.json` (временно скопировав или подключив файл) — опционально, как sanity check. Файл специально не подключается ни к какому исполняемому проекту, чтобы остаться чисто презентационным артефактом.
 3. Визуально проверить: укладывается ли в ~80 строк, читается ли сверху вниз без перескакивания, очевидно ли соответствие каждого блока пункту из таблицы выше.

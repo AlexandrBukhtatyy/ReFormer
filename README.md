@@ -53,14 +53,14 @@ Setup instructions, test commands, and the full command reference live in [READM
 
 ## Packages
 
-| Package                                                            | Description                                                                | Version                                                                                                                     |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [@reformer/core](./packages/reformer)                              | Core form state management with signals-based architecture                 | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
-| [@reformer/cdk](./packages/reformer-cdk)                           | Headless compound components — `FormArray`, `FormWizard`, `FormField`      | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
-| [@reformer/ui-kit](./packages/reformer-ui-kit)                     | Styled form components built on Tailwind CSS + Radix UI                    | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
-| [@reformer/renderer-react](./packages/reformer-renderer-react)     | Schema-driven React renderer — TS `RenderSchema` → JSX                     | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
-| [@reformer/renderer-json](./packages/reformer-renderer-json)       | JSON-based renderer — `JsonFormSchema` + component registry                | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
-| [@reformer/mcp](./packages/reformer-mcp)                           | MCP server — provides docs, recipes and JSDoc symbols to AI assistants     | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
+| Package                                                        | Description                                                            | Version                                                                                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [@reformer/core](./packages/reformer)                          | Core form state management with signals-based architecture             | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
+| [@reformer/cdk](./packages/reformer-cdk)                       | Headless compound components — `FormArray`, `FormWizard`, `FormField`  | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
+| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | Styled form components built on Tailwind CSS + Radix UI                | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
+| [@reformer/renderer-react](./packages/reformer-renderer-react) | Schema-driven React renderer — TS `RenderSchema` → JSX                 | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
+| [@reformer/renderer-json](./packages/reformer-renderer-json)   | JSON-based renderer — `JsonFormSchema` + component registry            | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
+| [@reformer/mcp](./packages/reformer-mcp)                       | MCP server — provides docs, recipes and JSDoc symbols to AI assistants | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
 
 ## Features
 
@@ -266,7 +266,9 @@ import { FormArray } from '@reformer/cdk/form-array';
       <div key={control.id}>
         <h4>Item #{index + 1}</h4>
         <ItemFields control={control} />
-        <button type="button" onClick={remove}>Remove</button>
+        <button type="button" onClick={remove}>
+          Remove
+        </button>
       </div>
     )}
   </FormArray.List>
@@ -304,7 +306,9 @@ const wizardConfig: FormWizardConfig<MyForm> = {
     {({ prev, next, submit, isFirstStep, isLastStep, isValidating, isSubmitting }) => (
       <>
         {!isFirstStep && (
-          <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>
+          <button onClick={prev.onClick} disabled={prev.disabled}>
+            Back
+          </button>
         )}
         {!isLastStep ? (
           <button onClick={next.onClick} disabled={next.disabled}>
@@ -372,14 +376,12 @@ function createLoginRenderSchema(form: FormProxy<LoginForm>): RenderSchemaFn<Log
   return (path) => ({
     component: FormRoot,
     componentProps: { form }, // captured via closure — propagates to all field children
-    children: [                // NB: `children` is a top-level node property, NOT in componentProps
+    children: [
+      // NB: `children` is a top-level node property, NOT in componentProps
       {
         component: Box,
         componentProps: { className: 'space-y-4' },
-        children: [
-          { component: path.email },
-          { component: path.password },
-        ],
+        children: [{ component: path.email }, { component: path.password }],
       },
     ],
   });
@@ -423,10 +425,7 @@ schema. The live `form` instance is captured in the registry via a closure on a 
 ```tsx
 import { useMemo, type ReactNode } from 'react';
 import { createForm, type FormProxy, type FormFields } from '@reformer/core';
-import {
-  RenderNodeComponent,
-  type RenderNode,
-} from '@reformer/renderer-react';
+import { RenderNodeComponent, type RenderNode } from '@reformer/renderer-react';
 import {
   JsonFormRenderer,
   JsonRendererProvider,
@@ -448,8 +447,18 @@ const jsonSchema: JsonFormSchema = {
         component: 'Box',
         componentProps: { className: 'space-y-4' },
         children: [
-          { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email', type: 'email' } },
-          { selector: 'password', model: 'password', component: 'InputPassword', componentProps: { label: 'Password' } },
+          {
+            selector: 'email',
+            model: 'email',
+            component: 'Input',
+            componentProps: { label: 'Email', type: 'email' },
+          },
+          {
+            selector: 'password',
+            model: 'password',
+            component: 'InputPassword',
+            componentProps: { label: 'Password' },
+          },
         ],
       },
     ],
@@ -485,13 +494,13 @@ function LoginPage() {
   const registry = useMemo(
     () =>
       defineRegistry((reg) => {
-        reg.container('FormRoot', (props: { children: RenderNode<LoginForm>[] }) => (
+        reg.component('FormRoot', (props: { children: RenderNode<LoginForm>[] }) => (
           <FormRoot {...props} form={form} />
         ));
-        reg.container('Box', Box);
-        reg.field('Input', Input);
-        reg.field('InputPassword', InputPassword);
-        reg.container(FIELD_WRAPPER, FormField);
+        reg.component('Box', Box);
+        reg.component('Input', Input);
+        reg.component('InputPassword', InputPassword);
+        reg.component(FIELD_WRAPPER, FormField);
       }),
     [form]
   );

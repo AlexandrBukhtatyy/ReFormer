@@ -2,173 +2,114 @@
 
 ## Purpose
 
-`resetWhen` сбрасывает значение поля и его `dirty/touched`-флаги при выполнении условия от формы. Это альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но содержимое нужно очистить (например, переключение типа оплаты обнуляет «номер карты», но поле всё ещё доступно для ручного ввода). По умолчанию пишет `null`; через `resetValue` задаётся произвольное значение, через `onlyIfDirty` — пропуск нетронутых пользователем полей.
+`resetWhen` сбрасывает значение поля к `resetValue`, когда `condition` истинно. Это
+альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но
+содержимое нужно очистить (например, переключение способа оплаты обнуляет «номер карты», но
+поле по-прежнему доступно). По умолчанию пишет `null`; `resetValue` задаёт произвольное значение.
 
 ## API
 
+Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
+
 ```typescript
-function resetWhen<TForm extends FormFields>(
-  field: FieldPathNode<TForm, FormValue>,
-  condition: (form: TForm) => boolean,
-  options?: ResetWhenOptions & { debounce?: number }
-): void;
+// примитив: возвращает cleanup
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: T }): () => void;
 
-interface ResetWhenOptions {
-  /** Значение, в которое сбрасывается поле. По умолчанию null. */
-  resetValue?: FormValue;
-
-  /** Сбрасывать только если поле dirty (пользователь его трогал). */
-  onlyIfDirty?: boolean;
-}
+// DSL: cleanup управляется формой
+function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { resetValue?: T }): void;
 ```
 
-После сброса `markAsPristine()` и `markAsUntouched()` вызываются автоматически.
+`target` — сигнал (`model.$.field`). `condition` — реактивное условие (читает `model.*`).
+`resetValue` по умолчанию `null`. Опций `onlyIfDirty`/`debounce` нет; флаги dirty/touched
+поля не трогаются оператором (значения принадлежат модели).
 
 ## Examples
 
 ### Базовый сценарий — сброс номера карты при смене способа оплаты
 
 ```typescript
-import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, resetWhen } from '@reformer/core/behaviors';
 
-interface CheckoutForm {
-  paymentType: 'card' | 'cash';
-  cardNumber: string;
-}
+type CheckoutForm = { paymentType: 'card' | 'cash'; cardNumber: string };
 
-export const checkoutBehavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
-  resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', {
-    resetValue: '',
-  });
-};
+export const checkoutBehavior = defineFormBehavior<CheckoutForm>(({ model }) => {
+  resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
+});
 ```
 
-Source: `BehaviorsExamples.tsx:243-245` (monorepo example).
+Source: `BehaviorsExamples.tsx` (monorepo example): `resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' })`.
 
-### С `resetValue` для числовых полей
+### resetValue для числовых полей
 
 ```typescript
-import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, resetWhen } from '@reformer/core/behaviors';
 
-interface MortgageForm {
-  loanType: 'mortgage' | 'consumer' | 'car';
-  propertyValue: number;
-  initialPayment: number;
-}
+type MortgageForm = { propertyValue: number | null; initialPayment: number };
 
-export const mortgageBehavior: BehaviorSchemaFn<MortgageForm> = (path) => {
+export const mortgageBehavior = defineFormBehavior<MortgageForm>(({ model }) => {
   // initialPayment теряет смысл без propertyValue — сбрасываем в 0
-  resetWhen(path.initialPayment, (form) => !form.propertyValue, {
-    resetValue: 0,
-  });
-};
+  resetWhen(model.$.initialPayment, () => !model.propertyValue, { resetValue: 0 });
+});
 ```
 
-### `onlyIfDirty` — не трогаем нетронутое поле
+### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { resetWhen, type BehaviorSchemaFn } from '@reformer/core/behaviors';
-
-interface CarForm {
-  loanType: 'mortgage' | 'car' | 'consumer';
-  carPrice: number;
-}
-
-export const carBehavior: BehaviorSchemaFn<CarForm> = (path) => {
-  // Если пользователь ещё не вводил carPrice, не сбрасываем (не сломаем default)
-  resetWhen(path.carPrice, (form) => form.loanType !== 'car', {
-    resetValue: null,
-    onlyIfDirty: true,
-  });
-};
-```
-
-### С `apply([...])` — общая логика для нескольких блоков
-
-```typescript
-import { resetWhen, apply, type BehaviorSchemaFn } from '@reformer/core/behaviors';
-
-interface AddressBlock {
-  enabled: boolean;
-  city: string;
-  street: string;
-}
-
-const addressResetBehavior: BehaviorSchemaFn<AddressBlock> = (path) => {
-  resetWhen(path.city, (form) => !form.enabled, { resetValue: '' });
-  resetWhen(path.street, (form) => !form.enabled, { resetValue: '' });
-};
-
-interface ProfileForm {
-  homeAddress: AddressBlock;
-  workAddress: AddressBlock;
-}
-
-export const profileBehavior: BehaviorSchemaFn<ProfileForm> = (path) => {
-  apply([path.homeAddress, path.workAddress], addressResetBehavior);
-};
+import { resetWhen } from '@reformer/core';
+const stop = resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
 ## Anti-patterns
 
 ```typescript
 // ❌ resetWhen вместо enableWhen для disable-сценария
-resetWhen(path.field, (form) => !form.show);
-// поле останется enabled и валидируемым, ошибка required всё равно прилетит
+resetWhen(model.$.field, () => !model.show);
+// поле останется enabled и валидируемым — ошибка required всё равно прилетит
 
-// ✅ Если поле должно «исчезнуть», блокируем + сбрасываем
-enableWhen(path.field, (form) => form.show, { resetOnDisable: true });
-```
-
-```typescript
-// ❌ Сложная логика «обновить + сбросить» через ручной watchField + setValue
-watchField(path.type, (_v, ctx) => {
-  ctx.form.dependent.setValue(null);
-  ctx.form.dependent.markAsPristine(); // забыли markAsUntouched? валидация не очистится
-});
-
-// ✅ resetWhen делает все три действия атомарно
-resetWhen(path.dependent, (form) => form.type !== 'expected', { resetValue: null });
+// ✅ Если поле должно «исчезнуть» — блокируем + сбрасываем
+enableWhen(model.$.field, () => model.show, { resetOnDisable: true });
 ```
 
 ```typescript
 // ❌ resetValue с типом, отличным от поля
-resetWhen(path.amount, (form) => form.skipPayment, { resetValue: 'none' });
-// рантайм-несовпадение типов: amount: number ← string
+resetWhen(model.$.amount, () => model.skipPayment, { resetValue: 'none' }); // amount: number ← string
 
-// ✅ resetValue должен быть валидным значением для FieldNode
-resetWhen(path.amount, (form) => form.skipPayment, { resetValue: 0 });
+// ✅ resetValue совместим с типом поля
+resetWhen(model.$.amount, () => model.skipPayment, { resetValue: 0 });
 ```
 
 ```typescript
-// ❌ Отсутствие resetValue для строкового поля
-resetWhen(path.cardNumber, (form) => form.paymentType !== 'card');
-// получит null, а Input ждёт string — отрисует undefined
+// ❌ Для строкового поля без resetValue прилетит null, а Input ждёт string
+resetWhen(model.$.cardNumber, () => model.paymentType !== 'card');
 
 // ✅ Явный resetValue для строк
-resetWhen(path.cardNumber, (form) => form.paymentType !== 'card', { resetValue: '' });
+resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
+```
+
+```typescript
+// ❌ condition читает саму цель — самотриггер (см. 22-cycle-detection.md)
+resetWhen(model.$.cardNumber, () => model.cardNumber !== '');
+
+// ✅ condition зависит только от независимого поля
+resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
 ## Troubleshooting
 
-**Q: Поле сбрасывается слишком часто, по любому изменению формы.**
-A: `resetWhen` подписан на `form.value.value` целиком — любое изменение формы прогоняет `condition`. Если ваш `condition` возвращает `true` стабильно, сброс происходит на каждом тике. Решение: добавьте проверку текущего значения в `condition` (`condition: (form) => form.type !== 'card' && form.cardNumber !== ''`) или поднимите `debounce`.
-
 **Q: Сброс не срабатывает, хотя `condition` возвращает true.**
-A: Опция `onlyIfDirty: true` пропустит сброс, если пользователь не трогал поле. Уберите `onlyIfDirty` или явно вызовите `field.markAsDirty()`.
+A: Проверьте, что behavior зарегистрирован (`createForm({ behavior })`) или примитив не отписан,
+и что `condition` читает реактивные поля (`model.*`), а не снимок `model.get()`.
 
-**Q: После сброса валидация продолжает показывать ошибку.**
-A: `resetWhen` зовёт `markAsUntouched()` — `error` остаётся, но в UI поле обычно ошибки скрыты до `touched`. Если нужна жёсткая очистка ошибки, дополнительно вызовите `field.validate()` после изменения зависимого поля или используйте `revalidateWhen`.
+**Q: Реактивная цепочка resetWhen → compute → resetWhen ломается.**
+A: Убедитесь, что `condition` не зависит от значения самого поля, иначе после сброса попадёте
+в новый триггер.
 
-**Q: Реактивная цепочка resetWhen → computeFrom → resetWhen ломается.**
-A: Убедитесь, что `condition` не зависит от значения **самого** поля, иначе после сброса вы попадёте в новый цикл. Сравните: `condition: (form) => form.type !== 'card'` (ок) vs `condition: (form) => form.cardNumber === ''` (плохо — самотриггер).
-
-**Q: Сбросить вложенную группу целиком — `resetValue: {}` не работает.**
-A: Для group-полей лучше использовать `field.reset()` напрямую через `watchField`, либо комбинацию `enableWhen({ resetOnDisable: true })`, которая правильно проходит по поддереву. `resetWhen` рассчитан на скалярные поля.
+**Q: Сбросить вложенную группу целиком?**
+A: `resetWhen` рассчитан на скалярные сигналы. Для группы используй `enableWhen({ resetOnDisable: true })`
+(проходит по поддереву) или `model.reset()` для сброса всей формы к initial-снимку.
 
 ## See also
 
 - [04-common-patterns.md](./04-common-patterns.md) — `enableWhen({ resetOnDisable: true })` как альтернатива
 - [23-copy-from.md](./23-copy-from.md) — копирование, у которого нет встроенного отката
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему `condition` не должен читать целевое поле
-- [11-async-watchfield.md](./11-async-watchfield.md) — низкоуровневый аналог через `watchField` + `setValue`

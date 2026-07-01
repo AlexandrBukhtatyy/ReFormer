@@ -4,62 +4,10 @@ on:
   push:
     branches: [develop]
   pull_request:
-    branches: [main]
+    # main — для promote develop → main; develop — чтобы feature → develop
+    # PR проверялись ДО merge (раньше PR в develop шли без CI).
+    branches: [main, develop]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Check formatting
-        run: npm run format:check
-
-      - name: Build @reformer/core
-        run: npm run build -w @reformer/core
-
-      - name: Run @reformer/core tests
-        run: npm run test -w @reformer/core
-
-      - name: Build @reformer/cdk
-        run: npm run build -w @reformer/cdk
-
-      - name: Run @reformer/cdk tests
-        run: npm run test -w @reformer/cdk
-
-      - name: Build @reformer/renderer-react
-        run: npm run build -w @reformer/renderer-react
-
-      - name: Run @reformer/renderer-react tests
-        run: npm run test -w @reformer/renderer-react
-
-      - name: Build @reformer/ui-kit
-        run: npm run build -w @reformer/ui-kit
-
-      - name: Run @reformer/ui-kit tests
-        run: npm run test -w @reformer/ui-kit
-
-      - name: Build @reformer/renderer-json
-        run: npm run build -w @reformer/renderer-json
-
-      - name: Run @reformer/renderer-json tests
-        run: npm run test -w @reformer/renderer-json
-
-      - name: Check generated form-schema is up to date
-        run: |
-          npm run gen:form-schema -w react-playground
-          git diff --exit-code -- 'projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
+    uses: ./.github/workflows/test.yml

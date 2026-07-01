@@ -25,8 +25,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Gate: ничего не публикуется, пока CI не зелёный (lint + format + build + tests).
+  # Тот же переиспользуемый workflow, что и в ci.yml — единый источник правды.
+  test:
+    uses: ./.github/workflows/test.yml
+
   release:
     name: Release ${{ matrix.workspace }}
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       # Sequential — гарантированно один semantic-release за раз; нет race

@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > JSON-based form renderer for @reformer ecosystem
-> Package: @reformer/renderer-json  •  Version: 5.0.2
+> Package: @reformer/renderer-json  •  Version: 6.0.0
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -33,180 +33,202 @@ import {
   JsonRendererProvider,
   defineRegistry,
   FIELD_WRAPPER,
+  convertJsonToM1Tree,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 ```
 
 ## 3. Quick Start
 
-> **CRITICAL gotchas** (renderer-json shares the renderer-react architecture):
->
-> 1. `getReformerForm` does NOT exist — use `createForm` from `@reformer/core`.
-> 2. `JsonFormRenderer` does NOT accept a `form` prop. `JsonFormRendererProps<T>` is `{ schema, renderBehavior?, onSchemaReady? }`. Field-nodes silently render as null unless the schema's root container is a user-defined component (registered with `__selfManagedChildren = true`) that takes the form via `componentProps` and forwards it down via `RenderNodeComponent`.
-> 3. The pattern mirrors renderer-react's FormRoot — see `@reformer/renderer-react/docs/llms/01-overview.md` for the full FormRoot snippet. Same component can be reused; just register it in the JSON registry under any name (e.g. `'FormRoot'`).
+Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Форма строится из той же JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель через `JsonRendererProvider` settings (`model`). `JsonFormRenderer` НЕ имеет `form`-пропа — это by-design: JSON статичен, модель runtime.
 
-Minimal working mount (closure pattern injecting form into the root):
+Минимальный рабочий монтаж:
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, type FormProxy, type FormFields } from '@reformer/core';
-import { Input, FormField } from '@reformer/ui-kit';
+import { createForm, createModel } from '@reformer/core';
+import { Input, Box, FormField } from '@reformer/ui-kit';
 import {
-  FormRenderer,
-  RenderNodeComponent,
-  createRenderSchema,
-  type RenderNode,
-  type RenderSchemaFn,
-} from '@reformer/renderer-react';
-import {
+  JsonFormRenderer,
+  JsonRendererProvider,
   defineRegistry,
   FIELD_WRAPPER,
-  createRenderSchemaFromJson,
+  convertJsonToM1Tree,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 
-type MyForm = FormFields & { email: string };
+type MyForm = { email: string };
 
-// 1. JSON schema — pure data, no React imports.
+// 1. JSON-схема — чистые данные, операторы-строки, никаких React-импортов.
 const jsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
-    component: 'FormRoot', // user-defined, registered below
+    component: '$component(Box)',
     children: [
-      { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email' } },
+      { selector: 'email', value: '$model(email)', component: '$component(Input)',
+        componentProps: { label: 'Email' } },
     ],
   },
 };
 
-// 2. FormRoot — same as renderer-react FormRoot. Forwards form to children.
-function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
-  return (
-    <>
-      {children.map((c, i) => (
-        <RenderNodeComponent key={i} node={c} form={form} />
-      ))}
-    </>
-  );
-}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(FormRoot as any).__selfManagedChildren = true;
-
-// 3. Registry maps string names from JSON to React components.
+// 2. Реестр: имена из JSON → React-компоненты.
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('FormRoot', FormRoot);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 
-// 4. Mount — closure factory wraps the JSON-derived RenderSchemaFn so the root receives form.
-function createMyFormSchema(form: FormProxy<MyForm>): RenderSchemaFn<MyForm> {
-  return (path) => {
-    const baseFn = createRenderSchemaFromJson<MyForm>(jsonSchema, registry);
-    const baseRoot = baseFn(path);
-    return { ...baseRoot, componentProps: { ...baseRoot.componentProps, form } };
-  };
-}
-
 function MyFormPage() {
-  const form = useMemo(
-    () => createForm<MyForm>({ form: { email: { value: '', component: Input } } }),
-    []
+  // 3. Модель + форма строятся ИЗ JSON-схемы (единая схема, без отдельной схемы формы).
+  const { model } = useMemo(() => {
+    const model = createModel<MyForm>({ email: '' });
+    createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+    return { model };
+  }, []);
+
+  // 4. Модель прокидывается через провайдер; JsonFormRenderer биндит листья к её сигналам.
+  return (
+    <JsonRendererProvider settings={{ registry, model }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} />
+    </JsonRendererProvider>
   );
-  const schema = useMemo(() => createRenderSchema<MyForm>(createMyFormSchema(form)), [form]);
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-**Why this shape and not `<JsonFormRenderer schema={schema}/>`?** `JsonFormRenderer` builds the proxy internally but has no way to inject your live `form` into the root container's `componentProps` — its job is purely the JSON-to-RenderSchema conversion. For any non-trivial form you need to inject `form` yourself, which is exactly what `createMyFormSchema(form)` above does. `JsonFormRenderer` works in demos where the schema's root is `<div>{children}</div>` (no form needed) but not for real form rendering.
+**Почему `model` через провайдер, а не `<JsonFormRenderer form={...}/>`?** Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером. Модель обязательна и передаётся через `JsonRendererProvider` settings — `JsonFormRenderer` без неё бросит `settings.model is required (M1)`. Сам рендерер принимает только `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
+
+Полный эталон с wizard, массивами и behavior — `CreditApplicationFormRendererJson` (monorepo example): модель и форма строятся `convertJsonToM1Tree`, поведение (compute/enableWhen/navigation) — общий `behavior`, а `renderBehavior` инжектит `form` в wizard через `onInit` + `patchProps`.
 
 ## 4. Key Concepts
 
-- **JSON-схема** — дерево `JsonNode`. Узлы делятся на **field** (привязаны к модели через `model`) и **container** (только layout, имеет `children`).
-- **Реестр** — карта строкового имени `component` в схеме на React-компонент. Без регистрации компонента схема не отрендерится.
-- **`FIELD_WRAPPER`** — специальное имя в реестре для компонента-обёртки полей (label, error). Обычно — `FormField` из `@reformer/ui-kit`.
-- **Source values** — именованные константы и функции, на которые можно ссылаться из `componentProps` строкой. Резолвятся реестром.
-- **Provider** — пробрасывает реестр и настройки во вложенные `JsonFormRenderer`.
+- **JSON-схема** — дерево `JsonNode` (см. [02-json-schema.md](02-json-schema.md)). Узлы: **field** (`value: '$model(...)'`), **array** (`array` + `item.$template`), **container** (`component` + `children`).
+- **Операторы** — строки `$model(path)` / `$component(Name)` / `$dataSource(NAME)`. Только они резолвятся; голые строки идут как есть.
+- **Модель (`model`)** — `FormModel`, источник данных. Передаётся в `JsonRendererProvider` settings; листья биндятся к её сигналам.
+- **Реестр** — карта имени из `$component(...)`/`$dataSource(...)` на React-компонент или source-значение. Без регистрации схема не сконвертируется (ошибка `Component "X" not found in registry`).
+- **`FIELD_WRAPPER`** — зарезервированный ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей (label, error, hint). Обычно `FormField` из `@reformer/ui-kit`.
+- **`convertJsonToM1Tree`** — конвертер JSON → RenderNode-дерево для `createForm({ model, schema })`.
+- **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается.
 
 ## 5. Components and exports
 
-| Export                           | Purpose                                                             |
-| -------------------------------- | ------------------------------------------------------------------- |
-| `JsonFormRenderer`               | Главный компонент-рендерер схемы.                                   |
-| `JsonRendererProvider`           | Контекст-провайдер: реестр и настройки.                             |
-| `useJsonRendererSettings`        | Хук для чтения текущих настроек контекста.                          |
-| `defineRegistry`                 | Builder реестра компонентов и source-значений.                      |
-| `FIELD_WRAPPER`                  | Ключ реестра для компонента-обёртки полей.                          |
-| `JsonFormSchema`, `JsonNode`     | Типы JSON-схемы.                                                    |
-| `isFieldNode`, `isContainerNode` | Type guards для работы с узлами.                                    |
-| `createRenderSchemaFromJson`     | Низкоуровневый конвертер JSON → render-schema (advanced use cases). |
+| Export                                          | Purpose                                                                    |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, renderBehavior?, onSchemaReady?, validate? }`. |
+| `JsonRendererProvider`                          | Контекст-провайдер: реестр (`registry`), модель (`model`), настройки.       |
+| `useJsonRendererSettings`                       | Хук для чтения текущих настроек контекста.                                  |
+| `defineRegistry`                                | Builder реестра компонентов и dataSource-значений.                         |
+| `FIELD_WRAPPER`                                 | Ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей.              |
+| `JsonFormSchema`, `JsonNode`                    | Типы JSON-схемы (`JsonFieldNode`/`JsonArrayNode`/`JsonContainerNode`).      |
+| `isFieldNode`, `isArrayNode`, `isContainerNode` | Type guards для узлов.                                                      |
+| `parseOperator`, `isModelOp`, `isComponentOp`, `isDataSourceOp` | Разбор и type-guards строк-операторов.                      |
+| `ModelOp`, `ComponentOp`, `DataSourceOp`        | Template-literal типы операторов.                                          |
+| `convertJsonToM1Tree`                           | JSON → сырое RenderNode-дерево (для `createForm({ model, schema })`).       |
+| `createRenderSchemaFromJsonM1`                  | JSON → `RenderSchemaFn` (низкоуровневый, для `FormRenderer`/`JsonFormRenderer`). |
+| `SchemaErrorPanel`                              | Панель ошибок валидации схемы (рисуется при `validate` + невалидной схеме). |
+| `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames` | Мета-схема form-DSL + утилиты (ajv-free). |
+
+> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). `JsonFormRenderer` грузит её динамически при `validate={true}`.
 
 ## 6. See also
 
-- [02-json-schema.md](02-json-schema.md) — формат `JsonFormSchema` и `JsonNode`.
+- [02-json-schema.md](02-json-schema.md) — формат `JsonFormSchema`/`JsonNode` и синтаксис операторов.
 - [03-registry.md](03-registry.md) — как наполнять реестр.
 - [04-troubleshooting.md](04-troubleshooting.md) — частые ошибки.
+- [05-cookbook.md](05-cookbook.md) — массивы, dataSource-функции, миграция из TS RenderSchema.
 - Эталонный пример: `CreditApplicationFormRendererJson` (monorepo example).
 
 ## 7. Key Concepts
 
-- **`JsonFormSchema`** — корневой документ. Содержит `version` и единственный корневой узел `root`.
-- **`JsonNode`** — узел дерева. Различаются два вида:
-  - **field-node** — имеет `model` (путь до поля в форме) и `component` (имя в реестре). Не имеет `children`.
-  - **container-node** — имеет `component` и `children`. Не имеет `model`.
-- **`selector`** — необязательный ID узла. Используется только для адресации в `RenderBehavior` (`hideWhen`, `patchProps`). Не путать с путём поля.
-- **`componentProps`** — что прокидывается в React-компонент. Поддерживает строки-ссылки на source-значения из реестра.
+- **`JsonFormSchema`** — корневой документ: `version` (для миграций), опциональный `$schema` (путь к мета-схеме для IDE), единственный корневой узел `root`.
+- **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
+  - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`.
+  - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить»).
+  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` + опциональные `children`.
+- **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
+  - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
+  - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
+  - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
+- **`selector`** — plain-строка, id узла для render-behavior (`schema.node('…')`, `hideWhen`, `patchProps`). **Не** путь модели.
+- **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
 
 ## 8. Type Guards
 
+Порядок важен: `isArrayNode` проверяй **первым** (array-node тоже несёт `$model`, но в поле `array`).
+
 ```typescript
-import { isFieldNode, isContainerNode, type JsonNode } from '@reformer/renderer-json';
+import { isArrayNode, isFieldNode, isContainerNode, type JsonNode } from '@reformer/renderer-json';
 
 function inspect(node: JsonNode) {
-  if (isFieldNode(node)) {
-    // node.model: string, node.component: string
-  }
-  if (isContainerNode(node)) {
-    // node.children: JsonNode[]
+  if (isArrayNode(node)) {
+    // node.array: '$model(...)', node.item.$template: JsonNode
+  } else if (isFieldNode(node)) {
+    // node.value: '$model(...)', node.component?: '$component(...)'
+  } else if (isContainerNode(node)) {
+    // node.component: '$component(...)', node.children?: JsonNode[]
   }
 }
 ```
 
 ## 9. Examples
 
-Минимальная схема с одним полем:
+Минимальная схема с одним полем (лист `value` + контейнер `Box`):
 
 ```typescript
+import type { JsonFormSchema } from '@reformer/renderer-json';
+
 const schema: JsonFormSchema = {
   version: '1.0',
   root: {
-    component: 'Box',
+    component: '$component(Box)',
     children: [
-      { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email' } },
+      {
+        selector: 'email',
+        value: '$model(email)',
+        component: '$component(Input)',
+        componentProps: { label: 'Email' },
+      },
     ],
   },
 };
 ```
 
-Вложенный путь к полю:
-
-```typescript
-{ model: 'personalData.firstName', component: 'Input' }
-```
-
-Массив с шаблоном для каждого элемента (`$template`):
+Вложенный путь к полю и ссылка на dataSource-константу в `componentProps`:
 
 ```typescript
 {
-  selector: 'properties',
-  model: 'properties',
-  component: 'PropertyArray',
+  value: '$model(personalData.firstName)',
+  component: '$component(Input)',
+}
+
+{
+  value: '$model(loanType)',
+  component: '$component(Select)',
+  componentProps: { label: 'Тип кредита', options: '$dataSource(LOAN_TYPES)' },
+}
+```
+
+Массив с шаблоном элемента (`array` + `item.$template` + `initialValue`). Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** массива:
+
+```typescript
+{
+  selector: 'properties-array',
+  array: '$model(properties)',
+  initialValue: { type: 'apartment', description: '', estimatedValue: 0, hasEncumbrance: false },
   componentProps: {
-    itemComponent: {
-      $template: {
-        component: 'Box',
-        children: [
-          { selector: 'name', model: 'name', component: 'Input' },
-        ],
-      },
+    title: 'Имущество',
+    addButtonLabel: '+ Добавить имущество',
+    itemLabel: '$dataSource(PROPERTY_ITEM_LABEL_SOURCE_FN)',
+  },
+  item: {
+    $template: {
+      component: '$component(Box)',
+      componentProps: { className: 'space-y-3' },
+      children: [
+        { value: '$model(type)', component: '$component(Select)',
+          componentProps: { label: 'Тип', options: '$dataSource(PROPERTY_TYPES)' } },
+        { value: '$model(estimatedValue)', component: '$component(Input)',
+          componentProps: { label: 'Стоимость', type: 'number' } },
+      ],
     },
   },
 }
@@ -214,30 +236,31 @@ const schema: JsonFormSchema = {
 
 ## 10. Anti-patterns
 
-- **Смешивать `model` и `children` в одном узле** — `model` приоритетнее, `children` будут проигнорированы.
-- **Использовать `selector` как путь к полю** — `selector` это ID для behavior, путь задаётся только через `model`.
-- **Опускать `version`** — обязательно `'1.0'`.
-- **Регистрировать source как обычный компонент** — source-ссылки строкой работают только если значение зарегистрировано через `reg.source(...)`.
+- **Голые строки вместо операторов** — `component: 'Input'` или `value: 'email'` не резолвятся. Нужны операторы: `component: '$component(Input)'`, `value: '$model(email)'`. Template-literal типы (`ModelOp`/`ComponentOp`) отловят это на этапе компиляции.
+- **Использовать `selector` как путь к полю** — `selector` это id для behavior; путь задаётся только через `value`/`array` оператором `$model(...)`.
+- **Забыть `item.$template` у массива** — array-node требует `array` **и** `item: { $template }`. Без `$template` `isArrayNode` вернёт false и узел не отрендерится как массив.
+- **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения.
+- **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validate` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
 
 ## 11. See also
 
-- [03-registry.md](03-registry.md) — какие компоненты можно зарегистрировать.
-- [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts).
+- [01-overview.md](01-overview.md) — как схема монтируется через `model` + `JsonRendererProvider`.
+- [03-registry.md](03-registry.md) — какие компоненты и source можно зарегистрировать.
+- [05-cookbook.md](05-cookbook.md) — `$template`, dataSource-функции, миграция из TS RenderSchema.
+- [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [операторы](../../src/operators.ts).
 
 ## 12. Key Concepts
 
-- **field component** — компонент, который привязывается к полю формы (через `model`). Регистрируется через `reg.field(name, Component)`.
-- **container component** — компонент-обёртка, рендерит `children`. Регистрируется через `reg.container(name, Component)`.
-- **source value** — именованная константа или функция, на которую можно ссылаться строкой из `componentProps`. Регистрируется через `reg.source(name, value)`.
-- **`FIELD_WRAPPER`** — зарезервированное имя для контейнера-обёртки полей (label, error, hint). Обычно регистрируется как `FormField` из `@reformer/ui-kit`.
+- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `value: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`value` vs `children`), а не тем, как компонент зарегистрирован.
+- **dataSource value** — именованная константа, функция или React-компонент, на которые ссылаются строкой `'$dataSource(NAME)'` из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
+- **`FIELD_WRAPPER`** — зарезервированное имя (`'$fieldWrapper'`) для контейнера-обёртки полей (label, error, hint). Обычно регистрируется как `FormField` из `@reformer/ui-kit`.
 
 ## 13. Builder API
 
 | Method                           | Purpose                                               |
 | -------------------------------- | ----------------------------------------------------- |
-| `reg.field(name, Component)`     | Регистрирует field-компонент.                         |
-| `reg.container(name, Component)` | Регистрирует container-компонент.                     |
-| `reg.source(name, value)`        | Регистрирует source-значение (константу или функцию). |
+| `reg.component(name, Component)` | Регистрирует компонент (лист или контейнер — роль решает структура узла). |
+| `reg.dataSource(name, value)`    | Регистрирует dataSource-значение (константу или функцию). |
 
 ## 14. Examples
 
@@ -245,49 +268,55 @@ const schema: JsonFormSchema = {
 
 ```typescript
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import { Input, Select, FormField } from '@reformer/ui-kit';
+import { Input, Select, Box, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.field('Select', Select);
-  reg.container(FIELD_WRAPPER, FormField);
-  reg.container('Box', ({ children }) => <div>{children}</div>);
+  reg.component('Input', Input);
+  reg.component('Select', Select);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
-Source values для `componentProps`:
+dataSource values для `componentProps` (в схеме — ссылка `'$dataSource(NAME)'`):
 
 ```typescript
 const registry = defineRegistry((reg) => {
-  reg.field('Select', Select);
-  reg.source('LOAN_TYPES', [
+  reg.component('Select', Select);
+  reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
   ]);
 });
 
-// В JSON-схеме:
-{ model: 'loanType', component: 'Select', componentProps: { options: 'LOAN_TYPES' } }
+// В JSON-схеме (лист + операторы):
+{
+  value: '$model(loanType)',
+  component: '$component(Select)',
+  componentProps: { options: '$dataSource(LOAN_TYPES)' },
+}
 ```
 
 ## 15. Anti-patterns
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
-- **Регистрировать React-element вместо компонента** — `reg.field('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.field('Input', Input)`.
+- **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
 - **Ожидать наследования между вложенными `JsonRendererProvider`** — реестр сливается через `withParent`, дубли решаются по приоритету (внешний > внутренний).
-- **Использовать source-ссылку в `componentProps` без регистрации** — строка просто прокинется в проп как есть.
+- **Использовать `$dataSource(NAME)` без регистрации** — без `validate` строка просто прокинется в проп как есть (молчаливый баг); с `validate` даст ошибку `unknown dataSource "NAME"`.
+- **Ссылаться на dataSource как на компонент** — `component: '$component(LoadingState)'`, где `LoadingState` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
 
 ## 16. See also
 
 - [01-overview.md](01-overview.md) — как реестр прокидывается через `JsonRendererProvider`.
-- [02-json-schema.md](02-json-schema.md) — где имена компонентов появляются в схеме.
+- [02-json-schema.md](02-json-schema.md) — где имена компонентов появляются в схеме (операторы `$component`/`$dataSource`).
 - Эталонный реестр: `registry.ts` (monorepo example).
 
 ## 17. Component "X" not found in registry
 
-Имя из `component` поля схемы не зарегистрировано в реестре. Проверь:
+Имя из оператора `$component(X)` (или `$dataSource(X)`) не зарегистрировано в реестре. Проверь:
 
-- `defineRegistry` действительно содержит `reg.field('X', ...)` или `reg.container('X', ...)`.
+- `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
+- В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
 - Если используются вложенные провайдеры — реестр внутреннего провайдера наследуется через `withParent`, но дубли разрешаются в пользу внешнего.
 
@@ -299,210 +328,137 @@ const registry = defineRegistry((reg) => {
 import { FIELD_WRAPPER } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 
-reg.container(FIELD_WRAPPER, FormField);
+reg.component(FIELD_WRAPPER, FormField);
 ```
 
-## 19. Cannot read field at path "..."
+## 19. No model signal for "..." / settings.model is required
 
-Путь в `model` не соответствует реальной структуре формы. Проверь:
+Два разных симптома одной причины — модель.
 
-- `model: 'personalData.firstName'` — поле `firstName` существует внутри `personalData` в `getReformerForm`.
-- Для массивов: индекс должен существовать на момент рендера, иначе `convertNode` бросит ошибку.
+- `JsonFormRenderer: settings.model is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её в `JsonRendererProvider settings={{ registry, model }}`.
+- `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `value: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в `createModel(...)` initial-значениях.
 
 ## 20. componentProps string passes through as plain string
 
-Строка в `componentProps` ссылается на source, но он не зарегистрирован. Используй `reg.source('NAME', value)` либо передавай значение объектом напрямую.
+Строка `'$dataSource(NAME)'` в `componentProps` ссылается на source, который не зарегистрирован — конвертер оставляет её как есть. Используй `reg.dataSource('NAME', value)` либо передавай значение литералом напрямую. Голые строки (без `$dataSource(...)`) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
 
 ## 21. useJsonRendererSettings throws outside provider
 
-`useJsonRendererSettings` работает только внутри `JsonRendererProvider`. Оберни вызывающий компонент в провайдер либо передай настройки в проп.
+`useJsonRendererSettings` в dev-режиме бросает, если вызван вне `JsonRendererProvider` **или** если в провайдере не передан `registry`. Оберни вызывающий компонент в провайдер с реестром.
 
-## 22. "version" missing in schema
+## 22. "version" missing / invalid schema (при validate)
 
-Поле `version` обязательно в `JsonFormSchema`. Сейчас единственное допустимое значение — `'1.0'`.
+`validate={true}` прогоняет схему через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под field/array/container (нет ни `value`, ни `array`+`item`, ни `component`), голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя. Ошибки рисуются в `SchemaErrorPanel` вместо формы. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
 
 ## 23. Behavior selector matches nothing
 
-`hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит behavior.
+`hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит behavior. `selector` — plain-строка, НЕ оператор.
 
 ## 24. $template inside array doesn't render rows
 
-Проверь:
+Массив — это array-node, а не container с `itemComponent`. Проверь:
 
-- Содержащий узел использует `model` для привязки к массиву формы.
-- `componentProps.itemComponent` действительно `{ $template: { ... } }`, а не сразу `JsonNode`.
-- Зарегистрирован контейнер-компонент (например `PropertyArray`), который умеет работать с `itemComponent`.
+- Узел использует `array: '$model(path)'` **и** `item: { $template: <JsonNode> }` (оба обязательны — иначе `isArrayNode` вернёт false).
+- Внутри `$template` пути `$model(...)` заданы **относительно элемента** (`value: '$model(type)'`, а не `'$model(properties[0].type)'`).
+- Есть `initialValue` (plain-литерал по форме элемента) — иначе кнопка «Добавить» создаст пустой элемент без сигналов для полей шаблона.
 
-## 25. TypeError: Cannot read properties of undefined (reading 'value') в `<FormField.Root>`
+## 25. Массив рендерится без строк / пустой при добавлении
 
-Симптомы: при toggle/click checkbox вся страница уходит в белый экран, в консоли — `TypeError: Cannot read properties of undefined (reading 'value')` + React unmount без error boundary.
+`initialValue` должен быть **полным** plain-объектом по форме элемента (все поля, что есть в `$template`). Если передать частичный объект (`{ type: 'apartment' }` без `estimatedValue`/`description`), под-модель нового элемента не получит сигналов для недостающих полей и они не отрендерятся. `initialValue` клонируется через `JSON.parse(JSON.stringify(...))` — только сериализуемые значения, никакого FieldConfig.
 
-Это **path mismatch** между схемой и FormProxy. Кастомный block-компонент (например `PropertiesArrayBlock`) вызвал `useFormControl(form.X.Y)` по пути, которого в форме нет (опечатка, или sub-form-схема изменена и поле уехало в другой шаг).
+## 26. Toggle-видимость секции массива
 
-Что проверить:
+Условный показ секции (напр. массив `properties` виден только когда `hasProperty === true`) делается **не** кастомным блоком, а через `renderBehavior`:
 
-1. Полный путь в `useFormControl(form.<step>.<field>)` совпадает с путём в `createForm({ form: { <step>: { <field>: ... } } })`.
-2. Если поле **должно жить в step5**, не помещай его в step4 ради «удобства группировки» — кастомный block, написанный под «toggle живёт в step5», крашится.
-3. Block ОБЯЗАН быть defensive:
-   ```tsx
-   function PropertiesArrayBlock({ form }: { form: FormProxy<MyForm> }) {
-     const ctrl = useFormControl(form.step5.hasProperty);
-     // Defensive null-check: путь мог не существовать, или контрол ещё не смонтирован.
-     const hasProperty = (ctrl as { value?: boolean } | undefined)?.value;
-     if (!hasProperty) return null;
-     // ... FormArray.Root ...
-   }
-   ```
-4. На уровне страницы оборачивай `<FormRenderer>` в React error boundary (минимум — `componentDidCatch` со fallback `<div>Ошибка рендера</div>`), чтобы один падающий блок не уносил весь React-tree.
+```typescript
+import { hideWhen } from '@reformer/renderer-react';
 
-> Это **самый частый crash** в кастомных блоках — добавляй defensive optional chaining (`?.`) на каждое чтение `useFormControl(...)?.value` / `useArrayLength(...)?.length`.
+const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
+  hideWhen(schema.node('properties-array'), () => model.signalAt('hasProperty').value !== true);
+};
+```
 
-## 26. See also
+`renderBehavior` передаётся пропом в `JsonFormRenderer`; узел адресуется по своему `selector`.
+
+## 27. See also
 
 - [01-overview.md](01-overview.md)
 - [02-json-schema.md](02-json-schema.md)
 - [03-registry.md](03-registry.md)
+- [05-cookbook.md](05-cookbook.md)
 
-## 27. JsonFormApp — компактная обёртка closure pattern { #json-form-app }
+## 28. Монтаж формы из JSON (M1) { #mounting }
 
-**Problem.** `JsonFormRenderer` сам по себе НЕ принимает `form` prop (это by-design — JSON-схема статична, форма runtime). Каноничный mounting через closure pattern требует ~40-80 LOC boilerplate: `FormRoot.__selfManagedChildren = true`, `createRenderSchemaFromJson`, `createRenderSchema`, `<FormRenderer>` с `componentProps={{ form }}`.
+**Problem.** JSON-схема статична, а данные и форма — runtime. Нужно связать их без React-glue на каждой странице.
 
-**Solution.** Скопируй компактную обёртку в свой проект (~35 LOC). Принимает **callback** для `defineRegistry`, не готовый `registry` — это согласуется с public API `ComponentRegistry` (read-only: get/has/names; нет публичного `clone()` или mutation).
+**Solution.** Модель (`FormModel`) — источник данных, форма строится из **той же** JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель через `JsonRendererProvider` settings. `JsonFormRenderer` не имеет `form`-пропа (by-design).
 
 ```tsx
-import { useMemo, type ComponentType, type ReactNode } from 'react';
-import type { FormProxy } from '@reformer/core';
+import { useMemo } from 'react';
+import { createForm, createModel } from '@reformer/core';
 import {
-  FormRenderer,
-  RenderNodeComponent,
-  createRenderSchema,
-  type RenderNode,
-} from '@reformer/renderer-react';
-import {
-  defineRegistry,
-  createRenderSchemaFromJson,
+  JsonFormRenderer,
+  JsonRendererProvider,
+  convertJsonToM1Tree,
   type JsonFormSchema,
-  type RegistryBuilder,
 } from '@reformer/renderer-json';
+import rawJsonSchema from './json-schema.json';
+import { createRegistry } from './registry';
 
-// FormRoot принимает form через componentProps closure и пробрасывает в children.
-function FormRoot<T>({
-  form,
-  children,
-}: {
-  form: FormProxy<T>;
-  children?: RenderNode<T>[];
-}): ReactNode {
+const jsonSchema = rawJsonSchema as unknown as JsonFormSchema; // «схема пришла строкой»
+
+export function MyFormPage() {
+  const registry = useMemo(() => createRegistry(), []);
+  const { model } = useMemo(() => {
+    const model = createModel<MyForm>(initialValues);
+    // Форма строится из JSON: конвертер биндит листья к сигналам модели.
+    createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+    return { model };
+  }, [registry]);
+
   return (
-    <>
-      {children?.map((node, i) => (
-        <RenderNodeComponent key={i} node={node} form={form} />
-      ))}
-    </>
+    <JsonRendererProvider settings={{ registry, model }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} validate={import.meta.env.DEV} />
+    </JsonRendererProvider>
   );
 }
-// Маркер для converter — не итерировать children сам, FormRoot управляет ими.
-(FormRoot as unknown as { __selfManagedChildren: boolean }).__selfManagedChildren = true;
-
-interface JsonFormAppProps<T> {
-  schema: JsonFormSchema;
-  form: FormProxy<T>;
-  /**
-   * Callback для регистрации твоих field/container/source. JsonFormApp сам
-   * добавит `FormRoot` container поверх — твой код не должен этого делать.
-   */
-  buildRegistry: (reg: RegistryBuilder) => void;
-  fieldWrapper?: ComponentType<{ control: unknown }>;
-}
-
-export function JsonFormApp<T>({
-  schema,
-  form,
-  buildRegistry,
-  fieldWrapper,
-}: JsonFormAppProps<T>): ReactNode {
-  // Собираем registry с нуля: пользовательские компоненты + FormRoot
-  const registry = useMemo(
-    () =>
-      defineRegistry((reg) => {
-        buildRegistry(reg);
-        reg.container('FormRoot', FormRoot as ComponentType<unknown>);
-      }),
-    [buildRegistry]
-  );
-
-  const renderSchema = useMemo(() => {
-    const fn = createRenderSchemaFromJson<T>(schema, registry);
-    return createRenderSchema<T>(fn);
-  }, [schema, registry]);
-
-  return <FormRenderer render={renderSchema} settings={{ fieldWrapper }} />;
-}
 ```
 
-В JSON-схеме root должен быть `FormRoot`:
+**Notes.**
 
-```json
-{
-  "version": "1.0",
-  "root": {
-    "component": "FormRoot",
-    "children": [{ "selector": "email", "model": "email", "component": "Input" }]
-  }
-}
-```
+- `convertJsonToM1Tree` бросает при битой схеме (неизвестный `$component`) **до** рендера. Оберни в try/catch, если хочешь показать `SchemaErrorPanel` вместо краша (см. `buildModelAndForm` в эталоне).
+- `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет; приложение передаёт значение из своего окружения.
+- Поведение (compute/enableWhen/navigation) идёт в `createForm({ behavior })`; render-behavior (hideWhen/patchProps/onInit) — отдельным пропом `renderBehavior`.
 
-Использование:
+## 29. $template для массивов { #template-arrays }
 
-```tsx
-import { Input, Select, Box, FormField } from '@reformer/ui-kit';
+**Problem.** В JSON нельзя выразить функцию `(itemPath) => RenderNode` для item-шаблона. Массив должен остаться декларативным.
 
-const buildRegistry = (reg: RegistryBuilder) => {
-  reg.field('Input', Input);
-  reg.field('Select', Select);
-  reg.container('Box', Box);
-  reg.source('LOAN_TYPES', LOAN_TYPES);
-  // ...твои field/container/source. FormRoot добавляется JsonFormApp'ом сам.
-};
-
-<JsonFormApp
-  schema={jsonSchema}
-  form={form}
-  buildRegistry={buildRegistry}
-  fieldWrapper={FormField}
-/>;
-```
-
-**Note**: эта обёртка **app-level** (~30 LOC), не shipped библиотекой — design tradeoff между ergonomic API и flexibility (см. issue G3-iter15). Для большинства проектов `<JsonFormApp>` достаточно; для нестандартных layout'ов используй raw closure pattern (см. [01-overview.md](01-overview.md)).
-
-## 28. $template для массивов { #template-arrays }
-
-**Problem.** В JSON нельзя выразить функцию `(itemPath) => RenderNode`, которая нужна для item-шаблона `RendererFormArraySection`/любого FormArray-контейнера. JSON остаётся декларативным, шаблон — декларативным.
-
-**Solution.** Любой проп со значением `{ $template: <JsonNode> }` конвертер оборачивает в функцию `(itemPath, ...) => RenderNode`. Внутри шаблона `selector` (или `model`) указывает путь **относительно `itemPath`**, переданного контейнером — типичный кейс для `Property`, `ExistingLoan`, `CoBorrower`.
+**Solution.** Array-node несёт `array: '$model(path)'` + `item: { $template: <JsonNode> }` + `initialValue`. Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** массива. Массивы под M1 рендерятся native-веткой конвертера (`{ array, item }`) — отдельный контейнер-компонент не нужен.
 
 ```typescript
 {
   selector: 'properties-array',
-  component: 'RendererFormArraySection',
+  array: '$model(properties)',
+  initialValue: { type: 'apartment', description: '', estimatedValue: 0, hasEncumbrance: false },
   componentProps: {
     title: 'Имущество',
-    control: 'properties',                // string → FieldPathNode (см. рецепт ниже)
-    itemLabel: 'PROPERTY_ITEM_LABEL_SOURCE_FN',
     addButtonLabel: '+ Добавить имущество',
-    itemComponent: {
-      $template: {
-        component: 'Box',
-        componentProps: { className: 'space-y-3' },
-        children: [
-          { selector: 'type', component: 'Select',
-            componentProps: { label: 'Тип', options: 'PROPERTY_TYPES' } },
-          { selector: 'description', component: 'Textarea',
-            componentProps: { label: 'Описание', rows: 2 } },
-          { selector: 'estimatedValue', component: 'Input',
-            componentProps: { label: 'Стоимость', type: 'number' } },
-        ],
-      },
+    itemLabel: '$dataSource(PROPERTY_ITEM_LABEL_SOURCE_FN)',
+    emptyMessage: 'Нажмите "Добавить имущество"',
+  },
+  item: {
+    $template: {
+      component: '$component(Box)',
+      componentProps: { className: 'space-y-3' },
+      children: [
+        { value: '$model(type)', component: '$component(Select)',
+          componentProps: { label: 'Тип', options: '$dataSource(PROPERTY_TYPES)' } },
+        { value: '$model(estimatedValue)', component: '$component(Input)',
+          componentProps: { label: 'Стоимость', type: 'number' } },
+        { value: '$model(description)', component: '$component(Textarea)',
+          componentProps: { label: 'Описание', rows: 2 } },
+      ],
     },
   },
 }
@@ -510,481 +466,153 @@ const buildRegistry = (reg: RegistryBuilder) => {
 
 **Notes.**
 
-- Резолв пути работает так: `transformPropValue` встречает `{ $template }` и возвращает `(...args) => convertNode(template, args[0], registry)`. `args[0]` — `FieldPath<Item>`, который контейнер обязан передать первым аргументом (это контракт `RendererFormArraySection`).
-- Внутри template путь к полю задаётся через `selector` без префикса parent-пути (`'type'`, не `'properties[0].type'`). Конвертер достаёт `itemPath.type` из переданного `args[0]`.
-- В template можно вкладывать любые контейнеры (`Box`, `Section`, под-таблицы), но не другой `$template`-уровень того же массива — для вложенного массива нужен новый `RendererFormArraySection` с своим `$template`.
-- Если сам контейнер не получает `itemPath` первым аргументом (нестандартный компонент) — `$template` всё равно сработает, но `selector` внутри будет резолвиться от корня формы; обычно это не то, что нужно.
-- Эталон: блок `properties-array` в `json-schema.ts` (monorepo example).
+- `array` **и** `item.$template` обязательны оба — иначе узел не считается array-node (`isArrayNode`).
+- `initialValue` — полный plain-объект по форме элемента (все поля из `$template`). Клонируется через `JSON.parse(JSON.stringify(...))`; не FieldConfig. Частичный `initialValue` → у нового элемента нет сигналов для недостающих полей.
+- Внутри `$template` пути относительны элементу (`'$model(type)'`, а не `'$model(properties[0].type)'`).
+- Вложенный массив в массиве — новый array-node внутри `$template` со своим `array`/`item`.
+- Эталон: блоки `properties`/`existingLoans`/`coBorrowers` в `json-schema.json` (monorepo example).
 
-## 29. Source-функции
+## 30. dataSource-значения и функции { #datasource }
 
-**Problem.** Нужно передать в проп функцию (например `itemLabel: (form, index) => string`) или React-компонент (`LoadingComponent: LoadingState`) — а JSON хранит только примитивы и объекты.
+**Problem.** Нужно передать в проп массив options, функцию (`itemLabel: (form, index) => string`) или React-компонент (`LoadingComponent`) — а JSON хранит только примитивы и объекты.
 
-**Solution.** Регистрируешь значение через `reg.source('NAME', value)`, в JSON-схеме ссылаешься строкой. Конвертер при обходе `componentProps` подставит зарегистрированное значение. Если source — функция, то она оборачивается так: возвращаемый ею `JsonNode` автоматически конвертируется в `RenderNode` (то же, что делает `$template`).
+**Solution.** Регистрируешь значение через `reg.dataSource('NAME', value)`, в JSON-схеме ссылаешься оператором `'$dataSource(NAME)'`. Конвертер при обходе `componentProps` подставит зарегистрированное значение.
 
 ```typescript
+import { createElement } from 'react';
 import { defineRegistry } from '@reformer/renderer-json';
-import { LoadingState } from './LoadingState';
+import { LoadingState, ErrorState } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
   // 1. Константа: массив options.
-  reg.source('LOAN_TYPES', [
+  reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
   ]);
 
-  // 2. React-компонент как source (для AsyncBoundary.LoadingComponent).
-  reg.source('LoadingState', LoadingState);
+  // 2. React-компонент как dataSource (для AsyncBoundary.LoadingComponent).
+  reg.dataSource('LoadingState', LoadingState);
+  reg.dataSource('ErrorStateDefault', () => createElement(ErrorState, { error: 'Ошибка' }));
 
-  // 3. Функция: itemLabel для FormArraySection.
-  reg.source('PROPERTY_ITEM_LABEL_SOURCE_FN', (_, index: number) => `Имущество #${index + 1}`);
+  // 3. Функция: itemLabel для array-секции.
+  reg.dataSource('PROPERTY_ITEM_LABEL_SOURCE_FN', (_form, index: number) => `Имущество #${index + 1}`);
 
   // 4. Computed-константа.
-  reg.source('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
+  reg.dataSource('CURRENT_YEAR_PLUS_ONE', new Date().getFullYear() + 1);
 });
 ```
 
 ```typescript
-// В JSON-схеме:
+// В JSON-схеме — ссылки операторами:
 {
   selector: 'data-boundary',
-  component: 'AsyncBoundary',
+  component: '$component(AsyncBoundary)',
   componentProps: {
     status: 'loading',
-    LoadingComponent: 'LoadingState',                    // → React-компонент
+    LoadingComponent: '$dataSource(LoadingState)',       // → React-компонент
+    ErrorComponent: '$dataSource(ErrorStateDefault)',
   },
   children: [
-    { selector: 'loanType', component: 'Select',
-      componentProps: { options: 'LOAN_TYPES' } },        // → массив
-    { selector: 'carYear', component: 'Input',
-      componentProps: { type: 'number', max: 'CURRENT_YEAR_PLUS_ONE' } }, // → число
+    { value: '$model(loanType)', component: '$component(Select)',
+      componentProps: { options: '$dataSource(LOAN_TYPES)' } },   // → массив
+    { value: '$model(carYear)', component: '$component(Input)',
+      componentProps: { type: 'number', max: '$dataSource(CURRENT_YEAR_PLUS_ONE)' } }, // → число
   ],
 }
 ```
 
 **Notes.**
 
-- Резолв строки в source происходит только если строка зарегистрирована. Если имени в реестре нет — строка останется строкой (никакой ошибки), что часто становится молчаливым багом. Перепроверь имя при «приходит литерал вместо значения».
-- Source-функция, возвращающая объект, **не** конвертируется автоматически — только если результат «выглядит как `JsonNode`» (есть `model: string` или `component: string`). Для функций-итем-лейблов (возвращают строку) — никаких сюрпризов.
-- Source нельзя использовать как имя `component` в самом узле (`{ component: 'LoadingState' }` вне source-проп будет ошибкой `Entry "..." is a 'source' and cannot be used as component`). Source — только для значений в `componentProps`.
-- Эталон: реестр `registry.ts` (monorepo example).
+- Резолв происходит только для строк `'$dataSource(NAME)'`. Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
+- Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
+- dataSource нельзя использовать как имя `component` (`component: '$component(LoadingState)'`, где `LoadingState` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
+- Эталон: `registry.ts` (monorepo example).
 
-## 30. Control-пропсы
+## 31. Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
-**Problem.** Нужно передать в компонент ссылку на FieldPath (например, `RendererFormArraySection` принимает `control={form.properties}`, FormWizard — `control={form}` для какого-то поля). Из JSON это нельзя сделать напрямую, потому что `FieldPathNode` строится на старте `RenderSchemaFn`.
+**Problem.** Компоненту (напр. wizard) нужен `FormProxy` или validation-конфиг — рантайм-сущности, которые нельзя выразить в статичном JSON.
 
-**Solution.** Конвертер по специальному правилу резолвит **строку** в `componentProps` к `FieldPathNode`, если ключ называется `control` или оканчивается на `Control` (`amountControl`, `dateRangeControl`).
-
-```typescript
-{
-  selector: 'properties-array',
-  component: 'RendererFormArraySection',
-  componentProps: {
-    title: 'Имущество',
-    control: 'properties',                       // → path.properties (FieldPathNode)
-    itemLabel: 'PROPERTY_ITEM_LABEL_SOURCE_FN',
-    itemComponent: { $template: { /* ... */ } },
-  },
-}
-```
-
-Для составных путей и индексов используется тот же синтаксис, что у `model`:
+**Solution.** Инжектируй их через `renderBehavior` + `onInit`/`patchProps` до первого рендера. Узел адресуется по `selector`.
 
 ```typescript
-{
-  component: 'CityHint',
-  componentProps: {
-    cityControl: 'registrationAddress.city',         // вложенное поле
-    primaryAddressControl: 'addresses[0]',           // элемент массива
-  },
+import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+
+function createMyRenderBehavior(
+  form: FormProxy<MyForm>,
+  model: FormModel<MyForm>
+): RenderBehaviorFn<MyForm> {
+  return (schema) => {
+    // JSON-схема не знает про FormProxy/валидацию — инъектим их в wizard до первого рендера.
+    onInit(schema.node('wizard'), () => {
+      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
+    });
+    // Остальное поведение (visibility/navigation) — из shared render-behavior.
+    createSharedRenderBehavior(form)(schema);
+  };
 }
+
+// <JsonFormRenderer schema={jsonSchema} renderBehavior={createMyRenderBehavior(form, model)} />
 ```
 
 **Notes.**
 
-- Правило срабатывает только когда (а) ключ — `control` или `*Control` и (б) значение — строка. Для других ключей строка пойдёт через source-резолв, и если имя в реестре есть — подставится source-значение.
-- Если путь не существует в форме (`'addresses[0].city'` при пустом массиве) — `getFieldPathNode` бросит `Invalid field path: "..." - segment "..." not found` уже на этапе конверсии. Это значит: `control` на динамические индексы не работает, для item-полей пользуйся `$template`.
-- Параметр прокидывается как `FieldPathNode<unknown, unknown, unknown>` — компонент должен сам кастить к нужному типу или принимать `FieldPathNode<unknown>`.
+- `onInit(node, fn)` — build-time hook, вызывается один раз до первого рендера ноды.
+- `patchProps` мержит переданные пропы в `componentProps` ноды.
+- Эталон: [render-behavior.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/render-behavior.ts) (monorepo example).
 
-## 31. Migration from TS RenderSchema
+## 32. Migration from TS RenderSchema { #migration }
 
-**Problem.** Есть готовая `RenderSchemaFn<T>` (TS-вариант с `path.email`, React-компонентами по ссылке) — нужно перенести её в JSON-схему. Ниже — точное соответствие конструкций.
+**Problem.** Есть готовая `RenderSchemaFn<T>` (TS-вариант с `path.email`, React-компонентами по ссылке) — нужно перенести её в JSON-схему.
 
-**Solution.** Покомпонентная карта замен.
+**Solution.** Покомпонентная карта замен. Ключевое: TS-ссылки (`path.email`, `Box`, `LOAN_TYPES`) → строки-операторы.
 
-| TS RenderSchema (`@reformer/renderer-react`)                                                                                            | JSON-схема (`@reformer/renderer-json`)                                                                                                 |
-| --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `{ component: path.email }`                                                                                                             | `{ model: 'email' }` или `{ selector: 'email', component: 'Input' }`                                                                   |
-| `{ component: path.personalData.firstName }`                                                                                            | `{ model: 'personalData.firstName', component: 'Input' }`                                                                              |
-| `{ component: path.addresses[0].city }`                                                                                                 | `{ model: 'addresses[0].city', component: 'Input' }`                                                                                   |
-| `{ component: Box, componentProps: { className: 'grid', children: [...] } }` _(старый стиль)_ или `{ component: Box, children: [...] }` | `{ component: 'Box', componentProps: { className: 'grid' }, children: [...] }`                                                         |
-| `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                                                               | `{ component: 'Section', componentProps: { title: 'X' }, children: [...] }`                                                            |
-| `{ selector: 'mortgage-section', component: Section, ... }`                                                                             | то же — `selector` сохраняется                                                                                                         |
-| `componentProps: { options: LOAN_TYPES }` (импорт константы)                                                                            | `componentProps: { options: 'LOAN_TYPES' }` + `reg.source('LOAN_TYPES', LOAN_TYPES)`                                                   |
-| `componentProps: { LoadingComponent: LoadingState }`                                                                                    | `componentProps: { LoadingComponent: 'LoadingState' }` + `reg.source('LoadingState', LoadingState)`                                    |
-| `componentProps: { control: path.properties, itemLabel: (_, i) => '#' + i, itemComponent: (itemPath) => ({ ... }) }`                    | `componentProps: { control: 'properties', itemLabel: 'NAME_FN', itemComponent: { $template: { ... } } }` + `reg.source('NAME_FN', fn)` |
-| `createCreditApplicationRenderBehavior(form)(schema)` (поведение в TS)                                                                  | то же поведение — переиспользуется как есть, через `JsonFormSchema → createRenderSchemaFromJson → behavior(schema)`                    |
+| TS RenderSchema (`@reformer/renderer-react`)                                             | JSON-схема (`@reformer/renderer-json`, M1)                                                                 |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `{ value: path.email, component: Input }`                                                | `{ value: '$model(email)', component: '$component(Input)' }`                                               |
+| `{ value: path.personalData.firstName, component: Input }`                               | `{ value: '$model(personalData.firstName)', component: '$component(Input)' }`                              |
+| `{ component: Box, componentProps: { className: 'grid' }, children: [...] }`             | `{ component: '$component(Box)', componentProps: { className: 'grid' }, children: [...] }`                 |
+| `{ component: Section, componentProps: { title: 'X' }, children: [...] }`                | `{ component: '$component(Section)', componentProps: { title: 'X' }, children: [...] }`                    |
+| `{ selector: 'mortgage-section', component: Section, ... }`                              | то же — `selector` сохраняется (plain-строка)                                                             |
+| `componentProps: { options: LOAN_TYPES }` (импорт константы)                            | `componentProps: { options: '$dataSource(LOAN_TYPES)' }` + `reg.dataSource('LOAN_TYPES', LOAN_TYPES)`      |
+| `componentProps: { LoadingComponent: LoadingState }`                                     | `componentProps: { LoadingComponent: '$dataSource(LoadingState)' }` + `reg.dataSource('LoadingState', ...)` |
+| `{ array: path.properties, item: (ip) => ({...}), initialValue: () => ({...}) }`         | `{ array: '$model(properties)', item: { $template: {...} }, initialValue: {...} }`                          |
 
 ```typescript
-// До: TS RenderSchema
-const schema: RenderSchemaFn<MyForm> = (path) => ({
-  component: Box,
-  componentProps: {
-    className: 'space-y-4',
-    children: [
-      { component: path.email, componentProps: { label: 'Email' } },
-      {
-        component: Section,
-        componentProps: { title: 'Адрес', children: [{ component: path.address.city }] },
-      },
-    ],
-  },
-});
-
 // После: JSON
 const schema: JsonFormSchema = {
   version: '1.0',
   root: {
-    component: 'Box',
+    component: '$component(Box)',
     componentProps: { className: 'space-y-4' },
     children: [
-      { model: 'email', component: 'Input', componentProps: { label: 'Email' } },
+      { value: '$model(email)', component: '$component(Input)', componentProps: { label: 'Email' } },
       {
-        component: 'Section',
+        component: '$component(Section)',
         componentProps: { title: 'Адрес' },
-        children: [{ model: 'address.city', component: 'Input' }],
+        children: [{ value: '$model(address.city)', component: '$component(Input)' }],
       },
     ],
   },
 };
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
-  reg.container('Section', Section);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component('Section', Section);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
 **Notes.**
 
-- В TS-варианте часто `children` лежат в `componentProps.children` исторически — это работает, но в JSON `children` всегда вне `componentProps` (отдельное поле `JsonNode.children`).
-- `field`-узлы и `container`-узлы взаимоисключающи: либо `model`, либо `children` — нельзя одновременно. Если ошибочно поставить и `model`, и `children`, конвертер развернёт `model` (поле), а `children` молча проигнорирует.
-- Поведение (`hideWhen`, `onComponentEvent`, lifecycle) **не** переезжает в JSON — оно остаётся TS-функцией `RenderBehaviorFn<T>` и применяется к финальной `RenderSchemaProxy` после `createRenderSchemaFromJson`. Полный пример организации — `CreditApplicationFormRendererJson` (monorepo example).
-- `createRenderSchema` оборачивает результат `createRenderSchemaFromJson` в Proxy — без этого `proxy.node(selector)` и behavior-helpers работать не будут.
-
-## 32. Динамические массивы — `RendererFormArraySection`
-
-> **Это правильный путь для всех array-секций в renderer-json.** НЕ пиши per-page custom block components с `CreditFormProvider` — это нарушает обещание «форма полностью описана в JSON».
-
-`RendererFormArraySection` — это **app-level компонент**, собранный из примитивов библиотеки (`FormArray.Root + List + AddButton`, `RenderNodeComponent`, `useFormControl`). Его нет в `@reformer/renderer-react` намеренно: класть готовую UI-сборку с зашитыми классами и текстами в SDK значило бы навязать её всем потребителям. Реализация ~150 строк, копируется в проект целиком и адаптируется под ui-kit / тестовые конвенции / стили.
-
-Шаблон реализации (адаптируй под себя): см. ниже секцию **«Реализация компонента»**.
-
-### Регистрация (один раз на проект)
-
-```tsx
-// registry.tsx
-import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
-import {
-  Input,
-  InputMask,
-  Select,
-  Textarea,
-  Checkbox,
-  RadioGroup,
-  Button,
-  FormField,
-  Box,
-  Section,
-} from '@reformer/ui-kit';
-// Локальный app-level компонент (НЕ из @reformer/renderer-react!)
-import { RendererFormArraySection } from '@/components/RendererFormArraySection';
-
-// Plain-leaf factories для AddButton initialValue (НЕ FieldConfig!)
-const propertyTemplate = () => ({
-  type: 'apartment',
-  description: '',
-  estimatedValue: 0,
-  hasEncumbrance: false,
-});
-const existingLoanTemplate = () => ({
-  bank: '',
-  type: '',
-  amount: 0,
-  remainingAmount: 0,
-  monthlyPayment: 0,
-  maturityDate: '',
-});
-const coBorrowerTemplate = () => ({
-  personalData: {
-    lastName: '',
-    firstName: '',
-    middleName: '',
-    birthDate: '',
-    gender: 'male',
-    birthPlace: '',
-  },
-  phone: '',
-  email: '',
-  relationship: '',
-  monthlyIncome: 0,
-});
-
-export const registry = defineRegistry((reg) => {
-  // UI fields
-  reg.field('Input', Input);
-  reg.field('InputMask', InputMask);
-  reg.field('Select', Select);
-  reg.field('Textarea', Textarea);
-  reg.field('Checkbox', Checkbox);
-  reg.field('RadioGroup', RadioGroup);
-  // Containers
-  reg.container('Section', Section);
-  reg.container('Box', Box);
-  // The ONE generic array section
-  reg.container('FormArraySection', RendererFormArraySection);
-  // Field wrapper (label + error + pending)
-  reg.container(FIELD_WRAPPER, FormField);
-  // Sources for option lists + initial-value templates
-  reg.source('PROPERTY_TYPES', [
-    /* ... */
-  ]);
-  reg.source('PROPERTY_TEMPLATE', propertyTemplate);
-  reg.source('EXISTING_LOAN_TEMPLATE', existingLoanTemplate);
-  reg.source('CO_BORROWER_TEMPLATE', coBorrowerTemplate);
-});
-```
-
-### Использование из JSON-схемы
-
-```jsonc
-{
-  "selector": "step5.properties-section",
-  "component": "FormArraySection",
-  "componentProps": {
-    "control": "step5.properties",
-    "title": "Имущество",
-    "titleAs": "h3",
-    "addButtonLabel": "+ Добавить имущество",
-    "removeButtonLabel": "Удалить",
-    "initialValue": "PROPERTY_TEMPLATE",
-    "itemComponent": {
-      "$template": {
-        "component": "Box",
-        "componentProps": { "className": "space-y-3" },
-        "children": [
-          {
-            "model": "type",
-            "component": "Select",
-            "componentProps": { "label": "Тип имущества", "options": "PROPERTY_TYPES" },
-          },
-          {
-            "model": "estimatedValue",
-            "component": "Input",
-            "componentProps": { "label": "Оценочная стоимость (₽)", "type": "number" },
-          },
-          {
-            "model": "description",
-            "component": "Textarea",
-            "componentProps": {
-              "label": "Описание",
-              "rows": 2,
-              "placeholder": "Опишите имущество",
-            },
-          },
-          {
-            "model": "hasEncumbrance",
-            "component": "Checkbox",
-            "componentProps": { "label": "Имеется обременение (залог)" },
-          },
-        ],
-      },
-    },
-  },
-}
-```
-
-### Toggle-видимость массива (`hasProperty` checkbox)
-
-Условный показ всей секции **не** делается через custom blocks. Используй один из:
-
-1. **JSON-уровень `hideWhen`** через top-level `RenderBehaviorFn` (применяется после `createRenderSchemaFromJson`):
-
-   ```typescript
-   import { hideWhen } from '@reformer/renderer-react';
-
-   // index.tsx
-   const schema = useMemo(() => {
-     const proxy = createRenderSchemaFromJson<CreditApplicationForm>(jsonSchema, registry);
-     hideWhen(
-       proxy.node('step5.properties-section'),
-       () => form.step5.hasProperty.value.value !== true
-     );
-     return proxy;
-   }, [form]);
-   ```
-
-2. **`useEffect setHidden`** в page-level `index.tsx` (если нужна реактивность через React state):
-   ```typescript
-   const hasProperty = useFormControlValue(form.step5.hasProperty);
-   useEffect(() => {
-     schema.node('step5.properties-section').setHidden(!hasProperty);
-   }, [schema, hasProperty]);
-   ```
-
-Оба варианта работают для **любой** array-секции, не нарушают JSON-as-single-source, не требуют per-page React glue.
-
-### Что не делать
-
-- ❌ **Не пиши `array-blocks.tsx`** с собственным `CreditFormProvider` + `useCreditForm()` — это легаси-pattern, который дробит форму на JSON + TS.
-- ❌ **Не клади toggle и его array в разные шаги** — `RendererFormArraySection` работает с любым расположением, но для maintainability держи их рядом по спеке.
-- ❌ **Не передавай FieldConfig в `initialValue`** — это plain leaf values для нового item. FieldConfig (`{ value, component }`) живёт ТОЛЬКО в schema literal `createForm({...})`.
-- ❌ **Не импортируй `RendererFormArraySection` из `@reformer/renderer-react`** — его там нет. Это app-level компонент, который ты копируешь в свой проект (напр. `src/components/RendererFormArraySection.tsx`).
-
-### Реализация компонента (app-level, ~150 строк)
-
-Скопируй этот шаблон в `<your-app>/src/components/RendererFormArraySection.tsx` и адаптируй под свой UI-кит. Ключевые точки контракта:
-
-1. **`__selfManagedChildren = true` marker** — чтобы `RenderNodeComponent` пробрасывал в компонент prop `form` (а не рекурсивно рендерил его «детей» из node.children). Это единственный примитив из библиотеки, на который компонент опирается, не считая остальных импортов.
-2. **`resolveArrayNode(control, form)`** — `control` приходит либо как уже-резолвленный `ArrayNode<T>` (TS RenderSchema), либо как `FieldPathNode` (JSON converter после `control: "step5.properties"`). Нужно поддержать оба варианта через `FieldPathNavigator + extractPath`.
-3. **`itemComponent(itemPath)`** — рендер-проп, возвращающий `RenderNode<T>`. Для каждого item внутри `<FormArray.List>` создаём свежий `createFieldPath<T>()` и вызываем колбэк, потом отдаём результат в `<RenderNodeComponent node={...} form={itemForm} />`.
-4. **`initialValue`** — должно быть **plain leaf values** (`string`/`number`/`boolean`/вложенные объекты тех же типов), НЕ FieldConfig. В JSON ссылается на `source`-запись в registry (см. правила `add-form-array`).
-
-```tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { type ReactNode } from 'react';
-import {
-  FieldPathNavigator,
-  createFieldPath,
-  extractPath,
-  useFormControl,
-  type FieldPath,
-  type FieldPathNode,
-  type FormFields,
-  type FormProxy,
-  type ArrayNode,
-} from '@reformer/core';
-import { FormArray } from '@reformer/cdk/form-array';
-import {
-  RenderNodeComponent,
-  type RenderNode,
-  type FieldWrapperProps,
-} from '@reformer/renderer-react';
-
-export interface RendererFormArraySectionProps<T extends FormFields> {
-  control: ArrayNode<T> | FieldPathNode<unknown, unknown>;
-  itemComponent: (itemPath: FieldPath<T>) => RenderNode<T>;
-  title?: string;
-  titleAs?: 'h2' | 'h3' | 'h4';
-  titleClassName?: string;
-  className?: string;
-  cardClassName?: string;
-  addButtonLabel?: string;
-  removeButtonLabel?: string;
-  initialValue?: Partial<FormFields>;
-  showRemoveOnSingle?: boolean;
-  emptyLabel?: string;
-  maxItems?: number;
-  form?: FormProxy<unknown>;
-  fieldWrapper?: React.ComponentType<FieldWrapperProps>;
-}
-
-const navigator = new FieldPathNavigator();
-
-function resolveArrayNode<T extends FormFields>(
-  control: RendererFormArraySectionProps<T>['control'],
-  form: FormProxy<unknown> | undefined
-): ArrayNode<T> | null {
-  if (
-    control &&
-    typeof control === 'object' &&
-    typeof (control as ArrayNode<T>).push === 'function' &&
-    typeof (control as ArrayNode<T>).removeAt === 'function'
-  ) {
-    return control as ArrayNode<T>;
-  }
-  if (!form) return null;
-  try {
-    const pathStr = extractPath(control as FieldPathNode<unknown, unknown>);
-    const node = navigator.getNodeByPath(form, pathStr);
-    return (node as unknown as ArrayNode<T>) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export function RendererFormArraySection<T extends FormFields>({
-  control,
-  itemComponent,
-  title,
-  titleAs: TitleTag = 'h3',
-  titleClassName = 'text-base font-semibold mb-2',
-  className = 'space-y-3 mt-2',
-  cardClassName = 'rounded-md border p-4 space-y-3',
-  addButtonLabel = '+ Добавить',
-  removeButtonLabel = 'Удалить',
-  initialValue,
-  showRemoveOnSingle = false,
-  emptyLabel,
-  maxItems,
-  form,
-  fieldWrapper,
-}: RendererFormArraySectionProps<T>): ReactNode {
-  const arrayNode = resolveArrayNode<T>(control, form);
-  if (!arrayNode) return null;
-  const lengthCtrl = useFormControl(arrayNode as unknown as Parameters<typeof useFormControl>[0]);
-  const length = (lengthCtrl as unknown as { length?: number } | undefined)?.length ?? 0;
-  const atMaxItems = maxItems != null && length >= maxItems;
-  return (
-    <section className={className}>
-      {title ? <TitleTag className={titleClassName}>{title}</TitleTag> : null}
-      {length === 0 && emptyLabel ? <p className="text-sm italic">{emptyLabel}</p> : null}
-      <FormArray.Root control={arrayNode}>
-        <FormArray.List className="space-y-3">
-          {({ control: itemForm, index, remove }) => {
-            const renderNode = itemComponent(createFieldPath<T>());
-            const showRemove = showRemoveOnSingle || length > 1;
-            return (
-              <div className={cardClassName} data-testid={`array-item-${index}`}>
-                <RenderNodeComponent
-                  node={renderNode}
-                  form={itemForm as unknown as FormProxy<T>}
-                  fieldWrapper={fieldWrapper}
-                />
-                {showRemove ? (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={remove}
-                      data-testid={`array-item-${index}-remove`}
-                    >
-                      {removeButtonLabel}
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            );
-          }}
-        </FormArray.List>
-        {atMaxItems ? null : (
-          <div>
-            <FormArray.AddButton initialValue={initialValue} data-testid="array-add">
-              {addButtonLabel}
-            </FormArray.AddButton>
-          </div>
-        )}
-      </FormArray.Root>
-    </section>
-  );
-}
-
-(RendererFormArraySection as any).__selfManagedChildren = true;
-```
+- В JSON `children` всегда отдельное поле узла (не `componentProps.children`).
+- field/array/container взаимоисключающи: `value` → лист, `array`+`item` → массив, `component`+`children` → контейнер. Дискриминация в конвертере: array → field → container.
+- Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и передаётся пропом `renderBehavior`. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
 
 ## 33. See also
 
-- [02-json-schema.md](02-json-schema.md) — справочник по полям `JsonNode`.
+- [01-overview.md](01-overview.md) — монтаж через `model` + `JsonRendererProvider`.
+- [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` и операторам.
 - [03-registry.md](03-registry.md) — все методы `defineRegistry`.
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 
@@ -992,17 +620,40 @@ export function RendererFormArraySection<T extends FormFields>({
 
 _Auto-generated from JSDoc on public exports._
 
+### buildFormSchemaMetaSchema
+
+**Kind:** `function`
+
+Конкретная мета-схема: базовая + (если заданы `componentNames`) сужение паттерна `$component(...)`
+до enum имён (`^\$component\((Input|Select|…)\)$`). `$dataSource`-имена JSON Schema'й не покрыть
+(вложены в произвольный componentProps) — их проверяет рекурсивный обход в `validateFormSchema`.
+
+**Signature:**
+```typescript
+export function buildFormSchemaMetaSchema(opts?: {
+  componentNames?: string[];
+}): Record<string, unknown>
+```
+
+**Examples:**
+
+```ts
+const schema = buildFormSchemaMetaSchema({ componentNames: getComponentNames(registry) });
+```
+
+_Source: src/schema/index.ts_
+
 ### ComponentMetadata
 
 **Kind:** `interface`
 
-Запись реестра. Хранит сам компонент (или source-значение) и его роль.
+Запись реестра. Хранит сам компонент (или dataSource-значение) и его роль.
 
 **Signature:**
 ```typescript
 export interface ComponentMetadata<P = any> {
   component: ComponentType<P> | unknown;
-  type: 'field' | 'container' | 'source';
+  type: 'component' | 'dataSource';
   description?: string;
 }
 ```
@@ -1011,10 +662,23 @@ export interface ComponentMetadata<P = any> {
 
 ```typescript
 const meta: ComponentMetadata = registry.get('Input')!;
-meta.type; // 'field'
+meta.type; // 'component'
 ```
 
 _Source: src/registry/types.ts_
+
+### ComponentOp
+
+**Kind:** `type`
+
+Строка-оператор ссылки на компонент реестра: `` `$component(${name})` ``.
+
+**Signature:**
+```typescript
+export type ComponentOp = `$component(${string})`;
+```
+
+_Source: src/operators.ts_
 
 ### ComponentRegistry
 
@@ -1029,7 +693,7 @@ Read-only API реестра, доступное в рантайме.
 ```typescript
 export interface ComponentRegistry {
   get(name: string): ComponentMetadata | undefined;
-  getSource<T = unknown>(name: string): T | undefined;
+  getDataSource<T = unknown>(name: string): T | undefined;
   has(name: string): boolean;
   names(): string[];
 }
@@ -1050,7 +714,8 @@ _Source: src/registry/types.ts_
 
 **Kind:** `function`
 
-Сырое дерево RenderNode из JSON под M1 (для `createForm({ model, schema })`).
+Сырое дерево RenderNode из JSON (M1) — для `createForm({ model, schema })`. Листья привязываются
+к сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из реестра.
 
 **Signature:**
 ```typescript
@@ -1061,47 +726,24 @@ export function convertJsonToM1Tree<T>(
 ): RenderNode<T>
 ```
 
-_Source: src/converter/json-to-render-schema.ts_
-
-### createRenderSchemaFromJson
-
-**Kind:** `function`
-
-Создаёт RenderSchemaFn из JSON-схемы
-
-Конвертирует JSON-схему в функцию RenderSchemaFn, которую можно
-передать в FormRenderer из
-
-**Signature:**
-```typescript
-export function createRenderSchemaFromJson<T>(
-  schema: JsonFormSchema,
-  registry: ComponentRegistry
-): RenderSchemaFn<T>
-```
-
 **Parameters:**
-- `schema` — - JSON-схема формы
-- `registry` — - Реестр компонентов для резолва имён
+- `schema` — - JSON-схема формы ({@link JsonFormSchema}).
+- `registry` — - Реестр компонентов/источников (см. {@link defineRegistry}).
+- `model` — - Модель данных — источник значений (`FormModel`).
 
-**Returns:** RenderSchemaFn для FormRenderer
+**Returns:** Корневой {@link RenderNode} — кладётся в `createForm({ schema })`.
 
 **Examples:**
 
-```typescript
-const jsonSchema = {
-root: {
-component: 'Box',
-children: [
-{ model: 'email' },
-{ model: 'password', component: 'InputPassword' }
-]
-}
-};
+Собрать форму из JSON-схемы (M1)
+```ts
+import { createForm } from '@reformer/core';
 
-const renderSchema = createRenderSchemaFromJson(jsonSchema, registry);
-
-<FormRenderer render={renderSchema} settings={{ fieldWrapper: FormField }} />
+const form = createForm<MyForm>({
+model,
+schema: convertJsonToM1Tree(jsonSchema, registry, model),
+behavior,
+});
 ```
 
 _Source: src/converter/json-to-render-schema.ts_
@@ -1110,8 +752,12 @@ _Source: src/converter/json-to-render-schema.ts_
 
 **Kind:** `function`
 
-`RenderSchemaFn` из JSON под M1 (для `FormRenderer`/`JsonFormRenderer`). Листья привязываются
-к сигналам модели (`model.signalAt(selector)`), компоненты резолвятся из реестра.
+`RenderSchemaFn` из JSON (M1) — для `FormRenderer`/`JsonFormRenderer`. Листья привязываются к
+сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из реестра.
+
+В отличие от {@link convertJsonToM1Tree} (который возвращает готовое дерево), здесь результат —
+ленивая функция-фабрика дерева, как её ждёт `createRenderSchema`. Обычно вызывается внутри
+{@link JsonFormRenderer}; напрямую нужен для интеграции с `FormRenderer` без JSON-обёртки.
 
 **Signature:**
 ```typescript
@@ -1122,7 +768,37 @@ export function createRenderSchemaFromJsonM1<T>(
 ): RenderSchemaFn<T>
 ```
 
+**Parameters:**
+- `schema` — - JSON-схема формы ({@link JsonFormSchema}).
+- `registry` — - Реестр компонентов/источников (см. {@link defineRegistry}).
+- `model` — - Модель данных — источник значений (`FormModel`).
+
+**Returns:** `RenderSchemaFn<T>` — фабрика {@link RenderNode}-дерева для `createRenderSchema`.
+
+**Examples:**
+
+```ts
+import { createRenderSchema, FormRenderer } from '@reformer/renderer-react';
+
+const fn = createRenderSchemaFromJsonM1<MyForm>(jsonSchema, registry, model);
+const proxy = createRenderSchema<MyForm>(fn);
+<FormRenderer render={proxy} />;
+```
+
 _Source: src/converter/json-to-render-schema.ts_
+
+### DataSourceOp
+
+**Kind:** `type`
+
+Строка-оператор ссылки на registry-source: `` `$dataSource(${name})` ``.
+
+**Signature:**
+```typescript
+export type DataSourceOp = `$dataSource(${string})`;
+```
+
+_Source: src/operators.ts_
 
 ### defineRegistry
 
@@ -1139,7 +815,7 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
 ```
 
 **Parameters:**
-- `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `field`, `container`, `source`.
+- `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `component`, `dataSource`.
 
 **Returns:** Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
 
@@ -1150,10 +826,10 @@ import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { Input, Select, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.field('Select', Select);
-  reg.container(FIELD_WRAPPER, FormField);
-  reg.source('LOAN_TYPES', [
+  reg.component('Input', Input);
+  reg.component('Select', Select);
+  reg.component(FIELD_WRAPPER, FormField);
+  reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
   ]);
@@ -1186,60 +862,318 @@ import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
 _Source: src/registry/constants.ts_
 
-### isContainerNode
+### formSchemaMetaSchema
 
-**Kind:** `function`
+**Kind:** `const`
 
-Type guard: проверяет, является ли узел контейнером (только `component`, без `model`).
+Базовая мета-схема form-DSL (draft-07): структура узлов + синтаксис операторов, имена компонентов
+НЕ ограничены (паттерн `$component(...)` открыт). Для сужения до конкретного реестра —
+{@link buildFormSchemaMetaSchema}. Используется как `$schema` в IDE и как база валидатора.
 
 **Signature:**
 ```typescript
-export function isContainerNode(node: JsonNode): boolean
+export const formSchemaMetaSchema
+```
+
+**Examples:**
+
+Подключить как `$schema` в JSON-файле схемы
+```ts
+// record можно записать в файл и сослаться на него из "$schema" JSON-схемы.
+formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
+```
+
+_Source: src/schema/index.ts_
+
+### getComponentNames
+
+**Kind:** `function`
+
+Имена компонентов реестра (тип `component`) — то, что валидно в `$component(...)`.
+
+**Signature:**
+```typescript
+export function getComponentNames(registry: ComponentRegistry): string[]
+```
+
+**Parameters:**
+- `registry` — - Реестр (см. {@link defineRegistry}).
+
+**Returns:** Массив имён компонентов.
+
+**Examples:**
+
+Сузить мета-схему до компонентов реестра
+```ts
+const names = getComponentNames(registry); // ['Input', 'Select', 'Box', ...]
+const schema = buildFormSchemaMetaSchema({ componentNames: names });
+```
+
+_Source: src/schema/index.ts_
+
+### getDataSourceNames
+
+**Kind:** `function`
+
+Имена registry-dataSource (`reg.dataSource`) — то, что валидно в `$dataSource(...)`:
+options/itemLabel/константы/loading-компоненты.
+
+**Signature:**
+```typescript
+export function getDataSourceNames(registry: ComponentRegistry): string[]
+```
+
+**Parameters:**
+- `registry` — - Реестр (см. {@link defineRegistry}).
+
+**Returns:** Массив имён источников.
+
+**Examples:**
+
+```ts
+getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
+```
+
+_Source: src/schema/index.ts_
+
+### isArrayNode
+
+**Kind:** `function`
+
+Type-guard: узел — массив (`array: '$model(...)'` + `item.$template`). Проверять ПЕРВЫМ
+(лист/контейнер отсеиваются после, т.к. массив тоже несёт `$model`).
+
+**Signature:**
+```typescript
+export function isArrayNode(node: JsonNode): node is JsonArrayNode
 ```
 
 **Parameters:**
 - `node` — - Узел JSON-схемы.
 
-**Returns:** `true`, если у узла есть `component`, но нет `model`.
+**Returns:** `true`, если узел — {@link JsonArrayNode}.
 
 **Examples:**
 
-```typescript
-if (isContainerNode(node)) {
-  node.children?.forEach(walk);
+Сузить тип узла перед доступом к `item.$template`
+```ts
+if (isArrayNode(node)) {
+node.array;            // ModelOp
+node.item.$template;   // JsonNode
 }
 ```
 
 _Source: src/types/json-schema.ts_
 
-### isFieldNode
+### isComponentOp
 
-**Kind:** `function`
+**Kind:** `const`
 
-Type guard: проверяет, является ли узел полем формы (имеет `model`).
+Type-guard: строка — оператор `"$component(...)"` (ссылка на компонент реестра).
 
 **Signature:**
 ```typescript
-export function isFieldNode(node: JsonNode): boolean
+export const isComponentOp
+```
+
+**Parameters:**
+- `v` — - Проверяемое значение.
+
+**Returns:** `true`, если `v` — {@link ComponentOp}.
+
+**Examples:**
+
+```ts
+if (isComponentOp(node.component)) {
+  const name = parseOperator(node.component)!.arg; // 'Select'
+}
+```
+
+_Source: src/operators.ts_
+
+### isContainerNode
+
+**Kind:** `function`
+
+Type-guard: узел — контейнер (`component: '$component(...)'`, без `value`/`array`).
+
+**Signature:**
+```typescript
+export function isContainerNode(node: JsonNode): node is JsonContainerNode
 ```
 
 **Parameters:**
 - `node` — - Узел JSON-схемы.
 
-**Returns:** `true`, если у узла есть непустое `model`.
+**Returns:** `true`, если узел — {@link JsonContainerNode}.
 
 **Examples:**
 
+Сузить тип узла перед обходом `children`
+```ts
+if (isContainerNode(node)) {
+node.component;   // ComponentOp
+node.children?.forEach(walk);
+}
+```
+
+_Source: src/types/json-schema.ts_
+
+### isDataSourceOp
+
+**Kind:** `const`
+
+Type-guard: строка — оператор `"$dataSource(...)"` (ссылка на registry-source).
+
+**Signature:**
 ```typescript
+export const isDataSourceOp
+```
+
+**Parameters:**
+- `v` — - Проверяемое значение.
+
+**Returns:** `true`, если `v` — {@link DataSourceOp}.
+
+**Examples:**
+
+```ts
+if (isDataSourceOp(props.options)) {
+  const name = parseOperator(props.options)!.arg; // 'LOAN_TYPES'
+}
+```
+
+_Source: src/operators.ts_
+
+### isFieldNode
+
+**Kind:** `function`
+
+Type-guard: узел — лист (`value: '$model(...)'`).
+
+**Signature:**
+```typescript
+export function isFieldNode(node: JsonNode): node is JsonFieldNode
+```
+
+**Parameters:**
+- `node` — - Узел JSON-схемы.
+
+**Returns:** `true`, если узел — {@link JsonFieldNode}.
+
+**Examples:**
+
+Сузить тип узла перед доступом к `value`/`component`
+```ts
 if (isFieldNode(node)) {
-  // node.model гарантированно строка
-  readField(node.model);
+node.value;      // ModelOp
+node.component;  // ComponentOp | undefined
+}
+```
+
+_Source: src/types/json-schema.ts_
+
+### isModelOp
+
+**Kind:** `const`
+
+Type-guard: строка — оператор `"$model(...)"` (привязка к полю/массиву модели).
+
+**Signature:**
+```typescript
+export const isModelOp
+```
+
+**Parameters:**
+- `v` — - Проверяемое значение.
+
+**Returns:** `true`, если `v` — {@link ModelOp}.
+
+**Examples:**
+
+Сузить тип значения prop до ModelOp
+```ts
+if (isModelOp(value)) {
+const path = parseOperator(value)!.arg; // 'loanType'
+}
+```
+
+_Source: src/operators.ts_
+
+### JsonArrayNode
+
+**Kind:** `interface`
+
+Массив форм: данные из модели (`$model`) + шаблон элемента (`$template`).
+
+**Signature:**
+```typescript
+export interface JsonArrayNode {
+  /** Id для render-behavior. */
+  selector?: string;
+  /** Привязка к массиву модели: `'$model(coBorrowers)'`. */
+  array: ModelOp;
+  /** Шаблон под-схемы элемента. */
+  item: { $template: JsonNode };
+  /**
+   * «Пустой» элемент для кнопки «Добавить» (литерал-объект по форме элемента).
+   * Нужен, т.к. листья шаблона несут `value: '$model(...)'`, а не литерал-дефолт.
+   */
+  initialValue?: Record<string, unknown>;
+  /** Оформление секции массива (title/addButtonLabel/itemLabel/emptyMessage/…). */
+  componentProps?: Record<string, unknown>;
+}
+```
+
+_Source: src/types/json-schema.ts_
+
+### JsonContainerNode
+
+**Kind:** `interface`
+
+Контейнер (Box/Section/Wizard/Step/…) с дочерними узлами.
+
+**Signature:**
+```typescript
+export interface JsonContainerNode {
+  /** Id для render-behavior. */
+  selector?: string;
+  /** Компонент-контейнер из реестра: `'$component(Section)'`. */
+  component: ComponentOp;
+  /** Props компонента; значения могут содержать строки-операторы или вложенные узлы. */
+  componentProps?: Record<string, unknown>;
+  /** Дочерние узлы. */
+  children?: JsonNode[];
+}
+```
+
+_Source: src/types/json-schema.ts_
+
+### JsonFieldNode
+
+**Kind:** `interface`
+
+Лист формы: значение из модели (`$model`) + опциональный компонент (`$component`, дефолт — Input).
+
+**Signature:**
+```typescript
+export interface JsonFieldNode {
+  /** Id для render-behavior (hideWhen/patchProps). Опционален. */
+  selector?: string;
+  /** Привязка к сигналу модели: `'$model(personalData.lastName)'`. */
+  value: ModelOp;
+  /** Компонент поля из реестра: `'$component(Select)'`. Опционален. */
+  component?: ComponentOp;
+  /** Props компонента; значения могут содержать строки-операторы (`'$dataSource(NAME)'`) или вложенные узлы. */
+  componentProps?: Record<string, unknown>;
+  /** Обёртка поля (например, FormField). */
+  wrapper?: JsonNode;
 }
 ```
 
@@ -1260,62 +1194,63 @@ export function JsonFormRenderer<T>({
   schema,
   renderBehavior,
   onSchemaReady,
+  validate = false,
 }: JsonFormRendererProps<T>): ReactNode
 ```
 
 **Examples:**
 
+Форма из JSON-схемы (M1)
 ```tsx
 import { useMemo } from 'react';
-import { createForm } from '@reformer/core';
-import { Input, FormField } from '@reformer/ui-kit';
+import { createModel } from '@reformer/core';
+import { Input, Box, FormField } from '@reformer/ui-kit';
 import {
-  JsonFormRenderer,
-  JsonRendererProvider,
-  defineRegistry,
-  FIELD_WRAPPER,
-  type JsonFormSchema,
+JsonFormRenderer,
+JsonRendererProvider,
+defineRegistry,
+FIELD_WRAPPER,
+type JsonFormSchema,
 } from '@reformer/renderer-json';
 
+// Привязки — строки-операторы: '$model(...)', '$component(...)', '$dataSource(...)'.
 const schema: JsonFormSchema = {
-  version: '1.0',
-  root: {
-    component: 'Box',
-    children: [
-      { selector: 'email', model: 'email', component: 'Input' },
-    ],
-  },
+version: '1.0',
+root: {
+component: '$component(Box)',
+children: [
+{
+value: '$model(email)',
+component: '$component(Input)',
+componentProps: { label: 'Email' },
+},
+],
+},
 };
 
 type MyForm = { email: string };
 
 function MyFormPage() {
-  // form живёт в page-state и передаётся в registry через closure (см. ниже)
-  const form = useMemo(() => createForm<MyForm>({
-    form: { email: { value: '', component: Input, componentProps: { label: 'Email' } } },
-  }), []);
+// M1: модель — источник истины значений; листья схемы биндятся к её сигналам.
+const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
+const registry = useMemo(() => defineRegistry((reg) => {
+reg.component('Input', Input);
+reg.component('Box', Box);
+reg.component(FIELD_WRAPPER, FormField); // системная обёртка полей
+}), []);
 
-  // registry с FormRoot-closure: компоненты, использующие форму, получают её
-  // через componentProps closure (JsonFormRenderer НЕ имеет form-prop'а — это by-design,
-  // т.к. JSON-схема статична, а форма runtime).
-  const registry = useMemo(() => defineRegistry((reg) => {
-    reg.field('Input', Input);
-    reg.container('Box', ({ children }) => <div>{children}</div>);
-    reg.container(FIELD_WRAPPER, FormField);
-  }), []);
-
-  return (
-    <JsonRendererProvider settings={{ registry, form }}>
-      <JsonFormRenderer schema={schema} />
-    </JsonRendererProvider>
-  );
+// Модель передаётся через провайдер (settings.model), НЕ пропом рендерера.
+return (
+<JsonRendererProvider settings={{ registry, model }}>
+<JsonFormRenderer<MyForm> schema={schema} validate={import.meta.env.DEV} />
+</JsonRendererProvider>
+);
 }
 ```
 
-**Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady? }`.
-Форма передаётся в render-pipeline через {@link JsonRendererProvider} settings или через
-closure-pattern с {@link createRenderSchemaFromJson} + `FormRoot.__selfManagedChildren = true`
-(см. recipe `multi-step-from-json` в `docs/llms/`).
+**Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
+Под M1 модель (`FormModel`) передаётся через {@link JsonRendererProvider} settings (`model`);
+листья JSON-схемы биндятся к её сигналам конвертером {@link createRenderSchemaFromJsonM1}.
 
 **See also:**
 - [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
@@ -1337,6 +1272,16 @@ export interface JsonFormRendererProps<T> {
   renderBehavior?: RenderBehaviorFn<T>;
   /** Колбэк, получающий построенный `RenderSchemaProxy` для внешних манипуляций. */
   onSchemaReady?: (schema: RenderSchemaProxy<T>) => void;
+  /**
+   * Валидировать JSON-схему против мета-схемы перед рендером. При ошибках рисует
+   * {@link SchemaErrorPanel} вместо формы. ajv грузится **динамически** (`import('../validate')`) —
+   * в prod-бандл не попадает, пока `validate` не включён.
+   *
+   * По умолчанию `false`. Чтобы валидировать только в dev, приложение передаёт значение из
+   * СВОЕГО окружения: `validate={import.meta.env.DEV}` — детекцию dev нельзя «запечь» в пакет,
+   * т.к. `import.meta.env.DEV` инлайнится в `false` при production-сборке самого пакета.
+   */
+  validate?: boolean;
 }
 ```
 
@@ -1346,118 +1291,62 @@ _Source: src/components/json-form-renderer.tsx_
 
 **Kind:** `interface`
 
-Корневая JSON-схема формы
+Корневая JSON-схема формы.
 
 **Signature:**
 ```typescript
 export interface JsonFormSchema {
   /**
-   * Версия схемы (для миграций)
+   * Путь к мета-схеме для IDE (VSCode подсветит структуру/синтаксис/имена `$component`).
+   * Игнорируется конвертером. Сгенерировать конкретную мета-схему: `gen-form-json-schema.ts`.
    */
+  $schema?: string;
+  /** Версия схемы (для миграций). */
   version?: string;
-
-  /**
-   * Корневой узел схемы
-   */
+  /** Корневой узел. */
   root: JsonNode;
 }
 ```
 
 **Examples:**
 
-```json
-{
-  "version": "1.0",
-  "root": {
-    "component": "Box",
-    "componentProps": { "className": "space-y-4" },
-    "children": [
-      { "model": "email" },
-      { "model": "password", "component": "InputPassword" }
-    ]
-  }
-}
+```ts
+const schema: JsonFormSchema = {
+  version: '1.0',
+  root: {
+    component: '$component(Box)',
+    children: [{ value: '$model(email)', component: '$component(Input)' }],
+  },
+};
 ```
 
 _Source: src/types/json-schema.ts_
 
 ### JsonNode
 
-**Kind:** `interface`
+**Kind:** `type`
 
-Унифицированный узел JSON-схемы
-
-Может представлять:
-- Поле формы (если указан `model`)
-- Контейнер/компонент (если указан только `component`)
-- Поле с кастомным компонентом (если указаны оба)
+Узел JSON-схемы (M1).
 
 **Signature:**
 ```typescript
-export interface JsonNode {
-  /**
-   * Идентификатор узла для renderBehavior (hideWhen, patchProps).
-   * Необязателен — нужен только если к узлу привязано поведение.
-   */
-  selector?: string;
-
-  /**
-   * Имя компонента из реестра: "Input", "Box", "Section", "Select"
-   *
-   * - Для полей: компонент для рендеринга значения (опционально, по умолчанию Input)
-   * - Для контейнеров: React-компонент контейнера (обязательно)
-   */
-  component?: string;
-
-  /**
-   * Путь к полю формы (модели): "email", "personalData.firstName", "addresses[0].city"
-   *
-   * Если указан — узел представляет поле формы.
-   */
-  model?: string;
-
-  /**
-   * Props для компонента (className, title и т.д.)
-   */
-  componentProps?: Record<string, unknown>;
-
-  /**
-   * Дочерние узлы (для контейнеров)
-   */
-  children?: JsonNode[];
-
-  /**
-   * Обёртка для узла (например, fieldWrapper)
-   *
-   * @example
-   * ```json
-   * {
-   *   "model": "email",
-   *   "wrapper": {
-   *     "component": "FormField",
-   *     "componentProps": { "className": "col-span-2" }
-   *   }
-   * }
-   * ```
-   */
-  wrapper?: JsonNode;
-}
-```
-
-**Examples:**
-
-```json
-// Поле формы с дефолтным компонентом
-{ "model": "email" }
-
-// Поле с кастомным компонентом
-{ "model": "password", "component": "InputPassword" }
-
-// Контейнер
-{ "component": "Box", "children": [...] }
+export type JsonNode = JsonFieldNode | JsonArrayNode | JsonContainerNode;
 ```
 
 _Source: src/types/json-schema.ts_
+
+### JsonOperator
+
+**Kind:** `type`
+
+Любой строковый оператор JSON-схемы.
+
+**Signature:**
+```typescript
+export type JsonOperator = ModelOp | ComponentOp | DataSourceOp;
+```
+
+_Source: src/operators.ts_
 
 ### JsonRendererProvider
 
@@ -1476,9 +1365,17 @@ export function JsonRendererProvider({ settings, children }: JsonRendererProvide
 
 **Examples:**
 
+M1: реестр + модель через settings
 ```tsx
-<JsonRendererProvider settings={{ registry, fieldWrapper: FormField }}>
-  <JsonFormRenderer schema={schema} form={form} />
+// Модель — источник истины (M1); листья схемы биндятся к её сигналам.
+const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
+const registry = useMemo(() => defineRegistry((reg) => {
+reg.component('Input', Input);
+reg.component(FIELD_WRAPPER, FormField);
+}), []);
+
+<JsonRendererProvider settings={{ registry, model }}>
+<JsonFormRenderer<MyForm> schema={schema} />
 </JsonRendererProvider>
 ```
 
@@ -1524,6 +1421,62 @@ export interface JsonRendererSettings extends RendererSettings {
 
 _Source: src/context/json-renderer-context.tsx_
 
+### ModelOp
+
+**Kind:** `type`
+
+Строка-оператор привязки к полю/массиву модели: `` `$model(${path})` ``.
+
+**Signature:**
+```typescript
+export type ModelOp = `$model(${string})`;
+```
+
+_Source: src/operators.ts_
+
+### ParsedOperator
+
+**Kind:** `interface`
+
+Разобранный оператор: тип + аргумент (путь/имя).
+
+**Signature:**
+```typescript
+export interface ParsedOperator {
+  op: 'model' | 'component' | 'dataSource';
+  arg: string;
+}
+```
+
+_Source: src/operators.ts_
+
+### parseOperator
+
+**Kind:** `function`
+
+Разбор строки-оператора `"$op(arg)"`. Возвращает `null` для не-операторов (обычных строк),
+чтобы вызывающий оставил значение как есть.
+
+**Signature:**
+```typescript
+export function parseOperator(value: unknown): ParsedOperator | null
+```
+
+**Parameters:**
+- `value` — - Проверяемое значение (не-строки сразу дают `null`).
+
+**Returns:** 
+
+**Examples:**
+
+```ts
+parseOperator('$model(loanType)');   // { op: 'model', arg: 'loanType' }
+parseOperator('$dataSource(LOAN_TYPES)'); // { op: 'dataSource', arg: 'LOAN_TYPES' }
+parseOperator('Введите сумму');       // null  (обычная строка)
+```
+
+_Source: src/operators.ts_
+
 ### RegistryBuilder
 
 **Kind:** `interface`
@@ -1533,9 +1486,15 @@ Builder, который попадает в callback {@link defineRegistry}.
 **Signature:**
 ```typescript
 export interface RegistryBuilder {
-  field<P>(name: string, component: ComponentType<P>, description?: string): void;
-  container<P>(name: string, component: ComponentType<P>, description?: string): void;
-  source<T>(name: string, value: T, description?: string): void;
+  /**
+   * Зарегистрировать React-компонент под именем — доступен в схеме как
+   * `$component(name)`. Одним методом регистрируются и компоненты-листья
+   * (Input/Select), и контейнеры (Box/Section/FormField): роль узла (лист vs
+   * контейнер) определяется структурой узла схемы (`value` vs `children`),
+   * а не регистрацией.
+   */
+  component<P>(name: string, component: ComponentType<P>, description?: string): void;
+  dataSource<T>(name: string, value: T, description?: string): void;
 }
 ```
 
@@ -1543,13 +1502,61 @@ export interface RegistryBuilder {
 
 ```typescript
 defineRegistry((reg: RegistryBuilder) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
-  reg.source('LOAN_TYPES', LOAN_TYPES);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.dataSource('LOAN_TYPES', LOAN_TYPES);
 });
 ```
 
 _Source: src/registry/types.ts_
+
+### SchemaErrorPanel
+
+**Kind:** `function`
+
+Список ошибок схемы (path + message), с пометкой источника. Без внешних UI-зависимостей
+(инлайн-стили), помечен `role="alert"` и `data-testid="schema-error-panel"`.
+
+Обычно рендерится автоматически внутри {@link JsonFormRenderer} (при `validate` и невалидной
+схеме). Можно использовать напрямую для показа результата `validateFormSchema().errors`.
+
+**Signature:**
+```typescript
+export function SchemaErrorPanel({ errors }: SchemaErrorPanelProps): ReactNode
+```
+
+**Parameters:**
+- `props` — - {@link SchemaErrorPanelProps} (массив `errors`).
+
+**Returns:** Панель со списком ошибок.
+
+**Examples:**
+
+Показать ошибки валидации схемы вручную
+```tsx
+import { validateFormSchema } from '@reformer/renderer-json/validate';
+
+const { valid, errors } = validateFormSchema(schema, { registry });
+if (!valid) return <SchemaErrorPanel errors={errors} />;
+```
+
+_Source: src/components/schema-error-panel.tsx_
+
+### SchemaErrorPanelProps
+
+**Kind:** `interface`
+
+Props of {@link SchemaErrorPanel}.
+
+**Signature:**
+```typescript
+export interface SchemaErrorPanelProps {
+  /** Человекочитаемые ошибки (`validateFormSchema().errors`). */
+  errors: string[];
+}
+```
+
+_Source: src/components/schema-error-panel.tsx_
 
 ### useJsonRendererSettings
 

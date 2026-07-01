@@ -1,7 +1,7 @@
 /**
  * Section - секция с заголовком для RenderSchema
  *
- * @module reformer/renderer-react/components/section
+ * @module reformer/ui-kit/components/section
  */
 
 import type { ReactNode } from 'react';
@@ -28,8 +28,10 @@ export interface SectionProps {
  * Семантический `<section>`-контейнер для группировки связанных полей
  * с опциональным заголовком (`titleAs` управляет уровнем `h1`-`h6`).
  *
- * @example Заголовок h2 + сетка из двух колонок
+ * @example Заголовок h2 + сетка из двух колонок (M1: лист = `value` + `component`)
  * ```typescript
+ * import { Section, Input } from '@reformer/ui-kit';
+ *
  * {
  *   component: Section,
  *   componentProps: {
@@ -39,20 +41,22 @@ export interface SectionProps {
  *     className: 'grid grid-cols-2 gap-4',
  *   },
  *   children: [
- *     { component: path.firstName },
- *     { component: path.lastName },
+ *     { value: model.$.firstName, component: Input },
+ *     { value: model.$.lastName, component: Input },
  *   ],
  * }
  * ```
  *
  * @example Section без заголовка (только обёртка)
  * ```typescript
+ * import { Section, Input } from '@reformer/ui-kit';
+ *
  * {
  *   component: Section,
  *   componentProps: { className: 'space-y-4 mt-4' },
  *   children: [
- *     { component: path.address },
- *     { component: path.city },
+ *     { value: model.$.address, component: Input },
+ *     { value: model.$.city, component: Input },
  *   ],
  * }
  * ```

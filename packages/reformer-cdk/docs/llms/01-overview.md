@@ -11,10 +11,11 @@
 
 ## Components
 
-| Component    | Purpose                    |
-| ------------ | -------------------------- |
-| `FormArray`  | Manage dynamic form arrays |
-| `FormWizard` | Multi-step form wizard     |
+| Component    | Purpose                                      |
+| ------------ | -------------------------------------------- |
+| `FormArray`  | Manage dynamic form arrays                   |
+| `FormField`  | Accessible field anatomy (label/control/…)   |
+| `FormWizard` | Multi-step form wizard                        |
 
 ## Installation
 
@@ -26,9 +27,10 @@ npm install @reformer/cdk @reformer/core
 
 ```typescript
 // All components
-import { FormArray, FormWizard } from '@reformer/cdk';
+import { FormArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 ```

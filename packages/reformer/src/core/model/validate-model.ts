@@ -145,6 +145,16 @@ const pushError = (
  * Синхронная headless-валидация данных. Асинхронные валидаторы пропускаются.
  *
  * @group Model
+ * @param model - Модель данных ({@link FormModel}), из сигналов которой читаются значения полей.
+ * @param schema - Единая схема формы (дерево узлов с `value`/`validators`, `{ when, children }`,
+ *   секциями массивов). Обходится один раз для сбора активных полей.
+ * @returns {@link ModelValidationResult} — `valid` + ошибки по пути поля (без async-валидаторов).
+ *
+ * @example Быстрая синхронная проверка (например, для gate «можно ли перейти на след. шаг»)
+ * ```typescript
+ * const res = validateModelSync(model, schema);
+ * if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
+ * ```
  */
 export function validateModelSync<T>(model: FormModel<T>, schema: unknown): ModelValidationResult {
   const { tasks } = collect(model, schema);
@@ -203,8 +213,20 @@ async function runTasks(
  * И поля выключенных веток (`{ when, children }` с ложным условием). Дерево обходится ОДИН раз.
  *
  * @group Model
+ * @param model - Модель данных ({@link FormModel}) — источник значений полей.
+ * @param schema - Единая схема формы (та же, что передавалась в `createForm`).
+ * @returns {@link ModelValidationResult} — `valid` + ошибки по пути поля; побочный эффект — ошибки
+ *   разведены по нодам формы.
  * @remarks Поля, не материализованные в форме (элементы массива — строятся per-item), не роутятся
  * в родительскую форму; их ошибки доступны в возвращаемом результате по пути.
+ *
+ * @example Валидация перед submit (ошибки показываются в UI автоматически)
+ * ```typescript
+ * const form = createForm({ model, schema });
+ * form.touchAll();
+ * const res = await validateFormModel(model, schema);
+ * if (res.valid) await api.save(model.get());
+ * ```
  */
 export async function validateFormModel<T>(
   model: FormModel<T>,

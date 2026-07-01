@@ -48,11 +48,11 @@ export interface JsonFormRendererProps<T> {
  *
  * @typeParam T - Тип формы.
  *
- * @example
+ * @example Форма из JSON-схемы (M1)
  * ```tsx
  * import { useMemo } from 'react';
- * import { createForm } from '@reformer/core';
- * import { Input, FormField } from '@reformer/ui-kit';
+ * import { createModel } from '@reformer/core';
+ * import { Input, Box, FormField } from '@reformer/ui-kit';
  * import {
  *   JsonFormRenderer,
  *   JsonRendererProvider,
@@ -61,12 +61,17 @@ export interface JsonFormRendererProps<T> {
  *   type JsonFormSchema,
  * } from '@reformer/renderer-json';
  *
+ * // Привязки — строки-операторы: '$model(...)', '$component(...)', '$dataSource(...)'.
  * const schema: JsonFormSchema = {
  *   version: '1.0',
  *   root: {
- *     component: 'Box',
+ *     component: '$component(Box)',
  *     children: [
- *       { selector: 'email', model: 'email', component: 'Input' },
+ *       {
+ *         value: '$model(email)',
+ *         component: '$component(Input)',
+ *         componentProps: { label: 'Email' },
+ *       },
  *     ],
  *   },
  * };
@@ -74,31 +79,26 @@ export interface JsonFormRendererProps<T> {
  * type MyForm = { email: string };
  *
  * function MyFormPage() {
- *   // form живёт в page-state и передаётся в registry через closure (см. ниже)
- *   const form = useMemo(() => createForm<MyForm>({
- *     form: { email: { value: '', component: Input, componentProps: { label: 'Email' } } },
- *   }), []);
- *
- *   // registry с FormRoot-closure: компоненты, использующие форму, получают её
- *   // через componentProps closure (JsonFormRenderer НЕ имеет form-prop'а — это by-design,
- *   // т.к. JSON-схема статична, а форма runtime).
+ *   // M1: модель — источник истины значений; листья схемы биндятся к её сигналам.
+ *   const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
  *   const registry = useMemo(() => defineRegistry((reg) => {
- *     reg.field('Input', Input);
- *     reg.container('Box', ({ children }) => <div>{children}</div>);
- *     reg.container(FIELD_WRAPPER, FormField);
+ *     reg.component('Input', Input);
+ *     reg.component('Box', Box);
+ *     reg.component(FIELD_WRAPPER, FormField); // системная обёртка полей
  *   }), []);
  *
+ *   // Модель передаётся через провайдер (settings.model), НЕ пропом рендерера.
  *   return (
- *     <JsonRendererProvider settings={{ registry, form }}>
- *       <JsonFormRenderer schema={schema} />
+ *     <JsonRendererProvider settings={{ registry, model }}>
+ *       <JsonFormRenderer<MyForm> schema={schema} validate={import.meta.env.DEV} />
  *     </JsonRendererProvider>
  *   );
  * }
  * ```
  *
- * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady? }`.
+ * **Note**: `JsonFormRenderer` принимает ТОЛЬКО `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
  * Под M1 модель (`FormModel`) передаётся через {@link JsonRendererProvider} settings (`model`);
- * листья JSON-схемы биндятся к её сигналам конвертером `convertJsonToM1Tree`.
+ * листья JSON-схемы биндятся к её сигналам конвертером {@link createRenderSchemaFromJsonM1}.
  *
  * @see [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
  */

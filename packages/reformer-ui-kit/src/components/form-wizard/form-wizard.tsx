@@ -40,28 +40,72 @@ import { FormWizardProgress } from './form-wizard-progress';
 import { StepIndicator } from './step-indicator';
 
 /**
- * Полиморфное тело шага.
+ * Полиморфное тело шага {@link FormWizardStep}. Один и тот же {@link FormWizard}
+ * покрывает TS-flow, renderer-react и renderer-json за счёт трёх допустимых форм
+ * `body`, дискриминация которых выполняется в рантайме по типу значения:
  *
- * - FC получает `control={form}`.
- * - ReactNode рендерится напрямую (статический JSX).
- * - RenderNode<T> рендерится через `<RenderNodeComponent>`.
+ * - `ComponentType<{ control: FormProxy<T> }>` — React-компонент; получает
+ *   `control={form}` (корневой {@link FormProxy}) и сам обращается к нужным полям.
+ * - `ReactNode` — готовый JSX или статический контент шага (текст, число и т.п.).
+ * - `RenderNode<T>` — RenderSchema-поддерево; рендерится через `RenderNodeComponent`
+ *   для интеграции с `@reformer/renderer-react`.
+ *
+ * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ *
+ * @example Компонент шага получает control
+ * ```tsx
+ * function BasicInfoForm({ control }: { control: FormProxy<CreditApplication> }) {
+ *   return <FormField control={control.loanAmount} testId="loanAmount" />;
+ * }
+ * const body: FormWizardStepBody<CreditApplication> = BasicInfoForm;
+ * ```
  */
 export type FormWizardStepBody<T> =
   | ComponentType<{ control: FormProxy<T> }>
   | ReactNode
   | RenderNode<T>;
 
+/**
+ * Описание одного шага {@link FormWizard}: порядковый номер, заголовок и иконка
+ * для индикатора, плюс полиморфное тело {@link FormWizardStepBody}.
+ *
+ * Массив `FormWizardStep<T>[]` передаётся в проп `steps`. Порядок и `number`
+ * задают последовательность навигации; `number` должен быть 1-based и уникальным.
+ *
+ * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ *
+ * @example Массив шагов кредитной заявки
+ * ```tsx
+ * const STEPS: FormWizardStep<CreditApplication>[] = [
+ *   { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
+ *   { number: 2, title: 'Данные', icon: '👤', body: PersonalInfoForm },
+ *   { number: 3, title: 'Подтверждение', icon: '✓', body: ConfirmationForm },
+ * ];
+ * ```
+ */
 export interface FormWizardStep<T> {
-  /** Step number (1-based). */
+  /** Порядковый номер шага (1-based). Уникальный, задаёт порядок навигации. */
   number: number;
-  /** Step title shown in indicator. */
+  /** Заголовок шага, показывается в {@link StepIndicator}. */
   title: string;
-  /** Optional icon (string или ReactNode). Передаётся в headless Indicator. */
+  /** Иконка шага (эмодзи или строка). Передаётся в headless Indicator. */
   icon?: string;
-  /** Body — FC | ReactNode | RenderNode<T>. */
+  /** Тело шага — FC | ReactNode | RenderNode<T> (см. {@link FormWizardStepBody}). */
   body: FormWizardStepBody<T>;
 }
 
+/**
+ * Пропсы {@link FormWizard}. Расширяют headless-пропсы из
+ * `@reformer/cdk/form-wizard` (`form`, `config`, `onStepChange`, …), добавляя
+ * декларативный `steps` и колбэк `onSubmit`.
+ *
+ * @typeParam T - Тип значения корневой формы. Ограничение `Record<string, any>`
+ *   синхронизировано с headless-cdk и нужно только как bound для инференции
+ *   generic'а T в JSX (в т.ч. при nullable-числах вида `number | null`).
+ *
+ * @see {@link FormWizardStep} — форма элемента `steps`.
+ * @see FormWizardHandle — императивный handle через `ref` (submit/навигация).
+ */
 export interface FormWizardProps<
   // Constraint синхронизирован с headless cdk (`Record<string, any>`) — это
   // снимает блокер инференции generic'а T в JSX, когда T содержит nullable-
@@ -70,8 +114,11 @@ export interface FormWizardProps<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends Record<string, any>,
 > extends FormWizardHeadlessProps<T> {
+  /** Внешний CSS-класс корневого контейнера. */
   className?: string;
+  /** Декларативный список шагов (см. {@link FormWizardStep}). Порядок = порядок навигации. */
   steps: FormWizardStep<T>[];
+  /** Колбэк отправки формы на последнем шаге; вызывается после успешной валидации. */
   onSubmit: HeadlessFormWizardActionsProps['onSubmit'];
 }
 
@@ -174,6 +221,58 @@ type FormWizardCompound = typeof FormWizardForwarded & {
   Progress: typeof FormWizardHeadless.Progress;
 };
 
+/**
+ * Готовая многошаговая форма (multi-step wizard) — стилизованная обёртка поверх
+ * headless-compound `@reformer/cdk/form-wizard`. Собирает Indicator, тело шагов,
+ * Actions (Назад / Далее / Отправить) и Progress в единый layout, работает с
+ * одной {@link FormProxy} и декларативным списком {@link FormWizardStep}.
+ *
+ * Один компонент покрывает TS-flow, renderer-react и renderer-json за счёт
+ * полиморфного {@link FormWizardStepBody}. Валидация по шагам и submit-валидация
+ * задаются через `config` (`{ validateStep, validateAll }`, обычно из
+ * `validateFormModel`). Императивный доступ (submit/навигация снаружи дерева) —
+ * через `ref` типа `FormWizardHandle<T>`.
+ *
+ * Экспонирует compound-слоты `FormWizard.Indicator` / `.Step` / `.Actions` /
+ * `.Progress` для кастомной раскладки.
+ *
+ * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ *
+ * @example Кредитная заявка с 3 шагами и внешним submit
+ * ```tsx
+ * import { useMemo, useRef } from 'react';
+ * import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+ * import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
+ *
+ * const STEPS: FormWizardStep<CreditApplication>[] = [
+ *   { number: 1, title: 'Кредит', icon: '💰', body: BasicInfoForm },
+ *   { number: 2, title: 'Данные', icon: '👤', body: PersonalInfoForm },
+ *   { number: 3, title: 'Подтверждение', icon: '✓', body: ConfirmationForm },
+ * ];
+ *
+ * function CreditForm() {
+ *   const navRef = useRef<FormWizardHandle<CreditApplication>>(null);
+ *   const { form, model } = useMemo(() => createCreditForm(), []);
+ *   const config = useMemo(() => makeValidationConfig(model), [model]);
+ *
+ *   const onSubmit = () =>
+ *     navRef.current?.submit((values) => api.submit(values));
+ *
+ *   return (
+ *     <FormWizard
+ *       ref={navRef}
+ *       form={form}
+ *       config={config}
+ *       steps={STEPS}
+ *       onSubmit={onSubmit}
+ *     />
+ *   );
+ * }
+ * ```
+ *
+ * @see {@link FormWizardStep} — форма элемента `steps`.
+ * @see {@link StepIndicator}, {@link FormWizardActions}, {@link FormWizardProgress} — слоты layout'а.
+ */
 const FormWizard = Object.assign(FormWizardForwarded, {
   Indicator: FormWizardHeadless.Indicator,
   Step: FormWizardHeadless.Step,

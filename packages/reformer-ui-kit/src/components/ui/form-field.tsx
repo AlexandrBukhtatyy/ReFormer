@@ -99,22 +99,31 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
  * - Обёрнут в `React.memo` со сравнением по ссылке `control` — критично для
  *   производительности больших форм.
  *
- * @example Standalone в обычной форме
+ * @example Standalone в обычной форме (M1: `createModel` + `createForm({ model, schema })`)
  * ```tsx
  * import { useMemo } from 'react';
- * import { createForm, type FormSchema } from '@reformer/core';
+ * import { createModel, createForm } from '@reformer/core';
+ * import { required } from '@reformer/core/validators';
  * import { Button, FormField, Input } from '@reformer/ui-kit';
  *
  * function RegistrationPage() {
- *   const form = useMemo(
- *     () => createForm<FormSchema<{ email: string }>>({
- *       email: { component: Input, componentProps: { label: 'Email' } },
- *     }),
- *     []
- *   );
+ *   const { form } = useMemo(() => {
+ *     const model = createModel<{ email: string }>({ email: '' });
+ *     const schema = {
+ *       children: [
+ *         {
+ *           value: model.$.email,
+ *           component: Input,
+ *           componentProps: { label: 'Email', type: 'email', testId: 'email' },
+ *           validators: [required({ message: 'Email обязателен' })],
+ *         },
+ *       ],
+ *     };
+ *     return { form: createForm<{ email: string }>({ model, schema }) };
+ *   }, []);
  *   return (
  *     <form>
- *       <FormField control={form.email} testId="email" />
+ *       <FormField control={form.email} />
  *       <Button type="submit">OK</Button>
  *     </form>
  *   );
@@ -124,11 +133,15 @@ const FormFieldComponent: React.FC<FormFieldProps> = ({ control, className, test
  * @example В качестве `fieldWrapper` для FormRenderer
  * ```tsx
  * import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
- * import { FormField } from '@reformer/ui-kit';
+ * import { Box, FormField, Input } from '@reformer/ui-kit';
  *
- * const schema = createRenderSchema<MyForm>((path) => ({
- *   component: 'Box',
- *   children: [{ component: path.email }, { component: path.phone }],
+ * // M1: узлы ссылаются на компоненты-значения, листья — на сигналы модели.
+ * const schema = createRenderSchema<MyForm>(() => ({
+ *   component: Box,
+ *   children: [
+ *     { value: model.$.email, component: Input },
+ *     { value: model.$.phone, component: Input },
+ *   ],
  * }));
  *
  * <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />

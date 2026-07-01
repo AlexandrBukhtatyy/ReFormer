@@ -567,13 +567,13 @@ export class FieldNode<T> extends FormNode<T> {
    * @example
    * ```typescript
    * // Сценарий 1: Instant feedback после submit
-   * const form = new GroupNode({
+   * const form = createForm({
    *   email: {
    *     value: '',
    *     component: Input,
    *     updateOn: 'submit', // Изначально валидация только при submit
-   *     validators: [required, email]
-   *   }
+   *     validators: [required, email],
+   *   },
    * });
    *
    * await form.submit(async (values) => {

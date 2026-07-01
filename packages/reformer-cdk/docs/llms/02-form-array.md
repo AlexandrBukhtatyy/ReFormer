@@ -46,8 +46,15 @@ interface FormArrayItemRenderProps<T> {
   index: number; // Zero-based index
   id: string | number; // Unique key
   remove: () => void; // Remove this item
+  moveUp: () => void; // Move one position up (no-op when first)
+  moveDown: () => void; // Move one position down (no-op when last)
+  canMoveUp: boolean; // index > 0
+  canMoveDown: boolean; // index < length - 1
 }
 ```
+
+Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
+`ArrayNode.move` reorders controls without recreating them.
 
 ## External Control via Ref
 
@@ -60,6 +67,7 @@ const arrayRef = useRef<FormArrayHandle<ItemType>>(null);
 // Control from outside
 arrayRef.current?.add({ name: 'New' });
 arrayRef.current?.removeAt(0);
+arrayRef.current?.move(2, 0);
 arrayRef.current?.clear();
 
 <FormArray.Root ref={arrayRef} control={form.items}>
@@ -75,11 +83,16 @@ interface FormArrayHandle<T> {
   clear: () => void;
   insert: (index: number, value?: Partial<T>) => void;
   removeAt: (index: number) => void;
+  move: (from: number, to: number) => void; // reorder, state preserved
+  swap: (a: number, b: number) => void; // swap two items, state preserved
   length: number;
   isEmpty: boolean;
   at: (index: number) => FormProxy<T> | undefined;
 }
 ```
+
+> `length` / `isEmpty` are a snapshot at render time. For a reactive length
+> outside the array, subscribe via `useFormControl(form.items).length`.
 
 ## useFormArray Hook
 
@@ -106,3 +119,21 @@ function CustomList() {
   );
 }
 ```
+
+### UseFormArrayReturn
+
+```typescript
+interface UseFormArrayReturn<T> {
+  items: FormArrayItem<T>[]; // { control, index, id, remove }
+  length: number;
+  isEmpty: boolean;
+  add: (value?: Partial<T>) => void; // push to end
+  clear: () => void; // remove all
+  insert: (index: number, value?: Partial<T>) => void;
+  move: (from: number, to: number) => void; // reorder, state preserved
+  swap: (a: number, b: number) => void; // swap two items, state preserved
+}
+```
+
+Note: `items[]` is memoized by array length AND order — changing a value inside
+an item does not recreate the `items` array, but `move` / `swap` do (order ref changes).

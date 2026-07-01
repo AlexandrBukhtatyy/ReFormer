@@ -13,12 +13,22 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * Фабрика валидатора формата email.
  *
- * Пустые значения пропускаются (используйте `required` для обязательности).
+ * Проверяет по упрощённому regex `^[^\s@]+@[^\s@]+\.[^\s@]+$`. Пустые значения
+ * (`''`/`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для строкового поля
+ *
+ * @example Проверка формата email
  * ```typescript
- * validate(path.email, email());
- * validate(path.email, email({ message: 'Введите корректный email' }));
+ * import { required, email } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * email: {
+ *   value: model.$.email,
+ *   component: Input,
+ *   validators: [required(), email({ message: 'Введите корректный email' })],
+ * },
  * ```
  */
 export function email<TForm = unknown, TField extends string | undefined = string>(

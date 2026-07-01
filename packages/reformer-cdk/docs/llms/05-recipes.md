@@ -108,28 +108,37 @@ function AddPropertyMenu() {
 ### Solution
 
 ```tsx
+import { useMemo } from 'react';
 import { useFormControl } from '@reformer/core';
-import { FormWizard } from '@reformer/cdk/form-wizard';
+import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
-function CreditWizard({ form, navConfig }: Props) {
+function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
   const { value: amount } = useFormControl(form.amount);
   const needsVerification = amount > 1_000_000;
 
-  // Шаг 4 нужен только для крупных сумм
-  const stepValidations = useMemo(
+  // config — пара колбэков validateStep / validateAll (не схемы, не generic).
+  // step (1-based) роутится в нужную схему; при выключенной верификации
+  // нумерация сдвигается — учитываем это в самом колбэке.
+  const config = useMemo<FormWizardConfig>(
     () => ({
-      1: amountValidation,
-      2: personalValidation,
-      3: contactValidation,
-      ...(needsVerification && { 4: verificationValidation }),
-      // последний шаг — confirmation, его номер сдвигается автоматически
-      [needsVerification ? 5 : 4]: confirmationValidation,
+      validateStep: (step) => {
+        const schema = needsVerification
+          ? stepSchemas.withVerification[step - 1]
+          : stepSchemas.withoutVerification[step - 1];
+        return validateFormModel(form.model, schema ?? { children: [] }).then(
+          (r) => Object.keys(r.errors).length === 0
+        );
+      },
+      validateAll: () =>
+        validateFormModel(form.model, fullSchema).then(
+          (r) => Object.keys(r.errors).length === 0
+        ),
     }),
-    [needsVerification]
+    [needsVerification, stepSchemas, fullSchema, form]
   );
 
   return (
-    <FormWizard form={form} config={{ stepValidations, fullValidation: full }}>
+    <FormWizard form={form} config={config}>
       <FormWizard.Step component={AmountForm} control={form} />
       <FormWizard.Step component={PersonalForm} control={form} />
       <FormWizard.Step component={ContactForm} control={form} />
@@ -139,11 +148,11 @@ function CreditWizard({ form, navConfig }: Props) {
       <FormWizard.Actions onSubmit={handleSubmit}>
         {({ prev, next, submit, isLastStep }) => (
           <div>
-            <button {...prev}>Назад</button>
+            <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>
             {isLastStep ? (
-              <button {...submit}>Подтвердить</button>
+              <button onClick={submit.onClick} disabled={submit.disabled}>Подтвердить</button>
             ) : (
-              <button {...next}>Далее</button>
+              <button onClick={next.onClick} disabled={next.disabled}>Далее</button>
             )}
           </div>
         )}
@@ -155,7 +164,7 @@ function CreditWizard({ form, navConfig }: Props) {
 
 ### Notes
 
-- **Номера шагов сдвигаются** при включении/выключении: `stepValidations[4]` будет либо `verificationValidation`, либо `confirmationValidation` в зависимости от `needsVerification`. Держите словарь валидаций в `useMemo` от того же флага.
+- **Номера шагов сдвигаются** при включении/выключении: `validateStep(4)` должен разрешаться либо в схему верификации, либо в схему подтверждения — в зависимости от `needsVerification`. Держите колбэк `validateStep`/`validateAll` в `useMemo` от того же флага, иначе он замкнётся на устаревшую нумерацию.
 - `currentStep` в state `FormWizard` хранится как число. Если флаг изменился пока пользователь стоит на шаге 4 (где раньше была верификация, а теперь подтверждение), он останется на том же номере — но рендер увидит уже другой `Step`. В критичных кейсах вызывайте `navRef.current?.goToStep(1)` после переключения.
 - `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
 - Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
@@ -208,7 +217,7 @@ function Page({ form, config }: Props) {
 ### Notes
 
 - `FormWizardHandle` exposes: `currentStep`, `completedSteps`, `goToNextStep` (с валидацией), `goToPreviousStep`, `goToStep` (boolean — true если переход разрешён), `submit`, `validateCurrentStep`, `isFirstStep`, `isLastStep`, `isValidating`, `form`.
-- `submit(onSubmit)` сначала прогоняет `config.fullValidation`, затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
+- `submit(onSubmit)` сначала прогоняет `config.validateAll?.()` (если колбэк задан), затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
 - Эталон: `CreditApplicationForm.tsx` (monorepo example) — `submit` через ref + центральная кнопка отправки.

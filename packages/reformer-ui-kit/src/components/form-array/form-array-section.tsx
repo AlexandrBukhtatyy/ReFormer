@@ -19,6 +19,11 @@ import {
 import { FormArray } from '@reformer/cdk/form-array';
 import type { FieldWrapperProps } from '@reformer/renderer-react';
 
+/**
+ * Пропсы {@link FormArraySection}.
+ *
+ * @typeParam T - Тип одного элемента массива (object).
+ */
 export interface FormArraySectionProps<T extends object> {
   /** Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy. */
   control: FormArrayProxy<T> | ArrayNode<T> | undefined;
@@ -110,6 +115,45 @@ function resolveArrayNode<T extends object>(
   return null;
 }
 
+/**
+ * Готовая UI-секция для динамического массива форм — стилизованная обёртка поверх
+ * headless-compound `@reformer/cdk/form-array`. Рендерит заголовок, кнопку
+ * «Добавить», карточку с меткой на каждый элемент (плюс опциональные кнопки
+ * удаления и перестановки ↑/↓) и сообщение пустого состояния.
+ *
+ * `control` принимает `FormArrayProxy<T>` или уже-резолвленный
+ * `ArrayNode<T>`/`ModelArrayNode<T>`. `itemComponent` — единственная форма
+ * рендера элемента: `ComponentType<{ control: FormProxy<T> }>` (тот же контракт,
+ * что у шага {@link FormWizardStep}). Внутри `RenderNodeComponent` проп `form`
+ * инъектится автоматически (маркер `__selfManagedChildren`).
+ *
+ * Проп `hasItems` удобен для toggle-чекбоксов («У меня есть имущество»): при
+ * `false` секция скрывается целиком.
+ *
+ * @typeParam T - Тип одного элемента массива (object).
+ *
+ * @example Массив «Имущество» под чекбоксом-переключателем
+ * ```tsx
+ * import { FormArraySection } from '@reformer/ui-kit/form-array';
+ *
+ * function AdditionalInfo({ control }: { control: FormProxy<CreditApplication> }) {
+ *   const hasProperty = useFormControlValue(control.hasProperty) as boolean;
+ *   return (
+ *     <FormArraySection
+ *       title="Имущество"
+ *       control={control.properties}
+ *       itemComponent={PropertyForm}
+ *       itemLabel="Имущество"
+ *       addButtonLabel="+ Добавить имущество"
+ *       emptyMessage='Нажмите "Добавить имущество" для добавления информации'
+ *       hasItems={hasProperty}
+ *       initialValue={createBlankProperty()}
+ *       reorderable
+ *     />
+ *   );
+ * }
+ * ```
+ */
 export function FormArraySection<T extends object>({
   control,
   itemComponent: ItemComponent,

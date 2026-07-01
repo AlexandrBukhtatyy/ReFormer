@@ -12,11 +12,22 @@ import { parseDate, getToday, normalizeDate } from './date-utils';
 /**
  * Фабрика валидатора, проверяющего что дата не в будущем.
  *
- * Пустые и невалидные даты пропускаются.
+ * Дата не должна быть позже сегодняшнего дня (сравнение по нормализованным датам).
+ * Пустые и невалидные даты пропускаются (используйте {@link required} и {@link isDate}).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ *
+ * @example Дата не в будущем
  * ```typescript
- * validate(path.birthDate, pastDate({ message: 'Дата рождения не может быть в будущем' }));
+ * import { required, pastDate } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * birthDate: {
+ *   value: model.$.birthDate,
+ *   component: DatePicker,
+ *   validators: [required(), pastDate({ message: 'Дата рождения не может быть в будущем' })],
+ * },
  * ```
  */
 export function pastDate<TForm = unknown, TField extends string | Date | undefined = string | Date>(

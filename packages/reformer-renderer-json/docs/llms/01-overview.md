@@ -1,6 +1,6 @@
 # Overview
 
-`@reformer/renderer-json` рендерит формы из декларативной JSON-схемы. Компоненты подменяются через реестр, поэтому одну и ту же схему можно отрисовать в разных UI-китах.
+`@reformer/renderer-json` рендерит формы из декларативной **JSON-схемы** (M1, строковый операторный DSL). Схема — чистый JSON: привязки к модели и компонентам кодируются строками-операторами (`$model(...)`, `$component(...)`, `$dataSource(...)`), поэтому одну и ту же схему можно положить в `.json`, принять строкой с сервера/CMS и отрисовать в разных UI-китах через реестр.
 
 ## Installation
 
@@ -23,115 +23,106 @@ import {
   JsonRendererProvider,
   defineRegistry,
   FIELD_WRAPPER,
+  convertJsonToM1Tree,
+  type JsonFormSchema,
 } from '@reformer/renderer-json';
 ```
 
 ## Quick Start
 
-> **CRITICAL gotchas** (renderer-json shares the renderer-react architecture):
->
-> 1. `getReformerForm` does NOT exist — use `createForm` from `@reformer/core`.
-> 2. `JsonFormRenderer` does NOT accept a `form` prop. `JsonFormRendererProps<T>` is `{ schema, renderBehavior?, onSchemaReady? }`. Field-nodes silently render as null unless the schema's root container is a user-defined component (registered with `__selfManagedChildren = true`) that takes the form via `componentProps` and forwards it down via `RenderNodeComponent`.
-> 3. The pattern mirrors renderer-react's FormRoot — see `@reformer/renderer-react/docs/llms/01-overview.md` for the full FormRoot snippet. Same component can be reused; just register it in the JSON registry under any name (e.g. `'FormRoot'`).
+Ключевая идея M1: **модель (`FormModel`) — источник данных, JSON-схема — layout**. Форма строится из той же JSON-схемы через `convertJsonToM1Tree`, а `JsonFormRenderer` получает модель через `JsonRendererProvider` settings (`model`). `JsonFormRenderer` НЕ имеет `form`-пропа — это by-design: JSON статичен, модель runtime.
 
-Minimal working mount (closure pattern injecting form into the root):
+Минимальный рабочий монтаж:
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, type FormProxy, type FormFields } from '@reformer/core';
-import { Input, FormField } from '@reformer/ui-kit';
+import { createForm, createModel } from '@reformer/core';
+import { Input, Box, FormField } from '@reformer/ui-kit';
 import {
-  FormRenderer,
-  RenderNodeComponent,
-  createRenderSchema,
-  type RenderNode,
-  type RenderSchemaFn,
-} from '@reformer/renderer-react';
-import {
+  JsonFormRenderer,
+  JsonRendererProvider,
   defineRegistry,
   FIELD_WRAPPER,
-  createRenderSchemaFromJson,
+  convertJsonToM1Tree,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
 
-type MyForm = FormFields & { email: string };
+type MyForm = { email: string };
 
-// 1. JSON schema — pure data, no React imports.
+// 1. JSON-схема — чистые данные, операторы-строки, никаких React-импортов.
 const jsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
-    component: 'FormRoot', // user-defined, registered below
+    component: '$component(Box)',
     children: [
-      { selector: 'email', model: 'email', component: 'Input', componentProps: { label: 'Email' } },
+      { selector: 'email', value: '$model(email)', component: '$component(Input)',
+        componentProps: { label: 'Email' } },
     ],
   },
 };
 
-// 2. FormRoot — same as renderer-react FormRoot. Forwards form to children.
-function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
-  return (
-    <>
-      {children.map((c, i) => (
-        <RenderNodeComponent key={i} node={c} form={form} />
-      ))}
-    </>
-  );
-}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(FormRoot as any).__selfManagedChildren = true;
-
-// 3. Registry maps string names from JSON to React components.
+// 2. Реестр: имена из JSON → React-компоненты.
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('FormRoot', FormRoot);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 
-// 4. Mount — closure factory wraps the JSON-derived RenderSchemaFn so the root receives form.
-function createMyFormSchema(form: FormProxy<MyForm>): RenderSchemaFn<MyForm> {
-  return (path) => {
-    const baseFn = createRenderSchemaFromJson<MyForm>(jsonSchema, registry);
-    const baseRoot = baseFn(path);
-    return { ...baseRoot, componentProps: { ...baseRoot.componentProps, form } };
-  };
-}
-
 function MyFormPage() {
-  const form = useMemo(
-    () => createForm<MyForm>({ form: { email: { value: '', component: Input } } }),
-    []
+  // 3. Модель + форма строятся ИЗ JSON-схемы (единая схема, без отдельной схемы формы).
+  const { model } = useMemo(() => {
+    const model = createModel<MyForm>({ email: '' });
+    createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+    return { model };
+  }, []);
+
+  // 4. Модель прокидывается через провайдер; JsonFormRenderer биндит листья к её сигналам.
+  return (
+    <JsonRendererProvider settings={{ registry, model }}>
+      <JsonFormRenderer<MyForm> schema={jsonSchema} />
+    </JsonRendererProvider>
   );
-  const schema = useMemo(() => createRenderSchema<MyForm>(createMyFormSchema(form)), [form]);
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-**Why this shape and not `<JsonFormRenderer schema={schema}/>`?** `JsonFormRenderer` builds the proxy internally but has no way to inject your live `form` into the root container's `componentProps` — its job is purely the JSON-to-RenderSchema conversion. For any non-trivial form you need to inject `form` yourself, which is exactly what `createMyFormSchema(form)` above does. `JsonFormRenderer` works in demos where the schema's root is `<div>{children}</div>` (no form needed) but not for real form rendering.
+**Почему `model` через провайдер, а не `<JsonFormRenderer form={...}/>`?** Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером. Модель обязательна и передаётся через `JsonRendererProvider` settings — `JsonFormRenderer` без неё бросит `settings.model is required (M1)`. Сам рендерер принимает только `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
+
+Полный эталон с wizard, массивами и behavior — `CreditApplicationFormRendererJson` (monorepo example): модель и форма строятся `convertJsonToM1Tree`, поведение (compute/enableWhen/navigation) — общий `behavior`, а `renderBehavior` инжектит `form` в wizard через `onInit` + `patchProps`.
 
 ## Key Concepts
 
-- **JSON-схема** — дерево `JsonNode`. Узлы делятся на **field** (привязаны к модели через `model`) и **container** (только layout, имеет `children`).
-- **Реестр** — карта строкового имени `component` в схеме на React-компонент. Без регистрации компонента схема не отрендерится.
-- **`FIELD_WRAPPER`** — специальное имя в реестре для компонента-обёртки полей (label, error). Обычно — `FormField` из `@reformer/ui-kit`.
-- **Source values** — именованные константы и функции, на которые можно ссылаться из `componentProps` строкой. Резолвятся реестром.
-- **Provider** — пробрасывает реестр и настройки во вложенные `JsonFormRenderer`.
+- **JSON-схема** — дерево `JsonNode` (см. [02-json-schema.md](02-json-schema.md)). Узлы: **field** (`value: '$model(...)'`), **array** (`array` + `item.$template`), **container** (`component` + `children`).
+- **Операторы** — строки `$model(path)` / `$component(Name)` / `$dataSource(NAME)`. Только они резолвятся; голые строки идут как есть.
+- **Модель (`model`)** — `FormModel`, источник данных. Передаётся в `JsonRendererProvider` settings; листья биндятся к её сигналам.
+- **Реестр** — карта имени из `$component(...)`/`$dataSource(...)` на React-компонент или source-значение. Без регистрации схема не сконвертируется (ошибка `Component "X" not found in registry`).
+- **`FIELD_WRAPPER`** — зарезервированный ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей (label, error, hint). Обычно `FormField` из `@reformer/ui-kit`.
+- **`convertJsonToM1Tree`** — конвертер JSON → RenderNode-дерево для `createForm({ model, schema })`.
+- **`renderBehavior`** — TS-функция `RenderBehaviorFn<T>` (hideWhen/patchProps/onInit), применяется поверх готовой схемы; в JSON поведение не выражается.
 
 ## Components and exports
 
-| Export                           | Purpose                                                             |
-| -------------------------------- | ------------------------------------------------------------------- |
-| `JsonFormRenderer`               | Главный компонент-рендерер схемы.                                   |
-| `JsonRendererProvider`           | Контекст-провайдер: реестр и настройки.                             |
-| `useJsonRendererSettings`        | Хук для чтения текущих настроек контекста.                          |
-| `defineRegistry`                 | Builder реестра компонентов и source-значений.                      |
-| `FIELD_WRAPPER`                  | Ключ реестра для компонента-обёртки полей.                          |
-| `JsonFormSchema`, `JsonNode`     | Типы JSON-схемы.                                                    |
-| `isFieldNode`, `isContainerNode` | Type guards для работы с узлами.                                    |
-| `createRenderSchemaFromJson`     | Низкоуровневый конвертер JSON → render-schema (advanced use cases). |
+| Export                                          | Purpose                                                                    |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `JsonFormRenderer`                              | Главный компонент-рендерер. Пропы: `{ schema, renderBehavior?, onSchemaReady?, validate? }`. |
+| `JsonRendererProvider`                          | Контекст-провайдер: реестр (`registry`), модель (`model`), настройки.       |
+| `useJsonRendererSettings`                       | Хук для чтения текущих настроек контекста.                                  |
+| `defineRegistry`                                | Builder реестра компонентов и dataSource-значений.                         |
+| `FIELD_WRAPPER`                                 | Ключ реестра (`'$fieldWrapper'`) для компонента-обёртки полей.              |
+| `JsonFormSchema`, `JsonNode`                    | Типы JSON-схемы (`JsonFieldNode`/`JsonArrayNode`/`JsonContainerNode`).      |
+| `isFieldNode`, `isArrayNode`, `isContainerNode` | Type guards для узлов.                                                      |
+| `parseOperator`, `isModelOp`, `isComponentOp`, `isDataSourceOp` | Разбор и type-guards строк-операторов.                      |
+| `ModelOp`, `ComponentOp`, `DataSourceOp`        | Template-literal типы операторов.                                          |
+| `convertJsonToM1Tree`                           | JSON → сырое RenderNode-дерево (для `createForm({ model, schema })`).       |
+| `createRenderSchemaFromJsonM1`                  | JSON → `RenderSchemaFn` (низкоуровневый, для `FormRenderer`/`JsonFormRenderer`). |
+| `SchemaErrorPanel`                              | Панель ошибок валидации схемы (рисуется при `validate` + невалидной схеме). |
+| `formSchemaMetaSchema`, `buildFormSchemaMetaSchema`, `getComponentNames`, `getDataSourceNames` | Мета-схема form-DSL + утилиты (ajv-free). |
+
+> `validateFormSchema` живёт в отдельной точке входа `@reformer/renderer-json/validate` (тянет ajv, не попадает в render-бандл). `JsonFormRenderer` грузит её динамически при `validate={true}`.
 
 ## See also
 
-- [02-json-schema.md](02-json-schema.md) — формат `JsonFormSchema` и `JsonNode`.
+- [02-json-schema.md](02-json-schema.md) — формат `JsonFormSchema`/`JsonNode` и синтаксис операторов.
 - [03-registry.md](03-registry.md) — как наполнять реестр.
 - [04-troubleshooting.md](04-troubleshooting.md) — частые ошибки.
+- [05-cookbook.md](05-cookbook.md) — массивы, dataSource-функции, миграция из TS RenderSchema.
 - Эталонный пример: `CreditApplicationFormRendererJson` (monorepo example).

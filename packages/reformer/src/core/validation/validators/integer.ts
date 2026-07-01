@@ -11,12 +11,21 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора, проверяющего что число — целое.
  *
- * Пустые значения и не-числа пропускаются (используйте `required` и `isNumber`).
+ * Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для числового поля
+ *
+ * @example Проверка целого числа
  * ```typescript
- * validate(path.age, integer());
- * validate(path.count, integer({ message: 'Должно быть целым числом' }));
+ * import { required, integer } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * count: {
+ *   value: model.$.count,
+ *   component: Input,
+ *   validators: [required(), integer({ message: 'Должно быть целым числом' })],
+ * },
  * ```
  */
 export function integer<TForm = unknown, TField extends number | undefined = number>(

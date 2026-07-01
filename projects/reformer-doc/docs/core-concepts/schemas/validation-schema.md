@@ -62,10 +62,10 @@ validation: (path: FieldPath<User>) => {
 
 ## Built-in Validators
 
-| Validator                    | Description           |
-| ---------------------------- | --------------------- |
-| `validate(path.field, required())`       | Field must have value |
-| `validate(path.field, email())`          | Valid email format    |
+| Validator                              | Description           |
+| -------------------------------------- | --------------------- |
+| `validate(path.field, required())`     | Field must have value |
+| `validate(path.field, email())`        | Valid email format    |
 | `validate(path.field, minLength(n))`   | Minimum string length |
 | `validate(path.field, maxLength(n))`   | Maximum string length |
 | `validate(path.field, min(n))`         | Minimum number        |

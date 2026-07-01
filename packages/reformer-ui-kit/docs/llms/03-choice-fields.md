@@ -56,12 +56,16 @@ import { Checkbox } from '@reformer/ui-kit';
 label сверху):
 
 ```tsx
-import { createForm, type FormSchema } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { Checkbox, FormField } from '@reformer/ui-kit';
 
-const form = createForm<FormSchema<{ accept: boolean }>>({
-  accept: { component: Checkbox, value: false, componentProps: { label: 'Принять' } },
-});
+const model = createModel<{ accept: boolean }>({ accept: false });
+const schema = {
+  children: [
+    { value: model.$.accept, component: Checkbox, componentProps: { label: 'Принять' } },
+  ],
+};
+const form = createForm<{ accept: boolean }>({ model, schema });
 
 <FormField control={form.accept} testId="accept" />;
 ```
@@ -137,13 +141,19 @@ const LOAN_TYPES = [
 В составе формы:
 
 ```tsx
-const form = createForm<FormSchema<{ loanType: string }>>({
-  loanType: {
-    component: RadioGroup,
-    value: 'consumer',
-    componentProps: { options: LOAN_TYPES },
-  },
-});
+import { createModel, createForm } from '@reformer/core';
+
+const model = createModel<{ loanType: string }>({ loanType: 'consumer' });
+const schema = {
+  children: [
+    {
+      value: model.$.loanType,
+      component: RadioGroup,
+      componentProps: { options: LOAN_TYPES },
+    },
+  ],
+};
+const form = createForm<{ loanType: string }>({ model, schema });
 
 <FormField control={form.loanType} testId="loan-type" />;
 ```
@@ -165,17 +175,29 @@ const form = createForm<FormSchema<{ loanType: string }>>({
 данных:
 
 - **Inline**: `options={[…]}` — массив `{ value, label, group? }`.
-- **Resource**: `resource={{ type, load }}` — асинхронная загрузка (см. ниже).
+- **Resource**: `resource={{ type, load }}` — асинхронная загрузка со стратегией `type`:
+  - `static` — один `load({})` при маунте, без поиска (снимок);
+  - `preload` — грузит всё сразу, поиск фильтрует опции **на клиенте**;
+  - `partial` — **серверные** поиск (`load({ search })` с debounce ~300 мс) и
+    пагинация (`load({ page })` по мере прокрутки списка до `totalCount`).
+
+  Для `preload`/`partial` в дропдауне появляется поле поиска.
 
 ### API
 
 ```typescript
 interface ResourceConfig<T> {
+  /** Стратегия загрузки. Если не задана — трактуется как `static`. */
   type: 'static' | 'preload' | 'partial';
-  load: (params?: ResourceLoadParams) => Promise<{
+  load: (params?: {
+    search?: string; // серверная фильтрация (partial)
+    page?: number; // 1-based, пагинация (partial)
+    pageSize?: number;
+  }) => Promise<{
     items: Array<{ id: string | number; label: string; value: T; group?: string }>;
-    totalCount: number;
+    totalCount: number; // общее число опций — для пагинации (partial)
   }>;
+  pageSize?: number; // размер страницы для partial (по умолчанию 20)
 }
 
 interface SelectProps<T> {
@@ -196,7 +218,7 @@ interface SelectProps<T> {
 | Prop          | Тип                               | Default                 | Описание                                                                                                                                        |
 | ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. |
-| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник. На маунт вызывается `resource.load({})`. На время загрузки `Select` показывает `Loading...` и блокируется.                |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `Select` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`.                |
 | `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                           |
 | `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                   |
 | `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                           |
@@ -237,10 +259,10 @@ import { Select } from '@reformer/ui-kit';
 />;
 ```
 
-Async `resource` (пример: список банков):
+Async `resource`, стратегия `preload` (грузим всё, поиск на клиенте):
 
 ```tsx
-import { Select, type ResourceConfig } from '@reformer/ui-kit/select';
+import { Select, type ResourceConfig } from '@reformer/ui-kit';
 
 const banksResource: ResourceConfig<string> = {
   type: 'preload',
@@ -255,6 +277,26 @@ const banksResource: ResourceConfig<string> = {
 };
 
 <Select value={bankId} onChange={setBankId} resource={banksResource} />;
+```
+
+Стратегия `partial` (серверные поиск + пагинация больших списков):
+
+```tsx
+const usersResource: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: async ({ search = '', page = 1, pageSize = 20 } = {}) => {
+    const res = await fetch(`/api/users?q=${search}&page=${page}&size=${pageSize}`);
+    const { rows, total }: { rows: Array<{ id: number; name: string }>; total: number } =
+      await res.json();
+    return {
+      items: rows.map((u) => ({ id: u.id, value: String(u.id), label: u.name })),
+      totalCount: total, // Select догружает страницы, пока items.length < totalCount
+    };
+  },
+};
+
+<Select value={userId} onChange={setUserId} resource={usersResource} clearable />;
 ```
 
 Grouped options:
@@ -290,18 +332,25 @@ Grouped options:
 В составе формы:
 
 ```tsx
-const form = createForm<FormSchema<{ city: string }>>({
-  city: {
-    component: Select,
-    componentProps: {
-      placeholder: 'Город',
-      options: [
-        { value: 'msk', label: 'Москва' },
-        { value: 'spb', label: 'Санкт-Петербург' },
-      ],
+import { createModel, createForm } from '@reformer/core';
+
+const model = createModel<{ city: string }>({ city: '' });
+const schema = {
+  children: [
+    {
+      value: model.$.city,
+      component: Select,
+      componentProps: {
+        placeholder: 'Город',
+        options: [
+          { value: 'msk', label: 'Москва' },
+          { value: 'spb', label: 'Санкт-Петербург' },
+        ],
+      },
     },
-  },
-});
+  ],
+};
+const form = createForm<{ city: string }>({ model, schema });
 
 <FormField control={form.city} testId="city" />;
 ```
@@ -325,4 +374,4 @@ const form = createForm<FormSchema<{ city: string }>>({
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
-- Эталон: `credit-application-schema.ts` (monorepo example) — большой пример с `Select` и `Checkbox` в реальной форме.
+- Эталон: `examples/complex-multy-step-form/schemas/schema.ts` (monorepo example) — большой пример с `Select` и `Checkbox` в реальной форме.

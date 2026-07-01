@@ -160,8 +160,8 @@ export interface ContainerRenderNodeProps {
  *     className: 'grid grid-cols-2 gap-4',
  *   },
  *   children: [
- *     { component: path.firstName },
- *     { component: path.lastName },
+ *     { value: model.$.firstName, component: Input },
+ *     { value: model.$.lastName, component: Input },
  *   ],
  * }
  * ```
@@ -203,7 +203,8 @@ export interface FieldWrapperProps {
   children: React.ReactNode;
   /**
    * testId для генерации data-testid на wrapper/label/error.
-   * Выводится рендерером из FieldPath или переопределяется через componentProps.testId.
+   * Выводится рендерером из пути сигнала (`model.$.<path>`, точки → дефисы)
+   * или переопределяется через `componentProps.testId`.
    */
   testId?: string;
 }

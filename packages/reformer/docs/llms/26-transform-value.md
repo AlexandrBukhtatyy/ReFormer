@@ -2,74 +2,58 @@
 
 ## Purpose
 
-`transformValue` подписывается на изменение поля и переписывает его трансформированной версией: uppercase для кодов, trim+toLowerCase для email, маска для телефона, округление для чисел. В отличие от `valueParser` в `<input>`, работает декларативно в схеме формы и применяется единообразно ко всем источникам изменения (пользователь, programmatic `setValue`, `patchValue`, async `copyFrom`). Идемпотентность (`f(f(x)) === f(x)`) обязательна — иначе бесконечный цикл `setValue → callback → setValue`.
+`transformValue` подписывается на изменение поля и переписывает его трансформированной
+версией: uppercase для кодов, trim+toLowerCase для email, округление для чисел. Применяется
+единообразно ко всем источникам изменения (пользователь, `model.field = …`, `model.set/patch`,
+`copyFrom`). **Идемпотентность (`f(f(x)) === f(x)`) обязательна** — иначе бесконечный цикл.
+Оператор откладывает запись вне effect-контекста (`runOutsideEffect`) и не пишет, если
+`transformer(value) === value` — базовый guard от циклов.
 
 ## API
 
+Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
+
 ```typescript
-function transformValue<TForm extends FormFields, TValue extends FormValue = FormValue>(
-  field: FieldPathNode<TForm, TValue>,
-  transformer: (value: TValue) => TValue,
-  options?: TransformValueOptions & { debounce?: number },
-): void;
+// примитив: возвращает cleanup
+function transformValue<T>(target: Signal<T>, transformer: (value: T) => T): () => void;
 
-interface TransformValueOptions {
-  /** Применять только когда поле touched (т.е. правил пользователь, не programmatic). */
-  onUserChangeOnly?: boolean;
-
-  /** Эмитить событие изменения после трансформации. По умолчанию true. */
-  emitEvent?: boolean;
-}
-
-// Хелперы
-function createTransformer<TValue>(
-  transformer: (value: TValue) => TValue,
-  defaultOptions?: TransformValueOptions,
-): (field: FieldPathNode<TForm, TValue>, options?: …) => void;
-
-const transformers: {
-  toUpperCase: …; toLowerCase: …; trim: …; removeSpaces: …;
-  digitsOnly: …; round: …; roundTo2: …;
-};
+// DSL: cleanup управляется формой
+function transformValue<T>(target: Signal<T>, transformer: (value: T) => T): void;
 ```
 
-`setValue` вызывается только если `transformer(value) !== value` — это базовый guard от циклов.
+`target` — сигнал (`model.$.field`). `transformer` — чистая идемпотентная функция значения.
+Дополнительных опций (`debounce`, `onUserChangeOnly`, `emitEvent`) и готового набора
+`transformers`/`createTransformer` НЕТ — трансформер пишется как обычная функция.
 
 ## Examples
 
 ### Базовый сценарий — uppercase для кода
 
 ```typescript
-import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-interface PromoForm {
-  uppercaseField: string;
-}
+type PromoForm = { uppercaseField: string };
 
-export const promoBehavior: BehaviorSchemaFn<PromoForm> = (path) => {
-  transformValue(path.uppercaseField, (value) => (value ?? '').toUpperCase());
-};
+export const promoBehavior = defineFormBehavior<PromoForm>(({ model }) => {
+  transformValue(model.$.uppercaseField, (value) => (value ?? '').toUpperCase());
+});
 ```
 
-Source: `BehaviorsExamples.tsx:239` (monorepo example).
+Source: `BehaviorsExamples.tsx` (monorepo example): `transformValue(model.$.uppercaseField, (v) => (v ?? '').toUpperCase())`.
 
-### Несколько трансформаций — нормализация email + форматирование телефона
+### Несколько трансформаций
 
 ```typescript
-import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-interface ContactForm {
-  email: string;
-  phone: string;
-  amount: number;
-}
+type ContactForm = { email: string; phone: string; amount: number };
 
-export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
+export const contactBehavior = defineFormBehavior<ContactForm>(({ model }) => {
   // email: trim + lowercase
-  transformValue(path.email, (value) => (value ?? '').trim().toLowerCase());
+  transformValue(model.$.email, (value) => (value ?? '').trim().toLowerCase());
 
-  // телефон: оставить только цифры и собрать формат
-  transformValue(path.phone, (value) => {
+  // телефон: только цифры → формат
+  transformValue(model.$.phone, (value) => {
     if (!value) return value;
     const digits = value.replace(/\D/g, '');
     if (digits.length === 11) {
@@ -79,103 +63,70 @@ export const contactBehavior: BehaviorSchemaFn<ContactForm> = (path) => {
   });
 
   // округление до целого
-  transformValue(path.amount, (value) => (typeof value === 'number' ? Math.round(value) : value));
-};
+  transformValue(model.$.amount, (value) => (typeof value === 'number' ? Math.round(value) : value));
+});
 ```
 
-### С `transformers` — готовые трансформеры
+### Как примитив (вне defineFormBehavior)
 
 ```typescript
-import { transformers, type BehaviorSchemaFn } from '@reformer/core/behaviors';
-
-interface RegistrationForm {
-  username: string;
-  promoCode: string;
-  inn: string;
-  amount: number;
-}
-
-export const registrationBehavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
-  transformers.trim(path.username);
-  transformers.toUpperCase(path.promoCode);
-  transformers.digitsOnly(path.inn);
-  transformers.roundTo2(path.amount);
-};
+import { transformValue } from '@reformer/core';
+const stop = transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 
-### `onUserChangeOnly` — пропуск programmatic изменений
+### Переиспользуемые трансформеры — обычные функции
+
+Готового набора нет, но легко собрать свои и применять их к любому сигналу:
 
 ```typescript
-import { transformValue, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+const toUpper = (target: Signal<string>) => transformValue(target, (v) => (v ?? '').toUpperCase());
+const trim = (target: Signal<string>) => transformValue(target, (v) => (v ?? '').trim());
 
-interface UserForm {
-  preformatted: string; // изначально приходит с сервера в нужном виде
-}
-
-export const userBehavior: BehaviorSchemaFn<UserForm> = (path) => {
-  // Не трогаем значение, пришедшее через patchValue от useLoadCreditApplication;
-  // переформатируем только если пользователь начал править
-  transformValue(path.preformatted, (value) => (value ?? '').toUpperCase(), {
-    onUserChangeOnly: true,
-  });
-};
+// в схеме поведения:
+toUpper(model.$.promoCode);
+trim(model.$.username);
 ```
 
 ## Anti-patterns
 
 ```typescript
-// ❌ Не идемпотентный transformer — бесконечный цикл
-transformValue(path.field, (v) => `prefix-${v}`); // f(f(x)) = "prefix-prefix-x" ≠ f(x)
+// ❌ Неидемпотентный transformer — бесконечный цикл
+transformValue(model.$.field, (v) => `prefix-${v}`); // f(f(x)) ≠ f(x)
 
-// ✅ Делайте guard внутри transformer
-transformValue(path.field, (v) => (v?.startsWith('prefix-') ? v : `prefix-${v}`));
+// ✅ Guard внутри transformer
+transformValue(model.$.field, (v) => (v?.startsWith('prefix-') ? v : `prefix-${v}`));
 ```
 
 ```typescript
-// ❌ Трансформация ОДНОВРЕМЕННО с syncFields на том же поле
-syncFields(path.a, path.b);
-transformValue(path.b, (v) => v.toUpperCase());
-// При записи в `a` → b получит сырой v, transformValue запишет b обратно,
-// syncFields перезапишет a, и т. д.
+// ❌ transformValue ОДНОВРЕМЕННО с syncFields на том же поле
+syncFields(model.$.a, model.$.b);
+transformValue(model.$.b, (v) => v.toUpperCase()); // взаимные перезаписи
 
-// ✅ Трансформируйте источник до синхронизации
-transformValue(path.a, (v) => v.toUpperCase());
-syncFields(path.a, path.b);
+// ✅ Трансформируй источник ДО синхронизации
+transformValue(model.$.a, (v) => v.toUpperCase());
+syncFields(model.$.a, model.$.b);
 ```
 
 ```typescript
-// ❌ Тяжёлая логика в transformer без debounce
-transformValue(path.text, (v) => heavyParse(v));
+// ❌ transformValue для производных полей (нет доступа к другим полям)
+transformValue(model.$.fullName, () => `${model.firstName} ${model.lastName}`);
 
-// ✅ Дебаунсим перерасчёт
-transformValue(path.text, (v) => heavyParse(v), { debounce: 250 });
-```
-
-```typescript
-// ❌ Использование transformValue для производных полей
-transformValue(path.fullName, () => `${form.firstName} ${form.lastName}`);
-// transformValue не имеет доступа к форме, только к value одного поля
-
-// ✅ Для зависимостей от других полей — computeFrom
-computeFrom([path.firstName, path.lastName], path.fullName, (v) => `${v.firstName} ${v.lastName}`);
+// ✅ Для зависимостей от других полей — compute
+compute(model.$.fullName, () => `${model.firstName} ${model.lastName}`);
 ```
 
 ## Troubleshooting
 
-**Q: Цикл «Cycle detected» при transformValue.**
-A: 99% случаев — неидемпотентный transformer. Проверьте: `transformer(transformer(x)) === transformer(x)` для типичных значений. Добавьте guard «уже преобразовано».
+**Q: «Cycle detected» при transformValue.**
+A: 99% — неидемпотентный transformer. Проверь `transformer(transformer(x)) === transformer(x)`.
 
-**Q: Трансформация не применяется при загрузке через `patchValue`.**
-A: Если стоит `onUserChangeOnly: true` — это by design. Если не стоит, проверьте, что behavior зарегистрирован (передан в `createForm({ behavior })`) и форма не пересоздаётся при каждом рендере (используйте `useMemo`).
+**Q: Трансформация не применяется.**
+A: Проверь, что behavior зарегистрирован (`createForm({ behavior })`) / примитив не отписан,
+и что форма не пересоздаётся на каждый рендер (используй `useMemo`).
 
-**Q: Каретка input прыгает в начало строки при наборе.**
-A: Симптом — `setValue` в transformValue вызывает re-render. Лучшие практики: (1) `debounce: 100…200`; (2) держать преобразование как можно ближе к идемпотентному; (3) форматирование с динамическими разделителями (телефон, кредитка) лучше делать через `<InputMask>` из `@reformer/ui-kit`, а не через transformValue.
-
-**Q: Хочу трансформировать только при blur, а не на каждом keystroke.**
-A: Стандартная опция отсутствует, но эффект достигается через `onUserChangeOnly: true` + большой `debounce` (500-700 мс) — пользователь успевает закончить ввод. Альтернатива — слушать blur вручную через React-обработчик.
-
-**Q: Как сделать переиспользуемые трансформации?**
-A: Используйте `createTransformer<T>((value) => …)` — возвращает функцию вида `(path) => void`, которую можно применять в любых behaviour-схемах. См. готовый набор `transformers.{toUpperCase, trim, digitsOnly, roundTo2}`.
+**Q: Каретка input прыгает при наборе.**
+A: Симптом частых записей. Форматирование с динамическими разделителями (телефон, кредитка)
+лучше делать через `<InputMask>` из `@reformer/ui-kit`, а не `transformValue`.
 
 ## See also
 

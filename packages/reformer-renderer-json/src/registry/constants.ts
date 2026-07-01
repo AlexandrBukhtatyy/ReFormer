@@ -10,7 +10,7 @@
  * import { FormField } from '@reformer/ui-kit';
  *
  * const registry = defineRegistry((reg) => {
- *   reg.container(FIELD_WRAPPER, FormField);
+ *   reg.component(FIELD_WRAPPER, FormField);
  * });
  * ```
  */

@@ -356,14 +356,12 @@ export class GroupNode<T> extends FormNode<T> {
    * @example
    * ```typescript
    * const form = new GroupNode({
-   *   controls: {
-   *     email: new FieldNode({ value: '' }),
-   *     name: new FieldNode({ value: '' })
-   *   }
+   *   email: { value: '', component: Input },
+   *   name: { value: '', component: Input },
    * });
    *
    * const proxy = form.getProxy();
-   * console.log(proxy.email.value); // Прямой доступ к полю
+   * console.log(proxy.email.value.value); // Прямой доступ к полю
    * ```
    */
   getProxy(): FormProxy<T> {

@@ -17,7 +17,7 @@
  */
 
 import Ajv, { type ErrorObject } from 'ajv';
-import { formSchemaMetaSchema, getComponentNames, getSourceNames } from './schema';
+import { formSchemaMetaSchema, getComponentNames, getDataSourceNames } from './schema';
 import { parseOperator } from './operators';
 import type { ComponentRegistry } from './registry/types';
 
@@ -32,7 +32,7 @@ export interface FormSchemaValidationResult {
 export interface ValidateFormSchemaOptions {
   registry?: ComponentRegistry;
   componentNames?: string[];
-  sourceNames?: string[];
+  dataSourceNames?: string[];
 }
 
 /** Рекурсивно собирает ошибки неизвестных `$component(...)`/`$dataSource(...)`-имён по всему дереву. */
@@ -40,33 +40,39 @@ function walkOperatorNames(
   node: unknown,
   path: string,
   componentNames: string[] | undefined,
-  sourceNames: string[] | undefined,
+  dataSourceNames: string[] | undefined,
   errors: string[]
 ): void {
   if (typeof node === 'string') {
     const op = parseOperator(node);
     if (op?.op === 'component' && componentNames && !componentNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown component "${op.arg}"`);
-    } else if (op?.op === 'dataSource' && sourceNames && !sourceNames.includes(op.arg)) {
+    } else if (op?.op === 'dataSource' && dataSourceNames && !dataSourceNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown dataSource "${op.arg}"`);
     }
     return;
   }
   if (Array.isArray(node)) {
     node.forEach((v, i) =>
-      walkOperatorNames(v, `${path}[${i}]`, componentNames, sourceNames, errors)
+      walkOperatorNames(v, `${path}[${i}]`, componentNames, dataSourceNames, errors)
     );
     return;
   }
   if (node !== null && typeof node === 'object') {
     for (const [k, v] of Object.entries(node)) {
-      walkOperatorNames(v, path ? `${path}.${k}` : k, componentNames, sourceNames, errors);
+      walkOperatorNames(v, path ? `${path}.${k}` : k, componentNames, dataSourceNames, errors);
     }
   }
 }
 
 /**
- * Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него.
+ * Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него
+ * (иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт в subpath
+ * `@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+ *
+ * @param schema - Проверяемая JSON-схема (обычно {@link JsonFormSchema}, но принимает `unknown`).
+ * @param opts - {@link ValidateFormSchemaOptions}: `registry` либо явные списки имён.
+ * @returns {@link FormSchemaValidationResult} — `{ valid, errors }` (ошибки — путь + сообщение).
  *
  * @example
  * ```ts
@@ -80,8 +86,8 @@ export function validateFormSchema(
 ): FormSchemaValidationResult {
   const componentNames =
     opts.componentNames ?? (opts.registry ? getComponentNames(opts.registry) : undefined);
-  const sourceNames =
-    opts.sourceNames ?? (opts.registry ? getSourceNames(opts.registry) : undefined);
+  const dataSourceNames =
+    opts.dataSourceNames ?? (opts.registry ? getDataSourceNames(opts.registry) : undefined);
 
   const errors: string[] = [];
 
@@ -95,7 +101,7 @@ export function validateFormSchema(
   }
 
   // (b) Имена $component/$dataSource по всему дереву (включая вложенные в opaque componentProps)
-  walkOperatorNames(schema, '', componentNames, sourceNames, errors);
+  walkOperatorNames(schema, '', componentNames, dataSourceNames, errors);
 
   return { valid: errors.length === 0, errors };
 }

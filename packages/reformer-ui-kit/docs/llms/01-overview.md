@@ -87,34 +87,53 @@ import { Button } from '@reformer/ui-kit/button';
 
 ## Quick Start
 
-Минимальная форма из двух полей с валидацией и сабмитом. `FormField`
-самостоятельно подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
+Минимальная форма из двух полей с валидацией и сабмитом (архитектура M1:
+`createModel` → схема → `createForm({ model, schema })` → `validateFormModel`).
+`FormField` самостоятельно подцепляет `value`/`error`/`pending` через `@reformer/cdk`:
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, type FormSchema } from '@reformer/core';
-import { Button, FormField, Input } from '@reformer/ui-kit';
-import { object, string, email, minLength } from 'valibot';
+import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
+import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
-interface RegistrationForm {
+type RegistrationForm = {
   email: string;
   password: string;
-}
+};
 
 function RegistrationPage() {
-  const form = useMemo(
-    () =>
-      createForm<FormSchema<RegistrationForm>>({
-        email: { component: Input, validations: [string(), email()] },
-        password: { component: Input, validations: [string(), minLength(8)] },
-      }),
-    []
-  );
+  const { model, form, schema } = useMemo(() => {
+    // 1) Модель — источник истины значений.
+    const model = createModel<RegistrationForm>({ email: '', password: '' });
+    // 2) Схема: лист = { value: сигнал модели, component, componentProps?, validators }.
+    const schema = {
+      children: [
+        {
+          value: model.$.email,
+          component: Input,
+          componentProps: { label: 'Email', type: 'email', testId: 'email' },
+          validators: [required({ message: 'Email обязателен' }), email()],
+        },
+        {
+          value: model.$.password,
+          component: InputPassword,
+          componentProps: { label: 'Пароль', testId: 'password' },
+          validators: [required({ message: 'Пароль обязателен' }), minLength(8)],
+        },
+      ],
+    };
+    // 3) createForm привязывает ноды к сигналам модели → FormProxy.
+    const form = createForm<RegistrationForm>({ model, schema });
+    return { model, form, schema };
+  }, []);
 
   const onSubmit = async () => {
     form.markAsTouched();
-    if (!(await form.validate())) return;
-    console.log('values', form.getValue());
+    // 4) Валидация всей модели по схеме.
+    const res = await validateFormModel(model, schema);
+    if (!res.valid) return;
+    console.log('values', model.get());
   };
 
   return (
@@ -125,8 +144,8 @@ function RegistrationPage() {
       }}
       className="space-y-4 max-w-md"
     >
-      <FormField control={form.email} testId="email" />
-      <FormField control={form.password} testId="password" />
+      <FormField control={form.email} />
+      <FormField control={form.password} />
       <Button type="submit">Зарегистрироваться</Button>
     </form>
   );

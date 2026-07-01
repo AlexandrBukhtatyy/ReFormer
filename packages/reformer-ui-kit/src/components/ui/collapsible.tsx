@@ -1,7 +1,7 @@
 /**
  * Collapsible - сворачиваемая секция для RenderSchema
  *
- * @module reformer/renderer-react/components/collapsible
+ * @module reformer/ui-kit/components/collapsible
  */
 
 import { useState, type ReactNode } from 'react';
@@ -29,11 +29,13 @@ export interface CollapsibleProps {
  *
  * Заголовок-кнопка переключает видимость `children`. Состояние локальное
  * (`useState`), внешний control пока не поддерживается — для управляемого
- * варианта используй `RenderSchema.node('selector').setHidden(true)` поверх
- * обычного `Box`.
+ * извне варианта используй `createRenderSchema(...).node('selector').setHidden(true)`
+ * поверх обычного `Box`/`Section`.
  *
- * @example Свёрнута по умолчанию
+ * @example Свёрнута по умолчанию (M1: лист = `value` + `component`)
  * ```typescript
+ * import { Collapsible, Textarea, Input } from '@reformer/ui-kit';
+ *
  * {
  *   component: Collapsible,
  *   componentProps: {
@@ -43,14 +45,16 @@ export interface CollapsibleProps {
  *     titleClassName: 'font-semibold w-full text-left',
  *   },
  *   children: [
- *     { component: path.notes },
- *     { component: path.tags },
+ *     { value: model.$.notes, component: Textarea },
+ *     { value: model.$.tags, component: Input },
  *   ],
  * }
  * ```
  *
  * @example Развёрнута, со специальным фоном контента
  * ```typescript
+ * import { Collapsible, Textarea } from '@reformer/ui-kit';
+ *
  * {
  *   component: Collapsible,
  *   componentProps: {
@@ -59,7 +63,7 @@ export interface CollapsibleProps {
  *     contentClassName: 'mt-2 bg-gray-50 p-3 rounded',
  *   },
  *   children: [
- *     { component: path.deliveryAddress },
+ *     { value: model.$.deliveryAddress, component: Textarea },
  *   ],
  * }
  * ```

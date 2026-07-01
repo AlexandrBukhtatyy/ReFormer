@@ -12,12 +12,22 @@ import { parseDate, getToday, normalizeDate } from './date-utils';
 /**
  * Фабрика валидатора, проверяющего что дата не в прошлом.
  *
- * Пустые и невалидные даты пропускаются.
+ * Дата не должна быть раньше сегодняшнего дня (сравнение по нормализованным датам).
+ * Пустые и невалидные даты пропускаются (используйте {@link required} и {@link isDate}).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ *
+ * @example Дата не в прошлом
  * ```typescript
- * validate(path.eventDate, futureDate());
- * validate(path.appointmentDate, futureDate({ message: 'Дата записи должна быть в будущем' }));
+ * import { required, futureDate } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * appointmentDate: {
+ *   value: model.$.appointmentDate,
+ *   component: DatePicker,
+ *   validators: [required(), futureDate({ message: 'Дата записи должна быть в будущем' })],
+ * },
  * ```
  */
 export function futureDate<

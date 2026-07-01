@@ -1,303 +1,161 @@
 ## 3. COMMON PATTERNS
 
+Все паттерны — на архитектуре M1: значения в модели (`model.$.field`), behaviors на сигналах,
+валидация через `validateFormModel`.
+
 ### Conditional Fields with Auto-Reset
 
 ```typescript
-enableWhen(path.mortgageFields, (form) => form.loanType === 'mortgage', {
+import { enableWhen } from '@reformer/core';
+
+// поле включается по условию; при выключении — сброс к initial
+enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {
   resetOnDisable: true,
 });
 ```
 
-### Computed Field from Nested to Root Level
+Или декларативно внутри `defineFormBehavior`:
 
 ```typescript
-// DO NOT use computeFrom for cross-level computations
-// Use watchField instead. Write API is ctx.form.<path>.setValue(value) —
-// ctx.setFieldValue(name, value) does not exist.
-watchField(
-  path.nested.field,
-  (value, ctx) => {
-    if (ctx.form.rootField.value.value !== computedValue) {
-      ctx.form.rootField.setValue(computedValue);
-    }
-  },
-  { immediate: false }
-);
-```
+import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
 
-### Validation callback canonical shape
-
-**Default (recommended) — fully typed:** annotate the validation/behavior
-function with `ValidationSchemaFn<T>` / `BehaviorSchemaFn<T>` (imported from
-`@reformer/core`, NOT from `/validators` or `/behaviors`). `path` and inner
-`applyWhen`-callback `p` are inferred automatically — no `any` casts needed.
-
-```typescript
-import {
-  createForm,
-  type FormProxy,
-  type ValidationSchemaFn,
-  type BehaviorSchemaFn,
-} from '@reformer/core';
-import { required, min, validate, applyWhen, validateItems } from '@reformer/core/validators';
-import { computeFrom } from '@reformer/core/behaviors';
-
-const validation: ValidationSchemaFn<MyForm> = (path) => {
-  required(path.step1.loanAmount, { message: 'Введите сумму' });
-  min(path.step1.loanAmount, 50000);
-
-  validate(path.step4.workExperienceCurrent, (value, ctx) => {
-    const total = ctx.form.step4.workExperienceTotal.value.value;
-    if (total != null && value != null && value > total) {
-      return { code: 'experience-mismatch', message: 'Текущий стаж не может превышать общий' };
-    }
-    return null;
-  });
-
-  // applyWhen-callback `p` is auto-typed as FieldPath<MyForm> via the signature
-  // (path: FieldPath<TForm>) => void — no manual annotation needed.
-  applyWhen(
-    path.step1.loanType,
-    (loanType) => loanType === 'mortgage',
-    (p) => {
-      required(p.step1.propertyValue, { message: 'Введите стоимость недвижимости' });
-      min(p.step1.propertyValue, 500000);
-    }
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  enableWhen(
+    [model.$.propertyValue, model.$.initialPayment],
+    () => model.loanType === 'mortgage',
+    { resetOnDisable: true }
   );
-
-  validateItems(path.step5.properties, (itemPath) => {
-    required(itemPath.type);
-    min(itemPath.estimatedValue, 0);
-  });
-};
-
-const behavior: BehaviorSchemaFn<MyForm> = (path) => {
-  computeFrom(
-    [path.step1.loanAmount],
-    path.summary.total,
-    ({ step1 }: MyForm) => step1.loanAmount ?? 0
-  );
-};
-
-export const myForm: FormProxy<MyForm> = createForm({
-  form: {
-    /* schema */
-  },
-  validation,
-  behavior,
 });
 ```
 
-**Legacy workaround — only when TS2589 hits.** For deeply-nested forms
-(typically 6+ levels) the recursive `FormSchema<T>` mapped type can hit
-TS2589 ("type instantiation excessively deep"). Only then fall back to a
-function-cast on the `createForm` config plus `(path: any)` annotations.
-This **disables** type-checking inside the callback — use it only when the
-canonical shape literally won't compile, not as a default.
+### Computed Field (same or cross level)
+
+`compute`/`computeFrom` пишут в целевой сигнал при изменении источников. Цель не входит
+в источники → цикла нет. Кросс-уровневые вычисления работают так же — источники берутся
+по сигналам из любого места модели.
 
 ```typescript
-// LEGACY — apply ONLY if canonical shape produces TS2589
-export const deepForm: FormProxy<DeepForm> = (
-  createForm as (config: { form: unknown; validation: unknown }) => FormProxy<DeepForm>
-)({
-  form: {
-    /* very deep schema */
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  validation: (path: any) => {
-    required(path.a.b.c.d.e.field);
-    applyWhen(
-      path.a.b,
-      (form) => form.a.b.flag,
-      (p: typeof path) => {
-        // (p: typeof path) preserves field-level type-checking inside the block
-        required(p.a.b.x);
+import { defineFormBehavior, compute, computeFrom } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  // compute: auto-tracking — читаем что нужно прямо из value-модели
+  compute(model.$.total, () => (model.price ?? 0) * (model.quantity ?? 0));
+
+  // computeFrom: явный список источников
+  computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => price * qty);
+
+  // кросс-уровневое: fullName из вложенной группы
+  compute(model.$.fullName, () =>
+    [model.personalData.firstName, model.personalData.lastName].filter(Boolean).join(' ')
+  );
+});
+```
+
+### Async reaction / dynamic options — `onChange`
+
+Для async-реакции на изменение поля (загрузка справочников, зависимые селекты) используй
+`onChange` из DSL. Колбэк выполняется вне effect-контекста (можно писать сигналы/ноды), а
+2-й аргумент — `{ signal }` (AbortSignal) для отмены устаревших запросов.
+
+```typescript
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
+  onChange(
+    model.$.region,
+    async (region, { signal }) => {
+      if (!region) {
+        form.city.updateComponentProps({ options: [] });
+        return;
       }
-    );
-  },
-});
-```
-
-Form-shape `interface` types may need to be converted to `type` aliases for
-structural compatibility with `Record<string, FormValue>`-constrained
-generics like `ArrayNode<T>` / `FormProxy<T>` (interface lacks an implicit
-index signature). See `30-type-safety-recipes.md`.
-
-### Type-Safe useFormControl
-
-```typescript
-const { value } = useFormControl(form.field as FieldNode<ExpectedType>);
-```
-
-### Validation Priority (IMPORTANT)
-
-**Operators register validators; built-in factories return validators. Pass factories to `validate()`.**
-
-Operators: `validate`, `validateAsync`, `applyWhen`, `apply`, `validateItems`.
-Factories (return `Validator<TForm, TField>`): `required`, `email`, `min`, `max`, `minLength`, `maxLength`,
-`pattern`, `url`, `phone`, `number`, `date`, `notEmpty`.
-
-```typescript
-// 1. BEST: Pass built-in factories to validate()
-validate(path.email, required());
-validate(path.email, email());
-validate(path.age, min(18));
-validate(path.password, minLength(8));
-validate(path.phone, pattern(/^\+7\d{10}$/));
-
-// 2. GOOD: Custom validator when no factory fits. Signature: (value, control, root).
-validate(path.customField, (value, control, root) => {
-  if (customCondition(value)) {
-    return { code: 'custom', message: 'Custom error' };
-  }
-  return null;
-});
-
-// 3. WRONG: Don't recreate built-in validators inline
-validate(path.email, (value) => {
-  if (!value) return { code: 'required', message: 'Required' }; // Use required() instead!
-  if (!value.includes('@')) return { code: 'email', message: 'Invalid' }; // Use email() instead!
-  return null;
-});
-```
-
-## TYPED schema generic + extracted callback rules
-
-Two rules apply to **every** validation/behavior schema you write:
-
-### Rule A — Use the form interface as `<T>` in the schema generic; never `any`
-
-```typescript
-import type { CreditApplicationForm } from './types';
-
-// ✅ generic fixed → path / ctx / value all infer correctly
-const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.email);
-  validateTree<CreditApplicationForm>((ctx) => {
-    const form = ctx.form.getValue();  // typed CreditApplicationForm
-    if (form.loanAmount && form.totalIncome && form.loanAmount > form.totalIncome * 12 * 10) {
-      return { code: 'loanCap', message: '...' };
-    }
-    return null;
-  }, { targetField: 'loanAmount' });
-};
-
-const behavior: BehaviorSchemaFn<CreditApplicationForm> = (path) => {
-  computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity);
-};
-
-// ❌ generic dropped or path: any — silent fail on field-name typos
-const validation: ValidationSchemaFn<any> = (path: any) => { ... };
-const behavior = (path: any) => { ... };  // missing BehaviorSchemaFn<T> annotation entirely
-```
-
-`as any` cast is acceptable in narrow call-sites (e.g. TS2589 workaround for very deep forms) but should be **scoped to the expression**, not the entire callback parameter.
-
-### Rule B — Inline OK for short callbacks; extract module-level for content
-
-**Inline acceptable** (1-3 line callbacks):
-
-```typescript
-applyWhen(
-  path.loanType,
-  (t) => t === 'mortgage',
-  (p) => required(p.propertyValue)
-);
-enableWhen(path.discountCode, (form) => form.subtotal > 100);
-copyFrom(path.regAddress, path.resAddress, { when: (form) => form.sameAsReg, fields: 'all' });
-validate(path.agree, (v: boolean) => (v === true ? null : { code: 'mustAgree', message: '...' }));
-```
-
-**Extract module-level when**:
-
-- callback >5 lines or has multiple return branches
-- `computeFrom([...], target, callback)` — inline arrow may lose `(values: TForm)` inference and force `(values: any)`. Module-level `function computeX(form: T): R` infers correctly.
-- async `watchField` with try/catch
-- callback reused in multiple places
-- cross-field `validateTree` with branching logic
-
-```typescript
-// ✅ extracted typed helpers — used by behavior schema
-function computeMonthlyPayment(form: LoanForm): number {
-  const P = form.loanAmount,
-    n = form.loanTerm,
-    annual = form.interestRate;
-  if (!P || !n || !annual || P <= 0 || n <= 0) return 0;
-  const i = annual / 100 / 12;
-  if (i <= 0) return Math.round(P / n);
-  const factor = Math.pow(1 + i, n);
-  return Math.round((P * (i * factor)) / (factor - 1));
-}
-
-const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
-  computeFrom(
-    [path.loanAmount, path.loanTerm, path.interestRate],
-    path.monthlyPayment,
-    computeMonthlyPayment // by-reference, signature already typed
+      const cities = await fetchCities(region, { signal });
+      form.city.updateComponentProps({ options: cities });
+    },
+    { debounce: 300 }
   );
+});
+```
+
+> Низкоуровневый аналог — примитив `watchField(model.$.region, cb)` из `@reformer/core` (без debounce/AbortSignal;
+> для сети предпочтителен `onChange`). См. `20-compute-vs-watch.md`, `32-async-options-loading.md`.
+
+### Reading values
+
+```typescript
+// В React-компоненте — хуки
+const { value, errors, disabled } = useFormControl(form.email);
+const loanType = useFormControlValue(form.loanType); // значение напрямую
+
+// Вне React — из модели
+model.email;             // value-доступ (реактивно внутри effect/computed)
+model.$.email.value;     // через сигнал
+model.$.email.peek();    // нереактивный снимок
+model.get();             // весь объект-снимок
+```
+
+### Submit + validation
+
+```typescript
+import { validateFormModel } from '@reformer/core';
+
+async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  const result = await validateFormModel(model, schema); // ошибки роутятся в ноды формы
+  if (!result.valid) return;                             // result.errors — { path: ValidationError[] }
+  await api.send(model.get());
+  model.reset(); // к initial-снимку
+}
+```
+
+Multi-step: держи отдельные под-схемы на шаг и вызывай `validateFormModel(model, stepSchema)`.
+См. `13-multi-step.md`, `28-submit-and-reset.md`.
+
+### Cross-field validation — через `root`
+
+Cross-field правило — `ModelValidator`, читает соседние поля через `root`, вешается на
+поле-носитель ошибки:
+
+```typescript
+import type { ModelValidator } from '@reformer/core';
+
+const initialPaymentVsProperty: ModelValidator<number, unknown, MyForm> = (_value, _scope, root) =>
+  root.initialPayment && root.propertyValue && root.initialPayment > root.propertyValue
+    ? { code: 'tooHigh', message: 'Взнос не может превышать стоимость' }
+    : null;
+
+const schema = {
+  initialPayment: { value: model.$.initialPayment, component: Input, validators: [initialPaymentVsProperty] },
 };
 ```
 
-Reference patterns: `complex-multy-step-form/schemas/credit-application-behavior.ts`.
-
-### Extracting Nested Rules
-
-When the body of `applyWhen` / `validate` grows beyond a few lines,
-extract it to a **named top-level function** typed with one of the public types from
-`@reformer/core`:
-
-- `ValidationSchemaFn<TForm>` — sub-schema passed to `applyWhen` or `apply`.
-- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — field validator passed to `validate` / `validateAsync`. Cross-field правила пишутся в той же сигнатуре — `(value, control, root) => …` — и навешиваются на конкретное поле-носитель ошибки.
-
-This keeps the schema body flat (reads like a table of contents) and surfaces the
-**intent** of each rule via a meaningful name.
+Чтобы правило перезапускалось при изменении зависимости — добавь `revalidateWhen`:
 
 ```typescript
-import type { ValidationSchemaFn, Validator } from '@reformer/core';
+import { revalidateWhen } from '@reformer/core';
+revalidateWhen([model.$.propertyValue], () => validateFormModel(model, schema));
+```
 
-// 1. Cross-field rule — extracted Validator (reads other fields via `root`)
-const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
-  _value,
-  _control,
-  root
-) => {
-  const form = root.getValue();
-  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
-    return { code: 'initialPaymentTooHigh', message: 'Взнос не может превышать стоимость' };
-  }
-  return null;
-};
+### Extracting named rules
 
-// 2. Custom field validator — extracted Validator
-const validateAdultAge: Validator<CreditApplicationForm, string | undefined> = (value) => {
+Когда тело кастомного валидатора или behavior-оператора растёт — выноси в именованную
+функцию, типизированную `ModelValidator<TField, TScope, TRoot>`. Схема остаётся плоской и
+читается как оглавление:
+
+```typescript
+import type { ModelValidator } from '@reformer/core';
+
+const validateAdultAge: ModelValidator<string> = (value) => {
   if (!value) return null;
   const age = new Date().getFullYear() - new Date(value).getFullYear();
-  if (age < 18) return { code: 'tooYoung', message: 'Минимум 18 лет' };
-  return null;
+  return age < 18 ? { code: 'tooYoung', message: 'Минимум 18 лет' } : null;
 };
 
-// 3. Nested schema for applyWhen — extracted ValidationSchemaFn
-const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.propertyValue, required());
-  validate(path.propertyValue, min(1000000));
-  validate(path.initialPayment, required());
-  validate(path.initialPayment, initialPaymentVsPropertyValue);
-};
-
-// 4. Main schema — flat, reads as a table of contents
-export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.loanType, required());
-  validate(path.personalData.birthDate, validateAdultAge);
-  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+const schema = {
+  birthDate: { value: model.$.birthDate, component: Input, validators: [validateAdultAge] },
 };
 ```
 
-**Naming convention** (camelCase, semantic — not echoing the operator name):
+**Naming convention** (camelCase, семантика, не эхо оператора):
 
-- `applyWhen` sub-schema → describes the conditional branch: `mortgageFieldsRules`, `employedFieldsRules`.
-- Cross-field `Validator` → describes the invariant: `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`.
-- Field-level `Validator` → describes the check: `validateAdultAge`, `validatePasswordsMatch`.
-
-**When to extract.** Inline lambdas are fine for short one-liners
-(`applyWhen(path.x, (v) => v === 'mortgage', mortgageFieldsRules)` — the condition stays inline).
-Extract whenever the body spans more than ~3 lines or contains nested rules.
+- Cross-field правило → инвариант: `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`.
+- Field-правило → проверка: `validateAdultAge`, `passwordsMatch`.

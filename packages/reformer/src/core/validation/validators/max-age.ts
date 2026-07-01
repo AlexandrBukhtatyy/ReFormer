@@ -12,12 +12,24 @@ import { parseDate, calculateAge } from './date-utils';
 /**
  * Фабрика валидатора максимального возраста (по дате рождения).
  *
- * Пустые и невалидные даты пропускаются.
+ * Возраст вычисляется по дате рождения относительно сегодняшнего дня. Пустые и невалидные
+ * даты пропускаются (используйте {@link required} и {@link isDate}).
  *
- * @example
+ * @param maxAgeValue - Максимально допустимый возраст (в полных годах)
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадают `maxAge` и `currentAge`.
+ * @returns Чистый валидатор {@link Validator} для поля даты рождения (`string | Date`)
+ *
+ * @example Максимальный возраст
  * ```typescript
- * validate(path.birthDate, maxAge(65));
- * validate(path.birthDate, maxAge(100, { message: 'Проверьте дату рождения' }));
+ * import { maxAge } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * birthDate: {
+ *   value: model.$.birthDate,
+ *   component: DatePicker,
+ *   validators: [maxAge(100, { message: 'Проверьте дату рождения' })],
+ * },
  * ```
  */
 export function maxAge<

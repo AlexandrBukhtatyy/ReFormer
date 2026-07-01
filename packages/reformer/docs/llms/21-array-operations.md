@@ -1,100 +1,107 @@
 ## 18. ARRAY OPERATIONS
 
-### Array Access - CRITICAL
+Массивы объектов — model-owned. Мутации делаются через `ModelArray` (`model.arrayField`);
+рендер — через ноду формы (`form.items.map` / `.at`).
+
+### Array Access
 
 ```typescript
-// WRONG - bracket notation does NOT work!
-const first = form.items[0];        // undefined or error
-const second = form.items[1];       // undefined or error
+// Через ModelArray (данные)
+model.items.at(0);              // FormModel<Item> | undefined (под-модель элемента)
+model.items.map((item, i) => item.name);  // item — FormModel<Item>
+model.items.length;             // реактивная длина
+model.items.toArray();          // снимок значений
 
-// CORRECT - use .at() method
-const first = form.items.at(0);     // FormProxy<ItemType> | undefined
-const second = form.items.at(1);    // FormProxy<ItemType> | undefined
-
-// CORRECT - iterate with map (most common pattern)
-form.items.map((item, index) => {
-  // item is fully typed GroupNode
-  item.name.setValue('New Name');
-  item.price.value.value;  // read value
-});
+// Через ноду формы (рендер / доступ к нодам полей)
+form.items.at(0);               // FormProxy<Item> | undefined
+form.items.map((item, i) => …); // item — FormProxy<Item>
 ```
 
-### Array Methods
+### Array Methods (на модели)
 
 ```typescript
-// Add items
-form.items.push({ name: '', price: 0 });           // Add to end
-form.items.insert(0, { name: '', price: 0 });      // Insert at index
-
-// Remove items
-form.items.removeAt(index);                         // Remove by index
-form.items.clear();                                 // Remove all items
-
-// Reorder
-form.items.move(fromIndex, toIndex);                // Move item
-
-// Access (use .at(), NOT brackets!)
-form.items.length.value;                            // Current length (Signal)
-form.items.map((item, index) => ...);               // Iterate items
-form.items.at(index);                               // Get item at index (NOT items[index]!)
+model.items.push({ name: '', price: 0 });        // добавить в конец (ПЛОСКИЕ значения!)
+model.items.insertAt(0, { name: '', price: 0 }); // вставить по индексу
+model.items.removeAt(index);                     // удалить по индексу
+model.items.move(fromIndex, toIndex);            // переместить
+model.items.swap(a, b);                          // поменять местами
+model.items.clear();                             // очистить
 ```
+
+> **push принимает ПЛОСКИЕ значения** (`{ name, price }`), а НЕ FieldConfig-шаблон
+> (`{ value, component }`). Component/componentProps берутся из `item`-фабрики схемы.
+> Передача FieldConfig-объектов сломает рендер (`[object Object]` в инпутах).
 
 ### Rendering Arrays
 
 ```tsx
+import { useArrayLength } from '@reformer/core';
+
 function ItemsList({ form }: { form: FormProxy<MyForm> }) {
-  const { length } = useFormControl(form.items);
+  const length = useArrayLength(form.items);
 
   return (
     <div>
       {form.items.map((item, index) => (
-        // item is GroupNode (sub-form) - each field is a control
-        <div key={item.id || index}>
+        <div key={index}>
           <FormField control={item.name} />
           <FormField control={item.price} />
-          <button onClick={() => form.items.removeAt(index)}>Remove</button>
+          <button onClick={() => model.items.removeAt(index)}>Remove</button>
         </div>
       ))}
-
       {length === 0 && <p>No items yet</p>}
-
-      <button onClick={() => form.items.push({ name: '', price: 0 })}>
-        Add Item
-      </button>
+      <button onClick={() => model.items.push({ name: '', price: 0 })}>Add Item</button>
     </div>
   );
 }
 ```
 
-### Array Cross-Validation
+> В монорепо используется `FormArraySection` из `@reformer/ui-kit`: `control={form.items}`,
+> `itemComponent`, `initialValue`, add/remove/reorder из коробки. См. `find_recipe(topic="form-array")`.
 
-Cross-field правила по массиву пишутся как обычный `Validator`, вешаются на сам массив
-(или на любое поле-носитель ошибки), а данные читаются через `root`.
+### Per-item behavior — applyEach
+
+Чтобы применить поведение к КАЖДОМУ элементу (реагируя на add/remove), используй `applyEach`:
 
 ```typescript
-// Validate uniqueness across array items
-validate(path.items, (_value, _control, root) => {
-  const items = root.items;
-  const names = items.map((item) => item.name.value.value);
-  const uniqueNames = new Set(names);
+import { defineFormBehavior, applyEach, compute } from '@reformer/core/behaviors';
 
-  if (names.length !== uniqueNames.size) {
-    return { code: 'duplicate', message: 'Item names must be unique' };
-  }
-  return null;
-});
-
-// Validate sum of percentages
-validate(path.items, (_value, _control, root) => {
-  const items = root.items;
-  const totalPercent = items.reduce(
-    (sum, item) => sum + (item.percentage.value.value || 0),
-    0
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  applyEach(
+    model.$.items,
+    defineFormBehavior<Item>(({ model: row }) => {
+      compute(row.$.lineTotal, () => row.qty * row.price); // per-row value-op
+    })
   );
-
-  if (Math.abs(totalPercent - 100) > 0.01) {
-    return { code: 'invalid_total', message: 'Percentages must sum to 100%' };
-  }
-  return null;
 });
+```
+
+### Aggregate write — aggregateInto
+
+Агрегатная запись в строки (например, «последняя строка = 100 − Σ остальных»):
+
+```typescript
+import { aggregateInto } from '@reformer/core/behaviors';
+
+aggregateInto(model.$.rows, (rows) => {
+  const n = rows.length;
+  if (n === 0) return [];
+  const others = rows.slice(0, n - 1).reduce((s, r) => s + r.percent, 0);
+  return [{ index: n - 1, patch: { percent: 100 - others } }]; // derive должна сходиться
+});
+```
+
+### Array Cross-Validation
+
+Cross-field правило по массиву — `ModelValidator`, читает элементы через `root`:
+
+```typescript
+import type { ModelValidator } from '@reformer/core';
+
+const percentagesSumTo100: ModelValidator<unknown, unknown, MyForm> = (_v, _s, root) => {
+  const total = root.items.reduce((sum, i) => sum + (i.percentage || 0), 0);
+  return Math.abs(total - 100) > 0.01
+    ? { code: 'invalid_total', message: 'Percentages must sum to 100%' }
+    : null;
+};
 ```

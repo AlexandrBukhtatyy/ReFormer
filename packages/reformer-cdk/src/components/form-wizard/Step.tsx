@@ -15,8 +15,8 @@
  *   component: Step,
  *   componentProps: { title: 'Личные данные', icon: '👤' },
  *   children: [
- *     { component: path.firstName },
- *     { component: path.lastName },
+ *     { value: model.$.firstName, component: Input },
+ *     { value: model.$.lastName, component: Input },
  *   ],
  * }
  * ```
@@ -43,6 +43,9 @@ export interface StepProps {
  *
  * Компонент просто рендерит children. Метаданные (title, icon) извлекаются
  * wizard-компонентом из componentProps через useFormWizardSelectors.
+ *
+ * @internal Используется внутри пакета через `FormWizard.Step`; намеренно не
+ * выведен в главный `index.ts` как самостоятельный публичный компонент.
  */
 export function Step({ children }: StepProps): ReactNode {
   return <>{children}</>;

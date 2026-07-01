@@ -16,14 +16,25 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
  * Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
  * Для boolean полей требуется значение `true`.
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для поля схемы
+ *
+ * @example Обязательные поля в схеме формы
  * ```typescript
- * import { validate } from '@reformer/core';
  * import { required } from '@reformer/core/validators';
  *
- * validate(path.email, required());
- * validate(path.phone, required({ message: 'Укажите номер телефона' }));
- * validate(path.agreeToTerms, required({ message: 'Необходимо принять условия' }));
+ * // Внутри FieldConfig схемы формы:
+ * email: { value: model.$.email, component: Input, validators: [required()] },
+ * phone: {
+ *   value: model.$.phone,
+ *   component: Input,
+ *   validators: [required({ message: 'Укажите номер телефона' })],
+ * },
+ * agreeToTerms: {
+ *   value: model.$.agreeToTerms,
+ *   component: Checkbox,
+ *   validators: [required({ message: 'Необходимо принять условия' })],
+ * },
  * ```
  */
 export function required<TForm = unknown, TField = unknown>(

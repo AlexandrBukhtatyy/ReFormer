@@ -14,9 +14,9 @@ export class ComponentRegistryImpl implements ComponentRegistry {
     return this.own.get(name) ?? this.parent?.get(name);
   }
 
-  getSource<T = unknown>(name: string): T | undefined {
+  getDataSource<T = unknown>(name: string): T | undefined {
     const meta = this.get(name);
-    if (!meta || meta.type !== 'source') return undefined;
+    if (!meta || meta.type !== 'dataSource') return undefined;
     return meta.component as T;
   }
 
@@ -53,7 +53,7 @@ export class ComponentRegistryImpl implements ComponentRegistry {
  * Реестр обязателен для работы {@link JsonFormRenderer} — иначе компоненты,
  * упомянутые в JSON-схеме, не отрезолвятся.
  *
- * @param fn - Builder-callback. Получает {@link RegistryBuilder} с методами `field`, `container`, `source`.
+ * @param fn - Builder-callback. Получает {@link RegistryBuilder} с методами `component`, `dataSource`.
  * @returns Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
  *
  * @example
@@ -62,10 +62,10 @@ export class ComponentRegistryImpl implements ComponentRegistry {
  * import { Input, Select, FormField } from '@reformer/ui-kit';
  *
  * const registry = defineRegistry((reg) => {
- *   reg.field('Input', Input);
- *   reg.field('Select', Select);
- *   reg.container(FIELD_WRAPPER, FormField);
- *   reg.source('LOAN_TYPES', [
+ *   reg.component('Input', Input);
+ *   reg.component('Select', Select);
+ *   reg.component(FIELD_WRAPPER, FormField);
+ *   reg.dataSource('LOAN_TYPES', [
  *     { value: 'consumer', label: 'Потребительский' },
  *     { value: 'mortgage', label: 'Ипотека' },
  *   ]);
@@ -78,14 +78,11 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
   const registry = new ComponentRegistryImpl();
 
   const builder: RegistryBuilder = {
-    field(name, component, description?) {
-      registry._set(name, { component, type: 'field', description });
+    component(name, component, description?) {
+      registry._set(name, { component, type: 'component', description });
     },
-    container(name, component, description?) {
-      registry._set(name, { component, type: 'container', description });
-    },
-    source(name, value, description?) {
-      registry._set(name, { component: value, type: 'source', description });
+    dataSource(name, value, description?) {
+      registry._set(name, { component: value, type: 'dataSource', description });
     },
   };
 

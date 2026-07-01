@@ -284,10 +284,17 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
 });
 
 /**
- * Рекурсивный рендеринг узла `RenderSchema`. Определяет тип узла и рендерит
- * соответственно: `FieldRenderNode` → компонент поля с wrapper,
- * `ContainerRenderNode` → контейнер с дочерними узлами. Используется
- * `FormRenderer`; явный вызов нужен при ручной композиции.
+ * Рекурсивный рендеринг узла {@link RenderNode}. Определяет тип узла и рендерит
+ * соответственно: {@link ModelFieldRenderNode} → компонент поля с wrapper (значение
+ * из сигнала модели, state — по сигналу через реестр), {@link ArrayRenderNode} → секция
+ * массива модели, {@link ContainerRenderNode} → контейнер с дочерними узлами. Учитывает
+ * `hideWhen`/`setHidden`, `patchProps`, `onComponentEvent`, lifecycle-хуки и ref из
+ * {@link RenderSchemaProxy}. Обычно вызывается {@link FormRenderer}; явный вызов нужен
+ * при ручной композиции.
+ *
+ * @typeParam T - Тип значения формы
+ * @param props - `node` (узел), опц. `form` и `fieldWrapper`
+ * @returns Отрендеренное поддерево или `null` (если узел скрыт / нет ноды для сигнала)
  *
  * @example
  * ```tsx

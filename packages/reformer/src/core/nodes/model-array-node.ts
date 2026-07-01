@@ -30,6 +30,44 @@ export interface ModelArrayControl<TItem extends object> {
   toArray(): TItem[];
 }
 
+/**
+ * Узел массива, делегирующий данные массиву {@link FormModel} (архитектура M1).
+ *
+ * В отличие от {@link ArrayNode} (владеет элементами сам), `ModelArrayNode` НЕ владеет данными:
+ * массив принадлежит модели, а узел держит per-item формы элементов (привязанные к сигналам
+ * под-моделей) и синхронизирует их с длиной массива модели. Мутации (`push`/`removeAt`/`move`/…)
+ * делегируются массиву модели; per-item формы кэшируются по идентичности под-модели, поэтому при
+ * reorder/повторном рендере не пересоздаются (состояние и валидация сохраняются). Реализует тот же
+ * контракт, что ждут секции массива и `useFormControl` (`length`/`value`/`valid`/`errors`/`at`/`push`/…).
+ *
+ * Обычно создаётся не напрямую, а `createForm({ model, schema })`: когда в схеме встречается узел
+ * массива `{ array: model.<field>, item: (item) => itemSchema }`, форма материализует его как
+ * `ModelArrayNode` и кладёт под `form.<field>` (совместим с `FormArraySection`).
+ *
+ * @group Nodes
+ *
+ * @example Массив как часть формы (через createForm)
+ * ```typescript
+ * const model = createModel<{ rows: { name: string; qty: number }[] }>({ rows: [] });
+ *
+ * const rowItem = (item: FormModel<{ name: string; qty: number }>) => ({
+ *   name: { value: item.$.name, component: Input },
+ *   qty: { value: item.$.qty, component: Input },
+ * });
+ *
+ * const form = createForm({
+ *   model,
+ *   schema: {
+ *     children: [{ array: model.rows, item: rowItem }],
+ *   },
+ * });
+ *
+ * const rows = form.rows as unknown as ModelArrayNode<{ name: string; qty: number }>;
+ * rows.push({ name: 'A', qty: 1 });   // мутация уезжает в model.rows
+ * rows.at(0)?.name.setValue('B');     // правка поля элемента доезжает в под-модель
+ * rows.length.value;                  // 1 (реактивная длина)
+ * ```
+ */
 export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   private readonly itemNodes: Signal<FormProxy<T>[]> = signal<FormProxy<T>[]>([]);
   // Кэш per-item формы по идентичности фасада под-модели (фасады кэшируются в core).

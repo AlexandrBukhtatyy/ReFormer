@@ -1,64 +1,45 @@
 ## 4. COMMON MISTAKES
 
-### TSC overload-resolution error: `'form' does not exist in FormSchema<T>`
-
-**Симптом**:
-
-```
-TS2769: Object literal may only specify known properties, and 'form' does not
-exist in type 'FormSchema<MyForm>'.
-```
-
-(или похожее с `validation` / `behavior` ключами).
-
-**Причина**: `createForm` имеет 2 overload — `GroupNodeConfig<T>` (с `form/validation/behavior`)
-и schema-only. Если в inline literal `form: { ... }` есть глубокая inference-проблема
-(чаще всего — literal default value у union-типа поля, см. Recipe 8 в
-[30-type-safety-recipes.md](30-type-safety-recipes.md)), TS отбрасывает Overload 1 и
-матчит Overload 2 (schema-only). В нём ключа `form` нет — получаешь misleading error.
-
-**Workaround** — extract `form` literal в typed local:
-
-```ts
-const form: FormSchema<MyForm> = {
-  fieldA: { value: 'foo', component: Input /* ... */ },
-  // ...
-};
-
-createForm({ form, validation, behavior });
-```
-
-Теперь TS репортит **реальную** per-field ошибку — например:
-
-```
-TS2322: Type '"male"' is not assignable to type 'Gender | null'
-```
-
-После этого решай конкретную проблему (Recipe 8 — `satisfies FieldConfig<UnionType>`).
-
 ### Imports rule (#1 cause of cascading errors — read first)
 
-Types live in `@reformer/core`. Functions live in submodules (`/validators`,
-`/behaviors`). Mixing them produces TS2614 ("has no exported member"), which
-in turn collapses ALL `(path) => ...` callbacks to `implicit any` and looks
-like 30+ unrelated errors.
+- Модель/форма/валидация/хуки/типы/**примитивы behaviors** — из `@reformer/core`.
+- Чистые фабрики валидаторов — из `@reformer/core/validators`.
+- Декларативный DSL (`defineFormBehavior` + операторы) — из `@reformer/core/behaviors`.
 
 ```typescript
-// ❌ WRONG — TS2614 cascades to 30+ implicit-any errors below
-import { type ValidationSchemaFn } from '@reformer/core/validators';
-import { type BehaviorSchemaFn } from '@reformer/core/behaviors';
-
-// ✅ CORRECT — types from main module, functions from submodules
+// ✅ CORRECT
 import {
-  type ValidationSchemaFn,
-  type BehaviorSchemaFn,
-  type FieldPath,
-  type FormSchema,
-  type FormProxy,
+  createModel,
   createForm,
+  validateFormModel,
+  useFormControl,
+  useFormControlValue,
+  type FormProxy,
+  type FieldConfig,
+  type ModelValidator,
 } from '@reformer/core';
-import { required, min, max, applyWhen, apply } from '@reformer/core/validators';
-import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/behaviors';
+import { required, min, max, email } from '@reformer/core/validators';
+// либо примитивы behaviors из основного пакета:
+import { computeFrom, enableWhen, copyFrom } from '@reformer/core';
+// либо декларативный DSL:
+import { defineFormBehavior, compute, onChange } from '@reformer/core/behaviors';
+```
+
+> **watchField живёт в `@reformer/core`** (низкоуровневый примитив), НЕ в `@reformer/core/behaviors`.
+> В DSL для реакции на изменения используется `onChange`.
+
+### Значения — в модели, не в форме
+
+Под M1 источник истины значений — модель. Форма (ноды) отражает их.
+
+```typescript
+// ✅ читаем/пишем значение
+model.email = 'a@b.c';       // value-доступ
+model.$.email.value;         // сигнал
+model.get();                 // весь снимок для submit
+
+// В компоненте — реактивно через хуки
+const email = useFormControlValue(form.email);
 ```
 
 ### useFormControlValue (CRITICAL)
@@ -66,7 +47,7 @@ import { computeFrom, enableWhen, watchField, copyFrom } from '@reformer/core/be
 ```typescript
 // WRONG - useFormControlValue returns T directly, NOT { value: T }
 const { value: loanType } = useFormControlValue(control.loanType);
-// Result: loanType is ALWAYS undefined! Conditional rendering will fail.
+// Result: loanType is ALWAYS undefined!
 
 // CORRECT
 const loanType = useFormControlValue(control.loanType);
@@ -75,91 +56,79 @@ const loanType = useFormControlValue(control.loanType);
 const { value, errors } = useFormControl(control.loanType);
 ```
 
-### Reading Field Values in BehaviorContext (CRITICAL)
+### Behaviors принимают СИГНАЛЫ, а не пути/форму
 
 ```typescript
-// WRONG - getFieldValue does NOT exist!
-watchField(path.amount, (amount, ctx) => {
-  const rate = ctx.getFieldValue('rate'); // ERROR: Property 'getFieldValue' does not exist
-});
+// ❌ WRONG - строковые пути и (form) => ... это старый API, удалён
+enableWhen(path.city, (form) => Boolean(form.country));
+computeFrom(['price', 'quantity'], 'total', (values) => values.price * values.quantity);
 
-// CORRECT - use ctx.form.fieldName.value.value
-watchField(path.amount, (amount, ctx) => {
-  const rate = ctx.form.rate.value.value; // Read via signal
-  ctx.setFieldValue('total', amount * rate);
-});
+// ✅ CORRECT - сигналы модели, условие читает model напрямую
+enableWhen(model.$.city, () => Boolean(model.country), { resetOnDisable: true });
+computeFrom([model.$.price, model.$.quantity], model.$.total, (price, qty) => price * qty);
 ```
 
-### Validators
+### Валидаторы — фабрики в массиве `validators`
 
 ```typescript
-// WRONG
-required(path.email, 'Email is required');
+// ❌ WRONG - нет операторов validate()/applyWhen(); строка вместо options
+validate(path.email, required(), 'Email is required');
 
-// CORRECT
-required(path.email, { message: 'Email is required' });
+// ✅ CORRECT - фабрика с options, в поле схемы
+const schema = {
+  email: {
+    value: model.$.email,
+    component: Input,
+    validators: [required({ message: 'Email is required' }), email()],
+  },
+};
+```
+
+### Cross-field — через `root`, а не `ctx.form`
+
+```typescript
+// ❌ WRONG - ctx.form / ctx.setFieldValue / value.value — старый API, не существует
+watchField(path.amount, (amount, ctx) => {
+  const rate = ctx.form.rate.value.value;
+  ctx.setFieldValue('total', amount * rate);
+});
+
+// ✅ CORRECT - compute на сигналах; cross-field validator читает root
+compute(model.$.total, () => (model.amount ?? 0) * (model.rate ?? 0));
+
+const amountVsMax: ModelValidator<number, unknown, MyForm> = (value, _s, root) =>
+  value != null && root.maxAmount != null && value > root.maxAmount
+    ? { code: 'tooBig', message: 'Превышает лимит' }
+    : null;
 ```
 
 ### Form-shape types — `type` over `interface`
 
 ```typescript
-// ❌ WRONG — interface lacks implicit index signature; ArrayNode<T> /
-//          FormArraySection<T> constraints (T extends FormFields) reject it.
-//          Symptom: "Type 'X' is not assignable to type 'Partial<FormFields>'"
-//          on FormArraySection.initialValue, OR "T does not satisfy
-//          constraint 'FormFields'" on explicit generic.
+// ❌ interface лишён неявной index signature; конструкции ArrayNode<T> его отвергают
 export interface PropertyItem {
   type: PropertyType;
   description: string;
 }
 
-// ✅ CORRECT — type alias is structurally compatible with Record<string, FormValue>
+// ✅ type alias структурно совместим с Record<string, FormValue>
 export type PropertyItem = {
   type: PropertyType;
   description: string;
 };
 ```
 
-`number | null` (vs `number | undefined`) is fine — built-in validators
-(`min`, `max`, `minLength`, `maxLength`, `minDate`, `maxDate`, `minAge`,
-`maxAge`) accept `number | null | undefined` / `string | null | undefined`.
+`number | null` — конвенциональный тип для очищенного поля; встроенные валидаторы
+(`min`, `max`, `minLength`, `maxLength`, `minDate`, `maxDate`, `minAge`, `maxAge`) пропускают
+пустые значения внутри.
 
-### computeFrom — type-safe callback (no `as` casts)
-
-Annotate the destructured argument with the form type. Without annotation,
-TS sees fields as `unknown` (`computeFn: (values: TForm) => T` infers the
-full form, not a narrowed Pick of source fields), and you end up with
-`as number | null` casts in every line.
+### Proxy не проходит instanceof
 
 ```typescript
-// ❌ WRONG — leads to `as` casts in every line
-computeFrom([path.loanAmount, path.loanTerm], path.monthlyPayment, ({ loanAmount, loanTerm }) => {
-  const a = (loanAmount as number | null) ?? 0;
-  const t = (loanTerm as number | null) ?? 0;
-  return annuityMonthly(a, t, 0.1);
-});
+// ❌ instanceof на Proxy не работает
+if (node instanceof FieldNode) { ... }
 
-// ✅ CORRECT — annotated destructuring, no casts, fields properly typed
-computeFrom(
-  [path.loanAmount, path.loanTerm],
-  path.monthlyPayment,
-  ({ loanAmount, loanTerm }: MyForm) => annuityMonthly(loanAmount ?? 0, loanTerm ?? 0, 0.1)
-);
-```
-
-### computeFrom across nesting levels — use group-node subscription
-
-```typescript
-// ❌ WRONG — subscribing to leaf fields of a nested group leaks
-//          implementation details and may fall back to FieldPath<unknown>
-computeFrom(
-  [path.personalData.firstName, path.personalData.lastName],
-  path.fullName,
-  ({ personalData }) => `${personalData?.firstName} ${personalData?.lastName}`
-);
-
-// ✅ CORRECT — subscribe to the group node itself; destructure the group
-computeFrom([path.personalData], path.fullName, ({ personalData }: MyForm) =>
-  [personalData.firstName, personalData.lastName].filter(Boolean).join(' ')
-);
+// ✅ type guards
+import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
+if (isFieldNode(node)) { ... }
 ```

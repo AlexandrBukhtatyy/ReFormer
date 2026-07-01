@@ -45,7 +45,7 @@ export {
   SelectTrigger,
   SelectValue,
 } from './components/ui/select';
-export type { SelectProps } from './components/ui/select';
+export type { SelectProps, ResourceConfig } from './components/ui/select';
 
 export { Textarea } from './components/ui/textarea';
 export type { TextareaProps } from './components/ui/textarea';
