@@ -89,8 +89,3 @@ export function renderPromptTemplate(name: string, vars: Record<string, unknown>
     throw new Error(`Failed to render prompt template "${name}": ${msg}`);
   }
 }
-
-export function clearPromptTemplateCache(): void {
-  rawCache.clear();
-  compiledCache.clear();
-}

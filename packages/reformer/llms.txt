@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > Reactive form state management library for React with signals-based architecture
-> Package: @reformer/core  •  Version: 5.0.2
+> Package: @reformer/core  •  Version: 6.0.0
 
 ## Table of Contents
 - 01-api-reference.md — api-reference
@@ -4003,35 +4003,6 @@ const behavior: BehaviorSchemaFn<MyForm> = (path) => {
 
 _Auto-generated from JSDoc on public exports._
 
-### AbstractRegistry
-
-**Kind:** `class`
-
-Базовый класс для реестров (BehaviorRegistry, ValidationRegistry).
-
-Реализует паттерн Template Method для управления регистрацией:
-`beginRegistration()` → `onBeginRegistration()`, `endRegistration()` → `onEndRegistration()`.
-
-**Signature:**
-```typescript
-export abstract class AbstractRegistry<TRegistration> {
-  /** Флаг активной регистрации */ /* … */ }
-```
-
-**Examples:**
-
-```typescript
-import { AbstractRegistry } from '@reformer/core';
-
-class MyRegistry extends AbstractRegistry<{ name: string }> {
-  protected onEndRegistration(items: { name: string }[]) {
-    console.log('Registered', items.length);
-  }
-}
-```
-
-_Source: src/core/utils/abstract-registry.ts_
-
 ### AnyFunction
 
 **Kind:** `type`
@@ -5040,56 +5011,6 @@ todos.forEach((item, i) => {
 
 _Source: src/core/types/form-proxy.ts_
 
-### FormChangeCallback
-
-**Kind:** `type`
-
-Callback для обработки событий изменения
-
-**Signature:**
-```typescript
-export type FormChangeCallback = (event: FormChangeEvent) => void;
-```
-
-_Source: src/core/utils/form-observer.ts_
-
-### FormChangeEvent
-
-**Kind:** `interface`
-
-Событие изменения в форме
-
-**Signature:**
-```typescript
-export interface FormChangeEvent {
-  /** Тип изменения */
-  type: FormChangeType;
-  /** Путь к полю */
-  path: string;
-  /** Timestamp события */
-  timestamp: number;
-  /** Старое значение */
-  oldValue?: unknown;
-  /** Новое значение */
-  newValue: unknown;
-}
-```
-
-_Source: src/core/utils/form-observer.ts_
-
-### FormChangeType
-
-**Kind:** `type`
-
-Тип события изменения в форме
-
-**Signature:**
-```typescript
-export type FormChangeType = 'value' | 'status' | 'errors' | 'touched' | 'dirty';
-```
-
-_Source: src/core/utils/form-observer.ts_
-
 ### FormControlsProxy
 
 **Kind:** `type`
@@ -5272,65 +5193,6 @@ form.email.markAsTouched();
 ```
 
 _Source: src/core/nodes/form-node.ts_
-
-### FormObserver
-
-**Kind:** `class`
-
-FormObserver - мониторинг изменений в форме
-
-Полезен для:
-- Отладки сложных форм
-- Логирования изменений для аудита
-- Синхронизации с внешними системами
-
-**Signature:**
-```typescript
-export class FormObserver<T extends FormFields> { /* … */ }
-```
-
-**Examples:**
-
-```typescript
-const observer = new FormObserver(form, {
-  enableLogging: true,
-  eventTypes: ['value', 'errors']
-});
-
-// Подписка на события
-const unsubscribe = observer.subscribe((event) => {
-  console.log(`${event.type} at ${event.path}:`, event.newValue);
-});
-
-// Включить трассировку
-const disposeTracing = observer.enableTracing();
-
-// Cleanup
-unsubscribe();
-disposeTracing();
-```
-
-_Source: src/core/utils/form-observer.ts_
-
-### FormObserverOptions
-
-**Kind:** `interface`
-
-Опции для FormObserver
-
-**Signature:**
-```typescript
-export interface FormObserverOptions {
-  /** Включить логирование в консоль (по умолчанию true в DEV) */
-  enableLogging?: boolean;
-  /** Фильтр типов событий */
-  eventTypes?: FormChangeType[];
-  /** Фильтр путей полей (regex или массив) */
-  pathFilter?: RegExp | string[];
-}
-```
-
-_Source: src/core/utils/form-observer.ts_
 
 ### FormProxy
 
@@ -6408,45 +6270,6 @@ validate(path.divisor, nonZero({ message: 'Не может быть нулём' 
 
 _Source: src/core/validation/validators/non-zero.ts_
 
-### ObservableForm
-
-**Kind:** `interface`
-
-Интерфейс формы для observer
-
-**Signature:**
-```typescript
-export interface ObservableForm<T extends FormFields> {
-  value: { value: T };
-  status: { value: FieldStatus };
-  errors: { value: ValidationError[] };
-  touched: { value: boolean };
-  dirty: { value: boolean };
-  getFieldByPath(path: string): ObservableFormNode | undefined;
-}
-```
-
-_Source: src/core/utils/form-observer.ts_
-
-### ObservableFormNode
-
-**Kind:** `interface`
-
-Интерфейс узла формы для observer
-
-**Signature:**
-```typescript
-export interface ObservableFormNode {
-  value: { value: FormValue };
-  status: { value: FieldStatus };
-  errors: { value: ValidationError[] };
-  touched: { value: boolean };
-  dirty: { value: boolean };
-}
-```
-
-_Source: src/core/utils/form-observer.ts_
-
 ### pastDate
 
 **Kind:** `function`
@@ -6559,42 +6382,6 @@ export function registerSignalNode(signal: Signal<any>, node: FormNode<any>): vo
 ```
 
 _Source: src/core/utils/signal-node-registry.ts_
-
-### RegistryStack
-
-**Kind:** `class`
-
-Generic Registry Stack - утилита для управления стеком регистрации
-
-Используется ValidationRegistry и BehaviorRegistry для tracking активного контекста.
-Устраняет дублирование кода между параллельными системами.
-
-**Signature:**
-```typescript
-export class RegistryStack<T> { /* … */ }
-```
-
-**Examples:**
-
-```typescript
-class ValidationRegistry {
-  private static registryStack = new RegistryStack<ValidationRegistry>();
-
-  static getCurrent() {
-    return ValidationRegistry.registryStack.getCurrent();
-  }
-
-  beginRegistration() {
-    ValidationRegistry.registryStack.push(this);
-  }
-
-  endRegistration() {
-    ValidationRegistry.registryStack.verify(this, 'ValidationRegistry');
-  }
-}
-```
-
-_Source: src/core/utils/registry-stack.ts_
 
 ### required
 

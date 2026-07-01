@@ -81,6 +81,9 @@ export interface SlotProps extends HTMLAttributes<HTMLElement> {
  * </Slot>
  * // Result: <MyButton onClick={handleClick} disabled={true} className="custom">Click me</MyButton>
  * ```
+ *
+ * @internal Внутренняя утилита form-wizard (asChild для кнопок Prev/Next/Submit);
+ * намеренно не выведена в главный `index.ts`.
  */
 export const Slot = forwardRef<HTMLElement, SlotProps>(
   ({ children, ...slotProps }, forwardedRef) => {

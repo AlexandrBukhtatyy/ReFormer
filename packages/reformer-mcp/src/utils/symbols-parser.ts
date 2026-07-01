@@ -106,27 +106,6 @@ export function findSymbol(symbolName: string, pkg: string = '*'): PublicSymbol 
   return null;
 }
 
-/**
- * Concise list of symbol headers for a given package, suitable for "API index"
- * resources. One line per symbol: kind + name + (optional) one-line description.
- */
-export function listSymbols(pkg: string): string {
-  const symbols = getPublicSymbols(pkg);
-  if (symbols.length === 0) {
-    return `No public symbols found for ${pkg}.`;
-  }
-  const lines = [`# ${pkg} — Public API (${symbols.length} symbols)`, ''];
-  for (const s of symbols) {
-    const oneLineDesc = s.description.split(/\r?\n/)[0].trim();
-    lines.push(`- **${s.name}** (${s.kind})${oneLineDesc ? ' — ' + oneLineDesc : ''}`);
-  }
-  return lines.join('\n');
-}
-
-export function clearSymbolsCache(): void {
-  symbolsCache.clear();
-}
-
 // ---------------------------------------------------------------------------
 // Internal: AST traversal (mirrors scripts/generate-llms-txt logic)
 // ---------------------------------------------------------------------------

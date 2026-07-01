@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreWorkspaces": [".", "projects/*"],
+  "workspaces": {
+    "packages/reformer": {
+      "entry": ["src/core/validation/validators/*.ts"]
+    }
+  }
+}

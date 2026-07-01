@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > Styled form components with Tailwind CSS and Radix UI for @reformer ecosystem
-> Package: @reformer/ui-kit  •  Version: 5.0.2
+> Package: @reformer/ui-kit  •  Version: 6.0.0
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -2482,10 +2482,10 @@ export function FormArraySection<T extends object>({
   hasItems,
   initialValue,
   showRemoveOnSingle = false,
+  reorderable = false,
   maxItems,
   className = 'space-y-3 mt-2',
   cardClassName = 'mb-4 p-4 bg-white rounded border',
-  form,
 }: FormArraySectionProps<T>): ReactNode
 ```
 
@@ -2498,11 +2498,8 @@ _Source: src/components/form-array/form-array-section.tsx_
 **Signature:**
 ```typescript
 export interface FormArraySectionProps<T extends object> {
-  /**
-   * Резолвится автоматически: уже-резолвленный ArrayNode/FormArrayProxy ИЛИ
-   * FieldPathNode (path.<arrayField>) — в этом случае через `form` + navigator.
-   */
-  control: FormArrayProxy<T> | ArrayNode<T> | FieldPathNode<unknown, unknown> | undefined;
+  /** Уже-резолвленный ArrayNode/ModelArrayNode/FormArrayProxy. */
+  control: FormArrayProxy<T> | ArrayNode<T> | undefined;
 
   /** React FC получает `control: FormProxy<T>` для каждого элемента. */
   itemComponent: ComponentType<{ control: FormProxy<T> }>;
@@ -2543,6 +2540,12 @@ export interface FormArraySectionProps<T extends object> {
 
   /** Показывать «Удалить» когда остался один элемент. По умолчанию `false`. */
   showRemoveOnSingle?: boolean;
+
+  /**
+   * Показывать кнопки ↑/↓ для перестановки элементов. По умолчанию `false`
+   * (обратная совместимость — существующие массивы не меняются).
+   */
+  reorderable?: boolean;
 
   /** Максимум items — AddButton отключается при достижении. */
   maxItems?: number;
@@ -3089,6 +3092,29 @@ export interface RadioOption {
 ```
 
 _Source: src/components/ui/radio-group.tsx_
+
+### ResourceConfig
+
+**Kind:** `interface`
+
+Конфигурация асинхронного источника опций для {@link Select}.
+
+**Signature:**
+```typescript
+export interface ResourceConfig<T> {
+  /**
+   * Стратегия загрузки:
+   * - `'static'` — варианты загружаются один раз и больше не меняются;
+   * - `'preload'` — загрузка на маунт компонента (используется по умолчанию в {@link Select});
+   * - `'partial'` — порционная загрузка (нужен будет внешний механизм пагинации).
+   */
+  type: 'static' | 'preload' | 'partial';
+  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
+  load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
+}
+```
+
+_Source: src/components/ui/select.tsx_
 
 ### Section
 

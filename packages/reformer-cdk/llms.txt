@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > Headless UI components for @reformer/core - form arrays, multi-step wizards, and more
-> Package: @reformer/cdk  •  Version: 5.0.2
+> Package: @reformer/cdk  •  Version: 6.0.0
 
 ## Table of Contents
 - 01-overview.md — Overview
