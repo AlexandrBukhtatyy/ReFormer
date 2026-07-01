@@ -73,9 +73,9 @@ const jsonSchema: JsonFormSchema = {
 
 // 2. Реестр: имена из JSON → React-компоненты.
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 
 function MyFormPage() {
@@ -146,7 +146,7 @@ function MyFormPage() {
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` + опциональные `children`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
-  - `'$component(Name)'` — имя компонента в реестре (`reg.field`/`reg.container`).
+  - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
 - **`selector`** — plain-строка, id узла для render-behavior (`schema.node('…')`, `hideWhen`, `patchProps`). **Не** путь модели.
 - **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
@@ -251,8 +251,7 @@ const schema: JsonFormSchema = {
 
 ## 12. Key Concepts
 
-- **field component** — компонент, который привязывается к полю формы (лист `value: '$model(path)'`). Регистрируется через `reg.field(name, Component)`, в схеме — `component: '$component(name)'`.
-- **container component** — компонент-обёртка, рендерит `children`. Регистрируется через `reg.container(name, Component)`.
+- **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `value: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`value` vs `children`), а не тем, как компонент зарегистрирован.
 - **dataSource value** — именованная константа, функция или React-компонент, на которые ссылаются строкой `'$dataSource(NAME)'` из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
 - **`FIELD_WRAPPER`** — зарезервированное имя (`'$fieldWrapper'`) для контейнера-обёртки полей (label, error, hint). Обычно регистрируется как `FormField` из `@reformer/ui-kit`.
 
@@ -260,8 +259,7 @@ const schema: JsonFormSchema = {
 
 | Method                           | Purpose                                               |
 | -------------------------------- | ----------------------------------------------------- |
-| `reg.field(name, Component)`     | Регистрирует field-компонент.                         |
-| `reg.container(name, Component)` | Регистрирует container-компонент.                     |
+| `reg.component(name, Component)` | Регистрирует компонент (лист или контейнер — роль решает структура узла). |
 | `reg.dataSource(name, value)`    | Регистрирует dataSource-значение (константу или функцию). |
 
 ## 14. Examples
@@ -273,10 +271,10 @@ import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { Input, Select, Box, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.field('Select', Select);
-  reg.container('Box', Box);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Select', Select);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
@@ -284,7 +282,7 @@ dataSource values для `componentProps` (в схеме — ссылка `'$dat
 
 ```typescript
 const registry = defineRegistry((reg) => {
-  reg.field('Select', Select);
+  reg.component('Select', Select);
   reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
@@ -302,7 +300,7 @@ const registry = defineRegistry((reg) => {
 ## 15. Anti-patterns
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
-- **Регистрировать React-element вместо компонента** — `reg.field('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.field('Input', Input)`.
+- **Регистрировать React-element вместо компонента** — `reg.component('Input', <Input />)` не сработает, нужно передавать сам тип компонента: `reg.component('Input', Input)`.
 - **Ожидать наследования между вложенными `JsonRendererProvider`** — реестр сливается через `withParent`, дубли решаются по приоритету (внешний > внутренний).
 - **Использовать `$dataSource(NAME)` без регистрации** — без `validate` строка просто прокинется в проп как есть (молчаливый баг); с `validate` даст ошибку `unknown dataSource "NAME"`.
 - **Ссылаться на dataSource как на компонент** — `component: '$component(LoadingState)'`, где `LoadingState` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
@@ -317,7 +315,7 @@ const registry = defineRegistry((reg) => {
 
 Имя из оператора `$component(X)` (или `$dataSource(X)`) не зарегистрировано в реестре. Проверь:
 
-- `defineRegistry` действительно содержит `reg.field('X', ...)`, `reg.container('X', ...)` или `reg.dataSource('X', ...)`.
+- `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
 - Если используются вложенные провайдеры — реестр внутреннего провайдера наследуется через `withParent`, но дубли разрешаются в пользу внешнего.
@@ -330,7 +328,7 @@ const registry = defineRegistry((reg) => {
 import { FIELD_WRAPPER } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 
-reg.container(FIELD_WRAPPER, FormField);
+reg.component(FIELD_WRAPPER, FormField);
 ```
 
 ## 19. No model signal for "..." / settings.model is required
@@ -598,10 +596,10 @@ const schema: JsonFormSchema = {
 };
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
-  reg.container('Section', Section);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component('Section', Section);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
@@ -643,7 +641,7 @@ export function buildFormSchemaMetaSchema(opts?: {
 const schema = buildFormSchemaMetaSchema({ componentNames: getComponentNames(registry) });
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### ComponentMetadata
 
@@ -655,7 +653,7 @@ _Source: packages/reformer-renderer-json/src/schema/index.ts_
 ```typescript
 export interface ComponentMetadata<P = any> {
   component: ComponentType<P> | unknown;
-  type: 'field' | 'container' | 'dataSource';
+  type: 'component' | 'dataSource';
   description?: string;
 }
 ```
@@ -664,10 +662,10 @@ export interface ComponentMetadata<P = any> {
 
 ```typescript
 const meta: ComponentMetadata = registry.get('Input')!;
-meta.type; // 'field'
+meta.type; // 'component'
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/types.ts_
+_Source: src/registry/types.ts_
 
 ### ComponentOp
 
@@ -680,7 +678,7 @@ _Source: packages/reformer-renderer-json/src/registry/types.ts_
 export type ComponentOp = `$component(${string})`;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### ComponentRegistry
 
@@ -710,7 +708,7 @@ if (registry.has('Input')) {
 registry.names(); // ['Input', 'Box', 'LOAN_TYPES', ...]
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/types.ts_
+_Source: src/registry/types.ts_
 
 ### convertJsonToM1Tree
 
@@ -748,7 +746,7 @@ behavior,
 });
 ```
 
-_Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
+_Source: src/converter/json-to-render-schema.ts_
 
 ### createRenderSchemaFromJsonM1
 
@@ -787,7 +785,7 @@ const proxy = createRenderSchema<MyForm>(fn);
 <FormRenderer render={proxy} />;
 ```
 
-_Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
+_Source: src/converter/json-to-render-schema.ts_
 
 ### DataSourceOp
 
@@ -800,7 +798,7 @@ _Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
 export type DataSourceOp = `$dataSource(${string})`;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### defineRegistry
 
@@ -817,7 +815,7 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
 ```
 
 **Parameters:**
-- `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `field`, `container`, `dataSource`.
+- `fn` — - Builder-callback. Получает {@link RegistryBuilder} с методами `component`, `dataSource`.
 
 **Returns:** Готовый {@link ComponentRegistry}, который кладётся в `JsonRendererProvider`.
 
@@ -828,9 +826,9 @@ import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { Input, Select, FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.field('Select', Select);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Select', Select);
+  reg.component(FIELD_WRAPPER, FormField);
   reg.dataSource('LOAN_TYPES', [
     { value: 'consumer', label: 'Потребительский' },
     { value: 'mortgage', label: 'Ипотека' },
@@ -841,7 +839,7 @@ const registry = defineRegistry((reg) => {
 **See also:**
 - [docs/llms/03-registry.md](../../docs/llms/03-registry.md)
 
-_Source: packages/reformer-renderer-json/src/registry/component-registry.ts_
+_Source: src/registry/component-registry.ts_
 
 ### FIELD_WRAPPER
 
@@ -864,11 +862,11 @@ import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 
 const registry = defineRegistry((reg) => {
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/constants.ts_
+_Source: src/registry/constants.ts_
 
 ### formSchemaMetaSchema
 
@@ -891,13 +889,13 @@ export const formSchemaMetaSchema
 formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### getComponentNames
 
 **Kind:** `function`
 
-Имена компонентов реестра (тип `field` или `container`) — то, что валидно в `$component(...)`.
+Имена компонентов реестра (тип `component`) — то, что валидно в `$component(...)`.
 
 **Signature:**
 ```typescript
@@ -917,7 +915,7 @@ const names = getComponentNames(registry); // ['Input', 'Select', 'Box', ...]
 const schema = buildFormSchemaMetaSchema({ componentNames: names });
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### getDataSourceNames
 
@@ -942,7 +940,7 @@ export function getDataSourceNames(registry: ComponentRegistry): string[]
 getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### isArrayNode
 
@@ -971,7 +969,7 @@ node.item.$template;   // JsonNode
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### isComponentOp
 
@@ -997,7 +995,7 @@ if (isComponentOp(node.component)) {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### isContainerNode
 
@@ -1025,7 +1023,7 @@ node.children?.forEach(walk);
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### isDataSourceOp
 
@@ -1051,7 +1049,7 @@ if (isDataSourceOp(props.options)) {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### isFieldNode
 
@@ -1079,7 +1077,7 @@ node.component;  // ComponentOp | undefined
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### isModelOp
 
@@ -1106,7 +1104,7 @@ const path = parseOperator(value)!.arg; // 'loanType'
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### JsonArrayNode
 
@@ -1133,7 +1131,7 @@ export interface JsonArrayNode {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonContainerNode
 
@@ -1155,7 +1153,7 @@ export interface JsonContainerNode {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonFieldNode
 
@@ -1179,7 +1177,7 @@ export interface JsonFieldNode {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonFormRenderer
 
@@ -1236,9 +1234,9 @@ function MyFormPage() {
 // M1: модель — источник истины значений; листья схемы биндятся к её сигналам.
 const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
 const registry = useMemo(() => defineRegistry((reg) => {
-reg.field('Input', Input);
-reg.container('Box', Box);
-reg.container(FIELD_WRAPPER, FormField); // системная обёртка полей
+reg.component('Input', Input);
+reg.component('Box', Box);
+reg.component(FIELD_WRAPPER, FormField); // системная обёртка полей
 }), []);
 
 // Модель передаётся через провайдер (settings.model), НЕ пропом рендерера.
@@ -1257,7 +1255,7 @@ return (
 **See also:**
 - [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
 
-_Source: packages/reformer-renderer-json/src/components/json-form-renderer.tsx_
+_Source: src/components/json-form-renderer.tsx_
 
 ### JsonFormRendererProps
 
@@ -1287,7 +1285,7 @@ export interface JsonFormRendererProps<T> {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/components/json-form-renderer.tsx_
+_Source: src/components/json-form-renderer.tsx_
 
 ### JsonFormSchema
 
@@ -1322,7 +1320,7 @@ const schema: JsonFormSchema = {
 };
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonNode
 
@@ -1335,7 +1333,7 @@ _Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 export type JsonNode = JsonFieldNode | JsonArrayNode | JsonContainerNode;
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonOperator
 
@@ -1348,7 +1346,7 @@ _Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 export type JsonOperator = ModelOp | ComponentOp | DataSourceOp;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### JsonRendererProvider
 
@@ -1372,8 +1370,8 @@ M1: реестр + модель через settings
 // Модель — источник истины (M1); листья схемы биндятся к её сигналам.
 const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
 const registry = useMemo(() => defineRegistry((reg) => {
-reg.field('Input', Input);
-reg.container(FIELD_WRAPPER, FormField);
+reg.component('Input', Input);
+reg.component(FIELD_WRAPPER, FormField);
 }), []);
 
 <JsonRendererProvider settings={{ registry, model }}>
@@ -1381,7 +1379,7 @@ reg.container(FIELD_WRAPPER, FormField);
 </JsonRendererProvider>
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
 
 ### JsonRendererProviderProps
 
@@ -1399,7 +1397,7 @@ export interface JsonRendererProviderProps {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
 
 ### JsonRendererSettings
 
@@ -1421,7 +1419,7 @@ export interface JsonRendererSettings extends RendererSettings {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
 
 ### ModelOp
 
@@ -1434,7 +1432,7 @@ _Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
 export type ModelOp = `$model(${string})`;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### ParsedOperator
 
@@ -1450,7 +1448,7 @@ export interface ParsedOperator {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### parseOperator
 
@@ -1477,7 +1475,7 @@ parseOperator('$dataSource(LOAN_TYPES)'); // { op: 'dataSource', arg: 'LOAN_TYPE
 parseOperator('Введите сумму');       // null  (обычная строка)
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### RegistryBuilder
 
@@ -1488,8 +1486,14 @@ Builder, который попадает в callback {@link defineRegistry}.
 **Signature:**
 ```typescript
 export interface RegistryBuilder {
-  field<P>(name: string, component: ComponentType<P>, description?: string): void;
-  container<P>(name: string, component: ComponentType<P>, description?: string): void;
+  /**
+   * Зарегистрировать React-компонент под именем — доступен в схеме как
+   * `$component(name)`. Одним методом регистрируются и компоненты-листья
+   * (Input/Select), и контейнеры (Box/Section/FormField): роль узла (лист vs
+   * контейнер) определяется структурой узла схемы (`value` vs `children`),
+   * а не регистрацией.
+   */
+  component<P>(name: string, component: ComponentType<P>, description?: string): void;
   dataSource<T>(name: string, value: T, description?: string): void;
 }
 ```
@@ -1498,13 +1502,13 @@ export interface RegistryBuilder {
 
 ```typescript
 defineRegistry((reg: RegistryBuilder) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
   reg.dataSource('LOAN_TYPES', LOAN_TYPES);
 });
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/types.ts_
+_Source: src/registry/types.ts_
 
 ### SchemaErrorPanel
 
@@ -1536,7 +1540,7 @@ const { valid, errors } = validateFormSchema(schema, { registry });
 if (!valid) return <SchemaErrorPanel errors={errors} />;
 ```
 
-_Source: packages/reformer-renderer-json/src/components/schema-error-panel.tsx_
+_Source: src/components/schema-error-panel.tsx_
 
 ### SchemaErrorPanelProps
 
@@ -1552,7 +1556,7 @@ export interface SchemaErrorPanelProps {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/components/schema-error-panel.tsx_
+_Source: src/components/schema-error-panel.tsx_
 
 ### useJsonRendererSettings
 
@@ -1579,4 +1583,4 @@ function MyControl() {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_

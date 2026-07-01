@@ -1920,13 +1920,13 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 Два варианта `itemComponent`:
 
-### Вариант 1: registry-name (FC зарегистрирован как container)
+### Вариант 1: registry-name (FC зарегистрирован через reg.component)
 
 ```ts
 // registry.ts
 defineRegistry((reg) => {
-  reg.container('FormArraySection', FormArraySection);
-  reg.container('PropertyForm', PropertyForm);
+  reg.component('FormArraySection', FormArraySection);
+  reg.component('PropertyForm', PropertyForm);
 });
 ```
 
@@ -2213,7 +2213,7 @@ children: [{ value: model.$.email, component: Input }],
 // позже: schema.node('data-boundary').patchProps({ status: 'ready' });
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/async-boundary.tsx_
+_Source: src/components/ui/async-boundary.tsx_
 
 ### AsyncBoundaryProps
 
@@ -2235,7 +2235,7 @@ export interface AsyncBoundaryProps {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/async-boundary.tsx_
+_Source: src/components/ui/async-boundary.tsx_
 
 ### AsyncStatus
 
@@ -2248,7 +2248,7 @@ _Source: packages/reformer-ui-kit/src/components/ui/async-boundary.tsx_
 export type AsyncStatus = 'loading' | 'error' | 'ready';
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/async-boundary.tsx_
+_Source: src/components/ui/async-boundary.tsx_
 
 ### Box
 
@@ -2294,7 +2294,7 @@ children: [
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/box.tsx_
+_Source: src/components/ui/box.tsx_
 
 ### BoxProps
 
@@ -2312,7 +2312,7 @@ export interface BoxProps {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/box.tsx_
+_Source: src/components/ui/box.tsx_
 
 ### Button
 
@@ -2358,7 +2358,7 @@ import { Button } from '@reformer/ui-kit';
 </Button>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/button.tsx_
+_Source: src/components/ui/button.tsx_
 
 ### Checkbox
 
@@ -2398,7 +2398,7 @@ import { Checkbox } from '@reformer/ui-kit';
 </div>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/checkbox.tsx_
+_Source: src/components/ui/checkbox.tsx_
 
 ### CheckboxProps
 
@@ -2429,7 +2429,7 @@ export interface CheckboxProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/checkbox.tsx_
+_Source: src/components/ui/checkbox.tsx_
 
 ### cn
 
@@ -2468,7 +2468,7 @@ const Card = React.forwardRef<HTMLDivElement, { className?: string }>(
 <Card className="p-8" />   // p-4 затёрт пользовательским p-8
 ```
 
-_Source: packages/reformer-ui-kit/src/lib/utils.ts_
+_Source: src/lib/utils.ts_
 
 ### Collapsible
 
@@ -2531,7 +2531,7 @@ children: [
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/collapsible.tsx_
+_Source: src/components/ui/collapsible.tsx_
 
 ### CollapsibleProps
 
@@ -2557,7 +2557,7 @@ export interface CollapsibleProps {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/collapsible.tsx_
+_Source: src/components/ui/collapsible.tsx_
 
 ### ErrorState
 
@@ -2593,7 +2593,7 @@ return <ErrorState error={error} onRetry={() => window.location.reload()} />;
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/state/error-state.tsx_
+_Source: src/components/state/error-state.tsx_
 
 ### ExampleCard
 
@@ -2652,7 +2652,7 @@ code={`<Button variant="destructive">Delete</Button>`}
 </ExampleCard>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/example-card.tsx_
+_Source: src/components/ui/example-card.tsx_
 
 ### ExampleCardProps
 
@@ -2678,7 +2678,7 @@ export interface ExampleCardProps {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/example-card.tsx_
+_Source: src/components/ui/example-card.tsx_
 
 ### FormArraySection
 
@@ -2743,7 +2743,7 @@ reorderable
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx_
+_Source: src/components/form-array/form-array-section.tsx_
 
 ### FormArraySectionProps
 
@@ -2827,7 +2827,7 @@ export interface FormArraySectionProps<T extends object> {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-array/form-array-section.tsx_
+_Source: src/components/form-array/form-array-section.tsx_
 
 ### FormField
 
@@ -2898,7 +2898,7 @@ children: [
 <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/form-field.tsx_
+_Source: src/components/ui/form-field.tsx_
 
 ### FormFieldProps
 
@@ -2933,7 +2933,7 @@ export interface FormFieldProps {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/form-field.tsx_
+_Source: src/components/ui/form-field.tsx_
 
 ### FormWizard
 
@@ -2996,7 +2996,7 @@ onSubmit={onSubmit}
 - {@link FormWizardStep} — форма элемента `steps`.
 - {@link StepIndicator}, {@link FormWizardActions}, {@link FormWizardProgress} — слоты layout'а.
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx_
+_Source: src/components/form-wizard/form-wizard.tsx_
 
 ### FormWizardActions
 
@@ -3031,7 +3031,7 @@ className="mt-8"
 </FormWizard.Actions>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/form-wizard-actions.tsx_
+_Source: src/components/form-wizard/form-wizard-actions.tsx_
 
 ### FormWizardProgress
 
@@ -3063,7 +3063,7 @@ format={({ current, total }) => `${current} / ${total}`}
 </FormWizard.Progress>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/form-wizard-progress.tsx_
+_Source: src/components/form-wizard/form-wizard-progress.tsx_
 
 ### FormWizardProps
 
@@ -3096,7 +3096,7 @@ export interface FormWizardProps<
 - {@link FormWizardStep} — форма элемента `steps`.
 - — императивный handle через `ref` (submit/навигация).
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx_
+_Source: src/components/form-wizard/form-wizard.tsx_
 
 ### FormWizardStep
 
@@ -3133,7 +3133,7 @@ const STEPS: FormWizardStep<CreditApplication>[] = [
 ];
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx_
+_Source: src/components/form-wizard/form-wizard.tsx_
 
 ### FormWizardStepBody
 
@@ -3167,7 +3167,7 @@ return <FormField control={control.loanAmount} testId="loanAmount" />;
 const body: FormWizardStepBody<CreditApplication> = BasicInfoForm;
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/form-wizard.tsx_
+_Source: src/components/form-wizard/form-wizard.tsx_
 
 ### Input
 
@@ -3226,7 +3226,7 @@ placeholder={shouldShowError ? errors[0]?.message : 'you@example.com'}
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/input.tsx_
+_Source: src/components/ui/input.tsx_
 
 ### InputMask
 
@@ -3266,7 +3266,7 @@ placeholder="Дата рождения"
 />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/input-mask.tsx_
+_Source: src/components/ui/input-mask.tsx_
 
 ### InputMaskProps
 
@@ -3301,7 +3301,7 @@ export interface InputMaskProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/input-mask.tsx_
+_Source: src/components/ui/input-mask.tsx_
 
 ### InputPassword
 
@@ -3341,7 +3341,7 @@ showToggle={false}
 />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/input-password.tsx_
+_Source: src/components/ui/input-password.tsx_
 
 ### InputPasswordProps
 
@@ -3375,7 +3375,7 @@ export interface InputPasswordProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/input-password.tsx_
+_Source: src/components/ui/input-password.tsx_
 
 ### InputProps
 
@@ -3414,7 +3414,7 @@ export interface InputProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/input.tsx_
+_Source: src/components/ui/input.tsx_
 
 ### LoadingState
 
@@ -3447,7 +3447,7 @@ return <LoadingState />;
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/state/loading-state.tsx_
+_Source: src/components/state/loading-state.tsx_
 
 ### RadioGroup
 
@@ -3492,7 +3492,7 @@ options={[
 />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/radio-group.tsx_
+_Source: src/components/ui/radio-group.tsx_
 
 ### RadioGroupProps
 
@@ -3520,7 +3520,7 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/radio-group.tsx_
+_Source: src/components/ui/radio-group.tsx_
 
 ### RadioOption
 
@@ -3538,7 +3538,7 @@ export interface RadioOption {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/radio-group.tsx_
+_Source: src/components/ui/radio-group.tsx_
 
 ### ResourceConfig
 
@@ -3558,7 +3558,7 @@ export interface ResourceConfig<T> {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select-resource.ts_
+_Source: src/components/ui/select-resource.ts_
 
 ### Section
 
@@ -3615,7 +3615,7 @@ children: [
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/section.tsx_
+_Source: src/components/ui/section.tsx_
 
 ### SectionProps
 
@@ -3639,7 +3639,7 @@ export interface SectionProps {
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/section.tsx_
+_Source: src/components/ui/section.tsx_
 
 ### Select
 
@@ -3718,7 +3718,7 @@ totalCount: items.length,
 <Select value={country} onChange={setCountry} resource={countries} />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectContent
 
@@ -3770,7 +3770,7 @@ import { SelectContent, SelectItem } from '@reformer/ui-kit/select';
 </SelectContent>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectGroup
 
@@ -3817,7 +3817,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 </Select>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectItem
 
@@ -3853,7 +3853,7 @@ Premium (требуется подписка)
 </SelectItem>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectLabel
 
@@ -3889,7 +3889,7 @@ import { SelectGroup, SelectLabel } from '@reformer/ui-kit/select';
 </SelectGroup>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectProps
 
@@ -3927,7 +3927,7 @@ export interface SelectProps<T> extends Omit<
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectScrollDownButton
 
@@ -3963,7 +3963,7 @@ import { SelectScrollDownButton } from '@reformer/ui-kit/select';
 <SelectScrollDownButton className="bg-gray-50 text-gray-600" />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectScrollUpButton
 
@@ -3999,7 +3999,7 @@ import { SelectScrollUpButton } from '@reformer/ui-kit/select';
 <SelectScrollUpButton className="bg-gray-50 text-gray-600" />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectTrigger
 
@@ -4042,7 +4042,7 @@ import { SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
 </SelectTrigger>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### SelectValue
 
@@ -4078,7 +4078,7 @@ import { SelectTrigger, SelectValue } from '@reformer/ui-kit/select';
 </SelectTrigger>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: src/components/ui/select.tsx_
 
 ### StepIndicator
 
@@ -4111,7 +4111,7 @@ export const StepIndicator: FC<StepIndicatorProps>
 </FormWizard.Indicator>
 ```
 
-_Source: packages/reformer-ui-kit/src/components/form-wizard/step-indicator.tsx_
+_Source: src/components/form-wizard/step-indicator.tsx_
 
 ### Textarea
 
@@ -4151,7 +4151,7 @@ placeholder="Адрес доставки"
 />
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/textarea.tsx_
+_Source: src/components/ui/textarea.tsx_
 
 ### TextareaProps
 
@@ -4187,4 +4187,4 @@ export interface TextareaProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/textarea.tsx_
+_Source: src/components/ui/textarea.tsx_

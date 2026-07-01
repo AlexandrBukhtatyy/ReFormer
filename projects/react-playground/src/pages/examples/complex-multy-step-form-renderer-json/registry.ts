@@ -60,36 +60,36 @@ import type { CoBorrower } from '../complex-multy-step-form/components/nested-fo
 export function createCreditApplicationRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
     // ui-kit base
-    reg.field('Input', Input);
-    reg.field('InputPassword', InputPassword);
-    reg.field('InputMask', InputMask);
-    reg.field('Textarea', Textarea);
-    reg.field('Select', Select);
-    reg.field('Checkbox', Checkbox);
-    reg.field('RadioGroup', RadioGroup);
+    reg.component('Input', Input);
+    reg.component('InputPassword', InputPassword);
+    reg.component('InputMask', InputMask);
+    reg.component('Textarea', Textarea);
+    reg.component('Select', Select);
+    reg.component('Checkbox', Checkbox);
+    reg.component('RadioGroup', RadioGroup);
 
-    reg.container('Box', Box);
-    reg.container('Section', Section);
-    reg.container('Collapsible', Collapsible);
-    reg.container('AsyncBoundary', AsyncBoundary);
-    reg.container('FormField', FormField);
-    reg.container('Button', Button);
+    reg.component('Box', Box);
+    reg.component('Section', Section);
+    reg.component('Collapsible', Collapsible);
+    reg.component('AsyncBoundary', AsyncBoundary);
+    reg.component('FormField', FormField);
+    reg.component('Button', Button);
 
     // App-specific контейнеры
-    reg.container('RendererFormWizard', RendererFormWizard);
-    reg.container('Step', Step);
-    reg.container('ResidenceAddressSection', ResidenceAddressSection);
-    reg.container('UnemployedWarning', UnemployedWarning);
-    reg.container('ConfirmationInfoBlock', ConfirmationInfoBlock);
-    reg.container('HighPaymentWarning', HighPaymentWarning);
-    reg.container('LoanSummarySection', LoanSummarySection);
-    reg.container('ApplicantSummarySection', ApplicantSummarySection);
-    reg.container('SubmitWarning', SubmitWarning);
-    reg.container('NextStepsInfo', NextStepsInfo);
-    reg.container('ElectronicSignatureHint', ElectronicSignatureHint);
+    reg.component('RendererFormWizard', RendererFormWizard);
+    reg.component('Step', Step);
+    reg.component('ResidenceAddressSection', ResidenceAddressSection);
+    reg.component('UnemployedWarning', UnemployedWarning);
+    reg.component('ConfirmationInfoBlock', ConfirmationInfoBlock);
+    reg.component('HighPaymentWarning', HighPaymentWarning);
+    reg.component('LoanSummarySection', LoanSummarySection);
+    reg.component('ApplicantSummarySection', ApplicantSummarySection);
+    reg.component('SubmitWarning', SubmitWarning);
+    reg.component('NextStepsInfo', NextStepsInfo);
+    reg.component('ElectronicSignatureHint', ElectronicSignatureHint);
 
     // Системный компонент
-    reg.container(FIELD_WRAPPER, FormField);
+    reg.component(FIELD_WRAPPER, FormField);
 
     // dataSource-компоненты (ComponentType для AsyncBoundary)
     reg.dataSource('LoadingState', LoadingState);

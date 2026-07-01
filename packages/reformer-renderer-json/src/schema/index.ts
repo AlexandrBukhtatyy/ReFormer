@@ -27,7 +27,7 @@ import type { ComponentRegistry } from '../registry/types';
 export const formSchemaMetaSchema = metaSchema as Record<string, unknown>;
 
 /**
- * Имена компонентов реестра (тип `field` или `container`) — то, что валидно в `$component(...)`.
+ * Имена компонентов реестра (тип `component`) — то, что валидно в `$component(...)`.
  *
  * @param registry - Реестр (см. {@link defineRegistry}).
  * @returns Массив имён компонентов.
@@ -39,10 +39,7 @@ export const formSchemaMetaSchema = metaSchema as Record<string, unknown>;
  * ```
  */
 export function getComponentNames(registry: ComponentRegistry): string[] {
-  return registry.names().filter((n) => {
-    const t = registry.get(n)?.type;
-    return t === 'field' || t === 'container';
-  });
+  return registry.names().filter((n) => registry.get(n)?.type === 'component');
 }
 
 /**

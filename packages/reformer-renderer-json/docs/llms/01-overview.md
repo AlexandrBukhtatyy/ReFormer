@@ -63,9 +63,9 @@ const jsonSchema: JsonFormSchema = {
 
 // 2. Реестр: имена из JSON → React-компоненты.
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 
 function MyFormPage() {

@@ -17,7 +17,7 @@ Bindings are encoded as **string operators**: `'$model(path)'` (field/array path
 - **Field node (leaf)**: `{ value: model.$.email, component: Input }` → `{ "value": "$model(email)", "component": "$component(Input)" }`. `value` carries the model path via `$model(...)`; there is **no** `model:` key.
 - **Box container**: `{ component: Box, componentProps: { children: [...] } }` → `{ "component": "$component(Box)", "children": [...] }` (children OUTSIDE componentProps).
 - **Section container**: `{ component: Section, componentProps: { title, children: [...] } }` → `{ "component": "$component(Section)", "componentProps": { "title": "…" }, "children": [...] }`.
-- **Registry** via `defineRegistry`: every `$component(Name)` in JSON MUST be registered as `reg.field`/`reg.container`. `FIELD_WRAPPER` MUST be set (`reg.container(FIELD_WRAPPER, FormField)`).
+- **Registry** via `defineRegistry`: every `$component(Name)` in JSON MUST be registered as `reg.component(Name, Component)` (one method for both leaf and container components — role is decided by node structure). `FIELD_WRAPPER` MUST be set (`reg.component(FIELD_WRAPPER, FormField)`).
 - **Constants** (LOAN_TYPES, GENDERS) via `reg.dataSource('LOAN_TYPES', LOAN_TYPES)`; in JSON reference by operator `{ "options": "$dataSource(LOAN_TYPES)" }`. Never inline arrays in JSON.
 - **Item-label functions** via `reg.dataSource('LABEL_FN', fn)`; reference as `"itemLabel": "$dataSource(LABEL_FN)"`.
 - **Arrays via native `{ array, item.$template }`**: `{ "array": "$model(properties)", "initialValue": { … }, "componentProps": { "title": "…", "itemLabel": "$dataSource(…)" }, "item": { "$template": { …JsonNode… } } }`. Both `array` **and** `item.$template` are required. Inside `$template`, `$model(...)` paths resolve **relative to the array element** (`"$model(type)"`, not `"$model(properties[0].type)"`). No separate array-container component is needed — the converter renders arrays via its native branch.
@@ -45,7 +45,7 @@ Bindings are encoded as **string operators**: `'$model(path)'` (field/array path
 ## Task
 
 1. Convert TS RenderSchema into `JsonFormSchema` (leaves → `$model`/`$component`, containers → `$component` + top-level `children`).
-2. Fill the registry (`reg.field`/`reg.container` for components, `reg.dataSource` for options/labels/loading, `FIELD_WRAPPER`).
+2. Fill the registry (`reg.component` for components, `reg.dataSource` for options/labels/loading, `FIELD_WRAPPER`).
 3. Migrate arrays via native `{ array, item: { $template } }` + `initialValue` (no separate array-container component).
 4. Keep behavior as TS — pass it via `JsonFormRenderer`'s `renderBehavior` prop; mount the form with `convertJsonToM1Tree` + `JsonRendererProvider`.
 5. Add `version: '1.0'`.

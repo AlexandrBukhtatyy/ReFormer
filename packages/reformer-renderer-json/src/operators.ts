@@ -4,8 +4,8 @@
  * JSON нельзя «вызвать функцию», поэтому привязки кодируются СТРОКАМИ функц-стиля с дискриминатором:
  *
  * - `"$model(path)"`        — путь к полю/массиву модели: лист → `model.signalAt(path)`, массив → `model.<path>`.
- * - `"$component(Name)"`    — имя компонента в реестре (`reg.field`/`reg.container`).
- * - `"$dataSource(NAME)"`   — имя registry-source (`reg.source`): options/itemLabel/константы/loading-компоненты.
+ * - `"$component(Name)"`    — имя компонента в реестре (`reg.component`).
+ * - `"$dataSource(NAME)"`   — имя registry-source (`reg.dataSource`): options/itemLabel/константы/loading-компоненты.
  *
  * Схема остаётся чистым JSON (копируется в `.json`, приходит строкой с сервера). Типобезопасность
  * на этапе компиляции даётся template-literal типами ({@link ModelOp} и т.д.) — литерал

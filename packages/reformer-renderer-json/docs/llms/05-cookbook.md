@@ -211,10 +211,10 @@ const schema: JsonFormSchema = {
 };
 
 const registry = defineRegistry((reg) => {
-  reg.field('Input', Input);
-  reg.container('Box', Box);
-  reg.container('Section', Section);
-  reg.container(FIELD_WRAPPER, FormField);
+  reg.component('Input', Input);
+  reg.component('Box', Box);
+  reg.component('Section', Section);
+  reg.component(FIELD_WRAPPER, FormField);
 });
 ```
 

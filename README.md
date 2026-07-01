@@ -494,13 +494,13 @@ function LoginPage() {
   const registry = useMemo(
     () =>
       defineRegistry((reg) => {
-        reg.container('FormRoot', (props: { children: RenderNode<LoginForm>[] }) => (
+        reg.component('FormRoot', (props: { children: RenderNode<LoginForm>[] }) => (
           <FormRoot {...props} form={form} />
         ));
-        reg.container('Box', Box);
-        reg.field('Input', Input);
-        reg.field('InputPassword', InputPassword);
-        reg.container(FIELD_WRAPPER, FormField);
+        reg.component('Box', Box);
+        reg.component('Input', Input);
+        reg.component('InputPassword', InputPassword);
+        reg.component(FIELD_WRAPPER, FormField);
       }),
     [form]
   );

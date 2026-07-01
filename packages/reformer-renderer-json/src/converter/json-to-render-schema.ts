@@ -25,7 +25,7 @@ import type { ComponentRegistry } from '../registry/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Резолв компонента реестра по строке `'$component(name)'` (тип field|container). */
+/** Резолв компонента реестра по строке `'$component(name)'` (тип component). */
 function resolveComponent(op: string | undefined, registry: ComponentRegistry): any {
   if (!op) return undefined;
   const name = parseOperator(op)?.arg;

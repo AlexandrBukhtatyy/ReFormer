@@ -82,9 +82,9 @@ export interface JsonFormRendererProps<T> {
  *   // M1: модель — источник истины значений; листья схемы биндятся к её сигналам.
  *   const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
  *   const registry = useMemo(() => defineRegistry((reg) => {
- *     reg.field('Input', Input);
- *     reg.container('Box', Box);
- *     reg.container(FIELD_WRAPPER, FormField); // системная обёртка полей
+ *     reg.component('Input', Input);
+ *     reg.component('Box', Box);
+ *     reg.component(FIELD_WRAPPER, FormField); // системная обёртка полей
  *   }), []);
  *
  *   // Модель передаётся через провайдер (settings.model), НЕ пропом рендерера.

@@ -4,7 +4,7 @@
 
 Имя из оператора `$component(X)` (или `$dataSource(X)`) не зарегистрировано в реестре. Проверь:
 
-- `defineRegistry` действительно содержит `reg.field('X', ...)`, `reg.container('X', ...)` или `reg.dataSource('X', ...)`.
+- `defineRegistry` действительно содержит `reg.component('X', ...)` или `reg.dataSource('X', ...)`.
 - В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
 - Если используются вложенные провайдеры — реестр внутреннего провайдера наследуется через `withParent`, но дубли разрешаются в пользу внешнего.
@@ -17,7 +17,7 @@
 import { FIELD_WRAPPER } from '@reformer/renderer-json';
 import { FormField } from '@reformer/ui-kit';
 
-reg.container(FIELD_WRAPPER, FormField);
+reg.component(FIELD_WRAPPER, FormField);
 ```
 
 ## No model signal for "..." / settings.model is required

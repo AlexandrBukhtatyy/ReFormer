@@ -11,7 +11,7 @@
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` + опциональные `children`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
-  - `'$component(Name)'` — имя компонента в реестре (`reg.field`/`reg.container`).
+  - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
 - **`selector`** — plain-строка, id узла для render-behavior (`schema.node('…')`, `hideWhen`, `patchProps`). **Не** путь модели.
 - **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.

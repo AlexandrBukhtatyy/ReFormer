@@ -49,8 +49,8 @@ export interface JsonRendererProviderProps {
  * // Модель — источник истины (M1); листья схемы биндятся к её сигналам.
  * const model = useMemo(() => createModel<MyForm>({ email: '' }), []);
  * const registry = useMemo(() => defineRegistry((reg) => {
- *   reg.field('Input', Input);
- *   reg.container(FIELD_WRAPPER, FormField);
+ *   reg.component('Input', Input);
+ *   reg.component(FIELD_WRAPPER, FormField);
  * }), []);
  *
  * <JsonRendererProvider settings={{ registry, model }}>

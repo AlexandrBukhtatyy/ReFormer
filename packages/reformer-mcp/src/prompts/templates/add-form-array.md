@@ -76,7 +76,7 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
    />;
    ```
 
-   **renderer-json:** consumer registers `PropertyForm` via `reg.container('PropertyForm', PropertyForm)` and references by string in JSON — `"itemComponent": "PropertyForm"`. Or uses inline `$template`:
+   **renderer-json:** consumer registers `PropertyForm` via `reg.component('PropertyForm', PropertyForm)` and references by string in JSON — `"itemComponent": "PropertyForm"`. Or uses inline `$template`:
 
    ```jsonc
    { "itemComponent": { "$template": { "component": "Section", "children": [...] } } }
@@ -121,4 +121,4 @@ An array is declared in the schema as a dedicated node: `{ array: model.<path>, 
 - [ ] (renderer-react) Checkbox without `CdkFormField.Label` wrapper
 - [ ] (renderer-react self-managed) `__selfManagedChildren = true` set
 - [ ] All targets: `FormArraySection` from `@reformer/ui-kit/form-array` used; `itemComponent` is FC (`ComponentType<{ control }>`)
-- [ ] (renderer-json) item FC registered via `reg.container('Name', FC)` OR inline `$template` used (converter wraps to FC)
+- [ ] (renderer-json) item FC registered via `reg.component('Name', FC)` OR inline `$template` used (converter wraps to FC)

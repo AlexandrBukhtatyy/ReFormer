@@ -80,13 +80,13 @@ ui-kit FormArraySection маркирован `__selfManagedChildren = true` — 
 
 Два варианта `itemComponent`:
 
-### Вариант 1: registry-name (FC зарегистрирован как container)
+### Вариант 1: registry-name (FC зарегистрирован через reg.component)
 
 ```ts
 // registry.ts
 defineRegistry((reg) => {
-  reg.container('FormArraySection', FormArraySection);
-  reg.container('PropertyForm', PropertyForm);
+  reg.component('FormArraySection', FormArraySection);
+  reg.component('PropertyForm', PropertyForm);
 });
 ```
 
