@@ -116,14 +116,17 @@ const MyLink = React.forwardRef<HTMLAnchorElement, { href: string; children: Rea
 
 - Передан `checked` вместо `value` (`<Checkbox checked={...}>`) — пропа
   `checked` нет, нужно `value`.
-- В schema поле имеет тип `boolean`, но `value: undefined` — компонент
-  отрендерится как `false`, и при `setValue(true)` без вмешательства React
-  re-render не произойдёт. Указывай `value: false` явно в schema.
+- В модели поле имеет тип `boolean`, но начальное значение `undefined` —
+  компонент отрендерится как `false`, и при `setValue(true)` без вмешательства
+  React re-render не произойдёт. Указывай `accept: false` явно в initial-значениях
+  модели.
 
 ```typescript
-const form = createForm<FormSchema<{ accept: boolean }>>({
-  accept: { component: Checkbox, value: false }, // не undefined!
-});
+const model = createModel<{ accept: boolean }>({ accept: false }); // false, не undefined!
+const schema = {
+  children: [{ value: model.$.accept, component: Checkbox }],
+};
+const form = createForm<{ accept: boolean }>({ model, schema });
 ```
 
 ## 6. `FormField` не подцепляет ошибки (`<error>` не появляется)
@@ -140,13 +143,18 @@ const form = createForm<FormSchema<{ accept: boolean }>>({
   после `blur` или `markAsTouched`. Если submit-кнопка не вызывает
   `form.markAsTouched()` — пользователь вообще не увидит ошибку.
 
-**Решение.** На submit обязательно:
+**Решение.** На submit обязательно помечаем touched и валидируем модель по схеме
+(M1: `validateFormModel(model, schema)` — именно он прогоняет `validators` листьев
+и роутит ошибки в ноды):
 
 ```tsx
+import { validateFormModel } from '@reformer/core';
+
 const onSubmit = async () => {
   form.markAsTouched();
-  if (!(await form.validate())) return;
-  // ... отправка
+  const res = await validateFormModel(model, schema);
+  if (!res.valid) return;
+  // ... отправка (значения — из model.get())
 };
 ```
 

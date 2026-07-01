@@ -1,55 +1,51 @@
-## 8. FORMSCHEMA FORMAT (CRITICALLY IMPORTANT)
+## 8. SCHEMA FORMAT (CRITICALLY IMPORTANT)
 
-**Every field MUST have `value` and `component` properties!**
+Под M1 схема **привязывает поле к сигналу модели** (`value: model.$.field`) и держит
+UI-конфиг (`component`/`componentProps`) + валидаторы. Значения принадлежат модели.
 
-### FieldConfig Interface
+### Field node
 
 ```typescript
-interface FieldConfig<T> {
-  value: T | null; // Initial value (REQUIRED)
-  component: ComponentType; // React component (REQUIRED)
-  componentProps?: object; // Props passed to component
-  disabled?: boolean; // Disable field initially
-  validators?: ValidatorFn[]; // Sync validators
-  asyncValidators?: AsyncValidatorFn[]; // Async validators
-  updateOn?: 'change' | 'blur' | 'submit';
-  debounce?: number;
+{
+  value: model.$.fieldName,   // сигнал модели (PathAwareSignal) — обязателен
+  component: Input,           // React-компонент
+  componentProps?: object,    // пропсы (label, placeholder, options, type, ...)
+  validators?: [...],         // чистые фабрики / ModelValidator
+  asyncValidators?: [...],    // async ModelValidator
+  disabled?: boolean,
+  updateOn?: 'change' | 'blur' | 'submit',
+  debounce?: number,
 }
 ```
 
 ### Primitive Fields
 
 ```typescript
-import { Input, Select, Checkbox } from '@/components/ui';
+import { createModel, createForm } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { Input, Select, Checkbox } from '@reformer/ui-kit';
 
-const schema: FormSchema<MyForm> = {
-  // String field
+const model = createModel<MyForm>({ name: '', age: null, agree: false, status: 'active' });
+
+const schema = {
   name: {
-    value: '', // Initial value (REQUIRED)
-    component: Input, // React component (REQUIRED)
-    componentProps: {
-      label: 'Name',
-      placeholder: 'Enter name',
-    },
+    value: model.$.name,
+    component: Input,
+    componentProps: { label: 'Name', placeholder: 'Enter name' },
+    validators: [required()],
   },
-
-  // Number field (optional)
   age: {
-    value: undefined, // Use undefined, NOT null
+    value: model.$.age,
     component: Input,
     componentProps: { type: 'number', label: 'Age' },
   },
-
-  // Boolean field
   agree: {
-    value: false,
+    value: model.$.agree,
     component: Checkbox,
     componentProps: { label: 'I agree to terms' },
   },
-
-  // Enum/Select field
   status: {
-    value: 'active',
+    value: model.$.status,
     component: Select,
     componentProps: {
       label: 'Status',
@@ -60,74 +56,73 @@ const schema: FormSchema<MyForm> = {
     },
   },
 };
+
+const form = createForm<MyForm>({ model, schema });
 ```
 
 ### Nested Objects
 
-```typescript
-const schema: FormSchema<MyForm> = {
-  address: {
-    street: { value: '', component: Input, componentProps: { label: 'Street' } },
-    city: { value: '', component: Input, componentProps: { label: 'City' } },
-    zip: { value: '', component: Input, componentProps: { label: 'ZIP' } },
-  },
-};
-```
-
-### Arrays (Tuple Format)
+Вложенная группа — обычный объект под-узлов, привязанных к сигналам под-модели
+(`model.$.address.city`). Удобно вынести в builder, принимающий `ModelSignals<Sub>`:
 
 ```typescript
-const itemSchema = {
-  id: { value: '', component: Input, componentProps: { label: 'ID' } },
-  name: { value: '', component: Input, componentProps: { label: 'Name' } },
-};
+import type { ModelSignals } from '@reformer/core';
 
-const schema: FormSchema<MyForm> = {
-  items: [itemSchema], // Array with ONE template item
-};
-```
+const addressNodes = (s: ModelSignals<Address>) => ({
+  street: { value: s.street, component: Input, componentProps: { label: 'Street' } },
+  city:   { value: s.city,   component: Input, componentProps: { label: 'City' } },
+  zip:    { value: s.zip,    component: Input, componentProps: { label: 'ZIP' } },
+});
 
-### WRONG - This will NOT compile
-
-```typescript
-// Missing value and component - TypeScript will error!
 const schema = {
-  name: '', // Wrong
-  email: '', // Wrong
+  address: addressNodes(model.$.address),
+};
+```
+
+### Arrays — `{ array, item }` node
+
+Массив объектов объявляется узлом `{ array: model.<path>, item: (itemModel) => subSchema }`.
+`item` строит под-схему из под-модели элемента (`FormModel<Item>`):
+
+```typescript
+import type { FormModel } from '@reformer/core';
+
+const itemSchema = (item: FormModel<Item>) => ({
+  id:   { value: item.$.id,   component: Input, componentProps: { label: 'ID' } },
+  name: { value: item.$.name, component: Input, componentProps: { label: 'Name' } },
+});
+
+const schema = {
+  items: { array: model.items, item: itemSchema },
 };
 ```
 
 ### createForm API
 
 ```typescript
-// Full config with behavior and validation
+// M1: данные из модели + схема (+ опциональный декларативный behavior)
 const form = createForm<MyForm>({
-  form: formSchema, // Required: form schema with FieldConfig
-  behavior: behaviorSchema, // Optional: behavior rules
-  validation: validationSchema, // Optional: validation rules
+  model,                 // FormModel<MyForm> — обязателен
+  schema,                // дерево узлов, привязанных к сигналам
+  behavior: myBehavior,  // опционально: defineFormBehavior(...) из @reformer/core/behaviors
 });
 
-// Access form controls
+// Доступ к нодам через Proxy
 form.name.setValue('John');
-form.address.city.value.value; // Get current value
-form.items.push({ id: '1', name: 'Item' }); // Array operations
+form.address.city.value.value;  // текущее значение (через сигнал)
+model.items.push({ id: '1', name: 'Item' }); // операции над массивом — на модели
 ```
 
 ### createForm Returns a Proxy
 
 ```typescript
-// createForm() returns FormProxy<T> (a Proxy wrapper around GroupNode)
-// This enables type-safe field access:
-const form = createForm<MyForm>({...});
+const form = createForm<MyForm>({ model, schema });
 
-form.email           // FieldNode<string> - TypeScript knows the type!
-form.address.city    // FieldNode<string> - nested access works
-form.items.at(0)     // FormProxy<ItemType> - array items
+form.email;          // FieldNode<string> — TypeScript знает тип
+form.address.city;   // FieldNode<string> — вложенный доступ
+form.items.at(0);    // FormProxy<ItemType> — элемент массива
 
-// IMPORTANT: Proxy doesn't pass instanceof checks!
-// Use type guards instead:
+// IMPORTANT: Proxy не проходит instanceof! Используй type guards:
 import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
-
-if (isFieldNode(node)) { /* ... */ }   // Works with Proxy
-if (node instanceof FieldNode) { /* ... */ } // Fails with Proxy!
+if (isFieldNode(node)) { /* ... */ }
 ```

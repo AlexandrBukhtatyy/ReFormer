@@ -1,5 +1,5 @@
 /**
- * RenderContext - контекст для передачи form/path/settings в пользовательские компоненты
+ * RenderContext - контекст для передачи form/settings в пользовательские компоненты
  *
  * Позволяет компонентам-контейнерам (например, wizard) получить доступ к контексту
  * рендеринга для рекурсивного рендеринга вложенных узлов.
@@ -24,9 +24,9 @@ export interface RenderContextValue<T = unknown> {
 const RenderContext = createContext<RenderContextValue | null>(null);
 
 /**
- * Provider для контекста рендеринга. Снабжает дочерние компоненты текущей формой,
- * настройками и `path`. Обычно создаётся `FormRenderer` автоматически — явно
- * нужен только при ручном построении дерева через `RenderNodeComponent`.
+ * Provider для контекста рендеринга. Снабжает дочерние компоненты текущей формой
+ * и настройками (`settings`). Обычно создаётся {@link FormRenderer} автоматически — явно
+ * нужен только при ручном построении дерева через {@link RenderNodeComponent}.
  *
  * @example
  * ```tsx
@@ -50,19 +50,23 @@ export function RenderContextProvider<T>({
 }
 
 /**
- * Хук для получения контекста рендеринга
+ * Хук для получения контекста рендеринга.
  *
- * Используется в пользовательских компонентах-контейнерах для доступа
- * к form, path и settings.
+ * Используется в пользовательских компонентах-контейнерах (например, wizard) для доступа
+ * к `form` и `settings`. Бросает ошибку, если вызван вне {@link RenderContextProvider}
+ * (его создаёт {@link FormRenderer}).
  *
- * @example
+ * @typeParam T - Тип значения формы
+ * @returns {@link RenderContextValue} — `{ form?, settings? }`
+ *
+ * @example Доступ к form/settings в self-managed компоненте
  * ```tsx
  * function MyWizard({ children }) {
  *   const { form, settings } = useRenderContext();
  *
  *   return (
  *     <FormWizard form={form}>
- *       {children.map(child => (
+ *       {children.map((child) => (
  *         <RenderNodeComponent node={child} form={form} />
  *       ))}
  *     </FormWizard>

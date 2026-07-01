@@ -148,7 +148,26 @@ function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistr
 }
 
 /**
- * Сырое дерево RenderNode из JSON (M1) — для `createForm({ model, schema })`.
+ * Сырое дерево RenderNode из JSON (M1) — для `createForm({ model, schema })`. Листья привязываются
+ * к сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из реестра.
+ *
+ * @typeParam T - Тип формы (форма данных модели).
+ * @param schema - JSON-схема формы ({@link JsonFormSchema}).
+ * @param registry - Реестр компонентов/источников (см. {@link defineRegistry}).
+ * @param model - Модель данных — источник значений (`FormModel`).
+ * @returns Корневой {@link RenderNode} — кладётся в `createForm({ schema })`.
+ *
+ * @example Собрать форму из JSON-схемы (M1)
+ * ```ts
+ * import { createForm } from '@reformer/core';
+ *
+ * const form = createForm<MyForm>({
+ *   model,
+ *   schema: convertJsonToM1Tree(jsonSchema, registry, model),
+ *   behavior,
+ * });
+ * ```
+ *
  * @group Converter
  */
 export function convertJsonToM1Tree<T>(
@@ -162,6 +181,26 @@ export function convertJsonToM1Tree<T>(
 /**
  * `RenderSchemaFn` из JSON (M1) — для `FormRenderer`/`JsonFormRenderer`. Листья привязываются к
  * сигналам модели (`'$model(path)'` → `model.signalAt`), компоненты/источники — из реестра.
+ *
+ * В отличие от {@link convertJsonToM1Tree} (который возвращает готовое дерево), здесь результат —
+ * ленивая функция-фабрика дерева, как её ждёт `createRenderSchema`. Обычно вызывается внутри
+ * {@link JsonFormRenderer}; напрямую нужен для интеграции с `FormRenderer` без JSON-обёртки.
+ *
+ * @typeParam T - Тип формы.
+ * @param schema - JSON-схема формы ({@link JsonFormSchema}).
+ * @param registry - Реестр компонентов/источников (см. {@link defineRegistry}).
+ * @param model - Модель данных — источник значений (`FormModel`).
+ * @returns `RenderSchemaFn<T>` — фабрика {@link RenderNode}-дерева для `createRenderSchema`.
+ *
+ * @example
+ * ```ts
+ * import { createRenderSchema, FormRenderer } from '@reformer/renderer-react';
+ *
+ * const fn = createRenderSchemaFromJsonM1<MyForm>(jsonSchema, registry, model);
+ * const proxy = createRenderSchema<MyForm>(fn);
+ * <FormRenderer render={proxy} />;
+ * ```
+ *
  * @group Converter
  */
 export function createRenderSchemaFromJsonM1<T>(

@@ -5,14 +5,13 @@ Headless compound component for multi-step form wizards.
 ## Basic Usage
 
 ```tsx
-import { FormWizard } from '@reformer/cdk/form-wizard';
+import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
-const config = {
-  stepValidations: {
-    1: step1Schema,
-    2: step2Schema,
-  },
-  fullValidation: fullFormSchema,
+// Config is a pair of validation callbacks — NOT schemas.
+// Each returns boolean | Promise<boolean> (true = valid).
+const config: FormWizardConfig = {
+  validateStep: (step) => validateFormModel(model, stepSchema(step)),
+  validateAll: () => validateFormModel(model, fullSchema),
 };
 
 <FormWizard form={form} config={config}>
@@ -22,23 +21,49 @@ const config = {
   <FormWizard.Actions onSubmit={handleSubmit}>
     {({ prev, next, submit, isFirstStep, isLastStep }) => (
       <div>
-        {!isFirstStep && <button {...prev}>Back</button>}
-        {!isLastStep ? <button {...next}>Next</button> : <button {...submit}>Submit</button>}
+        {!isFirstStep && <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>}
+        {!isLastStep ? (
+          <button onClick={next.onClick} disabled={next.disabled}>Next</button>
+        ) : (
+          <button onClick={submit.onClick} disabled={submit.disabled}>Submit</button>
+        )}
       </div>
     )}
   </FormWizard.Actions>
 </FormWizard>;
 ```
 
+> Note: `prev`/`next`/`submit` are `{ onClick, disabled }` objects (submit also has
+> `isSubmitting`). They are not DOM-attribute bags — do not `{...prev}`-spread them
+> onto `<button>` (that would set an invalid `disabled`/`onClick` mix). Read the
+> members explicitly as shown, or use the compound `FormWizard.Prev/Next/Submit`.
+
 ## Sub-components
 
-| Component              | Purpose                                    |
-| ---------------------- | ------------------------------------------ |
-| `FormWizard`           | Root provider                              |
-| `FormWizard.Step`      | Renders component when step is current     |
-| `FormWizard.Indicator` | Headless step indicator (render props)     |
-| `FormWizard.Actions`   | Headless navigation buttons (render props) |
-| `FormWizard.Progress`  | Headless progress display (render props)   |
+| Component              | Purpose                                                |
+| ---------------------- | ------------------------------------------------------ |
+| `FormWizard`           | Root provider                                          |
+| `FormWizard.Step`      | Renders component/children when step is current        |
+| `FormWizard.Indicator` | Headless step indicator (render props)                 |
+| `FormWizard.Actions`   | Navigation container: render props OR compound buttons |
+| `FormWizard.Prev`      | Compound "Back" button (inside `Actions`)              |
+| `FormWizard.Next`      | Compound "Next" button (inside `Actions`)              |
+| `FormWizard.Submit`    | Compound "Submit" button (inside `Actions`)            |
+| `FormWizard.Progress`  | Headless progress display (render props)               |
+
+`FormWizard.Prev` / `Next` / `Submit` are compound children of `FormWizard.Actions`
+(they read the Actions context) — they cannot be used standalone. They are not
+top-level exports; access them as members: `FormWizard.Prev`, etc.
+
+### Actions: compound mode
+
+```tsx
+<FormWizard.Actions onSubmit={handleSubmit} className="flex justify-between">
+  <FormWizard.Prev>Back</FormWizard.Prev>
+  <FormWizard.Next>Next</FormWizard.Next>
+  <FormWizard.Submit loadingText="Submitting…">Submit</FormWizard.Submit>
+</FormWizard.Actions>
+```
 
 ## FormWizard.Indicator
 
@@ -179,14 +204,38 @@ const result = await navRef.current?.submit(async (values) => {
 
 ## Configuration
 
+`FormWizardConfig` is a pair of optional validation callbacks (not generic, not
+schema-based). Each returns `boolean | Promise<boolean>` — `true` means valid.
+
 ```typescript
-interface FormWizardConfig<T> {
-  stepValidations: Record<number, ValidationSchemaFn<T>>;
-  fullValidation: ValidationSchemaFn<T>;
+interface FormWizardConfig {
+  /** Validate step N (1-based). Missing → step treated as valid (warns in console). */
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  /** Validate the whole form before submit. Missing → submit not blocked. */
+  validateAll?: () => boolean | Promise<boolean>;
 }
+```
+
+Typically both wrap `validateFormModel(model, schema)` from `@reformer/core` and
+close over the current step's schema:
+
+```typescript
+const config: FormWizardConfig = {
+  validateStep: async (step) => {
+    const res = await validateFormModel(model, stepSchemas[step - 1]);
+    return Object.keys(res.errors).length === 0;
+  },
+  validateAll: async () => {
+    const res = await validateFormModel(model, fullSchema);
+    return Object.keys(res.errors).length === 0;
+  },
+};
 ```
 
 Validation happens automatically:
 
-- On `next.onClick`: validates current step
-- On `submit.onClick`: validates entire form
+- On `next.onClick` / `FormWizard.Next`: runs `validateStep(currentStep)`; on failure calls `form.markAsTouched()` and stays on the step.
+- On `submit` (ref `submit()` or `FormWizard.Actions` `onSubmit`): runs `validateAll()`; on success delegates to `form.submit(onSubmit, { skipValidation: true })`.
+
+> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`; the
+> credit-application example builds it via `makeCreditValidationConfig(model)`.

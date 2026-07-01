@@ -11,12 +11,21 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора, проверяющего что число не равно нулю.
  *
- * Пустые значения и не-числа пропускаются (используйте `required` и `isNumber`).
+ * Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для числового поля
+ *
+ * @example Проверка «не ноль»
  * ```typescript
- * validate(path.quantity, nonZero());
- * validate(path.divisor, nonZero({ message: 'Не может быть нулём' }));
+ * import { nonZero } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * divisor: {
+ *   value: model.$.divisor,
+ *   component: Input,
+ *   validators: [nonZero({ message: 'Не может быть нулём' })],
+ * },
  * ```
  */
 export function nonZero<TForm = unknown, TField extends number | undefined = number>(

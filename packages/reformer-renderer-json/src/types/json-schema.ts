@@ -87,7 +87,21 @@ export interface JsonFormSchema {
   root: JsonNode;
 }
 
-/** Type-guard: узел — массив (`array: '$model(...)'` + `item.$template`). Проверять ПЕРВЫМ. */
+/**
+ * Type-guard: узел — массив (`array: '$model(...)'` + `item.$template`). Проверять ПЕРВЫМ
+ * (лист/контейнер отсеиваются после, т.к. массив тоже несёт `$model`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если узел — {@link JsonArrayNode}.
+ *
+ * @example Сузить тип узла перед доступом к `item.$template`
+ * ```ts
+ * if (isArrayNode(node)) {
+ *   node.array;            // ModelOp
+ *   node.item.$template;   // JsonNode
+ * }
+ * ```
+ */
 export function isArrayNode(node: JsonNode): node is JsonArrayNode {
   const n = node as JsonArrayNode;
   return (
@@ -95,12 +109,38 @@ export function isArrayNode(node: JsonNode): node is JsonArrayNode {
   );
 }
 
-/** Type-guard: узел — лист (`value: '$model(...)'`). */
+/**
+ * Type-guard: узел — лист (`value: '$model(...)'`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если узел — {@link JsonFieldNode}.
+ *
+ * @example Сузить тип узла перед доступом к `value`/`component`
+ * ```ts
+ * if (isFieldNode(node)) {
+ *   node.value;      // ModelOp
+ *   node.component;  // ComponentOp | undefined
+ * }
+ * ```
+ */
 export function isFieldNode(node: JsonNode): node is JsonFieldNode {
   return isModelOp((node as JsonFieldNode).value);
 }
 
-/** Type-guard: узел — контейнер (`component: '$component(...)'`, без `value`/`array`). */
+/**
+ * Type-guard: узел — контейнер (`component: '$component(...)'`, без `value`/`array`).
+ *
+ * @param node - Узел JSON-схемы.
+ * @returns `true`, если узел — {@link JsonContainerNode}.
+ *
+ * @example Сузить тип узла перед обходом `children`
+ * ```ts
+ * if (isContainerNode(node)) {
+ *   node.component;   // ComponentOp
+ *   node.children?.forEach(walk);
+ * }
+ * ```
+ */
 export function isContainerNode(node: JsonNode): node is JsonContainerNode {
   return (
     isComponentOp((node as JsonContainerNode).component) && !isFieldNode(node) && !isArrayNode(node)

@@ -11,10 +11,13 @@
 
 ## Schema-driven (canonical pattern)
 
-Объяви InputMask как `component` поля; передай `mask` в `componentProps`:
+Канон M1: `createModel` → схема, где лист = `{ value: model.$.field, component,
+componentProps, validators }` → `createForm({ model, schema })`. Объяви InputMask
+как `component` листа; передай `mask` в `componentProps`:
 
 ```ts
-import { createForm, type FormSchema } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { required, pattern } from '@reformer/core/validators';
 import { InputMask } from '@reformer/ui-kit';
 
 type ContactForm = {
@@ -24,30 +27,41 @@ type ContactForm = {
   snils: string;
 };
 
-const form = createForm<ContactForm>({
-  form: {
-    phone: {
-      value: '',
+const model = createModel<ContactForm>({ phone: '', passport: '', inn: '', snils: '' });
+
+const schema = {
+  children: [
+    {
+      value: model.$.phone,
       component: InputMask,
-      componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
+      componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99', testId: 'phone' },
+      validators: [
+        required({ message: 'Телефон обязателен' }),
+        pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Неверный формат телефона' }),
+      ],
     },
-    passport: {
-      value: '',
+    {
+      value: model.$.passport,
       component: InputMask,
-      componentProps: { label: 'Серия и номер паспорта', mask: '9999 999999' },
+      componentProps: { label: 'Серия и номер паспорта', mask: '9999 999999', testId: 'passport' },
+      validators: [required()],
     },
-    inn: {
-      value: '',
+    {
+      value: model.$.inn,
       component: InputMask,
-      componentProps: { label: 'ИНН', mask: '999999999999' },
+      componentProps: { label: 'ИНН', mask: '999999999999', testId: 'inn' },
+      validators: [required(), pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' })],
     },
-    snils: {
-      value: '',
+    {
+      value: model.$.snils,
       component: InputMask,
-      componentProps: { label: 'СНИЛС', mask: '999-999-999 99' },
+      componentProps: { label: 'СНИЛС', mask: '999-999-999 99', testId: 'snils' },
+      validators: [required()],
     },
-  } satisfies FormSchema<ContactForm>,
-});
+  ],
+};
+
+const form = createForm<ContactForm>({ model, schema });
 ```
 
 Render как обычно через `FormField`:
@@ -80,23 +94,29 @@ import { FormField } from '@reformer/ui-kit';
 ## Validation
 
 `InputMask` пишет в значение **то, что ввёл пользователь** (с literal-символами маски).
-Для validation используй:
+Валидаторы — фабрики из `@reformer/core/validators` — кладутся в массив `validators`
+листа схемы (см. схему выше), а не в отдельную path-функцию. Прогоняются через
+`validateFormModel(model, schema)`:
 
-- `required(path.phone)` — на пустоту
-- `minLength(path.phone, 18)` — для проверки длины с literal-символами (телефон ровно 18 символов)
-- `pattern(path.phone, /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/)` — точный pattern если нужно
+- `required({ message })` — на пустоту;
+- `minLength(18)` — для проверки длины с literal-символами (телефон ровно 18 символов);
+- `pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message })` — точный формат.
 
 ```ts
-const validation: ValidationSchemaFn<ContactForm> = (path) => {
-  required(path.phone, { message: 'Телефон обязателен' });
-  pattern(path.phone, /^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, {
-    message: 'Неверный формат телефона',
-  });
+import { validateFormModel } from '@reformer/core';
 
-  required(path.inn);
-  pattern(path.inn, /^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' });
+// schema — из блока Schema-driven выше (валидаторы уже на листьях phone/inn/…).
+const onSubmit = async () => {
+  form.markAsTouched();
+  const res = await validateFormModel(model, schema);
+  if (!res.valid) return;
+  await api.submit(model.get());
 };
 ```
+
+Cross-field правила (например, «доп. телефон отличается от основного») — это
+именованные `ModelValidator<value, scope, root>` в том же массиве `validators`
+(читают корень формы через третий аргумент). Эталон: `examples/complex-multy-step-form/schemas/validation.ts`.
 
 ## Advanced — strict mask через FormField + children slot
 

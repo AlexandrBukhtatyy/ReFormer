@@ -2,7 +2,8 @@
  * Reusable validator factories.
  *
  * Все примитивы — фабрики, возвращающие чистый Validator<TForm, TField>.
- * Использование: `validate(path.x, required())`, `validate(path.y, min(18))`.
+ * Импортируются из `@reformer/core/validators` и передаются в массив `validators`
+ * поля схемы формы: `validators: [required(), min(18)]`.
  */
 
 export { required } from './required';

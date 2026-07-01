@@ -88,23 +88,28 @@ import type { FormValue } from '../core/types';
  * }
  * ```
  *
- * @example Отображение суммы в реальном времени
+ * @example Отображение суммы позиции в реальном времени
  * ```tsx
  * interface OrderItem {
- *   quantity: FieldNode<number>;
- *   price: FieldNode<number>;
+ *   quantity: number;
+ *   price: number;
  * }
  *
- * function OrderTotal({ items }: { items: ArrayNode<OrderItem> }) {
- *   // Для каждого элемента получаем только значения
- *   const quantities = items.map(item => useFormControlValue(item.controls.quantity));
- *   const prices = items.map(item => useFormControlValue(item.controls.price));
+ * // Хук вызывается на уровне компонента-строки (не в цикле — Rules of Hooks).
+ * // Доступ к полям элемента — через Proxy: item.quantity, item.price.
+ * function OrderRow({ item }: { item: FormProxy<OrderItem> }) {
+ *   const quantity = useFormControlValue(item.quantity);
+ *   const price = useFormControlValue(item.price);
  *
- *   const total = quantities.reduce((sum, qty, i) => sum + qty * prices[i], 0);
+ *   return <span>Итого: ${(quantity * price).toFixed(2)}</span>;
+ * }
  *
+ * function OrderList({ items }: { items: ArrayNode<OrderItem> }) {
  *   return (
- *     <div className="order-total">
- *       <strong>Total: ${total.toFixed(2)}</strong>
+ *     <div>
+ *       {items.map((item, index) => (
+ *         <OrderRow key={index} item={item} />
+ *       ))}
  *     </div>
  *   );
  * }

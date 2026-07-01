@@ -4,60 +4,66 @@
 src/
 ├── components/ui/                    # Reusable UI components
 │   ├── FormField.tsx
-│   └── FormArrayManager.tsx
+│   └── FormArraySection.tsx
 │
 ├── forms/
 │   └── [form-name]/                  # Form module
-│       ├── type.ts                   # Main form type
-│       ├── schema.ts                 # Main schema
-│       ├── validators.ts             # Validators
-│       ├── behaviors.ts              # Behaviors
+│       ├── types.ts                  # Form data type (type-alias)
+│       ├── model.ts                  # createModel factory + initial values
+│       ├── schema.ts                 # createForm schema (value: model.$.x)
+│       ├── validation.ts             # validation schema + validateFormModel config
+│       ├── behavior.ts               # defineFormBehavior(...)
 │       ├── [FormName]Form.tsx        # Main component
 │       │
 │       ├── steps/                    # Multi-step wizard
-│       │   ├── loan-info/
-│       │   │   ├── type.ts
-│       │   │   ├── schema.ts
-│       │   │   ├── validators.ts
-│       │   │   ├── behaviors.ts
-│       │   │   └── LoanInfoForm.tsx
-│       │   └── ...
+│       │   └── loan-info/
+│       │       └── LoanInfoForm.tsx
 │       │
-│       └── sub-forms/                # Reusable sub-forms
-│           ├── address/
-│           └── personal-data/
+│       └── nested-forms/             # Reusable sub-forms (Address, PersonalData, ...)
 ```
 
 ### Key Files
 
 ```typescript
-// forms/credit-application/type.ts
-export type { LoanInfoStep } from './steps/loan-info/type';
-export interface CreditApplicationForm {
+// forms/credit-application/types.ts
+export type CreditApplicationForm = {
   loanType: LoanType;
-  loanAmount: number;
+  loanAmount: number | null;
   // ...
-}
-
-// forms/credit-application/schema.ts
-import { loanInfoSchema } from './steps/loan-info/schema';
-export const creditApplicationSchema = {
-  ...loanInfoSchema,
-  monthlyPayment: { value: 0, disabled: true },
 };
 
-// forms/credit-application/validators.ts
-import { loanValidation } from './steps/loan-info/validators';
-export const creditApplicationValidation: ValidationSchemaFn<Form> = (path) => {
-  loanValidation(path);
-  // Cross-step validation...
+// forms/credit-application/model.ts
+import { createModel, type FormModel } from '@reformer/core';
+export const createCreditApplicationModel = (): FormModel<CreditApplicationForm> =>
+  createModel<CreditApplicationForm>(createInitialCreditApplication());
+
+// forms/credit-application/schema.ts
+import type { FormModel } from '@reformer/core';
+export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
+  loanType: { value: model.$.loanType, component: Select, componentProps: { /* ... */ } },
+  personalData: personalDataNodes(model.$.personalData),
+  properties: { array: model.properties, item: propertyItem },
+});
+
+// forms/credit-application/behavior.ts
+import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
+export const creditApplicationBehavior = defineFormBehavior<CreditApplicationForm>(({ model }) => {
+  compute(model.$.monthlyPayment, () => computeMonthlyPayment(model));
+  enableWhen([model.$.propertyValue], () => model.loanType === 'mortgage', { resetOnDisable: true });
+});
+
+// forms/credit-application/create-form.ts — сборка
+import { createForm } from '@reformer/core';
+export const createCreditApplicationForm = () => {
+  const model = createCreditApplicationModel();
+  return createForm({ model, schema: creditApplicationSchema(model), behavior: creditApplicationBehavior });
 };
 ```
 
 ### Scaling
 
-| Complexity | Structure                                                           |
-| ---------- | ------------------------------------------------------------------- |
-| Simple     | Single file: `ContactForm.tsx`                                      |
-| Medium     | Separate files: `type.ts`, `schema.ts`, `validators.ts`, `Form.tsx` |
-| Complex    | Full colocation with `steps/` and `sub-forms/`                      |
+| Complexity | Structure                                                                    |
+| ---------- | ---------------------------------------------------------------------------- |
+| Simple     | Single file: `ContactForm.tsx` (model + schema + component)                  |
+| Medium     | Separate files: `types.ts`, `model.ts`, `schema.ts`, `validation.ts`, `Form.tsx` |
+| Complex    | Full colocation with `steps/`, `nested-forms/`, `behavior.ts`               |

@@ -1,53 +1,45 @@
-# Async Preload — Загрузка начальных значений и динамических справочников
+# Async Preload — Загрузка начальных значений и справочников
 
 ## Purpose
 
-Раздел про загрузку формы данными с сервера: (1) **initial values** в схеме (для дефолтов и mock-данных без API); (2) **patchValue** для частичного обновления существующей формы; (3) **external React-hook** (`useLoadCreditApplication`) для full-blown async preload — параллельный fetch заявки + справочников, обработка ошибок, race-condition guard через `applicationId` в deps. Динамические `componentProps` (опции селектов и т. п.) обновляются через `queueMicrotask`, чтобы не пересечься с реактивными эффектами от `patchValue`.
+Загрузка формы данными с сервера под M1: (1) **initial values** в `createModel(...)`; (2)
+**`model.set` / `model.patch`** для загрузки/обновления значений; (3) **external React-hook**
+для full-blown async preload (параллельный fetch заявки + справочников, обработка ошибок,
+race-guard через deps). Динамические `componentProps` (опции селектов) обновляются через
+`form.field.updateComponentProps({ options })` в `queueMicrotask`, чтобы не пересечься с
+реактивными эффектами от `set`/`patch`.
 
 ## API
 
 ```typescript
-// FormProxy / GroupNode:
+// Модель:
+model.set(value: Partial<T>): void;   // массовая замена (load с сервера). Не меняет initial.
+model.patch(value: Partial<T>): void; // частичное слияние (алиас set по семантике merge)
+model.reset(): void;                  // вернуть к initial-снимку
+model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 
-interface PreloadAPI<T> {
-  /** Полная замена value. Перетирает всё. */
-  setValue(value: T): void;
-
-  /** Частичный мердж. Не трогает поля, отсутствующие в payload. Используется для preload. */
-  patchValue(value: Partial<T>): void;
-
-  /** Initial values из схемы. reset() возвращает к ним. */
-  reset(): void;
-
-  /** Динамическое обновление componentProps конкретного поля. */
-  field.updateComponentProps(props: Record<string, unknown>): void;
-}
+// Нода поля/группы:
+form.field.updateComponentProps(props: Record<string, unknown>): void; // динамические опции и т.п.
 ```
 
-В схеме `FormSchema<T>` каждое поле принимает `value: TFieldValue` — это initial value, в которое поле возвращается при `reset()`.
+Initial values задаются в `createModel(initial)`; `reset()` возвращает к ним. Чтобы загруженные
+данные стали новой «точкой отсчёта» для `reset()` — вызови `model.captureInitial()` после load.
 
 ## Examples
 
-### Initial values в схеме
+### Initial values в модели
 
 ```typescript
-import { createForm, type FormSchema } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { Input, Select } from '@reformer/ui-kit';
 
-interface ProfileForm {
-  username: string;
-  language: 'ru' | 'en';
-  marketing: boolean;
-}
+type ProfileForm = { username: string; language: 'ru' | 'en'; marketing: boolean };
 
-const schema: FormSchema<ProfileForm> = {
-  username: {
-    value: '', // initial
-    component: Input,
-    componentProps: { label: 'Username' },
-  },
+const model = createModel<ProfileForm>({ username: '', language: 'ru', marketing: true });
+const schema = {
+  username: { value: model.$.username, component: Input, componentProps: { label: 'Username' } },
   language: {
-    value: 'ru', // дефолт «Русский»
+    value: model.$.language,
     component: Select,
     componentProps: {
       label: 'Язык',
@@ -57,243 +49,145 @@ const schema: FormSchema<ProfileForm> = {
       ],
     },
   },
-  marketing: {
-    value: true,
-    component: Input,
-    componentProps: { type: 'checkbox' },
-  },
+  marketing: { value: model.$.marketing, component: Input, componentProps: { type: 'checkbox' } },
 };
-
-const form = createForm({ form: schema });
-// form.getValue() === { username: '', language: 'ru', marketing: true }
-// после правок: form.reset() возвращает к этим же значениям
+const form = createForm({ model, schema });
+// model.get() === { username: '', language: 'ru', marketing: true }
+// после правок: model.reset() возвращает к этим значениям
 ```
 
-### Async preload через external hook + patchValue
+### Async preload через external hook + model.set
 
 ```tsx
 import { useEffect, useState } from 'react';
-import type { FormProxy } from '@reformer/core';
+import type { FormModel, FormProxy } from '@reformer/core';
 
-interface LoadingState {
-  isLoading: boolean;
-  error: string | null;
-}
+interface LoadingState { isLoading: boolean; error: string | null }
 
 export function useLoadCreditApplication(
+  model: FormModel<CreditApplicationForm>,
   form: FormProxy<CreditApplicationForm>,
   applicationId: string | null
 ): LoadingState {
-  const [state, setState] = useState<LoadingState>({
-    isLoading: !!applicationId,
-    error: null,
-  });
+  const [state, setState] = useState<LoadingState>({ isLoading: !!applicationId, error: null });
 
   useEffect(() => {
-    if (!applicationId) {
-      setState({ isLoading: false, error: null });
-      return;
-    }
-
+    if (!applicationId) { setState({ isLoading: false, error: null }); return; }
     let cancelled = false;
 
     (async () => {
       setState({ isLoading: true, error: null });
-
       try {
         const [appResp, dictsResp] = await Promise.all([
           fetchCreditApplication(applicationId),
           fetchDictionaries(),
         ]);
+        if (cancelled) return; // race-guard: сменили applicationId / unmount
+        if (appResp.status !== 200 || dictsResp.status !== 200) throw new Error('Сервер вернул ошибку');
 
-        // Race-guard: пользователь успел сменить applicationId или unmount
-        if (cancelled) return;
+        // Загрузка значений в модель
+        model.set(appResp.data);
 
-        if (appResp.status !== 200 || dictsResp.status !== 200) {
-          throw new Error('Сервер вернул ошибку');
-        }
-
-        // patchValue для полей формы
-        form.patchValue(appResp.data);
-
-        // Динамические componentProps — через queueMicrotask, чтобы дождаться
-        // окончания реактивных эффектов от patchValue
+        // Динамические componentProps — через queueMicrotask (после реактивных эффектов от set)
         queueMicrotask(() => {
           if (cancelled) return;
-          form.registrationAddress.city.updateComponentProps({
-            options: dictsResp.data.cities,
-          });
-          form.properties?.forEach((prop) =>
-            prop.type.updateComponentProps({ options: dictsResp.data.propertyTypes })
-          );
+          form.registrationAddress.city.updateComponentProps({ options: dictsResp.data.cities });
         });
 
         setState({ isLoading: false, error: null });
       } catch (err) {
         if (cancelled) return;
-        setState({
-          isLoading: false,
-          error: err instanceof Error ? err.message : 'Неизвестная ошибка',
-        });
+        setState({ isLoading: false, error: err instanceof Error ? err.message : 'Ошибка' });
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [applicationId]); // form стабилен (создан через useMemo)
+    return () => { cancelled = true; };
+  }, [applicationId]); // model/form стабильны (создан через useMemo)
 
   return state;
 }
 ```
 
-Source: `useLoadCreditApplication.ts` (monorepo example).
+### Preload через behavior — onChange на поле
 
-### Использование hook'а в компоненте
-
-```tsx
-import { useMemo } from 'react';
-import { LoadingState } from './components/LoadingState';
-import { ErrorState } from './components/ErrorState';
-
-function CreditApplicationForm() {
-  const form = useMemo(() => createCreditApplicationForm(), []);
-  const { isLoading, error } = useLoadCreditApplication(form, '1'); // ID заявки
-
-  if (isLoading) return <LoadingState />;
-  if (error) return <ErrorState error={error} onRetry={() => location.reload()} />;
-
-  return <FormWizard form={form} steps={STEPS} onSubmit={onSubmit} />;
-}
-```
-
-Source: `CreditApplicationForm.tsx:50-66` (monorepo example).
-
-### Preload через behavior (когда сервер отвечает на изменение поля)
+Загрузка справочника при выборе другого поля (после preload) — через `onChange`:
 
 ```typescript
-import { watchField, type BehaviorSchemaFn } from '@reformer/core/behaviors';
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
-interface AddressForm {
-  region: string;
-  city: string;
-}
-
-export const addressBehavior: BehaviorSchemaFn<AddressForm> = (path) => {
-  // Загрузка списка городов при выборе региона
-  watchField(
-    path.region,
-    async (region, ctx) => {
-      if (!region) {
-        ctx.form.city.updateComponentProps({ options: [] });
-        return;
-      }
-
+export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form }) => {
+  onChange(
+    model.$.region,
+    async (region, { signal }) => {
+      if (!region) { form.city.updateComponentProps({ options: [] }); return; }
       try {
-        const { data: cities } = await fetchCities(region);
-        ctx.form.city.updateComponentProps({ options: cities });
-      } catch (err) {
-        console.error('Failed to load cities:', err);
-        ctx.form.city.updateComponentProps({ options: [] });
+        const cities = await fetchCities(region, { signal });
+        form.city.updateComponentProps({ options: cities });
+      } catch {
+        form.city.updateComponentProps({ options: [] });
       }
     },
-    { immediate: false, debounce: 300 }
+    { debounce: 300 }
   );
-};
+});
 ```
-
-Source: `address-behavior.ts` (monorepo example).
 
 ## Anti-patterns
 
 ```typescript
-// ❌ form пересоздаётся при каждом рендере → preload запускается каждый раз
+// ❌ model/form пересоздаются на каждый рендер → preload запускается каждый раз
 function MyForm() {
-  const form = createForm({ form: schema }); // КАЖДЫЙ рендер!
-  useLoadCreditApplication(form, '1');
-  return …;
+  const model = createModel<T>(initial);   // КАЖДЫЙ рендер!
+  const form = createForm({ model, schema });
 }
 
-// ✅ Стабильная ссылка через useMemo
+// ✅ Стабильные ссылки через useMemo
 function MyForm() {
-  const form = useMemo(() => createForm({ form: schema }), []);
-  useLoadCreditApplication(form, '1');
-  return …;
+  const { model, form } = useMemo(() => {
+    const m = createModel<T>(initial);
+    return { model: m, form: createForm({ model: m, schema: buildSchema(m) }) };
+  }, []);
 }
 ```
 
 ```typescript
-// ❌ updateComponentProps синхронно после patchValue → "Cycle detected"
-form.patchValue(data);
-form.region.updateComponentProps({ options: [...] }); // bang
+// ❌ updateComponentProps синхронно после set → возможный конфликт с реактивными эффектами
+model.set(data);
+form.region.updateComponentProps({ options: [...] });
 
-// ✅ queueMicrotask, чтобы реактивные эффекты от patchValue завершились
-form.patchValue(data);
-queueMicrotask(() => {
-  form.region.updateComponentProps({ options: [...] });
-});
+// ✅ queueMicrotask, чтобы реактивные эффекты от set завершились
+model.set(data);
+queueMicrotask(() => form.region.updateComponentProps({ options: [...] }));
 ```
 
 ```typescript
-// ❌ Полная замена через setValue вместо patchValue
-form.setValue(partialData); // partialData может не содержать все поля → перетирает в undefined
-
-// ✅ patchValue — partial update, сохраняет необъявленные поля
-form.patchValue(partialData);
-```
-
-```typescript
-// ❌ Отсутствие race-guard в async useEffect
-useEffect(() => {
-  fetchData(id).then((data) => form.patchValue(data));
-}, [id]);
-// Если id быстро поменялся, старый response перезапишет новый
+// ❌ Нет race-guard в async useEffect
+useEffect(() => { fetchData(id).then((d) => model.set(d)); }, [id]);
 
 // ✅ Cleanup-флаг
 useEffect(() => {
   let cancelled = false;
-  fetchData(id).then((data) => {
-    if (!cancelled) form.patchValue(data);
-  });
-  return () => {
-    cancelled = true;
-  };
+  fetchData(id).then((d) => { if (!cancelled) model.set(d); });
+  return () => { cancelled = true; };
 }, [id]);
-```
-
-```typescript
-// ❌ Initial values задаются через patchValue после createForm — reset() их не помнит
-const form = createForm({ form: schema });
-form.patchValue({ username: 'default' });
-form.reset(); // username станет '' (из schema), а не 'default'
-
-// ✅ Если значение должно быть initial, кладите его в schema.value
-const schema = { username: { value: 'default', component: Input } };
 ```
 
 ## Troubleshooting
 
-**Q: После `patchValue` ошибки валидации не показываются.**
-A: `patchValue` НЕ trigger'ит `markAsTouched`. Если хотите сразу видеть ошибки — после `patchValue` вызовите `form.markAsTouched(); await form.validate();`.
+**Q: После `set`/`patch` не показываются ошибки.**
+A: `set`/`patch` не запускают валидацию. После загрузки вызови `await validateFormModel(model, schema)`.
 
 **Q: Опции в `<Select>` не появляются после `updateComponentProps`.**
-A: (1) Убедитесь, что вызов обёрнут в `queueMicrotask` после patch'ей; (2) проверьте, что компонент Select подписан на изменения через `useFormControl` (не использует props напрямую без подписки); (3) для FormArray — пройдитесь `forEach` по элементам и обновите для каждого.
+A: (1) Оберни вызов в `queueMicrotask`; (2) убедись, что компонент подписан через `useFormControl`;
+(3) для массивов — пройдись по элементам (`form.items.map`) и обнови каждый.
 
-**Q: `form.patchValue` не работает для FormArray.**
-A: Работает, но требует, чтобы массив существовал. Если в schema у вас `arr: { value: [] }`, `patchValue({ arr: [item1, item2] })` создаст элементы. Опции внутри элементов придётся обновить через `forEach` отдельно (см. example).
-
-**Q: Двойной запрос при mount + StrictMode.**
-A: StrictMode вызывает effect дважды. Race-guard через `cancelled` флаг (см. пример) корректно отменяет первый запрос. Дополнительно проверьте, что `applicationId` стабилен между рендерами.
-
-**Q: Хочу прелоад без отдельного hook'а — прямо в behavior через `watchField` на `id`.**
-A: Можно, но behavior запускается в момент создания формы и не может вернуть loading state. Лучше использовать external hook + `patchValue`. Behavior подходит для динамики **после** preload (загрузка городов при смене региона и т. п.).
-
-**Q: При `reset()` теряются данные, загруженные с сервера.**
-A: Это by design — `reset()` возвращает к initial values из schema, не к последнему `patchValue`. Если нужно «сбросить к данным с сервера», храните snapshot и используйте `form.setValue(snapshot)` вместо `reset()`.
+**Q: При `reset()` теряются данные с сервера.**
+A: `reset()` возвращает к initial-снимку из `createModel`, не к последнему `set`. Чтобы «сбросить
+к данным с сервера» — после `set` вызови `model.captureInitial()` (новая точка отсчёта).
 
 ## See also
 
 - [28-submit-and-reset.md](./28-submit-and-reset.md) — обратная сторона жизненного цикла
-- [11-async-watchfield.md](./11-async-watchfield.md) — `watchField` для динамики после preload
+- [11-async-watchfield.md](./11-async-watchfield.md) — `onChange` для динамики после preload
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему `queueMicrotask` нужен
 - [16-ui-components.md](./16-ui-components.md) — `updateComponentProps` для динамических опций

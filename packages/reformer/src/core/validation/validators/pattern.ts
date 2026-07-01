@@ -11,12 +11,32 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора регулярного выражения.
  *
- * Пустые значения пропускаются (используйте `required` для обязательности).
+ * Пустые значения (`''`/`null`/`undefined`) пропускаются (используйте {@link required}
+ * для обязательности).
  *
- * @example
+ * @param regex - Регулярное выражение для проверки значения
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадает `pattern` (строка-источник regex).
+ * @returns Чистый валидатор {@link Validator} для строкового поля
+ *
+ * @example Проверка по регулярному выражению
  * ```typescript
- * validate(path.name, pattern(/^[а-яА-Яa-zA-Z]+$/));
- * validate(path.code, pattern(/^\d+$/, { message: 'Только цифры' }));
+ * import { required, pattern } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * name: {
+ *   value: model.$.name,
+ *   component: Input,
+ *   validators: [pattern(/^[a-zA-Zа-яА-Я]+$/, { message: 'Только буквы' })],
+ * },
+ * phone: {
+ *   value: model.$.phone,
+ *   component: InputMask,
+ *   validators: [
+ *     required(),
+ *     pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 123-45-67' }),
+ *   ],
+ * },
  * ```
  */
 export function pattern<TForm = unknown, TField extends string | undefined = string>(

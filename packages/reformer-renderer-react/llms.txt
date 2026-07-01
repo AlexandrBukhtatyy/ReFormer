@@ -2,7 +2,7 @@
 # AUTO-GENERATED. Edit docs/llms/*.md or JSDoc in src/ and run npm run generate:llms.
 
 > UI renderer for @reformer/core
-> Package: @reformer/renderer-react  •  Version: 5.0.2
+> Package: @reformer/renderer-react  •  Version: 6.0.0
 
 ## Table of Contents
 - 01-overview.md — Overview
@@ -26,301 +26,334 @@ import {
   FormRenderer,
   createRenderSchema,
   hideWhen,
+  renderEffect,
   onComponentEvent,
   type RenderSchemaFn,
+  type RenderNode,
 } from '@reformer/renderer-react';
 ```
 
 ## 3. Quick Start
 
-> **CRITICAL gotcha** — `FormRenderer` does NOT accept a `form` prop. Field-nodes silently
-> render as `null` (with a console warning _"Field node rendered without form — pass form via
-> wizard componentProps"_) unless the **root render-node** is a user-defined container that
-> accepts `form` through `componentProps` and forwards it to `RenderNodeComponent` for its
-> children. Below is the minimal pattern; for multi-step forms use `RendererFormWizard` from
-> `@reformer/cdk` as the root instead.
+> **Ключевой момент** — `FormRenderer` НЕ принимает проп `form`. Форма создаётся из той же
+> M1-схемы (`createForm({ model, schema })`) и передаётся wizard/root-узлу через его
+> `componentProps.form`. Лист-узел резолвит state-ноду по сигналу через реестр, который
+> заполняет `createForm`. Без `createForm` реестр пуст — поля рендерятся как `null` с warning.
 
 ```tsx
-import { useMemo, type ReactNode } from 'react';
-import { createForm, type FormProxy, type FormFields } from '@reformer/core';
+import { useMemo } from 'react';
+import { createForm, type FormModel } from '@reformer/core';
 import {
   FormRenderer,
-  RenderNodeComponent,
   createRenderSchema,
   type RenderNode,
   type RenderSchemaFn,
 } from '@reformer/renderer-react';
-import { Box, FormField, Input } from '@reformer/ui-kit';
+import { Box, Section, Input, FormField } from '@reformer/ui-kit';
 
-type MyForm = FormFields & { email: string; password: string };
-
-// (1) Minimal user-defined root container — receives form via componentProps,
-//     renders children via RenderNodeComponent passing form down.
-function FormRoot<T>({ form, children }: { form: FormProxy<T>; children: RenderNode<T>[] }) {
-  return (
-    <>
-      {children.map((child, i) => (
-        <RenderNodeComponent key={i} node={child} form={form} />
-      ))}
-    </>
-  );
+interface MyForm {
+  email: string;
+  password: string;
 }
 
-// (2) Render schema — root must be FormRoot (or any component that propagates form).
-const renderSchemaFn: RenderSchemaFn<MyForm> = (path) => ({
-  component: FormRoot,
-  componentProps: {
-    // form is filled in below via componentProps when mounting
+// (1) Построить M1-дерево: листья привязаны к сигналам модели (`model.$.<field>`).
+function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
+  const m = model.$;
+  return {
+    component: Box,
+    componentProps: { className: 'space-y-4' },
     children: [
       {
-        component: Box,
-        componentProps: {
-          children: [
-            { component: path.email, componentProps: { label: 'Email' } },
-            { component: path.password, componentProps: { label: 'Password', type: 'password' } },
-          ],
-        },
+        component: Section,
+        componentProps: { title: 'Вход' },
+        children: [
+          { value: m.email, component: Input, componentProps: { label: 'Email' } },
+          {
+            value: m.password,
+            component: Input,
+            componentProps: { label: 'Пароль', type: 'password' },
+          },
+        ],
       },
     ],
-  },
-});
+  };
+}
 
-// (3) Mount: bind form into the schema once via createRenderSchema + patch root props.
 function MyFormPage() {
-  const form = useMemo(
-    () =>
-      createForm<MyForm>({
-        form: {
-          email: { value: '', component: Input },
-          password: { value: '', component: Input, componentProps: { type: 'password' } },
-        },
-      }),
-    []
-  );
-  const schema = useMemo(() => {
-    const s = createRenderSchema<MyForm>(renderSchemaFn);
-    // Inject form into FormRoot's componentProps via the root patcher (selector 'root').
-    return s; // for static schemas, simpler: use a closure that captures form (next pattern)
-  }, [form]);
+  // (2) createForm({ model, schema }) — строит форму ИЗ той же схемы
+  //     (harvest листьев по сигналу + материализация массивов).
+  const { form, model } = useMemo(() => {
+    const model = createModel<MyForm>({ email: '', password: '' }); // ваша фабрика модели
+    const form = createForm<MyForm>({ model, schema: buildSchema(model) });
+    return { form, model };
+  }, []);
+
+  // (3) Render-схема (то же дерево). Для программного управления — createRenderSchema.
+  const schema = useMemo(() => createRenderSchema<MyForm>(() => buildSchema(model)), [model]);
 
   return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-### Two more critical gotchas inside `FormRoot`
+### Multi-step forms
 
-1. **`__selfManagedChildren = true`** must be set on `FormRoot` (any value works as long as it's
-   strictly `true`). Without it, `RenderNodeComponent` auto-renders `node.children` as React
-   elements before passing them in — `FormRoot` then receives already-rendered `ReactNode`s
-   instead of raw `RenderNode[]` and `children.map(child => <RenderNodeComponent node={child}/>)`
-   blows up because `child` is a React element, not a node descriptor.
-
-   ```tsx
-   export function FormRoot<T>({
-     form,
-     children,
-   }: {
-     form: FormProxy<T>;
-     children: RenderNode<T>[];
-   }) {
-     return (
-       <>
-         {children.map((c, i) => (
-           <RenderNodeComponent key={i} node={c} form={form} />
-         ))}
-       </>
-     );
-   }
-   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-   (FormRoot as any).__selfManagedChildren = true;
-   ```
-
-2. **Container `children` is a TOP-LEVEL node property**, not nested inside `componentProps`.
-   The renderer destructures `const { children } = node;`. Putting them in `componentProps.children`
-   leaves `node.children` undefined and the field tree is never rendered.
-
-   ```typescript
-   // CORRECT
-   { component: Section, componentProps: { title: 'X' }, children: [ /* nodes */ ] }
-
-   // WRONG — silent (children rendered as React-element prop, not as RenderNode tree)
-   { component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
-   ```
-
-### Simpler closure pattern
-
-when `form` doesn't need to change: build the schema as a function
-that closes over `form`, so `FormRoot` always gets the right instance:
+Для многошаговых форм корневой узел — `RendererFormWizard` (compat-shim над `FormWizard` из
+`@reformer/ui-kit/form-wizard`), которому передаётся `form` через `componentProps`, а шаги —
+через `componentProps.steps` (массив `RenderNode`, каждый с `component: Step`). Форма для
+wizard-узла добавляется в схему при её сборке. Канонический паттерн — в
+`complex-multy-step-form-renderer` этого монорепозитория:
 
 ```tsx
-function createMyFormSchema(form: FormProxy<MyForm>) {
-  return createRenderSchema<MyForm>((path) => ({
-    component: FormRoot,
+// render-schema.ts — упрощённо
+function buildSchema(model, form?) {
+  return {
+    selector: 'wizard',
+    component: RendererFormWizard,
     componentProps: {
-      form,                              // ← captured here, not via path
-      children: [
-        { component: path.email, componentProps: { label: 'Email' } },
-        { component: path.password, componentProps: { label: 'Password', type: 'password' } },
+      ...(form ? { form } : {}), // form нужен только рендеру; при createForm его не передаём
+      steps: [
+        { component: Step, componentProps: { title: 'Шаг 1' }, children: [ /* поля */ ] },
+        // ...
       ],
     },
-  }));
-}
-
-function MyFormPage() {
-  const form = useMemo(() => createForm<MyForm>({ … }), []);
-  const schema = useMemo(() => createMyFormSchema(form), [form]);
-  return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+  };
 }
 ```
 
-The closure-pattern matches what `complex-multy-step-form-renderer` does in this monorepo —
-that's the canonical mount path. **Without `form` reaching `RenderNodeComponent` via a root
-component's `componentProps`, fields render as null.**
+### Container `children` — top-level свойство
+
+`children` контейнера задаётся на самом узле, НЕ внутри `componentProps`. Рендерер
+деструктурирует `const { children } = node`:
+
+```typescript
+// CORRECT
+{ component: Section, componentProps: { title: 'X' }, children: [ /* nodes */ ] }
+
+// WRONG — children в componentProps игнорируется, поддерево не рендерится
+{ component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
+```
 
 ## 4. Key Concepts
 
-- **`RenderSchemaFn<T>`** — функция, превращающая `path` (typed proxy полей формы) в дерево `RenderNode`.
-- **`RenderNode`** — узел дерева. Бывает **field** (`FieldRenderNode`, у узла есть `component: path.<field>`) или **container** (`ContainerRenderNode`, есть `componentProps.children`).
-- **`fieldWrapper`** — общая обёртка вокруг каждого поля (label, error). Передаётся через `settings`.
-- **`createRenderSchema(fn)`** — превращает `RenderSchemaFn` в `RenderSchemaProxy` для программного управления узлами (`hideWhen`, `patchProps`, lifecycle).
-- **`RenderBehaviorFn<T>`** — декларативные хелперы (`hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount`), которые применяются к `RenderSchemaProxy`.
+- **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Возвращает корневой узел дерева. Аргумента-пути нет: привязка к данным идёт через сигналы модели в листьях.
+- **`RenderNode<T>`** — узел дерева, дискриминированный union: **field** (`ModelFieldRenderNode` — есть `value: Signal`), **array** (`ArrayRenderNode` — есть `array` + `item`), **container** (`ContainerRenderNode` — есть `component` + `children`).
+- **`fieldWrapper`** — общая обёртка вокруг каждого поля (label, error). Передаётся через `settings`. Можно перекрыть для конкретного поля через `componentProps.fieldWrapper`.
+- **`createRenderSchema(fn)`** — превращает `RenderSchemaFn` в `RenderSchemaProxy` для программного управления узлами (`setHidden`, `patchProps`, `getRef`) и точкой подключения декларативного behavior.
+- **`RenderBehaviorFn<T>`** — функция `(schema) => void`, применяющая standalone-хелперы (`hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount`) к `RenderSchemaProxy`.
 
 ## 5. Components and exports
 
-| Export                                                                           | Purpose                                             |
-| -------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `FormRenderer`                                                                   | Главный React-компонент, отрисовывающий форму.      |
-| `RenderNodeComponent`                                                            | Низкоуровневый рендер одного узла (для расширений). |
-| `RenderContextProvider`, `useRenderContext`                                      | Контекст: `form`, `settings`, текущий узел.         |
-| `createRenderSchema`, `isRenderSchemaProxy`                                      | Программное управление схемой.                      |
-| `isFieldRenderNode`, `isContainerRenderNode`                                     | Type guards для `RenderNode`.                       |
-| `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Декларативные обёртки behavior.                     |
+| Export                                                                           | Purpose                                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `FormRenderer`                                                                   | Главный React-компонент, отрисовывающий форму по схеме.    |
+| `RenderNodeComponent`                                                            | Рекурсивный рендер одного узла (для ручной композиции).    |
+| `RenderModelNode`, `RenderModelArray`                                            | Низкоуровневый рендер узла/массива M1-схемы.               |
+| `RenderContextProvider`, `useRenderContext`                                      | Контекст рендеринга: `form`, `settings`.                   |
+| `createRenderSchema`, `isRenderSchemaProxy`                                      | Программное управление схемой.                             |
+| `isModelFieldRenderNode`, `isArrayRenderNode`, `isContainerRenderNode`           | Type guards для `RenderNode`.                              |
+| `hideWhen`, `renderEffect`, `onComponentEvent`, `onInit`, `onMount`, `onUnmount` | Декларативные behavior-хелперы.                            |
 
 ## 6. See also
 
-- [02-render-schema.md](02-render-schema.md) — формат `RenderSchemaFn` и `RenderNode`.
-- [03-render-behavior.md](03-render-behavior.md) — hideWhen и lifecycle.
+- [02-render-schema.md](02-render-schema.md) — формат `RenderSchemaFn`, `RenderNode`, массивы.
+- [03-render-behavior.md](03-render-behavior.md) — hideWhen, renderEffect, lifecycle.
 - [04-troubleshooting.md](04-troubleshooting.md) — частые ошибки.
+- [05-cookbook.md](05-cookbook.md) — рецепты из реального кода.
 
 ## 7. Key Concepts
 
-- **`RenderSchemaFn<T>`** — `(path: FormPathProxy<T>) => RenderNode<T>`. Принимает прокси типизированных путей формы, возвращает корневой узел.
-- **`FieldRenderNode`** — узел поля. В `component` лежит `path.<field>` (узел из `path`-прокси), `componentProps` — пропсы для UI-компонента поля.
-- **`ContainerRenderNode`** — узел-контейнер. В `component` — React-компонент, в `componentProps.children` — массив дочерних `RenderNode`.
+Единая схема (M1): одно дерево `RenderNode` описывает и layout, и привязку полей к модели. Привязка идёт через **сигналы модели** (`model.$.<field>`), а не через отдельный `path`-прокси.
+
+- **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
+- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`).
+- **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
+- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент, дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`).
 
 Type guards:
 
 ```typescript
-import { isFieldRenderNode, isContainerRenderNode } from '@reformer/renderer-react';
+import {
+  isModelFieldRenderNode,
+  isArrayRenderNode,
+  isContainerRenderNode,
+} from '@reformer/renderer-react';
 
-if (isFieldRenderNode(node)) {
-  /* node.component — FieldPathNode */
+if (isModelFieldRenderNode(node)) {
+  /* node.value — Signal; node.component — UI-компонент */
+}
+if (isArrayRenderNode(node)) {
+  /* node.array — реактивный массив; node.item(im) — поддерево элемента */
 }
 if (isContainerRenderNode(node)) {
-  /* node.componentProps.children — RenderNode[] */
+  /* node.children — RenderNode[] (top-level, не в componentProps) */
 }
 ```
 
 ## 8. Examples
 
-Двухколоночная форма с секцией:
+Двухколоночная форма с секцией. Листья несут `value: model.$.x` (сигнал) + `component` + `componentProps`. `children` — top-level свойство контейнера:
 
 ```tsx
-import { Box, Section } from '@reformer/ui-kit';
+import type { FormModel } from '@reformer/core';
+import type { RenderSchemaFn } from '@reformer/renderer-react';
+import { Box, Section, Input } from '@reformer/ui-kit';
 
-const renderSchema: RenderSchemaFn<MyForm> = (path) => ({
-  component: Box,
-  componentProps: {
-    className: 'grid grid-cols-2 gap-4',
+const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
+  const m = model.$;
+  return () => ({
+    component: Box,
+    componentProps: { className: 'grid grid-cols-2 gap-4' },
     children: [
       {
         component: Section,
-        componentProps: {
-          title: 'Личные данные',
-          children: [{ component: path.firstName }, { component: path.lastName }],
-        },
+        componentProps: { title: 'Личные данные', className: 'space-y-4' },
+        children: [
+          { value: m.firstName, component: Input, componentProps: { label: 'Имя' } },
+          { value: m.lastName, component: Input, componentProps: { label: 'Фамилия' } },
+        ],
       },
     ],
-  },
-});
+  });
+};
 ```
+
+### Массив модели
+
+Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить». Оформление секции (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
+
+```tsx
+import { Box, Input, Select } from '@reformer/ui-kit';
+
+const coBorrowersNode = {
+  selector: 'co-borrowers-array',
+  array: model.coBorrowers,
+  initialValue: createBlankCoBorrower,
+  componentProps: {
+    title: 'Созаемщики',
+    itemLabel: 'Созаемщик',
+    addButtonLabel: '+ Добавить созаемщика',
+    emptyMessage: 'Нажмите «Добавить созаемщика»',
+    reorderable: true,
+  },
+  item: (im: any) => ({
+    component: Box,
+    componentProps: { className: 'space-y-3' },
+    children: [
+      { value: im.$.phone, component: Input, componentProps: { label: 'Телефон' } },
+      { value: im.$.relationship, component: Select, componentProps: { label: 'Отношение' } },
+    ],
+  }),
+};
+```
+
+Внутри `item` листья привязываются к сигналам **под-модели** элемента (`im.$.<field>`). Per-item форму создаёт `ModelArrayNode`, материализованный `createForm` — рендерер итерирует элементы и рисует поддерево для каждого.
 
 ## 9. Programmatic API
 
-`createRenderSchema(fn)` оборачивает функцию в `RenderSchemaProxy`, который позволяет адресовать узлы по имени и навешивать на них поведение/lifecycle:
+`createRenderSchema(fn)` оборачивает `RenderSchemaFn` в `RenderSchemaProxy`, который позволяет адресовать узлы по `selector` и навешивать поведение/lifecycle. Селектор задаётся на самом узле (`node.selector`):
 
 ```tsx
-import { createRenderSchema } from '@reformer/renderer-react';
+import { createRenderSchema, hideWhen } from '@reformer/renderer-react';
 
-const proxy = createRenderSchema(renderSchema);
-proxy.node('email').hideWhen((form) => !form.subscribeNewsletter.value);
+const schema = createRenderSchema<MyForm>(buildSchema(model));
 
-<FormRenderer render={proxy} form={form} />;
+// Императивное управление узлом по selector:
+schema.node('extra-section').setHidden(true);
+schema.node('extra-section').patchProps({ title: 'Новый заголовок' });
+schema.node('extra-section').resetHidden();
+
+// Декларативное реактивное скрытие (standalone-хелпер, читает сигналы формы):
+hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
+
+<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 ```
+
+`FormRenderer` не принимает проп `form` — форма для wizard-узла передаётся через `componentProps` этого узла. См. [01-overview.md](01-overview.md).
 
 ## 10. Anti-patterns
 
-- **Возвращать React-element вместо `RenderNode`** — `RenderSchemaFn` должна возвращать описание (`{ component, componentProps }`), а не JSX. Сам JSX строит `FormRenderer`.
-- **Хранить `RenderSchemaFn` внутри компонента без `useMemo`** — на каждом ререндере создаётся новый proxy, что ломает lifecycle хуков.
-- **Передавать `path.field` как функцию** — `path.field` это узел/прокси, передаётся в `component` как есть.
+- **Возвращать React-element вместо `RenderNode`** — `RenderSchemaFn` должна возвращать описание (`{ component, componentProps, children }` или `{ value, component }`), а не JSX. Сам JSX строит `FormRenderer`.
+- **Класть `children` в `componentProps`** — `children` это TOP-LEVEL свойство контейнера. Рендерер деструктурирует `const { children } = node`. В `componentProps.children` узлы не отрисуются.
+- **Хранить `RenderSchemaProxy` внутри компонента без `useMemo`** — на каждом ре-рендере создаётся новый proxy, что ломает override-карты и lifecycle-хуки.
+- **Забыть `createForm` перед рендером** — лист-узел резолвит state-ноду по сигналу через реестр. Без `createForm({ model, schema })` реестр пуст, поле логирует warning и рендерится как `null`.
 
 ## 11. See also
 
-- [03-render-behavior.md](03-render-behavior.md) — `hideWhen`, `patchProps`, lifecycle.
+- [01-overview.md](01-overview.md) — mount-путь и `FormRenderer`.
+- [03-render-behavior.md](03-render-behavior.md) — `hideWhen`, `renderEffect`, lifecycle.
 - [04-troubleshooting.md](04-troubleshooting.md).
 
 ## 12. Helpers
 
-| Helper                       | Назначение                                                         |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `hideWhen(predicate)`        | Прячет узел, если предикат истинен.                                |
-| `renderEffect(fn)`           | Реактивный эффект: запускается при изменении подписанных сигналов. |
-| `onComponentEvent(name, fn)` | Подписка на DOM/React-событие узла (`onClick`, `onChange`, ...).   |
-| `onInit(fn)`                 | Один раз при инициализации схемы.                                  |
-| `onMount(fn)`                | При монтировании узла в DOM.                                       |
-| `onUnmount(fn)`              | При размонтировании.                                               |
+| Helper                                      | Первый аргумент       | Назначение                                                              |
+| ------------------------------------------- | --------------------- | ---------------------------------------------------------------------- |
+| `hideWhen(node, conditionFn)`               | `RenderNodeControl`   | Скрывает узел, пока `conditionFn()` истинна (реактивно по сигналам).    |
+| `renderEffect(schema, effectFn)`            | `RenderSchemaProxy`   | Реактивный side-effect (Preact `effect()`); может вернуть cleanup.      |
+| `onComponentEvent(node, event, handler)`    | `RenderNodeControl`   | Регистрирует колбэк на проп-событие компонента (`onSubmit`, ...).       |
+| `onInit(node, fn)`                          | `RenderNodeControl`   | Синхронный build-time hook: вызывается сразу при применении behavior.   |
+| `onMount(node, fn)`                         | `RenderNodeControl`   | После mount узла (`useEffect`); может вернуть cleanup.                  |
+| `onUnmount(node, fn)`                       | `RenderNodeControl`   | При unmount узла.                                                       |
 
 ## 13. Examples
 
-Скрыть «mortgage-section» когда `loanType !== 'mortgage'`:
+Скрыть «mortgage-section», пока `loanType !== 'mortgage'`. Условие реактивно — пересчитывается при изменении сигнала формы:
 
 ```tsx
 import { hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';
 
-const behavior: RenderBehaviorFn<CreditForm> = (proxy) => {
-  hideWhen(proxy.node('mortgage-section'), () => form.loanType.value !== 'mortgage');
+// form захвачен в замыкание фабрики поведения (см. реальный render-behavior.ts).
+const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
+  hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
 };
 ```
 
-Реактивный эффект:
+Реактивный эффект — принимает **схему**, а не узел. Эффекты живут на уровне рендера всего дерева и автоматически диспозятся при unmount `FormRenderer`:
 
 ```tsx
 import { renderEffect } from '@reformer/renderer-react';
 
-renderEffect(proxy.node('summary'), () => {
-  console.log('total changed:', form.total.value);
+const wizardRef = schema.node('wizard').getRef<FormWizardHandle<CreditForm>>();
+renderEffect(schema, () => {
+  if (form.loanType.value.value === 'mortgage') {
+    wizardRef.current?.goToStep(1);
+  }
 });
 ```
 
-Lifecycle (несколько хелперов на одном узле — просто вызываем подряд):
+Проп-событие компонента — `onComponentEvent` получает ровно те же аргументы, что и оригинальный проп:
 
 ```tsx
-import { onInit, onMount } from '@reformer/renderer-react';
+import { onComponentEvent } from '@reformer/renderer-react';
 
-const wizard = proxy.node('wizard');
-onInit(wizard, () => analytics.track('wizard:init', { step: form.currentStep.value }));
-onMount(wizard, () => focusFirstInvalidField());
+onComponentEvent(schema.node('wizard'), 'onSubmit', async (values: CreditForm) => {
+  await submitCreditApplication(values);
+});
+```
+
+Lifecycle (несколько хелперов на одном узле — просто вызываем подряд). `onMount` может вернуть cleanup, который выполнится до `onUnmount`:
+
+```tsx
+import { onMount, onUnmount } from '@reformer/renderer-react';
+
+const boundary = schema.node('data-boundary');
+onMount(boundary, () => {
+  void loadApplication(); // напр. загрузить данные и boundary.patchProps({ status: 'ready' })
+  return () => console.log('cleanup');
+});
+onUnmount(schema.node('wizard'), () => console.log('wizard unmounted'));
 ```
 
 ## 14. Anti-patterns
 
+- **Предикат `hideWhen`, не читающий сигналы реактивно** — узел не будет переоцениваться. Читай сигнал целиком (`form.x.value.value`), не сохраняй значение заранее в переменную.
+- **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это схема, а не узел (в отличие от остальных хелперов). Node-аргумент не даст эффекта.
 - **Подписываться на `form` напрямую внутри React-компонента вместо `renderEffect`** — теряется автоматический dispose при unmount.
-- **Использовать `hideWhen` с предикатом, который не читает сигналы реактивно** — узел не будет переоцениваться.
-- **Бросать исключения из `onInit`** — это сломает построение схемы при первом рендере. Логируй и обрабатывай ошибки внутри.
+- **Бросать исключения из `onInit`** — он синхронный и вызывается при построении схемы (до первого рендера); исключение сломает mount. Логируй и обрабатывай ошибки внутри.
 
 ## 15. See also
 
-- [02-render-schema.md](02-render-schema.md) — что такое `RenderSchemaProxy`.
+- [02-render-schema.md](02-render-schema.md) — что такое `RenderSchemaProxy` и `schema.node(selector)`.
+- [05-cookbook.md](05-cookbook.md) — совмещение нескольких behavior на одном узле.
 - [04-troubleshooting.md](04-troubleshooting.md).
 
 ## 16. Field renders without label/error
@@ -330,39 +363,64 @@ onMount(wizard, () => focusFirstInvalidField());
 ```tsx
 import { FormField } from '@reformer/ui-kit';
 
-<FormRenderer render={schema} form={form} settings={{ fieldWrapper: FormField }} />;
+<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 ```
 
-## 17. "RenderSchemaFn must return a RenderNode"
+Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper`.
 
-Функция вернула `null`/`undefined` или React-element. Корневой узел обязан быть `{ component, componentProps }`. Если контейнер пустой — верни узел с пустым `children: []`.
+## 17. Field renders as null (console warning `[RenderSchema] No form node for signal ...`)
 
-## 18. Unknown component in renderSchema
+State-нода поля резолвится по сигналу через реестр `getNodeForSignal`, а реестр заполняет `createForm`. Если поле рисуется как `null` и в консоли `[RenderSchema] No form node for signal "<path>" — render value-leaf after createForm`:
 
-В `component` положили строку, а нужен либо React-компонент, либо `path.<field>`. Если используешь имена-строки — переходи на `@reformer/renderer-json`.
+- Форма не построена из этой же схемы. Вызови `createForm({ model, schema })` до рендера — реестр `сигнал→нода` заполняется именно там.
+- Лист привязан к сигналу другой модели (не той, что передана в `createForm`). Убедись, что `value: model.$.<field>` берётся из того же `model`.
+- Внутри массива — под-модель элемента (`im.$.<field>`) должна проходить через `createForm`/`ModelArrayNode` (материализуется автоматически при обработке `ArrayRenderNode`).
 
-## 19. RenderSchemaProxy nodes don't react to behavior
+## 18. Container children не рендерятся
 
-`hideWhen`/`patchProps` работают только при адресации узла через `proxy.node(selector)`. Убедись, что:
+`children` контейнера — это TOP-LEVEL свойство узла, а не часть `componentProps`. Рендерер деструктурирует `const { children } = node`. Если положить их в `componentProps.children`, `node.children` будет undefined и поддерево не отрисуется.
 
-- У узла есть `selector` (или используется внешний адрес-провайдер).
-- `RenderSchemaFn` обёрнута через `createRenderSchema`, а не передана в `<FormRenderer>` напрямую.
+```typescript
+// CORRECT
+{ component: Section, componentProps: { title: 'X' }, children: [ /* nodes */ ] }
+// WRONG
+{ component: Section, componentProps: { title: 'X', children: [ /* nodes */ ] } }
+```
 
-## 20. Hidden node still mounts
+## 19. FormRenderer не принимает form
 
-`hideWhen` контролирует только видимость (display), узел всё равно монтируется. Если нужно полностью убрать — оборачивай родителя в условный рендер на уровне `RenderSchemaFn`.
+`FormRenderer` принимает только `render` и `settings`. Формы через проп нет — она передаётся wizard/root-узлу через `componentProps.form` в самой схеме (см. [01-overview.md](01-overview.md)). Не пиши `<FormRenderer render={schema} form={form} />`.
 
-## 21. Form changes don't trigger re-render
+## 20. Unknown component in renderSchema
 
-Скорее всего обращение к значению идёт без `.value` или подписка не доходит до React. Проверь, что внутри компонента используется `useFormControl`/`useSignal`.
+В `component` листа/контейнера должен лежать React-компонент (`Input`, `Section`, ...), а не строка. Лист поля дополнительно требует `value: model.$.<field>` (сигнал). Если хочешь адресовать компоненты по строковым именам — переходи на `@reformer/renderer-json`.
 
-## 22. See also
+## 21. RenderSchemaProxy nodes don't react to behavior
+
+`hideWhen`/`patchProps` работают только при адресации узла через `schema.node(selector)`. Убедись, что:
+
+- У узла есть `selector` (top-level свойство узла). Без него `schema.node('x')` вернёт контроллер с пустыми переопределениями — без ошибок, но и без эффекта.
+- `RenderSchemaFn` обёрнута через `createRenderSchema`, а результат передан в `<FormRenderer>`. Если передать «сырую» `RenderSchemaFn`, override-карты/behavior не подключатся.
+
+## 22. Hidden node still mounts
+
+`hideWhen` / `setHidden` возвращают `null` для узла (узел не рендерится, пока условие истинно). Скрытие реактивное: приоритет `setHidden` (программный override) > `hideWhen` (декларативное условие) > видимо. Чтобы вернуть автоматику после `setHidden(true)` — `resetHidden()`.
+
+## 23. Form changes don't trigger re-render
+
+Скорее всего чтение значения идёт без `.value`, или подписка не доходит до React. Проверь:
+
+- Внутри `hideWhen`/`renderEffect` сигнал читается целиком: `form.x.value.value` (первый `.value` — доступ к сигналу поля, второй — к его значению).
+- В пользовательском компоненте используется `useFormControl` (он подписывается на state-ноду).
+
+## 24. See also
 
 - [01-overview.md](01-overview.md)
 - [02-render-schema.md](02-render-schema.md)
 - [03-render-behavior.md](03-render-behavior.md)
+- [05-cookbook.md](05-cookbook.md)
 
-## 23. Custom fieldWrapper
+## 25. Custom fieldWrapper
 
 **Problem.** Нужна собственная обёртка вокруг каждого поля (label, error, hint, аналитика, нестандартный layout) вместо стандартного `FormField` из `@reformer/ui-kit`.
 
@@ -398,11 +456,11 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 
 **Notes.**
 
-- Wrapper вызывается на каждое FieldRenderNode. Если поле — Checkbox, обычно label рендерится внутри input (см. ветку `isCheckbox` в `@reformer/ui-kit/FormField`); своему wrapper'у проверку нужно добавить вручную, иначе будет двойной label.
-- Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (см. `FieldRenderNodeProps.fieldWrapper`).
+- Wrapper вызывается на каждое поле (`ModelFieldRenderNode`). Если поле — Checkbox, обычно label рендерится внутри input (см. ветку `isCheckbox` в `@reformer/ui-kit/FormField`); своему wrapper'у проверку нужно добавить вручную, иначе будет двойной label.
+- Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (поле типа `ComponentType<FieldWrapperProps>` в `ModelFieldRenderNode.componentProps`).
 - Не оборачивай wrapper в `React.memo` без сравнения по `control` и `children` — иначе DOM будет «застревать» на старом инпуте.
 
-## 24. Programmatic node manipulation
+## 26. Programmatic node manipulation
 
 **Problem.** Нужно динамически прятать/показывать секцию или менять props ноды снаружи schema (например, по событию из `useEffect`, по кнопке debug-панели, или после загрузки данных).
 
@@ -411,14 +469,15 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 ```tsx
 import { useEffect, useMemo } from 'react';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import { Section, Input } from '@reformer/ui-kit';
 
 function CreditApplicationPage() {
   const schema = useMemo(
     () =>
-      createRenderSchema<CreditForm>((path) => ({
+      createRenderSchema<CreditForm>(() => ({
         selector: 'mortgage-section',
         component: Section,
-        children: [{ component: path.propertyValue }],
+        children: [{ value: model.$.propertyValue, component: Input }],
       })),
     []
   );
@@ -446,7 +505,7 @@ function CreditApplicationPage() {
 - Селектор должен быть указан в `RenderNode.selector`. Без него `proxy.node('x')` вернёт контроллер с пустыми переопределениями (никаких ошибок не будет, но эффекта тоже не будет).
 - Эталон: `CreditApplicationFormRenderer.tsx:57-87` (monorepo example) — debug-панель с тремя кнопками `setHidden`/`patchProps`/`resetProps`.
 
-## 25. Custom container with collapsible children
+## 27. Custom container with collapsible children
 
 **Problem.** Нужен контейнер с собственной логикой рендеринга `children` (например, `Section` с заголовком, который можно свернуть, или wizard с табами).
 
@@ -481,12 +540,15 @@ export function CollapsibleSection({
   );
 }
 
-// В RenderSchema:
+// В RenderSchema (children — top-level; листья на сигналах модели):
 {
   selector: 'extras',
   component: CollapsibleSection,
   componentProps: { title: 'Дополнительно', defaultOpen: false },
-  children: [{ component: path.notes }, { component: path.tags }],
+  children: [
+    { value: model.$.notes, component: Textarea },
+    { value: model.$.tags, component: Input },
+  ],
 }
 ```
 
@@ -496,7 +558,7 @@ export function CollapsibleSection({
 - Если контейнеру нужны ноды как данные (вычислить количество, отрисовать таб-бар) — описывай их через `componentProps`, а не через `children`. Пример — `RendererFormWizard` с `componentProps.steps`. Конвертер JSON-схемы поддерживает `JsonNode` и `$template` внутри произвольных props (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md#template-arrays)).
 - Контейнер можно адресовать через `selector` — тогда `setHidden` будет работать на его содержимое целиком.
 
-## 26. Combining behaviors on one node
+## 28. Combining behaviors on one node
 
 **Problem.** На одном узле нужно сразу несколько эффектов: скрытие по условию, реактивный side-effect, обработчик события компонента, lifecycle-хук — без дублирования selector-кода.
 
@@ -511,8 +573,10 @@ import {
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
 
+// form захвачен в замыкание фабрики поведения; ref — из schema.node('wizard').getRef().
 const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
   const wizard = schema.node('wizard');
+  const wizardRef = wizard.getRef<FormWizardHandle<CreditForm>>();
   const mortgage = schema.node('mortgage-section');
 
   // 1. Реактивное условие — пересчитывается при изменении сигналов формы.
@@ -544,13 +608,13 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 - `onInit` срабатывает синхронно при applying behavior (до первого рендера). Это единственный хук, способный изменить `componentProps` так, чтобы они попали в первый рендер.
 - Эталон совмещения четырёх типов хуков на одной ноде: `render-behavior.ts` (monorepo example).
 
-## 27. See also
+## 29. See also
 
 - [02-render-schema.md](02-render-schema.md) — структура `RenderNode` и `RenderSchemaFn`.
 - [03-render-behavior.md](03-render-behavior.md) — справочник по standalone-хелперам.
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 
-## 28. API Reference
+## 30. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -574,7 +638,7 @@ export interface ContainerComponentProps {
 }
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### ContainerRenderNode
 
@@ -617,13 +681,13 @@ export interface ContainerRenderNode<T> {
     className: 'grid grid-cols-2 gap-4',
   },
   children: [
-    { component: path.firstName },
-    { component: path.lastName },
+    { value: model.$.firstName, component: Input },
+    { value: model.$.lastName, component: Input },
   ],
 }
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### ContainerRenderNodeProps
 
@@ -645,38 +709,51 @@ export interface ContainerRenderNodeProps {
 }
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### createRenderSchema
 
 **Kind:** `function`
 
-Создаёт RenderSchemaProxy — обёртку над RenderSchemaFn с программным управлением.
+Оборачивает {@link RenderSchemaFn} в {@link RenderSchemaProxy} — функцию-схему
+с дополнительным API `.node(selector)` для императивного управления нодами
+(видимость, `componentProps`, ref) и точкой применения декларативного поведения
+(`hideWhen`/`renderEffect`/`onComponentEvent`/lifecycle-хуки).
+
+Возвращённый прокси остаётся вызываемой `RenderSchemaFn`, поэтому его напрямую
+передают в `render` у {@link FormRenderer}. Переопределения хранятся в Map-ах и
+применяются реактивно (через версионный сигнал) — перерисовывается только затронутая нода.
 
 **Signature:**
 ```typescript
 export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<T>
 ```
 
+**Parameters:**
+- `fn` — - Исходная функция-схема (без аргументов; привязка к данным — через сигналы в листьях)
+
+**Returns:** 
+
 **Examples:**
 
-```ts
-const schema = createRenderSchema<MyForm>((path) => ({
-  selector: 'root',
-  component: Box,
-  children: [
-    { selector: 'extra-section', component: Section, children: [...] }
-  ]
+Программное управление нодами
+```tsx
+const schema = createRenderSchema<MyForm>(() => ({
+selector: 'root',
+component: Box,
+children: [
+{ selector: 'extra-section', component: Section, componentProps: { title: 'Доп.' } },
+],
 }));
 
 schema.node('extra-section').setHidden(true);
 schema.node('extra-section').patchProps({ title: 'Новый заголовок' });
 schema.node('extra-section').resetHidden();
 
-<FormRenderer form={form} render={schema} />
+<FormRenderer render={schema} />
 ```
 
-_Source: src/core/render-schema-proxy.ts_
+_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
 
 ### FieldWrapperProps
 
@@ -698,50 +775,65 @@ export interface FieldWrapperProps {
   children: React.ReactNode;
   /**
    * testId для генерации data-testid на wrapper/label/error.
-   * Выводится рендерером из FieldPath или переопределяется через componentProps.testId.
+   * Выводится рендерером из пути сигнала (`model.$.<path>`, точки → дефисы)
+   * или переопределяется через `componentProps.testId`.
    */
   testId?: string;
 }
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### FormRenderer
 
 **Kind:** `function`
 
-FormRenderer - рендеринг формы на основе RenderSchema
+Рендеринг формы по {@link RenderSchemaFn} или {@link RenderSchemaProxy}.
 
-Принимает RenderSchemaProxy (из createRenderSchema) и опциональные настройки.
-Форма передаётся через componentProps wizard-компонента, а не напрямую в FormRenderer.
+Принимает `render` — функцию-схему (или обёртку из {@link createRenderSchema})
+и опциональные `settings` (например, глобальный `fieldWrapper`). Разворачивает
+корневой узел и рекурсивно рендерит дерево через {@link RenderNodeComponent}.
+Если `render` — прокси, дополнительно монтирует реактивные эффекты (`renderEffect`)
+и прокидывает карты переопределений (`setHidden`/`patchProps`/`hideWhen`) через контекст.
+
+Форму (для wizard-узла) прокидывают через `componentProps` соответствующего узла
+схемы, а не отдельным пропом `FormRenderer`.
 
 **Signature:**
 ```typescript
 export function FormRenderer<T>({ render, settings }: FormRendererProps<T>): ReactNode
 ```
 
+**Parameters:**
+- `props` — - {@link FormRendererProps}: `render` (схема) и опц. `settings`
+
+**Returns:** React-дерево формы
+
 **Examples:**
 
+Схема + поведение + рендер
 ```tsx
-// render-schema.ts
-export function createMyFormSchema(form: FormProxy<MyForm>) {
-  const schema = createRenderSchema<MyForm>((path) => ({
-    selector: 'wizard',
-    component: RendererFormWizard,
-    componentProps: { form, steps: [...] },
-  }));
-  myBehavior(schema);
-  return schema;
-}
+import { createForm } from '@reformer/core';
+import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import { FormField } from '@reformer/ui-kit';
 
-// MyFormPage.tsx
-const form = useMemo(() => createMyForm(), []);
-const schema = useMemo(() => createMyFormSchema(form), [form]);
+const { form, model } = useMemo(() => {
+const model = createMyModel();
+const form = createForm<MyForm>({ model, schema: buildSchema(model) });
+return { form, model };
+}, []);
+
+// Прокси с form для wizard-узла + применённое render-поведение
+const schema = useMemo(() => {
+const s = createRenderSchema<MyForm>(() => buildSchema(model, form));
+myBehavior(form)(s);
+return s;
+}, [form, model]);
 
 <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
 ```
 
-_Source: src/core/form-renderer.tsx_
+_Source: packages/reformer-renderer-react/src/core/form-renderer.tsx_
 
 ### FormRendererProps
 
@@ -767,7 +859,7 @@ export interface FormRendererProps<T> {
 }
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### hideWhen
 
@@ -792,13 +884,13 @@ hideWhen(schema.node('mortgage-section'), () =>
 );
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### isArrayRenderNode
 
 **Kind:** `function`
 
-Type guard для ArrayRenderNode (M1): массив модели `{ array, item }`.
+Type guard для {@link ArrayRenderNode} (M1): массив модели `{ array, item }`.
 Проверяется до контейнера (у array-узла нет `component`).
 
 **Signature:**
@@ -806,7 +898,22 @@ Type guard для ArrayRenderNode (M1): массив модели `{ array, item
 export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T>
 ```
 
-_Source: src/core/utils.ts_
+**Parameters:**
+- `node` — - Узел {@link RenderNode}
+
+**Returns:** `true`, если узел — секция массива (есть `array` и `item`-фабрика)
+
+**Examples:**
+
+Сужение к массиву
+```typescript
+if (isArrayRenderNode(node)) {
+node.array; // реактивный массив модели
+node.item; // (itemModel) => RenderNode поддерева элемента
+}
+```
+
+_Source: packages/reformer-renderer-react/src/core/utils.ts_
 
 ### isContainerRenderNode
 
@@ -835,13 +942,13 @@ if (isContainerRenderNode(node)) {
 }
 ```
 
-_Source: src/core/utils.ts_
+_Source: packages/reformer-renderer-react/src/core/utils.ts_
 
 ### isModelFieldRenderNode
 
 **Kind:** `function`
 
-Type guard для ModelFieldRenderNode (M1): лист, привязанный к сигналу модели.
+Type guard для {@link ModelFieldRenderNode} (M1): лист, привязанный к сигналу модели.
 Проверяется ПЕРВЫМ — такой узел несёт реальный `component`, иначе спутается с контейнером.
 
 **Signature:**
@@ -849,7 +956,22 @@ Type guard для ModelFieldRenderNode (M1): лист, привязанный к
 export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFieldRenderNode
 ```
 
-_Source: src/core/utils.ts_
+**Parameters:**
+- `node` — - Узел {@link RenderNode}
+
+**Returns:** `true`, если узел — поле-лист (`value instanceof Signal`)
+
+**Examples:**
+
+Сужение к полю
+```typescript
+if (isModelFieldRenderNode(node)) {
+node.value; // Signal модели
+node.component; // UI-компонент поля
+}
+```
+
+_Source: packages/reformer-renderer-react/src/core/utils.ts_
 
 ### isRenderSchemaProxy
 
@@ -877,7 +999,7 @@ isRenderSchemaProxy(proxy); // true
 isRenderSchemaProxy(renderSchemaFn); // false
 ```
 
-_Source: src/core/render-schema-proxy.ts_
+_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
 
 ### ModelArrayControl
 
@@ -895,7 +1017,7 @@ export interface ModelArrayControl {
 }
 ```
 
-_Source: src/core/render-model.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### ModelContainerNode
 
@@ -913,7 +1035,7 @@ export interface ModelContainerNode {
 }
 ```
 
-_Source: src/core/render-model.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### ModelFieldNode
 
@@ -932,18 +1054,23 @@ export interface ModelFieldNode {
 }
 ```
 
-_Source: src/core/render-model.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### ModelNode
 
 **Kind:** `type`
+
+Узел дерева единой схемы (M1) для {@link RenderModelNode}: либо лист-поле
+{@link ModelFieldNode} (несёт `value: Signal` модели), либо контейнер
+{@link ModelContainerNode} (React-компонент + `children`). Дискриминируется
+по наличию `value instanceof Signal`.
 
 **Signature:**
 ```typescript
 export type ModelNode = ModelFieldNode | ModelContainerNode;
 ```
 
-_Source: src/core/render-model.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### NodeLifecycleHooks
 
@@ -962,7 +1089,7 @@ export interface NodeLifecycleHooks {
 }
 ```
 
-_Source: src/core/render-schema-proxy.ts_
+_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
 
 ### onComponentEvent
 
@@ -996,7 +1123,7 @@ onComponentEvent(
 );
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### onInit
 
@@ -1023,7 +1150,7 @@ onInit(schema.node('wizard'), () => {
 });
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### onMount
 
@@ -1046,7 +1173,7 @@ onMount(schema.node('wizard'), () => {
 });
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### onUnmount
 
@@ -1067,7 +1194,7 @@ onUnmount(schema.node('wizard'), () => {
 });
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### RenderBehaviorFn
 
@@ -1100,15 +1227,15 @@ wizardRef.current?.goToStep(1);
 };
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### RenderContextProvider
 
 **Kind:** `function`
 
-Provider для контекста рендеринга. Снабжает дочерние компоненты текущей формой,
-настройками и `path`. Обычно создаётся `FormRenderer` автоматически — явно
-нужен только при ручном построении дерева через `RenderNodeComponent`.
+Provider для контекста рендеринга. Снабжает дочерние компоненты текущей формой
+и настройками (`settings`). Обычно создаётся {@link FormRenderer} автоматически — явно
+нужен только при ручном построении дерева через {@link RenderNodeComponent}.
 
 **Signature:**
 ```typescript
@@ -1131,7 +1258,7 @@ import { RenderContextProvider, RenderNodeComponent } from '@reformer/renderer-r
 </RenderContextProvider>
 ```
 
-_Source: src/core/render-context.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
 
 ### RenderContextValue
 
@@ -1149,7 +1276,7 @@ export interface RenderContextValue<T = unknown> {
 }
 ```
 
-_Source: src/core/render-context.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
 
 ### renderEffect
 
@@ -1181,7 +1308,7 @@ renderEffect(schema, () => {
 });
 ```
 
-_Source: src/core/render-behavior.ts_
+_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
 
 ### RendererSettings
 
@@ -1202,22 +1329,53 @@ export interface RendererSettings {
 }
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### RenderModelArray
 
 **Kind:** `const`
+
+Рендер массива единой схемы (M1): элементы принадлежат модели (`control`), поддерево
+каждого элемента строит `itemComponent` по под-модели и рендерит {@link RenderModelNode}
+(поля привязываются к сигналам под-модели). Длина реактивна — `push`/`removeAt` по модели
+перерисовывают список. При заданном `newItem` рендерится кнопка «Добавить».
+
+Низкоуровневый рендерер: для полноценной секции массива (карточки, удаление, reorder,
+`fieldWrapper`) используйте `ArrayRenderNode` (`{ array, item }`) внутри
+{@link RenderNodeComponent}/{@link FormRenderer}.
 
 **Signature:**
 ```typescript
 export const RenderModelArray
 ```
 
-_Source: src/core/render-model.tsx_
+**Parameters:**
+- `props` — - {@link RenderModelArrayProps}
+
+**Returns:** Обёртка со списком элементов и опц. кнопкой добавления
+
+**Examples:**
+
+Массив под-моделей
+```tsx
+<RenderModelArray
+control={model.coBorrowers}
+itemComponent={(im) => ({
+component: Box,
+children: [{ value: im.$.phone, component: Input }],
+})}
+newItem={createBlankCoBorrower}
+addButtonLabel="Добавить созаёмщика"
+/>
+```
+
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### RenderModelArrayProps
 
 **Kind:** `interface`
+
+Props для {@link RenderModelArray}: реактивный массив модели + схема элемента и оформление.
 
 **Signature:**
 ```typescript
@@ -1235,27 +1393,38 @@ export interface RenderModelArrayProps {
 }
 ```
 
-_Source: src/core/render-model.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### RenderModelNode
 
 **Kind:** `const`
 
-Рекурсивный рендер узла единой схемы: field → контрол (разворот сигнала), container → компонент
-с дочерними узлами.
+Рекурсивный рендер узла единой схемы {@link ModelNode}: field-узел → контрол (разворот
+сигнала, `value`/`onChange`, state по сигналу через реестр), container-узел → React-компонент
+с дочерними узлами. `node == null` → рендерит `null`.
 
 **Signature:**
 ```typescript
 export const RenderModelNode
 ```
 
+**Parameters:**
+- `props` — - `{ node }` — узел {@link ModelNode} или `null`/`undefined`
+
+**Returns:** Отрендеренное поддерево или `null`
+
 **Examples:**
 
+Дерево «контейнер + поле»
 ```tsx
-<RenderModelNode node={schema} />
+const node: ModelNode = {
+component: Box,
+children: [{ value: model.$.email, component: Input }],
+};
+<RenderModelNode node={node} />
 ```
 
-_Source: src/core/render-model.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 
 ### RenderNode
 
@@ -1273,16 +1442,19 @@ _Source: src/core/render-model.tsx_
 export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### RenderNodeComponent
 
 **Kind:** `function`
 
-Рекурсивный рендеринг узла `RenderSchema`. Определяет тип узла и рендерит
-соответственно: `FieldRenderNode` → компонент поля с wrapper,
-`ContainerRenderNode` → контейнер с дочерними узлами. Используется
-`FormRenderer`; явный вызов нужен при ручной композиции.
+Рекурсивный рендеринг узла {@link RenderNode}. Определяет тип узла и рендерит
+соответственно: {@link ModelFieldRenderNode} → компонент поля с wrapper (значение
+из сигнала модели, state — по сигналу через реестр), {@link ArrayRenderNode} → секция
+массива модели, {@link ContainerRenderNode} → контейнер с дочерними узлами. Учитывает
+`hideWhen`/`setHidden`, `patchProps`, `onComponentEvent`, lifecycle-хуки и ref из
+{@link RenderSchemaProxy}. Обычно вызывается {@link FormRenderer}; явный вызов нужен
+при ручной композиции.
 
 **Signature:**
 ```typescript
@@ -1292,6 +1464,11 @@ export function RenderNodeComponent<T>({
   fieldWrapper: fieldWrapperProp,
 }: RenderNodeComponentProps<T>): ReactNode
 ```
+
+**Parameters:**
+- `props` — - `node` (узел), опц. `form` и `fieldWrapper`
+
+**Returns:** Отрендеренное поддерево или `null` (если узел скрыт / нет ноды для сигнала)
 
 **Examples:**
 
@@ -1303,7 +1480,7 @@ import { RenderNodeComponent } from '@reformer/renderer-react';
 </RenderContextProvider>
 ```
 
-_Source: src/core/render-node.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-node.tsx_
 
 ### RenderNodeControl
 
@@ -1336,7 +1513,7 @@ export interface RenderNodeControl {
 }
 ```
 
-_Source: src/core/render-schema-proxy.ts_
+_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
 
 ### RenderSchemaFn
 
@@ -1364,7 +1541,7 @@ const renderSchema: RenderSchemaFn<MyForm> = () => ({
 });
 ```
 
-_Source: src/core/types.ts_
+_Source: packages/reformer-renderer-react/src/core/types.ts_
 
 ### RenderSchemaProxy
 
@@ -1384,36 +1561,40 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
 };
 ```
 
-_Source: src/core/render-schema-proxy.ts_
+_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
 
 ### useRenderContext
 
 **Kind:** `function`
 
-Хук для получения контекста рендеринга
+Хук для получения контекста рендеринга.
 
-Используется в пользовательских компонентах-контейнерах для доступа
-к form, path и settings.
+Используется в пользовательских компонентах-контейнерах (например, wizard) для доступа
+к `form` и `settings`. Бросает ошибку, если вызван вне {@link RenderContextProvider}
+(его создаёт {@link FormRenderer}).
 
 **Signature:**
 ```typescript
 export function useRenderContext<T = unknown>(): RenderContextValue<T>
 ```
 
+**Returns:** 
+
 **Examples:**
 
+Доступ к form/settings в self-managed компоненте
 ```tsx
 function MyWizard({ children }) {
-  const { form, settings } = useRenderContext();
+const { form, settings } = useRenderContext();
 
-  return (
-    <FormWizard form={form}>
-      {children.map(child => (
-        <RenderNodeComponent node={child} form={form} />
-      ))}
-    </FormWizard>
-  );
+return (
+<FormWizard form={form}>
+{children.map((child) => (
+<RenderNodeComponent node={child} form={form} />
+))}
+</FormWizard>
+);
 }
 ```
 
-_Source: src/core/render-context.tsx_
+_Source: packages/reformer-renderer-react/src/core/render-context.tsx_

@@ -125,23 +125,34 @@ export function isRenderSchemaProxy<T>(fn: RenderSchemaFn<T>): fn is RenderSchem
 }
 
 /**
- * Создаёт RenderSchemaProxy — обёртку над RenderSchemaFn с программным управлением.
+ * Оборачивает {@link RenderSchemaFn} в {@link RenderSchemaProxy} — функцию-схему
+ * с дополнительным API `.node(selector)` для императивного управления нодами
+ * (видимость, `componentProps`, ref) и точкой применения декларативного поведения
+ * (`hideWhen`/`renderEffect`/`onComponentEvent`/lifecycle-хуки).
  *
- * @example
- * ```ts
- * const schema = createRenderSchema<MyForm>((path) => ({
+ * Возвращённый прокси остаётся вызываемой `RenderSchemaFn`, поэтому его напрямую
+ * передают в `render` у {@link FormRenderer}. Переопределения хранятся в Map-ах и
+ * применяются реактивно (через версионный сигнал) — перерисовывается только затронутая нода.
+ *
+ * @typeParam T - Тип значения формы
+ * @param fn - Исходная функция-схема (без аргументов; привязка к данным — через сигналы в листьях)
+ * @returns {@link RenderSchemaProxy} — та же схема + `.node(selector)` и `__overrideMaps`
+ *
+ * @example Программное управление нодами
+ * ```tsx
+ * const schema = createRenderSchema<MyForm>(() => ({
  *   selector: 'root',
  *   component: Box,
  *   children: [
- *     { selector: 'extra-section', component: Section, children: [...] }
- *   ]
+ *     { selector: 'extra-section', component: Section, componentProps: { title: 'Доп.' } },
+ *   ],
  * }));
  *
  * schema.node('extra-section').setHidden(true);
  * schema.node('extra-section').patchProps({ title: 'Новый заголовок' });
  * schema.node('extra-section').resetHidden();
  *
- * <FormRenderer form={form} render={schema} />
+ * <FormRenderer render={schema} />
  * ```
  */
 export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<T> {

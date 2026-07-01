@@ -18,7 +18,7 @@
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, type FormSchema } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { FormField, Input, Select, Checkbox, Button } from '@reformer/ui-kit';
 
 type RegistrationForm = {
@@ -28,35 +28,33 @@ type RegistrationForm = {
 };
 
 function RegistrationPage() {
-  const form = useMemo(
-    () =>
-      createForm<RegistrationForm>({
-        form: {
-          email: {
-            value: '',
-            component: Input,
-            componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-          },
-          country: {
-            value: 'ru',
-            component: Select,
-            componentProps: {
-              label: 'Country',
-              options: [
-                { value: 'ru', label: 'Россия' },
-                { value: 'by', label: 'Беларусь' },
-              ],
-            },
-          },
-          agree: {
-            value: false,
-            component: Checkbox,
-            componentProps: { label: 'I agree to terms' },
-          },
-        } satisfies FormSchema<RegistrationForm>,
-      }),
-    []
-  );
+  const form = useMemo(() => {
+    const model = createModel<RegistrationForm>({ email: '', country: 'ru', agree: false });
+    const schema = {
+      email: {
+        value: model.$.email,
+        component: Input,
+        componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+      },
+      country: {
+        value: model.$.country,
+        component: Select,
+        componentProps: {
+          label: 'Country',
+          options: [
+            { value: 'ru', label: 'Россия' },
+            { value: 'by', label: 'Беларусь' },
+          ],
+        },
+      },
+      agree: {
+        value: model.$.agree,
+        component: Checkbox,
+        componentProps: { label: 'I agree to terms' },
+      },
+    };
+    return createForm<RegistrationForm>({ model, schema });
+  }, []);
 
   return (
     <form>

@@ -46,7 +46,8 @@ import type { ConfigWithSchema, ConfigWithValue, UnknownRecord } from '../types'
  * ```typescript
  * import { NodeFactory } from '@reformer/core';
  *
- * const node = NodeFactory.create({ value: '' }); // → FieldNode<string>
+ * const factory = new NodeFactory();
+ * const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
  * ```
  */
 export class NodeFactory {

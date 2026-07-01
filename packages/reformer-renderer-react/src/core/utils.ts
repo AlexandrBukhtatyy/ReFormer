@@ -13,16 +13,38 @@ import type {
 } from './types';
 
 /**
- * Type guard для ModelFieldRenderNode (M1): лист, привязанный к сигналу модели.
+ * Type guard для {@link ModelFieldRenderNode} (M1): лист, привязанный к сигналу модели.
  * Проверяется ПЕРВЫМ — такой узел несёт реальный `component`, иначе спутается с контейнером.
+ *
+ * @param node - Узел {@link RenderNode}
+ * @returns `true`, если узел — поле-лист (`value instanceof Signal`)
+ *
+ * @example Сужение к полю
+ * ```typescript
+ * if (isModelFieldRenderNode(node)) {
+ *   node.value; // Signal модели
+ *   node.component; // UI-компонент поля
+ * }
+ * ```
  */
 export function isModelFieldRenderNode<T>(node: RenderNode<T>): node is ModelFieldRenderNode {
   return (node as ModelFieldRenderNode).value instanceof Signal;
 }
 
 /**
- * Type guard для ArrayRenderNode (M1): массив модели `{ array, item }`.
+ * Type guard для {@link ArrayRenderNode} (M1): массив модели `{ array, item }`.
  * Проверяется до контейнера (у array-узла нет `component`).
+ *
+ * @param node - Узел {@link RenderNode}
+ * @returns `true`, если узел — секция массива (есть `array` и `item`-фабрика)
+ *
+ * @example Сужение к массиву
+ * ```typescript
+ * if (isArrayRenderNode(node)) {
+ *   node.array; // реактивный массив модели
+ *   node.item; // (itemModel) => RenderNode поддерева элемента
+ * }
+ * ```
  */
 export function isArrayRenderNode<T>(node: RenderNode<T>): node is ArrayRenderNode<T> {
   const n = node as ArrayRenderNode<T>;

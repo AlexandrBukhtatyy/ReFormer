@@ -12,12 +12,24 @@ import { parseDate, normalizeDate } from './date-utils';
 /**
  * Фабрика валидатора минимальной даты (включительно).
  *
- * Пустые и невалидные даты пропускаются (используйте `required` и `isDate`).
+ * Сравнение по нормализованным датам (время обнуляется). Пустые и невалидные даты
+ * пропускаются (используйте {@link required} и {@link isDate}).
  *
- * @example
+ * @param minDateValue - Минимально допустимая дата (включительно)
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадает `minDate`.
+ * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ *
+ * @example Минимальная дата
  * ```typescript
- * validate(path.eventDate, minDate(new Date('2024-01-01')));
- * validate(path.startDate, minDate(new Date(), { message: 'Дата должна быть не раньше сегодня' }));
+ * import { required, minDate } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * startDate: {
+ *   value: model.$.startDate,
+ *   component: DatePicker,
+ *   validators: [required(), minDate(new Date(), { message: 'Дата не раньше сегодня' })],
+ * },
  * ```
  */
 export function minDate<

@@ -1,7 +1,7 @@
 /**
  * Box - простой div-контейнер для RenderSchema
  *
- * @module reformer/renderer-react/components/box
+ * @module reformer/ui-kit/components/box
  */
 
 import type { ReactNode } from 'react';
@@ -22,26 +22,30 @@ export interface BoxProps {
  * Простой `<div>` для группировки элементов в `RenderSchema`. Используйте
  * `className` для настройки layout через atomic CSS (Tailwind).
  *
- * @example Вертикальный список полей в RenderSchema
+ * @example Вертикальный список полей в RenderSchema (M1: лист = `value` + `component`)
  * ```typescript
+ * import { Box, Input, InputPassword } from '@reformer/ui-kit';
+ *
  * {
  *   component: Box,
  *   componentProps: { className: 'flex flex-col gap-4' },
  *   children: [
- *     { component: path.email },
- *     { component: path.password },
+ *     { value: model.$.email, component: Input },
+ *     { value: model.$.password, component: InputPassword },
  *   ],
  * }
  * ```
  *
  * @example Двухколоночная сетка
  * ```typescript
+ * import { Box, Input } from '@reformer/ui-kit';
+ *
  * {
  *   component: Box,
  *   componentProps: { className: 'grid grid-cols-2 gap-4' },
  *   children: [
- *     { component: path.firstName },
- *     { component: path.lastName },
+ *     { value: model.$.firstName, component: Input },
+ *     { value: model.$.lastName, component: Input },
  *   ],
  * }
  * ```

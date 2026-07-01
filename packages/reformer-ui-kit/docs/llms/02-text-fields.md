@@ -67,18 +67,29 @@ import { Input } from '@reformer/ui-kit';
 > прокидывается — `onChange` просто не вызывается. Поэтому в форме поле должно
 > иметь тип `number | null`, а не `number`.
 
-Email-валидация на уровне формы:
+Email-валидация на уровне формы (M1: `createModel` → схема с листом
+`{ value: model.$.email, component, validators }` → `createForm({ model, schema })`):
 
 ```tsx
-import { createForm, type FormSchema } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
-import { string, email, pipe } from 'valibot';
+import { createModel, createForm } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import { Input, FormField } from '@reformer/ui-kit';
 
-const form = createForm<FormSchema<{ email: string }>>({
-  email: { component: Input, validations: [pipe(string(), email())] },
-});
+const model = createModel<{ email: string }>({ email: '' });
+const schema = {
+  children: [
+    {
+      value: model.$.email,
+      component: Input,
+      componentProps: { type: 'email', label: 'Email', testId: 'email' },
+      validators: [required(), email()],
+    },
+  ],
+};
+const form = createForm<{ email: string }>({ model, schema });
 
-<Input value={form.email.value} onChange={form.email.setValue} type="email" />;
+// Через FormField значение/ошибки подцепляются автоматически:
+<FormField control={form.email} testId="email" />;
 ```
 
 ### Anti-patterns
@@ -141,7 +152,7 @@ import { InputMask } from '@reformer/ui-kit';
   нужно делать в behavior `transformValue` или при сабмите.
 - Использовать `mask` для сложных правил (валидация диапазонов, контрольные
   суммы) — `InputMask` только направляет ввод, не валидирует. Валидацию вешать
-  через `validations` в schema поля.
+  через массив `validators` листа схемы (`validateFormModel`).
 
 ## InputPassword
 
@@ -248,11 +259,11 @@ import { Textarea } from '@reformer/ui-kit';
   имеет логики авто-роста.
 - Полагаться на `maxLength` как валидатор: это soft-лимит на ввод; для бизнес-
   правил (например, `длина <= 500 на русском, <= 1000 на английском`) ставить
-  `validations` в `createForm`.
+  `validators` в лист схемы (`{ value: model.$.field, component, validators }`).
 
 ## See also
 
 - [03-choice-fields.md](03-choice-fields.md) — Select, Checkbox, RadioGroup.
 - [05-form-field-integration.md](05-form-field-integration.md) — как все эти поля автоматически подключаются через `FormField`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».
-- Эталон: `RegistrationForm.tsx`, `credit-application-schema.ts` (monorepo examples).
+- Эталон: `examples/registration-form/RegistrationForm.tsx`, `examples/complex-multy-step-form/schemas/schema.ts` (monorepo examples).

@@ -2,9 +2,10 @@
 
 ## Component "X" not found in registry
 
-Имя из `component` поля схемы не зарегистрировано в реестре. Проверь:
+Имя из оператора `$component(X)` (или `$dataSource(X)`) не зарегистрировано в реестре. Проверь:
 
-- `defineRegistry` действительно содержит `reg.field('X', ...)` или `reg.container('X', ...)`.
+- `defineRegistry` действительно содержит `reg.field('X', ...)`, `reg.container('X', ...)` или `reg.dataSource('X', ...)`.
+- В схеме используется оператор, а не голая строка: `component: '$component(X)'`, а не `component: 'X'`.
 - `JsonFormRenderer` обёрнут в `JsonRendererProvider` с этим реестром.
 - Если используются вложенные провайдеры — реестр внутреннего провайдера наследуется через `withParent`, но дубли разрешаются в пользу внешнего.
 
@@ -19,63 +20,58 @@ import { FormField } from '@reformer/ui-kit';
 reg.container(FIELD_WRAPPER, FormField);
 ```
 
-## Cannot read field at path "..."
+## No model signal for "..." / settings.model is required
 
-Путь в `model` не соответствует реальной структуре формы. Проверь:
+Два разных симптома одной причины — модель.
 
-- `model: 'personalData.firstName'` — поле `firstName` существует внутри `personalData` в `getReformerForm`.
-- Для массивов: индекс должен существовать на момент рендера, иначе `convertNode` бросит ошибку.
+- `JsonFormRenderer: settings.model is required (M1)` — не передана модель. Под M1 листья схемы биндятся к сигналам `FormModel`; передай её в `JsonRendererProvider settings={{ registry, model }}`.
+- `[JsonRenderer/M1] No model signal for "path"` (warn) — путь в `$model(path)` не соответствует структуре модели. Проверь: `value: '$model(personalData.firstName)'` — поле `firstName` реально существует внутри `personalData` в `createModel(...)` initial-значениях.
 
 ## componentProps string passes through as plain string
 
-Строка в `componentProps` ссылается на dataSource, но он не зарегистрирован. Используй `reg.dataSource('NAME', value)` либо передавай значение объектом напрямую.
+Строка `'$dataSource(NAME)'` в `componentProps` ссылается на source, который не зарегистрирован — конвертер оставляет её как есть. Используй `reg.dataSource('NAME', value)` либо передавай значение литералом напрямую. Голые строки (без `$dataSource(...)`) намеренно не резолвятся — это обычные значения пропа (`label`, `placeholder`).
 
 ## useJsonRendererSettings throws outside provider
 
-`useJsonRendererSettings` работает только внутри `JsonRendererProvider`. Оберни вызывающий компонент в провайдер либо передай настройки в проп.
+`useJsonRendererSettings` в dev-режиме бросает, если вызван вне `JsonRendererProvider` **или** если в провайдере не передан `registry`. Оберни вызывающий компонент в провайдер с реестром.
 
-## "version" missing in schema
+## "version" missing / invalid schema (при validate)
 
-Поле `version` обязательно в `JsonFormSchema`. Сейчас единственное допустимое значение — `'1.0'`.
+`validate={true}` прогоняет схему через мета-схему (ajv) + обход имён операторов. Типичные ошибки: узел не подходит ни под field/array/container (нет ни `value`, ни `array`+`item`, ни `component`), голая строка вместо оператора, неизвестное `$component(...)`/`$dataSource(...)` имя. Ошибки рисуются в `SchemaErrorPanel` вместо формы. `$model(...)`-пути мета-схема не проверяет (только синтаксис) — они динамичны.
 
 ## Behavior selector matches nothing
 
-`hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит behavior.
+`hideWhen`/`patchProps` ищут узел по `selector`. Убедись, что у узла он явно задан (`selector: 'mortgage-section'`), и что значение совпадает с тем, на которое смотрит behavior. `selector` — plain-строка, НЕ оператор.
 
 ## $template inside array doesn't render rows
 
-Проверь:
+Массив — это array-node, а не container с `itemComponent`. Проверь:
 
-- Содержащий узел использует `model` для привязки к массиву формы.
-- `componentProps.itemComponent` действительно `{ $template: { ... } }`, а не сразу `JsonNode`.
-- Зарегистрирован контейнер-компонент (например `PropertyArray`), который умеет работать с `itemComponent`.
+- Узел использует `array: '$model(path)'` **и** `item: { $template: <JsonNode> }` (оба обязательны — иначе `isArrayNode` вернёт false).
+- Внутри `$template` пути `$model(...)` заданы **относительно элемента** (`value: '$model(type)'`, а не `'$model(properties[0].type)'`).
+- Есть `initialValue` (plain-литерал по форме элемента) — иначе кнопка «Добавить» создаст пустой элемент без сигналов для полей шаблона.
 
-## TypeError: Cannot read properties of undefined (reading 'value') в `<FormField.Root>`
+## Массив рендерится без строк / пустой при добавлении
 
-Симптомы: при toggle/click checkbox вся страница уходит в белый экран, в консоли — `TypeError: Cannot read properties of undefined (reading 'value')` + React unmount без error boundary.
+`initialValue` должен быть **полным** plain-объектом по форме элемента (все поля, что есть в `$template`). Если передать частичный объект (`{ type: 'apartment' }` без `estimatedValue`/`description`), под-модель нового элемента не получит сигналов для недостающих полей и они не отрендерятся. `initialValue` клонируется через `JSON.parse(JSON.stringify(...))` — только сериализуемые значения, никакого FieldConfig.
 
-Это **path mismatch** между схемой и FormProxy. Кастомный block-компонент (например `PropertiesArrayBlock`) вызвал `useFormControl(form.X.Y)` по пути, которого в форме нет (опечатка, или sub-form-схема изменена и поле уехало в другой шаг).
+## Toggle-видимость секции массива
 
-Что проверить:
+Условный показ секции (напр. массив `properties` виден только когда `hasProperty === true`) делается **не** кастомным блоком, а через `renderBehavior`:
 
-1. Полный путь в `useFormControl(form.<step>.<field>)` совпадает с путём в `createForm({ form: { <step>: { <field>: ... } } })`.
-2. Если поле **должно жить в step5**, не помещай его в step4 ради «удобства группировки» — кастомный block, написанный под «toggle живёт в step5», крашится.
-3. Block ОБЯЗАН быть defensive:
-   ```tsx
-   function PropertiesArrayBlock({ form }: { form: FormProxy<MyForm> }) {
-     const ctrl = useFormControl(form.step5.hasProperty);
-     // Defensive null-check: путь мог не существовать, или контрол ещё не смонтирован.
-     const hasProperty = (ctrl as { value?: boolean } | undefined)?.value;
-     if (!hasProperty) return null;
-     // ... FormArray.Root ...
-   }
-   ```
-4. На уровне страницы оборачивай `<FormRenderer>` в React error boundary (минимум — `componentDidCatch` со fallback `<div>Ошибка рендера</div>`), чтобы один падающий блок не уносил весь React-tree.
+```typescript
+import { hideWhen } from '@reformer/renderer-react';
 
-> Это **самый частый crash** в кастомных блоках — добавляй defensive optional chaining (`?.`) на каждое чтение `useFormControl(...)?.value` / `useArrayLength(...)?.length`.
+const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
+  hideWhen(schema.node('properties-array'), () => model.signalAt('hasProperty').value !== true);
+};
+```
+
+`renderBehavior` передаётся пропом в `JsonFormRenderer`; узел адресуется по своему `selector`.
 
 ## See also
 
 - [01-overview.md](01-overview.md)
 - [02-json-schema.md](02-json-schema.md)
 - [03-registry.md](03-registry.md)
+- [05-cookbook.md](05-cookbook.md)

@@ -38,6 +38,9 @@ const OPERATOR_RE = /^\$(model|component|dataSource)\((.+)\)$/;
  * Разбор строки-оператора `"$op(arg)"`. Возвращает `null` для не-операторов (обычных строк),
  * чтобы вызывающий оставил значение как есть.
  *
+ * @param value - Проверяемое значение (не-строки сразу дают `null`).
+ * @returns {@link ParsedOperator} (`{ op, arg }`) либо `null`, если строка — не оператор.
+ *
  * @example
  * ```ts
  * parseOperator('$model(loanType)');   // { op: 'model', arg: 'loanType' }
@@ -51,12 +54,48 @@ export function parseOperator(value: unknown): ParsedOperator | null {
   return m ? { op: m[1] as ParsedOperator['op'], arg: m[2] } : null;
 }
 
-/** Type-guard: строка — `"$model(...)"`. */
+/**
+ * Type-guard: строка — оператор `"$model(...)"` (привязка к полю/массиву модели).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link ModelOp}.
+ *
+ * @example Сузить тип значения prop до ModelOp
+ * ```ts
+ * if (isModelOp(value)) {
+ *   const path = parseOperator(value)!.arg; // 'loanType'
+ * }
+ * ```
+ */
 export const isModelOp = (v: unknown): v is ModelOp => parseOperator(v)?.op === 'model';
 
-/** Type-guard: строка — `"$component(...)"`. */
+/**
+ * Type-guard: строка — оператор `"$component(...)"` (ссылка на компонент реестра).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link ComponentOp}.
+ *
+ * @example
+ * ```ts
+ * if (isComponentOp(node.component)) {
+ *   const name = parseOperator(node.component)!.arg; // 'Select'
+ * }
+ * ```
+ */
 export const isComponentOp = (v: unknown): v is ComponentOp => parseOperator(v)?.op === 'component';
 
-/** Type-guard: строка — `"$dataSource(...)"`. */
+/**
+ * Type-guard: строка — оператор `"$dataSource(...)"` (ссылка на registry-source).
+ *
+ * @param v - Проверяемое значение.
+ * @returns `true`, если `v` — {@link DataSourceOp}.
+ *
+ * @example
+ * ```ts
+ * if (isDataSourceOp(props.options)) {
+ *   const name = parseOperator(props.options)!.arg; // 'LOAN_TYPES'
+ * }
+ * ```
+ */
 export const isDataSourceOp = (v: unknown): v is DataSourceOp =>
   parseOperator(v)?.op === 'dataSource';

@@ -7,18 +7,46 @@ TS-схема, renderer-react RenderSchema, renderer-json.
 ## Базовое использование
 
 ```tsx
-import { useRef } from 'react';
+import { useMemo, useRef, type FC } from 'react';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
-import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
-import type { FormProxy, ValidationSchemaFn } from '@reformer/core';
+import { FormField, Input, Checkbox } from '@reformer/ui-kit';
+import type { FormWizardHandle, FormWizardConfig } from '@reformer/cdk/form-wizard';
+import { createModel, createForm, validateFormModel, type FormProxy } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
 
 // Используйте `type`, не `interface`, для structural-совместимости с
-// FormFields constraint внутри FormWizard generic'а.
+// constraint `T extends Record<string, any>` внутри FormWizard generic'а.
 type MyForm = {
   email: string;
   password: string;
   confirmation: boolean;
 };
+
+// M1: модель — источник истины значений; листья схемы ссылаются на её сигналы.
+const model = createModel<MyForm>({ email: '', password: '', confirmation: false });
+const schema = {
+  children: [
+    {
+      value: model.$.email,
+      component: Input,
+      componentProps: { label: 'Email', testId: 'email' },
+      validators: [required(), email()],
+    },
+    {
+      value: model.$.password,
+      component: Input,
+      componentProps: { label: 'Пароль', testId: 'password' },
+      validators: [required(), minLength(8)],
+    },
+    {
+      value: model.$.confirmation,
+      component: Checkbox,
+      componentProps: { label: 'Подтверждаю' },
+      validators: [required()],
+    },
+  ],
+};
+const form = createForm<MyForm>({ model, schema });
 
 const Step1: FC<{ control: FormProxy<MyForm> }> = ({ control }) => (
   <FormField control={control.email} />
@@ -34,25 +62,20 @@ const steps: FormWizardStep<MyForm>[] = [
   { number: 3, title: 'Готово', icon: '✓', body: <ConfirmationView /> },
 ];
 
-// ⚠️ КРИТИЧНО: `stepValidations` это **Record<number, ValidationSchemaFn<T>>**,
-// НЕ array. Если объявить как array `[step1Fn, step2Fn]` — FormWizard молча
-// пропустит валидацию, "Далее" сработает без проверок. Silent no-op, без
-// runtime warning.
-const STEP_VALIDATIONS: Record<number, ValidationSchemaFn<MyForm>> = {
-  1: (path) => {
-    required(path.email);
-    email(path.email);
+// ⚠️ КРИТИЧНО: `config` это **FormWizardConfig** — объект с ДВУМЯ колбэками
+// (`validateStep`, `validateAll`), НЕ схемы/массивы валидаторов. Каждый колбэк
+// возвращает `boolean | Promise<boolean>`: `true` = валидно, идём дальше.
+// Если колбэк не задан — соответствующий шаг/submit считается валидным (no-op).
+// Канон M1 — валидировать per-step/полностью через validateFormModel(model, ...).
+const config: FormWizardConfig = {
+  // step 1-based. Провалидируй нужный шаг (собери под-схему шага и прогони
+  // validateFormModel), верни boolean.
+  validateStep: async (step) => {
+    const stepSchema = { children: [schema.children[step - 1]] };
+    const res = await validateFormModel(model, stepSchema);
+    return res.valid;
   },
-  2: (path) => {
-    required(path.password);
-    minLength(path.password, 8);
-  },
-};
-
-const fullValidation: ValidationSchemaFn<MyForm> = (path) => {
-  STEP_VALIDATIONS[1](path);
-  STEP_VALIDATIONS[2](path);
-  required(path.confirmation);
+  validateAll: async () => (await validateFormModel(model, schema)).valid,
 };
 
 // ref типизируется явно типом формы; constraint `T extends Record<string, any>`
@@ -61,20 +84,32 @@ const navRef = useRef<FormWizardHandle<MyForm>>(null);
 
 // ВАЖНО: prop-level `onSubmit` имеет signature `() => void | Promise<void>` —
 // БЕЗ аргумента values. Это by-design (см. FormWizardActionsProps в @reformer/cdk).
-// Чтобы получить values — читай их из form внутри handler:
+// Чтобы получить values — читай их из модели внутри handler:
 const handleSubmit = async () => {
-  const values = form.getValue();
+  const values = model.get();
   await api.submit(values);
 };
 
 <FormWizard
   ref={navRef}
   form={form}
-  config={{ stepValidations: STEP_VALIDATIONS, fullValidation }}
+  config={config}
   steps={steps}
   onSubmit={handleSubmit}
 />;
 ```
+
+> **`config` не привязан к типу формы.** `FormWizardConfig` — это `{ validateStep?, validateAll? }`,
+> оба колбэка возвращают `boolean | Promise<boolean>`. Канон M1 — прогонять
+> `validateFormModel(model, schema)` (именно он исполняет `validators` листьев;
+> `form.validate()` по нодам схемные правила НЕ запустит). См. эталон
+> `examples/complex-multy-step-form/schemas/validation.ts`. Реальный эталон собирает конфиг фабрикой:
+>
+> ```tsx
+> import { makeCreditValidationConfig } from './schemas/validation';
+> const config = useMemo(() => makeCreditValidationConfig(model), [model]);
+> // → { validateStep: (step) => Promise<boolean>, validateAll: () => Promise<boolean> }
+> ```
 
 ### Альтернатива — imperative submit с values
 
@@ -106,8 +141,14 @@ const handleSaveAndExit = async () => {
 
 ## RenderNode body (renderer-react / renderer-json)
 
+M1: схема без аргумента `path` — листья ссылаются на сигналы модели
+(`value: model.$.x`), а не на `path.x`:
+
 ```tsx
-const renderSchema = (path) => ({
+import { createRenderSchema } from '@reformer/renderer-react';
+import { Box, Input } from '@reformer/ui-kit';
+
+const renderSchema = createRenderSchema<CreditApplication>(() => ({
   selector: 'wizard',
   component: FormWizard,
   componentProps: {
@@ -122,12 +163,15 @@ const renderSchema = (path) => ({
         body: {
           component: Box,
           componentProps: { className: 'space-y-4' },
-          children: [{ component: path.loanAmount }, { component: path.loanTerm }],
+          children: [
+            { value: model.$.loanAmount, component: Input },
+            { value: model.$.loanTerm, component: Input },
+          ],
         },
       },
     ],
   },
-});
+}));
 ```
 
 ui-kit FormWizard детектирует RenderNode (объект с `.component` без React-element-маркера) и оборачивает в `RenderNodeComponent` с `form={form}`.
@@ -206,7 +250,18 @@ const wizardRef = useRef<FormWizardHandle<MyForm>>(null);
 
 <FormWizard ref={wizardRef} ... />
 
-// Программная навигация:
-wizardRef.current?.goToStep(2);
-wizardRef.current?.submit(handleSubmit);
+// Программная навигация и submit (см. FormWizardHandle<T> в @reformer/cdk):
+wizardRef.current?.goToStep(2); // boolean: false, если предыдущий шаг не завершён
+await wizardRef.current?.goToNextStep(); // валидирует текущий шаг, затем переходит
+wizardRef.current?.goToPreviousStep();
+await wizardRef.current?.validateCurrentStep(); // Promise<boolean>
+
+// submit принимает callback (values: T) => R | Promise<R>; возвращает R | null
+// (null — не прошла validateAll):
+const result = await wizardRef.current?.submit((values) => api.submit(values));
 ```
+
+Доступные поля/методы `FormWizardHandle<T>`: `form`, `currentStep`,
+`completedSteps`, `isFirstStep`, `isLastStep`, `isValidating`,
+`validateCurrentStep()`, `goToNextStep()`, `goToPreviousStep()`,
+`goToStep(step)`, `submit(cb)`.

@@ -40,13 +40,20 @@ interface ResourceResult<T> {
 /** Конфигурация асинхронного источника опций для {@link Select}. */
 export interface ResourceConfig<T> {
   /**
-   * Стратегия загрузки:
+   * Декларация стратегии загрузки:
    * - `'static'` — варианты загружаются один раз и больше не меняются;
-   * - `'preload'` — загрузка на маунт компонента (используется по умолчанию в {@link Select});
-   * - `'partial'` — порционная загрузка (нужен будет внешний механизм пагинации).
+   * - `'preload'` — предзагрузка всех опций;
+   * - `'partial'` — порционная/пагинированная загрузка.
+   *
+   * ВНИМАНИЕ: на текущий момент {@link Select} вызывает {@link load} один раз
+   * при монтировании (`load({})`) вне зависимости от `type` — поле служит
+   * маркером намерения и заделом под пагинацию, а не переключателем поведения.
    */
   type: 'static' | 'preload' | 'partial';
-  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
+  /**
+   * Функция загрузки опций. Должна вернуть `{ items, totalCount }`.
+   * {@link Select} вызывает её как `load({})` (без search/page) при маунте.
+   */
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
 }
 
@@ -112,6 +119,25 @@ export interface SelectProps<T> extends Omit<
  *     { value: 'minsk', label: 'Минск', group: 'Беларусь' },
  *   ]}
  * />
+ * ```
+ *
+ * @example Async-источник опций (resource) + clearable
+ * ```tsx
+ * import { Select, type ResourceConfig } from '@reformer/ui-kit';
+ *
+ * const countries: ResourceConfig<string> = {
+ *   type: 'preload',
+ *   load: async () => {
+ *     const res = await fetch('/api/countries');
+ *     const items = await res.json(); // [{ id, code, name }]
+ *     return {
+ *       items: items.map((c) => ({ id: c.id, label: c.name, value: c.code })),
+ *       totalCount: items.length,
+ *     };
+ *   },
+ * };
+ *
+ * <Select value={country} onChange={setCountry} resource={countries} clearable />
  * ```
  */
 const Select = React.forwardRef<

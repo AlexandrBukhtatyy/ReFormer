@@ -7,8 +7,13 @@
 > `Checkbox`-обёртки с `label`-prop'ами — это anti-pattern. См.
 > `find_recipe(package="@reformer/ui-kit", topic="form-field-integration")`.
 
+Архитектура M1: сначала создаётся **модель данных** (`createModel`), затем **форма**
+(`createForm({ model, schema })`), где схема привязывает поля к сигналам модели
+(`model.$.field`). Валидаторы — чистые фабрики из `@reformer/core/validators`, лежат
+прямо в поле схемы (`validators: [...]`).
+
 ```typescript
-import { createForm, type FormProxy, type FormSchema } from '@reformer/core';
+import { createModel, createForm, validateFormModel, type FormProxy } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
 import { FormField, Input, Button } from '@reformer/ui-kit';
 
@@ -18,37 +23,40 @@ type ContactForm = {
   email: string;
 };
 
-// 2. Schema: component + componentProps decl in fields, no JSX label props
-const form = createForm<ContactForm>({
-  form: {
-    name: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Name', placeholder: 'Your name' },
-    },
-    email: {
-      value: '',
-      component: Input,
-      componentProps: { label: 'Email', type: 'email' },
-    },
-  } satisfies FormSchema<ContactForm>,
-  validation: (path) => {
-    required(path.name, { message: 'Name is required' });
-    required(path.email, { message: 'Email is required' });
-    email(path.email, { message: 'Invalid email format' });
-  },
-});
+// 2. Model (источник истины значений)
+const model = createModel<ContactForm>({ name: '', email: '' });
 
-// 3. Use in React component — thin JSX, FormField does ALL heavy lifting
+// 3. Schema: привязка поля к сигналу (model.$.field) + component/componentProps + validators
+const schema = {
+  name: {
+    value: model.$.name,
+    component: Input,
+    componentProps: { label: 'Name', placeholder: 'Your name' },
+    validators: [required({ message: 'Name is required' })],
+  },
+  email: {
+    value: model.$.email,
+    component: Input,
+    componentProps: { label: 'Email', type: 'email' },
+    validators: [required({ message: 'Email is required' }), email({ message: 'Invalid email' })],
+  },
+};
+
+// 4. Form — ноды поверх сигналов модели
+const form = createForm<ContactForm>({ model, schema });
+
+// 5. Use in React component — thin JSX, FormField does ALL heavy lifting
 function ContactFormComponent() {
-  const handleSubmit = async () => {
-    await form.submit((values: ContactForm) => {
-      console.log('Form submitted:', values);
-    });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await validateFormModel(model, schema);
+    if (result.valid) {
+      console.log('Form submitted:', model.get());
+    }
   };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+    <form onSubmit={handleSubmit}>
       <FormField control={form.name} testId="name" />
       <FormField control={form.email} testId="email" />
       <Button type="submit">Send</Button>
@@ -56,7 +64,7 @@ function ContactFormComponent() {
   );
 }
 
-// 4. Pass form to child components via props (NOT context!)
+// 6. Pass form to child components via props (NOT context!)
 type FormStepProps = {
   form: FormProxy<ContactForm>;
 };
@@ -66,29 +74,54 @@ function FormStep({ form }: FormStepProps) {
 }
 ```
 
-### Arrays of objects — tuple format
+> **Стабильность инстанса.** В React создавай model/schema/form ОДИН раз через `useMemo(() => { … }, [])`
+> — иначе форма пересоздаётся на каждый рендер. См. `28-submit-and-reset.md`, `29-async-preload.md`.
 
-⚠️ Массивы объектов в схеме объявляются **через tuple `[itemSchema]`**, НЕ через `FieldConfig` с `value: []`:
+### Arrays of objects — `{ array, item }` schema node
+
+Массивы объектов принадлежат модели (`model.arrayField`). В схеме объявляются узлом
+`{ array: model.<path>, item: (itemModel) => itemSchema }`, где `item` строит под-схему
+для каждого элемента из его под-модели (`FormModel<Item>`):
 
 ```typescript
-// ❌ DON'T — TS error: Type 'FieldConfig<PropertyItem[]>' is not assignable to type '[FormSchema<PropertyItem>]'
-const schema: FormSchema<{ properties: PropertyItem[] }> = {
-  properties: { value: [], component: Input },  // ← intuitive but WRONG
+type PropertyItem = {
+  type: 'apartment' | 'house';
+  description: string;
+  estimatedValue: number;
 };
 
-// ✅ DO — tuple [itemSchema]: ArrayNode infers item shape from первого элемента
-const schema: FormSchema<{ properties: PropertyItem[] }> = {
-  properties: [
-    {
-      type: { value: 'apartment', component: Select, componentProps: { ... } } satisfies FieldConfig<PropertyType>,
-      description: { value: '', component: Textarea, componentProps: { label: 'Описание' } },
-      estimatedValue: { value: 0, component: Input, componentProps: { label: 'Стоимость', type: 'number' } },
-    },
-  ],
+type MyForm = { properties: PropertyItem[] };
+
+const model = createModel<MyForm>({ properties: [] });
+
+// под-схема одного элемента: item.$.field — сигнал под-модели элемента
+const propertyItem = (item: FormModel<PropertyItem>) => ({
+  type: {
+    value: item.$.type,
+    component: Select,
+    componentProps: { label: 'Тип', options: [/* ... */] },
+  },
+  description: { value: item.$.description, component: Textarea, componentProps: { label: 'Описание' } },
+  estimatedValue: {
+    value: item.$.estimatedValue,
+    component: Input,
+    componentProps: { label: 'Стоимость', type: 'number' },
+  },
+});
+
+const schema = {
+  properties: { array: model.properties, item: propertyItem },
 };
+
+const form = createForm<MyForm>({ model, schema });
+
+// Операции над массивом — на модели:
+model.properties.push({ type: 'apartment', description: '', estimatedValue: 0 });
+model.properties.removeAt(0);
+model.properties.length; // реактивная длина
 ```
 
-В runtime массив пуст (`form.properties.value === []`); tuple — это **template** для каждого item, который применяется при `form.properties.push()` / `.insert()`. См. подробности в `find_recipe(topic="form-array")` и `find_recipe(topic="array-operations")`.
+Подробнее в `10-arrays.md`, `21-array-operations.md` и `find_recipe(topic="form-array")`.
 
 ### When to write your own field components (advanced — rare)
 

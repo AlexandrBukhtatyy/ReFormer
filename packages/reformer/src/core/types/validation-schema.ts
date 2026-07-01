@@ -23,13 +23,19 @@ import type { FormProxy } from './form-proxy';
  * Принимает значение поля, прокси текущего поля (control) и прокси корня формы (root).
  * Возвращает ValidationError либо null. Не знает про реестр валидации.
  *
- * @example
+ * @example Кастомный валидатор в массиве `validators` поля схемы
  * ```typescript
  * const isAdult: Validator<MyForm, number> = (value, control, root) => {
  *   if (value < 18) return { code: 'tooYoung', message: '18+' };
  *   return null;
  * };
- * validate(path.age, isAdult);
+ *
+ * // Фабрики и кастомные валидаторы кладутся в `validators: [...]` поля:
+ * const schema = {
+ *   children: [
+ *     { value: model.$.age, component: Input, validators: [required(), isAdult] },
+ *   ],
+ * };
  * ```
  */
 export type Validator<TForm, TField> = (

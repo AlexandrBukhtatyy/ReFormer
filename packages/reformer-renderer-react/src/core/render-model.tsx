@@ -40,6 +40,12 @@ export interface ModelContainerNode {
   selector?: string;
 }
 
+/**
+ * Узел дерева единой схемы (M1) для {@link RenderModelNode}: либо лист-поле
+ * {@link ModelFieldNode} (несёт `value: Signal` модели), либо контейнер
+ * {@link ModelContainerNode} (React-компонент + `children`). Дискриминируется
+ * по наличию `value instanceof Signal`.
+ */
 export type ModelNode = ModelFieldNode | ModelContainerNode;
 
 const isFieldNode = (node: ModelNode): node is ModelFieldNode =>
@@ -107,14 +113,23 @@ const ModelField = memo(function ModelField({ node }: { node: ModelFieldNode }):
 });
 
 /**
- * Рекурсивный рендер узла единой схемы: field → контрол (разворот сигнала), container → компонент
- * с дочерними узлами.
+ * Рекурсивный рендер узла единой схемы {@link ModelNode}: field-узел → контрол (разворот
+ * сигнала, `value`/`onChange`, state по сигналу через реестр), container-узел → React-компонент
+ * с дочерними узлами. `node == null` → рендерит `null`.
+ *
+ * @param props - `{ node }` — узел {@link ModelNode} или `null`/`undefined`
+ * @returns Отрендеренное поддерево или `null`
+ *
+ * @example Дерево «контейнер + поле»
+ * ```tsx
+ * const node: ModelNode = {
+ *   component: Box,
+ *   children: [{ value: model.$.email, component: Input }],
+ * };
+ * <RenderModelNode node={node} />
+ * ```
  *
  * @group Renderer
- * @example
- * ```tsx
- * <RenderModelNode node={schema} />
- * ```
  */
 export const RenderModelNode = memo(function RenderModelNode({
   node,
@@ -157,6 +172,7 @@ export interface ModelArrayControl {
   removeAt(index: number): void;
 }
 
+/** Props для {@link RenderModelArray}: реактивный массив модели + схема элемента и оформление. */
 export interface RenderModelArrayProps {
   /** Массив модели (`model.coBorrowers`). */
   control: ModelArrayControl;
@@ -170,13 +186,6 @@ export interface RenderModelArrayProps {
   addButtonLabel?: string;
 }
 
-/**
- * Рендер массива под M1: элементы принадлежат модели, поддерево элемента строится `itemComponent`
- * по под-модели и рендерится {@link RenderModelNode} (поля привязываются к сигналам под-модели).
- * Длина реактивна — push/removeAt по модели перерисовывают список.
- *
- * @group Renderer
- */
 // Стабильный React-ключ по идентичности под-модели элемента (фасад кэшируется в core).
 const itemKeys = new WeakMap<object, number>();
 let keyCounter = 0;
@@ -211,6 +220,34 @@ const ArrayItem = memo(function ArrayItem({
   return <RenderModelNode node={node} />;
 });
 
+/**
+ * Рендер массива единой схемы (M1): элементы принадлежат модели (`control`), поддерево
+ * каждого элемента строит `itemComponent` по под-модели и рендерит {@link RenderModelNode}
+ * (поля привязываются к сигналам под-модели). Длина реактивна — `push`/`removeAt` по модели
+ * перерисовывают список. При заданном `newItem` рендерится кнопка «Добавить».
+ *
+ * Низкоуровневый рендерер: для полноценной секции массива (карточки, удаление, reorder,
+ * `fieldWrapper`) используйте `ArrayRenderNode` (`{ array, item }`) внутри
+ * {@link RenderNodeComponent}/{@link FormRenderer}.
+ *
+ * @param props - {@link RenderModelArrayProps}
+ * @returns Обёртка со списком элементов и опц. кнопкой добавления
+ *
+ * @example Массив под-моделей
+ * ```tsx
+ * <RenderModelArray
+ *   control={model.coBorrowers}
+ *   itemComponent={(im) => ({
+ *     component: Box,
+ *     children: [{ value: im.$.phone, component: Input }],
+ *   })}
+ *   newItem={createBlankCoBorrower}
+ *   addButtonLabel="Добавить созаёмщика"
+ * />
+ * ```
+ *
+ * @group Renderer
+ */
 export const RenderModelArray = memo(function RenderModelArray({
   control,
   itemComponent,

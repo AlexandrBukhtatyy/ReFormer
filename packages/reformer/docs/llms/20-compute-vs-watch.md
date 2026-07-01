@@ -1,115 +1,100 @@
-## 17. COMPUTE FROM vs WATCH FIELD
+## 17. COMPUTE vs ONCHANGE
 
-### computeFrom — Same Nesting Level (annotate destructured arg!)
+Под M1 behaviors работают на сигналах модели. Есть два способа их писать:
 
-The compute callback receives the **whole form** (`(values: TForm) => T`),
-so to get exact field types on the destructured argument you must annotate
-it with the form type. Without annotation, fields are typed as `unknown`
-and you'll be forced into `as` casts.
+- **примитивы из `@reformer/core`** — принимают сигналы, возвращают cleanup, вызываются
+  императивно (например, в `useEffect`), cleanup складывается в массив;
+- **декларативный DSL из `@reformer/core/behaviors`** — `defineFormBehavior(...)` + операторы,
+  cleanup управляется формой, передаётся в `createForm({ behavior })`.
 
-```typescript
-// ✅ Works: all source fields at the same level, annotated with form type
-computeFrom(
-  [path.price, path.quantity],
-  path.total,
-  ({ price, quantity }: MyForm) => (price ?? 0) * (quantity ?? 0)
-);
+Для производных значений — `compute`/`computeFrom`. Для side-эффектов на изменение (async,
+обновление componentProps) — `onChange` (DSL) или примитив `watchField`.
 
-// ✅ Works: nested-to-nested at same level
-computeFrom(
-  [path.address.houseNumber, path.address.streetName],
-  path.address.fullAddress,
-  ({ address }: MyForm) => `${address.houseNumber} ${address.streetName}`
-);
+### compute — auto-tracking (DSL)
 
-// ✅ Cross-level via group-node subscription: subscribe to the group node,
-//    not individual leaves; destructure the group inside.
-computeFrom([path.personalData], path.fullName, ({ personalData }: MyForm) =>
-  [personalData.firstName, personalData.lastName].filter(Boolean).join(' ')
-);
-
-// ❌ FAILS: subscribing nested leaves with target at root level
-computeFrom(
-  [path.nested.price, path.nested.quantity],
-  path.rootTotal,
-  ...
-);
-// Use group-node subscription (above) or watchField (below) instead.
-```
-
-### watchField - Any Level
+`compute(target, read)` подписывается на сигналы, прочитанные внутри `read()`, и пишет
+результат в `target`. Цель не входит в источники → цикла нет; запись идемпотентна (peek-guard).
+Кросс-уровневые вычисления работают так же — читай любые поля модели.
 
 ```typescript
-// Works for cross-level computation
-watchField(
-  path.nested.price,
-  (price, ctx) => {
-    const quantity = ctx.form.quantity.value.value; // Sibling in nested
-    ctx.form.rootTotal.setValue(price * quantity); // ctx.form.<path>.setValue, NOT ctx.setFieldValue
-  },
-  { immediate: false }
-); // REQUIRED!
+import { defineFormBehavior, compute } from '@reformer/core/behaviors';
 
-// Works for multiple dependencies
-watchField(
-  path.loanAmount,
-  (amount, ctx) => {
-    const term = ctx.form.loanTerm.value.value;
-    const rate = ctx.form.interestRate.value.value;
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  // same-level
+  compute(model.$.total, () => (model.price ?? 0) * (model.quantity ?? 0));
 
-    if (amount && term && rate) {
-      const monthly = calculateMonthlyPayment(amount, term, rate);
-      // Guard: only setValue if value really changed (cycle prevention)
-      if (Math.abs(ctx.form.monthlyPayment.value.value - monthly) > 0.01) {
-        ctx.form.monthlyPayment.setValue(monthly);
-      }
-    }
-  },
-  { immediate: false }
-); // REQUIRED!
+  // nested-to-nested / cross-level — просто читаем нужные поля
+  compute(model.$.fullName, () =>
+    [model.personalData.firstName, model.personalData.lastName].filter(Boolean).join(' ')
+  );
+
+  // условный пересчёт
+  compute(model.$.initialPayment, () => model.propertyValue * 0.2, {
+    when: () => model.loanType === 'mortgage',
+  });
+});
 ```
 
-### Cross-level write API
+### computeFrom — явный список источников
 
-Inside a `watchField` callback, write to other fields via `ctx.form.<path>.setValue(value)` —
-**`ctx.setFieldValue(name, value)` does not exist** (that was a documentation typo, fixed).
-For reads use `ctx.form.<path>.value.value` (the inner `.value` reads the signal).
-For enable/disable: `ctx.form.<path>.enable()` / `.disable()` / read `.disabled.value`.
+Когда нужен явный контроль зависимостей — `computeFrom(sources, target, fn)`. Значения
+источников приходят в `fn` позиционно.
 
-````
+```typescript
+import { computeFrom } from '@reformer/core/behaviors'; // или из '@reformer/core' как примитив
+
+computeFrom(
+  [model.$.loanAmount, model.$.loanTerm, model.$.interestRate],
+  model.$.monthlyPayment,
+  (amount, term, rate) => annuityMonthly(amount ?? 0, term ?? 0, rate ?? 0)
+);
+```
+
+> Примитив `computeFrom` из `@reformer/core` имеет ту же сигнатуру и возвращает cleanup-функцию.
+
+### onChange — реакция на изменение (async, side-effects)
+
+`onChange(source, cb, { debounce, immediate })` вызывает `cb(value, { signal })` при изменении.
+Колбэк выполняется ВНЕ effect-контекста — можно писать сигналы/ноды. `signal` (AbortSignal)
+аннулируется при следующей смене значения.
+
+```typescript
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
+  onChange(
+    model.$.country,
+    async (country, { signal }) => {
+      const cities = await fetchCities(country, { signal });
+      form.city.updateComponentProps({ options: cities });
+    },
+    { debounce: 300 }
+  );
+});
+```
+
+### Примитив watchField
+
+Низкоуровневая подписка из `@reformer/core` (без debounce/AbortSignal). `onChange` построен
+поверх неё. Для простых синхронных реакций:
+
+```typescript
+import { watchField } from '@reformer/core';
+const stop = watchField(model.$.country, () => { model.city = ''; });
+```
 
 ### Rule of Thumb
 
 | Scenario | Use |
 |----------|-----|
-| All fields share same parent | `computeFrom` (simpler, auto-cleanup) |
-| Fields at different levels | `watchField` (more flexible) |
-| Multiple dependencies | `watchField` |
-| Async computation | `watchField` with async callback |
+| Производное значение (любой уровень) | `compute` (auto-tracking) |
+| Производное с явными зависимостями | `computeFrom` |
+| Async-реакция, обновление componentProps | `onChange` (debounce + AbortSignal) |
+| Простая синхронная реакция (примитив) | `watchField` |
 
-### Stage-pattern for chained computeds
+### Chained computeds
 
-When several computeds depend on each other (e.g. `interestRate` → `monthlyPayment` → `paymentToIncomeRatio`), put the whole chain inside ONE `watchField` for the upstream trigger. Do NOT split into one watcher per target — that creates cross-watcher signal bouncing and risks cycles. Read intermediate values from the `new` local you just computed, not from `ctx.form.intermediate.value.value` (which still holds the old value during the cascade).
-
-### Multiple triggers, one cascade
-
-`watchField` accepts a **single** `FieldPathNode` — there is no `watchField([pathA, pathB], ...)` overload. If a single computed depends on several independent triggers (e.g. `monthlyPayment` depends on `loanAmount`, `loanTerm`, `interestRate`), register one `watchField` per trigger and have them all call the same compute function:
-
-```typescript
-function recomputeMonthlyPayment(ctx: BehaviorContext<MyForm>) {
-  const amount = ctx.form.step1.loanAmount.value.value;
-  const term   = ctx.form.step1.loanTerm.value.value;
-  const rate   = ctx.form.interestRate.value.value;
-  if (!amount || !term || !rate) return;
-  const monthly = annuity(amount, term, rate);
-  if (Math.abs((ctx.form.monthlyPayment.value.value as number) - monthly) > 0.01) {
-    ctx.form.monthlyPayment.setValue(monthly);
-  }
-}
-
-watchField(path.step1.loanAmount, (_v, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
-watchField(path.step1.loanTerm,   (_v, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
-watchField(path.interestRate,     (_v, ctx) => recomputeMonthlyPayment(ctx), { immediate: false });
-````
-
-The "one watcher per trigger" cycle-prevention rule means **never register two watchField on the same path**, not "consolidate all triggers into one". Multiple watchers on different trigger paths is the canonical pattern for multi-source recomputes — try `watchField([…], …)` and you get a runtime `getFieldByPath` failure (the array form does not exist).
+Если несколько вычислений зависят друг от друга (`interestRate` → `monthlyPayment` →
+`paymentToIncomeRatio`), объяви каждое отдельным `compute` — они выстроятся в правильном
+порядке через реактивный граф (цель одного = источник другого). Расходящиеся взаимные
+`compute` без стабилизации бросят понятную ошибку (см. `22-cycle-detection.md`).

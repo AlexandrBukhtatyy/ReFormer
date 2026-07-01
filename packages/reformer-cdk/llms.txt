@@ -22,10 +22,11 @@
 
 ## 2. Components
 
-| Component    | Purpose                    |
-| ------------ | -------------------------- |
-| `FormArray`  | Manage dynamic form arrays |
-| `FormWizard` | Multi-step form wizard     |
+| Component    | Purpose                                      |
+| ------------ | -------------------------------------------- |
+| `FormArray`  | Manage dynamic form arrays                   |
+| `FormField`  | Accessible field anatomy (label/control/…)   |
+| `FormWizard` | Multi-step form wizard                        |
 
 ## 3. Installation
 
@@ -37,10 +38,11 @@ npm install @reformer/cdk @reformer/core
 
 ```typescript
 // All components
-import { FormArray, FormWizard } from '@reformer/cdk';
+import { FormArray, FormField, FormWizard } from '@reformer/cdk';
 
 // Tree-shaking (recommended)
 import { FormArray, useFormArray } from '@reformer/cdk/form-array';
+import { FormField, useFormField } from '@reformer/cdk/form-field';
 import { FormWizard, useFormWizard } from '@reformer/cdk/form-wizard';
 ```
 
@@ -88,8 +90,15 @@ interface FormArrayItemRenderProps<T> {
   index: number; // Zero-based index
   id: string | number; // Unique key
   remove: () => void; // Remove this item
+  moveUp: () => void; // Move one position up (no-op when first)
+  moveDown: () => void; // Move one position down (no-op when last)
+  canMoveUp: boolean; // index > 0
+  canMoveDown: boolean; // index < length - 1
 }
 ```
+
+Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
+`ArrayNode.move` reorders controls without recreating them.
 
 ## 8. External Control via Ref
 
@@ -102,6 +111,7 @@ const arrayRef = useRef<FormArrayHandle<ItemType>>(null);
 // Control from outside
 arrayRef.current?.add({ name: 'New' });
 arrayRef.current?.removeAt(0);
+arrayRef.current?.move(2, 0);
 arrayRef.current?.clear();
 
 <FormArray.Root ref={arrayRef} control={form.items}>
@@ -117,11 +127,16 @@ interface FormArrayHandle<T> {
   clear: () => void;
   insert: (index: number, value?: Partial<T>) => void;
   removeAt: (index: number) => void;
+  move: (from: number, to: number) => void; // reorder, state preserved
+  swap: (a: number, b: number) => void; // swap two items, state preserved
   length: number;
   isEmpty: boolean;
   at: (index: number) => FormProxy<T> | undefined;
 }
 ```
+
+> `length` / `isEmpty` are a snapshot at render time. For a reactive length
+> outside the array, subscribe via `useFormControl(form.items).length`.
 
 ## 10. useFormArray Hook
 
@@ -149,17 +164,34 @@ function CustomList() {
 }
 ```
 
+### UseFormArrayReturn
+
+```typescript
+interface UseFormArrayReturn<T> {
+  items: FormArrayItem<T>[]; // { control, index, id, remove }
+  length: number;
+  isEmpty: boolean;
+  add: (value?: Partial<T>) => void; // push to end
+  clear: () => void; // remove all
+  insert: (index: number, value?: Partial<T>) => void;
+  move: (from: number, to: number) => void; // reorder, state preserved
+  swap: (a: number, b: number) => void; // swap two items, state preserved
+}
+```
+
+Note: `items[]` is memoized by array length AND order — changing a value inside
+an item does not recreate the `items` array, but `move` / `swap` do (order ref changes).
+
 ## 11. Basic Usage
 
 ```tsx
-import { FormWizard } from '@reformer/cdk/form-wizard';
+import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
-const config = {
-  stepValidations: {
-    1: step1Schema,
-    2: step2Schema,
-  },
-  fullValidation: fullFormSchema,
+// Config is a pair of validation callbacks — NOT schemas.
+// Each returns boolean | Promise<boolean> (true = valid).
+const config: FormWizardConfig = {
+  validateStep: (step) => validateFormModel(model, stepSchema(step)),
+  validateAll: () => validateFormModel(model, fullSchema),
 };
 
 <FormWizard form={form} config={config}>
@@ -169,23 +201,49 @@ const config = {
   <FormWizard.Actions onSubmit={handleSubmit}>
     {({ prev, next, submit, isFirstStep, isLastStep }) => (
       <div>
-        {!isFirstStep && <button {...prev}>Back</button>}
-        {!isLastStep ? <button {...next}>Next</button> : <button {...submit}>Submit</button>}
+        {!isFirstStep && <button onClick={prev.onClick} disabled={prev.disabled}>Back</button>}
+        {!isLastStep ? (
+          <button onClick={next.onClick} disabled={next.disabled}>Next</button>
+        ) : (
+          <button onClick={submit.onClick} disabled={submit.disabled}>Submit</button>
+        )}
       </div>
     )}
   </FormWizard.Actions>
 </FormWizard>;
 ```
 
+> Note: `prev`/`next`/`submit` are `{ onClick, disabled }` objects (submit also has
+> `isSubmitting`). They are not DOM-attribute bags — do not `{...prev}`-spread them
+> onto `<button>` (that would set an invalid `disabled`/`onClick` mix). Read the
+> members explicitly as shown, or use the compound `FormWizard.Prev/Next/Submit`.
+
 ## 12. Sub-components
 
-| Component              | Purpose                                    |
-| ---------------------- | ------------------------------------------ |
-| `FormWizard`           | Root provider                              |
-| `FormWizard.Step`      | Renders component when step is current     |
-| `FormWizard.Indicator` | Headless step indicator (render props)     |
-| `FormWizard.Actions`   | Headless navigation buttons (render props) |
-| `FormWizard.Progress`  | Headless progress display (render props)   |
+| Component              | Purpose                                                |
+| ---------------------- | ------------------------------------------------------ |
+| `FormWizard`           | Root provider                                          |
+| `FormWizard.Step`      | Renders component/children when step is current        |
+| `FormWizard.Indicator` | Headless step indicator (render props)                 |
+| `FormWizard.Actions`   | Navigation container: render props OR compound buttons |
+| `FormWizard.Prev`      | Compound "Back" button (inside `Actions`)              |
+| `FormWizard.Next`      | Compound "Next" button (inside `Actions`)              |
+| `FormWizard.Submit`    | Compound "Submit" button (inside `Actions`)            |
+| `FormWizard.Progress`  | Headless progress display (render props)               |
+
+`FormWizard.Prev` / `Next` / `Submit` are compound children of `FormWizard.Actions`
+(they read the Actions context) — they cannot be used standalone. They are not
+top-level exports; access them as members: `FormWizard.Prev`, etc.
+
+### Actions: compound mode
+
+```tsx
+<FormWizard.Actions onSubmit={handleSubmit} className="flex justify-between">
+  <FormWizard.Prev>Back</FormWizard.Prev>
+  <FormWizard.Next>Next</FormWizard.Next>
+  <FormWizard.Submit loadingText="Submitting…">Submit</FormWizard.Submit>
+</FormWizard.Actions>
+```
 
 ## 13. FormWizard.Indicator
 
@@ -326,17 +384,41 @@ const result = await navRef.current?.submit(async (values) => {
 
 ## 17. Configuration
 
+`FormWizardConfig` is a pair of optional validation callbacks (not generic, not
+schema-based). Each returns `boolean | Promise<boolean>` — `true` means valid.
+
 ```typescript
-interface FormWizardConfig<T> {
-  stepValidations: Record<number, ValidationSchemaFn<T>>;
-  fullValidation: ValidationSchemaFn<T>;
+interface FormWizardConfig {
+  /** Validate step N (1-based). Missing → step treated as valid (warns in console). */
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  /** Validate the whole form before submit. Missing → submit not blocked. */
+  validateAll?: () => boolean | Promise<boolean>;
 }
+```
+
+Typically both wrap `validateFormModel(model, schema)` from `@reformer/core` and
+close over the current step's schema:
+
+```typescript
+const config: FormWizardConfig = {
+  validateStep: async (step) => {
+    const res = await validateFormModel(model, stepSchemas[step - 1]);
+    return Object.keys(res.errors).length === 0;
+  },
+  validateAll: async () => {
+    const res = await validateFormModel(model, fullSchema);
+    return Object.keys(res.errors).length === 0;
+  },
+};
 ```
 
 Validation happens automatically:
 
-- On `next.onClick`: validates current step
-- On `submit.onClick`: validates entire form
+- On `next.onClick` / `FormWizard.Next`: runs `validateStep(currentStep)`; on failure calls `form.markAsTouched()` and stays on the step.
+- On `submit` (ref `submit()` or `FormWizard.Actions` `onSubmit`): runs `validateAll()`; on success delegates to `form.submit(onSubmit, { skipValidation: true })`.
+
+> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`; the
+> credit-application example builds it via `makeCreditValidationConfig(model)`.
 
 ## 18. Purpose
 
@@ -599,28 +681,37 @@ function AddPropertyMenu() {
 ### Solution
 
 ```tsx
+import { useMemo } from 'react';
 import { useFormControl } from '@reformer/core';
-import { FormWizard } from '@reformer/cdk/form-wizard';
+import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
 
-function CreditWizard({ form, navConfig }: Props) {
+function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
   const { value: amount } = useFormControl(form.amount);
   const needsVerification = amount > 1_000_000;
 
-  // Шаг 4 нужен только для крупных сумм
-  const stepValidations = useMemo(
+  // config — пара колбэков validateStep / validateAll (не схемы, не generic).
+  // step (1-based) роутится в нужную схему; при выключенной верификации
+  // нумерация сдвигается — учитываем это в самом колбэке.
+  const config = useMemo<FormWizardConfig>(
     () => ({
-      1: amountValidation,
-      2: personalValidation,
-      3: contactValidation,
-      ...(needsVerification && { 4: verificationValidation }),
-      // последний шаг — confirmation, его номер сдвигается автоматически
-      [needsVerification ? 5 : 4]: confirmationValidation,
+      validateStep: (step) => {
+        const schema = needsVerification
+          ? stepSchemas.withVerification[step - 1]
+          : stepSchemas.withoutVerification[step - 1];
+        return validateFormModel(form.model, schema ?? { children: [] }).then(
+          (r) => Object.keys(r.errors).length === 0
+        );
+      },
+      validateAll: () =>
+        validateFormModel(form.model, fullSchema).then(
+          (r) => Object.keys(r.errors).length === 0
+        ),
     }),
-    [needsVerification]
+    [needsVerification, stepSchemas, fullSchema, form]
   );
 
   return (
-    <FormWizard form={form} config={{ stepValidations, fullValidation: full }}>
+    <FormWizard form={form} config={config}>
       <FormWizard.Step component={AmountForm} control={form} />
       <FormWizard.Step component={PersonalForm} control={form} />
       <FormWizard.Step component={ContactForm} control={form} />
@@ -630,11 +721,11 @@ function CreditWizard({ form, navConfig }: Props) {
       <FormWizard.Actions onSubmit={handleSubmit}>
         {({ prev, next, submit, isLastStep }) => (
           <div>
-            <button {...prev}>Назад</button>
+            <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>
             {isLastStep ? (
-              <button {...submit}>Подтвердить</button>
+              <button onClick={submit.onClick} disabled={submit.disabled}>Подтвердить</button>
             ) : (
-              <button {...next}>Далее</button>
+              <button onClick={next.onClick} disabled={next.disabled}>Далее</button>
             )}
           </div>
         )}
@@ -646,7 +737,7 @@ function CreditWizard({ form, navConfig }: Props) {
 
 ### Notes
 
-- **Номера шагов сдвигаются** при включении/выключении: `stepValidations[4]` будет либо `verificationValidation`, либо `confirmationValidation` в зависимости от `needsVerification`. Держите словарь валидаций в `useMemo` от того же флага.
+- **Номера шагов сдвигаются** при включении/выключении: `validateStep(4)` должен разрешаться либо в схему верификации, либо в схему подтверждения — в зависимости от `needsVerification`. Держите колбэк `validateStep`/`validateAll` в `useMemo` от того же флага, иначе он замкнётся на устаревшую нумерацию.
 - `currentStep` в state `FormWizard` хранится как число. Если флаг изменился пока пользователь стоит на шаге 4 (где раньше была верификация, а теперь подтверждение), он останется на том же номере — но рендер увидит уже другой `Step`. В критичных кейсах вызывайте `navRef.current?.goToStep(1)` после переключения.
 - `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
 - Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
@@ -699,7 +790,7 @@ function Page({ form, config }: Props) {
 ### Notes
 
 - `FormWizardHandle` exposes: `currentStep`, `completedSteps`, `goToNextStep` (с валидацией), `goToPreviousStep`, `goToStep` (boolean — true если переход разрешён), `submit`, `validateCurrentStep`, `isFirstStep`, `isLastStep`, `isValidating`, `form`.
-- `submit(onSubmit)` сначала прогоняет `config.fullValidation`, затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
+- `submit(onSubmit)` сначала прогоняет `config.validateAll?.()` (если колбэк задан), затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
 - Эталон: `CreditApplicationForm.tsx` (monorepo example) — `submit` через ref + центральная кнопка отправки.
@@ -750,20 +841,33 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
 
-## 32. Шаг без `stepValidations[N]` пропускается без проверки
+## 32. Шаг без валидации пропускается без проверки
 
-**Причина.** `validateCurrentStep` сначала смотрит `config.stepValidations[currentStep]`. Если схемы нет — выводит `console.warn` и возвращает `true` (шаг считается валидным).
-
-**Решение.** Добавьте схему для каждого шага в `stepValidations`. Если шаг чисто информационный (например, «Подтверждение»), используйте схему-no-op: `() => ({})` (или импортируйте noop-validation из вашего набора).
+**Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
 
 ```typescript
-const config: FormWizardConfig<MyForm> = {
-  stepValidations: {
-    1: amountSchema,
-    2: personalSchema,
-    3: () => ({}), // подтверждение, нет полей для валидации
+interface FormWizardConfig {
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  validateAll?: () => boolean | Promise<boolean>;
+}
+```
+
+**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную схему. Для чисто информационного шага (например, «Подтверждение») верните `true`.
+
+```typescript
+const stepSchemas = [amountSchema, personalSchema, confirmationSchema];
+
+const config: FormWizardConfig = {
+  validateStep: async (step) => {
+    const schema = stepSchemas[step - 1];
+    if (!schema) return true; // нет схемы для шага — считаем валидным
+    const res = await validateFormModel(model, schema);
+    return Object.keys(res.errors).length === 0;
   },
-  fullValidation: fullSchema,
+  validateAll: async () => {
+    const res = await validateFormModel(model, fullSchema);
+    return Object.keys(res.errors).length === 0;
+  },
 };
 ```
 
@@ -818,9 +922,9 @@ const handleSubmit = async () => {
 
 ## 37. Multi-step submit срабатывает раньше валидации последнего шага
 
-**Причина.** `FormWizard.Actions` диспатчит `submit` сразу при `onClick`. Если пользователь нажал Submit, не пройдя валидацию последнего шага через Next, `goToNextStep` не вызывался — но `submit` всё равно запустит `config.fullValidation` поверх всей формы. Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно где именно проблема.
+**Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
 
-**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Или используйте `FormWizard.Actions`-render, где `submit.disabled === true` пока поля не валидны (Actions сам отключает кнопку при `isValidating`).
+**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Кнопка `submit` в render-props отключается (`submit.disabled === true`) только на время `isValidating`/`isSubmitting`, поэтому явная проверка шага полезна.
 
 ```tsx
 const handleSubmit = async () => {
@@ -850,11 +954,11 @@ const handleSubmit = async () => {
 
 Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
 
-## 39. `FormWizard` показывает «No validation schema for step N» в консоли
+## 39. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
 
-**Причина.** `validateCurrentStep` warn'ит, если `config.stepValidations[currentStep]` отсутствует.
+**Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
 
-**Решение.** Добавьте schema для шага N или, если шаг намеренно без валидации, передайте noop: `[N]: () => ({})`.
+**Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
 
 ## 40. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
 
@@ -875,28 +979,66 @@ _Auto-generated from JSDoc on public exports._
 
 **Kind:** `function`
 
-Резолвер из таблицы кодов: текст берётся по `code` (с `params`), иначе fallback на `message`, затем `code`.
-Для i18n валидаторы опускают `message` и несут `code`+`params`, а тексты — в таблице.
+Создаёт резолвер из таблицы кодов сообщений (точка i18n). Текст берётся по `error.code`
+с подстановкой `error.params`; если кода нет в таблице — fallback на `error.message`, затем
+на сам `error.code`. Позволяет валидаторам нести только `code`+`params`, а тексты (RU/EN/…)
+держать в таблице и менять без правки схемы валидации.
 
 **Signature:**
 ```typescript
 export function createMessageResolver(table: ValidationMessageTable): ValidationErrorResolver
 ```
 
-_Source: src/validation/error-resolver.tsx_
+**Parameters:**
+- `table` — - Таблица `code → (params) => message`.
+
+**Returns:** Резолвер {@link ValidationErrorResolver} для {@link ValidationMessagesProvider}.
+
+**Examples:**
+
+Таблица сообщений с подстановкой параметров
+```ts
+import { createMessageResolver } from '@reformer/cdk';
+
+const resolve = createMessageResolver({
+required: () => 'Обязательное поле',
+minLength: (p) => `Минимум ${p?.minLength} символов`,
+});
+
+resolve({ code: 'required', message: 'старое' });                        // → 'Обязательное поле'
+resolve({ code: 'minLength', message: '', params: { minLength: 3 } });   // → 'Минимум 3 символов'
+resolve({ code: 'pattern', message: 'Неверный формат' });               // → 'Неверный формат' (fallback)
+```
+
+**See also:**
+- {@link ValidationMessagesProvider} — как подключить резолвер к поддереву формы.
+
+_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 
 ### defaultErrorResolver
 
 **Kind:** `const`
 
-Дефолт: готовое сообщение, иначе код (обратная совместимость).
+Дефолтный резолвер: отдаёт `error.message`, а если оно пустое — `error.code`. Применяется, когда
+форма не обёрнута в {@link ValidationMessagesProvider}. Обеспечивает обратную совместимость:
+пока валидаторы несут готовые тексты в `message`, отображение не меняется.
 
 **Signature:**
 ```typescript
 export const defaultErrorResolver: ValidationErrorResolver
 ```
 
-_Source: src/validation/error-resolver.tsx_
+**Examples:**
+
+Прямое применение к ошибке
+```ts
+import { defaultErrorResolver } from '@reformer/cdk';
+
+defaultErrorResolver({ code: 'required', message: 'Обязательно' }); // → 'Обязательно'
+defaultErrorResolver({ code: 'required', message: '' });            // → 'required'
+```
+
+_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 
 ### FormArray
 
@@ -1039,18 +1181,58 @@ return (
 }
 ```
 
-_Source: src/components/form-array/FormArray.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArray.tsx_
 
 ### FormArrayAddButton
 
 **Kind:** `const`
+
+`FormArray.AddButton` — кнопка добавления нового элемента в массив.
+
+Рендерит `<button type="button">` (или произвольный элемент через `asChild`),
+по клику вызывает `add(initialValue)` из контекста {@link FormArrayContext},
+то есть `ArrayNode.push`. Должна находиться внутри `FormArray.Root` (или
+эквивалентного провайдера), иначе `useFormArrayContext` бросит исключение.
+
+Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий).
+Передавайте его явно, если нужна type-safe проверка `initialValue`:
+`<FormArray.AddButton<PropertyItem> initialValue={...}>`.
 
 **Signature:**
 ```typescript
 export const FormArrayAddButton
 ```
 
-_Source: src/components/form-array/FormArrayAddButton.tsx_
+**Examples:**
+
+Внутри compound-разметки FormArray
+```tsx
+<FormArray.Root control={form.properties}>
+<FormArray.List>
+{({ control }) => <PropertyForm control={control} />}
+</FormArray.List>
+
+<FormArray.AddButton className="btn-primary">
++ Добавить объект
+</FormArray.AddButton>
+</FormArray.Root>
+```
+
+С типизированным initialValue
+```tsx
+<FormArray.AddButton<Property> initialValue={{ type: 'apartment', estimatedValue: 0 }}>
++ Квартира
+</FormArray.AddButton>
+```
+
+Своя кнопка через asChild (props мержатся в дочерний элемент)
+```tsx
+<FormArray.AddButton asChild initialValue={{ name: '' }}>
+<MyButton variant="primary">+ Добавить</MyButton>
+</FormArray.AddButton>
+```
+
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayAddButton.tsx_
 
 ### FormArrayAddButtonProps
 
@@ -1069,14 +1251,14 @@ export interface FormArrayAddButtonProps<T extends object = FormFields> extends 
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
-  /** Initial value for the new item */
+  /** Начальное значение нового элемента (передаётся в `add()` → `ArrayNode.push`) */
   initialValue?: Partial<T>;
-  /** Custom render function for the button */
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
   asChild?: boolean;
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayContext
 
@@ -1101,7 +1283,7 @@ function MyConsumer() {
 }
 ```
 
-_Source: src/components/form-array/FormArrayContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayContextValue
 
@@ -1133,7 +1315,7 @@ export interface FormArrayContextValue<T extends object = FormFields> {
 }
 ```
 
-_Source: src/components/form-array/FormArrayContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayCount
 
@@ -1160,7 +1342,7 @@ count === 0 ? 'No items' : `${count} item${count > 1 ? 's' : ''}`
 )} />
 ```
 
-_Source: src/components/form-array/FormArrayCount.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayCount.tsx_
 
 ### FormArrayCountProps
 
@@ -1176,7 +1358,7 @@ export interface FormArrayCountProps {
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayEmpty
 
@@ -1208,7 +1390,7 @@ With call to action
 </FormArray.Empty>
 ```
 
-_Source: src/components/form-array/FormArrayEmpty.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayEmpty.tsx_
 
 ### FormArrayEmptyProps
 
@@ -1224,7 +1406,7 @@ export interface FormArrayEmptyProps {
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayHandle
 
@@ -1309,7 +1491,7 @@ arrayRef.current?.insert(0, row); // добавляем в начало
 }
 ```
 
-_Source: src/components/form-array/FormArray.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArray.tsx_
 
 ### FormArrayItem
 
@@ -1331,14 +1513,15 @@ export interface FormArrayItem<T extends object> {
 }
 ```
 
-_Source: src/components/form-array/useFormArray.ts_
+_Source: packages/reformer-cdk/src/components/form-array/useFormArray.ts_
 
 ### FormArrayItemContext
 
 **Kind:** `const`
 
 React context, видимый внутри `FormArray.List` для одного элемента массива.
-Содержит `index`, `path` и `remove()`. Читать через {@link useFormArrayItemContext}.
+Содержит `control`, `index`, `id`, `remove()` и хелперы реордера
+(`moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`). Читать через {@link useFormArrayItemContext}.
 
 **Signature:**
 ```typescript
@@ -1356,7 +1539,7 @@ function CurrentIndex() {
 }
 ```
 
-_Source: src/components/form-array/FormArrayContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayItemContextValue
 
@@ -1386,13 +1569,19 @@ export interface FormArrayItemContextValue<T extends object = FormFields> {
 }
 ```
 
-_Source: src/components/form-array/FormArrayContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayItemIndex
 
 **Kind:** `function`
 
-FormArray.ItemIndex - Displays the index of current item (must be inside FormArray.List)
+`FormArray.ItemIndex` — выводит номер текущего элемента (должен находиться
+внутри `FormArray.List` / item-шаблона; читает индекс из
+{@link FormArrayItemContext}).
+
+По умолчанию показывает 1-based номер (`index + 1`) — так удобнее для UI.
+Проп `render` получает исходный 0-based `index`, поэтому позволяет вывести
+любую форму (в т.ч. 0-based).
 
 **Signature:**
 ```typescript
@@ -1401,26 +1590,26 @@ export function FormArrayItemIndex({ render }: FormArrayItemIndexProps)
 
 **Examples:**
 
-Basic usage (1-based display)
+По умолчанию — 1-based (рендерит 1, 2, 3, …)
 ```tsx
 <FormArray.List>
 {() => (
-<h4>Item #<FormArray.ItemIndex render={(i) => i + 1} /></h4>
+<h4>Объект #<FormArray.ItemIndex /></h4>
 )}
 </FormArray.List>
 ```
 
-Zero-based index
+0-based индекс через render
 ```tsx
-<FormArray.ItemIndex /> // Renders 0, 1, 2, ...
+<FormArray.ItemIndex render={(index) => index} /> // рендерит 0, 1, 2, …
 ```
 
-Custom render
+Кастомный вывод
 ```tsx
-<FormArray.ItemIndex render={(index) => `Position: ${index + 1}`} />
+<FormArray.ItemIndex render={(index) => `Позиция: ${index + 1}`} />
 ```
 
-_Source: src/components/form-array/FormArrayItemIndex.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayItemIndex.tsx_
 
 ### FormArrayItemIndexProps
 
@@ -1436,7 +1625,7 @@ export interface FormArrayItemIndexProps {
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayItemRenderProps
 
@@ -1466,7 +1655,7 @@ export interface FormArrayItemRenderProps<T extends object> {
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayList
 
@@ -1505,7 +1694,7 @@ With custom container
 </FormArray.List>
 ```
 
-_Source: src/components/form-array/FormArrayList.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayList.tsx_
 
 ### FormArrayListProps
 
@@ -1525,7 +1714,7 @@ export interface FormArrayListProps<T extends object> {
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayRemoveButton
 
@@ -1561,7 +1750,7 @@ With custom button (asChild)
 </FormArray.RemoveButton>
 ```
 
-_Source: src/components/form-array/FormArrayRemoveButton.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayRemoveButton.tsx_
 
 ### FormArrayRemoveButtonProps
 
@@ -1575,12 +1764,12 @@ export interface FormArrayRemoveButtonProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
-  /** Custom render function for the button */
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children вместо `<button>`) */
   asChild?: boolean;
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormArrayRootProps
 
@@ -1598,7 +1787,7 @@ export interface FormArrayRootProps<T extends object> {
 }
 ```
 
-_Source: src/components/form-array/types.ts_
+_Source: packages/reformer-cdk/src/components/form-array/types.ts_
 
 ### FormField
 
@@ -1700,7 +1889,7 @@ Helper text
 }
 ```
 
-_Source: src/components/form-field/FormField.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormField.tsx_
 
 ### FormFieldContext
 
@@ -1726,7 +1915,7 @@ function CurrentValue() {
 }
 ```
 
-_Source: src/components/form-field/FormFieldContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldContext.tsx_
 
 ### FormFieldContextValue
 
@@ -1762,7 +1951,7 @@ export interface FormFieldContextValue<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormFieldControl
 
@@ -1806,7 +1995,7 @@ Custom children (same as asChild)
 </FormField.Control>
 ```
 
-_Source: src/components/form-field/FormFieldControl.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldControl.tsx_
 
 ### FormFieldControlProps
 
@@ -1833,7 +2022,7 @@ export interface FormFieldControlProps extends Omit<
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormFieldDescription
 
@@ -1872,7 +2061,7 @@ With custom element (asChild)
 </FormField.Description>
 ```
 
-_Source: src/components/form-field/FormFieldDescription.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldDescription.tsx_
 
 ### FormFieldDescriptionProps
 
@@ -1891,7 +2080,7 @@ export interface FormFieldDescriptionProps extends Omit<
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormFieldError
 
@@ -1937,7 +2126,7 @@ This field is required
 </FormField.Error>
 ```
 
-_Source: src/components/form-field/FormFieldError.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldError.tsx_
 
 ### FormFieldErrorProps
 
@@ -1968,7 +2157,7 @@ export interface FormFieldErrorProps extends Omit<
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormFieldIds
 
@@ -1990,7 +2179,7 @@ export interface FormFieldIds {
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormFieldLabel
 
@@ -2035,7 +2224,7 @@ With custom element (asChild)
 </FormField.Label>
 ```
 
-_Source: src/components/form-field/FormFieldLabel.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldLabel.tsx_
 
 ### FormFieldLabelProps
 
@@ -2065,7 +2254,7 @@ export interface FormFieldLabelProps extends Omit<
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormFieldRoot
 
@@ -2107,7 +2296,7 @@ With description (pass hasDescription to auto-wire aria-describedby)
 </FormField.Root>
 ```
 
-_Source: src/components/form-field/FormFieldRoot.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldRoot.tsx_
 
 ### FormFieldRootProps
 
@@ -2133,15 +2322,23 @@ export interface FormFieldRootProps<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: src/components/form-field/types.ts_
+_Source: packages/reformer-cdk/src/components/form-field/types.ts_
 
 ### FormWizard
 
 **Kind:** `const`
 
-Headless multi-step wizard. Compound-компонент: `FormWizard` + `FormWizard.Step`,
-`FormWizard.Actions`, `FormWizard.Indicator`, `FormWizard.Progress`,
-`FormWizard.Prev`, `FormWizard.Next`, `FormWizard.Submit`.
+Headless-мастер многошаговой формы. Compound-компонент: сам `FormWizard` держит состояние
+шага/навигации/валидации, а под-компоненты подключаются к нему через контекст:
+`FormWizard.Step` (рендер текущего шага), `FormWizard.Actions` (кнопки навигации),
+`FormWizard.Indicator` и `FormWizard.Progress` (headless render-props), а также готовые
+кнопки `FormWizard.Prev` / `FormWizard.Next` / `FormWizard.Submit`.
+
+Число шагов (`totalSteps`) выводится автоматически из количества `<FormWizard.Step>` в детях
+(в т.ч. вложенных в обёрточные `div`). Валидация шага и всей формы — через колбэки в
+{@link FormWizardConfig} (`validateStep` / `validateAll`), поэтому компонент не привязан к
+конкретному движку валидации. Для внешнего управления (submit/переход из шапки страницы)
+пробросьте `ref` типа {@link FormWizardHandle}.
 
 **Signature:**
 ```typescript
@@ -2150,27 +2347,58 @@ export const FormWizard
 
 **Examples:**
 
+Полный мастер с индикатором, действиями и прогрессом
 ```tsx
-import { FormWizard } from '@reformer/cdk/form-wizard';
+import { useMemo, useRef } from 'react';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
 
-<FormWizard form={form} steps={[{ name: 'profile' }, { name: 'review' }]}>
-  <FormWizard.Step name="profile"><ProfileFields /></FormWizard.Step>
-  <FormWizard.Step name="review"><Review /></FormWizard.Step>
-  <FormWizard.Actions>
-    {({ prev, next, submit, isLastStep }) => (
-      <div>
-        <button {...prev}>Prev</button>
-        {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
-      </div>
-    )}
-  </FormWizard.Actions>
+const STEPS = [
+{ number: 1, title: 'Личные данные' },
+{ number: 2, title: 'Проверка' },
+];
+
+function Page({ form, model }: Props) {
+const navRef = useRef<FormWizardHandle<Profile>>(null);
+// config: { validateStep, validateAll } — например, из makeValidationConfig(model)
+const config = useMemo(() => makeValidationConfig(model), [model]);
+
+return (
+<FormWizard ref={navRef} form={form} config={config}>
+<FormWizard.Indicator steps={STEPS}>
+{({ steps, goToStep }) => (
+ <nav>
+   {steps.map((s) => (
+     <button key={s.number} onClick={() => goToStep(s.number)} disabled={!s.canNavigate}>
+       {s.title}
+     </button>
+   ))}
+ </nav>
+)}
+</FormWizard.Indicator>
+
+<FormWizard.Step component={PersonalStep} control={form} />
+<FormWizard.Step component={ReviewStep} control={form} />
+
+<FormWizard.Actions onSubmit={() => navRef.current?.submit(api.save)}>
+<FormWizard.Prev>Назад</FormWizard.Prev>
+<FormWizard.Next>Далее</FormWizard.Next>
+<FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
+</FormWizard.Actions>
+
+<FormWizard.Progress>
+{({ current, total, percent }) => <span>Шаг {current}/{total} ({percent}%)</span>}
+</FormWizard.Progress>
 </FormWizard>
+);
+}
 ```
 
 **See also:**
+- {@link FormWizardHandle} — методы для внешнего управления через `ref`.
+- {@link FormWizardConfig} — колбэки валидации `validateStep` / `validateAll`.
 - [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
 
-_Source: src/components/form-wizard/FormWizard.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizard.tsx_
 
 ### FormWizardActions
 
@@ -2217,7 +2445,7 @@ Render-props mode
 </FormWizard.Actions>
 ```
 
-_Source: src/components/form-wizard/FormWizardActions.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardActionsProps
 
@@ -2239,7 +2467,7 @@ export interface FormWizardActionsProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardActions.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardActionsRenderProps
 
@@ -2267,7 +2495,7 @@ export interface FormWizardActionsRenderProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardActions.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardButtonProps
 
@@ -2285,7 +2513,7 @@ export interface FormWizardButtonProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardActions.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardConfig
 
@@ -2311,7 +2539,7 @@ export interface FormWizardConfig {
 }
 ```
 
-_Source: src/components/form-wizard/types.ts_
+_Source: packages/reformer-cdk/src/components/form-wizard/types.ts_
 
 ### FormWizardContext
 
@@ -2337,7 +2565,7 @@ function CurrentStep() {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardContext.tsx_
 
 ### FormWizardContextValue
 
@@ -2392,7 +2620,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardContext.tsx_
 
 ### FormWizardHandle
 
@@ -2492,7 +2720,7 @@ await navRef.current?.goToNextStep();
 };
 ```
 
-_Source: src/components/form-wizard/types.ts_
+_Source: packages/reformer-cdk/src/components/form-wizard/types.ts_
 
 ### FormWizardIndicator
 
@@ -2566,7 +2794,7 @@ With progress line
 </FormWizard.Indicator>
 ```
 
-_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorProps
 
@@ -2584,7 +2812,7 @@ export interface FormWizardIndicatorProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorRenderProps
 
@@ -2608,7 +2836,7 @@ export interface FormWizardIndicatorRenderProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorStep
 
@@ -2636,7 +2864,7 @@ export interface FormWizardIndicatorStep {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorStepWithState
 
@@ -2656,7 +2884,7 @@ export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorSte
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardProgress
 
@@ -2722,7 +2950,7 @@ Circular progress
 </FormWizard.Progress>
 ```
 
-_Source: src/components/form-wizard/FormWizardProgress.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardProgress.tsx_
 
 ### FormWizardProgressProps
 
@@ -2738,7 +2966,7 @@ export interface FormWizardProgressProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardProgress.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardProgress.tsx_
 
 ### FormWizardProgressRenderProps
 
@@ -2764,7 +2992,7 @@ export interface FormWizardProgressRenderProps {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardProgress.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardProgress.tsx_
 
 ### FormWizardProps
 
@@ -2792,7 +3020,7 @@ export interface FormWizardProps<T extends Record<string, any>> {
 }
 ```
 
-_Source: src/components/form-wizard/types.ts_
+_Source: packages/reformer-cdk/src/components/form-wizard/types.ts_
 
 ### FormWizardStep
 
@@ -2833,7 +3061,7 @@ Children-based (new)
 </FormWizard>
 ```
 
-_Source: src/components/form-wizard/FormWizardStep.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardStep.tsx_
 
 ### FormWizardStepProps
 
@@ -2862,7 +3090,7 @@ export interface FormWizardStepProps<T extends Record<string, any>> {
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardStep.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardStep.tsx_
 
 ### FormWizardSubmitProps
 
@@ -2887,7 +3115,7 @@ export interface FormWizardSubmitProps extends Omit<
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardSubmit.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardSubmit.tsx_
 
 ### useFormArray
 
@@ -2962,7 +3190,7 @@ return (
 }
 ```
 
-_Source: src/components/form-array/useFormArray.ts_
+_Source: packages/reformer-cdk/src/components/form-array/useFormArray.ts_
 
 ### useFormArrayContext
 
@@ -3003,7 +3231,7 @@ return <span className="badge">{length}</span>;
 }
 ```
 
-_Source: src/components/form-array/FormArrayContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
 
 ### useFormArrayItemContext
 
@@ -3018,7 +3246,8 @@ export function useFormArrayItemContext<
 >(): FormArrayItemContextValue<T>
 ```
 
-**Returns:** Текущий {@link FormArrayItemContextValue} (`index`, `path`, `remove`).
+**Returns:** Текущий {@link FormArrayItemContextValue} (`control`, `index`, `id`, `remove`,
+`moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`).
 
 **Examples:**
 
@@ -3045,7 +3274,7 @@ return (
 }
 ```
 
-_Source: src/components/form-array/FormArrayContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
 
 ### UseFormArrayReturn
 
@@ -3075,7 +3304,7 @@ export interface UseFormArrayReturn<T extends object> {
 }
 ```
 
-_Source: src/components/form-array/useFormArray.ts_
+_Source: packages/reformer-cdk/src/components/form-array/useFormArray.ts_
 
 ### useFormField
 
@@ -3127,7 +3356,7 @@ state.shouldShowError ? ids.errorId : null,
 };
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### useFormFieldContext
 
@@ -3175,7 +3404,7 @@ return null;
 </FormField.Root>
 ```
 
-_Source: src/components/form-field/FormFieldContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-field/FormFieldContext.tsx_
 
 ### UseFormFieldControlProps
 
@@ -3198,7 +3427,7 @@ export interface UseFormFieldControlProps {
 }
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### UseFormFieldDescriptionProps
 
@@ -3213,7 +3442,7 @@ export interface UseFormFieldDescriptionProps {
 }
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### UseFormFieldErrorProps
 
@@ -3229,7 +3458,7 @@ export interface UseFormFieldErrorProps {
 }
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### UseFormFieldLabelProps
 
@@ -3245,7 +3474,7 @@ export interface UseFormFieldLabelProps {
 }
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### UseFormFieldReturn
 
@@ -3278,7 +3507,7 @@ export interface UseFormFieldReturn<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### UseFormFieldState
 
@@ -3306,7 +3535,7 @@ export interface UseFormFieldState<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: src/components/form-field/useFormField.ts_
+_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
 
 ### useFormWizard
 
@@ -3354,20 +3583,39 @@ return (
 }
 ```
 
-_Source: src/components/form-wizard/FormWizardContext.tsx_
+_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardContext.tsx_
 
 ### useValidationErrorResolver
 
 **Kind:** `function`
 
-Текущий резолвер из контекста (дефолтный, если провайдера нет).
+Возвращает текущий резолвер сообщений из контекста. Если форма не обёрнута в
+{@link ValidationMessagesProvider}, вернётся {@link defaultErrorResolver}. Используется
+внутри `useFormField` для преобразования {@link ValidationError} в отображаемую строку;
+вызывайте напрямую, если строите собственный рендер ошибок.
 
 **Signature:**
 ```typescript
 export function useValidationErrorResolver(): ValidationErrorResolver
 ```
 
-_Source: src/validation/error-resolver.tsx_
+**Returns:** Активный {@link ValidationErrorResolver} (или дефолтный, если провайдера нет).
+
+**Examples:**
+
+Кастомный рендер ошибок с активным резолвером
+```tsx
+import { useValidationErrorResolver } from '@reformer/cdk';
+import { useFormControl } from '@reformer/core';
+
+function FieldErrors({ control }: { control: FieldNode<string> }) {
+const resolve = useValidationErrorResolver();
+const { errors } = useFormControl(control);
+return <>{errors.map((e) => <span key={e.code}>{resolve(e)}</span>)}</>;
+}
+```
+
+_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 
 ### ValidationErrorResolver
 
@@ -3380,13 +3628,15 @@ _Source: src/validation/error-resolver.tsx_
 export type ValidationErrorResolver = (error: ValidationError) => string;
 ```
 
-_Source: src/validation/error-resolver.tsx_
+_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 
 ### ValidationMessagesProvider
 
 **Kind:** `function`
 
-Провайдер резолвера сообщений валидации (i18n) для поддерева формы.
+Провайдер резолвера сообщений валидации (i18n) для поддерева формы. Все `useFormField` внутри
+начинают отображать не `error.message`, а результат переданного `resolver`. Оберните форму
+резолвером из {@link createMessageResolver}, чтобы включить локализацию по кодам ошибок.
 
 **Signature:**
 ```typescript
@@ -3396,7 +3646,28 @@ export function ValidationMessagesProvider(props: {
 }): ReactNode
 ```
 
-_Source: src/validation/error-resolver.tsx_
+**Examples:**
+
+Локализация всей формы через таблицу сообщений
+```tsx
+import { ValidationMessagesProvider, createMessageResolver } from '@reformer/cdk';
+
+const ru = createMessageResolver({
+required: () => 'Обязательное поле',
+email: () => 'Введите корректный email',
+minLength: (p) => `Минимум ${p?.minLength} символов`,
+});
+
+<ValidationMessagesProvider resolver={ru}>
+<MyForm />
+</ValidationMessagesProvider>
+```
+
+**See also:**
+- {@link createMessageResolver} — построение резолвера из таблицы кодов.
+- {@link useValidationErrorResolver} — чтение текущего резолвера из контекста.
+
+_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 
 ### ValidationMessageTable
 
@@ -3409,4 +3680,4 @@ _Source: src/validation/error-resolver.tsx_
 export type ValidationMessageTable = Record<string, (params?: Record<string, unknown>) => string>;
 ```
 
-_Source: src/validation/error-resolver.tsx_
+_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_

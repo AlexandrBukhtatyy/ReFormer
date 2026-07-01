@@ -41,20 +41,33 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
 
-## Шаг без `stepValidations[N]` пропускается без проверки
+## Шаг без валидации пропускается без проверки
 
-**Причина.** `validateCurrentStep` сначала смотрит `config.stepValidations[currentStep]`. Если схемы нет — выводит `console.warn` и возвращает `true` (шаг считается валидным).
-
-**Решение.** Добавьте схему для каждого шага в `stepValidations`. Если шаг чисто информационный (например, «Подтверждение»), используйте схему-no-op: `() => ({})` (или импортируйте noop-validation из вашего набора).
+**Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
 
 ```typescript
-const config: FormWizardConfig<MyForm> = {
-  stepValidations: {
-    1: amountSchema,
-    2: personalSchema,
-    3: () => ({}), // подтверждение, нет полей для валидации
+interface FormWizardConfig {
+  validateStep?: (step: number) => boolean | Promise<boolean>;
+  validateAll?: () => boolean | Promise<boolean>;
+}
+```
+
+**Решение.** Задайте `validateStep`, который сам роутит по номеру шага в нужную схему. Для чисто информационного шага (например, «Подтверждение») верните `true`.
+
+```typescript
+const stepSchemas = [amountSchema, personalSchema, confirmationSchema];
+
+const config: FormWizardConfig = {
+  validateStep: async (step) => {
+    const schema = stepSchemas[step - 1];
+    if (!schema) return true; // нет схемы для шага — считаем валидным
+    const res = await validateFormModel(model, schema);
+    return Object.keys(res.errors).length === 0;
   },
-  fullValidation: fullSchema,
+  validateAll: async () => {
+    const res = await validateFormModel(model, fullSchema);
+    return Object.keys(res.errors).length === 0;
+  },
 };
 ```
 
@@ -109,9 +122,9 @@ const handleSubmit = async () => {
 
 ## Multi-step submit срабатывает раньше валидации последнего шага
 
-**Причина.** `FormWizard.Actions` диспатчит `submit` сразу при `onClick`. Если пользователь нажал Submit, не пройдя валидацию последнего шага через Next, `goToNextStep` не вызывался — но `submit` всё равно запустит `config.fullValidation` поверх всей формы. Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно где именно проблема.
+**Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
 
-**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Или используйте `FormWizard.Actions`-render, где `submit.disabled === true` пока поля не валидны (Actions сам отключает кнопку при `isValidating`).
+**Решение.** В кастомном submit-обработчике сначала вызывайте `validateCurrentStep`, затем `submit`. Кнопка `submit` в render-props отключается (`submit.disabled === true`) только на время `isValidating`/`isSubmitting`, поэтому явная проверка шага полезна.
 
 ```tsx
 const handleSubmit = async () => {
@@ -141,11 +154,11 @@ const handleSubmit = async () => {
 
 Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
 
-## `FormWizard` показывает «No validation schema for step N» в консоли
+## `FormWizard` показывает «No validateStep callback configured for step N» в консоли
 
-**Причина.** `validateCurrentStep` warn'ит, если `config.stepValidations[currentStep]` отсутствует.
+**Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
 
-**Решение.** Добавьте schema для шага N или, если шаг намеренно без валидации, передайте noop: `[N]: () => ({})`.
+**Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
 
 ## Ref `FormArrayHandle.length` / `isEmpty` не обновляется
 

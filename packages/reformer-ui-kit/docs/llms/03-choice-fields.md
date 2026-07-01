@@ -56,12 +56,16 @@ import { Checkbox } from '@reformer/ui-kit';
 label сверху):
 
 ```tsx
-import { createForm, type FormSchema } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { Checkbox, FormField } from '@reformer/ui-kit';
 
-const form = createForm<FormSchema<{ accept: boolean }>>({
-  accept: { component: Checkbox, value: false, componentProps: { label: 'Принять' } },
-});
+const model = createModel<{ accept: boolean }>({ accept: false });
+const schema = {
+  children: [
+    { value: model.$.accept, component: Checkbox, componentProps: { label: 'Принять' } },
+  ],
+};
+const form = createForm<{ accept: boolean }>({ model, schema });
 
 <FormField control={form.accept} testId="accept" />;
 ```
@@ -137,13 +141,19 @@ const LOAN_TYPES = [
 В составе формы:
 
 ```tsx
-const form = createForm<FormSchema<{ loanType: string }>>({
-  loanType: {
-    component: RadioGroup,
-    value: 'consumer',
-    componentProps: { options: LOAN_TYPES },
-  },
-});
+import { createModel, createForm } from '@reformer/core';
+
+const model = createModel<{ loanType: string }>({ loanType: 'consumer' });
+const schema = {
+  children: [
+    {
+      value: model.$.loanType,
+      component: RadioGroup,
+      componentProps: { options: LOAN_TYPES },
+    },
+  ],
+};
+const form = createForm<{ loanType: string }>({ model, schema });
 
 <FormField control={form.loanType} testId="loan-type" />;
 ```
@@ -290,18 +300,25 @@ Grouped options:
 В составе формы:
 
 ```tsx
-const form = createForm<FormSchema<{ city: string }>>({
-  city: {
-    component: Select,
-    componentProps: {
-      placeholder: 'Город',
-      options: [
-        { value: 'msk', label: 'Москва' },
-        { value: 'spb', label: 'Санкт-Петербург' },
-      ],
+import { createModel, createForm } from '@reformer/core';
+
+const model = createModel<{ city: string }>({ city: '' });
+const schema = {
+  children: [
+    {
+      value: model.$.city,
+      component: Select,
+      componentProps: {
+        placeholder: 'Город',
+        options: [
+          { value: 'msk', label: 'Москва' },
+          { value: 'spb', label: 'Санкт-Петербург' },
+        ],
+      },
     },
-  },
-});
+  ],
+};
+const form = createForm<{ city: string }>({ model, schema });
 
 <FormField control={form.city} testId="city" />;
 ```
@@ -325,4 +342,4 @@ const form = createForm<FormSchema<{ city: string }>>({
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
-- Эталон: `credit-application-schema.ts` (monorepo example) — большой пример с `Select` и `Checkbox` в реальной форме.
+- Эталон: `examples/complex-multy-step-form/schemas/schema.ts` (monorepo example) — большой пример с `Select` и `Checkbox` в реальной форме.

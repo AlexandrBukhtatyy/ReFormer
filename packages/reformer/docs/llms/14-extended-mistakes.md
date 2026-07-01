@@ -1,118 +1,81 @@
 ## 13. EXTENDED COMMON MISTAKES
 
-### Behavior Composition (Cycle Error)
+### Reuse via apply / applyEach — не дублируй код
 
 ```typescript
-// WRONG - apply() in behavior causes "Cycle detected"
-const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
-  apply(addressBehavior, path.address); // WILL FAIL!
-};
+import { defineFormBehavior, apply, applyEach, compute } from '@reformer/core/behaviors';
 
-// CORRECT - inline or use setup function
-const setupAddressBehavior = (path: FieldPath<Address>) => {
-  watchField(
-    path.region,
-    async (region, ctx) => {
-      // ...
-    },
-    { immediate: false }
+// ✅ apply — одна под-схема на несколько групп
+const addressBehavior = defineFormBehavior<Address>(({ model }) => {
+  compute(model.$.full, () => `${model.city}, ${model.street}`);
+});
+
+const behavior = defineFormBehavior<Form>(({ model }) => {
+  apply([model.$.homeAddress, model.$.workAddress], addressBehavior);
+
+  // ✅ applyEach — под-схема на КАЖДЫЙ элемент массива (реагирует на add/remove)
+  applyEach(
+    model.$.items,
+    defineFormBehavior<Item>(({ model: row }) => {
+      compute(row.$.lineTotal, () => row.qty * row.price);
+    })
   );
+});
+```
+
+### Идемпотентность transformValue
+
+```typescript
+// ❌ неидемпотентный transformer — бесконечный цикл setValue → callback → setValue
+transformValue(model.$.field, (v) => `prefix-${v}`); // f(f(x)) ≠ f(x)
+
+// ✅ guard «уже преобразовано»
+transformValue(model.$.field, (v) => (v?.startsWith('prefix-') ? v : `prefix-${v}`));
+```
+
+### compute для производных полей вместо ручной синхронизации
+
+```typescript
+// ❌ ручной onChange + запись — легко зациклить/забыть кейс
+onChange(model.$.firstName, () => { model.fullName = `${model.firstName} ${model.lastName}`; });
+
+// ✅ compute: цель не входит в источники → цикла нет, запись идемпотентна (peek-guard)
+compute(model.$.fullName, () => [model.firstName, model.lastName].filter(Boolean).join(' '));
+```
+
+### Расходящийся цикл compute (Cycle detected)
+
+Взаимные `compute`/`computeFrom` без стабилизации preact обрывает как «Cycle detected».
+DSL перехватывает это и бросает понятную ошибку с именем поля. Решение — разорвать цикл
+условием `when` или читать одну сторону через `peek()`:
+
+```typescript
+// ❌ взаимный пересчёт без стабилизации
+compute(model.$.a, () => model.b + 1);
+compute(model.$.b, () => model.a + 1); // расходится → Cycle detected
+
+// ✅ добавь стабилизирующее условие или однонаправленную зависимость
+compute(model.$.total, () => model.price * model.qty); // одно направление
+```
+
+### Cross-field валидация — через `root`
+
+```typescript
+import type { ModelValidator } from '@reformer/core';
+
+// Правило вешается на ПОЛЕ-НОСИТЕЛЬ ошибки. Соседние поля читаются через root.
+const field1LessThanField2: ModelValidator<number, unknown, Form> = (_value, _scope, root) =>
+  root.field1 > root.field2 ? { code: 'error', message: 'Invalid' } : null;
+
+const schema = {
+  field1: { value: model.$.field1, component: Input, validators: [field1LessThanField2] },
 };
 
-const mainBehavior: BehaviorSchemaFn<Form> = (path) => {
-  setupAddressBehavior(path.address); // Works!
-};
+// Чтобы правило перезапускалось при изменении field2:
+import { revalidateWhen } from '@reformer/core';
+revalidateWhen([model.$.field2], () => validateFormModel(model, schema));
 ```
 
-### Infinite Loop in watchField
-
-```typescript
-// WRONG - causes infinite loop
-watchField(path.field, (value, ctx) => {
-  ctx.form.field.setValue(value.toUpperCase()); // Loop!
-});
-
-// CORRECT - write to different field OR add guard
-watchField(
-  path.input,
-  (value, ctx) => {
-    const upper = value?.toUpperCase() || '';
-    if (ctx.form.display.value.value !== upper) {
-      ctx.form.display.setValue(upper);
-    }
-  },
-  { immediate: false }
-);
-```
-
-### Multiple Watchers on Same Field (Cycle Error)
-
-```typescript
-// WRONG - multiple watchers on insuranceType + missing { immediate: false }
-watchField(path.insuranceType, (_, ctx) => {
-  ctx.form.vehicle.vin.disable();
-  ctx.form.vehicle.vin.setValue('');
-}); // NO OPTIONS - BAD!
-watchField(path.insuranceType, (_, ctx) => {
-  ctx.form.property.type.disable(); // CYCLE!
-}); // NO OPTIONS - BAD!
-
-// CORRECT - consolidate into ONE watcher with guards AND { immediate: false }
-watchField(
-  path.insuranceType,
-  (_, ctx) => {
-    const type = ctx.form.insuranceType.value.value;
-    const isVehicle = type === 'casco';
-
-    // Guard: only disable if not already disabled
-    if (!isVehicle && !ctx.form.vehicle.vin.disabled.value) {
-      ctx.form.vehicle.vin.disable();
-    }
-    // Guard: only setValue if value differs
-    if (!isVehicle && ctx.form.vehicle.vin.getValue() !== '') {
-      ctx.form.vehicle.vin.setValue('');
-    }
-    // Arrays: compare by length, not reference
-    if (!isVehicle) {
-      const drivers = ctx.form.drivers.getValue();
-      if (Array.isArray(drivers) && drivers.length > 0) {
-        ctx.form.drivers.setValue([]);
-      }
-    }
-  },
-  { immediate: false }
-); // REQUIRED!
-
-// BEST - use enableWhen instead of watchField
-enableWhen(path.vehicle.vin, (form) => form.insuranceType === 'casco', { resetOnDisable: true });
-```
-
-See `22-cycle-detection.md` for complete pattern.
-
-### Cross-field валидация — через `validate` + `root`
-
-```typescript
-// Validator signature: (value, control, root) => ValidationError | null
-// Cross-field правило вешается на ПОЛЕ-НОСИТЕЛЬ ошибки. Соседние поля читаются через `root`.
-
-// CORRECT — ошибка ложится на path.field1
-validate(path.field1, (_value, _control, root) => {
-  const form = root.getValue();         // typed as TForm
-  if (form.field1 > form.field2) {
-    return { code: 'error', message: 'Invalid' };
-  }
-  return null;
-});
-
-// CORRECT — те же поля через reactive-доступ
-validate(path.address.city, (value, _control, root) => {
-  if (!value && root.address.region.value.value) {
-    return { code: 'cityRequired', message: 'City required when region is set' };
-  }
-  return null;
-});
-
-// WRONG - old API removed
-validateGroup(scopePath, (scope, root) => { ... });  // validateGroup убран
-validateTree((ctx) => { ... });                       // validateTree no longer exists
-```
+> **Удалённый API.** Операторы `validate`/`validateAsync`/`applyWhen`/`apply` (валидации),
+> `validateGroup`/`validateTree`/`validateForm`, типы `FieldPath`/`ValidationSchemaFn`/`BehaviorSchemaFn`
+> и `ctx.form.*`/`ctx.setFieldValue` — из старой path-based архитектуры и УДАЛЕНЫ. См. `17-nonexistent-api.md`.

@@ -1,50 +1,49 @@
 ## 12. MULTI-STEP FORM VALIDATION
 
+Каждый шаг — своя под-схема валидации (дерево узлов `{ children: [...] }`). Переход к
+следующему шагу проверяется `validateFormModel(model, stepSchema)`; полный submit — по
+общей схеме (объединение шагов). `validateFormModel` роутит ошибки в ноды формы, поэтому
+UI подсветит проблемные поля текущего шага автоматически.
+
 ```typescript
-// Step-specific validation schemas
-const step1Validation: ValidationSchemaFn<Form> = (path) => {
-  required(path.loanType);
-  required(path.loanAmount);
-};
+import { validateFormModel, type FormModel } from '@reformer/core';
+import { required, min } from '@reformer/core/validators';
 
-const step2Validation: ValidationSchemaFn<Form> = (path) => {
-  required(path.personalData.firstName);
-  required(path.personalData.lastName);
-};
+// Под-схема шага: дерево field-узлов { value, validators }
+const step1Schema = (m: FormModel<Form>) => ({
+  children: [
+    { value: m.$.loanType, validators: [required()] },
+    { value: m.$.loanAmount, validators: [required(), min(50000)] },
+  ],
+});
 
-// STEP_VALIDATIONS map for useStepForm hook
-export const STEP_VALIDATIONS = {
-  1: step1Validation,
-  2: step2Validation,
-};
+const step2Schema = (m: FormModel<Form>) => ({
+  children: [
+    { value: m.$.personalData.firstName, validators: [required()] },
+    { value: m.$.personalData.lastName, validators: [required()] },
+  ],
+});
 
-// Full validation (combines all steps)
-export const fullValidation: ValidationSchemaFn<Form> = (path) => {
-  step1Validation(path);
-  step2Validation(path);
-};
+// Карта шагов + полная схема (объединение)
+const STEP_SCHEMAS = [step1Schema, step2Schema];
+const fullSchema = (m: FormModel<Form>) => ({
+  children: STEP_SCHEMAS.map((build) => build(m)),
+});
+```
 
-// Using validateForm() for step validation
-import { validateForm } from '@reformer/core';
-
+```typescript
+// Переход к следующему шагу
 const goToNextStep = async () => {
-  const currentValidation = STEP_VALIDATIONS[currentStep];
-  const isValid = await validateForm(form, currentValidation);
-
-  if (!isValid) {
-    form.markAsTouched(); // Show errors on current step fields
-    return;
-  }
-
+  const result = await validateFormModel(model, STEP_SCHEMAS[currentStep - 1](model));
+  if (!result.valid) return; // ошибки уже проставлены в ноды текущего шага
   setCurrentStep(currentStep + 1);
 };
 
-// Full form submit with all validations
+// Полный submit
 const handleSubmit = async () => {
-  const isValid = await validateForm(form, fullValidation);
-
-  if (isValid) {
-    await form.submit(onSubmit);
+  const result = await validateFormModel(model, fullSchema(model));
+  if (result.valid) {
+    await onSubmit(model.get());
   }
 };
 ```
@@ -56,12 +55,8 @@ function MultiStepForm() {
   const [step, setStep] = useState(1);
 
   const nextStep = async () => {
-    const validation = STEP_VALIDATIONS[step];
-    if (await validateForm(form, validation)) {
-      setStep(step + 1);
-    } else {
-      form.markAsTouched();
-    }
+    const result = await validateFormModel(model, STEP_SCHEMAS[step - 1](model));
+    if (result.valid) setStep(step + 1);
   };
 
   return (
@@ -79,3 +74,7 @@ function MultiStepForm() {
   );
 }
 ```
+
+> В монорепо `FormWizard` из `@reformer/ui-kit` принимает колбэки `{ validateStep, validateAll }`,
+> собранные фабрикой `makeCreditValidationConfig(model)` поверх `validateFormModel`. См.
+> `complex-multy-step-form/schemas/validation.ts`.

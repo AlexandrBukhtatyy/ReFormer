@@ -87,7 +87,8 @@ export const FormArrayContext = createContext<FormArrayContextValue<any> | null>
 
 /**
  * React context, видимый внутри `FormArray.List` для одного элемента массива.
- * Содержит `index`, `path` и `remove()`. Читать через {@link useFormArrayItemContext}.
+ * Содержит `control`, `index`, `id`, `remove()` и хелперы реордера
+ * (`moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`). Читать через {@link useFormArrayItemContext}.
  *
  * @example
  * ```tsx
@@ -145,7 +146,8 @@ export function useFormArrayContext<T extends object = FormFields>(): FormArrayC
 /**
  * Хук для доступа к контексту текущего элемента внутри `FormArray.List`.
  *
- * @returns Текущий {@link FormArrayItemContextValue} (`index`, `path`, `remove`).
+ * @returns Текущий {@link FormArrayItemContextValue} (`control`, `index`, `id`, `remove`,
+ *   `moveUp`/`moveDown`, `canMoveUp`/`canMoveDown`).
  * @throws Error если используется вне `FormArray.List` или item-шаблона.
  *
  * @example Кнопка удаления текущего элемента

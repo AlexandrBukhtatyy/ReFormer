@@ -38,8 +38,8 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 
 **Notes.**
 
-- Wrapper вызывается на каждое FieldRenderNode. Если поле — Checkbox, обычно label рендерится внутри input (см. ветку `isCheckbox` в `@reformer/ui-kit/FormField`); своему wrapper'у проверку нужно добавить вручную, иначе будет двойной label.
-- Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (см. `FieldRenderNodeProps.fieldWrapper`).
+- Wrapper вызывается на каждое поле (`ModelFieldRenderNode`). Если поле — Checkbox, обычно label рендерится внутри input (см. ветку `isCheckbox` в `@reformer/ui-kit/FormField`); своему wrapper'у проверку нужно добавить вручную, иначе будет двойной label.
+- Для конкретного поля можно перекрыть глобальный wrapper через `componentProps.fieldWrapper` (поле типа `ComponentType<FieldWrapperProps>` в `ModelFieldRenderNode.componentProps`).
 - Не оборачивай wrapper в `React.memo` без сравнения по `control` и `children` — иначе DOM будет «застревать» на старом инпуте.
 
 ## Programmatic node manipulation
@@ -51,14 +51,15 @@ function MyFieldWrapper({ control, className, children, testId }: FieldWrapperPr
 ```tsx
 import { useEffect, useMemo } from 'react';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+import { Section, Input } from '@reformer/ui-kit';
 
 function CreditApplicationPage() {
   const schema = useMemo(
     () =>
-      createRenderSchema<CreditForm>((path) => ({
+      createRenderSchema<CreditForm>(() => ({
         selector: 'mortgage-section',
         component: Section,
-        children: [{ component: path.propertyValue }],
+        children: [{ value: model.$.propertyValue, component: Input }],
       })),
     []
   );
@@ -121,12 +122,15 @@ export function CollapsibleSection({
   );
 }
 
-// В RenderSchema:
+// В RenderSchema (children — top-level; листья на сигналах модели):
 {
   selector: 'extras',
   component: CollapsibleSection,
   componentProps: { title: 'Дополнительно', defaultOpen: false },
-  children: [{ component: path.notes }, { component: path.tags }],
+  children: [
+    { value: model.$.notes, component: Textarea },
+    { value: model.$.tags, component: Input },
+  ],
 }
 ```
 
@@ -151,8 +155,10 @@ import {
   type RenderBehaviorFn,
 } from '@reformer/renderer-react';
 
+// form захвачен в замыкание фабрики поведения; ref — из schema.node('wizard').getRef().
 const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
   const wizard = schema.node('wizard');
+  const wizardRef = wizard.getRef<FormWizardHandle<CreditForm>>();
   const mortgage = schema.node('mortgage-section');
 
   // 1. Реактивное условие — пересчитывается при изменении сигналов формы.

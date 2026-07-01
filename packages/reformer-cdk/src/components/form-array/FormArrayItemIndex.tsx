@@ -2,25 +2,31 @@ import { useFormArrayItemContext } from './FormArrayContext';
 import type { FormArrayItemIndexProps } from './types';
 
 /**
- * FormArray.ItemIndex - Displays the index of current item (must be inside FormArray.List)
+ * `FormArray.ItemIndex` — выводит номер текущего элемента (должен находиться
+ * внутри `FormArray.List` / item-шаблона; читает индекс из
+ * {@link FormArrayItemContext}).
  *
- * @example Basic usage (1-based display)
+ * По умолчанию показывает 1-based номер (`index + 1`) — так удобнее для UI.
+ * Проп `render` получает исходный 0-based `index`, поэтому позволяет вывести
+ * любую форму (в т.ч. 0-based).
+ *
+ * @example По умолчанию — 1-based (рендерит 1, 2, 3, …)
  * ```tsx
  * <FormArray.List>
  *   {() => (
- *     <h4>Item #<FormArray.ItemIndex render={(i) => i + 1} /></h4>
+ *     <h4>Объект #<FormArray.ItemIndex /></h4>
  *   )}
  * </FormArray.List>
  * ```
  *
- * @example Zero-based index
+ * @example 0-based индекс через render
  * ```tsx
- * <FormArray.ItemIndex /> // Renders 0, 1, 2, ...
+ * <FormArray.ItemIndex render={(index) => index} /> // рендерит 0, 1, 2, …
  * ```
  *
- * @example Custom render
+ * @example Кастомный вывод
  * ```tsx
- * <FormArray.ItemIndex render={(index) => `Position: ${index + 1}`} />
+ * <FormArray.ItemIndex render={(index) => `Позиция: ${index + 1}`} />
  * ```
  */
 export function FormArrayItemIndex({ render }: FormArrayItemIndexProps) {

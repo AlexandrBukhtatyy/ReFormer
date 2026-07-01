@@ -15,8 +15,8 @@
  *   component: Step,
  *   componentProps: { title: 'Личные данные', icon: '👤' },
  *   children: [
- *     { component: path.firstName },
- *     { component: path.lastName },
+ *     { value: model.$.firstName, component: Input },
+ *     { value: model.$.lastName, component: Input },
  *   ],
  * }
  * ```

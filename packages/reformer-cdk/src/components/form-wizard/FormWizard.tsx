@@ -359,28 +359,68 @@ type FormWizardComponent = typeof FormWizardBase & {
 };
 
 /**
- * Headless multi-step wizard. Compound-компонент: `FormWizard` + `FormWizard.Step`,
- * `FormWizard.Actions`, `FormWizard.Indicator`, `FormWizard.Progress`,
- * `FormWizard.Prev`, `FormWizard.Next`, `FormWizard.Submit`.
+ * Headless-мастер многошаговой формы. Compound-компонент: сам `FormWizard` держит состояние
+ * шага/навигации/валидации, а под-компоненты подключаются к нему через контекст:
+ * `FormWizard.Step` (рендер текущего шага), `FormWizard.Actions` (кнопки навигации),
+ * `FormWizard.Indicator` и `FormWizard.Progress` (headless render-props), а также готовые
+ * кнопки `FormWizard.Prev` / `FormWizard.Next` / `FormWizard.Submit`.
  *
- * @example
+ * Число шагов (`totalSteps`) выводится автоматически из количества `<FormWizard.Step>` в детях
+ * (в т.ч. вложенных в обёрточные `div`). Валидация шага и всей формы — через колбэки в
+ * {@link FormWizardConfig} (`validateStep` / `validateAll`), поэтому компонент не привязан к
+ * конкретному движку валидации. Для внешнего управления (submit/переход из шапки страницы)
+ * пробросьте `ref` типа {@link FormWizardHandle}.
+ *
+ * @typeParam T - Тип значения корневой формы (`FormProxy<T>`).
+ *
+ * @example Полный мастер с индикатором, действиями и прогрессом
  * ```tsx
- * import { FormWizard } from '@reformer/cdk/form-wizard';
+ * import { useMemo, useRef } from 'react';
+ * import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
  *
- * <FormWizard form={form} steps={[{ name: 'profile' }, { name: 'review' }]}>
- *   <FormWizard.Step name="profile"><ProfileFields /></FormWizard.Step>
- *   <FormWizard.Step name="review"><Review /></FormWizard.Step>
- *   <FormWizard.Actions>
- *     {({ prev, next, submit, isLastStep }) => (
- *       <div>
- *         <button {...prev}>Prev</button>
- *         {isLastStep ? <button {...submit}>Submit</button> : <button {...next}>Next</button>}
- *       </div>
- *     )}
- *   </FormWizard.Actions>
- * </FormWizard>
+ * const STEPS = [
+ *   { number: 1, title: 'Личные данные' },
+ *   { number: 2, title: 'Проверка' },
+ * ];
+ *
+ * function Page({ form, model }: Props) {
+ *   const navRef = useRef<FormWizardHandle<Profile>>(null);
+ *   // config: { validateStep, validateAll } — например, из makeValidationConfig(model)
+ *   const config = useMemo(() => makeValidationConfig(model), [model]);
+ *
+ *   return (
+ *     <FormWizard ref={navRef} form={form} config={config}>
+ *       <FormWizard.Indicator steps={STEPS}>
+ *         {({ steps, goToStep }) => (
+ *           <nav>
+ *             {steps.map((s) => (
+ *               <button key={s.number} onClick={() => goToStep(s.number)} disabled={!s.canNavigate}>
+ *                 {s.title}
+ *               </button>
+ *             ))}
+ *           </nav>
+ *         )}
+ *       </FormWizard.Indicator>
+ *
+ *       <FormWizard.Step component={PersonalStep} control={form} />
+ *       <FormWizard.Step component={ReviewStep} control={form} />
+ *
+ *       <FormWizard.Actions onSubmit={() => navRef.current?.submit(api.save)}>
+ *         <FormWizard.Prev>Назад</FormWizard.Prev>
+ *         <FormWizard.Next>Далее</FormWizard.Next>
+ *         <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
+ *       </FormWizard.Actions>
+ *
+ *       <FormWizard.Progress>
+ *         {({ current, total, percent }) => <span>Шаг {current}/{total} ({percent}%)</span>}
+ *       </FormWizard.Progress>
+ *     </FormWizard>
+ *   );
+ * }
  * ```
  *
+ * @see {@link FormWizardHandle} — методы для внешнего управления через `ref`.
+ * @see {@link FormWizardConfig} — колбэки валидации `validateStep` / `validateAll`.
  * @see [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
  */
 export const FormWizard = FormWizardBase as FormWizardComponent;

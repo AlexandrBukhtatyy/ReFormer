@@ -12,12 +12,24 @@ import { parseDate, normalizeDate } from './date-utils';
 /**
  * Фабрика валидатора максимальной даты (включительно).
  *
- * Пустые и невалидные даты пропускаются.
+ * Сравнение по нормализованным датам (время обнуляется). Пустые и невалидные даты
+ * пропускаются (используйте {@link required} и {@link isDate}).
  *
- * @example
+ * @param maxDateValue - Максимально допустимая дата (включительно)
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадает `maxDate`.
+ * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ *
+ * @example Максимальная дата
  * ```typescript
- * validate(path.birthDate, maxDate(new Date())); // не позже сегодня
- * validate(path.endDate, maxDate(new Date('2025-12-31')));
+ * import { maxDate } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * birthDate: {
+ *   value: model.$.birthDate,
+ *   component: DatePicker,
+ *   validators: [maxDate(new Date(), { message: 'Дата не может быть в будущем' })],
+ * },
  * ```
  */
 export function maxDate<

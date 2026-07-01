@@ -11,12 +11,21 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора, проверяющего что число неотрицательное (`≥ 0`).
  *
- * Пустые значения и не-числа пропускаются (используйте `required` и `isNumber`).
+ * Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для числового поля
+ *
+ * @example Проверка неотрицательности
  * ```typescript
- * validate(path.quantity, nonNegative());
- * validate(path.balance, nonNegative({ message: 'Баланс не может быть отрицательным' }));
+ * import { nonNegative } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * balance: {
+ *   value: model.$.balance,
+ *   component: Input,
+ *   validators: [nonNegative({ message: 'Баланс не может быть отрицательным' })],
+ * },
  * ```
  */
 export function nonNegative<TForm = unknown, TField extends number | undefined = number>(

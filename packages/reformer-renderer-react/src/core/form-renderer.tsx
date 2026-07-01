@@ -12,27 +12,39 @@ import { isRenderSchemaProxy, RenderSchemaOverrideContext } from './render-schem
 import { RenderBehaviorEffects } from './render-behavior';
 
 /**
- * FormRenderer - рендеринг формы на основе RenderSchema
+ * Рендеринг формы по {@link RenderSchemaFn} или {@link RenderSchemaProxy}.
  *
- * Принимает RenderSchemaProxy (из createRenderSchema) и опциональные настройки.
- * Форма передаётся через componentProps wizard-компонента, а не напрямую в FormRenderer.
+ * Принимает `render` — функцию-схему (или обёртку из {@link createRenderSchema})
+ * и опциональные `settings` (например, глобальный `fieldWrapper`). Разворачивает
+ * корневой узел и рекурсивно рендерит дерево через {@link RenderNodeComponent}.
+ * Если `render` — прокси, дополнительно монтирует реактивные эффекты (`renderEffect`)
+ * и прокидывает карты переопределений (`setHidden`/`patchProps`/`hideWhen`) через контекст.
  *
- * @example
+ * Форму (для wizard-узла) прокидывают через `componentProps` соответствующего узла
+ * схемы, а не отдельным пропом `FormRenderer`.
+ *
+ * @typeParam T - Тип значения формы
+ * @param props - {@link FormRendererProps}: `render` (схема) и опц. `settings`
+ * @returns React-дерево формы
+ *
+ * @example Схема + поведение + рендер
  * ```tsx
- * // render-schema.ts
- * export function createMyFormSchema(form: FormProxy<MyForm>) {
- *   const schema = createRenderSchema<MyForm>((path) => ({
- *     selector: 'wizard',
- *     component: RendererFormWizard,
- *     componentProps: { form, steps: [...] },
- *   }));
- *   myBehavior(schema);
- *   return schema;
- * }
+ * import { createForm } from '@reformer/core';
+ * import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
+ * import { FormField } from '@reformer/ui-kit';
  *
- * // MyFormPage.tsx
- * const form = useMemo(() => createMyForm(), []);
- * const schema = useMemo(() => createMyFormSchema(form), [form]);
+ * const { form, model } = useMemo(() => {
+ *   const model = createMyModel();
+ *   const form = createForm<MyForm>({ model, schema: buildSchema(model) });
+ *   return { form, model };
+ * }, []);
+ *
+ * // Прокси с form для wizard-узла + применённое render-поведение
+ * const schema = useMemo(() => {
+ *   const s = createRenderSchema<MyForm>(() => buildSchema(model, form));
+ *   myBehavior(form)(s);
+ *   return s;
+ * }, [form, model]);
  *
  * <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
  * ```

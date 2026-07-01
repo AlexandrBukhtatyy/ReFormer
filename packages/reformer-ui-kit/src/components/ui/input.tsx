@@ -55,6 +55,27 @@ export interface InputProps extends Omit<
  *   placeholder="Возраст"
  * />
  * ```
+ *
+ * @example Привязка к полю формы через `useFormControl`
+ * ```tsx
+ * import { useFormControl, type FieldNode } from '@reformer/core';
+ * import { Input } from '@reformer/ui-kit';
+ *
+ * function EmailField({ control }: { control: FieldNode<string> }) {
+ *   const { value, disabled, errors, shouldShowError } = useFormControl(control);
+ *   return (
+ *     <Input
+ *       type="email"
+ *       value={value}
+ *       disabled={disabled}
+ *       onChange={(v) => control.setValue((v ?? '') as string)}
+ *       onBlur={() => control.markAsTouched()}
+ *       aria-invalid={shouldShowError}
+ *       placeholder={shouldShowError ? errors[0]?.message : 'you@example.com'}
+ *     />
+ *   );
+ * }
+ * ```
  */
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, value, onChange, onBlur, type = 'text', placeholder, disabled, ...props }, ref) => {

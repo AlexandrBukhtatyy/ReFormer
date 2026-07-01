@@ -156,6 +156,50 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
   }
 }
 
+/**
+ * Собрать форму из {@link FormModel} и единой схемы (низкоуровневая фабрика архитектуры M1).
+ *
+ * Значения принадлежат модели (источник истины), ноды формы держат UI/валидационное состояние и
+ * ссылаются на сигналы модели по идентичности (`node.value === model.$.path`). Обходит структуру
+ * модели, привязывает конфиг поля (component/componentProps/validators) из схемы, материализует
+ * top-level массивы как {@link ModelArrayNode}, заполняет реестр сигнал→нода (для `enableWhen`/
+ * роутинга ошибок) и, при наличии, запускает декларативное поведение (cleanup живёт на форме).
+ *
+ * Обычно вызывается неявно через {@link createForm} с аргументом `{ model, schema }` — прямой вызов
+ * нужен редко (например, для построения формы элемента массива).
+ *
+ * @typeParam T - Тип модели данных формы
+ * @param args - Модель, единая схема и (опционально) декларативное поведение {@link CreateFormFromModelArgs}
+ * @returns Типизированная форма с Proxy-доступом к полям {@link FormProxy}
+ *
+ * @example Форма из модели + схемы (эквивалент `createForm({ model, schema })`)
+ * ```typescript
+ * import { createModel, createFormFromModel } from '@reformer/core';
+ *
+ * interface Form {
+ *   email: string;
+ *   profile: { name: string; age: number };
+ * }
+ *
+ * const model = createModel<Form>({ email: '', profile: { name: '', age: 0 } });
+ * const schema = {
+ *   component: Section,
+ *   children: [
+ *     { value: model.$.email, component: Input, validators: [required] },
+ *     { value: model.$.profile.name, component: Input },
+ *   ],
+ * };
+ *
+ * const form = createFormFromModel<Form>({ model, schema });
+ *
+ * // Двусторонняя связь нода ↔ модель:
+ * form.email.setValue('user@mail.com');
+ * console.log(model.email); // 'user@mail.com'
+ * ```
+ *
+ * @see {@link createForm} - основная фабрика (диспетчеризует сюда при аргументе `{ model, schema }`)
+ * @group Utilities
+ */
 export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormProxy<T> {
   const { model, schema, behavior } = args;
   const bySignal: HarvestedConfig = new Map();
@@ -207,30 +251,47 @@ const isFormModelArgs = <T>(arg: unknown): arg is CreateFormFromModelArgs<T> =>
   typeof (arg as { model?: { signalAt?: unknown } }).model?.signalAt === 'function';
 
 /**
- * Создать форму с полной конфигурацией (form, behavior, validation)
+ * Создать форму из {@link FormModel} + единой схемы (архитектура M1, рекомендуемый путь).
  *
  * @group Utilities
  *
- * @param config - Конфигурация формы с полями, поведением и валидацией
+ * @param args - Модель данных, единая схема (component/componentProps/validators) и (опционально) поведение
  * @returns Типизированная форма с Proxy-доступом к полям
  *
- * @example
+ * @example Архитектура M1: `createModel` + единая схема + `createForm({ model, schema })`
  * ```typescript
- * const form = createForm<UserForm>({
- *   form: {
- *     email: { value: '', component: Input },
- *     password: { value: '', component: Input },
- *   },
- *   validation: (path) => {
- *     required(path.email);
- *     email(path.email);
- *     required(path.password);
- *     minLength(path.password, 8);
- *   },
- * });
+ * import { createModel, createForm, validateFormModel } from '@reformer/core';
+ * import { required, email, minLength } from '@reformer/core/validators';
  *
- * // TypeScript знает о полях:
+ * interface UserForm {
+ *   email: string;
+ *   password: string;
+ * }
+ *
+ * const model = createModel<UserForm>({ email: '', password: '' });
+ *
+ * const schema = {
+ *   children: [
+ *     {
+ *       value: model.$.email,
+ *       component: Input,
+ *       validators: [required(), email()],
+ *     },
+ *     {
+ *       value: model.$.password,
+ *       component: Input,
+ *       validators: [required(), minLength(8)],
+ *     },
+ *   ],
+ * };
+ *
+ * const form = createForm<UserForm>({ model, schema });
+ *
+ * // TypeScript знает о полях (нода привязана к сигналу модели):
  * form.email.setValue('test@mail.com');
+ *
+ * // Валидация всей модели по схеме (sync + async):
+ * const { valid } = await validateFormModel(model, schema);
  * ```
  */
 export function createForm<T>(args: CreateFormFromModelArgs<T>): FormProxy<T>;
@@ -238,12 +299,16 @@ export function createForm<T>(args: CreateFormFromModelArgs<T>): FormProxy<T>;
 export function createForm<T>(config: GroupNodeConfig<T>): FormProxy<T>;
 
 /**
- * Создать форму только со схемой полей (обратная совместимость)
+ * Создать форму только со схемой полей.
+ *
+ * @deprecated Legacy / back-compat: плоская `FormSchema` с инлайн-значениями (`value: ''`) — путь
+ *   ДО архитектуры M1. Для нового кода используйте перегрузку `createForm({ model, schema })`
+ *   (значения принадлежат {@link FormModel}, валидаторы — фабрики в `validators: [...]`).
  *
  * @param schema - Схема полей формы
  * @returns Типизированная форма с Proxy-доступом к полям
  *
- * @example
+ * @example Legacy (back-compat) — плоская схема без модели
  * ```typescript
  * const form = createForm<UserForm>({
  *   email: { value: '', component: Input },

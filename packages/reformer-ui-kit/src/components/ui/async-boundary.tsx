@@ -62,13 +62,15 @@ export interface AsyncBoundaryProps {
  *
  * @example Внутри RenderSchema (статус подставляется через `patchProps`)
  * ```tsx
+ * import { createRenderSchema } from '@reformer/renderer-react';
  * import { AsyncBoundary } from '@reformer/ui-kit';
  *
- * createRenderSchema((path) => ({
+ * // M1: функция схемы не принимает аргументов — привязка к данным идёт через сигналы модели.
+ * const schema = createRenderSchema(() => ({
  *   selector: 'data-boundary',
  *   component: AsyncBoundary,
  *   componentProps: { status: 'loading', LoadingComponent: Spinner },
- *   children: [...],
+ *   children: [{ value: model.$.email, component: Input }],
  * }));
  * // позже: schema.node('data-boundary').patchProps({ status: 'ready' });
  * ```

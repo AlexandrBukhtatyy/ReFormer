@@ -12,12 +12,22 @@ import { parseDate } from './date-utils';
 /**
  * Фабрика валидатора, проверяющего что значение — валидная дата.
  *
- * Пустые значения пропускаются (используйте `required` для обязательности).
+ * Принимает `Date` или строку, парсимую в дату. Пустые значения (`''`/`null`/`undefined`)
+ * пропускаются (используйте {@link required} для обязательности).
  *
- * @example
+ * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
+ * @returns Чистый валидатор {@link Validator} для поля даты (`string | Date`)
+ *
+ * @example Проверка валидности даты
  * ```typescript
- * validate(path.birthDate, isDate());
- * validate(path.eventDate, isDate({ message: 'Введите корректную дату' }));
+ * import { required, isDate } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * eventDate: {
+ *   value: model.$.eventDate,
+ *   component: DatePicker,
+ *   validators: [required(), isDate({ message: 'Введите корректную дату' })],
+ * },
  * ```
  */
 export function isDate<TForm = unknown, TField extends string | Date | undefined = string | Date>(

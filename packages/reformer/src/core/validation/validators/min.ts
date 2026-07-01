@@ -11,15 +11,24 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора минимального числового значения.
  *
- * Пустые значения пропускаются (используйте `required` для обязательности).
+ * Пустые значения (`null`/`undefined`) пропускаются (используйте {@link required} для обязательности).
  *
- * @example
+ * @param minValue - Минимально допустимое значение (включительно)
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадают `min` и `actual`.
+ * @returns Чистый валидатор {@link Validator} для числового поля
+ *
+ * @example Минимальное значение числового поля
  * ```typescript
- * import { validate } from '@reformer/core';
- * import { min } from '@reformer/core/validators';
+ * import { required, min } from '@reformer/core/validators';
  *
- * validate(path.age, min(18));
- * validate(path.quantity, min(1, { message: 'Минимум 1' }));
+ * // Внутри FieldConfig схемы формы:
+ * age: { value: model.$.age, component: Input, validators: [min(18)] },
+ * quantity: {
+ *   value: model.$.quantity,
+ *   component: Input,
+ *   validators: [required(), min(1, { message: 'Минимум 1' })],
+ * },
  * ```
  */
 export function min<TForm = unknown, TField extends number | undefined = number>(

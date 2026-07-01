@@ -66,7 +66,13 @@ function walkOperatorNames(
 }
 
 /**
- * Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него.
+ * Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него
+ * (иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт в subpath
+ * `@reformer/renderer-json/validate`, чтобы не попадать в основной render-бандл.
+ *
+ * @param schema - Проверяемая JSON-схема (обычно {@link JsonFormSchema}, но принимает `unknown`).
+ * @param opts - {@link ValidateFormSchemaOptions}: `registry` либо явные списки имён.
+ * @returns {@link FormSchemaValidationResult} — `{ valid, errors }` (ошибки — путь + сообщение).
  *
  * @example
  * ```ts

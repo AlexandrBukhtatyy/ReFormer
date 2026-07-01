@@ -13,10 +13,31 @@
 import metaSchema from './form-schema.schema.json';
 import type { ComponentRegistry } from '../registry/types';
 
-/** Базовая мета-схема form-DSL (draft-07): структура + синтаксис операторов, имена не ограничены. */
+/**
+ * Базовая мета-схема form-DSL (draft-07): структура узлов + синтаксис операторов, имена компонентов
+ * НЕ ограничены (паттерн `$component(...)` открыт). Для сужения до конкретного реестра —
+ * {@link buildFormSchemaMetaSchema}. Используется как `$schema` в IDE и как база валидатора.
+ *
+ * @example Подключить как `$schema` в JSON-файле схемы
+ * ```ts
+ * // record можно записать в файл и сослаться на него из "$schema" JSON-схемы.
+ * formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
+ * ```
+ */
 export const formSchemaMetaSchema = metaSchema as Record<string, unknown>;
 
-/** Имена компонентов реестра (`reg.field`/`reg.container`). */
+/**
+ * Имена компонентов реестра (тип `field` или `container`) — то, что валидно в `$component(...)`.
+ *
+ * @param registry - Реестр (см. {@link defineRegistry}).
+ * @returns Массив имён компонентов.
+ *
+ * @example Сузить мета-схему до компонентов реестра
+ * ```ts
+ * const names = getComponentNames(registry); // ['Input', 'Select', 'Box', ...]
+ * const schema = buildFormSchemaMetaSchema({ componentNames: names });
+ * ```
+ */
 export function getComponentNames(registry: ComponentRegistry): string[] {
   return registry.names().filter((n) => {
     const t = registry.get(n)?.type;
@@ -24,7 +45,18 @@ export function getComponentNames(registry: ComponentRegistry): string[] {
   });
 }
 
-/** Имена registry-dataSource (`reg.dataSource`): options/itemLabel/константы/loading-компоненты. */
+/**
+ * Имена registry-dataSource (`reg.dataSource`) — то, что валидно в `$dataSource(...)`:
+ * options/itemLabel/константы/loading-компоненты.
+ *
+ * @param registry - Реестр (см. {@link defineRegistry}).
+ * @returns Массив имён источников.
+ *
+ * @example
+ * ```ts
+ * getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
+ * ```
+ */
 export function getDataSourceNames(registry: ComponentRegistry): string[] {
   return registry.names().filter((n) => registry.get(n)?.type === 'dataSource');
 }

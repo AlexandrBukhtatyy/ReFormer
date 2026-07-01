@@ -1,118 +1,105 @@
 ## 9. ARRAY SCHEMA FORMAT
 
-**Array items are sub-forms!** Each array element is a complete sub-form with its own fields, validation, and behavior.
+Массивы объектов — **model-owned**: данные принадлежат модели (`model.arrayField` — это
+`ModelArray<Item>` с реактивными `push`/`removeAt`/`length`). В схеме массив объявляется узлом
+`{ array: model.<path>, item: (itemModel) => subSchema }`, где `item` строит под-схему одного
+элемента из его под-модели (`FormModel<Item>`).
 
 ```typescript
-// CORRECT - use tuple format for arrays
-// The template item defines the sub-form schema for each array element
-const itemSchema = {
-  id: { value: '', component: Input },
-  name: { value: '', component: Input },
-  price: { value: 0, component: Input, componentProps: { type: 'number' } },
-};
+import { createModel, createForm, type FormModel } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-const schema: FormSchema<MyForm> = {
-  items: [itemSchema], // Array of sub-forms
-};
-```
+type Item = { id: string; name: string; price: number };
+type MyForm = { items: Item[] };
 
-> **Type constraint:** the element interface used as `T` in `Array<T>` / `ArrayNode<T>`
-> must be assignable to `FormFields = Record<string, FormValue>`. Either declare the
-> item interface as `interface Item extends FormFields { … }` or add an explicit
-> `[key: string]: FormValue` index signature. Without it TS reports
-> _"Type 'Item' does not satisfy the constraint 'FormFields'"_ on `ArrayNode<Item>`.
+const model = createModel<MyForm>({ items: [] });
 
-> **Do NOT use `enableWhen(path.someArray, …, { resetOnDisable: true })` on a whole
-> ArrayNode.** The combination triggers a reactive cycle on mount that prevents
-> `DOMContentLoaded` (the browser hangs and has to be restarted). For
-> "show array conditionally" — gate the rendering in JSX:
->
-> ```tsx
-> {
->   form.hasItems.value && <ArrayUI array={form.items} />;
-> }
-> ```
->
-> `enableWhen` on individual `FieldNode` targets inside an array item template is fine.
-
-```typescript
-// Each array item is a GroupNode (sub-form) with its own controls:
-form.items.map((item) => {
-  // item is a sub-form (GroupNode) - access fields like nested form
-  item.name.setValue('New Name');
-  item.price.value.value; // Get current value
-});
-```
-
-### Add/remove items — `initialValue` MUST be PLAIN leaf values
-
-`FormArray.AddButton initialValue` (and the imperative `array.push(...)` /
-`array.add(...)`) expect a payload of **plain leaf values**, NOT a fresh
-FieldConfig template (`{ value, component, componentProps }`).
-
-If you pass FieldConfig objects, the runtime stores them verbatim into the
-new sub-form fields and silently breaks rendering: text fields show
-`[object Object]`, checkboxes flip to truthy `true`, selects show empty.
-
-```typescript
-// ❌ WRONG — produces [object Object] in textareas, checkbox auto-true
-const wrongPropertyTemplate = () => ({
-  type: { value: 'apartment', component: Select, componentProps: { /* ... */ } },
-  description: { value: '', component: Textarea, componentProps: { rows: 2 } },
-  estimatedValue: { value: 0, component: Input },
-  hasEncumbrance: { value: false, component: Checkbox },
+// под-схема одного элемента (item.$.field — сигнал под-модели)
+const itemSchema = (item: FormModel<Item>) => ({
+  id:    { value: item.$.id,    component: Input },
+  name:  { value: item.$.name,  component: Input },
+  price: { value: item.$.price, component: Input, componentProps: { type: 'number' } },
 });
 
-// ✅ RIGHT — plain leaf values matching the item interface
-const propertyTemplate = (): PropertyItem => ({
-  type: 'apartment',
-  description: '',
-  estimatedValue: 0,
-  hasEncumbrance: false,
-});
-
-// Either with the compound:
-<FormArray.AddButton initialValue={propertyTemplate()} />
-
-// Or imperative:
-form.step5.properties.push(propertyTemplate());
-```
-
-The FieldConfig SHAPE (with `component`, `componentProps`, etc.) belongs
-ONLY in the _initial_ schema literal passed to `createForm({...})`. New
-items pushed at runtime reuse the same component+props that the schema's
-template item declared — `initialValue` only fills the field VALUES.
-
-> **Symptom checklist** (if you see these, you're passing FieldConfig):
->
-> - `[object Object]` rendered in a Textarea/Input.
-> - Boolean checkbox shows checked even though `value: false` was provided.
-> - Select shows empty placeholder even though `value: 'apartment'` was provided.
-
-```typescript
-// WRONG - object format is NOT supported
 const schema = {
-  items: { schema: itemSchema, initialItems: [] }, // This will NOT work
+  items: { array: model.items, item: itemSchema },
 };
+
+const form = createForm<MyForm>({ model, schema });
 ```
 
-### Array Item as Sub-Form
+> **Type constraint:** тип элемента `Item` объявляй через `type`-alias (не `interface`) — иначе
+> он не совместим с `Record<string, FormValue>` и `ArrayNode<Item>` его отвергнет.
+> См. `30-type-safety-recipes.md`.
+
+### Array operations — на модели
+
+Мутации массива делаются через `ModelArray` (`model.items`), а не через ноду формы:
 
 ```typescript
-// Validation for array items (each item is a sub-form)
-validateItems(path.items, (itemPath) => {
-  // itemPath provides paths to sub-form fields
-  required(itemPath.name);
-  min(itemPath.price, 0);
-});
+model.items.push({ id: '1', name: '', price: 0 });   // добавить в конец (плоские значения!)
+model.items.insertAt(0, { id: '2', name: '', price: 0 });
+model.items.removeAt(index);
+model.items.move(from, to);
+model.items.swap(a, b);
+model.items.clear();
+model.items.length;                                  // реактивная длина
+model.items.at(0);                                   // под-модель элемента (FormModel<Item>)
+model.items.map((item, i) => item.name);             // item — FormModel<Item>
+```
 
-// Render array items - each item is a sub-form
-{form.items.map((item, index) => (
-  <div key={item.id}>
-    {/* item is a sub-form - use FormField for each field */}
-    <FormField control={item.name} />
-    <FormField control={item.price} />
-    <button onClick={() => form.items.removeAt(index)}>Remove</button>
-  </div>
-))}
+> **Плоские значения при push.** В `push`/`insertAt` передавай payload из **плоских значений**
+> (`{ id, name, price }`), а НЕ FieldConfig-шаблон (`{ value, component }`). Component/componentProps
+> берутся из `item`-фабрики схемы автоматически.
+
+### Rendering Arrays
+
+Каждый элемент массива — под-форма (`FormProxy<Item>`). Итерируй через `form.items.map`:
+
+```tsx
+import { useArrayLength } from '@reformer/core';
+
+function ItemsList({ form }: { form: FormProxy<MyForm> }) {
+  const length = useArrayLength(form.items);
+
+  return (
+    <div>
+      {form.items.map((item, index) => (
+        <div key={index}>
+          <FormField control={item.name} />
+          <FormField control={item.price} />
+          <button onClick={() => model.items.removeAt(index)}>Remove</button>
+        </div>
+      ))}
+
+      {length === 0 && <p>No items yet</p>}
+
+      <button onClick={() => model.items.push({ id: crypto.randomUUID(), name: '', price: 0 })}>
+        Add Item
+      </button>
+    </div>
+  );
+}
+```
+
+> В монорепо для массивов используется готовый `FormArraySection` из `@reformer/ui-kit`
+> (`control={form.items}`, `itemComponent`, `initialValue`, add/remove/reorder из коробки).
+> См. `find_recipe(topic="form-array")`.
+
+### Array Cross-Validation
+
+Cross-field правило по массиву пишется как `ModelValidator`, читает элементы через `root`,
+вешается на поле-носитель ошибки (или на первый элемент). Секции массива в схеме валидации
+обходятся per-item движком `validateFormModel` (см. `03-api-signatures.md`).
+
+```typescript
+import type { ModelValidator } from '@reformer/core';
+
+// уникальность имён по массиву
+const uniqueNames: ModelValidator<unknown, unknown, MyForm> = (_value, _scope, root) => {
+  const names = root.items.map((i) => i.name);
+  return names.length !== new Set(names).size
+    ? { code: 'duplicate', message: 'Item names must be unique' }
+    : null;
+};
 ```

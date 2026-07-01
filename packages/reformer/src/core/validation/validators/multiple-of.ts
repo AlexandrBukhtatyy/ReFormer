@@ -11,12 +11,23 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
 /**
  * Фабрика валидатора, проверяющего что число кратно заданному.
  *
- * Пустые значения и не-числа пропускаются (используйте `required` и `isNumber`).
+ * Пустые значения и не-числа пропускаются (используйте {@link required} и {@link isNumber}).
  *
- * @example
+ * @param divisor - Делитель: значение должно быть кратно ему
+ * @param options - Опции валидатора ({@link ValidateOptions}). В `params` ошибки автоматически
+ *   попадает `multipleOf` (делитель).
+ * @returns Чистый валидатор {@link Validator} для числового поля
+ *
+ * @example Проверка кратности
  * ```typescript
- * validate(path.price, multipleOf(0.01));
- * validate(path.rating, multipleOf(0.5, { message: 'Только шаг 0.5' }));
+ * import { multipleOf } from '@reformer/core/validators';
+ *
+ * // Внутри FieldConfig схемы формы:
+ * rating: {
+ *   value: model.$.rating,
+ *   component: Input,
+ *   validators: [multipleOf(0.5, { message: 'Только шаг 0.5' })],
+ * },
  * ```
  */
 export function multipleOf<TForm = unknown, TField extends number | undefined = number>(

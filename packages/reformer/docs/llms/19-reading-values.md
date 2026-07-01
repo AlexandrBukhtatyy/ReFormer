@@ -1,67 +1,58 @@
 ## 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
-### Why .value.value?
+Под M1 значения живут в модели. Есть три контекста чтения: value-доступ модели, сигналы, и React-хуки.
 
-ReFormer uses `@preact/signals-core` for reactivity:
-
-- `field.value` -> `Signal<T>` (reactive container)
-- `field.value.value` -> `T` (actual value)
-- `field.getValue()` -> `T` (shorthand method, non-reactive)
+### В React-компоненте — хуки
 
 ```typescript
-// Reading values in different contexts:
+// Полное состояние поля (объект)
+const { value, errors, disabled, touched, shouldShowError } = useFormControl(control.email);
 
-// In React components - use hooks
-const { value } = useFormControl(control.email); // Object with value
-const email = useFormControlValue(control.email); // Value directly
+// Только значение (напрямую, БЕЗ деструктуризации!)
+const email = useFormControlValue(control.email);
 
-// In BehaviorContext (watchField, etc.)
-watchField(
-  path.firstName,
-  (firstName, ctx) => {
-    // ctx.form is typed as the PARENT GROUP of the watched field!
-    // For path.nested.field: ctx.form = NestedType, NOT RootForm!
-
-    const lastName = ctx.form.lastName.value.value; // Read sibling field
-
-    // Use setFieldValue with full path for root-level fields
-    ctx.setFieldValue('fullName', `${firstName} ${lastName}`);
-  },
-  { immediate: false }
-); // REQUIRED to prevent cycle detection!
-
-// Direct access on form controls
-form.email.value.value; // Read current value
-form.address.city.value.value; // Read nested value
+// Реактивная длина массива
+const count = useArrayLength(control.items);
 ```
 
-### Reading Nested Values in watchField
+### Вне React — модель
 
 ```typescript
-// IMPORTANT: ctx.form type depends on the watched path!
+// value-доступ (реактивно внутри effect/computed, запись присваиванием)
+model.email;                 // читать
+model.email = 'a@b.c';       // писать
+model.address.city;          // вложенное поле
 
-// Watching root-level field
-watchField(
-  path.loanAmount,
-  (amount, ctx) => {
-    // ctx.form is MyForm - can access all fields
-    const rate = ctx.form.interestRate.value.value;
-    ctx.setFieldValue('monthlyPayment', (amount * rate) / 12);
-  },
-  { immediate: false }
-);
+// через сигнал (escape-hatch)
+model.$.email.value;         // реактивное чтение/запись
+model.$.email.peek();        // нереактивный снимок
 
-// Watching nested field
-watchField(
-  path.personalData.lastName,
-  (lastName, ctx) => {
-    // ctx.form is PersonalData, NOT MyForm!
-    const firstName = ctx.form.firstName.value.value; // Works
-    const middleName = ctx.form.middleName.value.value; // Works
-
-    // For root-level field, use setFieldValue with full path
-    ctx.setFieldValue('fullName', `${lastName} ${firstName}`);
-  },
-  { immediate: false }
-);
+// весь объект
+model.get();                 // снимок { email, address: { city }, ... } — для submit
 ```
+
+### В behaviors — читаем model напрямую
+
+`compute`/`onChange`/условия `when` читают значения из value-модели (`model.field`) —
+подписка на сигналы происходит автоматически внутри реактивного эффекта.
+
+```typescript
+import { defineFormBehavior, compute, onChange } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
+  // читаем несколько полей — compute сам подпишется на прочитанные сигналы
+  compute(model.$.fullName, () => `${model.firstName} ${model.lastName}`);
+
+  // onChange: 1-й аргумент — новое значение; остальные поля берём из model
+  onChange(model.$.loanAmount, (amount) => {
+    const term = model.loanTerm;
+    if (amount && term) {
+      form.monthlyPayment.updateComponentProps({ hint: `≈ ${amount / term}` });
+    }
+  });
+});
+```
+
+> Cross-field ЗАПИСЬ производного значения делай через `compute` (цель не входит в источники →
+> цикла нет). Для side-эффектов (загрузка опций, обновление componentProps) — `onChange`.
+> `computeFrom`/`copyFrom`/`enableWhen` принимают сигналы (`model.$.x`), НЕ строковые пути.

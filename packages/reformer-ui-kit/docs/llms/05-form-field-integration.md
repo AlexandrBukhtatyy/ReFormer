@@ -60,35 +60,40 @@ interface FormFieldProps {
 
 ```tsx
 import { useMemo } from 'react';
-import { createForm, type FormSchema } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { Button, FormField, Input, Select } from '@reformer/ui-kit';
 
-interface RegistrationForm {
+type RegistrationForm = {
   email: string;
   country: string;
-}
+};
 
 function RegistrationPage() {
-  const form = useMemo(
-    () =>
-      createForm<FormSchema<RegistrationForm>>({
-        email: {
+  const form = useMemo(() => {
+    const model = createModel<RegistrationForm>({ email: '', country: '' });
+    const schema = {
+      children: [
+        {
+          value: model.$.email,
           component: Input,
-          componentProps: { label: 'Email', placeholder: 'you@example.com' },
+          componentProps: { label: 'Email', placeholder: 'you@example.com', testId: 'email' },
         },
-        country: {
+        {
+          value: model.$.country,
           component: Select,
           componentProps: {
             label: 'Страна',
+            testId: 'country',
             options: [
               { value: 'ru', label: 'Россия' },
               { value: 'by', label: 'Беларусь' },
             ],
           },
         },
-      }),
-    []
-  );
+      ],
+    };
+    return createForm<RegistrationForm>({ model, schema });
+  }, []);
 
   return (
     <form className="space-y-4">
@@ -111,37 +116,39 @@ function RegistrationPage() {
 
 ```tsx
 import { useMemo } from 'react';
+import { createForm } from '@reformer/core';
 import { FormRenderer, createRenderSchema } from '@reformer/renderer-react';
-import { FormField, Box, Section } from '@reformer/ui-kit';
-import { createCreditApplicationForm } from './schemas/create-credit-application-form';
+import { FormField, Input, Section } from '@reformer/ui-kit';
+import { createCreditApplicationModel } from './schemas/model';
 
 function CreditApplicationPage() {
-  const form = useMemo(() => createCreditApplicationForm(), []);
-  const schema = useMemo(
-    () =>
-      createRenderSchema((path) => ({
-        component: Section,
-        componentProps: { title: 'Заявка', className: 'space-y-4' },
-        children: [
-          { component: path.email },
-          { component: path.phone },
-          { component: path.amount },
-        ],
-      })),
-    []
-  );
+  const { form, schema } = useMemo(() => {
+    // M1: модель — источник истины; листья схемы ссылаются на её сигналы.
+    const model = createCreditApplicationModel();
+    const schema = createRenderSchema<CreditApplication>(() => ({
+      component: Section,
+      componentProps: { title: 'Заявка', className: 'space-y-4' },
+      children: [
+        { value: model.$.email, component: Input, componentProps: { testId: 'email' } },
+        { value: model.$.phone, component: Input, componentProps: { testId: 'phone' } },
+        { value: model.$.amount, component: Input, componentProps: { testId: 'amount' } },
+      ],
+    }));
+    const form = createForm<CreditApplication>({ model, schema });
+    return { form, schema };
+  }, []);
 
   // settings.fieldWrapper применяется к каждому field-узлу автоматически.
   return <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
 }
 ```
 
-Эталон: `CreditApplicationFormRenderer.tsx` (monorepo example).
+Эталон: `examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx` (monorepo example).
 
-`testId` рендерер берёт из `componentProps.testId` поля schema:
+`testId` рендерер берёт из `componentProps.testId` листа schema:
 
 ```tsx
-{ component: itemPath.bank, componentProps: { testId: 'existingLoan-bank' } }
+{ value: itemModel.$.bank, component: Input, componentProps: { testId: 'existingLoan-bank' } }
 // → <FormField control={...} testId="existingLoan-bank" />
 // → data-testid="field-existingLoan-bank", "input-existingLoan-bank", ...
 ```
@@ -181,15 +188,20 @@ import { InputMask } from '@reformer/ui-kit/input-mask';
 верхний `Label`:
 
 ```tsx
+import { createModel, createForm } from '@reformer/core';
 import { Checkbox, FormField } from '@reformer/ui-kit';
 
-const form = createForm<FormSchema<{ accept: boolean }>>({
-  accept: {
-    component: Checkbox,
-    value: false,
-    componentProps: { label: 'Принимаю условия' },
-  },
-});
+const model = createModel<{ accept: boolean }>({ accept: false });
+const schema = {
+  children: [
+    {
+      value: model.$.accept,
+      component: Checkbox,
+      componentProps: { label: 'Принимаю условия' },
+    },
+  ],
+};
+const form = createForm<{ accept: boolean }>({ model, schema });
 
 <FormField control={form.accept} testId="accept" />;
 // рендерится только Checkbox с label справа + error снизу.
@@ -224,4 +236,4 @@ const form = createForm<FormSchema<{ accept: boolean }>>({
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
-- Эталон: `CreditApplicationFormRenderer.tsx` (monorepo example) — `FormField` как `fieldWrapper` целой multi-step формы.
+- Эталон: `examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx` (monorepo example) — `FormField` как `fieldWrapper` целой multi-step формы.

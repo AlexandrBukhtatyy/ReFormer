@@ -137,9 +137,21 @@ export function enableWhen(
 }
 
 /**
- * Условное выключение поля (инверсия {@link enableWhen}).
+ * Условное выключение поля (инверсия {@link enableWhen}). Резолвит ноду по сигналу-цели через реестр
+ * сигнал→нода и вызывает `disable()`, когда `condition` истинно (+`reset()` при `resetOnDisable`).
+ * `condition` реактивен (читает свои сигналы модели).
  *
  * @group Model
+ * @param target Сигнал-цель поля (`model.$.<path>`).
+ * @param condition Реактивное условие; при `true` поле выключается.
+ * @param options.resetOnDisable Сбросить значение при выключении (по умолчанию `false`).
+ * @returns Cleanup для отписки.
+ *
+ * @example
+ * ```typescript
+ * // Поле скидки недоступно, пока не выбран промо-тариф
+ * disableWhen(model.$.discount, () => model.plan !== 'promo', { resetOnDisable: true });
+ * ```
  */
 export function disableWhen(
   target: ReadonlySignal<unknown>,

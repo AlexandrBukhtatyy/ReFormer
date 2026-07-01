@@ -16,7 +16,7 @@
  *   items: Array<{ title: string }>;
  * }
  *
- * const form = createForm<MyForm>(schema);
+ * const form = createForm<MyForm>({ model, schema });
  *
  * //  TypeScript знает, что это FieldNode<string>
  * form.name.setValue('John');
