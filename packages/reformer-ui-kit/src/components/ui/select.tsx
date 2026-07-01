@@ -2,59 +2,129 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  resolveStrategyFlags,
+  resourceReducer,
+  initialResourceState,
+  filterClient,
+  hasMore,
+  isNearBottom,
+  type ResourceConfig,
+  type NormalizedOption,
+} from './select-resource';
 
-/** Параметры запроса к {@link ResourceConfig.load}. */
-interface ResourceLoadParams {
-  /** Поисковый запрос (для async-фильтрации). */
-  search?: string;
-  /** Номер страницы (1-based) для пагинации. */
-  page?: number;
-  /** Размер страницы. */
-  pageSize?: number;
-  /** Дополнительные пользовательские параметры. */
-  [key: string]: unknown;
+// Публичные типы источника опций реэкспортируются отсюда для обратной
+// совместимости (index.ts исторически берёт `ResourceConfig` из этого модуля).
+export type {
+  ResourceConfig,
+  ResourceLoadParams,
+  ResourceItem,
+  ResourceResult,
+  ResourceStrategy,
+  NormalizedOption,
+} from './select-resource';
+
+/** Задержка debounce (мс) для серверного поиска в стратегии `partial`. */
+const SEARCH_DEBOUNCE_MS = 300;
+
+/** Результат хука {@link useResourceOptions}. */
+interface UseResourceOptionsResult {
+  /** Опции к показу (с учётом клиентской фильтрации для `preload`). */
+  options: NormalizedOption[];
+  /** Первичная загрузка (маунт или смена поискового запроса). */
+  loading: boolean;
+  /** Догрузка следующей страницы (пагинация). */
+  loadingMore: boolean;
+  /** Есть ли ещё непогруженные страницы. */
+  hasMore: boolean;
+  /** Подгрузить следующую страницу (стратегия `partial`). */
+  loadMore: () => void;
+  /** Текущее значение поля поиска. */
+  searchInput: string;
+  /** Изменить поле поиска (клиентская фильтрация или серверный запрос). */
+  setSearchInput: (v: string) => void;
+  /** Флаги стратегии (searchable / paginated / serverSearch). */
+  flags: ReturnType<typeof resolveStrategyFlags>;
 }
 
-/** Один элемент, возвращаемый {@link ResourceConfig.load}. */
-interface ResourceItem<T> {
-  /** Уникальный ключ элемента (для React `key`). */
-  id: string | number;
-  /** Видимая подпись опции. */
-  label: string;
-  /** Значение, которое попадает в `onChange` (всегда приводится к строке). */
-  value: T;
-  /** Опциональное имя группы — варианты с одинаковым `group` объединяются в `SelectGroup`. */
-  group?: string;
-  /** Дополнительные поля бек-данных. */
-  [key: string]: unknown;
-}
+/**
+ * Хук управления асинхронным источником опций {@link Select} по стратегии
+ * {@link ResourceConfig.type}. Тонкая React-обёртка над чистым reducer из
+ * `select-resource.ts` (вся логика стратегий/пагинации/фильтрации — там).
+ *
+ * @typeParam T - тип «сырого» значения опции
+ * @param resource - конфигурация источника (или `undefined`, если опции inline)
+ * @returns состояние и колбэки {@link UseResourceOptionsResult}
+ */
+function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptionsResult {
+  const flags = React.useMemo(() => resolveStrategyFlags(resource?.type), [resource?.type]);
+  const [state, dispatch] = React.useReducer(resourceReducer<T>, undefined, initialResourceState);
+  const [searchInput, setSearchInput] = React.useState('');
 
-/** Ответ {@link ResourceConfig.load}. */
-interface ResourceResult<T> {
-  /** Список вариантов. */
-  items: ResourceItem<T>[];
-  /** Общее число доступных вариантов (для пагинации). */
-  totalCount: number;
-}
+  // static / preload: одна загрузка при монтировании (searchInput на сервер не влияет).
+  React.useEffect(() => {
+    if (!resource || flags.serverSearch) return;
+    let cancelled = false;
+    dispatch({ kind: 'load-start', search: '' });
+    resource.load({}).then(
+      (result) => {
+        if (!cancelled) dispatch({ kind: 'load-success', result, page: 1 });
+      },
+      () => {
+        if (!cancelled) dispatch({ kind: 'load-error' });
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [resource, flags.serverSearch]);
 
-/** Конфигурация асинхронного источника опций для {@link Select}. */
-export interface ResourceConfig<T> {
-  /**
-   * Декларация стратегии загрузки:
-   * - `'static'` — варианты загружаются один раз и больше не меняются;
-   * - `'preload'` — предзагрузка всех опций;
-   * - `'partial'` — порционная/пагинированная загрузка.
-   *
-   * ВНИМАНИЕ: на текущий момент {@link Select} вызывает {@link load} один раз
-   * при монтировании (`load({})`) вне зависимости от `type` — поле служит
-   * маркером намерения и заделом под пагинацию, а не переключателем поведения.
-   */
-  type: 'static' | 'preload' | 'partial';
-  /**
-   * Функция загрузки опций. Должна вернуть `{ items, totalCount }`.
-   * {@link Select} вызывает её как `load({})` (без search/page) при маунте.
-   */
-  load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
+  // partial: серверный поиск с debounce — перезагружает первую страницу.
+  React.useEffect(() => {
+    if (!resource || !flags.serverSearch) return;
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      dispatch({ kind: 'load-start', search: searchInput });
+      resource.load({ search: searchInput, page: 1, pageSize: resource.pageSize }).then(
+        (result) => {
+          if (!cancelled) dispatch({ kind: 'load-success', result, page: 1 });
+        },
+        () => {
+          if (!cancelled) dispatch({ kind: 'load-error' });
+        }
+      );
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [resource, flags.serverSearch, searchInput]);
+
+  const loadMore = React.useCallback(() => {
+    if (!resource || !flags.paginated) return;
+    if (state.loading || state.loadingMore || !hasMore(state)) return;
+    const nextPage = state.page + 1;
+    dispatch({ kind: 'load-more-start' });
+    resource.load({ search: state.search, page: nextPage, pageSize: resource.pageSize }).then(
+      (result) => dispatch({ kind: 'load-more-success', result, page: nextPage }),
+      () => dispatch({ kind: 'load-error', more: true })
+    );
+  }, [resource, flags.paginated, state]);
+
+  // preload/static: поиск фильтрует загруженные опции на клиенте.
+  // partial: сервер уже вернул отфильтрованную выборку.
+  const options = flags.serverSearch ? state.options : filterClient(state.options, searchInput);
+
+  return {
+    options,
+    loading: state.loading,
+    loadingMore: state.loadingMore,
+    hasMore: hasMore(state),
+    loadMore,
+    searchInput,
+    setSearchInput,
+    flags,
+  };
 }
 
 /** Props компонента {@link Select}. */
@@ -86,9 +156,17 @@ export interface SelectProps<T> extends Omit<
 }
 
 /**
- * Выпадающий список на `@radix-ui/react-select`. Поддерживает два режима
- * источника данных: inline `options` и async `resource`. При `clearable=true`
- * показывает крестик для сброса значения в `null`.
+ * Выпадающий список на `@radix-ui/react-select`. Два источника данных: inline
+ * `options` и асинхронный `resource` со стратегией загрузки
+ * ({@link ResourceConfig.type}):
+ *
+ * - `static` — один `load({})` при маунте, без поиска;
+ * - `preload` — грузит всё сразу, поиск фильтрует опции на клиенте;
+ * - `partial` — серверные поиск (`load({ search })` с debounce) и пагинация
+ *   (`load({ page })` по мере скролла до `totalCount`).
+ *
+ * Для `preload`/`partial` в дропдауне показывается поле поиска. При
+ * `clearable=true` рядом со значением есть крестик сброса в `null`.
  *
  * @example Inline-options
  * ```tsx
@@ -101,27 +179,31 @@ export interface SelectProps<T> extends Omit<
  *   options={[
  *     { value: 'consumer', label: 'Потребительский' },
  *     { value: 'mortgage', label: 'Ипотека' },
- *     { value: 'auto', label: 'Авто' },
  *   ]}
  * />
  * ```
  *
- * @example Grouped options
+ * @example Серверные поиск и пагинация (resource type='partial')
  * ```tsx
- * import { Select } from '@reformer/ui-kit';
+ * import { Select, type ResourceConfig } from '@reformer/ui-kit';
  *
- * <Select
- *   value={city}
- *   onChange={setCity}
- *   options={[
- *     { value: 'msk', label: 'Москва', group: 'Россия' },
- *     { value: 'spb', label: 'Санкт-Петербург', group: 'Россия' },
- *     { value: 'minsk', label: 'Минск', group: 'Беларусь' },
- *   ]}
- * />
+ * const users: ResourceConfig<string> = {
+ *   type: 'partial',
+ *   pageSize: 20,
+ *   load: async ({ search = '', page = 1, pageSize = 20 }) => {
+ *     const res = await fetch(`/api/users?q=${search}&page=${page}&size=${pageSize}`);
+ *     const { rows, total } = await res.json();
+ *     return {
+ *       items: rows.map((u) => ({ id: u.id, label: u.name, value: u.id })),
+ *       totalCount: total,
+ *     };
+ *   },
+ * };
+ *
+ * <Select value={userId} onChange={setUserId} resource={users} clearable />
  * ```
  *
- * @example Async-источник опций (resource) + clearable
+ * @example Предзагрузка с клиентским поиском (resource type='preload')
  * ```tsx
  * import { Select, type ResourceConfig } from '@reformer/ui-kit';
  *
@@ -129,7 +211,7 @@ export interface SelectProps<T> extends Omit<
  *   type: 'preload',
  *   load: async () => {
  *     const res = await fetch('/api/countries');
- *     const items = await res.json(); // [{ id, code, name }]
+ *     const items = await res.json();
  *     return {
  *       items: items.map((c) => ({ id: c.id, label: c.name, value: c.code })),
  *       totalCount: items.length,
@@ -137,7 +219,7 @@ export interface SelectProps<T> extends Omit<
  *   },
  * };
  *
- * <Select value={country} onChange={setCountry} resource={countries} clearable />
+ * <Select value={country} onChange={setCountry} resource={countries} />
  * ```
  */
 const Select = React.forwardRef<
@@ -162,33 +244,9 @@ const Select = React.forwardRef<
     },
     ref
   ) => {
-    const [resourceOptions, setResourceOptions] = React.useState<
-      Array<{ id: string | number; label: string; value: string; group?: string }>
-    >([]);
-    const [loading, setLoading] = React.useState(false);
+    const ro = useResourceOptions(resource);
 
-    React.useEffect(() => {
-      if (resource) {
-        setLoading(true);
-        resource
-          .load({})
-          .then((response) => {
-            setResourceOptions(
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              response.items.map((item: any) => ({
-                id: item.id,
-                label: item.label,
-                value: String(item.value),
-                group: item.group,
-              }))
-            );
-          })
-          .catch(() => setResourceOptions([]))
-          .finally(() => setLoading(false));
-      }
-    }, [resource]);
-
-    // Используем прямые опции или опции из ресурса
+    // Прямые опции имеют приоритет над resource.
     const options = React.useMemo(() => {
       if (directOptions) {
         return directOptions.map((opt) => ({
@@ -198,8 +256,11 @@ const Select = React.forwardRef<
           group: opt.group,
         }));
       }
-      return resourceOptions;
-    }, [directOptions, resourceOptions]);
+      return ro.options;
+    }, [directOptions, ro.options]);
+
+    const showSearch = !directOptions && !!resource && ro.flags.searchable;
+    const initialLoading = !directOptions && ro.loading;
 
     const handleValueChange = (newValue: string) => {
       onChange?.(newValue);
@@ -216,7 +277,28 @@ const Select = React.forwardRef<
       onChange?.(null);
     };
 
-    const showClearButton = clearable && value && !disabled && !loading;
+    const handleViewportScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      if (!ro.flags.paginated) return;
+      if (isNearBottom(e.currentTarget)) ro.loadMore();
+    };
+
+    const showClearButton = clearable && value && !disabled && !initialLoading;
+
+    const searchHeader = showSearch ? (
+      <div className="sticky top-0 z-10 border-b bg-white p-1">
+        <input
+          type="text"
+          value={ro.searchInput}
+          onChange={(e) => ro.setSearchInput(e.target.value)}
+          // Radix Select перехватывает клавиатуру для typeahead-навигации —
+          // гасим всплытие, чтобы ввод шёл в поле, а не «прыгал» по опциям.
+          onKeyDown={(e) => e.stopPropagation()}
+          placeholder="Search..."
+          className="w-full rounded-sm border border-gray-200 px-2 py-1 text-sm outline-none focus:border-ring"
+          aria-label="Search options"
+        />
+      </div>
+    ) : null;
 
     return (
       <div className="relative w-full">
@@ -225,50 +307,60 @@ const Select = React.forwardRef<
           value={value || ''}
           onValueChange={handleValueChange}
           onOpenChange={handleOpenChange}
-          disabled={disabled || loading}
+          disabled={disabled || initialLoading}
           {...props}
         >
           <SelectTrigger
             ref={ref}
             className={cn(className, showClearButton && 'pr-8')}
-            disabled={loading}
+            disabled={initialLoading}
             data-testid={dataTestId}
             aria-invalid={ariaInvalid}
           >
             <SelectValue
-              placeholder={loading ? 'Loading...' : placeholder || 'Select an option...'}
+              placeholder={initialLoading ? 'Loading...' : placeholder || 'Select an option...'}
             />
           </SelectTrigger>
-          <SelectContent>
-            {loading ? (
+          <SelectContent
+            header={searchHeader}
+            onViewportScroll={ro.flags.paginated ? handleViewportScroll : undefined}
+          >
+            {initialLoading ? (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</div>
             ) : options.length === 0 ? (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">No options available</div>
             ) : (
-              (() => {
-                const groupedOptions = options.reduce(
-                  (groups, option) => {
-                    const group = option.group || 'default';
-                    if (!groups[group]) {
-                      groups[group] = [];
-                    }
-                    groups[group].push(option);
-                    return groups;
-                  },
-                  {} as Record<string, typeof options>
-                );
+              <>
+                {(() => {
+                  const groupedOptions = options.reduce(
+                    (groups, option) => {
+                      const group = option.group || 'default';
+                      if (!groups[group]) {
+                        groups[group] = [];
+                      }
+                      groups[group].push(option);
+                      return groups;
+                    },
+                    {} as Record<string, typeof options>
+                  );
 
-                return Object.entries(groupedOptions).map(([groupName, groupOptions]) => (
-                  <SelectGroup key={groupName}>
-                    {groupName !== 'default' && <SelectLabel>{groupName}</SelectLabel>}
-                    {groupOptions.map((option) => (
-                      <SelectItem key={option.id} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ));
-              })()
+                  return Object.entries(groupedOptions).map(([groupName, groupOptions]) => (
+                    <SelectGroup key={groupName}>
+                      {groupName !== 'default' && <SelectLabel>{groupName}</SelectLabel>}
+                      {groupOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ));
+                })()}
+                {ro.loadingMore && (
+                  <div className="px-2 py-1.5 text-center text-xs text-muted-foreground">
+                    Loading more...
+                  </div>
+                )}
+              </>
             )}
           </SelectContent>
         </SelectPrimitive.Root>
@@ -419,9 +511,13 @@ function SelectTrigger({
 }
 
 /**
- * Дропдаун-контент {@link Select} (попап со списком). Обёртка над
+ * Дропдаун-контent {@link Select} (попап со списком). Обёртка над
  * `Radix.Select.Content` с порталом, скролл-кнопками сверху/снизу и
  * `position='popper'` по умолчанию (растягивается под ширину триггера).
+ *
+ * Опционально принимает `header` (нескроллящаяся шапка, например поле поиска)
+ * и `onViewportScroll` (для infinite-scroll — вешается на скроллящийся
+ * viewport со списком опций).
  *
  * @example Popper-режим (default — ширина равна триггеру)
  * ```tsx
@@ -446,8 +542,15 @@ function SelectContent({
   className,
   children,
   position = 'popper',
+  header,
+  onViewportScroll,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+  /** Нескроллящаяся шапка над списком (например, поле поиска). */
+  header?: React.ReactNode;
+  /** Обработчик прокрутки viewport-а со списком (для infinite-scroll). */
+  onViewportScroll?: React.UIEventHandler<HTMLDivElement>;
+}) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -464,8 +567,12 @@ function SelectContent({
         position={position}
         {...props}
       >
+        {header}
         <SelectScrollUpButton />
-        <SelectPrimitive.Viewport className={cn('p-1', position === 'popper' && 'w-full')}>
+        <SelectPrimitive.Viewport
+          className={cn('p-1', position === 'popper' && 'w-full')}
+          onScroll={onViewportScroll}
+        >
           {children}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />

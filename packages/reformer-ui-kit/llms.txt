@@ -602,17 +602,29 @@ const form = createForm<{ loanType: string }>({ model, schema });
 данных:
 
 - **Inline**: `options={[…]}` — массив `{ value, label, group? }`.
-- **Resource**: `resource={{ type, load }}` — асинхронная загрузка (см. ниже).
+- **Resource**: `resource={{ type, load }}` — асинхронная загрузка со стратегией `type`:
+  - `static` — один `load({})` при маунте, без поиска (снимок);
+  - `preload` — грузит всё сразу, поиск фильтрует опции **на клиенте**;
+  - `partial` — **серверные** поиск (`load({ search })` с debounce ~300 мс) и
+    пагинация (`load({ page })` по мере прокрутки списка до `totalCount`).
+
+  Для `preload`/`partial` в дропдауне появляется поле поиска.
 
 ### API
 
 ```typescript
 interface ResourceConfig<T> {
+  /** Стратегия загрузки. Если не задана — трактуется как `static`. */
   type: 'static' | 'preload' | 'partial';
-  load: (params?: ResourceLoadParams) => Promise<{
+  load: (params?: {
+    search?: string; // серверная фильтрация (partial)
+    page?: number; // 1-based, пагинация (partial)
+    pageSize?: number;
+  }) => Promise<{
     items: Array<{ id: string | number; label: string; value: T; group?: string }>;
-    totalCount: number;
+    totalCount: number; // общее число опций — для пагинации (partial)
   }>;
+  pageSize?: number; // размер страницы для partial (по умолчанию 20)
 }
 
 interface SelectProps<T> {
@@ -633,7 +645,7 @@ interface SelectProps<T> {
 | Prop          | Тип                               | Default                 | Описание                                                                                                                                        |
 | ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. |
-| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник. На маунт вызывается `resource.load({})`. На время загрузки `Select` показывает `Loading...` и блокируется.                |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `Select` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`.                |
 | `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                           |
 | `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                   |
 | `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                           |
@@ -674,10 +686,10 @@ import { Select } from '@reformer/ui-kit';
 />;
 ```
 
-Async `resource` (пример: список банков):
+Async `resource`, стратегия `preload` (грузим всё, поиск на клиенте):
 
 ```tsx
-import { Select, type ResourceConfig } from '@reformer/ui-kit/select';
+import { Select, type ResourceConfig } from '@reformer/ui-kit';
 
 const banksResource: ResourceConfig<string> = {
   type: 'preload',
@@ -692,6 +704,26 @@ const banksResource: ResourceConfig<string> = {
 };
 
 <Select value={bankId} onChange={setBankId} resource={banksResource} />;
+```
+
+Стратегия `partial` (серверные поиск + пагинация больших списков):
+
+```tsx
+const usersResource: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: async ({ search = '', page = 1, pageSize = 20 } = {}) => {
+    const res = await fetch(`/api/users?q=${search}&page=${page}&size=${pageSize}`);
+    const { rows, total }: { rows: Array<{ id: number; name: string }>; total: number } =
+      await res.json();
+    return {
+      items: rows.map((u) => ({ id: u.id, value: String(u.id), label: u.name })),
+      totalCount: total, // Select догружает страницы, пока items.length < totalCount
+    };
+  },
+};
+
+<Select value={userId} onChange={setUserId} resource={usersResource} clearable />;
 ```
 
 Grouped options:
@@ -3517,26 +3549,16 @@ _Source: packages/reformer-ui-kit/src/components/ui/radio-group.tsx_
 **Signature:**
 ```typescript
 export interface ResourceConfig<T> {
-  /**
-   * Декларация стратегии загрузки:
-   * - `'static'` — варианты загружаются один раз и больше не меняются;
-   * - `'preload'` — предзагрузка всех опций;
-   * - `'partial'` — порционная/пагинированная загрузка.
-   *
-   * ВНИМАНИЕ: на текущий момент {@link Select} вызывает {@link load} один раз
-   * при монтировании (`load({})`) вне зависимости от `type` — поле служит
-   * маркером намерения и заделом под пагинацию, а не переключателем поведения.
-   */
-  type: 'static' | 'preload' | 'partial';
-  /**
-   * Функция загрузки опций. Должна вернуть `{ items, totalCount }`.
-   * {@link Select} вызывает её как `load({})` (без search/page) при маунте.
-   */
+  /** Стратегия загрузки. По умолчанию (если не задана) трактуется как `'static'`. */
+  type: ResourceStrategy;
+  /** Функция загрузки опций. Должна вернуть `{ items, totalCount }`. */
   load: (params?: ResourceLoadParams) => Promise<ResourceResult<T>>;
+  /** Размер страницы для стратегии `partial`. По умолчанию 20. */
+  pageSize?: number;
 }
 ```
 
-_Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
+_Source: packages/reformer-ui-kit/src/components/ui/select-resource.ts_
 
 ### Section
 
@@ -3623,9 +3645,17 @@ _Source: packages/reformer-ui-kit/src/components/ui/section.tsx_
 
 **Kind:** `const`
 
-Выпадающий список на `@radix-ui/react-select`. Поддерживает два режима
-источника данных: inline `options` и async `resource`. При `clearable=true`
-показывает крестик для сброса значения в `null`.
+Выпадающий список на `@radix-ui/react-select`. Два источника данных: inline
+`options` и асинхронный `resource` со стратегией загрузки
+({@link ResourceConfig.type}):
+
+- `static` — один `load({})` при маунте, без поиска;
+- `preload` — грузит всё сразу, поиск фильтрует опции на клиенте;
+- `partial` — серверные поиск (`load({ search })` с debounce) и пагинация
+  (`load({ page })` по мере скролла до `totalCount`).
+
+Для `preload`/`partial` в дропдауне показывается поле поиска. При
+`clearable=true` рядом со значением есть крестик сброса в `null`.
 
 **Signature:**
 ```typescript
@@ -3645,27 +3675,31 @@ placeholder="Тип кредита"
 options={[
 { value: 'consumer', label: 'Потребительский' },
 { value: 'mortgage', label: 'Ипотека' },
-{ value: 'auto', label: 'Авто' },
 ]}
 />
 ```
 
-Grouped options
+Серверные поиск и пагинация (resource type='partial')
 ```tsx
-import { Select } from '@reformer/ui-kit';
+import { Select, type ResourceConfig } from '@reformer/ui-kit';
 
-<Select
-value={city}
-onChange={setCity}
-options={[
-{ value: 'msk', label: 'Москва', group: 'Россия' },
-{ value: 'spb', label: 'Санкт-Петербург', group: 'Россия' },
-{ value: 'minsk', label: 'Минск', group: 'Беларусь' },
-]}
-/>
+const users: ResourceConfig<string> = {
+type: 'partial',
+pageSize: 20,
+load: async ({ search = '', page = 1, pageSize = 20 }) => {
+const res = await fetch(`/api/users?q=${search}&page=${page}&size=${pageSize}`);
+const { rows, total } = await res.json();
+return {
+items: rows.map((u) => ({ id: u.id, label: u.name, value: u.id })),
+totalCount: total,
+};
+},
+};
+
+<Select value={userId} onChange={setUserId} resource={users} clearable />
 ```
 
-Async-источник опций (resource) + clearable
+Предзагрузка с клиентским поиском (resource type='preload')
 ```tsx
 import { Select, type ResourceConfig } from '@reformer/ui-kit';
 
@@ -3673,7 +3707,7 @@ const countries: ResourceConfig<string> = {
 type: 'preload',
 load: async () => {
 const res = await fetch('/api/countries');
-const items = await res.json(); // [{ id, code, name }]
+const items = await res.json();
 return {
 items: items.map((c) => ({ id: c.id, label: c.name, value: c.code })),
 totalCount: items.length,
@@ -3681,7 +3715,7 @@ totalCount: items.length,
 },
 };
 
-<Select value={country} onChange={setCountry} resource={countries} clearable />
+<Select value={country} onChange={setCountry} resource={countries} />
 ```
 
 _Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
@@ -3690,9 +3724,13 @@ _Source: packages/reformer-ui-kit/src/components/ui/select.tsx_
 
 **Kind:** `function`
 
-Дропдаун-контент {@link Select} (попап со списком). Обёртка над
+Дропдаун-контent {@link Select} (попап со списком). Обёртка над
 `Radix.Select.Content` с порталом, скролл-кнопками сверху/снизу и
 `position='popper'` по умолчанию (растягивается под ширину триггера).
+
+Опционально принимает `header` (нескроллящаяся шапка, например поле поиска)
+и `onViewportScroll` (для infinite-scroll — вешается на скроллящийся
+viewport со списком опций).
 
 **Signature:**
 ```typescript
@@ -3700,8 +3738,15 @@ function SelectContent({
   className,
   children,
   position = 'popper',
+  header,
+  onViewportScroll,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>)
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+  /** Нескроллящаяся шапка над списком (например, поле поиска). */
+  header?: React.ReactNode;
+  /** Обработчик прокрутки viewport-а со списком (для infinite-scroll). */
+  onViewportScroll?: React.UIEventHandler<HTMLDivElement>;
+})
 ```
 
 **Examples:**

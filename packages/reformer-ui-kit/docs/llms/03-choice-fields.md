@@ -175,17 +175,29 @@ const form = createForm<{ loanType: string }>({ model, schema });
 данных:
 
 - **Inline**: `options={[…]}` — массив `{ value, label, group? }`.
-- **Resource**: `resource={{ type, load }}` — асинхронная загрузка (см. ниже).
+- **Resource**: `resource={{ type, load }}` — асинхронная загрузка со стратегией `type`:
+  - `static` — один `load({})` при маунте, без поиска (снимок);
+  - `preload` — грузит всё сразу, поиск фильтрует опции **на клиенте**;
+  - `partial` — **серверные** поиск (`load({ search })` с debounce ~300 мс) и
+    пагинация (`load({ page })` по мере прокрутки списка до `totalCount`).
+
+  Для `preload`/`partial` в дропдауне появляется поле поиска.
 
 ### API
 
 ```typescript
 interface ResourceConfig<T> {
+  /** Стратегия загрузки. Если не задана — трактуется как `static`. */
   type: 'static' | 'preload' | 'partial';
-  load: (params?: ResourceLoadParams) => Promise<{
+  load: (params?: {
+    search?: string; // серверная фильтрация (partial)
+    page?: number; // 1-based, пагинация (partial)
+    pageSize?: number;
+  }) => Promise<{
     items: Array<{ id: string | number; label: string; value: T; group?: string }>;
-    totalCount: number;
+    totalCount: number; // общее число опций — для пагинации (partial)
   }>;
+  pageSize?: number; // размер страницы для partial (по умолчанию 20)
 }
 
 interface SelectProps<T> {
@@ -206,7 +218,7 @@ interface SelectProps<T> {
 | Prop          | Тип                               | Default                 | Описание                                                                                                                                        |
 | ------------- | --------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options`     | `Array<{value,label,group?}>`     | —                       | Inline-варианты. `value` приводится к строке. `group` опционально — варианты с одинаковым `group` объединяются в `SelectGroup` с `SelectLabel`. |
-| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник. На маунт вызывается `resource.load({})`. На время загрузки `Select` показывает `Loading...` и блокируется.                |
+| `resource`    | `ResourceConfig<T>`               | —                       | Асинхронный источник со стратегией `type` (`static`/`preload`/`partial`). Во время первичной загрузки `Select` показывает `Loading...` и блокируется; при пагинации (`partial`) внизу списка — `Loading more...`.                |
 | `value`       | `string \| null`                  | `null`                  | Выбранное значение (всегда строка из `option.value`).                                                                                           |
 | `onChange`    | `(value: string \| null) => void` | —                       | Срабатывает при выборе. При нажатии на крестик (`clearable`) приходит `null`.                                                                   |
 | `placeholder` | `string`                          | `'Select an option...'` | Подсказка в триггере.                                                                                                                           |
@@ -247,10 +259,10 @@ import { Select } from '@reformer/ui-kit';
 />;
 ```
 
-Async `resource` (пример: список банков):
+Async `resource`, стратегия `preload` (грузим всё, поиск на клиенте):
 
 ```tsx
-import { Select, type ResourceConfig } from '@reformer/ui-kit/select';
+import { Select, type ResourceConfig } from '@reformer/ui-kit';
 
 const banksResource: ResourceConfig<string> = {
   type: 'preload',
@@ -265,6 +277,26 @@ const banksResource: ResourceConfig<string> = {
 };
 
 <Select value={bankId} onChange={setBankId} resource={banksResource} />;
+```
+
+Стратегия `partial` (серверные поиск + пагинация больших списков):
+
+```tsx
+const usersResource: ResourceConfig<string> = {
+  type: 'partial',
+  pageSize: 20,
+  load: async ({ search = '', page = 1, pageSize = 20 } = {}) => {
+    const res = await fetch(`/api/users?q=${search}&page=${page}&size=${pageSize}`);
+    const { rows, total }: { rows: Array<{ id: number; name: string }>; total: number } =
+      await res.json();
+    return {
+      items: rows.map((u) => ({ id: u.id, value: String(u.id), label: u.name })),
+      totalCount: total, // Select догружает страницы, пока items.length < totalCount
+    };
+  },
+};
+
+<Select value={userId} onChange={setUserId} resource={usersResource} clearable />;
 ```
 
 Grouped options:
