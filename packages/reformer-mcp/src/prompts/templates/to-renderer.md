@@ -12,10 +12,11 @@ You migrate a form from direct React rendering (`@reformer/core` + manual JSX) t
 
 ## Critical inline rules
 
-- **Do NOT touch FormSchema** — `createForm` stays as-is. Only the JSX rendering changes.
-- **RenderSchemaFn signature**: `(path: FieldPath<MyForm>) => RenderNode<MyForm>`.
-- Field node: `{ component: path.<field>, componentProps: { ... } }`.
-- Container node: `{ component: Box, componentProps: { className: '...', children: [ ...nodes ] } }` — children inside `componentProps`.
+- **Do NOT touch the form wiring** — `createModel` + `createForm({ model, schema })` stay as-is. Only the JSX rendering changes.
+- **RenderSchemaFn signature (M1)**: `() => RenderNode<MyForm>` — no `path` argument. Fields bind to model signals in the leaf, not to a `path` proxy.
+- Field node (leaf): `{ value: model.$.<field>, component: Input, componentProps: { ... } }` — `value` is the **model signal** (`model.$.<field>`), `component` is the UI component by reference.
+- Container node: `{ component: Box, componentProps: { className: '...' }, children: [ ...nodes ] }` — `children` is a **top-level** property, NOT inside `componentProps`.
+- Array node: `{ array: model.<path>, initialValue, componentProps: { ... }, item: (itemModel) => ({ ...subtree }) }` — leaves inside `item` bind to the sub-model signal (`itemModel.$.<field>`).
 - Containers from `@reformer/ui-kit`: `Box`, `Section`, `Collapsible`, `AsyncBoundary`.
 - **Use `createRenderSchema(fn)`** if applying behavior (`hideWhen`, `patchProps`, lifecycle). Without behavior — pass `fn` straight to `<FormRenderer render={fn} />`.
 - **`fieldWrapper`**: pass `FormField` from ui-kit through settings → wraps every field in label/error/hint automatically.
