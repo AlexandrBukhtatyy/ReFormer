@@ -3,3 +3,324 @@
 
 > MCP server for ReFormer form library - provides AI assistants with comprehensive documentation and tools for form development
 > Package: @reformer/mcp  •  Version: 6.0.0
+
+## Table of Contents
+- 01-guide.md — ReFormer MCP — start-here guide
+- 02-tools.md — Tools
+- 03-prompts.md — Prompts
+- 04-resources.md — Resources
+- 05-m1-workflow.md — M1 form-building workflow
+
+## 1. How to use it (recommended order)
+
+1. **Get oriented** — run the `start-here` prompt (or read this guide). It returns the M1
+   workflow and the map below.
+2. **Plan** — for a form from a spec, use the `plan-form` prompt (it reads and parses the spec
+   file). For a free-text description, use `create-form`. To detect the target stack, `discover-context`.
+3. **Read the workflow** — the M1 build workflow (model → schema → validation → behaviors → arrays →
+   wizard → render). It is part of this guide; the whole self-doc is one resource: `reformer://guide`.
+4. **Look things up as you code**:
+   - `find_recipe <topic>` — a worked example for a scenario (e.g. `wizard`, `form-array`, `cycle`, `json-schema`).
+   - `get_symbol_docs <name>` — exact signature + `@example` of a function/type (e.g. `createForm`, `validateFormModel`).
+   - `list_symbols` — the API surface by kind/package when you don't know the name.
+5. **Add features** with the focused prompts: `add-validation`, `add-behavior`, `add-form-array`, `add-wizard`.
+6. **Migrate render target**: `to-renderer` (core → renderer-react), `to-renderer-json` (react → JSON).
+7. **Check your work**:
+   - `check_behaviors` — declare compute/copy dependencies, get cycle detection.
+   - `validate_json_schema` — validate a renderer-json JSON schema before rendering.
+   - `review` — cross-package code-review checklist.
+
+## 2. What's where
+
+The full self-doc of this server is one resource — `reformer://guide` (aka `reformer://docs/mcp`) —
+covering: **Tools** (callable lookup + validation), **Prompts** (one per workflow step),
+**Resources** (`reformer://docs/<pkg>[/<section>]` for the 5 library packages), and the **M1 workflow**.
+Individual sections are addressable per-heading (slug from the H2 title); enumerate exact URIs with ListResources.
+
+## 3. The 5 library packages (read their docs via resources)
+
+- `@reformer/core` — model, schema, validation, behaviors (`reformer://docs/core`).
+- `@reformer/cdk` — headless FormArray / FormWizard / FormField compounds (`reformer://docs/cdk`).
+- `@reformer/ui-kit` — styled field components: Input, Select, Checkbox… (`reformer://docs/ui-kit`).
+- `@reformer/renderer-react` — declarative RenderSchema (`reformer://docs/renderer-react`).
+- `@reformer/renderer-json` — JSON schema + registry (`reformer://docs/renderer-json`).
+
+## 4. Golden rules
+
+- **M1**: one `createModel` is the source of truth; schema leaves reference its signals (`value: model.$.x`).
+- Validation runs through `validateFormModel(model, schema)`, not `form.validate()`.
+- The removed path-based API (`validate(path.x)`, `RenderSchemaFn = (path) =>`, `ValidationSchemaFn`) is gone — don't use it.
+- Prefer `createForm({ model, schema })` over legacy overloads.
+
+## 5. get_symbol_docs
+
+Full JSDoc for one public symbol of any `@reformer/*` package: description, signature,
+params, `@returns`, every `@example`, source path.
+- `symbol` (string, required) — e.g. `"createForm"`, `"validateFormModel"`, `"FormArray"`.
+- `package` (string, optional) — e.g. `"@reformer/core"`; omit to search all.
+
+Use before writing code against an unfamiliar symbol.
+
+## 6. find_recipe
+
+A worked example / how-to for a scenario. Cascade: docs/llms filename → `##` section →
+symbol `@example` → fallback list.
+- `topic` (string, required) — keyword. Aliases resolve intuitive terms: `wizard`→multi-step,
+  `form-array`→arrays, `cycle`→cycle-detection, `cross-field`→sync-fields/copy-from, `json-schema`, etc.
+- `package` (string, optional).
+
+Use to copy a correct pattern instead of guessing.
+
+## 7. list_symbols
+
+The API surface by kind and package — discovery when you don't know a name.
+- `kind` (optional) — `function` | `class` | `interface` | `type` | `const` | `enum`.
+- `package` (optional) — one package or `*`.
+
+E.g. all functions of `@reformer/core` enumerate every validator and behavior. Then
+`get_symbol_docs` the one you want.
+
+## 8. validate_json_schema
+
+Validate a `@reformer/renderer-json` form-DSL JSON schema **before rendering**. Checks node
+structure, operator syntax (`$model`/`$component`/`$dataSource`), and unknown component/
+data-source names.
+- `schema` (object | JSON string, required) — the schema you generated.
+- `componentNames` (string[], optional) — names in your registry, enables unknown-`$component(...)` detection.
+- `dataSourceNames` (string[], optional) — enables unknown-`$dataSource(...)` detection.
+
+Returns `{ valid, errors[] }`. Always run it on a renderer-json schema before handing it off.
+
+## 9. check_behaviors
+
+Static cycle detection for reactive behaviors. Declare, per computed/copied field, what it reads;
+the tool finds cyclic dependencies (the loops the runtime throws "Cycle detected" for).
+- `dependencies` (required) — array of `{ target: string, reads: string[] }`.
+
+E.g. `[{ target: "total", reads: ["price","quantity"] }]`. Run after planning compute/copyFrom.
+
+## 10. report_issue
+
+Record a ReFormer problem + its fix to a local knowledge store (`~/.reformer/issues.jsonl`).
+- `error` (string, required), `solution` (string, required), optional `tags`, `context`.
+
+Use when you discover and fix a non-obvious ReFormer error, to help future runs.
+
+---
+
+_A `debug` tool exists only when the server runs with `REFORMER_DEBUG=true`; ignore it in normal use._
+
+## 11. start-here
+
+No arguments. The entry point: returns the M1 workflow, the map of prompts/tools/resources,
+and the reading order. Call it first when asked to build or modify a form.
+
+## 12. discover-context
+
+- `description` (required), `projectPath` (optional).
+
+Detects the target stack (ui-kit / Tailwind / which renderer) from the consumer project and
+recommends a render target. Optional first step when the target isn't given.
+
+## 13. plan-form
+
+- `specPath` (required), `target` (optional: core | renderer-react | renderer-json), `projectPath` (optional).
+
+Reads and parses a markdown spec file, then returns a roadmap: steps, fields, conditionals,
+behaviors, API endpoints, a risk matrix, and verification scenarios. Use when the form comes
+from a written spec.
+
+## 14. create-form
+
+- `description` (required), `target` (optional, default core), `projectPath` (optional).
+
+Turns a free-text form description into build instructions for the chosen target (quick-start,
+FormSchema reference, imports, stack-aware skeleton). Use for the initial form when there is no spec file.
+
+## 15. add-validation
+
+- `code` (existing FormSchema, required), `requirements` (required).
+
+Adds validators (built-in, custom cross-field `ModelValidator`, async) to an existing form.
+
+## 16. add-behavior
+
+- `code` (required), `requirements` (required).
+
+Wires reactive behaviors: `compute`, `copyFrom`, `enableWhen`, `onChange`, etc. Pair with the
+`check_behaviors` tool to rule out cycles.
+
+## 17. add-form-array
+
+- `code` (required), `requirements` (required).
+
+Turns a field into a dynamic array: schema `{ array, item, initialValue }` + the CDK `FormArray` compound.
+
+## 18. add-wizard
+
+- `code` (required), `steps` (required).
+
+Turns a single-page form into a multi-step `FormWizard` with a `FormWizardConfig` `{ validateStep, validateAll }`.
+
+## 19. to-renderer / to-renderer-json
+
+- `code` (required).
+
+Migrate render target: `to-renderer` (core manual JSX → renderer-react RenderSchema),
+`to-renderer-json` (renderer-react RenderSchema → renderer-json JSON + registry). After
+`to-renderer-json`, validate the result with `validate_json_schema`.
+
+## 20. review
+
+- `code` (required).
+
+Cross-package review checklist (state setup, integration, anti-patterns) for existing form code.
+
+---
+
+_A `debug` prompt exists only with `REFORMER_DEBUG=true`._
+
+## 21. URI scheme
+
+- `reformer://guide` — this server's full self-doc (workflow + tools + prompts + resources). The entry point in resource form (mirrors the `start-here` prompt).
+- `reformer://docs/<pkg>` — the full `llms.txt` of one library package (every section concatenated).
+- `reformer://docs/<pkg>/<section-slug>` — a single `##` section of a package, by slug.
+
+`<pkg>` is a short name: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `mcp`.
+
+## 22. Self-documentation (this server)
+
+- `reformer://guide` — the whole self-doc in one document (guide + tools + prompts + resources + workflow).
+  Equivalent to `reformer://docs/mcp` (the full mcp `llms.txt`).
+- Individual sections are addressable, but their slug is derived from the section's H2 heading, not the
+  filename. Enumerate exact URIs with ListResources. Examples of real slugs:
+  `reformer://docs/mcp/validate-json-schema`, `reformer://docs/mcp/schema-field-leaves`,
+  `reformer://docs/mcp/checklist-before-you-finish`.
+
+## 23. Library docs (the 5 packages)
+
+Each package's sections come from its `docs/llms/*.md`. Discover exact slugs with ListResources.
+Examples:
+
+- `reformer://docs/core` — model, schema, validators, behaviors, arrays, multi-step, common mistakes (~50 sections).
+- `reformer://docs/cdk/form-array`, `reformer://docs/cdk/form-navigation` — FormArray / FormWizard compounds.
+- `reformer://docs/ui-kit/form-field-integration`, `reformer://docs/ui-kit/choice-fields` — components.
+- `reformer://docs/renderer-react/render-schema`, `.../render-behavior` — RenderSchema.
+- `reformer://docs/renderer-json/json-schema`, `.../registry` — JSON DSL + registry.
+
+## 24. How this relates to tools
+
+`find_recipe` reads the same `docs/llms/*.md` directly (with alias resolution); resources give
+you the raw sections when you want to browse or read a whole package. When you know the scenario,
+`find_recipe` is faster; when you want the full section text, read the resource.
+
+## 25. 0. Choose the render target
+
+- **core + ui-kit** — plain React: one `<FormField control={form.x} />` per field. Simplest.
+- **renderer-react** — declarative `RenderSchema` tree (layout + conditional display as data).
+- **renderer-json** — machine-readable JSON schema + a component `registry` (string operators).
+
+All three share steps 1–6; they differ only at step 7.
+
+## 26. 1. Model — `createModel<T>(initial)`
+
+The model owns all values. Decisions: the data shape as a `type` (NOT `interface` — see
+`find_recipe type-safety-recipes`), and full initial values.
+
+- Numbers optional → `null`; strings → `''`; arrays → `[]`.
+- Array items must initialise **every** field, or the item's sub-model has no signals for the missing ones.
+- Stabilise the instance in `useMemo` so it isn't rebuilt each render.
+
+```ts
+import { createModel } from '@reformer/core';
+type RegForm = { email: string; password: string; age: number | null };
+const model = createModel<RegForm>({ email: '', password: '', age: null });
+// model.email (value) · model.$.email (signal) · model.get() · model.set(partial)
+```
+
+## 27. 2. Schema — field leaves
+
+The schema is a tree; each **field leaf** carries value-signal + component + props + validators.
+Layout (Step/Section/Grid) stays in React, not in the schema.
+
+```ts
+import { Input } from '@reformer/ui-kit';
+import { required, email, minLength } from '@reformer/core/validators';
+const schema = {
+  children: [
+    { value: model.$.email, component: Input, componentProps: { label: 'Email' }, validators: [required(), email()] },
+    { value: model.$.password, component: Input, componentProps: { label: 'Password' }, validators: [required(), minLength(8)] },
+  ],
+};
+```
+
+Traps: `value: model.$.field` (a signal) — never `value: 'field'`. Don't forget `componentProps.label`.
+
+## 28. 3. Create the form — `createForm({ model, schema })`
+
+```ts
+import { createForm } from '@reformer/core';
+const form = createForm<RegForm>({ model, schema }); // FormProxy: form.email is a node bound to model.$.email
+```
+
+Overloads `createForm({ form: {...} })` and `createForm(flatSchema)` are legacy — use `{ model, schema }`.
+
+## 29. 4. Validation — `validateFormModel(model, schema)`
+
+- Value-only validators: `required()`, `email()`, `min(50000)` — factories from `@reformer/core/validators`.
+- Cross-field / async: a custom `ModelValidator` `(value, scope, root) => ValidationError | null` (or `Promise<...>`), placed in a field's `validators`.
+- Run all validators with `validateFormModel(model, schema)` → `{ valid, errors }`. It — not `form.validate()` — executes schema validators.
+
+```ts
+import { validateFormModel, type ModelValidator } from '@reformer/core';
+const passwordsMatch: ModelValidator<string, unknown, RegForm> =
+  (value, _scope, root) => (value !== root.password ? { code: 'mismatch', message: 'Passwords differ' } : null);
+```
+
+## 30. 5. Behaviors — reactive dynamics (optional)
+
+Computed / copied / conditionally-enabled fields. Two styles: DSL `defineFormBehavior` + operators,
+or primitives in a `useEffect`. Register the DSL via `createForm({ model, schema, behavior })`.
+
+```ts
+import { defineFormBehavior } from '@reformer/core/behaviors';
+const behavior = defineFormBehavior<OrderForm>(({ model, form }) => {
+  compute(model.$.total, () => model.price * model.quantity);          // reads OTHER fields, writes its own
+  copyFrom(model.$.registration, model.$.residence, { when: () => model.sameAddress });
+  enableWhen(form.residence, () => model.sameAddress === false);        // state op — affects the node, not the value
+});
+```
+
+Trap: **cycles** (`compute(a, () => a)` or `a→b→a`) loop forever. Plan dependencies and run them
+through the `check_behaviors` tool; see `find_recipe cycle`.
+
+## 31. 6. Arrays & Wizard (when needed)
+
+- **Array** node in the schema: `{ array: model.items, item: (im) => itemSchema, initialValue: {...full...} }`.
+  In React use the `@reformer/cdk` `FormArray` compound; **key rows by `id`, not index**. `find_recipe form-array`.
+- **Wizard**: `@reformer/cdk` `FormWizardConfig = { validateStep?, validateAll? }` — two callbacks returning
+  `boolean | Promise<boolean>` (NOT schemas). `find_recipe wizard`.
+
+## 32. 7. Render
+
+- **ui-kit**: `<FormField control={form.email} />` per field.
+- **renderer-react**: `createRenderSchema<T>(() => renderNodeTree)`, conditional display via `hideWhen(node, () => cond)`, mount with `<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />`. `find_recipe render-schema`.
+- **renderer-json**: JSON with string operators `$model(path)` / `$component(Name)` / `$dataSource(NAME)`,
+  a `defineRegistry` mapping names → components, `convertJsonToM1Tree(json, registry, model)`, `<JsonRendererProvider settings={{ registry, model }}>` + `<JsonFormRenderer schema={json} />`.
+  **Validate the JSON with the `validate_json_schema` tool before rendering.** `find_recipe json-schema`.
+
+### Validation is on the model, not the render tree (renderer-react / renderer-json)
+
+The render tree (RenderSchema or JSON) describes **layout**. It does NOT carry validators —
+`JsonFieldNode` has no `validators`, and a RenderSchema leaf is display config. Validation lives
+on the **model**: build a field schema `{ children: [{ value: model.$.x, validators: [...] }] }`,
+pass it to `createForm({ model, schema })`, and run `validateFormModel(model, schema)` at submit.
+So for renderer targets you keep two things bound to the same model: the **field schema** (values +
+validators, for `createForm`/`validateFormModel`) and the **render tree** (layout, for the renderer).
+For a wizard, the field schema is flat (all fields), independent of how steps nest them in the render tree.
+
+## 33. Checklist before you finish
+
+1. Model initialises every field (incl. array-item fields). 2. Leaves are `{ value: model.$.x, component, ... }`.
+3. Validators are factories/`ModelValidator`; run via `validateFormModel`. 4. Behaviors are acyclic (`check_behaviors`).
+5. Arrays keyed by `id`. 6. renderer-json schema passed `validate_json_schema` → `valid`.

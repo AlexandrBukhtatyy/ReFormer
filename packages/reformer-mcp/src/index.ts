@@ -42,12 +42,20 @@ import {
   getSymbolDocsTool,
   findRecipeToolDefinition,
   findRecipeTool,
+  validateJsonSchemaToolDefinition,
+  validateJsonSchemaTool,
+  listSymbolsToolDefinition,
+  listSymbolsTool,
+  checkBehaviorsToolDefinition,
+  checkBehaviorsTool,
 } from './tools/index.js';
 
 // Prompts
 import {
   debugPromptDefinition,
   getDebugPrompt,
+  startHerePromptDefinition,
+  getStartHerePrompt,
   reviewPromptDefinition,
   getReviewPrompt,
   planFormPromptDefinition,
@@ -77,7 +85,7 @@ const isDebugMode = process.env.REFORMER_DEBUG === 'true';
 const server = new Server(
   {
     name: 'reformer-mcp',
-    version: '2.0.0-beta.1',
+    version: '6.0.0',
   },
   {
     capabilities: {
@@ -97,7 +105,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     | typeof debugToolDefinition
     | typeof getSymbolDocsToolDefinition
     | typeof findRecipeToolDefinition
-  > = [reportIssueToolDefinition, getSymbolDocsToolDefinition, findRecipeToolDefinition];
+    | typeof validateJsonSchemaToolDefinition
+    | typeof listSymbolsToolDefinition
+    | typeof checkBehaviorsToolDefinition
+  > = [
+    getSymbolDocsToolDefinition,
+    findRecipeToolDefinition,
+    listSymbolsToolDefinition,
+    validateJsonSchemaToolDefinition,
+    checkBehaviorsToolDefinition,
+    reportIssueToolDefinition,
+  ];
   if (isDebugMode) {
     tools.push(debugToolDefinition);
   }
@@ -130,6 +148,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'find_recipe':
       return await findRecipeTool(args as { topic: string; package?: string });
 
+    case 'validate_json_schema':
+      return await validateJsonSchemaTool(
+        args as { schema: unknown; componentNames?: string[]; dataSourceNames?: string[] }
+      );
+
+    case 'list_symbols':
+      return await listSymbolsTool(
+        args as {
+          kind?: 'function' | 'class' | 'interface' | 'type' | 'const' | 'enum';
+          package?: string;
+        }
+      );
+
+    case 'check_behaviors':
+      return await checkBehaviorsTool(
+        args as { dependencies: Array<{ target: string; reads: string[] }> }
+      );
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -147,6 +183,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   const resources: Array<{ uri: string; name: string; description: string; mimeType: string }> = [];
+
+  // Entry-point alias — full self-doc of the MCP server (workflow + tools + prompts + resources).
+  resources.push({
+    uri: 'reformer://guide',
+    name: 'ReFormer MCP — start-here guide',
+    description:
+      'Entry point: canonical M1 form-building workflow and a map of which MCP tool/prompt/resource to use at each step.',
+    mimeType: 'text/markdown',
+  });
 
   for (const pkg of listAvailablePackages()) {
     const short = packageShortName(pkg);
@@ -183,6 +228,13 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
+
+  // Entry-point alias → full self-doc of the MCP server.
+  if (uri === 'reformer://guide') {
+    return {
+      contents: [{ uri, mimeType: 'text/markdown', text: getFullDocs('@reformer/mcp') }],
+    };
+  }
 
   if (uri === 'reformer://debug') {
     if (!isDebugMode) {
@@ -236,6 +288,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 // ==================== PROMPTS ====================
 
 type AnyPromptDefinition =
+  | typeof startHerePromptDefinition
   | typeof reviewPromptDefinition
   | typeof debugPromptDefinition
   | typeof planFormPromptDefinition
@@ -250,6 +303,7 @@ type AnyPromptDefinition =
 
 server.setRequestHandler(ListPromptsRequestSchema, async () => {
   const prompts: AnyPromptDefinition[] = [
+    startHerePromptDefinition,
     discoverContextPromptDefinition,
     reviewPromptDefinition,
     planFormPromptDefinition,
@@ -276,6 +330,9 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
         throw new Error(`Unknown prompt: ${name}`);
       }
       return await getDebugPrompt(args as { code: string });
+
+    case 'start-here':
+      return getStartHerePrompt();
 
     case 'review':
       return await getReviewPrompt(args as { code: string });

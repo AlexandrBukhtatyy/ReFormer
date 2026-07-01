@@ -61,6 +61,22 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   'form-field': ['form-field-integration'],
   'field-component': ['form-field-integration'],
   formfield: ['form-field-integration'],
+  // cycles (behaviors / arrays)
+  cycle: ['cycle-detection'],
+  circular: ['cycle-detection', 'array-cleanup'],
+  'cycle-detection': ['cycle-detection'],
+  // copy / sync (value propagation between fields — NOT cross-field validation)
+  sync: ['sync-fields'],
+  copy: ['copy-from'],
+  // conditional value ops
+  reset: ['reset-when'],
+  transform: ['transform-value'],
+  revalidate: ['revalidate-when'],
+  // submit lifecycle
+  submit: ['submit-and-reset'],
+  // async options / preload
+  preload: ['async-preload'],
+  options: ['async-options-loading'],
 };
 
 function resolveAliases(topic: string): string[] {
@@ -220,12 +236,14 @@ function buildFallbackHint(topic: string, targets: ReformerPackage[]): string {
   }
 
   const symbols = targets.flatMap((p) => getPublicSymbols(p).map((s) => s.name)).slice(0, 20);
+  const aliases = Object.keys(RECIPE_ALIASES).sort();
 
   return (
     `No recipe found for "${topic}".\n\n` +
     `Available recipes (${recipes.length}):\n` +
     recipes.map((r) => `  - ${r}`).join('\n') +
     '\n\n' +
+    `Known topic aliases: ${aliases.join(', ')}.\n\n` +
     `Or pass a public symbol name. Sample symbols: ${symbols.join(', ')}, ...`
   );
 }
