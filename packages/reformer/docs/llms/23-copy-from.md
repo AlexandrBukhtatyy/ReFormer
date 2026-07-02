@@ -52,7 +52,7 @@ export const orderBehavior = defineFormBehavior<OrderForm>(({ model }) => {
 });
 ```
 
-Source: `BehaviorsExamples.tsx` (monorepo example): `copyFrom(model.$.shippingAddress, model.$.billingAddress, { when: () => model.useShippingAsBilling })`.
+Пример: `copyFrom(model.$.shippingAddress, model.$.billingAddress, { when: () => model.useShippingAsBilling })`.
 
 ### Копирование группы целиком
 

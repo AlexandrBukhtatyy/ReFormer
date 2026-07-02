@@ -35,6 +35,10 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 });
 ```
 
+> **Не читай `model.get()` внутри `compute`/`when`** — это нереактивный снимок, зависимость не
+> отследится и пересчёта не будет. Читай поля по отдельности (`model.field` или `model.$.field.value`).
+> `model.get()` — только вне реактивного контекста (в `onChange`, обработчиках событий).
+
 ### computeFrom — явный список источников
 
 Когда нужен явный контроль зависимостей — `computeFrom(sources, target, fn)`. Значения

@@ -18,6 +18,7 @@
 - `reformer://docs/cdk/formwizard-indicator`
 - `reformer://docs/cdk/formwizard-actions`
 - `reformer://docs/cdk/formarrayhandle-api`
+- Directory layout — `find_recipe directory-layout` (где держать файлы формы для выбранного target'а: shared core + presentation-слой)
   {{rendererPrereqs}}
 
 Без этого sub-agent работает вслепую — рискует cycle-prevention нарушением, plain-leaf corruption, неверными импортами.
@@ -92,7 +93,7 @@
 
 | #   | Сценарий               | Шаги                                                                     | Ожидаемый результат                                                                                         |
 | --- | ---------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| 1   | Initial render         | Navigate `/examples/<page>`                                              | {{stepsTextOrOne}} step section в DOM, 0 console errors, header виден.                                      |
+| 1   | Initial render         | Navigate to the form's route                                             | {{stepsTextOrOne}} step section в DOM, 0 console errors, header виден.                                      |
 | 2   | Empty submit step 1    | Click `[data-testid="wizard-next"]` без заполнения                       | 2+ specific Russian errors из canonical messages, `h2` остаётся "Шаг 1...".                                 |
 | 3   | Conditional reveal     | Switch loanType → "Ипотека"                                              | `propertyValue`/`initialPayment` появились (DOM contains testIds); `carBrand`/Model/Year/Price скрыты.      |
 | 4   | Cascade computed       | Set monthlyIncome=120000 + additionalIncome=20000                        | `totalIncome` = 140000 (read disabled `<input>` value).                                                     |

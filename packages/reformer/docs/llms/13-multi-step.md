@@ -74,7 +74,3 @@ function MultiStepForm() {
   );
 }
 ```
-
-> В монорепо `FormWizard` из `@reformer/ui-kit` принимает колбэки `{ validateStep, validateAll }`,
-> собранные фабрикой `makeCreditValidationConfig(model)` поверх `validateFormModel`. См.
-> `complex-multy-step-form/schemas/validation.ts`.

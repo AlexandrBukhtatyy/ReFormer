@@ -374,4 +374,3 @@ const form = createForm<{ city: string }>({ model, schema });
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
-- Эталон: `examples/complex-multy-step-form/schemas/schema.ts` (monorepo example) — большой пример с `Select` и `Checkbox` в реальной форме.

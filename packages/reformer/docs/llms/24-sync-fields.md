@@ -37,7 +37,7 @@ export const mirrorBehavior = defineFormBehavior<MirrorForm>(({ model }) => {
 });
 ```
 
-Source: `BehaviorsExamples.tsx` (monorepo example): `syncFields(model.$.syncField1, model.$.syncField2)`.
+Пример: `syncFields(model.$.syncField1, model.$.syncField2)`.
 
 ### С трансформацией — нормализация при прямой записи
 

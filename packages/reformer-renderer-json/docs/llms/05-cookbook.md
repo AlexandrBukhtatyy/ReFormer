@@ -1,6 +1,6 @@
 # Cookbook
 
-Продвинутые рецепты для `@reformer/renderer-json` (M1, строковый операторный DSL). Всё сверено с рабочим кодом: конвертер — [json-to-render-schema.ts](../../src/converter/json-to-render-schema.ts), операторы — [operators.ts](../../src/operators.ts), реестр — [component-registry.ts](../../src/registry/component-registry.ts), эталонная форма — `CreditApplicationFormRendererJson` (monorepo example).
+Продвинутые рецепты для `@reformer/renderer-json` (M1, строковый операторный DSL). Всё сверено с рабочим кодом: конвертер — [json-to-render-schema.ts](../../src/converter/json-to-render-schema.ts), операторы — [operators.ts](../../src/operators.ts), реестр — [component-registry.ts](../../src/registry/component-registry.ts).
 
 ## Монтаж формы из JSON (M1) { #mounting }
 
@@ -85,7 +85,6 @@ export function MyFormPage() {
 - `initialValue` — полный plain-объект по форме элемента (все поля из `$template`). Клонируется через `JSON.parse(JSON.stringify(...))`; не FieldConfig. Частичный `initialValue` → у нового элемента нет сигналов для недостающих полей.
 - Внутри `$template` пути относительны элементу (`'$model(type)'`, а не `'$model(properties[0].type)'`).
 - Вложенный массив в массиве — новый array-node внутри `$template` со своим `array`/`item`.
-- Эталон: блоки `properties`/`existingLoans`/`coBorrowers` в `json-schema.json` (monorepo example).
 
 ## dataSource-значения и функции { #datasource }
 
@@ -141,7 +140,6 @@ const registry = defineRegistry((reg) => {
 - Резолв происходит только для строк `'$dataSource(NAME)'`. Голые строки (`label`, `placeholder`) и инлайн-массивы options идут как есть.
 - Если имя не зарегистрировано: без `validate` строка `'$dataSource(NAME)'` останется строкой (молчаливый баг); с `validate` — ошибка `unknown dataSource "NAME"`.
 - dataSource нельзя использовать как имя `component` (`component: '$component(LoadingState)'`, где `LoadingState` — dataSource, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`). dataSource — только для значений в `componentProps`.
-- Эталон: `registry.ts` (monorepo example).
 
 ## Инъекция runtime-сущностей в компонент (form, validation) { #inject-runtime }
 
@@ -173,7 +171,6 @@ function createMyRenderBehavior(
 
 - `onInit(node, fn)` — build-time hook, вызывается один раз до первого рендера ноды.
 - `patchProps` мержит переданные пропы в `componentProps` ноды.
-- Эталон: [render-behavior.ts](../../../../projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/render-behavior.ts) (monorepo example).
 
 ## Migration from TS RenderSchema { #migration }
 

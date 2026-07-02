@@ -77,6 +77,14 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   // async options / preload
   preload: ['async-preload'],
   options: ['async-options-loading'],
+  // form directory / project layout (cross-target guide lives in @reformer/mcp;
+  // core also has its own project-structure section)
+  'directory-layout': ['form-directory-layout', 'project-structure'],
+  'directory-structure': ['form-directory-layout', 'project-structure'],
+  'project-structure': ['form-directory-layout', 'project-structure'],
+  'folder-structure': ['form-directory-layout'],
+  'file-organization': ['form-directory-layout'],
+  colocation: ['form-directory-layout', 'project-structure'],
 };
 
 function resolveAliases(topic: string): string[] {

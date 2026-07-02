@@ -76,40 +76,14 @@ Complete ReFormer library documentation.
 
 ---
 
-### reformer://api
+### reformer://docs/<pkg>/<section>
 
-API reference section only.
-
-**MIME Type:** `text/markdown`
-
-**Content:**
-
-- createForm
-- Node properties and methods
-- SetValueOptions
-- ValidationError
-- FieldStatus
-- Type guards
-
----
-
-### reformer://examples
-
-Code examples from documentation.
+A single H2 section of a package, addressed by slug (enumerate exact URIs via ListResources).
 
 **MIME Type:** `text/markdown`
 
-**Content:** Code examples from documentation
-
----
-
-### reformer://troubleshooting
-
-Common problems and solutions.
-
-**MIME Type:** `text/markdown`
-
-**Content:** Troubleshooting guide for common ReFormer issues
+> Public symbols/signatures and recipes are **tools**, not resources: use `list_symbols`,
+> `get_symbol_docs`, `find_recipe`.
 
 ---
 

@@ -92,11 +92,10 @@ function MyFormPage() {
 Для многошаговых форм корневой узел — `RendererFormWizard` (compat-shim над `FormWizard` из
 `@reformer/ui-kit/form-wizard`), которому передаётся `form` через `componentProps`, а шаги —
 через `componentProps.steps` (массив `RenderNode`, каждый с `component: Step`). Форма для
-wizard-узла добавляется в схему при её сборке. Канонический паттерн — в
-`complex-multy-step-form-renderer` этого монорепозитория:
+wizard-узла добавляется в схему при её сборке. Каноническая схема wizard-узла:
 
 ```tsx
-// render-schema.ts — упрощённо
+// упрощённо
 function buildSchema(model, form?) {
   return {
     selector: 'wizard',

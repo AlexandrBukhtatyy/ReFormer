@@ -237,5 +237,4 @@ Validation happens automatically:
 - On `next.onClick` / `FormWizard.Next`: runs `validateStep(currentStep)`; on failure calls `form.markAsTouched()` and stays on the step.
 - On `submit` (ref `submit()` or `FormWizard.Actions` `onSubmit`): runs `validateAll()`; on success delegates to `form.submit(onSubmit, { skipValidation: true })`.
 
-> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`; the
-> credit-application example builds it via `makeCreditValidationConfig(model)`.
+> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`.

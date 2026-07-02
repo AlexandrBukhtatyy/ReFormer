@@ -87,8 +87,6 @@ function MyFormPage() {
 
 **Почему `model` через провайдер, а не `<JsonFormRenderer form={...}/>`?** Под M1 листья схемы (`value: '$model(path)'`) биндятся к сигналам модели (`model.signalAt(path)`) конвертером. Модель обязательна и передаётся через `JsonRendererProvider` settings — `JsonFormRenderer` без неё бросит `settings.model is required (M1)`. Сам рендерер принимает только `{ schema, renderBehavior?, onSchemaReady?, validate? }`.
 
-Полный эталон с wizard, массивами и behavior — `CreditApplicationFormRendererJson` (monorepo example): модель и форма строятся `convertJsonToM1Tree`, поведение (compute/enableWhen/navigation) — общий `behavior`, а `renderBehavior` инжектит `form` в wizard через `onInit` + `patchProps`.
-
 ## Key Concepts
 
 - **JSON-схема** — дерево `JsonNode` (см. [02-json-schema.md](02-json-schema.md)). Узлы: **field** (`value: '$model(...)'`), **array** (`array` + `item.$template`), **container** (`component` + `children`).
@@ -125,4 +123,3 @@ function MyFormPage() {
 - [03-registry.md](03-registry.md) — как наполнять реестр.
 - [04-troubleshooting.md](04-troubleshooting.md) — частые ошибки.
 - [05-cookbook.md](05-cookbook.md) — массивы, dataSource-функции, миграция из TS RenderSchema.
-- Эталонный пример: `CreditApplicationFormRendererJson` (monorepo example).

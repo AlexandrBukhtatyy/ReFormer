@@ -39,7 +39,7 @@ export const paymentBehavior = defineFormBehavior<PaymentForm>(({ model }) => {
 });
 ```
 
-Source: `BehaviorsExamples.tsx` (monorepo example): `revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema))`.
+Пример: `revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema))`.
 
 ### Несколько триггеров
 

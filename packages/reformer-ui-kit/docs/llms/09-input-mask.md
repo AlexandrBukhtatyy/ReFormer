@@ -116,7 +116,7 @@ const onSubmit = async () => {
 
 Cross-field правила (например, «доп. телефон отличается от основного») — это
 именованные `ModelValidator<value, scope, root>` в том же массиве `validators`
-(читают корень формы через третий аргумент). Эталон: `examples/complex-multy-step-form/schemas/validation.ts`.
+(читают корень формы через третий аргумент).
 
 ## Advanced — strict mask через FormField + children slot
 

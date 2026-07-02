@@ -74,7 +74,7 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
 
 ui-kit FormArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
 
-> Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }` (см. эталон `examples/complex-multy-step-form-renderer/render-schema.ts`).
+> Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }`.
 
 ## JSON (renderer-json)
 
