@@ -143,11 +143,11 @@ Expected: Documentation content
   "jsonrpc": "2.0",
   "id": 5,
   "method": "resources/read",
-  "params": { "uri": "reformer://troubleshooting" }
+  "params": { "uri": "reformer://docs/cdk" }
 }
 ```
 
-Expected: Troubleshooting content
+Expected: @reformer/cdk documentation content
 
 ### Prompts
 

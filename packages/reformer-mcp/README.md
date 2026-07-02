@@ -74,22 +74,21 @@ claude mcp list
 
 ## Available Resources
 
-URI-шаблон: `reformer://<category>[/<short-package>]`.
+URI-шаблон: `reformer://docs[/<short-package>][/<section-slug>]` (плюс `reformer://guide` и `reformer://debug`).
 
-`<category>` — один из: `docs`, `api`, `examples`, `troubleshooting`.
 `<short-package>` — без префикса `@reformer/`: `core`, `cdk`, `ui-kit`, `renderer-react`, `renderer-json`, `mcp`. Опционален — без него возвращается агрегированное по всем пакетам.
 
-| URI                                  | Что внутри                                                                                                      |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `reformer://docs`                    | Документация всех `@reformer/*` пакетов, склеенная.                                                             |
-| `reformer://docs/cdk`                | Только `@reformer/cdk`: overview, FormArray, FormWizard, FormField, recipes, troubleshooting.                   |
-| `reformer://docs/ui-kit`             | Только `@reformer/ui-kit`: text-fields, choice-fields, layout/buttons, form-field-integration, troubleshooting. |
-| `reformer://docs/renderer-json`      | Только `@reformer/renderer-json`: JSON schema, registry, cookbook, troubleshooting.                             |
-| `reformer://api`                     | Список всех публичных символов из JSDoc (kind + одна строка описания), агрегировано.                            |
-| `reformer://api/core`                | Список ~141 публичного символа `@reformer/core` (включая `behaviors.*` и `validators.*`).                       |
-| `reformer://examples[/<pkg>]`        | Сниппеты кода из docs (по теме или общий).                                                                      |
-| `reformer://troubleshooting[/<pkg>]` | Частые проблемы и решения (12 для cdk, 8 для renderer-json, 11 для ui-kit, …).                                  |
-| `reformer://debug`                   | Только в debug-режиме.                                                                                          |
+| URI                               | Что внутри                                                                                                      |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `reformer://guide`                | Полная самодокументация сервера (workflow + tools + prompts + resources).                                       |
+| `reformer://docs`                 | Документация всех `@reformer/*` пакетов, склеенная.                                                             |
+| `reformer://docs/cdk`             | Только `@reformer/cdk`: overview, FormArray, FormWizard, FormField, recipes, troubleshooting.                   |
+| `reformer://docs/ui-kit`          | Только `@reformer/ui-kit`: text-fields, choice-fields, layout/buttons, form-field-integration, troubleshooting. |
+| `reformer://docs/renderer-json`   | Только `@reformer/renderer-json`: JSON schema, registry, cookbook, troubleshooting.                             |
+| `reformer://docs/<pkg>/<section>` | Отдельная H2-секция пакета по slug'у (точные URI — через ListResources).                                        |
+| `reformer://debug`                | Только в debug-режиме.                                                                                          |
+
+> Списка символов и сигнатур в ресурсах нет — используй инструменты `list_symbols` / `get_symbol_docs`; для рецептов по сценарию — `find_recipe`.
 
 ## Available Prompts
 
@@ -176,14 +175,12 @@ REFORMER_DEBUG=true npx @modelcontextprotocol/inspector node packages/reformer-m
 
 ### Чек-лист ручной проверки
 
-**Resources** (4 aggregated + 4×6 per-package):
+**Resources** (`guide` + `docs` aggregated + per-package + per-section):
 
 - `reformer://docs` — длинный markdown с разделителями `# ===== @reformer/<pkg> =====`.
 - `reformer://docs/cdk` — содержит `FormArray` и новые секции `04-form-field`, `05-recipes`, `06-troubleshooting`.
 - `reformer://docs/ui-kit` — содержит `02-text-fields` … `06-troubleshooting`.
-- `reformer://api/core` — список ~141 символа, включая `copyFrom`, `watchField`, `useFormControl`.
-- `reformer://troubleshooting/cdk` — 12 проблем с решениями.
-- `reformer://examples/renderer-json` — содержит `$template`.
+- `reformer://guide` — самодокументация сервера (mirror `reformer://docs/mcp`).
 
 **Tools:**
 

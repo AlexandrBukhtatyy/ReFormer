@@ -98,10 +98,8 @@ Claude will use the documentation to help troubleshoot.
 
 ### Resources
 
-- `reformer://docs` - Full documentation
-- `reformer://api` - API reference
-- `reformer://examples` - Code examples
-- `reformer://troubleshooting` - Common problems and solutions
+- `reformer://guide` - Server self-documentation
+- `reformer://docs[/<pkg>[/<section>]]` - Library docs (all / one package / one section)
 
 ## Next Steps
 

@@ -55,7 +55,10 @@ function findPackageRoot(pkg: string): string | null {
 }
 
 function findEntry(pkgRoot: string): string | null {
-  for (const rel of ['src/index.ts', 'src/index.tsx']) {
+  // Prefer source (monorepo dev); fall back to published types (dist/index.d.ts) when a
+  // consumer installed only `dist` + `llms.txt` — package `files` omits `src`, so without
+  // this fallback symbol indexing returns empty for every installed package.
+  for (const rel of ['src/index.ts', 'src/index.tsx', 'dist/index.d.ts']) {
     const abs = resolve(pkgRoot, rel);
     if (existsSync(abs)) return abs;
   }
@@ -85,17 +88,23 @@ function findEntries(pkgRoot: string): string[] {
       if (key.split('/').length > 2) continue;
       const imp = typeof val === 'string' ? val : (val as { import?: string })?.import;
       if (!imp) continue;
-      // Map the built entry back to source: ./dist/behaviors.js → src/behaviors.ts
-      const srcRel = imp
-        .replace(/^\.\//, '')
-        .replace(/^dist\//, 'src/')
-        .replace(/\.(js|mjs|cjs)$/, '');
+      // Map the built entry back to source: ./dist/behaviors.js → src/behaviors.ts.
+      // Prefer source; fall back to the published declaration (dist/behaviors.d.ts) when
+      // only `dist` is present (installed package without `src`).
+      const noExt = imp.replace(/^\.\//, '').replace(/\.(js|mjs|cjs)$/, '');
+      const srcRel = noExt.replace(/^dist\//, 'src/');
+      let matched = false;
       for (const ext of ['.ts', '.tsx']) {
         const abs = resolve(pkgRoot, srcRel + ext);
         if (existsSync(abs)) {
           entries.push(abs);
+          matched = true;
           break;
         }
+      }
+      if (!matched) {
+        const dts = resolve(pkgRoot, noExt + '.d.ts');
+        if (existsSync(dts)) entries.push(dts);
       }
     }
   } catch {
@@ -409,7 +418,18 @@ function renderComment(comment: string | ts.NodeArray<ts.JSDocComment>): string 
 function resolveModule(fromFile: string, spec: string): string | null {
   if (!spec.startsWith('.')) return null;
   const baseDir = dirname(fromFile);
-  const candidates = [spec + '.ts', spec + '.tsx', `${spec}/index.ts`, `${spec}/index.tsx`];
+  // `.d.ts` variants resolve re-exports inside published declaration barrels, where the
+  // specifier may carry a `.js` extension (ESM) or none. Source (.ts/.tsx) is tried first
+  // so monorepo behaviour is unchanged.
+  const bare = spec.replace(/\.(js|mjs|cjs)$/, '');
+  const candidates = [
+    spec + '.ts',
+    spec + '.tsx',
+    `${spec}/index.ts`,
+    `${spec}/index.tsx`,
+    bare + '.d.ts',
+    `${bare}/index.d.ts`,
+  ];
   for (const rel of candidates) {
     const abs = resolve(baseDir, rel);
     if (existsSync(abs)) return abs;
