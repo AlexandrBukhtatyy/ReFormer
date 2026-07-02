@@ -18,7 +18,7 @@
 - `reformer://docs/cdk/formwizard-indicator`
 - `reformer://docs/cdk/formwizard-actions`
 - `reformer://docs/cdk/formarrayhandle-api`
-- Directory layout — `find_recipe directory-layout` (где держать файлы формы для выбранного target'а: shared core + presentation-слой)
+- Directory layout — `find_recipe directory-layout` (раскладка: `lib/` доменные хелперы + `schema/` определение формы + `components/`, корень лаконичный; для renderer-json base registry + DSL meta-schema — на уровне приложения)
   {{rendererPrereqs}}
 
 Без этого sub-agent работает вслепую — рискует cycle-prevention нарушением, plain-leaf corruption, неверными импортами.
