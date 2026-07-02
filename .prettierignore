@@ -8,3 +8,6 @@ build
 .docusaurus/
 **/docs/llms/
 projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json
+
+# planning artifacts — authored ad-hoc by plan mode / agents, not prod docs
+docs/plans/

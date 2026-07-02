@@ -72,7 +72,8 @@ computeFrom(
 computeFrom(
   [model.$.personalData.lastName, model.$.personalData.firstName, model.$.personalData.middleName],
   model.$.fullName,
-  (lastName, firstName, middleName) => [lastName, firstName, middleName].filter(Boolean).join(' ').trim()
+  (lastName, firstName, middleName) =>
+    [lastName, firstName, middleName].filter(Boolean).join(' ').trim()
 );
 ```
 

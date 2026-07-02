@@ -64,7 +64,11 @@ jobs:
             run_tests: false
           - workspace: '@reformer/mcp'
             dir: packages/reformer-mcp
-            deps: ''
+            # mcp tsc imports @reformer/renderer-json/validate (validate_json_schema
+            # tool) — renderer-json must be built first so its dist types resolve.
+            # renderer-json itself needs core + renderer-react, so build the full
+            # chain in order (deps are built sequentially).
+            deps: '@reformer/core @reformer/renderer-react @reformer/renderer-json'
             run_tests: false
 
     permissions:

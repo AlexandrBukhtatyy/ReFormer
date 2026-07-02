@@ -14,6 +14,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit -p packages/reformer/tsconfig.json && tsc --noEmit -p packages/reformer-renderer-react/tsconfig.json && tsc --noEmit -p packages/reformer-ui-kit/tsconfig.json && tsc --noEmit -p packages/reformer-renderer-json/tsconfig.json && tsc --noEmit -p projects/react-playground/tsconfig.app.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "size": "size-limit",
@@ -34,6 +35,9 @@
     "*.{js,ts,jsx,tsx}": [
       "eslint --fix --ignore-pattern '**/src/mocks/_generated/**'",
       "prettier --write"
+    ],
+    "*.{md,mdx,json,jsonc,yml,yaml,css,scss,html}": [
+      "prettier --write --ignore-unknown"
     ]
   },
   "repository": {

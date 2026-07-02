@@ -65,3 +65,12 @@ jobs:
         run: |
           npm run gen:form-schema -w react-playground
           git diff --exit-code -- 'projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
+
+      - name: Typecheck
+        # Runs AFTER package builds so @reformer/* dist type declarations exist —
+        # packages resolve each other through built dist, not src. Package "build"
+        # is vite/esbuild (transpile only, no type check), so type errors slip past
+        # CI and only surface later in typedoc (Deploy Documentation). This gate
+        # catches them before merge to main. @reformer/cdk is excluded pending a
+        # fix of its generic React-Context variance errors (tracked separately).
+        run: npm run typecheck

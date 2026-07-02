@@ -130,7 +130,9 @@ Validation per step: `validateFormModel(model, stepSchema)` — it validates mod
 ```ts
 // helper: warnings don't block navigation
 const noBlocking = (errors: Record<string, { severity?: string }[]>): boolean =>
-  Object.values(errors).flat().every((e) => e.severity === 'warning');
+  Object.values(errors)
+    .flat()
+    .every((e) => e.severity === 'warning');
 
 const validateStep = async (step: number): Promise<boolean> => {
   const res = await validateFormModel(model, STEP_SCHEMAS[step - 1]);
