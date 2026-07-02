@@ -159,6 +159,7 @@ function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 - `reformer://docs/core/non-existent-api-do-not-use`
 - `reformer://docs/ui-kit/quick-start` (if `@reformer/ui-kit` detected)
 - `reformer://docs/ui-kit/components`
+- Directory layout — run `find_recipe directory-layout` for where each file goes for `{{target}}` (shared core: `types`/`model`/`validation`/`behavior`; presentation: `schema.ts` + components / `render-schema.ts` / `json-schema.json` + `registry.ts`)
   {{rendererPrereqs}}
 
 ## Task
@@ -168,7 +169,8 @@ function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 3. Write typed `interface MyForm { ... }` and `createModel<MyForm>(initialValues)`.
 4. Build the schema binding leaves to model signals (`{ value: model.$.field, component, componentProps }`), then `createForm<MyForm>({ model, schema })`. For `renderer-react`: same tree as `RenderSchemaFn<MyForm> = () => RenderNode<MyForm>` (no path arg) + `createRenderSchema`. For `renderer-json`: `JsonFormSchema` (`'$model(...)'` / `'$component(...)'` operators) + `defineRegistry` + `convertJsonToM1Tree`.
 5. Use components from detected ui-kit + Tailwind layout from skeleton above.
-6. Don't add validation/behaviors — out of scope.
+6. Organize files by the recommended layout for `{{target}}` (see `find_recipe directory-layout`): shared core (`types`/`model`/`validation`/`behavior`) + the target's presentation layer.
+7. Don't add validation/behaviors — out of scope.
 
 ## Output checklist
 
