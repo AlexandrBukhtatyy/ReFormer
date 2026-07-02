@@ -1,131 +1,191 @@
 # Form directory layout (core / renderer-react / renderer-json)
 
-How to organize the files of one form across the three render targets. A form is one
-**shared core** (data + rules, target-agnostic) plus a thin **presentation layer** that
-differs per target. Only the presentation layer changes between `@reformer/core`,
-`@reformer/renderer-react`, and `@reformer/renderer-json` — the core is written once and
-reused. Layout below is generalized from a real complex multi-step form; use `[form-name]`
-/ `[FormName]` as placeholders.
+How to organize the files of one form. A form module is three folders — `lib/` (domain raw
+material), `schema/` (the form definition), `components/` (React layout) — plus an entry
+component and an `index.ts`. **Keep the module root to just the entry + `index.ts`; put
+everything else in a folder.** Only `schema/` (and `components/`) differ between
+`@reformer/core`, `@reformer/renderer-react`, and `@reformer/renderer-json`; `lib/` is
+identical. Layout is generalized — use `[form-name]` / `[FormName]` as placeholders.
 
-## 1. Overview — what is shared vs target-specific
+## 1. Overview
 
-| Layer                     | core (+ ui-kit)              | renderer-react            | renderer-json                     |
-| ------------------------- | ---------------------------- | ------------------------- | --------------------------------- |
-| Types / constants / api   | shared                       | reuse                     | reuse                             |
-| `model.ts`                | shared                       | reuse                     | reuse                             |
-| `validation.ts`           | shared                       | reuse                     | reuse                             |
-| `behavior.ts` (model)     | shared                       | reuse                     | reuse                             |
-| `utils/compute/`          | shared                       | reuse                     | reuse                             |
-| Field/layout tree         | `schema.ts` + step components | `render-schema.ts`        | `json-schema.json` + `registry.ts` |
-| Render behavior           | — (React components)         | `render-behavior.ts`      | thin `render-behavior.ts` → shared |
-| Entry component           | `[FormName]Form.tsx`         | `[FormName]FormRenderer.tsx` | `[FormName]FormRendererJson.tsx` |
+| Folder / file          | What lives there                                             | core | renderer-react | renderer-json |
+| ---------------------- | ----------------------------------------------------------- | :--: | :------------: | :-----------: |
+| `lib/`                 | domain helpers: types, constants, calc, validators, api      |  ✅  |     reuse      |     reuse     |
+| `schema/`              | form definition: model + field/layout tree + behavior + validation | ✅ | ✅ (differs) | ✅ (differs) |
+| `components/`          | React layout (`steps/`, `nested-forms/`, `ui/`)              |  ✅  |   `ui/` only   |   `ui/` only  |
+| `[FormName]Form*.tsx`  | entry component                                             |  ✅  |       ✅       |      ✅       |
+| `index.ts`             | public re-exports of the module                             |  ✅  |       ✅       |      ✅       |
 
-Rule of thumb: **put anything that isn't layout into the shared core.** Renderer variants
-should import the core (types, model, validation, behavior, constants, api, compute, ui
-components), not re-declare it.
+Rule of thumb: **domain raw material → `lib/`; anything describing the form → `schema/`;
+React layout → `components/`; root = entry + `index.ts`.** For renderer-json the reusable
+infrastructure (base component registry + DSL meta-schema) is lifted to the **app level**
+(section 5) — the form carries only its own JSON layout and data-sources.
 
-## 2. Shared core (all targets)
+## 2. `lib/` — domain helpers (shared, identical in all targets)
+
+```
+lib/
+├── types.ts             # form interface + field enums + the { value, label } option type
+├── constants.ts         # option dictionaries (LOAN_TYPES, GENDERS, …)
+├── calc.ts              # pure functions for derived fields (age, monthlyPayment, …); or calc/ when many
+├── custom-validators.ts # reusable validator factories
+└── api.ts               # data sources + submit; or api/ when many
+```
+
+`lib/` is target-agnostic — it's imported by `schema/`, and reused as-is when the same form
+ships on another target.
+
+## 3. `schema/` — the form definition (this is where targets differ)
+
+### Target: core (+ ui-kit)
 
 ```
 [form-name]/
-├── types/
-│   ├── [form-name].ts        # main form interface + field enums (LoanType, EmploymentStatus…)
-│   └── option.ts             # shared { value, label } option type
-├── constants/
-│   └── [form-name].ts        # option dictionaries (LOAN_TYPES, GENDERS, …) used by schema + behavior
-├── api/
-│   ├── index.ts              # re-exports
-│   ├── fetch-*.ts            # data sources (dictionaries, regions, cities, …) + a mock for dev
-│   └── submit-*.ts           # submit endpoint
-├── utils/compute/
-│   └── compute-*.ts          # pure functions for derived fields (age, monthlyPayment, totalIncome…)
-├── model.ts                  # createModel factory + initial values + blank-element factories for arrays
-├── validation.ts             # validators + validateFormModel config → { validateStep, validateAll }
-└── behavior.ts               # defineFormBehavior: compute / copyFrom / enableWhen / onChange
+├── [FormName]Form.tsx        # entry: builds model+form, renders FormWizard + step components
+├── index.ts
+├── schema/
+│   ├── model.ts              # createModel + initial values + array-element factories
+│   ├── schema.ts             # FormSchema tree: { value: model.$.x, component, componentProps }
+│   ├── behavior.ts           # defineFormBehavior: compute / copyFrom / enableWhen / onChange
+│   ├── validation.ts         # validators + validateFormModel config → { validateStep, validateAll }; or validation/
+│   └── create-form.ts        # assembly: createForm({ model, schema, behavior }) → { model, form }
+├── lib/                      # (section 2)
+└── components/
+    ├── steps/                # one component per wizard step
+    ├── nested-forms/         # reusable sub-forms (Address, PersonalData, …)
+    └── ui/                   # helper blocks (summary, warnings, sections)
 ```
 
-- **`model.ts`** is the source of truth (`FormModel<[FormName]>`); every target binds to its signals.
-- **`validation.ts`** and **`behavior.ts`** are target-agnostic — the same reactive rules power all three.
-- Split `utils/compute/*` one function per derived field so `behavior.ts` reads cleanly.
+### Target: renderer-react
 
-## 3. Target: core (+ ui-kit)
-
-Adds the field tree as a `FormSchema` plus React components for layout.
+Layout lives in a `RenderSchema` tree (data, not JSX) → no per-step components; only
+`components/ui/` is reused. In `schema/`, `schema.ts` is replaced by `render-schema.ts`
+(+ `render-behavior.ts`); no `create-form.ts` (the entry assembles it).
 
 ```
 [form-name]/
-├── …shared core (section 2)…
-├── schema.ts                 # FormSchema tree: { value: model.$.x, component, componentProps }
-├── create-form.ts            # assembly: createForm({ model, schema, behavior }) → { model, form }
-├── operators.ts              # optional: custom behavior operators (loadOptionsOn, clearWhenOff…)
-├── components/
-│   ├── steps/                # one component per wizard step (BasicInfoForm, …)
-│   ├── nested-forms/         # reusable sub-forms (Address, PersonalData, …)
-│   └── ui/                   # helper blocks (summary, warnings, sections)
-├── hooks/                    # React hooks (load data, copy address, …)
-└── [FormName]Form.tsx        # entry: builds model+form, renders FormWizard + step components
+├── [FormName]FormRenderer.tsx  # entry: builds model+form, renders <FormRenderer />
+├── index.ts
+├── schema/
+│   ├── model.ts
+│   ├── render-schema.ts        # RenderNode tree (createRenderSchema) — containers + field leaves
+│   ├── behavior.ts             # model behavior (reused across targets)
+│   ├── render-behavior.ts      # hideWhen / renderEffect / navigation / submit / data-loading
+│   └── validation.ts
+├── lib/
+└── components/
+    └── ui/                     # helper blocks referenced by render-schema
 ```
 
-## 4. Target: renderer-react
+Leaves carry the **model signal** (`{ value: model.$.x, component, componentProps }`), never
+`form.X`. Give a `selector` to any node you drive programmatically (`hideWhen`, `patchProps`).
 
-Layout lives in a `RenderSchema` tree (data, not JSX), so per-step components are not needed.
-`components/ui/` blocks are still reused.
+### Target: renderer-json
 
-```
-[form-name]/
-├── …shared core (section 2)…
-├── render-schema.ts          # RenderNode tree: containers (Step/Section/Box) + field leaves
-│                             # created via createRenderSchema(() => buildSchema(model))
-├── render-behavior.ts        # hideWhen / renderEffect / navigation / submit / data-loading
-└── [FormName]FormRenderer.tsx # entry: builds model+form, renders <FormRenderer />
-```
-
-- Leaves carry the **model signal** (`{ value: model.$.x, component, componentProps }`), never the resolved `form.X`.
-- Give a `selector` to any node you manipulate programmatically (`hideWhen`, `patchProps`).
-
-## 5. Target: renderer-json
-
-Layout is a static JSON document (string operators) plus a component registry. Runtime
-entities (a `FormProxy`, a validation config) are injected via a thin render-behavior.
+The form carries only its own JSON layout + form-specific dataSources. The **base component
+registry and DSL meta-schema are app-level, not per-form** (section 5).
 
 ```
 [form-name]/
-├── …shared core (section 2)…
-├── json-schema.json          # layout as JSON: "$model(x)" / "$component(Name)" / "$dataSource(NAME)"
-├── form-schema.schema.json    # JSON Schema validating json-schema.json structure
-├── registry.ts               # component + dataSource registry (names → components / option arrays / fns)
-├── render-behavior.ts        # thin: onInit injects form + validation into the wizard, then delegates
-│                             # to the shared renderer-react render-behavior
-└── [FormName]FormRendererJson.tsx # entry: convertJsonToM1Tree(json, registry, model) + <JsonFormRenderer />
+├── [FormName]FormRendererJson.tsx # entry: convertJsonToM1Tree(json, appRegistry+formDataSources, model)
+├── index.ts
+├── schema/
+│   ├── model.ts
+│   ├── json-schema.json          # THIS form's layout: "$model(x)" / "$component(Name)" / "$dataSource(NAME)"
+│   ├── data-sources.ts           # form-specific dataSources (options, item-labels) — extends the app registry
+│   ├── behavior.ts               # model behavior (reused)
+│   ├── render-behavior.ts        # thin: onInit injects form+validation into the wizard, delegates to shared behavior
+│   └── validation.ts
+├── lib/
+└── components/
+    └── ui/                       # form-specific blocks referenced from the JSON via $component(...)
 ```
 
-- The JSON is loadable from a string (server/CMS/file); `registry.ts` maps `$component(...)` / `$dataSource(...)` to real components and values.
-- The render-behavior is intentionally thin — it reuses the renderer-react behavior so visibility/navigation/submit logic is defined once.
+## 4. Organizing `schema`: centralized vs co-located
+
+Two ways to arrange the field schema, validation and behavior — pick per project.
+
+**① Centralized** — one `schema.ts` / `validation.ts` / `behavior.ts` for the whole form in
+`schema/`; `components/steps/` holds only the step components (as shown in section 3). Easiest
+to reuse across targets and to read all of the form's rules in one place.
+
+**② Co-located by step** — each step folder holds its component plus its own `schema.ts` /
+`validation.ts` / `behavior.ts`. **Form-level rules stay in `schema/`**: the shared `model.ts`,
+cross-step `behavior.ts` (e.g. a premium computed from fields on different steps), cross-step
+`validation.ts`, and `create-form.ts` that assembles the per-step partial schemas. Better
+navigation and ownership in large forms; cross-target reuse is looser.
+
+```
+[form-name]/                    # ② co-located (core)
+├── [FormName]Form.tsx
+├── index.ts
+├── schema/                     # form-level only
+│   ├── model.ts                # shared model
+│   ├── behavior.ts             # cross-step behavior
+│   ├── validation.ts           # cross-step validation
+│   └── create-form.ts          # assembles the per-step partial schemas
+├── lib/
+├── steps/                      # step = component + its own schema/validation/behavior
+│   ├── PolicyInfo/
+│   │   ├── PolicyInfoForm.tsx
+│   │   ├── schema.ts
+│   │   ├── validation.ts
+│   │   └── behavior.ts
+│   └── …                       # one folder per step
+├── nested-forms/
+└── components/ui/
+```
+
+The same choice applies to `renderer-react` / `renderer-json`: keep one `render-schema.ts` /
+`json-schema.json`, or split it into per-step fragments living in the step folders (the
+cross-step `model`/`behavior`/`validation` still stay in `schema/`).
+
+## 5. App-level infrastructure (renderer-json only)
+
+The component registry is mostly **shared across all JSON forms** — ui-kit components plus the
+system containers (`RendererFormWizard`, `Step`, `FIELD_WRAPPER`). The DSL meta-schema is
+**generated from that registry**. Neither belongs to a single form — lift them to the app level
+(e.g. `src/renderer-json/` or `src/lib/forms/`):
+
+```
+src/renderer-json/            # one per application
+├── registry.ts               # base ComponentRegistry: ui-kit + RendererFormWizard/Step + FIELD_WRAPPER
+└── form-schema.schema.json    # GENERATED DSL meta-schema (npm run gen:form-schema) — derived from the registry
+```
+
+Each form's entry composes the **app base registry** with its own `schema/data-sources.ts`
+(options, item-label fns, form-specific components) before `convertJsonToM1Tree`. Do **not**
+copy the base registry or the meta-schema into a per-form folder — regenerate the meta-schema
+with `npm run gen:form-schema` when the base registry changes.
 
 ## 6. Reuse map
 
-| File / folder            | Role                                              | core | renderer-react | renderer-json |
-| ------------------------ | ------------------------------------------------- | :--: | :------------: | :-----------: |
-| `types/`, `constants/`   | data interface + option dictionaries              |  ✅  |     reuse      |     reuse     |
-| `api/`, `utils/compute/` | data sources + derived-field functions            |  ✅  |     reuse      |     reuse     |
-| `model.ts`               | reactive model (source of truth)                  |  ✅  |     reuse      |     reuse     |
-| `validation.ts`          | validators + validateStep/validateAll config      |  ✅  |     reuse      |     reuse     |
-| `behavior.ts`            | model behavior (compute/copyFrom/enableWhen)      |  ✅  |     reuse      |     reuse     |
-| `schema.ts`              | FormSchema field tree                             |  ✅  |       —        |       —       |
-| `components/steps,nested-forms` | per-step / sub-form React components        |  ✅  |       —        |       —       |
-| `components/ui/`         | helper UI blocks                                  |  ✅  |     reuse      |     reuse     |
-| `render-schema.ts`       | RenderNode layout tree                            |  —   |       ✅       |       —       |
-| `render-behavior.ts`     | visibility/navigation/submit                      |  —   |       ✅       | thin → shared |
-| `json-schema.json` + `registry.ts` | JSON layout + component/dataSource registry |  —   |       —        |      ✅       |
+| Folder / file                   | Role                                     | core | renderer-react | renderer-json |
+| ------------------------------- | ---------------------------------------- | :--: | :------------: | :-----------: |
+| `lib/*`                         | domain helpers (types/constants/calc/api/validators) | ✅ | reuse | reuse |
+| `schema/model.ts`               | reactive model (source of truth)         |  ✅  |     reuse      |     reuse     |
+| `schema/behavior.ts`            | model behavior                           |  ✅  |     reuse      |     reuse     |
+| `schema/validation.ts`          | validators + validateStep/validateAll    |  ✅  |     reuse      |     reuse     |
+| `schema/schema.ts`              | FormSchema field tree                    |  ✅  |       —        |       —       |
+| `schema/render-schema.ts`       | RenderNode layout tree                   |  —   |       ✅       |       —       |
+| `schema/render-behavior.ts`     | visibility / navigation / submit         |  —   |       ✅       | thin → shared |
+| `schema/json-schema.json`       | this form's JSON layout                  |  —   |       —        |      ✅       |
+| `schema/data-sources.ts`        | form-specific dataSources                |  —   |       —        |      ✅       |
+| `components/steps`,`nested-forms` | per-step / sub-form components          |  ✅  |       —        |       —       |
+| `components/ui`                 | helper UI blocks                         |  ✅  |     reuse      |     reuse     |
+| **app** `registry.ts` (base)    | ui-kit + system components               |  —   |       —        | **app-level** |
+| **app** `form-schema.schema.json` | generated DSL meta-schema               |  —   |       —        | **app-level** |
 
 ## 7. Scaling
 
 | Complexity | Structure                                                                                   |
 | ---------- | ------------------------------------------------------------------------------------------- |
 | Simple     | Single file: `[FormName]Form.tsx` (model + schema + component)                               |
-| Medium     | Split shared core: `types.ts`, `model.ts`, `schema.ts`, `validation.ts`, entry component    |
-| Complex    | Full layout above: `behavior.ts`, `constants/`, `api/`, `utils/compute/`, plus the target's presentation layer (`schema.ts` + `components/` **or** `render-schema.ts` **or** `json-schema.json` + `registry.ts`) |
+| Medium     | `lib/` (`types`, `constants`) + `schema/` (`model`, `schema`, `validation`) + entry — no deeper nesting |
+| Complex    | Full layout: `schema/` + `lib/` + `components/` (+ app-level `registry` / meta-schema for renderer-json) |
 
 For a single target keep everything in one `[form-name]/` module. To ship the same form on
-several targets, keep the shared core once and add the per-target presentation files (or
-per-target subfolders) that import it — never duplicate model/validation/behavior.
+several targets, keep `lib/` + `schema/{model,behavior,validation}` once and add the
+per-target presentation files inside `schema/` (`schema.ts` / `render-schema.ts` /
+`json-schema.json` + `data-sources.ts`) — never duplicate model/behavior/validation.
