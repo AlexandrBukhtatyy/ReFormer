@@ -1,6 +1,6 @@
 # Cookbook
 
-Продвинутые рецепты для `@reformer/renderer-react`. Каждый рецепт — конкретный сценарий из реального кода `complex-multy-step-form-renderer`, описанный без воды: проблема, решение, ограничения.
+Продвинутые рецепты для `@reformer/renderer-react`. Каждый рецепт — конкретный сценарий, описанный без воды: проблема, решение, ограничения.
 
 ## Custom fieldWrapper
 
@@ -85,7 +85,6 @@ function CreditApplicationPage() {
 - `patchProps` именно мерджит — повторный вызов с `{ disabled: true }` не сбросит ранее заданный `title`. Для полной очистки используй `resetProps`.
 - `setHidden(true)` перекрывает реактивное условие из `hideWhen`. Чтобы вернуть автоматику — `resetHidden()`.
 - Селектор должен быть указан в `RenderNode.selector`. Без него `proxy.node('x')` вернёт контроллер с пустыми переопределениями (никаких ошибок не будет, но эффекта тоже не будет).
-- Эталон: `CreditApplicationFormRenderer.tsx:57-87` (monorepo example) — debug-панель с тремя кнопками `setHidden`/`patchProps`/`resetProps`.
 
 ## Custom container with collapsible children
 
@@ -188,7 +187,6 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 - `onComponentEvent` мерджит обработчики по имени события (`onSubmit`, `onChange`, ...). Если schema уже содержит такой проп — он будет полностью заменён обработчиком из behavior.
 - `renderEffect` принимает не node, а саму схему: эффекты живут на уровне рендера всего дерева и автоматически диспозятся при unmount `FormRenderer`.
 - `onInit` срабатывает синхронно при applying behavior (до первого рендера). Это единственный хук, способный изменить `componentProps` так, чтобы они попали в первый рендер.
-- Эталон совмещения четырёх типов хуков на одной ноде: `render-behavior.ts` (monorepo example).
 
 ## See also
 

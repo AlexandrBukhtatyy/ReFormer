@@ -143,8 +143,6 @@ function CreditApplicationPage() {
 }
 ```
 
-Эталон: `examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx` (monorepo example).
-
 `testId` рендерер берёт из `componentProps.testId` листа schema:
 
 ```tsx
@@ -236,4 +234,3 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
-- Эталон: `examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx` (monorepo example) — `FormField` как `fieldWrapper` целой multi-step формы.

@@ -102,14 +102,7 @@ const handleSubmit = async () => {
 > **`config` не привязан к типу формы.** `FormWizardConfig` — это `{ validateStep?, validateAll? }`,
 > оба колбэка возвращают `boolean | Promise<boolean>`. Канон M1 — прогонять
 > `validateFormModel(model, schema)` (именно он исполняет `validators` листьев;
-> `form.validate()` по нодам схемные правила НЕ запустит). См. эталон
-> `examples/complex-multy-step-form/schemas/validation.ts`. Реальный эталон собирает конфиг фабрикой:
->
-> ```tsx
-> import { makeCreditValidationConfig } from './schemas/validation';
-> const config = useMemo(() => makeCreditValidationConfig(model), [model]);
-> // → { validateStep: (step) => Promise<boolean>, validateAll: () => Promise<boolean> }
-> ```
+> `form.validate()` по нодам схемные правила НЕ запустит).
 
 ### Альтернатива — imperative submit с values
 

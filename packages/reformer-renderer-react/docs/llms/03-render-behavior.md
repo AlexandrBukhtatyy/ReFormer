@@ -22,7 +22,7 @@
 ```tsx
 import { hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';
 
-// form захвачен в замыкание фабрики поведения (см. реальный render-behavior.ts).
+// form захвачен в замыкание фабрики поведения.
 const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
   hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
 };

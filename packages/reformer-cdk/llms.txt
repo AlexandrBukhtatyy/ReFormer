@@ -417,8 +417,7 @@ Validation happens automatically:
 - On `next.onClick` / `FormWizard.Next`: runs `validateStep(currentStep)`; on failure calls `form.markAsTouched()` and stays on the step.
 - On `submit` (ref `submit()` or `FormWizard.Actions` `onSubmit`): runs `validateAll()`; on success delegates to `form.submit(onSubmit, { skipValidation: true })`.
 
-> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`; the
-> credit-application example builds it via `makeCreditValidationConfig(model)`.
+> The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`.
 
 ## 18. Purpose
 
@@ -571,8 +570,6 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
 - [05-recipes.md](05-recipes.md) — продвинутые паттерны (включая собственный wrapper над FormField).
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
-- `RegistrationForm.tsx` (monorepo example) — `FormField` из ui-kit вокруг каждого поля.
-- `CreditApplicationForm` (monorepo example) — поля внутри multi-step формы.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
 ## 24. Nested FormArray
@@ -793,7 +790,6 @@ function Page({ form, config }: Props) {
 - `submit(onSubmit)` сначала прогоняет `config.validateAll?.()` (если колбэк задан), затем `form.markAsTouched()` если invalid, иначе делегирует в `form.submit(onSubmit, { skipValidation: true })`. Возвращает `R | null`. `null` — форма не прошла валидацию.
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
-- Эталон: `CreditApplicationForm.tsx` (monorepo example) — `submit` через ref + центральная кнопка отправки.
 
 ## 28. See also
 
@@ -1013,7 +1009,7 @@ resolve({ code: 'pattern', message: 'Неверный формат' });         
 **See also:**
 - {@link ValidationMessagesProvider} — как подключить резолвер к поддереву формы.
 
-_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
+_Source: src/validation/error-resolver.tsx_
 
 ### defaultErrorResolver
 
@@ -1038,7 +1034,7 @@ defaultErrorResolver({ code: 'required', message: 'Обязательно' }); /
 defaultErrorResolver({ code: 'required', message: '' });            // → 'required'
 ```
 
-_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
+_Source: src/validation/error-resolver.tsx_
 
 ### FormArray
 
@@ -1181,7 +1177,7 @@ return (
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArray.tsx_
+_Source: src/components/form-array/FormArray.tsx_
 
 ### FormArrayAddButton
 
@@ -1232,7 +1228,7 @@ export const FormArrayAddButton
 </FormArray.AddButton>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayAddButton.tsx_
+_Source: src/components/form-array/FormArrayAddButton.tsx_
 
 ### FormArrayAddButtonProps
 
@@ -1258,7 +1254,7 @@ export interface FormArrayAddButtonProps<T extends object = FormFields> extends 
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayContext
 
@@ -1283,7 +1279,7 @@ function MyConsumer() {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayContextValue
 
@@ -1315,7 +1311,7 @@ export interface FormArrayContextValue<T extends object = FormFields> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayCount
 
@@ -1342,7 +1338,7 @@ count === 0 ? 'No items' : `${count} item${count > 1 ? 's' : ''}`
 )} />
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayCount.tsx_
+_Source: src/components/form-array/FormArrayCount.tsx_
 
 ### FormArrayCountProps
 
@@ -1358,7 +1354,7 @@ export interface FormArrayCountProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayEmpty
 
@@ -1390,7 +1386,7 @@ With call to action
 </FormArray.Empty>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayEmpty.tsx_
+_Source: src/components/form-array/FormArrayEmpty.tsx_
 
 ### FormArrayEmptyProps
 
@@ -1406,7 +1402,7 @@ export interface FormArrayEmptyProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayHandle
 
@@ -1491,7 +1487,7 @@ arrayRef.current?.insert(0, row); // добавляем в начало
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArray.tsx_
+_Source: src/components/form-array/FormArray.tsx_
 
 ### FormArrayItem
 
@@ -1513,7 +1509,7 @@ export interface FormArrayItem<T extends object> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/useFormArray.ts_
+_Source: src/components/form-array/useFormArray.ts_
 
 ### FormArrayItemContext
 
@@ -1539,7 +1535,7 @@ function CurrentIndex() {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayItemContextValue
 
@@ -1569,7 +1565,7 @@ export interface FormArrayItemContextValue<T extends object = FormFields> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayItemIndex
 
@@ -1609,7 +1605,7 @@ export function FormArrayItemIndex({ render }: FormArrayItemIndexProps)
 <FormArray.ItemIndex render={(index) => `Позиция: ${index + 1}`} />
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayItemIndex.tsx_
+_Source: src/components/form-array/FormArrayItemIndex.tsx_
 
 ### FormArrayItemIndexProps
 
@@ -1625,7 +1621,7 @@ export interface FormArrayItemIndexProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayItemRenderProps
 
@@ -1655,7 +1651,7 @@ export interface FormArrayItemRenderProps<T extends object> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayList
 
@@ -1694,7 +1690,7 @@ With custom container
 </FormArray.List>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayList.tsx_
+_Source: src/components/form-array/FormArrayList.tsx_
 
 ### FormArrayListProps
 
@@ -1714,7 +1710,7 @@ export interface FormArrayListProps<T extends object> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayRemoveButton
 
@@ -1750,7 +1746,7 @@ With custom button (asChild)
 </FormArray.RemoveButton>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayRemoveButton.tsx_
+_Source: src/components/form-array/FormArrayRemoveButton.tsx_
 
 ### FormArrayRemoveButtonProps
 
@@ -1769,7 +1765,7 @@ export interface FormArrayRemoveButtonProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormArrayRootProps
 
@@ -1787,7 +1783,7 @@ export interface FormArrayRootProps<T extends object> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/types.ts_
+_Source: src/components/form-array/types.ts_
 
 ### FormField
 
@@ -1889,7 +1885,7 @@ Helper text
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormField.tsx_
+_Source: src/components/form-field/FormField.tsx_
 
 ### FormFieldContext
 
@@ -1915,7 +1911,7 @@ function CurrentValue() {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldContext.tsx_
+_Source: src/components/form-field/FormFieldContext.tsx_
 
 ### FormFieldContextValue
 
@@ -1951,7 +1947,7 @@ export interface FormFieldContextValue<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormFieldControl
 
@@ -1995,7 +1991,7 @@ Custom children (same as asChild)
 </FormField.Control>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldControl.tsx_
+_Source: src/components/form-field/FormFieldControl.tsx_
 
 ### FormFieldControlProps
 
@@ -2022,7 +2018,7 @@ export interface FormFieldControlProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormFieldDescription
 
@@ -2061,7 +2057,7 @@ With custom element (asChild)
 </FormField.Description>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldDescription.tsx_
+_Source: src/components/form-field/FormFieldDescription.tsx_
 
 ### FormFieldDescriptionProps
 
@@ -2080,7 +2076,7 @@ export interface FormFieldDescriptionProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormFieldError
 
@@ -2126,7 +2122,7 @@ This field is required
 </FormField.Error>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldError.tsx_
+_Source: src/components/form-field/FormFieldError.tsx_
 
 ### FormFieldErrorProps
 
@@ -2157,7 +2153,7 @@ export interface FormFieldErrorProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormFieldIds
 
@@ -2179,7 +2175,7 @@ export interface FormFieldIds {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormFieldLabel
 
@@ -2224,7 +2220,7 @@ With custom element (asChild)
 </FormField.Label>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldLabel.tsx_
+_Source: src/components/form-field/FormFieldLabel.tsx_
 
 ### FormFieldLabelProps
 
@@ -2254,7 +2250,7 @@ export interface FormFieldLabelProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormFieldRoot
 
@@ -2296,7 +2292,7 @@ With description (pass hasDescription to auto-wire aria-describedby)
 </FormField.Root>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldRoot.tsx_
+_Source: src/components/form-field/FormFieldRoot.tsx_
 
 ### FormFieldRootProps
 
@@ -2322,7 +2318,7 @@ export interface FormFieldRootProps<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/types.ts_
+_Source: src/components/form-field/types.ts_
 
 ### FormWizard
 
@@ -2398,7 +2394,7 @@ return (
 - {@link FormWizardConfig} — колбэки валидации `validateStep` / `validateAll`.
 - [docs/llms/03-form-navigation.md](../../../docs/llms/03-form-navigation.md)
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizard.tsx_
+_Source: src/components/form-wizard/FormWizard.tsx_
 
 ### FormWizardActions
 
@@ -2445,7 +2441,7 @@ Render-props mode
 </FormWizard.Actions>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
+_Source: src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardActionsProps
 
@@ -2467,7 +2463,7 @@ export interface FormWizardActionsProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
+_Source: src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardActionsRenderProps
 
@@ -2495,7 +2491,7 @@ export interface FormWizardActionsRenderProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
+_Source: src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardButtonProps
 
@@ -2513,7 +2509,7 @@ export interface FormWizardButtonProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardActions.tsx_
+_Source: src/components/form-wizard/FormWizardActions.tsx_
 
 ### FormWizardConfig
 
@@ -2539,7 +2535,7 @@ export interface FormWizardConfig {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/types.ts_
+_Source: src/components/form-wizard/types.ts_
 
 ### FormWizardContext
 
@@ -2565,7 +2561,7 @@ function CurrentStep() {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardContext.tsx_
+_Source: src/components/form-wizard/FormWizardContext.tsx_
 
 ### FormWizardContextValue
 
@@ -2620,7 +2616,7 @@ export interface FormWizardContextValue<T extends Record<string, any>> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardContext.tsx_
+_Source: src/components/form-wizard/FormWizardContext.tsx_
 
 ### FormWizardHandle
 
@@ -2720,7 +2716,7 @@ await navRef.current?.goToNextStep();
 };
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/types.ts_
+_Source: src/components/form-wizard/types.ts_
 
 ### FormWizardIndicator
 
@@ -2794,7 +2790,7 @@ With progress line
 </FormWizard.Indicator>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorProps
 
@@ -2812,7 +2808,7 @@ export interface FormWizardIndicatorProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorRenderProps
 
@@ -2836,7 +2832,7 @@ export interface FormWizardIndicatorRenderProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorStep
 
@@ -2864,7 +2860,7 @@ export interface FormWizardIndicatorStep {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardIndicatorStepWithState
 
@@ -2884,7 +2880,7 @@ export interface FormWizardIndicatorStepWithState extends FormWizardIndicatorSte
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardIndicator.tsx_
+_Source: src/components/form-wizard/FormWizardIndicator.tsx_
 
 ### FormWizardProgress
 
@@ -2950,7 +2946,7 @@ Circular progress
 </FormWizard.Progress>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardProgress.tsx_
+_Source: src/components/form-wizard/FormWizardProgress.tsx_
 
 ### FormWizardProgressProps
 
@@ -2966,7 +2962,7 @@ export interface FormWizardProgressProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardProgress.tsx_
+_Source: src/components/form-wizard/FormWizardProgress.tsx_
 
 ### FormWizardProgressRenderProps
 
@@ -2992,7 +2988,7 @@ export interface FormWizardProgressRenderProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardProgress.tsx_
+_Source: src/components/form-wizard/FormWizardProgress.tsx_
 
 ### FormWizardProps
 
@@ -3020,7 +3016,7 @@ export interface FormWizardProps<T extends Record<string, any>> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/types.ts_
+_Source: src/components/form-wizard/types.ts_
 
 ### FormWizardStep
 
@@ -3061,7 +3057,7 @@ Children-based (new)
 </FormWizard>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardStep.tsx_
+_Source: src/components/form-wizard/FormWizardStep.tsx_
 
 ### FormWizardStepProps
 
@@ -3090,7 +3086,7 @@ export interface FormWizardStepProps<T extends Record<string, any>> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardStep.tsx_
+_Source: src/components/form-wizard/FormWizardStep.tsx_
 
 ### FormWizardSubmitProps
 
@@ -3115,7 +3111,7 @@ export interface FormWizardSubmitProps extends Omit<
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardSubmit.tsx_
+_Source: src/components/form-wizard/FormWizardSubmit.tsx_
 
 ### useFormArray
 
@@ -3190,7 +3186,7 @@ return (
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/useFormArray.ts_
+_Source: src/components/form-array/useFormArray.ts_
 
 ### useFormArrayContext
 
@@ -3231,7 +3227,7 @@ return <span className="badge">{length}</span>;
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### useFormArrayItemContext
 
@@ -3274,7 +3270,7 @@ return (
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/FormArrayContext.tsx_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### UseFormArrayReturn
 
@@ -3304,7 +3300,7 @@ export interface UseFormArrayReturn<T extends object> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-array/useFormArray.ts_
+_Source: src/components/form-array/useFormArray.ts_
 
 ### useFormField
 
@@ -3356,7 +3352,7 @@ state.shouldShowError ? ids.errorId : null,
 };
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### useFormFieldContext
 
@@ -3404,7 +3400,7 @@ return null;
 </FormField.Root>
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/FormFieldContext.tsx_
+_Source: src/components/form-field/FormFieldContext.tsx_
 
 ### UseFormFieldControlProps
 
@@ -3427,7 +3423,7 @@ export interface UseFormFieldControlProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### UseFormFieldDescriptionProps
 
@@ -3442,7 +3438,7 @@ export interface UseFormFieldDescriptionProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### UseFormFieldErrorProps
 
@@ -3458,7 +3454,7 @@ export interface UseFormFieldErrorProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### UseFormFieldLabelProps
 
@@ -3474,7 +3470,7 @@ export interface UseFormFieldLabelProps {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### UseFormFieldReturn
 
@@ -3507,7 +3503,7 @@ export interface UseFormFieldReturn<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### UseFormFieldState
 
@@ -3535,7 +3531,7 @@ export interface UseFormFieldState<T extends FormValue = FormValue> {
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-field/useFormField.ts_
+_Source: src/components/form-field/useFormField.ts_
 
 ### useFormWizard
 
@@ -3583,7 +3579,7 @@ return (
 }
 ```
 
-_Source: packages/reformer-cdk/src/components/form-wizard/FormWizardContext.tsx_
+_Source: src/components/form-wizard/FormWizardContext.tsx_
 
 ### useValidationErrorResolver
 
@@ -3615,7 +3611,7 @@ return <>{errors.map((e) => <span key={e.code}>{resolve(e)}</span>)}</>;
 }
 ```
 
-_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
+_Source: src/validation/error-resolver.tsx_
 
 ### ValidationErrorResolver
 
@@ -3628,7 +3624,7 @@ _Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 export type ValidationErrorResolver = (error: ValidationError) => string;
 ```
 
-_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
+_Source: src/validation/error-resolver.tsx_
 
 ### ValidationMessagesProvider
 
@@ -3667,7 +3663,7 @@ minLength: (p) => `Минимум ${p?.minLength} символов`,
 - {@link createMessageResolver} — построение резолвера из таблицы кодов.
 - {@link useValidationErrorResolver} — чтение текущего резолвера из контекста.
 
-_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
+_Source: src/validation/error-resolver.tsx_
 
 ### ValidationMessageTable
 
@@ -3680,4 +3676,4 @@ _Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
 export type ValidationMessageTable = Record<string, (params?: Record<string, unknown>) => string>;
 ```
 
-_Source: packages/reformer-cdk/src/validation/error-resolver.tsx_
+_Source: src/validation/error-resolver.tsx_

@@ -37,7 +37,7 @@ export const checkoutBehavior = defineFormBehavior<CheckoutForm>(({ model }) => 
 });
 ```
 
-Source: `BehaviorsExamples.tsx` (monorepo example): `resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' })`.
+Пример: `resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' })`.
 
 ### resetValue для числовых полей
 

@@ -100,11 +100,10 @@ function MyFormPage() {
 Для многошаговых форм корневой узел — `RendererFormWizard` (compat-shim над `FormWizard` из
 `@reformer/ui-kit/form-wizard`), которому передаётся `form` через `componentProps`, а шаги —
 через `componentProps.steps` (массив `RenderNode`, каждый с `component: Step`). Форма для
-wizard-узла добавляется в схему при её сборке. Канонический паттерн — в
-`complex-multy-step-form-renderer` этого монорепозитория:
+wizard-узла добавляется в схему при её сборке. Каноническая схема wizard-узла:
 
 ```tsx
-// render-schema.ts — упрощённо
+// упрощённо
 function buildSchema(model, form?) {
   return {
     selector: 'wizard',
@@ -301,7 +300,7 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 ```tsx
 import { hideWhen, type RenderBehaviorFn } from '@reformer/renderer-react';
 
-// form захвачен в замыкание фабрики поведения (см. реальный render-behavior.ts).
+// form захвачен в замыкание фабрики поведения.
 const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
   hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
 };
@@ -503,7 +502,6 @@ function CreditApplicationPage() {
 - `patchProps` именно мерджит — повторный вызов с `{ disabled: true }` не сбросит ранее заданный `title`. Для полной очистки используй `resetProps`.
 - `setHidden(true)` перекрывает реактивное условие из `hideWhen`. Чтобы вернуть автоматику — `resetHidden()`.
 - Селектор должен быть указан в `RenderNode.selector`. Без него `proxy.node('x')` вернёт контроллер с пустыми переопределениями (никаких ошибок не будет, но эффекта тоже не будет).
-- Эталон: `CreditApplicationFormRenderer.tsx:57-87` (monorepo example) — debug-панель с тремя кнопками `setHidden`/`patchProps`/`resetProps`.
 
 ## 27. Custom container with collapsible children
 
@@ -606,7 +604,6 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 - `onComponentEvent` мерджит обработчики по имени события (`onSubmit`, `onChange`, ...). Если schema уже содержит такой проп — он будет полностью заменён обработчиком из behavior.
 - `renderEffect` принимает не node, а саму схему: эффекты живут на уровне рендера всего дерева и автоматически диспозятся при unmount `FormRenderer`.
 - `onInit` срабатывает синхронно при applying behavior (до первого рендера). Это единственный хук, способный изменить `componentProps` так, чтобы они попали в первый рендер.
-- Эталон совмещения четырёх типов хуков на одной ноде: `render-behavior.ts` (monorepo example).
 
 ## 29. See also
 
@@ -638,7 +635,7 @@ export interface ContainerComponentProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### ContainerRenderNode
 
@@ -687,7 +684,7 @@ export interface ContainerRenderNode<T> {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### ContainerRenderNodeProps
 
@@ -709,7 +706,7 @@ export interface ContainerRenderNodeProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### createRenderSchema
 
@@ -753,7 +750,7 @@ schema.node('extra-section').resetHidden();
 <FormRenderer render={schema} />
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### FieldWrapperProps
 
@@ -782,7 +779,7 @@ export interface FieldWrapperProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### FormRenderer
 
@@ -833,7 +830,7 @@ return s;
 <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
 ```
 
-_Source: packages/reformer-renderer-react/src/core/form-renderer.tsx_
+_Source: src/core/form-renderer.tsx_
 
 ### FormRendererProps
 
@@ -859,7 +856,7 @@ export interface FormRendererProps<T> {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### hideWhen
 
@@ -884,7 +881,7 @@ hideWhen(schema.node('mortgage-section'), () =>
 );
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### isArrayRenderNode
 
@@ -913,7 +910,7 @@ node.item; // (itemModel) => RenderNode поддерева элемента
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/utils.ts_
+_Source: src/core/utils.ts_
 
 ### isContainerRenderNode
 
@@ -942,7 +939,7 @@ if (isContainerRenderNode(node)) {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/utils.ts_
+_Source: src/core/utils.ts_
 
 ### isModelFieldRenderNode
 
@@ -971,7 +968,7 @@ node.component; // UI-компонент поля
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/utils.ts_
+_Source: src/core/utils.ts_
 
 ### isRenderSchemaProxy
 
@@ -999,7 +996,7 @@ isRenderSchemaProxy(proxy); // true
 isRenderSchemaProxy(renderSchemaFn); // false
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### ModelArrayControl
 
@@ -1017,7 +1014,7 @@ export interface ModelArrayControl {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### ModelContainerNode
 
@@ -1035,7 +1032,7 @@ export interface ModelContainerNode {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### ModelFieldNode
 
@@ -1054,7 +1051,7 @@ export interface ModelFieldNode {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### ModelNode
 
@@ -1070,7 +1067,7 @@ _Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 export type ModelNode = ModelFieldNode | ModelContainerNode;
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### NodeLifecycleHooks
 
@@ -1089,7 +1086,7 @@ export interface NodeLifecycleHooks {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### onComponentEvent
 
@@ -1123,7 +1120,7 @@ onComponentEvent(
 );
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### onInit
 
@@ -1150,7 +1147,7 @@ onInit(schema.node('wizard'), () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### onMount
 
@@ -1173,7 +1170,7 @@ onMount(schema.node('wizard'), () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### onUnmount
 
@@ -1194,7 +1191,7 @@ onUnmount(schema.node('wizard'), () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### RenderBehaviorFn
 
@@ -1227,7 +1224,7 @@ wizardRef.current?.goToStep(1);
 };
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### RenderContextProvider
 
@@ -1258,7 +1255,7 @@ import { RenderContextProvider, RenderNodeComponent } from '@reformer/renderer-r
 </RenderContextProvider>
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
+_Source: src/core/render-context.tsx_
 
 ### RenderContextValue
 
@@ -1276,7 +1273,7 @@ export interface RenderContextValue<T = unknown> {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
+_Source: src/core/render-context.tsx_
 
 ### renderEffect
 
@@ -1308,7 +1305,7 @@ renderEffect(schema, () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### RendererSettings
 
@@ -1329,7 +1326,7 @@ export interface RendererSettings {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### RenderModelArray
 
@@ -1369,7 +1366,7 @@ addButtonLabel="Добавить созаёмщика"
 />
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### RenderModelArrayProps
 
@@ -1393,7 +1390,7 @@ export interface RenderModelArrayProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### RenderModelNode
 
@@ -1424,7 +1421,7 @@ children: [{ value: model.$.email, component: Input }],
 <RenderModelNode node={node} />
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-model.tsx_
 
 ### RenderNode
 
@@ -1442,7 +1439,7 @@ _Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### RenderNodeComponent
 
@@ -1480,7 +1477,7 @@ import { RenderNodeComponent } from '@reformer/renderer-react';
 </RenderContextProvider>
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-node.tsx_
+_Source: src/core/render-node.tsx_
 
 ### RenderNodeControl
 
@@ -1513,7 +1510,7 @@ export interface RenderNodeControl {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### RenderSchemaFn
 
@@ -1541,7 +1538,7 @@ const renderSchema: RenderSchemaFn<MyForm> = () => ({
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### RenderSchemaProxy
 
@@ -1561,7 +1558,7 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
 };
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### useRenderContext
 
@@ -1597,4 +1594,4 @@ return (
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
+_Source: src/core/render-context.tsx_

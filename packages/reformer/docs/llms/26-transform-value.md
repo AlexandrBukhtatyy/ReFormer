@@ -39,7 +39,7 @@ export const promoBehavior = defineFormBehavior<PromoForm>(({ model }) => {
 });
 ```
 
-Source: `BehaviorsExamples.tsx` (monorepo example): `transformValue(model.$.uppercaseField, (v) => (v ?? '').toUpperCase())`.
+Пример: `transformValue(model.$.uppercaseField, (v) => (v ?? '').toUpperCase())`.
 
 ### Несколько трансформаций
 

@@ -435,7 +435,6 @@ import { Textarea } from '@reformer/ui-kit';
 - [03-choice-fields.md](03-choice-fields.md) — Select, Checkbox, RadioGroup.
 - [05-form-field-integration.md](05-form-field-integration.md) — как все эти поля автоматически подключаются через `FormField`.
 - [06-troubleshooting.md](06-troubleshooting.md) — «number возвращает строку», «mask пропускает символы», «password toggle не появляется».
-- Эталон: `examples/registration-form/RegistrationForm.tsx`, `examples/complex-multy-step-form/schemas/schema.ts` (monorepo examples).
 
 ## 12. Checkbox
 
@@ -801,7 +800,6 @@ const form = createForm<{ city: string }>({ model, schema });
 - [02-text-fields.md](02-text-fields.md) — `Input`, `InputMask`, `InputPassword`, `Textarea`.
 - [05-form-field-integration.md](05-form-field-integration.md) — `FormField` распознаёт `Checkbox` и не дублирует label.
 - [06-troubleshooting.md](06-troubleshooting.md) — «Select не показывает options», «options vs resource», «onBlur не срабатывает на Select/RadioGroup».
-- Эталон: `examples/complex-multy-step-form/schemas/schema.ts` (monorepo example) — большой пример с `Select` и `Checkbox` в реальной форме.
 
 ## 16. Button
 
@@ -1205,8 +1203,6 @@ function CreditApplicationPage() {
 }
 ```
 
-Эталон: `examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx` (monorepo example).
-
 `testId` рендерер берёт из `componentProps.testId` листа schema:
 
 ```tsx
@@ -1298,7 +1294,6 @@ const form = createForm<{ accept: boolean }>({ model, schema });
 - [04-layout-and-buttons.md](04-layout-and-buttons.md) — `Button` для submit/prev/next.
 - [06-troubleshooting.md](06-troubleshooting.md) — «label дублируется», «error не появляется», «FormField не подцепляет ошибки».
 - CDK-хуки: [@reformer/cdk/form-field](../../../reformer-cdk/docs/llms/) (`FormField.Root`, `useFormFieldContext`).
-- Эталон: `examples/complex-multy-step-form-renderer/CreditApplicationFormRenderer.tsx` (monorepo example) — `FormField` как `fieldWrapper` целой multi-step формы.
 
 ## 25. 1. `Input type="number"` возвращает строку, а не число (или `null`)
 
@@ -1680,14 +1675,7 @@ const handleSubmit = async () => {
 > **`config` не привязан к типу формы.** `FormWizardConfig` — это `{ validateStep?, validateAll? }`,
 > оба колбэка возвращают `boolean | Promise<boolean>`. Канон M1 — прогонять
 > `validateFormModel(model, schema)` (именно он исполняет `validators` листьев;
-> `form.validate()` по нодам схемные правила НЕ запустит). См. эталон
-> `examples/complex-multy-step-form/schemas/validation.ts`. Реальный эталон собирает конфиг фабрикой:
->
-> ```tsx
-> import { makeCreditValidationConfig } from './schemas/validation';
-> const config = useMemo(() => makeCreditValidationConfig(model), [model]);
-> // → { validateStep: (step) => Promise<boolean>, validateAll: () => Promise<boolean> }
-> ```
+> `form.validate()` по нодам схемные правила НЕ запустит).
 
 ### Альтернатива — imperative submit с values
 
@@ -1914,7 +1902,7 @@ const renderSchema = createRenderSchema<CreditApplication>(() => ({
 
 ui-kit FormArraySection маркирован `__selfManagedChildren = true` — родитель-renderer пробрасывает `form` без рекурсии.
 
-> Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }` (см. эталон `examples/complex-multy-step-form-renderer/render-schema.ts`).
+> Альтернатива — нативный array-узел движка `{ array: model.properties, initialValue, item: (im) => ({ children: [ { value: im.$.field, component } ] }) }`.
 
 ## 45. JSON (renderer-json)
 
@@ -2118,7 +2106,7 @@ const onSubmit = async () => {
 
 Cross-field правила (например, «доп. телефон отличается от основного») — это
 именованные `ModelValidator<value, scope, root>` в том же массиве `validators`
-(читают корень формы через третий аргумент). Эталон: `examples/complex-multy-step-form/schemas/validation.ts`.
+(читают корень формы через третий аргумент).
 
 ## 51. Advanced — strict mask через FormField + children slot
 
