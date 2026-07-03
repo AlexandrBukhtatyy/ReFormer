@@ -25,6 +25,10 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
+        // Единая точка владения реактивным рантаймом (@preact/signals-core).
+        // renderer-react и др. пакеты импортируют Signal отсюда → одна копия рантайма,
+        // единая идентичность класса Signal через границы пакетов.
+        signals: resolve(__dirname, 'src/signals.ts'),
         // Декларативный контракт схемы поведения. Импортирует примитивы из index → общий chunk
         // (единый реестр сигнал→нода и единый ambient-сток).
         behaviors: resolve(__dirname, 'src/behaviors.ts'),
