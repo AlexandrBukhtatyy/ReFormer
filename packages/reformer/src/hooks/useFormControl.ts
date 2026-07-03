@@ -95,6 +95,28 @@ function useArrayControl<T extends FormFields>(control: ArrayNode<T>): ArrayCont
 }
 
 /**
+ * @internal Ветка `control === undefined`: вызывает тот же набор хуков, что
+ * `useFieldControl`/`useArrayControl` (useCallback + useSignalSubscription с пустым набором сигналов),
+ * чтобы число/порядок хуков не менялись при переходе control `undefined ↔ node` (Rules of Hooks).
+ */
+function useEmptyControl(): ArrayControlState<FormFields> {
+  const buildSnapshot = useCallback(
+    (): ArrayControlState<FormFields> => ({
+      value: [],
+      length: 0,
+      pending: false,
+      errors: [],
+      valid: true,
+      invalid: false,
+      touched: false,
+      dirty: false,
+    }),
+    []
+  );
+  return useSignalSubscription({}, [], buildSnapshot);
+}
+
+/**
  * React-хук для подписки на состояние {@link ArrayNode}.
  *
  * @typeParam T - Тип элемента массива
@@ -343,17 +365,12 @@ export function useFormControl(
 ): FieldControlState<FormValue> | ArrayControlState<FormFields> {
   const isArrayNode = control && 'length' in control && 'map' in control;
 
+  // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков (useCallback +
+  // useSignalSubscription), поэтому переключение control между undefined / FieldNode / ArrayNode
+  // НЕ меняет число/порядок хуков (иначе React крашит «Rendered more hooks than previous render»).
   if (!control) {
-    return {
-      value: [],
-      length: 0,
-      pending: false,
-      errors: [],
-      valid: true,
-      invalid: false,
-      touched: false,
-      dirty: false,
-    } as ArrayControlState<FormFields>;
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useEmptyControl();
   }
 
   if (isArrayNode) {

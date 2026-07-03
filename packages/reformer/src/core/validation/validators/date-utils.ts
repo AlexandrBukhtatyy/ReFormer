@@ -48,9 +48,19 @@ export function normalizeDate(date: Date): Date {
 }
 
 /**
- * Вычисляет возраст на основе даты рождения
+ * Вычисляет полный возраст (в годах) по календарным полям.
+ *
+ * Считаем по годам/месяцам/дням, а не делением миллисекунд на усреднённый год (365.25 дн): усреднение
+ * даёт off-by-one на границе — в день N-летия накопленных реальных дней меньше `N * 365.25`, и `floor`
+ * роняет возраст до `N - 1` (т.е. `minAge(18)` ошибочно отклонял 18-летнего в его день рождения).
  */
 export function calculateAge(birthDate: Date): number {
   const today = getToday();
-  return Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+  const birth = normalizeDate(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age;
 }

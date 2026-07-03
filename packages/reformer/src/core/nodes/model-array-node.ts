@@ -213,10 +213,34 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   }
 
   // ── Hooks (forward к элементам) ────────────────────────────────────────────
+  // Агрегатное состояние (touched/dirty/status) выводится из детей (createAggregateSignals), поэтому
+  // базовые сигналы бесполезны для чтения — состояние меняется ТОЛЬКО через per-item формы. Форвардим
+  // ВСЕ hook'и (как ArrayNode), иначе markAsUntouched/Pristine/Dirty/disable/enable молча no-op.
   protected override onMarkAsTouched(): void {
     this.itemNodes.value.forEach((n) =>
       (n as unknown as { markAsTouched?: () => void }).markAsTouched?.()
     );
+  }
+  protected override onMarkAsUntouched(): void {
+    this.itemNodes.value.forEach((n) =>
+      (n as unknown as { markAsUntouched?: () => void }).markAsUntouched?.()
+    );
+  }
+  protected override onMarkAsDirty(): void {
+    this.itemNodes.value.forEach((n) =>
+      (n as unknown as { markAsDirty?: () => void }).markAsDirty?.()
+    );
+  }
+  protected override onMarkAsPristine(): void {
+    this.itemNodes.value.forEach((n) =>
+      (n as unknown as { markAsPristine?: () => void }).markAsPristine?.()
+    );
+  }
+  protected override onDisable(): void {
+    this.itemNodes.value.forEach((n) => (n as unknown as { disable?: () => void }).disable?.());
+  }
+  protected override onEnable(): void {
+    this.itemNodes.value.forEach((n) => (n as unknown as { enable?: () => void }).enable?.());
   }
 
   /** Очистка подписки синхронизации. */
