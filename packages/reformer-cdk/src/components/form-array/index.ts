@@ -12,7 +12,7 @@ export { FormArrayItemIndex } from './FormArrayItemIndex';
 
 // Hook
 export { useFormArray } from './useFormArray';
-export type { FormArrayItem, UseFormArrayReturn } from './useFormArray';
+export type { UseFormArrayReturn } from './useFormArray';
 
 // Context and hooks
 export {
@@ -34,4 +34,8 @@ export type {
   FormArrayItemIndexProps,
 } from './types';
 
-export type { FormArrayContextValue, FormArrayItemContextValue } from './FormArrayContext';
+export type {
+  FormArrayContextValue,
+  FormArrayItemContextValue,
+  FormArrayItem,
+} from './FormArrayContext';

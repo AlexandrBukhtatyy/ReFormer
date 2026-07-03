@@ -31,7 +31,7 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
  * },
  * ```
  */
-export function min<TForm = unknown, TField extends number | undefined = number>(
+export function min<TForm = unknown, TField extends number | null | undefined = number>(
   minValue: number,
   options?: ValidateOptions
 ): Validator<TForm, TField> {

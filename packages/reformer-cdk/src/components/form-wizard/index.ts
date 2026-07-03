@@ -41,7 +41,7 @@ export type {
   FormWizardActionsProps,
   FormWizardActionsRenderProps,
   FormWizardButtonProps,
-  FormWizardSubmitProps as FormWizardSubmitRenderProps,
+  FormWizardSubmitRenderProps,
 } from './FormWizardActions';
 
 // Types - Action buttons

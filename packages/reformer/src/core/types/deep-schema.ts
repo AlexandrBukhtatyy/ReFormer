@@ -11,7 +11,7 @@
 
 import type { ComponentType } from 'react';
 import type { Signal } from '@preact/signals-core';
-import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './index';
+import type { ValidatorFn, AsyncValidatorFn, AnyFunction } from './index';
 
 // ============================================================================
 // Базовые типы
@@ -61,7 +61,9 @@ export interface FieldConfig<T> {
  * @group Types
  * @category Configuration Types
  */
-export interface ArrayConfig<T extends FormFields> {
+// `T extends object` (не `FormFields`): interface-модели не имеют неявной index-signature и
+// не assignable к Record<string, FormValue> — иначе ArrayConfig<SomeInterface> даёт ложную ошибку.
+export interface ArrayConfig<T extends object> {
   itemSchema: FormSchema<T>;
   initial?: Partial<T>[];
 }

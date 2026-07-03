@@ -1,6 +1,7 @@
 import { useId, useMemo } from 'react';
 import { useFormControl, type FormValue } from '@reformer/core';
 import { FormFieldContext } from './FormFieldContext';
+import { useValidationErrorResolver } from '../../validation/error-resolver';
 import type { FormFieldContextValue, FormFieldIds, FormFieldRootProps } from './types';
 
 /**
@@ -48,6 +49,9 @@ function FormFieldRoot<T extends FormValue>({
   );
 
   const raw = useFormControl(control);
+  // i18n: контекстный `error` резолвим (ValidationMessagesProvider), а не сырой message —
+  // иначе useFormFieldContext().error расходится с useFormField().state.error.
+  const resolve = useValidationErrorResolver();
 
   const contextValue = useMemo<FormFieldContextValue<T>>(() => {
     const {
@@ -71,7 +75,7 @@ function FormFieldRoot<T extends FormValue>({
       invalid,
       touched,
       shouldShowError,
-      error: shouldShowError ? errors[0]?.message : undefined,
+      error: shouldShowError && errors[0] ? resolve(errors[0]) : undefined,
       label: componentProps.label as string | undefined,
       required: Boolean(componentProps.required),
       componentProps: componentProps as Record<string, unknown>,
@@ -79,7 +83,7 @@ function FormFieldRoot<T extends FormValue>({
       ids,
       hasDescription,
     };
-  }, [raw, control, ids, hasDescription]);
+  }, [raw, control, ids, hasDescription, resolve]);
 
   return <FormFieldContext.Provider value={contextValue}>{children}</FormFieldContext.Provider>;
 }

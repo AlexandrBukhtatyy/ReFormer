@@ -94,7 +94,9 @@ export async function getDiscoverContextPrompt(
     if (result.ok) {
       try {
         const cleaned = result.text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
-        const parsed = JSON.parse(cleaned) as Partial<ContextRecommendation>;
+        // `?? {}` защищает от `JSON.parse('null')` → null-deref на `parsed.target` (примитивы дают
+        // undefined без исключения; только null бросал бы, но его ловил внешний catch).
+        const parsed = (JSON.parse(cleaned) ?? {}) as Partial<ContextRecommendation>;
         if (
           typeof parsed.target === 'string' &&
           (VALID_TARGETS as ReadonlyArray<string>).includes(parsed.target)

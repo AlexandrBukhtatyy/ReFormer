@@ -30,7 +30,7 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
  * },
  * ```
  */
-export function multipleOf<TForm = unknown, TField extends number | undefined = number>(
+export function multipleOf<TForm = unknown, TField extends number | null | undefined = number>(
   divisor: number,
   options?: ValidateOptions
 ): Validator<TForm, TField> {

@@ -7,13 +7,12 @@
  * (`$model/$component/$dataSource`) + неизвестные имена компонентов/data-source.
  */
 
-/** Контракт `validateFormSchema` из `@reformer/renderer-json/validate`. */
-interface ValidateFormSchemaFn {
-  (
-    schema: unknown,
-    opts?: { componentNames?: string[]; dataSourceNames?: string[] }
-  ): { valid: boolean; errors: string[] };
-}
+/**
+ * Тип модуля `@reformer/renderer-json/validate` из источника истины (`typeof import`).
+ * `import type`/`typeof import` не грузят рантайм (ajv остаётся ленивым), но дрейф контракта
+ * теперь ловится компилятором, а не в рантайме.
+ */
+type ValidateMod = typeof import('@reformer/renderer-json/validate');
 
 export const validateJsonSchemaToolDefinition = {
   name: 'validate_json_schema',
@@ -66,11 +65,9 @@ export async function validateJsonSchemaTool(
 
   // Lazily load the validator; ajv lives behind this subpath and the package
   // must be built. Fail gracefully rather than crashing the server.
-  let validateFormSchema: ValidateFormSchemaFn;
+  let validateFormSchema: ValidateMod['validateFormSchema'];
   try {
-    const mod = (await import('@reformer/renderer-json/validate')) as {
-      validateFormSchema: ValidateFormSchemaFn;
-    };
+    const mod = (await import('@reformer/renderer-json/validate')) as ValidateMod;
     validateFormSchema = mod.validateFormSchema;
   } catch (e) {
     return text(

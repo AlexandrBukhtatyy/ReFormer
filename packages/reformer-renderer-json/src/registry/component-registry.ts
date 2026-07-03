@@ -39,10 +39,23 @@ export class ComponentRegistryImpl implements ComponentRegistry {
 
   static withParent(parent: ComponentRegistry, child: ComponentRegistry): ComponentRegistry {
     const merged = new ComponentRegistryImpl();
-    merged.parent = parent as ComponentRegistryImpl;
-    (child as ComponentRegistryImpl).own.forEach((meta, name) => {
-      merged.own.set(name, meta);
-    });
+    // Копируем записи реестра. Свой impl → берём напрямую `own`; кастомная реализация
+    // публичного `ComponentRegistry` (без `own`) → публичный fallback через names()/get(),
+    // чтобы не падать `Cannot read properties of undefined (reading 'forEach')`.
+    const copyEntries = (reg: ComponentRegistry): void => {
+      if (reg instanceof ComponentRegistryImpl) {
+        reg.own.forEach((meta, name) => merged.own.set(name, meta));
+      } else {
+        for (const name of reg.names()) {
+          const meta = reg.get(name);
+          if (meta) merged.own.set(name, meta);
+        }
+      }
+    };
+    // parent как живая цепочка (только для своего impl); иначе вкладываем его записи в own.
+    if (parent instanceof ComponentRegistryImpl) merged.parent = parent;
+    else copyEntries(parent);
+    copyEntries(child); // child перекрывает parent
     return merged;
   }
 }

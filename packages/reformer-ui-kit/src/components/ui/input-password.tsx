@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link InputPassword}. */
 export interface InputPasswordProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange' | 'type'
+  'value' | 'onChange' | 'type' | 'defaultValue'
 > {
   /** Дополнительный CSS-класс. */
   className?: string;

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link InputMask}. */
 export interface InputMaskProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange'
+  'value' | 'onChange' | 'defaultValue'
 > {
   /** Дополнительный CSS-класс. */
   className?: string;
