@@ -8,7 +8,7 @@
  */
 
 import type { ComponentType, ElementType } from 'react';
-import type { Signal } from '@preact/signals-core';
+import type { Signal } from '@reformer/core/signals';
 import type { FormSchemaNode, SchemaArrayControl } from '@reformer/core';
 
 // ============================================================================

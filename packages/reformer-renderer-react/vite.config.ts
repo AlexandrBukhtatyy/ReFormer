@@ -24,7 +24,7 @@ export default defineConfig({
         'react/jsx-runtime',
         '@reformer/core',
         '@reformer/core/validators',
-        '@preact/signals-core',
+        '@reformer/core/signals',
       ],
       output: {
         entryFileNames: '[name].js',

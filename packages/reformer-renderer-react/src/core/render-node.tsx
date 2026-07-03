@@ -5,7 +5,7 @@
  */
 
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { effect } from '@preact/signals-core';
+import { effect } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import { useFormControl, getNodeForSignal } from '@reformer/core';
 import type {
