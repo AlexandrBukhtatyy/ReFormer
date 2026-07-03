@@ -5,7 +5,11 @@
  *  - `createForm({ model, schema })` (`harvestFieldConfig`) — сбор конфига полей по идентичности
  *    сигнала + item-фабрик массивов;
  *  - `validateModel`/`validateFormModel`/`validateModelSync` (`walk`/`collect`) — валидация данных;
- *  - рендереры (`@reformer/renderer-react`: `RenderNode`, `ModelNode`) — отрисовка того же дерева.
+ *  - рендерер (`@reformer/renderer-react`: `RenderNode`) — отрисовка того же дерева.
+ *
+ * ⚠️ Не путать с {@link FormSchema} — та описывает **data-shaped** конфиг (ключи повторяют структуру
+ * данных `T`, `{ field: FieldConfig }`) и служит формой конфига для {@link GroupNode}. `FormSchemaNode`
+ * же — **узел дерева** M1-схемы (лист/массив/контейнер), передаваемой в `createForm({ model, schema })`.
  *
  * Обход рекурсивен по идентичности сигнала (`node.value instanceof Signal`) и НЕ ограничен ключом
  * `children`: узлы могут лежать в `children`, в `componentProps.*` (напр. steps визарда) или под

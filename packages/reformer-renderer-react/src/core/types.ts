@@ -9,7 +9,7 @@
 
 import type { ComponentType, ElementType } from 'react';
 import type { Signal } from '@preact/signals-core';
-import type { FormSchemaNode } from '@reformer/core';
+import type { FormSchemaNode, SchemaArrayControl } from '@reformer/core';
 
 // ============================================================================
 // RENDER SCHEMA
@@ -79,13 +79,11 @@ export interface ModelFieldRenderNode extends FormSchemaNode {
   };
 }
 
-/** Минимальный контракт реактивного массива модели (`model.<path>`), используемый рендерером. */
-export interface RenderModelArrayControl {
-  readonly __path: string;
-  readonly length: number;
-  at(index: number): unknown;
-  push(item: unknown): void;
-  removeAt(index: number): void;
+/**
+ * Контракт реактивного массива модели для рендера: базовый {@link SchemaArrayControl}
+ * (`__path`/`length`/`at`/`push`/`removeAt`) + `move` для реордера.
+ */
+export interface RenderModelArrayControl extends SchemaArrayControl {
   /** Переместить элемент (реордер; runtime-фасад модель-массива это уже умеет). */
   move(from: number, to: number): void;
 }
@@ -132,10 +130,11 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
 // ============================================================================
 
 /**
- * Props для ContainerRenderNode
+ * Props контейнера **в узле схемы** (`ContainerRenderNode.componentProps`) — декларативный конфиг.
+ * Дочерние узлы задаются через `ContainerRenderNode.children`, а не здесь; `children` тут нет.
  *
- * Произвольные props для компонента-контейнера.
- * Дочерние узлы задаются через `ContainerRenderNode.children`, а не здесь.
+ * Не путать с {@link ContainerComponentProps} — тот описывает **runtime-props**, которые
+ * компонент-контейнер получает при рендере (уже с отрисованными `children: ReactNode`).
  */
 export interface ContainerRenderNodeProps {
   /** CSS класс для контейнера */
@@ -246,7 +245,9 @@ export interface FormRendererProps<T> {
 // ============================================================================
 
 /**
- * Базовые props для компонентов-контейнеров
+ * **Runtime-props** компонента-контейнера: то, что компонент получает при рендере (с уже
+ * отрисованными `children`). Не путать с {@link ContainerRenderNodeProps} — тот описывает
+ * декларативный `componentProps` контейнера в узле схемы (без `children`).
  */
 export interface ContainerComponentProps {
   /** CSS класс */

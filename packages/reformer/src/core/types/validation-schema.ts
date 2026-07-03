@@ -23,6 +23,9 @@ import type { FormProxy } from './form-proxy';
  * Принимает значение поля, прокси текущего поля (control) и прокси корня формы (root).
  * Возвращает ValidationError либо null. Не знает про реестр валидации.
  *
+ * Отличие от `ModelValidator`: 2-й/3-й аргументы — `FormProxy`-узлы формы (control/root), а не
+ * данные модели. Оба совместимы с полем `validators` узла схемы (см. `SchemaValidator`).
+ *
  * @example Кастомный валидатор в массиве `validators` поля схемы
  * ```typescript
  * const isAdult: Validator<MyForm, number> = (value, control, root) => {

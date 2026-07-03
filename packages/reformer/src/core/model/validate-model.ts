@@ -16,8 +16,11 @@ import type { FormSchemaNode } from '../types/schema-node';
 import type { FormModel, PathAwareSignal } from './types';
 
 /**
- * Валидатор слоя данных. `value` — значение поля; `model` — ближайший scope (под-модель элемента
+ * Валидатор слоя **данных**. `value` — значение поля; `model` — ближайший scope (под-модель элемента
  * массива или корень); `root` — корневая модель.
+ *
+ * Отличие от {@link Validator}: 2-й/3-й аргументы — сами данные ({@link FormModel}/scope), а не
+ * `FormProxy`-узлы формы. Оба совместимы с полем `validators` узла схемы (см. {@link SchemaValidator}).
  *
  * @group Model
  */
