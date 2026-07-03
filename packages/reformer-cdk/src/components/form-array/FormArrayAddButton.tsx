@@ -8,7 +8,7 @@ function FormArrayAddButtonInner<T extends object>(
   { children, initialValue, asChild = false, ...props }: FormArrayAddButtonProps<T>,
   ref: ForwardedRef<HTMLButtonElement>
 ) {
-  const { add } = useFormArrayContext();
+  const { add } = useFormArrayContext<T>();
 
   const Comp = asChild ? Slot : 'button';
 

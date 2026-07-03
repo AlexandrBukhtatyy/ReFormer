@@ -1,5 +1,9 @@
 import { createElement } from 'react';
-import { FormArrayItemContext, useFormArrayContext } from './FormArrayContext';
+import {
+  FormArrayItemContext,
+  useFormArrayContext,
+  type FormArrayItemContextValue,
+} from './FormArrayContext';
 import type { FormArrayListProps } from './types';
 
 /**
@@ -43,8 +47,11 @@ export function FormArrayList<T extends object>({
       canMoveUp: item.index > 0,
       canMoveDown: item.index < total - 1,
     };
+    // Контекст хранит generic-erased `<any>` (FormProxy<T> ↛ FormProxy<any>); чтение — через useFormArrayItemContext<T>().
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const itemContextValue = enriched as FormArrayItemContextValue<any>;
     return (
-      <FormArrayItemContext.Provider key={item.id} value={enriched}>
+      <FormArrayItemContext.Provider key={item.id} value={itemContextValue}>
         {children(enriched)}
       </FormArrayItemContext.Provider>
     );
