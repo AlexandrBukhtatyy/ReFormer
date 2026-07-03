@@ -66,6 +66,11 @@ export type ModelObject<T> = {
  * @group Model
  */
 export interface ModelArray<U> {
+  /**
+   * Путь массива в модели (dot-нотация). Предоставляется рантаймом (value-прокси) и требуется
+   * рендер-слою для резолва узла массива (напр. `ArrayRenderNode` в `@reformer/renderer-react`).
+   */
+  readonly __path: string;
   /** Реактивная длина. */
   readonly length: number;
   /** Добавить элемент в конец (значение элемента целиком). */

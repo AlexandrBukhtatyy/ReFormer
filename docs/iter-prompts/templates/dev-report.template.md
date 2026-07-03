@@ -62,11 +62,11 @@
 
 ## Symbols queried (final list)
 
-| symbol               | used for                  |
-| -------------------- | ------------------------- |
-| `createForm`         | form bootstrap            |
-| `ValidationSchemaFn` | typed validation callback |
-| ...                  | ...                       |
+| symbol           | used for                  |
+| ---------------- | ------------------------- |
+| `createForm`     | form bootstrap            |
+| `ModelValidator` | typed validation callback |
+| ...              | ...                       |
 
 ## Files written
 

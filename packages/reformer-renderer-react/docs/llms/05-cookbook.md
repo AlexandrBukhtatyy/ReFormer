@@ -136,7 +136,7 @@ export function CollapsibleSection({
 **Notes.**
 
 - `children` всегда `ReactNode` — обходить как массив `RenderNode` нельзя: к этому моменту они уже превращены в React-элементы.
-- Если контейнеру нужны ноды как данные (вычислить количество, отрисовать таб-бар) — описывай их через `componentProps`, а не через `children`. Пример — `RendererFormWizard` с `componentProps.steps`. Конвертер JSON-схемы поддерживает `JsonNode` и `$template` внутри произвольных props (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md#template-arrays)).
+- Если контейнеру нужны ноды как данные (вычислить количество, отрисовать таб-бар) — описывай их через `componentProps`, а не через `children`. Пример — `FormWizard` из `@reformer/ui-kit/form-wizard` с `componentProps.steps`. Конвертер JSON-схемы поддерживает `JsonNode` и `$template` внутри произвольных props (см. [renderer-json/05-cookbook.md](../../../reformer-renderer-json/docs/llms/05-cookbook.md#template-arrays)).
 - Контейнер можно адресовать через `selector` — тогда `setHidden` будет работать на его содержимое целиком.
 
 ## Combining behaviors on one node
@@ -187,6 +187,32 @@ const behavior: RenderBehaviorFn<CreditForm> = (schema) => {
 - `onComponentEvent` мерджит обработчики по имени события (`onSubmit`, `onChange`, ...). Если schema уже содержит такой проп — он будет полностью заменён обработчиком из behavior.
 - `renderEffect` принимает не node, а саму схему: эффекты живут на уровне рендера всего дерева и автоматически диспозятся при unmount `FormRenderer`.
 - `onInit` срабатывает синхронно при applying behavior (до первого рендера). Это единственный хук, способный изменить `componentProps` так, чтобы они попали в первый рендер.
+
+## Вся форма read-only / view-mode
+
+**Problem.** Нужно показать форму целиком в режиме просмотра (все поля задизейблены) — например, экран подтверждения, «read-only копия», или форма, заблокированная до загрузки данных.
+
+**Solution.** Глобального `settings.readonly`/`settings.mode` **нет** — `RendererSettings` несёт только `fieldWrapper`. Канон — вызвать `form.disable()` на корневой форме после `createForm`. `disable()` каскадит `disabled` по всему поддереву (группа проставляет `disabled` себе и рекурсивно всем дочерним полям), а рендерер уже пробрасывает `state.disabled` в каждый инпут. Ничего в схеме менять не нужно.
+
+```tsx
+const form = createForm({ model, schema });
+
+// Вся форма в режиме просмотра — один вызов, каскадит по всем полям.
+form.disable();
+
+// Вернуть редактируемость (например, по кнопке «Редактировать»):
+// form.enable();
+
+<FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />;
+```
+
+Для условного дизейбла на монтировании то же самое можно сделать из `renderBehavior` в `onInit` (срабатывает синхронно до первого рендера) — тогда поля отрендерятся уже задизейбленными.
+
+**Notes.**
+
+- `disable()`/`enable()` — на группе (корне и любой вложенной группе), каскад рекурсивный: дизейбл секции задизейблит только её поля.
+- **Caveat:** явный `componentProps.disabled` на конкретном поле перебивает каскад. Рендерер собирает пропсы как `{ disabled: state.disabled, ...componentProps }` — спред идёт последним, поэтому жёстко заданный в схеме `disabled: false` оставит поле активным даже после `form.disable()`. Не задавай `disabled` в `componentProps`, если хочешь управлять им через `form.disable()`.
+- Это ортогонально `hideWhen`: `disable()` оставляет поля видимыми, но неактивными; `hideWhen` убирает их из дерева.
 
 ## See also
 

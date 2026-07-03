@@ -160,6 +160,29 @@ export function findSymbol(symbolName: string, pkg: string = '*'): PublicSymbol 
   return null;
 }
 
+/**
+ * Look up a public symbol across packages, returning every package that exports
+ * a symbol of this name (at most one per package). Order follows `KNOWN_PACKAGES`,
+ * so the first entry matches what {@link findSymbol} returns. Use it to detect and
+ * surface cross-package name collisions (e.g. `FormField` in both cdk and ui-kit).
+ *
+ * @param symbolName - Name to find.
+ * @param pkg - Package name. Pass `'*'` (default) to search every known package.
+ */
+export function findAllSymbols(symbolName: string, pkg: string = '*'): PublicSymbol[] {
+  const targets = pkg === '*' ? [...KNOWN_PACKAGES] : [pkg as ReformerPackage];
+  const matches: PublicSymbol[] = [];
+  for (const target of targets) {
+    for (const sym of getPublicSymbols(target)) {
+      if (sym.name === symbolName) {
+        matches.push(sym);
+        break; // at most one per package
+      }
+    }
+  }
+  return matches;
+}
+
 // ---------------------------------------------------------------------------
 // Internal: AST traversal (mirrors scripts/generate-llms-txt logic)
 // ---------------------------------------------------------------------------

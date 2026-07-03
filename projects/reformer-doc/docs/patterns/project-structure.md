@@ -4,121 +4,112 @@ sidebar_position: 1
 
 # Project Structure
 
-Organize your forms for scalability and maintainability using **colocation** — keeping related files together.
+Organize a form as a **flat module**: every concern in its own file at the module root, and a
+single `index.tsx` that renders the whole form — **all steps inline**. Most files are named
+flat, after the concern they own; a dot-prefix (`form.` / `renderer.`) is reserved for the
+**schema** and **behavior** files, which come in a model-layer and a render-layer variant. This
+is the default for every form. Reach for folders only when a form grows large enough to need
+them.
 
-## Recommended Structure (Colocation)
+:::info Default vs scale-up
+The **flat minimalist** layout below is the default for _any_ form — the base is identical
+across `@reformer/core`, `@reformer/renderer-react`, and `@reformer/renderer-json`; only the
+schema-file format and a couple of add-ons differ. The **folder layout**
+(`lib/` + `schema/` + `components/`) is a scale-up for large multi-step forms — see
+[Scaling up](#scaling-up-folder-layout-for-large-forms) below. The full cross-target reference
+for both is the **form-directory-layout** guide shipped with `@reformer/mcp`.
+:::
+
+## Recommended Structure (Flat)
+
+Keep all of a form's files together in one folder, each named after the concern it owns. No
+`lib/`, no `schema/`, no `components/steps/` — the fields, validation, behavior and data
+sources of every step live in one file per concern, and one component file holds the whole
+form.
 
 ```
-src/
-├── components/
-│   └── ui/                              # Reusable UI components
-│       ├── FormField.tsx                # Field wrapper component
-│       ├── FormArrayManager.tsx         # Dynamic array manager
-│       └── ...                          # Input, Select, Checkbox, etc.
-│
-├── forms/
-│   └── [form-name]/                     # Form module
-│       ├── type.ts                      # Main form type (combines step types)
-│       ├── schema.ts                    # Main schema (combines step schemas)
-│       ├── validators.ts                # Validators (steps + cross-step)
-│       ├── behaviors.ts                 # Behaviors (steps + cross-step)
-│       ├── [FormName]Form.tsx           # Main form component
-│       │
-│       ├── steps/                       # Step modules (wizard)
-│       │   ├── loan-info/
-│       │   │   ├── type.ts              # Step-specific types
-│       │   │   ├── schema.ts            # Step schema
-│       │   │   ├── validators.ts        # Step validators
-│       │   │   ├── behaviors.ts         # Step behaviors
-│       │   │   └── BasicInfoForm.tsx    # Step component
-│       │   │
-│       │   ├── personal-info/
-│       │   │   ├── type.ts
-│       │   │   ├── schema.ts
-│       │   │   ├── validators.ts
-│       │   │   ├── behaviors.ts
-│       │   │   └── PersonalInfoForm.tsx
-│       │   │
-│       │   └── confirmation/
-│       │       ├── type.ts
-│       │       ├── schema.ts
-│       │       ├── validators.ts
-│       │       └── ConfirmationForm.tsx
-│       │
-│       ├── sub-forms/                   # Reusable sub-form modules
-│       │   ├── address/
-│       │   │   ├── type.ts
-│       │   │   ├── schema.ts
-│       │   │   ├── validators.ts
-│       │   │   └── AddressForm.tsx
-│       │   │
-│       │   └── personal-data/
-│       │       ├── type.ts
-│       │       ├── schema.ts
-│       │       ├── validators.ts
-│       │       └── PersonalDataForm.tsx
-│       │
-│       ├── services/                    # API services
-│       │   └── api.ts
-│       │
-│       └── utils/                       # Form utilities
-│           └── formTransformers.ts
-│
-└── lib/                                 # Shared utilities
+forms/
+└── [form-name]/                # Form module
+    ├── index.tsx               # Entry + the whole form, all steps inline
+    ├── types.ts                # Form interface + field enums + option types
+    ├── model.ts                # createModel factory + initial values
+    ├── form.schema.ts          # FormSchema tree — all fields, all steps
+    ├── form.behavior.ts        # All model behavior: compute / copyFrom / enableWhen / onChange
+    ├── validation.ts           # ALL validation
+    ├── data-sources.ts         # Options + async loaders
+    └── api.ts                  # submit + prefill
 ```
+
+Rule of thumb: **one file per concern at the module root — flat-named, except the `schema` and
+`behavior` files, which carry a dot-prefix (`form.` / `renderer.`); one component file
+(`index.tsx`) with every step inline.**
+
+:::note Why the dot-prefix
+Only **schema** and **behavior** come in two layers — a model layer (`form.`) and a render
+layer (`renderer.`) — so only they carry a dot-prefix to disambiguate the two:
+
+- **schema** — `form.schema.ts` (core) / `renderer.schema.ts` (renderer-react) /
+  `renderer.schema.json` (renderer-json).
+- **behavior** — `form.behavior.ts` is the model behavior (compute / copyFrom / enableWhen /
+  onChange) and ships on **every** target; `renderer.behavior.ts` is the render behavior
+  (visibility / navigation / submit / data-loading) and exists on the renderer targets only.
+
+Every other concern has a single form-wide file, so it stays flat: `types.ts`, `model.ts`,
+`validation.ts`, `data-sources.ts`, `api.ts` (plus `registry.ts` on renderer-json).
+:::
+
+### Per-target differences
+
+The base above is the same everywhere. Only the schema file's format changes, plus a small
+number of add-ons:
+
+| Target            | Schema file            | Extra files                           |
+| ----------------- | ---------------------- | ------------------------------------- |
+| `core` (+ ui-kit) | `form.schema.ts`       | —                                     |
+| `renderer-react`  | `renderer.schema.ts`   | `renderer.behavior.ts`                |
+| `renderer-json`   | `renderer.schema.json` | `renderer.behavior.ts`, `registry.ts` |
+
+- **`form.schema.ts`** (core) — a `FormSchema` tree of `{ value, component, componentProps }`.
+- **`renderer.schema.ts`** (renderer-react) — a `RenderNode` tree (data, not JSX);
+  `renderer.behavior.ts` holds visibility / navigation / submit / data-loading.
+- **`renderer.schema.json`** (renderer-json) — the form's JSON layout
+  (`"$model(x)"` / `"$component(Name)"` / `"$dataSource(NAME)"`); `renderer.behavior.ts` is
+  thin (wires form + validation into the wizard), and `registry.ts` maps the
+  form-specific `$component(...)` / `$dataSource(...)` names used by the JSON.
+
+`model.ts`, `form.behavior.ts`, `validation.ts`, `data-sources.ts` and `api.ts` are **reused
+as-is** when the same form ships on another target — never duplicate model / behavior /
+validation. The renderer targets add their own `renderer.behavior.ts` on top of the shared
+`form.behavior.ts`.
 
 ## Key Principles
 
-### 1. Colocation
+### 1. One file per concern
 
-Each form step and sub-form is self-contained with its own:
+Each file owns exactly one concern for the **whole** form — not per step. All validators live
+in `validation.ts`, all reactive rules in `form.behavior.ts`, all option dictionaries and
+loaders in `data-sources.ts`. You always know which file to open.
 
-- `type.ts` — TypeScript interface
-- `schema.ts` — Form schema with field configurations
-- `validators.ts` — Validation rules
-- `behaviors.ts` — Computed fields, conditional logic
-- `*Form.tsx` — React component
+### 2. One component, steps inline
 
-### 2. Root Aggregators
+`index.tsx` is both the entry point and the layout. It builds the form instance and renders
+every step inline — there are no per-step component files to jump between in a flat module.
 
-Root-level files combine all step modules:
+### 3. Data sources are their own file
 
-```typescript title="forms/credit-application/type.ts"
-// Re-export types from steps and sub-forms
-export type { LoanInfoStep } from './steps/loan-info/type';
-export type { PersonalInfoStep } from './steps/personal-info/type';
-export type { Address } from './sub-forms/address/type';
-
-// Main form interface
-export interface CreditApplicationForm {
-  // Step 1: Loan Info
-  loanType: LoanType;
-  loanAmount: number;
-  loanTerm: number;
-  // ... more fields from all steps
-}
-```
-
-```typescript title="forms/credit-application/schema.ts"
-import { loanInfoSchema } from './steps/loan-info/schema';
-import { personalInfoSchema } from './steps/personal-info/schema';
-
-export const creditApplicationSchema = {
-  ...loanInfoSchema,
-  ...personalInfoSchema,
-  // Computed fields at root level
-  monthlyPayment: { value: 0, disabled: true },
-};
-```
+Options and async loaders always live in `data-sources.ts`, in every target. Keeping them
+out of the schema keeps the schema readable and lets renderer-json reference them by name.
 
 ## Key Files
 
-### Step Type
+### Form Types
 
-```typescript title="forms/credit-application/steps/loan-info/type.ts"
+```typescript title="forms/credit-application/types.ts"
 export type LoanType = 'consumer' | 'mortgage' | 'car';
 
-export interface LoanInfoStep {
+// One interface for the whole form — fields from every step
+export interface CreditApplicationForm {
+  // Step 1: Loan Info
   loanType: LoanType;
   loanAmount: number;
   loanTerm: number;
@@ -129,48 +120,67 @@ export interface LoanInfoStep {
   // Car-specific
   carBrand: string;
   carModel: string;
+  // Computed
+  monthlyPayment: number;
+  interestRate: number;
+  // ... more fields from all steps
 }
 ```
 
-### Step Schema
+### Form Schema
 
-```typescript title="forms/credit-application/steps/loan-info/schema.ts"
+```typescript title="forms/credit-application/form.schema.ts"
 import type { FormSchema } from '@reformer/core';
 import { Input, Select, Textarea } from '@/components/ui';
-import type { LoanInfoStep } from './type';
+import { LOAN_TYPES } from './data-sources';
+import type { CreditApplicationForm } from './types';
 
-export const loanInfoSchema: FormSchema<LoanInfoStep> = {
+// All fields for the whole form live here — one schema, all steps
+export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
   loanType: {
     value: 'consumer',
     component: Select,
-    componentProps: {
-      label: 'Loan Type',
-      options: [
-        { value: 'consumer', label: 'Consumer' },
-        { value: 'mortgage', label: 'Mortgage' },
-        { value: 'car', label: 'Car Loan' },
-      ],
-    },
+    componentProps: { label: 'Loan Type', options: LOAN_TYPES },
   },
   loanAmount: {
     value: null,
     component: Input,
     componentProps: { label: 'Loan Amount', type: 'number' },
   },
+  // Computed field at form level
+  monthlyPayment: { value: 0, disabled: true },
   // ... more fields
 };
 ```
 
-### Step Validators
+### Data Sources
 
-```typescript title="forms/credit-application/steps/loan-info/validators.ts"
-import { required, min, max, applyWhen } from '@reformer/core/validators';
+```typescript title="forms/credit-application/data-sources.ts"
+// Static option dictionaries and async loaders — one file, every target
+export const LOAN_TYPES = [
+  { value: 'consumer', label: 'Consumer' },
+  { value: 'mortgage', label: 'Mortgage' },
+  { value: 'car', label: 'Car Loan' },
+];
+
+export async function loadCarBrands(): Promise<{ value: string; label: string }[]> {
+  const res = await fetch('/api/car-brands');
+  return res.json();
+}
+```
+
+### Validation
+
+All validators for the form live in `validation.ts`. You can still keep them tidy by
+grouping helpers per step **inside the one file**, then combining them:
+
+```typescript title="forms/credit-application/validation.ts"
+import { validate, required, min, max, applyWhen } from '@reformer/core/validators';
 import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
-import type { CreditApplicationForm } from '../../type';
+import type { CreditApplicationForm } from './types';
 
-export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
-  path: FieldPath<CreditApplicationForm>
-) => {
+// Grouped by step — but all in this one file
+const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
   validate(path.loanType, required({ message: 'Select loan type' }));
   validate(path.loanAmount, required({ message: 'Enter loan amount' }));
   validate(path.loanAmount, min(50000, { message: 'Minimum 50,000' }));
@@ -181,21 +191,42 @@ export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
     path.loanType,
     (type) => type === 'mortgage',
     (p) => {
-      required(p.propertyValue, { message: 'Enter property value' });
-      required(p.initialPayment, { message: 'Enter initial payment' });
+      validate(p.propertyValue, required({ message: 'Enter property value' }));
+      validate(p.initialPayment, required({ message: 'Enter initial payment' }));
     }
   );
 };
+
+// Cross-step rule: initial payment must be >= 20% of property value
+const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  validate(path.initialPayment, (value, _control, root) => {
+    if (root.loanType.value.value !== 'mortgage') return null;
+    const propertyValue = root.propertyValue.value.value;
+    if (!propertyValue || !value) return null;
+    const minPayment = propertyValue * 0.2;
+    if (value < minPayment) {
+      return { code: 'minInitialPayment', message: `Minimum: ${minPayment}` };
+    }
+    return null;
+  });
+};
+
+// One exported validator for the whole form
+export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
+  loanValidation(path);
+  crossStepValidation(path);
+};
 ```
 
-### Step Behaviors
+### Behavior
 
-```typescript title="forms/credit-application/steps/loan-info/behaviors.ts"
-import { computeFrom, enableWhen, disableWhen } from '@reformer/core/behaviors';
+```typescript title="forms/credit-application/form.behavior.ts"
+import { computeFrom, enableWhen } from '@reformer/core/behaviors';
 import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
-import type { CreditApplicationForm } from '../../type';
+import type { CreditApplicationForm } from './types';
 
-export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
+// All reactive rules for the whole form
+export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> = (
   path: FieldPath<CreditApplicationForm>
 ) => {
   // Show mortgage fields only for mortgage type
@@ -210,64 +241,32 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 };
 ```
 
-### Root Validators (Cross-Step)
+### Entry Component
 
-```typescript title="forms/credit-application/validators.ts"
-import { validate } from '@reformer/core/validators';
-import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
-import type { CreditApplicationForm } from './type';
+`index.tsx` builds the form instance and renders every step inline:
 
-// Import step validators
-import { loanValidation } from './steps/loan-info/validators';
-import { personalValidation } from './steps/personal-info/validators';
-
-// Cross-step validation
-const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  // Initial payment must be >= 20% of property value
-  validate(path.initialPayment, (value, _control, root) => {
-    if (root.loanType.value.value !== 'mortgage') return null;
-    const propertyValue = root.propertyValue.value.value;
-    if (!propertyValue || !value) return null;
-    const minPayment = propertyValue * 0.2;
-    if (value < minPayment) {
-      return { code: 'minInitialPayment', message: `Minimum: ${minPayment}` };
-    }
-    return null;
-  });
-};
-
-// Combine all validators
-export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  loanValidation(path);
-  personalValidation(path);
-  crossStepValidation(path);
-};
-```
-
-### Main Form Component
-
-```typescript title="forms/credit-application/CreditApplicationForm.tsx"
+```typescript title="forms/credit-application/index.tsx"
 import { useMemo } from 'react';
 import { createForm } from '@reformer/core';
-import { creditApplicationSchema } from './schema';
-import { creditApplicationBehaviors } from './behaviors';
-import { creditApplicationValidation } from './validators';
-import type { CreditApplicationForm as CreditApplicationFormType } from './type';
+import { creditApplicationSchema } from './form.schema';
+import { creditApplicationBehavior } from './form.behavior';
+import { creditApplicationValidation } from './validation';
+import type { CreditApplicationForm as CreditApplicationFormType } from './types';
 
-function CreditApplicationForm() {
+export function CreditApplicationForm() {
   // Create form instance with useMemo for stable reference
   const form = useMemo(
     () =>
       createForm<CreditApplicationFormType>({
         form: creditApplicationSchema,
-        behavior: creditApplicationBehaviors,
+        behavior: creditApplicationBehavior,
         validation: creditApplicationValidation,
       }),
     []
   );
 
   return (
-    // ... render form steps
+    // ... render every step inline (loan info, personal info, confirmation, …)
   );
 }
 ```
@@ -276,78 +275,125 @@ function CreditApplicationForm() {
 
 ### Simple Form (Single File)
 
-For small forms, keep everything in one file:
+For a tiny form, collapse the module to one file — schema, validation, behavior and component
+together:
 
 ```
 forms/
 └── contact/
-    └── ContactForm.tsx     # Schema, validation, behaviors, component
+    └── index.tsx     # Schema, validation, behavior, component
 ```
 
-### Medium Form (Separated Files)
+### Standard Form (Flat Module)
 
-Split into dedicated files:
-
-```
-forms/
-└── registration/
-    ├── type.ts
-    ├── schema.ts
-    ├── validators.ts
-    ├── behaviors.ts
-    └── RegistrationForm.tsx
-```
-
-### Complex Multi-Step Form (Full Colocation)
-
-Use the complete recommended structure:
+The default. One file per concern plus `index.tsx` — the layout at the top of this
+page. This is where almost every form should live.
 
 ```
 forms/
 └── credit-application/
-    ├── type.ts
-    ├── schema.ts
-    ├── validators.ts
-    ├── behaviors.ts
-    ├── CreditApplicationForm.tsx
-    ├── steps/
-    │   ├── loan-info/
-    │   ├── personal-info/
-    │   ├── contact-info/
-    │   ├── employment/
-    │   ├── additional-info/
-    │   └── confirmation/
-    ├── sub-forms/
-    │   ├── address/
-    │   ├── personal-data/
-    │   ├── passport-data/
-    │   ├── property/
-    │   ├── existing-loan/
-    │   └── co-borrower/
-    ├── services/
-    │   └── api.ts
-    └── utils/
-        └── formTransformers.ts
+    ├── index.tsx
+    ├── types.ts
+    ├── model.ts
+    ├── form.schema.ts
+    ├── form.behavior.ts
+    ├── validation.ts
+    ├── data-sources.ts
+    └── api.ts
 ```
+
+## Scaling up: folder layout for large forms
+
+When a multi-step form gets large — many steps, several developers, reusable sub-forms — the
+single-file-per-concern approach can grow unwieldy. At that point, graduate to the **folder
+layout**: three folders per module and colocation by step.
+
+:::note When to switch
+Stay flat by default. Switch to folders only when the pain is real — `form.schema.ts` /
+`validation.ts` have become hard to navigate, or steps have clear separate owners. The
+full cross-target reference (centralized vs co-located variants, renderer-react /
+renderer-json specifics) is the **form-directory-layout** guide shipped with `@reformer/mcp`.
+:::
+
+```
+src/
+├── components/
+│   └── ui/                              # App-wide reusable UI components
+│       ├── FormField.tsx                # Field wrapper component
+│       ├── FormArrayManager.tsx         # Dynamic array manager
+│       └── ...                          # Input, Select, Checkbox, etc.
+│
+├── forms/
+│   └── [form-name]/                     # Form module
+│       ├── [FormName]Form.tsx           # Entry component
+│       ├── index.ts                     # Public re-exports of the module
+│       │
+│       ├── lib/                         # Domain helpers (target-agnostic)
+│       │   ├── types.ts                 # Form interface + field enums + option types
+│       │   ├── constants.ts             # Option dictionaries
+│       │   ├── calc.ts                  # Pure fns for derived fields / transforms
+│       │   └── api.ts                   # Data sources + submit
+│       │
+│       ├── schema/                      # Form-level definition (cross-step)
+│       │   ├── model.ts                 # createModel factory + initial values
+│       │   ├── behavior.ts              # Cross-step behaviors
+│       │   ├── validation.ts            # Cross-step validation
+│       │   └── create-form.ts           # Assembles the per-step partial schemas
+│       │
+│       ├── steps/                       # Step = component + its own schema/validation/behavior
+│       │   ├── loan-info/
+│       │   │   ├── schema.ts            # Step schema
+│       │   │   ├── validation.ts        # Step validators
+│       │   │   ├── behavior.ts          # Step behaviors
+│       │   │   └── LoanInfoForm.tsx     # Step component
+│       │   │
+│       │   ├── personal-info/
+│       │   │   ├── schema.ts
+│       │   │   ├── validation.ts
+│       │   │   ├── behavior.ts
+│       │   │   └── PersonalInfoForm.tsx
+│       │   │
+│       │   └── confirmation/
+│       │       ├── schema.ts
+│       │       ├── validation.ts
+│       │       └── ConfirmationForm.tsx
+│       │
+│       └── nested-forms/                # Reusable sub-form modules
+│           ├── address/
+│           │   ├── schema.ts
+│           │   ├── validation.ts
+│           │   └── AddressForm.tsx
+│           │
+│           └── personal-data/
+│               ├── schema.ts
+│               ├── validation.ts
+│               └── PersonalDataForm.tsx
+```
+
+In the folder layout: **domain raw material → `lib/`; anything describing the form → `schema/`;
+React layout → `components/`; each step and sub-form is self-contained (its own `schema` /
+`validation` / `behavior` / component), while form-level rules and `create-form.ts` (which
+assembles the per-step partial schemas) stay in `schema/`.**
 
 ## Best Practices
 
-| Practice                   | Why                                                |
-| -------------------------- | -------------------------------------------------- |
-| Colocation                 | Related files together, easy navigation            |
-| Group by feature, not type | Find all step files in one place                   |
-| Use useMemo for form       | Stable form instance per component                 |
-| Split validators by step   | Validate only current step                         |
-| Root aggregators           | Single entry point for schema/validators/behaviors |
-| Extract sub-forms          | Reuse address, personal data across forms          |
+| Practice                                 | Why                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| Start flat                               | One file per concern; no premature folders                                 |
+| Flat names; dot only for schema/behavior | Filenames name the concern; `form.` / `renderer.` mark the two-layer files |
+| One component, steps inline              | No jumping between per-step files                                          |
+| All validation in one file               | `validation.ts` is the single place to look                                |
+| Data sources in their own file           | Readable schema; renderer-json can reference by name                       |
+| Use `useMemo` for the form               | Stable form instance per component                                         |
+| Reuse model/behavior/validation          | Same files ship across targets — never duplicate                           |
+| Graduate to folders when large           | Colocation by step pays off only past a size threshold                     |
 
-## Benefits of Colocation
+## Benefits of the Flat Module
 
-1. **Discoverability** — All related files in one folder
-2. **Maintainability** — Change one step without affecting others
-3. **Refactoring** — Move/rename entire step folders
-4. **Code Splitting** — Import only needed step validators
-5. **Team Collaboration** — Different team members work on different steps
+1. **Predictability** — One file per concern; the filename tells you what's inside
+2. **Fewer files** — No `lib/` / `schema/` / `steps/` ceremony for the common case
+3. **Cross-target reuse** — The base is identical; only the schema file format changes
+4. **Easy scale-up** — Split into folders only when a form actually needs it
 
 ## Next Steps
 

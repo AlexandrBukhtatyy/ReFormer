@@ -159,7 +159,7 @@ function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 - `reformer://docs/core/non-existent-api-do-not-use`
 - `reformer://docs/ui-kit/quick-start` (if `@reformer/ui-kit` detected)
 - `reformer://docs/ui-kit/components`
-- Directory layout — run `find_recipe directory-layout` for where each file goes for `{{target}}`: `lib/` (domain helpers) + `schema/` (form definition: model/schema|render-schema|json + behavior + validation) + `components/`; keep the module root to entry + `index.ts`. For renderer-json the base component registry + DSL meta-schema live at app level, not per-form.
+- Directory layout — default is **`{{layoutMode}}`**. Run `find_recipe directory-layout` for where each file goes for `{{target}}` (incl. renderer-json app-level base registry + DSL meta-schema).
   {{rendererPrereqs}}
 
 ## Task
@@ -169,7 +169,7 @@ function createMyRenderBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyFor
 3. Write typed `interface MyForm { ... }` and `createModel<MyForm>(initialValues)`.
 4. Build the schema binding leaves to model signals (`{ value: model.$.field, component, componentProps }`), then `createForm<MyForm>({ model, schema })`. For `renderer-react`: same tree as `RenderSchemaFn<MyForm> = () => RenderNode<MyForm>` (no path arg) + `createRenderSchema`. For `renderer-json`: `JsonFormSchema` (`'$model(...)'` / `'$component(...)'` operators) + `defineRegistry` + `convertJsonToM1Tree`.
 5. Use components from detected ui-kit + Tailwind layout from skeleton above.
-6. Organize files by the recommended layout for `{{target}}` (see `find_recipe directory-layout`): `lib/` (domain helpers) + `schema/` (form definition) + `components/`; keep the module root to just the entry component + `index.ts`. Choose centralized `schema/` or per-step co-located schema (form-level rules stay in `schema/`) — see the guide.
+6. Organize files per the directory layout: {{{layoutGuidance}}}
 7. Don't add validation/behaviors — out of scope.
 
 ## Output checklist

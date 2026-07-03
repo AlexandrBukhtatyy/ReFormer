@@ -10,6 +10,8 @@
 - 03-registry.md — Component Registry
 - 04-troubleshooting.md — Troubleshooting / FAQ
 - 05-cookbook.md — Cookbook
+- 06-validation.md — Validation
+- 07-form-wizard.md — FormWizard
 - API Reference (auto-generated from JSDoc)
 
 ## 1. Installation
@@ -138,7 +140,7 @@ function MyFormPage() {
 
 - **`JsonFormSchema`** — корневой документ: `version` (для миграций), опциональный `$schema` (путь к мета-схеме для IDE), единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
-  - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`.
+  - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
   - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить»).
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` + опциональные `children`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
@@ -238,12 +240,14 @@ const schema: JsonFormSchema = {
 - **Забыть `item.$template` у массива** — array-node требует `array` **и** `item: { $template }`. Без `$template` `isArrayNode` вернёт false и узел не отрендерится как массив.
 - **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения.
 - **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validate` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
+- **Класть `validators` в field-node** — `JsonFieldNode` несёт только layout, поля `validators` в нём нет и оператора `$validator(...)` не существует. Валидация значений живёт в отдельной TS-схеме над моделью (`validateFormModel`), а не в JSON — см. [06-validation.md](06-validation.md).
 
 ## 11. See also
 
 - [01-overview.md](01-overview.md) — как схема монтируется через `model` + `JsonRendererProvider`.
 - [03-registry.md](03-registry.md) — какие компоненты и source можно зарегистрировать.
 - [05-cookbook.md](05-cookbook.md) — `$template`, dataSource-функции, миграция из TS RenderSchema.
+- [06-validation.md](06-validation.md) — валидация значений (TS-схема над моделью + инъекция в wizard).
 - [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [операторы](../../src/operators.ts).
 
 ## 12. Key Concepts
@@ -553,7 +557,40 @@ function createMyRenderBehavior(
 - `onInit(node, fn)` — build-time hook, вызывается один раз до первого рендера ноды.
 - `patchProps` мержит переданные пропы в `componentProps` ноды.
 
-## 32. Migration from TS RenderSchema { #migration }
+## 32. Вся форма read-only / view-mode { #readonly }
+
+**Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
+
+**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт только `fieldWrapper` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`). Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
+
+```typescript
+// Вариант A — сразу после сборки формы (самый прямой):
+const model = createModel<MyForm>(initialValues);
+const form = createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+form.disable(); // каскад disabled по всему дереву → вся форма read-only
+```
+
+```typescript
+// Вариант B — из render-behavior (например, включить view-mode по условию/после загрузки данных):
+import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+
+function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyForm> {
+  return (schema) => {
+    onInit(schema.node('wizard'), () => {
+      form.disable(); // корневой FormProxy отдаёт disable() (делегирует в GroupNode)
+    });
+  };
+}
+```
+
+**Notes.**
+
+- `form.disable()` — публичный метод узла (`FormNode.disable()`): ставит статус `disabled` и вызывает hook `onDisable`, который у группы каскадит на всех детей рекурсивно. Обратно — `form.enable()`.
+- **Caveat:** поле с явным `componentProps.disabled` **перебивает** каскад. Рендерер собирает пропы как `{ value, disabled: state.disabled, ...componentProps }` — спред `componentProps` идёт ПОСЛЕ `disabled`, поэтому `componentProps.disabled: false` вернёт полю доступность даже при `form.disable()`. Не задавай `disabled` в JSON, если хочешь глобальный каскад.
+- Отключённые узлы не валидируются и не попадают в `getValue()` — для чистого view-mode это обычно желаемо; если нужен submit disabled-значений, снимай `disable()` перед сбором.
+- `settings.readonly` / `settings.mode` не существует — model-level каскад (`form.disable()`) это канонический механизм view-mode.
+
+## 33. Migration from TS RenderSchema { #migration }
 
 **Problem.** Есть готовая `RenderSchemaFn<T>` (TS-вариант с `path.email`, React-компонентами по ссылке) — нужно перенести её в JSON-схему.
 
@@ -602,14 +639,323 @@ const registry = defineRegistry((reg) => {
 - field/array/container взаимоисключающи: `value` → лист, `array`+`item` → массив, `component`+`children` → контейнер. Дискриминация в конвертере: array → field → container.
 - Поведение (`hideWhen`, `onInit`, lifecycle) **не** переезжает в JSON — остаётся TS-функцией `RenderBehaviorFn<T>` и передаётся пропом `renderBehavior`. В эталоне TS- и JSON-варианты переиспользуют один shared behavior.
 
-## 33. See also
+## 34. See also
 
 - [01-overview.md](01-overview.md) — монтаж через `model` + `JsonRendererProvider`.
 - [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` и операторам.
 - [03-registry.md](03-registry.md) — все методы `defineRegistry`.
 - [04-troubleshooting.md](04-troubleshooting.md) — типичные ошибки.
 
-## 34. API Reference
+## 35. Mental model — почему валидаторов нет в JSON { #mental-model }
+
+Одна ключевая мысль: **JSON-DSL несёт только layout, а не правила валидации.**
+
+- `JsonFieldNode` — это `{ selector?, value, component?, componentProps?, wrapper? }` и **ничего больше**. Поля `validators` в нём нет (см. [json-schema.ts](../../src/types/json-schema.ts) — интерфейс `JsonFieldNode`).
+- Операторы DSL — только `$model(...)`, `$component(...)`, `$dataSource(...)` (см. [operators.ts](../../src/operators.ts)). Оператора `$validator(...)` **не существует**.
+- `JsonFormRenderer` с пропом `validate` (и функция `validateFormSchema`) проверяют **структуру** схемы через ajv: корректность узлов + синтаксис операторов + известность имён `$component`/`$dataSource`. Это НЕ валидация введённых пользователем значений (см. [validate.ts](../../src/validate.ts)).
+- Значит, валидацию значений выражают **отдельной TS-схемой над МОДЕЛЬЮ** (`FormModel`), а не в JSON. Схема исполняется `validateFormModel(model, schema)` — тем же движком, что и в TS-варианте формы. Одна валидация на все варианты рендера.
+
+Дальше — три шага: (1) построить схему над моделью, (2) обернуть её в `{ validateStep, validateAll }`, (3) инъектировать в wizard через render-behavior.
+
+## 36. Шаг 1 — построить схему валидации над моделью { #build-schema }
+
+Схема валидации — дерево узлов движка M1: лист `{ value: signal, validators: [...] }`, контейнер `{ children: [...] }`. `value` — сигнал модели (`model.$.path`), НЕ строка-оператор `$model(...)` (операторы — только для layout-JSON; схема валидации это обычный TS-код). Фабрики правил импортируются из `@reformer/core/validators`.
+
+```typescript
+import { type FormModel } from '@reformer/core';
+import { required, min, max, minLength, email } from '@reformer/core/validators';
+
+type M = FormModel<CreditForm>;
+
+// Под-схема одного шага: дерево field-узлов { value, validators }.
+const step1 = (model: M) => ({
+  children: [
+    { value: model.$.loanType, validators: [required({ message: 'Выберите тип кредита' })] },
+    {
+      value: model.$.loanAmount,
+      validators: [required(), min(50000, { message: 'Минимум 50 000 ₽' }), max(10000000)],
+    },
+  ],
+});
+
+const step2 = (model: M) => ({
+  children: [
+    { value: model.$.personalData.firstName, validators: [required(), minLength(2)] },
+    { value: model.$.email, validators: [required(), email()] },
+  ],
+});
+
+// Карта шагов + полная схема (объединение для submit).
+const STEP_BUILDERS = [step1, step2];
+```
+
+Условные группы (`{ when, children }`), cross-field правила, секции массивов — тот же движок, что в TS-форме. Полное описание узлов схемы и `validateFormModel` — в `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) (не дублируем здесь).
+
+## 37. Шаг 2 — исполнить: `{ validateStep, validateAll }` { #execute }
+
+`validateFormModel(model, schema)` прогоняет схему по текущим значениям модели и **сам роутит ошибки в ноды формы** (UI подсветит проблемные поля). Возвращает `{ valid, errors }`. Оборачиваем в две функции — контракт `FormWizardConfig` из `@reformer/cdk` (см. [form-wizard/types.ts](../../../reformer-cdk/src/components/form-wizard/types.ts): `validateStep?(step): boolean | Promise<boolean>`, `validateAll?(): boolean | Promise<boolean>`).
+
+```typescript
+import { validateFormModel } from '@reformer/core';
+
+export function makeValidationConfig(model: M) {
+  // Схема зависит только от ФОРМЫ модели, не от значений — строим дерево один раз.
+  const stepSchemas = STEP_BUILDERS.map((build) => build(model));
+  const fullSchema = { children: stepSchemas };
+
+  return {
+    validateStep: async (step: number): Promise<boolean> => {
+      const res = await validateFormModel(model, stepSchemas[step - 1] ?? { children: [] });
+      return res.valid; // ошибки уже проставлены в ноды текущего шага
+    },
+    validateAll: async (): Promise<boolean> => {
+      const res = await validateFormModel(model, fullSchema);
+      return res.valid;
+    },
+  };
+}
+```
+
+## 38. Шаг 3 — инъекция в wizard через render-behavior { #inject }
+
+JSON-схема статична и не знает про `FormProxy`/validation-конфиг — это рантайм-сущности. Инжектируем их в wizard-ноду через `renderBehavior` + `onInit` + `patchProps` до первого рендера (общий приём — см. [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime)). Wizard-узел JSON-схемы должен нести `selector: 'wizard'`, чтобы адресоваться через `schema.node('wizard')`.
+
+```typescript
+import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+import type { FormProxy, FormModel } from '@reformer/core';
+
+export function createJsonRenderBehavior(
+  form: FormProxy<CreditForm>,
+  model: FormModel<CreditForm>
+): RenderBehaviorFn<CreditForm> {
+  return (schema) => {
+    // JSON не выражает FormProxy/валидацию — инъектим их в wizard до первого рендера.
+    onInit(schema.node('wizard'), () => {
+      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
+    });
+    // Остальное поведение (visibility/navigation) — из shared render-behavior.
+    createSharedRenderBehavior(form)(schema);
+  };
+}
+
+// <JsonFormRenderer schema={jsonSchema} renderBehavior={createJsonRenderBehavior(form, model)} />
+```
+
+`patchProps({ form, validateStep, validateAll })` кладёт `form` + оба колбэка в `componentProps` wizard-ноды. Wizard-компонент читает их как `FormWizardConfig` и запускает `validateStep` на «Далее», `validateAll` на submit.
+
+## 39. Полный рабочий пример { #full-example }
+
+Зеркалит golden-эталон (`complex-multy-step-form-renderer-json`): валидация — TS-схема над моделью, переиспользуемая всеми вариантами рендера, инъектируется в JSON-wizard. Submit и навигация между шагами приходят **не** отсюда, а из shared render-behavior — JSON-вариант лишь до-инъектит `form`/валидацию и делегирует остальное (см. [07-form-wizard.md](07-form-wizard.md)).
+
+```typescript
+// validation.ts — TS-схема над МОДЕЛЬЮ (не JSON)
+import { validateFormModel, type FormModel } from '@reformer/core';
+import { required, min, minLength, email } from '@reformer/core/validators';
+import type { CreditForm } from './types';
+
+type M = FormModel<CreditForm>;
+
+const step1 = (model: M) => ({
+  children: [
+    { value: model.$.loanType, validators: [required({ message: 'Выберите тип кредита' })] },
+    { value: model.$.loanAmount, validators: [required(), min(50000, { message: 'Минимум 50 000 ₽' })] },
+  ],
+});
+const step2 = (model: M) => ({
+  children: [
+    { value: model.$.personalData.firstName, validators: [required(), minLength(2)] },
+    { value: model.$.email, validators: [required(), email()] },
+  ],
+});
+const STEP_BUILDERS = [step1, step2];
+
+/** Контракт FormWizardConfig: per-step + полная валидация через validateFormModel. */
+export function makeValidationConfig(model: M) {
+  const stepSchemas = STEP_BUILDERS.map((build) => build(model));
+  const fullSchema = { children: stepSchemas };
+  return {
+    validateStep: async (step: number) =>
+      (await validateFormModel(model, stepSchemas[step - 1] ?? { children: [] })).valid,
+    validateAll: async () => (await validateFormModel(model, fullSchema)).valid,
+  };
+}
+```
+
+```typescript
+// render-behavior.ts — инъекция form + валидации в JSON-wizard
+import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+import type { FormProxy, FormModel } from '@reformer/core';
+import type { CreditForm } from './types';
+import { makeValidationConfig } from './validation';
+// Единый behavior (submit/навигация/visibility) — общий для TS- и JSON-варианта. См. 07-form-wizard.md.
+import { createSharedRenderBehavior } from './render-behavior.shared';
+
+export function createJsonRenderBehavior(
+  form: FormProxy<CreditForm>,
+  model: FormModel<CreditForm>
+): RenderBehaviorFn<CreditForm> {
+  return (schema) => {
+    // (1) Инъекция рантайм-сущностей: form + validation-конфиг в wizard-ноду.
+    onInit(schema.node('wizard'), () => {
+      schema.node('wizard').patchProps({ form, ...makeValidationConfig(model) });
+    });
+    // (2) Submit + навигация между шагами + visibility — из shared render-behavior.
+    //     БЕЗ этого вызова форма валидирует, но НЕ сабмитит и не навигирует (golden
+    //     `complex-multy-step-form-renderer-json/render-behavior.ts` делегирует так же).
+    createSharedRenderBehavior(form)(schema);
+  };
+}
+```
+
+## 40. Anti-patterns
+
+- **Ждать, что `validate={true}` (или `validateFormSchema`) валидирует значения** — этот проп проверяет только СТРУКТУРУ схемы через ajv (узлы + синтаксис операторов + имена компонентов). Введённые пользователем значения он не трогает. Валидацию значений исполняет `validateFormModel` над моделью.
+- **Пытаться добавить `validators` в JSON field-node** — `JsonFieldNode` несёт только layout (`value`/`component`/`componentProps`/`wrapper`). Поля `validators` в нём нет, оператора `$validator(...)` не существует. TypeScript отклонит лишнее поле; даже если протащить через `as`, конвертер его проигнорирует.
+- **Строить схему валидации по значениям, а не по shape модели** — узел это `{ value: model.$.path, validators }`, где `value` — сигнал (стабильная ссылка на форму модели), а не текущее значение поля. Схему собирают один раз на `model`; значения читаются движком в момент прогона `validateFormModel`.
+- **Забыть `selector: 'wizard'` у wizard-ноды** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не инъектируется (submit пройдёт без блокировки).
+
+## 41. See also
+
+- [07-form-wizard.md](07-form-wizard.md) — end-to-end wizard в JSON: submit (`onComponentEvent`), навигация (`renderEffect`) и инъекция этой валидации в одном месте.
+- [02-json-schema.md](02-json-schema.md) — справочник по узлам `JsonNode` (field-node несёт только layout).
+- [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime) — общий приём инъекции runtime-сущностей через `onInit`/`patchProps`.
+- `@reformer/core` [13-multi-step.md](../../../reformer/docs/llms/13-multi-step.md) — узлы схемы валидации, `validateFormModel`, STEP_SCHEMAS.
+- [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [validate.ts](../../src/validate.ts) — структурная валидация схемы.
+
+## 42. Половина 1 — layout шагов в JSON { #json-shape }
+
+Wizard — обычная container-нода со `selector: 'wizard'` (чтобы адресоваться через `schema.node('wizard')`). Шаги лежат в **`componentProps.steps`** — массив container-нод, а **не** в top-level `children`. Каждый шаг — нода `$component(Step)` с `componentProps: { title, icon }` и собственным `children` (поддерево layout шага).
+
+```json
+{
+  "selector": "wizard",
+  "component": "$component(Wizard)",
+  "componentProps": {
+    "className": "bg-white p-8 rounded-lg shadow-md",
+    "steps": [
+      {
+        "component": "$component(Step)",
+        "componentProps": { "title": "Кредит", "icon": "💰" },
+        "children": [
+          {
+            "selector": "mortgage-section",
+            "component": "$component(Section)",
+            "componentProps": { "title": "Ипотека" },
+            "children": [
+              { "value": "$model(loanAmount)", "component": "$component(Input)",
+                "componentProps": { "label": "Сумма кредита (₽)", "type": "number" } }
+            ]
+          }
+        ]
+      },
+      {
+        "component": "$component(Step)",
+        "componentProps": { "title": "Заявитель", "icon": "🧑" },
+        "children": [
+          { "value": "$model(personalData.firstName)", "component": "$component(Input)",
+            "componentProps": { "label": "Имя" } }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Ground truth: golden `complex-multy-step-form-renderer-json/json-schema.json` (wizard-нода — `selector: 'wizard'`, `steps` внутри `componentProps`, каждый шаг — `$component(Step)` + `componentProps.title/icon` + `children`).
+
+> Отличие от `@reformer/renderer-react`: там шаг — объект `{ number, title, icon, body }`, где `body` — самостоятельный `RenderNode` (см. renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms)). В JSON-DSL нельзя вписать `RenderNode` как значение пропа, поэтому шаг выражается **container-нодой** `Step` + `children`, а wizard-компонент адаптирует эту форму под `step.body`.
+
+## 43. Регистрируй свой wizard-компонент в реестре { #register }
+
+`$component(Wizard)` — это **запись в реестре**, а не библиотечный экспорт: имя резолвится через registry (`reg.component('Wizard', <твой компонент>)`). Имя произвольное — важно лишь совпадение строки в JSON и ключа в реестре.
+
+Канонический shipped-компонент — `FormWizard` из `@reformer/ui-kit/form-wizard` (см. renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms)). Он принимает `componentProps.form`, `componentProps.steps` и `FormWizardConfig` (`validateStep`/`validateAll`), а `step.body` полиморфен (`FC | ReactNode | RenderNode<T>`). Твой зарегистрированный компонент должен быть совместим с этим контрактом.
+
+```typescript
+import { defineRegistry } from '@reformer/renderer-json';
+import { Step } from '@reformer/cdk/form-wizard';
+import { MyWizard } from './MyWizard'; // тонкая обёртка над ui-kit FormWizard
+
+const registry = defineRegistry((reg) => {
+  reg.component('Wizard', MyWizard); // ← имя из JSON `$component(Wizard)`
+  reg.component('Step', Step);       // container-нода шага
+  // ...остальные компоненты (Input, Select, Section, ...)
+});
+```
+
+> В golden-эталоне под `$component(Wizard)` зарегистрирован app-shim `RendererFormWizard`: он снимает `title`/`icon` c `componentProps` Step-ноды, а сам Step-узел кладёт в `step.body` ui-kit `FormWizard`. Shim — деталь приложения, **не** канон библиотеки; регистрируй под этим именем любой совместимый с `FormWizard` компонент.
+
+## 44. Половина 2 — поведение в одном render-behavior { #render-behavior }
+
+Один `RenderBehaviorFn<T>` навешивает всё рантайм-поведение на wizard-ноду. Порядок: (a) инъекция `form` + валидации через `onInit`; (b) submit через `onComponentEvent`; (c) навигация через `renderEffect` + `wizardRef`; (d) условные секции через `hideWhen`. Семантику хелперов см. renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md).
+
+```typescript
+import {
+  onInit,
+  onComponentEvent,
+  renderEffect,
+  hideWhen,
+  type RenderBehaviorFn,
+} from '@reformer/renderer-react';
+import type { FormProxy, FormModel } from '@reformer/core';
+import type { FormWizardHandle } from '@reformer/cdk/form-wizard';
+import type { CreditForm } from './types';
+import { makeValidationConfig } from './validation'; // см. 06-validation.md
+import { submitCreditApplication } from './api';
+
+export function createWizardRenderBehavior(
+  form: FormProxy<CreditForm>,
+  model: FormModel<CreditForm>
+): RenderBehaviorFn<CreditForm> {
+  return (schema) => {
+    const wizard = schema.node('wizard');
+    const wizardRef = wizard.getRef<FormWizardHandle<CreditForm>>();
+
+    // (a) Инъекция рантайма: form + validateStep/validateAll в wizard-ноду до первого рендера.
+    //     Валидация — TS-схема над МОДЕЛЬЮ (не JSON). Детали — 06-validation.md.
+    onInit(wizard, () => {
+      wizard.patchProps({ form, ...makeValidationConfig(model) });
+    });
+
+    // (b) Submit: onComponentEvent получает те же аргументы, что и оригинальный проп onSubmit.
+    onComponentEvent(wizard, 'onSubmit', async (values: CreditForm) => {
+      await submitCreditApplication(values);
+    });
+
+    // (c) Навигация: реактивный эффект принимает СХЕМУ (не ноду); wizardRef доступен после mount.
+    renderEffect(schema, () => {
+      if (form.loanType.value.value === 'mortgage') {
+        wizardRef.current?.goToStep(1);
+      }
+    });
+
+    // (d) Условные секции: реактивно по сигналам формы (читай сигнал целиком: `.value.value`).
+    hideWhen(schema.node('mortgage-section'), () => form.loanType.value.value !== 'mortgage');
+  };
+}
+
+// <JsonFormRenderer schema={jsonSchema} renderBehavior={createWizardRenderBehavior(form, model)} />
+```
+
+Ground truth: golden `complex-multy-step-form-renderer/render-behavior.ts` — `onComponentEvent(schema.node('wizard'), 'onSubmit', ...)`, `renderEffect(schema, () => wizardRef.current?.goToStep(1))`, `hideWhen(...)`; инъекция `form`+валидации — `complex-multy-step-form-renderer-json/render-behavior.ts`.
+
+## 45. Anti-patterns
+
+- **Класть шаги в top-level `children` wizard-ноды** — шаги живут в `componentProps.steps`. Top-level `children` wizard-компонент не читает как шаги.
+- **Ждать шаг как `{ number, title, icon, body }` в JSON** — это форма renderer-react. В JSON шаг — container-нода `$component(Step)` + `componentProps.title/icon` + `children`.
+- **Считать `RendererFormWizard` библиотечным экспортом** — это app-shim эталона. Wizard-компонент подключается через реестр под любым именем; канон — ui-kit `FormWizard`.
+- **Забыть `createWizardRenderBehavior` (только `onInit` с валидацией)** — форма будет валидировать, но `onSubmit`/навигация не подключатся: submit-less форма. Submit и навигация приходят из этого же behavior.
+- **`renderEffect(node, ...)` вместо `renderEffect(schema, ...)`** — первый аргумент `renderEffect` это схема, а не узел (в отличие от `hideWhen`/`onComponentEvent`).
+- **Забыть `selector: 'wizard'`** — без селектора `schema.node('wizard')` не адресует узел, инъекция/submit/навигация не навесятся.
+
+## 46. See also
+
+- [06-validation.md](06-validation.md) — `makeValidationConfig` (TS-схема над моделью), инъекция `validateStep`/`validateAll` в wizard.
+- [05-cookbook.md#inject-runtime](05-cookbook.md#inject-runtime) — общий приём инъекции runtime-сущностей (`form`) через `onInit`/`patchProps`.
+- renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
+- renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms) — канонический `FormWizard`, форма шага `{ number, title, icon, body }`.
+
+## 47. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -634,7 +980,7 @@ export function buildFormSchemaMetaSchema(opts?: {
 const schema = buildFormSchemaMetaSchema({ componentNames: getComponentNames(registry) });
 ```
 
-_Source: src/schema/index.ts_
+_Source: packages/reformer-renderer-json/src/schema/index.ts_
 
 ### ComponentMetadata
 
@@ -658,7 +1004,7 @@ const meta: ComponentMetadata = registry.get('Input')!;
 meta.type; // 'component'
 ```
 
-_Source: src/registry/types.ts_
+_Source: packages/reformer-renderer-json/src/registry/types.ts_
 
 ### ComponentOp
 
@@ -671,7 +1017,7 @@ _Source: src/registry/types.ts_
 export type ComponentOp = `$component(${string})`;
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### ComponentRegistry
 
@@ -701,7 +1047,7 @@ if (registry.has('Input')) {
 registry.names(); // ['Input', 'Box', 'LOAN_TYPES', ...]
 ```
 
-_Source: src/registry/types.ts_
+_Source: packages/reformer-renderer-json/src/registry/types.ts_
 
 ### convertJsonToM1Tree
 
@@ -739,7 +1085,7 @@ behavior,
 });
 ```
 
-_Source: src/converter/json-to-render-schema.ts_
+_Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
 
 ### createRenderSchemaFromJsonM1
 
@@ -778,7 +1124,7 @@ const proxy = createRenderSchema<MyForm>(fn);
 <FormRenderer render={proxy} />;
 ```
 
-_Source: src/converter/json-to-render-schema.ts_
+_Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
 
 ### DataSourceOp
 
@@ -791,7 +1137,7 @@ _Source: src/converter/json-to-render-schema.ts_
 export type DataSourceOp = `$dataSource(${string})`;
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### defineRegistry
 
@@ -832,7 +1178,7 @@ const registry = defineRegistry((reg) => {
 **See also:**
 - [docs/llms/03-registry.md](../../docs/llms/03-registry.md)
 
-_Source: src/registry/component-registry.ts_
+_Source: packages/reformer-renderer-json/src/registry/component-registry.ts_
 
 ### FIELD_WRAPPER
 
@@ -859,7 +1205,7 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-_Source: src/registry/constants.ts_
+_Source: packages/reformer-renderer-json/src/registry/constants.ts_
 
 ### formSchemaMetaSchema
 
@@ -882,7 +1228,7 @@ export const formSchemaMetaSchema
 formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
 ```
 
-_Source: src/schema/index.ts_
+_Source: packages/reformer-renderer-json/src/schema/index.ts_
 
 ### getComponentNames
 
@@ -908,7 +1254,7 @@ const names = getComponentNames(registry); // ['Input', 'Select', 'Box', ...]
 const schema = buildFormSchemaMetaSchema({ componentNames: names });
 ```
 
-_Source: src/schema/index.ts_
+_Source: packages/reformer-renderer-json/src/schema/index.ts_
 
 ### getDataSourceNames
 
@@ -933,7 +1279,7 @@ export function getDataSourceNames(registry: ComponentRegistry): string[]
 getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
 ```
 
-_Source: src/schema/index.ts_
+_Source: packages/reformer-renderer-json/src/schema/index.ts_
 
 ### isArrayNode
 
@@ -962,7 +1308,7 @@ node.item.$template;   // JsonNode
 }
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### isComponentOp
 
@@ -988,7 +1334,7 @@ if (isComponentOp(node.component)) {
 }
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### isContainerNode
 
@@ -1016,7 +1362,7 @@ node.children?.forEach(walk);
 }
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### isDataSourceOp
 
@@ -1042,7 +1388,7 @@ if (isDataSourceOp(props.options)) {
 }
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### isFieldNode
 
@@ -1070,7 +1416,7 @@ node.component;  // ComponentOp | undefined
 }
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### isModelOp
 
@@ -1097,7 +1443,7 @@ const path = parseOperator(value)!.arg; // 'loanType'
 }
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### JsonArrayNode
 
@@ -1124,7 +1470,7 @@ export interface JsonArrayNode {
 }
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### JsonContainerNode
 
@@ -1146,7 +1492,7 @@ export interface JsonContainerNode {
 }
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### JsonFieldNode
 
@@ -1170,7 +1516,7 @@ export interface JsonFieldNode {
 }
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### JsonFormRenderer
 
@@ -1248,7 +1594,7 @@ return (
 **See also:**
 - [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
 
-_Source: src/components/json-form-renderer.tsx_
+_Source: packages/reformer-renderer-json/src/components/json-form-renderer.tsx_
 
 ### JsonFormRendererProps
 
@@ -1278,7 +1624,7 @@ export interface JsonFormRendererProps<T> {
 }
 ```
 
-_Source: src/components/json-form-renderer.tsx_
+_Source: packages/reformer-renderer-json/src/components/json-form-renderer.tsx_
 
 ### JsonFormSchema
 
@@ -1313,7 +1659,7 @@ const schema: JsonFormSchema = {
 };
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### JsonNode
 
@@ -1326,7 +1672,7 @@ _Source: src/types/json-schema.ts_
 export type JsonNode = JsonFieldNode | JsonArrayNode | JsonContainerNode;
 ```
 
-_Source: src/types/json-schema.ts_
+_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 
 ### JsonOperator
 
@@ -1339,7 +1685,7 @@ _Source: src/types/json-schema.ts_
 export type JsonOperator = ModelOp | ComponentOp | DataSourceOp;
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### JsonRendererProvider
 
@@ -1372,7 +1718,7 @@ reg.component(FIELD_WRAPPER, FormField);
 </JsonRendererProvider>
 ```
 
-_Source: src/context/json-renderer-context.tsx_
+_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
 
 ### JsonRendererProviderProps
 
@@ -1390,7 +1736,7 @@ export interface JsonRendererProviderProps {
 }
 ```
 
-_Source: src/context/json-renderer-context.tsx_
+_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
 
 ### JsonRendererSettings
 
@@ -1412,7 +1758,7 @@ export interface JsonRendererSettings extends RendererSettings {
 }
 ```
 
-_Source: src/context/json-renderer-context.tsx_
+_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
 
 ### ModelOp
 
@@ -1425,7 +1771,7 @@ _Source: src/context/json-renderer-context.tsx_
 export type ModelOp = `$model(${string})`;
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### ParsedOperator
 
@@ -1441,7 +1787,7 @@ export interface ParsedOperator {
 }
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### parseOperator
 
@@ -1468,7 +1814,7 @@ parseOperator('$dataSource(LOAN_TYPES)'); // { op: 'dataSource', arg: 'LOAN_TYPE
 parseOperator('Введите сумму');       // null  (обычная строка)
 ```
 
-_Source: src/operators.ts_
+_Source: packages/reformer-renderer-json/src/operators.ts_
 
 ### RegistryBuilder
 
@@ -1501,7 +1847,7 @@ defineRegistry((reg: RegistryBuilder) => {
 });
 ```
 
-_Source: src/registry/types.ts_
+_Source: packages/reformer-renderer-json/src/registry/types.ts_
 
 ### SchemaErrorPanel
 
@@ -1533,7 +1879,7 @@ const { valid, errors } = validateFormSchema(schema, { registry });
 if (!valid) return <SchemaErrorPanel errors={errors} />;
 ```
 
-_Source: src/components/schema-error-panel.tsx_
+_Source: packages/reformer-renderer-json/src/components/schema-error-panel.tsx_
 
 ### SchemaErrorPanelProps
 
@@ -1549,7 +1895,7 @@ export interface SchemaErrorPanelProps {
 }
 ```
 
-_Source: src/components/schema-error-panel.tsx_
+_Source: packages/reformer-renderer-json/src/components/schema-error-panel.tsx_
 
 ### useJsonRendererSettings
 
@@ -1576,4 +1922,4 @@ function MyControl() {
 }
 ```
 
-_Source: src/context/json-renderer-context.tsx_
+_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_

@@ -21,7 +21,7 @@
   - `<target field>` ← derived from [`<src1>`, `<src2>`] via formula `<short>`
 - **FormArray sections**:
   - `<array name>` (item type `<ItemType>`, min/max items: ...)
-- **Conditional rendering** (`applyWhen`):
+- **Conditional fields** (enableWhen / branch-node `{ when, children }`):
   - `<field>` shown when `<predicate>`
 - **Async validations**:
   - `<field>` ← endpoint `<descr>`, debounce N ms
@@ -34,14 +34,14 @@
 
 ## Recipes/symbols planned to use
 
-| query                                          | result summary             | will use for        |
-| ---------------------------------------------- | -------------------------- | ------------------- |
-| `find_recipe(topic="validation")`              | <2-3 строки описания>      | required + min/max  |
-| `find_recipe(topic="compute-from")`            | <2-3 строки>               | derived fields      |
-| `find_recipe(topic="form-array")`              | <2-3 строки>               | co-borrowers list   |
-| `find_recipe(topic="form-wizard")`             | <2-3 строки>               | 6-step navigation   |
-| `get_symbol_docs(symbol="createForm")`         | сигнатура + основные опции | form bootstrap      |
-| `get_symbol_docs(symbol="ValidationSchemaFn")` | type signature             | validation callback |
+| query                                      | result summary             | will use for        |
+| ------------------------------------------ | -------------------------- | ------------------- |
+| `find_recipe(topic="validation")`          | <2-3 строки описания>      | required + min/max  |
+| `find_recipe(topic="compute-from")`        | <2-3 строки>               | derived fields      |
+| `find_recipe(topic="form-array")`          | <2-3 строки>               | co-borrowers list   |
+| `find_recipe(topic="form-wizard")`         | <2-3 строки>               | 6-step navigation   |
+| `get_symbol_docs(symbol="createForm")`     | сигнатура + основные опции | form bootstrap      |
+| `get_symbol_docs(symbol="ModelValidator")` | type signature             | validation callback |
 
 (Для каждой строки — ссылка на блок в `discovery.md`.)
 

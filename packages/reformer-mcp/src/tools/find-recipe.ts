@@ -77,14 +77,26 @@ const RECIPE_ALIASES: Record<string, string[]> = {
   // async options / preload
   preload: ['async-preload'],
   options: ['async-options-loading'],
-  // form directory / project layout (cross-target guide lives in @reformer/mcp;
-  // core also has its own project-structure section)
+  // form directory / project layout. Canonical cross-target guide is
+  // form-directory-layout (@reformer/mcp). @reformer/core keeps its own
+  // project-structure section (core-only slice), kept consistent with the
+  // guide — safe as a fallback for core-only consumers without the mcp package.
   'directory-layout': ['form-directory-layout', 'project-structure'],
   'directory-structure': ['form-directory-layout', 'project-structure'],
   'project-structure': ['form-directory-layout', 'project-structure'],
-  'folder-structure': ['form-directory-layout'],
-  'file-organization': ['form-directory-layout'],
+  'folder-structure': ['form-directory-layout', 'project-structure'],
+  'file-organization': ['form-directory-layout', 'project-structure'],
   colocation: ['form-directory-layout', 'project-structure'],
+  // conditional fields — visibility/availability (enableWhen, compute/copyFrom { when }),
+  // conditional validation (branch node { when, children }), JSX hiding. Falls back to
+  // api-signatures for the raw signatures if the recipe is somehow unavailable.
+  conditional: ['conditional-fields', 'api-signatures'],
+  'conditional-fields': ['conditional-fields', 'api-signatures'],
+  'conditional-rendering': ['conditional-fields', 'api-signatures'],
+  'enable-when': ['conditional-fields', 'api-signatures'],
+  enablewhen: ['conditional-fields', 'api-signatures'],
+  'branch-node': ['conditional-fields', 'api-signatures'],
+  'when-children': ['conditional-fields', 'api-signatures'],
 };
 
 function resolveAliases(topic: string): string[] {

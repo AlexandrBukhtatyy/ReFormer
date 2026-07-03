@@ -89,27 +89,63 @@ function MyFormPage() {
 
 ### Multi-step forms
 
-Для многошаговых форм корневой узел — `RendererFormWizard` (compat-shim над `FormWizard` из
-`@reformer/ui-kit/form-wizard`), которому передаётся `form` через `componentProps`, а шаги —
-через `componentProps.steps` (массив `RenderNode`, каждый с `component: Step`). Форма для
-wizard-узла добавляется в схему при её сборке. Каноническая схема wizard-узла:
+Для многошаговых форм wizard-узел — `FormWizard` из `@reformer/ui-kit/form-wizard`
+(канонический shipped-компонент). Форма передаётся ему через `componentProps.form`, а шаги —
+через `componentProps.steps`: массив объектов `{ number, title, icon, body }`, где `body` —
+это `RenderNode` (поддерево M1-схемы шага). `body` — самостоятельная под-схема, её НЕ нужно
+оборачивать в `component: Step` + `children`.
 
 ```tsx
-// упрощённо
-function buildSchema(model, form?) {
+import { FormWizard } from '@reformer/ui-kit/form-wizard';
+import { Box, Input } from '@reformer/ui-kit';
+
+// form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
+function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
+  const m = model.$;
   return {
     selector: 'wizard',
-    component: RendererFormWizard,
+    component: FormWizard,
     componentProps: {
       ...(form ? { form } : {}), // form нужен только рендеру; при createForm его не передаём
+      config, // FormWizardConfig: { validateStep?, validateAll? } — см. канон ниже
       steps: [
-        { component: Step, componentProps: { title: 'Шаг 1' }, children: [ /* поля */ ] },
-        // ...
+        {
+          number: 1,
+          title: 'Кредит',
+          icon: '💰',
+          body: {
+            component: Box,
+            componentProps: { className: 'space-y-4' },
+            children: [
+              { value: m.loanAmount, component: Input, componentProps: { label: 'Сумма' } },
+              { value: m.loanTerm, component: Input, componentProps: { label: 'Срок' } },
+            ],
+          },
+        },
+        // ...остальные шаги
       ],
     },
   };
 }
 ```
+
+**Листья-поля под `componentProps.steps[].body` тоже harvest'ятся.** `createForm({ model, schema })`
+обходит дерево key-agnostic и доходит до каждого `{ value: signal }`-листа независимо от
+вложенности — включая листья внутри `componentProps.steps[].body`. Поэтому строй схему БЕЗ
+`form` (чтобы harvest не обходил `FormProxy`) и передавай `form` только в render-proxy
+wizard-узла:
+
+```tsx
+const model = createModel<MyForm>({ /* ... */ });
+// (1) форма из схемы БЕЗ form — harvest листьев под steps[].body работает как есть
+const form = createForm<MyForm>({ model, schema: buildSchema(model) });
+// (2) render-схема с тем же деревом, но form передан wizard-узлу для рендера
+const schema = createRenderSchema<MyForm>(() => buildSchema(model, form));
+```
+
+Полный справочник по `FormWizard` (полиморфный `step.body`, `config` / `FormWizardConfig`,
+`FormWizardHandle`, обязательный mounting под `RenderContextProvider` / `<FormRenderer>`) —
+`@reformer/ui-kit · docs/llms/07-form-wizard.md`.
 
 ### Container `children` — top-level свойство
 

@@ -6,7 +6,7 @@
 
 - **`JsonFormSchema`** — корневой документ: `version` (для миграций), опциональный `$schema` (путь к мета-схеме для IDE), единственный корневой узел `root`.
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
-  - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`.
+  - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
   - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить»).
   - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` + опциональные `children`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
@@ -106,10 +106,12 @@ const schema: JsonFormSchema = {
 - **Забыть `item.$template` у массива** — array-node требует `array` **и** `item: { $template }`. Без `$template` `isArrayNode` вернёт false и узел не отрендерится как массив.
 - **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения.
 - **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validate` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
+- **Класть `validators` в field-node** — `JsonFieldNode` несёт только layout, поля `validators` в нём нет и оператора `$validator(...)` не существует. Валидация значений живёт в отдельной TS-схеме над моделью (`validateFormModel`), а не в JSON — см. [06-validation.md](06-validation.md).
 
 ## See also
 
 - [01-overview.md](01-overview.md) — как схема монтируется через `model` + `JsonRendererProvider`.
 - [03-registry.md](03-registry.md) — какие компоненты и source можно зарегистрировать.
 - [05-cookbook.md](05-cookbook.md) — `$template`, dataSource-функции, миграция из TS RenderSchema.
+- [06-validation.md](06-validation.md) — валидация значений (TS-схема над моделью + инъекция в wizard).
 - [Типы JsonFormSchema/JsonNode](../../src/types/json-schema.ts) и [операторы](../../src/operators.ts).

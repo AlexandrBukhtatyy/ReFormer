@@ -22,6 +22,7 @@
 - 15-project-structure.md — project-structure
 - 16-ui-components.md — ui-components
 - 17-nonexistent-api.md — nonexistent-api
+- 18-conditional-fields.md — Условные поля — видимость, доступность и валидация
 - 19-reading-values.md — reading-values
 - 20-compute-vs-watch.md — compute-vs-watch
 - 21-array-operations.md — array-operations
@@ -1040,6 +1041,39 @@ const form = createForm<MyForm>({ model, schema });
 > он не совместим с `Record<string, FormValue>` и `ArrayNode<Item>` его отвергнет.
 > См. `30-type-safety-recipes.md`.
 
+### Один массив — три слоя (три разных движка)
+
+Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко
+перепутать, но каждая корректна только в своём контексте:
+
+1. **Layout-схема `createForm`** — единственная форма, которую ест `createForm`:
+   `{ array: model.<path>, item: (itemModel) => subSchema }`. Массив связывается через
+   **value-proxy** `model.properties` (он несёт `__path`), а **не** через сигнальный
+   `model.$.properties`.
+
+   ```typescript
+   // узел схемы для createForm({ model, schema })
+   properties: { array: model.properties, item: propertyItem },
+   ```
+
+2. **Validation-схема `validateFormModel`** — секция массива описывается через `componentProps`:
+   `{ componentProps: { control: model.<array>, itemComponent: (item) => subSchema } }`. Движок
+   узнаёт секцию по `componentProps.itemComponent` + `control` и обходит её per-item.
+
+   ```typescript
+   // узел схемы для validateFormModel(model, schema)
+   { componentProps: { control: model.properties, itemComponent: propertyRules } }
+   ```
+
+3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
+   а не со схемой: `<FormArray.Root control={form.properties}>` (CDK) или `FormArraySection` из
+   `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
+
+> **Не путай форму по движку.** `createForm` принимает **только** `{ array, item }`;
+> `componentProps.{ control, itemComponent }` — это форма validation-схемы; `FormArray.Root
+> control={form.x}` (или `FormArraySection`) — рендер. `control`/`itemComponent` в layout-схеме
+> `createForm` не подхватятся, а `{ array, item }` схема валидации не обходит.
+
 ### Array operations — на модели
 
 Мутации массива делаются через `ModelArray` (`model.items`), а не через ноду формы:
@@ -1059,6 +1093,16 @@ model.items.map((item, i) => item.name);             // item — FormModel<Item>
 > **Плоские значения при push.** В `push`/`insertAt` передавай payload из **плоских значений**
 > (`{ id, name, price }`), а НЕ FieldConfig-шаблон (`{ value, component }`). Component/componentProps
 > берутся из `item`-фабрики схемы автоматически.
+
+> **Очистка массива в behavior.** Тот же `model.<array>.clear()` (см. список операций выше) —
+> способ очистить коллекцию **вне React**, из behavior: он мутирует модель напрямую, минуя ноды
+> формы. Типичный случай — сбросить массив при выключении флага:
+>
+> ```typescript
+> onChange(model.$.hasProperty, (on) => {
+>   if (!on) model.properties.clear();
+> });
+> ```
 
 ### Rendering Arrays
 
@@ -1112,7 +1156,12 @@ const uniqueNames: ModelValidator<unknown, unknown, MyForm> = (_value, _scope, r
 };
 ```
 
-## 11. 10. ASYNC REACTION — onChange (CRITICALLY IMPORTANT)
+## 11. See also
+
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, per-item обход `validateFormModel`
+- CDK / ui-kit form-array (`FormArray.Root`, `FormArraySection`) — `find_recipe(topic="form-array")`
+
+## 12. 10. ASYNC REACTION — onChange (CRITICALLY IMPORTANT)
 
 Для async-реакции на изменение поля (загрузка зависимых опций, справочников) используй
 `onChange` из `@reformer/core/behaviors`. Колбэк выполняется ВНЕ effect-контекста (можно
@@ -1166,7 +1215,7 @@ const stop = watchField(model.$.country, (country) => {
 // stop() — отписаться
 ```
 
-## 12. 11. ARRAY CLEANUP PATTERN
+## 13. 11. ARRAY CLEANUP PATTERN
 
 Очистка массива при выключении флага — через `onChange` на сигнале флага + `clear()` на
 модели-массиве. Колбит выполняется вне effect-контекста, поэтому мутировать массив безопасно.
@@ -1198,7 +1247,7 @@ function clearWhenOff(flag: ReadonlySignal<boolean>, array: { clear(): void }): 
 clearWhenOff(model.$.hasProperty, model.properties);
 ```
 
-## 13. 12. MULTI-STEP FORM VALIDATION
+## 14. 12. MULTI-STEP FORM VALIDATION
 
 Каждый шаг — своя под-схема валидации (дерево узлов `{ children: [...] }`). Переход к
 следующему шагу проверяется `validateFormModel(model, stepSchema)`; полный submit — по
@@ -1275,7 +1324,7 @@ function MultiStepForm() {
 }
 ```
 
-## 14. 13. EXTENDED COMMON MISTAKES
+## 15. 13. EXTENDED COMMON MISTAKES
 
 ### Reuse via apply / applyEach — не дублируй код
 
@@ -1357,29 +1406,36 @@ revalidateWhen([model.$.field2], () => validateFormModel(model, schema));
 > `validateGroup`/`validateTree`/`validateForm`, типы `FieldPath`/`ValidationSchemaFn`/`BehaviorSchemaFn`
 > и `ctx.form.*`/`ctx.setFieldValue` — из старой path-based архитектуры и УДАЛЕНЫ. См. `17-nonexistent-api.md`.
 
-## 15. 14. PROJECT STRUCTURE (COLOCATION)
+## 16. 14. PROJECT STRUCTURE (COLOCATION)
+
+One form is one module folder. **Default layout — flat minimalist:** every concern is a single
+file at the module root, and the whole form (entry + all wizard steps inline) lives in one
+`index.tsx`. Filenames are flat with no prefix — **the dot-prefix (`form.` / `renderer.`) is
+carried only by `schema` and `behavior`**, the two concerns that have both a model-layer and a
+render-layer version (`form.schema.ts` / `form.behavior.ts` here; renderer slices add
+`renderer.schema.*` / `renderer.behavior.ts`). No `lib/` / `schema/` / `components/steps/`
+nesting until the form grows (see "Scaling up" below). Arrays are declared in `form.schema.ts`
+and rendered with `FormArraySection` — no per-step component files.
 
 ```
 src/
-├── components/ui/                    # Reusable UI components
-│   ├── FormField.tsx
-│   └── FormArraySection.tsx
+├── components/ui/                # App-wide reusable UI (FormField, FormArraySection, ...)
 │
 ├── forms/
-│   └── [form-name]/                  # Form module
-│       ├── types.ts                  # Form data type (type-alias)
-│       ├── model.ts                  # createModel factory + initial values
-│       ├── schema.ts                 # createForm schema (value: model.$.x)
-│       ├── validation.ts             # validation schema + validateFormModel config
-│       ├── behavior.ts               # defineFormBehavior(...)
-│       ├── [FormName]Form.tsx        # Main component
-│       │
-│       ├── steps/                    # Multi-step wizard
-│       │   └── loan-info/
-│       │       └── LoanInfoForm.tsx
-│       │
-│       └── nested-forms/             # Reusable sub-forms (Address, PersonalData, ...)
+│   └── [form-name]/              # Form module — flat, one file per concern
+│       ├── index.tsx             # entry + whole form: createModel→createForm→<FormWizard> with all steps inline; arrays via FormArraySection
+│       ├── types.ts              # form type + enums + { value, label } option type + constant dictionaries
+│       ├── model.ts              # createModel + initial values + empty-array-element factories
+│       ├── form.schema.ts        # FormSchema: { value: model.$.x, component, componentProps }
+│       ├── form.behavior.ts      # defineFormBehavior: compute / enableWhen / hideWhen / copyFrom / onChange
+│       ├── validation.ts         # ALL validation → { validateStep, validateAll }
+│       ├── data-sources.ts       # options + async loaders (dataSources)
+│       └── api.ts                # submit + prefill/load
 ```
+
+Rule of thumb: **one concern → one file at the module root; the whole component tree (all steps) →
+`index.tsx`; validation is a single `validation.ts`.** This is the working default for
+almost every form — reach for folders only when a file stops fitting on a screen.
 
 ### Key Files
 
@@ -1396,7 +1452,7 @@ import { createModel, type FormModel } from '@reformer/core';
 export const createCreditApplicationModel = (): FormModel<CreditApplicationForm> =>
   createModel<CreditApplicationForm>(createInitialCreditApplication());
 
-// forms/credit-application/schema.ts
+// forms/credit-application/form.schema.ts
 import type { FormModel } from '@reformer/core';
 export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
   loanType: { value: model.$.loanType, component: Select, componentProps: { /* ... */ } },
@@ -1404,14 +1460,14 @@ export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>)
   properties: { array: model.properties, item: propertyItem },
 });
 
-// forms/credit-application/behavior.ts
+// forms/credit-application/form.behavior.ts
 import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
 export const creditApplicationBehavior = defineFormBehavior<CreditApplicationForm>(({ model }) => {
   compute(model.$.monthlyPayment, () => computeMonthlyPayment(model));
   enableWhen([model.$.propertyValue], () => model.loanType === 'mortgage', { resetOnDisable: true });
 });
 
-// forms/credit-application/create-form.ts — сборка
+// forms/credit-application/index.tsx — entry: assembles the form, renders <FormWizard> with all steps inline
 import { createForm } from '@reformer/core';
 export const createCreditApplicationForm = () => {
   const model = createCreditApplicationModel();
@@ -1419,15 +1475,64 @@ export const createCreditApplicationForm = () => {
 };
 ```
 
+### Scaling up: folders (large forms)
+
+When the flat module gets unwieldy — steps you want in their own files, sub-forms reused across
+steps, calc/validators that outgrow one file — promote it to a three-folder module: `lib/`
+(domain raw material), `schema/` (the form definition), `components/` (React layout), plus the
+entry component and `index.ts`. Keep the module root to just the entry + `index.ts`; everything
+else lives in a folder.
+
+```
+forms/
+└── [form-name]/                  # Form module — folders (scale-up)
+    ├── [FormName]Form.tsx        # Entry: builds model+form, renders FormWizard + step components
+    ├── index.ts                  # Public re-exports of the module
+    │
+    ├── lib/                      # Domain helpers (target-agnostic)
+    │   ├── types.ts             # Form interface + field enums + { value, label } option type
+    │   ├── constants.ts         # Option dictionaries (LOAN_TYPES, GENDERS, ...)
+    │   ├── calc.ts              # Pure fns for derived fields (age, monthlyPayment, ...)
+    │   ├── custom-validators.ts # Reusable validator factories
+    │   └── api.ts               # Data sources + submit
+    │
+    ├── schema/                   # The form definition
+    │   ├── model.ts             # createModel factory + initial values + array-element factories
+    │   ├── schema.ts            # createForm schema tree ({ value: model.$.x, component })
+    │   ├── validation.ts        # validation schema + validateFormModel config
+    │   ├── behavior.ts          # defineFormBehavior(...)
+    │   └── create-form.ts       # Assembly: createForm({ model, schema, behavior })
+    │
+    └── components/
+        ├── steps/               # One component per wizard step
+        ├── nested-forms/        # Reusable sub-forms (Address, PersonalData, ...)
+        └── ui/                  # Form-specific helper blocks (summary, warnings, sections)
+```
+
+Rule of thumb for this layout: **domain raw material → `lib/`; anything describing the form →
+`schema/`; React layout → `components/`; root = entry + `index.ts`.** In very large forms you
+may co-locate each step's `schema.ts` / `validation.ts` / `behavior.ts` inside its
+`steps/[Step]/` folder, keeping only the shared `model` and cross-step rules in `schema/` — see
+the guide below.
+
 ### Scaling
 
-| Complexity | Structure                                                                    |
-| ---------- | ---------------------------------------------------------------------------- |
-| Simple     | Single file: `ContactForm.tsx` (model + schema + component)                  |
-| Medium     | Separate files: `types.ts`, `model.ts`, `schema.ts`, `validation.ts`, `Form.tsx` |
-| Complex    | Full colocation with `steps/`, `nested-forms/`, `behavior.ts`               |
+| Complexity | Structure |
+| ---------- | --------------------------------------------------------------------------------------- |
+| Simple | Single file: `index.tsx` (model + schema + behavior + component) |
+| **Minimalist (flat)** | **Default.** One file per concern at the module root (`types` / `model` / `form.schema` / `form.behavior` / `validation` / `data-sources` / `api`) + `index.tsx` with all steps inline |
+| Folders (`lib/` + `schema/` + `components/`) | Large forms: split concerns into folders, one component per step, reusable `nested-forms/` |
 
-## 16. 14.5 UI COMPONENT PATTERNS
+> The leading layout is configurable: set `REFORMER_FORM_LAYOUT` (`minimalist` | `folders`)
+> when registering the MCP server to choose which structure the generators lead with. Default
+> is `minimalist`.
+
+> Cross-target variants (renderer-react `renderer.schema.ts` + `renderer.behavior.ts` /
+> renderer-json `renderer.schema.json` + `renderer.behavior.ts` + `registry.ts`), the
+> centralized-vs-co-located choice, and the full reuse map live in the
+> **form-directory-layout** guide (`@reformer/mcp`).
+
+## 17. 14.5 UI COMPONENT PATTERNS
 
 > **Default rule (read first)**: для UI используй `FormField` из
 > [`@reformer/ui-kit`](../../reformer-ui-kit/) — он покрывает 95% случаев одной
@@ -1612,7 +1717,7 @@ function ShadcnFormField({ control }: { control: FieldNode<string> }) {
 }
 ```
 
-## 17. 15. NON-EXISTENT API (DO NOT USE)
+## 18. 15. NON-EXISTENT API (DO NOT USE)
 
 **Следующего API НЕТ в @reformer/core** (частично — наследие старой path-based архитектуры,
 удалено при переходе на M1):
@@ -1676,7 +1781,166 @@ enableWhen(path.city, (form) => Boolean(form.country));
 enableWhen(model.$.city, () => Boolean(model.country), { resetOnDisable: true });
 ```
 
-## 18. 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
+## 19. Purpose
+
+«Показать поле X только если Y» под M1 решается тремя независимыми механизмами — выбирай по
+тому, что именно должно быть условным:
+
+1. **Видимость / доступность** (поле остаётся в модели, но выключается/включается и не валидируется)
+   — behaviors: `enableWhen`, а для условной записи значения — `compute` / `copyFrom` с опцией `{ when }`.
+2. **Условная валидация** (правила применяются только в истинной ветке) — нативный branch-узел
+   схемы `{ when, children }`, исполняется `validateFormModel`.
+3. **Скрытие из разметки** (узел вообще не рендерится) — `useFormControlValue` + условный рендер в JSX.
+
+> Ни `applyWhen`, ни `ValidationSchemaFn` **не экспортируются** из `@reformer/core` — см. раздел
+> [Не экспорт (частая ошибка)](#не-экспорт-частая-ошибка) и `17-nonexistent-api.md`.
+
+## 20. Видимость и доступность
+
+`enableWhen(target, () => condition, { resetOnDisable })` из `@reformer/core/behaviors`
+включает/выключает поле реактивно. При `disabled` поле не участвует в валидации; с
+`resetOnDisable: true` его значение сбрасывается при выключении (иначе — сохраняется).
+
+```typescript
+import { defineFormBehavior, enableWhen, compute, copyFrom } from '@reformer/core/behaviors';
+
+type CreditForm = {
+  loanType: 'mortgage' | 'car' | 'consumer';
+  propertyValue: number | null;
+  initialPayment: number | null;
+  sameEmail: boolean;
+  email: string;
+  emailAdditional: string;
+};
+
+export const creditBehavior = defineFormBehavior<CreditForm>(({ model }) => {
+  // один или несколько таргетов; условие читает model.* реактивно
+  enableWhen(
+    [model.$.propertyValue, model.$.initialPayment],
+    () => model.loanType === 'mortgage',
+    { resetOnDisable: true },
+  );
+
+  // условная ЗАПИСЬ производного значения — compute с { when }
+  compute(model.$.initialPayment, () => Math.round((model.propertyValue ?? 0) * 0.2), {
+    when: () => model.loanType === 'mortgage',
+  });
+
+  // условное КОПИРОВАНИЕ из другого поля — copyFrom с { when }
+  copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail === true });
+});
+```
+
+Требования:
+
+- **Все поля должны быть материализованы в модели** (`createModel`), даже те, что показываются
+  только под условием. `enableWhen`/`compute`/`copyFrom` принимают сигналы `model.$.field`, а не
+  строковые пути; сигнала для несуществующего поля нет.
+- Поведение подключается к форме через `createForm({ model, schema, behavior })` — форма владеет
+  жизненным циклом, DSL-операторы регистрируют свой cleanup сами (ручной массив cleanup'ов не нужен).
+- Таргетом может быть и **группа**: `enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false)`
+  проходит по поддереву; без `resetOnDisable` значение группы сохраняется (удобно, когда оно копируется
+  из другого источника).
+
+> **Групповой таргет работает только у DSL-`enableWhen` из `@reformer/core/behaviors`**, не у
+> одноимённого корневого `enableWhen` из `@reformer/core` (тот резолвит только leaf-сигналы через
+> реестр → на group-сигнале это тихий no-op). `get_symbol_docs("enableWhen")` возвращает именно
+> корневой, не group-capable вариант.
+
+## 21. Условная валидация
+
+Правила, действующие только при выполнении условия, задаются **нативным branch-узлом**
+`{ when: (scope, root) => boolean, children: [...] }` прямо в дереве схемы. `validateFormModel`
+обходит дерево: при истинном `when` валидирует `children`, при ложном — **поддерево пропускается,
+а ошибки его полей очищаются** (движок вызывает `setErrors([])`). `scope` — ближайшая под-модель
+(элемент массива или корень), `root` — корневая модель формы.
+
+```typescript
+import { validateFormModel } from '@reformer/core';
+import { required, min } from '@reformer/core/validators';
+
+const schema = {
+  children: [
+    { value: model.$.loanType, validators: [required()] },
+    {
+      // ветка применяется только для ипотеки
+      when: (_scope, root) => root.loanType === 'mortgage',
+      children: [
+        { value: model.$.propertyValue, validators: [required(), min(1_000_000)] },
+        { value: model.$.initialPayment, validators: [required()] },
+      ],
+    },
+  ],
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
+```
+
+Переключение `loanType` с `mortgage` на другой тип автоматически снимает ошибки `required` с
+`propertyValue`/`initialPayment` — их держать enabled и не валидировать помогает `enableWhen` выше.
+
+## 22. Скрытие в JSX
+
+Чтобы условный блок вообще не рендерился, читай значение-триггер хуком `useFormControlValue(form.field)`
+и делай ранний `return null`. Хук возвращает **только значение** (без деструктуризации `{ value }`).
+
+```tsx
+import { useFormControlValue } from '@reformer/core';
+
+function MortgageFields({ form }: { form: CreditForm }) {
+  const loanType = useFormControlValue(form.loanType);
+  if (loanType !== 'mortgage') return null;
+
+  return (
+    <>
+      <PropertyValueField form={form} />
+      <InitialPaymentField form={form} />
+    </>
+  );
+}
+```
+
+Скрытие в JSX — чисто визуальное: если поле должно ещё и **выпадать из валидации/состояния**,
+сочетай его с `enableWhen({ resetOnDisable: true })` (доступность) или branch-узлом (валидация).
+
+## 23. Не экспорт (частая ошибка)
+
+- **`applyWhen` — это ЛОКАЛЬНЫЙ typed-хелпер примера, а не экспорт `@reformer/core`.** Он лишь
+  эмитит нативный branch-узел `{ when, children }`. Каноничное определение (см.
+  `complex-multy-step-form/schemas/validation.ts`):
+
+  ```typescript
+  // локальный сахар в самом примере — НЕ импорт из библиотеки
+  const applyWhen = (cond: (form: Root) => boolean, children: SchemaNode[]): SchemaNode => ({
+    when: (_scope: unknown, root: unknown) => cond(root as Root),
+    children,
+  });
+  ```
+
+  Публичный API — сам `validateFormModel(model, schema)` и форма узла `{ when, children }`.
+  Не пиши `import { applyWhen } from '@reformer/core'` — такого символа нет.
+
+- **`ValidationSchemaFn` не существует** (тип старой path-схемы удалён при переходе на M1). Тип
+  кастомного/cross-field валидатора — **`ModelValidator<TValue, TModel, TRoot>`**:
+
+  ```typescript
+  import type { ModelValidator } from '@reformer/core';
+
+  // (value, scope, root) — cross-field читает соседей через root
+  const passwordsMatch: ModelValidator<string, unknown, { password: string }> = (value, _scope, root) =>
+    value && root.password && value !== root.password
+      ? { code: 'mismatch', message: 'Пароли не совпадают' }
+      : null;
+  ```
+
+## 24. See also
+
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры `enableWhen`/`compute`/`copyFrom`, branch-узел, `ModelValidator`
+- [17-nonexistent-api.md](./17-nonexistent-api.md) — полный список удалённого API (`applyWhen`, `ValidationSchemaFn`, …)
+- [25-reset-when.md](./25-reset-when.md) — `resetWhen` как альтернатива, когда поле остаётся enabled
+- [19-reading-values.md](./19-reading-values.md) — `useFormControlValue` и чтение значений в React
+
+## 25. 16. READING FIELD VALUES (CRITICALLY IMPORTANT)
 
 Под M1 значения живут в модели. Есть три контекста чтения: value-доступ модели, сигналы, и React-хуки.
 
@@ -1735,7 +1999,7 @@ const behavior = defineFormBehavior<MyForm>(({ model, form }) => {
 > цикла нет). Для side-эффектов (загрузка опций, обновление componentProps) — `onChange`.
 > `computeFrom`/`copyFrom`/`enableWhen` принимают сигналы (`model.$.x`), НЕ строковые пути.
 
-## 19. 17. COMPUTE vs ONCHANGE
+## 26. 17. COMPUTE vs ONCHANGE
 
 Под M1 behaviors работают на сигналах модели. Есть два способа их писать:
 
@@ -1775,6 +2039,40 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 > **Не читай `model.get()` внутри `compute`/`when`** — это нереактивный снимок, зависимость не
 > отследится и пересчёта не будет. Читай поля по отдельности (`model.field` или `model.$.field.value`).
 > `model.get()` — только вне реактивного контекста (в `onChange`, обработчиках событий).
+
+### Computed sum over a FormArray
+
+Агрегат по массиву (сумма доходов созаёмщиков и т.п.) считается **реактивно** через value-proxy
+массива — `model.<array>.map(...)`:
+
+```typescript
+compute(model.$.coBorrowersIncome, () =>
+  model.coBorrowers.map((cb) => cb.monthlyIncome ?? 0).reduce((s, v) => s + v, 0)
+);
+```
+
+Почему реактивно: `.map` читает сигнал самого массива (трекает `push`/`removeAt`/reorder) **и**
+внутри колбэка читает каждый `cb.<field>` (трекает правки элементов) → пересчёт срабатывает на оба
+вида изменений.
+
+Ключевой нюанс — **на каком proxy** живёт `.map`/`.reduce`(-via-`.map`):
+
+- **value-proxy `model.coBorrowers`** — есть `.map`/`.forEach`/`.at`/индексы (обходит элементы как
+  значения). Именно его читай в `compute`.
+- **signals-proxy `model.$.coBorrowers`** — только индексный доступ и `.length`, без `.map`. Для
+  агрегата не подходит.
+
+Если нужен только **счётчик** (пересчёт лишь на изменение длины, без чтения полей элементов) —
+`model.<array>.map(() => null)` (длина трекается, значения — нет):
+
+```typescript
+// зависит только от КОЛИЧЕСТВА элементов, не от их полей
+compute(model.$.interestRate, () => computeRate(model.properties.map(() => null).length));
+```
+
+> **Не агрегируй через `model.get()` / `model.<array>.peek()`** в `compute` — это нереактивный
+> снапшот массива, зависимость не отследится и сумма не пересчитается. Читай массив только через
+> value-proxy `model.<array>.map(...)`.
 
 ### computeFrom — явный список источников
 
@@ -1840,7 +2138,7 @@ const stop = watchField(model.$.country, () => { model.city = ''; });
 порядке через реактивный граф (цель одного = источник другого). Расходящиеся взаимные
 `compute` без стабилизации бросят понятную ошибку (см. `22-cycle-detection.md`).
 
-## 20. 18. ARRAY OPERATIONS
+## 27. 18. ARRAY OPERATIONS
 
 Массивы объектов — model-owned. Мутации делаются через `ModelArray` (`model.arrayField`);
 рендер — через ноду формы (`form.items.map` / `.at`).
@@ -1948,7 +2246,7 @@ const percentagesSumTo100: ModelValidator<unknown, unknown, MyForm> = (_v, _s, r
 };
 ```
 
-## 21. Как устроено под M1
+## 28. Как устроено под M1
 
 Behaviors на сигналах уже защищены от типичных циклов:
 
@@ -1961,7 +2259,7 @@ Behaviors на сигналах уже защищены от типичных ц
 Тебе НЕ нужно вручную ставить `{ immediate: false }`, guard'ить `disabled.value` перед
 `disable()` или сравнивать значения перед записью — это делается внутри операторов.
 
-## 22. Когда всё-таки возникает «Cycle detected»
+## 29. Когда всё-таки возникает «Cycle detected»
 
 ### 1. Расходящийся взаимный compute
 
@@ -2008,7 +2306,7 @@ resetWhen(model.$.cardNumber, () => model.cardNumber !== '');
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-## 23. Prefer built-in operators over manual logic
+## 30. Prefer built-in operators over manual logic
 
 Вместо ручной сборки reset-on-disable через `onChange` — используй `enableWhen({ resetOnDisable })`:
 
@@ -2026,21 +2324,21 @@ enableWhen([model.$.propertyValue, model.$.initialPayment], () => model.loanType
 });
 ```
 
-## 24. Key Rules
+## 31. Key Rules
 
 1. Производные значения — через `compute`/`computeFrom` (peek-guard встроен), не ручным `onChange` + запись.
 2. `transformValue`-трансформер должен быть идемпотентным (`f(f(x)) === f(x)`).
 3. Условие `resetWhen`/`copyFrom`/`enableWhen` НЕ должно читать собственную цель.
 4. Расходящийся взаимный `compute` — разорви однонаправленной зависимостью или `when`.
 
-## 25. Purpose
+## 32. Purpose
 
 `copyFrom` декларативно копирует значение одного поля (или группы) в другое при выполнении
 условия `when`. Используется для UX-сценариев «совпадает с …»: «адрес проживания = адрес
 регистрации», «email для уведомлений = основной email», «billing = shipping». Оператор сам
 выходит из reactive-контекста (`runOutsideEffect`), поэтому не порождает «Cycle detected».
 
-## 26. API
+## 33. API
 
 Есть две формы. **Примитив из `@reformer/core`** (сигнал → сигнал):
 
@@ -2065,7 +2363,7 @@ function copyFrom<T>(
 `when` — реактивное условие (читает сигналы модели через `model.*`). `transform` применяется
 к значению перед записью в target. Отдельной опции `fields`/`debounce` нет.
 
-## 27. Examples
+## 34. Examples
 
 ### Базовый сценарий — синхронизация двух адресов
 
@@ -2133,7 +2431,7 @@ const cleanups = [
 // teardown: cleanups.forEach((c) => c());
 ```
 
-## 28. Anti-patterns
+## 35. Anti-patterns
 
 ```typescript
 // ❌ Двусторонняя связь через два copyFrom — конфликт направлений
@@ -2152,7 +2450,7 @@ copyFrom(model.$.source, model.$.target, { when: () => model.target === '' });
 copyFrom(model.$.source, model.$.target, { when: () => model.copyEnabled === true });
 ```
 
-## 29. Troubleshooting
+## 36. Troubleshooting
 
 **Q: Скопированное значение не появляется в target.**
 A: Проверьте, что (1) behavior передан в `createForm({ behavior })` (или примитив вызван и не
@@ -2166,14 +2464,14 @@ source и независимых флагов.
 A: `copyFrom` при `when === false` просто не пишет (не сбрасывает). Для сброса используй параллельно
 `resetWhen(model.$.target, () => !model.copyEnabled)` (см. `25-reset-when.md`).
 
-## 30. See also
+## 37. See also
 
 - [24-sync-fields.md](./24-sync-fields.md) — двусторонняя синхронизация
 - [25-reset-when.md](./25-reset-when.md) — сброс target при выключенном условии
 - [20-compute-vs-watch.md](./20-compute-vs-watch.md) — `compute` для производных значений
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему `runOutsideEffect` защищает от циклов
 
-## 31. Purpose
+## 38. Purpose
 
 `syncFields` создаёт двунаправленную связь между двумя полями: изменение любого из них
 переписывает второе. Применяется для дублей одного значения в разных частях формы
@@ -2181,7 +2479,7 @@ A: `copyFrom` при `when === false` просто не пишет (не сбр�
 исключают петли. Для одностороннего копирования — [`copyFrom`](./23-copy-from.md); для
 расчётов — [`compute`](./20-compute-vs-watch.md).
 
-## 32. API
+## 39. API
 
 Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
 
@@ -2196,7 +2494,7 @@ function syncFields<T>(a: Signal<T>, b: Signal<T>, options?: { transform?: (valu
 `a`/`b` — сигналы (`model.$.field`) совместимого типа `T`. `transform` **асимметричен**:
 применяется только при движении значения `a → b`. Опции `debounce`/`when` нет.
 
-## 33. Examples
+## 40. Examples
 
 ### Базовый сценарий — отзеркаливание текста
 
@@ -2235,7 +2533,7 @@ const stop = syncFields(model.$.syncField1, model.$.syncField2);
 // stop() — отписаться
 ```
 
-## 34. Anti-patterns
+## 41. Anti-patterns
 
 ```typescript
 // ❌ Симметрично через два copyFrom — конфликт направлений
@@ -2265,7 +2563,7 @@ syncFields(model.$.amountString, model.$.amountNumber); // string ↔ number
 compute(model.$.amountNumber, () => Number(model.amountString));
 ```
 
-## 35. Troubleshooting
+## 42. Troubleshooting
 
 **Q: Поля «дёргаются», несколько перезаписей.**
 A: Чаще всего на одном из полей висит `transformValue`/`compute`. Убедитесь, что transform
@@ -2279,21 +2577,21 @@ A: Не вешайте дополнительно `onChange`/`watchField`, ко�
 A: У `syncFields` нет `when`. Эмулируй через два `copyFrom(a→b, { when })` / `copyFrom(b→a, { when })`
 с флагами, разрешающими только одну активную сторону, либо через `apply` под условием.
 
-## 36. See also
+## 43. See also
 
 - [23-copy-from.md](./23-copy-from.md) — однонаправленное копирование с `when`
 - [26-transform-value.md](./26-transform-value.md) — нормализация значений на месте
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему симметричный copy ломается
 - [20-compute-vs-watch.md](./20-compute-vs-watch.md) — `compute` для производных значений
 
-## 37. Purpose
+## 44. Purpose
 
 `resetWhen` сбрасывает значение поля к `resetValue`, когда `condition` истинно. Это
 альтернатива `enableWhen({ resetOnDisable: true })`, когда поле остаётся **enabled**, но
 содержимое нужно очистить (например, переключение способа оплаты обнуляет «номер карты», но
 поле по-прежнему доступно). По умолчанию пишет `null`; `resetValue` задаёт произвольное значение.
 
-## 38. API
+## 45. API
 
 Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
 
@@ -2309,7 +2607,7 @@ function resetWhen<T>(target: Signal<T>, condition: () => boolean, options?: { r
 `resetValue` по умолчанию `null`. Опций `onlyIfDirty`/`debounce` нет; флаги dirty/touched
 поля не трогаются оператором (значения принадлежат модели).
 
-## 39. Examples
+## 46. Examples
 
 ### Базовый сценарий — сброс номера карты при смене способа оплаты
 
@@ -2345,7 +2643,7 @@ import { resetWhen } from '@reformer/core';
 const stop = resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-## 40. Anti-patterns
+## 47. Anti-patterns
 
 ```typescript
 // ❌ resetWhen вместо enableWhen для disable-сценария
@@ -2380,7 +2678,7 @@ resetWhen(model.$.cardNumber, () => model.cardNumber !== '');
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-## 41. Troubleshooting
+## 48. Troubleshooting
 
 **Q: Сброс не срабатывает, хотя `condition` возвращает true.**
 A: Проверьте, что behavior зарегистрирован (`createForm({ behavior })`) или примитив не отписан,
@@ -2394,13 +2692,13 @@ A: Убедитесь, что `condition` не зависит от значен�
 A: `resetWhen` рассчитан на скалярные сигналы. Для группы используй `enableWhen({ resetOnDisable: true })`
 (проходит по поддереву) или `model.reset()` для сброса всей формы к initial-снимку.
 
-## 42. See also
+## 49. See also
 
 - [04-common-patterns.md](./04-common-patterns.md) — `enableWhen({ resetOnDisable: true })` как альтернатива
 - [23-copy-from.md](./23-copy-from.md) — копирование, у которого нет встроенного отката
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему `condition` не должен читать целевое поле
 
-## 43. Purpose
+## 50. Purpose
 
 `transformValue` подписывается на изменение поля и переписывает его трансформированной
 версией: uppercase для кодов, trim+toLowerCase для email, округление для чисел. Применяется
@@ -2409,7 +2707,7 @@ A: `resetWhen` рассчитан на скалярные сигналы. Для
 Оператор откладывает запись вне effect-контекста (`runOutsideEffect`) и не пишет, если
 `transformer(value) === value` — базовый guard от циклов.
 
-## 44. API
+## 51. API
 
 Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
 
@@ -2425,7 +2723,7 @@ function transformValue<T>(target: Signal<T>, transformer: (value: T) => T): voi
 Дополнительных опций (`debounce`, `onUserChangeOnly`, `emitEvent`) и готового набора
 `transformers`/`createTransformer` НЕТ — трансформер пишется как обычная функция.
 
-## 45. Examples
+## 52. Examples
 
 ### Базовый сценарий — uppercase для кода
 
@@ -2487,7 +2785,7 @@ toUpper(model.$.promoCode);
 trim(model.$.username);
 ```
 
-## 46. Anti-patterns
+## 53. Anti-patterns
 
 ```typescript
 // ❌ Неидемпотентный transformer — бесконечный цикл
@@ -2515,7 +2813,7 @@ transformValue(model.$.fullName, () => `${model.firstName} ${model.lastName}`);
 compute(model.$.fullName, () => `${model.firstName} ${model.lastName}`);
 ```
 
-## 47. Troubleshooting
+## 54. Troubleshooting
 
 **Q: «Cycle detected» при transformValue.**
 A: 99% — неидемпотентный transformer. Проверь `transformer(transformer(x)) === transformer(x)`.
@@ -2528,14 +2826,14 @@ A: Проверь, что behavior зарегистрирован (`createForm({
 A: Симптом частых записей. Форматирование с динамическими разделителями (телефон, кредитка)
 лучше делать через `<InputMask>` из `@reformer/ui-kit`, а не `transformValue`.
 
-## 48. See also
+## 55. See also
 
 - [24-sync-fields.md](./24-sync-fields.md) — порядок применения с syncFields
 - [23-copy-from.md](./23-copy-from.md) — `transform`-опция при копировании
 - [22-cycle-detection.md](./22-cycle-detection.md) — про идемпотентность
 - [16-ui-components.md](./16-ui-components.md) — `<InputMask>` для тяжёлого форматирования
 
-## 49. Purpose
+## 56. Purpose
 
 `revalidateWhen` вызывает переданный колбэк ревалидации, когда изменяется любая из
 зависимостей. Применяется, когда правило зависит от значений других полей
@@ -2543,7 +2841,7 @@ A: Симптом частых записей. Форматирование с �
 Под M1 валидация on-demand (`validateFormModel`), поэтому ревалидация выражается явным
 колбэком, а не автоматической привязкой к полю.
 
-## 50. API
+## 57. API
 
 Одинаково в примитиве (`@reformer/core`) и DSL (`@reformer/core/behaviors`):
 
@@ -2559,7 +2857,7 @@ function revalidateWhen(deps: ReadonlySignal<unknown>[], revalidate: () => void)
 `() => validateFormModel(model, schema)`). Вызывается при изменении любой зависимости
 (НЕ на инициализации), вне effect-контекста.
 
-## 51. Examples
+## 58. Examples
 
 ### Базовый сценарий — перевалидация amount при смене maxAmount
 
@@ -2612,7 +2910,7 @@ import { revalidateWhen, validateFormModel } from '@reformer/core';
 const stop = revalidateWhen([model.$.maxAmount], () => void validateFormModel(model, schema));
 ```
 
-## 52. Anti-patterns
+## 59. Anti-patterns
 
 ```typescript
 // ❌ Триггер == поле, которое и так меняется само
@@ -2635,7 +2933,7 @@ const amountVsMax: ModelValidator<number, unknown, Form> = (v, _s, root) =>
 revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema));
 ```
 
-## 53. Troubleshooting
+## 60. Troubleshooting
 
 **Q: Ошибка target не пропадает после изменения триггера.**
 A: Проверьте, что (1) правило реально читает значение триггера через `root` (cross-field
@@ -2645,20 +2943,20 @@ A: Проверьте, что (1) правило реально читает з�
 **Q: Как перевалидировать только одно поле, а не всю схему?**
 A: Передай в колбэк под-схему только этого поля: `validateFormModel(model, { children: [fieldNode] })`.
 
-## 54. See also
+## 61. See also
 
 - [03-api-signatures.md](./03-api-signatures.md) — cross-field `ModelValidator` и `validateFormModel`
 - [28-submit-and-reset.md](./28-submit-and-reset.md) — полная валидация формы
 - [20-compute-vs-watch.md](./20-compute-vs-watch.md) — реактивные производные значения
 
-## 55. Purpose
+## 62. Purpose
 
 Канонический submit-флоу под M1: «запустить полную валидацию данных (`validateFormModel`) →
 проверить `result.valid` → достать снимок (`model.get()`) → сделать запрос → `model.reset()`».
 Валидация — чистая функция ДАННЫХ (модели), она же роутит ошибки в ноды формы, поэтому UI
 подсветит проблемные поля. `model.reset()` возвращает значения к initial-снимку.
 
-## 56. API
+## 63. API
 
 ```typescript
 // Модель (источник истины значений):
@@ -2680,7 +2978,7 @@ form.<field>.markAsTouched();
 form.<field>.reset();
 ```
 
-## 57. Examples
+## 64. Examples
 
 ### Базовый submit-handler
 
@@ -2793,7 +3091,7 @@ async function processFormPayload(rawData: Partial<MyForm>) {
 }
 ```
 
-## 58. Anti-patterns
+## 65. Anti-patterns
 
 ```typescript
 // ❌ Чтение результата валидации без await
@@ -2833,7 +3131,7 @@ model.password = '';
 model.reset();
 ```
 
-## 59. Troubleshooting
+## 66. Troubleshooting
 
 **Q: После `reset()` в UI остались старые ошибки.**
 A: `model.reset()` меняет значения; ошибки в нодах чистит валидация. Перезапусти
@@ -2848,14 +3146,14 @@ A: `reset()` возвращает к initial-снимку (значения на
 A: `model.get()` возвращает значения всех полей. Фильтруй вручную после `get()` или используй
 `enableWhen({ resetOnDisable: true })`, чтобы при disable поле возвращалось к initial.
 
-## 60. See also
+## 67. See also
 
 - [29-async-preload.md](./29-async-preload.md) — initial values и preload через `set`/`patch`
 - [13-multi-step.md](./13-multi-step.md) — пошаговая валидация через `validateFormModel`
 - [03-api-signatures.md](./03-api-signatures.md) — сигнатуры модели и `validateFormModel`
 - [05-common-mistakes.md](./05-common-mistakes.md) — типичные ошибки
 
-## 61. Purpose
+## 68. Purpose
 
 Загрузка формы данными с сервера под M1: (1) **initial values** в `createModel(...)`; (2)
 **`model.set` / `model.patch`** для загрузки/обновления значений; (3) **external React-hook**
@@ -2864,7 +3162,7 @@ race-guard через deps). Динамические `componentProps` (опци
 `form.field.updateComponentProps({ options })` в `queueMicrotask`, чтобы не пересечься с
 реактивными эффектами от `set`/`patch`.
 
-## 62. API
+## 69. API
 
 ```typescript
 // Модель:
@@ -2880,7 +3178,7 @@ form.field.updateComponentProps(props: Record<string, unknown>): void; // дин
 Initial values задаются в `createModel(initial)`; `reset()` возвращает к ним. Чтобы загруженные
 данные стали новой «точкой отсчёта» для `reset()` — вызови `model.captureInitial()` после load.
 
-## 63. Examples
+## 70. Examples
 
 ### Initial values в модели
 
@@ -2987,7 +3285,7 @@ export const addressBehavior = defineFormBehavior<AddressForm>(({ model, form })
 });
 ```
 
-## 64. Anti-patterns
+## 71. Anti-patterns
 
 ```typescript
 // ❌ model/form пересоздаются на каждый рендер → preload запускается каждый раз
@@ -3027,7 +3325,7 @@ useEffect(() => {
 }, [id]);
 ```
 
-## 65. Troubleshooting
+## 72. Troubleshooting
 
 **Q: После `set`/`patch` не показываются ошибки.**
 A: `set`/`patch` не запускают валидацию. После загрузки вызови `await validateFormModel(model, schema)`.
@@ -3040,14 +3338,14 @@ A: (1) Оберни вызов в `queueMicrotask`; (2) убедись, что �
 A: `reset()` возвращает к initial-снимку из `createModel`, не к последнему `set`. Чтобы «сбросить
 к данным с сервера» — после `set` вызови `model.captureInitial()` (новая точка отсчёта).
 
-## 66. See also
+## 73. See also
 
 - [28-submit-and-reset.md](./28-submit-and-reset.md) — обратная сторона жизненного цикла
 - [11-async-watchfield.md](./11-async-watchfield.md) — `onChange` для динамики после preload
 - [22-cycle-detection.md](./22-cycle-detection.md) — почему `queueMicrotask` нужен
 - [16-ui-components.md](./16-ui-components.md) — `updateComponentProps` для динамических опций
 
-## 67. 30. TYPE-SAFETY RECIPES
+## 74. 30. TYPE-SAFETY RECIPES
 
 Идиоматичные паттерны, которые держат сгенерированный код без `any` и `as`-кастов под M1.
 
@@ -3198,7 +3496,7 @@ const schema = {
 - `as`-касты значений полей внутри `compute` → читай `model.field` напрямую (Recipe 5).
 - строковые пути / `(form) => ...` в behaviors → это удалённый API, используй сигналы (`model.$.x`).
 
-## 68. 31. ASYNC VALIDATOR
+## 75. 31. ASYNC VALIDATOR
 
 Для проверок типа «уникальность email», «валидация ИНН через API», «проверка адреса» —
 async-валидатор это `ModelValidator`, возвращающий `Promise<ValidationError | null>`. Он
@@ -3272,7 +3570,7 @@ return pending ? <Spinner /> : errors.length ? <Error errors={errors} /> : null;
 - [29-async-preload.md](29-async-preload.md) — async preload данных при init формы
 - [03-api-signatures.md](03-api-signatures.md) — `ModelValidator` и `validateFormModel`
 
-## 69. 32. ASYNC OPTIONS LOADING
+## 76. 32. ASYNC OPTIONS LOADING
 
 Для динамической подгрузки опций dropdown'а по значению другого поля (`region` → `city options`,
 `carBrand` → `carModel options`) — используй `onChange` из `@reformer/core/behaviors` +
@@ -3381,7 +3679,7 @@ loadOptionsOn(model.$.carBrand, form.carModel, fetchCarModels, { resetTarget: tr
 - [29-async-preload.md](29-async-preload.md) — preload данных при инициализации
 - [31-async-validator-debounce.md](31-async-validator-debounce.md) — async **валидация** (не options)
 
-## 70. API Reference
+## 77. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -3397,7 +3695,7 @@ _Auto-generated from JSDoc on public exports._
 export type AnyFunction = (...args: never[]) => unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### ArrayConfig
 
@@ -3413,7 +3711,7 @@ export interface ArrayConfig<T extends FormFields> {
 }
 ```
 
-_Source: src/core/types/deep-schema.ts_
+_Source: packages/reformer/src/core/types/deep-schema.ts_
 
 ### ArrayControlState
 
@@ -3562,7 +3860,7 @@ Add Phone
 - {@link useFormControl} - хук для получения состояния
 - {@link FieldControlState} - состояние для полей
 
-_Source: src/hooks/types.ts_
+_Source: packages/reformer/src/hooks/types.ts_
 
 ### ArrayNode
 
@@ -3591,7 +3889,7 @@ array.at(0)?.title.setValue('Updated');
 console.log(array.length.value); // 1
 ```
 
-_Source: src/core/nodes/array-node.ts_
+_Source: packages/reformer/src/core/nodes/array-node.ts_
 
 ### ArrayNodeLike
 
@@ -3608,7 +3906,7 @@ export interface ArrayNodeLike {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### AsyncValidator
 
@@ -3627,7 +3925,7 @@ export type AsyncValidator<TForm, TField> = (
 ) => Promise<ValidationError | null>;
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: packages/reformer/src/core/types/validation-schema.ts_
 
 ### AsyncValidatorFn
 
@@ -3667,7 +3965,7 @@ const emailExistsAbortable: AsyncValidatorFn<string> = async (value, options) =>
 };
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### AsyncValidatorOptions
 
@@ -3686,7 +3984,7 @@ export interface AsyncValidatorOptions {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### BehaviorCleanup
 
@@ -3699,7 +3997,7 @@ _Source: src/core/types/index.ts_
 export type BehaviorCleanup = () => void;
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### computeFrom
 
@@ -3730,7 +4028,7 @@ export function computeFrom<R>(
 computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty);
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### ConditionFn
 
@@ -3743,7 +4041,7 @@ _Source: src/core/model/behaviors.ts_
 export type ConditionFn<T> = (value: T) => boolean;
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: packages/reformer/src/core/types/validation-schema.ts_
 
 ### ConfigWithSchema
 
@@ -3759,7 +4057,7 @@ export interface ConfigWithSchema {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### ConfigWithValue
 
@@ -3774,7 +4072,7 @@ export interface ConfigWithValue {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### copyFrom
 
@@ -3797,7 +4095,7 @@ export function copyFrom<T>(
 copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### createForm
 
@@ -3853,7 +4151,7 @@ form.email.setValue('test@mail.com');
 const { valid } = await validateFormModel(model, schema);
 ```
 
-_Source: src/core/utils/create-form.ts_
+_Source: packages/reformer/src/core/utils/create-form.ts_
 
 ### createFormFromModel
 
@@ -3910,7 +4208,7 @@ console.log(model.email); // 'user@mail.com'
 **See also:**
 - {@link createForm} - основная фабрика (диспетчеризует сюда при аргументе `{ model, schema }`)
 
-_Source: src/core/utils/create-form.ts_
+_Source: packages/reformer/src/core/utils/create-form.ts_
 
 ### CreateFormFromModelArgs
 
@@ -3925,10 +4223,10 @@ export interface CreateFormFromModelArgs<T> {
   /** Реактивная модель данных (источник истины значений). */
   model: FormModel<T>;
   /**
-   * Единая Schema (дерево узлов). createForm обходит её и привязывает конфиг поля к ноде
-   * по идентичности сигнала (`node.value === model.$.path`). Опциональна.
+   * Единая Schema (дерево узлов {@link FormSchemaNode}). createForm обходит её и привязывает конфиг
+   * поля к ноде по идентичности сигнала (`node.value === model.$.path`). Опциональна.
    */
-  schema?: unknown;
+  schema?: FormSchemaNode;
   /**
    * Декларативная схема поведения ({@link defineFormBehavior}). Запускается ПОСЛЕ построения нод и
    * заполнения реестра сигнал→нода; cleanup живёт на форме и вызывается в `form.dispose()`.
@@ -3937,7 +4235,7 @@ export interface CreateFormFromModelArgs<T> {
 }
 ```
 
-_Source: src/core/utils/create-form.ts_
+_Source: packages/reformer/src/core/utils/create-form.ts_
 
 ### createModel
 
@@ -3965,7 +4263,7 @@ model.tags.push('x');
 model.get();                // { email: 'a@b.c', tags: ['x'] }
 ```
 
-_Source: src/core/model/form-model.ts_
+_Source: packages/reformer/src/core/model/form-model.ts_
 
 ### disableWhen
 
@@ -3997,7 +4295,7 @@ export function disableWhen(
 disableWhen(model.$.discount, () => model.plan !== 'promo', { resetOnDisable: true });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### email
 
@@ -4034,7 +4332,7 @@ validators: [required(), email({ message: 'Введите корректный e
 },
 ```
 
-_Source: src/core/validation/validators/email.ts_
+_Source: packages/reformer/src/core/validation/validators/email.ts_
 
 ### enableWhen
 
@@ -4063,7 +4361,7 @@ export function enableWhen(
 enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', { resetOnDisable: true });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### ErrorFilterOptions
 
@@ -4088,7 +4386,7 @@ export interface ErrorFilterOptions {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### ErrorStrategy
 
@@ -4121,7 +4419,7 @@ export enum ErrorStrategy {
 }
 ```
 
-_Source: src/core/utils/error-handler.ts_
+_Source: packages/reformer/src/core/utils/error-handler.ts_
 
 ### FieldConfig
 
@@ -4159,7 +4457,7 @@ export interface FieldConfig<T> {
 }
 ```
 
-_Source: src/core/types/deep-schema.ts_
+_Source: packages/reformer/src/core/types/deep-schema.ts_
 
 ### FieldControlState
 
@@ -4369,7 +4667,7 @@ onChange={e => control.setValue(e.target.value)}
 - {@link useFormControl} - хук для получения состояния
 - {@link ArrayControlState} - состояние для массивов
 
-_Source: src/hooks/types.ts_
+_Source: packages/reformer/src/hooks/types.ts_
 
 ### FieldNode
 
@@ -4399,7 +4697,7 @@ await field.validate();
 console.log(field.valid.value); // true
 ```
 
-_Source: src/core/nodes/field-node.ts_
+_Source: packages/reformer/src/core/nodes/field-node.ts_
 
 ### FieldPathSegment
 
@@ -4416,7 +4714,7 @@ export type FieldPathSegment = {
 };
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### FieldStatus
 
@@ -4429,7 +4727,7 @@ _Source: src/core/types/index.ts_
 export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### FormArrayProxy
 
@@ -4483,7 +4781,7 @@ todos.forEach((item, i) => {
 });
 ```
 
-_Source: src/core/types/form-proxy.ts_
+_Source: packages/reformer/src/core/types/form-proxy.ts_
 
 ### FormControlsProxy
 
@@ -4515,7 +4813,7 @@ export type FormControlsProxy<T> = {
 };
 ```
 
-_Source: src/core/types/form-proxy.ts_
+_Source: packages/reformer/src/core/types/form-proxy.ts_
 
 ### FormErrorHandler
 
@@ -4597,7 +4895,7 @@ try {
 }
 ```
 
-_Source: src/core/utils/error-handler.ts_
+_Source: packages/reformer/src/core/utils/error-handler.ts_
 
 ### FormFields
 
@@ -4613,7 +4911,7 @@ export type FormFields = Record<string, FormValue>;
 
 **Deprecated:** (no message)
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### FormModel
 
@@ -4626,7 +4924,7 @@ FormModel — value-proxy объекта `T` + {@link ModelApi}.
 export type FormModel<T> = ModelObject<T> & ModelApi<T>;
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### FormNode
 
@@ -4666,7 +4964,7 @@ form.email instanceof FormNode; // true
 form.email.markAsTouched();
 ```
 
-_Source: src/core/nodes/form-node.ts_
+_Source: packages/reformer/src/core/nodes/form-node.ts_
 
 ### FormProxy
 
@@ -4705,18 +5003,23 @@ form.email.setValue('test@mail.com');
 form.profile.name.setValue('John');
 ```
 
-_Source: src/core/types/form-proxy.ts_
+_Source: packages/reformer/src/core/types/form-proxy.ts_
 
 ### FormSchema
 
 **Kind:** `type`
 
-Автоматически определяет тип схемы на основе TypeScript типа:
+**Data-shaped** конфиг формы: ключи повторяют структуру данных `T`, значения — {@link FieldConfig}
+(или вложенный `FormSchema`). Форма конфига, из которой строится {@link GroupNode}.
 - `T[] -> [FormSchema<T>]` (массив с одним элементом)
 - `object -> FormSchema<T>` (группа)
 - `primitive -> FieldConfig<T>` (поле)
 
-Использует NonNullable для корректной обработки опциональных полей
+Использует NonNullable для корректной обработки опциональных полей.
+
+⚠️ Не путать с {@link FormSchemaNode} — тот описывает **узел дерева** M1-схемы (лист/массив/
+контейнер), передаваемой в `createForm({ model, schema })`. `FormSchema` — это data-shaped конфиг
+(ключи = поля данных), а не узел дерева.
 
 **Signature:**
 ```typescript
@@ -4763,7 +5066,62 @@ const schema: FormSchema<Form> = {
 };
 ```
 
-_Source: src/core/types/deep-schema.ts_
+_Source: packages/reformer/src/core/types/deep-schema.ts_
+
+### FormSchemaNode
+
+**Kind:** `interface`
+
+Узел единой схемы M1 — дерево, обходимое `createForm({ model, schema })`,
+`validateModel`/`validateFormModel` и рендерерами.
+
+Узел совмещает несколько ролей (различаются рантаймом по форме):
+ - **поле** — несёт `value: Signal` (сигнал модели `model.$.x`) + `component`/`validators`;
+ - **массив** — `{ array: model.<path>, item(itemModel) }`;
+ - **контейнер/ветка** — вложенные узлы (`children`), опц. условие `when`;
+ - **record-of-fields** — под-узлы под произвольными именованными ключами (индексная сигнатура).
+
+Индексная сигнатура (`[key: string]: unknown`) отражает свободный рекурсивный обход: под-узлы
+допустимы под любым ключом. Известные поля типизированы (даёт автокомплит и проверку их типов).
+
+**Signature:**
+```typescript
+export interface FormSchemaNode {
+  /**
+   * «Ручка» значения поля — маркер узла-поля. Обычно сигнал модели (`model.$.<path>`), но форма
+   * зависит от таргета (для массива `model.$.x` — дерево сигналов; в renderer-типах сужается до
+   * `Signal`). Движок разбирает узел как поле рантаймом по `value instanceof Signal`.
+   */
+  value?: unknown;
+  /** UI-компонент. Опционален: core-часть работает без UI (значение/валидация). */
+  component?: ComponentType<any>;
+  /** Props компонента. Также «клапан» для вложенности под-узлов (напр. steps визарда). */
+  componentProps?: Record<string, unknown>;
+  validators?: SchemaValidator[];
+  asyncValidators?: SchemaValidator[];
+  updateOn?: 'change' | 'blur' | 'submit';
+  disabled?: boolean;
+  /** Задержка (мс) перед запуском асинхронной валидации. */
+  debounce?: number;
+  /** Идентификатор узла (для wizard/tabs/renderBehavior). */
+  selector?: string;
+  testId?: string;
+  /** Дочерние узлы (даёт контекстную типизацию вложенным литералам — value/validators/when). */
+  children?: readonly FormSchemaNode[];
+  /** Условие включения поддерева (branch-узел `{ when, children }`). */
+  when?: (scope: any, root: any) => boolean;
+  /** Реактивный массив модели (`model.<path>`) — маркер узла-массива (вместе с `item`). */
+  array?: SchemaArrayControl;
+  /** Схема элемента массива: под-модель элемента → узел поддерева. */
+  item?: (itemModel: any) => FormSchemaNode;
+  /** Значение (или фабрика) нового элемента массива для кнопки «Добавить». */
+  initialValue?: unknown | (() => unknown);
+  /** Свободная вложенность: record-of-fields и произвольные под-узлы. */
+  [key: string]: unknown;
+}
+```
+
+_Source: packages/reformer/src/core/types/schema-node.ts_
 
 ### FormStatusMachine
 
@@ -4800,7 +5158,7 @@ statusMachine.disable();
 console.log(statusMachine.disabled.value); // true
 ```
 
-_Source: src/core/utils/status-machine.ts_
+_Source: packages/reformer/src/core/utils/status-machine.ts_
 
 ### FormSubmitter
 
@@ -4830,7 +5188,7 @@ if (submitter.submitting.value) {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: packages/reformer/src/core/utils/form-submitter.ts_
 
 ### FormValue
 
@@ -4853,7 +5211,7 @@ export type FormValue =
   | { [key: string]: FormValue };
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### futureDate
 
@@ -4891,7 +5249,7 @@ validators: [required(), futureDate({ message: 'Дата записи должн
 },
 ```
 
-_Source: src/core/validation/validators/future-date.ts_
+_Source: packages/reformer/src/core/validation/validators/future-date.ts_
 
 ### getNodeForSignal
 
@@ -4926,7 +5284,7 @@ getNodeForSignal(sig)?.setErrors([{ code: 'required', message: 'Обязател
 **See also:**
 - {@link registerSignalNode} - регистрация связи сигнал→нода
 
-_Source: src/core/utils/signal-node-registry.ts_
+_Source: packages/reformer/src/core/utils/signal-node-registry.ts_
 
 ### getNodeType
 
@@ -4952,7 +5310,7 @@ export function getNodeType(node: unknown): string
 console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: packages/reformer/src/core/utils/type-guards.ts_
 
 ### GroupNode
 
@@ -4987,7 +5345,7 @@ await proxy.validate();
 console.log(proxy.valid.value);
 ```
 
-_Source: src/core/nodes/group-node.ts_
+_Source: packages/reformer/src/core/nodes/group-node.ts_
 
 ### GroupNodeConfig
 
@@ -5006,7 +5364,7 @@ export interface GroupNodeConfig<T> {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### integer
 
@@ -5042,7 +5400,7 @@ validators: [required(), integer({ message: 'Должно быть целым ч
 },
 ```
 
-_Source: src/core/validation/validators/integer.ts_
+_Source: packages/reformer/src/core/validation/validators/integer.ts_
 
 ### isArrayNode
 
@@ -5073,7 +5431,7 @@ if (isArrayNode(node)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: packages/reformer/src/core/utils/type-guards.ts_
 
 ### isDate
 
@@ -5110,7 +5468,7 @@ validators: [required(), isDate({ message: 'Введите корректную 
 },
 ```
 
-_Source: src/core/validation/validators/is-date.ts_
+_Source: packages/reformer/src/core/validation/validators/is-date.ts_
 
 ### isDerived
 
@@ -5144,7 +5502,7 @@ if (!isDerived(model.$.total)) {
 **See also:**
 - {@link markDerived} - пометить сигнал производным
 
-_Source: src/core/utils/derived-registry.ts_
+_Source: packages/reformer/src/core/utils/derived-registry.ts_
 
 ### isFieldNode
 
@@ -5175,7 +5533,7 @@ if (isFieldNode(node)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: packages/reformer/src/core/utils/type-guards.ts_
 
 ### isFormNode
 
@@ -5204,7 +5562,7 @@ if (isFormNode(value)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: packages/reformer/src/core/utils/type-guards.ts_
 
 ### isGroupNode
 
@@ -5233,7 +5591,7 @@ if (isGroupNode(node)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: packages/reformer/src/core/utils/type-guards.ts_
 
 ### isNumber
 
@@ -5271,7 +5629,7 @@ validators: [required(), isNumber({ message: 'Введите число' })],
 },
 ```
 
-_Source: src/core/validation/validators/is-number.ts_
+_Source: packages/reformer/src/core/validation/validators/is-number.ts_
 
 ### markDerived
 
@@ -5303,7 +5661,7 @@ markDerived(model.$.total);
 **See also:**
 - {@link isDerived} - проверка пометки
 
-_Source: src/core/utils/derived-registry.ts_
+_Source: packages/reformer/src/core/utils/derived-registry.ts_
 
 ### max
 
@@ -5343,7 +5701,7 @@ validators: [required(), max(50, { message: 'Не более 50%' })],
 },
 ```
 
-_Source: src/core/validation/validators/max.ts_
+_Source: packages/reformer/src/core/validation/validators/max.ts_
 
 ### maxAge
 
@@ -5383,7 +5741,7 @@ validators: [maxAge(100, { message: 'Проверьте дату рождени�
 },
 ```
 
-_Source: src/core/validation/validators/max-age.ts_
+_Source: packages/reformer/src/core/validation/validators/max-age.ts_
 
 ### maxDate
 
@@ -5423,7 +5781,7 @@ validators: [maxDate(new Date(), { message: 'Дата не может быть �
 },
 ```
 
-_Source: src/core/validation/validators/max-date.ts_
+_Source: packages/reformer/src/core/validation/validators/max-date.ts_
 
 ### maxLength
 
@@ -5465,7 +5823,7 @@ validators: [maxLength(500, { message: 'Максимум 500 символов' }
 },
 ```
 
-_Source: src/core/validation/validators/max-length.ts_
+_Source: packages/reformer/src/core/validation/validators/max-length.ts_
 
 ### min
 
@@ -5505,7 +5863,7 @@ validators: [required(), min(1, { message: 'Минимум 1' })],
 },
 ```
 
-_Source: src/core/validation/validators/min.ts_
+_Source: packages/reformer/src/core/validation/validators/min.ts_
 
 ### minAge
 
@@ -5545,7 +5903,7 @@ validators: [required(), minAge(18, { message: 'Вам должно быть н�
 },
 ```
 
-_Source: src/core/validation/validators/min-age.ts_
+_Source: packages/reformer/src/core/validation/validators/min-age.ts_
 
 ### minDate
 
@@ -5585,7 +5943,7 @@ validators: [required(), minDate(new Date(), { message: 'Дата не рань�
 },
 ```
 
-_Source: src/core/validation/validators/min-date.ts_
+_Source: packages/reformer/src/core/validation/validators/min-date.ts_
 
 ### minLength
 
@@ -5627,7 +5985,7 @@ validators: [required(), minLength(8, { message: 'Минимум 8 символ�
 },
 ```
 
-_Source: src/core/validation/validators/min-length.ts_
+_Source: packages/reformer/src/core/validation/validators/min-length.ts_
 
 ### ModelApi
 
@@ -5660,7 +6018,7 @@ export interface ModelApi<T> {
 }
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### ModelArray
 
@@ -5672,6 +6030,11 @@ _Source: src/core/model/types.ts_
 **Signature:**
 ```typescript
 export interface ModelArray<U> {
+  /**
+   * Путь массива в модели (dot-нотация). Предоставляется рантаймом (value-прокси) и требуется
+   * рендер-слою для резолва узла массива (напр. `ArrayRenderNode` в `@reformer/renderer-react`).
+   */
+  readonly __path: string;
   /** Реактивная длина. */
   readonly length: number;
   /** Добавить элемент в конец (значение элемента целиком). */
@@ -5699,7 +6062,7 @@ export interface ModelArray<U> {
 }
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### ModelArrayControl
 
@@ -5722,7 +6085,7 @@ export interface ModelArrayControl<TItem extends object> {
 }
 ```
 
-_Source: src/core/nodes/model-array-node.ts_
+_Source: packages/reformer/src/core/nodes/model-array-node.ts_
 
 ### ModelArrayNode
 
@@ -5770,7 +6133,7 @@ rows.at(0)?.name.setValue('B');     // правка поля элемента д
 rows.length.value;                  // 1 (реактивная длина)
 ```
 
-_Source: src/core/nodes/model-array-node.ts_
+_Source: packages/reformer/src/core/nodes/model-array-node.ts_
 
 ### ModelObject
 
@@ -5786,7 +6149,7 @@ export type ModelObject<T> = {
 };
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### ModelSignals
 
@@ -5808,7 +6171,7 @@ export type ModelSignals<T> = {
 };
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### ModelValidationResult
 
@@ -5825,14 +6188,17 @@ export interface ModelValidationResult {
 }
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: packages/reformer/src/core/model/validate-model.ts_
 
 ### ModelValidator
 
 **Kind:** `type`
 
-Валидатор слоя данных. `value` — значение поля; `model` — ближайший scope (под-модель элемента
+Валидатор слоя **данных**. `value` — значение поля; `model` — ближайший scope (под-модель элемента
 массива или корень); `root` — корневая модель.
+
+Отличие от {@link Validator}: 2-й/3-й аргументы — сами данные ({@link FormModel}/scope), а не
+`FormProxy`-узлы формы. Оба совместимы с полем `validators` узла схемы (см. {@link SchemaValidator}).
 
 **Signature:**
 ```typescript
@@ -5843,7 +6209,7 @@ export type ModelValidator<TValue = unknown, TModel = unknown, TRoot = unknown> 
 ) => ValidationError | null | Promise<ValidationError | null>;
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: packages/reformer/src/core/model/validate-model.ts_
 
 ### ModelValue
 
@@ -5867,7 +6233,7 @@ export type ModelValue<V> =
         : V;
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### multipleOf
 
@@ -5906,7 +6272,7 @@ validators: [multipleOf(0.5, { message: 'Только шаг 0.5' })],
 },
 ```
 
-_Source: src/core/validation/validators/multiple-of.ts_
+_Source: packages/reformer/src/core/validation/validators/multiple-of.ts_
 
 ### NodeFactory
 
@@ -5976,7 +6342,7 @@ const factory = new NodeFactory();
 const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
 ```
 
-_Source: src/core/factories/node-factory.ts_
+_Source: packages/reformer/src/core/factories/node-factory.ts_
 
 ### nonNegative
 
@@ -6012,7 +6378,7 @@ validators: [nonNegative({ message: 'Баланс не может быть от�
 },
 ```
 
-_Source: src/core/validation/validators/non-negative.ts_
+_Source: packages/reformer/src/core/validation/validators/non-negative.ts_
 
 ### nonZero
 
@@ -6048,7 +6414,7 @@ validators: [nonZero({ message: 'Не может быть нулём' })],
 },
 ```
 
-_Source: src/core/validation/validators/non-zero.ts_
+_Source: packages/reformer/src/core/validation/validators/non-zero.ts_
 
 ### pastDate
 
@@ -6085,7 +6451,7 @@ validators: [required(), pastDate({ message: 'Дата рождения не м�
 },
 ```
 
-_Source: src/core/validation/validators/past-date.ts_
+_Source: packages/reformer/src/core/validation/validators/past-date.ts_
 
 ### PathAwareSignal
 
@@ -6102,7 +6468,7 @@ export type PathAwareSignal<T> = Signal<T> & {
 };
 ```
 
-_Source: src/core/model/types.ts_
+_Source: packages/reformer/src/core/model/types.ts_
 
 ### pattern
 
@@ -6150,7 +6516,7 @@ pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 1
 },
 ```
 
-_Source: src/core/validation/validators/pattern.ts_
+_Source: packages/reformer/src/core/validation/validators/pattern.ts_
 
 ### phone
 
@@ -6188,7 +6554,7 @@ validators: [required(), phone({ format: 'ru' })],
 },
 ```
 
-_Source: src/core/validation/validators/phone.ts_
+_Source: packages/reformer/src/core/validation/validators/phone.ts_
 
 ### PhoneFormat
 
@@ -6206,7 +6572,7 @@ _Source: src/core/validation/validators/phone.ts_
 export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
 ```
 
-_Source: src/core/validation/validators/phone.ts_
+_Source: packages/reformer/src/core/validation/validators/phone.ts_
 
 ### registerSignalNode
 
@@ -6240,7 +6606,7 @@ if (sig && node) registerSignalNode(sig, node);
 **See also:**
 - {@link getNodeForSignal} - обратный поиск ноды по сигналу
 
-_Source: src/core/utils/signal-node-registry.ts_
+_Source: packages/reformer/src/core/utils/signal-node-registry.ts_
 
 ### required
 
@@ -6285,7 +6651,7 @@ validators: [required({ message: 'Необходимо принять услов
 },
 ```
 
-_Source: src/core/validation/validators/required.ts_
+_Source: packages/reformer/src/core/validation/validators/required.ts_
 
 ### resetWhen
 
@@ -6308,7 +6674,7 @@ export function resetWhen<T>(
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### ResourceLoadResult
 
@@ -6321,7 +6687,7 @@ _Source: src/core/model/behaviors.ts_
 export type ResourceLoadResult = unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### revalidateWhen
 
@@ -6344,7 +6710,7 @@ export function revalidateWhen(
 revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema));
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### runOutsideEffect
 
@@ -6373,7 +6739,7 @@ effect(() => {
 });
 ```
 
-_Source: src/core/utils/safe-effect.ts_
+_Source: packages/reformer/src/core/utils/safe-effect.ts_
 
 ### safeCallback
 
@@ -6412,7 +6778,7 @@ effect(() => {
 });
 ```
 
-_Source: src/core/utils/safe-effect.ts_
+_Source: packages/reformer/src/core/utils/safe-effect.ts_
 
 ### safeDebouncedCallback
 
@@ -6448,7 +6814,49 @@ return effect(() => {
 });
 ```
 
-_Source: src/core/utils/safe-effect.ts_
+_Source: packages/reformer/src/core/utils/safe-effect.ts_
+
+### SchemaArrayControl
+
+**Kind:** `interface`
+
+Минимальный контракт реактивного массива модели ({@link FormSchemaNode.array}).
+Совпадает по форме с рантайм-фасадом `model.<array>` (см. `ModelArray`); рендерерский
+`RenderModelArrayControl` — его расширение (добавляет `move`).
+
+**Signature:**
+```typescript
+export interface SchemaArrayControl {
+  /** Путь массива в модели (dot-нотация) — нужен для резолва узла массива. */
+  readonly __path: string;
+  /** Реактивная длина. */
+  readonly length: number;
+  at(index: number): unknown;
+  push(item: unknown): void;
+  removeAt(index: number): void;
+}
+```
+
+_Source: packages/reformer/src/core/types/schema-node.ts_
+
+### SchemaValidator
+
+**Kind:** `type`
+
+Валидатор поля схемы. Узел хранит validators гетерогенно: движок `validate*` вызывает их как
+`(value, scope, root)`, но сюда кладут любой контракт — `ValidatorFn` (value),
+`Validator` (value, control, root) или `ModelValidator` (value, model, root). Поэтому тип
+намеренно широкий по параметрам.
+
+**Signature:**
+```typescript
+export type SchemaValidator = (
+  value: any,
+  ...rest: any[]
+) => ValidationError | null | Promise<ValidationError | null>;
+```
+
+_Source: packages/reformer/src/core/types/schema-node.ts_
 
 ### SetValueOptions
 
@@ -6466,7 +6874,7 @@ export interface SetValueOptions {
 }
 ```
 
-_Source: src/core/nodes/form-node.ts_
+_Source: packages/reformer/src/core/nodes/form-node.ts_
 
 ### StatusEvent
 
@@ -6485,7 +6893,7 @@ export type StatusEvent =
   | { type: 'SET_ERRORS'; hasErrors: boolean };
 ```
 
-_Source: src/core/utils/status-machine.ts_
+_Source: packages/reformer/src/core/utils/status-machine.ts_
 
 ### SubmitOptions
 
@@ -6503,7 +6911,7 @@ export interface SubmitOptions {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: packages/reformer/src/core/utils/form-submitter.ts_
 
 ### SubmitResult
 
@@ -6523,7 +6931,7 @@ export interface SubmitResult<R> {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: packages/reformer/src/core/utils/form-submitter.ts_
 
 ### SubmittableForm
 
@@ -6544,7 +6952,7 @@ export interface SubmittableForm<T extends FormFields> {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: packages/reformer/src/core/utils/form-submitter.ts_
 
 ### SubscriptionManager
 
@@ -6587,7 +6995,7 @@ class FieldNode {
 }
 ```
 
-_Source: src/core/utils/subscription-manager.ts_
+_Source: packages/reformer/src/core/utils/subscription-manager.ts_
 
 ### syncFields
 
@@ -6611,7 +7019,7 @@ export function syncFields<T>(
 syncFields(model.$.field1, model.$.field2);
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### transformValue
 
@@ -6634,7 +7042,7 @@ export function transformValue<T>(
 transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### uniqueId
 
@@ -6661,7 +7069,7 @@ uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
 uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
 ```
 
-_Source: src/core/utils/unique-id.ts_
+_Source: packages/reformer/src/core/utils/unique-id.ts_
 
 ### UnknownCallback
 
@@ -6675,7 +7083,7 @@ _Source: src/core/utils/unique-id.ts_
 export type UnknownCallback = (...args: unknown[]) => unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### UnknownFormValue
 
@@ -6689,7 +7097,7 @@ Requires explicit type checking before use
 export type UnknownFormValue = unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### UnknownRecord
 
@@ -6703,7 +7111,7 @@ _Source: src/core/types/index.ts_
 export type UnknownRecord = Record<string, any>;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### url
 
@@ -6747,7 +7155,7 @@ validators: [url({ requireProtocol: true, allowedProtocols: ['https'] })],
 },
 ```
 
-_Source: src/core/validation/validators/url.ts_
+_Source: packages/reformer/src/core/validation/validators/url.ts_
 
 ### useArrayLength
 
@@ -6785,7 +7193,7 @@ function ArrayRenderer({ arrayNode }) {
 }
 ```
 
-_Source: src/hooks/useArrayLength.ts_
+_Source: packages/reformer/src/hooks/useArrayLength.ts_
 
 ### useFormControl
 
@@ -7019,7 +7427,7 @@ return <div>Items: {length}</div>;
 - {@link FieldControlState} - тип состояния для FieldNode
 - {@link ArrayControlState} - тип состояния для ArrayNode
 
-_Source: src/hooks/useFormControl.ts_
+_Source: packages/reformer/src/hooks/useFormControl.ts_
 
 ### useFormControlValue
 
@@ -7200,7 +7608,7 @@ return (
 - {@link useFormControl} - для полного состояния поля
 - {@link FieldNode} - тип контрола поля
 
-_Source: src/hooks/useFormControlValue.ts_
+_Source: packages/reformer/src/hooks/useFormControlValue.ts_
 
 ### ValidateAsyncOptions
 
@@ -7216,7 +7624,7 @@ export interface ValidateAsyncOptions extends ValidateOptions {
 }
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: packages/reformer/src/core/types/validation-schema.ts_
 
 ### validateFormModel
 
@@ -7230,7 +7638,7 @@ In-form валидация: прогоняет {@link validateModel} и роут
 ```typescript
 export async function validateFormModel<T>(
   model: FormModel<T>,
-  schema: unknown
+  schema: FormSchemaNode
 ): Promise<ModelValidationResult>
 ```
 
@@ -7250,7 +7658,7 @@ const res = await validateFormModel(model, schema);
 if (res.valid) await api.save(model.get());
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: packages/reformer/src/core/model/validate-model.ts_
 
 ### validateModel
 
@@ -7262,7 +7670,7 @@ Headless-валидация данных (sync + async). Работает без
 ```typescript
 export async function validateModel<T>(
   model: FormModel<T>,
-  schema: unknown
+  schema: FormSchemaNode
 ): Promise<ModelValidationResult>
 ```
 
@@ -7273,7 +7681,7 @@ const res = await validateModel(model, schema);
 if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: packages/reformer/src/core/model/validate-model.ts_
 
 ### validateModelSync
 
@@ -7283,7 +7691,10 @@ _Source: src/core/model/validate-model.ts_
 
 **Signature:**
 ```typescript
-export function validateModelSync<T>(model: FormModel<T>, schema: unknown): ModelValidationResult
+export function validateModelSync<T>(
+  model: FormModel<T>,
+  schema: FormSchemaNode
+): ModelValidationResult
 ```
 
 **Parameters:**
@@ -7301,7 +7712,7 @@ const res = validateModelSync(model, schema);
 if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: packages/reformer/src/core/model/validate-model.ts_
 
 ### ValidateOptions
 
@@ -7319,7 +7730,7 @@ export interface ValidateOptions {
 }
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: packages/reformer/src/core/types/validation-schema.ts_
 
 ### ValidationError
 
@@ -7338,7 +7749,7 @@ export interface ValidationError {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### Validator
 
@@ -7348,6 +7759,9 @@ _Source: src/core/types/index.ts_
 
 Принимает значение поля, прокси текущего поля (control) и прокси корня формы (root).
 Возвращает ValidationError либо null. Не знает про реестр валидации.
+
+Отличие от `ModelValidator`: 2-й/3-й аргументы — `FormProxy`-узлы формы (control/root), а не
+данные модели. Оба совместимы с полем `validators` узла схемы (см. `SchemaValidator`).
 
 **Signature:**
 ```typescript
@@ -7375,7 +7789,7 @@ children: [
 };
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: packages/reformer/src/core/types/validation-schema.ts_
 
 ### ValidatorFn
 
@@ -7388,7 +7802,7 @@ _Source: src/core/types/validation-schema.ts_
 export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### watchField
 
@@ -7415,7 +7829,7 @@ watchField(model.$.country, async (country) => {
 });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: packages/reformer/src/core/model/behaviors.ts_
 
 ### WithBehaviorSchema
 
@@ -7430,7 +7844,7 @@ export interface WithBehaviorSchema {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_
 
 ### WithValidationSchema
 
@@ -7445,4 +7859,4 @@ export interface WithValidationSchema {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: packages/reformer/src/core/types/index.ts_

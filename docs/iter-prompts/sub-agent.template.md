@@ -51,7 +51,7 @@
    - Валидации (sync + async)
    - Computed-fields (formula-based)
    - FormArray sections (списки)
-   - Conditional rendering (applyWhen)
+   - Conditional fields — видимость/доступность через enableWhen, условная валидация через branch-node { when, children } (НЕ applyWhen — такого экспорта нет)
 
 2. **Discovery через MCP** — обязательный набор для полной реализации спеки:
 
@@ -70,16 +70,16 @@
    - `find_recipe(topic="common-mistakes")` — overload-error decoding (превентивно)
 
    **Target-specific:**
-   - `core` → `find_recipe(topic="hooks")` (useFormControlValue для conditional rendering)
+   - `core` → `find_recipe(topic="conditional-fields")` + `get_symbol_docs(symbol="useFormControlValue")` (условный рендер в JSX)
    - `renderer-react` → `find_recipe(topic="renderer-react")` (overview + RenderSchema)
    - `renderer-json` → `find_recipe(package="@reformer/renderer-json", topic="overview")` (closure-pattern)
 
    **Symbols (минимум):**
    - `get_symbol_docs(symbol="createForm")`
    - `get_symbol_docs(symbol="FormField")` (живёт в `@reformer/ui-kit`)
-   - `get_symbol_docs(symbol="ValidationSchemaFn")`
+   - `get_symbol_docs(symbol="ModelValidator")` (тип валидатора `(value, model, root)`; `ValidationSchemaFn` НЕ существует)
    - `get_symbol_docs(symbol="computeFrom")`
-   - `get_symbol_docs(symbol="applyWhen")`
+   - `get_symbol_docs(symbol="enableWhen")` (условная видимость/доступность) + `get_symbol_docs(symbol="validateFormModel")` (движок валидации схемы-дерева)
    - target-specific:
      - `renderer-react` → `get_symbol_docs(symbol="createRenderSchema")`
      - `renderer-json` → `get_symbol_docs(symbol="JsonFormRenderer")` (НЕ `JsonRenderer` — такого нет), `get_symbol_docs(symbol="createRenderSchemaFromJson")`
@@ -110,7 +110,7 @@
 > - **Все 6 шагов FormWizard** с их полями и темами (Кредит → Личные → Контакты → Работа → Доп. инфо → Подтверждение)
 > - **Все поля** каждого шага (~80 полей всего) — не пропускать, не объединять, не упрощать
 > - **Все computed fields** через `computeFrom` (`fullName`, `age`, `interestRate`, `monthlyPayment`, `initialPayment`, `totalIncome`, `paymentToIncomeRatio`, `coBorrowersIncome`)
-> - **Все conditional rendering** через `applyWhen` (mortgage, car, employed, selfEmployed, sameAsRegistration, hasProperty, hasExistingLoans, hasCoBorrower)
+> - **Все conditional rendering** через `enableWhen` (видимость/доступность, `{ resetOnDisable }`) + branch-node `{ when, children }` (условная валидация) — mortgage, car, employed, selfEmployed, sameAsRegistration, hasProperty, hasExistingLoans, hasCoBorrower. ⚠️ `applyWhen` — ЛОКАЛЬНЫЙ typed-хелпер примеров, НЕ экспорт `@reformer/core`
 > - **Все FormArray sections** — `properties[]`, `existingLoans[]`, `coBorrowers[]` со всеми полями элементов
 > - **Все validators** из спеки — `required`, `min`/`max`, `minLength`/`maxLength`, `pattern`, `email`, cross-field validations
 > - **Async validators** где описаны в спеке (email uniqueness, INN validation)
@@ -203,8 +203,8 @@ properties: [{
 ### Type-safety правила (must follow)
 
 - **type aliases** для FormFields, **НЕ interface** (avoids TS2344 cascade)
-- `import type { ValidationSchemaFn } from '@reformer/core'` (НЕ `/validators`)
-- `import { required, applyWhen, ... } from '@reformer/core/validators'` (functions из submodule)
+- `import type { ModelValidator } from '@reformer/core'` (тип валидатора; `ValidationSchemaFn` НЕ существует)
+- `import { required, min, max, email, pattern, minLength, maxLength } from '@reformer/core/validators'` (submodule — только чистые фабрики; `applyWhen` там нет)
 - annotated destructuring в `computeFrom` callback'ах:
   ```ts
   computeFrom([path.x], path.y, ({ x }: MyForm) => ...)  // ✓
@@ -337,7 +337,7 @@ blockers:
 ## Известные подводные камни
 
 - `find_recipe` без явной темы возвращает топ-1. Если ответ не подходит — переформулируй keyword (`computed` / `compute-from` / `derived`).
-- При TS-error «implicit any on `path`» — проверь импорт `ValidationSchemaFn` (Recipe 1: из `@reformer/core`, не из `/validators`).
+- При TS-error «implicit any on `path`» — типизируй правило как `ModelValidator<TValue, TModel, TRoot>` (из `@reformer/core`), cross-field читай `root` через его тип. (`ValidationSchemaFn` НЕ существует.)
 - `path.X` (FieldPath) используется в схеме (`createForm` callback). `form.X` (FormProxy) — в hooks. Перепутаешь — runtime-ошибка.
 - В `renderer-json` schema.json — это **JSON**, не TS. Импорт через `import schema from './schema.json'` с `tsconfig` `resolveJsonModule: true` (должно быть включено по умолчанию в playground).
 - Дев-сервер должен уже работать на `http://localhost:5173`. Если не работает — fail-fast в Step 5, но **не запускай его сам** (это работа orchestrator'а или пользователя).
