@@ -152,6 +152,12 @@ export type {
 export type { FormSchema, ArrayConfig } from './deep-schema';
 
 // ============================================================================
+// Re-exports from schema-node (узел единой схемы M1)
+// ============================================================================
+
+export type { FormSchemaNode, SchemaArrayControl, SchemaValidator } from './schema-node';
+
+// ============================================================================
 // Re-exports from form-proxy (Typed Proxy Access)
 // ============================================================================
 

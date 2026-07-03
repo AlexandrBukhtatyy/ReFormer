@@ -9,6 +9,7 @@
 
 import type { ComponentType, ElementType } from 'react';
 import type { Signal } from '@preact/signals-core';
+import type { FormSchemaNode } from '@reformer/core';
 
 // ============================================================================
 // RENDER SCHEMA
@@ -61,12 +62,12 @@ export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | Containe
  * { value: model.$.loanType, component: Select, componentProps: { label: 'Тип', options } }
  * ```
  */
-export interface ModelFieldRenderNode {
+export interface ModelFieldRenderNode extends FormSchemaNode {
   selector?: string;
   /** Сигнал значения из модели (`model.$.<path>`). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: Signal<any>;
-  /** UI-компонент поля. */
+  /** UI-компонент поля (в рендере обязателен, в отличие от базового {@link FormSchemaNode}). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<any>;
   /** Props компонента (+ опц. `testId`/`className`/`fieldWrapper`/`wrapper`). */
@@ -100,9 +101,9 @@ export interface RenderModelArrayControl {
  *   item: (im) => ({ component: Box, children: [{ value: im.$.phone, component: Input }] }) }
  * ```
  */
-export interface ArrayRenderNode<T> {
+export interface ArrayRenderNode<T> extends FormSchemaNode {
   selector?: string;
-  /** Реактивный массив модели (`model.<path>`). */
+  /** Реактивный массив модели (`model.<path>`). Расширяет базовый контракт методом `move`. */
   array: RenderModelArrayControl;
   /** Схема элемента: под-модель элемента → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,14 +167,14 @@ export interface ContainerRenderNodeProps {
  * }
  * ```
  */
-export interface ContainerRenderNode<T> {
+export interface ContainerRenderNode<T> extends FormSchemaNode {
   /**
    * Идентификатор узла — используется составными компонентами (wizard, tabs)
    * и renderBehavior (b.hideWhen).
    */
   selector?: string;
 
-  /** React-компонент контейнера */
+  /** React-компонент контейнера (в рендере обязателен). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<any>;
 

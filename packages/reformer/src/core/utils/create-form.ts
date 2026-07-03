@@ -23,6 +23,7 @@ import { GroupNode } from '../nodes/group-node';
 import { ModelArrayNode } from '../nodes/model-array-node';
 import { registerSignalNode } from './signal-node-registry';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from '../types';
+import type { FormSchemaNode } from '../types/schema-node';
 import type { FormModel } from '../model/types';
 import type { FormBehavior } from '../../behaviors';
 
@@ -36,10 +37,10 @@ export interface CreateFormFromModelArgs<T> {
   /** Реактивная модель данных (источник истины значений). */
   model: FormModel<T>;
   /**
-   * Единая Schema (дерево узлов). createForm обходит её и привязывает конфиг поля к ноде
-   * по идентичности сигнала (`node.value === model.$.path`). Опциональна.
+   * Единая Schema (дерево узлов {@link FormSchemaNode}). createForm обходит её и привязывает конфиг
+   * поля к ноде по идентичности сигнала (`node.value === model.$.path`). Опциональна.
    */
-  schema?: unknown;
+  schema?: FormSchemaNode;
   /**
    * Декларативная схема поведения ({@link defineFormBehavior}). Запускается ПОСЛЕ построения нод и
    * заполнения реестра сигнал→нода; cleanup живёт на форме и вызывается в `form.dispose()`.
@@ -57,7 +58,7 @@ const isPlainObj = (v: unknown): v is Record<string, unknown> =>
 
 type HarvestedConfig = Map<Signal<unknown>, Partial<FieldConfig<unknown>>>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ArrayItemBuilders = Map<string, (item: any) => unknown>;
+type ArrayItemBuilders = Map<string, (item: any) => FormSchemaNode>;
 
 /**
  * Глубокий обход схемы: собирает конфиг поля по сигналу + item-схемы массивов по пути.
@@ -79,7 +80,8 @@ function harvestFieldConfig(
   // Массив-узел модели: { array: model.<path>, item: (itemModel) => schema }
   const arr = node.array as { __path?: string } | undefined;
   if (arr && typeof arr.__path === 'string' && typeof node.item === 'function') {
-    arrayItems.set(arr.__path, node.item as (item: unknown) => unknown);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    arrayItems.set(arr.__path, node.item as (item: any) => FormSchemaNode);
     return; // внутрь item-фабрики не идём (вызовется per-item при построении)
   }
 

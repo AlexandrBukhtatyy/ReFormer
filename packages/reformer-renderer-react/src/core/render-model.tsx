@@ -19,25 +19,28 @@ import {
   type ElementType,
 } from 'react';
 import { Signal, effect } from '@preact/signals-core';
-import { createForm, getNodeForSignal, useFormControl, type FieldNode } from '@reformer/core';
+import {
+  createForm,
+  getNodeForSignal,
+  useFormControl,
+  type FieldNode,
+  type FormSchemaNode,
+} from '@reformer/core';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** Узел-поле единой схемы: значение — сигнал модели. */
-export interface ModelFieldNode {
+export interface ModelFieldNode extends FormSchemaNode {
   value: Signal<any>;
+  /** UI-компонент поля (в рендере обязателен, в отличие от базового {@link FormSchemaNode}). */
   component: ComponentType<any>;
-  componentProps?: Record<string, unknown>;
-  selector?: string;
-  testId?: string;
 }
 
 /** Узел-контейнер: React-компонент + дочерние узлы. */
-export interface ModelContainerNode {
+export interface ModelContainerNode extends FormSchemaNode {
+  /** React-компонент контейнера (в рендере обязателен). */
   component: ComponentType<any>;
-  componentProps?: Record<string, unknown>;
   children?: ModelNode[];
-  selector?: string;
 }
 
 /**
