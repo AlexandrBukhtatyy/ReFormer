@@ -25,7 +25,7 @@ import {
 function resolvePackage(short: string): string | null {
   if (!short) return null;
   const full = `@reformer/${short}`;
-  return listAvailablePackages().includes(full as never) ? full : null;
+  return (listAvailablePackages() as readonly string[]).includes(full) ? full : null;
 }
 
 function packageShortName(pkg: string): string {

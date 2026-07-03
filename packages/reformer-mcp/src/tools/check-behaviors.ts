@@ -59,6 +59,17 @@ export async function checkBehaviorsTool(
   if (deps.length === 0) {
     return text('Argument "dependencies" is required and must be a non-empty array.');
   }
+  // MCP Server не валидирует args по inputSchema — вход приходит как cast. Проверяем форму каждого
+  // элемента, иначе `d.reads.includes(...)` / `list.push(...d.reads)` падают на отсутствующем/не-массиве.
+  const malformed = deps.some(
+    (d) =>
+      typeof d?.target !== 'string' ||
+      !Array.isArray(d?.reads) ||
+      d.reads.some((r) => typeof r !== 'string')
+  );
+  if (malformed) {
+    return text('Each dependency needs a string `target` and a string[] `reads`.');
+  }
 
   const warnings: string[] = [];
   for (const d of deps) {

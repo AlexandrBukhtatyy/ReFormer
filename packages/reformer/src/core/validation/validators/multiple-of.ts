@@ -34,10 +34,15 @@ export function multipleOf<TForm = unknown, TField extends number | undefined = 
   divisor: number,
   options?: ValidateOptions
 ): Validator<TForm, TField> {
+  // `%` точен только для двоично-представимых чисел: 0.3 % 0.1 === 0.0999…, поэтому сравниваем
+  // остаток с допуском (иначе десятичный шаг вроде multipleOf(0.5) даёт ложные ошибки).
+  const EPSILON = 1e-9;
   return (value) => {
     if (value === null || value === undefined) return null;
     if (typeof value !== 'number' || isNaN(value as number)) return null;
-    if ((value as number) % divisor !== 0) {
+    const remainder = Math.abs((value as number) % divisor);
+    const isMultiple = remainder <= EPSILON || Math.abs(remainder - Math.abs(divisor)) <= EPSILON;
+    if (!isMultiple) {
       return {
         code: 'multipleOf',
         message: options?.message ?? 'invalid',

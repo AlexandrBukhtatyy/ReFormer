@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-interface LoadingStateProps {
+export interface LoadingStateProps {
   /** Основной текст. По умолчанию `'Загрузка данных...'`. */
   title?: string;
   /** Вспомогательный текст под спиннером. По умолчанию `'Пожалуйста, подождите'`. */

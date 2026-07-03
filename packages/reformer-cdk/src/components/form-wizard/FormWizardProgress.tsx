@@ -95,7 +95,7 @@ export function FormWizardProgress({ children }: FormWizardProgressProps) {
   const renderProps: FormWizardProgressRenderProps = {
     current: currentStep,
     total: totalSteps,
-    percent: Math.round((currentStep / totalSteps) * 100),
+    percent: totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0,
     completedCount: completedSteps.length,
     isFirstStep,
     isLastStep,

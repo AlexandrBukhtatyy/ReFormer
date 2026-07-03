@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import type React from 'react';
+import type { FormValue } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
 import type { FormFieldControlProps } from './types';
@@ -92,7 +93,7 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
         {...(props as Record<string, unknown>)}
         value={value}
         disabled={disabled}
-        onChange={(v: unknown) => control.setValue(v as never)}
+        onChange={(v: unknown) => control.setValue(v as FormValue)}
         onBlur={() => control.markAsTouched()}
       />
     );

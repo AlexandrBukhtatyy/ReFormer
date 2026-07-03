@@ -53,6 +53,8 @@ export type { TextareaProps } from './components/ui/textarea';
 // State display components
 export { ErrorState } from './components/state/error-state';
 export { LoadingState } from './components/state/loading-state';
+export type { ErrorStateProps } from './components/state/error-state';
+export type { LoadingStateProps } from './components/state/loading-state';
 
 // Form-array & form-wizard subpaths re-exported from main entry too.
 export { FormArraySection } from './components/form-array/form-array-section';

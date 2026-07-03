@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from '../ui/button';
 
-interface ErrorStateProps {
+export interface ErrorStateProps {
   /** Текст ошибки, показывается под заголовком. */
   error: string;
   /** Заголовок блока ошибки. По умолчанию `'Ошибка загрузки'`. */
