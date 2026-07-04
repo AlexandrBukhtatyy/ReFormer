@@ -39,7 +39,7 @@ export default function CreditApplicationRendererReactV20() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="mx-auto  p-6">
       <h1 className="mb-6 text-2xl font-bold">Заявка на кредит (renderer-react v20)</h1>
       <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
     </div>

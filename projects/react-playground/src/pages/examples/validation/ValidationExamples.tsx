@@ -179,7 +179,7 @@ export default function ValidationExamples() {
   const handleReset = () => form.reset();
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="mx-auto p-6">
       <h2 className="text-2xl font-bold mb-2">Примеры валидации</h2>
       <p className="text-gray-600 mb-6">Демонстрация встроенных валидаторов ReFormer</p>
 

@@ -46,7 +46,7 @@ export default function CreditApplicationRendererJsonV20Page() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="mx-auto  p-6">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Заявка на кредит</h1>
         <p className="text-sm text-gray-500">
