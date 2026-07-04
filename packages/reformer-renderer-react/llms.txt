@@ -917,7 +917,9 @@ _Auto-generated from JSDoc on public exports._
 
 **Kind:** `interface`
 
-Базовые props для компонентов-контейнеров
+**Runtime-props** компонента-контейнера: то, что компонент получает при рендере (с уже
+отрисованными `children`). Не путать с {@link ContainerRenderNodeProps} — тот описывает
+декларативный `componentProps` контейнера в узле схемы (без `children`).
 
 **Signature:**
 ```typescript
@@ -933,7 +935,7 @@ export interface ContainerComponentProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### ContainerRenderNode
 
@@ -947,14 +949,14 @@ _Source: packages/reformer-renderer-react/src/core/types.ts_
 
 **Signature:**
 ```typescript
-export interface ContainerRenderNode<T> {
+export interface ContainerRenderNode<T> extends FormSchemaNode {
   /**
    * Идентификатор узла — используется составными компонентами (wizard, tabs)
    * и renderBehavior (b.hideWhen).
    */
   selector?: string;
 
-  /** React-компонент контейнера */
+  /** React-компонент контейнера (в рендере обязателен). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<any>;
 
@@ -982,16 +984,17 @@ export interface ContainerRenderNode<T> {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### ContainerRenderNodeProps
 
 **Kind:** `interface`
 
-Props для ContainerRenderNode
+Props контейнера **в узле схемы** (`ContainerRenderNode.componentProps`) — декларативный конфиг.
+Дочерние узлы задаются через `ContainerRenderNode.children`, а не здесь; `children` тут нет.
 
-Произвольные props для компонента-контейнера.
-Дочерние узлы задаются через `ContainerRenderNode.children`, а не здесь.
+Не путать с {@link ContainerComponentProps} — тот описывает **runtime-props**, которые
+компонент-контейнер получает при рендере (уже с отрисованными `children: ReactNode`).
 
 **Signature:**
 ```typescript
@@ -1004,7 +1007,7 @@ export interface ContainerRenderNodeProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### createRenderSchema
 
@@ -1048,7 +1051,7 @@ schema.node('extra-section').resetHidden();
 <FormRenderer render={schema} />
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### FieldWrapperProps
 
@@ -1077,7 +1080,7 @@ export interface FieldWrapperProps {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### FormRenderer
 
@@ -1128,7 +1131,7 @@ return s;
 <FormRenderer render={schema} settings={{ fieldWrapper: FormField }} />
 ```
 
-_Source: packages/reformer-renderer-react/src/core/form-renderer.tsx_
+_Source: src/core/form-renderer.tsx_
 
 ### FormRendererProps
 
@@ -1154,7 +1157,7 @@ export interface FormRendererProps<T> {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### hideWhen
 
@@ -1179,7 +1182,7 @@ hideWhen(schema.node('mortgage-section'), () =>
 );
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### isArrayRenderNode
 
@@ -1208,7 +1211,7 @@ node.item; // (itemModel) => RenderNode поддерева элемента
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/utils.ts_
+_Source: src/core/utils.ts_
 
 ### isContainerRenderNode
 
@@ -1237,7 +1240,7 @@ if (isContainerRenderNode(node)) {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/utils.ts_
+_Source: src/core/utils.ts_
 
 ### isModelFieldRenderNode
 
@@ -1266,7 +1269,7 @@ node.component; // UI-компонент поля
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/utils.ts_
+_Source: src/core/utils.ts_
 
 ### isRenderSchemaProxy
 
@@ -1294,78 +1297,7 @@ isRenderSchemaProxy(proxy); // true
 isRenderSchemaProxy(renderSchemaFn); // false
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
-
-### ModelArrayControl
-
-**Kind:** `interface`
-
-Реактивный массив модели (минимальный контракт, используемый рендерером).
-
-**Signature:**
-```typescript
-export interface ModelArrayControl {
-  length: number;
-  at(index: number): unknown;
-  push(item: unknown): void;
-  removeAt(index: number): void;
-}
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
-
-### ModelContainerNode
-
-**Kind:** `interface`
-
-Узел-контейнер: React-компонент + дочерние узлы.
-
-**Signature:**
-```typescript
-export interface ModelContainerNode {
-  component: ComponentType<any>;
-  componentProps?: Record<string, unknown>;
-  children?: ModelNode[];
-  selector?: string;
-}
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
-
-### ModelFieldNode
-
-**Kind:** `interface`
-
-Узел-поле единой схемы: значение — сигнал модели.
-
-**Signature:**
-```typescript
-export interface ModelFieldNode {
-  value: Signal<any>;
-  component: ComponentType<any>;
-  componentProps?: Record<string, unknown>;
-  selector?: string;
-  testId?: string;
-}
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
-
-### ModelNode
-
-**Kind:** `type`
-
-Узел дерева единой схемы (M1) для {@link RenderModelNode}: либо лист-поле
-{@link ModelFieldNode} (несёт `value: Signal` модели), либо контейнер
-{@link ModelContainerNode} (React-компонент + `children`). Дискриминируется
-по наличию `value instanceof Signal`.
-
-**Signature:**
-```typescript
-export type ModelNode = ModelFieldNode | ModelContainerNode;
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/render-schema-proxy.ts_
 
 ### NodeLifecycleHooks
 
@@ -1384,7 +1316,7 @@ export interface NodeLifecycleHooks {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### onComponentEvent
 
@@ -1418,7 +1350,7 @@ onComponentEvent(
 );
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### onInit
 
@@ -1445,7 +1377,7 @@ onInit(schema.node('wizard'), () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### onMount
 
@@ -1468,7 +1400,7 @@ onMount(schema.node('wizard'), () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### onUnmount
 
@@ -1489,7 +1421,7 @@ onUnmount(schema.node('wizard'), () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### RenderBehaviorFn
 
@@ -1522,7 +1454,7 @@ wizardRef.current?.goToStep(1);
 };
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### RenderContextProvider
 
@@ -1553,7 +1485,7 @@ import { RenderContextProvider, RenderNodeComponent } from '@reformer/renderer-r
 </RenderContextProvider>
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
+_Source: src/core/render-context.tsx_
 
 ### RenderContextValue
 
@@ -1571,7 +1503,7 @@ export interface RenderContextValue<T = unknown> {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
+_Source: src/core/render-context.tsx_
 
 ### renderEffect
 
@@ -1603,7 +1535,7 @@ renderEffect(schema, () => {
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-behavior.ts_
+_Source: src/core/render-behavior.ts_
 
 ### RendererSettings
 
@@ -1624,102 +1556,7 @@ export interface RendererSettings {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
-
-### RenderModelArray
-
-**Kind:** `const`
-
-Рендер массива единой схемы (M1): элементы принадлежат модели (`control`), поддерево
-каждого элемента строит `itemComponent` по под-модели и рендерит {@link RenderModelNode}
-(поля привязываются к сигналам под-модели). Длина реактивна — `push`/`removeAt` по модели
-перерисовывают список. При заданном `newItem` рендерится кнопка «Добавить».
-
-Низкоуровневый рендерер: для полноценной секции массива (карточки, удаление, reorder,
-`fieldWrapper`) используйте `ArrayRenderNode` (`{ array, item }`) внутри
-{@link RenderNodeComponent}/{@link FormRenderer}.
-
-**Signature:**
-```typescript
-export const RenderModelArray
-```
-
-**Parameters:**
-- `props` — - {@link RenderModelArrayProps}
-
-**Returns:** Обёртка со списком элементов и опц. кнопкой добавления
-
-**Examples:**
-
-Массив под-моделей
-```tsx
-<RenderModelArray
-control={model.coBorrowers}
-itemComponent={(im) => ({
-component: Box,
-children: [{ value: im.$.phone, component: Input }],
-})}
-newItem={createBlankCoBorrower}
-addButtonLabel="Добавить созаёмщика"
-/>
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
-
-### RenderModelArrayProps
-
-**Kind:** `interface`
-
-Props для {@link RenderModelArray}: реактивный массив модели + схема элемента и оформление.
-
-**Signature:**
-```typescript
-export interface RenderModelArrayProps {
-  /** Массив модели (`model.coBorrowers`). */
-  control: ModelArrayControl;
-  /** Схема элемента: под-модель элемента → узел поддерева. */
-  itemComponent: (item: unknown) => ModelNode;
-  /** Обёртка элементов (по умолчанию 'div'). */
-  wrapper?: ElementType;
-  className?: string;
-  /** Значение/фабрика для кнопки «Добавить» (если задано — рендерится кнопка). */
-  newItem?: unknown | (() => unknown);
-  addButtonLabel?: string;
-}
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
-
-### RenderModelNode
-
-**Kind:** `const`
-
-Рекурсивный рендер узла единой схемы {@link ModelNode}: field-узел → контрол (разворот
-сигнала, `value`/`onChange`, state по сигналу через реестр), container-узел → React-компонент
-с дочерними узлами. `node == null` → рендерит `null`.
-
-**Signature:**
-```typescript
-export const RenderModelNode
-```
-
-**Parameters:**
-- `props` — - `{ node }` — узел {@link ModelNode} или `null`/`undefined`
-
-**Returns:** Отрендеренное поддерево или `null`
-
-**Examples:**
-
-Дерево «контейнер + поле»
-```tsx
-const node: ModelNode = {
-component: Box,
-children: [{ value: model.$.email, component: Input }],
-};
-<RenderModelNode node={node} />
-```
-
-_Source: packages/reformer-renderer-react/src/core/render-model.tsx_
+_Source: src/core/types.ts_
 
 ### RenderNode
 
@@ -1737,7 +1574,7 @@ _Source: packages/reformer-renderer-react/src/core/render-model.tsx_
 export type RenderNode<T> = ModelFieldRenderNode | ArrayRenderNode<T> | ContainerRenderNode<T>;
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### RenderNodeComponent
 
@@ -1775,7 +1612,7 @@ import { RenderNodeComponent } from '@reformer/renderer-react';
 </RenderContextProvider>
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-node.tsx_
+_Source: src/core/render-node.tsx_
 
 ### RenderNodeControl
 
@@ -1808,7 +1645,7 @@ export interface RenderNodeControl {
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### RenderSchemaFn
 
@@ -1836,7 +1673,7 @@ const renderSchema: RenderSchemaFn<MyForm> = () => ({
 });
 ```
 
-_Source: packages/reformer-renderer-react/src/core/types.ts_
+_Source: src/core/types.ts_
 
 ### RenderSchemaProxy
 
@@ -1856,7 +1693,7 @@ export type RenderSchemaProxy<T> = RenderSchemaFn<T> & {
 };
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-schema-proxy.ts_
+_Source: src/core/render-schema-proxy.ts_
 
 ### useRenderContext
 
@@ -1892,4 +1729,4 @@ return (
 }
 ```
 
-_Source: packages/reformer-renderer-react/src/core/render-context.tsx_
+_Source: src/core/render-context.tsx_

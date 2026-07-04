@@ -3695,7 +3695,7 @@ _Auto-generated from JSDoc on public exports._
 export type AnyFunction = (...args: never[]) => unknown;
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### ArrayConfig
 
@@ -3705,13 +3705,13 @@ _Source: packages/reformer/src/core/types/index.ts_
 
 **Signature:**
 ```typescript
-export interface ArrayConfig<T extends FormFields> {
+export interface ArrayConfig<T extends object> {
   itemSchema: FormSchema<T>;
   initial?: Partial<T>[];
 }
 ```
 
-_Source: packages/reformer/src/core/types/deep-schema.ts_
+_Source: src/core/types/deep-schema.ts_
 
 ### ArrayControlState
 
@@ -3860,7 +3860,7 @@ Add Phone
 - {@link useFormControl} - хук для получения состояния
 - {@link FieldControlState} - состояние для полей
 
-_Source: packages/reformer/src/hooks/types.ts_
+_Source: src/hooks/types.ts_
 
 ### ArrayNode
 
@@ -3889,7 +3889,7 @@ array.at(0)?.title.setValue('Updated');
 console.log(array.length.value); // 1
 ```
 
-_Source: packages/reformer/src/core/nodes/array-node.ts_
+_Source: src/core/nodes/array-node.ts_
 
 ### ArrayNodeLike
 
@@ -3906,26 +3906,26 @@ export interface ArrayNodeLike {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### AsyncValidator
 
 **Kind:** `type`
 
-Чистый асинхронный валидатор поля.
-
-Регистрируется через `validateAsync(path, validator, { debounce })`.
+Чистый асинхронный валидатор поля. Та же тройка аргументов `(value, scope, root)`, что у
+{@link Validator}, но возвращает `Promise`. Регистрируется через
+`validateAsync(path, validator, { debounce })`.
 
 **Signature:**
 ```typescript
 export type AsyncValidator<TForm, TField> = (
   value: TField,
-  control: FormProxy<TField>,
-  root: FormProxy<TForm>
+  scope: unknown,
+  root: FormModel<TForm>
 ) => Promise<ValidationError | null>;
 ```
 
-_Source: packages/reformer/src/core/types/validation-schema.ts_
+_Source: src/core/types/validation-schema.ts_
 
 ### AsyncValidatorFn
 
@@ -3965,7 +3965,7 @@ const emailExistsAbortable: AsyncValidatorFn<string> = async (value, options) =>
 };
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### AsyncValidatorOptions
 
@@ -3984,7 +3984,7 @@ export interface AsyncValidatorOptions {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### BehaviorCleanup
 
@@ -3997,7 +3997,7 @@ _Source: packages/reformer/src/core/types/index.ts_
 export type BehaviorCleanup = () => void;
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### computeFrom
 
@@ -4028,7 +4028,7 @@ export function computeFrom<R>(
 computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty);
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### ConditionFn
 
@@ -4041,7 +4041,7 @@ _Source: packages/reformer/src/core/model/behaviors.ts_
 export type ConditionFn<T> = (value: T) => boolean;
 ```
 
-_Source: packages/reformer/src/core/types/validation-schema.ts_
+_Source: src/core/types/validation-schema.ts_
 
 ### ConfigWithSchema
 
@@ -4057,7 +4057,7 @@ export interface ConfigWithSchema {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### ConfigWithValue
 
@@ -4072,7 +4072,7 @@ export interface ConfigWithValue {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### copyFrom
 
@@ -4095,7 +4095,7 @@ export function copyFrom<T>(
 copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail });
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### createForm
 
@@ -4151,7 +4151,7 @@ form.email.setValue('test@mail.com');
 const { valid } = await validateFormModel(model, schema);
 ```
 
-_Source: packages/reformer/src/core/utils/create-form.ts_
+_Source: src/core/utils/create-form.ts_
 
 ### createFormFromModel
 
@@ -4208,7 +4208,7 @@ console.log(model.email); // 'user@mail.com'
 **See also:**
 - {@link createForm} - основная фабрика (диспетчеризует сюда при аргументе `{ model, schema }`)
 
-_Source: packages/reformer/src/core/utils/create-form.ts_
+_Source: src/core/utils/create-form.ts_
 
 ### CreateFormFromModelArgs
 
@@ -4235,7 +4235,7 @@ export interface CreateFormFromModelArgs<T> {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/create-form.ts_
+_Source: src/core/utils/create-form.ts_
 
 ### createModel
 
@@ -4263,7 +4263,7 @@ model.tags.push('x');
 model.get();                // { email: 'a@b.c', tags: ['x'] }
 ```
 
-_Source: packages/reformer/src/core/model/form-model.ts_
+_Source: src/core/model/form-model.ts_
 
 ### disableWhen
 
@@ -4295,7 +4295,7 @@ export function disableWhen(
 disableWhen(model.$.discount, () => model.plan !== 'promo', { resetOnDisable: true });
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### email
 
@@ -4332,7 +4332,7 @@ validators: [required(), email({ message: 'Введите корректный e
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/email.ts_
+_Source: src/core/validation/validators/email.ts_
 
 ### enableWhen
 
@@ -4361,7 +4361,7 @@ export function enableWhen(
 enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', { resetOnDisable: true });
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### ErrorFilterOptions
 
@@ -4379,14 +4379,14 @@ export interface ErrorFilterOptions {
   message?: string;
 
   /** Фильтр по параметрам ошибки */
-  params?: FormFields;
+  params?: Record<string, FormValue>;
 
   /** Кастомный предикат для фильтрации */
   predicate?: (error: ValidationError) => boolean;
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### ErrorStrategy
 
@@ -4419,7 +4419,7 @@ export enum ErrorStrategy {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/error-handler.ts_
+_Source: src/core/utils/error-handler.ts_
 
 ### FieldConfig
 
@@ -4457,7 +4457,7 @@ export interface FieldConfig<T> {
 }
 ```
 
-_Source: packages/reformer/src/core/types/deep-schema.ts_
+_Source: src/core/types/deep-schema.ts_
 
 ### FieldControlState
 
@@ -4632,8 +4632,7 @@ export interface FieldControlState<T> {
    * );
    * ```
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  componentProps: Record<string, any>;
+  componentProps: Record<string, unknown>;
 }
 ```
 
@@ -4667,7 +4666,7 @@ onChange={e => control.setValue(e.target.value)}
 - {@link useFormControl} - хук для получения состояния
 - {@link ArrayControlState} - состояние для массивов
 
-_Source: packages/reformer/src/hooks/types.ts_
+_Source: src/hooks/types.ts_
 
 ### FieldNode
 
@@ -4697,7 +4696,7 @@ await field.validate();
 console.log(field.valid.value); // true
 ```
 
-_Source: packages/reformer/src/core/nodes/field-node.ts_
+_Source: src/core/nodes/field-node.ts_
 
 ### FieldPathSegment
 
@@ -4714,7 +4713,7 @@ export type FieldPathSegment = {
 };
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### FieldStatus
 
@@ -4727,7 +4726,7 @@ _Source: packages/reformer/src/core/types/index.ts_
 export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### FormArrayProxy
 
@@ -4781,7 +4780,7 @@ todos.forEach((item, i) => {
 });
 ```
 
-_Source: packages/reformer/src/core/types/form-proxy.ts_
+_Source: src/core/types/form-proxy.ts_
 
 ### FormControlsProxy
 
@@ -4813,7 +4812,7 @@ export type FormControlsProxy<T> = {
 };
 ```
 
-_Source: packages/reformer/src/core/types/form-proxy.ts_
+_Source: src/core/types/form-proxy.ts_
 
 ### FormErrorHandler
 
@@ -4895,23 +4894,7 @@ try {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/error-handler.ts_
-
-### FormFields
-
-**Kind:** `type`
-
-Тип для конфига с полями (FormSchema generic constraint)
-Используется вместо `Record<string, any>` для схем форм
-
-**Signature:**
-```typescript
-export type FormFields = Record<string, FormValue>;
-```
-
-**Deprecated:** (no message)
-
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/utils/error-handler.ts_
 
 ### FormModel
 
@@ -4924,7 +4907,7 @@ FormModel — value-proxy объекта `T` + {@link ModelApi}.
 export type FormModel<T> = ModelObject<T> & ModelApi<T>;
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### FormNode
 
@@ -4964,7 +4947,7 @@ form.email instanceof FormNode; // true
 form.email.markAsTouched();
 ```
 
-_Source: packages/reformer/src/core/nodes/form-node.ts_
+_Source: src/core/nodes/form-node.ts_
 
 ### FormProxy
 
@@ -5003,7 +4986,7 @@ form.email.setValue('test@mail.com');
 form.profile.name.setValue('John');
 ```
 
-_Source: packages/reformer/src/core/types/form-proxy.ts_
+_Source: src/core/types/form-proxy.ts_
 
 ### FormSchema
 
@@ -5066,7 +5049,7 @@ const schema: FormSchema<Form> = {
 };
 ```
 
-_Source: packages/reformer/src/core/types/deep-schema.ts_
+_Source: src/core/types/deep-schema.ts_
 
 ### FormSchemaNode
 
@@ -5114,14 +5097,18 @@ export interface FormSchemaNode {
   array?: SchemaArrayControl;
   /** Схема элемента массива: под-модель элемента → узел поддерева. */
   item?: (itemModel: any) => FormSchemaNode;
-  /** Значение (или фабрика) нового элемента массива для кнопки «Добавить». */
-  initialValue?: unknown | (() => unknown);
+  /**
+   * Значение нового элемента массива для кнопки «Добавить»: либо готовое значение,
+   * либо фабрика `() => value`. Тип не различает варианты (union `unknown | (() => unknown)`
+   * схлопывается в `unknown`) — рантайм различает по `typeof initialValue === 'function'`.
+   */
+  initialValue?: unknown;
   /** Свободная вложенность: record-of-fields и произвольные под-узлы. */
   [key: string]: unknown;
 }
 ```
 
-_Source: packages/reformer/src/core/types/schema-node.ts_
+_Source: src/core/types/schema-node.ts_
 
 ### FormStatusMachine
 
@@ -5158,7 +5145,7 @@ statusMachine.disable();
 console.log(statusMachine.disabled.value); // true
 ```
 
-_Source: packages/reformer/src/core/utils/status-machine.ts_
+_Source: src/core/utils/status-machine.ts_
 
 ### FormSubmitter
 
@@ -5168,7 +5155,7 @@ FormSubmitter - управляет процессом отправки форм�
 
 **Signature:**
 ```typescript
-export class FormSubmitter<T extends FormFields> {
+export class FormSubmitter<T extends object> {
   /** Внутренний сигнал состояния отправки */ /* … */ }
 ```
 
@@ -5188,7 +5175,7 @@ if (submitter.submitting.value) {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/form-submitter.ts_
+_Source: src/core/utils/form-submitter.ts_
 
 ### FormValue
 
@@ -5211,7 +5198,7 @@ export type FormValue =
   | { [key: string]: FormValue };
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### futureDate
 
@@ -5249,7 +5236,7 @@ validators: [required(), futureDate({ message: 'Дата записи должн
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/future-date.ts_
+_Source: src/core/validation/validators/future-date.ts_
 
 ### getNodeForSignal
 
@@ -5284,7 +5271,7 @@ getNodeForSignal(sig)?.setErrors([{ code: 'required', message: 'Обязател
 **See also:**
 - {@link registerSignalNode} - регистрация связи сигнал→нода
 
-_Source: packages/reformer/src/core/utils/signal-node-registry.ts_
+_Source: src/core/utils/signal-node-registry.ts_
 
 ### getNodeType
 
@@ -5310,7 +5297,7 @@ export function getNodeType(node: unknown): string
 console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
 ```
 
-_Source: packages/reformer/src/core/utils/type-guards.ts_
+_Source: src/core/utils/type-guards.ts_
 
 ### GroupNode
 
@@ -5345,7 +5332,7 @@ await proxy.validate();
 console.log(proxy.valid.value);
 ```
 
-_Source: packages/reformer/src/core/nodes/group-node.ts_
+_Source: src/core/nodes/group-node.ts_
 
 ### GroupNodeConfig
 
@@ -5364,7 +5351,7 @@ export interface GroupNodeConfig<T> {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### integer
 
@@ -5376,7 +5363,7 @@ _Source: packages/reformer/src/core/types/index.ts_
 
 **Signature:**
 ```typescript
-export function integer<TForm = unknown, TField extends number | undefined = number>(
+export function integer<TForm = unknown, TField extends number | null | undefined = number>(
   options?: ValidateOptions
 ): Validator<TForm, TField>
 ```
@@ -5400,7 +5387,7 @@ validators: [required(), integer({ message: 'Должно быть целым ч
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/integer.ts_
+_Source: src/core/validation/validators/integer.ts_
 
 ### isArrayNode
 
@@ -5413,7 +5400,7 @@ ArrayNode представляет массив вложенных форм (о�
 
 **Signature:**
 ```typescript
-export function isArrayNode(value: unknown): value is ArrayNode<FormFields>
+export function isArrayNode(value: unknown): value is ArrayNode<object>
 ```
 
 **Parameters:**
@@ -5431,7 +5418,7 @@ if (isArrayNode(node)) {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/type-guards.ts_
+_Source: src/core/utils/type-guards.ts_
 
 ### isDate
 
@@ -5468,7 +5455,7 @@ validators: [required(), isDate({ message: 'Введите корректную 
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/is-date.ts_
+_Source: src/core/validation/validators/is-date.ts_
 
 ### isDerived
 
@@ -5502,7 +5489,7 @@ if (!isDerived(model.$.total)) {
 **See also:**
 - {@link markDerived} - пометить сигнал производным
 
-_Source: packages/reformer/src/core/utils/derived-registry.ts_
+_Source: src/core/utils/derived-registry.ts_
 
 ### isFieldNode
 
@@ -5533,7 +5520,7 @@ if (isFieldNode(node)) {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/type-guards.ts_
+_Source: src/core/utils/type-guards.ts_
 
 ### isFormNode
 
@@ -5562,7 +5549,7 @@ if (isFormNode(value)) {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/type-guards.ts_
+_Source: src/core/utils/type-guards.ts_
 
 ### isGroupNode
 
@@ -5575,7 +5562,7 @@ GroupNode представляет объект с вложенными поля
 
 **Signature:**
 ```typescript
-export function isGroupNode(value: unknown): value is GroupNode<FormFields>
+export function isGroupNode(value: unknown): value is GroupNode<object>
 ```
 
 **Parameters:**
@@ -5591,7 +5578,7 @@ if (isGroupNode(node)) {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/type-guards.ts_
+_Source: src/core/utils/type-guards.ts_
 
 ### isNumber
 
@@ -5605,7 +5592,7 @@ _Source: packages/reformer/src/core/utils/type-guards.ts_
 
 **Signature:**
 ```typescript
-export function isNumber<TForm = unknown, TField extends number | undefined = number>(
+export function isNumber<TForm = unknown, TField extends number | null | undefined = number>(
   options?: ValidateOptions
 ): Validator<TForm, TField>
 ```
@@ -5629,7 +5616,7 @@ validators: [required(), isNumber({ message: 'Введите число' })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/is-number.ts_
+_Source: src/core/validation/validators/is-number.ts_
 
 ### markDerived
 
@@ -5661,7 +5648,7 @@ markDerived(model.$.total);
 **See also:**
 - {@link isDerived} - проверка пометки
 
-_Source: packages/reformer/src/core/utils/derived-registry.ts_
+_Source: src/core/utils/derived-registry.ts_
 
 ### max
 
@@ -5673,7 +5660,7 @@ _Source: packages/reformer/src/core/utils/derived-registry.ts_
 
 **Signature:**
 ```typescript
-export function max<TForm = unknown, TField extends number | undefined = number>(
+export function max<TForm = unknown, TField extends number | null | undefined = number>(
   maxValue: number,
   options?: ValidateOptions
 ): Validator<TForm, TField>
@@ -5701,7 +5688,7 @@ validators: [required(), max(50, { message: 'Не более 50%' })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/max.ts_
+_Source: src/core/validation/validators/max.ts_
 
 ### maxAge
 
@@ -5741,7 +5728,7 @@ validators: [maxAge(100, { message: 'Проверьте дату рождени�
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/max-age.ts_
+_Source: src/core/validation/validators/max-age.ts_
 
 ### maxDate
 
@@ -5781,7 +5768,7 @@ validators: [maxDate(new Date(), { message: 'Дата не может быть �
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/max-date.ts_
+_Source: src/core/validation/validators/max-date.ts_
 
 ### maxLength
 
@@ -5823,7 +5810,7 @@ validators: [maxLength(500, { message: 'Максимум 500 символов' }
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/max-length.ts_
+_Source: src/core/validation/validators/max-length.ts_
 
 ### min
 
@@ -5835,7 +5822,7 @@ _Source: packages/reformer/src/core/validation/validators/max-length.ts_
 
 **Signature:**
 ```typescript
-export function min<TForm = unknown, TField extends number | undefined = number>(
+export function min<TForm = unknown, TField extends number | null | undefined = number>(
   minValue: number,
   options?: ValidateOptions
 ): Validator<TForm, TField>
@@ -5863,7 +5850,7 @@ validators: [required(), min(1, { message: 'Минимум 1' })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/min.ts_
+_Source: src/core/validation/validators/min.ts_
 
 ### minAge
 
@@ -5903,7 +5890,7 @@ validators: [required(), minAge(18, { message: 'Вам должно быть н�
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/min-age.ts_
+_Source: src/core/validation/validators/min-age.ts_
 
 ### minDate
 
@@ -5943,7 +5930,7 @@ validators: [required(), minDate(new Date(), { message: 'Дата не рань�
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/min-date.ts_
+_Source: src/core/validation/validators/min-date.ts_
 
 ### minLength
 
@@ -5985,7 +5972,7 @@ validators: [required(), minLength(8, { message: 'Минимум 8 символ�
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/min-length.ts_
+_Source: src/core/validation/validators/min-length.ts_
 
 ### ModelApi
 
@@ -6003,9 +5990,17 @@ export interface ModelApi<T> {
   readonly $: ModelSignals<T>;
   /** Снимок значений (без подписки) — для submit. */
   get(): T;
-  /** Массовая замена значений (load с сервера). Не меняет initial-снимок. */
+  /**
+   * @deprecated Алиас {@link ModelApi.patch}: `set` выполняет то же частичное **слияние** —
+   *   обновляет только переданные ключи, отсутствующие НЕ трогает (это НЕ полная замена, вопреки
+   *   старому названию). Используйте `patch`; для замены с обнулением лишних полей делайте
+   *   `patch({ ...defaults, ...dto })` явно. Не меняет initial-снимок.
+   */
   set(value: Partial<T>): void;
-  /** Частичное слияние значений. */
+  /**
+   * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
+   * отсутствующие ключи НЕ трогаются. Не меняет initial-снимок.
+   */
   patch(value: Partial<T>): void;
   /** Отличаются ли текущие значения от initial-снимка (value-diff). */
   isDirty(): boolean;
@@ -6018,7 +6013,7 @@ export interface ModelApi<T> {
 }
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### ModelArray
 
@@ -6049,12 +6044,14 @@ export interface ModelArray<U> {
   swap(a: number, b: number): void;
   /** Очистить массив. */
   clear(): void;
-  /** Под-модель элемента по индексу (для объектных элементов) или значение (для примитивных). */
-  at(index: number): U extends object ? FormModel<U> : U | undefined;
-  /** Map по элементам: объектные → {@link FormModel}, примитивные → значение. */
-  map<R>(fn: (item: U extends object ? FormModel<U> : U, index: number) => R): R[];
-  /** Итерация по элементам. */
-  forEach(fn: (item: U extends object ? FormModel<U> : U, index: number) => void): void;
+  /** Элемент по индексу: объект → под-модель, массив → {@link ModelArray}, лист → значение. */
+  at(
+    index: number
+  ): NonNullable<U> extends object ? ModelArrayItem<U> : ModelArrayItem<U> | undefined;
+  /** Map по элементам (объект → {@link FormModel}, Opaque/примитив → значение, массив → {@link ModelArray}). */
+  map<R>(fn: (item: ModelArrayItem<U>, index: number) => R): R[];
+  /** Итерация по элементам (см. {@link ModelArrayItem}). */
+  forEach(fn: (item: ModelArrayItem<U>, index: number) => void): void;
   /** Снимок массива значений (без подписки). */
   toArray(): U[];
   /** Индексный value-доступ. */
@@ -6062,7 +6059,7 @@ export interface ModelArray<U> {
 }
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### ModelArrayControl
 
@@ -6085,7 +6082,7 @@ export interface ModelArrayControl<TItem extends object> {
 }
 ```
 
-_Source: packages/reformer/src/core/nodes/model-array-node.ts_
+_Source: src/core/nodes/model-array-node.ts_
 
 ### ModelArrayNode
 
@@ -6133,7 +6130,7 @@ rows.at(0)?.name.setValue('B');     // правка поля элемента д
 rows.length.value;                  // 1 (реактивная длина)
 ```
 
-_Source: packages/reformer/src/core/nodes/model-array-node.ts_
+_Source: src/core/nodes/model-array-node.ts_
 
 ### ModelObject
 
@@ -6149,7 +6146,7 @@ export type ModelObject<T> = {
 };
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### ModelSignals
 
@@ -6161,17 +6158,11 @@ _Source: packages/reformer/src/core/model/types.ts_
 **Signature:**
 ```typescript
 export type ModelSignals<T> = {
-  [K in keyof T]: NonNullable<T[K]> extends ReadonlyArray<infer U>
-    ? { readonly length: number; readonly [index: number]: ModelSignals<U & object> }
-    : NonNullable<T[K]> extends Opaque
-      ? PathAwareSignal<T[K]>
-      : NonNullable<T[K]> extends object
-        ? ModelSignals<NonNullable<T[K]>>
-        : PathAwareSignal<T[K]>;
+  [K in keyof T]: ModelSignalNode<T[K]>;
 };
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### ModelValidationResult
 
@@ -6188,7 +6179,7 @@ export interface ModelValidationResult {
 }
 ```
 
-_Source: packages/reformer/src/core/model/validate-model.ts_
+_Source: src/core/model/validate-model.ts_
 
 ### ModelValidator
 
@@ -6209,7 +6200,7 @@ export type ModelValidator<TValue = unknown, TModel = unknown, TRoot = unknown> 
 ) => ValidationError | null | Promise<ValidationError | null>;
 ```
 
-_Source: packages/reformer/src/core/model/validate-model.ts_
+_Source: src/core/model/validate-model.ts_
 
 ### ModelValue
 
@@ -6233,7 +6224,7 @@ export type ModelValue<V> =
         : V;
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### multipleOf
 
@@ -6245,7 +6236,7 @@ _Source: packages/reformer/src/core/model/types.ts_
 
 **Signature:**
 ```typescript
-export function multipleOf<TForm = unknown, TField extends number | undefined = number>(
+export function multipleOf<TForm = unknown, TField extends number | null | undefined = number>(
   divisor: number,
   options?: ValidateOptions
 ): Validator<TForm, TField>
@@ -6272,7 +6263,7 @@ validators: [multipleOf(0.5, { message: 'Только шаг 0.5' })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/multiple-of.ts_
+_Source: src/core/validation/validators/multiple-of.ts_
 
 ### NodeFactory
 
@@ -6342,7 +6333,7 @@ const factory = new NodeFactory();
 const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
 ```
 
-_Source: packages/reformer/src/core/factories/node-factory.ts_
+_Source: src/core/factories/node-factory.ts_
 
 ### nonNegative
 
@@ -6354,7 +6345,7 @@ _Source: packages/reformer/src/core/factories/node-factory.ts_
 
 **Signature:**
 ```typescript
-export function nonNegative<TForm = unknown, TField extends number | undefined = number>(
+export function nonNegative<TForm = unknown, TField extends number | null | undefined = number>(
   options?: ValidateOptions
 ): Validator<TForm, TField>
 ```
@@ -6378,7 +6369,7 @@ validators: [nonNegative({ message: 'Баланс не может быть от�
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/non-negative.ts_
+_Source: src/core/validation/validators/non-negative.ts_
 
 ### nonZero
 
@@ -6390,7 +6381,7 @@ _Source: packages/reformer/src/core/validation/validators/non-negative.ts_
 
 **Signature:**
 ```typescript
-export function nonZero<TForm = unknown, TField extends number | undefined = number>(
+export function nonZero<TForm = unknown, TField extends number | null | undefined = number>(
   options?: ValidateOptions
 ): Validator<TForm, TField>
 ```
@@ -6414,7 +6405,7 @@ validators: [nonZero({ message: 'Не может быть нулём' })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/non-zero.ts_
+_Source: src/core/validation/validators/non-zero.ts_
 
 ### pastDate
 
@@ -6451,7 +6442,7 @@ validators: [required(), pastDate({ message: 'Дата рождения не м�
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/past-date.ts_
+_Source: src/core/validation/validators/past-date.ts_
 
 ### PathAwareSignal
 
@@ -6468,7 +6459,7 @@ export type PathAwareSignal<T> = Signal<T> & {
 };
 ```
 
-_Source: packages/reformer/src/core/model/types.ts_
+_Source: src/core/model/types.ts_
 
 ### pattern
 
@@ -6516,7 +6507,7 @@ pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 1
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/pattern.ts_
+_Source: src/core/validation/validators/pattern.ts_
 
 ### phone
 
@@ -6554,7 +6545,7 @@ validators: [required(), phone({ format: 'ru' })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/phone.ts_
+_Source: src/core/validation/validators/phone.ts_
 
 ### PhoneFormat
 
@@ -6572,7 +6563,7 @@ _Source: packages/reformer/src/core/validation/validators/phone.ts_
 export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
 ```
 
-_Source: packages/reformer/src/core/validation/validators/phone.ts_
+_Source: src/core/validation/validators/phone.ts_
 
 ### registerSignalNode
 
@@ -6606,7 +6597,7 @@ if (sig && node) registerSignalNode(sig, node);
 **See also:**
 - {@link getNodeForSignal} - обратный поиск ноды по сигналу
 
-_Source: packages/reformer/src/core/utils/signal-node-registry.ts_
+_Source: src/core/utils/signal-node-registry.ts_
 
 ### required
 
@@ -6651,7 +6642,7 @@ validators: [required({ message: 'Необходимо принять услов
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/required.ts_
+_Source: src/core/validation/validators/required.ts_
 
 ### resetWhen
 
@@ -6674,7 +6665,7 @@ export function resetWhen<T>(
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### ResourceLoadResult
 
@@ -6687,7 +6678,7 @@ _Source: packages/reformer/src/core/model/behaviors.ts_
 export type ResourceLoadResult = unknown;
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### revalidateWhen
 
@@ -6710,7 +6701,7 @@ export function revalidateWhen(
 revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema));
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### runOutsideEffect
 
@@ -6739,7 +6730,7 @@ effect(() => {
 });
 ```
 
-_Source: packages/reformer/src/core/utils/safe-effect.ts_
+_Source: src/core/utils/safe-effect.ts_
 
 ### safeCallback
 
@@ -6778,7 +6769,7 @@ effect(() => {
 });
 ```
 
-_Source: packages/reformer/src/core/utils/safe-effect.ts_
+_Source: src/core/utils/safe-effect.ts_
 
 ### safeDebouncedCallback
 
@@ -6814,7 +6805,7 @@ return effect(() => {
 });
 ```
 
-_Source: packages/reformer/src/core/utils/safe-effect.ts_
+_Source: src/core/utils/safe-effect.ts_
 
 ### SchemaArrayControl
 
@@ -6837,7 +6828,7 @@ export interface SchemaArrayControl {
 }
 ```
 
-_Source: packages/reformer/src/core/types/schema-node.ts_
+_Source: src/core/types/schema-node.ts_
 
 ### SchemaValidator
 
@@ -6856,7 +6847,7 @@ export type SchemaValidator = (
 ) => ValidationError | null | Promise<ValidationError | null>;
 ```
 
-_Source: packages/reformer/src/core/types/schema-node.ts_
+_Source: src/core/types/schema-node.ts_
 
 ### SetValueOptions
 
@@ -6874,7 +6865,7 @@ export interface SetValueOptions {
 }
 ```
 
-_Source: packages/reformer/src/core/nodes/form-node.ts_
+_Source: src/core/nodes/form-node.ts_
 
 ### StatusEvent
 
@@ -6893,7 +6884,7 @@ export type StatusEvent =
   | { type: 'SET_ERRORS'; hasErrors: boolean };
 ```
 
-_Source: packages/reformer/src/core/utils/status-machine.ts_
+_Source: src/core/utils/status-machine.ts_
 
 ### SubmitOptions
 
@@ -6911,7 +6902,7 @@ export interface SubmitOptions {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/form-submitter.ts_
+_Source: src/core/utils/form-submitter.ts_
 
 ### SubmitResult
 
@@ -6931,7 +6922,7 @@ export interface SubmitResult<R> {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/form-submitter.ts_
+_Source: src/core/utils/form-submitter.ts_
 
 ### SubmittableForm
 
@@ -6942,7 +6933,7 @@ _Source: packages/reformer/src/core/utils/form-submitter.ts_
 
 **Signature:**
 ```typescript
-export interface SubmittableForm<T extends FormFields> {
+export interface SubmittableForm<T extends object> {
   /** Пометить все поля как touched */
   markAsTouched(): void;
   /** Валидировать форму */
@@ -6952,7 +6943,7 @@ export interface SubmittableForm<T extends FormFields> {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/form-submitter.ts_
+_Source: src/core/utils/form-submitter.ts_
 
 ### SubscriptionManager
 
@@ -6995,7 +6986,7 @@ class FieldNode {
 }
 ```
 
-_Source: packages/reformer/src/core/utils/subscription-manager.ts_
+_Source: src/core/utils/subscription-manager.ts_
 
 ### syncFields
 
@@ -7019,7 +7010,7 @@ export function syncFields<T>(
 syncFields(model.$.field1, model.$.field2);
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### transformValue
 
@@ -7042,7 +7033,7 @@ export function transformValue<T>(
 transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### uniqueId
 
@@ -7069,7 +7060,7 @@ uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
 uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
 ```
 
-_Source: packages/reformer/src/core/utils/unique-id.ts_
+_Source: src/core/utils/unique-id.ts_
 
 ### UnknownCallback
 
@@ -7083,7 +7074,7 @@ _Source: packages/reformer/src/core/utils/unique-id.ts_
 export type UnknownCallback = (...args: unknown[]) => unknown;
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### UnknownFormValue
 
@@ -7097,7 +7088,7 @@ Requires explicit type checking before use
 export type UnknownFormValue = unknown;
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### UnknownRecord
 
@@ -7108,10 +7099,10 @@ _Source: packages/reformer/src/core/types/index.ts_
 
 **Signature:**
 ```typescript
-export type UnknownRecord = Record<string, any>;
+export type UnknownRecord = Record<string, unknown>;
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### url
 
@@ -7155,7 +7146,7 @@ validators: [url({ requireProtocol: true, allowedProtocols: ['https'] })],
 },
 ```
 
-_Source: packages/reformer/src/core/validation/validators/url.ts_
+_Source: src/core/validation/validators/url.ts_
 
 ### useArrayLength
 
@@ -7169,7 +7160,7 @@ React-хук для подписки только на длину массива
 
 **Signature:**
 ```typescript
-export function useArrayLength<T extends FormFields>(control: ArrayNode<T>): number
+export function useArrayLength<T extends object>(control: ArrayNode<T>): number
 ```
 
 **Parameters:**
@@ -7193,7 +7184,7 @@ function ArrayRenderer({ arrayNode }) {
 }
 ```
 
-_Source: packages/reformer/src/hooks/useArrayLength.ts_
+_Source: src/hooks/useArrayLength.ts_
 
 ### useFormControl
 
@@ -7223,8 +7214,8 @@ React-хук для подписки на состояние формы (FieldNo
 **Signature:**
 ```typescript
 export function useFormControl(
-  control: FieldNode<FormValue> | ArrayNode<FormFields> | undefined
-): FieldControlState<FormValue> | ArrayControlState<FormFields>
+  control: FieldNode<FormValue> | ArrayNode<object> | undefined
+): FieldControlState<FormValue> | ArrayControlState<object>
 ```
 
 **Parameters:**
@@ -7427,7 +7418,7 @@ return <div>Items: {length}</div>;
 - {@link FieldControlState} - тип состояния для FieldNode
 - {@link ArrayControlState} - тип состояния для ArrayNode
 
-_Source: packages/reformer/src/hooks/useFormControl.ts_
+_Source: src/hooks/useFormControl.ts_
 
 ### useFormControlValue
 
@@ -7608,7 +7599,7 @@ return (
 - {@link useFormControl} - для полного состояния поля
 - {@link FieldNode} - тип контрола поля
 
-_Source: packages/reformer/src/hooks/useFormControlValue.ts_
+_Source: src/hooks/useFormControlValue.ts_
 
 ### ValidateAsyncOptions
 
@@ -7624,7 +7615,7 @@ export interface ValidateAsyncOptions extends ValidateOptions {
 }
 ```
 
-_Source: packages/reformer/src/core/types/validation-schema.ts_
+_Source: src/core/types/validation-schema.ts_
 
 ### validateFormModel
 
@@ -7658,7 +7649,7 @@ const res = await validateFormModel(model, schema);
 if (res.valid) await api.save(model.get());
 ```
 
-_Source: packages/reformer/src/core/model/validate-model.ts_
+_Source: src/core/model/validate-model.ts_
 
 ### validateModel
 
@@ -7681,7 +7672,7 @@ const res = await validateModel(model, schema);
 if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
 ```
 
-_Source: packages/reformer/src/core/model/validate-model.ts_
+_Source: src/core/model/validate-model.ts_
 
 ### validateModelSync
 
@@ -7712,7 +7703,7 @@ const res = validateModelSync(model, schema);
 if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
 ```
 
-_Source: packages/reformer/src/core/model/validate-model.ts_
+_Source: src/core/model/validate-model.ts_
 
 ### ValidateOptions
 
@@ -7726,11 +7717,11 @@ export interface ValidateOptions {
   /** Сообщение об ошибке */
   message?: string;
   /** Параметры ошибки */
-  params?: FormFields;
+  params?: Record<string, FormValue>;
 }
 ```
 
-_Source: packages/reformer/src/core/types/validation-schema.ts_
+_Source: src/core/types/validation-schema.ts_
 
 ### ValidationError
 
@@ -7743,13 +7734,13 @@ _Source: packages/reformer/src/core/types/validation-schema.ts_
 export interface ValidationError {
   code: string;
   message: string;
-  params?: FormFields;
+  params?: Record<string, FormValue>;
   /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
   severity?: 'error' | 'warning';
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### Validator
 
@@ -7757,18 +7748,25 @@ _Source: packages/reformer/src/core/types/index.ts_
 
 Чистый синхронный валидатор поля.
 
-Принимает значение поля, прокси текущего поля (control) и прокси корня формы (root).
-Возвращает ValidationError либо null. Не знает про реестр валидации.
+Сигнатура зеркалит то, что реально вызывает движок M1
+(`validateModel`/`validateFormModel`/`validateModelSync`): `validator(value, scope, root)`.
+- `value` — значение поля (`TField`);
+- `scope` — ближайшая scope-**модель** (под-модель элемента массива или корень). Из `TForm`/`TField`
+  её тип не выводится, поэтому `unknown` — потребитель сужает сам (для типизированного scope
+  используйте {@link ModelValidator}`<TField, TScope, TForm>`);
+- `root` — корневая модель формы `FormModel<TForm>` (реактивный value-proxy: `root.field` читает
+  значение). Возвращает `ValidationError` либо `null`. Не знает про реестр валидации.
 
-Отличие от `ModelValidator`: 2-й/3-й аргументы — `FormProxy`-узлы формы (control/root), а не
-данные модели. Оба совместимы с полем `validators` узла схемы (см. `SchemaValidator`).
+Совместим с полем `validators` узла схемы (см. `SchemaValidator`) — там же лежат `ModelValidator`
+и `ValidatorFn`. Встроенные фабрики (`required()`/`email()`/…) возвращают `(value) => …` и
+дополнительные аргументы игнорируют.
 
 **Signature:**
 ```typescript
 export type Validator<TForm, TField> = (
   value: TField,
-  control: FormProxy<TField>,
-  root: FormProxy<TForm>
+  scope: unknown,
+  root: FormModel<TForm>
 ) => ValidationError | null;
 ```
 
@@ -7776,8 +7774,9 @@ export type Validator<TForm, TField> = (
 
 Кастомный валидатор в массиве `validators` поля схемы
 ```typescript
-const isAdult: Validator<MyForm, number> = (value, control, root) => {
+const isAdult: Validator<MyForm, number> = (value, _scope, root) => {
 if (value < 18) return { code: 'tooYoung', message: '18+' };
+// root — FormModel<MyForm>: root.someOtherField читается как значение
 return null;
 };
 
@@ -7789,7 +7788,7 @@ children: [
 };
 ```
 
-_Source: packages/reformer/src/core/types/validation-schema.ts_
+_Source: src/core/types/validation-schema.ts_
 
 ### ValidatorFn
 
@@ -7802,7 +7801,7 @@ _Source: packages/reformer/src/core/types/validation-schema.ts_
 export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### watchField
 
@@ -7829,7 +7828,7 @@ watchField(model.$.country, async (country) => {
 });
 ```
 
-_Source: packages/reformer/src/core/model/behaviors.ts_
+_Source: src/core/model/behaviors.ts_
 
 ### WithBehaviorSchema
 
@@ -7844,7 +7843,7 @@ export interface WithBehaviorSchema {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_
 
 ### WithValidationSchema
 
@@ -7859,4 +7858,4 @@ export interface WithValidationSchema {
 }
 ```
 
-_Source: packages/reformer/src/core/types/index.ts_
+_Source: src/core/types/index.ts_

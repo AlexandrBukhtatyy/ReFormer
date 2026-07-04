@@ -18,7 +18,7 @@
 - `reformer://docs/cdk/formwizard-indicator`
 - `reformer://docs/cdk/formwizard-actions`
 - `reformer://docs/cdk/formarrayhandle-api`
-- Directory layout — `find_recipe directory-layout` (раскладка: `lib/` доменные хелперы + `schema/` определение формы + `components/`, корень лаконичный; для renderer-json base registry + DSL meta-schema — на уровне приложения)
+- Directory layout — `find_recipe directory-layout` (раскладка файлов формы для `{{target}}`; для renderer-json — app-level base registry + DSL meta-schema)
   {{rendererPrereqs}}
 
 Без этого sub-agent работает вслепую — рискует cycle-prevention нарушением, plain-leaf corruption, неверными импортами.

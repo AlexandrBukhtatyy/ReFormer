@@ -980,7 +980,7 @@ export function buildFormSchemaMetaSchema(opts?: {
 const schema = buildFormSchemaMetaSchema({ componentNames: getComponentNames(registry) });
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### ComponentMetadata
 
@@ -1004,7 +1004,7 @@ const meta: ComponentMetadata = registry.get('Input')!;
 meta.type; // 'component'
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/types.ts_
+_Source: src/registry/types.ts_
 
 ### ComponentOp
 
@@ -1017,7 +1017,7 @@ _Source: packages/reformer-renderer-json/src/registry/types.ts_
 export type ComponentOp = `$component(${string})`;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### ComponentRegistry
 
@@ -1047,7 +1047,7 @@ if (registry.has('Input')) {
 registry.names(); // ['Input', 'Box', 'LOAN_TYPES', ...]
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/types.ts_
+_Source: src/registry/types.ts_
 
 ### convertJsonToM1Tree
 
@@ -1085,7 +1085,7 @@ behavior,
 });
 ```
 
-_Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
+_Source: src/converter/json-to-render-schema.ts_
 
 ### createRenderSchemaFromJsonM1
 
@@ -1124,7 +1124,7 @@ const proxy = createRenderSchema<MyForm>(fn);
 <FormRenderer render={proxy} />;
 ```
 
-_Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
+_Source: src/converter/json-to-render-schema.ts_
 
 ### DataSourceOp
 
@@ -1137,7 +1137,7 @@ _Source: packages/reformer-renderer-json/src/converter/json-to-render-schema.ts_
 export type DataSourceOp = `$dataSource(${string})`;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### defineRegistry
 
@@ -1178,7 +1178,7 @@ const registry = defineRegistry((reg) => {
 **See also:**
 - [docs/llms/03-registry.md](../../docs/llms/03-registry.md)
 
-_Source: packages/reformer-renderer-json/src/registry/component-registry.ts_
+_Source: src/registry/component-registry.ts_
 
 ### FIELD_WRAPPER
 
@@ -1205,7 +1205,7 @@ const registry = defineRegistry((reg) => {
 });
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/constants.ts_
+_Source: src/registry/constants.ts_
 
 ### formSchemaMetaSchema
 
@@ -1228,7 +1228,7 @@ export const formSchemaMetaSchema
 formSchemaMetaSchema.$schema; // 'http://json-schema.org/draft-07/schema#'
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### getComponentNames
 
@@ -1254,7 +1254,7 @@ const names = getComponentNames(registry); // ['Input', 'Select', 'Box', ...]
 const schema = buildFormSchemaMetaSchema({ componentNames: names });
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### getDataSourceNames
 
@@ -1279,7 +1279,7 @@ export function getDataSourceNames(registry: ComponentRegistry): string[]
 getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
 ```
 
-_Source: packages/reformer-renderer-json/src/schema/index.ts_
+_Source: src/schema/index.ts_
 
 ### isArrayNode
 
@@ -1308,7 +1308,7 @@ node.item.$template;   // JsonNode
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### isComponentOp
 
@@ -1334,7 +1334,7 @@ if (isComponentOp(node.component)) {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### isContainerNode
 
@@ -1362,7 +1362,7 @@ node.children?.forEach(walk);
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### isDataSourceOp
 
@@ -1388,7 +1388,7 @@ if (isDataSourceOp(props.options)) {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### isFieldNode
 
@@ -1416,7 +1416,7 @@ node.component;  // ComponentOp | undefined
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### isModelOp
 
@@ -1443,7 +1443,7 @@ const path = parseOperator(value)!.arg; // 'loanType'
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### JsonArrayNode
 
@@ -1470,7 +1470,7 @@ export interface JsonArrayNode {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonContainerNode
 
@@ -1492,7 +1492,7 @@ export interface JsonContainerNode {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonFieldNode
 
@@ -1516,7 +1516,7 @@ export interface JsonFieldNode {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonFormRenderer
 
@@ -1594,7 +1594,7 @@ return (
 **See also:**
 - [docs/llms/01-overview.md](../../docs/llms/01-overview.md)
 
-_Source: packages/reformer-renderer-json/src/components/json-form-renderer.tsx_
+_Source: src/components/json-form-renderer.tsx_
 
 ### JsonFormRendererProps
 
@@ -1624,7 +1624,7 @@ export interface JsonFormRendererProps<T> {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/components/json-form-renderer.tsx_
+_Source: src/components/json-form-renderer.tsx_
 
 ### JsonFormSchema
 
@@ -1659,7 +1659,7 @@ const schema: JsonFormSchema = {
 };
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonNode
 
@@ -1672,7 +1672,7 @@ _Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 export type JsonNode = JsonFieldNode | JsonArrayNode | JsonContainerNode;
 ```
 
-_Source: packages/reformer-renderer-json/src/types/json-schema.ts_
+_Source: src/types/json-schema.ts_
 
 ### JsonOperator
 
@@ -1685,7 +1685,7 @@ _Source: packages/reformer-renderer-json/src/types/json-schema.ts_
 export type JsonOperator = ModelOp | ComponentOp | DataSourceOp;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### JsonRendererProvider
 
@@ -1718,7 +1718,7 @@ reg.component(FIELD_WRAPPER, FormField);
 </JsonRendererProvider>
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
 
 ### JsonRendererProviderProps
 
@@ -1736,7 +1736,7 @@ export interface JsonRendererProviderProps {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
 
 ### JsonRendererSettings
 
@@ -1758,7 +1758,7 @@ export interface JsonRendererSettings extends RendererSettings {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
 
 ### ModelOp
 
@@ -1771,7 +1771,7 @@ _Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
 export type ModelOp = `$model(${string})`;
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### ParsedOperator
 
@@ -1787,7 +1787,7 @@ export interface ParsedOperator {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### parseOperator
 
@@ -1814,7 +1814,7 @@ parseOperator('$dataSource(LOAN_TYPES)'); // { op: 'dataSource', arg: 'LOAN_TYPE
 parseOperator('Введите сумму');       // null  (обычная строка)
 ```
 
-_Source: packages/reformer-renderer-json/src/operators.ts_
+_Source: src/operators.ts_
 
 ### RegistryBuilder
 
@@ -1847,7 +1847,7 @@ defineRegistry((reg: RegistryBuilder) => {
 });
 ```
 
-_Source: packages/reformer-renderer-json/src/registry/types.ts_
+_Source: src/registry/types.ts_
 
 ### SchemaErrorPanel
 
@@ -1879,7 +1879,7 @@ const { valid, errors } = validateFormSchema(schema, { registry });
 if (!valid) return <SchemaErrorPanel errors={errors} />;
 ```
 
-_Source: packages/reformer-renderer-json/src/components/schema-error-panel.tsx_
+_Source: src/components/schema-error-panel.tsx_
 
 ### SchemaErrorPanelProps
 
@@ -1895,7 +1895,7 @@ export interface SchemaErrorPanelProps {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/components/schema-error-panel.tsx_
+_Source: src/components/schema-error-panel.tsx_
 
 ### useJsonRendererSettings
 
@@ -1922,4 +1922,4 @@ function MyControl() {
 }
 ```
 
-_Source: packages/reformer-renderer-json/src/context/json-renderer-context.tsx_
+_Source: src/context/json-renderer-context.tsx_
