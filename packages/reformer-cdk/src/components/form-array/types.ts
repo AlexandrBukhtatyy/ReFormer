@@ -1,12 +1,23 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ArrayNode, FormProxy } from '@reformer/core';
+import type { ArrayNode, ModelArrayNode, FormProxy, ValidationError } from '@reformer/core';
+
+/**
+ * Узел массива, принимаемый CDK-компонентами FormArray.
+ *
+ * Legacy {@link ArrayNode} (владеет элементами сам) ИЛИ M1 {@link ModelArrayNode} (делегирует
+ * массиву модели). Оба структурно реализуют используемый CDK контракт
+ * (`push`/`insert`/`removeAt`/`move`/`swap`/`clear`/`at`/`map`/`length`/`value`/`errors`/…), но
+ * ModelArrayNode расширяет `FormNode<T[]>`, а не `ArrayNode`, поэтому нужен явный union — иначе
+ * консументы M1 (у которых `form.<field>` материализуется как ModelArrayNode) вынуждены кастовать.
+ */
+export type FormArrayControl<T extends object> = ArrayNode<T> | ModelArrayNode<T>;
 
 /**
  * Props for FormArray.Root component
  */
 export interface FormArrayRootProps<T extends object> {
-  /** The ArrayNode control from the form */
-  control: ArrayNode<T>;
+  /** The array control from the form — legacy ArrayNode или M1 ModelArrayNode */
+  control: FormArrayControl<T>;
   /** Child components */
   children: ReactNode;
 }
@@ -96,4 +107,28 @@ export interface FormArrayCountProps {
 export interface FormArrayItemIndexProps {
   /** Custom render function for the index (receives 0-based index) */
   render?: (index: number) => ReactNode;
+}
+
+/**
+ * Props for FormArray.Error component — рендерит ошибки уровня массива
+ * (например `minItems` / «At least one phone required») из `control.errors`.
+ *
+ * Паритет с `FormField.Error`: `multi` рендерит все ошибки, `render` — кастомный рендер на ошибку,
+ * `children` переопределяет содержимое. Ничего не рендерит, когда ошибок нет.
+ */
+export interface FormArrayErrorProps extends Omit<
+  React.HTMLAttributes<HTMLParagraphElement>,
+  'role'
+> {
+  /** Рендерить как дочерний элемент через Slot (props мержатся в children). */
+  asChild?: boolean;
+  /**
+   * Рендерить все ошибки массива вместо только первой.
+   * @default false
+   */
+  multi?: boolean;
+  /** Кастомный рендер на каждую ошибку. Когда задан — `multi` подразумевается. */
+  render?: (error: ValidationError, index: number) => ReactNode;
+  /** Переопределить содержимое (по умолчанию `errors[0].message` через резолвер). */
+  children?: ReactNode;
 }

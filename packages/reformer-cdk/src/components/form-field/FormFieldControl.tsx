@@ -69,8 +69,24 @@ export const FormFieldControl = forwardRef<HTMLElement, FormFieldControlProps>(
     };
 
     if (children || asChild) {
+      // asChild/children: подключаем поле к Slot ровно так же, как в авто-рендере —
+      // value/disabled + value-based onChange/onBlur (контракт контрола в библиотеке
+      // value-based, ср. useFormField.controlProps:163-173). Без этого кастомный input
+      // получает корректный ARIA, но остаётся полностью отсоединённым от FieldNode:
+      // ввод не обновляет поле, disabled игнорируется, ошибки не всплывают.
+      const fieldBindings: Record<string, unknown> = {
+        value,
+        disabled,
+        onChange: (v: unknown) => control.setValue(v as FormValue),
+        onBlur: () => control.markAsTouched(),
+      };
       return (
-        <Slot ref={ref} {...(accessibleProps as Record<string, unknown>)} {...props}>
+        <Slot
+          ref={ref}
+          {...(accessibleProps as Record<string, unknown>)}
+          {...(props as Record<string, unknown>)}
+          {...fieldBindings}
+        >
           {children}
         </Slot>
       );

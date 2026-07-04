@@ -1,6 +1,7 @@
-import { forwardRef } from 'react';
+import { forwardRef, useContext } from 'react';
+import { useFormControl } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
-import { useFormArrayItemContext } from './FormArrayContext';
+import { FormArrayContext, useFormArrayItemContext } from './FormArrayContext';
 import type { FormArrayRemoveButtonProps } from './types';
 
 /**
@@ -28,13 +29,29 @@ import type { FormArrayRemoveButtonProps } from './types';
  * ```
  */
 export const FormArrayRemoveButton = forwardRef<HTMLButtonElement, FormArrayRemoveButtonProps>(
-  ({ children, asChild = false, ...props }, ref) => {
+  ({ children, asChild = false, disabled, ...props }, ref) => {
     const { remove } = useFormArrayItemContext();
+    // Отражаем disabled-состояние родительского массива (доступно внутри FormArray.List →
+    // FormArray.Root). Читаем через сырой useContext, чтобы не бросать вне Root; при отсутствии
+    // контекста useFormControl(undefined) даёт disabled=false. После arrayNode.disable() массив
+    // структурно неизменяем, поэтому кнопка удаления должна быть отключена.
+    const arrayContext = useContext(FormArrayContext);
+    const { disabled: arrayDisabled } = useFormControl(arrayContext?.control);
+    const isDisabled = disabled || arrayDisabled;
 
     const Comp = asChild ? Slot : 'button';
 
     return (
-      <Comp ref={ref} type={asChild ? undefined : 'button'} onClick={remove} {...props}>
+      <Comp
+        ref={ref}
+        type={asChild ? undefined : 'button'}
+        disabled={isDisabled}
+        onClick={() => {
+          if (isDisabled) return;
+          remove();
+        }}
+        {...props}
+      >
         {children}
       </Comp>
     );

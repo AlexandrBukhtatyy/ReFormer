@@ -9,6 +9,7 @@ export { FormArrayRemoveButton } from './FormArrayRemoveButton';
 export { FormArrayEmpty } from './FormArrayEmpty';
 export { FormArrayCount } from './FormArrayCount';
 export { FormArrayItemIndex } from './FormArrayItemIndex';
+export { FormArrayError } from './FormArrayError';
 
 // Hook
 export { useFormArray } from './useFormArray';
@@ -32,6 +33,8 @@ export type {
   FormArrayEmptyProps,
   FormArrayCountProps,
   FormArrayItemIndexProps,
+  FormArrayErrorProps,
+  FormArrayControl,
 } from './types';
 
 export type {

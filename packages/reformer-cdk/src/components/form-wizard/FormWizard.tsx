@@ -19,6 +19,40 @@ import { FormWizardSubmit } from './FormWizardSubmit';
 import type { FormWizardHandle, FormWizardProps } from './types';
 
 /**
+ * Обрезает `completedSteps` при возврате к более раннему шагу `toStep`.
+ *
+ * Возврат назад = повторное редактирование шага `toStep`, поэтому его «завершённость»
+ * и завершённость всех последующих шагов устаревают (шаг может стать невалидным).
+ * Оставляем только шаги строго меньше `toStep` — тогда прыжок вперёд (guard в
+ * `goToStep`/`canNavigate` у Indicator доверяет `completedSteps`) снова потребует
+ * валидации, а не пропустит теперь-невалидный шаг.
+ *
+ * Экспортируется для модульных тестов навигации; в публичный API (`index.ts`) НЕ выведено.
+ *
+ * @internal
+ */
+export function pruneCompletedStepsOnBack(completedSteps: number[], toStep: number): number[] {
+  return completedSteps.filter((step) => step < toStep);
+}
+
+/**
+ * Инлайновые sr-only стили для live-региона объявления смены шага: элемент есть в DOM
+ * и доступен скринридерам, но не влияет на раскладку (headless-компонент не навязывает
+ * визуальных стилей потребителю).
+ */
+const srOnlyStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
+
+/**
  * FormWizard - Headless compound component for multi-step form navigation
  *
  * Uses Ref Handle Pattern to expose navigation methods via ref.
@@ -162,6 +196,9 @@ function FormWizardInner<T extends Record<string, any>>(
     if (currentStep > 1) {
       const prevStep = currentStep - 1;
       setCurrentStep(prevStep);
+      // Возврат назад инвалидирует завершённость редактируемого шага и всех последующих:
+      // иначе устаревший completedSteps позволяет прыгнуть вперёд через теперь-невалидный шаг.
+      setCompletedSteps((prev) => pruneCompletedStepsOnBack(prev, prevStep));
       onStepChange?.(prevStep);
 
       if (scrollToTop) {
@@ -176,6 +213,11 @@ function FormWizardInner<T extends Record<string, any>>(
       const canGoTo = step === 1 || completedSteps.includes(step - 1);
 
       if (canGoTo && step >= 1 && step <= totalSteps) {
+        // Прыжок назад к более раннему шагу = его повторное редактирование: инвалидируем
+        // завершённость этого и последующих шагов (симметрично goToPreviousStep).
+        if (step < currentStep) {
+          setCompletedSteps((prev) => pruneCompletedStepsOnBack(prev, step));
+        }
         setCurrentStep(step);
         onStepChange?.(step);
 
@@ -187,7 +229,7 @@ function FormWizardInner<T extends Record<string, any>>(
 
       return false;
     },
-    [completedSteps, totalSteps, onStepChange, scrollToTop]
+    [completedSteps, totalSteps, currentStep, onStepChange, scrollToTop]
   );
 
   // ============================================================================
@@ -338,6 +380,17 @@ function FormWizardInner<T extends Record<string, any>>(
   const wizardContextValue = contextValue as FormWizardContextValue<any>;
   return (
     <FormWizardContext.Provider value={wizardContextValue}>
+      {/*
+       * Polite live-region: озвучивает смену шага скринридерам («Step N of M»). Раньше
+       * единственным эффектом навигации был window.scrollTo — пользователи скринридеров
+       * не получали объявления о переходе. sr-only, вне потока, без влияния на раскладку.
+       * Управление фокусом (перевод фокуса на новый шаг/первое невалидное поле) остаётся
+       * за потребителем через onStepChange + ref-handle: контейнер шага рендерит
+       * FormWizard.Step, а не сам FormWizard.
+       */}
+      <div role="status" aria-live="polite" aria-atomic="true" style={srOnlyStyle}>
+        {`Step ${currentStep} of ${totalSteps}`}
+      </div>
       {childrenWithIndices}
     </FormWizardContext.Provider>
   );
