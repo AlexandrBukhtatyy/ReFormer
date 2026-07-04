@@ -128,7 +128,7 @@ function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptions
 }
 
 /** Props компонента {@link Select}. */
-export interface SelectProps<T> extends Omit<
+export interface SelectProps extends Omit<
   React.ComponentProps<typeof SelectPrimitive.Root>,
   'value' | 'onValueChange'
 > {
@@ -141,7 +141,7 @@ export interface SelectProps<T> extends Omit<
   /** Срабатывает при закрытии дропдауна (через `onOpenChange(false)`). */
   onBlur?: () => void;
   /** Асинхронный источник опций. Если задан вместе с `options`, приоритет у `options`. */
-  resource?: ResourceConfig<T>;
+  resource?: ResourceConfig<unknown>;
   /**
    * Inline-варианты. `value` приводится к строке. Опции с одинаковым `group`
    * объединяются в `SelectGroup` с `SelectLabel` (см. рецепт grouped options).
@@ -224,8 +224,7 @@ export interface SelectProps<T> extends Omit<
  */
 const Select = React.forwardRef<
   HTMLButtonElement,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  SelectProps<any> & { 'data-testid'?: string; 'aria-invalid'?: boolean | 'true' | 'false' }
+  SelectProps & { 'data-testid'?: string; 'aria-invalid'?: boolean | 'true' | 'false' }
 >(
   (
     {

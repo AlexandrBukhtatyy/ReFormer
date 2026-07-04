@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link Checkbox}. */
 export interface CheckboxProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange' | 'type'
+  'value' | 'onChange' | 'type' | 'checked' | 'defaultChecked'
 > {
   /** Дополнительный CSS-класс для самого input. */
   className?: string;

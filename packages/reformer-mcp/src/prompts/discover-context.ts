@@ -2,6 +2,7 @@ import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { detectProjectStack, renderStackDetectionBlockAsync } from '../utils/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
 import { isSamplingSupported, requestSampling } from '../utils/sampling.js';
+import { REFORMER_TARGETS, type ReformerTarget } from '../utils/sampling-helpers.js';
 
 export const discoverContextPromptDefinition = {
   name: 'discover-context',
@@ -22,7 +23,7 @@ export const discoverContextPromptDefinition = {
 };
 
 interface ContextRecommendation {
-  target: 'core' | 'renderer-react' | 'renderer-json';
+  target: ReformerTarget;
   uiKit: string | null;
   styling: string | null;
   validation: string | null;
@@ -30,11 +31,7 @@ interface ContextRecommendation {
   notes?: string;
 }
 
-const VALID_TARGETS: ReadonlyArray<ContextRecommendation['target']> = [
-  'core',
-  'renderer-react',
-  'renderer-json',
-];
+const VALID_TARGETS: ReadonlyArray<ReformerTarget> = REFORMER_TARGETS;
 
 function deterministicRecommendation(
   stack: ReturnType<typeof detectProjectStack>
@@ -94,7 +91,9 @@ export async function getDiscoverContextPrompt(
     if (result.ok) {
       try {
         const cleaned = result.text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
-        const parsed = JSON.parse(cleaned) as Partial<ContextRecommendation>;
+        // `?? {}` защищает от `JSON.parse('null')` → null-deref на `parsed.target` (примитивы дают
+        // undefined без исключения; только null бросал бы, но его ловил внешний catch).
+        const parsed = (JSON.parse(cleaned) ?? {}) as Partial<ContextRecommendation>;
         if (
           typeof parsed.target === 'string' &&
           (VALID_TARGETS as ReadonlyArray<string>).includes(parsed.target)

@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { Slot } from '../form-wizard/Slot';
 import { useFormFieldContext } from './FormFieldContext';
+import { useValidationErrorResolver } from '../../validation/error-resolver';
 import type { FormFieldErrorProps } from './types';
 
 /**
@@ -40,6 +41,8 @@ import type { FormFieldErrorProps } from './types';
 export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorProps>(
   ({ asChild = false, multi = false, render, children, ...props }, ref) => {
     const { shouldShowError, errors, ids } = useFormFieldContext();
+    // i18n: отображаем результат резолвера (ValidationMessagesProvider), а не сырой error.message.
+    const resolve = useValidationErrorResolver();
 
     if (!shouldShowError || errors.length === 0) return null;
 
@@ -72,7 +75,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
               role="alert"
               {...props}
             >
-              {err.message}
+              {resolve(err)}
             </Comp>
           ))}
         </>
@@ -81,7 +84,7 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
 
     return (
       <Comp ref={ref} id={ids.errorId} role="alert" {...props}>
-        {children ?? errors[0].message}
+        {children ?? resolve(errors[0])}
       </Comp>
     );
   }

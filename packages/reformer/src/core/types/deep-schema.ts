@@ -11,7 +11,7 @@
 
 import type { ComponentType } from 'react';
 import type { Signal } from '@preact/signals-core';
-import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './index';
+import type { ValidatorFn, AsyncValidatorFn, AnyFunction } from './index';
 
 // ============================================================================
 // Базовые типы
@@ -21,6 +21,13 @@ import type { ValidatorFn, AsyncValidatorFn, FormFields, AnyFunction } from './i
  * Конфигурация поля
  * @group Types
  * @category Configuration Types
+ * @remarks
+ * В схеме `createForm({ model, schema })` лист связывают через **`value: model.$.field`**: harvest
+ * ловит узел по идентичности `Signal` (`node.value instanceof Signal` — см. `create-form.ts`) и
+ * нормализует его в `valueSignal`. Писать `valueSignal:` **в самой схеме `createForm` нельзя** —
+ * harvest его не подхватит (проверка идёт по `node.value`), и `component`/`componentProps` этого
+ * узла молча отбросятся. `value`/`valueSignal` на прямом FieldNode-конфиге — это
+ * post-normalization / legacy-слой, а не форма записи в схеме `createForm`.
  */
 export interface FieldConfig<T> {
   /**
@@ -54,7 +61,9 @@ export interface FieldConfig<T> {
  * @group Types
  * @category Configuration Types
  */
-export interface ArrayConfig<T extends FormFields> {
+// `T extends object` (не `FormFields`): interface-модели не имеют неявной index-signature и
+// не assignable к Record<string, FormValue> — иначе ArrayConfig<SomeInterface> даёт ложную ошибку.
+export interface ArrayConfig<T extends object> {
   itemSchema: FormSchema<T>;
   initial?: Partial<T>[];
 }
@@ -64,12 +73,17 @@ export interface ArrayConfig<T extends FormFields> {
 // ============================================================================
 
 /**
- * Автоматически определяет тип схемы на основе TypeScript типа:
+ * **Data-shaped** конфиг формы: ключи повторяют структуру данных `T`, значения — {@link FieldConfig}
+ * (или вложенный `FormSchema`). Форма конфига, из которой строится {@link GroupNode}.
  * - `T[] -> [FormSchema<T>]` (массив с одним элементом)
  * - `object -> FormSchema<T>` (группа)
  * - `primitive -> FieldConfig<T>` (поле)
  *
- * Использует NonNullable для корректной обработки опциональных полей
+ * Использует NonNullable для корректной обработки опциональных полей.
+ *
+ * ⚠️ Не путать с {@link FormSchemaNode} — тот описывает **узел дерева** M1-схемы (лист/массив/
+ * контейнер), передаваемой в `createForm({ model, schema })`. `FormSchema` — это data-shaped конфиг
+ * (ключи = поля данных), а не узел дерева.
  *
  * @group Types
  * @category Configuration Types

@@ -25,7 +25,7 @@ import {
 function resolvePackage(short: string): string | null {
   if (!short) return null;
   const full = `@reformer/${short}`;
-  return listAvailablePackages().includes(full as never) ? full : null;
+  return (listAvailablePackages() as readonly string[]).includes(full) ? full : null;
 }
 
 function packageShortName(pkg: string): string {
@@ -80,6 +80,10 @@ import {
 
 // Check debug mode
 const isDebugMode = process.env.REFORMER_DEBUG === 'true';
+
+// Env config (set in the MCP server registration `.mcp.json` env, like REFORMER_DEBUG):
+//   REFORMER_FORM_LAYOUT = 'minimalist' (default) | 'folders'
+//     → default file layout the `create-form` prompt steers toward. Read in prompts/create-form.ts.
 
 // Server instance
 const server = new Server(

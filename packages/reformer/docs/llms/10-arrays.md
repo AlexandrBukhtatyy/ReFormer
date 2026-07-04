@@ -32,6 +32,39 @@ const form = createForm<MyForm>({ model, schema });
 > он не совместим с `Record<string, FormValue>` и `ArrayNode<Item>` его отвергнет.
 > См. `30-type-safety-recipes.md`.
 
+### Один массив — три слоя (три разных движка)
+
+Одна и та же коллекция описывается **тремя разными формами** — по одной на движок. Их легко
+перепутать, но каждая корректна только в своём контексте:
+
+1. **Layout-схема `createForm`** — единственная форма, которую ест `createForm`:
+   `{ array: model.<path>, item: (itemModel) => subSchema }`. Массив связывается через
+   **value-proxy** `model.properties` (он несёт `__path`), а **не** через сигнальный
+   `model.$.properties`.
+
+   ```typescript
+   // узел схемы для createForm({ model, schema })
+   properties: { array: model.properties, item: propertyItem },
+   ```
+
+2. **Validation-схема `validateFormModel`** — секция массива описывается через `componentProps`:
+   `{ componentProps: { control: model.<array>, itemComponent: (item) => subSchema } }`. Движок
+   узнаёт секцию по `componentProps.itemComponent` + `control` и обходит её per-item.
+
+   ```typescript
+   // узел схемы для validateFormModel(model, schema)
+   { componentProps: { control: model.properties, itemComponent: propertyRules } }
+   ```
+
+3. **CDK / render** — работают с уже **материализованной** нодой `form.<array>` (`ModelArrayNode`),
+   а не со схемой: `<FormArray.Root control={form.properties}>` (CDK) или `FormArraySection` из
+   `@reformer/ui-kit` (`control={form.properties}`, `itemComponent`).
+
+> **Не путай форму по движку.** `createForm` принимает **только** `{ array, item }`;
+> `componentProps.{ control, itemComponent }` — это форма validation-схемы; `FormArray.Root
+> control={form.x}` (или `FormArraySection`) — рендер. `control`/`itemComponent` в layout-схеме
+> `createForm` не подхватятся, а `{ array, item }` схема валидации не обходит.
+
 ### Array operations — на модели
 
 Мутации массива делаются через `ModelArray` (`model.items`), а не через ноду формы:
@@ -51,6 +84,16 @@ model.items.map((item, i) => item.name);             // item — FormModel<Item>
 > **Плоские значения при push.** В `push`/`insertAt` передавай payload из **плоских значений**
 > (`{ id, name, price }`), а НЕ FieldConfig-шаблон (`{ value, component }`). Component/componentProps
 > берутся из `item`-фабрики схемы автоматически.
+
+> **Очистка массива в behavior.** Тот же `model.<array>.clear()` (см. список операций выше) —
+> способ очистить коллекцию **вне React**, из behavior: он мутирует модель напрямую, минуя ноды
+> формы. Типичный случай — сбросить массив при выключении флага:
+>
+> ```typescript
+> onChange(model.$.hasProperty, (on) => {
+>   if (!on) model.properties.clear();
+> });
+> ```
 
 ### Rendering Arrays
 
@@ -103,3 +146,8 @@ const uniqueNames: ModelValidator<unknown, unknown, MyForm> = (_value, _scope, r
     : null;
 };
 ```
+
+## See also
+
+- [03-api-signatures.md](./03-api-signatures.md) — сигнатуры нод `form.<array>` / `ModelArray`, per-item обход `validateFormModel`
+- CDK / ui-kit form-array (`FormArray.Root`, `FormArraySection`) — `find_recipe(topic="form-array")`

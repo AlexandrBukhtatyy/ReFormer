@@ -10,8 +10,8 @@
  * См. docs/plans/atomic-meandering-wreath.md для деталей.
  */
 
-import type { FormFields, ValidationError } from './index';
-import type { FormProxy } from './form-proxy';
+import type { FormValue, ValidationError } from './index';
+import type { FormModel } from '../model/types';
 
 // ============================================================================
 // Validator types (чистые функции)
@@ -20,13 +20,24 @@ import type { FormProxy } from './form-proxy';
 /**
  * Чистый синхронный валидатор поля.
  *
- * Принимает значение поля, прокси текущего поля (control) и прокси корня формы (root).
- * Возвращает ValidationError либо null. Не знает про реестр валидации.
+ * Сигнатура зеркалит то, что реально вызывает движок M1
+ * (`validateModel`/`validateFormModel`/`validateModelSync`): `validator(value, scope, root)`.
+ * - `value` — значение поля (`TField`);
+ * - `scope` — ближайшая scope-**модель** (под-модель элемента массива или корень). Из `TForm`/`TField`
+ *   её тип не выводится, поэтому `unknown` — потребитель сужает сам (для типизированного scope
+ *   используйте {@link ModelValidator}`<TField, TScope, TForm>`);
+ * - `root` — корневая модель формы `FormModel<TForm>` (реактивный value-proxy: `root.field` читает
+ *   значение). Возвращает `ValidationError` либо `null`. Не знает про реестр валидации.
+ *
+ * Совместим с полем `validators` узла схемы (см. `SchemaValidator`) — там же лежат `ModelValidator`
+ * и `ValidatorFn`. Встроенные фабрики (`required()`/`email()`/…) возвращают `(value) => …` и
+ * дополнительные аргументы игнорируют.
  *
  * @example Кастомный валидатор в массиве `validators` поля схемы
  * ```typescript
- * const isAdult: Validator<MyForm, number> = (value, control, root) => {
+ * const isAdult: Validator<MyForm, number> = (value, _scope, root) => {
  *   if (value < 18) return { code: 'tooYoung', message: '18+' };
+ *   // root — FormModel<MyForm>: root.someOtherField читается как значение
  *   return null;
  * };
  *
@@ -40,19 +51,19 @@ import type { FormProxy } from './form-proxy';
  */
 export type Validator<TForm, TField> = (
   value: TField,
-  control: FormProxy<TField>,
-  root: FormProxy<TForm>
+  scope: unknown,
+  root: FormModel<TForm>
 ) => ValidationError | null;
 
 /**
- * Чистый асинхронный валидатор поля.
- *
- * Регистрируется через `validateAsync(path, validator, { debounce })`.
+ * Чистый асинхронный валидатор поля. Та же тройка аргументов `(value, scope, root)`, что у
+ * {@link Validator}, но возвращает `Promise`. Регистрируется через
+ * `validateAsync(path, validator, { debounce })`.
  */
 export type AsyncValidator<TForm, TField> = (
   value: TField,
-  control: FormProxy<TField>,
-  root: FormProxy<TForm>
+  scope: unknown,
+  root: FormModel<TForm>
 ) => Promise<ValidationError | null>;
 
 /**
@@ -71,7 +82,7 @@ export interface ValidateOptions {
   /** Сообщение об ошибке */
   message?: string;
   /** Параметры ошибки */
-  params?: FormFields;
+  params?: Record<string, FormValue>;
 }
 
 /**

@@ -350,6 +350,14 @@ const detailed = createPersonSchema({
 
 ## Recommended Folder Structure
 
+:::note App-level reuse, not per-form layout
+This layout is about **schemas reused across many forms** — the app-level `schemas/` /
+`validators/` / `behaviors/` directories below are shared building blocks, not the files that
+make up a single form module. For how one form's own files are organized (flat per-concern
+files by default, with a `form.` / `renderer.` dot-prefix on the schema and behavior files),
+see [Project Structure](/docs/patterns/project-structure).
+:::
+
 ```
 src/
 ├── forms/                    # Form instances

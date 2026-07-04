@@ -39,6 +39,40 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 > отследится и пересчёта не будет. Читай поля по отдельности (`model.field` или `model.$.field.value`).
 > `model.get()` — только вне реактивного контекста (в `onChange`, обработчиках событий).
 
+### Computed sum over a FormArray
+
+Агрегат по массиву (сумма доходов созаёмщиков и т.п.) считается **реактивно** через value-proxy
+массива — `model.<array>.map(...)`:
+
+```typescript
+compute(model.$.coBorrowersIncome, () =>
+  model.coBorrowers.map((cb) => cb.monthlyIncome ?? 0).reduce((s, v) => s + v, 0)
+);
+```
+
+Почему реактивно: `.map` читает сигнал самого массива (трекает `push`/`removeAt`/reorder) **и**
+внутри колбэка читает каждый `cb.<field>` (трекает правки элементов) → пересчёт срабатывает на оба
+вида изменений.
+
+Ключевой нюанс — **на каком proxy** живёт `.map`/`.reduce`(-via-`.map`):
+
+- **value-proxy `model.coBorrowers`** — есть `.map`/`.forEach`/`.at`/индексы (обходит элементы как
+  значения). Именно его читай в `compute`.
+- **signals-proxy `model.$.coBorrowers`** — только индексный доступ и `.length`, без `.map`. Для
+  агрегата не подходит.
+
+Если нужен только **счётчик** (пересчёт лишь на изменение длины, без чтения полей элементов) —
+`model.<array>.map(() => null)` (длина трекается, значения — нет):
+
+```typescript
+// зависит только от КОЛИЧЕСТВА элементов, не от их полей
+compute(model.$.interestRate, () => computeRate(model.properties.map(() => null).length));
+```
+
+> **Не агрегируй через `model.get()` / `model.<array>.peek()`** в `compute` — это нереактивный
+> снапшот массива, зависимость не отследится и сумма не пересчитается. Читай массив только через
+> value-proxy `model.<array>.map(...)`.
+
 ### computeFrom — явный список источников
 
 Когда нужен явный контроль зависимостей — `computeFrom(sources, target, fn)`. Значения

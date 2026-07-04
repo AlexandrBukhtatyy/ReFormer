@@ -2398,7 +2398,7 @@ Props компонента {@link Checkbox}.
 ```typescript
 export interface CheckboxProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange' | 'type'
+  'value' | 'onChange' | 'type' | 'checked' | 'defaultChecked'
 > {
   /** Дополнительный CSS-класс для самого input. */
   className?: string;
@@ -2578,6 +2578,28 @@ export function ErrorState({
 const { error } = useLoadCreditApplication(form, '1');
 if (error) {
 return <ErrorState error={error} onRetry={() => window.location.reload()} />;
+}
+```
+
+_Source: src/components/state/error-state.tsx_
+
+### ErrorStateProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface ErrorStateProps {
+  /** Текст ошибки, показывается под заголовком. */
+  error: string;
+  /** Заголовок блока ошибки. По умолчанию `'Ошибка загрузки'`. */
+  title?: string;
+  /** Колбэк повторной попытки. Если задан — рендерится кнопка «Повторить». */
+  onRetry?: () => void;
+  /** Подпись кнопки повтора. По умолчанию `'Повторить'`. */
+  retryLabel?: string;
+  /** Внешний CSS-класс контейнера. По умолчанию `'w-full'`. */
+  className?: string;
 }
 ```
 
@@ -3187,7 +3209,7 @@ import { Input } from '@reformer/ui-kit';
 <Input
 type="number"
 value={age}
-onChange={(v) => setAge(v as number | null)}
+onChange={setAge}
 min={0}
 placeholder="Возраст"
 />
@@ -3205,7 +3227,7 @@ return (
 type="email"
 value={value}
 disabled={disabled}
-onChange={(v) => control.setValue((v ?? '') as string)}
+onChange={(v) => control.setValue(v ?? '')}
 onBlur={() => control.markAsTouched()}
 aria-invalid={shouldShowError}
 placeholder={shouldShowError ? errors[0]?.message : 'you@example.com'}
@@ -3266,7 +3288,7 @@ Props компонента {@link InputMask}.
 ```typescript
 export interface InputMaskProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange'
+  'value' | 'onChange' | 'defaultValue'
 > {
   /** Дополнительный CSS-класс. */
   className?: string;
@@ -3341,7 +3363,7 @@ Props компонента {@link InputPassword}.
 ```typescript
 export interface InputPasswordProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange' | 'type'
+  'value' | 'onChange' | 'type' | 'defaultValue'
 > {
   /** Дополнительный CSS-класс. */
   className?: string;
@@ -3367,39 +3389,14 @@ _Source: src/components/ui/input-password.tsx_
 
 ### InputProps
 
-**Kind:** `interface`
+**Kind:** `type`
 
-Props компонента {@link Input}.
+Props компонента {@link Input} — дискриминированный union по `type`:
+`type="number"` даёт `number | null` для `value`/`onChange`, любой другой `type` — `string | null`.
 
 **Signature:**
 ```typescript
-export interface InputProps extends Omit<
-  React.InputHTMLAttributes<HTMLInputElement>,
-  'value' | 'onChange'
-> {
-  /** Дополнительный CSS-класс (мерджится с дефолтными Tailwind-классами через `tailwind-merge`). */
-  className?: string;
-  /**
-   * Текущее значение поля. Для `type='number'` ожидается `number | null`,
-   * для остальных — `string | null`. `null`/`undefined` рендерится как пустое поле.
-   */
-  value?: string | number | null;
-  /**
-   * Обработчик изменений. Получает уже распарсенное значение:
-   * - для `type='number'` — `number` или `null` (для пустой строки),
-   * - иначе — `string` или `null`.
-   * `NaN` не прокидывается. При `min >= 0` отрицательные значения превращаются в `0`.
-   */
-  onChange?: (value: string | number | null) => void;
-  /** Срабатывает при потере фокуса. Используется `FormField` для пометки `touched`. */
-  onBlur?: () => void;
-  /** HTML-тип input. Для `'number'` включается специальный парсинг значения. */
-  type?: 'text' | 'email' | 'number' | 'tel' | 'url' | 'password';
-  /** Подсказка внутри поля. */
-  placeholder?: string;
-  /** Блокирует ввод и редактирование. */
-  disabled?: boolean;
-}
+export type InputProps = NumberInputProps | TextInputProps;
 ```
 
 _Source: src/components/ui/input.tsx_
@@ -3432,6 +3429,24 @@ export function LoadingState({
 const { isLoading } = useLoadCreditApplication(form, '1');
 if (isLoading) {
 return <LoadingState />;
+}
+```
+
+_Source: src/components/state/loading-state.tsx_
+
+### LoadingStateProps
+
+**Kind:** `interface`
+
+**Signature:**
+```typescript
+export interface LoadingStateProps {
+  /** Основной текст. По умолчанию `'Загрузка данных...'`. */
+  title?: string;
+  /** Вспомогательный текст под спиннером. По умолчанию `'Пожалуйста, подождите'`. */
+  subtitle?: string;
+  /** Внешний CSS-класс контейнера. По умолчанию центрирует спиннер с отступами. */
+  className?: string;
 }
 ```
 
@@ -3887,7 +3902,7 @@ Props компонента {@link Select}.
 
 **Signature:**
 ```typescript
-export interface SelectProps<T> extends Omit<
+export interface SelectProps extends Omit<
   React.ComponentProps<typeof SelectPrimitive.Root>,
   'value' | 'onValueChange'
 > {
@@ -3900,7 +3915,7 @@ export interface SelectProps<T> extends Omit<
   /** Срабатывает при закрытии дропдауна (через `onOpenChange(false)`). */
   onBlur?: () => void;
   /** Асинхронный источник опций. Если задан вместе с `options`, приоритет у `options`. */
-  resource?: ResourceConfig<T>;
+  resource?: ResourceConfig<unknown>;
   /**
    * Inline-варианты. `value` приводится к строке. Опции с одинаковым `group`
    * объединяются в `SelectGroup` с `SelectLabel` (см. рецепт grouped options).
@@ -4151,7 +4166,7 @@ Props компонента {@link Textarea}.
 ```typescript
 export interface TextareaProps extends Omit<
   React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'value' | 'onChange'
+  'value' | 'onChange' | 'defaultValue'
 > {
   /** Дополнительный CSS-класс. */
   className?: string;

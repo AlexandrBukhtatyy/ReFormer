@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** Props компонента {@link Textarea}. */
 export interface TextareaProps extends Omit<
   React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'value' | 'onChange'
+  'value' | 'onChange' | 'defaultValue'
 > {
   /** Дополнительный CSS-класс. */
   className?: string;

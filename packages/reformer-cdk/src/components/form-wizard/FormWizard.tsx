@@ -8,7 +8,7 @@ import {
   isValidElement,
   cloneElement,
 } from 'react';
-import { FormWizardContext } from './FormWizardContext';
+import { FormWizardContext, type FormWizardContextValue } from './FormWizardContext';
 import { FormWizardStep } from './FormWizardStep';
 import { FormWizardIndicator } from './FormWizardIndicator';
 import { FormWizardActions } from './FormWizardActions';
@@ -333,8 +333,11 @@ function FormWizardInner<T extends Record<string, any>>(
 
   const childrenWithIndices = processChildren(children);
 
+  // Контекст хранит generic-erased `<any>` (FormProxy<T> ↛ FormProxy<any>); чтение — через useFormWizardContext<T>().
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wizardContextValue = contextValue as FormWizardContextValue<any>;
   return (
-    <FormWizardContext.Provider value={contextValue}>
+    <FormWizardContext.Provider value={wizardContextValue}>
       {childrenWithIndices}
     </FormWizardContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { findSymbol, type PublicSymbol } from '../utils/symbols-parser.js';
+import { findAllSymbols, type PublicSymbol } from '../utils/symbols-parser.js';
 import { KNOWN_PACKAGES } from '../utils/docs-parser.js';
 
 export const getSymbolDocsToolDefinition = {
@@ -32,8 +32,8 @@ export interface GetSymbolDocsArgs {
 export async function getSymbolDocsTool(
   args: GetSymbolDocsArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const sym = findSymbol(args.symbol, args.package ?? '*');
-  if (!sym) {
+  const matches = findAllSymbols(args.symbol, args.package ?? '*');
+  if (matches.length === 0) {
     return {
       content: [
         {
@@ -43,11 +43,25 @@ export async function getSymbolDocsTool(
       ],
     };
   }
+  let text = renderSymbol(matches[0]);
+  // Cross-package name collision (e.g. FormField in both cdk and ui-kit): the
+  // first match wins by KNOWN_PACKAGES order, which can hide the variant the
+  // consumer actually wants. Surface the alternatives so they can re-query.
+  if (matches.length > 1) {
+    const others = matches
+      .slice(1)
+      .map((m) => `\`${m.package}\``)
+      .join(', ');
+    text +=
+      `\n\n> ⚠️ Name collision: \`${args.symbol}\` is also exported by ${others}. ` +
+      `This doc is for \`${matches[0].package}\`. To read another variant, pass \`package\` — ` +
+      `e.g. \`get_symbol_docs(symbol="${args.symbol}", package="${matches[1].package}")\`.`;
+  }
   return {
     content: [
       {
         type: 'text',
-        text: renderSymbol(sym),
+        text,
       },
     ],
   };

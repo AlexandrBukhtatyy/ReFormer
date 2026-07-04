@@ -1,0 +1,1099 @@
+{
+  "version": "1.0",
+  "root": {
+    "selector": "wizard",
+    "component": "$component(Wizard)",
+    "componentProps": {
+      "className": "bg-white p-8 rounded-lg shadow-md",
+      "steps": [
+        {
+          "component": "$component(Step)",
+          "componentProps": { "title": "Кредит", "icon": "💰" },
+          "children": [
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Параметры кредита" },
+              "children": [
+                {
+                  "value": "$model(loanType)",
+                  "component": "$component(Select)",
+                  "componentProps": {
+                    "label": "Тип кредита",
+                    "testId": "loanType",
+                    "options": "$dataSource(LOAN_TYPES)"
+                  }
+                },
+                {
+                  "value": "$model(loanAmount)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Сумма кредита (₽)",
+                    "testId": "loanAmount",
+                    "type": "number",
+                    "step": 10000,
+                    "placeholder": "Введите сумму"
+                  }
+                },
+                {
+                  "value": "$model(loanTerm)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Срок кредита (месяцев)",
+                    "testId": "loanTerm",
+                    "type": "number",
+                    "placeholder": "Введите срок"
+                  }
+                },
+                {
+                  "value": "$model(loanPurpose)",
+                  "component": "$component(Textarea)",
+                  "componentProps": {
+                    "label": "Цель кредита",
+                    "testId": "loanPurpose",
+                    "rows": 3,
+                    "placeholder": "Опишите, на что планируете потратить средства"
+                  }
+                },
+                {
+                  "value": "$model(interestRate)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Процентная ставка (%)",
+                    "testId": "interestRate",
+                    "type": "number",
+                    "disabled": true
+                  }
+                },
+                {
+                  "value": "$model(monthlyPayment)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Ежемесячный платёж (₽)",
+                    "testId": "monthlyPayment",
+                    "type": "number",
+                    "disabled": true
+                  }
+                }
+              ]
+            },
+            {
+              "selector": "mortgage-section",
+              "component": "$component(Section)",
+              "componentProps": { "title": "Ипотека" },
+              "children": [
+                {
+                  "value": "$model(propertyValue)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Стоимость недвижимости (₽)",
+                    "testId": "propertyValue",
+                    "type": "number",
+                    "placeholder": "Введите стоимость"
+                  }
+                },
+                {
+                  "value": "$model(initialPayment)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Первоначальный взнос (₽)",
+                    "testId": "initialPayment",
+                    "type": "number",
+                    "disabled": true
+                  }
+                }
+              ]
+            },
+            {
+              "selector": "car-section",
+              "component": "$component(Section)",
+              "componentProps": { "title": "Автокредит" },
+              "children": [
+                {
+                  "value": "$model(carBrand)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Марка автомобиля",
+                    "testId": "carBrand",
+                    "placeholder": "Например: Toyota"
+                  }
+                },
+                {
+                  "value": "$model(carModel)",
+                  "component": "$component(Select)",
+                  "componentProps": {
+                    "label": "Модель автомобиля",
+                    "testId": "carModel",
+                    "options": [],
+                    "placeholder": "Выберите марку"
+                  }
+                },
+                {
+                  "value": "$model(carYear)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Год выпуска",
+                    "testId": "carYear",
+                    "type": "number",
+                    "min": 2000,
+                    "max": "$dataSource(CURRENT_YEAR_PLUS_ONE)",
+                    "placeholder": "2020"
+                  }
+                },
+                {
+                  "value": "$model(carPrice)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Стоимость автомобиля (₽)",
+                    "testId": "carPrice",
+                    "type": "number",
+                    "placeholder": "Введите стоимость"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "component": "$component(Step)",
+          "componentProps": { "title": "Данные", "icon": "🧑" },
+          "children": [
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Личные данные" },
+              "children": [
+                {
+                  "value": "$model(personalData.lastName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Фамилия",
+                    "testId": "personalData-lastName",
+                    "placeholder": "Введите фамилию"
+                  }
+                },
+                {
+                  "value": "$model(personalData.firstName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Имя",
+                    "testId": "personalData-firstName",
+                    "placeholder": "Введите имя"
+                  }
+                },
+                {
+                  "value": "$model(personalData.middleName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Отчество",
+                    "testId": "personalData-middleName",
+                    "placeholder": "Введите отчество"
+                  }
+                },
+                {
+                  "value": "$model(personalData.birthDate)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Дата рождения",
+                    "testId": "personalData-birthDate",
+                    "type": "date"
+                  }
+                },
+                {
+                  "value": "$model(personalData.gender)",
+                  "component": "$component(RadioGroup)",
+                  "componentProps": {
+                    "label": "Пол",
+                    "testId": "personalData-gender",
+                    "options": "$dataSource(GENDERS)"
+                  }
+                },
+                {
+                  "value": "$model(personalData.birthPlace)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Место рождения",
+                    "testId": "personalData-birthPlace",
+                    "placeholder": "Введите место рождения"
+                  }
+                },
+                {
+                  "value": "$model(fullName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Полное имя",
+                    "testId": "fullName",
+                    "disabled": true
+                  }
+                },
+                {
+                  "value": "$model(age)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Возраст (лет)",
+                    "testId": "age",
+                    "type": "number",
+                    "disabled": true
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Паспортные данные" },
+              "children": [
+                {
+                  "value": "$model(passportData.series)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Серия паспорта",
+                    "testId": "passportData-series",
+                    "mask": "99 99",
+                    "placeholder": "12 34"
+                  }
+                },
+                {
+                  "value": "$model(passportData.number)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Номер паспорта",
+                    "testId": "passportData-number",
+                    "mask": "999999",
+                    "placeholder": "123456"
+                  }
+                },
+                {
+                  "value": "$model(passportData.issueDate)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Дата выдачи",
+                    "testId": "passportData-issueDate",
+                    "type": "date"
+                  }
+                },
+                {
+                  "value": "$model(passportData.issuedBy)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Кем выдан",
+                    "testId": "passportData-issuedBy",
+                    "placeholder": "Введите название органа"
+                  }
+                },
+                {
+                  "value": "$model(passportData.departmentCode)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Код подразделения",
+                    "testId": "passportData-departmentCode",
+                    "mask": "999-999",
+                    "placeholder": "123-456"
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Документы" },
+              "children": [
+                {
+                  "value": "$model(inn)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "ИНН",
+                    "testId": "inn",
+                    "mask": "999999999999",
+                    "placeholder": "123456789012"
+                  }
+                },
+                {
+                  "value": "$model(snils)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "СНИЛС",
+                    "testId": "snils",
+                    "mask": "999-999-999 99",
+                    "placeholder": "123-456-789 00"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "component": "$component(Step)",
+          "componentProps": { "title": "Контакты", "icon": "📞" },
+          "children": [
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Связь" },
+              "children": [
+                {
+                  "value": "$model(phoneMain)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Основной телефон",
+                    "testId": "phoneMain",
+                    "mask": "+7 (999) 999-99-99",
+                    "placeholder": "+7 (___) ___-__-__"
+                  }
+                },
+                {
+                  "value": "$model(phoneAdditional)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Дополнительный телефон",
+                    "testId": "phoneAdditional",
+                    "mask": "+7 (999) 999-99-99",
+                    "placeholder": "+7 (___) ___-__-__"
+                  }
+                },
+                {
+                  "value": "$model(email)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Email",
+                    "testId": "email",
+                    "type": "email",
+                    "placeholder": "example@mail.com"
+                  }
+                },
+                {
+                  "value": "$model(sameEmail)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Дополнительный email совпадает с основным",
+                    "testId": "sameEmail"
+                  }
+                },
+                {
+                  "value": "$model(emailAdditional)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Дополнительный email",
+                    "testId": "emailAdditional",
+                    "type": "email",
+                    "placeholder": "example@mail.com"
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Адрес регистрации" },
+              "children": [
+                {
+                  "value": "$model(registrationAddress.region)",
+                  "component": "$component(Select)",
+                  "componentProps": {
+                    "label": "Регион",
+                    "testId": "registrationAddress-region",
+                    "options": "$dataSource(REGIONS)"
+                  }
+                },
+                {
+                  "value": "$model(registrationAddress.city)",
+                  "component": "$component(Select)",
+                  "componentProps": {
+                    "label": "Город",
+                    "testId": "registrationAddress-city",
+                    "options": [],
+                    "placeholder": "Выберите регион"
+                  }
+                },
+                {
+                  "value": "$model(registrationAddress.street)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Улица",
+                    "testId": "registrationAddress-street",
+                    "placeholder": "Введите улицу"
+                  }
+                },
+                {
+                  "value": "$model(registrationAddress.house)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Дом",
+                    "testId": "registrationAddress-house",
+                    "placeholder": "№"
+                  }
+                },
+                {
+                  "value": "$model(registrationAddress.apartment)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Квартира",
+                    "testId": "registrationAddress-apartment",
+                    "placeholder": "№"
+                  }
+                },
+                {
+                  "value": "$model(registrationAddress.postalCode)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Индекс",
+                    "testId": "registrationAddress-postalCode",
+                    "mask": "999999",
+                    "placeholder": "000000"
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Адрес проживания" },
+              "children": [
+                {
+                  "value": "$model(sameAsRegistration)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Совпадает с адресом регистрации",
+                    "testId": "sameAsRegistration"
+                  }
+                },
+                {
+                  "selector": "residence-section",
+                  "component": "$component(Section)",
+                  "componentProps": { "title": "Фактический адрес проживания" },
+                  "children": [
+                    {
+                      "value": "$model(residenceAddress.region)",
+                      "component": "$component(Select)",
+                      "componentProps": {
+                        "label": "Регион",
+                        "testId": "residenceAddress-region",
+                        "options": "$dataSource(REGIONS)"
+                      }
+                    },
+                    {
+                      "value": "$model(residenceAddress.city)",
+                      "component": "$component(Select)",
+                      "componentProps": {
+                        "label": "Город",
+                        "testId": "residenceAddress-city",
+                        "options": [],
+                        "placeholder": "Выберите регион"
+                      }
+                    },
+                    {
+                      "value": "$model(residenceAddress.street)",
+                      "component": "$component(Input)",
+                      "componentProps": {
+                        "label": "Улица",
+                        "testId": "residenceAddress-street",
+                        "placeholder": "Введите улицу"
+                      }
+                    },
+                    {
+                      "value": "$model(residenceAddress.house)",
+                      "component": "$component(Input)",
+                      "componentProps": {
+                        "label": "Дом",
+                        "testId": "residenceAddress-house",
+                        "placeholder": "№"
+                      }
+                    },
+                    {
+                      "value": "$model(residenceAddress.apartment)",
+                      "component": "$component(Input)",
+                      "componentProps": {
+                        "label": "Квартира",
+                        "testId": "residenceAddress-apartment",
+                        "placeholder": "№"
+                      }
+                    },
+                    {
+                      "value": "$model(residenceAddress.postalCode)",
+                      "component": "$component(InputMask)",
+                      "componentProps": {
+                        "label": "Индекс",
+                        "testId": "residenceAddress-postalCode",
+                        "mask": "999999",
+                        "placeholder": "000000"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "component": "$component(Step)",
+          "componentProps": { "title": "Работа", "icon": "💼" },
+          "children": [
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Занятость" },
+              "children": [
+                {
+                  "value": "$model(employmentStatus)",
+                  "component": "$component(RadioGroup)",
+                  "componentProps": {
+                    "label": "Статус занятости",
+                    "testId": "employmentStatus",
+                    "options": "$dataSource(EMPLOYMENT_STATUSES)"
+                  }
+                }
+              ]
+            },
+            {
+              "selector": "employed-section",
+              "component": "$component(Section)",
+              "componentProps": { "title": "Работа по найму" },
+              "children": [
+                {
+                  "value": "$model(companyName)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Название компании",
+                    "testId": "companyName",
+                    "placeholder": "Введите название"
+                  }
+                },
+                {
+                  "value": "$model(companyInn)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "ИНН компании",
+                    "testId": "companyInn",
+                    "mask": "9999999999",
+                    "placeholder": "1234567890"
+                  }
+                },
+                {
+                  "value": "$model(companyPhone)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Телефон компании",
+                    "testId": "companyPhone",
+                    "mask": "+7 (999) 999-99-99",
+                    "placeholder": "+7 (___) ___-__-__"
+                  }
+                },
+                {
+                  "value": "$model(companyAddress)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Адрес компании",
+                    "testId": "companyAddress",
+                    "placeholder": "Полный адрес"
+                  }
+                },
+                {
+                  "value": "$model(position)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Должность",
+                    "testId": "position",
+                    "placeholder": "Ваша должность"
+                  }
+                }
+              ]
+            },
+            {
+              "selector": "self-employed-section",
+              "component": "$component(Section)",
+              "componentProps": { "title": "Индивидуальный предприниматель" },
+              "children": [
+                {
+                  "value": "$model(businessType)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Тип бизнеса",
+                    "testId": "businessType",
+                    "placeholder": "ИП, ООО и т.д."
+                  }
+                },
+                {
+                  "value": "$model(businessInn)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "ИНН ИП",
+                    "testId": "businessInn",
+                    "mask": "999999999999",
+                    "placeholder": "123456789012"
+                  }
+                },
+                {
+                  "value": "$model(businessActivity)",
+                  "component": "$component(Textarea)",
+                  "componentProps": {
+                    "label": "Вид деятельности",
+                    "testId": "businessActivity",
+                    "rows": 2,
+                    "placeholder": "Опишите вид деятельности"
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Стаж и доход" },
+              "children": [
+                {
+                  "value": "$model(workExperienceTotal)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Общий стаж работы (месяцев)",
+                    "testId": "workExperienceTotal",
+                    "type": "number",
+                    "min": 0
+                  }
+                },
+                {
+                  "value": "$model(workExperienceCurrent)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Стаж на текущем месте (месяцев)",
+                    "testId": "workExperienceCurrent",
+                    "type": "number",
+                    "min": 0
+                  }
+                },
+                {
+                  "value": "$model(monthlyIncome)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Ежемесячный доход (₽)",
+                    "testId": "monthlyIncome",
+                    "type": "number",
+                    "min": 0
+                  }
+                },
+                {
+                  "value": "$model(additionalIncome)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Дополнительный доход (₽)",
+                    "testId": "additionalIncome",
+                    "type": "number",
+                    "min": 0
+                  }
+                },
+                {
+                  "value": "$model(additionalIncomeSource)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Источник дополнительного дохода",
+                    "testId": "additionalIncomeSource",
+                    "placeholder": "Опишите источник"
+                  }
+                },
+                {
+                  "value": "$model(totalIncome)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Общий доход (₽)",
+                    "testId": "totalIncome",
+                    "type": "number",
+                    "disabled": true
+                  }
+                },
+                {
+                  "value": "$model(paymentToIncomeRatio)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Процент платежа от дохода (%)",
+                    "testId": "paymentToIncomeRatio",
+                    "type": "number",
+                    "disabled": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "component": "$component(Step)",
+          "componentProps": { "title": "Дополнительно", "icon": "📋" },
+          "children": [
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Личное" },
+              "children": [
+                {
+                  "value": "$model(maritalStatus)",
+                  "component": "$component(RadioGroup)",
+                  "componentProps": {
+                    "label": "Семейное положение",
+                    "testId": "maritalStatus",
+                    "options": "$dataSource(MARITAL_STATUSES)"
+                  }
+                },
+                {
+                  "value": "$model(dependents)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Количество иждивенцев",
+                    "testId": "dependents",
+                    "type": "number",
+                    "min": 0,
+                    "max": 10
+                  }
+                },
+                {
+                  "value": "$model(education)",
+                  "component": "$component(Select)",
+                  "componentProps": {
+                    "label": "Образование",
+                    "testId": "education",
+                    "options": "$dataSource(EDUCATION_LEVELS)"
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Имущество" },
+              "children": [
+                {
+                  "value": "$model(hasProperty)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": { "label": "У меня есть имущество", "testId": "hasProperty" }
+                },
+                {
+                  "selector": "properties-section",
+                  "array": "$model(properties)",
+                  "initialValue": {
+                    "type": "apartment",
+                    "description": "",
+                    "estimatedValue": 0,
+                    "hasEncumbrance": false
+                  },
+                  "componentProps": {
+                    "title": "Объекты имущества",
+                    "addButtonLabel": "+ Добавить имущество",
+                    "emptyMessage": "Нажмите «Добавить имущество», чтобы добавить запись",
+                    "itemLabel": "$dataSource(PROPERTY_ITEM_LABEL)"
+                  },
+                  "item": {
+                    "$template": {
+                      "component": "$component(Box)",
+                      "componentProps": { "className": "space-y-3" },
+                      "children": [
+                        {
+                          "value": "$model(type)",
+                          "component": "$component(Select)",
+                          "componentProps": {
+                            "label": "Тип имущества",
+                            "testId": "type",
+                            "options": "$dataSource(PROPERTY_TYPES)"
+                          }
+                        },
+                        {
+                          "value": "$model(description)",
+                          "component": "$component(Textarea)",
+                          "componentProps": {
+                            "label": "Описание",
+                            "testId": "description",
+                            "rows": 2,
+                            "placeholder": "Опишите имущество"
+                          }
+                        },
+                        {
+                          "value": "$model(estimatedValue)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Оценочная стоимость (₽)",
+                            "testId": "estimatedValue",
+                            "type": "number",
+                            "min": 0
+                          }
+                        },
+                        {
+                          "value": "$model(hasEncumbrance)",
+                          "component": "$component(Checkbox)",
+                          "componentProps": {
+                            "label": "Имеется обременение (залог)",
+                            "testId": "hasEncumbrance"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Действующие кредиты" },
+              "children": [
+                {
+                  "value": "$model(hasExistingLoans)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "У меня есть другие кредиты",
+                    "testId": "hasExistingLoans"
+                  }
+                },
+                {
+                  "selector": "loans-section",
+                  "array": "$model(existingLoans)",
+                  "initialValue": {
+                    "bank": "",
+                    "type": "",
+                    "amount": 0,
+                    "remainingAmount": 0,
+                    "monthlyPayment": 0,
+                    "maturityDate": ""
+                  },
+                  "componentProps": {
+                    "title": "Кредиты",
+                    "addButtonLabel": "+ Добавить кредит",
+                    "emptyMessage": "Нажмите «Добавить кредит», чтобы добавить запись",
+                    "itemLabel": "$dataSource(LOAN_ITEM_LABEL)"
+                  },
+                  "item": {
+                    "$template": {
+                      "component": "$component(Box)",
+                      "componentProps": { "className": "space-y-3" },
+                      "children": [
+                        {
+                          "value": "$model(bank)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Банк",
+                            "testId": "bank",
+                            "placeholder": "Название банка"
+                          }
+                        },
+                        {
+                          "value": "$model(type)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Тип кредита",
+                            "testId": "type",
+                            "placeholder": "Тип кредита"
+                          }
+                        },
+                        {
+                          "value": "$model(amount)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Сумма кредита (₽)",
+                            "testId": "amount",
+                            "type": "number",
+                            "min": 0
+                          }
+                        },
+                        {
+                          "value": "$model(remainingAmount)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Остаток задолженности (₽)",
+                            "testId": "remainingAmount",
+                            "type": "number",
+                            "min": 0
+                          }
+                        },
+                        {
+                          "value": "$model(monthlyPayment)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Ежемесячный платёж (₽)",
+                            "testId": "monthlyPayment",
+                            "type": "number",
+                            "min": 0
+                          }
+                        },
+                        {
+                          "value": "$model(maturityDate)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Дата погашения",
+                            "testId": "maturityDate",
+                            "type": "date"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Созаёмщики" },
+              "children": [
+                {
+                  "value": "$model(hasCoBorrower)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": { "label": "Добавить созаёмщика", "testId": "hasCoBorrower" }
+                },
+                {
+                  "selector": "coborrowers-section",
+                  "array": "$model(coBorrowers)",
+                  "initialValue": {
+                    "personalData": { "lastName": "", "firstName": "", "middleName": "" },
+                    "phone": "",
+                    "email": "",
+                    "relationship": "",
+                    "monthlyIncome": 0
+                  },
+                  "componentProps": {
+                    "title": "Созаёмщики",
+                    "addButtonLabel": "+ Добавить созаёмщика",
+                    "emptyMessage": "Нажмите «Добавить созаёмщика», чтобы добавить запись",
+                    "itemLabel": "$dataSource(CO_BORROWER_ITEM_LABEL)"
+                  },
+                  "item": {
+                    "$template": {
+                      "component": "$component(Box)",
+                      "componentProps": { "className": "space-y-3" },
+                      "children": [
+                        {
+                          "value": "$model(personalData.lastName)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Фамилия",
+                            "testId": "personalData-lastName",
+                            "placeholder": "Введите фамилию"
+                          }
+                        },
+                        {
+                          "value": "$model(personalData.firstName)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Имя",
+                            "testId": "personalData-firstName",
+                            "placeholder": "Введите имя"
+                          }
+                        },
+                        {
+                          "value": "$model(personalData.middleName)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Отчество",
+                            "testId": "personalData-middleName",
+                            "placeholder": "Введите отчество"
+                          }
+                        },
+                        {
+                          "value": "$model(phone)",
+                          "component": "$component(InputMask)",
+                          "componentProps": {
+                            "label": "Телефон",
+                            "testId": "phone",
+                            "mask": "+7 (999) 999-99-99",
+                            "placeholder": "+7 (___) ___-__-__"
+                          }
+                        },
+                        {
+                          "value": "$model(email)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Email",
+                            "testId": "email",
+                            "type": "email",
+                            "placeholder": "example@mail.com"
+                          }
+                        },
+                        {
+                          "value": "$model(relationship)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Родство",
+                            "testId": "relationship",
+                            "placeholder": "Укажите родство"
+                          }
+                        },
+                        {
+                          "value": "$model(monthlyIncome)",
+                          "component": "$component(Input)",
+                          "componentProps": {
+                            "label": "Ежемесячный доход (₽)",
+                            "testId": "monthlyIncome",
+                            "type": "number",
+                            "min": 0
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "value": "$model(coBorrowersIncome)",
+                  "component": "$component(Input)",
+                  "componentProps": {
+                    "label": "Доход созаёмщиков (₽)",
+                    "testId": "coBorrowersIncome",
+                    "type": "number",
+                    "disabled": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "component": "$component(Step)",
+          "componentProps": { "title": "Подтверждение", "icon": "✅" },
+          "children": [
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Согласия" },
+              "children": [
+                {
+                  "value": "$model(agreePersonalData)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Согласие на обработку персональных данных",
+                    "testId": "agreePersonalData"
+                  }
+                },
+                {
+                  "value": "$model(agreeCreditHistory)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Согласие на проверку кредитной истории",
+                    "testId": "agreeCreditHistory"
+                  }
+                },
+                {
+                  "value": "$model(agreeMarketing)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Согласие на получение маркетинговых материалов",
+                    "testId": "agreeMarketing"
+                  }
+                },
+                {
+                  "value": "$model(agreeTerms)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Согласие с условиями кредитования",
+                    "testId": "agreeTerms"
+                  }
+                }
+              ]
+            },
+            {
+              "component": "$component(Section)",
+              "componentProps": { "title": "Подтверждение" },
+              "children": [
+                {
+                  "value": "$model(confirmAccuracy)",
+                  "component": "$component(Checkbox)",
+                  "componentProps": {
+                    "label": "Подтверждаю точность введённых данных",
+                    "testId": "confirmAccuracy"
+                  }
+                },
+                {
+                  "value": "$model(electronicSignature)",
+                  "component": "$component(InputMask)",
+                  "componentProps": {
+                    "label": "Код подтверждения из СМС",
+                    "testId": "electronicSignature",
+                    "mask": "999999",
+                    "placeholder": "123456"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

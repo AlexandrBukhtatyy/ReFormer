@@ -16,7 +16,7 @@
 import { createRef, createContext, useContext, useCallback } from 'react';
 import { useSyncExternalStore } from 'react';
 import type { RefObject } from 'react';
-import { signal, type Signal } from '@preact/signals-core';
+import { signal, type Signal } from '@reformer/core/signals';
 import type { RenderSchemaFn } from './types';
 
 const PROXY_MARKER = Symbol('RenderSchemaProxy');

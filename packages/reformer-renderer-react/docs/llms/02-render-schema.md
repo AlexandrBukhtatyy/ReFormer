@@ -5,7 +5,7 @@
 Единая схема (M1): одно дерево `RenderNode` описывает и layout, и привязку полей к модели. Привязка идёт через **сигналы модели** (`model.$.<field>`), а не через отдельный `path`-прокси.
 
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
-- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`).
+- **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)).
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
 - **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент, дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`).
 
@@ -57,7 +57,7 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
 };
 ```
 
-### Массив модели
+### Массив модели { #array }
 
 Узел-массив: `array` — реактивный массив модели, `item(itemModel)` строит поддерево по под-модели элемента, `initialValue` — фабрика нового элемента для кнопки «Добавить». Оформление секции (заголовок, кнопки, empty-message, reorder) — в `componentProps`:
 
@@ -87,6 +87,29 @@ const coBorrowersNode = {
 ```
 
 Внутри `item` листья привязываются к сигналам **под-модели** элемента (`im.$.<field>`). Per-item форму создаёт `ModelArrayNode`, материализованный `createForm` — рендерер итерирует элементы и рисует поддерево для каждого.
+
+**Top-level свойства узла** (не в `componentProps`): `array` (реактивный массив модели), `item(itemModel)` (схема элемента), `initialValue` (значение/фабрика нового элемента), `selector` (для behavior/override).
+
+**Привязка `array` — это `model.<path>` (value-доступ), НЕ `model.$.<path>`** (напр. `array: model.coBorrowers`). Один нюанс типов: рантайм-массив совместим с требуемым `RenderModelArrayControl`, но в публичном типе `ModelArray<U>` не объявлен `__path`, поэтому под строгим контекстом узла TS даёт `TS2741: Property '__path' is missing in type 'ModelArray<T>'`. Канон (golden `complex-multy-step-form-renderer/render-schema.ts`) — билдер строит дерево и в конце кастует его `as unknown as RenderNode<T>`; привязка при этом остаётся `array: model.<path>`. Каст также снимает лишние проверки для листьев-полей.
+
+**Полный контракт `componentProps`** нативной array-ноды (`ModelArraySectionRenderer`) — других полей нет:
+
+| prop | default |
+|---|---|
+| `title?: string` | — |
+| `addButtonLabel?: string` | `'+ Добавить'` |
+| `removeButtonLabel?: string` | `'Удалить'` |
+| `emptyMessage?: string` | — (показ при `length === 0`) |
+| `itemLabel?: string \| ((im, i) => string)` | — (string → `` `${itemLabel} #${i + 1}` ``) |
+| `reorderable?: boolean` | `false` (кнопки ↑/↓, `disabled` на концах) |
+| `className?: string` | `'space-y-3 mt-2'` |
+| `cardClassName?: string` | `'mb-4 p-4 bg-white rounded border'` |
+
+**`maxItems` и `showRemoveOnSingle` НЕ существуют.** Это выдуманные props — рендерер их игнорирует. Кнопка «Удалить» авто-скрывается, когда `length <= 1` (hardcoded `const showRemove = length > 1`), настроить это нельзя. Чтобы ограничить количество элементов — используй behavior (`hideWhen` на add-аффордансе или guard в `initialValue`), а не проп.
+
+Нативная `ArrayRenderNode` (`{ array, item }`) — канон для render-schema пути (одинаково для renderer-react и renderer-json; golden — `complex-multy-step-form-renderer/render-schema.ts`); `FormArraySection` из [ui-kit](../../../reformer-ui-kit/docs/llms/08-form-array-section.md) и `FormArray` из [cdk](../../../reformer-cdk/docs/llms/02-form-array.md) — для рукописного JSX. Они параллельны, а не конкурируют: array-нода описывает массив декларативно в дереве, compound-компоненты собирают его руками.
+
+Testid-конвенции секции (для e2e): `array-add`, `array-item-{i}`, `array-item-{i}-remove`, `array-item-{i}-move-up`, `array-item-{i}-move-down`.
 
 ## Programmatic API
 
@@ -121,4 +144,5 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 
 - [01-overview.md](01-overview.md) — mount-путь и `FormRenderer`.
 - [03-render-behavior.md](03-render-behavior.md) — `hideWhen`, `renderEffect`, lifecycle.
+- [06-validation.md](06-validation.md) — валидация значений отдельной model-схемой (у RenderNode нет `validators`).
 - [04-troubleshooting.md](04-troubleshooting.md).

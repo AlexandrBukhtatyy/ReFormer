@@ -2,7 +2,6 @@ import { useCallback, useRef } from 'react';
 import { useSyncExternalStore } from 'use-sync-external-store/shim';
 import { effect } from '@preact/signals-core';
 import type { ArrayNode } from '../core/nodes/array-node';
-import type { FormFields } from '../core/types';
 
 /**
  * React-хук для подписки только на длину массива.
@@ -32,7 +31,7 @@ import type { FormFields } from '../core/types';
  *
  * @group React Hooks
  */
-export function useArrayLength<T extends FormFields>(control: ArrayNode<T>): number {
+export function useArrayLength<T extends object>(control: ArrayNode<T>): number {
   const cacheRef = useRef<{ length: number }>({ length: control.length.value });
 
   const subscribe = useCallback(

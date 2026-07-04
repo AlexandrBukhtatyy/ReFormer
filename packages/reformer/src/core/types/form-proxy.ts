@@ -51,9 +51,11 @@ type IsGroupObject<V> =
     ? false
     : V extends Date | File | Blob
       ? false
-      : V extends object
-        ? true
-        : false;
+      : V extends (...args: never[]) => unknown
+        ? false // функции — листья (как в deep-schema), а не вложенные группы
+        : V extends object
+          ? true
+          : false;
 
 /**
  * Мапит тип модели данных T на правильные типы узлов формы

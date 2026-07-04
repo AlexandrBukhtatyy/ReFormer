@@ -32,6 +32,22 @@ export type PathAwareSignal<T> = Signal<T> & {
 type Opaque = Date | File | Blob;
 
 /**
+ * Фасад элемента массива при обходе (`at`/`map`/`forEach`): массив → {@link ModelArray},
+ * Opaque (Date/File/Blob) и примитив → значение, объект → под-модель {@link FormModel}.
+ * Зеркалит листовой/объектный сплит {@link ModelValue} (но объект → под-модель с API),
+ * чтобы `files: File[]`/`dates: Date[]`/вложенные массивы не мис-типизировались как `FormModel`.
+ * @internal
+ */
+type ModelArrayItem<U> =
+  NonNullable<U> extends ReadonlyArray<infer E>
+    ? ModelArray<E>
+    : NonNullable<U> extends Opaque
+      ? U
+      : NonNullable<U> extends object
+        ? FormModel<NonNullable<U>>
+        : U;
+
+/**
  * Значение поля в value-доступе модели:
  * - массив → {@link ModelArray}
  * - спец-объект (Date/File/Blob) → как есть
@@ -66,6 +82,11 @@ export type ModelObject<T> = {
  * @group Model
  */
 export interface ModelArray<U> {
+  /**
+   * Путь массива в модели (dot-нотация). Предоставляется рантаймом (value-прокси) и требуется
+   * рендер-слою для резолва узла массива (напр. `ArrayRenderNode` в `@reformer/renderer-react`).
+   */
+  readonly __path: string;
   /** Реактивная длина. */
   readonly length: number;
   /** Добавить элемент в конец (значение элемента целиком). */
@@ -80,12 +101,14 @@ export interface ModelArray<U> {
   swap(a: number, b: number): void;
   /** Очистить массив. */
   clear(): void;
-  /** Под-модель элемента по индексу (для объектных элементов) или значение (для примитивных). */
-  at(index: number): U extends object ? FormModel<U> : U | undefined;
-  /** Map по элементам: объектные → {@link FormModel}, примитивные → значение. */
-  map<R>(fn: (item: U extends object ? FormModel<U> : U, index: number) => R): R[];
-  /** Итерация по элементам. */
-  forEach(fn: (item: U extends object ? FormModel<U> : U, index: number) => void): void;
+  /** Элемент по индексу: объект → под-модель, массив → {@link ModelArray}, лист → значение. */
+  at(
+    index: number
+  ): NonNullable<U> extends object ? ModelArrayItem<U> : ModelArrayItem<U> | undefined;
+  /** Map по элементам (объект → {@link FormModel}, Opaque/примитив → значение, массив → {@link ModelArray}). */
+  map<R>(fn: (item: ModelArrayItem<U>, index: number) => R): R[];
+  /** Итерация по элементам (см. {@link ModelArrayItem}). */
+  forEach(fn: (item: ModelArrayItem<U>, index: number) => void): void;
   /** Снимок массива значений (без подписки). */
   toArray(): U[];
   /** Индексный value-доступ. */
@@ -99,14 +122,24 @@ export interface ModelArray<U> {
  * @group Model
  */
 export type ModelSignals<T> = {
-  [K in keyof T]: NonNullable<T[K]> extends ReadonlyArray<infer U>
-    ? { readonly length: number; readonly [index: number]: ModelSignals<U & object> }
-    : NonNullable<T[K]> extends Opaque
-      ? PathAwareSignal<T[K]>
-      : NonNullable<T[K]> extends object
-        ? ModelSignals<NonNullable<T[K]>>
-        : PathAwareSignal<T[K]>;
+  [K in keyof T]: ModelSignalNode<T[K]>;
 };
+
+/**
+ * Узел дерева сигналов `model.$`: массив → индексируемый узел под-сигналов, Opaque (Date/File/Blob)
+ * и примитив → {@link PathAwareSignal}, объект → вложенное дерево {@link ModelSignals}. Для примитивных
+ * и Opaque массивов элемент — сам сигнал листа (а не под-дерево), поэтому `model.$.tags[0]` — это
+ * `PathAwareSignal<string>`, а не `ModelSignals<never>`.
+ * @internal
+ */
+type ModelSignalNode<V> =
+  NonNullable<V> extends ReadonlyArray<infer U>
+    ? { readonly length: number; readonly [index: number]: ModelSignalNode<U> }
+    : NonNullable<V> extends Opaque
+      ? PathAwareSignal<V>
+      : NonNullable<V> extends object
+        ? ModelSignals<NonNullable<V>>
+        : PathAwareSignal<V>;
 
 /**
  * API уровня модели (доступно на корне и под-моделях элементов массива).
@@ -121,9 +154,17 @@ export interface ModelApi<T> {
   readonly $: ModelSignals<T>;
   /** Снимок значений (без подписки) — для submit. */
   get(): T;
-  /** Массовая замена значений (load с сервера). Не меняет initial-снимок. */
+  /**
+   * @deprecated Алиас {@link ModelApi.patch}: `set` выполняет то же частичное **слияние** —
+   *   обновляет только переданные ключи, отсутствующие НЕ трогает (это НЕ полная замена, вопреки
+   *   старому названию). Используйте `patch`; для замены с обнулением лишних полей делайте
+   *   `patch({ ...defaults, ...dto })` явно. Не меняет initial-снимок.
+   */
   set(value: Partial<T>): void;
-  /** Частичное слияние значений. */
+  /**
+   * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
+   * отсутствующие ключи НЕ трогаются. Не меняет initial-снимок.
+   */
   patch(value: Partial<T>): void;
   /** Отличаются ли текущие значения от initial-снимка (value-diff). */
   isDirty(): boolean;

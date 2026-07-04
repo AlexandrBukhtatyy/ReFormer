@@ -4,7 +4,7 @@
  * @module reformer/renderer-react/utils
  */
 
-import { Signal } from '@preact/signals-core';
+import { Signal } from '@reformer/core/signals';
 import type {
   RenderNode,
   ContainerRenderNode,

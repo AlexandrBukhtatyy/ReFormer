@@ -44,16 +44,6 @@ export type {
 export { FormRenderer } from './core/form-renderer';
 export { RenderNodeComponent } from './core/render-node';
 
-// Единая Schema (M1): рендер дерева узлов на сигналах модели
-export { RenderModelNode, RenderModelArray } from './core/render-model';
-export type {
-  ModelNode,
-  ModelFieldNode,
-  ModelContainerNode,
-  RenderModelArrayProps,
-  ModelArrayControl,
-} from './core/render-model';
-
 // Render Context
 export {
   useRenderContext,

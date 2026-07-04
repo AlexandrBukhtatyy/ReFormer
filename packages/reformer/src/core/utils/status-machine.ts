@@ -119,9 +119,12 @@ export class FormStatusMachine {
    * ```
    */
   completeValidation(hasErrors: boolean): void {
-    // Завершаем валидацию только если мы в pending состоянии
-    // или если поле не отключено (для синхронной валидации)
-    if (this._status.value === 'pending' || this._status.value !== 'disabled') {
+    // Guard против устаревшего async-результата: если поле, пока шла валидация,
+    // перешло в 'disabled', результат не применяем. Во всех остальных состояниях
+    // (pending — обычный async-путь; valid/invalid — sync-путь) завершаем.
+    // NB: `=== 'pending' || !== 'disabled'` тождественно `!== 'disabled'` — прежний
+    // первый дизъюнкт был мёртвым кодом.
+    if (this._status.value !== 'disabled') {
       this._status.value = hasErrors ? 'invalid' : 'valid';
     }
   }

@@ -148,7 +148,14 @@ export function JsonFormRenderer<T>({
     // Не строим дерево, пока валидация не прошла: невалидную схему `resolveComponent` всё равно
     // не сконвертирует (кинет до показа панели). null → форму рендерим; иначе — ждём/показываем ошибки.
     if (schemaErrors !== null) return null;
-    const fn = createRenderSchemaFromJsonM1<T>(schema, registry!, model);
+    // Явная проверка (как для model): DEV-only guard в useJsonRendererSettings вырезается из прод-сборки,
+    // без этого `registry!` тихо ломается позже внутри конвертера (`registry.get is not a function`).
+    if (!registry) {
+      throw new Error(
+        'JsonFormRenderer: settings.registry is required. Pass a ComponentRegistry via JsonRendererProvider.'
+      );
+    }
+    const fn = createRenderSchemaFromJsonM1<T>(schema, registry, model);
     const proxy = createRenderSchema<T>(fn);
     if (renderBehavior) {
       renderBehavior(proxy);

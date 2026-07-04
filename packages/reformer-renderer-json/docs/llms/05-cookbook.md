@@ -172,6 +172,39 @@ function createMyRenderBehavior(
 - `onInit(node, fn)` — build-time hook, вызывается один раз до первого рендера ноды.
 - `patchProps` мержит переданные пропы в `componentProps` ноды.
 
+## Вся форма read-only / view-mode { #readonly }
+
+**Problem.** Нужно показать заполненную форму «только для просмотра» — все поля недоступны для ввода. Тянет искать флаг `settings.readonly` / `settings.mode`.
+
+**Solution.** Такого флага **нет**. Настройки рендерера (`JsonRendererSettings`) — это `registry` + `model` поверх `RendererSettings`, а `RendererSettings` несёт только `fieldWrapper` (см. [json-renderer-context.tsx](../../src/context/json-renderer-context.tsx), renderer-react `RendererSettings`). Read-only задаётся **на уровне модели**: `form.disable()` каскадит `disabled` по всему поддереву — `GroupNode.onDisable()` рекурсивно зовёт `field.disable()` на всех детях, а рендерер пробрасывает per-field `disabled: state.disabled` в компонент. Один вызов на корне → вся форма read-only.
+
+```typescript
+// Вариант A — сразу после сборки формы (самый прямой):
+const model = createModel<MyForm>(initialValues);
+const form = createForm<MyForm>({ model, schema: convertJsonToM1Tree(jsonSchema, registry, model) });
+form.disable(); // каскад disabled по всему дереву → вся форма read-only
+```
+
+```typescript
+// Вариант B — из render-behavior (например, включить view-mode по условию/после загрузки данных):
+import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+
+function createReadonlyBehavior(form: FormProxy<MyForm>): RenderBehaviorFn<MyForm> {
+  return (schema) => {
+    onInit(schema.node('wizard'), () => {
+      form.disable(); // корневой FormProxy отдаёт disable() (делегирует в GroupNode)
+    });
+  };
+}
+```
+
+**Notes.**
+
+- `form.disable()` — публичный метод узла (`FormNode.disable()`): ставит статус `disabled` и вызывает hook `onDisable`, который у группы каскадит на всех детей рекурсивно. Обратно — `form.enable()`.
+- **Caveat:** поле с явным `componentProps.disabled` **перебивает** каскад. Рендерер собирает пропы как `{ value, disabled: state.disabled, ...componentProps }` — спред `componentProps` идёт ПОСЛЕ `disabled`, поэтому `componentProps.disabled: false` вернёт полю доступность даже при `form.disable()`. Не задавай `disabled` в JSON, если хочешь глобальный каскад.
+- Отключённые узлы не валидируются и не попадают в `getValue()` — для чистого view-mode это обычно желаемо; если нужен submit disabled-значений, снимай `disable()` перед сбором.
+- `settings.readonly` / `settings.mode` не существует — model-level каскад (`form.disable()`) это канонический механизм view-mode.
+
 ## Migration from TS RenderSchema { #migration }
 
 **Problem.** Есть готовая `RenderSchemaFn<T>` (TS-вариант с `path.email`, React-компонентами по ссылке) — нужно перенести её в JSON-схему.

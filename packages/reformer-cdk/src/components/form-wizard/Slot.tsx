@@ -6,8 +6,19 @@ import {
   type ReactNode,
   type HTMLAttributes,
   type Ref,
+  type RefCallback,
   type ReactElement,
 } from 'react';
+
+/** Композиция нескольких ref в один: forwarded И child ref получают узел (иначе один молча теряется). */
+function composeRefs<T>(...refs: Array<Ref<T> | undefined>): RefCallback<T> {
+  return (node) => {
+    for (const ref of refs) {
+      if (typeof ref === 'function') ref(node);
+      else if (ref != null) (ref as { current: T | null }).current = node;
+    }
+  };
+}
 
 /**
  * Merges slot props with child props.
@@ -96,9 +107,9 @@ export const Slot = forwardRef<HTMLElement, SlotProps>(
     const childProps = child.props as Record<string, unknown>;
     const mergedProps = mergeProps(slotProps, childProps);
 
-    // Handle ref merging
+    // Handle ref merging: композируем forwarded + child ref (оба получают узел), а не берём один.
     const childRef = (child as ReactElement & { ref?: Ref<unknown> }).ref;
-    const mergedRef = forwardedRef || childRef;
+    const mergedRef = composeRefs(forwardedRef, childRef);
 
     return cloneElement(child, {
       ...mergedProps,

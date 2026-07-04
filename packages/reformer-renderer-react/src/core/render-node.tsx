@@ -5,7 +5,7 @@
  */
 
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { effect } from '@preact/signals-core';
+import { effect } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import { useFormControl, getNodeForSignal } from '@reformer/core';
 import type {
@@ -78,8 +78,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   } = node.componentProps ?? {};
 
   // testId: явный из схемы, иначе из пути сигнала (`personalData.lastName` → `personalData-lastName`).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const path = (node.value as any).__path as string | undefined;
+  const path = (node.value as { __path?: string }).__path;
   const testId =
     typeof explicitTestId === 'string'
       ? explicitTestId
@@ -346,8 +345,7 @@ export function RenderNodeComponent<T>({
     const fieldNode = getNodeForSignal(node.value) as FieldNode<unknown> | undefined;
     if (!fieldNode) {
       if (typeof console !== 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const p = (node.value as any).__path;
+        const p = (node.value as { __path?: string }).__path;
         console.warn(
           `[RenderSchema] No form node for signal${p ? ` "${p}"` : ''} — render value-leaf after createForm.`
         );

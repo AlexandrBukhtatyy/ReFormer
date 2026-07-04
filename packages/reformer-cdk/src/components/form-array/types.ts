@@ -1,5 +1,5 @@
 import type { ReactNode, ElementType } from 'react';
-import type { ArrayNode, FormFields, FormProxy } from '@reformer/core';
+import type { ArrayNode, FormProxy } from '@reformer/core';
 
 /**
  * Props for FormArray.Root component
@@ -48,12 +48,12 @@ export interface FormArrayItemRenderProps<T extends object> {
 /**
  * Props for FormArray.AddButton component
  *
- * Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий) —
+ * Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий) —
  * для совместимости. Для type-safe initialValue передавайте generic явно
  * (`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
  * `FormArraySection<T>` из `@reformer/ui-kit`.
  */
-export interface FormArrayAddButtonProps<T extends object = FormFields> extends Omit<
+export interface FormArrayAddButtonProps<T extends object = Record<string, unknown>> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {

@@ -1,19 +1,7 @@
 import { useMemo } from 'react';
-import { useFormControl, type ArrayNode, type FormProxy } from '@reformer/core';
-
-/**
- * Represents a single item in a form array with its control, index, and actions
- */
-export interface FormArrayItem<T extends object> {
-  /** The form control for this item */
-  control: FormProxy<T>;
-  /** Zero-based index of the item in the array */
-  index: number;
-  /** Unique identifier for React key (uses internal id or falls back to index) */
-  id: string | number;
-  /** Remove this item from the array */
-  remove: () => void;
-}
+import { useFormControl, type ArrayNode } from '@reformer/core';
+// FormArrayItem объявлен один раз в FormArrayContext (устранён дубль-интерфейс с тем же именем).
+import type { FormArrayItem } from './FormArrayContext';
 
 /**
  * Return type for useFormArray hook

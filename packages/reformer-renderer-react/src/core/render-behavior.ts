@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useSyncExternalStore } from 'react';
-import { computed, effect } from '@preact/signals-core';
+import { computed, effect } from '@reformer/core/signals';
 import type { RenderSchemaProxy, RenderNodeControl } from './render-schema-proxy';
 
 // ============================================================================

@@ -12,9 +12,11 @@ export interface FormWizardButtonProps {
 }
 
 /**
- * Props for the submit button
+ * Render-props state for the submit button (headless mode).
+ * Renamed from `FormWizardSubmitProps` to avoid a name collision with the
+ * `FormWizardSubmitProps` component props in FormWizardSubmit.tsx.
  */
-export interface FormWizardSubmitProps extends FormWizardButtonProps {
+export interface FormWizardSubmitRenderProps extends FormWizardButtonProps {
   /** Whether form is currently submitting */
   isSubmitting: boolean;
 }
@@ -28,7 +30,7 @@ export interface FormWizardActionsRenderProps {
   /** Props for the "Next" button */
   next: FormWizardButtonProps;
   /** Props for the "Submit" button */
-  submit: FormWizardSubmitProps;
+  submit: FormWizardSubmitRenderProps;
   /** Whether current step is the first step */
   isFirstStep: boolean;
   /** Whether current step is the last step */

@@ -56,6 +56,94 @@ interface FormArrayItemRenderProps<T> {
 Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
 `ArrayNode.move` reorders controls without recreating them.
 
+## Typed item access (avoid `FormProxy<object>`)
+
+`FormArray.List` gets its `control` from `FormArrayContext`, which is typed
+`any` (it has to accept any element type). The generic `T` you write on the
+JSX tag is **not** inferred through React context, so a bare `<FormArray.List>`
+defaults `T` to `object` and the render-prop `control` is `FormProxy<object>`.
+Accessing item fields then fails to compile:
+
+```tsx
+<FormArray.List>
+  {({ control: item }) => (
+    // ❌ TS2339: Property 'type' does not exist on type 'FormProxy<object>'
+    <FormField control={item.type} />
+  )}
+</FormArray.List>
+```
+
+The compound (`FormArray.Root` / `FormArray.List`) is **headless and
+render-prop-untyped by design**. For typed access to item fields, use one of
+the paths below. Prefer `FormArraySection` (canonical) or `useFormArray` — both
+infer the element type, so you cannot forget the annotation.
+
+### Canonical: ui-kit `FormArraySection` + typed `itemComponent`
+
+The typed, styled array UI lives in `@reformer/ui-kit/form-array`, not in the
+CDK compound. Its `itemComponent` FC receives a fully typed
+`control: FormProxy<T>` (T inferred from `control`), so item fields resolve:
+
+```tsx
+import { FormArraySection } from '@reformer/ui-kit/form-array';
+import type { FormProxy } from '@reformer/core';
+
+const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+  <>
+    <FormField control={control.type} /> {/* ✅ typed */}
+    <FormField control={control.estimatedValue} />
+  </>
+);
+
+<FormArraySection
+  control={form.properties} // FormArrayProxy<Property>
+  itemComponent={PropertyForm}
+  title="Properties"
+  initialValue={blankProperty()}
+/>;
+```
+
+Full prop list, RenderSchema and JSON variants: `find_recipe(topic="form-array-section")`.
+
+### CDK-native typed: `useFormArray<T>` hook
+
+If you need the headless hook (custom layout, no ui-kit dependency),
+`useFormArray(control)` infers `T` from the array control — every
+`item.control` is `FormProxy<T>`, no explicit type argument required:
+
+```tsx
+function ExistingLoansList({ control }: { control: FormProxy<Application> }) {
+  const { items, add } = useFormArray(control.existingLoans); // T = ExistingLoan inferred
+
+  return (
+    <>
+      {items.map(({ control: item, id, remove }) => (
+        <div key={id}>
+          <FormField control={item.bank} /> {/* ✅ typed */}
+          <FormField control={item.amount} />
+          <button onClick={remove}>×</button>
+        </div>
+      ))}
+      <button onClick={() => add(blankLoan())}>+ Add</button>
+    </>
+  );
+}
+```
+
+### Staying on the compound: pin `FormArray.List<T>`
+
+The JSX tag accepts an explicit type argument, which restores the item type:
+
+```tsx
+<FormArray.List<Property>>
+  {({ control: item }) => <FormField control={item.type} />} {/* ✅ typed */}
+</FormArray.List>
+```
+
+You must repeat `<T>` on **every** `FormArray.List` — miss one and it silently
+falls back to `FormProxy<object>`. When you access item fields directly, reach
+for `FormArraySection` or `useFormArray` instead.
+
 ## External Control via Ref
 
 ```tsx

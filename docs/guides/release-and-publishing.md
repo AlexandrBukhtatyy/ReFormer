@@ -47,6 +47,21 @@ npm install @reformer/core@develop      # latest prerelease из develop (X.Y.Z-
 }
 ```
 
+## Merge-метод: rebase, не squash
+
+**Мерджи PR через Rebase and merge** (fallback — merge commit). **Squash отключён** в настройках репозитория — использовать его нельзя.
+
+Почему это важно: `semantic-release-monorepo` относит коммит к пакету по файлам, которые тот трогает (`packages/<pkg>/**`), а тип бампа берёт из commit message. Squash схлопывает всю ветку в **один** коммит, который:
+
+- трогает файлы **всех** затронутых пакетов, и
+- собирает в теле **все** commit-сообщения ветки (`squash_merge_commit_message: COMMIT_MESSAGES`), включая любые `!` / `BREAKING CHANGE`.
+
+В результате каждый пакет «видит» этот единственный коммит (он трогает его пути) с breaking-маркером в теле → **все пакеты бампаются на major** сразу, даже если их собственных изменений не было или они не breaking. Именно так `Develop (#28)`/`(#34)` подняли все 6 пакетов на major.
+
+Rebase (и merge commit) сохраняют оригинальные per-scope коммиты: `feat!(core): …` трогает только `packages/reformer/**` → major только для core, а `docs(mcp)` / `feat(mcp)` → релиз только для mcp.
+
+> Особенно для промоушена `develop → main`: делай rebase/merge, иначе весь набор коммитов схлопнется в один «major-для-всех».
+
 ## Conventional commits + scopes
 
 Правила [conventional commits](https://www.conventionalcommits.org/), scope = имя пакета без `@reformer/` префикса:
@@ -160,6 +175,7 @@ Workflow `.github/workflows/align-versions.yml` — **escape hatch** для ре
 - [ ] `BREAKING CHANGE:` footer (или `!` после type) если есть breaking
 - [ ] При breaking — обновлены `peerDependencies` затронутых пакетов
 - [ ] PR target = `develop` (для prerelease beta) или `main` (для stable)
+- [ ] merge через **Rebase and merge** (или merge commit) — **не Squash** (squash ломает per-package версионирование → major для всех)
 - [ ] CI green: lint + format:check + tests + 6× release jobs
 
 ## Implementation references

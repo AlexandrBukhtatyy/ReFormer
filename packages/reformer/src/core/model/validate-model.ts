@@ -12,11 +12,15 @@
 import { Signal } from '@preact/signals-core';
 import { getNodeForSignal } from '../utils/signal-node-registry';
 import type { ValidationError } from '../types';
+import type { FormSchemaNode } from '../types/schema-node';
 import type { FormModel, PathAwareSignal } from './types';
 
 /**
- * Валидатор слоя данных. `value` — значение поля; `model` — ближайший scope (под-модель элемента
+ * Валидатор слоя **данных**. `value` — значение поля; `model` — ближайший scope (под-модель элемента
  * массива или корень); `root` — корневая модель.
+ *
+ * Отличие от {@link Validator}: 2-й/3-й аргументы — сами данные ({@link FormModel}/scope), а не
+ * `FormProxy`-узлы формы. Оба совместимы с полем `validators` узла схемы (см. {@link SchemaValidator}).
  *
  * @group Model
  */
@@ -156,7 +160,10 @@ const pushError = (
  * if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
  * ```
  */
-export function validateModelSync<T>(model: FormModel<T>, schema: unknown): ModelValidationResult {
+export function validateModelSync<T>(
+  model: FormModel<T>,
+  schema: FormSchemaNode
+): ModelValidationResult {
   const { tasks } = collect(model, schema);
   const errors: Record<string, ValidationError[]> = {};
   for (const { signal, validators, scope } of tasks) {
@@ -182,7 +189,7 @@ export function validateModelSync<T>(model: FormModel<T>, schema: unknown): Mode
  */
 export async function validateModel<T>(
   model: FormModel<T>,
-  schema: unknown
+  schema: FormSchemaNode
 ): Promise<ModelValidationResult> {
   const { tasks } = collect(model, schema);
   const errors = await runTasks(tasks, model);
@@ -230,7 +237,7 @@ async function runTasks(
  */
 export async function validateFormModel<T>(
   model: FormModel<T>,
-  schema: unknown
+  schema: FormSchemaNode
 ): Promise<ModelValidationResult> {
   const { tasks, clearSignals } = collect(model, schema);
   const errors = await runTasks(tasks, model);

@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import type { FormProxy } from '@reformer/core';
 import { useFormArray } from './useFormArray';
-import { FormArrayContext } from './FormArrayContext';
+import { FormArrayContext, type FormArrayContextValue } from './FormArrayContext';
 import { FormArrayList } from './FormArrayList';
 import { FormArrayAddButton } from './FormArrayAddButton';
 import { FormArrayRemoveButton } from './FormArrayRemoveButton';
@@ -139,11 +139,11 @@ function FormArrayRootInner<T extends object>(
     [arrayState, control]
   );
 
-  return (
-    <FormArrayContext.Provider value={{ ...arrayState, control }}>
-      {children}
-    </FormArrayContext.Provider>
-  );
+  // FormProxy<T> не assignable к FormProxy<any> (у конкретного T нет index-signature): React-контекст
+  // хранит generic-erased `<any>`, типобезопасность возвращает useFormArrayContext<T>() на чтении.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contextValue = { ...arrayState, control } as FormArrayContextValue<any>;
+  return <FormArrayContext.Provider value={contextValue}>{children}</FormArrayContext.Provider>;
 }
 
 // Typed forwardRef for generic component

@@ -115,6 +115,10 @@ export class FormErrorHandler {
    * }
    * ```
    */
+  static handle(error: unknown, context: string, strategy: ErrorStrategy.CONVERT): ValidationError;
+  static handle(error: unknown, context: string, strategy: ErrorStrategy.THROW): never;
+  static handle(error: unknown, context: string, strategy: ErrorStrategy.LOG): void;
+  static handle(error: unknown, context: string): never;
   static handle(
     error: unknown,
     context: string,

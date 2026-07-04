@@ -50,6 +50,14 @@ State-нода поля резолвится по сигналу через ре
 
 `hideWhen` / `setHidden` возвращают `null` для узла (узел не рендерится, пока условие истинно). Скрытие реактивное: приоритет `setHidden` (программный override) > `hideWhen` (декларативное условие) > видимо. Чтобы вернуть автоматику после `setHidden(true)` — `resetHidden()`.
 
+## `TS2353: 'validators' does not exist in type 'RenderNode<T>'`
+
+Валидаторы вписаны прямо в лист render-схемы (`{ value: m.x, component: Input, validators: [...] }`). У `RenderNode` нет поля `validators` — дерево рендера несёт только layout. Правила валидации значений живут в **отдельной TS-схеме над моделью** (`{ value: model.$.path, validators: [...] }`), исполняются `validateFormModel` и прокидываются в wizard как `{ validateStep, validateAll }`. Полный поток — [06-validation.md](06-validation.md).
+
+## `TS2741: Property '__path' is missing in type 'ModelArray<T>' ... required in 'RenderModelArrayControl'`
+
+Привязка array-узла верная (`array: model.<path>`, напр. `model.coBorrowers`), но публичный тип `ModelArray<U>` не объявляет `__path`, которого требует `RenderModelArrayControl`. Канон (golden `render-schema.ts`) — билдер строит дерево и кастует его в конце `as unknown as RenderNode<T>`; привязка остаётся `array: model.<path>`, менять на `model.$.<path>` НЕ нужно. См. [02-render-schema.md](02-render-schema.md#array).
+
 ## Form changes don't trigger re-render
 
 Скорее всего чтение значения идёт без `.value`, или подписка не доходит до React. Проверь:
@@ -63,3 +71,4 @@ State-нода поля резолвится по сигналу через ре
 - [02-render-schema.md](02-render-schema.md)
 - [03-render-behavior.md](03-render-behavior.md)
 - [05-cookbook.md](05-cookbook.md)
+- [06-validation.md](06-validation.md)

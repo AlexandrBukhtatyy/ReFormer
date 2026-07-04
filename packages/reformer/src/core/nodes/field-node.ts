@@ -50,8 +50,7 @@ export class FieldNode<T> extends FormNode<T> {
   private _errors: Signal<ValidationError[]>;
   // _touched, _dirty наследуются от FormNode (protected)
   // _status управляется через statusMachine
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _componentProps: Signal<Record<string, any>>;
+  private _componentProps: Signal<Record<string, unknown>>;
 
   /**
    * State machine для управления статусом поля
@@ -73,8 +72,7 @@ export class FieldNode<T> extends FormNode<T> {
   public override readonly disabled: ReadonlySignal<boolean>;
   // touched, dirty наследуются от FormNode
   public readonly errors: ReadonlySignal<ValidationError[]>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public readonly componentProps: ReadonlySignal<Record<string, any>>;
+  public readonly componentProps: ReadonlySignal<Record<string, unknown>>;
 
   /**
    * Вычисляемое свойство: нужно ли показывать ошибку
@@ -451,7 +449,7 @@ export class FieldNode<T> extends FormNode<T> {
           return false;
         }
 
-        const asyncErrors = asyncResults.filter(Boolean) as ValidationError[];
+        const asyncErrors = asyncResults.filter((e): e is ValidationError => e !== null);
         if (asyncErrors.length > 0) {
           this._errors.value = asyncErrors;
           // Only blocking errors (not warnings) affect validity
@@ -550,8 +548,7 @@ export class FieldNode<T> extends FormNode<T> {
    * });
    * ```
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateComponentProps(props: Partial<Record<string, any>>): void {
+  updateComponentProps(props: Partial<Record<string, unknown>>): void {
     this._componentProps.value = {
       ...this._componentProps.value,
       ...props,

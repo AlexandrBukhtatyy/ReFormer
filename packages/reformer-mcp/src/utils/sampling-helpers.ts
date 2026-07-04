@@ -2,9 +2,17 @@ import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { ProjectStack } from './project-detector.js';
 import { isSamplingSupported, requestSampling } from './sampling.js';
 
-export type Target = 'core' | 'renderer-react' | 'renderer-json';
+export type ReformerTarget = 'core' | 'renderer-react' | 'renderer-json';
+/** @deprecated используйте ReformerTarget */
+export type Target = ReformerTarget;
 
-const VALID_TARGETS: ReadonlyArray<Target> = ['core', 'renderer-react', 'renderer-json'];
+export const REFORMER_TARGETS = ['core', 'renderer-react', 'renderer-json'] as const;
+
+export function isReformerTarget(x: unknown): x is ReformerTarget {
+  return typeof x === 'string' && (REFORMER_TARGETS as readonly string[]).includes(x);
+}
+
+const VALID_TARGETS: ReadonlyArray<ReformerTarget> = REFORMER_TARGETS;
 
 /**
  * Best-effort fallback when no client LLM is available — pick a target purely

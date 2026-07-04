@@ -100,7 +100,95 @@ interface FormArrayItemRenderProps<T> {
 Reorder helpers (`moveUp` / `moveDown`) preserve item state — the underlying
 `ArrayNode.move` reorders controls without recreating them.
 
-## 8. External Control via Ref
+## 8. Typed item access (avoid `FormProxy<object>`)
+
+`FormArray.List` gets its `control` from `FormArrayContext`, which is typed
+`any` (it has to accept any element type). The generic `T` you write on the
+JSX tag is **not** inferred through React context, so a bare `<FormArray.List>`
+defaults `T` to `object` and the render-prop `control` is `FormProxy<object>`.
+Accessing item fields then fails to compile:
+
+```tsx
+<FormArray.List>
+  {({ control: item }) => (
+    // ❌ TS2339: Property 'type' does not exist on type 'FormProxy<object>'
+    <FormField control={item.type} />
+  )}
+</FormArray.List>
+```
+
+The compound (`FormArray.Root` / `FormArray.List`) is **headless and
+render-prop-untyped by design**. For typed access to item fields, use one of
+the paths below. Prefer `FormArraySection` (canonical) or `useFormArray` — both
+infer the element type, so you cannot forget the annotation.
+
+### Canonical: ui-kit `FormArraySection` + typed `itemComponent`
+
+The typed, styled array UI lives in `@reformer/ui-kit/form-array`, not in the
+CDK compound. Its `itemComponent` FC receives a fully typed
+`control: FormProxy<T>` (T inferred from `control`), so item fields resolve:
+
+```tsx
+import { FormArraySection } from '@reformer/ui-kit/form-array';
+import type { FormProxy } from '@reformer/core';
+
+const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
+  <>
+    <FormField control={control.type} /> {/* ✅ typed */}
+    <FormField control={control.estimatedValue} />
+  </>
+);
+
+<FormArraySection
+  control={form.properties} // FormArrayProxy<Property>
+  itemComponent={PropertyForm}
+  title="Properties"
+  initialValue={blankProperty()}
+/>;
+```
+
+Full prop list, RenderSchema and JSON variants: `find_recipe(topic="form-array-section")`.
+
+### CDK-native typed: `useFormArray<T>` hook
+
+If you need the headless hook (custom layout, no ui-kit dependency),
+`useFormArray(control)` infers `T` from the array control — every
+`item.control` is `FormProxy<T>`, no explicit type argument required:
+
+```tsx
+function ExistingLoansList({ control }: { control: FormProxy<Application> }) {
+  const { items, add } = useFormArray(control.existingLoans); // T = ExistingLoan inferred
+
+  return (
+    <>
+      {items.map(({ control: item, id, remove }) => (
+        <div key={id}>
+          <FormField control={item.bank} /> {/* ✅ typed */}
+          <FormField control={item.amount} />
+          <button onClick={remove}>×</button>
+        </div>
+      ))}
+      <button onClick={() => add(blankLoan())}>+ Add</button>
+    </>
+  );
+}
+```
+
+### Staying on the compound: pin `FormArray.List<T>`
+
+The JSX tag accepts an explicit type argument, which restores the item type:
+
+```tsx
+<FormArray.List<Property>>
+  {({ control: item }) => <FormField control={item.type} />} {/* ✅ typed */}
+</FormArray.List>
+```
+
+You must repeat `<T>` on **every** `FormArray.List` — miss one and it silently
+falls back to `FormProxy<object>`. When you access item fields directly, reach
+for `FormArraySection` or `useFormArray` instead.
+
+## 9. External Control via Ref
 
 ```tsx
 import { useRef } from 'react';
@@ -119,7 +207,7 @@ arrayRef.current?.clear();
 </FormArray.Root>;
 ```
 
-## 9. FormArrayHandle API
+## 10. FormArrayHandle API
 
 ```typescript
 interface FormArrayHandle<T> {
@@ -138,7 +226,7 @@ interface FormArrayHandle<T> {
 > `length` / `isEmpty` are a snapshot at render time. For a reactive length
 > outside the array, subscribe via `useFormControl(form.items).length`.
 
-## 10. useFormArray Hook
+## 11. useFormArray Hook
 
 For full customization without compound components:
 
@@ -182,7 +270,7 @@ interface UseFormArrayReturn<T> {
 Note: `items[]` is memoized by array length AND order — changing a value inside
 an item does not recreate the `items` array, but `move` / `swap` do (order ref changes).
 
-## 11. Basic Usage
+## 12. Basic Usage
 
 ```tsx
 import { FormWizard, type FormWizardConfig } from '@reformer/cdk/form-wizard';
@@ -218,7 +306,7 @@ const config: FormWizardConfig = {
 > onto `<button>` (that would set an invalid `disabled`/`onClick` mix). Read the
 > members explicitly as shown, or use the compound `FormWizard.Prev/Next/Submit`.
 
-## 12. Sub-components
+## 13. Sub-components
 
 | Component              | Purpose                                                |
 | ---------------------- | ------------------------------------------------------ |
@@ -245,7 +333,7 @@ top-level exports; access them as members: `FormWizard.Prev`, etc.
 </FormWizard.Actions>
 ```
 
-## 13. FormWizard.Indicator
+## 14. FormWizard.Indicator
 
 ```tsx
 <FormWizard.Indicator steps={STEPS}>
@@ -297,7 +385,7 @@ interface FormWizardIndicatorStepWithState {
 }
 ```
 
-## 14. FormWizard.Actions
+## 15. FormWizard.Actions
 
 ```tsx
 <FormWizard.Actions onSubmit={handleSubmit}>
@@ -336,7 +424,7 @@ interface FormWizardActionsRenderProps {
 }
 ```
 
-## 15. FormWizard.Progress
+## 16. FormWizard.Progress
 
 ```tsx
 <FormWizard.Progress>
@@ -362,7 +450,7 @@ interface FormWizardProgressRenderProps {
 }
 ```
 
-## 16. External Control via Ref
+## 17. External Control via Ref
 
 ```tsx
 const navRef = useRef<FormWizardHandle<FormType>>(null);
@@ -382,7 +470,7 @@ const result = await navRef.current?.submit(async (values) => {
 </FormWizard>;
 ```
 
-## 17. Configuration
+## 18. Configuration
 
 `FormWizardConfig` is a pair of optional validation callbacks (not generic, not
 schema-based). Each returns `boolean | Promise<boolean>` — `true` means valid.
@@ -419,7 +507,7 @@ Validation happens automatically:
 
 > The higher-level `@reformer/ui-kit` `FormWizard` accepts the same `config`.
 
-## 18. Purpose
+## 19. Purpose
 
 - Дать минимальный «скелет» поля: label + control + description + error.
 - Не навязывать стилей — каждый sub-компонент рендерит обычные HTML-элементы (или `Slot` через `asChild`).
@@ -428,7 +516,7 @@ Validation happens automatically:
 
 В отличие от `FormField` из `@reformer/ui-kit`, который рендерит готовый layout (label сверху, ошибка снизу), `FormField` из `@reformer/cdk` ничего не рендерит сверх минимально необходимого и нужен, когда требуется собственный layout.
 
-## 19. Components
+## 20. Components
 
 | Component                    | Purpose                                                                                                                                                               | Notes                                                                                                                         |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -440,7 +528,7 @@ Validation happens automatically:
 | `useFormFieldContext<T>()`   | Хук для произвольных дочерних компонентов, которым нужен `control`, `value`, `errors`, `ids`, `componentProps`.                                                       | Бросает `Error`, если вызван вне `FormField.Root`.                                                                            |
 | `useFormField(control, id?)` | Standalone hook без compound API. Возвращает `labelProps`, `controlProps`, `errorProps`, `descriptionProps`, `state`, `actions`, `ids`.                               | Удобен, когда нужен полный контроль над DOM-структурой и пропсами.                                                            |
 
-## 20. Examples
+## 21. Examples
 
 ### Базовый сценарий — auto-render всех частей
 
@@ -545,7 +633,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 </>;
 ```
 
-## 21. Anti-patterns
+## 22. Anti-patterns
 
 - **Использовать `FormField.Label` / `Error` / `Control` без `FormField.Root`.** Каждый дочерний компонент вызывает `useFormFieldContext()` и бросает: `FormField.* components must be used within <FormField.Root>`.
 - **Подписываться на `useFormControl(control)` рядом с `FormField.Root`.** `Root` уже подписан — лишняя подписка приведёт к двойному ререндеру. Используйте `useFormFieldContext()` для доступа к состоянию.
@@ -554,7 +642,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - **Двойное рендерание ошибки (`Error` + ручной `<p>`).** `FormField.Error` уже подписан на `errors`/`shouldShowError`. Если нужен кастомный layout — используйте `render` prop, а не дублируйте.
 - **Применять `asChild` к компоненту, который не пробрасывает `ref`/`...props`.** `Slot` объединяет пропсы и ref в дочерний элемент; если потомок их не принимает, `aria-*`-атрибуты потеряются.
 
-## 22. Troubleshooting
+## 23. Troubleshooting
 
 - **`Error: FormField.* components must be used within <FormField.Root>`.** Проверьте, что вызов `FormField.Label` / `Control` / `Error` обёрнут в `FormField.Root` и компонент не рендерится в портале выше провайдера.
 - **`Label` ничего не показывает.** В схеме поля нет `componentProps.label`. Вариант: задайте `label` в схеме, или передайте `children` в `FormField.Label`, или поставьте `forceRender`.
@@ -564,7 +652,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - **При async-валидации индикатор моргает.** `pending` переключается на каждый `setValue`. Дебаунсьте источник или добавьте задержку перед показом спиннера (например, `useDeferredValue`).
 - **Дубликаты `id` в DOM.** Несколько `FormField.Root` с одинаковым явным `id`. Опустите `id` (тогда работает `useId()`) или дайте уникальные значения.
 
-## 23. See also
+## 24. See also
 
 - [01-overview.md](01-overview.md) — общее введение в `@reformer/cdk`.
 - [02-form-array.md](02-form-array.md), [03-form-navigation.md](03-form-navigation.md) — соседние compound-компоненты.
@@ -572,7 +660,7 @@ import { FormField as FieldRoot } from '@reformer/cdk/form-field';
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки FormField/FormArray/FormWizard.
 - [src/components/form-field/](../../src/components/form-field/) — исходники compound-блоков и `useFormField`.
 
-## 24. Nested FormArray
+## 25. Nested FormArray
 
 ### Problem
 
@@ -629,7 +717,7 @@ import { FormField } from '@reformer/ui-kit';
 - `useFormArrayItemContext()` внутри вложенного `List` вернёт **внутренний** item (`coOwner`), не внешний. Если нужен индекс внешнего элемента, забирайте его в замыкании render-функции (`index`, `property`).
 - Рендер-проп `FormArray.List` стабилен по identity: вынесите тяжёлые шаги в отдельный компонент, чтобы получить React.memo-эффект.
 
-## 25. Custom AddButton
+## 26. Custom AddButton
 
 ### Problem
 
@@ -669,7 +757,7 @@ function AddPropertyMenu() {
 - Если кастомный триггер живёт **снаружи** `Root` (например, в шапке страницы), используйте ref-handle: `useRef<FormArrayHandle<T>>` + `arrayRef.current?.add(...)`.
 - Для batch-добавления нескольких элементов вызывайте `add` в цикле — каждый push триггерит ререндер `List` (через `length`-зависимость в `useFormArray`).
 
-## 26. Conditional / dynamic step count in FormWizard
+## 27. Conditional / dynamic step count in FormWizard
 
 ### Problem
 
@@ -739,7 +827,7 @@ function CreditWizard({ form, stepSchemas, fullSchema }: Props) {
 - `completedSteps` — массив номеров; при изменении общей нумерации логика «можно ли перейти на шаг N» (`step === 1 || completedSteps.includes(step - 1)`) может отметить шаг как доступный без валидации. Скиньте `completedSteps` через перемонтирование `FormWizard` (key={needsVerification}) если важна строгость.
 - Children-формы рендерятся условно `_stepIndex === currentStep` (см. `FormWizardStep.tsx`); неактивные `Step` возвращают `null`, состояние их полей живёт в `form` независимо от рендера.
 
-## 27. Externally-controlled wizard via `useRef<FormWizardHandle>`
+## 28. Externally-controlled wizard via `useRef<FormWizardHandle>`
 
 ### Problem
 
@@ -791,14 +879,14 @@ function Page({ form, config }: Props) {
 - `goToStep(n)` возвращает `false`, если `n > totalSteps`, `n < 1`, или предыдущий шаг (`n - 1`) не в `completedSteps` (исключение — сам шаг 1). Используйте `await goToNextStep()` чтобы пройти вперёд с валидацией.
 - Ref становится `null` пока компонент не смонтировался. Все вызовы — `navRef.current?.method()` с optional chaining, либо проверка `if (!navRef.current) return`.
 
-## 28. See also
+## 29. See also
 
 - [02-form-array.md](02-form-array.md) — основы FormArray (compound API, ref-handle).
 - [03-form-navigation.md](03-form-navigation.md) — основы FormWizard (Indicator, Actions, Progress).
 - [04-form-field.md](04-form-field.md) — компоновка одного поля.
 - [06-troubleshooting.md](06-troubleshooting.md) — типичные ошибки и пути их обхода.
 
-## 29. `FormArray.AddButton` не появляется на странице
+## 30. `FormArray.AddButton` не появляется на странице
 
 **Причина.** `FormArray.AddButton` не самостоятельный элемент — он рендерит кнопку только внутри `FormArray.Root`. Если он вынесен наружу или `Root` не отрендерился (например, под условным `if`), кнопки не будет.
 
@@ -811,7 +899,7 @@ function Page({ form, config }: Props) {
 </FormArray.Root>
 ```
 
-## 30. `FormArray.List` ререндерит весь массив при изменении одного элемента
+## 31. `FormArray.List` ререндерит весь массив при изменении одного элемента
 
 **Причина.** Render-функция массива возвращает inline JSX, который не мемоизирован. Изменение поля у элемента триггерит ререндер `FormArray.Root` (через `useFormControl(arrayNode)`), а List-children получают новые ссылки.
 
@@ -827,7 +915,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 
 `useFormArray` мемоизирует `items` по длине массива (см. `useFormArray.ts`), поэтому смена значения внутри элемента не пересоздаёт `items`-массив.
 
-## 31. `FormWizardHandle.goToStep` возвращает `false`
+## 32. `FormWizardHandle.goToStep` возвращает `false`
 
 **Причина.** `goToStep(n)` пускает только если `n === 1` или `n - 1` уже в `completedSteps` (см. `FormWizard.tsx:goToStep`). Это защита от пропуска валидации. Также `false` возвращается при `n < 1` или `n > totalSteps`.
 
@@ -837,7 +925,7 @@ const Item = React.memo(({ control }: { control: FormProxy<Property> }) => (
 - Для произвольного «прыжка» предварительно отметьте предыдущий шаг как completed через `goToNextStep()` или вручную (через свой `useState` поверх).
 - Проверьте `n` в диапазоне `[1; totalSteps]` (totalSteps = количество `FormWizard.Step` детей).
 
-## 32. Шаг без валидации пропускается без проверки
+## 33. Шаг без валидации пропускается без проверки
 
 **Причина.** `validateCurrentStep` вызывает `config.validateStep(currentStep)`. Если колбэк `validateStep` вообще не задан в `config` — выводит `console.warn` и возвращает `true` (шаг считается валидным). Актуальный `FormWizardConfig` — это пара колбэков, а не словарь схем:
 
@@ -867,7 +955,7 @@ const config: FormWizardConfig = {
 };
 ```
 
-## 33. `useFormArrayContext` бросает исключение
+## 34. `useFormArrayContext` бросает исключение
 
 **Сообщение.** `Error: FormArray.* components must be used within FormArray.Root or RenderSchema FormArray`.
 
@@ -875,7 +963,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Поместите потребителя внутрь `FormArray.Root`. Для портала — оберните потребителя ещё одним `Root` с тем же `control`, либо используйте ref-handle `FormArrayHandle` снаружи.
 
-## 34. `useFormFieldContext` бросает исключение
+## 35. `useFormFieldContext` бросает исключение
 
 **Сообщение.** `Error: FormField.* components must be used within <FormField.Root>`.
 
@@ -883,7 +971,7 @@ const config: FormWizardConfig = {
 
 **Решение.** Перепроверьте дерево; если поле условное — выносите всю секцию в `if (!visible) return null;` снаружи `FormField.Root`.
 
-## 35. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
+## 36. `FormField.Error` не показывает ошибку, хотя `errors.length > 0`
 
 **Причина.** Поле не помечено как touched, `shouldShowError === false`. По умолчанию ReFormer показывает ошибки только после blur/submit.
 
@@ -902,7 +990,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 36. `FormField.Description` есть в DOM, но `aria-describedby` пустой
+## 37. `FormField.Description` есть в DOM, но `aria-describedby` пустой
 
 **Причина.** В `FormField.Root` не передан проп `hasDescription`. Без него `Control` не вписывает `descriptionId` в `aria-describedby` (это сделано осознанно — чтобы избежать двойного рендера от динамической регистрации).
 
@@ -916,7 +1004,7 @@ const handleSubmit = async () => {
 </FormField.Root>
 ```
 
-## 37. Multi-step submit срабатывает раньше валидации последнего шага
+## 38. Multi-step submit срабатывает раньше валидации последнего шага
 
 **Причина.** `FormWizard.Actions` render-prop `submit.onClick` вызывает переданный в `Actions` `onSubmit` сразу при клике. Если в этом обработчике идёт `navRef.current?.submit(...)`, он запустит `config.validateAll?.()` поверх всей формы (а не только последнего шага). Однако touched-флаги ставятся только на полях с ошибками, и пользователю может быть неочевидно, где именно проблема.
 
@@ -930,7 +1018,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 38. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
+## 39. `FormArray.List` теряет focus или ререндерит inputs при `add`/`removeAt`
 
 **Причина.** Используется `index` в качестве React-key. После `removeAt(0)` индексы сдвигаются, React переиспользует DOM-узлы для других данных — фокус «переезжает».
 
@@ -950,24 +1038,24 @@ const handleSubmit = async () => {
 
 Сам `FormArray.List` уже использует `item.id` для ключа `<FormArrayItemContext.Provider key={item.id}>` — но если внутренний контейнер тоже задаёт key, поставьте `id`, а не `index`.
 
-## 39. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
+## 40. `FormWizard` показывает «No validateStep callback configured for step N» в консоли
 
 **Причина.** `validateCurrentStep` warn'ит, если в `config` не задан колбэк `validateStep` (тогда шаг считается валидным без проверки).
 
 **Решение.** Передайте `validateStep(step)` в `config` (см. раздел «Шаг без валидации…» выше). Если конкретный шаг намеренно без валидации, внутри колбэка верните `true` для его номера.
 
-## 40. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
+## 41. Ref `FormArrayHandle.length` / `isEmpty` не обновляется
 
 **Причина.** Эти поля snapshot'ятся в `useImperativeHandle` от `arrayState` и пересоздаются при каждом ререндере. Если вы храните `arrayRef.current` в замыкании или в `useEffect` без зависимостей, можете прочитать устаревшее значение.
 
 **Решение.** Читайте `arrayRef.current.length` непосредственно в обработчике, не кешируйте. Для реактивной длины снаружи используйте `useFormControl(form.items).length` — это даст подписку.
 
-## 41. See also
+## 42. See also
 
 - [01-overview.md](01-overview.md), [04-form-field.md](04-form-field.md), [05-recipes.md](05-recipes.md).
 - [@reformer/core troubleshooting](../../../reformer/docs/llms/) — общие проблемы с валидацией и behaviors.
 
-## 42. API Reference
+## 43. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -1190,7 +1278,7 @@ _Source: src/components/form-array/FormArray.tsx_
 то есть `ArrayNode.push`. Должна находиться внутри `FormArray.Root` (или
 эквивалентного провайдера), иначе `useFormArrayContext` бросит исключение.
 
-Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий).
+Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий).
 Передавайте его явно, если нужна type-safe проверка `initialValue`:
 `<FormArray.AddButton<PropertyItem> initialValue={...}>`.
 
@@ -1236,14 +1324,14 @@ _Source: src/components/form-array/FormArrayAddButton.tsx_
 
 Props for FormArray.AddButton component
 
-Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий) —
+Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий) —
 для совместимости. Для type-safe initialValue передавайте generic явно
 (`<FormArray.AddButton<PropertyItem> ...>`) либо проксируйте через
 `FormArraySection<T>` из `@reformer/ui-kit`.
 
 **Signature:**
 ```typescript
-export interface FormArrayAddButtonProps<T extends object = FormFields> extends Omit<
+export interface FormArrayAddButtonProps<T extends object = Record<string, unknown>> extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > {
@@ -1289,7 +1377,7 @@ _Source: src/components/form-array/FormArrayContext.tsx_
 
 **Signature:**
 ```typescript
-export interface FormArrayContextValue<T extends object = FormFields> {
+export interface FormArrayContextValue<T extends object = Record<string, unknown>> {
   /** Массив элементов с контролами и действиями */
   items: FormArrayItem<T>[];
   /** Текущая длина массива */
@@ -1493,23 +1581,23 @@ _Source: src/components/form-array/FormArray.tsx_
 
 **Kind:** `interface`
 
-Represents a single item in a form array with its control, index, and actions
+Представляет элемент массива с контролом, индексом и действиями
 
 **Signature:**
 ```typescript
 export interface FormArrayItem<T extends object> {
-  /** The form control for this item */
+  /** Контрол для данного элемента */
   control: FormProxy<T>;
-  /** Zero-based index of the item in the array */
+  /** Индекс элемента (0-based) */
   index: number;
-  /** Unique identifier for React key (uses internal id or falls back to index) */
+  /** Уникальный идентификатор для React key */
   id: string | number;
-  /** Remove this item from the array */
+  /** Удалить этот элемент из массива */
   remove: () => void;
 }
 ```
 
-_Source: src/components/form-array/useFormArray.ts_
+_Source: src/components/form-array/FormArrayContext.tsx_
 
 ### FormArrayItemContext
 
@@ -1545,7 +1633,7 @@ _Source: src/components/form-array/FormArrayContext.tsx_
 
 **Signature:**
 ```typescript
-export interface FormArrayItemContextValue<T extends object = FormFields> {
+export interface FormArrayItemContextValue<T extends object = Record<string, unknown>> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -2479,7 +2567,7 @@ export interface FormWizardActionsRenderProps {
   /** Props for the "Next" button */
   next: FormWizardButtonProps;
   /** Props for the "Submit" button */
-  submit: FormWizardSubmitProps;
+  submit: FormWizardSubmitRenderProps;
   /** Whether current step is the first step */
   isFirstStep: boolean;
   /** Whether current step is the last step */
@@ -3197,7 +3285,9 @@ _Source: src/components/form-array/useFormArray.ts_
 
 **Signature:**
 ```typescript
-export function useFormArrayContext<T extends object = FormFields>(): FormArrayContextValue<T>
+export function useFormArrayContext<
+  T extends object = Record<string, unknown>,
+>(): FormArrayContextValue<T>
 ```
 
 **Returns:** Текущий {@link FormArrayContextValue}.
@@ -3238,7 +3328,7 @@ _Source: src/components/form-array/FormArrayContext.tsx_
 **Signature:**
 ```typescript
 export function useFormArrayItemContext<
-  T extends object = FormFields,
+  T extends object = Record<string, unknown>,
 >(): FormArrayItemContextValue<T>
 ```
 

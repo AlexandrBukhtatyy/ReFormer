@@ -91,7 +91,7 @@ export type AsyncValidatorFn<T = FormValue> = (
 export interface ValidationError {
   code: string;
   message: string;
-  params?: FormFields;
+  params?: Record<string, FormValue>;
   /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
   severity?: 'error' | 'warning';
 }
@@ -109,7 +109,7 @@ export interface ErrorFilterOptions {
   message?: string;
 
   /** Фильтр по параметрам ошибки */
-  params?: FormFields;
+  params?: Record<string, FormValue>;
 
   /** Кастомный предикат для фильтрации */
   predicate?: (error: ValidationError) => boolean;
@@ -152,6 +152,12 @@ export type {
 export type { FormSchema, ArrayConfig } from './deep-schema';
 
 // ============================================================================
+// Re-exports from schema-node (узел единой схемы M1)
+// ============================================================================
+
+export type { FormSchemaNode, SchemaArrayControl, SchemaValidator } from './schema-node';
+
+// ============================================================================
 // Re-exports from form-proxy (Typed Proxy Access)
 // ============================================================================
 
@@ -186,8 +192,7 @@ export interface GroupNodeConfig<T> {
  * Используется вместо инлайнового `Record<string, unknown>`
  * @internal
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type UnknownRecord = Record<string, any>;
+export type UnknownRecord = Record<string, unknown>;
 
 /**
  * Интерфейс для узлов с методом applyValidationSchema
@@ -234,14 +239,6 @@ export interface ConfigWithSchema {
 export interface ConfigWithValue {
   value: unknown;
 }
-
-/**
- * Тип для конфига с полями (FormSchema generic constraint)
- * Используется вместо `Record<string, any>` для схем форм
- * @deprecated
- * @internal
- */
-export type FormFields = Record<string, FormValue>;
 
 /**
  * Тип для путей к полям (field paths)
