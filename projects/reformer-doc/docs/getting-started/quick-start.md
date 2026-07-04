@@ -129,7 +129,7 @@ type ContactFormType = {
 ## Step 3: Create Form Definition
 
 ```typescript title="src/forms/contact-form.ts"
-import { createForm } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -140,49 +140,69 @@ type ContactFormType = {
   message: string;
 };
 
-export const createContactForm = () =>
-  createForm<ContactFormType>({
-    form: {
-      name: { value: '', component: Input, componentProps: { label: 'Name' } },
-      email: { value: '', component: Input, componentProps: { label: 'Email' } },
-      message: { value: '', component: Textarea, componentProps: { label: 'Message' } },
-    },
-    validation: (path) => {
-      validate(path.name, required());
-      validate(path.name, minLength(2));
-      validate(path.email, required());
-      validate(path.email, email());
-      validate(path.message, required());
-      validate(path.message, minLength(10));
-    },
-  });
+export function createContactForm() {
+  // 1. Model — the source of truth for values.
+  const model = createModel<ContactFormType>({ name: '', email: '', message: '' });
+
+  // 2. Single schema — binds components + validators to the model's signals.
+  //    Validators are inline factories from `@reformer/core/validators`.
+  const schema = {
+    children: [
+      {
+        value: model.$.name,
+        component: Input,
+        componentProps: { label: 'Name' },
+        validators: [required(), minLength(2)],
+      },
+      {
+        value: model.$.email,
+        component: Input,
+        componentProps: { label: 'Email' },
+        validators: [required(), email()],
+      },
+      {
+        value: model.$.message,
+        component: Textarea,
+        componentProps: { label: 'Message' },
+        validators: [required(), minLength(10)],
+      },
+    ],
+  };
+
+  // 3. Wire model + schema into a typed form.
+  const form = createForm<ContactFormType>({ model, schema });
+  return { form, model, schema };
+}
 ```
 
 :::info Key Points
 
-- **`createForm<T>`** — factory function with automatic typing
+- **`createModel<T>`** — reactive model that owns the form values
+- **`createForm({ model, schema })`** — wires the model + schema into a typed form
 - **`component`** — React component to render the field
 - **`componentProps`** — props passed to the component (label, placeholder, etc.)
-- **`validation`** — declarative validation schema
+- **`validators`** — inline validator factories on each schema node
   :::
 
 ## Step 4: Create Form Component
 
 ```tsx title="src/components/ContactForm.tsx"
 import { useMemo } from 'react';
+import { validateFormModel } from '@reformer/core';
 import { createContactForm } from '@/forms/contact-form';
 import { FormField } from '@/components/ui/FormField';
 
 export function ContactForm() {
-  const form = useMemo(() => createContactForm(), []);
+  const { form, model, schema } = useMemo(() => createContactForm(), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched();
-    await form.validate();
+    form.touchAll();
+    // Validate the whole model against the schema; errors route into the form nodes.
+    const { valid } = await validateFormModel(model, schema);
 
-    if (form.valid.value) {
-      console.log('Submit:', form.value.value);
+    if (valid) {
+      console.log('Submit:', model.get());
     }
   };
 
@@ -194,7 +214,6 @@ export function ContactForm() {
 
       <button
         type="submit"
-        disabled={form.invalid.value}
         className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
       >
         Submit

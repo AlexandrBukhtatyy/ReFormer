@@ -11,25 +11,33 @@ Behaviors add reactive logic to forms: computed fields, conditional visibility, 
 Behaviors automatically react to form changes:
 
 ```typescript
-import { GroupNode } from '@reformer/core';
-import { computeFrom, enableWhen } from '@reformer/core/behaviors';
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, computeFrom, enableWhen } from '@reformer/core/behaviors';
 
-const form = new GroupNode({
-  form: {
-    price: { value: 100 },
-    quantity: { value: 1 },
-    total: { value: 0 },
-    discount: { value: 0 },
-    showDiscount: { value: false },
-  },
-  behavior: (path) => {
-    // Auto-compute total
-    computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
+interface OrderForm {
+  price: number;
+  quantity: number;
+  total: number;
+  discount: number;
+}
 
-    // Enable discount field conditionally
-    enableWhen(path.discount, (form) => form.total > 500);
-  },
+const model = createModel<OrderForm>({ price: 100, quantity: 1, total: 0, discount: 0 });
+
+// Behaviors are declared inside `defineFormBehavior` and attached via `createForm({ behavior })`.
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  // Auto-compute total — sources arrive as positional values
+  computeFrom(
+    [model.$.price, model.$.quantity],
+    model.$.total,
+    (price, quantity) => price * quantity
+  );
+
+  // Enable the discount field conditionally — the condition reads the model
+  enableWhen(model.$.discount, () => model.total > 500);
 });
+
+// `schema` binds the fields to components (see Quick Start).
+const form = createForm<OrderForm>({ model, schema, behavior });
 ```
 
 ## Available Behaviors
@@ -47,16 +55,16 @@ const form = new GroupNode({
 
 ## How Behaviors Work
 
-1. Define in `behavior`
-2. ReFormer sets up reactive subscriptions
-3. When source fields change, behavior runs automatically
+1. Declare operators inside `defineFormBehavior(({ model, form }) => { … })`
+2. Pass the result to `createForm({ model, schema, behavior })`
+3. ReFormer sets up reactive subscriptions — when source signals change, the operators run automatically
 
 ```typescript
 // When price or quantity changes → total updates
 computeFrom(
-  [path.price, path.quantity], // Watch these
-  path.total, // Update this
-  ({ price, quantity }) => price * quantity // With this function
+  [model.$.price, model.$.quantity], // Watch these signals
+  model.$.total, // Update this signal
+  (price, quantity) => price * quantity // With this function (positional values)
 );
 ```
 

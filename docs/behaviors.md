@@ -2,12 +2,15 @@
 
 Behaviors — это декларативный способ описания зависимостей и автоматизации логики между полями формы.
 
+Под архитектурой M1 операторы объявляются внутри `defineFormBehavior(({ model, form }) => { … })` из `@reformer/core/behaviors` и привязываются к форме через `createForm({ model, schema, behavior })`. Операторы работают с сигналами модели (`model.$.<field>`); условия — это замыкания без аргументов, читающие модель.
+
 ## Обзор всех behaviors
 
 ```mermaid
 mindmap
   root((Behaviors))
     Вычисления
+      compute
       computeFrom
       transformValue
     Условия
@@ -18,7 +21,7 @@ mindmap
       copyFrom
       syncFields
     Отслеживание
-      watchField
+      onChange
       revalidateWhen
 ```
 
@@ -26,7 +29,7 @@ mindmap
 
 ## computeFrom
 
-Автоматически вычисляет значение поля на основе других полей.
+Автоматически вычисляет значение поля на основе других полей. Источники приходят в функцию **позиционно**.
 
 ```mermaid
 flowchart LR
@@ -36,7 +39,7 @@ flowchart LR
     end
 
     subgraph Behavior["computeFrom"]
-        fn["(values) =&gt;<br/>values.price * values.quantity"]
+        fn["(price, quantity) =&gt;<br/>price * quantity"]
     end
 
     subgraph Target["Результат"]
@@ -51,24 +54,28 @@ flowchart LR
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
-  computeFrom([path.price, path.quantity], path.total, (values) => values.price * values.quantity, {
-    debounce: 100,
-  });
-};
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  computeFrom(
+    [model.$.price, model.$.quantity],
+    model.$.total,
+    (price, quantity) => price * quantity
+  );
+});
 ```
 
 ### Опции
 
-| Опция      | Тип      | Описание                        |
-| ---------- | -------- | ------------------------------- |
-| `debounce` | `number` | Задержка перед вычислением (мс) |
+| Опция  | Тип                      | Описание                                |
+| ------ | ------------------------ | --------------------------------------- |
+| `when` | `(...values) => boolean` | Пропустить пересчёт, если условие ложно |
+
+> Есть также `compute(target, () => …)` с авто-трекингом зависимостей — без явного списка источников.
 
 ---
 
 ## enableWhen / disableWhen
 
-Условное включение/отключение полей.
+Условное включение/отключение полей. Условие — замыкание без аргументов, читающее модель.
 
 ```mermaid
 stateDiagram-v2
@@ -83,13 +90,13 @@ stateDiagram-v2
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
   // Поле активно только если hasDiscount = true
-  enableWhen(path.discountPercent, (form) => form.hasDiscount, { resetOnDisable: true });
+  enableWhen(model.$.discountPercent, () => model.hasDiscount, { resetOnDisable: true });
 
   // Или наоборот — отключить при условии
-  disableWhen(path.manualTotal, (form) => form.autoCalculate);
-};
+  disableWhen(model.$.manualTotal, () => model.autoCalculate);
+});
 ```
 
 ### Опции
@@ -98,17 +105,19 @@ const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
 | ---------------- | --------- | -------------------------------- |
 | `resetOnDisable` | `boolean` | Сбросить значение при отключении |
 
+> `enableWhen` — state-операция: поле должно быть материализовано в форме (`createForm`), чтобы нода нашлась в реестре.
+
 ---
 
-## watchField
+## onChange
 
-Отслеживает изменения поля и выполняет callback.
+Реагирует на изменение поля и выполняет callback. Колбэк выполняется ВНЕ effect-контекста — можно безопасно писать сигналы и ноды. Для async-колбэков 2-м аргументом приходит `{ signal }` (AbortSignal): при следующей смене значения предыдущий `signal` аннулируется.
 
 ```mermaid
 sequenceDiagram
     participant User as Пользователь
     participant Country as country field
-    participant Watch as watchField effect
+    participant Watch as onChange effect
     participant API as External API
     participant City as city field
 
@@ -118,25 +127,24 @@ sequenceDiagram
     Watch->>API: fetchCities("Russia")
     API-->>Watch: ["Moscow", "SPb", ...]
     Watch->>City: updateComponentProps({ options })
-    Watch->>City: setValue(null)
+    Watch->>City: model.city = null
 ```
 
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<AddressForm> = (path) => {
-  watchField(
-    path.country,
-    async (country, ctx) => {
-      if (country) {
-        const cities = await fetchCities(country);
-        ctx.updateComponentProps(path.city, { options: cities });
-        ctx.form.city.setValue(null);
-      }
+const behavior = defineFormBehavior<AddressForm>(({ model, form }) => {
+  onChange(
+    model.$.country,
+    async (country, { signal }) => {
+      if (!country) return;
+      const cities = await fetchCities(country, { signal });
+      form.city.updateComponentProps({ options: cities });
+      model.city = null;
     },
-    { debounce: 300, immediate: false }
+    { debounce: 300 }
   );
-};
+});
 ```
 
 ### Опции
@@ -146,20 +154,13 @@ const behavior: BehaviorSchemaFn<AddressForm> = (path) => {
 | `debounce`  | `number`  | Задержка перед вызовом (мс)     |
 | `immediate` | `boolean` | Вызвать сразу при инициализации |
 
-### Контекст (ctx)
-
-```typescript
-interface WatchFieldContext<T> {
-  form: FormProxy<T>; // Доступ к форме
-  updateComponentProps(path, props); // Обновить props компонента
-}
-```
+> Низкоуровневый примитив `watchField(source, cb, opts)` (из `@reformer/core`) — без `debounce`/AbortSignal; в схемах поведения используйте `onChange`.
 
 ---
 
 ## copyFrom
 
-Копирует значение из одного поля в другое.
+Копирует значение из одного поля в другое (скаляр или группа-объект целиком).
 
 ```mermaid
 flowchart LR
@@ -183,11 +184,11 @@ flowchart LR
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<CheckoutForm> = (path) => {
-  copyFrom(path.shippingAddress, path.billingAddress, {
-    when: (form) => form.useShippingAsBilling,
+const behavior = defineFormBehavior<CheckoutForm>(({ model }) => {
+  copyFrom(model.$.shippingAddress, model.$.billingAddress, {
+    when: () => model.useShippingAsBilling,
   });
-};
+});
 ```
 
 ---
@@ -204,9 +205,9 @@ flowchart LR
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<MyForm> = (path) => {
-  syncFields(path.field1, path.field2);
-};
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  syncFields(model.$.field1, model.$.field2);
+});
 ```
 
 ---
@@ -218,22 +219,22 @@ const behavior: BehaviorSchemaFn<MyForm> = (path) => {
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<MyForm> = (path) => {
-  resetWhen(path.selectedCity, (form) => form.country !== previousCountry);
-};
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  resetWhen(model.$.selectedCity, () => model.country !== previousCountry, { resetValue: '' });
+});
 ```
 
 ---
 
 ## revalidateWhen
 
-Перезапускает валидацию поля при изменении зависимостей.
+Перезапускает валидацию при изменении зависимостей. Первый аргумент — массив сигналов-зависимостей, второй — колбэк ревалидации.
 
 ```mermaid
 flowchart LR
     password[password изменился]
     trigger[Триггер revalidateWhen]
-    confirm[confirmPassword.validate]
+    confirm[validateFormModel]
 
     password --> trigger --> confirm
 ```
@@ -241,27 +242,27 @@ flowchart LR
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<RegistrationForm> = (path) => {
-  // Перевалидировать confirmPassword при изменении password
-  revalidateWhen(path.confirmPassword, [path.password]);
-};
+const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
+  // Перевалидировать при изменении password
+  revalidateWhen([model.$.password], () => validateFormModel(model, schema));
+});
 ```
 
 ---
 
 ## transformValue
 
-Трансформирует значение поля при изменении.
+Трансформирует значение поля при изменении (идемпотентно).
 
 ### Использование
 
 ```typescript
-const behavior: BehaviorSchemaFn<MyForm> = (path) => {
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
   transformValue(
-    path.phone,
+    model.$.phone,
     (value) => value.replace(/\D/g, '') // Только цифры
   );
-};
+});
 ```
 
 ---
@@ -269,104 +270,94 @@ const behavior: BehaviorSchemaFn<MyForm> = (path) => {
 ## Комбинирование behaviors
 
 ```typescript
-const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
+const behavior = defineFormBehavior<OrderForm>(({ model, form }) => {
   // 1. Вычисление итога
-  computeFrom([path.items, path.taxRate], path.subtotal, (v) =>
-    v.items.reduce((sum, item) => sum + item.price * item.qty, 0)
+  compute(model.$.subtotal, () =>
+    model.items.reduce((sum, item) => sum + item.price * item.qty, 0)
   );
 
   // 2. Скидка активна только при subtotal > 100
-  enableWhen(path.discountCode, (form) => form.subtotal > 100);
+  enableWhen(model.$.discountCode, () => model.subtotal > 100);
 
   // 3. При изменении страны — загрузить города
-  watchField(path.country, async (country, ctx) => {
+  onChange(model.$.country, async (country) => {
     const cities = await api.getCities(country);
-    ctx.updateComponentProps(path.city, { options: cities });
+    form.city.updateComponentProps({ options: cities });
   });
 
   // 4. Перевалидация при изменении зависимостей
-  revalidateWhen(path.confirmEmail, [path.email]);
-};
+  revalidateWhen([model.$.email], () => validateFormModel(model, schema));
+});
 ```
 
 ---
 
 ## Best practices: типизация и структура callback'ов
 
-Эти два правила относятся **ко всей behavior-схеме** (`BehaviorSchemaFn<T>`).
+Эти правила относятся ко всей схеме поведения (`defineFormBehavior<T>`).
 
 ### 1. Используй типизированный generic формы — НЕ `any`
 
-`BehaviorSchemaFn<T>` параметризован form-interface'ом. Передай его явно:
+`defineFormBehavior<T>` параметризован form-interface'ом. Передай его явно — тогда `model`/`form` и значения в callback'ах инферятся правильно:
 
 ```typescript
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 import type { OrderForm } from './types';
 
-// ✅ generic зафиксирован — TS инферит values, ctx, value во всех callback'ах
-const behavior: BehaviorSchemaFn<OrderForm> = (path) => {
-  computeFrom([path.price, path.quantity], path.total, (values) => {
-    // values: OrderForm — IDE автодополняет
-    return values.price * values.quantity;
-  });
-};
+// ✅ generic зафиксирован — TS инферит source-values, model, value
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  computeFrom([model.$.price, model.$.quantity], model.$.total, (price, quantity) => price * quantity);
+});
 
-// ❌ generic пропущен или path: any — silent fail на опечатках в имени поля
-const behavior: BehaviorSchemaFn<any> = (path: any) => { ... };
+// ❌ generic пропущен — silent fail на опечатках в имени поля
+const behavior = defineFormBehavior(({ model }: any) => { ... });
 ```
-
-`as any` иногда нужен в отдельных call-site (например, computeFrom-source для очень глубокого пути). Тогда **сужай cast до конкретного выражения**, а не на весь callback.
 
 ### 2. Inline callback OK для коротких, extract module-level для содержательных
 
 **Inline-callback** (короткие predicates, один вызов):
 
 ```typescript
-// ✅ нормально для 1-2 строк
-enableWhen(path.discountCode, (form) => form.subtotal > 100);
-copyFrom(path.shippingAddress, path.billingAddress, {
-  when: (form) => form.sameAsShipping === true,
-  fields: 'all',
+enableWhen(model.$.discountCode, () => model.subtotal > 100);
+copyFrom(model.$.shippingAddress, model.$.billingAddress, {
+  when: () => model.sameAsShipping === true,
 });
 ```
 
-**Extracted module-level function** (предпочтительно для computeFrom, async watchField, любой логики >5 строк):
+**Extracted module-level function** (предпочтительно для computeFrom, async onChange, любой логики >5 строк):
 
 ```typescript
 // ✅ предпочтительно — extracted типизированный helper
-function computeMonthlyPayment(form: LoanForm): number {
-  const P = form.loanAmount;
-  const n = form.loanTerm;
-  const annual = form.interestRate;
-  if (!P || !n || !annual || P <= 0 || n <= 0) return 0;
+function computeMonthlyPayment(loanAmount: number, loanTerm: number, annual: number): number {
+  if (!loanAmount || !loanTerm || !annual || loanAmount <= 0 || loanTerm <= 0) return 0;
   const i = annual / 100 / 12;
-  if (i <= 0) return Math.round(P / n);
-  const factor = Math.pow(1 + i, n);
-  return Math.round((P * (i * factor)) / (factor - 1));
+  if (i <= 0) return Math.round(loanAmount / loanTerm);
+  const factor = Math.pow(1 + i, loanTerm);
+  return Math.round((loanAmount * (i * factor)) / (factor - 1));
 }
 
-const behavior: BehaviorSchemaFn<LoanForm> = (path) => {
+const behavior = defineFormBehavior<LoanForm>(({ model }) => {
   computeFrom(
-    [path.loanAmount, path.loanTerm, path.interestRate],
-    path.monthlyPayment,
-    computeMonthlyPayment // референс — TS инферит signature
+    [model.$.loanAmount, model.$.loanTerm, model.$.interestRate],
+    model.$.monthlyPayment,
+    computeMonthlyPayment // референс — TS инферит сигнатуру
   );
-};
+});
 ```
 
 **Когда extract обязателен:**
 
 - callback >5 строк или содержит несколько return-веток / try/catch;
 - callback переиспользуется в нескольких behavior-вызовах (DRY);
-- **inline-arrow в `computeFrom([...], target, callback)`** — TS не всегда инферит `values: TForm`, может потребоваться `(values: any)`. Module-level функция с сигнатурой `(form: T) => Result` инферится без cast.
-- async watchField с try/catch на 10+ строк — extracted async-функция читаемее.
+- async onChange с try/catch на 10+ строк — extracted async-функция читаемее.
 
 **Inline OK когда:**
 
-- predicate в `enableWhen`/`disableWhen`/`copyFrom.when` на 1 значение;
-- watchField с 2-3 строками простой логики;
-- single computeFn на 1 line (`(v) => v.price * v.quantity`).
+- predicate в `enableWhen`/`disableWhen`/`copyFrom.when`;
+- onChange с 2-3 строками простой логики;
+- single computeFn на 1 line (`(price, qty) => price * qty`).
 
-См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/behavior.ts).
 
 ---
 

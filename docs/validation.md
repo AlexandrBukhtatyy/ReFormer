@@ -1,15 +1,16 @@
 # Валидация
 
-ReFormer предоставляет мощную систему валидации с поддержкой синхронных и асинхронных валидаторов, debounce и условной валидации.
+ReFormer предоставляет мощную систему валидации с поддержкой синхронных и асинхронных валидаторов и условной валидации.
+
+Под архитектурой M1 валидация — это **чистая функция данных**: валидаторы объявляются в единой схеме формы (поле `validators` на узле), а вся модель проверяется вызовом `validateFormModel(model, schema)` (async) или `validateModelSync(model, schema)` (sync-only).
 
 ## Pipeline валидации
 
 ```mermaid
 flowchart TB
     subgraph Trigger["Триггер"]
-        SV[setValue]
-        MT[markAsTouched]
-        V[validate]
+        VF[validateFormModel]
+        VS[validateModelSync]
     end
 
     subgraph SyncPhase["Sync фаза"]
@@ -20,8 +21,6 @@ flowchart TB
     end
 
     subgraph AsyncPhase["Async фаза"]
-        D[debounce 500ms]
-        AC[AbortController]
         A1[checkEmailExists]
         AE{Есть ошибки?}
     end
@@ -35,55 +34,78 @@ flowchart TB
     S1 --> S2 --> S3 --> SE
     SE -->|Да| Invalid
     SE -->|Нет| AsyncPhase
-    D --> AC
-    AC --> A1
     A1 --> AE
     AE -->|Да| Invalid
     AE -->|Нет| Valid
 ```
 
+`validateModelSync` прогоняет только синхронные валидаторы (async пропускаются) — удобно для быстрого gate «можно ли перейти на следующий шаг». `validateFormModel` прогоняет sync + async и разводит ошибки по нодам формы.
+
 ---
 
 ## Встроенные валидаторы
 
+Валидаторы — чистые фабрики из `@reformer/core/validators`. Каждая возвращает функцию `(value) => error | null` и кладётся в массив `validators` узла схемы.
+
 ### Базовые
 
 ```typescript
-const validation: ValidationSchemaFn<MyForm> = (path) => {
-  // Обязательное поле
-  required(path.email);
-  required(path.name, { message: 'Имя обязательно' });
+import { createModel } from '@reformer/core';
+import {
+  required,
+  email,
+  minLength,
+  maxLength,
+  min,
+  max,
+  pattern,
+} from '@reformer/core/validators';
 
-  // Email формат
-  email(path.email);
+const model = createModel<MyForm>({
+  /* ... */
+});
 
-  // Длина строки
-  minLength(path.password, 8);
-  maxLength(path.name, 100);
+const schema = {
+  children: [
+    // Обязательное поле
+    { value: model.$.email, validators: [required()] },
+    { value: model.$.name, validators: [required({ message: 'Имя обязательно' })] },
 
-  // Числовые диапазоны
-  min(path.age, 18);
-  max(path.age, 120);
+    // Email формат
+    { value: model.$.email, validators: [email()] },
 
-  // Регулярное выражение
-  pattern(path.phone, /^\+?[0-9]{10,14}$/);
+    // Длина строки
+    { value: model.$.password, validators: [minLength(8)] },
+    { value: model.$.name, validators: [maxLength(100)] },
+
+    // Числовые диапазоны
+    { value: model.$.age, validators: [min(18), max(120)] },
+
+    // Регулярное выражение
+    { value: model.$.phone, validators: [pattern(/^\+?[0-9]{10,14}$/)] },
+  ],
 };
 ```
 
 ### Специализированные
 
 ```typescript
-const validation: ValidationSchemaFn<MyForm> = (path) => {
-  // Телефон
-  phone(path.phone);
+import { phone, url, isDate, minDate, maxDate } from '@reformer/core/validators';
 
-  // URL
-  url(path.website);
+const schema = {
+  children: [
+    // Телефон
+    { value: model.$.phone, validators: [phone()] },
 
-  // Даты
-  isDate(path.birthDate);
-  minDate(path.birthDate, new Date('1900-01-01'));
-  maxDate(path.birthDate, new Date());
+    // URL
+    { value: model.$.website, validators: [url()] },
+
+    // Даты
+    {
+      value: model.$.birthDate,
+      validators: [isDate(), minDate(new Date('1900-01-01')), maxDate(new Date())],
+    },
+  ],
 };
 ```
 
@@ -91,19 +113,22 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
 
 ## Кастомная валидация
 
+Кастомный валидатор — это **model-валидатор** `(value, model, root) => ValidationError | null`. Кладётся в тот же массив `validators`. `model` — ближайший scope, `root` — корневая модель.
+
 ### Синхронная
 
 ```typescript
-const validation: ValidationSchemaFn<MyForm> = (path) => {
-  validators.validate(path.confirmPassword, (value, ctx) => {
-    if (value !== ctx.form.password.value.value) {
-      return {
-        code: 'mismatch',
-        message: 'Пароли не совпадают',
-      };
-    }
-    return null;
-  });
+const schema = {
+  children: [
+    {
+      value: model.$.confirmPassword,
+      validators: [
+        required(),
+        (value, m) =>
+          value !== m.password ? { code: 'mismatch', message: 'Пароли не совпадают' } : null,
+      ],
+    },
+  ],
 };
 ```
 
@@ -112,44 +137,44 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
 ```mermaid
 sequenceDiagram
     participant User as Пользователь
-    participant FN as FieldNode
-    participant AC as AbortController
+    participant Model as FormModel
+    participant Engine as validateFormModel
     participant API as API
 
-    User->>FN: setValue("a")
-    FN->>AC: new AbortController()
-    Note over FN: debounce 500ms
-
-    User->>FN: setValue("ab")
-    FN->>AC: abort() предыдущий
-    FN->>AC: new AbortController()
-    Note over FN: debounce 500ms
-
-    FN->>API: checkEmail("ab", { signal })
-    API-->>FN: { exists: false }
-    FN->>FN: errors = []
+    User->>Model: setValue("ab")
+    User->>Engine: validateFormModel(model, schema)
+    Engine->>API: checkEmail("ab")
+    API-->>Engine: { exists: false }
+    Engine->>Engine: errors = []
 ```
+
+Асинхронный валидатор — это функция в `validators`, возвращающая `Promise`. Она прогоняется под `validateFormModel` (в `validateModelSync` пропускается):
 
 ```typescript
-const validation: ValidationSchemaFn<MyForm> = (path) => {
-  validators.validateAsync(
-    path.email,
-    async (value, options) => {
-      const response = await fetch(`/api/check-email?email=${value}`, {
-        signal: options?.signal, // Поддержка отмены
-      });
-      const { exists } = await response.json();
-
-      return exists ? { code: 'taken', message: 'Email уже занят' } : null;
+const schema = {
+  children: [
+    {
+      value: model.$.email,
+      validators: [
+        required(),
+        async (value) => {
+          const response = await fetch(`/api/check-email?email=${value}`);
+          const { exists } = await response.json();
+          return exists ? { code: 'taken', message: 'Email уже занят' } : null;
+        },
+      ],
     },
-    { debounce: 500 }
-  );
+  ],
 };
 ```
+
+> Дебаунс сетевых проверок — это забота слоя взаимодействия (`onChange(..., { debounce })` из `@reformer/core/behaviors`), а не опция валидатора.
 
 ---
 
 ## Условная валидация
+
+Оберни поля в **branch-узел** `{ when, children }`. Когда `when(model, root)` возвращает `false`, всё поддерево пропускается (а ошибки этих полей очищаются).
 
 ```mermaid
 flowchart TB
@@ -163,7 +188,7 @@ flowchart TB
     end
 
     subgraph Inactive["Если false"]
-        Skip[Валидаторы не применяются]
+        Skip[Поддерево пропускается, ошибки очищаются]
     end
 
     HC -->|true| Active
@@ -173,16 +198,17 @@ flowchart TB
 ### Использование
 
 ```typescript
-const validation: ValidationSchemaFn<MyForm> = (path) => {
-  // Валидация применяется только если hasCompany = true
-  validators.applyWhen(
-    (form) => form.hasCompany,
-    (path) => {
-      required(path.companyName);
-      required(path.companyVAT);
-      minLength(path.companyVAT, 10);
-    }
-  );
+const schema = {
+  children: [
+    // Валидируется только если hasCompany = true
+    {
+      when: (m) => m.hasCompany === true,
+      children: [
+        { value: model.$.companyName, validators: [required()] },
+        { value: model.$.companyVAT, validators: [required(), minLength(10)] },
+      ],
+    },
+  ],
 };
 ```
 
@@ -190,22 +216,31 @@ const validation: ValidationSchemaFn<MyForm> = (path) => {
 
 ## Cross-field валидация
 
-```typescript
-const validation: ValidationSchemaFn<RegistrationForm> = (path) => {
-  // Пароли должны совпадать
-  validators.validate(path.confirmPassword, (value, ctx) => {
-    return value !== ctx.form.password.value.value
-      ? { code: 'mismatch', message: 'Пароли не совпадают' }
-      : null;
-  });
+Cross-field проверка — тот же model-валидатор, повешенный на поле-носитель ошибки; соседние поля читаются через `model`/`root`:
 
-  // Дата окончания > дата начала
-  validators.validate(path.endDate, (value, ctx) => {
-    const startDate = ctx.form.startDate.value.value;
-    return value <= startDate
-      ? { code: 'invalid_range', message: 'Дата окончания должна быть позже даты начала' }
-      : null;
-  });
+```typescript
+const schema = {
+  children: [
+    // Пароли должны совпадать
+    {
+      value: model.$.confirmPassword,
+      validators: [
+        (value, m) =>
+          value !== m.password ? { code: 'mismatch', message: 'Пароли не совпадают' } : null,
+      ],
+    },
+
+    // Дата окончания > дата начала
+    {
+      value: model.$.endDate,
+      validators: [
+        (value, m) =>
+          value <= m.startDate
+            ? { code: 'invalid_range', message: 'Дата окончания должна быть позже даты начала' }
+            : null,
+      ],
+    },
+  ],
 };
 ```
 
@@ -214,7 +249,7 @@ const validation: ValidationSchemaFn<RegistrationForm> = (path) => {
 ## Состояния валидации
 
 ```typescript
-// Доступные сигналы
+// Доступные сигналы ноды поля
 field.valid.value; // true если нет ошибок
 field.invalid.value; // true если есть ошибки
 field.pending.value; // true если идёт async валидация
@@ -239,88 +274,48 @@ interface ValidationError {
 
 ---
 
-## Best practices: типизация и структура callback'ов
+## Best practices: типизация и структура валидаторов
 
-Эти два правила относятся **ко всей схеме валидации** (`ValidationSchemaFn<T>`) и одинаково важны для `add-validation`/`add-behavior` стадий MCP-плейбука.
+### 1. Типизируй модель — не `any`
 
-### 1. Используй типизированный generic формы — НЕ `any`
-
-`ValidationSchemaFn<T>` — параметризованный тип. Передай свой form-interface:
+Типобезопасность приходит из типа модели: `createModel<T>(...)` даёт `model.$.<field>` с точными типами, а cross-field валидатор типизируется через `ModelValidator<TValue, TForm, TForm>`.
 
 ```typescript
+import type { ModelValidator } from '@reformer/core';
 import type { CreditApplicationForm } from './types';
 
-// ✅ generic зафиксирован — path / ctx / value инферятся правильно
-const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  required(path.email);
-  validateTree<CreditApplicationForm>((ctx) => {
-    const form = ctx.form.getValue();  // тип CreditApplicationForm — IDE автодополняет поля
-    if (form.loanAmount && form.totalIncome && form.loanAmount > form.totalIncome * 10) {
-      return { code: 'tooHigh', message: '...' };
-    }
-    return null;
-  }, { targetField: 'loanAmount' });
-};
-
-// ❌ generic пропущен или `path: any` — теряются поля, ошибки в имени = silent fail
-const validation: ValidationSchemaFn<any> = (path: any) => { ... };
-```
-
-`(path: any)` иногда требуется как обход TS2589 для очень глубоких форм или редких mismatches типов (например, `min(field)` ждёт `number | undefined`, а ваше поле `number | null`). В таких случаях:
-
-- сначала **попробуй типизировать** — TS обычно справляется.
-- если падает — **сузь cast до конкретного call-site** (`min(path.X as never, ...)`), а не на весь callback `(path: any)`.
-- крайний случай — `(path: any)` с **комментарием почему** (один TS issue line + reference на baseline).
-
-### 2. Inline callback OK для простых, extract для сложных
-
-**Inline-callback** (короткие predicates, единичные validate):
-
-```typescript
-// ✅ нормально для 1-2 строк
-applyWhen(
-  path.loanType,
-  (t) => t === 'mortgage',
-  (p) => {
-    required(p.propertyValue);
-  }
-);
-```
-
-**Extracted module-level function** (предпочтительно для cross-field, computeFrom, многошаговых validate):
-
-```typescript
-// ✅ предпочтительно — extracted типизированный helper
-function validateLoanCap(form: CreditApplicationForm): ValidationError | null {
-  if (!form.loanAmount || !form.totalIncome) return null;
+// ✅ типизированный extracted-валидатор — value/form инферятся правильно
+const validateLoanCap: ModelValidator<number, CreditApplicationForm, CreditApplicationForm> = (
+  loanAmount,
+  form
+) => {
+  if (!loanAmount || !form.totalIncome) return null;
   const cap = form.totalIncome * 12 * 10;
-  if (form.loanAmount > cap) {
-    return { code: 'loanAmountExceedsCap', message: `Превышен лимит ${cap}` };
-  }
-  return null;
-}
+  return loanAmount > cap
+    ? { code: 'loanAmountExceedsCap', message: `Превышен лимит ${cap}` }
+    : null;
+};
 
-const validation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validateTree<CreditApplicationForm>((ctx) => validateLoanCap(ctx.form.getValue()), {
-    targetField: 'loanAmount',
-  });
+const schema = {
+  children: [{ value: model.$.loanAmount, validators: [validateLoanCap] }],
 };
 ```
 
-**Когда extract обязателен:**
+### 2. Inline OK для простых, extract для сложных
 
-- callback >5 строк или содержит несколько return-веток;
-- callback переиспользуется в нескольких блоках (DRY);
-- inline-arrow в `computeFrom([...], target, callback)` — TS теряет inference и просит `(values: any)`. Module-level функция с явной сигнатурой `(form: T) => Result` инферится без cast.
-- cross-field валидация, которая читает несколько полей формы — extracted функция читается легче.
+**Inline-валидатор** (короткие одиночные проверки) — нормально:
 
-**Inline OK когда:**
+```typescript
+{ value: model.$.age, validators: [required(), min(18)] }
+```
 
-- predicate на 1 значение (`(t) => t === 'mortgage'`);
-- single-field validate с одной проверкой (`(value: boolean) => value === true ? null : {...}`);
-- applyWhen-body c 2-3 `required` вызовами без ветвлений.
+**Extracted module-level функция** предпочтительна для cross-field и многострочной логики:
 
-См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/credit-application-behavior.ts).
+- валидатор >5 строк или содержит несколько return-веток;
+- валидатор переиспользуется на нескольких полях (DRY);
+- cross-field проверка, читающая несколько полей формы, — extracted функция читается легче и типизируется без cast.
+
+См. примеры: [`projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/validation.ts`](../projects/react-playground/src/pages/examples/complex-multy-step-form/schemas/validation.ts).
 
 ---
 
