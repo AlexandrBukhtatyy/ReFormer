@@ -381,7 +381,10 @@ export class ArrayNode<T extends object> extends FormNode<T[]> {
 
   async validate(): Promise<boolean> {
     const results = await Promise.all(this.items.value.map((item) => item.validate()));
-    return results.every(Boolean);
+    // Учитываем array-level errors (setErrors, напр. minItems), а не только валидность элементов —
+    // иначе императивное булево validate() расходится с реактивным valid.value (тот включает
+    // ownErrors через createAggregateSignals). Зеркалит ModelArrayNode.validate().
+    return results.every(Boolean) && this._arrayErrors.value.length === 0;
   }
 
   /**

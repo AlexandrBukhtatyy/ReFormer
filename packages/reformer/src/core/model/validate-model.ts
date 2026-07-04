@@ -114,14 +114,21 @@ function walk(
   }
 
   if (n.value instanceof Signal) {
-    const validators = (n.validators as ModelValidator[] | undefined) ?? [];
+    // Оба списка имеют контракт `(value, model, root)`. `validateModel`/`validateFormModel`
+    // дожидаются async в `runTasks`, а `validateModelSync` пропускает промисы. Раньше движок
+    // читал только `validators`, из-за чего `asyncValidators` узла схемы молча игнорировались.
+    const syncValidators = (n.validators as ModelValidator[] | undefined) ?? [];
+    const asyncValidators = (n.asyncValidators as ModelValidator[] | undefined) ?? [];
+    const validators = asyncValidators.length
+      ? [...syncValidators, ...asyncValidators]
+      : syncValidators;
     if (validators.length > 0) {
       if (active)
         out.tasks.push({ signal: n.value as PathAwareSignal<unknown>, validators, scope });
       else out.clearSignals.push(n.value as PathAwareSignal<unknown>);
     }
     for (const [key, child] of Object.entries(n)) {
-      if (key === 'value' || key === 'validators') continue;
+      if (key === 'value' || key === 'validators' || key === 'asyncValidators') continue;
       walk(child, scope, root, active, out);
     }
     return;
@@ -143,6 +150,18 @@ const pushError = (
   err: ValidationError
 ) => {
   (errors[path] ??= []).push(err);
+};
+
+/**
+ * Есть ли среди собранных ошибок блокирующие. Ошибка с `severity: 'warning'` показывается,
+ * но НЕ блокирует submit (см. {@link ValidationError.severity} — 'warning' allows submission),
+ * поэтому `valid` выводится из наличия блокирующих ошибок, а не из общего количества ошибок.
+ */
+const hasBlockingErrors = (errors: Record<string, ValidationError[]>): boolean => {
+  for (const list of Object.values(errors)) {
+    for (const err of list) if (err.severity !== 'warning') return true;
+  }
+  return false;
 };
 
 /**
@@ -174,7 +193,7 @@ export function validateModelSync<T>(
       if (result) pushError(errors, signal.__path, result as ValidationError);
     }
   }
-  return { valid: Object.keys(errors).length === 0, errors };
+  return { valid: !hasBlockingErrors(errors), errors };
 }
 
 /**
@@ -193,7 +212,7 @@ export async function validateModel<T>(
 ): Promise<ModelValidationResult> {
   const { tasks } = collect(model, schema);
   const errors = await runTasks(tasks, model);
-  return { valid: Object.keys(errors).length === 0, errors };
+  return { valid: !hasBlockingErrors(errors), errors };
 }
 
 /** Прогон задач (sync + async): возвращает ошибки по пути. */
@@ -247,7 +266,7 @@ export async function validateFormModel<T>(
   for (const signal of clearSignals) {
     getNodeForSignal(signal)?.setErrors([]);
   }
-  return { valid: Object.keys(errors).length === 0, errors };
+  return { valid: !hasBlockingErrors(errors), errors };
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */

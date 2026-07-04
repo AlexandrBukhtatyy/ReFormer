@@ -30,33 +30,35 @@ npm install @reformer/core@beta # Active development is underway, so you can try
 
 ## Quick Start
 
+ReFormer is built around the **M1 architecture**: a reactive `FormModel` owns the values, a single
+schema binds field config (component / validators) to the model's signals, and `createForm({ model, schema })`
+wires them into a typed form.
+
 ```tsx
 import { useMemo } from 'react';
 import {
+  createModel,
   createForm,
+  validateFormModel,
   useFormControl,
-  required,
-  email,
-  validate,
-  watchField,
-  FieldNode,
-  type ValidationSchemaFn,
-  type BehaviorSchemaFn,
+  type FieldNode,
 } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
 
 // 0. Simple FormField component
 function FormField({ label, control }: { label: string; control: FieldNode<string> }) {
-  const { value, errors } = useFormControl(control);
+  const { value, errors, shouldShowError } = useFormControl(control);
 
   return (
     <div>
       <label>{label}</label>
       <input
-        value={value}
+        value={value ?? ''}
         onChange={(e) => control.setValue(e.target.value)}
         onBlur={() => control.markAsTouched()}
       />
-      {errors.length > 0 && <span className="error">{errors[0].message}</span>}
+      {shouldShowError && <span className="error">{errors[0].message}</span>}
     </div>
   );
 }
@@ -69,62 +71,55 @@ interface RegistrationForm {
   confirmPassword: string;
 }
 
-// 2. Form schema
-const formSchema = {
-  username: { value: '' },
-  email: { value: '' },
-  password: { value: '' },
-  confirmPassword: { value: '' },
+// 2. Reactive model — the source of truth for values
+const model = createModel<RegistrationForm>({
+  username: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+});
+
+// 3. Single schema — binds field config to model signals (`model.$.<field>`).
+//    Validators are inline factories from `@reformer/core/validators`.
+//    Cross-field validation is a ModelValidator `(value, model) => error | null`.
+const schema = {
+  children: [
+    { value: model.$.username, component: Input, validators: [required(), minLength(2)] },
+    { value: model.$.email, component: Input, validators: [required(), email()] },
+    { value: model.$.password, component: Input, validators: [required(), minLength(8)] },
+    {
+      value: model.$.confirmPassword,
+      component: Input,
+      validators: [
+        required(),
+        (value, m) =>
+          value && m.password && value !== m.password
+            ? { code: 'mismatch', message: 'Passwords do not match' }
+            : null,
+      ],
+    },
+  ],
 };
 
-// 3. Validation schema
-const validationSchema: ValidationSchemaFn<RegistrationForm> = (path) => {
-  required(path.username);
-
-  required(path.email);
-  email(path.email);
-
-  required(path.password);
-  required(path.confirmPassword);
-
-  // Cross-field validation: вешается на поле-носитель ошибки, соседнее поле читается через `root`
-  validate(path.confirmPassword, (value, _control, root) => {
-    const password = root.password.value.value;
-    if (value && password && value !== password) {
-      return { code: 'mismatch', message: 'Passwords do not match' };
-    }
-    return null;
+// 4. Behavior — declarative reactive logic, run by `createForm({ behavior })`.
+//    Clear confirmPassword whenever password changes.
+const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
+  onChange(model.$.password, () => {
+    if (model.confirmPassword) model.confirmPassword = '';
   });
-};
-
-// 4. Behavior schema
-const behaviorSchema: BehaviorSchemaFn<RegistrationForm> = (path) => {
-  // Clear confirmPassword when password changes (if not empty)
-  watchField(path.password, (_, ctx) => {
-    const confirmValue = ctx.form.confirmPassword.value.value;
-    if (confirmValue) {
-      ctx.form.confirmPassword.setValue('', { emitEvent: false });
-    }
-  });
-};
+});
 
 // 5. Registration form component
 function RegistrationFormExample() {
-  const form = useMemo(
-    () =>
-      createForm<RegistrationForm>({
-        form: formSchema,
-        validation: validationSchema,
-        behavior: behaviorSchema,
-      }),
-    []
-  );
+  const form = useMemo(() => createForm<RegistrationForm>({ model, schema, behavior }), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await form.validate();
-    if (form.valid.value) {
-      console.log('Form data:', form.value.value);
+    form.touchAll();
+    // Validate the whole model against the schema (sync + async); errors route into the form.
+    const { valid } = await validateFormModel(model, schema);
+    if (valid) {
+      console.log('Form data:', model.get());
     }
   };
 

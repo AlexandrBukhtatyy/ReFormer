@@ -89,7 +89,12 @@ export class FormSubmitter<T extends object> {
    *
    * @param onSubmit - Callback для отправки данных
    * @param options - Опции submit
-   * @returns Результат от onSubmit или null если валидация не пройдена
+   * @returns Результат от onSubmit или `null` если валидация не пройдена
+   *
+   * @remarks
+   * Возвращаемый `null` неоднозначен: он сигналит и провал валидации, и легитимный `null`,
+   * который вернул `onSubmit` (или void-обработчик). Чтобы различать эти случаи, используйте
+   * {@link submitWithResult} — он отдаёт явный флаг `success`.
    *
    * @example
    * ```typescript

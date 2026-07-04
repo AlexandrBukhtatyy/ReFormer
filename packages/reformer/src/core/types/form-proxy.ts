@@ -118,8 +118,37 @@ export type FormControlsProxy<T> = {
  * form.email.setValue('test@mail.com');
  * form.profile.name.setValue('John');
  * ```
+ *
+ * @remarks
+ * **Зарезервированные имена.** Прямой доступ `form.<name>` отдаёт приоритет собственным
+ * членам {@link GroupNode} (`value`, `status`, `id`, `errors`, `disabled`, `reset`, `submit`, …).
+ * Поэтому поле модели, названное любым из этих имён, недостижимо как `form.<name>` — там будет
+ * агрегированный сигнал/метод узла, а не {@link FieldNode}. Такие имена исключены из полевого
+ * пространства имён на уровне типов (через `Omit<…, keyof GroupNode>`), чтобы затенение не
+ * компилировалось молча. Для доступа к любому полю по имени — включая затенённые — используйте
+ * escape-hatch пространство {@link FormProxy.$}: `form.$.status`, `form.$.id`, `form.$.value`.
  */
-export type FormProxy<T> = GroupNode<T> & FormControlsProxy<T>;
+export type FormProxy<T> = GroupNode<T> &
+  // Исключаем имена, совпадающие с членами GroupNode: для них `form.<name>` возвращает член узла,
+  // а не поле. Оставлять их в полевом пространстве — значит пересекать, напр., ReadonlySignal<FieldStatus>
+  // с FieldNode<string> и молча компилировать невозможный тип. Escape-hatch — `form.$` ниже.
+  Omit<FormControlsProxy<T>, keyof GroupNode<T>> & {
+    /**
+     * Escape-hatch пространство имён «controls»: типобезопасный доступ ко ВСЕМ полям формы
+     * по имени, включая поля, чьи имена совпадают с членами {@link GroupNode}
+     * (`value`/`status`/`id`/`errors`/…), недостижимые через `form.<name>`.
+     *
+     * @example
+     * ```typescript
+     * // модель: { status: string; email: string }
+     * form.status;      // ReadonlySignal<FieldStatus> — агрегат GroupNode (не поле!)
+     * form.$.status;    // FieldNode<string> — поле пользователя
+     * form.$.status.setValue('active');
+     * form.$.email;     // FieldNode<string> — так же доступны и незатенённые поля
+     * ```
+     */
+    readonly $: FormControlsProxy<T>;
+  };
 
 /**
  * Комбинированный тип для ArrayNode с Proxy доступом к элементам

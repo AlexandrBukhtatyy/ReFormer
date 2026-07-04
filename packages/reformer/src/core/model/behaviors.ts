@@ -110,10 +110,25 @@ export function watchField<T>(
  * ⚠️ Поле должно быть материализовано в форме (`createForm`) — иначе ноды в реестре нет (например,
  * элемент массива, который строится per-item).
  *
+ * ⚠️ Если то же поле одновременно является целью `compute`/`computeFrom`, обязательно ограничь
+ * compute тем же условием (`when`), что и это `enableWhen`. Механизмы не согласованы: `enableWhen`
+ * работает со статус-машиной ноды (enable/disable/reset), а `compute` пишет `target.value` напрямую
+ * в сигнал модели и проверяет только собственный `options.when` — состояние `disabled` он НЕ смотрит.
+ * Поэтому при выключенном поле любое изменение зависимости compute молча заново заполнит его (а с
+ * `resetOnDisable` — перезапишет только что сброшенное значение), и так как `getValue()`/`submit`
+ * включают disabled-поля, мусор утечёт в payload. Это аналог правила #13 гайда add-behavior,
+ * которое сегодня сформулировано только для `copyFrom`; для `compute` то же ограничение обязательно.
+ *
  * @group Model
  * @example
  * ```typescript
  * enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', { resetOnDisable: true });
+ *
+ * // Поле-цель compute, которое ТАКЖЕ в resetOnDisable enableWhen: compute обязан нести тот же when,
+ * // иначе initialPayment заново заполнится в выключенном состоянии и утечёт в submit.
+ * compute(model.$.initialPayment, () => model.propertyValue * 0.2, {
+ *   when: () => model.loanType === 'mortgage',
+ * });
  * ```
  */
 export function enableWhen(

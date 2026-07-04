@@ -3815,6 +3815,23 @@ export interface ArrayControlState<T> {
    * ```
    */
   dirty: boolean;
+
+  /**
+   * Флаг отключения массива.
+   * `true` когда массив отключён (`ArrayNode.disable()`), в том числе через
+   * распространение disable от родительской группы.
+   *
+   * Используйте для отключения UI-действий добавления/удаления, когда массив
+   * структурно неизменяем.
+   *
+   * @example
+   * ```tsx
+   * const { disabled } = useFormControl(itemsArray);
+   *
+   * return <button disabled={disabled} onClick={() => control.push()}>Add</button>;
+   * ```
+   */
+  disabled: boolean;
 }
 ```
 
@@ -3913,8 +3930,7 @@ _Source: src/core/types/index.ts_
 **Kind:** `type`
 
 Чистый асинхронный валидатор поля. Та же тройка аргументов `(value, scope, root)`, что у
-{@link Validator}, но возвращает `Promise`. Регистрируется через
-`validateAsync(path, validator, { debounce })`.
+{@link Validator}, но возвращает `Promise`.
 
 **Signature:**
 ```typescript
@@ -3924,6 +3940,10 @@ export type AsyncValidator<TForm, TField> = (
   root: FormModel<TForm>
 ) => Promise<ValidationError | null>;
 ```
+
+**Deprecated:** Осиротевший остаток удалённого оператора `validateAsync` (Ф7). Рантаймом не
+потребляется — живой async-путь узла поля использует `AsyncValidatorFn` `(value, { signal })`.
+Экспортируется только ради обратной совместимости.
 
 _Source: src/core/types/validation-schema.ts_
 
@@ -4034,12 +4054,15 @@ _Source: src/core/model/behaviors.ts_
 
 **Kind:** `type`
 
-Функция условия для applyWhen.
+Функция-предикат `(value) => boolean`.
 
 **Signature:**
 ```typescript
 export type ConditionFn<T> = (value: T) => boolean;
 ```
+
+**Deprecated:** Осиротевший остаток удалённого оператора `applyWhen` (Ф7). Рантаймом не
+потребляется; экспортируется только ради обратной совместимости.
 
 _Source: src/core/types/validation-schema.ts_
 
@@ -4346,6 +4369,15 @@ _Source: src/core/validation/validators/email.ts_
 ⚠️ Поле должно быть материализовано в форме (`createForm`) — иначе ноды в реестре нет (например,
 элемент массива, который строится per-item).
 
+⚠️ Если то же поле одновременно является целью `compute`/`computeFrom`, обязательно ограничь
+compute тем же условием (`when`), что и это `enableWhen`. Механизмы не согласованы: `enableWhen`
+работает со статус-машиной ноды (enable/disable/reset), а `compute` пишет `target.value` напрямую
+в сигнал модели и проверяет только собственный `options.when` — состояние `disabled` он НЕ смотрит.
+Поэтому при выключенном поле любое изменение зависимости compute молча заново заполнит его (а с
+`resetOnDisable` — перезапишет только что сброшенное значение), и так как `getValue()`/`submit`
+включают disabled-поля, мусор утечёт в payload. Это аналог правила #13 гайда add-behavior,
+которое сегодня сформулировано только для `copyFrom`; для `compute` то же ограничение обязательно.
+
 **Signature:**
 ```typescript
 export function enableWhen(
@@ -4359,6 +4391,12 @@ export function enableWhen(
 
 ```typescript
 enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', { resetOnDisable: true });
+
+// Поле-цель compute, которое ТАКЖЕ в resetOnDisable enableWhen: compute обязан нести тот же when,
+// иначе initialPayment заново заполнится в выключенном состоянии и утечёт в submit.
+compute(model.$.initialPayment, () => model.propertyValue * 0.2, {
+  when: () => model.loanType === 'mortgage',
+});
 ```
 
 _Source: src/core/model/behaviors.ts_
@@ -4633,6 +4671,21 @@ export interface FieldControlState<T> {
    * ```
    */
   componentProps: Record<string, unknown>;
+
+  /**
+   * Флаг изменения поля.
+   * `true` когда значение поля отличается от начального.
+   *
+   * Реактивный аналог `control.dirty` — паритет с {@link ArrayControlState.dirty}.
+   *
+   * @example
+   * ```tsx
+   * const { dirty } = useFormControl(field);
+   *
+   * return dirty ? <span className="badge">Изменено</span> : null;
+   * ```
+   */
+  dirty: boolean;
 }
 ```
 
@@ -4960,7 +5013,27 @@ _Source: src/core/nodes/form-node.ts_
 
 **Signature:**
 ```typescript
-export type FormProxy<T> = GroupNode<T> & FormControlsProxy<T>;
+export type FormProxy<T> = GroupNode<T> &
+  // Исключаем имена, совпадающие с членами GroupNode: для них `form.<name>` возвращает член узла,
+  // а не поле. Оставлять их в полевом пространстве — значит пересекать, напр., ReadonlySignal<FieldStatus>
+  // с FieldNode<string> и молча компилировать невозможный тип. Escape-hatch — `form.$` ниже.
+  Omit<FormControlsProxy<T>, keyof GroupNode<T>> & {
+    /**
+     * Escape-hatch пространство имён «controls»: типобезопасный доступ ко ВСЕМ полям формы
+     * по имени, включая поля, чьи имена совпадают с членами {@link GroupNode}
+     * (`value`/`status`/`id`/`errors`/…), недостижимые через `form.<name>`.
+     *
+     * @example
+     * ```typescript
+     * // модель: { status: string; email: string }
+     * form.status;      // ReadonlySignal<FieldStatus> — агрегат GroupNode (не поле!)
+     * form.$.status;    // FieldNode<string> — поле пользователя
+     * form.$.status.setValue('active');
+     * form.$.email;     // FieldNode<string> — так же доступны и незатенённые поля
+     * ```
+     */
+    readonly $: FormControlsProxy<T>;
+  };
 ```
 
 **Examples:**
@@ -5007,16 +5080,18 @@ _Source: src/core/types/form-proxy.ts_
 **Signature:**
 ```typescript
 export type FormSchema<T> = {
+  // Листовые позиции используют NonEmptyFieldConfig: пустой `{}` (частая опечатка) отклоняется
+  // на этапе компиляции, но каждое свойство FieldConfig по отдельности остаётся опциональным.
   [K in keyof T]: NonNullable<T[K]> extends string | number | boolean
-    ? FieldConfig<T[K]>
+    ? NonEmptyFieldConfig<T[K]>
     : NonNullable<T[K]> extends Array<infer U>
       ? U extends string | number | boolean
-        ? FieldConfig<T[K]>
+        ? NonEmptyFieldConfig<T[K]>
         : U extends Date | File | Blob | AnyFunction
-          ? FieldConfig<T[K]>
+          ? NonEmptyFieldConfig<T[K]>
           : [FormSchema<U>]
       : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
-        ? FieldConfig<T[K]>
+        ? NonEmptyFieldConfig<T[K]>
         : FormSchema<NonNullable<T[K]>>;
 };
 ```
@@ -5628,6 +5703,9 @@ _Source: src/core/validation/validators/is-number.ts_
 bulk-сеттеры (`model.set`/`model.patch`, `patchValue`/`setValue`) пропускают это поле, чтобы
 значение из payload не затирало вычисляемое. Прикладной код напрямую обычно не вызывает.
 
+Идемпотентна на уровне флага: повторные вызовы наращивают счётчик ссылок, чтобы каждый оператор,
+пишущий в этот сигнал, был сбалансирован своим {@link unmarkDerived} при dispose.
+
 **Signature:**
 ```typescript
 export function markDerived(signal: Signal<any>): void
@@ -5647,6 +5725,7 @@ markDerived(model.$.total);
 
 **See also:**
 - {@link isDerived} - проверка пометки
+- {@link unmarkDerived} - снять пометку при dispose оператора
 
 _Source: src/core/utils/derived-registry.ts_
 
@@ -6607,7 +6686,8 @@ _Source: src/core/utils/signal-node-registry.ts_
 
 Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
 
-Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
+Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
+обязательный multi-select / FormArray без выбранных элементов).
 Для boolean полей требуется значение `true`.
 
 **Signature:**
@@ -6707,26 +6787,31 @@ _Source: src/core/model/behaviors.ts_
 
 **Kind:** `function`
 
-Выполняет функцию вне контекста effect
+Выполняет функцию вне контекста effect (отложенная запись на микротаск).
 
-Более простой вариант для одиночного вызова
+Сбои fn (синхронный throw и async-rejection) маршрутизируются через {@link FormErrorHandler}, а не
+всплывают неперехваченными. Возвращает отменитель: вызов до срабатывания микротаска отменяет запись
+(liveness-охрана — не писать против снесённого узла при dispose в том же тике).
 
 **Signature:**
 ```typescript
-export function runOutsideEffect(fn: () => void | Promise<void>): void
+export function runOutsideEffect(fn: () => void | Promise<void>): () => void
 ```
 
 **Parameters:**
 - `fn` — - Функция для выполнения
+
+**Returns:** Отменитель ещё не выполненной записи (no-op, если запись уже выполнена)
 
 **Examples:**
 
 ```typescript
 effect(() => {
   const value = signal.value;
-  runOutsideEffect(() => {
+  const cancel = runOutsideEffect(() => {
     otherSignal.value = transform(value);
   });
+  onDispose(cancel); // отменить ожидающую запись, если узел снесут в этом же тике
 });
 ```
 
@@ -6738,8 +6823,8 @@ _Source: src/core/utils/safe-effect.ts_
 
 Создает callback, который выполняется вне контекста effect
 
-Использует queueMicrotask для отложенного выполнения,
-что позволяет модифицировать сигналы без вызова "Cycle detected"
+Откладывает вызов через {@link runOutsideEffect} — то есть получает маршрутизацию ошибок и
+обработку async-rejection «бесплатно».
 
 **Signature:**
 ```typescript
@@ -6777,7 +6862,9 @@ _Source: src/core/utils/safe-effect.ts_
 
 Создает версию callback с поддержкой debounce, безопасную для effect
 
-Комбинирует debounce логику с выходом из effect контекста
+`withDebounce` уже откладывает вызов (таймер) — этого достаточно для выхода из effect-контекста,
+поэтому дополнительного `queueMicrotask` нет (устранён двойной defer). Сбои callback (в т.ч.
+async-rejection) маршрутизируются через {@link FormErrorHandler}.
 
 **Signature:**
 ```typescript
@@ -7103,6 +7190,42 @@ export type UnknownRecord = Record<string, unknown>;
 ```
 
 _Source: src/core/types/index.ts_
+
+### unmarkDerived
+
+**Kind:** `function`
+
+Снять пометку производного сигнала (обратная операция к {@link markDerived}).
+
+Вызывается из очистки (`onDispose`) оператора `compute`/`computeFrom`, когда поведение снимается,
+но модель/сигнал продолжают жить (динамическая перекоммутация: удалить под-схему → сохранить модель
+→ bulk-set). Без этого сигнал остаётся помеченным навсегда, и bulk-сеттеры навсегда пропускают
+поле, которое больше ничем не вычисляется.
+
+Учитывает счётчик ссылок: пометка снимается только когда снят последний владелец. Вызов на
+непомеченном сигнале — безопасный no-op.
+
+**Signature:**
+```typescript
+export function unmarkDerived(signal: Signal<any>): void
+```
+
+**Parameters:**
+- `signal` — - Сигнал значения из {@link FormModel}, ранее помеченный {@link markDerived}
+
+**Examples:**
+
+```typescript
+import { markDerived, unmarkDerived } from '@reformer/core';
+
+markDerived(model.$.total);
+onDispose(() => unmarkDerived(model.$.total)); // при снятии compute снова разрешаем bulk-set
+```
+
+**See also:**
+- {@link markDerived} - пометить сигнал производным
+
+_Source: src/core/utils/derived-registry.ts_
 
 ### url
 
@@ -7605,15 +7728,17 @@ _Source: src/hooks/useFormControlValue.ts_
 
 **Kind:** `interface`
 
-Опции для функции validateAsync.
-
 **Signature:**
 ```typescript
 export interface ValidateAsyncOptions extends ValidateOptions {
-  /** Задержка перед выполнением валидации (в мс) */
+  /** Задержка перед выполнением валидации (в мс). */
   debounce?: number;
 }
 ```
+
+**Deprecated:** Осиротевший остаток удалённого оператора `validateAsync` (Ф7): опция `debounce`
+подключалась тем оператором, которого больше нет. Рантаймом не потребляется; экспортируется
+только ради обратной совместимости.
 
 _Source: src/core/types/validation-schema.ts_
 
@@ -7709,14 +7834,16 @@ _Source: src/core/model/validate-model.ts_
 
 **Kind:** `interface`
 
-Опции для функции validate.
+Опции валидатора-фабрики (`required()`/`pattern()`/…). Передаются вторым (или последним)
+аргументом в фабрику и попадают в возвращаемую {@link ValidationError}.
 
 **Signature:**
 ```typescript
 export interface ValidateOptions {
-  /** Сообщение об ошибке */
+  /** Готовое сообщение об ошибке. Если не задано, валидаторы кладут `''`, и отображаемый текст
+   * резолвится из `code` (см. резолвер сообщений в `@reformer/cdk`). */
   message?: string;
-  /** Параметры ошибки */
+  /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
   params?: Record<string, FormValue>;
 }
 ```

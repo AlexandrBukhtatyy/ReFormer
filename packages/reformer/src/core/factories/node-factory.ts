@@ -259,8 +259,21 @@ export class NodeFactory {
     if (config == null || typeof config !== 'object') return false;
     // M1: новый путь — поле распознаётся по наличию сигнала значения.
     if ('valueSignal' in config) return true;
-    // Legacy-путь: поле = value + component (component участвует в различении field/group).
-    return 'value' in config && 'component' in config;
+    // Legacy-путь: `component` опционален (headless-ядро — {@link FieldConfig.component}),
+    // поэтому связка `value + component` слишком строга: headless-поле вида
+    // `{ value, validators }` ошибочно классифицировалось как группа. Поле распознаётся по
+    // наличию `value` вместе с любым field-специфичным маркером (включая `component`).
+    // Одного `value` по-прежнему недостаточно — это разрешает `{ value, схема-поля }`,
+    // но не голый `{ value }` (последний неотличим от опечатки/пустышки).
+    if (!('value' in config)) return false;
+    return (
+      'component' in config ||
+      'componentProps' in config ||
+      'validators' in config ||
+      'asyncValidators' in config ||
+      'updateOn' in config ||
+      'debounce' in config
+    );
   }
 
   /**
