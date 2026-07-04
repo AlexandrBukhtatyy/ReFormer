@@ -3518,6 +3518,12 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   options: RadioOption[];
   /** Блокирует все варианты. */
   disabled?: boolean;
+  /**
+   * Общий `name` для всех radio группы — обеспечивает нативный одиночный выбор и
+   * навигацию стрелками между вариантами. Если не задан, выводится из `id` /
+   * `data-testid`, а в крайнем случае генерируется автоматически.
+   */
+  name?: string;
   /** Test-id (используется как для контейнера, так и как префикс для каждого radio). */
   'data-testid'?: string;
 }
@@ -4019,6 +4025,7 @@ function SelectTrigger({
   size = 'default',
   children,
   'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: 'sm' | 'default';

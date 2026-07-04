@@ -23,6 +23,12 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   options: RadioOption[];
   /** Блокирует все варианты. */
   disabled?: boolean;
+  /**
+   * Общий `name` для всех radio группы — обеспечивает нативный одиночный выбор и
+   * навигацию стрелками между вариантами. Если не задан, выводится из `id` /
+   * `data-testid`, а в крайнем случае генерируется автоматически.
+   */
+  name?: string;
   /** Test-id (используется как для контейнера, так и как префикс для каждого radio). */
   'data-testid'?: string;
 }
@@ -62,16 +68,39 @@ export interface RadioGroupProps extends Omit<React.HTMLAttributes<HTMLDivElemen
  */
 const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
   (
-    { className, value, onChange, onBlur, options, disabled, 'data-testid': dataTestId, ...props },
+    {
+      className,
+      value,
+      onChange,
+      onBlur,
+      options,
+      disabled,
+      name,
+      id,
+      'data-testid': dataTestId,
+      ...props
+    },
     ref
   ) => {
+    const generatedName = React.useId();
+    // Общий `name` объединяет radio в одну нативную группу: одиночный выбор +
+    // навигация стрелками между вариантами. FormField пробрасывает `id`
+    // (controlId), поэтому в реальном пути он и станет именем группы.
+    const groupName = name ?? id ?? dataTestId ?? generatedName;
+
     const handleRadioChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.value);
     };
 
     return (
+      // role="radiogroup" + прокинутые aria-* (aria-labelledby/aria-invalid/
+      // aria-describedby из FormField) делают контейнер настоящей группой для AT:
+      // метка ассоциируется, состояние невалидности экспонируется, навигация
+      // стрелками работает как по группе.
       <div
         ref={ref}
+        role="radiogroup"
+        id={id}
         className={cn('flex flex-col gap-2', className)}
         data-testid={dataTestId}
         {...props}
@@ -83,6 +112,7 @@ const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
               <input
                 type="radio"
                 id={inputId}
+                name={groupName}
                 value={option.value}
                 checked={value === option.value}
                 disabled={disabled}

@@ -52,9 +52,34 @@ export interface CheckboxProps extends Omit<
  */
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
   (
-    { className, value, onChange, onBlur, label, disabled, 'data-testid': dataTestId, ...props },
+    {
+      className,
+      value,
+      onChange,
+      onBlur,
+      label,
+      disabled,
+      'data-testid': dataTestId,
+      id,
+      'aria-labelledby': ariaLabelledBy,
+      ...props
+    },
     ref
   ) => {
+    // Стабильный id для программной связки внутренней <label> с input. В потоке
+    // FormField сюда приходит `id={ids.controlId}` из FormFieldControl; при
+    // standalone-использовании генерируем свой через useId.
+    const reactId = React.useId();
+    const inputId = id ?? reactId;
+
+    // Когда рендерим собственную <label htmlFor>, именно она даёт доступное имя.
+    // FormFieldControl выставляет `aria-labelledby={ids.labelId}`, но ui-kit
+    // FormField намеренно не рендерит верхний Label для чекбоксов — значит это
+    // висячий IDREF (accname его игнорирует). Сбрасываем его, чтобы имя бралось
+    // из связанной <label>. Без внутренней метки оставляем как есть (внешняя
+    // подпись — ответственность потребителя).
+    const resolvedAriaLabelledBy = label ? undefined : ariaLabelledBy;
+
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.checked);
     };
@@ -64,20 +89,26 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         <input
           ref={ref}
           type="checkbox"
+          id={inputId}
           checked={value || false}
           disabled={disabled}
           className={cn(
             'h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary',
             'disabled:cursor-not-allowed disabled:opacity-50',
+            'aria-invalid:border-destructive aria-invalid:ring-destructive',
             className
           )}
           onChange={handleCheckboxChange}
           onBlur={onBlur}
           data-testid={dataTestId}
+          aria-labelledby={resolvedAriaLabelledBy}
           {...props}
         />
         {label && (
-          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+          <label
+            htmlFor={inputId}
+            className="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
             {label}
           </label>
         )}

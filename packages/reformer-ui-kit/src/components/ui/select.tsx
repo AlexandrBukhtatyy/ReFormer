@@ -35,10 +35,14 @@ interface UseResourceOptionsResult {
   loading: boolean;
   /** Догрузка следующей страницы (пагинация). */
   loadingMore: boolean;
+  /** Последняя загрузка завершилась ошибкой (сеть/reject `load`). */
+  error: boolean;
   /** Есть ли ещё непогруженные страницы. */
   hasMore: boolean;
   /** Подгрузить следующую страницу (стратегия `partial`). */
   loadMore: () => void;
+  /** Повторить первичную загрузку (после ошибки). */
+  reload: () => void;
   /** Текущее значение поля поиска. */
   searchInput: string;
   /** Изменить поле поиска (клиентская фильтрация или серверный запрос). */
@@ -60,6 +64,9 @@ function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptions
   const flags = React.useMemo(() => resolveStrategyFlags(resource?.type), [resource?.type]);
   const [state, dispatch] = React.useReducer(resourceReducer<T>, undefined, initialResourceState);
   const [searchInput, setSearchInput] = React.useState('');
+  // Счётчик ручных повторов: инкремент перезапускает эффект первичной загрузки.
+  const [reloadNonce, setReloadNonce] = React.useState(0);
+  const reload = React.useCallback(() => setReloadNonce((n) => n + 1), []);
 
   // static / preload: одна загрузка при монтировании (searchInput на сервер не влияет).
   React.useEffect(() => {
@@ -77,7 +84,7 @@ function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptions
     return () => {
       cancelled = true;
     };
-  }, [resource, flags.serverSearch]);
+  }, [resource, flags.serverSearch, reloadNonce]);
 
   // partial: серверный поиск с debounce — перезагружает первую страницу.
   React.useEffect(() => {
@@ -98,7 +105,7 @@ function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptions
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [resource, flags.serverSearch, searchInput]);
+  }, [resource, flags.serverSearch, searchInput, reloadNonce]);
 
   const loadMore = React.useCallback(() => {
     if (!resource || !flags.paginated) return;
@@ -119,8 +126,10 @@ function useResourceOptions<T>(resource?: ResourceConfig<T>): UseResourceOptions
     options,
     loading: state.loading,
     loadingMore: state.loadingMore,
+    error: state.error,
     hasMore: hasMore(state),
     loadMore,
+    reload,
     searchInput,
     setSearchInput,
     flags,
@@ -224,7 +233,15 @@ export interface SelectProps extends Omit<
  */
 const Select = React.forwardRef<
   HTMLButtonElement,
-  SelectProps & { 'data-testid'?: string; 'aria-invalid'?: boolean | 'true' | 'false' }
+  SelectProps & {
+    id?: string;
+    'data-testid'?: string;
+    'aria-invalid'?: boolean | 'true' | 'false';
+    'aria-labelledby'?: string;
+    'aria-describedby'?: string;
+    'aria-errormessage'?: string;
+    'aria-required'?: boolean | 'true' | 'false';
+  }
 >(
   (
     {
@@ -237,8 +254,13 @@ const Select = React.forwardRef<
       placeholder,
       disabled,
       clearable = false,
+      id,
       'data-testid': dataTestId,
       'aria-invalid': ariaInvalid,
+      'aria-labelledby': ariaLabelledBy,
+      'aria-describedby': ariaDescribedBy,
+      'aria-errormessage': ariaErrorMessage,
+      'aria-required': ariaRequired,
       ...props
     },
     ref
@@ -260,6 +282,8 @@ const Select = React.forwardRef<
 
     const showSearch = !directOptions && !!resource && ro.flags.searchable;
     const initialLoading = !directOptions && ro.loading;
+    // Ошибка асинхронной загрузки, когда показывать нечего (нет накопленных опций).
+    const loadError = !directOptions && ro.error && options.length === 0;
 
     const handleValueChange = (newValue: string) => {
       onChange?.(newValue);
@@ -284,7 +308,7 @@ const Select = React.forwardRef<
     const showClearButton = clearable && value && !disabled && !initialLoading;
 
     const searchHeader = showSearch ? (
-      <div className="sticky top-0 z-10 border-b bg-white p-1">
+      <div className="sticky top-0 z-10 border-b bg-popover p-1">
         <input
           type="text"
           value={ro.searchInput}
@@ -293,7 +317,7 @@ const Select = React.forwardRef<
           // гасим всплытие, чтобы ввод шёл в поле, а не «прыгал» по опциям.
           onKeyDown={(e) => e.stopPropagation()}
           placeholder="Search..."
-          className="w-full rounded-sm border border-gray-200 px-2 py-1 text-sm outline-none focus:border-ring"
+          className="w-full rounded-sm border border-input px-2 py-1 text-sm outline-none focus:border-ring"
           aria-label="Search options"
         />
       </div>
@@ -313,8 +337,13 @@ const Select = React.forwardRef<
             ref={ref}
             className={cn(className, showClearButton && 'pr-8')}
             disabled={initialLoading}
+            id={id}
             data-testid={dataTestId}
             aria-invalid={ariaInvalid}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
+            aria-errormessage={ariaErrorMessage}
+            aria-required={ariaRequired}
           >
             <SelectValue
               placeholder={initialLoading ? 'Loading...' : placeholder || 'Select an option...'}
@@ -326,6 +355,23 @@ const Select = React.forwardRef<
           >
             {initialLoading ? (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</div>
+            ) : loadError ? (
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm text-destructive">
+                <span>Failed to load options</span>
+                <button
+                  type="button"
+                  // Radix Select перехватывает клавиатуру для typeahead — гасим всплытие,
+                  // чтобы Enter/Space нажимали кнопку, а не выбирали опцию.
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ro.reload();
+                  }}
+                  className="rounded-sm px-2 py-0.5 text-xs font-medium text-foreground underline underline-offset-2 hover:text-destructive focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  Retry
+                </button>
+              </div>
             ) : options.length === 0 ? (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">No options available</div>
             ) : (
@@ -478,27 +524,32 @@ function SelectTrigger({
   size = 'default',
   children,
   'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
   size?: 'sm' | 'default';
 }) {
+  // Обобщённое «Select an option» — только запасное имя для standalone-триггера
+  // без реальной ассоциации метки. Когда FormField подключает `aria-labelledby`,
+  // не навешиваем fallback, чтобы настоящая метка поля взяла верх.
+  const resolvedAriaLabel = ariaLabel ?? (ariaLabelledBy ? undefined : 'Select an option');
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
-      aria-label={ariaLabel || 'Select an option'}
+      aria-label={resolvedAriaLabel}
+      aria-labelledby={ariaLabelledBy}
       className={cn(
-        'h-9 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs transition-colors',
-        '!bg-white !text-black',
-        'placeholder:text-muted-foreground data-[placeholder]:text-gray-500',
+        'h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-xs transition-colors',
+        'bg-background text-foreground',
+        'placeholder:text-muted-foreground data-[placeholder]:text-muted-foreground',
         'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
         'disabled:cursor-not-allowed disabled:opacity-50',
         'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
         'flex items-center justify-between gap-2',
-        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-gray-500",
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg]:text-muted-foreground",
         className
       )}
-      style={{ backgroundColor: 'white', color: 'black' }}
       {...props}
     >
       {children}
@@ -555,7 +606,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-white text-black shadow-md',
+          'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
           'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
           position === 'popper' &&
