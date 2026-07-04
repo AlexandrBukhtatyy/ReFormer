@@ -199,8 +199,7 @@ export interface FieldControlState<T> {
    * );
    * ```
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  componentProps: Record<string, any>;
+  componentProps: Record<string, unknown>;
 }
 
 /**

@@ -192,8 +192,7 @@ export interface GroupNodeConfig<T> {
  * Используется вместо инлайнового `Record<string, unknown>`
  * @internal
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type UnknownRecord = Record<string, any>;
+export type UnknownRecord = Record<string, unknown>;
 
 /**
  * Интерфейс для узлов с методом applyValidationSchema
