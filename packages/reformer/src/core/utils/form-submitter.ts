@@ -12,13 +12,12 @@
 
 import { signal, computed } from '@preact/signals-core';
 import type { ReadonlySignal } from '@preact/signals-core';
-import type { FormFields } from '../types';
 
 /**
  * Интерфейс формы для FormSubmitter
  * Минимальный контракт для работы с любой формой
  */
-export interface SubmittableForm<T extends FormFields> {
+export interface SubmittableForm<T extends object> {
   /** Пометить все поля как touched */
   markAsTouched(): void;
   /** Валидировать форму */
@@ -67,7 +66,7 @@ export interface SubmitResult<R> {
  * }
  * ```
  */
-export class FormSubmitter<T extends FormFields> {
+export class FormSubmitter<T extends object> {
   /** Внутренний сигнал состояния отправки */
   private readonly _submitting = signal(false);
 

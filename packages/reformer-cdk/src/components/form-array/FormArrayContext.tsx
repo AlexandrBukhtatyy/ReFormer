@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { ArrayNode, FormFields, FormProxy } from '@reformer/core';
+import type { ArrayNode, FormProxy } from '@reformer/core';
 
 /**
  * Представляет элемент массива с контролом, индексом и действиями
@@ -25,7 +25,7 @@ export interface FormArrayItem<T extends object> {
 /**
  * Контекст уровня массива
  */
-export interface FormArrayContextValue<T extends object = FormFields> {
+export interface FormArrayContextValue<T extends object = Record<string, unknown>> {
   /** Массив элементов с контролами и действиями */
   items: FormArrayItem<T>[];
   /** Текущая длина массива */
@@ -49,7 +49,7 @@ export interface FormArrayContextValue<T extends object = FormFields> {
 /**
  * Контекст уровня элемента массива
  */
-export interface FormArrayItemContextValue<T extends object = FormFields> {
+export interface FormArrayItemContextValue<T extends object = Record<string, unknown>> {
   /** Контрол для данного элемента */
   control: FormProxy<T>;
   /** Индекс элемента (0-based) */
@@ -133,7 +133,9 @@ export const FormArrayItemContext = createContext<FormArrayItemContextValue<any>
  * }
  * ```
  */
-export function useFormArrayContext<T extends object = FormFields>(): FormArrayContextValue<T> {
+export function useFormArrayContext<
+  T extends object = Record<string, unknown>,
+>(): FormArrayContextValue<T> {
   const context = useContext(FormArrayContext) as FormArrayContextValue<T> | null;
   if (!context) {
     throw new Error(
@@ -174,7 +176,7 @@ export function useFormArrayContext<T extends object = FormFields>(): FormArrayC
  * ```
  */
 export function useFormArrayItemContext<
-  T extends object = FormFields,
+  T extends object = Record<string, unknown>,
 >(): FormArrayItemContextValue<T> {
   const context = useContext(FormArrayItemContext) as FormArrayItemContextValue<T> | null;
   if (!context) {

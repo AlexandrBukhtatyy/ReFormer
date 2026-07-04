@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { FieldNode } from '../core/nodes/field-node';
 import type { ArrayNode } from '../core/nodes/array-node';
-import type { FormValue, ValidationError, FormFields } from '../core/types';
+import type { FormValue, ValidationError } from '../core/types';
 import type { FieldControlState, ArrayControlState } from './types';
 import {
   useSignalSubscription,
@@ -54,7 +54,7 @@ function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldContr
 }
 
 /** @internal */
-function useArrayControl<T extends FormFields>(control: ArrayNode<T>): ArrayControlState<T> {
+function useArrayControl<T extends object>(control: ArrayNode<T>): ArrayControlState<T> {
   const signals = {
     value: control.value,
     length: control.length,
@@ -99,9 +99,9 @@ function useArrayControl<T extends FormFields>(control: ArrayNode<T>): ArrayCont
  * `useFieldControl`/`useArrayControl` (useCallback + useSignalSubscription с пустым набором сигналов),
  * чтобы число/порядок хуков не менялись при переходе control `undefined ↔ node` (Rules of Hooks).
  */
-function useEmptyControl(): ArrayControlState<FormFields> {
+function useEmptyControl(): ArrayControlState<object> {
   const buildSnapshot = useCallback(
-    (): ArrayControlState<FormFields> => ({
+    (): ArrayControlState<object> => ({
       value: [],
       length: 0,
       pending: false,
@@ -125,7 +125,7 @@ function useEmptyControl(): ArrayControlState<FormFields> {
  *
  * @group React Hooks
  */
-export function useFormControl<T extends FormFields>(
+export function useFormControl<T extends object>(
   control: ArrayNode<T> | undefined
 ): ArrayControlState<T>;
 
@@ -361,8 +361,8 @@ export function useFormControl<T extends FormValue>(control: FieldNode<T>): Fiel
  * @group React Hooks
  */
 export function useFormControl(
-  control: FieldNode<FormValue> | ArrayNode<FormFields> | undefined
-): FieldControlState<FormValue> | ArrayControlState<FormFields> {
+  control: FieldNode<FormValue> | ArrayNode<object> | undefined
+): FieldControlState<FormValue> | ArrayControlState<object> {
   const isArrayNode = control && 'length' in control && 'map' in control;
 
   // Rules of Hooks: каждая ветка вызывает ОДИНАКОВУЮ последовательность хуков (useCallback +
@@ -375,7 +375,7 @@ export function useFormControl(
 
   if (isArrayNode) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useArrayControl(control as ArrayNode<FormFields>);
+    return useArrayControl(control as ArrayNode<object>);
   }
 
   // eslint-disable-next-line react-hooks/rules-of-hooks

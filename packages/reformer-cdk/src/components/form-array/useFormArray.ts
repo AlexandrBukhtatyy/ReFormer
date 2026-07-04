@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useFormControl, type ArrayNode, type FormFields } from '@reformer/core';
+import { useFormControl, type ArrayNode } from '@reformer/core';
 // FormArrayItem объявлен один раз в FormArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FormArrayItem } from './FormArrayContext';
 
@@ -91,8 +91,7 @@ export interface UseFormArrayReturn<T extends object> {
 export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormArrayReturn<T> {
   // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
   // the same length — without it the memo below would not recompute and the UI would not reorder.
-  // core useFormControl'а array-перегрузка сужена до ArrayNode<FormFields>; здесь T extends object — приводим.
-  const { length, value } = useFormControl(control as ArrayNode<FormFields>);
+  const { length, value } = useFormControl(control);
 
   // Memoize items array - recalculates when length OR order changes.
   const items = useMemo(

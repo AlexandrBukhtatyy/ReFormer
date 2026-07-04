@@ -91,7 +91,7 @@ export type AsyncValidatorFn<T = FormValue> = (
 export interface ValidationError {
   code: string;
   message: string;
-  params?: FormFields;
+  params?: Record<string, FormValue>;
   /** Severity level: 'error' (default) blocks submission, 'warning' shows message but allows submission */
   severity?: 'error' | 'warning';
 }
@@ -109,7 +109,7 @@ export interface ErrorFilterOptions {
   message?: string;
 
   /** Фильтр по параметрам ошибки */
-  params?: FormFields;
+  params?: Record<string, FormValue>;
 
   /** Кастомный предикат для фильтрации */
   predicate?: (error: ValidationError) => boolean;
@@ -240,14 +240,6 @@ export interface ConfigWithSchema {
 export interface ConfigWithValue {
   value: unknown;
 }
-
-/**
- * Тип для конфига с полями (FormSchema generic constraint)
- * Используется вместо `Record<string, any>` для схем форм
- * @deprecated
- * @internal
- */
-export type FormFields = Record<string, FormValue>;
 
 /**
  * Тип для путей к полям (field paths)

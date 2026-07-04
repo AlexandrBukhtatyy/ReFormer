@@ -1,5 +1,4 @@
 import { forwardRef, type ForwardedRef, type ReactElement } from 'react';
-import type { FormFields } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
 import { useFormArrayContext } from './FormArrayContext';
 import type { FormArrayAddButtonProps } from './types';
@@ -25,7 +24,7 @@ function FormArrayAddButtonInner<T extends object>(
 }
 
 const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
-  T extends object = FormFields,
+  T extends object = Record<string, unknown>,
 >(
   props: FormArrayAddButtonProps<T> & { ref?: React.Ref<HTMLButtonElement> }
 ) => ReactElement | null;
@@ -40,7 +39,7 @@ const FormArrayAddButtonForwarded = forwardRef(FormArrayAddButtonInner) as <
  * то есть `ArrayNode.push`. Должна находиться внутри `FormArray.Root` (или
  * эквивалентного провайдера), иначе `useFormArrayContext` бросит исключение.
  *
- * Generic `T` — тип элемента массива. По умолчанию `FormFields` (широкий).
+ * Generic `T` — тип элемента массива. По умолчанию `Record<string, unknown>` (широкий).
  * Передавайте его явно, если нужна type-safe проверка `initialValue`:
  * `<FormArray.AddButton<PropertyItem> initialValue={...}>`.
  *

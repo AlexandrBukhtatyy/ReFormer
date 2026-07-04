@@ -10,7 +10,7 @@
  * См. docs/plans/atomic-meandering-wreath.md для деталей.
  */
 
-import type { FormFields, ValidationError } from './index';
+import type { FormValue, ValidationError } from './index';
 import type { FormProxy } from './form-proxy';
 
 // ============================================================================
@@ -74,7 +74,7 @@ export interface ValidateOptions {
   /** Сообщение об ошибке */
   message?: string;
   /** Параметры ошибки */
-  params?: FormFields;
+  params?: Record<string, FormValue>;
 }
 
 /**

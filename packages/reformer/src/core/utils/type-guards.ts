@@ -21,7 +21,7 @@ import type { FormNode } from '../nodes/form-node';
 import type { FieldNode } from '../nodes/field-node';
 import type { GroupNode } from '../nodes/group-node';
 import type { ArrayNode } from '../nodes/array-node';
-import type { FormFields, FormValue } from '../types';
+import type { FormValue } from '../types';
 
 /**
  * Проверить, является ли значение любым FormNode
@@ -111,7 +111,7 @@ export function isFieldNode(value: unknown): value is FieldNode<FormValue> {
  * }
  * ```
  */
-export function isGroupNode(value: unknown): value is GroupNode<FormFields> {
+export function isGroupNode(value: unknown): value is GroupNode<object> {
   if (value === null || value === undefined) {
     return false;
   }
@@ -145,7 +145,7 @@ export function isGroupNode(value: unknown): value is GroupNode<FormFields> {
  * }
  * ```
  */
-export function isArrayNode(value: unknown): value is ArrayNode<FormFields> {
+export function isArrayNode(value: unknown): value is ArrayNode<object> {
   if (value === null || value === undefined) {
     return false;
   }
