@@ -50,6 +50,11 @@ function resolveDataSource(name: string, registry: ComponentRegistry): unknown {
       `Data source "${name}" not found in registry. Available: ${registry.names().join(', ')}`
     );
   }
+  // Симметрично resolveComponent: не даём использовать 'component'-запись как $dataSource(...),
+  // иначе рантайм принял бы схему, которую validateFormSchema (getDataSourceNames) отклоняет.
+  if (meta.type !== 'dataSource') {
+    throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $dataSource(...)`);
+  }
   return meta.component;
 }
 
@@ -126,11 +131,17 @@ function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistr
     if (!signal && typeof console !== 'undefined') {
       console.warn(`[JsonRenderer/M1] No model signal for "${path}".`);
     }
+    const componentProps = transformProps(node.componentProps, scope, registry);
+    // Пер-полевая обёртка: JSON `wrapper: { component: '$component(FormField)' }` →
+    // renderer `componentProps.fieldWrapper` (обёртка получает control/label/errors одного поля).
+    const fieldWrapper = node.wrapper
+      ? resolveComponent((node.wrapper as { component?: string }).component, registry)
+      : undefined;
     return {
       ...(node.selector ? { selector: node.selector } : {}),
       value: signal,
       component: resolveComponent(node.component, registry),
-      componentProps: transformProps(node.componentProps, scope, registry),
+      componentProps: fieldWrapper ? { ...(componentProps ?? {}), fieldWrapper } : componentProps,
     } as unknown as RenderNode<T>;
   }
 

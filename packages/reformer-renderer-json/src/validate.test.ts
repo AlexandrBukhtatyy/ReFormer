@@ -91,4 +91,42 @@ describe('validateFormSchema', () => {
     const schema = { root: { selector: 'orphan', componentProps: {} } };
     expect(validateFormSchema(schema, opts).valid).toBe(false);
   });
+
+  it('flags an array node that omits initialValue (silently-broken elements)', () => {
+    const schema = {
+      root: {
+        array: '$model(coBorrowers)',
+        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, opts);
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/initialValue/i);
+  });
+
+  it('accepts an array node that provides initialValue', () => {
+    const schema = {
+      root: {
+        array: '$model(coBorrowers)',
+        initialValue: { name: '' },
+        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
+      },
+    };
+    expect(validateFormSchema(schema, opts).valid).toBe(true);
+  });
+
+  it('reports only the relevant branch, not a cross-branch wall, for a bad node', () => {
+    // Узел явно field (несёт `value`), но `value` — не $model-оператор.
+    const schema = { root: { value: 'email', component: '$component(Input)' } };
+    const { valid, errors } = validateFormSchema(schema, opts);
+    expect(valid).toBe(false);
+    // Настоящая причина всплывает (pattern у value)…
+    expect(errors.join('\n')).toMatch(/value.*pattern/i);
+    // …и НЕ погребена под ошибками чужих ветвей (array/item), oneOf- или then/else-шумом.
+    expect(errors.join('\n')).not.toMatch(/oneOf/i);
+    expect(errors.join('\n')).not.toMatch(/'array'|'item'/i);
+    expect(errors.join('\n')).not.toMatch(/then|else/i);
+    // Ровно одна структурная ошибка — по value, без кросс-ветвевой стены.
+    expect(errors.filter((e) => e.includes('/root')).length).toBe(1);
+  });
 });

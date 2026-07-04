@@ -23,11 +23,14 @@
       "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema."
     },
     "node": {
-      "oneOf": [
-        { "$ref": "#/definitions/fieldNode" },
-        { "$ref": "#/definitions/arrayNode" },
-        { "$ref": "#/definitions/containerNode" }
-      ]
+      "$comment": "Discriminated by which operator key is present (array→value→component), mirroring the isArrayNode/isFieldNode/isContainerNode runtime guards. Using oneOf here made ajv (allErrors) report failures against all three branches for any single mistake, burying the real cause; if/then/else surfaces only the relevant branch's errors.",
+      "if": { "type": "object", "required": ["array"] },
+      "then": { "$ref": "#/definitions/arrayNode" },
+      "else": {
+        "if": { "type": "object", "required": ["value"] },
+        "then": { "$ref": "#/definitions/fieldNode" },
+        "else": { "$ref": "#/definitions/containerNode" }
+      }
     },
     "fieldNode": {
       "type": "object",

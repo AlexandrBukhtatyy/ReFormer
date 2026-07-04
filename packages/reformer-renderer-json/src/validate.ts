@@ -18,7 +18,7 @@
 
 import Ajv, { type ErrorObject } from 'ajv';
 import { formSchemaMetaSchema, getComponentNames, getDataSourceNames } from './schema';
-import { parseOperator } from './operators';
+import { parseOperator, isModelOp } from './operators';
 import type { ComponentRegistry } from './registry/types';
 
 /** Результат валидации схемы. */
@@ -65,6 +65,41 @@ function walkOperatorNames(
   }
 }
 
+/** Похож ли объект на array-узел (`array: '$model(...)'` + `item.$template`)? */
+function looksLikeArrayNode(n: Record<string, unknown>): boolean {
+  return (
+    isModelOp(n.array) &&
+    typeof n.item === 'object' &&
+    n.item !== null &&
+    '$template' in (n.item as Record<string, unknown>)
+  );
+}
+
+/**
+ * Рекурсивно флагает array-узлы без `initialValue`. Листья шаблона несут `value: '$model(...)'`
+ * (под-пути элемента-объекта), поэтому без литерал-`initialValue` кнопка «Добавить» кладёт `{}` —
+ * core строит GroupNode без детей, `$model(...)`-листья резолвятся в undefined-сигналы и ничего
+ * не рендерят (карточка только с кнопками). Схема при этом структурно валидна (initialValue
+ * опционален), так что молчаливую поломку ловим здесь.
+ */
+function walkArrayInitialValue(node: unknown, path: string, errors: string[]): void {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => walkArrayInitialValue(v, `${path}[${i}]`, errors));
+    return;
+  }
+  if (node !== null && typeof node === 'object') {
+    const n = node as Record<string, unknown>;
+    if (looksLikeArrayNode(n) && n.initialValue === undefined) {
+      errors.push(
+        `${path || '/'}: array node is missing "initialValue" — the "Add" button would create an empty element and its "$model(...)" template leaves would render nothing. Provide an "initialValue" literal with the element's keys.`
+      );
+    }
+    for (const [k, v] of Object.entries(n)) {
+      walkArrayInitialValue(v, path ? `${path}.${k}` : k, errors);
+    }
+  }
+}
+
 /**
  * Валидирует form-DSL JSON-схему. Если передан `registry`, имена компонентов/source берутся из него
  * (иначе можно задать `componentNames`/`dataSourceNames` явно). Тянет `ajv` — живёт в subpath
@@ -96,12 +131,19 @@ export function validateFormSchema(
   const validateFn = ajv.compile(formSchemaMetaSchema);
   if (!validateFn(schema)) {
     for (const e of (validateFn.errors ?? []) as ErrorObject[]) {
+      // Node discriminates via if/then/else — ajv emits a redundant meta-error
+      // ('must match "then"/"else" schema') next to the real branch error. Drop it so the
+      // actual cause isn't buried under generic branch noise (the whole point of a DSL validator).
+      if (e.keyword === 'if') continue;
       errors.push(`${e.instancePath || '/'} ${e.message ?? 'invalid'}`.trim());
     }
   }
 
   // (b) Имена $component/$dataSource по всему дереву (включая вложенные в opaque componentProps)
   walkOperatorNames(schema, '', componentNames, dataSourceNames, errors);
+
+  // (c) Array-узлы без initialValue → молчаливо ломающиеся элементы (см. walkArrayInitialValue)
+  walkArrayInitialValue(schema, '', errors);
 
   return { valid: errors.length === 0, errors };
 }
