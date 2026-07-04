@@ -27,21 +27,60 @@
     },
     "componentOp": {
       "type": "string",
-      "pattern": "^\\$component\\((Input|InputPassword|InputMask|Textarea|Select|Checkbox|RadioGroup|Box|Section|Collapsible|AsyncBoundary|FormField|Button|RendererFormWizard|Step|ResidenceAddressSection|UnemployedWarning|ConfirmationInfoBlock|HighPaymentWarning|LoanSummarySection|ApplicantSummarySection|SubmitWarning|NextStepsInfo|ElectronicSignatureHint|\\$fieldWrapper)\\)$",
-      "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema."
+      "description": "Registry component: \"$component(Name)\". Name is tightened to a registry enum by buildFormSchemaMetaSchema.",
+      "enum": [
+        "$component(Input)",
+        "$component(InputPassword)",
+        "$component(InputMask)",
+        "$component(Textarea)",
+        "$component(Select)",
+        "$component(Checkbox)",
+        "$component(RadioGroup)",
+        "$component(Box)",
+        "$component(Section)",
+        "$component(Collapsible)",
+        "$component(AsyncBoundary)",
+        "$component(FormField)",
+        "$component(Button)",
+        "$component(RendererFormWizard)",
+        "$component(Step)",
+        "$component(ResidenceAddressSection)",
+        "$component(UnemployedWarning)",
+        "$component(ConfirmationInfoBlock)",
+        "$component(HighPaymentWarning)",
+        "$component(LoanSummarySection)",
+        "$component(ApplicantSummarySection)",
+        "$component(SubmitWarning)",
+        "$component(NextStepsInfo)",
+        "$component(ElectronicSignatureHint)",
+        "$component($fieldWrapper)"
+      ]
     },
     "node": {
-      "oneOf": [
-        {
+      "$comment": "Discriminated by which operator key is present (array→value→component), mirroring the isArrayNode/isFieldNode/isContainerNode runtime guards. Using oneOf here made ajv (allErrors) report failures against all three branches for any single mistake, burying the real cause; if/then/else surfaces only the relevant branch's errors.",
+      "if": {
+        "type": "object",
+        "required": [
+          "array"
+        ]
+      },
+      "then": {
+        "$ref": "#/definitions/arrayNode"
+      },
+      "else": {
+        "if": {
+          "type": "object",
+          "required": [
+            "value"
+          ]
+        },
+        "then": {
           "$ref": "#/definitions/fieldNode"
         },
-        {
-          "$ref": "#/definitions/arrayNode"
-        },
-        {
+        "else": {
           "$ref": "#/definitions/containerNode"
         }
-      ]
+      }
     },
     "fieldNode": {
       "type": "object",
