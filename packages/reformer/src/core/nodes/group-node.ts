@@ -523,7 +523,7 @@ export class GroupNode<T> extends FormNode<T> {
    * @returns Созданный узел формы
    * @private
    */
-  private createNode(config: unknown): FormNode<FormValue> {
+  private createNode(config: unknown): FormNode<unknown> {
     //  Полное делегирование NodeFactory
     // NodeFactory теперь поддерживает массивы напрямую
     return this.nodeFactory.createNode(config);

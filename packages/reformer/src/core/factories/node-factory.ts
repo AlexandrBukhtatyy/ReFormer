@@ -96,29 +96,29 @@ export class NodeFactory {
    * ]);
    * ```
    */
-  createNode<T>(config: unknown): FormNode<T> {
+  createNode(config: unknown): FormNode<unknown> {
     // 0. ✅ НОВОЕ: Проверка массива (приоритет: специфический формат)
     if (Array.isArray(config) && config.length >= 1) {
-      return this.createArrayNodeFromArray(config) as unknown as FormNode<T>;
+      return this.createArrayNodeFromArray(config) as unknown as FormNode<unknown>;
     }
 
     // 1. Проверка FieldConfig (приоритет: самый специфичный тип)
     if (this.isFieldConfig(config)) {
-      return new FieldNode(config as unknown as never) as unknown as FormNode<T>;
+      return new FieldNode(config as unknown as never) as unknown as FormNode<unknown>;
     }
 
     // 2. Проверка ArrayConfig
     if (this.isArrayConfig(config)) {
-      const arrayConfig = config as ConfigWithSchema;
+      // config сужен type-guard'ом до ConfigWithSchema — доступ к .schema/.initialItems без каста
       return new ArrayNode(
-        arrayConfig.schema as unknown as never,
-        arrayConfig.initialItems as unknown as never
-      ) as unknown as FormNode<T>;
+        config.schema as unknown as never,
+        config.initialItems as unknown as never
+      ) as unknown as FormNode<unknown>;
     }
 
     // 3. Проверка GroupConfig (самый общий тип)
     if (this.isGroupConfig(config)) {
-      return new GroupNode(config as unknown as never) as unknown as FormNode<T>;
+      return new GroupNode(config as unknown as never) as unknown as FormNode<unknown>;
     }
 
     // Неизвестный конфиг
@@ -211,9 +211,9 @@ export class NodeFactory {
    * ```
    */
   extractValues(schema: unknown): unknown {
-    // 1. FieldConfig - вернуть value
+    // 1. FieldConfig - вернуть value (schema сужен type-guard'ом до ConfigWithValue)
     if (this.isFieldConfig(schema)) {
-      return (schema as ConfigWithValue).value;
+      return schema.value;
     }
 
     // 2. Массив - рекурсивно обработать элементы
@@ -225,7 +225,7 @@ export class NodeFactory {
     if (this.isGroupConfig(schema)) {
       const result: UnknownRecord = {};
 
-      for (const [key, config] of Object.entries(schema as UnknownRecord)) {
+      for (const [key, config] of Object.entries(schema)) {
         result[key] = this.extractValues(config);
       }
 
@@ -255,7 +255,7 @@ export class NodeFactory {
    * factory.isFieldConfig(null); // false
    * ```
    */
-  isFieldConfig(config: unknown): boolean {
+  isFieldConfig(config: unknown): config is ConfigWithValue {
     if (config == null || typeof config !== 'object') return false;
     // M1: новый путь — поле распознаётся по наличию сигнала значения.
     if ('valueSignal' in config) return true;
@@ -284,7 +284,7 @@ export class NodeFactory {
    * factory.isArrayConfig({ email: { value: '' } }); // false
    * ```
    */
-  isArrayConfig(config: unknown): boolean {
+  isArrayConfig(config: unknown): config is ConfigWithSchema {
     return (
       config != null && typeof config === 'object' && 'schema' in config && !('value' in config)
     );
@@ -315,7 +315,7 @@ export class NodeFactory {
    * factory.isGroupConfig(null); // false
    * ```
    */
-  isGroupConfig(config: unknown): boolean {
+  isGroupConfig(config: unknown): config is UnknownRecord {
     return (
       config != null &&
       typeof config === 'object' &&
