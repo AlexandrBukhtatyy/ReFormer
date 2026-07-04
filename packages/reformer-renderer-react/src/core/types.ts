@@ -106,9 +106,13 @@ export interface ArrayRenderNode<T> extends FormSchemaNode {
   /** Схема элемента: под-модель элемента → узел поддерева. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: (itemModel: any) => RenderNode<T>;
-  /** Значение (или фабрика) нового элемента для кнопки «Добавить». */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initialValue?: unknown | (() => any);
+  /**
+   * Значение нового элемента для кнопки «Добавить»: значение или фабрика `() => value`.
+   * `unknown | (() => …)` схлопывается в `unknown`; вариант выбирается в рантайме по
+   * `typeof === 'function'`. (Параметризовать по `T` нельзя: `T` здесь — payload
+   * `RenderNode<T>`, а не тип данных элемента.)
+   */
+  initialValue?: unknown;
   /** Оформление секции массива. */
   componentProps?: {
     title?: string;

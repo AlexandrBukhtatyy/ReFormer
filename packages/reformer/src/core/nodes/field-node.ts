@@ -449,7 +449,7 @@ export class FieldNode<T> extends FormNode<T> {
           return false;
         }
 
-        const asyncErrors = asyncResults.filter(Boolean) as ValidationError[];
+        const asyncErrors = asyncResults.filter((e): e is ValidationError => e !== null);
         if (asyncErrors.length > 0) {
           this._errors.value = asyncErrors;
           // Only blocking errors (not warnings) affect validity

@@ -172,7 +172,7 @@ describe('GroupNode - Cleanup (dispose)', () => {
       });
 
       const callback = vi.fn();
-      nestedForm.watchField('user.profile.name', callback);
+      nestedForm.watchFieldByPath('user.profile.name', callback);
 
       // Initial call
       expect(callback).toHaveBeenCalledTimes(1);

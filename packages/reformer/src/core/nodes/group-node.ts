@@ -588,23 +588,42 @@ export class GroupNode<T> extends FormNode<T> {
    * useEffect(() => dispose, []);
    * ```
    */
-  watchField<K extends keyof T>(
-    fieldPath: K extends string ? K : string,
+  /** Подписка на top-level поле — value типизирован как `T[K]`. */
+  watchField<K extends keyof T & string>(
+    fieldPath: K,
     callback: (value: T[K]) => void | Promise<void>
   ): () => void {
-    const field = this.getFieldByPath(fieldPath as string);
+    const field = this.getFieldByPath(fieldPath);
 
     if (!field) {
       throw new Error(`GroupNode.watchField: field "${fieldPath}" not found`);
     }
 
     const dispose = effect(() => {
-      const value = field.value.value;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      callback(value as any);
+      // Мост FormValue → T[K]: fieldPath — статически известный ключ K узла,
+      // поэтому значение поля действительно имеет тип T[K].
+      callback(field.value.value as T[K]);
     });
 
-    // Регистрируем через SubscriptionManager и возвращаем unsubscribe
+    const key = uniqueId(SubscriptionKey.WatchField);
+    return this.disposers.add(key, dispose);
+  }
+
+  /**
+   * Подписка на вложенное поле по строковому пути ("address.city").
+   * Путь нельзя выразить в типах узла → value честно `unknown`, потребитель сужает.
+   */
+  watchFieldByPath(path: string, callback: (value: unknown) => void | Promise<void>): () => void {
+    const field = this.getFieldByPath(path);
+
+    if (!field) {
+      throw new Error(`GroupNode.watchFieldByPath: field "${path}" not found`);
+    }
+
+    const dispose = effect(() => {
+      callback(field.value.value);
+    });
+
     const key = uniqueId(SubscriptionKey.WatchField);
     return this.disposers.add(key, dispose);
   }

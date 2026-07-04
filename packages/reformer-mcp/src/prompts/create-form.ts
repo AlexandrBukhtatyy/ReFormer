@@ -5,7 +5,7 @@ import {
   renderLayoutSkeletonBlock,
 } from '../utils/project-detector.js';
 import { renderPromptTemplate } from '../utils/prompt-template-loader.js';
-import { inferTarget } from '../utils/sampling-helpers.js';
+import { inferTarget, isReformerTarget, type ReformerTarget } from '../utils/sampling-helpers.js';
 
 export const createFormPromptDefinition = {
   name: 'create-form',
@@ -33,13 +33,13 @@ export const createFormPromptDefinition = {
   ],
 };
 
-function targetLabelFor(target: string): string {
+function targetLabelFor(target: ReformerTarget): string {
   if (target === 'core') return '(только @reformer/core + ручной React-рендеринг)';
   if (target === 'renderer-react') return '(@reformer/renderer-react + TS RenderSchema)';
   return '(@reformer/renderer-json + JSON-схема + Registry)';
 }
 
-function rendererPrereqsFor(target: string): string {
+function rendererPrereqsFor(target: ReformerTarget): string {
   if (target === 'renderer-react') {
     return [
       '- `reformer://docs/renderer-react/quick-start`',
@@ -104,9 +104,10 @@ export async function getCreateFormPrompt(
 }> {
   const stack = detectProjectStack(args.projectPath);
 
-  // Auto-detect target via sampling only if caller didn't pin it.
-  const target = args.target
-    ? args.target.toLowerCase()
+  // Валидируем переданный target; невалидный/пустой → авто-детект, а не молчаливый мусор.
+  const pinned = args.target ? args.target.toLowerCase() : undefined;
+  const target: ReformerTarget = isReformerTarget(pinned)
+    ? pinned
     : server
       ? await inferTarget(server, { description: args.description, stack })
       : 'core';

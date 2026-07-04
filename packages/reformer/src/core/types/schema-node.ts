@@ -102,8 +102,12 @@ export interface FormSchemaNode {
   array?: SchemaArrayControl;
   /** Схема элемента массива: под-модель элемента → узел поддерева. */
   item?: (itemModel: any) => FormSchemaNode;
-  /** Значение (или фабрика) нового элемента массива для кнопки «Добавить». */
-  initialValue?: unknown | (() => unknown);
+  /**
+   * Значение нового элемента массива для кнопки «Добавить»: либо готовое значение,
+   * либо фабрика `() => value`. Тип не различает варианты (union `unknown | (() => unknown)`
+   * схлопывается в `unknown`) — рантайм различает по `typeof initialValue === 'function'`.
+   */
+  initialValue?: unknown;
   /** Свободная вложенность: record-of-fields и произвольные под-узлы. */
   [key: string]: unknown;
 }

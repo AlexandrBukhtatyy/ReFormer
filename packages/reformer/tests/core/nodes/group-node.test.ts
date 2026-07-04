@@ -823,7 +823,7 @@ describe('GroupNode', () => {
       const nestedForm = createForm(nestedSchema);
       const callback = vi.fn();
 
-      nestedForm.watchField('address.city', callback);
+      nestedForm.watchFieldByPath('address.city', callback);
 
       nestedForm.address.city.setValue('Moscow');
 
