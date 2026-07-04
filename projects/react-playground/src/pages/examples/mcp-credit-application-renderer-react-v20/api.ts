@@ -48,5 +48,5 @@ export function applyPrefill(
   model: FormModel<CreditApplicationForm>,
   data: Partial<CreditApplicationForm>
 ): void {
-  model.set({ ...model.get(), ...data });
+  model.patch(data);
 }
