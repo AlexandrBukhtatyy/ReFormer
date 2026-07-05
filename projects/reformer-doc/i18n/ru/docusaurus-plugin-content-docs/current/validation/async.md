@@ -8,66 +8,80 @@ sidebar_position: 3
 
 ## Базовый Асинхронный Валидатор
 
+Асинхронный валидатор — это функция, возвращающая `Promise<ValidationError | null>`. Кладётся в
+массив `asyncValidators` поля схемы:
+
 ```typescript
-import { GroupNode } from '@reformer/core';
+import { createModel, createForm, validateFormModel } from '@reformer/core';
 import { required } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
 
-const form = new GroupNode({
-  form: {
-    username: { value: '' },
+const model = createModel<{ username: string }>({ username: '' });
+
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    validators: [required()],
+    asyncValidators: [
+      async (value: string) => {
+        const response = await fetch(`/api/check-username?name=${value}`);
+        const { available } = await response.json();
+
+        return available ? null : { code: 'usernameTaken', message: 'Имя пользователя занято' };
+      },
+    ],
   },
-  validation: (path, { validateAsync }) => {
-    validate(path.username, required());
+};
 
-    validateAsync(path.username, async (value) => {
-      const response = await fetch(`/api/check-username?name=${value}`);
-      const { available } = await response.json();
+const form = createForm({ model, schema });
 
-      if (!available) {
-        return { usernameTaken: true };
-      }
-      return null;
-    });
-  },
-});
+// Полная валидация формы (sync + async) прогоняет и асинхронные валидаторы:
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ## Debouncing (Задержка)
 
-Избегайте слишком большого количества запросов с помощью debounce:
+Избегайте слишком большого количества запросов с помощью пофилдового `debounce` (мс).
+Асинхронный валидатор запускается только после паузы во вводе:
 
 ```typescript
-validation: (path, { validateAsync }) => {
-  validateAsync(
-    path.username,
-    async (value) => {
-      const available = await checkUsername(value);
-      return available ? null : { usernameTaken: true };
-    },
-    { debounce: 300 } // Ждать 300мс после остановки ввода
-  );
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    asyncValidators: [
+      async (value: string) => {
+        const available = await checkUsername(value);
+        return available ? null : { code: 'usernameTaken', message: 'Имя пользователя занято' };
+      },
+    ],
+    debounce: 300, // Ждать 300мс после остановки ввода
+  },
 };
 ```
 
 ## Состояние Загрузки
 
-Отслеживайте процесс асинхронной валидации:
+Отслеживайте процесс асинхронной валидации через сигнал `pending` поля:
 
 ```typescript
-const username = form.controls.username;
+const username = form.username;
 
 username.pending.value; // true во время валидации
 ```
 
 ```tsx
+import { useFormControl } from '@reformer/core';
+
 function UsernameField() {
-  const field = useFormControl(form.controls.username);
+  const field = useFormControl(form.username);
 
   return (
     <div>
       <input value={field.value} onChange={(e) => field.setValue(e.target.value)} />
       {field.pending && <span>Проверка...</span>}
-      {field.errors?.usernameTaken && <span>Имя пользователя занято</span>}
+      {field.errors.find((e) => e.code === 'usernameTaken') && <span>Имя пользователя занято</span>}
     </div>
   );
 }
@@ -75,22 +89,27 @@ function UsernameField() {
 
 ## Асинхронная Валидация с Контекстом
 
-Доступ к другим полям во время асинхронной валидации:
+Доступ к другим полям во время асинхронной валидации через `root`. Третий аргумент доступен,
+когда валидатор запускается через `validateFormModel(model, schema)`:
 
 ```typescript
-validation: (path, { validateAsync }) => {
-  validateAsync(path.email, async (value, _control, root) => {
-    const userId = root.userId.value.value;
+const checkEmail = async (value: string, _scope: unknown, root: { userId: string }) => {
+  const userId = root.userId;
 
-    const response = await fetch('/api/check-email', {
-      method: 'POST',
-      body: JSON.stringify({ email: value, userId }),
-    });
-
-    const { valid } = await response.json();
-    return valid ? null : { emailInUse: true };
+  const response = await fetch('/api/check-email', {
+    method: 'POST',
+    body: JSON.stringify({ email: value, userId }),
   });
+
+  const { valid } = await response.json();
+  return valid ? null : { code: 'emailInUse', message: 'Email уже используется' };
 };
+
+// Внутри схемы формы:
+email: { value: model.$.email, component: Input, asyncValidators: [checkEmail] },
+
+// root передаётся при валидации всей формы:
+await validateFormModel(model, schema);
 ```
 
 ## Комбинирование Синхронной и Асинхронной
@@ -98,13 +117,17 @@ validation: (path, { validateAsync }) => {
 Синхронные валидаторы запускаются первыми. Асинхронные только если синхронные прошли:
 
 ```typescript
-validation: (path, { validateAsync }) => {
-  // Синхронно: выполняется сразу
-  validate(path.username, required());
-  validate(path.username, minLength(3));
+import { required, minLength } from '@reformer/core/validators';
 
-  // Асинхронно: только если синхронные валидаторы прошли
-  validateAsync(path.username, checkUsernameAvailable);
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    // Синхронно: выполняется сразу
+    validators: [required(), minLength(3)],
+    // Асинхронно: только если синхронные валидаторы прошли
+    asyncValidators: [checkUsernameAvailable],
+  },
 };
 ```
 
@@ -112,3 +135,4 @@ validation: (path, { validateAsync }) => {
 
 - [Кастомные Валидаторы](/docs/validation/custom) — Создание переиспользуемых валидаторов
 - [Поведения](/docs/behaviors/overview) — Условная валидация с поведениями
+  </content>

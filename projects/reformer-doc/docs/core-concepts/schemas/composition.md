@@ -16,18 +16,18 @@ Decompose and reuse schemas across your application.
 ## Factory Functions
 
 :::warning Always Use Factory Functions
-Use functions that return schemas, not direct objects.
+Use functions that return schema fragments, not direct objects.
 :::
 
 ```typescript
-// ✅ Good — factory function (new object each time)
-export const addressSchema = (): FormSchema<Address> => ({
-  street: { value: '' },
-  city: { value: '' },
+// ✅ Good — builder returns a fresh fragment bound to the given model signals
+export const addressNodes = (s: ModelSignals<Address>) => ({
+  street: { value: s.street, component: Input },
+  city: { value: s.city, component: Input },
 });
 
-// ❌ Bad — shared reference (forms share same object)
-export const addressSchema = {
+// ❌ Bad — a shared object literal: not bound to a model, reused by reference
+export const addressNodes = {
   street: { value: '' },
   city: { value: '' },
 };
@@ -38,36 +38,64 @@ export const addressSchema = {
 Create common field configurations:
 
 ```typescript title="schemas/common-fields.ts"
-import { FieldConfig } from '@reformer/core';
+import type { PathAwareSignal } from '@reformer/core';
+import { Input, Checkbox } from '@reformer/ui-kit';
+import { required, email } from '@reformer/core/validators';
 
-export const emailField = (): FieldConfig<string> => ({
-  value: '',
+// Field builders take a model signal; the initial value lives in the model
+export const emailField = (value: PathAwareSignal<string>) => ({
+  value,
+  component: Input,
+  componentProps: { type: 'email' },
+  validators: [required(), email()],
 });
 
-export const phoneField = (): FieldConfig<string> => ({
-  value: '',
+export const phoneField = (value: PathAwareSignal<string>) => ({
+  value,
+  component: Input,
+  componentProps: { type: 'tel' },
 });
 
-export const dateField = (): FieldConfig<Date | null> => ({
-  value: null,
+export const dateField = (value: PathAwareSignal<Date | null>) => ({
+  value,
+  component: Input,
+  componentProps: { type: 'date' },
 });
 
-export const booleanField = (defaultValue = false): FieldConfig<boolean> => ({
-  value: defaultValue,
+export const booleanField = (value: PathAwareSignal<boolean>) => ({
+  value,
+  component: Checkbox,
 });
 ```
 
 **Usage:**
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    email: emailField(),
-    phone: phoneField(),
-    birthDate: dateField(),
-    newsletter: booleanField(true),
-  },
+import { createModel, createForm } from '@reformer/core';
+
+type ProfileForm = {
+  email: string;
+  phone: string;
+  birthDate: Date | null;
+  newsletter: boolean;
+};
+
+// Defaults (e.g. newsletter: true) live in the model, not the field builder
+const model = createModel<ProfileForm>({
+  email: '',
+  phone: '',
+  birthDate: null,
+  newsletter: true,
 });
+
+const schema = {
+  email: emailField(model.$.email),
+  phone: phoneField(model.$.phone),
+  birthDate: dateField(model.$.birthDate),
+  newsletter: booleanField(model.$.newsletter),
+};
+
+const form = createForm<ProfileForm>({ model, schema });
 ```
 
 ## Reusable Group Schemas
@@ -75,55 +103,65 @@ const form = new GroupNode({
 Create schemas for common data structures:
 
 ```typescript title="schemas/address-schema.ts"
-import { FormSchema } from '@reformer/core';
+import type { ModelSignals } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-export interface Address {
+export type Address = {
   street: string;
   city: string;
   state: string;
   zipCode: string;
-}
+};
 
-export const addressSchema = (): FormSchema<Address> => ({
-  street: { value: '' },
-  city: { value: '' },
-  state: { value: '' },
-  zipCode: { value: '' },
+// Builder binds each field to the passed sub-model signals
+export const addressNodes = (s: ModelSignals<Address>) => ({
+  street: { value: s.street, component: Input },
+  city: { value: s.city, component: Input },
+  state: { value: s.state, component: Input },
+  zipCode: { value: s.zipCode, component: Input },
 });
 ```
 
 ```typescript title="schemas/person-schema.ts"
-import { FormSchema } from '@reformer/core';
+import type { ModelSignals } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-export interface Person {
+export type Person = {
   firstName: string;
   lastName: string;
   email: string;
-}
+};
 
-export const personSchema = (): FormSchema<Person> => ({
-  firstName: { value: '' },
-  lastName: { value: '' },
-  email: { value: '' },
+export const personNodes = (s: ModelSignals<Person>) => ({
+  firstName: { value: s.firstName, component: Input },
+  lastName: { value: s.lastName, component: Input },
+  email: { value: s.email, component: Input },
 });
 ```
 
 **Composing schemas:**
 
 ```typescript
-interface UserForm {
+type UserForm = {
   person: Person;
   billingAddress: Address;
   shippingAddress: Address;
-}
+};
 
-const form = new GroupNode<UserForm>({
-  form: {
-    person: personSchema(),
-    billingAddress: addressSchema(),
-    shippingAddress: addressSchema(),
-  },
+const model = createModel<UserForm>({
+  person: { firstName: '', lastName: '', email: '' },
+  billingAddress: { street: '', city: '', state: '', zipCode: '' },
+  shippingAddress: { street: '', city: '', state: '', zipCode: '' },
 });
+
+// Each builder call returns a fresh fragment bound to its own sub-model
+const schema = {
+  person: personNodes(model.$.person),
+  billingAddress: addressNodes(model.$.billingAddress),
+  shippingAddress: addressNodes(model.$.shippingAddress),
+};
+
+const form = createForm<UserForm>({ model, schema });
 ```
 
 ## Reusable Validation Sets
@@ -131,48 +169,57 @@ const form = new GroupNode<UserForm>({
 Extract validation logic into functions:
 
 ```typescript title="validators/address-validators.ts"
-import { FieldPath } from '@reformer/core';
 import { required, pattern } from '@reformer/core/validators';
-import { Address } from '../schemas/address-schema';
 
-export function validateAddress(path: FieldPath<Address>) {
-  validate(path.street, required());
-  validate(path.city, required());
-  validate(path.state, required());
-  validate(path.zipCode, required());
-  validate(path.zipCode, pattern(/^\d{5}(-\d{4})?$/, { message: 'Invalid ZIP code' }));
-}
+// Reusable validator lists — spread into a schema node's `validators`
+export const addressValidators = {
+  street: () => [required()],
+  city: () => [required()],
+  state: () => [required()],
+  zipCode: () => [required(), pattern(/^\d{5}(-\d{4})?$/, { message: 'Invalid ZIP code' })],
+};
 ```
 
 ```typescript title="validators/person-validators.ts"
-import { FieldPath } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
-import { Person } from '../schemas/person-schema';
 
-export function validatePerson(path: FieldPath<Person>) {
-  validate(path.firstName, required());
-  validate(path.firstName, minLength(2));
-  validate(path.lastName, required());
-  validate(path.email, required());
-  validate(path.email, email());
-}
+export const personValidators = {
+  firstName: () => [required(), minLength(2)],
+  lastName: () => [required()],
+  email: () => [required(), email()],
+};
 ```
 
 **Usage:**
 
 ```typescript
-const form = new GroupNode<UserForm>({
-  form: {
-    person: personSchema(),
-    billingAddress: addressSchema(),
-    shippingAddress: addressSchema(),
-  },
-  validation: (path) => {
-    validatePerson(path.person);
-    validateAddress(path.billingAddress);
-    validateAddress(path.shippingAddress);
-  },
+import type { ModelSignals } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+import { addressValidators } from './validators/address-validators';
+import { personValidators } from './validators/person-validators';
+
+// Bake the reusable validator lists into the builders
+const addressNodes = (s: ModelSignals<Address>) => ({
+  street: { value: s.street, component: Input, validators: addressValidators.street() },
+  city: { value: s.city, component: Input, validators: addressValidators.city() },
+  state: { value: s.state, component: Input, validators: addressValidators.state() },
+  zipCode: { value: s.zipCode, component: Input, validators: addressValidators.zipCode() },
 });
+
+const personNodes = (s: ModelSignals<Person>) => ({
+  firstName: { value: s.firstName, component: Input, validators: personValidators.firstName() },
+  lastName: { value: s.lastName, component: Input, validators: personValidators.lastName() },
+  email: { value: s.email, component: Input, validators: personValidators.email() },
+});
+
+// The same validator lists apply to billing and shipping addresses
+const schema = {
+  person: personNodes(model.$.person),
+  billingAddress: addressNodes(model.$.billingAddress),
+  shippingAddress: addressNodes(model.$.shippingAddress),
+};
+
+const form = createForm<UserForm>({ model, schema });
 ```
 
 ## Reusable Behavior Sets
@@ -180,14 +227,15 @@ const form = new GroupNode<UserForm>({
 Extract behavior logic into functions:
 
 ```typescript title="behaviors/address-behaviors.ts"
-import { FieldPath } from '@reformer/core';
 import { transformValue } from '@reformer/core/behaviors';
-import { Address } from '../schemas/address-schema';
+import type { ModelSignals } from '@reformer/core';
+import type { Address } from '../schemas/address-schema';
 
-export function addressBehaviors(path: FieldPath<Address>) {
-  // Auto-format ZIP code
-  transformValue(path.zipCode, (value) => {
-    const digits = value.replace(/\D/g, '');
+// Reusable behavior fragment — call it once per address inside defineFormBehavior
+export function addressBehaviors(s: ModelSignals<Address>) {
+  // Auto-format ZIP code (idempotent: reformatting a formatted value is a no-op)
+  transformValue(s.zipCode, (value) => {
+    const digits = (value ?? '').replace(/\D/g, '');
     if (digits.length === 9) {
       return `${digits.slice(0, 5)}-${digits.slice(5)}`;
     }
@@ -199,17 +247,15 @@ export function addressBehaviors(path: FieldPath<Address>) {
 **Usage:**
 
 ```typescript
-const form = new GroupNode<UserForm>({
-  form: {
-    person: personSchema(),
-    billingAddress: addressSchema(),
-    shippingAddress: addressSchema(),
-  },
-  behavior: (path) => {
-    addressBehaviors(path.billingAddress);
-    addressBehaviors(path.shippingAddress);
-  },
+import { defineFormBehavior } from '@reformer/core/behaviors';
+import { addressBehaviors } from './behaviors/address-behaviors';
+
+const userBehavior = defineFormBehavior<UserForm>(({ model }) => {
+  addressBehaviors(model.$.billingAddress);
+  addressBehaviors(model.$.shippingAddress);
 });
+
+const form = createForm<UserForm>({ model, schema, behavior: userBehavior });
 ```
 
 ## Complete Module Pattern
@@ -219,49 +265,56 @@ Bundle schema, validation, and behaviors together:
 ```
 modules/
 └── contact-info/
-    ├── schema.ts       # Type + form schema
-    ├── validators.ts   # Validation rules
+    ├── schema.ts       # Type + schema builder
+    ├── validators.ts   # Reusable validator lists
     ├── behaviors.ts    # Reactive logic
     └── index.ts        # Public exports
 ```
 
 ```typescript title="modules/contact-info/schema.ts"
-import { FormSchema } from '@reformer/core';
+import type { ModelSignals } from '@reformer/core';
+import { Input, Select } from '@reformer/ui-kit';
+import { contactInfoValidators } from './validators';
 
-export interface ContactInfo {
+export type ContactInfo = {
   email: string;
   phone: string;
   preferredContact: 'email' | 'phone';
-}
+};
 
-export const contactInfoSchema = (): FormSchema<ContactInfo> => ({
-  email: { value: '' },
-  phone: { value: '' },
-  preferredContact: { value: 'email' },
+export const contactInfoNodes = (s: ModelSignals<ContactInfo>) => ({
+  email: { value: s.email, component: Input, validators: contactInfoValidators.email() },
+  phone: { value: s.phone, component: Input, validators: contactInfoValidators.phone() },
+  preferredContact: {
+    value: s.preferredContact,
+    component: Select,
+    componentProps: {
+      options: [
+        { value: 'email', label: 'Email' },
+        { value: 'phone', label: 'Phone' },
+      ],
+    },
+  },
 });
 ```
 
 ```typescript title="modules/contact-info/validators.ts"
-import { FieldPath } from '@reformer/core';
 import { required, email, pattern } from '@reformer/core/validators';
-import { ContactInfo } from './schema';
 
-export function validateContactInfo(path: FieldPath<ContactInfo>) {
-  validate(path.email, required());
-  validate(path.email, email());
-  validate(path.phone, required());
-  validate(path.phone, pattern(/^\d{10}$/, { message: 'Must be 10 digits' }));
-}
+export const contactInfoValidators = {
+  email: () => [required(), email()],
+  phone: () => [required(), pattern(/^\d{10}$/, { message: 'Must be 10 digits' })],
+};
 ```
 
 ```typescript title="modules/contact-info/behaviors.ts"
-import { FieldPath } from '@reformer/core';
 import { transformValue } from '@reformer/core/behaviors';
-import { ContactInfo } from './schema';
+import type { ModelSignals } from '@reformer/core';
+import type { ContactInfo } from './schema';
 
-export function contactInfoBehaviors(path: FieldPath<ContactInfo>) {
-  transformValue(path.phone, (value) => {
-    const digits = value.replace(/\D/g, '');
+export function contactInfoBehaviors(s: ModelSignals<ContactInfo>) {
+  transformValue(s.phone, (value) => {
+    const digits = (value ?? '').replace(/\D/g, '');
     if (digits.length === 10) {
       return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
     }
@@ -271,39 +324,40 @@ export function contactInfoBehaviors(path: FieldPath<ContactInfo>) {
 ```
 
 ```typescript title="modules/contact-info/index.ts"
-export { contactInfoSchema, type ContactInfo } from './schema';
-export { validateContactInfo } from './validators';
+export { contactInfoNodes, type ContactInfo } from './schema';
+export { contactInfoValidators } from './validators';
 export { contactInfoBehaviors } from './behaviors';
 ```
 
 **Usage:**
 
 ```typescript
-import {
-  contactInfoSchema,
-  validateContactInfo,
-  contactInfoBehaviors,
-  type ContactInfo,
-} from './modules/contact-info';
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
+import { required } from '@reformer/core/validators';
+import { contactInfoNodes, contactInfoBehaviors, type ContactInfo } from './modules/contact-info';
 
-interface MyForm {
+type MyForm = {
   name: string;
   contactInfo: ContactInfo;
-}
+};
 
-const form = new GroupNode<MyForm>({
-  form: {
-    name: { value: '' },
-    contactInfo: contactInfoSchema(),
-  },
-  validation: (path) => {
-    validate(path.name, required());
-    validateContactInfo(path.contactInfo);
-  },
-  behavior: (path) => {
-    contactInfoBehaviors(path.contactInfo);
-  },
+const model = createModel<MyForm>({
+  name: '',
+  contactInfo: { email: '', phone: '', preferredContact: 'email' },
 });
+
+const schema = {
+  name: { value: model.$.name, component: Input, validators: [required()] },
+  contactInfo: contactInfoNodes(model.$.contactInfo),
+};
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  contactInfoBehaviors(model.$.contactInfo);
+});
+
+const form = createForm<MyForm>({ model, schema, behavior });
 ```
 
 ## Configurable Schemas
@@ -311,38 +365,60 @@ const form = new GroupNode<MyForm>({
 Create schema factories with options:
 
 ```typescript title="schemas/configurable-person.ts"
-interface PersonSchemaOptions {
+import type { ModelSignals } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+import { required, email } from '@reformer/core/validators';
+
+type Person = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  middleName: string;
+  phone: string;
+};
+
+type PersonSchemaOptions = {
   includeMiddleName?: boolean;
   includePhone?: boolean;
-}
+};
 
-export function createPersonSchema(options: PersonSchemaOptions = {}): FormSchema<Person> {
-  const schema: FormSchema<Person> = {
-    firstName: { value: '' },
-    lastName: { value: '' },
-    email: { value: '' },
+// The model materializes every field; the builder chooses which to expose
+export function createPersonNodes(s: ModelSignals<Person>, options: PersonSchemaOptions = {}) {
+  const nodes: Record<string, unknown> = {
+    firstName: { value: s.firstName, component: Input, validators: [required()] },
+    lastName: { value: s.lastName, component: Input, validators: [required()] },
+    email: { value: s.email, component: Input, validators: [required(), email()] },
   };
 
   if (options.includeMiddleName) {
-    schema.middleName = { value: '' };
+    nodes.middleName = { value: s.middleName, component: Input };
   }
 
   if (options.includePhone) {
-    schema.phone = { value: '' };
+    nodes.phone = { value: s.phone, component: Input };
   }
 
-  return schema;
+  return nodes;
 }
 ```
 
 **Usage:**
 
 ```typescript
-// Basic person
-const simple = createPersonSchema();
+// The model must materialize every field the builder can expose
+const model = createModel<Person>({
+  firstName: '',
+  lastName: '',
+  email: '',
+  middleName: '',
+  phone: '',
+});
+
+// Basic person — only the three required fields are exposed
+const basicSchema = createPersonNodes(model.$);
 
 // Person with all fields
-const detailed = createPersonSchema({
+const detailedSchema = createPersonNodes(model.$, {
   includeMiddleName: true,
   includePhone: true,
 });

@@ -35,6 +35,8 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   const [bg, setBg] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [showData, setShowData] = useState(true);
+  const [viewTab, setViewTab] = useState<'preview' | 'code'>('preview');
+  const [codeFlavor, setCodeFlavor] = useState<'reformer' | 'react'>('reformer');
 
   const { control, model, schema } = useDemoField({
     initial: api.initialValue,
@@ -89,69 +91,112 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   return (
     <div className={styles.apiExplorer}>
       <div className={styles.apiPreview}>
-        {/* Toolbar */}
+        {/* Toolbar: слева табы Preview/Code (+ выбор формата кода), справа тумблеры превью */}
         <div className={styles.apiToolbar}>
-          <label className={styles.apiToggle}>
-            <input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} />{' '}
-            Dark mode
-          </label>
-          <label className={styles.apiToggle}>
-            <input type="checkbox" checked={bg} onChange={(e) => setBg(e.target.checked)} />{' '}
-            Background
-          </label>
-        </div>
-
-        {/* Canvas (form-bound preview) */}
-        <div
-          className={clsx('reformer-demo', styles.apiCanvas, bg && styles.apiCanvasBg)}
-          data-preview-theme={dark ? 'dark' : 'light'}
-        >
-          <ResizableCanvas>
-            <FormField control={control} />
-          </ResizableCanvas>
-        </div>
-
-        {/* Form data output (сворачивается кнопкой «Value») */}
-        {showData && (
-          <pre className={styles.apiOutput}>Form data: {JSON.stringify({ value }, null, 2)}</pre>
-        )}
-
-        {/* Value controls */}
-        <div className={styles.apiValueBar}>
-          <button
-            type="button"
-            className={styles.apiValueToggle}
-            onClick={() => setShowData((s) => !s)}
-            aria-expanded={showData}
-          >
-            Value
-            <ChevronDown size={16} className={styles.apiChevron} data-open={showData} />
-          </button>
-          <div className={styles.apiValueBtns}>
-            {/* TODO: поле выбора стратегии обновления модели (updateOn) —
-              когда значение поля пишется в модель: change | blur | submit.
-              Пока скрыто; ниже закомментирован старый селект пресетов значения. */}
-            {/* {api.valuePresets && api.valuePresets.length > 0 && (
-            <ChangeSelect presets={api.valuePresets} onPick={(v) => control.setValue(v)} />
-          )} */}
-            <button type="button" className={styles.apiBtn} onClick={onReset}>
-              Reset
+          <div className={styles.apiViewTabs}>
+            <button
+              type="button"
+              className={clsx(styles.apiViewTab, viewTab === 'preview' && styles.apiViewTabActive)}
+              onClick={() => setViewTab('preview')}
+            >
+              Preview
             </button>
             <button
               type="button"
-              className={clsx(styles.apiBtn, styles.apiBtnPrimary)}
-              onClick={onSubmit}
+              className={clsx(styles.apiViewTab, viewTab === 'code' && styles.apiViewTabActive)}
+              onClick={() => setViewTab('code')}
             >
-              Submit
+              Code
             </button>
-            {status && <span className={styles.apiStatus}>{status}</span>}
+            {viewTab === 'code' && (
+              <select
+                className={styles.knobControl}
+                value={codeFlavor}
+                onChange={(e) => setCodeFlavor(e.target.value as 'reformer' | 'react')}
+                aria-label="Формат кода"
+              >
+                <option value="reformer">ReFormer</option>
+                <option value="react">React</option>
+              </select>
+            )}
           </div>
-        </div>
-      </div>
 
-      {/* Code snippet from current control values */}
-      <div className={styles.apiCode}>
-        <CodeBlock language={api.language ?? 'tsx'}>{api.code(values)}</CodeBlock>
+          {viewTab === 'preview' && (
+            <div className={styles.apiToolbarRight}>
+              <label className={styles.apiToggle}>
+                <input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} />{' '}
+                Dark mode
+              </label>
+              <label className={styles.apiToggle}>
+                <input type="checkbox" checked={bg} onChange={(e) => setBg(e.target.checked)} />{' '}
+                Background
+              </label>
+            </div>
+          )}
+        </div>
+
+        {viewTab === 'preview' ? (
+          <>
+            {/* Canvas (form-bound preview) */}
+            <div
+              className={clsx('reformer-demo', styles.apiCanvas, bg && styles.apiCanvasBg)}
+              data-preview-theme={dark ? 'dark' : 'light'}
+            >
+              <ResizableCanvas>
+                <FormField control={control} />
+              </ResizableCanvas>
+            </div>
+
+            {/* Form data output (сворачивается кнопкой «Value») */}
+            {showData && (
+              <pre className={styles.apiOutput}>
+                Form data: {JSON.stringify({ value }, null, 2)}
+              </pre>
+            )}
+
+            {/* Value controls */}
+            <div className={styles.apiValueBar}>
+              <button
+                type="button"
+                className={styles.apiValueToggle}
+                onClick={() => setShowData((s) => !s)}
+                aria-expanded={showData}
+              >
+                Value
+                <ChevronDown size={16} className={styles.apiChevron} data-open={showData} />
+              </button>
+              <div className={styles.apiValueBtns}>
+                {/* TODO: поле выбора стратегии обновления модели (updateOn) —
+              когда значение поля пишется в модель: change | blur | submit.
+              Пока скрыто; ниже закомментирован старый селект пресетов значения. */}
+                {/* {api.valuePresets && api.valuePresets.length > 0 && (
+            <ChangeSelect presets={api.valuePresets} onPick={(v) => control.setValue(v)} />
+          )} */}
+                <button type="button" className={styles.apiBtn} onClick={onReset}>
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className={clsx(styles.apiBtn, styles.apiBtnPrimary)}
+                  onClick={onSubmit}
+                >
+                  Submit
+                </button>
+                {status && <span className={styles.apiStatus}>{status}</span>}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className={styles.apiCodeView}>
+            <CodeBlock language="tsx">
+              {codeFlavor === 'react'
+                ? api.codeReact
+                  ? api.codeReact(values)
+                  : buildReactSnippet(api, values)
+                : api.code(values)}
+            </CodeBlock>
+          </div>
+        )}
       </div>
 
       {/* Grouped prop controls */}
@@ -257,6 +302,50 @@ function ResizableCanvas({ children }: { children: ReactNode }) {
 //     </select>
 //   );
 // }
+
+/** Литерал начального значения для useState в React-сниппете. */
+function valueLiteral(v: unknown): string {
+  if (typeof v === 'string') return `'${v}'`;
+  if (v === null || v === undefined) return 'null';
+  return String(v);
+}
+
+/** JSX-атрибут пропа для React-сниппета (null → пропустить). */
+function jsxAttr(key: string, val: unknown): string | null {
+  if (typeof val === 'boolean') return val ? key : null;
+  if (typeof val === 'number') return `${key}={${val}}`;
+  if (typeof val === 'string') return val === '' ? null : `${key}="${val}"`;
+  if (Array.isArray(val)) return `${key}={${key}}`;
+  return null;
+}
+
+/** Автогенерация «сырого» React-сниппета компонента с текущими настройками. */
+function buildReactSnippet(api: ApiConfig, values: ApiValues): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const comp = api.component as any;
+  const name: string = comp?.displayName || comp?.name || 'Component';
+  const props: Record<string, unknown> = { ...(api.baseComponentProps ?? {}) };
+  // `label`/`testId` — концепты FormField/схемы, «сырой» компонент их не принимает.
+  delete props.testId;
+  delete props.label;
+  for (const c of api.controls) if (c.kind !== 'readonly') props[c.prop] = values[c.prop];
+  const attrs = ['value={value}', 'onChange={setValue}'];
+  for (const [k, v] of Object.entries(props)) {
+    const a = jsxAttr(k, v);
+    if (a) attrs.push(a);
+  }
+  return `import { useState } from 'react';
+import { ${name} } from '@reformer/ui-kit';
+
+function Field() {
+  const [value, setValue] = useState(${valueLiteral(api.initialValue)});
+  return (
+    <${name}
+      ${attrs.join('\n      ')}
+    />
+  );
+}`;
+}
 
 function ControlRow({
   control,

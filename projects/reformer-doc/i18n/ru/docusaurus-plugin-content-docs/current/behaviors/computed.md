@@ -11,36 +11,43 @@ sidebar_position: 2
 Вычисление значения поля на основе одного или нескольких исходных полей.
 
 ```typescript
-import { computeFrom } from '@reformer/core/behaviors';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 
-behavior: (path) => {
-  // Один источник
-  computeFrom([path.price], path.priceWithTax, ({ price }) => price * 1.2);
+const behavior = defineFormBehavior(({ model }) => {
+  // Один источник — значения источников приходят позиционно
+  computeFrom([model.$.price], model.$.priceWithTax, (price) => price * 1.2);
 
   // Несколько источников
   computeFrom(
-    [path.price, path.quantity, path.discount],
-    path.total,
-    ({ price, quantity, discount }) => price * quantity - discount
+    [model.$.price, model.$.quantity, model.$.discount],
+    model.$.total,
+    (price, quantity, discount) => price * quantity - discount
   );
-};
+});
 ```
 
 ### Пример: Полное имя
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    firstName: { value: '' },
-    lastName: { value: '' },
-    fullName: { value: '' },
-  },
-  behavior: (path) => {
-    computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
-      `${firstName} ${lastName}`.trim()
-    );
-  },
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+
+interface NameForm {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+}
+
+const model = createModel<NameForm>({ firstName: '', lastName: '', fullName: '' });
+
+const behavior = defineFormBehavior<NameForm>(({ model }) => {
+  computeFrom([model.$.firstName, model.$.lastName], model.$.fullName, (firstName, lastName) =>
+    `${firstName} ${lastName}`.trim()
+  );
 });
+
+// `schema` связывает поля с компонентами (см. Быстрый старт).
+const form = createForm<NameForm>({ model, schema, behavior });
 
 form.firstName.setValue('Иван');
 form.lastName.setValue('Петров');
@@ -50,25 +57,32 @@ form.fullName.value.value; // 'Иван Петров'
 ### Пример: Калькулятор кредита
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    principal: { value: 10000 },
-    rate: { value: 5 },
-    years: { value: 10 },
-    monthlyPayment: { value: 0 },
-  },
-  behavior: (path) => {
-    computeFrom(
-      [path.principal, path.rate, path.years],
-      path.monthlyPayment,
-      ({ principal, rate, years }) => {
-        const monthlyRate = rate / 100 / 12;
-        const months = years * 12;
-        return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
-      }
-    );
-  },
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+
+interface LoanForm {
+  principal: number;
+  rate: number;
+  years: number;
+  monthlyPayment: number;
+}
+
+const model = createModel<LoanForm>({ principal: 10000, rate: 5, years: 10, monthlyPayment: 0 });
+
+const behavior = defineFormBehavior<LoanForm>(({ model }) => {
+  computeFrom(
+    [model.$.principal, model.$.rate, model.$.years],
+    model.$.monthlyPayment,
+    (principal, rate, years) => {
+      const monthlyRate = rate / 100 / 12;
+      const months = years * 12;
+      return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+    }
+  );
 });
+
+// `schema` связывает поля с компонентами (см. Быстрый старт).
+const form = createForm<LoanForm>({ model, schema, behavior });
 ```
 
 ## transformValue
@@ -76,44 +90,51 @@ const form = new GroupNode({
 Трансформация значения поля при его изменении.
 
 ```typescript
-import { transformValue } from '@reformer/core/behaviors';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-behavior: (path) => {
+const behavior = defineFormBehavior(({ model }) => {
   // Верхний регистр
-  transformValue(path.code, (value) => value.toUpperCase());
+  transformValue(model.$.code, (value) => value.toUpperCase());
 
   // Форматирование телефона
-  transformValue(path.phone, (value) => value.replace(/\D/g, '').slice(0, 10));
+  transformValue(model.$.phone, (value) => value.replace(/\D/g, '').slice(0, 10));
 
   // Ограничение числа
-  transformValue(path.quantity, (value) => Math.max(1, Math.min(100, value)));
-};
+  transformValue(model.$.quantity, (value) => Math.max(1, Math.min(100, value)));
+});
 ```
 
 ### Пример: Ввод валюты
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    amount: { value: '' },
-  },
-  behavior: (path) => {
-    transformValue(path.amount, (value) => {
-      // Удалить всё кроме цифр и точки
-      const cleaned = value.replace(/[^\d.]/g, '');
-      // Только одна десятичная точка
-      const parts = cleaned.split('.');
-      if (parts.length > 2) {
-        return parts[0] + '.' + parts.slice(1).join('');
-      }
-      // Ограничить знаки после запятой
-      if (parts[1]?.length > 2) {
-        return parts[0] + '.' + parts[1].slice(0, 2);
-      }
-      return cleaned;
-    });
-  },
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
+
+interface CurrencyForm {
+  amount: string;
+}
+
+const model = createModel<CurrencyForm>({ amount: '' });
+
+const behavior = defineFormBehavior<CurrencyForm>(({ model }) => {
+  transformValue(model.$.amount, (value) => {
+    // Удалить всё кроме цифр и точки
+    const cleaned = value.replace(/[^\d.]/g, '');
+    // Только одна десятичная точка
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      return parts[0] + '.' + parts.slice(1).join('');
+    }
+    // Ограничить знаки после запятой
+    if (parts[1]?.length > 2) {
+      return parts[0] + '.' + parts[1].slice(0, 2);
+    }
+    return cleaned;
+  });
 });
+
+// `schema` связывает поля с компонентами (см. Быстрый старт).
+const form = createForm<CurrencyForm>({ model, schema, behavior });
 ```
 
 ## Вычисления с вложенными полями
@@ -121,29 +142,37 @@ const form = new GroupNode({
 Доступ к вложенным полям в вычислениях:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    shipping: {
-      method: { value: 'standard' },
-      cost: { value: 0 },
-    },
-    subtotal: { value: 100 },
-    total: { value: 0 },
-  },
-  behavior: (path) => {
-    // Вычисление стоимости доставки
-    computeFrom([path.shipping.method], path.shipping.cost, ({ method }) =>
-      method === 'express' ? 15 : 5
-    );
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 
-    // Вычисление итога
-    computeFrom(
-      [path.subtotal, path.shipping.cost],
-      path.total,
-      ({ subtotal, cost }) => subtotal + cost
-    );
-  },
+interface CheckoutForm {
+  shipping: { method: string; cost: number };
+  subtotal: number;
+  total: number;
+}
+
+const model = createModel<CheckoutForm>({
+  shipping: { method: 'standard', cost: 0 },
+  subtotal: 100,
+  total: 0,
 });
+
+const behavior = defineFormBehavior<CheckoutForm>(({ model }) => {
+  // Вычисление стоимости доставки
+  computeFrom([model.$.shipping.method], model.$.shipping.cost, (method) =>
+    method === 'express' ? 15 : 5
+  );
+
+  // Вычисление итога
+  computeFrom(
+    [model.$.subtotal, model.$.shipping.cost],
+    model.$.total,
+    (subtotal, cost) => subtotal + cost
+  );
+});
+
+// `schema` связывает поля с компонентами (см. Быстрый старт).
+const form = createForm<CheckoutForm>({ model, schema, behavior });
 ```
 
 ## Следующие шаги

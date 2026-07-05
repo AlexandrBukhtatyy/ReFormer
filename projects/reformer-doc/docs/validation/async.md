@@ -8,69 +8,80 @@ Validate against server or perform expensive checks.
 
 ## Basic Async Validator
 
-`validateAsync` is an operator imported from `@reformer/core/validators`. The validator's
-signature is `(value, control, root) => Promise<ValidationError | null>`.
+An async validator is a function returning `Promise<ValidationError | null>`. Place it in a
+field's `asyncValidators` array in the schema:
 
 ```typescript
-import { GroupNode } from '@reformer/core';
-import { validate, validateAsync, required } from '@reformer/core/validators';
+import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
 
-const form = new GroupNode({
-  form: {
-    username: { value: '' },
+const model = createModel<{ username: string }>({ username: '' });
+
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    validators: [required()],
+    asyncValidators: [
+      async (value: string) => {
+        const response = await fetch(`/api/check-username?name=${value}`);
+        const { available } = await response.json();
+
+        return available ? null : { code: 'usernameTaken', message: 'Username taken' };
+      },
+    ],
   },
-  validation: (path) => {
-    validate(path.username, required());
+};
 
-    validateAsync(path.username, async (value) => {
-      const response = await fetch(`/api/check-username?name=${value}`);
-      const { available } = await response.json();
+const form = createForm({ model, schema });
 
-      if (!available) {
-        return { code: 'usernameTaken', message: 'Username taken' };
-      }
-      return null;
-    });
-  },
-});
+// Whole-form validation (sync + async) runs the async validators too:
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ## Debouncing
 
-Avoid too many requests with debounce:
+Avoid too many requests with a per-field `debounce` (ms). The async validator only runs after
+typing pauses:
 
 ```typescript
-validation: (path) => {
-  validateAsync(
-    path.username,
-    async (value) => {
-      const available = await checkUsername(value as string);
-      return available ? null : { code: 'usernameTaken', message: 'Username taken' };
-    },
-    { debounce: 300 } // Wait 300ms after typing stops
-  );
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    asyncValidators: [
+      async (value: string) => {
+        const available = await checkUsername(value);
+        return available ? null : { code: 'usernameTaken', message: 'Username taken' };
+      },
+    ],
+    debounce: 300, // Wait 300ms after typing stops
+  },
 };
 ```
 
 ## Loading State
 
-Track async validation in progress:
+Track async validation in progress with the field's `pending` signal:
 
 ```typescript
-const username = form.controls.username;
+const username = form.username;
 
 username.pending.value; // true while validating
 ```
 
 ```tsx
+import { useFormControl } from '@reformer/core';
+
 function UsernameField() {
-  const field = useFormControl(form.controls.username);
+  const field = useFormControl(form.username);
 
   return (
     <div>
       <input value={field.value} onChange={(e) => field.setValue(e.target.value)} />
       {field.pending && <span>Checking...</span>}
-      {field.errors?.find((e) => e.code === 'usernameTaken') && <span>Username taken</span>}
+      {field.errors.find((e) => e.code === 'usernameTaken') && <span>Username taken</span>}
     </div>
   );
 }
@@ -78,22 +89,27 @@ function UsernameField() {
 
 ## Async with Cross-Field Access
 
-Access other fields during async validation via `root`:
+Access other fields during async validation via `root`. The third argument is available when
+the validator runs through `validateFormModel(model, schema)`:
 
 ```typescript
-validation: (path) => {
-  validateAsync(path.email, async (value, _control, root) => {
-    const userId = root.userId.value.value;
+const checkEmail = async (value: string, _scope: unknown, root: { userId: string }) => {
+  const userId = root.userId;
 
-    const response = await fetch('/api/check-email', {
-      method: 'POST',
-      body: JSON.stringify({ email: value, userId }),
-    });
-
-    const { valid } = await response.json();
-    return valid ? null : { code: 'emailInUse', message: 'Email already in use' };
+  const response = await fetch('/api/check-email', {
+    method: 'POST',
+    body: JSON.stringify({ email: value, userId }),
   });
+
+  const { valid } = await response.json();
+  return valid ? null : { code: 'emailInUse', message: 'Email already in use' };
 };
+
+// Inside the form schema:
+email: { value: model.$.email, component: Input, asyncValidators: [checkEmail] },
+
+// root is passed when validating the whole form:
+await validateFormModel(model, schema);
 ```
 
 ## Combining Sync and Async
@@ -101,13 +117,17 @@ validation: (path) => {
 Sync validators run first. Async only runs if sync passes:
 
 ```typescript
-validation: (path) => {
-  // Sync: runs immediately
-  validate(path.username, required());
-  validate(path.username, minLength(3));
+import { required, minLength } from '@reformer/core/validators';
 
-  // Async: only runs if sync validators pass
-  validateAsync(path.username, checkUsernameAvailable);
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    // Sync: runs immediately
+    validators: [required(), minLength(3)],
+    // Async: only runs if sync validators pass
+    asyncValidators: [checkUsernameAvailable],
+  },
 };
 ```
 
@@ -115,3 +135,4 @@ validation: (path) => {
 
 - [Custom Validators](/docs/validation/custom) — Create reusable validators
 - [Behaviors](/docs/behaviors/overview) — Conditional validation with behaviors
+  </content>

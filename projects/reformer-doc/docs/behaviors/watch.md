@@ -11,97 +11,119 @@ React to field changes with custom logic.
 Execute callback when field value changes.
 
 ```typescript
-import { watchField } from '@reformer/core/behaviors';
+import { defineFormBehavior, watchField } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [
-  watchField(path.country, (newValue, oldValue) => {
-    console.log(`Country changed from ${oldValue} to ${newValue}`);
+const behavior = defineFormBehavior(({ model }) => {
+  watchField(model.$.country, (country) => {
+    console.log(`Country changed to ${country}`);
     // Load cities for new country
-    loadCities(newValue);
-  }),
-];
+    loadCities(country);
+  });
+});
 ```
 
 ### Example: Dynamic Options
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    category: { value: '' },
-    subcategory: { value: '' },
-  },
-  behaviors: (path, ctx) => [
-    watchField(path.category, async (category) => {
-      // Reset subcategory
-      form.controls.subcategory.setValue('');
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, watchField } from '@reformer/core/behaviors';
 
-      // Fetch subcategories
-      const options = await fetchSubcategories(category);
-      setSubcategoryOptions(options);
-    }),
-  ],
+interface CategoryForm {
+  category: string;
+  subcategory: string;
+}
+
+const model = createModel<CategoryForm>({ category: '', subcategory: '' });
+
+const behavior = defineFormBehavior<CategoryForm>(({ model, form }) => {
+  watchField(model.$.category, async (category) => {
+    // Reset subcategory
+    model.subcategory = '';
+
+    // Fetch subcategories
+    const options = await fetchSubcategories(category);
+    form.subcategory.updateComponentProps({ options });
+  });
 });
+
+// `schema` binds the fields to components (see Quick Start).
+const form = createForm<CategoryForm>({ model, schema, behavior });
 ```
 
 ### Example: Analytics
 
 ```typescript
-behaviors: (path, ctx) => [
-  watchField(path.step, (step) => {
+const behavior = defineFormBehavior(({ model }) => {
+  watchField(model.$.step, (step) => {
     analytics.track('form_step_changed', { step });
-  }),
-];
+  });
+});
 ```
 
 ## revalidateWhen
 
-Trigger field revalidation when another field changes.
+Trigger field revalidation when another field changes. Under M1 validation is
+on-demand, so the revalidate callback re-runs `validateFormModel(model, schema)`.
 
 ```typescript
-import { revalidateWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { validateFormModel } from '@reformer/core';
 
-behaviors: (path, ctx) => [
-  // Revalidate confirmPassword when password changes
-  revalidateWhen(path.confirmPassword, [path.password]),
-];
+const behavior = defineFormBehavior(({ model }) => {
+  // Revalidate the schema when password changes (confirmPassword rule re-checks)
+  revalidateWhen([model.$.password], () => {
+    void validateFormModel(model, schema);
+  });
+});
 ```
 
 ### Example: Date Range
 
 ```typescript
-import { validate } from '@reformer/core/validators';
+import { createModel, createForm } from '@reformer/core';
+import type { ModelValidator } from '@reformer/core';
+import { validateFormModel } from '@reformer/core';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
-const form = new GroupNode({
-  form: {
-    startDate: { value: '' },
-    endDate: { value: '' },
-  },
-  validation: (path) => {
-    validate(path.endDate, (value, ctx) => {
-      const start = ctx.root.controls.startDate.value;
-      if (start && value && value < start) {
-        return { endBeforeStart: true };
-      }
-      return null;
-    });
-  },
-  behaviors: (path, ctx) => [
-    // Revalidate endDate when startDate changes
-    revalidateWhen(path.endDate, [path.startDate]),
-  ],
+interface DateRangeForm {
+  startDate: string;
+  endDate: string;
+}
+
+const model = createModel<DateRangeForm>({ startDate: '', endDate: '' });
+
+// Cross-field rule: endDate must not be before startDate (reads root)
+const endAfterStart: ModelValidator<string, unknown, DateRangeForm> = (value, _schema, root) =>
+  root.startDate && value && value < root.startDate
+    ? { code: 'endBeforeStart', message: 'End date is before start date' }
+    : null;
+
+const schema = {
+  startDate: { value: model.$.startDate, component: Input },
+  endDate: { value: model.$.endDate, component: Input, validators: [endAfterStart] },
+};
+
+const behavior = defineFormBehavior<DateRangeForm>(({ model }) => {
+  // Revalidate endDate when startDate changes
+  revalidateWhen([model.$.startDate], () => {
+    void validateFormModel(model, schema);
+  });
 });
+
+const form = createForm<DateRangeForm>({ model, schema, behavior });
 ```
 
 ### Example: Cross-Field Validation
 
 ```typescript
-behaviors: (path, ctx) => [
+const behavior = defineFormBehavior(({ model }) => {
   // Password strength depends on username (can't contain it)
-  revalidateWhen(path.password, [path.username]),
+  revalidateWhen([model.$.username], () => void validateFormModel(model, schema));
 
   // Confirm password must match password
-  revalidateWhen(path.confirmPassword, [path.password]),
-];
+  revalidateWhen([model.$.password], () => void validateFormModel(model, schema));
+});
 ```
 
 ## Multiple Watchers
@@ -109,61 +131,73 @@ behaviors: (path, ctx) => [
 Watch multiple fields:
 
 ```typescript
-behaviors: (path, ctx) => [
-  watchField([path.firstName, path.lastName], () => {
-    // Called when either changes
-    updateDisplayName();
-  }),
-];
+const behavior = defineFormBehavior(({ model }) => {
+  // Called when either changes
+  watchField(model.$.firstName, () => updateDisplayName());
+  watchField(model.$.lastName, () => updateDisplayName());
+});
 ```
 
 ## Debounced Watch
 
-Prevent too frequent updates:
+Prevent too frequent updates with `onChange` (debounce + AbortSignal):
 
 ```typescript
-behaviors: (path, ctx) => [
-  watchField(
-    path.searchQuery,
-    async (query) => {
-      const results = await search(query);
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior(({ model }) => {
+  onChange(
+    model.$.searchQuery,
+    async (query, { signal }) => {
+      const results = await search(query, { signal });
       setSearchResults(results);
     },
     { debounce: 300 }
-  ),
-];
+  );
+});
 ```
 
 ## Watch with Cleanup
 
-Return cleanup function:
+Clean up on the next change via the abort signal:
 
 ```typescript
-behaviors: (path, ctx) => [
-  watchField(path.livePreview, (enabled) => {
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior(({ model }) => {
+  onChange(model.$.livePreview, (enabled, { signal }) => {
     if (enabled) {
       const interval = setInterval(refreshPreview, 1000);
-      return () => clearInterval(interval); // Cleanup
+      // signal aborts on the next change — clean up the interval
+      signal.addEventListener('abort', () => clearInterval(interval));
     }
-  }),
-];
+  });
+});
 ```
 
 ## Combining Watch with Other Behaviors
 
 ```typescript
-behaviors: (path, ctx) => [
+import {
+  defineFormBehavior,
+  enableWhen,
+  watchField,
+  revalidateWhen,
+} from '@reformer/core/behaviors';
+import { validateFormModel } from '@reformer/core';
+
+const behavior = defineFormBehavior(({ model }) => {
   // Show premium fields
-  enableWhen(path.premiumOptions, () => form.controls.plan.value === 'premium'),
+  enableWhen(model.$.premiumOptions, () => model.plan === 'premium');
 
   // Track plan changes
-  watchField(path.plan, (plan) => {
+  watchField(model.$.plan, (plan) => {
     analytics.track('plan_selected', { plan });
-  }),
+  });
 
   // Revalidate dependent fields
-  revalidateWhen(path.features, [path.plan]),
-];
+  revalidateWhen([model.$.plan], () => void validateFormModel(model, schema));
+});
 ```
 
 ## Next Steps

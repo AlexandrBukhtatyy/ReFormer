@@ -5,16 +5,17 @@ sidebar_position: 2
 # Built-in Validator Factories
 
 All factories are imported from `@reformer/core/validators`. They return a `Validator<TForm, TField>`
-and are passed to the `validate()` operator.
+and are placed in a schema node's `validators: [...]` array.
 
 ## required
 
 Field must have a non-empty value.
 
 ```typescript
-import { validate, required } from '@reformer/core/validators';
+import { required } from '@reformer/core/validators';
 
-validate(path.name, required());
+// In a schema field node:
+name: { value: model.$.name, validators: [required()] },
 // Error: { code: 'required', message: '...' }
 ```
 
@@ -25,9 +26,9 @@ Empty values: `''`, `null`, `undefined`. For booleans, requires `true`.
 Valid email format.
 
 ```typescript
-import { validate, email } from '@reformer/core/validators';
+import { email } from '@reformer/core/validators';
 
-validate(path.email, email());
+email: { value: model.$.email, validators: [email()] },
 // Error: { code: 'email', message: '...' }
 ```
 
@@ -36,12 +37,12 @@ validate(path.email, email());
 String or array length constraints. Skipped for empty values.
 
 ```typescript
-import { validate, minLength, maxLength } from '@reformer/core/validators';
+import { minLength, maxLength } from '@reformer/core/validators';
 
-validate(path.name, minLength(2));
+name: { value: model.$.name, validators: [minLength(2)] },
 // Error: { code: 'minLength', params: { minLength: 2, actualLength: 1 } }
 
-validate(path.bio, maxLength(500));
+bio: { value: model.$.bio, validators: [maxLength(500)] },
 // Error: { code: 'maxLength', params: { maxLength: 500, actualLength: 501 } }
 ```
 
@@ -50,12 +51,12 @@ validate(path.bio, maxLength(500));
 Number value constraints. Skipped for empty values.
 
 ```typescript
-import { validate, min, max } from '@reformer/core/validators';
+import { min, max } from '@reformer/core/validators';
 
-validate(path.age, min(18));
+age: { value: model.$.age, validators: [min(18)] },
 // Error: { code: 'min', params: { min: 18, actual: 16 } }
 
-validate(path.quantity, max(100));
+quantity: { value: model.$.quantity, validators: [max(100)] },
 // Error: { code: 'max', params: { max: 100, actual: 150 } }
 ```
 
@@ -64,13 +65,13 @@ validate(path.quantity, max(100));
 Match regex pattern.
 
 ```typescript
-import { validate, pattern } from '@reformer/core/validators';
+import { pattern } from '@reformer/core/validators';
 
-validate(path.code, pattern(/^[A-Z]+$/));
+code: { value: model.$.code, validators: [pattern(/^[A-Z]+$/)] },
 // Error: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
 
 // With custom message
-validate(path.code, pattern(/^[A-Z]+$/, { message: 'Must be uppercase' }));
+code: { value: model.$.code, validators: [pattern(/^[A-Z]+$/, { message: 'Must be uppercase' })] },
 ```
 
 ## url
@@ -78,11 +79,13 @@ validate(path.code, pattern(/^[A-Z]+$/, { message: 'Must be uppercase' }));
 Valid URL format.
 
 ```typescript
-import { validate, url } from '@reformer/core/validators';
+import { url } from '@reformer/core/validators';
 
-validate(path.website, url());
-validate(path.website, url({ requireProtocol: true }));
-validate(path.website, url({ allowedProtocols: ['https'] }));
+website: { value: model.$.website, validators: [url()] },
+
+// Options:
+// url({ requireProtocol: true })
+// url({ allowedProtocols: ['https'] })
 ```
 
 ## phone
@@ -90,10 +93,12 @@ validate(path.website, url({ allowedProtocols: ['https'] }));
 Valid phone number format.
 
 ```typescript
-import { validate, phone } from '@reformer/core/validators';
+import { phone } from '@reformer/core/validators';
 
-validate(path.phone, phone());
-validate(path.phone, phone({ format: 'ru' }));
+phone: { value: model.$.phone, validators: [phone()] },
+
+// Options:
+// phone({ format: 'ru' })
 ```
 
 ## isNumber
@@ -101,9 +106,9 @@ validate(path.phone, phone({ format: 'ru' }));
 Value must be a finite number (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { validate, isNumber } from '@reformer/core/validators';
+import { isNumber } from '@reformer/core/validators';
 
-validate(path.amount, isNumber());
+amount: { value: model.$.amount, validators: [isNumber()] },
 ```
 
 ## integer
@@ -111,9 +116,9 @@ validate(path.amount, isNumber());
 Number must be an integer. Skips non-numbers (compose with `isNumber` for strict type check).
 
 ```typescript
-import { validate, integer } from '@reformer/core/validators';
+import { integer } from '@reformer/core/validators';
 
-validate(path.count, integer());
+count: { value: model.$.count, validators: [integer()] },
 ```
 
 ## multipleOf
@@ -121,10 +126,10 @@ validate(path.count, integer());
 Number must be a multiple of the given divisor.
 
 ```typescript
-import { validate, multipleOf } from '@reformer/core/validators';
+import { multipleOf } from '@reformer/core/validators';
 
-validate(path.price, multipleOf(0.01));
-validate(path.rating, multipleOf(0.5));
+price: { value: model.$.price, validators: [multipleOf(0.01)] },
+rating: { value: model.$.rating, validators: [multipleOf(0.5)] },
 ```
 
 ## nonNegative
@@ -132,9 +137,9 @@ validate(path.rating, multipleOf(0.5));
 Number must be `>= 0`.
 
 ```typescript
-import { validate, nonNegative } from '@reformer/core/validators';
+import { nonNegative } from '@reformer/core/validators';
 
-validate(path.quantity, nonNegative());
+quantity: { value: model.$.quantity, validators: [nonNegative()] },
 ```
 
 ## nonZero
@@ -142,20 +147,17 @@ validate(path.quantity, nonNegative());
 Number must not equal zero.
 
 ```typescript
-import { validate, nonZero } from '@reformer/core/validators';
+import { nonZero } from '@reformer/core/validators';
 
-validate(path.divisor, nonZero());
+divisor: { value: model.$.divisor, validators: [nonZero()] },
 ```
 
 Compose for richer constraints — there is no single `number()` factory anymore:
 
 ```typescript
-import { validate, isNumber, integer, min, max } from '@reformer/core/validators';
+import { isNumber, integer, min, max } from '@reformer/core/validators';
 
-validate(path.percent, isNumber());
-validate(path.percent, integer());
-validate(path.percent, min(0));
-validate(path.percent, max(100));
+percent: { value: model.$.percent, validators: [isNumber(), integer(), min(0), max(100)] },
 ```
 
 ## date
@@ -163,10 +165,11 @@ validate(path.percent, max(100));
 Valid date value with optional constraints.
 
 ```typescript
-import { validate, date } from '@reformer/core/validators';
+import { isDate, pastDate, minAge, minDate } from '@reformer/core/validators';
 
-validate(path.birthDate, date({ noFuture: true, minAge: 18 }));
-validate(path.eventDate, date({ minDate: new Date() }));
+birthDate: { value: model.$.birthDate, validators: [isDate(), pastDate(), minAge(18)] },
+
+eventDate: { value: model.$.eventDate, validators: [isDate(), minDate(new Date())] },
 ```
 
 ## notEmpty
@@ -174,9 +177,10 @@ validate(path.eventDate, date({ minDate: new Date() }));
 Array must not be empty.
 
 ```typescript
-import { validate, notEmpty } from '@reformer/core/validators';
+import { minLength } from '@reformer/core/validators';
 
-validate(path.items, notEmpty({ message: 'Add at least one item' }));
+// A non-empty array is expressed as minLength(1) on the array field:
+items: { value: model.$.items, validators: [minLength(1, { message: 'Add at least one item' })] },
 ```
 
 ## Combining Validators
@@ -184,12 +188,17 @@ validate(path.items, notEmpty({ message: 'Add at least one item' }));
 Apply multiple validators to one field. All run, errors are collected:
 
 ```typescript
-validation: (path) => {
-  validate(path.password, required());
-  validate(path.password, minLength(8));
-  validate(path.password, pattern(/[A-Z]/, { message: 'Must contain uppercase' }));
-  validate(path.password, pattern(/[0-9]/, { message: 'Must contain a number' }));
-};
+import { required, minLength, pattern } from '@reformer/core/validators';
+
+password: {
+  value: model.$.password,
+  validators: [
+    required(),
+    minLength(8),
+    pattern(/[A-Z]/, { message: 'Must contain uppercase' }),
+    pattern(/[0-9]/, { message: 'Must contain a number' }),
+  ],
+},
 ```
 
 ```typescript

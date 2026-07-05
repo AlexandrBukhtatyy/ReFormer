@@ -130,27 +130,28 @@ export interface CreditApplicationForm {
 ### Form Schema
 
 ```typescript title="forms/credit-application/form.schema.ts"
-import type { FormSchema } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 import { Input, Select, Textarea } from '@/components/ui';
 import { LOAN_TYPES } from './data-sources';
 import type { CreditApplicationForm } from './types';
 
-// All fields for the whole form live here — one schema, all steps
-export const creditApplicationSchema: FormSchema<CreditApplicationForm> = {
+// All fields for the whole form live here — one schema builder, all steps.
+// It binds each field to a model signal; validators live in validation.ts.
+export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
   loanType: {
-    value: 'consumer',
+    value: model.$.loanType,
     component: Select,
     componentProps: { label: 'Loan Type', options: LOAN_TYPES },
   },
   loanAmount: {
-    value: null,
+    value: model.$.loanAmount,
     component: Input,
     componentProps: { label: 'Loan Amount', type: 'number' },
   },
-  // Computed field at form level
-  monthlyPayment: { value: 0, disabled: true },
+  // Computed field at form level, filled by behavior
+  monthlyPayment: { value: model.$.monthlyPayment, disabled: true },
   // ... more fields
-};
+});
 ```
 
 ### Data Sources
@@ -175,70 +176,87 @@ All validators for the form live in `validation.ts`. You can still keep them tid
 grouping helpers per step **inside the one file**, then combining them:
 
 ```typescript title="forms/credit-application/validation.ts"
-import { validate, required, min, max, applyWhen } from '@reformer/core/validators';
-import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
+import { validateFormModel } from '@reformer/core';
+import { required, min, max } from '@reformer/core/validators';
+import type { FormModel, ModelValidator } from '@reformer/core';
 import type { CreditApplicationForm } from './types';
 
-// Grouped by step — but all in this one file
-const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.loanType, required({ message: 'Select loan type' }));
-  validate(path.loanAmount, required({ message: 'Enter loan amount' }));
-  validate(path.loanAmount, min(50000, { message: 'Minimum 50,000' }));
-  validate(path.loanAmount, max(10000000, { message: 'Maximum 10,000,000' }));
+// Grouped by step — but all in this one file. Each group returns schema nodes.
+const loanValidationNodes = (model: FormModel<CreditApplicationForm>) => [
+  { value: model.$.loanType, validators: [required({ message: 'Select loan type' })] },
+  {
+    value: model.$.loanAmount,
+    validators: [
+      required({ message: 'Enter loan amount' }),
+      min(50000, { message: 'Minimum 50,000' }),
+      max(10000000, { message: 'Maximum 10,000,000' }),
+    ],
+  },
+  // Conditional validation for mortgage — native branch node { when, children }
+  {
+    when: (_scope: unknown, root: unknown) =>
+      (root as CreditApplicationForm).loanType === 'mortgage',
+    children: [
+      { value: model.$.propertyValue, validators: [required({ message: 'Enter property value' })] },
+      {
+        value: model.$.initialPayment,
+        validators: [required({ message: 'Enter initial payment' })],
+      },
+    ],
+  },
+];
 
-  // Conditional validation for mortgage
-  applyWhen(
-    path.loanType,
-    (type) => type === 'mortgage',
-    (p) => {
-      validate(p.propertyValue, required({ message: 'Enter property value' }));
-      validate(p.initialPayment, required({ message: 'Enter initial payment' }));
-    }
-  );
+// Cross-step rule: initial payment must be >= 20% of property value.
+// A ModelValidator reads siblings through `root` (plain values, no `.value.value`).
+const minInitialPayment: ModelValidator<number, unknown, CreditApplicationForm> = (
+  value,
+  _scope,
+  root
+) => {
+  if (root.loanType !== 'mortgage') return null;
+  if (!root.propertyValue || !value) return null;
+  const minPayment = root.propertyValue * 0.2;
+  return value < minPayment
+    ? { code: 'minInitialPayment', message: `Minimum: ${minPayment}` }
+    : null;
 };
 
-// Cross-step rule: initial payment must be >= 20% of property value
-const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.initialPayment, (value, _control, root) => {
-    if (root.loanType.value.value !== 'mortgage') return null;
-    const propertyValue = root.propertyValue.value.value;
-    if (!propertyValue || !value) return null;
-    const minPayment = propertyValue * 0.2;
-    if (value < minPayment) {
-      return { code: 'minInitialPayment', message: `Minimum: ${minPayment}` };
-    }
-    return null;
-  });
-};
+// One validation schema for the whole form — combine the per-step nodes
+const creditApplicationValidationSchema = (model: FormModel<CreditApplicationForm>) => ({
+  children: [
+    ...loanValidationNodes(model),
+    { value: model.$.initialPayment, validators: [minInitialPayment] },
+  ],
+});
 
-// One exported validator for the whole form
-export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  loanValidation(path);
-  crossStepValidation(path);
-};
+// One exported entry point — headless validation of the whole form
+export const validateCreditApplication = (model: FormModel<CreditApplicationForm>) =>
+  validateFormModel(model, creditApplicationValidationSchema(model));
 ```
 
 ### Behavior
 
 ```typescript title="forms/credit-application/form.behavior.ts"
-import { computeFrom, enableWhen } from '@reformer/core/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
+import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
 import type { CreditApplicationForm } from './types';
 
 // All reactive rules for the whole form
-export const creditApplicationBehavior: BehaviorSchemaFn<CreditApplicationForm> = (
-  path: FieldPath<CreditApplicationForm>
-) => {
-  // Show mortgage fields only for mortgage type
-  enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage');
-  enableWhen(path.initialPayment, (form) => form.loanType === 'mortgage');
+export const creditApplicationBehavior = defineFormBehavior<CreditApplicationForm>(({ model }) => {
+  // Enable mortgage fields only for mortgage type
+  enableWhen([model.$.propertyValue, model.$.initialPayment], () => model.loanType === 'mortgage', {
+    resetOnDisable: true,
+  });
 
   // Compute interest rate based on loan type
-  computeFrom([path.loanType], path.interestRate, (values) => {
-    const rates = { consumer: 15, mortgage: 10, car: 12 };
-    return rates[values.loanType] || 15;
+  compute(model.$.interestRate, () => {
+    const rates: Record<CreditApplicationForm['loanType'], number> = {
+      consumer: 15,
+      mortgage: 10,
+      car: 12,
+    };
+    return rates[model.loanType] ?? 15;
   });
-};
+});
 ```
 
 ### Entry Component
@@ -250,23 +268,23 @@ import { useMemo } from 'react';
 import { createForm } from '@reformer/core';
 import { creditApplicationSchema } from './form.schema';
 import { creditApplicationBehavior } from './form.behavior';
-import { creditApplicationValidation } from './validation';
+import { createCreditApplicationModel } from './model';
 import type { CreditApplicationForm as CreditApplicationFormType } from './types';
 
 export function CreditApplicationForm() {
-  // Create form instance with useMemo for stable reference
-  const form = useMemo(
-    () =>
-      createForm<CreditApplicationFormType>({
-        form: creditApplicationSchema,
-        behavior: creditApplicationBehavior,
-        validation: creditApplicationValidation,
-      }),
-    []
-  );
+  // Create a stable model + form instance with useMemo
+  const form = useMemo(() => {
+    const model = createCreditApplicationModel();
+    return createForm<CreditApplicationFormType>({
+      model,
+      schema: creditApplicationSchema(model),
+      behavior: creditApplicationBehavior,
+    });
+  }, []);
 
   return (
-    // ... render every step inline (loan info, personal info, confirmation, …)
+    // ... render every step inline (loan info, personal info, confirmation, …).
+    // Validation runs headlessly via validateCreditApplication(model) on step change / submit.
   );
 }
 ```

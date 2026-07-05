@@ -8,20 +8,31 @@ sidebar_position: 5
 
 ## Время Валидации
 
+Тайминг для каждого поля управляется опцией `updateOn` в узле схемы
+(`'change' | 'blur' | 'submit'`, по умолчанию `'blur'`). Полная проверка данных запускается
+по требованию через `validateFormModel(model, schema)`.
+
 ### Валидация при Изменении
 
 Мгновенная обратная связь во время ввода:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    username: { value: '', updateOn: 'change' },
+import { createModel, createForm } from '@reformer/core';
+import { required, minLength } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
+
+const model = createModel<{ username: string }>({ username: '' });
+
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    validators: [required(), minLength(3)],
+    updateOn: 'change', // валидируем при каждом нажатии клавиши
   },
-  validation: (path) => {
-    validate(path.username, required());
-    validate(path.username, minLength(3));
-  },
-});
+};
+
+const form = createForm({ model, schema });
 ```
 
 **Подходит для:**
@@ -40,15 +51,22 @@ const form = new GroupNode({
 Валидация при потере фокуса полем:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    email: { value: '', updateOn: 'blur' },
+import { createModel, createForm } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
+
+const model = createModel<{ email: string }>({ email: '' });
+
+const schema = {
+  email: {
+    value: model.$.email,
+    component: Input,
+    validators: [required(), email()],
+    updateOn: 'blur', // валидируем при потере фокуса (по умолчанию)
   },
-  validation: (path) => {
-    validate(path.email, required());
-    validate(path.email, email());
-  },
-});
+};
+
+const form = createForm({ model, schema });
 ```
 
 **Подходит для:**
@@ -62,21 +80,29 @@ const form = new GroupNode({
 Валидация только при отправке формы:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    feedback: { value: '', updateOn: 'submit' },
+import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { required, minLength } from '@reformer/core/validators';
+import { Textarea } from '@reformer/ui-kit';
+
+const model = createModel<{ feedback: string }>({ feedback: '' });
+
+const schema = {
+  feedback: {
+    value: model.$.feedback,
+    component: Textarea,
+    validators: [required(), minLength(10)],
+    updateOn: 'submit', // валидируем только при submit
   },
-  validation: (path) => {
-    validate(path.feedback, required());
-    validate(path.feedback, minLength(10));
-  },
-});
+};
+
+const form = createForm({ model, schema });
 
 // Запуск валидации вручную
-const handleSubmit = () => {
-  form.markAsTouched();
-  if (form.valid.value) {
-    console.log('Валидно:', form.getValue());
+const handleSubmit = async () => {
+  form.markAsTouched(); // показать ошибки в UI
+  const { valid } = await validateFormModel(model, schema);
+  if (valid) {
+    console.log('Валидно:', model.get());
   }
 };
 ```
@@ -91,35 +117,44 @@ const handleSubmit = () => {
 
 ### Стратегия Сначала Синхронная
 
-Сначала запустите синхронную валидацию, затем асинхронную:
+Синхронные фабрики выполняются первыми (в порядке массива); асинхронная проверка объявляется
+отдельно и сама себя ограничивает, поэтому не делает работу, пока не выполнены базовые условия:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    username: { value: '' },
+import { createModel, createForm, type ModelValidator } from '@reformer/core';
+import { required, minLength, maxLength, pattern } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
+
+const model = createModel<{ username: string }>({ username: '' });
+
+// Асинхронная проверка — выполняется после синхронных фабрик; ранний return это ограничитель «только если синхронная прошла»
+const usernameAvailable: ModelValidator<string> = async (value) => {
+  if (!value || value.length < 3) return null;
+
+  const response = await fetch(`/api/check-username?username=${value}`);
+  const { available } = await response.json();
+
+  return available ? null : { code: 'usernameTaken', message: 'Имя пользователя уже занято' };
+};
+
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    // Сначала синхронные валидаторы
+    validators: [
+      required(),
+      minLength(3),
+      maxLength(20),
+      pattern(/^[a-zA-Z0-9_]+$/, { message: 'Недопустимые символы' }),
+    ],
+    // Асинхронный валидатор объявляется отдельно, с debounce
+    asyncValidators: [usernameAvailable],
+    debounce: 500,
   },
-  validation: (path, { validateAsync }) => {
-    // Сначала синхронная валидация
-    validate(path.username, required());
-    validate(path.username, minLength(3));
-    validate(path.username, maxLength(20));
-    validate(path.username, pattern(/^[a-zA-Z0-9_]+$/, { message: 'Недопустимые символы' }));
+};
 
-    // Асинхронная валидация только если синхронная прошла
-    validateAsync(
-      path.username,
-      async (value) => {
-        if (!value || value.length < 3) return null;
-
-        const response = await fetch(`/api/check-username?username=${value}`);
-        const { available } = await response.json();
-
-        return available ? null : { usernameTaken: true };
-      },
-      { debounce: 500 }
-    );
-  },
-});
+const form = createForm({ model, schema });
 ```
 
 **Преимущества:**
@@ -130,66 +165,85 @@ const form = new GroupNode({
 
 ### Параллельная Асинхронная Валидация
 
-Запускайте несколько асинхронных валидаций параллельно:
+`validateFormModel` прогоняет асинхронные валидаторы полей параллельно (`Promise.all`):
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    username: { value: '' },
-    email: { value: '' },
-  },
-  validation: (path, { validateAsync }) => {
-    // Проверка доступности имени пользователя
-    validateAsync(
-      path.username,
-      async (value) => {
-        const response = await fetch(`/api/check-username?username=${value}`);
-        const { available } = await response.json();
-        return available ? null : { usernameTaken: true };
-      },
-      { debounce: 500 }
-    );
+import { createModel, createForm, type ModelValidator } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-    // Проверка доступности email
-    validateAsync(
-      path.email,
-      async (value) => {
-        const response = await fetch(`/api/check-email?email=${value}`);
-        const { available } = await response.json();
-        return available ? null : { emailTaken: true };
-      },
-      { debounce: 500 }
-    );
+const model = createModel<{ username: string; email: string }>({ username: '', email: '' });
+
+// Проверка доступности имени пользователя
+const usernameAvailable: ModelValidator<string> = async (value) => {
+  const response = await fetch(`/api/check-username?username=${value}`);
+  const { available } = await response.json();
+  return available ? null : { code: 'usernameTaken', message: 'Имя пользователя занято' };
+};
+
+// Проверка доступности email
+const emailAvailable: ModelValidator<string> = async (value) => {
+  const response = await fetch(`/api/check-email?email=${value}`);
+  const { available } = await response.json();
+  return available ? null : { code: 'emailTaken', message: 'Email уже занят' };
+};
+
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    asyncValidators: [usernameAvailable],
+    debounce: 500,
   },
-});
+  email: {
+    value: model.$.email,
+    component: Input,
+    asyncValidators: [emailAvailable],
+    debounce: 500,
+  },
+};
+
+const form = createForm({ model, schema });
 ```
 
 ## Условная Валидация
+
+Правила, действующие только в ветке, задаются нативным branch-узлом
+`{ when: (scope, root) => boolean, children: [...] }` в дереве схемы. `validateFormModel`
+валидирует `children`, когда `when` истинно; когда ложно — поддерево пропускается, а ошибки
+его полей очищаются.
 
 ### Простое Условие
 
 Валидация на основе другого поля:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    hasCompany: { value: false },
-    companyName: { value: '' },
-    companyTaxId: { value: '' },
-  },
-  validation: (path) => {
-    // Валидировать поля компании только если hasCompany истинно
-    applyWhen(
-      path.hasCompany,
-      (hasCompany) => hasCompany === true,
-      (path) => {
-        validate(path.companyName, required());
-        validate(path.companyTaxId, required());
-        validate(path.companyTaxId, pattern(/^\d{10}$/, { message: 'Неверный ИНН' }));
-      }
-    );
-  },
-});
+import { createModel, validateFormModel } from '@reformer/core';
+import { required, pattern } from '@reformer/core/validators';
+
+const model = createModel<{
+  hasCompany: boolean;
+  companyName: string;
+  companyTaxId: string;
+}>({ hasCompany: false, companyName: '', companyTaxId: '' });
+
+const schema = {
+  children: [
+    { value: model.$.hasCompany },
+    {
+      // Валидировать поля компании только если hasCompany истинно
+      when: (_scope, root) => root.hasCompany === true,
+      children: [
+        { value: model.$.companyName, validators: [required()] },
+        {
+          value: model.$.companyTaxId,
+          validators: [required(), pattern(/^\d{10}$/, { message: 'Неверный ИНН' })],
+        },
+      ],
+    },
+  ],
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ### Сложное Условие
@@ -197,68 +251,95 @@ const form = new GroupNode({
 Множественные условия:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    accountType: { value: 'personal' },
-    businessName: { value: '' },
-    ein: { value: '' },
-    ssn: { value: '' },
-  },
-  validation: (path) => {
-    validate(path.accountType, required());
+import { createModel, validateFormModel } from '@reformer/core';
+import { required, pattern } from '@reformer/core/validators';
+
+const model = createModel<{
+  accountType: 'personal' | 'business';
+  businessName: string;
+  ein: string;
+  ssn: string;
+}>({ accountType: 'personal', businessName: '', ein: '', ssn: '' });
+
+const schema = {
+  children: [
+    { value: model.$.accountType, validators: [required()] },
 
     // Валидация бизнес-аккаунта
-    applyWhen(
-      path.accountType,
-      (accountType) => accountType === 'business',
-      (path) => {
-        validate(path.businessName, required());
-        validate(path.ein, required());
-        validate(path.ein, pattern(/^\d{10}$/, { message: 'Неверный ИНН' }));
-      }
-    );
+    {
+      when: (_scope, root) => root.accountType === 'business',
+      children: [
+        { value: model.$.businessName, validators: [required()] },
+        {
+          value: model.$.ein,
+          validators: [required(), pattern(/^\d{10}$/, { message: 'Неверный ИНН' })],
+        },
+      ],
+    },
 
     // Валидация личного аккаунта
-    applyWhen(
-      path.accountType,
-      (accountType) => accountType === 'personal',
-      (path) => {
-        validate(path.ssn, required());
-        validate(path.ssn, pattern(/^\d{3}-\d{2}-\d{4}$/, { message: 'Неверный СНИЛС' }));
-      }
-    );
-  },
-});
+    {
+      when: (_scope, root) => root.accountType === 'personal',
+      children: [
+        {
+          value: model.$.ssn,
+          validators: [required(), pattern(/^\d{3}-\d{2}-\d{4}$/, { message: 'Неверный СНИЛС' })],
+        },
+      ],
+    },
+  ],
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ## Валидация Зависимых Полей
+
+Cross-field правила — это обычные `ModelValidator`, которые читают соседние поля через `root`
+и вешаются на поле-носитель ошибки. Чтобы перепроверять их при изменении зависимости,
+подключите `revalidateWhen` в behavior.
 
 ### Последовательная Валидация
 
 Валидация на основе предыдущего поля:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    password: { value: '' },
-    confirmPassword: { value: '' },
-  },
-  validation: (path) => {
-    validate(path.password, required());
-    validate(path.password, minLength(8));
+import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
+import { required, minLength } from '@reformer/core/validators';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
-    validate(path.confirmPassword, required());
+type PasswordForm = { password: string; confirmPassword: string };
 
-    // Валидация совпадения confirmPassword с password
-    validate(path.confirmPassword, (value, _control, root) => {
-      const password = root.password.value.value;
-      if (value && password && value !== password) {
-        return { passwordMismatch: true };
-      }
-      return null;
-    });
+const model = createModel<PasswordForm>({ password: '', confirmPassword: '' });
+
+// confirmPassword должен совпадать с password — читаем соседа через `root`
+const passwordsMatch: ModelValidator<string, unknown, PasswordForm> = (value, _scope, root) =>
+  value && root.password && value !== root.password
+    ? { code: 'passwordMismatch', message: 'Пароли не совпадают' }
+    : null;
+
+const schema = {
+  password: {
+    value: model.$.password,
+    component: Input,
+    validators: [required(), minLength(8)],
   },
+  confirmPassword: {
+    value: model.$.confirmPassword,
+    component: Input,
+    validators: [required(), passwordsMatch],
+  },
+};
+
+// Перевалидируем, чтобы confirmPassword перепроверялся при изменении password
+const behavior = defineFormBehavior<PasswordForm>(({ model }) => {
+  revalidateWhen([model.$.password], () => {
+    void validateFormModel(model, schema);
+  });
 });
+
+const form = createForm({ model, schema, behavior });
 ```
 
 ### Валидация Диапазона Дат
@@ -266,46 +347,58 @@ const form = new GroupNode({
 Валидация диапазонов дат:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    startDate: { value: null as Date | null },
-    endDate: { value: null as Date | null },
-  },
-  validation: (path) => {
-    validate(path.startDate, required());
-    validate(path.endDate, required());
+import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 
-    // Валидация, что дата окончания после даты начала
-    validate(path.endDate, (value, _control, root) => {
-      const startDate = root.startDate.value.value;
+type DateRangeForm = { startDate: Date | null; endDate: Date | null };
 
-      if (!value || !startDate) return null;
+const model = createModel<DateRangeForm>({ startDate: null, endDate: null });
 
-      if (new Date(value) < new Date(startDate)) {
-        return { endBeforeStart: true };
-      }
+// Дата окончания должна быть после даты начала
+const endAfterStart: ModelValidator<Date | null, unknown, DateRangeForm> = (
+  value,
+  _scope,
+  root
+) => {
+  const startDate = root.startDate;
+  if (!value || !startDate) return null;
 
-      return null;
-    });
+  return new Date(value) < new Date(startDate)
+    ? { code: 'endBeforeStart', message: 'Дата окончания должна быть позже даты начала' }
+    : null;
+};
 
-    // Валидация, что диапазон не более 1 года
-    validate(path.endDate, (value, _control, root) => {
-      const startDate = root.startDate.value.value;
+// Диапазон не более 1 года
+const rangeUnderOneYear: ModelValidator<Date | null, unknown, DateRangeForm> = (
+  value,
+  _scope,
+  root
+) => {
+  const startDate = root.startDate;
+  if (!value || !startDate) return null;
 
-      if (!value || !startDate) return null;
+  const diffDays =
+    (new Date(value).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
 
-      const start = new Date(startDate);
-      const end = new Date(value);
-      const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays > 365
+    ? { code: 'rangeTooLong', message: 'Диапазон не должен превышать 1 год' }
+    : null;
+};
 
-      if (diffDays > 365) {
-        return { rangeTooLong: { max: 365, actual: diffDays } };
-      }
+const schema = {
+  startDate: { value: model.$.startDate, validators: [required()] },
+  endDate: { value: model.$.endDate, validators: [required(), endAfterStart, rangeUnderOneYear] },
+};
 
-      return null;
-    });
-  },
+// Перепроверяем правила endDate при изменении startDate
+const behavior = defineFormBehavior<DateRangeForm>(({ model }) => {
+  revalidateWhen([model.$.startDate], () => {
+    void validateFormModel(model, schema);
+  });
 });
+
+const form = createForm({ model, schema, behavior });
 ```
 
 ## Множественная Валидация Полей
@@ -315,33 +408,30 @@ const form = new GroupNode({
 Валидация нескольких полей вместе:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    minPrice: { value: 0 },
-    maxPrice: { value: 0 },
-  },
-  validation: (path) => {
-    validate(path.minPrice, required());
-    validate(path.maxPrice, required());
-    validate(path.minPrice, min(0));
-    validate(path.maxPrice, min(0));
+import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
+import { required, min } from '@reformer/core/validators';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 
-    // Валидация диапазона цен
-    validate(path.maxPrice, (value, _control, root) => {
-      const minPrice = root.minPrice.value.value;
+type PriceForm = { minPrice: number; maxPrice: number };
 
-      if (value && minPrice && value < minPrice) {
-        return {
-          invalidRange: {
-            message: 'Максимальная цена должна быть больше минимальной',
-          },
-        };
-      }
+const model = createModel<PriceForm>({ minPrice: 0, maxPrice: 0 });
 
-      return null;
-    });
-  },
+// Правило диапазона цен — читает minPrice через `root`
+const maxAboveMin: ModelValidator<number, unknown, PriceForm> = (value, _scope, root) =>
+  value && root.minPrice && value < root.minPrice
+    ? { code: 'invalidRange', message: 'Максимальная цена должна быть больше минимальной' }
+    : null;
+
+const schema = {
+  minPrice: { value: model.$.minPrice, validators: [required(), min(0)] },
+  maxPrice: { value: model.$.maxPrice, validators: [required(), min(0), maxAboveMin] },
+};
+
+const behavior = defineFormBehavior<PriceForm>(({ model }) => {
+  revalidateWhen([model.$.minPrice], () => void validateFormModel(model, schema));
 });
+
+const form = createForm({ model, schema, behavior });
 ```
 
 ### Валидация на Уровне Формы
@@ -349,104 +439,143 @@ const form = new GroupNode({
 Валидация всей формы:
 
 ```typescript
-import { validate } from '@reformer/core/validators';
+import { createModel, createForm, type ModelValidator } from '@reformer/core';
+import { required } from '@reformer/core/validators';
 
-const form = new GroupNode({
-  form: {
-    paymentMethod: { value: 'card' },
-    cardNumber: { value: '' },
-    bankAccount: { value: '' },
-  },
-  validation: (path) => {
-    validate(path.paymentMethod, required());
+type PaymentForm = { paymentMethod: 'card' | 'bank'; cardNumber: string; bankAccount: string };
 
-    // Cross-field правило: вешаем на поле-носитель ошибки, читаем соседей через `root`
-    validate(path.cardNumber, (value, _control, root) => {
-      const form = root.getValue();
-      if (form.paymentMethod === 'card' && !value) {
-        return { code: 'required', message: 'Номер карты обязателен' };
-      }
-      return null;
-    });
+const model = createModel<PaymentForm>({ paymentMethod: 'card', cardNumber: '', bankAccount: '' });
 
-    validate(path.bankAccount, (value, _control, root) => {
-      const form = root.getValue();
-      if (form.paymentMethod === 'bank' && !value) {
-        return { code: 'required', message: 'Реквизиты счёта обязательны' };
-      }
-      return null;
-    });
-  },
-});
+// Cross-field правило: вешаем на поле-носитель ошибки, читаем соседей через `root`
+const cardRequiredWhenCard: ModelValidator<string, unknown, PaymentForm> = (value, _scope, root) =>
+  root.paymentMethod === 'card' && !value
+    ? { code: 'required', message: 'Номер карты обязателен' }
+    : null;
+
+const bankRequiredWhenBank: ModelValidator<string, unknown, PaymentForm> = (value, _scope, root) =>
+  root.paymentMethod === 'bank' && !value
+    ? { code: 'required', message: 'Реквизиты счёта обязательны' }
+    : null;
+
+const schema = {
+  paymentMethod: { value: model.$.paymentMethod, validators: [required()] },
+  cardNumber: { value: model.$.cardNumber, validators: [cardRequiredWhenCard] },
+  bankAccount: { value: model.$.bankAccount, validators: [bankRequiredWhenBank] },
+};
+
+const form = createForm({ model, schema });
 ```
 
 ## Стратегии Валидации Массивов
 
+Секции массива в схеме валидации объявляются через
+`{ componentProps: { control: model.<array>, itemComponent: (item) => subSchema } }`;
+`validateFormModel` обходит их поэлементно. Правила по всему массиву — это `ModelValidator`,
+читающие весь массив через `root`.
+
 ### Валидация Всех Элементов
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    emails: [{ value: '' }],
-  },
-  validation: (path) => {
-    // Каждый email должен быть валидным
-    validate(path.emails.$each, required());
-    validate(path.emails.$each, email());
-  },
+import { createModel, validateFormModel, type FormModel } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+
+type EmailItem = { address: string };
+type MyForm = { emails: EmailItem[] };
+
+const model = createModel<MyForm>({ emails: [{ address: '' }] });
+
+// Под-схема одного элемента — валидируется для каждого элемента
+const emailItem = (item: FormModel<EmailItem>) => ({
+  address: { value: item.$.address, validators: [required(), email()] },
 });
+
+const schema = {
+  emails: { componentProps: { control: model.emails, itemComponent: emailItem } },
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ### Валидация Длины Массива
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    phoneNumbers: [{ value: '' }],
-  },
-  validation: (path) => {
-    validate(path.phoneNumbers.$each, required());
-    validate(path.phoneNumbers.$each, pattern(/^\d{10}$/, { message: 'Неверный телефон' }));
+import {
+  createModel,
+  validateFormModel,
+  type ModelValidator,
+  type FormModel,
+} from '@reformer/core';
+import { required, pattern } from '@reformer/core/validators';
 
-    // Кастомный валидатор для длины массива — вешаем на сам массив
-    validate(path.phoneNumbers, (_value, _control, root) => {
-      const phones = root.phoneNumbers.getValue();
+type PhoneItem = { number: string };
+type MyForm = { phoneNumbers: PhoneItem[] };
 
-      if (phones.length < 1) {
-        return { code: 'minItems', message: 'Нужен хотя бы один телефон' };
-      }
-      if (phones.length > 5) {
-        return { code: 'maxItems', message: 'Не более 5 телефонов' };
-      }
-      return null;
-    });
+const model = createModel<MyForm>({ phoneNumbers: [{ number: '' }] });
+
+const phoneItem = (item: FormModel<PhoneItem>) => ({
+  number: {
+    value: item.$.number,
+    validators: [required(), pattern(/^\d{10}$/, { message: 'Неверный телефон' })],
   },
 });
+
+// Правило длины массива — читает весь массив через `root`
+const phoneCountInRange: ModelValidator<PhoneItem[], unknown, MyForm> = (_value, _scope, root) => {
+  const count = root.phoneNumbers.length;
+
+  if (count < 1) {
+    return { code: 'minItems', message: 'Нужен хотя бы один телефон' };
+  }
+  if (count > 5) {
+    return { code: 'maxItems', message: 'Не более 5 телефонов' };
+  }
+  return null;
+};
+
+const schema = {
+  phoneNumbers: { componentProps: { control: model.phoneNumbers, itemComponent: phoneItem } },
+  // Правило по всему массиву, привязанное к сигналу массива
+  phoneNumbersRule: { value: model.$.phoneNumbers, validators: [phoneCountInRange] },
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ### Валидация Уникальности Элементов
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    tags: [{ value: '' }],
-  },
-  validation: (path) => {
-    validate(path.tags.$each, required());
+import {
+  createModel,
+  validateFormModel,
+  type ModelValidator,
+  type FormModel,
+} from '@reformer/core';
+import { required } from '@reformer/core/validators';
 
-    // Валидация уникальности тегов
-    validate(path.tags, (_value, _control, root) => {
-      const tags = root.tags.getValue();
-      const uniqueTags = new Set(tags);
+type TagItem = { label: string };
+type MyForm = { tags: TagItem[] };
 
-      if (uniqueTags.size !== tags.length) {
-        return { code: 'notUnique', message: 'Теги должны быть уникальными' };
-      }
+const model = createModel<MyForm>({ tags: [{ label: '' }] });
 
-      return null;
-    });
-  },
+const tagItem = (item: FormModel<TagItem>) => ({
+  label: { value: item.$.label, validators: [required()] },
 });
+
+// Теги должны быть уникальными — читаем элементы через `root`
+const uniqueTags: ModelValidator<TagItem[], unknown, MyForm> = (_value, _scope, root) => {
+  const labels = root.tags.map((t) => t.label);
+
+  return labels.length !== new Set(labels).size
+    ? { code: 'notUnique', message: 'Теги должны быть уникальными' }
+    : null;
+};
+
+const schema = {
+  tags: { componentProps: { control: model.tags, itemComponent: tagItem } },
+  tagsRule: { value: model.$.tags, validators: [uniqueTags] },
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ## Оптимизация Производительности
@@ -454,65 +583,88 @@ const form = new GroupNode({
 ### Debounce Асинхронной Валидации
 
 ```typescript
-validation: (path, { validateAsync }) => {
-  // Debounce дорогих API вызовов
-  validateAsync(
-    path.username,
-    async (value) => {
-      const response = await fetch(`/api/check-username?username=${value}`);
-      const { available } = await response.json();
-      return available ? null : { usernameTaken: true };
-    },
-    {
-      debounce: 500, // Ждать 500мс после остановки ввода
-    }
-  );
+import { createModel, createForm, type ModelValidator } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+
+const model = createModel<{ username: string }>({ username: '' });
+
+const usernameAvailable: ModelValidator<string> = async (value) => {
+  const response = await fetch(`/api/check-username?username=${value}`);
+  const { available } = await response.json();
+  return available ? null : { code: 'usernameTaken', message: 'Имя пользователя занято' };
 };
+
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    // Debounce дорогих API вызовов
+    asyncValidators: [usernameAvailable],
+    debounce: 500, // Ждать 500мс после остановки ввода
+  },
+};
+
+const form = createForm({ model, schema });
 ```
 
 ### Отмена Предыдущих Асинхронных Валидаций
 
-ReFormer автоматически отменяет предыдущие асинхронные валидации при запуске новых:
+ReFormer автоматически отменяет предыдущие асинхронные валидации при запуске новых — когда
+прогон начинается до завершения предыдущего, устаревший прогон прерывается (`AbortController`),
+поэтому применяется только последний результат:
 
 ```typescript
-validation: (path, { validateAsync }) => {
-  validateAsync(
-    path.search,
-    async (value) => {
-      // Эта валидация автоматически отменяется
-      // если пользователь вводит снова до её завершения
-      const results = await searchAPI(value);
-      return results.length > 0 ? null : { noResults: true };
-    },
-    { debounce: 300 }
-  );
+import { createModel, createForm, type ModelValidator } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+
+const model = createModel<{ search: string }>({ search: '' });
+
+const hasResults: ModelValidator<string> = async (value) => {
+  // Эта валидация автоматически отменяется,
+  // если значение меняется снова до её завершения
+  const results = await searchAPI(value);
+  return results.length > 0 ? null : { code: 'noResults', message: 'Ничего не найдено' };
 };
+
+const schema = {
+  search: {
+    value: model.$.search,
+    component: Input,
+    asyncValidators: [hasResults],
+    debounce: 300,
+  },
+};
+
+const form = createForm({ model, schema });
 ```
 
 ### Ленивая Валидация
 
-Валидируйте только при необходимости:
+Валидируйте только при необходимости — оберните секцию в branch-узел:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    optionalSection: {
-      field1: { value: '' },
-      field2: { value: '' },
+import { createModel, validateFormModel } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+
+type MyForm = { enabled: boolean; field1: string; field2: string };
+
+const model = createModel<MyForm>({ enabled: false, field1: '', field2: '' });
+
+const schema = {
+  children: [
+    { value: model.$.enabled },
+    {
+      // Валидировать только если поле-флаг включено (напр. `enabled: boolean` в форме)
+      when: (_scope, root) => root.enabled === true,
+      children: [
+        { value: model.$.field1, validators: [required()] },
+        { value: model.$.field2, validators: [required()] },
+      ],
     },
-  },
-  validation: (path) => {
-    // Валидировать только если секция видима/включена
-    applyWhen(
-      path.optionalSection.enabled,
-      (enabled) => enabled === true,
-      (path) => {
-        validate(path.optionalSection.field1, required());
-        validate(path.optionalSection.field2, required());
-      }
-    );
-  },
-});
+  ],
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
 ## Стратегии Валидации по Случаям Использования
@@ -520,99 +672,207 @@ const form = new GroupNode({
 ### Форма Регистрации
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    username: { value: '', updateOn: 'blur' },
-    email: { value: '', updateOn: 'blur' },
-    password: { value: '', updateOn: 'change' },
-    confirmPassword: { value: '', updateOn: 'change' },
-  },
-  validation: (path, { validateAsync }) => {
-    // Username: синхронная + асинхронная
-    validate(path.username, required());
-    validate(path.username, minLength(3));
-    validateAsync(path.username, checkUsernameAvailability(), {
-      debounce: 500,
-    });
+import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
+import { required, minLength, email } from '@reformer/core/validators';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
-    // Email: синхронная + асинхронная
-    validate(path.email, required());
-    validate(path.email, email());
-    validateAsync(path.email, checkEmailAvailability(), { debounce: 500 });
+type RegistrationForm = {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
 
-    // Password: только синхронная
-    validate(path.password, required());
-    validate(path.password, minLength(8));
-    validate(path.password, strongPassword());
-
-    // Confirm password: синхронная зависимая
-    validate(path.confirmPassword, required());
-    validate(path.confirmPassword, matchesPassword());
-  },
+const model = createModel<RegistrationForm>({
+  username: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
 });
+
+const checkUsernameAvailability: ModelValidator<string> = async (value) => {
+  if (!value) return null;
+  const { available } = await (await fetch(`/api/check-username?username=${value}`)).json();
+  return available ? null : { code: 'usernameTaken', message: 'Имя пользователя занято' };
+};
+
+const checkEmailAvailability: ModelValidator<string> = async (value) => {
+  if (!value) return null;
+  const { available } = await (await fetch(`/api/check-email?email=${value}`)).json();
+  return available ? null : { code: 'emailTaken', message: 'Email уже занят' };
+};
+
+const strongPassword: ModelValidator<string> = (value) =>
+  value && !/(?=.*[A-Z])(?=.*\d)/.test(value)
+    ? { code: 'weakPassword', message: 'Добавьте заглавную букву и цифру' }
+    : null;
+
+const matchesPassword: ModelValidator<string, unknown, RegistrationForm> = (value, _scope, root) =>
+  value && root.password && value !== root.password
+    ? { code: 'passwordMismatch', message: 'Пароли не совпадают' }
+    : null;
+
+const schema = {
+  // Username: синхронная + асинхронная, при blur
+  username: {
+    value: model.$.username,
+    component: Input,
+    validators: [required(), minLength(3)],
+    asyncValidators: [checkUsernameAvailability],
+    updateOn: 'blur',
+    debounce: 500,
+  },
+  // Email: синхронная + асинхронная, при blur
+  email: {
+    value: model.$.email,
+    component: Input,
+    validators: [required(), email()],
+    asyncValidators: [checkEmailAvailability],
+    updateOn: 'blur',
+    debounce: 500,
+  },
+  // Password: только синхронная, при change
+  password: {
+    value: model.$.password,
+    component: Input,
+    validators: [required(), minLength(8), strongPassword],
+    updateOn: 'change',
+  },
+  // Confirm password: синхронная зависимая, при change
+  confirmPassword: {
+    value: model.$.confirmPassword,
+    component: Input,
+    validators: [required(), matchesPassword],
+    updateOn: 'change',
+  },
+};
+
+const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
+  // Перепроверяем confirmPassword при изменении password
+  revalidateWhen([model.$.password], () => void validateFormModel(model, schema));
+});
+
+const form = createForm({ model, schema, behavior });
 ```
 
 ### Форма Поиска
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    query: { value: '', updateOn: 'change' },
-    filters: {
-      category: { value: '' },
-      minPrice: { value: 0 },
-      maxPrice: { value: 0 },
+import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
+import { minLength, min } from '@reformer/core/validators';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
+
+type SearchForm = {
+  query: string;
+  filters: { category: string; minPrice: number; maxPrice: number };
+};
+
+const model = createModel<SearchForm>({
+  query: '',
+  filters: { category: '', minPrice: 0, maxPrice: 0 },
+});
+
+const maxAboveMin: ModelValidator<number, unknown, SearchForm> = (value, _scope, root) =>
+  value && root.filters.minPrice && value < root.filters.minPrice
+    ? { code: 'invalidRange', message: 'Максимальная цена должна быть больше минимальной' }
+    : null;
+
+const schema = {
+  // Запрос: минимальная валидация, мгновенная
+  query: {
+    value: model.$.query,
+    component: Input,
+    validators: [minLength(2)],
+    updateOn: 'change',
+  },
+  // Фильтры: валидировать при отправке
+  filters: {
+    category: { value: model.$.filters.category, component: Input },
+    minPrice: {
+      value: model.$.filters.minPrice,
+      component: Input,
+      validators: [min(0)],
+      updateOn: 'submit',
+    },
+    maxPrice: {
+      value: model.$.filters.maxPrice,
+      component: Input,
+      validators: [min(0), maxAboveMin],
+      updateOn: 'submit',
     },
   },
-  validation: (path) => {
-    // Запрос: минимальная валидация, мгновенная
-    validate(path.query, minLength(2));
+};
 
-    // Фильтры: валидировать при отправке
-    validate(path.filters.minPrice, min(0));
-    validate(path.filters.maxPrice, min(0));
-    validate(path.filters.maxPrice, (value, _control, root) => {
-      const minPrice = root.filters.minPrice.value.value;
-      if (value && minPrice && value < minPrice) {
-        return { invalidRange: true };
-      }
-      return null;
-    });
-  },
+const behavior = defineFormBehavior<SearchForm>(({ model }) => {
+  revalidateWhen([model.$.filters.minPrice], () => void validateFormModel(model, schema));
 });
+
+const form = createForm({ model, schema, behavior });
 ```
 
 ### Форма Оплаты
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    cardNumber: { value: '', updateOn: 'blur' },
-    expiryDate: { value: '', updateOn: 'blur' },
-    cvv: { value: '', updateOn: 'blur' },
-    billingZip: { value: '', updateOn: 'blur' },
+import { createModel, createForm, type ModelValidator } from '@reformer/core';
+import { required, pattern } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
+
+type PaymentForm = { cardNumber: string; expiryDate: string; cvv: string; billingZip: string };
+
+const model = createModel<PaymentForm>({ cardNumber: '', expiryDate: '', cvv: '', billingZip: '' });
+
+const creditCard: ModelValidator<string> = (value) =>
+  value && !/^\d{13,19}$/.test(value.replace(/\s/g, ''))
+    ? { code: 'invalidCard', message: 'Неверный номер карты' }
+    : null;
+
+const validateCardWithBank: ModelValidator<string> = async (value) => {
+  if (!value) return null;
+  const { accepted } = await (await fetch(`/api/validate-card?number=${value}`)).json();
+  return accepted ? null : { code: 'cardRejected', message: 'Карта отклонена' };
+};
+
+const notExpired: ModelValidator<string> = (value) => {
+  // ... проверка, что MM/YY в будущем
+  return value ? null : null;
+};
+
+const schema = {
+  // Номер карты: синхронная + асинхронная
+  cardNumber: {
+    value: model.$.cardNumber,
+    component: Input,
+    validators: [required(), creditCard],
+    asyncValidators: [validateCardWithBank],
+    updateOn: 'blur',
+    debounce: 1000,
   },
-  validation: (path, { validateAsync }) => {
-    // Номер карты: синхронная + асинхронная
-    validate(path.cardNumber, required());
-    validate(path.cardNumber, creditCard());
-    validateAsync(path.cardNumber, validateCardWithBank(), {
-      debounce: 1000,
-    });
-
-    // Срок действия: только синхронная
-    validate(path.expiryDate, required());
-    validate(path.expiryDate, notExpired());
-
-    // CVV: только синхронная
-    validate(path.cvv, required());
-    validate(path.cvv, pattern(/^\d{3,4}$/, { message: 'Неверный CVV' }));
-
-    // Индекс: только синхронная
-    validate(path.billingZip, required());
-    validate(path.billingZip, pattern(/^\d{6}$/, { message: 'Неверный индекс' }));
+  // Срок действия: только синхронная
+  expiryDate: {
+    value: model.$.expiryDate,
+    component: Input,
+    validators: [required(), notExpired],
+    updateOn: 'blur',
   },
-});
+  // CVV: только синхронная
+  cvv: {
+    value: model.$.cvv,
+    component: Input,
+    validators: [required(), pattern(/^\d{3,4}$/, { message: 'Неверный CVV' })],
+    updateOn: 'blur',
+  },
+  // Индекс: только синхронная
+  billingZip: {
+    value: model.$.billingZip,
+    component: Input,
+    validators: [required(), pattern(/^\d{6}$/, { message: 'Неверный индекс' })],
+    updateOn: 'blur',
+  },
+};
+
+const form = createForm({ model, schema });
 ```
 
 ## Лучшие Практики
@@ -620,141 +880,148 @@ const form = new GroupNode({
 ### 1. Валидируйте Рано, Валидируйте Часто
 
 ```typescript
-// ✅ Хорошо - множественные проверки валидации
-validate(path.password, required());
-validate(path.password, minLength(8));
-validate(path.password, strongPassword());
+// ✅ Хорошо - несколько сфокусированных валидаторов
+password: {
+  value: model.$.password,
+  validators: [required(), minLength(8), strongPassword],
+},
 
 // ❌ Плохо - единая общая валидация
-validate(path.password, (value) => {
-  if (!value || value.length < 8 || !isStrong(value)) {
-    return { invalid: true };
-  }
-  return null;
-});
+const generic: ModelValidator<string> = (value) =>
+  !value || value.length < 8 || !isStrong(value) ? { code: 'invalid', message: 'Некорректно' } : null;
+password: { value: model.$.password, validators: [generic] },
 ```
 
 ### 2. Предоставляйте Конкретные Сообщения об Ошибках
 
 ```typescript
+// Внутри тела ModelValidator:
+
 // ✅ Хорошо - конкретные ошибки
-if (value.length < 8) return { tooShort: { min: 8 } };
-if (!/[A-Z]/.test(value)) return { noUppercase: true };
-if (!/[0-9]/.test(value)) return { noNumber: true };
+if (value.length < 8) return { code: 'tooShort', message: 'Минимум 8 символов' };
+if (!/[A-Z]/.test(value)) return { code: 'noUppercase', message: 'Добавьте заглавную букву' };
+if (!/[0-9]/.test(value)) return { code: 'noNumber', message: 'Добавьте цифру' };
 
 // ❌ Плохо - общая ошибка
-if (!isValid(value)) return { invalid: true };
+if (!isValid(value)) return { code: 'invalid', message: 'Некорректно' };
 ```
 
 ### 3. Используйте Debounce для Дорогих Операций
 
 ```typescript
 // ✅ Хорошо - debounced асинхронная валидация
-validateAsync(path.username, checkAvailability(), { debounce: 500 });
+username: { value: model.$.username, asyncValidators: [checkAvailability], debounce: 500 },
 
 // ❌ Плохо - валидация при каждом нажатии клавиши
-validateAsync(path.username, checkAvailability());
+username: { value: model.$.username, asyncValidators: [checkAvailability], updateOn: 'change' },
 ```
 
 ### 4. Используйте Условную Валидацию
 
 ```typescript
-// ✅ Хорошо - валидировать только при необходимости
-applyWhen(
-  path.hasCompany,
-  (hasCompany) => hasCompany === true,
-  (path) => validate(path.companyName, required())
-);
+// ✅ Хорошо - валидировать только при необходимости (branch-узел)
+{
+  when: (_scope, root) => root.hasCompany === true,
+  children: [{ value: model.$.companyName, validators: [required()] }],
+}
 
 // ❌ Плохо - всегда валидировать, скрывать ошибки
-validate(path.companyName, required());
+companyName: { value: model.$.companyName, validators: [required()] },
 // Затем скрывать ошибки в UI - расточительно
 ```
 
 ### 5. Разделяйте Синхронную и Асинхронную
 
 ```typescript
-// ✅ Хорошо - сначала синхронная, затем асинхронная
-validate(path.email, required());
-validate(path.email, email());
-validateAsync(path.email, checkEmailAvailability());
+// ✅ Хорошо - синхронные валидаторы + асинхронный валидатор
+email: {
+  value: model.$.email,
+  validators: [required(), email()],
+  asyncValidators: [checkEmailAvailability],
+},
 
 // ❌ Плохо - только асинхронная (медленнее обратная связь)
-validateAsync(path.email, async (value) => {
-  if (!value) return { required: true };
-  if (!isEmail(value)) return { email: true };
+const emailAllInOne: ModelValidator<string> = async (value) => {
+  if (!value) return { code: 'required', message: 'Обязательно' };
+  if (!isEmail(value)) return { code: 'email', message: 'Неверный email' };
   const available = await checkAvailability(value);
-  return available ? null : { taken: true };
-});
+  return available ? null : { code: 'taken', message: 'Занято' };
+};
 ```
 
 ## Извлечение Вложенных Правил
 
-Когда тело `applyWhen` или `validate` разрастается дальше нескольких строк,
-вынесите его в **именованную top-level-функцию**, типизированную одним из публичных типов
-из `@reformer/core`. Это делает основную схему плоской (читается как оглавление) и
-выводит **намерение** каждого правила в его имя.
+Когда тело cross-field-валидатора или условная ветка разрастается дальше нескольких строк,
+вынесите его в **именованную top-level-функцию или константу схемы**, типизированную одним из
+публичных типов из `@reformer/core`. Это делает основную схему плоской (читается как оглавление)
+и выводит **намерение** каждого правила в его имя.
 
 Используйте существующие публичные типы:
 
-- `ValidationSchemaFn<TForm>` — вложенная схема для `applyWhen` или `apply`.
-- `Validator<TForm, TField>` / `AsyncValidator<TForm, TField>` — валидатор поля для
-  `validate` / `validateAsync`. Cross-field правила пишутся в той же сигнатуре —
-  соседние поля читаются через `root`.
+- `FormSchemaNode` — фрагмент схемы: branch-узел `{ when, children }` или группа.
+- `ModelValidator<TValue, TModel, TRoot>` — field-level или cross-field валидатор для
+  `validators` / `asyncValidators` поля. Cross-field правила пишутся в той же сигнатуре —
+  соседние поля читаются через аргумент `root`.
 
 ### До — inline callbacks
 
 ```typescript
-export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.loanType, required());
-
-  applyWhen(
-    path.loanType,
-    (type) => type === 'mortgage',
-    (path) => {
-      validate(path.propertyValue, required());
-      validate(path.propertyValue, min(1000000));
-      validate(path.initialPayment, required());
-
-      validate(path.initialPayment, (_value, _control, root) => {
-        const form = root.getValue();
-        if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
-          return { code: 'initialPaymentTooHigh', message: '...' };
-        }
-        return null;
-      });
-    }
-  );
+const schema = {
+  children: [
+    { value: model.$.loanType, validators: [required()] },
+    {
+      when: (_scope, root) => root.loanType === 'mortgage',
+      children: [
+        { value: model.$.propertyValue, validators: [required(), min(1_000_000)] },
+        {
+          value: model.$.initialPayment,
+          validators: [
+            required(),
+            (_value, _scope, root) => {
+              if (
+                root.initialPayment &&
+                root.propertyValue &&
+                root.initialPayment > root.propertyValue
+              ) {
+                return { code: 'initialPaymentTooHigh', message: '...' };
+              }
+              return null;
+            },
+          ],
+        },
+      ],
+    },
+  ],
 };
 ```
 
 ### После — извлечённые именованные функции
 
 ```typescript
-import type { Validator, ValidationSchemaFn } from '@reformer/core';
+import { type ModelValidator, type FormSchemaNode } from '@reformer/core';
+import { required, min } from '@reformer/core/validators';
 
-const initialPaymentVsPropertyValue: Validator<CreditApplicationForm, unknown> = (
+const initialPaymentVsPropertyValue: ModelValidator<number, unknown, CreditApplicationForm> = (
   _value,
-  _control,
+  _scope,
   root
 ) => {
-  const form = root.getValue();
-  if (form.initialPayment && form.propertyValue && form.initialPayment > form.propertyValue) {
+  if (root.initialPayment && root.propertyValue && root.initialPayment > root.propertyValue) {
     return { code: 'initialPaymentTooHigh', message: '...' };
   }
   return null;
 };
 
-const mortgageFieldsRules: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.propertyValue, required());
-  validate(path.propertyValue, min(1000000));
-  validate(path.initialPayment, required());
-  validate(path.initialPayment, initialPaymentVsPropertyValue);
+const mortgageFieldsBranch: FormSchemaNode = {
+  when: (_scope, root) => (root as CreditApplicationForm).loanType === 'mortgage',
+  children: [
+    { value: model.$.propertyValue, validators: [required(), min(1_000_000)] },
+    { value: model.$.initialPayment, validators: [required(), initialPaymentVsPropertyValue] },
+  ],
 };
 
-export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  validate(path.loanType, required());
-  applyWhen(path.loanType, (type) => type === 'mortgage', mortgageFieldsRules);
+const schema: FormSchemaNode = {
+  children: [{ value: model.$.loanType, validators: [required()] }, mortgageFieldsBranch],
 };
 ```
 
@@ -762,18 +1029,18 @@ export const basicInfoValidation: ValidationSchemaFn<CreditApplicationForm> = (p
 
 Используйте **смысловые** имена (а не дублирующие название оператора):
 
-- Вложенная схема `applyWhen` → описывает условную ветку:
-  `mortgageFieldsRules`, `employedFieldsRules`, `residenceAddressRules`.
-- Cross-field `Validator` → описывает проверяемый инвариант:
+- Branch-узел (`FormSchemaNode`) → описывает условную ветку:
+  `mortgageFieldsBranch`, `employedFieldsBranch`, `residenceAddressBranch`.
+- Cross-field `ModelValidator` → описывает проверяемый инвариант:
   `initialPaymentVsPropertyValue`, `paymentToIncomeUnderHalf`, `currentExperienceVsTotal`.
-- Field-level `Validator` → описывает проверку поля:
+- Field-level `ModelValidator` → описывает проверку поля:
   `validateAdultAge`, `validatePasswordsMatch`, `validatePassportIssueDateNotFuture`.
 
 ### Когда выносить
 
-- **Выносить** любое тело длиннее ~3 строк или содержащее вложенный `applyWhen`.
-- **Оставлять inline** короткие одно-строчные условия внутри `applyWhen` —
-  `(type) => type === 'mortgage'` ничего не выигрывает от именования.
+- **Выносить** любое тело валидатора длиннее ~3 строк или ветку, содержащую вложенную ветку.
+- **Оставлять inline** короткие одно-строчные условия ветки —
+  `(_scope, root) => root.loanType === 'mortgage'` ничего не выигрывает от именования.
 
 ## Следующие Шаги
 

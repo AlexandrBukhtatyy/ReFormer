@@ -100,15 +100,18 @@ export interface CreditApplicationForm {
 ```
 
 ```typescript title="forms/credit-application/schema.ts"
-import { loanInfoSchema } from './steps/loan-info/schema';
-import { personalInfoSchema } from './steps/personal-info/schema';
+import type { FormModel } from '@reformer/core';
+import { loanInfoNodes } from './steps/loan-info/schema';
+import { personalInfoNodes } from './steps/personal-info/schema';
+import type { CreditApplicationForm } from './type';
 
-export const creditApplicationSchema = {
-  ...loanInfoSchema,
-  ...personalInfoSchema,
-  // Вычисляемые поля на корневом уровне
-  monthlyPayment: { value: 0, disabled: true },
-};
+// Корневой билдер схемы — объединяет фрагменты шагов, все привязаны к одной модели
+export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>) => ({
+  ...loanInfoNodes(model),
+  ...personalInfoNodes(model),
+  // Вычисляемое поле на корневом уровне, заполняется поведением
+  monthlyPayment: { value: model.$.monthlyPayment, disabled: true },
+});
 ```
 
 ## Ключевые файлы
@@ -135,13 +138,14 @@ export interface LoanInfoStep {
 ### Схема шага
 
 ```typescript title="forms/credit-application/steps/loan-info/schema.ts"
-import type { FormSchema } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 import { Input, Select, Textarea } from '@/components/ui';
-import type { LoanInfoStep } from './type';
+import type { CreditApplicationForm } from '../../type';
 
-export const loanInfoSchema: FormSchema<LoanInfoStep> = {
+// Фрагмент шага — привязывает поля этого шага к общей модели формы
+export const loanInfoNodes = (model: FormModel<CreditApplicationForm>) => ({
   loanType: {
-    value: 'consumer',
+    value: model.$.loanType,
     component: Select,
     componentProps: {
       label: 'Тип кредита',
@@ -153,59 +157,72 @@ export const loanInfoSchema: FormSchema<LoanInfoStep> = {
     },
   },
   loanAmount: {
-    value: null,
+    value: model.$.loanAmount,
     component: Input,
     componentProps: { label: 'Сумма кредита', type: 'number' },
   },
   // ... остальные поля
-};
+});
 ```
 
 ### Валидаторы шага
 
 ```typescript title="forms/credit-application/steps/loan-info/validators.ts"
-import { required, min, max, applyWhen } from '@reformer/core/validators';
-import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
+import { required, min, max } from '@reformer/core/validators';
+import type { FormModel } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
-export const loanValidation: ValidationSchemaFn<CreditApplicationForm> = (
-  path: FieldPath<CreditApplicationForm>
-) => {
-  validate(path.loanType, required({ message: 'Выберите тип кредита' }));
-  validate(path.loanAmount, required({ message: 'Введите сумму кредита' }));
-  validate(path.loanAmount, min(50000, { message: 'Минимум 50 000' }));
-  validate(path.loanAmount, max(10000000, { message: 'Максимум 10 000 000' }));
-
-  // Условная валидация для ипотеки
-  applyWhen(
-    path.loanType,
-    (type) => type === 'mortgage',
-    (p) => {
-      required(p.propertyValue, { message: 'Введите стоимость недвижимости' });
-      required(p.initialPayment, { message: 'Введите первоначальный взнос' });
-    }
-  );
-};
+// Валидация шага как узлы схемы для validateFormModel — без path-колбэков
+export const loanValidationNodes = (model: FormModel<CreditApplicationForm>) => [
+  { value: model.$.loanType, validators: [required({ message: 'Выберите тип кредита' })] },
+  {
+    value: model.$.loanAmount,
+    validators: [
+      required({ message: 'Введите сумму кредита' }),
+      min(50000, { message: 'Минимум 50 000' }),
+      max(10000000, { message: 'Максимум 10 000 000' }),
+    ],
+  },
+  // Условная валидация для ипотеки — нативный branch-узел { when, children }
+  {
+    when: (_scope: unknown, root: unknown) =>
+      (root as CreditApplicationForm).loanType === 'mortgage',
+    children: [
+      {
+        value: model.$.propertyValue,
+        validators: [required({ message: 'Введите стоимость недвижимости' })],
+      },
+      {
+        value: model.$.initialPayment,
+        validators: [required({ message: 'Введите первоначальный взнос' })],
+      },
+    ],
+  },
+];
 ```
 
 ### Поведения шага
 
 ```typescript title="forms/credit-application/steps/loan-info/behaviors.ts"
-import { computeFrom, enableWhen, disableWhen } from '@reformer/core/behaviors';
-import type { BehaviorSchemaFn, FieldPath } from '@reformer/core';
+import { compute, enableWhen } from '@reformer/core/behaviors';
+import type { FormModel } from '@reformer/core';
 import type { CreditApplicationForm } from '../../type';
 
-export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
-  path: FieldPath<CreditApplicationForm>
-) => {
+// Фрагмент поведения шага — вызывается внутри корневого defineFormBehavior
+export const loanBehaviors = (model: FormModel<CreditApplicationForm>) => {
   // Показать поля ипотеки только для типа mortgage
-  enableWhen(path.propertyValue, (form) => form.loanType === 'mortgage');
-  enableWhen(path.initialPayment, (form) => form.loanType === 'mortgage');
+  enableWhen([model.$.propertyValue, model.$.initialPayment], () => model.loanType === 'mortgage', {
+    resetOnDisable: true,
+  });
 
   // Вычисление процентной ставки в зависимости от типа кредита
-  computeFrom([path.loanType], path.interestRate, (values) => {
-    const rates = { consumer: 15, mortgage: 10, car: 12 };
-    return rates[values.loanType] || 15;
+  compute(model.$.interestRate, () => {
+    const rates: Record<CreditApplicationForm['loanType'], number> = {
+      consumer: 15,
+      mortgage: 10,
+      car: 12,
+    };
+    return rates[model.loanType] ?? 15;
   });
 };
 ```
@@ -213,61 +230,80 @@ export const loanBehaviorSchema: BehaviorSchemaFn<CreditApplicationForm> = (
 ### Корневые валидаторы (кросс-шаговые)
 
 ```typescript title="forms/credit-application/validators.ts"
-import { validate } from '@reformer/core/validators';
-import type { ValidationSchemaFn, FieldPath } from '@reformer/core';
+import { validateFormModel } from '@reformer/core';
+import type { FormModel, ModelValidator } from '@reformer/core';
 import type { CreditApplicationForm } from './type';
 
-// Импорт валидаторов шагов
-import { loanValidation } from './steps/loan-info/validators';
-import { personalValidation } from './steps/personal-info/validators';
+// Импорт узлов валидации шагов
+import { loanValidationNodes } from './steps/loan-info/validators';
+import { personalValidationNodes } from './steps/personal-info/validators';
 
-// Кросс-шаговая валидация
-const crossStepValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  // Первоначальный взнос >= 20% от стоимости недвижимости
-  validate(path.initialPayment, (value, _control, root) => {
-    if (root.loanType.value.value !== 'mortgage') return null;
-    const propertyValue = root.propertyValue.value.value;
-    if (!propertyValue || !value) return null;
-    const minPayment = propertyValue * 0.2;
-    if (value < minPayment) {
-      return { code: 'minInitialPayment', message: `Минимум: ${minPayment}` };
-    }
-    return null;
-  });
+// Кросс-шаговое правило: первоначальный взнос >= 20% от стоимости недвижимости.
+// ModelValidator читает соседние поля через `root` (плоские значения, без `.value.value`).
+const minInitialPayment: ModelValidator<number, unknown, CreditApplicationForm> = (
+  value,
+  _scope,
+  root
+) => {
+  if (root.loanType !== 'mortgage') return null;
+  if (!root.propertyValue || !value) return null;
+  const minPayment = root.propertyValue * 0.2;
+  return value < minPayment
+    ? { code: 'minInitialPayment', message: `Минимум: ${minPayment}` }
+    : null;
 };
 
-// Объединение всех валидаторов
-export const creditApplicationValidation: ValidationSchemaFn<CreditApplicationForm> = (path) => {
-  loanValidation(path);
-  personalValidation(path);
-  crossStepValidation(path);
-};
+// Единая схема валидации формы — объединяет узлы шагов и кросс-шаговое правило
+export const creditApplicationValidationSchema = (model: FormModel<CreditApplicationForm>) => ({
+  children: [
+    ...loanValidationNodes(model),
+    ...personalValidationNodes(model),
+    { value: model.$.initialPayment, validators: [minInitialPayment] },
+  ],
+});
+
+// Единая точка входа — headless-валидация всей формы
+export const validateCreditApplication = (model: FormModel<CreditApplicationForm>) =>
+  validateFormModel(model, creditApplicationValidationSchema(model));
 ```
 
 ### Главный компонент формы
 
 ```typescript title="forms/credit-application/CreditApplicationForm.tsx"
 import { useMemo } from 'react';
-import { createForm } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior } from '@reformer/core/behaviors';
 import { creditApplicationSchema } from './schema';
-import { creditApplicationBehaviors } from './behaviors';
-import { creditApplicationValidation } from './validators';
+import { loanBehaviors } from './steps/loan-info/behaviors';
+import { personalBehaviors } from './steps/personal-info/behaviors';
 import type { CreditApplicationForm as CreditApplicationFormType } from './type';
 
+// Все реактивные правила формы — объединяет фрагменты поведений шагов
+const creditApplicationBehavior = defineFormBehavior<CreditApplicationFormType>(({ model }) => {
+  loanBehaviors(model);
+  personalBehaviors(model);
+});
+
 function CreditApplicationForm() {
-  // Создаём экземпляр формы с useMemo для стабильной ссылки
-  const form = useMemo(
-    () =>
-      createForm<CreditApplicationFormType>({
-        form: creditApplicationSchema,
-        behavior: creditApplicationBehaviors,
-        validation: creditApplicationValidation,
-      }),
-    []
-  );
+  // Стабильные model + form на время жизни компонента
+  const form = useMemo(() => {
+    const model = createModel<CreditApplicationFormType>({
+      loanType: 'consumer',
+      loanAmount: 0,
+      loanTerm: 12,
+      monthlyPayment: 0,
+      interestRate: 15,
+      // ... остальные поля формы (propertyValue, initialPayment, персональные данные, ...)
+    });
+    return createForm<CreditApplicationFormType>({
+      model,
+      schema: creditApplicationSchema(model),
+      behavior: creditApplicationBehavior,
+    });
+  }, []);
 
   return (
-    // ... рендер шагов формы
+    // ... рендер шагов формы; валидация запускается через validateCreditApplication(model)
   );
 }
 ```

@@ -1,0 +1,16 @@
+---
+id: form-wizard
+title: FormWizard
+sidebar_label: FormWizard
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { formWizardDocConfig } from '@site/src/components/demo/examples/cdk-form-wizard';
+
+# FormWizard
+
+Headless многошаговый визард из `@reformer/cdk`. `config` — это пара колбэков
+`validateStep` / `validateAll` (не схемы): каждый возвращает `boolean | Promise<boolean>`.
+Кнопка «Далее» запускает валидацию текущего шага и блокируется, пока шаг невалиден.
+
+<ComponentDoc config={formWizardDocConfig} />

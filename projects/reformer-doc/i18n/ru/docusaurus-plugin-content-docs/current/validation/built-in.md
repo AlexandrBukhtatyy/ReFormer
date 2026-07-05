@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Встроенные валидаторы
 
-Все валидаторы импортируются из `reformer/validators`.
+Все валидаторы импортируются из `@reformer/core/validators` и кладутся в массив `validators` узла схемы поля.
 
 ## required
 
@@ -13,7 +13,8 @@ sidebar_position: 2
 ```typescript
 import { required } from '@reformer/core/validators';
 
-validate(path.name, required());
+// В узле схемы поля:
+name: { value: model.$.name, validators: [required()] },
 // Ошибка: { code: 'required', message: '...' }
 ```
 
@@ -26,7 +27,7 @@ validate(path.name, required());
 ```typescript
 import { email } from '@reformer/core/validators';
 
-validate(path.email, email());
+email: { value: model.$.email, validators: [email()] },
 // Ошибка: { code: 'email', message: '...' }
 ```
 
@@ -37,10 +38,10 @@ validate(path.email, email());
 ```typescript
 import { minLength, maxLength } from '@reformer/core/validators';
 
-validate(path.name, minLength(2));
+name: { value: model.$.name, validators: [minLength(2)] },
 // Ошибка: { code: 'minLength', params: { required: 2, actual: 1 } }
 
-validate(path.bio, maxLength(500));
+bio: { value: model.$.bio, validators: [maxLength(500)] },
 // Ошибка: { code: 'maxLength', params: { required: 500, actual: 501 } }
 ```
 
@@ -51,10 +52,10 @@ validate(path.bio, maxLength(500));
 ```typescript
 import { min, max } from '@reformer/core/validators';
 
-validate(path.age, min(18));
+age: { value: model.$.age, validators: [min(18)] },
 // Ошибка: { code: 'min', params: { min: 18, actual: 16 } }
 
-validate(path.quantity, max(100));
+quantity: { value: model.$.quantity, validators: [max(100)] },
 // Ошибка: { code: 'max', params: { max: 100, actual: 150 } }
 ```
 
@@ -66,11 +67,11 @@ validate(path.quantity, max(100));
 import { pattern } from '@reformer/core/validators';
 
 // Только буквы
-validate(path.code, pattern(/^[A-Z]+$/));
+code: { value: model.$.code, validators: [pattern(/^[A-Z]+$/)] },
 // Ошибка: { code: 'pattern', params: { pattern: '/^[A-Z]+$/' } }
 
 // Кастомный ключ ошибки
-validate(path.code, pattern(/^[A-Z]+$/, { message: 'uppercase' }));
+code: { value: model.$.code, validators: [pattern(/^[A-Z]+$/, { message: 'uppercase' })] },
 // Ошибка: { code: 'uppercase' }
 ```
 
@@ -81,7 +82,7 @@ validate(path.code, pattern(/^[A-Z]+$/, { message: 'uppercase' }));
 ```typescript
 import { url } from '@reformer/core/validators';
 
-validate(path.website, url());
+website: { value: model.$.website, validators: [url()] },
 // Ошибка: { code: 'url', message: '...' }
 ```
 
@@ -92,7 +93,7 @@ validate(path.website, url());
 ```typescript
 import { phone } from '@reformer/core/validators';
 
-validate(path.phone, phone());
+phone: { value: model.$.phone, validators: [phone()] },
 // Ошибка: { code: 'phone', message: '...' }
 ```
 
@@ -101,9 +102,9 @@ validate(path.phone, phone());
 Значение — конечное число (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { validate, isNumber } from '@reformer/core/validators';
+import { isNumber } from '@reformer/core/validators';
 
-validate(path.amount, isNumber());
+amount: { value: model.$.amount, validators: [isNumber()] },
 ```
 
 ## integer
@@ -111,9 +112,9 @@ validate(path.amount, isNumber());
 Число должно быть целым. Не-числа пропускаются (комбинируйте с `isNumber` для строгой проверки типа).
 
 ```typescript
-import { validate, integer } from '@reformer/core/validators';
+import { integer } from '@reformer/core/validators';
 
-validate(path.count, integer());
+count: { value: model.$.count, validators: [integer()] },
 ```
 
 ## multipleOf
@@ -121,10 +122,10 @@ validate(path.count, integer());
 Число должно быть кратно указанному делителю.
 
 ```typescript
-import { validate, multipleOf } from '@reformer/core/validators';
+import { multipleOf } from '@reformer/core/validators';
 
-validate(path.price, multipleOf(0.01));
-validate(path.rating, multipleOf(0.5));
+price: { value: model.$.price, validators: [multipleOf(0.01)] },
+rating: { value: model.$.rating, validators: [multipleOf(0.5)] },
 ```
 
 ## nonNegative
@@ -132,9 +133,9 @@ validate(path.rating, multipleOf(0.5));
 Число должно быть `>= 0`.
 
 ```typescript
-import { validate, nonNegative } from '@reformer/core/validators';
+import { nonNegative } from '@reformer/core/validators';
 
-validate(path.quantity, nonNegative());
+quantity: { value: model.$.quantity, validators: [nonNegative()] },
 ```
 
 ## nonZero
@@ -142,20 +143,17 @@ validate(path.quantity, nonNegative());
 Число не должно равняться нулю.
 
 ```typescript
-import { validate, nonZero } from '@reformer/core/validators';
+import { nonZero } from '@reformer/core/validators';
 
-validate(path.divisor, nonZero());
+divisor: { value: model.$.divisor, validators: [nonZero()] },
 ```
 
 Композируйте атомарные проверки — единой фабрики `number()` больше нет:
 
 ```typescript
-import { validate, isNumber, integer, min, max } from '@reformer/core/validators';
+import { isNumber, integer, min, max } from '@reformer/core/validators';
 
-validate(path.percent, isNumber());
-validate(path.percent, integer());
-validate(path.percent, min(0));
-validate(path.percent, max(100));
+percent: { value: model.$.percent, validators: [isNumber(), integer(), min(0), max(100)] },
 ```
 
 ## date
@@ -163,10 +161,10 @@ validate(path.percent, max(100));
 Корректное значение даты.
 
 ```typescript
-import { date } from '@reformer/core/validators';
+import { isDate } from '@reformer/core/validators';
 
-validate(path.birthDate, date());
-// Ошибка: { code: 'date', message: '...' }
+birthDate: { value: model.$.birthDate, validators: [isDate()] },
+// Ошибка: { code: 'date_invalid', message: '...' }
 ```
 
 ## Комбинирование валидаторов
@@ -174,12 +172,17 @@ validate(path.birthDate, date());
 Применение нескольких валидаторов к одному полю:
 
 ```typescript
-validation: (path) => {
-  validate(path.password, required());
-  validate(path.password, minLength(8));
-  validate(path.password, pattern(/[A-Z]/, { message: 'uppercase' }));
-  validate(path.password, pattern(/[0-9]/, { message: 'hasNumber' }));
-};
+import { required, minLength, pattern } from '@reformer/core/validators';
+
+password: {
+  value: model.$.password,
+  validators: [
+    required(),
+    minLength(8),
+    pattern(/[A-Z]/, { message: 'uppercase' }),
+    pattern(/[0-9]/, { message: 'hasNumber' }),
+  ],
+},
 ```
 
 Все валидаторы выполняются, ошибки собираются:

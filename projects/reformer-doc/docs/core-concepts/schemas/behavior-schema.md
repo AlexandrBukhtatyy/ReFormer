@@ -4,35 +4,46 @@ sidebar_position: 4
 
 # Behavior Schema
 
-Behavior Schema defines reactive logic and side effects for your form.
+Behavior defines reactive logic and side effects for your form.
 
-## BehaviorSchemaFn Type
+## Defining behaviors
 
-```typescript
-type BehaviorSchemaFn<T> = (path: FieldPath<T>) => void;
-```
-
-The behavior function receives a type-safe `path` object for declaring reactive behaviors:
+In M1, behaviors are declared with `defineFormBehavior` and attached at `createForm({ behavior })`.
+The setup callback receives a type-safe scope (`{ model, form }`); operators bind to model signals
+(`model.$.<field>`) and the form owns their lifecycle:
 
 ```typescript
-import { GroupNode } from '@reformer/core';
-import { computeFrom, enableWhen } from '@reformer/core/behaviors';
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, computeFrom, enableWhen } from '@reformer/core/behaviors';
 
-const form = new GroupNode({
-  form: {
-    price: { value: 100 },
-    quantity: { value: 1 },
-    total: { value: 0 },
-    discount: { value: 0 },
-  },
-  behavior: (path) => {
-    // Auto-compute total
-    computeFrom([path.price, path.quantity], path.total, ({ price, quantity }) => price * quantity);
+type OrderForm = { price: number; quantity: number; total: number; discount: number };
 
-    // Enable discount only for large orders
-    enableWhen(path.discount, (form) => form.total > 500);
+const model = createModel<OrderForm>({ price: 100, quantity: 1, total: 0, discount: 0 });
+
+const schema = {
+  price: { value: model.$.price, component: Input, componentProps: { type: 'number' } },
+  quantity: { value: model.$.quantity, component: Input, componentProps: { type: 'number' } },
+  total: {
+    value: model.$.total,
+    component: Input,
+    componentProps: { type: 'number', disabled: true },
   },
+  discount: { value: model.$.discount, component: Input, componentProps: { type: 'number' } },
+};
+
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  // Auto-compute total
+  computeFrom(
+    [model.$.price, model.$.quantity],
+    model.$.total,
+    (price, quantity) => price * quantity
+  );
+
+  // Enable discount only for large orders
+  enableWhen(model.$.discount, () => model.total > 500);
 });
+
+const form = createForm<OrderForm>({ model, schema, behavior });
 ```
 
 ## Available Behaviors
@@ -52,62 +63,63 @@ const form = new GroupNode({
 
 ### computeFrom
 
-Calculate a field's value from other fields:
+Calculate a field's value from other fields. Source values arrive positionally:
 
 ```typescript
-import { computeFrom } from '@reformer/core/behaviors';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
 
-behavior: (path) => {
+const behavior = defineFormBehavior<Form>(({ model }) => {
   // Single source
-  computeFrom([path.firstName], path.initials, ({ firstName }) =>
+  computeFrom([model.$.firstName], model.$.initials, (firstName) =>
     firstName.charAt(0).toUpperCase()
   );
 
   // Multiple sources
-  computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
+  computeFrom([model.$.firstName, model.$.lastName], model.$.fullName, (firstName, lastName) =>
     `${firstName} ${lastName}`.trim()
   );
-};
+});
 ```
 
 ### transformValue
 
-Transform value on change:
+Transform value on change (the transformer must be idempotent):
 
 ```typescript
-import { transformValue } from '@reformer/core/behaviors';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-behavior: (path) => {
-  // Uppercase username
-  transformValue(path.username, (value) => value.toLowerCase());
+const behavior = defineFormBehavior<Form>(({ model }) => {
+  // Normalize username to lowercase
+  transformValue(model.$.username, (value) => (value ?? '').toLowerCase());
 
   // Format phone number
-  transformValue(path.phone, (value) => {
+  transformValue(model.$.phone, (value) => {
+    if (!value) return value;
     const digits = value.replace(/\D/g, '');
     if (digits.length === 10) {
       return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
     }
     return value;
   });
-};
+});
 ```
 
 ## Conditional Behaviors
 
 ### enableWhen
 
-Enable or disable field based on condition:
+Enable or disable a field based on a condition. The condition reads `model.*` reactively:
 
 ```typescript
-import { enableWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
 
-behavior: (path) => {
+const behavior = defineFormBehavior<Form>(({ model }) => {
   // Enable shipping address when not same as billing
-  enableWhen(path.shippingAddress, (form) => !form.sameAsBilling);
+  enableWhen(model.$.shippingAddress, () => !model.sameAsBilling);
 
   // Enable discount for premium users
-  enableWhen(path.discount, (form) => form.userType === 'premium');
-};
+  enableWhen(model.$.discount, () => model.userType === 'premium');
+});
 ```
 
 ### resetWhen
@@ -115,27 +127,29 @@ behavior: (path) => {
 Reset field when condition is met:
 
 ```typescript
-import { resetWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, resetWhen } from '@reformer/core/behaviors';
 
-behavior: (path) => {
-  // Reset shipping when "same as billing" checked
-  resetWhen(path.shippingAddress, (form) => form.sameAsBilling === true);
-};
+const behavior = defineFormBehavior<Form>(({ model }) => {
+  // Reset shipping when "same as billing" is checked
+  resetWhen(model.$.shippingAddress, () => model.sameAsBilling === true);
+});
 ```
 
 ## Sync Behaviors
 
 ### copyFrom
 
-Copy value from another field:
+Copy value from another field (source and target may be fields or whole groups):
 
 ```typescript
-import { copyFrom } from '@reformer/core/behaviors';
+import { defineFormBehavior, copyFrom } from '@reformer/core/behaviors';
 
-behavior: (path) => {
-  // Copy billing to shipping when checkbox checked
-  copyFrom(path.billingAddress, path.shippingAddress, { when: (form) => form.sameAsBilling });
-};
+const behavior = defineFormBehavior<Form>(({ model }) => {
+  // Copy billing to shipping when the checkbox is checked
+  copyFrom(model.$.billingAddress, model.$.shippingAddress, {
+    when: () => model.sameAsBilling === true,
+  });
+});
 ```
 
 ### syncFields
@@ -143,58 +157,80 @@ behavior: (path) => {
 Two-way synchronization:
 
 ```typescript
-import { syncFields } from '@reformer/core/behaviors';
+import { defineFormBehavior, syncFields } from '@reformer/core/behaviors';
 
-behavior: (path) => {
+const behavior = defineFormBehavior<Form>(({ model }) => {
   // Sync email fields (changes in either update both)
-  syncFields(path.email, path.confirmEmail);
-};
+  syncFields(model.$.email, model.$.confirmEmail);
+});
 ```
 
 ## Watch Behaviors
 
 ### watchField
 
-React to field changes:
+React to field changes. `watchField` from `@reformer/core` is the low-level primitive — a plain
+subscription to a model signal that returns a cleanup:
 
 ```typescript
-import { watchField } from '@reformer/core/behaviors';
+import { watchField } from '@reformer/core';
 
-behavior: (path) => {
-  watchField(path.country, (value, ctx) => {
-    // Load states/provinces for selected country
-    loadStates(value).then((states) => {
-      root.stateOptions.setValue(states);
-    });
-  });
-};
+const stop = watchField(model.$.country, (country) => {
+  model.city = ''; // reset the dependent field when country changes
+});
+// stop(); // unsubscribe
+```
+
+For async reactions — loading dependent options with debouncing and request cancellation — use
+`onChange` inside `defineFormBehavior` (the callback runs outside the effect context and gets an
+`AbortSignal`):
+
+```typescript
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<Form>(({ model, form }) => {
+  onChange(
+    model.$.country,
+    async (country, { signal }) => {
+      const states = await loadStates(country, { signal });
+      form.state.updateComponentProps({ options: states });
+    },
+    { debounce: 300 }
+  );
+});
 ```
 
 ### revalidateWhen
 
-Trigger revalidation when another field changes:
+Re-run validation when another field changes. Under M1 validation is on-demand, so revalidation is an
+explicit callback triggered by dependency signals:
 
 ```typescript
-import { revalidateWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
+import { validateFormModel } from '@reformer/core';
 
-behavior: (path) => {
-  // Revalidate password confirmation when password changes
-  revalidateWhen(path.password, path.confirmPassword);
-};
+const behavior = defineFormBehavior<Form>(({ model }) => {
+  // Re-run validation when password changes (confirmPassword re-checks against it)
+  revalidateWhen([model.$.password], () => {
+    void validateFormModel(model, schema);
+  });
+});
 ```
 
 ## Extracting Behavior Sets
 
-Create reusable behavior functions:
+Create reusable behavior functions that operate on a sub-model's signals:
 
 ```typescript
-import { FieldPath, Behavior } from '@reformer/core';
-import { computeFrom, transformValue } from '@reformer/core/behaviors';
+import type { ModelSignals } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-// Reusable behaviors for address
-export function addressBehaviors<T extends { address: Address }>(path: FieldPath<T>) {
+// Reusable behaviors for an address sub-model
+function addressBehaviors(address: ModelSignals<Address>) {
   // Auto-format ZIP code
-  transformValue(path.address.zipCode, (value) => {
+  transformValue(address.zipCode, (value) => {
+    if (!value) return value;
     const digits = value.replace(/\D/g, '');
     if (digits.length === 9) {
       return `${digits.slice(0, 5)}-${digits.slice(5)}`;
@@ -203,17 +239,13 @@ export function addressBehaviors<T extends { address: Address }>(path: FieldPath
   });
 }
 
-// Usage
-const form = new GroupNode({
-  form: {
-    billing: addressSchema(),
-    shipping: addressSchema(),
-  },
-  behavior: (path) => {
-    addressBehaviors(path.billing);
-    addressBehaviors(path.shipping);
-  },
+// Usage — call the set per sub-model inside defineFormBehavior
+const behavior = defineFormBehavior<Order>(({ model }) => {
+  addressBehaviors(model.$.billing);
+  addressBehaviors(model.$.shipping);
 });
+
+const form = createForm<Order>({ model, schema, behavior });
 ```
 
 ## Behavior vs Validation
@@ -231,3 +263,4 @@ const form = new GroupNode({
 - [Computed Fields](/docs/behaviors/computed) — `computeFrom`, `transformValue`
 - [Conditional Logic](/docs/behaviors/conditional) — `enableWhen`, `resetWhen`
 - [Composition](./composition) — Reuse behavior sets
+  </content>
