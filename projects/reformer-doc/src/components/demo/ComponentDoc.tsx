@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import clsx from 'clsx';
+import { Info } from 'lucide-react';
 import Heading from '@theme/Heading';
 import { VariantGallery } from './VariantGallery';
 import { Playground } from './Playground';
@@ -27,6 +28,7 @@ function isTabId(value: string): value is TabId {
  */
 export function ComponentDoc({ config }: { config: ComponentDocConfig }) {
   const [active, setActive] = useState<TabId>('variants');
+  const hintId = useId();
 
   // Deep-link по hash: на маунте синхронизируем активный таб с URL. setState в
   // эффекте здесь намеренный — сервер/первый рендер дают 'variants' (hydration-
@@ -59,6 +61,28 @@ export function ComponentDoc({ config }: { config: ComponentDocConfig }) {
             {t.label}
           </button>
         ))}
+
+        <div className={styles.hint}>
+          <button
+            type="button"
+            className={styles.hintTrigger}
+            aria-label="В чём разница между Variants и Examples"
+            aria-describedby={hintId}
+          >
+            <Info size={16} aria-hidden />
+          </button>
+          <div role="tooltip" id={hintId} className={styles.tooltip}>
+            <p>
+              <strong>Variants</strong> — готовые конфигурации компонента: один и тот же компонент с
+              разными преднастроенными пропсами. Витрина состояний (напр. обычный Select и Select с
+              расширенной информацией — два варианта).
+            </p>
+            <p>
+              <strong>Examples</strong> — приёмы в коде: как решить задачу. Напр. как разные Data
+              Provider’ы работают с компонентом (рецепты использования).
+            </p>
+          </div>
+        </div>
       </div>
 
       {active === 'variants' && <VariantGallery variants={config.variants} />}
