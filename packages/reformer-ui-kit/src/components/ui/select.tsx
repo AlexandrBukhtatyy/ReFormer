@@ -335,7 +335,7 @@ const Select = React.forwardRef<
         >
           <SelectTrigger
             ref={ref}
-            className={cn(className, showClearButton && 'pr-8')}
+            className={cn(className, showClearButton && 'pr-14')}
             disabled={initialLoading}
             id={id}
             data-testid={dataTestId}
@@ -540,7 +540,7 @@ function SelectTrigger({
       aria-label={resolvedAriaLabel}
       aria-labelledby={ariaLabelledBy}
       className={cn(
-        'h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-xs transition-colors',
+        'relative h-9 w-full rounded-md border border-input pl-3 pr-9 py-2 text-sm shadow-xs transition-colors',
         'bg-background text-foreground',
         'placeholder:text-muted-foreground data-[placeholder]:text-muted-foreground',
         'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
@@ -554,7 +554,7 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
+        <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 opacity-50" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
