@@ -285,9 +285,9 @@ export default function Home(): ReactNode {
     >
       <HomepageHeader />
       <main>
-        <PackagesSection />
         <QuickStartSection />
         <HomepageFeatures />
+        <PackagesSection />
       </main>
     </Layout>
   );

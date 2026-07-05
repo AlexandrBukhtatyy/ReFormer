@@ -250,13 +250,27 @@
   cursor: pointer;
 }
 
+/* Полноширинный трек: сохраняет непрерывный нижний разделитель карточки,
+   свободное место справа (при сужении превью) закрашивается его фоном. */
+.apiCanvasTrack {
+  display: flex;
+  justify-content: flex-start;
+  padding: 1rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  background: var(--ifm-background-surface-color);
+}
+
+/* Превью-поверхность: ресайзится по ширине, тематизирована токенами ui-kit. */
 .apiCanvas {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 2rem 1.5rem;
-  border-bottom: 1px solid var(--ifm-toc-border-color);
   min-height: 96px;
+  padding: 1.5rem 2.25rem 1.5rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--card);
+  color: var(--foreground);
 }
 
 /* ── Превью с изменяемой шириной («шторка» на правом крае) ───────────── */
@@ -265,43 +279,35 @@
   width: 100%;
   max-width: 100%;
   min-width: 200px;
-  /* место под ручку, чтобы контент не уходил под неё */
-  padding-right: 16px;
 }
 
 .resizableContent {
   min-width: 0;
+  width: 100%;
 }
 
-/* Вертикальная ручка на правом крае: тянешь — меняешь ширину контейнера. */
+/* Вертикальная ручка на правом крае: тянешь — меняешь ширину контейнера.
+   Грип-индикатор — иконка GripVertical (наследует цвет через currentColor). */
 .resizableHandle {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 14px;
+  width: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0 4px;
   margin: 0;
   border: none;
   background: transparent;
+  color: var(--ifm-color-emphasis-400);
   cursor: ew-resize;
   touch-action: none;
 }
 
-/* Грип-индикатор по центру ручки. */
-.resizableHandle::after {
-  content: '';
-  width: 3px;
-  height: 28px;
-  border-radius: 3px;
-  background: var(--ifm-color-emphasis-400);
-}
-
-.resizableHandle:hover::after {
-  background: var(--ifm-color-emphasis-600);
+.resizableHandle:hover {
+  color: var(--ifm-color-emphasis-600);
 }
 
 /* Живой бейдж текущей ширины — виден только во время перетаскивания. */
@@ -340,7 +346,6 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  background: oklch(0.205 0 0);
   color: var(--foreground);
 }
 
@@ -363,7 +368,6 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  background: oklch(0.985 0 0);
   color: var(--foreground);
 }
 

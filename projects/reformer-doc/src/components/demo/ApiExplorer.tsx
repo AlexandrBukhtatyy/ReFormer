@@ -6,7 +6,7 @@ import CodeBlock from '@theme/CodeBlock';
 
 import { validateFormModel, useFormControlValue } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, GripVertical } from 'lucide-react';
 import { useDemoField } from './harness';
 import type { ApiConfig, ApiControl, ApiValues } from './types';
 import styles from './styles.module.css';
@@ -32,7 +32,7 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
   // respectPrefersColorScheme наследует её из темы браузера); дальше toggle независим.
   const { colorMode } = useColorMode();
   const [dark, setDark] = useState(colorMode === 'dark');
-  const [bg, setBg] = useState(true);
+  const [bg, setBg] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [showData, setShowData] = useState(true);
   const [viewTab, setViewTab] = useState<'preview' | 'code'>('preview');
@@ -137,15 +137,10 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
 
         {viewTab === 'preview' ? (
           <>
-            {/* Canvas (form-bound preview) */}
-            <div
-              className={clsx('reformer-demo', styles.apiCanvas, bg && styles.apiCanvasBg)}
-              data-preview-theme={dark ? 'dark' : 'light'}
-            >
-              <ResizableCanvas>
-                <FormField control={control} />
-              </ResizableCanvas>
-            </div>
+            {/* Canvas (form-bound preview) — ширину тянем ручкой на правом крае */}
+            <ResizableCanvas dark={dark} bg={bg}>
+              <FormField control={control} />
+            </ResizableCanvas>
 
             {/* Form data output (сворачивается кнопкой «Value») */}
             {showData && (
@@ -223,7 +218,15 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
  * По умолчанию — во всю доступную ширину и с выравниванием по левому краю.
  * Двойной клик по ручке сбрасывает ширину обратно на 100%.
  */
-function ResizableCanvas({ children }: { children: ReactNode }) {
+function ResizableCanvas({
+  children,
+  dark,
+  bg,
+}: {
+  children: ReactNode;
+  dark: boolean;
+  bg: boolean;
+}) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null); // null → во всю ширину
   const [dragging, setDragging] = useState(false);
@@ -254,21 +257,37 @@ function ResizableCanvas({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div ref={boxRef} className={styles.resizable} style={width == null ? undefined : { width }}>
-      <div className={styles.resizableContent}>{children}</div>
-      {dragging && (
-        <span className={styles.resizableWidth}>
-          {width == null ? '100%' : `${Math.round(width)}px`}
-        </span>
-      )}
-      <button
-        type="button"
-        className={styles.resizableHandle}
-        onPointerDown={onHandleDown}
-        onDoubleClick={() => setWidth(null)}
-        title="Потяните, чтобы изменить ширину контейнера. Двойной клик — сбросить."
-        aria-label="Изменить ширину контейнера"
-      />
+    // Трек во всю ширину сохраняет непрерывный разделитель карточки, а внутри —
+    // тематизированная превью-поверхность (её и ресайзит ручка на правом крае).
+    <div className={styles.apiCanvasTrack}>
+      <div
+        ref={boxRef}
+        className={clsx(
+          'reformer-demo',
+          styles.apiCanvas,
+          styles.resizable,
+          bg && styles.apiCanvasBg
+        )}
+        data-preview-theme={dark ? 'dark' : 'light'}
+        style={width == null ? undefined : { width }}
+      >
+        <div className={styles.resizableContent}>{children}</div>
+        {dragging && (
+          <span className={styles.resizableWidth}>
+            {width == null ? '100%' : `${Math.round(width)}px`}
+          </span>
+        )}
+        <button
+          type="button"
+          className={styles.resizableHandle}
+          onPointerDown={onHandleDown}
+          onDoubleClick={() => setWidth(null)}
+          title="Потяните, чтобы изменить ширину превью. Двойной клик — сбросить."
+          aria-label="Изменить ширину превью"
+        >
+          <GripVertical size={16} aria-hidden />
+        </button>
+      </div>
     </div>
   );
 }
