@@ -1,5 +1,4 @@
-import CodeBlock from '@theme/CodeBlock';
-import { Live } from './Demo';
+import { ApiPreview } from './ApiPreview';
 import type { VariantDef } from './types';
 import styles from './styles.module.css';
 
@@ -15,18 +14,21 @@ export function VariantGallery({ variants }: { variants: VariantDef[] }) {
 }
 
 function VariantCard({ variant }: { variant: VariantDef }) {
+  const Render = variant.render;
   return (
     <div className={styles.card}>
       <div className={styles.cardHead}>
         <p className={styles.cardTitle}>{variant.title}</p>
         {variant.description && <p className={styles.cardDesc}>{variant.description}</p>}
       </div>
-      <div className={styles.cardPreview}>
-        <Live render={variant.render} />
-      </div>
-      <div className={styles.cardCode}>
-        <CodeBlock language={variant.language ?? 'tsx'}>{variant.code}</CodeBlock>
-      </div>
+      <ApiPreview
+        showFooter={false}
+        codeFlavors={[
+          { id: 'code', label: 'Code', language: variant.language, code: variant.code },
+        ]}
+      >
+        <Render />
+      </ApiPreview>
     </div>
   );
 }

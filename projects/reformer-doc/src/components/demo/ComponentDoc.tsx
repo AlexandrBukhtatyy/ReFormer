@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
-import CodeBlock from '@theme/CodeBlock';
 import { VariantGallery } from './VariantGallery';
 import { Playground } from './Playground';
 import { ApiExplorer } from './ApiExplorer';
+import { ApiPreview } from './ApiPreview';
 import { PropsTable } from './PropsTable';
-import { LiveCanvas } from './Demo';
 import type { ComponentDocConfig } from './types';
 import styles from './styles.module.css';
 
@@ -66,18 +65,25 @@ export function ComponentDoc({ config }: { config: ComponentDocConfig }) {
 
       {active === 'examples' && (
         <div>
-          {config.examples.map((ex) => (
-            <section key={ex.id} className={styles.example}>
-              <Heading as="h3" id={ex.id} className={styles.exampleTitle}>
-                {ex.title}
-              </Heading>
-              {ex.description && <p className={styles.exampleDesc}>{ex.description}</p>}
-              <LiveCanvas render={ex.render} />
-              <div style={{ marginTop: '1rem' }}>
-                <CodeBlock language={ex.language ?? 'tsx'}>{ex.code}</CodeBlock>
-              </div>
-            </section>
-          ))}
+          {config.examples.map((ex) => {
+            const Render = ex.render;
+            return (
+              <section key={ex.id} className={styles.example}>
+                <Heading as="h3" id={ex.id} className={styles.exampleTitle}>
+                  {ex.title}
+                </Heading>
+                {ex.description && <p className={styles.exampleDesc}>{ex.description}</p>}
+                <ApiPreview
+                  showFooter={false}
+                  codeFlavors={[
+                    { id: 'code', label: 'Code', language: ex.language, code: ex.code },
+                  ]}
+                >
+                  <Render />
+                </ApiPreview>
+              </section>
+            );
+          })}
         </div>
       )}
 

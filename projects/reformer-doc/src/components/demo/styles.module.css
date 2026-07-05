@@ -59,23 +59,31 @@
 }
 
 /* ── Таб Variants: галерея карточек ──────────────────────────────────── */
+/* Две колонки: панель ApiPreview широкая, в одну узкую ячейку не влезает.
+   На узких экранах (≤996px) схлопывается в одну колонку. */
 .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
 }
 
+@media (max-width: 996px) {
+  .gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Карточка — лёгкий стек «заголовок + панель». Рамку/радиус даёт сама панель
+   ApiPreview, поэтому у карточки их нет (иначе двойной контур). */
 .card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--ifm-toc-border-color);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--ifm-background-color);
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .cardHead {
-  padding: 0.85rem 1rem 0.35rem;
+  padding: 0 0.15rem;
 }
 
 .cardTitle {
@@ -88,17 +96,6 @@
   font-size: 0.85rem;
   color: var(--ifm-color-emphasis-600);
   margin: 0.25rem 0 0;
-}
-
-.cardPreview {
-  padding: 1.25rem 1rem;
-  background: var(--ifm-background-surface-color);
-  border-top: 1px solid var(--ifm-toc-border-color);
-  border-bottom: 1px solid var(--ifm-toc-border-color);
-}
-
-.cardCode :global(.theme-code-block) {
-  margin-bottom: 0;
 }
 
 /* ── Таб Examples ────────────────────────────────────────────────────── */
@@ -187,11 +184,18 @@
   overflow: hidden;
 }
 
+/* Последняя секция карточки не рисует нижний разделитель — иначе при скрытом
+   футере (Variants/Examples) останется «висячая» линия у скруглённого низа. */
+.apiPreview > *:last-child {
+  border-bottom: none;
+}
+
 .apiToolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
   padding: 0.5rem 0.7rem;
   border-bottom: 1px solid var(--ifm-toc-border-color);
   background: var(--ifm-background-surface-color);

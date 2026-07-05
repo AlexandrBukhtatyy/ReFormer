@@ -1,13 +1,12 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useState } from 'react';
 import clsx from 'clsx';
 import BrowserOnly from '@docusaurus/BrowserOnly';
-import { useColorMode } from '@docusaurus/theme-common';
-import CodeBlock from '@theme/CodeBlock';
 
 import { validateFormModel, useFormControlValue } from '@reformer/core';
 import { FormField } from '@reformer/ui-kit';
-import { ChevronDown, GripVertical } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useDemoField } from './harness';
+import { ApiPreview, type CodeFlavor } from './ApiPreview';
 import type { ApiConfig, ApiControl, ApiValues } from './types';
 import styles from './styles.module.css';
 
@@ -28,15 +27,8 @@ function initialValues(controls: ApiControl[]): ApiValues {
 
 function ApiExplorerInner({ api }: { api: ApiConfig }) {
   const [values, setValues] = useState<ApiValues>(() => initialValues(api.controls));
-  // По умолчанию берём тему из активной темы сайта (docusaurus с
-  // respectPrefersColorScheme наследует её из темы браузера); дальше toggle независим.
-  const { colorMode } = useColorMode();
-  const [dark, setDark] = useState(colorMode === 'dark');
-  const [bg, setBg] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [showData, setShowData] = useState(true);
-  const [viewTab, setViewTab] = useState<'preview' | 'code'>('preview');
-  const [codeFlavor, setCodeFlavor] = useState<'reformer' | 'react'>('reformer');
 
   const { control, model, schema } = useDemoField({
     initial: api.initialValue,
@@ -88,111 +80,63 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
     bucket.items.push(c);
   }
 
-  return (
-    <div className={styles.apiExplorer}>
-      <div className={styles.apiPreview}>
-        {/* Toolbar: слева табы Preview/Code (+ выбор формата кода), справа тумблеры превью */}
-        <div className={styles.apiToolbar}>
-          <div className={styles.apiViewTabs}>
-            <button
-              type="button"
-              className={clsx(styles.apiViewTab, viewTab === 'preview' && styles.apiViewTabActive)}
-              onClick={() => setViewTab('preview')}
-            >
-              Preview
-            </button>
-            <button
-              type="button"
-              className={clsx(styles.apiViewTab, viewTab === 'code' && styles.apiViewTabActive)}
-              onClick={() => setViewTab('code')}
-            >
-              Code
-            </button>
-            {viewTab === 'code' && (
-              <select
-                className={styles.knobControl}
-                value={codeFlavor}
-                onChange={(e) => setCodeFlavor(e.target.value as 'reformer' | 'react')}
-                aria-label="Формат кода"
-              >
-                <option value="reformer">ReFormer</option>
-                <option value="react">React</option>
-              </select>
-            )}
-          </div>
+  // Футер панели: form-data (сворачивается «Value») + Reset/Submit. Присущ только API.
+  const footer = (
+    <>
+      {/* Form data output (сворачивается кнопкой «Value») */}
+      {showData && (
+        <pre className={styles.apiOutput}>Form data: {JSON.stringify({ value }, null, 2)}</pre>
+      )}
 
-          {viewTab === 'preview' && (
-            <div className={styles.apiToolbarRight}>
-              <label className={styles.apiToggle}>
-                <input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} />{' '}
-                Dark mode
-              </label>
-              <label className={styles.apiToggle}>
-                <input type="checkbox" checked={bg} onChange={(e) => setBg(e.target.checked)} />{' '}
-                Background
-              </label>
-            </div>
-          )}
-        </div>
-
-        {viewTab === 'preview' ? (
-          <>
-            {/* Canvas (form-bound preview) — ширину тянем ручкой на правом крае */}
-            <ResizableCanvas dark={dark} bg={bg}>
-              <FormField control={control} />
-            </ResizableCanvas>
-
-            {/* Form data output (сворачивается кнопкой «Value») */}
-            {showData && (
-              <pre className={styles.apiOutput}>
-                Form data: {JSON.stringify({ value }, null, 2)}
-              </pre>
-            )}
-
-            {/* Value controls */}
-            <div className={styles.apiValueBar}>
-              <button
-                type="button"
-                className={styles.apiValueToggle}
-                onClick={() => setShowData((s) => !s)}
-                aria-expanded={showData}
-              >
-                Value
-                <ChevronDown size={16} className={styles.apiChevron} data-open={showData} />
-              </button>
-              <div className={styles.apiValueBtns}>
-                {/* TODO: поле выбора стратегии обновления модели (updateOn) —
+      {/* Value controls */}
+      <div className={styles.apiValueBar}>
+        <button
+          type="button"
+          className={styles.apiValueToggle}
+          onClick={() => setShowData((s) => !s)}
+          aria-expanded={showData}
+        >
+          Value
+          <ChevronDown size={16} className={styles.apiChevron} data-open={showData} />
+        </button>
+        <div className={styles.apiValueBtns}>
+          {/* TODO: поле выбора стратегии обновления модели (updateOn) —
               когда значение поля пишется в модель: change | blur | submit.
               Пока скрыто; ниже закомментирован старый селект пресетов значения. */}
-                {/* {api.valuePresets && api.valuePresets.length > 0 && (
+          {/* {api.valuePresets && api.valuePresets.length > 0 && (
             <ChangeSelect presets={api.valuePresets} onPick={(v) => control.setValue(v)} />
           )} */}
-                <button type="button" className={styles.apiBtn} onClick={onReset}>
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  className={clsx(styles.apiBtn, styles.apiBtnPrimary)}
-                  onClick={onSubmit}
-                >
-                  Submit
-                </button>
-                {status && <span className={styles.apiStatus}>{status}</span>}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className={styles.apiCodeView}>
-            <CodeBlock language="tsx">
-              {codeFlavor === 'react'
-                ? api.codeReact
-                  ? api.codeReact(values)
-                  : buildReactSnippet(api, values)
-                : api.code(values)}
-            </CodeBlock>
-          </div>
-        )}
+          <button type="button" className={styles.apiBtn} onClick={onReset}>
+            Reset
+          </button>
+          <button
+            type="button"
+            className={clsx(styles.apiBtn, styles.apiBtnPrimary)}
+            onClick={onSubmit}
+          >
+            Submit
+          </button>
+          {status && <span className={styles.apiStatus}>{status}</span>}
+        </div>
       </div>
+    </>
+  );
+
+  // Флейворы кода: schema-нода ReFormer + «сырой» React (авто-сниппет, если не задан).
+  const codeFlavors: CodeFlavor[] = [
+    { id: 'reformer', label: 'ReFormer', code: api.code(values) },
+    {
+      id: 'react',
+      label: 'React',
+      code: api.codeReact ? api.codeReact(values) : buildReactSnippet(api, values),
+    },
+  ];
+
+  return (
+    <div className={styles.apiExplorer}>
+      <ApiPreview codeFlavors={codeFlavors} footer={footer}>
+        <FormField control={control} />
+      </ApiPreview>
 
       {/* Grouped prop controls */}
       {groups.map((g) => (
@@ -208,86 +152,6 @@ function ApiExplorerInner({ api }: { api: ApiConfig }) {
           ))}
         </div>
       ))}
-    </div>
-  );
-}
-
-/**
- * Обёртка превью с «шторкой» на правом крае: тянешь ручку — меняешь ширину
- * контейнера, чтобы проверить поведение компонента при разных размерах.
- * По умолчанию — во всю доступную ширину и с выравниванием по левому краю.
- * Двойной клик по ручке сбрасывает ширину обратно на 100%.
- */
-function ResizableCanvas({
-  children,
-  dark,
-  bg,
-}: {
-  children: ReactNode;
-  dark: boolean;
-  bg: boolean;
-}) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState<number | null>(null); // null → во всю ширину
-  const [dragging, setDragging] = useState(false);
-
-  const onHandleDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    const box = boxRef.current;
-    if (!box) return;
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = box.getBoundingClientRect().width;
-    const parent = box.parentElement;
-    let maxWidth = startWidth;
-    if (parent) {
-      const cs = getComputedStyle(parent);
-      maxWidth = parent.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    }
-    setDragging(true);
-    const onMove = (ev: PointerEvent) => {
-      setWidth(Math.min(maxWidth, Math.max(200, startWidth + ev.clientX - startX)));
-    };
-    const onUp = () => {
-      setDragging(false);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
-  return (
-    // Трек во всю ширину сохраняет непрерывный разделитель карточки, а внутри —
-    // тематизированная превью-поверхность (её и ресайзит ручка на правом крае).
-    <div className={styles.apiCanvasTrack}>
-      <div
-        ref={boxRef}
-        className={clsx(
-          'reformer-demo',
-          styles.apiCanvas,
-          styles.resizable,
-          bg && styles.apiCanvasBg
-        )}
-        data-preview-theme={dark ? 'dark' : 'light'}
-        style={width == null ? undefined : { width }}
-      >
-        <div className={styles.resizableContent}>{children}</div>
-        {dragging && (
-          <span className={styles.resizableWidth}>
-            {width == null ? '100%' : `${Math.round(width)}px`}
-          </span>
-        )}
-        <button
-          type="button"
-          className={styles.resizableHandle}
-          onPointerDown={onHandleDown}
-          onDoubleClick={() => setWidth(null)}
-          title="Потяните, чтобы изменить ширину превью. Двойной клик — сбросить."
-          aria-label="Изменить ширину превью"
-        >
-          <GripVertical size={16} aria-hidden />
-        </button>
-      </div>
     </div>
   );
 }
