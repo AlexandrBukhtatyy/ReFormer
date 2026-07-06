@@ -19,9 +19,10 @@ function VariantCard({ variant }: { variant: VariantDef }) {
     <div className={styles.card}>
       <div className={styles.cardHead}>
         <p className={styles.cardTitle}>{variant.title}</p>
-        {variant.description && <p className={styles.cardDesc}>{variant.description}</p>}
       </div>
       <ApiPreview
+        minimal
+        hint={variant.hint ?? variant.description}
         showFooter={false}
         codeFlavors={[
           { id: 'code', label: 'Code', language: variant.language, code: variant.code },

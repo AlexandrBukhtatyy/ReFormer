@@ -20,6 +20,8 @@ export interface VariantDef {
   code: string;
   /** Язык подсветки сниппета. По умолчанию `tsx`. */
   language?: string;
+  /** Подсказка (tooltip) у правого края шапки превью. Иконка — только если задана. */
+  hint?: ReactNode;
 }
 
 /** Контекстный сценарий использования (таб Examples). */

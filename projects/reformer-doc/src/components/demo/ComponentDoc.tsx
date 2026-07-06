@@ -98,6 +98,7 @@ export function ComponentDoc({ config }: { config: ComponentDocConfig }) {
                 </Heading>
                 {ex.description && <p className={styles.exampleDesc}>{ex.description}</p>}
                 <ApiPreview
+                  minimal
                   showFooter={false}
                   codeFlavors={[
                     { id: 'code', label: 'Code', language: ex.language, code: ex.code },

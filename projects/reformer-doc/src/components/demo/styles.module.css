@@ -39,7 +39,6 @@
 /* ── Info-подсказка Variants vs Examples ─────────────────────────────── */
 .hint {
   position: relative;
-  margin-left: auto; /* прижать к правому краю таб-бара */
   display: flex;
   align-items: center;
 }
@@ -157,12 +156,6 @@
   margin: 0;
 }
 
-.cardDesc {
-  font-size: 0.85rem;
-  color: var(--ifm-color-emphasis-600);
-  margin: 0.25rem 0 0;
-}
-
 /* ── Таб Examples ────────────────────────────────────────────────────── */
 .example {
   margin: 0 0 2.5rem;
@@ -256,6 +249,9 @@
 }
 
 .apiToolbar {
+  /* relative — контекст позиционирования для .apiTooltip: тултип тянется по
+     ширине тулбара (≈ ширина карточки), а не по крошечной иконке. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -302,6 +298,48 @@
   display: inline-flex;
   align-items: center;
   gap: 1.25rem;
+}
+
+/* ── Подсказка в шапке ApiPreview (иконка ⓘ у правого края + tooltip) ──── */
+.apiHint {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Тултип привязан к тулбару (position:relative выше): правый край под иконкой,
+   ширина ограничена шириной карточки (100% = ширина тулбара) — не клипается
+   overflow:hidden карточки на узких Variants-карточках. */
+.apiTooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 8px;
+  max-width: min(360px, calc(100% - 16px));
+  width: max-content;
+  z-index: 10;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--ifm-global-shadow-md);
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+}
+
+.apiHint:hover .apiTooltip,
+.apiHint:focus-within .apiTooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Вид Code внутри карточки: код-блок заполняет тело без своей рамки/радиуса. */
@@ -393,6 +431,21 @@
   color: var(--ifm-background-color);
   pointer-events: none;
   z-index: 2;
+}
+
+/* ── Minimal: превью во всю ширину карточки (edge-to-edge) ───────────── */
+.apiCanvasTrackMinimal {
+  padding: 0;
+}
+
+.apiCanvasMinimal {
+  width: 100%;
+  min-width: 0;
+  /* Поверхность edge-to-edge (трек без гаттера, рамки нет), но контент не
+     прилипает к краям — умеренный внутренний отступ. */
+  padding: 1rem;
+  border: none;
+  border-radius: 0;
 }
 
 /* Локальная тёмная превью-тема канвы, независимая от темы сайта. */
