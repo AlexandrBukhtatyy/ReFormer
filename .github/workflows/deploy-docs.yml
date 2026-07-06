@@ -40,6 +40,17 @@ jobs:
         # после bump Node 22).
         run: npm ci
 
+      - name: Build workspace packages
+        # reformer-doc импортирует @reformer/* по их `exports` (→ dist/),
+        # поэтому пакеты нужно собрать ДО сборки доков (в порядке зависимостей).
+        # Иначе docusaurus build падает с «no valid target file was found».
+        run: |
+          npm run build -w @reformer/core
+          npm run build -w @reformer/cdk
+          npm run build -w @reformer/renderer-json
+          npm run build -w @reformer/renderer-react
+          npm run build -w @reformer/ui-kit
+
       - name: Build documentation
         run: npm run build -w reformer-doc
 
