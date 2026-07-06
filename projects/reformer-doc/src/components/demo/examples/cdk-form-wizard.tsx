@@ -1,130 +1,281 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createModel, createForm, validateFormModel } from '@reformer/core';
-import { FormWizard } from '@reformer/cdk/form-wizard';
+import { FormWizard, type FormWizardHandle } from '@reformer/cdk/form-wizard';
+import {
+  FormWizard as UiWizard,
+  StepIndicator,
+  FormWizardActions as UiActions,
+  FormWizardProgress as UiProgress,
+  type FormWizardStep as UiStepDef,
+} from '@reformer/ui-kit/form-wizard';
 import { FormField, Input, InputMask, Button } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
 import type { ComponentDocConfig } from '../types';
 
 type WForm = { name: string; email: string; phone: string };
 
+// ─── Общая фабрика формы + конфиг валидации ─────────────────────────────────
+
+/** Поднимает M1-форму мастера (3 поля) и её step-ноды. */
+function makeWizardForm(initial: WForm) {
+  const model = createModel<WForm>(initial);
+  const name = {
+    value: model.$.name,
+    component: Input,
+    componentProps: { label: 'Имя' },
+    validators: [required({ message: 'Введите имя' })],
+  };
+  const emailNode = {
+    value: model.$.email,
+    component: Input,
+    componentProps: { label: 'Email', type: 'email' },
+    validators: [required(), email()],
+  };
+  const phone = {
+    value: model.$.phone,
+    component: InputMask,
+    componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
+    validators: [required({ message: 'Введите телефон' })],
+  };
+  const full = { name, email: emailNode, phone } as any;
+  const form = createForm<WForm>({ model, schema: full }) as any;
+  return { model, form, nodes: { name, email: emailNode, phone } };
+}
+
+/** Пара колбэков config: пошаговая валидация + submit-валидация. */
+function makeConfig(model: any, nodes: any) {
+  const step1 = { name: nodes.name };
+  const step2 = { email: nodes.email };
+  const step3 = { phone: nodes.phone };
+  const full = { name: nodes.name, email: nodes.email, phone: nodes.phone };
+  return {
+    validateStep: async (step: number) =>
+      (await validateFormModel(model, step === 1 ? step1 : step === 2 ? step2 : step3)).valid,
+    validateAll: async () => (await validateFormModel(model, full)).valid,
+  };
+}
+
+/** Стабильная форма мастера: пустая или предзаполненная валидными значениями. */
+function useWizard(mode: 'empty' | 'valid' = 'empty') {
+  return useMemo(() => {
+    const initial: WForm =
+      mode === 'valid'
+        ? { name: 'Иван Петров', email: 'ivan@mail.ru', phone: '+7 (999) 123-45-67' }
+        : { name: '', email: '', phone: '' };
+    const built = makeWizardForm(initial);
+    const config = makeConfig(built.model, built.nodes);
+    return { ...built, config };
+  }, [mode]);
+}
+
 const STEPS = [
-  { number: 1, title: 'Контакт' },
-  { number: 2, title: 'Телефон' },
+  { number: 1, title: 'Имя', icon: '👤' },
+  { number: 2, title: 'Email', icon: '✉️' },
+  { number: 3, title: 'Телефон', icon: '📞' },
 ];
 
-function useWizard() {
-  return useMemo(() => {
-    const model = createModel<WForm>({ name: '', email: '', phone: '' });
-    const nameNode = {
-      value: model.$.name,
-      component: Input,
-      componentProps: { label: 'Имя' },
-      validators: [required({ message: 'Введите имя' })],
-    };
-    const emailNode = {
-      value: model.$.email,
-      component: Input,
-      componentProps: { label: 'Email', type: 'email' },
-      validators: [required(), email()],
-    };
-    const phoneNode = {
-      value: model.$.phone,
-      component: InputMask,
-      componentProps: { label: 'Телефон', mask: '+7 (999) 999-99-99' },
-      validators: [required({ message: 'Введите телефон' })],
-    };
-    const step1 = { name: nameNode, email: emailNode } as any;
-    const step2 = { phone: phoneNode } as any;
-    const full = { name: nameNode, email: emailNode, phone: phoneNode } as any;
-    const form = createForm<WForm>({ model, schema: full }) as any;
-    const config = {
-      validateStep: async (step: number) =>
-        (await validateFormModel(model, step === 1 ? step1 : step2)).valid,
-      validateAll: async () => (await validateFormModel(model, full)).valid,
-    };
-    return { model, form, config };
+const NameStep = ({ control }: { control: any }) => <FormField control={control.name} />;
+const EmailStep = ({ control }: { control: any }) => <FormField control={control.email} />;
+const PhoneStep = ({ control }: { control: any }) => <FormField control={control.phone} />;
+
+const UI_STEPS = [
+  { number: 1, title: 'Имя', icon: '👤', body: NameStep },
+  { number: 2, title: 'Email', icon: '✉️', body: EmailStep },
+  { number: 3, title: 'Телефон', icon: '📞', body: PhoneStep },
+] as UiStepDef<WForm>[];
+
+const POLY_STEPS = [
+  { number: 1, title: 'Имя', icon: '👤', body: NameStep },
+  { number: 2, title: 'Email', icon: '✉️', body: EmailStep },
+  {
+    number: 3,
+    title: 'Готово',
+    icon: '✓',
+    body: <p style={{ fontSize: 14 }}>Проверьте данные и отправьте заявку.</p>,
+  },
+] as UiStepDef<WForm>[];
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// ─── Хелперы «заморозки» состояния навигации для variant-карточек ───────────
+
+/** Один раз на маунте (устойчив к StrictMode double-invoke). */
+function useOnce(fn: () => void | (() => void)) {
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    return fn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
-const Step1 = ({ control }: { control: any }) => (
-  <div style={{ display: 'grid', gap: 8 }}>
-    <FormField control={control.name} />
-    <FormField control={control.email} />
-  </div>
-);
-const Step2 = ({ control }: { control: any }) => <FormField control={control.phone} />;
+/** Автопродвижение мастера до целевого шага через ref-handle (данные валидны). */
+function useAdvance(navRef: React.RefObject<FormWizardHandle<WForm> | null>, target: number) {
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      const h = navRef.current;
+      if (!h) {
+        setTimeout(tick, 40);
+        return;
+      }
+      if (h.currentStep >= target) return;
+      Promise.resolve(h.goToNextStep()).then(() => {
+        if (!cancelled) setTimeout(tick, 40);
+      });
+    };
+    setTimeout(tick, 40);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
 
-function WizardRenderProps() {
-  const { model, form, config } = useWizard();
-  const [done, setDone] = useState<string | null>(null);
+/** Единый layout собранного мастера (ui-kit sub-parts): Indicator + шаги + Actions + Progress. */
+function WizardShell({
+  form,
+  config,
+  navRef,
+}: {
+  form: any;
+  config: any;
+  navRef: React.RefObject<FormWizardHandle<WForm> | null>;
+}) {
   return (
-    <div style={{ maxWidth: 460, width: '100%' }}>
-      <FormWizard form={form} config={config}>
-        <FormWizard.Progress>
-          {({ current, total, percent }: any) => (
-            <div style={{ marginBottom: 12 }}>
-              <div
-                style={{ fontSize: 13, color: 'var(--ifm-color-emphasis-700)', marginBottom: 4 }}
-              >
-                Шаг {current} из {total}
-              </div>
-              <div
-                style={{ height: 4, borderRadius: 2, background: 'var(--ifm-color-emphasis-200)' }}
-              >
-                <div
-                  style={{
-                    height: 4,
-                    borderRadius: 2,
-                    width: `${percent}%`,
-                    background: 'var(--ifm-color-primary)',
-                    transition: 'width .2s',
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </FormWizard.Progress>
-
-        <FormWizard.Step component={Step1} control={form} />
-        <FormWizard.Step component={Step2} control={form} />
-
-        <FormWizard.Actions
-          onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
-        >
-          {({ prev, next, submit, isFirstStep, isLastStep }: any) => (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={prev.onClick}
-                disabled={prev.disabled || isFirstStep}
-              >
-                Назад
-              </Button>
-              {!isLastStep ? (
-                <Button size="sm" onClick={next.onClick} disabled={next.disabled}>
-                  Далее
-                </Button>
-              ) : (
-                <Button size="sm" onClick={submit.onClick} disabled={submit.disabled}>
-                  Отправить
-                </Button>
-              )}
-            </div>
-          )}
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard ref={navRef} form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(ind: any) => <StepIndicator {...ind} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions onSubmit={() => undefined}>
+          {(a: any) => <UiActions {...a} className="mt-6" />}
         </FormWizard.Actions>
+        <FormWizard.Progress>
+          {(p: any) => <UiProgress {...p} className="mt-3" />}
+        </FormWizard.Progress>
       </FormWizard>
-      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
     </div>
   );
 }
 
-function WizardCompound() {
-  const { form, config } = useWizard();
+// ─── Variants: витрина состояний навигации ──────────────────────────────────
+
+function FirstStepState() {
+  const { form, config } = useWizard('empty');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  return <WizardShell form={form} config={config} navRef={navRef} />;
+}
+
+function MiddleStepState() {
+  const { form, config } = useWizard('valid');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  useAdvance(navRef, 2);
+  return <WizardShell form={form} config={config} navRef={navRef} />;
+}
+
+function LastStepState() {
+  const { form, config } = useWizard('valid');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  useAdvance(navRef, 3);
+  return <WizardShell form={form} config={config} navRef={navRef} />;
+}
+
+function BlockedState() {
+  const { form, config } = useWizard('empty');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  useOnce(() => {
+    const t = setTimeout(() => navRef.current?.goToNextStep(), 80);
+    return () => clearTimeout(t);
+  });
+  return <WizardShell form={form} config={config} navRef={navRef} />;
+}
+
+function LoadingState() {
+  const { form } = useWizard('empty');
+  // validateStep, который «висит» → isValidating остаётся true, кнопка «Проверка...».
+  const config = useMemo(
+    () => ({
+      validateStep: () => new Promise<boolean>(() => {}),
+      validateAll: () => new Promise<boolean>(() => {}),
+    }),
+    []
+  );
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  useOnce(() => {
+    const t = setTimeout(() => navRef.current?.goToNextStep(), 80);
+    return () => clearTimeout(t);
+  });
+  return <WizardShell form={form} config={config} navRef={navRef} />;
+}
+
+function MinimalComposition() {
+  const { model, form, nodes } = useWizard('empty');
+  const config = useMemo(() => {
+    const step1 = { name: nodes.name };
+    const step2 = { email: nodes.email };
+    const both = { name: nodes.name, email: nodes.email };
+    return {
+      validateStep: async (s: number) =>
+        (await validateFormModel(model, s === 1 ? step1 : step2)).valid,
+      validateAll: async () => (await validateFormModel(model, both)).valid,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div style={{ maxWidth: 460, width: '100%' }}>
-      <FormWizard form={form} config={config}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Actions
+          onSubmit={() => undefined}
+          className="flex gap-3"
+          style={{ marginTop: 14 }}
+        >
+          <FormWizard.Prev>Назад</FormWizard.Prev>
+          <FormWizard.Next>Далее</FormWizard.Next>
+          <FormWizard.Submit>Готово</FormWizard.Submit>
+        </FormWizard.Actions>
+      </FormWizard>
+    </div>
+  );
+}
+
+// ─── Examples: возможности (wiring-приёмы) ──────────────────────────────────
+
+function StepValidationDemo() {
+  const { form, config } = useWizard('empty');
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions onSubmit={() => undefined}>
+          {(a: any) => <UiActions {...a} className="mt-6" />}
+        </FormWizard.Actions>
+      </FormWizard>
+    </div>
+  );
+}
+
+function IndicatorDemo() {
+  const { form, config } = useWizard('empty');
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
         <FormWizard.Indicator steps={STEPS}>
           {({ steps, goToStep }: any) => (
             <nav style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -150,13 +301,118 @@ function WizardCompound() {
             </nav>
           )}
         </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions onSubmit={() => undefined}>
+          {(a: any) => <UiActions {...a} className="mt-4" />}
+        </FormWizard.Actions>
+      </FormWizard>
+    </div>
+  );
+}
 
-        <FormWizard.Step component={Step1} control={form} />
-        <FormWizard.Step component={Step2} control={form} />
+function ProgressDemo() {
+  const { form, config } = useWizard('empty');
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
+        <FormWizard.Progress>
+          {({ current, total, percent }: any) => (
+            <div style={{ marginBottom: 12 }}>
+              <div
+                style={{ fontSize: 13, color: 'var(--ifm-color-emphasis-700)', marginBottom: 4 }}
+              >
+                Шаг {current} из {total}
+              </div>
+              <div
+                style={{ height: 4, borderRadius: 2, background: 'var(--ifm-color-emphasis-200)' }}
+              >
+                <div
+                  style={{
+                    height: 4,
+                    borderRadius: 2,
+                    width: `${percent}%`,
+                    background: 'var(--ifm-color-primary)',
+                    transition: 'width .2s',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </FormWizard.Progress>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions onSubmit={() => undefined}>
+          {(a: any) => <UiActions {...a} className="mt-4" />}
+        </FormWizard.Actions>
+      </FormWizard>
+    </div>
+  );
+}
 
-        <FormWizard.Actions onSubmit={() => undefined} className="flex justify-between">
-          <FormWizard.Prev>Назад</FormWizard.Prev>
-          <FormWizard.Next>Далее</FormWizard.Next>
+function ActionsRenderPropsDemo() {
+  const { model, form, config } = useWizard('empty');
+  const [done, setDone] = useState<string | null>(null);
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions
+          onSubmit={() => setDone('✅ Отправлено: ' + JSON.stringify(model.get()))}
+        >
+          {({ prev, next, submit, isFirstStep, isLastStep, isValidating }: any) => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={prev.onClick}
+                disabled={prev.disabled || isFirstStep}
+              >
+                Назад
+              </Button>
+              {!isLastStep ? (
+                <Button size="sm" onClick={next.onClick} disabled={next.disabled}>
+                  {isValidating ? 'Проверка…' : 'Далее'}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={submit.onClick} disabled={submit.disabled}>
+                  Отправить
+                </Button>
+              )}
+            </div>
+          )}
+        </FormWizard.Actions>
+      </FormWizard>
+      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+    </div>
+  );
+}
+
+function CompoundButtonsDemo() {
+  const { form, config } = useWizard('empty');
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions
+          onSubmit={() => undefined}
+          className="flex gap-3"
+          style={{ marginTop: 16 }}
+        >
+          <FormWizard.Prev>← Назад</FormWizard.Prev>
+          <FormWizard.Next>Далее →</FormWizard.Next>
           <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
         </FormWizard.Actions>
       </FormWizard>
@@ -164,18 +420,329 @@ function WizardCompound() {
   );
 }
 
+function SubmitLoadingDemo() {
+  const { form, config } = useWizard('valid');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  useAdvance(navRef, 3);
+  const [done, setDone] = useState<string | null>(null);
+  const handleSubmit = () => {
+    navRef.current?.submit(async (v) => {
+      await sleep(1600);
+      setDone('✅ Заявка отправлена');
+      return v;
+    });
+  };
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard ref={navRef} form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions
+          onSubmit={handleSubmit}
+          className="flex gap-3"
+          style={{ marginTop: 16 }}
+        >
+          <FormWizard.Prev>← Назад</FormWizard.Prev>
+          <FormWizard.Next>Далее →</FormWizard.Next>
+          <FormWizard.Submit loadingText="⏳ Отправка…">Отправить заявку</FormWizard.Submit>
+        </FormWizard.Actions>
+      </FormWizard>
+      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+    </div>
+  );
+}
+
+function AsChildDemo() {
+  const { form, config } = useWizard('valid');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  useAdvance(navRef, 2);
+  const [done, setDone] = useState<string | null>(null);
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard ref={navRef} form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions
+          onSubmit={() => setDone('✅ Готово')}
+          className="flex gap-3"
+          style={{ marginTop: 16 }}
+        >
+          <FormWizard.Prev asChild>
+            <Button variant="outline" size="sm">
+              ← Назад
+            </Button>
+          </FormWizard.Prev>
+          <FormWizard.Next asChild>
+            <Button size="sm">Далее →</Button>
+          </FormWizard.Next>
+          <FormWizard.Submit asChild>
+            <Button size="sm">Отправить</Button>
+          </FormWizard.Submit>
+        </FormWizard.Actions>
+      </FormWizard>
+      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+    </div>
+  );
+}
+
+function RefHandleDemo() {
+  const { form, config } = useWizard('valid');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const saveAndExit = () => {
+    navRef.current?.submit((v) => {
+      setMsg('💾 Черновик сохранён: ' + JSON.stringify(v));
+      return v;
+    });
+  };
+  return (
+    <div style={{ maxWidth: 560, width: '100%' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <Button size="sm" variant="outline" onClick={() => navRef.current?.goToNextStep()}>
+          Далее ▸ (из шапки)
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            const ok = navRef.current?.goToStep(3);
+            if (!ok) setMsg('Сначала заполните предыдущие шаги');
+          }}
+        >
+          К шагу 3
+        </Button>
+        <Button size="sm" onClick={saveAndExit}>
+          Сохранить и выйти
+        </Button>
+      </div>
+      <FormWizard ref={navRef} form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Progress>
+          {(p: any) => <UiProgress {...p} className="mt-3" />}
+        </FormWizard.Progress>
+      </FormWizard>
+      {msg && <p style={{ marginTop: 10, fontSize: 13 }}>{msg}</p>}
+    </div>
+  );
+}
+
+function OnStepChangeDemo() {
+  const { form, config } = useWizard('valid');
+  const [log, setLog] = useState<number[]>([1]);
+  return (
+    <div style={{ maxWidth: 520, width: '100%' }}>
+      <FormWizard
+        form={form}
+        config={config}
+        scrollToTop={false}
+        onStepChange={(s) => setLog((l) => [...l, s])}
+      >
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => <StepIndicator {...i} className="mb-6" />}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions onSubmit={() => undefined}>
+          {(a: any) => <UiActions {...a} className="mt-6" />}
+        </FormWizard.Actions>
+      </FormWizard>
+      <p style={{ marginTop: 10, fontSize: 13, color: 'var(--ifm-color-emphasis-700)' }}>
+        Переходы: {log.join(' → ')}
+      </p>
+    </div>
+  );
+}
+
+function PolymorphicBodyDemo() {
+  const { form, config } = useWizard('empty');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  const [done, setDone] = useState<string | null>(null);
+  return (
+    <div style={{ maxWidth: 560, width: '100%' }}>
+      <UiWizard
+        ref={navRef}
+        form={form}
+        config={config}
+        steps={POLY_STEPS}
+        onSubmit={() => {
+          navRef.current?.submit((v) => {
+            setDone('✅ Отправлено');
+            return v;
+          });
+        }}
+      />
+      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+    </div>
+  );
+}
+
+function UiKitDeclarativeDemo() {
+  const { form, config } = useWizard('empty');
+  const navRef = useRef<FormWizardHandle<WForm>>(null);
+  const [done, setDone] = useState<string | null>(null);
+  return (
+    <div style={{ maxWidth: 560, width: '100%' }}>
+      <UiWizard
+        ref={navRef}
+        form={form}
+        config={config}
+        steps={UI_STEPS}
+        onSubmit={() => {
+          navRef.current?.submit((v) => {
+            setDone('✅ ' + JSON.stringify(v));
+            return v;
+          });
+        }}
+      />
+      {done && <p style={{ marginTop: 10, fontSize: 13 }}>{done}</p>}
+    </div>
+  );
+}
+
+function UiKitLabelsDemo() {
+  const { form, config } = useWizard('empty');
+  return (
+    <div style={{ maxWidth: 560, width: '100%' }}>
+      <FormWizard form={form} config={config} scrollToTop={false}>
+        <FormWizard.Indicator steps={STEPS}>
+          {(i: any) => (
+            <StepIndicator
+              {...i}
+              navAriaLabel="Этапы заявки"
+              stepAriaLabel={(s: any) => `Этап ${s.number}: ${s.title}`}
+              className="mb-6"
+            />
+          )}
+        </FormWizard.Indicator>
+        <FormWizard.Step component={NameStep} control={form} />
+        <FormWizard.Step component={EmailStep} control={form} />
+        <FormWizard.Step component={PhoneStep} control={form} />
+        <FormWizard.Actions onSubmit={() => undefined}>
+          {(a: any) => (
+            <UiActions
+              {...a}
+              prevLabel="Назад"
+              nextLabel="Продолжить"
+              submitLabel="Оформить заявку"
+              validatingLabel="Проверяем…"
+              className="mt-6"
+            />
+          )}
+        </FormWizard.Actions>
+        <FormWizard.Progress>
+          {(p: any) => (
+            <UiProgress
+              {...p}
+              format={({ current, total }: any) => `Этап ${current} из ${total}`}
+              className="mt-3"
+            />
+          )}
+        </FormWizard.Progress>
+      </FormWizard>
+    </div>
+  );
+}
+
+// ─── Doc config ─────────────────────────────────────────────────────────────
+
 export const formWizardDocConfig: ComponentDocConfig = {
   name: 'FormWizard',
   importFrom: '@reformer/cdk/form-wizard',
   description:
-    'Headless многошаговый визард с пошаговой валидацией. config — пара колбэков validateStep / validateAll.',
+    'Headless compound-оркестратор многошаговой формы. Variants — витрина состояний навигации (позиция шага, загрузка, блокировка) на готовой ui-kit-обёртке; Examples — wiring-приёмы (render-props слоты, compound-кнопки, asChild, ref-handle, config-валидация).',
   variants: [
     {
-      id: 'render-props',
-      title: 'Progress + render-props Actions',
+      id: 'first-step',
+      title: 'Первый шаг (старт)',
       description:
-        'Прогресс сверху, навигация — через render-props. Далее блокируется, пока шаг невалиден.',
-      render: WizardRenderProps,
+        'currentStep=1: «Назад» скрыта, активна «Далее»; последующие шаги в индикаторе заблокированы (canNavigate=false).',
+      render: FirstStepState,
+      code: `<FormWizard form={form} config={config} steps={STEPS} onSubmit={handleSubmit} />
+// currentStep = 1 → «Назад» скрыта, активна «Далее», шаги 2–3 недоступны`,
+    },
+    {
+      id: 'middle-step',
+      title: 'Промежуточный шаг',
+      description:
+        'currentStep=2 из 3, completedSteps=[1]: активны обе кнопки «Назад» и «Далее», в индикаторе ✓ на шаге 1.',
+      render: MiddleStepState,
+      code: `<FormWizard form={form} config={config} steps={STEPS} onSubmit={handleSubmit} />
+// currentStep = 2, completedSteps = [1] → активны «Назад» и «Далее», ✓ на шаге 1`,
+    },
+    {
+      id: 'last-step',
+      title: 'Последний шаг',
+      description:
+        'currentStep=totalSteps (isLastStep): кнопка «Далее» заменена на «Отправить», «Назад» активна.',
+      render: LastStepState,
+      code: `<FormWizard form={form} config={config} steps={STEPS} onSubmit={handleSubmit} />
+// isLastStep → «Далее» заменяется на «Отправить»`,
+    },
+    {
+      id: 'blocked-invalid',
+      title: 'Навигация заблокирована (невалидный шаг)',
+      description:
+        'validateStep вернул false при попытке «Далее»: переход не происходит, поле помечено touched и показывает ошибку.',
+      render: BlockedState,
+      code: `// validateStep → false: переход блокируется, form.markAsTouched()
+const config = {
+  validateStep: (step) => validateFormModel(model, stepSchema[step]).then((r) => r.valid),
+};
+// Клик «Далее» на пустом обязательном поле → ошибка под полем, шаг не меняется`,
+    },
+    {
+      id: 'loading',
+      title: 'Загрузка (Проверка / Отправка)',
+      description:
+        'isValidating=true (или isSubmitting): активная кнопка disabled, промежуточная подпись «Проверка...» / «Отправка...».',
+      render: LoadingState,
+      code: `// Пока validateStep не разрешился — isValidating=true
+<FormWizard.Actions onSubmit={onSubmit}>
+  {({ next, isValidating }) => (
+    <button onClick={next.onClick} disabled={next.disabled}>
+      {isValidating ? 'Проверка...' : 'Далее'}
+    </button>
+  )}
+</FormWizard.Actions>`,
+    },
+    {
+      id: 'minimal',
+      title: 'Минимальная композиция',
+      description:
+        'Только Step + Actions, без Indicator и Progress — голый собранный мастер (2 шага). Наличие степпера/прогресса — композиционная настройка.',
+      render: MinimalComposition,
+      code: `<FormWizard form={form} config={config}>
+  <FormWizard.Step component={Step1} control={form} />
+  <FormWizard.Step component={Step2} control={form} />
+  <FormWizard.Actions onSubmit={handleSubmit}>
+    <FormWizard.Prev>Назад</FormWizard.Prev>
+    <FormWizard.Next>Далее</FormWizard.Next>
+    <FormWizard.Submit>Готово</FormWizard.Submit>
+  </FormWizard.Actions>
+</FormWizard>`,
+    },
+  ],
+  examples: [
+    {
+      id: 'step-validation',
+      title: 'Пошаговая валидация (config)',
+      description:
+        '«Далее» не переводит, пока текущий шаг невалиден; submit проходит только после validateAll. Оба колбэка — из validateFormModel.',
+      render: StepValidationDemo,
       code: `const config: FormWizardConfig = {
   validateStep: (step) =>
     validateFormModel(model, step === 1 ? step1Schema : step2Schema).then((r) => r.valid),
@@ -183,79 +750,222 @@ export const formWizardDocConfig: ComponentDocConfig = {
 };
 
 <FormWizard form={form} config={config}>
-  <FormWizard.Progress>
-    {({ current, total, percent }) => <Bar current={current} total={total} percent={percent} />}
-  </FormWizard.Progress>
   <FormWizard.Step component={Step1} control={form} />
   <FormWizard.Step component={Step2} control={form} />
-  <FormWizard.Actions onSubmit={handleSubmit}>
-    {({ prev, next, submit, isLastStep }) => (
-      <>
-        <button onClick={prev.onClick} disabled={prev.disabled}>Назад</button>
-        {!isLastStep
-          ? <button onClick={next.onClick} disabled={next.disabled}>Далее</button>
-          : <button onClick={submit.onClick} disabled={submit.disabled}>Отправить</button>}
-      </>
-    )}
-  </FormWizard.Actions>
+  <FormWizard.Actions onSubmit={handleSubmit}>{/* ... */}</FormWizard.Actions>
 </FormWizard>`,
     },
-  ],
-  examples: [
     {
       id: 'indicator',
-      title: 'Indicator + compound-кнопки',
-      description: 'Кликабельный индикатор шагов и compound Prev/Next/Submit внутри Actions.',
-      render: WizardCompound,
+      title: 'Indicator — кастомный степпер',
+      description:
+        'Кликабельный индикатор из steps со статусами isCurrent / isCompleted / canNavigate и функцией goToStep.',
+      render: IndicatorDemo,
       code: `<FormWizard.Indicator steps={STEPS}>
   {({ steps, goToStep }) =>
     steps.map((s) => (
-      <button key={s.number} onClick={() => goToStep(s.number)} disabled={!s.canNavigate}>
+      <button key={s.number} onClick={() => goToStep(s.number)} disabled={!s.canNavigate}
+        aria-current={s.isCurrent ? 'step' : undefined}>
         {s.isCompleted ? '✓' : s.number} {s.title}
       </button>
     ))
   }
-</FormWizard.Indicator>
-
-<FormWizard.Actions onSubmit={handleSubmit}>
-  <FormWizard.Prev>Назад</FormWizard.Prev>
-  <FormWizard.Next>Далее</FormWizard.Next>
+</FormWizard.Indicator>`,
+    },
+    {
+      id: 'progress',
+      title: 'Progress — кастомный прогресс-бар',
+      description: 'Своя визуализация прогресса из current / total / percent / completedCount.',
+      render: ProgressDemo,
+      code: `<FormWizard.Progress>
+  {({ current, total, percent }) => (
+    <div>
+      <div>Шаг {current} из {total}</div>
+      <div className="track"><div className="bar" style={{ width: percent + '%' }} /></div>
+    </div>
+  )}
+</FormWizard.Progress>`,
+    },
+    {
+      id: 'actions-render-props',
+      title: 'Actions в режиме render-props',
+      description:
+        'Полный контроль разметки кнопок из { prev, next, submit, isFirstStep, isLastStep, isValidating, isSubmitting }.',
+      render: ActionsRenderPropsDemo,
+      code: `<FormWizard.Actions onSubmit={handleSubmit}>
+  {({ prev, next, submit, isFirstStep, isLastStep, isValidating }) => (
+    <div className="row">
+      <Button onClick={prev.onClick} disabled={prev.disabled || isFirstStep}>Назад</Button>
+      {!isLastStep
+        ? <Button onClick={next.onClick} disabled={next.disabled}>{isValidating ? 'Проверка…' : 'Далее'}</Button>
+        : <Button onClick={submit.onClick} disabled={submit.disabled}>Отправить</Button>}
+    </div>
+  )}
+</FormWizard.Actions>`,
+    },
+    {
+      id: 'compound-buttons',
+      title: 'Compound-кнопки Prev / Next / Submit',
+      description:
+        'Декларативные кнопки с авто-disabled логикой (первый / последний шаг, валидация, submit) без ручного wiring.',
+      render: CompoundButtonsDemo,
+      code: `<FormWizard.Actions onSubmit={handleSubmit} className="flex gap-3">
+  <FormWizard.Prev>← Назад</FormWizard.Prev>
+  <FormWizard.Next>Далее →</FormWizard.Next>
   <FormWizard.Submit loadingText="Отправка…">Отправить</FormWizard.Submit>
 </FormWizard.Actions>`,
+    },
+    {
+      id: 'submit-loading',
+      title: 'Submit с индикатором отправки',
+      description:
+        'Во время isSubmitting контент Submit подменяется на loadingText (спиннер / «Отправка...»), кнопка disabled.',
+      render: SubmitLoadingDemo,
+      code: `const handleSubmit = () =>
+  navRef.current?.submit(async (values) => {
+    await api.submit(values); // isSubmitting = true на время запроса
+  });
+
+<FormWizard.Submit loadingText="⏳ Отправка…">Отправить заявку</FormWizard.Submit>`,
+    },
+    {
+      id: 'as-child',
+      title: 'asChild — своя кнопка навигации',
+      description:
+        'Проброс onClick / disabled / type в кастомный компонент кнопки (иконки, варианты, свой Button) через Slot.',
+      render: AsChildDemo,
+      code: `<FormWizard.Prev asChild>
+  <Button variant="outline" size="sm">← Назад</Button>
+</FormWizard.Prev>
+<FormWizard.Next asChild>
+  <Button size="sm">Далее →</Button>
+</FormWizard.Next>
+<FormWizard.Submit asChild>
+  <Button size="sm">Отправить</Button>
+</FormWizard.Submit>`,
+    },
+    {
+      id: 'ref-handle',
+      title: 'Внешнее управление через ref',
+      description:
+        'useRef<FormWizardHandle> — инициировать submit() / goToStep() / goToNextStep() из шапки или breadcrumbs вне дерева мастера.',
+      render: RefHandleDemo,
+      code: `const navRef = useRef<FormWizardHandle<WForm>>(null);
+
+const saveAndExit = () => navRef.current?.submit((values) => api.saveDraft(values));
+
+<header>
+  <button onClick={() => navRef.current?.goToNextStep()}>Далее</button>
+  <button onClick={saveAndExit}>Сохранить и выйти</button>
+</header>
+<FormWizard ref={navRef} form={form} config={config}>{/* ...шаги... */}</FormWizard>`,
+    },
+    {
+      id: 'on-step-change',
+      title: 'Реакция на смену шага + автоскролл',
+      description:
+        'onStepChange — хук на смену шага (аналитика, фокус-менеджмент); scrollToTop управляет автопрокруткой вверх.',
+      render: OnStepChangeDemo,
+      code: `<FormWizard
+  form={form}
+  config={config}
+  scrollToTop={false}
+  onStepChange={(step) => analytics.track('wizard_step', { step })}
+>
+  {/* ...шаги... */}
+</FormWizard>`,
+    },
+    {
+      id: 'polymorphic-body',
+      title: 'Полиморфное тело шага (ui-kit)',
+      description:
+        'step.body может быть FC (control={form}), готовым ReactNode или RenderNode — один мастер покрывает TS-flow, renderer-react и renderer-json.',
+      render: PolymorphicBodyDemo,
+      code: `import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+
+const STEPS: FormWizardStep<WForm>[] = [
+  { number: 1, title: 'Имя', icon: '👤', body: NameStep },        // ComponentType<{ control }>
+  { number: 2, title: 'Email', icon: '✉️', body: EmailStep },     // FC
+  { number: 3, title: 'Готово', icon: '✓', body: <Summary /> },   // ReactNode
+];
+
+<FormWizard form={form} config={config} steps={STEPS} onSubmit={onSubmit} />`,
+    },
+    {
+      id: 'uikit-declarative',
+      title: 'Декларативный ui-kit FormWizard',
+      description:
+        'Готовая обёртка одной строкой: Indicator + Actions + Progress собраны из единственного массива steps, без ручной композиции слотов.',
+      render: UiKitDeclarativeDemo,
+      code: `import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+
+const STEPS: FormWizardStep<WForm>[] = [
+  { number: 1, title: 'Имя', icon: '👤', body: NameStep },
+  { number: 2, title: 'Email', icon: '✉️', body: EmailStep },
+  { number: 3, title: 'Телефон', icon: '📞', body: PhoneStep },
+];
+
+<FormWizard form={form} config={config} steps={STEPS} onSubmit={onSubmit} />`,
+    },
+    {
+      id: 'uikit-labels',
+      title: 'Кастомные подписи и aria (ui-kit)',
+      description:
+        'Переопределение user-facing строк кнопок (prevLabel / nextLabel / submitLabel), формата прогресса (format) и a11y-меток индикатора (navAriaLabel / stepAriaLabel).',
+      render: UiKitLabelsDemo,
+      code: `<FormWizard.Indicator steps={STEPS}>
+  {(ind) => <StepIndicator {...ind} navAriaLabel="Этапы заявки" stepAriaLabel={(s) => \`Этап \${s.number}: \${s.title}\`} />}
+</FormWizard.Indicator>
+
+<FormWizard.Actions onSubmit={onSubmit}>
+  {(a) => <FormWizardActions {...a} prevLabel="Назад" nextLabel="Продолжить" submitLabel="Оформить заявку" />}
+</FormWizard.Actions>
+
+<FormWizard.Progress>
+  {(p) => <FormWizardProgress {...p} format={({ current, total }) => \`Этап \${current} из \${total}\`} />}
+</FormWizard.Progress>`,
     },
   ],
   props: [
     {
       name: 'FormWizard',
-      type: 'form, config',
+      type: 'form, config, onStepChange?, scrollToTop?',
       description:
-        'Root-провайдер. config = { validateStep?, validateAll? } — колбэки, возвращающие boolean | Promise<boolean>.',
+        'Root-провайдер. config = { validateStep?, validateAll? } — колбэки, возвращающие boolean | Promise<boolean>. ref → FormWizardHandle (submit / goToStep / …).',
     },
     {
       name: 'FormWizard.Step',
-      type: 'component, control',
-      description: 'Рендерит компонент шага, когда шаг текущий.',
+      type: 'component, control | children',
+      description: 'Рендерит компонент шага (или children), когда шаг текущий.',
     },
     {
       name: 'FormWizard.Actions',
       type: 'onSubmit, children',
       description:
-        'Навигация: render-props ({ prev, next, submit, isFirstStep, isLastStep }) или compound-кнопки.',
+        'Навигация: render-props ({ prev, next, submit, isFirstStep, isLastStep, isValidating, isSubmitting }) или compound-кнопки.',
     },
     {
       name: 'FormWizard.Prev / Next / Submit',
-      type: 'children',
-      description: 'Compound-кнопки внутри Actions (читают его контекст).',
+      type: 'children, asChild?, disabled?, loadingText?',
+      description:
+        'Compound-кнопки внутри Actions с авто-disabled. asChild пробрасывает props в свой элемент через Slot; loadingText (Submit) — контент во время отправки.',
     },
     {
       name: 'FormWizard.Indicator',
       type: 'steps, children',
-      description: 'Индикатор шагов (render-props: steps, goToStep, currentStep).',
+      description:
+        'Headless индикатор (render-props: steps со статусами isCurrent / isCompleted / canNavigate, goToStep, currentStep, totalSteps, completedSteps).',
     },
     {
       name: 'FormWizard.Progress',
       type: 'children',
-      description: 'Прогресс (render-props: current, total, percent).',
+      description:
+        'Headless прогресс (render-props: current, total, percent, completedCount, isFirstStep, isLastStep).',
+    },
+    {
+      name: 'FormWizardHandle (ref)',
+      type: 'submit, goToStep, goToNextStep, goToPreviousStep, validateCurrentStep, …',
+      description: 'Императивный API для управления мастером снаружи его дерева.',
     },
   ],
 };

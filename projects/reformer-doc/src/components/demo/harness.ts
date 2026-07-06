@@ -18,6 +18,13 @@ export interface DemoFieldConfig {
    * поэтому disabled-пресеты выражаем через `control.disable()`.
    */
   disabled?: boolean;
+  /**
+   * Пометить поле как `touched` сразу на маунте — чтобы статически показать
+   * состояние ошибки (invalid) в variant-карточке: `shouldShowError` истинен
+   * только для touched-поля с проваленным валидатором. Обычно используется
+   * вместе с `validators`, которые не проходят на `initial`.
+   */
+  touched?: boolean;
 }
 
 /**
@@ -49,6 +56,7 @@ export function useDemoField(config: DemoFieldConfig) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const control = (form as any).field;
     if (config.disabled) control.disable();
+    if (config.touched) control.markAsTouched();
     ref.current = { model, form, control, schema };
   }
   return ref.current;

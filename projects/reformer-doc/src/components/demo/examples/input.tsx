@@ -1,60 +1,93 @@
 import { useMemo, useState } from 'react';
-import { createModel, createForm, validateFormModel, useFormControlValue } from '@reformer/core';
+import {
+  createModel,
+  createForm,
+  validateFormModel,
+  useFormControl,
+  useFormControlValue,
+  type FieldControlState,
+} from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
 import { Input, FormField, Button } from '@reformer/ui-kit';
+import { makeFieldVariant } from '../field-demo';
 import { useDemoField } from '../harness';
 import type { ComponentDocConfig } from '../types';
 
-/* ─── Variants (schema-driven пресеты) ─────────────────────────────────── */
+/* ─── Variants (витрина состояний / режимов) ───────────────────────────── */
+/* Чистые настройки-состояния собранного поля: тип, наличие значения,        */
+/* placeholder, disabled, invalid. Валидаторы и провод — в Examples.         */
 
-function TextVariant() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: { label: 'Имя', placeholder: 'Иван Иванов' },
-  });
-  return <FormField control={control} />;
-}
+const TextVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Имя', placeholder: 'Иван Иванов' },
+});
 
-function EmailVariant() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-    validators: [required({ message: 'Email обязателен' }), email({ message: 'Неверный email' })],
-  });
-  return <FormField control={control} />;
-}
+const PlaceholderVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Город', placeholder: 'Начните вводить…' },
+});
 
-function NumberVariant() {
-  const { control } = useDemoField({
-    initial: null,
-    component: Input,
-    componentProps: { label: 'Возраст', type: 'number', min: 0 },
-  });
-  return <FormField control={control} />;
-}
+const FilledVariant = makeFieldVariant({
+  initial: 'Иван Иванов',
+  component: Input,
+  componentProps: { label: 'Имя' },
+});
 
-function PlaceholderVariant() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Input,
-    componentProps: { label: 'Город', placeholder: 'Начните вводить…' },
-  });
-  return <FormField control={control} />;
-}
+const EmailVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+});
 
-function DisabledVariant() {
-  const { control } = useDemoField({
-    initial: 'usr_10428',
-    component: Input,
-    componentProps: { label: 'ID (только чтение)' },
-    disabled: true,
-  });
-  return <FormField control={control} />;
-}
+const TelVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Телефон', type: 'tel', placeholder: '+7 900 000-00-00' },
+});
 
-/* ─── Examples (контекстные сценарии) ──────────────────────────────────── */
+const UrlVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Сайт', type: 'url', placeholder: 'https://example.com' },
+});
+
+const PasswordVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Пароль', type: 'password' },
+});
+
+const NumberVariant = makeFieldVariant({
+  initial: null,
+  component: Input,
+  componentProps: { label: 'Возраст', type: 'number', min: 0 },
+});
+
+const InvalidVariant = makeFieldVariant({
+  initial: 'not-an-email',
+  component: Input,
+  componentProps: { label: 'Email', type: 'email' },
+  validators: [email({ message: 'Введите корректный email' })],
+  touched: true,
+});
+
+const DisabledEmptyVariant = makeFieldVariant({
+  initial: '',
+  component: Input,
+  componentProps: { label: 'Промокод', placeholder: 'Недоступно' },
+  disabled: true,
+});
+
+const ReadonlyVariant = makeFieldVariant({
+  initial: 'usr_10428',
+  component: Input,
+  componentProps: { label: 'ID (только чтение)' },
+  disabled: true,
+});
+
+/* ─── Examples (возможности / приёмы) ──────────────────────────────────── */
 
 function FormBindingExample() {
   const [status, setStatus] = useState<string | null>(null);
@@ -114,8 +147,80 @@ function NumberValueExample() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 360 }}>
       <FormField control={control} />
       <span style={{ fontSize: '0.9rem', color: 'var(--ifm-color-emphasis-700)' }}>
-        Текущее значение: <code>{JSON.stringify(value)}</code>
+        Текущее значение: <code>{JSON.stringify(value)}</code> (<code>number | null</code>)
       </span>
+    </div>
+  );
+}
+
+function NumberBufferExample() {
+  const { control } = useDemoField({
+    initial: 1.5,
+    component: Input,
+    componentProps: { label: 'Цена, ₽', type: 'number' },
+  });
+  const value = useFormControlValue(control);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 360 }}>
+      <FormField control={control} />
+      <span style={{ fontSize: '0.9rem', color: 'var(--ifm-color-emphasis-700)' }}>
+        Наберите «1.50», «1.» или «0.05» — поле удержит промежуточный ввод, а в onChange уйдёт{' '}
+        <code>{JSON.stringify(value)}</code>.
+      </span>
+    </div>
+  );
+}
+
+function NumberClampExample() {
+  const { control } = useDemoField({
+    initial: 0,
+    component: Input,
+    componentProps: { label: 'Количество', type: 'number', min: 0 },
+  });
+  const value = useFormControlValue(control);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 360 }}>
+      <FormField control={control} />
+      <span style={{ fontSize: '0.9rem', color: 'var(--ifm-color-emphasis-700)' }}>
+        Попробуйте ввести отрицательное число — при{' '}
+        <code>
+          min={'{'}0{'}'}
+        </code>{' '}
+        оно зажмётся к 0. Сейчас: <code>{JSON.stringify(value)}</code>.
+      </span>
+    </div>
+  );
+}
+
+function HeadlessExample() {
+  const { control } = useDemoField({
+    initial: '',
+    component: Input,
+    componentProps: { label: 'Email' },
+    validators: [required({ message: 'Email обязателен' }), email({ message: 'Неверный email' })],
+  });
+  // control из harness типизирован как any; берём точное состояние поля.
+  const { value, disabled, errors, shouldShowError } = useFormControl(
+    control
+  ) as unknown as FieldControlState<string | null>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxWidth: 360 }}>
+      <label style={{ fontSize: '0.9rem', fontWeight: 500 }}>Email</label>
+      <Input
+        type="email"
+        value={value}
+        disabled={disabled}
+        onChange={(v) => control.setValue(v ?? '')}
+        onBlur={() => control.markAsTouched()}
+        aria-invalid={shouldShowError}
+        placeholder={shouldShowError ? errors[0]?.message : 'you@example.com'}
+      />
+      {shouldShowError && errors[0] && (
+        <span style={{ fontSize: '0.85rem', color: 'var(--ifm-color-danger)' }} role="alert">
+          {errors[0].message}
+        </span>
+      )}
     </div>
   );
 }
@@ -131,7 +236,7 @@ export const inputDocConfig: ComponentDocConfig = {
     {
       id: 'text',
       title: 'Текст',
-      description: 'Базовое строковое поле.',
+      description: 'Базовое строковое поле — стартовое состояние.',
       render: TextVariant,
       code: `{
   value: model.$.name,
@@ -140,32 +245,9 @@ export const inputDocConfig: ComponentDocConfig = {
 }`,
     },
     {
-      id: 'email',
-      title: 'Email + валидация',
-      description: 'type="email" и валидаторы прямо в ноде схемы.',
-      render: EmailVariant,
-      code: `{
-  value: model.$.email,
-  component: Input,
-  componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
-  validators: [required(), email()],
-}`,
-    },
-    {
-      id: 'number',
-      title: 'Число',
-      description: 'type="number" — value приходит как number | null.',
-      render: NumberVariant,
-      code: `{
-  value: model.$.age,
-  component: Input,
-  componentProps: { label: 'Возраст', type: 'number', min: 0 },
-}`,
-    },
-    {
       id: 'placeholder',
       title: 'С подсказкой',
-      description: 'placeholder внутри поля.',
+      description: 'Плейсхолдер виден, пока поле пустое.',
       render: PlaceholderVariant,
       code: `{
   value: model.$.city,
@@ -174,11 +256,99 @@ export const inputDocConfig: ComponentDocConfig = {
 }`,
     },
     {
-      id: 'disabled',
-      title: 'Только чтение',
-      description: 'Отключённое поле — через control.disable().',
-      render: DisabledVariant,
+      id: 'filled',
+      title: 'Заполнено',
+      description: 'Поле с уже введённым значением.',
+      render: FilledVariant,
+      code: `{
+  value: model.$.name, // initial: 'Иван Иванов'
+  component: Input,
+  componentProps: { label: 'Имя' },
+}`,
+    },
+    {
+      id: 'email',
+      title: 'Email',
+      description: 'type="email" — почтовая раскладка на мобильных.',
+      render: EmailVariant,
+      code: `{
+  value: model.$.email,
+  component: Input,
+  componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+}`,
+    },
+    {
+      id: 'tel',
+      title: 'Телефон',
+      description: 'type="tel" — цифровая клавиатура на мобильных.',
+      render: TelVariant,
+      code: `{
+  value: model.$.phone,
+  component: Input,
+  componentProps: { label: 'Телефон', type: 'tel', placeholder: '+7 900 000-00-00' },
+}`,
+    },
+    {
+      id: 'url',
+      title: 'URL',
+      description: 'type="url" — поле для ссылки.',
+      render: UrlVariant,
+      code: `{
+  value: model.$.site,
+  component: Input,
+  componentProps: { label: 'Сайт', type: 'url', placeholder: 'https://example.com' },
+}`,
+    },
+    {
+      id: 'password',
+      title: 'Пароль',
+      description: 'type="password" — значение маскируется нативно (без встроенного toggle).',
+      render: PasswordVariant,
+      code: `{
+  value: model.$.password,
+  component: Input,
+  componentProps: { label: 'Пароль', type: 'password' },
+}`,
+    },
+    {
+      id: 'number',
+      title: 'Число',
+      description: 'type="number" — value приходит как number | null; отрицательные зажаты к 0.',
+      render: NumberVariant,
+      code: `{
+  value: model.$.age,
+  component: Input,
+  componentProps: { label: 'Возраст', type: 'number', min: 0 },
+}`,
+    },
+    {
+      id: 'invalid',
+      title: 'Ошибка (invalid)',
+      description:
+        'Состояние ошибки: красная рамка и текст под полем (touched + проваленный валидатор).',
+      render: InvalidVariant,
+      code: `{
+  value: model.$.email, // initial: 'not-an-email'
+  component: Input,
+  componentProps: { label: 'Email', type: 'email' },
+  validators: [email()],
+}
+// form.email.markAsTouched(); // показать ошибку сразу`,
+    },
+    {
+      id: 'disabled-empty',
+      title: 'Отключено (пустое)',
+      description: 'Заблокированное пустое поле (opacity-50).',
+      render: DisabledEmptyVariant,
       code: `const form = createForm({ model, schema });
+form.promo.disable(); // поле заблокировано`,
+    },
+    {
+      id: 'readonly',
+      title: 'Только чтение',
+      description: 'Заблокированное поле с данными — read-only ID.',
+      render: ReadonlyVariant,
+      code: `const form = createForm({ model, schema }); // initial: 'usr_10428'
 form.id.disable(); // поле только для чтения`,
     },
   ],
@@ -187,7 +357,7 @@ form.id.disable(); // поле только для чтения`,
       id: 'form-binding',
       title: 'Привязка к форме с валидацией',
       description:
-        'Полный M1-поток: createModel → schema → createForm → FormField. Ошибки показываются под полем.',
+        'Полный M1-поток: createModel → schema → createForm → FormField. Ошибки показываются под полем после markAsTouched.',
       render: FormBindingExample,
       code: `import { createModel, createForm, validateFormModel } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
@@ -207,6 +377,7 @@ const form = createForm({ model, schema });
 function ContactForm() {
   const onSubmit = async (e) => {
     e.preventDefault();
+    form.email.markAsTouched();
     const result = await validateFormModel(model, schema);
     if (result.valid) console.log(model.get());
   };
@@ -220,13 +391,63 @@ function ContactForm() {
     },
     {
       id: 'number-value',
-      title: 'Числовое поле и чтение значения',
-      description: 'useFormControlValue реактивно отдаёт текущее значение поля.',
+      title: 'Числовое поле и реактивное чтение значения',
+      description: 'useFormControlValue реактивно отдаёт текущее значение поля как number | null.',
       render: NumberValueExample,
       code: `import { useFormControlValue } from '@reformer/core';
 
 const value = useFormControlValue(form.amount); // number | null
 // <FormField control={form.amount} /> — type: 'number' в схеме`,
+    },
+    {
+      id: 'number-buffer',
+      title: 'Промежуточный / неканонический числовой ввод',
+      description:
+        'Input держит «1.50», «1.», ведущие нули и частичный «-»/«.», а в onChange эмитит только валидное число — поле не «прыгает» при наборе.',
+      render: NumberBufferExample,
+      code: `{
+  value: model.$.price,
+  component: Input,
+  componentProps: { label: 'Цена, ₽', type: 'number' },
+}
+// Ввод '1.50' удерживается буфером, onChange получает 1.5.`,
+    },
+    {
+      id: 'number-clamp',
+      title: 'Зажим отрицательных к нулю',
+      description:
+        'При min >= 0 отрицательный ввод автоматически превращается в 0 (resolveEmittedNumber).',
+      render: NumberClampExample,
+      code: `{
+  value: model.$.qty,
+  component: Input,
+  componentProps: { label: 'Количество', type: 'number', min: 0 },
+}
+// Ввод '-5' эмитит 0.`,
+    },
+    {
+      id: 'headless',
+      title: 'Ручная headless-привязка через useFormControl',
+      description:
+        'Без FormField: сами читаем value/disabled/errors/shouldShowError, onBlur → markAsTouched, aria-invalid и placeholder=текст ошибки.',
+      render: HeadlessExample,
+      code: `import { useFormControl, type FieldNode } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+
+function EmailField({ control }: { control: FieldNode<string> }) {
+  const { value, disabled, errors, shouldShowError } = useFormControl(control);
+  return (
+    <Input
+      type="email"
+      value={value}
+      disabled={disabled}
+      onChange={(v) => control.setValue(v ?? '')}
+      onBlur={() => control.markAsTouched()}
+      aria-invalid={shouldShowError}
+      placeholder={shouldShowError ? errors[0]?.message : 'you@example.com'}
+    />
+  );
+}`,
     },
   ],
   api: {

@@ -1,13 +1,6 @@
-import type { ComponentType } from 'react';
+import { Download, Loader2, Settings } from 'lucide-react';
 import { Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig, KnobValues } from '../types';
-
-function makeButton(variant: string, label: string): ComponentType {
-  return function ButtonVariant() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return <Button variant={variant as any}>{label}</Button>;
-  };
-}
 
 function ButtonKnobDemo(values: KnobValues) {
   return (
@@ -26,50 +19,81 @@ function ButtonKnobDemo(values: KnobValues) {
 export const buttonDocConfig: ComponentDocConfig = {
   name: 'Button',
   importFrom: '@reformer/ui-kit',
-  description: 'Кнопка на shadcn/Radix Slot: 6 вариантов, 6 размеров, asChild.',
+  description:
+    'Кнопка на shadcn/Radix Slot. Варианты — витрина состояний (пусто/заполнено/disabled/тип/композиция контента); цветовые variant и размеры size — стилизация, живут в API/playground.',
   variants: [
     {
       id: 'default',
       title: 'Default',
-      render: makeButton('default', 'Сохранить'),
+      description: 'Базовая собранная кнопка в дефолтном состоянии (type=button, текст).',
+      render: function DefaultButton() {
+        return <Button>Сохранить</Button>;
+      },
       code: `<Button>Сохранить</Button>`,
     },
     {
-      id: 'secondary',
-      title: 'Secondary',
-      render: makeButton('secondary', 'Отмена'),
-      code: `<Button variant="secondary">Отмена</Button>`,
+      id: 'disabled',
+      title: 'Disabled',
+      description: 'Заблокированное неинтерактивное состояние (opacity-50, pointer-events:none).',
+      render: function DisabledButton() {
+        return <Button disabled>Сохранить</Button>;
+      },
+      code: `<Button disabled>Сохранить</Button>`,
     },
     {
-      id: 'outline',
-      title: 'Outline',
-      render: makeButton('outline', 'Подробнее'),
-      code: `<Button variant="outline">Подробнее</Button>`,
+      id: 'icon-text',
+      title: 'Иконка + текст',
+      description:
+        'Композиция иконка+подпись: svg-ребёнок авто-масштабируется (size-4) и отбивается gap-2.',
+      render: function IconTextButton() {
+        return (
+          <Button>
+            <Download />
+            Скачать
+          </Button>
+        );
+      },
+      code: `import { Download } from 'lucide-react';
+
+<Button>
+  <Download />
+  Скачать
+</Button>`,
     },
     {
-      id: 'destructive',
-      title: 'Destructive',
-      render: makeButton('destructive', 'Удалить'),
-      code: `<Button variant="destructive">Удалить</Button>`,
+      id: 'icon-only',
+      title: 'Только иконка',
+      description:
+        'Icon-only режим без текстовой подписи (тулбары, компактные действия); квадрат под иконку + aria-label для доступности.',
+      render: function IconOnlyButton() {
+        return (
+          <Button size="icon" aria-label="Настройки">
+            <Settings />
+          </Button>
+        );
+      },
+      code: `import { Settings } from 'lucide-react';
+
+<Button size="icon" aria-label="Настройки">
+  <Settings />
+</Button>`,
     },
     {
-      id: 'ghost',
-      title: 'Ghost',
-      render: makeButton('ghost', 'Ещё'),
-      code: `<Button variant="ghost">Ещё</Button>`,
-    },
-    {
-      id: 'link',
-      title: 'Link',
-      render: makeButton('link', 'Открыть'),
-      code: `<Button variant="link">Открыть</Button>`,
+      id: 'submit',
+      title: 'Submit',
+      description: 'Функциональный режим type="submit": внутри <form> инициирует отправку формы.',
+      render: function SubmitButton() {
+        return <Button type="submit">Отправить</Button>;
+      },
+      code: `<Button type="submit">Отправить</Button>`,
     },
   ],
   examples: [
     {
       id: 'as-child',
       title: 'asChild — стили кнопки на другом элементе',
-      description: 'Slot переносит стили Button на дочерний элемент (например, ссылку роутера).',
+      description:
+        'Slot переносит классы Button на дочерний элемент (Link роутера или <a>), сохраняя семантику ссылки вместо <button>.',
       render: function AsChildExample() {
         return (
           <Button asChild variant="outline">
@@ -81,6 +105,52 @@ export const buttonDocConfig: ComponentDocConfig = {
 
 <Button asChild variant="outline" size="lg">
   <Link to="/dashboard">Открыть дашборд</Link>
+</Button>`,
+    },
+    {
+      id: 'native-props',
+      title: 'Проброс нативных атрибутов button',
+      description:
+        'Любые атрибуты React.ComponentProps<"button"> уходят на реальный <button>: обработчик onClick, form/name/value для сабмита, aria-label.',
+      render: function NativePropsExample() {
+        return (
+          <Button
+            name="action"
+            value="save"
+            aria-label="Сохранить черновик"
+            onClick={() => window.alert('Сохранено')}
+          >
+            Сохранить черновик
+          </Button>
+        );
+      },
+      code: `<Button
+  name="action"
+  value="save"
+  aria-label="Сохранить черновик"
+  onClick={() => save()}
+>
+  Сохранить черновик
+</Button>`,
+    },
+    {
+      id: 'loading',
+      title: 'Loading / busy паттерн',
+      description:
+        'Занятое состояние собирается из disabled=true и спиннера-ребёнка: демонстрирует авто-размер иконки (size-4) и блокировку одновременно.',
+      render: function LoadingExample() {
+        return (
+          <Button disabled>
+            <Loader2 className="animate-spin" />
+            Загрузка…
+          </Button>
+        );
+      },
+      code: `import { Loader2 } from 'lucide-react';
+
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Загрузка…
 </Button>`,
     },
   ],
@@ -112,13 +182,13 @@ export const buttonDocConfig: ComponentDocConfig = {
       name: 'variant',
       type: `'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'`,
       default: `'default'`,
-      description: 'Визуальный вариант.',
+      description: 'Визуальный вариант (стилизация).',
     },
     {
       name: 'size',
       type: `'default' | 'sm' | 'lg' | 'icon' | 'icon-sm' | 'icon-lg'`,
       default: `'default'`,
-      description: 'Размер.',
+      description: 'Размер (стилизация); icon* — квадрат под иконку.',
     },
     {
       name: 'asChild',
@@ -130,7 +200,7 @@ export const buttonDocConfig: ComponentDocConfig = {
     {
       name: '...props',
       type: `React.ComponentProps<'button'>`,
-      description: 'Все нативные атрибуты button (onClick, type, …).',
+      description: 'Все нативные атрибуты button (onClick, type, name, value, …).',
     },
   ],
 };

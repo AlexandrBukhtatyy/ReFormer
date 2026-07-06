@@ -1,7 +1,55 @@
-import { Textarea } from '@reformer/ui-kit';
-import { required, maxLength } from '@reformer/core/validators';
+import { useState } from 'react';
+import { useFormControlValue } from '@reformer/core';
+import { required, minLength, maxLength } from '@reformer/core/validators';
+import { Textarea, FormField } from '@reformer/ui-kit';
+import { useDemoField } from '../harness';
 import { makeFieldVariant } from '../field-demo';
 import type { ComponentDocConfig } from '../types';
+
+/* ─── Examples (контекстные приёмы) ────────────────────────────────────── */
+
+const COUNTER_MAX = 280;
+
+/** onChange + нативный maxLength: живой счётчик оставшихся символов. */
+function CharCounterExample() {
+  const { control } = useDemoField({
+    initial: '',
+    component: Textarea,
+    componentProps: { label: 'Пост', placeholder: 'Что нового?', maxLength: COUNTER_MAX },
+  });
+  const value = useFormControlValue(control);
+  const used = value ? String(value).length : 0;
+  const left = COUNTER_MAX - used;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 380 }}>
+      <FormField control={control} />
+      <span
+        style={{
+          alignSelf: 'flex-end',
+          fontSize: '0.85rem',
+          color: left < 20 ? 'var(--ifm-color-danger)' : 'var(--ifm-color-emphasis-700)',
+        }}
+      >
+        Осталось {left} из {COUNTER_MAX}
+      </span>
+    </div>
+  );
+}
+
+/** onBlur: нормализация значения (trim + схлопывание пробелов) при уходе из поля. */
+function NormalizeOnBlurExample() {
+  const [value, setValue] = useState<string | null>('   Много    лишних   пробелов   ');
+  return (
+    <div style={{ maxWidth: 380 }}>
+      <Textarea
+        value={value}
+        placeholder="Текст нормализуется при потере фокуса"
+        onChange={setValue}
+        onBlur={() => setValue((prev) => (prev ? prev.trim().replace(/\s+/g, ' ') : prev))}
+      />
+    </div>
+  );
+}
 
 export const textareaDocConfig: ComponentDocConfig = {
   name: 'Textarea',
@@ -11,7 +59,7 @@ export const textareaDocConfig: ComponentDocConfig = {
     {
       id: 'basic',
       title: 'Базовое',
-      description: 'rows по умолчанию 3.',
+      description: 'Подпись и подсказка, поле пустое.',
       render: makeFieldVariant({
         initial: '',
         component: Textarea,
@@ -24,45 +72,165 @@ export const textareaDocConfig: ComponentDocConfig = {
 }`,
     },
     {
-      id: 'rows',
-      title: 'Крупное',
-      description: 'rows задаёт видимую высоту.',
+      id: 'filled',
+      title: 'Заполнено',
+      description: 'Поле с введённым значением.',
+      render: makeFieldVariant({
+        initial: 'Кнопка отправки не реагирует на клик в Safari.',
+        component: Textarea,
+        componentProps: { label: 'Комментарий' },
+      }),
+      code: `{
+  value: model.$.comment, // 'Кнопка отправки не реагирует…'
+  component: Textarea,
+  componentProps: { label: 'Комментарий' },
+}`,
+    },
+    {
+      id: 'placeholder-only',
+      title: 'Только placeholder',
+      description: 'Без подписи — только подсказка внутри поля.',
       render: makeFieldVariant({
         initial: '',
         component: Textarea,
-        componentProps: { label: 'Адрес доставки', rows: 5, placeholder: 'Город, улица, дом' },
+        componentProps: { placeholder: 'Опишите проблему…' },
       }),
-      code: `componentProps: { label: 'Адрес доставки', rows: 5 }`,
+      code: `{
+  value: model.$.comment,
+  component: Textarea,
+  componentProps: { placeholder: 'Опишите проблему…' },
+}`,
+    },
+    {
+      id: 'required',
+      title: 'Обязательное',
+      description: 'required-маркер (*) у подписи.',
+      render: makeFieldVariant({
+        initial: '',
+        component: Textarea,
+        componentProps: { label: 'Комментарий', required: true },
+      }),
+      code: `{
+  value: model.$.comment,
+  component: Textarea,
+  componentProps: { label: 'Комментарий', required: true },
+}`,
+    },
+    {
+      id: 'invalid',
+      title: 'Ошибка',
+      description: 'Деструктивная рамка/ring и текст ошибки под полем.',
+      render: makeFieldVariant({
+        initial: 'Мало',
+        component: Textarea,
+        componentProps: { label: 'Комментарий' },
+        validators: [minLength(10, { message: 'Не менее 10 символов' })],
+        touched: true,
+      }),
+      code: `{
+  value: model.$.comment, // 'Мало'
+  component: Textarea,
+  componentProps: { label: 'Комментарий' },
+  validators: [minLength(10, { message: 'Не менее 10 символов' })],
+}`,
+    },
+    {
+      id: 'disabled',
+      title: 'Заблокировано',
+      description: 'Отключённое пустое поле (opacity, cursor-not-allowed).',
+      render: makeFieldVariant({
+        initial: '',
+        component: Textarea,
+        componentProps: { label: 'Комментарий' },
+        disabled: true,
+      }),
+      code: `const form = createForm({ model, schema });
+form.comment.disable(); // opacity-50, cursor-not-allowed`,
+    },
+    {
+      id: 'disabled-filled',
+      title: 'Заблокировано с текстом',
+      description: 'Отключённое поле с содержимым — read-only-подобная витрина.',
+      render: makeFieldVariant({
+        initial: 'Значение только для чтения.',
+        component: Textarea,
+        componentProps: { label: 'Комментарий' },
+        disabled: true,
+      }),
+      code: `const form = createForm({ model, schema });
+form.comment.disable(); // содержимое остаётся видимым`,
     },
     {
       id: 'maxlength',
-      title: 'С лимитом',
-      description: 'maxLength — нативный soft-лимит длины.',
+      title: 'С нативным лимитом',
+      description: 'maxLength — нативный soft-лимит длины (обрезает ввод).',
       render: makeFieldVariant({
         initial: '',
         component: Textarea,
-        componentProps: { label: 'Отзыв (до 200 символов)', rows: 4, maxLength: 200 },
+        componentProps: { label: 'Отзыв (до 200 символов)', maxLength: 200 },
       }),
-      code: `componentProps: { label: 'Отзыв', rows: 4, maxLength: 200 }`,
+      code: `{
+  value: model.$.review,
+  component: Textarea,
+  componentProps: { label: 'Отзыв', maxLength: 200 },
+}`,
     },
   ],
   examples: [
     {
       id: 'validation',
-      title: 'Обязательное поле с ограничением длины',
+      title: 'Обязательное поле с бизнес-лимитом длины',
       description:
-        'Бизнес-лимит — через валидатор maxLength (в отличие от нативного maxLength-props).',
+        'Валидаторы @reformer/core: required() и maxLength(500) как бизнес-правило (в отличие от нативного props maxLength).',
       render: makeFieldVariant({
         initial: '',
         component: Textarea,
-        componentProps: { label: 'Комментарий', rows: 4, placeholder: 'Не менее пары слов' },
+        componentProps: { label: 'Комментарий', placeholder: 'Не менее пары слов' },
         validators: [required({ message: 'Заполните комментарий' }), maxLength(500)],
       }),
-      code: `{
+      code: `import { required, maxLength } from '@reformer/core/validators';
+
+{
   value: model.$.comment,
   component: Textarea,
-  componentProps: { label: 'Комментарий', rows: 4 },
+  componentProps: { label: 'Комментарий' },
   validators: [required(), maxLength(500)],
+}`,
+    },
+    {
+      id: 'char-counter',
+      title: 'Счётчик оставшихся символов',
+      description:
+        'useFormControlValue реактивно читает значение; нативный maxLength даёт hard-cap ввода.',
+      render: CharCounterExample,
+      code: `import { useFormControlValue } from '@reformer/core';
+
+function CharCounter({ control, max }) {
+  const value = useFormControlValue(control); // string | null
+  const left = max - (value?.length ?? 0);
+  return <span>Осталось {left} из {max}</span>;
+}
+
+// componentProps: { label: 'Пост', maxLength: 280 }`,
+    },
+    {
+      id: 'normalize-blur',
+      title: 'Нормализация текста на потере фокуса',
+      description:
+        'Приём: onBlur тримит значение и схлопывает лишние пробелы/переводы строк при уходе из поля.',
+      render: NormalizeOnBlurExample,
+      code: `import { useState } from 'react';
+import { Textarea } from '@reformer/ui-kit';
+
+function NoteField() {
+  const [value, setValue] = useState<string | null>('');
+  return (
+    <Textarea
+      value={value}
+      onChange={setValue}
+      onBlur={() => setValue((v) => (v ? v.trim().replace(/\\s+/g, ' ') : v))}
+    />
+  );
 }`,
     },
   ],

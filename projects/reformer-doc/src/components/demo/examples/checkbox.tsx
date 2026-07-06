@@ -1,7 +1,71 @@
-import { Checkbox } from '@reformer/ui-kit';
+import { useEffect, useMemo } from 'react';
+import { createModel, createForm, useFormControlValue } from '@reformer/core';
 import { required } from '@reformer/core/validators';
+import { Checkbox, Input, FormField } from '@reformer/ui-kit';
+import { useDemoField } from '../harness';
 import { makeFieldVariant } from '../field-demo';
 import type { ComponentDocConfig } from '../types';
+
+/* ─── Examples (кастомные сценарии) ────────────────────────────────────── */
+
+function ExternalLabelExample() {
+  const { control } = useDemoField({
+    initial: false,
+    component: Checkbox,
+    componentProps: {},
+  });
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', maxWidth: 380 }}>
+      <FormField control={control} />
+      <span style={{ fontSize: '0.9rem' }}>
+        Принимаю{' '}
+        <a href="#terms" onClick={(e) => e.preventDefault()}>
+          условия использования
+        </a>{' '}
+        и политику конфиденциальности
+      </span>
+    </div>
+  );
+}
+
+function DependentFieldExample() {
+  const { form } = useMemo(() => {
+    const model = createModel<{ sameEmail: boolean; billingEmail: string }>({
+      sameEmail: true,
+      billingEmail: '',
+    });
+    const schema = {
+      sameEmail: {
+        value: model.$.sameEmail,
+        component: Checkbox,
+        componentProps: { label: 'Присылать счета на тот же email' },
+      },
+      billingEmail: {
+        value: model.$.billingEmail,
+        component: Input,
+        componentProps: { label: 'Email для счетов', type: 'email' },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    const form = createForm<{ sameEmail: boolean; billingEmail: string }>({ model, schema });
+    return { model, form };
+  }, []);
+
+  const sameEmail = useFormControlValue(form.sameEmail);
+  useEffect(() => {
+    if (sameEmail) form.billingEmail.disable();
+    else form.billingEmail.enable();
+  }, [sameEmail, form]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 360 }}>
+      <FormField control={form.sameEmail} />
+      <FormField control={form.billingEmail} />
+    </div>
+  );
+}
+
+/* ─── Config ───────────────────────────────────────────────────────────── */
 
 export const checkboxDocConfig: ComponentDocConfig = {
   name: 'Checkbox',
@@ -9,9 +73,24 @@ export const checkboxDocConfig: ComponentDocConfig = {
   description: 'Булев чекбокс с подписью справа. Контракт value/onChange — boolean.',
   variants: [
     {
-      id: 'basic',
+      id: 'no-label',
+      title: 'Без подписи',
+      description: 'label опущен — рендерится только сам контрол, подпись собирает потребитель.',
+      render: makeFieldVariant({
+        initial: false,
+        component: Checkbox,
+        componentProps: {},
+      }),
+      code: `{
+  value: model.$.agree,
+  component: Checkbox,
+  componentProps: {},
+}`,
+    },
+    {
+      id: 'with-label',
       title: 'С подписью',
-      description: 'label справа от контрола.',
+      description: 'Базовое состояние: подпись справа от контрола, снят.',
       render: makeFieldVariant({
         initial: false,
         component: Checkbox,
@@ -26,32 +105,64 @@ export const checkboxDocConfig: ComponentDocConfig = {
     {
       id: 'checked',
       title: 'Отмечен',
-      description: 'Начальное значение true.',
+      description: 'Начальное значение true — чекбокс включён.',
       render: makeFieldVariant({
         initial: true,
         component: Checkbox,
         componentProps: { label: 'Получать уведомления' },
       }),
-      code: `const model = createModel({ notify: true });`,
+      code: `const model = createModel({ notify: true });
+// { value: model.$.notify, component: Checkbox, componentProps: { label: 'Получать уведомления' } }`,
     },
     {
-      id: 'disabled',
-      title: 'Заблокирован',
-      description: 'Через control.disable().',
+      id: 'disabled-unchecked',
+      title: 'Заблокирован (снят)',
+      description: 'Недоступен для переключения, в пустом состоянии — через control.disable().',
       render: makeFieldVariant({
-        initial: true,
+        initial: false,
         component: Checkbox,
         componentProps: { label: 'Опция недоступна' },
         disabled: true,
       }),
-      code: `form.agree.disable();`,
+      code: `form.agree.disable(); // value = false`,
+    },
+    {
+      id: 'disabled-checked',
+      title: 'Заблокирован (отмечен)',
+      description: 'Недоступен для переключения, зафиксирован включённым.',
+      render: makeFieldVariant({
+        initial: true,
+        component: Checkbox,
+        componentProps: { label: 'Опция включена по умолчанию' },
+        disabled: true,
+      }),
+      code: `form.agree.disable(); // value = true`,
+    },
+    {
+      id: 'invalid',
+      title: 'Ошибка',
+      description: 'Невалидное состояние: красная рамка/кольцо (destructive) и текст ошибки.',
+      render: makeFieldVariant({
+        initial: false,
+        component: Checkbox,
+        componentProps: { label: 'Необходимо подтверждение' },
+        validators: [required({ message: 'Отметьте, чтобы продолжить' })],
+        touched: true,
+      }),
+      code: `{
+  value: model.$.confirm,
+  component: Checkbox,
+  componentProps: { label: 'Необходимо подтверждение' },
+  validators: [required({ message: 'Отметьте, чтобы продолжить' })],
+} // touched + невалидно → aria-invalid`,
     },
   ],
   examples: [
     {
       id: 'required',
       title: 'Обязательное согласие',
-      description: 'required не пропустит форму, пока чекбокс не отмечен.',
+      description:
+        'required не пропустит форму, пока чекбокс не отмечен; ошибка появляется на submit/blur.',
       render: makeFieldVariant({
         initial: false,
         component: Checkbox,
@@ -64,6 +175,34 @@ export const checkboxDocConfig: ComponentDocConfig = {
   componentProps: { label: 'Принимаю условия' },
   validators: [required({ message: 'Необходимо согласие' })],
 }`,
+    },
+    {
+      id: 'external-label',
+      title: 'Внешняя подпись',
+      description:
+        'Контрол без prop label, обёрнутый вместе с произвольной разметкой (ссылка), когда подпись нужно собрать снаружи.',
+      render: ExternalLabelExample,
+      code: `// Checkbox без label — подпись собираем в разметке рядом
+<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+  <FormField control={form.agree} />
+  <span>
+    Принимаю <a href="/terms">условия использования</a>
+  </span>
+</div>`,
+    },
+    {
+      id: 'dependent-field',
+      title: 'Переключение зависимого поля',
+      description:
+        'boolean-значение чекбокса реактивно управляет другим полем формы — включает или отключает его.',
+      render: DependentFieldExample,
+      code: `import { useFormControlValue } from '@reformer/core';
+
+const sameEmail = useFormControlValue(form.sameEmail); // boolean
+useEffect(() => {
+  if (sameEmail) form.billingEmail.disable();
+  else form.billingEmail.enable();
+}, [sameEmail, form]);`,
     },
   ],
   api: {
