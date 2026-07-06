@@ -109,6 +109,48 @@ function isLocaleObjectForm(
   );
 }
 
+/**
+ * Разворачивает `params` структурной `$locale`-формы: `$model(path)` → снимок значения (`.peek()`,
+ * БЕЗ подписки на сигнал), литералы — как есть. Строковый путь статичен, поэтому это снимок на момент
+ * конвертации, а не реакция; для реактивных model-параметров — компонент `I18n`.
+ */
+function snapshotLocaleParams(
+  params: Record<string, unknown> | undefined,
+  scope: any
+): Record<string, unknown> | undefined {
+  if (!params) return params;
+  let touched = false;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(params)) {
+    const v = params[k];
+    if (isModelOp(v)) {
+      const sig = (scope as FormModel<unknown>).signalAt(parseOperator(v)!.arg);
+      out[k] = sig?.peek?.();
+      touched = true;
+    } else {
+      out[k] = v;
+    }
+  }
+  return touched ? out : params;
+}
+
+/**
+ * Предупреждение: `$model(...)` в `params` строковой `$locale`-формы берётся снимком и НЕ реактивен.
+ * Направляет на компонент `I18n` для живого значения. Guard `typeof console` — как у сиблинг-warn ниже.
+ */
+function warnLocaleModelParams(key: string, params?: Record<string, unknown>): void {
+  if (!params || typeof console === 'undefined') return;
+  for (const k of Object.keys(params)) {
+    if (isModelOp(params[k])) {
+      console.warn(
+        `[JsonRenderer] $locale("${key}"): параметр "${k}" (=${String(params[k])}) взят снимком ` +
+          `значения на момент рендера и не обновляется при изменении модели. Для реактивного значения ` +
+          `используй I18n: { component: "$component(I18n)", componentProps: { id: "${key}", values: { ${k}: "${String(params[k])}" } } }.`
+      );
+    }
+  }
+}
+
 /** Значение по dot-пути в value-прокси модели ('properties' → model.properties массив-прокси). */
 function resolveModelPath(scope: any, path: string): any {
   return path.split('.').reduce((acc, seg) => (acc == null ? acc : acc[seg]), scope);
@@ -136,7 +178,10 @@ function transformPropValue(value: unknown, scope: any, registry: ComponentRegis
   if (isFnOp(value)) return resolveFn(parseOperator(value)!.arg, registry);
   if (isLocaleOp(value)) return resolveLocale(parseOperator(value)!.arg, registry);
   if (isModelOp(value)) return (scope as FormModel<unknown>).signalAt(parseOperator(value)!.arg);
-  if (isLocaleObjectForm(value)) return resolveLocale(value.$locale, registry, value.params);
+  if (isLocaleObjectForm(value)) {
+    warnLocaleModelParams(value.$locale, value.params);
+    return resolveLocale(value.$locale, registry, snapshotLocaleParams(value.params, scope));
+  }
   if (looksLikeNode(value)) return convertNodeM1(value, scope, registry);
   if (Array.isArray(value)) return value.map((v) => transformPropValue(v, scope, registry));
   if (value !== null && typeof value === 'object') {

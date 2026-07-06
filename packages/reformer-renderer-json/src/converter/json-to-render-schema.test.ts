@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { convertJsonToM1Tree } from './json-to-render-schema';
 import { defineRegistry } from '../registry/component-registry';
 import { createLocaleResolver, createLocaleService } from '../locale/locale-service';
 import type { JsonFormSchema } from '../types/json-schema';
+import type { FormModel } from '@reformer/core';
 
 /**
  * Заглушка модели: конвертер трогает только `signalAt` (лист) и dot-обход (массив),
@@ -163,6 +164,41 @@ describe('convertJsonToM1Tree', () => {
         bare
       );
       expect(node.componentProps.label).toBe('fields.min');
+    });
+
+    it('snapshots $model in params (.peek() value, non-reactive) and warns pointing to I18n', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Модель со снимком: signalAt(path).peek() отдаёт текущее значение.
+      const modelWithPeek = {
+        signalAt: (p: string) => ({ peek: () => (p === 'minLen' ? 8 : undefined) }),
+      } as unknown as FormModel<unknown>;
+      const node = convertJsonToM1Tree(
+        {
+          root: {
+            value: '$model(x)',
+            component: '$component(Input)',
+            componentProps: {
+              label: { $locale: 'fields.min', params: { count: '$model(minLen)' } },
+            },
+          },
+        } as JsonFormSchema,
+        i18nRegistry,
+        modelWithPeek
+      ) as unknown as { componentProps: { label: string } };
+      expect(node.componentProps.label).toBe('Минимум 8 символов'); // (A) снимок значения
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/используй I18n/i)); // (B) подсказка
+      warn.mockRestore();
+    });
+
+    it('does not warn for literal-only params', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      convertWith({
+        value: '$model(x)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
+      });
+      expect(warn).not.toHaveBeenCalledWith(expect.stringMatching(/используй I18n/i));
+      warn.mockRestore();
     });
   });
 });
