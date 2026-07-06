@@ -29,16 +29,47 @@ export type {
 export { isFieldNode, isArrayNode, isContainerNode } from './types/json-schema';
 
 // Операторы JSON-схемы (M1): СТРОКОВЫЕ ссылки на модель/реестр ("$model(path)" и т.д.)
-export { parseOperator, isModelOp, isComponentOp, isDataSourceOp } from './operators';
-export type { ModelOp, ComponentOp, DataSourceOp, JsonOperator, ParsedOperator } from './operators';
+export {
+  parseOperator,
+  isModelOp,
+  isComponentOp,
+  isDataSourceOp,
+  isFnOp,
+  isLocaleOp,
+} from './operators';
+export type {
+  ModelOp,
+  ComponentOp,
+  DataSourceOp,
+  FnOp,
+  LocaleOp,
+  JsonOperator,
+  ParsedOperator,
+} from './operators';
 
 // ============================================================================
 // Component Registry
 // ============================================================================
 
 export { defineRegistry } from './registry/component-registry';
-export { FIELD_WRAPPER } from './registry/constants';
+export { FIELD_WRAPPER, LOCALE_SERVICE } from './registry/constants';
 export type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './registry/types';
+
+// ============================================================================
+// Локализация (оператор "$locale(key)" + структурная форма + реактивный <I18n>)
+// ============================================================================
+
+export {
+  createLocaleResolver,
+  createLocaleService,
+  defaultLocaleResolver,
+} from './locale/locale-service';
+export type { LocaleResolver, LocaleService, LocaleParams } from './locale/locale-service';
+export { LocaleProvider, useLocale } from './locale/locale-context';
+export type { LocaleProviderProps } from './locale/locale-context';
+export { I18n } from './locale/i18n';
+export type { I18nProps } from './locale/i18n';
+export { useSignalValues, unwrapSignalValues } from './locale/use-signal-value';
 
 // ============================================================================
 // Context Provider & Settings
@@ -71,4 +102,6 @@ export {
   buildFormSchemaMetaSchema,
   getComponentNames,
   getDataSourceNames,
+  getFnNames,
+  getLocaleKeys,
 } from './schema';

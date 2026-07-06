@@ -1,6 +1,6 @@
 # JSON Schema
 
-Схема — **чистый JSON** (M1, строковый операторный DSL): все привязки кодируются строками-операторами (`$model(...)`, `$component(...)`, `$dataSource(...)`), поэтому схему можно положить в `.json` или принять строкой с сервера/CMS. Голые строки (`label`, `placeholder`) резолвятся как есть.
+Схема — **чистый JSON** (M1, строковый операторный DSL): все привязки кодируются строками-операторами (`$model(...)`, `$component(...)`, `$dataSource(...)`, `$fn(...)`, `$locale(...)`), поэтому схему можно положить в `.json` или принять строкой с сервера/CMS. Голые строки (`label`, `placeholder`) резолвятся как есть.
 
 ## Key Concepts
 
@@ -13,8 +13,10 @@
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
+  - `'$fn(name)'` — имя функции в реестре (`reg.fn`): форматтеры, компараторы, itemLabel, обработчики. Резолвится в саму функцию (передаётся в проп как есть). Отдельный от `$dataSource` вид — `validate` ловит перепутанные `$fn`/`$dataSource` и `reg.fn` бросает на не-функцию.
+  - `'$locale(key)'` — ключ строки для сервиса локализации (`reg.locale`). Резолвится в **строку на этапе конвертации** (`registry.getLocale().resolve(key)`); промах ключа / нет сервиса → сам ключ. Только `componentProps` (label/placeholder/title/aria-*), не структурные позиции. С параметрами — структурная форма `{ "$locale": "key", "params": { … } }` (объект, params — литералы). Реактивный/markdown-текст — компонент `$component(I18n)`, см. [08-i18n.md](08-i18n.md).
 - **`selector`** — plain-строка, id узла для render-behavior (`schema.node('…')`, `hideWhen`, `patchProps`). **Не** путь модели.
-- **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
+- **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`, `'$fn(...)'`, `'$locale(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
 
 ## Type Guards
 
@@ -72,7 +74,21 @@ const schema: JsonFormSchema = {
 }
 ```
 
-Массив с шаблоном элемента (`array` + `item.$template` + `initialValue`). Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** массива:
+Функция из реестра (`$fn`) и локализованный текст (`$locale`) в `componentProps`:
+
+```typescript
+{
+  value: '$model(email)',
+  component: '$component(Input)',
+  componentProps: {
+    label: '$locale(fields.email.label)',        // → строка из сервиса локализации
+    placeholder: '$locale(fields.email.placeholder)',
+    format: '$fn(formatEmail)',                   // → сама функция из reg.fn, передаётся в проп
+  },
+}
+```
+
+Массив с шаблоном элемента (`array` + `item.$template` + `initialValue`). Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** массива. `itemLabel` — функция `(control, index) => string`, поэтому идиоматично через `$fn`:
 
 ```typescript
 {
@@ -80,9 +96,9 @@ const schema: JsonFormSchema = {
   array: '$model(properties)',
   initialValue: { type: 'apartment', description: '', estimatedValue: 0, hasEncumbrance: false },
   componentProps: {
-    title: 'Имущество',
-    addButtonLabel: '+ Добавить имущество',
-    itemLabel: '$dataSource(PROPERTY_ITEM_LABEL_SOURCE_FN)',
+    title: '$locale(properties.title)',
+    addButtonLabel: '$locale(properties.add)',
+    itemLabel: '$fn(propertyItemLabel)',
   },
   item: {
     $template: {
@@ -107,6 +123,10 @@ const schema: JsonFormSchema = {
 - **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения.
 - **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validate` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
 - **Класть `validators` в field-node** — `JsonFieldNode` несёт только layout, поля `validators` в нём нет и оператора `$validator(...)` не существует. Валидация значений живёт в отдельной TS-схеме над моделью (`validateFormModel`), а не в JSON — см. [06-validation.md](06-validation.md).
+- **Путать `$fn` и `$dataSource`** — функции регистрируй через `reg.fn` и ссылайся через `$fn(name)`, данные — через `reg.dataSource`/`$dataSource(NAME)`. Перекрёстное использование (`$fn(LOAN_TYPES)`, `$dataSource(comparator)`) `validateFormSchema` отклонит, а рантайм бросит. `reg.fn` дополнительно бросает при регистрации не-функции.
+- **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(goToStep, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
+- **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе конвертации** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка дерева, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
+- **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validate`; без каталога промах молча деградирует до самого ключа.
 
 ## See also
 

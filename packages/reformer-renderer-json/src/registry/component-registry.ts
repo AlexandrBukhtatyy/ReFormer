@@ -5,6 +5,8 @@
  */
 
 import type { ComponentRegistry, ComponentMetadata, RegistryBuilder } from './types';
+import type { LocaleService } from '../locale/locale-service';
+import { LOCALE_SERVICE } from './constants';
 
 export class ComponentRegistryImpl implements ComponentRegistry {
   private own = new Map<string, ComponentMetadata>();
@@ -18,6 +20,12 @@ export class ComponentRegistryImpl implements ComponentRegistry {
     const meta = this.get(name);
     if (!meta || meta.type !== 'dataSource') return undefined;
     return meta.component as T;
+  }
+
+  getLocale(): LocaleService | undefined {
+    const meta = this.get(LOCALE_SERVICE);
+    if (!meta || meta.type !== 'locale') return undefined;
+    return meta.component as LocaleService;
   }
 
   has(name: string): boolean {
@@ -96,6 +104,18 @@ export function defineRegistry(fn: (reg: RegistryBuilder) => void): ComponentReg
     },
     dataSource(name, value, description?) {
       registry._set(name, { component: value, type: 'dataSource', description });
+    },
+    fn(name, func, description?) {
+      if (typeof func !== 'function') {
+        throw new Error(
+          `reg.fn("${name}") expects a function, got ${typeof func}. Use reg.dataSource(...) for non-function values.`
+        );
+      }
+      registry._set(name, { component: func, type: 'fn', description });
+    },
+    locale(service, description?) {
+      const svc = typeof service === 'function' ? { resolve: service } : service;
+      registry._set(LOCALE_SERVICE, { component: svc, type: 'locale', description });
     },
   };
 

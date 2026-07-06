@@ -20,7 +20,14 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '../types/json-schema';
-import { parseOperator, isModelOp, isComponentOp, isDataSourceOp } from '../operators';
+import {
+  parseOperator,
+  isModelOp,
+  isComponentOp,
+  isDataSourceOp,
+  isFnOp,
+  isLocaleOp,
+} from '../operators';
 import type { ComponentRegistry } from '../registry/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -36,8 +43,10 @@ function resolveComponent(op: string | undefined, registry: ComponentRegistry): 
       `Component "${name}" not found in registry. Available: ${registry.names().join(', ')}`
     );
   }
-  if (meta.type === 'dataSource') {
-    throw new Error(`Entry "${name}" is a 'dataSource' and cannot be used as $component(...)`);
+  // Не даём использовать не-'component'-запись (dataSource/fn/locale) как $component(...),
+  // иначе рантайм принял бы схему, которую validateFormSchema (getComponentNames) отклоняет.
+  if (meta.type !== 'component') {
+    throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $component(...)`);
   }
   return meta.component;
 }
@@ -56,6 +65,48 @@ function resolveDataSource(name: string, registry: ComponentRegistry): unknown {
     throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $dataSource(...)`);
   }
   return meta.component;
+}
+
+/** Резолв функции реестра по имени из `'$fn(name)'` (форматтер/компаратор/itemLabel/обработчик). */
+function resolveFn(name: string, registry: ComponentRegistry): unknown {
+  const meta = registry.get(name);
+  if (!meta) {
+    throw new Error(
+      `Function "${name}" not found in registry. Available: ${registry.names().join(', ')}`
+    );
+  }
+  // Симметрично resolveDataSource: перепутанные $fn/$dataSource отвергаются (валидатор — раздельно).
+  if (meta.type !== 'fn') {
+    throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $fn(...)`);
+  }
+  return meta.component;
+}
+
+/**
+ * Резолв ключа локализации в строку через сервис реестра. Промах/нет сервиса → сам ключ.
+ * `params` (структурная форма `{ $locale, params }`) — литералы для интерполяции/склонения.
+ */
+function resolveLocale(
+  key: string,
+  registry: ComponentRegistry,
+  params?: Record<string, unknown>
+): string {
+  return registry.getLocale?.()?.resolve(key, params) ?? key;
+}
+
+/**
+ * Структурная форма `$locale` с параметрами в `componentProps`: `{ $locale: 'key', params?: {…} }`.
+ * Объект (не строка-оператор), чтобы не парсить аргументы. `params` — литералы (статичный путь);
+ * реактивные model-параметры — через компонент `I18n`.
+ */
+function isLocaleObjectForm(
+  v: unknown
+): v is { $locale: string; params?: Record<string, unknown> } {
+  return (
+    v !== null &&
+    typeof v === 'object' &&
+    typeof (v as Record<string, unknown>).$locale === 'string'
+  );
 }
 
 /** Значение по dot-пути в value-прокси модели ('properties' → model.properties массив-прокси). */
@@ -82,7 +133,10 @@ function cloneLiteral<T>(v: T): T {
 function transformPropValue(value: unknown, scope: any, registry: ComponentRegistry): unknown {
   if (isDataSourceOp(value)) return resolveDataSource(parseOperator(value)!.arg, registry);
   if (isComponentOp(value)) return resolveComponent(value, registry);
+  if (isFnOp(value)) return resolveFn(parseOperator(value)!.arg, registry);
+  if (isLocaleOp(value)) return resolveLocale(parseOperator(value)!.arg, registry);
   if (isModelOp(value)) return (scope as FormModel<unknown>).signalAt(parseOperator(value)!.arg);
+  if (isLocaleObjectForm(value)) return resolveLocale(value.$locale, registry, value.params);
   if (looksLikeNode(value)) return convertNodeM1(value, scope, registry);
   if (Array.isArray(value)) return value.map((v) => transformPropValue(v, scope, registry));
   if (value !== null && typeof value === 'object') {

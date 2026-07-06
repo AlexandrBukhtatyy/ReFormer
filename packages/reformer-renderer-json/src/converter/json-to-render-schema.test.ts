@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { convertJsonToM1Tree } from './json-to-render-schema';
 import { defineRegistry } from '../registry/component-registry';
+import { createLocaleResolver, createLocaleService } from '../locale/locale-service';
 import type { JsonFormSchema } from '../types/json-schema';
 
 /**
@@ -10,11 +11,14 @@ import type { JsonFormSchema } from '../types/json-schema';
 const FormFieldStub = (): null => null;
 const InputStub = (): null => null;
 const LOAN_TYPES = [{ value: 'consumer', label: 'Потребительский' }];
+const itemLabelFn = (_c: unknown, i: number): string => `#${i + 1}`;
 
 const registry = defineRegistry((reg) => {
   reg.component('Input', InputStub);
   reg.component('FormField', FormFieldStub);
   reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+  reg.fn('itemLabel', itemLabelFn);
+  reg.locale(createLocaleResolver({ 'fields.email.label': 'Email' }));
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,6 +66,103 @@ describe('convertJsonToM1Tree', () => {
         componentProps: { options: '$dataSource(LOAN_TYPES)' },
       });
       expect(node.componentProps.options).toBe(LOAN_TYPES);
+    });
+  });
+
+  describe('$fn — function reference from registry', () => {
+    it('resolves $fn(name) to the registered function verbatim', () => {
+      const node = convert({
+        array: '$model(properties)',
+        initialValue: { type: '' },
+        componentProps: { itemLabel: '$fn(itemLabel)' },
+        item: { $template: { value: '$model(type)', component: '$component(Input)' } },
+      });
+      expect(node.componentProps.itemLabel).toBe(itemLabelFn);
+    });
+
+    it('throws when a dataSource is used as $fn(...)', () => {
+      expect(() =>
+        convert({
+          value: '$model(x)',
+          component: '$component(Input)',
+          componentProps: { format: '$fn(LOAN_TYPES)' },
+        })
+      ).toThrow(/cannot be used as \$fn/i);
+    });
+
+    it('throws when a fn is used as $component(...)', () => {
+      expect(() => convert({ value: '$model(x)', component: '$component(itemLabel)' })).toThrow(
+        /cannot be used as \$component/i
+      );
+    });
+  });
+
+  describe('$locale — key resolved to a plain string at convert-time', () => {
+    it('resolves a known key through the registered locale service', () => {
+      const node = convert({
+        value: '$model(email)',
+        component: '$component(Input)',
+        componentProps: { label: '$locale(fields.email.label)' },
+      });
+      expect(node.componentProps.label).toBe('Email'); // строка, не сигнал/объект
+    });
+
+    it('falls back to the key itself for an unknown key', () => {
+      const node = convert({
+        value: '$model(email)',
+        component: '$component(Input)',
+        componentProps: { label: '$locale(fields.unknown)' },
+      });
+      expect(node.componentProps.label).toBe('fields.unknown');
+    });
+
+    it('falls back to the key when no locale service is registered', () => {
+      const bare = defineRegistry((reg) => reg.component('Input', InputStub));
+      const node = convertJsonToM1Tree(
+        {
+          root: {
+            value: '$model(email)',
+            component: '$component(Input)',
+            componentProps: { label: '$locale(fields.email.label)' },
+          },
+        } as JsonFormSchema,
+        bare,
+        stubModel
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any;
+      expect(node.componentProps.label).toBe('fields.email.label');
+    });
+  });
+
+  describe('structured { $locale, params } form — parameterized string at convert-time', () => {
+    const i18nRegistry = defineRegistry((reg) => {
+      reg.component('Input', InputStub);
+      reg.locale(createLocaleService({ 'fields.min': (p) => `Минимум ${p?.count} символов` }));
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const convertWith = (root: any, reg = i18nRegistry): any =>
+      convertJsonToM1Tree({ root } as JsonFormSchema, reg, stubModel);
+
+    it('resolves { $locale, params } to an interpolated string', () => {
+      const node = convertWith({
+        value: '$model(x)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
+      });
+      expect(node.componentProps.label).toBe('Минимум 3 символов');
+    });
+
+    it('falls back to the key when the service is absent', () => {
+      const bare = defineRegistry((reg) => reg.component('Input', InputStub));
+      const node = convertWith(
+        {
+          value: '$model(x)',
+          component: '$component(Input)',
+          componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
+        },
+        bare
+      );
+      expect(node.componentProps.label).toBe('fields.min');
     });
   });
 });

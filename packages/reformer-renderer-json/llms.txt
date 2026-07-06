@@ -12,6 +12,7 @@
 - 05-cookbook.md — Cookbook
 - 06-validation.md — Validation
 - 07-form-wizard.md — FormWizard
+- 08-i18n.md — i18n / Локализация
 - API Reference (auto-generated from JSDoc)
 
 ## 1. Installation
@@ -147,8 +148,10 @@ function MyFormPage() {
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
+  - `'$fn(name)'` — имя функции в реестре (`reg.fn`): форматтеры, компараторы, itemLabel, обработчики. Резолвится в саму функцию (передаётся в проп как есть). Отдельный от `$dataSource` вид — `validate` ловит перепутанные `$fn`/`$dataSource` и `reg.fn` бросает на не-функцию.
+  - `'$locale(key)'` — ключ строки для сервиса локализации (`reg.locale`). Резолвится в **строку на этапе конвертации** (`registry.getLocale().resolve(key)`); промах ключа / нет сервиса → сам ключ. Только `componentProps` (label/placeholder/title/aria-*), не структурные позиции. С параметрами — структурная форма `{ "$locale": "key", "params": { … } }` (объект, params — литералы). Реактивный/markdown-текст — компонент `$component(I18n)`, см. [08-i18n.md](08-i18n.md).
 - **`selector`** — plain-строка, id узла для render-behavior (`schema.node('…')`, `hideWhen`, `patchProps`). **Не** путь модели.
-- **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
+- **`componentProps`** — что прокидывается в React-компонент. Значения могут содержать строки-операторы (`'$dataSource(NAME)'`, `'$model(...)'`, `'$component(...)'`, `'$fn(...)'`, `'$locale(...)'`) или вложенные `JsonNode` — конвертер резолвит их рекурсивно. Обычные значения (числа, инлайн-массивы options, `label`) идут как есть.
 
 ## 8. Type Guards
 
@@ -206,7 +209,21 @@ const schema: JsonFormSchema = {
 }
 ```
 
-Массив с шаблоном элемента (`array` + `item.$template` + `initialValue`). Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** массива:
+Функция из реестра (`$fn`) и локализованный текст (`$locale`) в `componentProps`:
+
+```typescript
+{
+  value: '$model(email)',
+  component: '$component(Input)',
+  componentProps: {
+    label: '$locale(fields.email.label)',        // → строка из сервиса локализации
+    placeholder: '$locale(fields.email.placeholder)',
+    format: '$fn(formatEmail)',                   // → сама функция из reg.fn, передаётся в проп
+  },
+}
+```
+
+Массив с шаблоном элемента (`array` + `item.$template` + `initialValue`). Внутри `$template` пути `$model(...)` резолвятся **относительно элемента** массива. `itemLabel` — функция `(control, index) => string`, поэтому идиоматично через `$fn`:
 
 ```typescript
 {
@@ -214,9 +231,9 @@ const schema: JsonFormSchema = {
   array: '$model(properties)',
   initialValue: { type: 'apartment', description: '', estimatedValue: 0, hasEncumbrance: false },
   componentProps: {
-    title: 'Имущество',
-    addButtonLabel: '+ Добавить имущество',
-    itemLabel: '$dataSource(PROPERTY_ITEM_LABEL_SOURCE_FN)',
+    title: '$locale(properties.title)',
+    addButtonLabel: '$locale(properties.add)',
+    itemLabel: '$fn(propertyItemLabel)',
   },
   item: {
     $template: {
@@ -241,6 +258,10 @@ const schema: JsonFormSchema = {
 - **`initialValue` как FieldConfig** — это plain-литерал по форме элемента (`{ field: value }`), а не `{ value, component }`. Клонируется через `JSON.parse(JSON.stringify(...))`, поэтому только сериализуемые значения.
 - **Ссылаться на `$dataSource(NAME)` без регистрации** — при `validate` неизвестное имя даст ошибку; без валидации строка просто прокинется как есть (молчаливый баг).
 - **Класть `validators` в field-node** — `JsonFieldNode` несёт только layout, поля `validators` в нём нет и оператора `$validator(...)` не существует. Валидация значений живёт в отдельной TS-схеме над моделью (`validateFormModel`), а не в JSON — см. [06-validation.md](06-validation.md).
+- **Путать `$fn` и `$dataSource`** — функции регистрируй через `reg.fn` и ссылайся через `$fn(name)`, данные — через `reg.dataSource`/`$dataSource(NAME)`. Перекрёстное использование (`$fn(LOAN_TYPES)`, `$dataSource(comparator)`) `validateFormSchema` отклонит, а рантайм бросит. `reg.fn` дополнительно бросает при регистрации не-функции.
+- **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(goToStep, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
+- **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе конвертации** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка дерева, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
+- **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validate`; без каталога промах молча деградирует до самого ключа.
 
 ## 11. See also
 
@@ -254,6 +275,8 @@ const schema: JsonFormSchema = {
 
 - **component** — любой React-компонент, зарегистрированный под именем и доступный в схеме как `component: '$component(name)'`. Один метод `reg.component(name, Component)` регистрирует и компоненты-листья (Input/Select — узел несёт `value: '$model(path)'`), и контейнеры-обёртки (Box/Section/FormField — узел несёт `children`). Роль узла (лист vs контейнер) определяется **структурой узла в схеме** (`value` vs `children`), а не тем, как компонент зарегистрирован.
 - **dataSource value** — именованная константа, функция или React-компонент, на которые ссылаются строкой `'$dataSource(NAME)'` из `componentProps`. Регистрируется через `reg.dataSource(name, value)`.
+- **fn** — функция (форматтер/компаратор/itemLabel/обработчик), на которую ссылаются строкой `'$fn(name)'` из `componentProps`. Регистрируется через `reg.fn(name, fn)`. Отдельный от `dataSource` вид: `reg.fn` бросает при регистрации не-функции, а `validateFormSchema` ловит перепутанные `$fn`/`$dataSource`. Рантайм передаёт функцию в проп по ссылке (как `$dataSource`-функцию), новизна — в статической проверке.
+- **locale service** — сервис локализации для `$locale(key)` (строковый путь) и компонента `I18n` (реактивный путь). Регистрируется через `reg.locale(serviceOrResolver)` (ключ `LOCALE_SERVICE`) и/или подаётся в `LocaleProvider`. Интерфейс `LocaleService`: `resolve(key, params?) => string` (+ опциональный `render(key, params?) => ReactNode` для markdown/JSX, + `keys` для validate-проверки). Фабрики без зависимостей: `createLocaleResolver(catalog)` (плоский каталог), `createLocaleService(table)` (`ключ → (params) => строка` — параметры/склонение без ICU). ICU (`intl-messageformat`) и markdown подключает потребитель своей реализацией сервиса. Полный гид — [08-i18n.md](08-i18n.md).
 - **`FIELD_WRAPPER`** — зарезервированное имя (`'$fieldWrapper'`) для контейнера-обёртки полей (label, error, hint). Обычно регистрируется как `FormField` из `@reformer/ui-kit`.
 
 ## 13. Builder API
@@ -262,6 +285,8 @@ const schema: JsonFormSchema = {
 | -------------------------------- | ----------------------------------------------------- |
 | `reg.component(name, Component)` | Регистрирует компонент (лист или контейнер — роль решает структура узла). |
 | `reg.dataSource(name, value)`    | Регистрирует dataSource-значение (константу или функцию). |
+| `reg.fn(name, fn)`               | Регистрирует функцию для `$fn(name)` (бросает на не-функцию). |
+| `reg.locale(serviceOrResolver)`  | Регистрирует единственный сервис локализации для `$locale(key)`. |
 
 ## 14. Examples
 
@@ -298,6 +323,38 @@ const registry = defineRegistry((reg) => {
 }
 ```
 
+Функции (`$fn`) и сервис локализации (`$locale`):
+
+```typescript
+import { defineRegistry, createLocaleResolver } from '@reformer/renderer-json';
+
+const registry = defineRegistry((reg) => {
+  reg.component('Input', Input);
+  // функции — форматтеры, компараторы, itemLabel
+  reg.fn('propertyItemLabel', (_control, index) => `Имущество #${index + 1}`);
+  reg.fn('formatCurrency', (v: number) => `${v} ₽`);
+  // единственный сервис локализации; каталог включает validate-time проверку ключей
+  reg.locale(
+    createLocaleResolver({
+      'fields.email.label': 'Email',
+      'fields.email.placeholder': 'you@example.com',
+    })
+  );
+});
+
+// В JSON-схеме:
+{
+  value: '$model(email)',
+  component: '$component(Input)',
+  componentProps: {
+    label: '$locale(fields.email.label)',   // → строка
+    format: '$fn(formatCurrency)',          // → функция по ссылке
+  },
+}
+```
+
+Смена языка — пересобрать сервис на другом каталоге и передать новый ref в `reg.locale` (плюс пересборка дерева); `$locale` резолвится в строку при конвертации, «живого» переключения нет.
+
 ## 15. Anti-patterns
 
 - **Забыть зарегистрировать `FIELD_WRAPPER`** — поля будут рендериться без обёртки (нет label/error). В большинстве случаев это ошибка.
@@ -305,11 +362,13 @@ const registry = defineRegistry((reg) => {
 - **Ожидать наследования между вложенными `JsonRendererProvider`** — реестр сливается через `withParent`, дубли решаются по приоритету (внешний > внутренний).
 - **Использовать `$dataSource(NAME)` без регистрации** — без `validate` строка просто прокинется в проп как есть (молчаливый баг); с `validate` даст ошибку `unknown dataSource "NAME"`.
 - **Ссылаться на dataSource как на компонент** — `component: '$component(LoadingState)'`, где `LoadingState` зарегистрирован через `reg.dataSource`, бросит `Entry "..." is a 'dataSource' and cannot be used as $component(...)`. dataSource — только для значений в `componentProps`.
+- **Регистрировать функцию как `dataSource` и ссылаться `$fn`** (или наоборот) — виды раздельны: `$fn(name)` резолвит только `reg.fn`-записи, `$dataSource(NAME)` — только `reg.dataSource`. Перекрёстная ссылка бросит `Entry "..." is a '...' and cannot be used as $fn(...)` и отклонится на `validate`.
+- **Регистрировать несколько сервисов локализации** — сервис один (кладётся под `LOCALE_SERVICE`); повторный `reg.locale(...)` перезапишет предыдущий. Разные языки — это разные каталоги, передаваемые в `reg.locale` по одному за раз.
 
 ## 16. See also
 
 - [01-overview.md](01-overview.md) — как реестр прокидывается через `JsonRendererProvider`.
-- [02-json-schema.md](02-json-schema.md) — где имена компонентов появляются в схеме (операторы `$component`/`$dataSource`).
+- [02-json-schema.md](02-json-schema.md) — где имена появляются в схеме (операторы `$component`/`$dataSource`/`$fn`/`$locale`).
 
 ## 17. Component "X" not found in registry
 
@@ -955,7 +1014,150 @@ Ground truth: golden `complex-multy-step-form-renderer/render-behavior.ts` — `
 - renderer-react [03-render-behavior.md](../../../reformer-renderer-react/docs/llms/03-render-behavior.md) — семантика `hideWhen`/`renderEffect`/`onComponentEvent`/`onInit`.
 - renderer-react [01-overview.md](../../../reformer-renderer-react/docs/llms/01-overview.md#multi-step-forms) — канонический `FormWizard`, форма шага `{ number, title, icon, body }`.
 
-## 47. API Reference
+## 47. Два пути (важно выбрать правильный)
+
+Значение попадает в один из двух приёмников, и это определяет путь:
+
+| Приёмник | Что можно | Путь |
+|---|---|---|
+| **Строковый проп** (`label`, `placeholder`, `title`, `aria-*`) | только `string`, **статично** | `$locale(key)` / `{ $locale, params }` |
+| **Контент** (видимый текст, сообщения) | `string` **или** rich/JSX, **реактивно** | компонент `$component(I18n)` |
+
+Причина: `componentProps` спредятся в компонент как есть — signal/ReactNode в `label` уронит его (`Objects are not valid as a React child`). Строковый путь резолвится один раз при конвертации (смена языка = пересборка дерева); реактивный путь читает сервис из React-контекста на этапе рендера (live-переключение).
+
+## 48. Сервис локализации
+
+```ts
+interface LocaleService {
+  resolve(key: string, params?: Record<string, unknown>): string;    // строка (обязателен)
+  render?(key: string, params?: Record<string, unknown>): ReactNode; // rich/markdown (опционален)
+  keys?: readonly string[];                                          // validate-time проверка ключей
+}
+```
+
+Фабрики (0-dependency):
+
+```ts
+import { createLocaleResolver, createLocaleService } from '@reformer/renderer-json';
+
+// плоский каталог ключ→строка
+createLocaleResolver({ 'fields.email.label': 'Email' });
+
+// таблица ключ→(params)=>строка — параметры и склонение без ICU (стиль cdk createMessageResolver)
+createLocaleService({
+  'fields.min': (p) => `Минимум ${p?.count} символов`,
+  'users.count': (p) => plural(Number(p?.count), ['пользователь', 'пользователя', 'пользователей']),
+});
+```
+
+### ICU MessageFormat (подключает потребитель)
+
+Стандарт для склонения по CLDR-правилам. Библиотека — `intl-messageformat`; сервис пишешь сам:
+
+```ts
+import { IntlMessageFormat } from 'intl-messageformat';
+
+function createIcuLocaleService(catalog: Record<string, string>, locale: string): LocaleService {
+  return {
+    resolve: (key, params) =>
+      key in catalog ? (new IntlMessageFormat(catalog[key], locale).format(params) as string) : key,
+    keys: Object.keys(catalog),
+  };
+}
+// catalog: { 'users.count': 'There {count, plural, one {is # user} other {are # users}}' }
+```
+
+### Markdown / rich (подключает потребитель через `render`)
+
+```ts
+import ReactMarkdown from 'react-markdown';
+
+const service: LocaleService = {
+  resolve: (k) => catalog[k] ?? k,
+  render: (k, p) => <ReactMarkdown>{format(catalog[k] ?? k, p)}</ReactMarkdown>,
+  keys: Object.keys(catalog),
+};
+```
+
+## 49. Путь 1 — строковые пропы (статично)
+
+Без параметров — строковый оператор:
+
+```jsonc
+{ "value": "$model(email)", "component": "$component(Input)",
+  "componentProps": { "label": "$locale(fields.email.label)" } }
+```
+
+С параметрами — **структурная форма** (объект, не оператор — без парсинга аргументов):
+
+```jsonc
+{ "value": "$model(password)", "component": "$component(Input)",
+  "componentProps": { "label": { "$locale": "fields.min", "params": { "count": 8 } } } }
+// → resolve("fields.min", { count: 8 }) → "Минимум 8 символов"
+```
+
+Параметры здесь — **литералы** (путь статичный). Реактивные model-параметры — через `I18n` (путь 2).
+
+Регистрация сервиса — в реестре (для конвертера):
+
+```ts
+const registry = defineRegistry((reg) => {
+  reg.locale(createLocaleService({ 'fields.min': (p) => `Минимум ${p?.count} символов` }));
+});
+```
+
+## 50. Путь 2 — реактивный компонент `I18n`
+
+Для markdown/rich и/или реактивных параметров и live-переключения языка. Регистрируется как компонент, оборачивается `LocaleProvider`:
+
+```tsx
+import { I18n, LocaleProvider, createLocaleService, JsonFormRenderer } from '@reformer/renderer-json';
+
+const services = { ru: createLocaleService(ruTable), en: createLocaleService(enTable) };
+
+function App() {
+  const [lang, setLang] = useState<'ru' | 'en'>('ru');
+  const registry = useMemo(() => defineRegistry((reg) => {
+    reg.component('I18n', I18n);
+    // ...остальные компоненты
+  }), []);
+  return (
+    <LocaleProvider service={services[lang]}>
+      <JsonRendererProvider settings={{ registry, model }}>
+        <JsonFormRenderer schema={schema} />
+      </JsonRendererProvider>
+    </LocaleProvider>
+  );
+}
+```
+
+```jsonc
+// в схеме — контейнер-узел; values.count приходит сигналом и обновляется вживую
+{ "component": "$component(I18n)",
+  "componentProps": { "id": "users.count", "values": { "count": "$model(userCount)" } } }
+```
+
+`I18n` рендерит `service.render?.()` (markdown/JSX) либо `service.resolve()` (строка) — формат решает сервис. Перерисовывается при смене сигнала `values.count` и при смене `service` в `LocaleProvider` (переключение языка).
+
+## 51. Валидация
+
+`validateFormSchema` проверяет ключи `$locale(...)` и структурной формы `{ $locale }` против `localeKeys` (из `service.keys` или явного списка) — опечатка ключа ловится до рендера. Нет каталога → проверка мягко пропускается (ключи свободные).
+
+## 52. Anti-patterns
+
+- **markdown/JSX в строковый проп** — `label: "$locale(...)"` с сервисом, возвращающим ReactNode, уронит компонент. Rich-контент только через `$component(I18n)` (или свой `$component(RichText)`).
+- **реактивный параметр в строковом `$locale`** — `{ $locale, params: { count: "$model(...)" } }` не обновится (путь статичный, значение заморожено при конвертации). Реактивные model-параметры → `I18n` с `values`.
+- **`I18n` без `LocaleProvider`** — без провайдера сервис по умолчанию отдаёт сам ключ (fallback-to-key). Оберни поддерево в `LocaleProvider`.
+- **ждать live-переключения от `$locale`** — строковый путь статичен; смена языка для label/placeholder требует пересборки (новый сервис в `reg.locale` + пере-render). Live только у `I18n`.
+- **тащить ICU/markdown в схему** — форматтер живёт в реализации `LocaleService` у потребителя, не в JSON.
+
+## 53. See also
+
+- [02-json-schema.md](02-json-schema.md) — где `$locale`/`I18n` появляются в схеме.
+- [03-registry.md](03-registry.md) — `reg.locale`, `createLocaleService`, регистрация `I18n`.
+- [06-validation.md](06-validation.md) — валидация значений (отдельно от локализации).
+
+## 54. API Reference
 
 _Auto-generated from JSDoc on public exports._
 
@@ -990,13 +1192,13 @@ _Source: src/schema/index.ts_
 
 **Kind:** `interface`
 
-Запись реестра. Хранит сам компонент (или dataSource-значение) и его роль.
+Запись реестра. Хранит значение (компонент / dataSource / функцию / сервис локализации) и его роль.
 
 **Signature:**
 ```typescript
 export interface ComponentMetadata<P = any> {
   component: ComponentType<P> | unknown;
-  type: 'component' | 'dataSource';
+  type: 'component' | 'dataSource' | 'fn' | 'locale';
   description?: string;
 }
 ```
@@ -1037,6 +1239,12 @@ Read-only API реестра, доступное в рантайме.
 export interface ComponentRegistry {
   get(name: string): ComponentMetadata | undefined;
   getDataSource<T = unknown>(name: string): T | undefined;
+  /**
+   * Единственный сервис локализации (для оператора `$locale(key)`), если зарегистрирован через
+   * `reg.locale(...)`. Опционален — сторонние реализации `ComponentRegistry` без него продолжают
+   * компилироваться; при его отсутствии `$locale` мягко деградирует до самого ключа.
+   */
+  getLocale?(): LocaleService | undefined;
   has(name: string): boolean;
   names(): string[];
 }
@@ -1091,6 +1299,85 @@ behavior,
 
 _Source: src/converter/json-to-render-schema.ts_
 
+### createLocaleResolver
+
+**Kind:** `function`
+
+Строит {@link LocaleService} из каталога `ключ → строка`. Промах ключа → сам ключ (fallback-to-key,
+зеркало `createMessageResolver` из `@reformer/cdk`). `keys` каталога включает validate-time проверку
+опечаток. Смена языка — пересобрать сервис на другом каталоге и передать новый ref в `reg.locale`.
+
+**Signature:**
+```typescript
+export function createLocaleResolver(catalog: Record<string, string>): LocaleService
+```
+
+**Parameters:**
+- `catalog` — - Таблица `ключ → локализованная строка`.
+
+**Returns:** 
+
+**Examples:**
+
+```ts
+import { defineRegistry } from '@reformer/renderer-json';
+import { createLocaleResolver } from '@reformer/renderer-json';
+
+const registry = defineRegistry((reg) => {
+  reg.locale(createLocaleResolver({
+    'fields.email.label': 'Email',
+    'fields.email.placeholder': 'you@example.com',
+  }));
+});
+// В схеме: componentProps: { label: '$locale(fields.email.label)' }
+// '$locale(fields.unknown)' при наличии каталога → ошибка на validateFormSchema.
+```
+
+_Source: src/locale/locale-service.ts_
+
+### createLocaleService
+
+**Kind:** `function`
+
+Строит {@link LocaleService} из таблицы `ключ → (params) => строка` — 0-dependency вариант для
+параметров и склонения без ICU (стиль `createMessageResolver` из `@reformer/cdk`). Промах ключа →
+сам ключ. `keys` таблицы включает validate-time проверку опечаток.
+
+Для ICU-склонения по CLDR-правилам подключи `intl-messageformat` в СВОЁМ сервисе:
+`reg.locale({ resolve: (k, p) => new IntlMessageFormat(catalog[k], lng).format(p) as string, keys })`.
+Для markdown добавь `render` (напр. через `react-markdown`).
+
+**Signature:**
+```typescript
+export function createLocaleService(
+  table: Record<string, (params?: LocaleParams) => string>
+): LocaleService
+```
+
+**Parameters:**
+- `table` — - Таблица `ключ → (params) => локализованная строка`.
+
+**Returns:** 
+
+**Examples:**
+
+```ts
+import { createLocaleService } from '@reformer/renderer-json';
+
+const ru = createLocaleService({
+  'fields.min': (p) => `Минимум ${p?.count} символов`,
+  'users.count': (p) => {
+    const n = Number(p?.count);
+    const forms = ['пользователь', 'пользователя', 'пользователей'];
+    const idx = n % 10 === 1 && n % 100 !== 11 ? 0 : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 1 : 2;
+    return `${n} ${forms[idx]}`;
+  },
+});
+ru.resolve('fields.min', { count: 3 }); // 'Минимум 3 символов'
+```
+
+_Source: src/locale/locale-service.ts_
+
 ### createRenderSchemaFromJsonM1
 
 **Kind:** `function`
@@ -1142,6 +1429,19 @@ export type DataSourceOp = `$dataSource(${string})`;
 ```
 
 _Source: src/operators.ts_
+
+### defaultLocaleResolver
+
+**Kind:** `const`
+
+Дефолтный резолвер: отдаёт сам ключ (fallback-to-key). Применяется, когда сервис не зарегистрирован.
+
+**Signature:**
+```typescript
+export const defaultLocaleResolver: LocaleResolver
+```
+
+_Source: src/locale/locale-service.ts_
 
 ### defineRegistry
 
@@ -1210,6 +1510,19 @@ const registry = defineRegistry((reg) => {
 ```
 
 _Source: src/registry/constants.ts_
+
+### FnOp
+
+**Kind:** `type`
+
+Строка-оператор ссылки на функцию реестра: `` `$fn(${name})` ``.
+
+**Signature:**
+```typescript
+export type FnOp = `$fn(${string})`;
+```
+
+_Source: src/operators.ts_
 
 ### formSchemaMetaSchema
 
@@ -1284,6 +1597,87 @@ getDataSourceNames(registry); // ['LOAN_TYPES', 'GENDERS', 'LoadingState', ...]
 ```
 
 _Source: src/schema/index.ts_
+
+### getFnNames
+
+**Kind:** `function`
+
+Имена функций реестра (`reg.fn`) — то, что валидно в `$fn(...)`: форматтеры/компараторы/itemLabel/
+обработчики. Отдельно от {@link getDataSourceNames}, поэтому `validateFormSchema` ловит перепутанные
+`$fn`/`$dataSource`.
+
+**Signature:**
+```typescript
+export function getFnNames(registry: ComponentRegistry): string[]
+```
+
+**Parameters:**
+- `registry` — - Реестр (см. {@link defineRegistry}).
+
+**Returns:** Массив имён функций.
+
+_Source: src/schema/index.ts_
+
+### getLocaleKeys
+
+**Kind:** `function`
+
+Известные ключи локализации сервиса реестра (`reg.locale` с каталогом) — то, что валидно в
+`$locale(...)`. `undefined`, если сервис не зарегистрирован или задан голым резолвером без `keys`
+(тогда `validateFormSchema` мягко пропускает проверку ключей, как для `$model`-путей).
+
+**Signature:**
+```typescript
+export function getLocaleKeys(registry: ComponentRegistry): readonly string[] | undefined
+```
+
+**Parameters:**
+- `registry` — - Реестр (см. {@link defineRegistry}).
+
+**Returns:** Массив ключей либо `undefined`.
+
+_Source: src/schema/index.ts_
+
+### I18n
+
+**Kind:** `function`
+
+Реактивный локализованный текст. Читает {@link LocaleService} из {@link LocaleProvider} (live-смена
+языка) и разворачивает `values`-сигналы (live-обновление параметров). Если сервис умеет `render` —
+рендерит rich-контент (markdown/JSX), иначе строку через `resolve`.
+
+**Signature:**
+```typescript
+export function I18n({ id, values }: I18nProps): ReactNode
+```
+
+**Parameters:**
+- `props` — - {@link I18nProps} (`id` + опциональные `values`).
+
+**Returns:** Локализованный `ReactNode`.
+
+_Source: src/locale/i18n.tsx_
+
+### I18nProps
+
+**Kind:** `interface`
+
+Props {@link I18n}.
+
+**Signature:**
+```typescript
+export interface I18nProps {
+  /** Ключ сообщения в сервисе локализации. */
+  id: string;
+  /**
+   * Параметры интерполяции/склонения. Значения могут быть сигналами (`$model(...)`) — тогда текст
+   * обновляется при их изменении — или литералами.
+   */
+  values?: LocaleParams;
+}
+```
+
+_Source: src/locale/i18n.tsx_
 
 ### isArrayNode
 
@@ -1421,6 +1815,58 @@ node.component;  // ComponentOp | undefined
 ```
 
 _Source: src/types/json-schema.ts_
+
+### isFnOp
+
+**Kind:** `const`
+
+Type-guard: строка — оператор `"$fn(...)"` (ссылка на функцию реестра).
+
+**Signature:**
+```typescript
+export const isFnOp
+```
+
+**Parameters:**
+- `v` — - Проверяемое значение.
+
+**Returns:** `true`, если `v` — {@link FnOp}.
+
+**Examples:**
+
+```ts
+if (isFnOp(props.itemLabel)) {
+  const name = parseOperator(props.itemLabel)!.arg; // 'propertyItemLabel'
+}
+```
+
+_Source: src/operators.ts_
+
+### isLocaleOp
+
+**Kind:** `const`
+
+Type-guard: строка — оператор `"$locale(...)"` (ключ строки для сервиса локализации).
+
+**Signature:**
+```typescript
+export const isLocaleOp
+```
+
+**Parameters:**
+- `v` — - Проверяемое значение.
+
+**Returns:** `true`, если `v` — {@link LocaleOp}.
+
+**Examples:**
+
+```ts
+if (isLocaleOp(props.label)) {
+  const key = parseOperator(props.label)!.arg; // 'fields.email.label'
+}
+```
+
+_Source: src/operators.ts_
 
 ### isModelOp
 
@@ -1686,7 +2132,7 @@ _Source: src/types/json-schema.ts_
 
 **Signature:**
 ```typescript
-export type JsonOperator = ModelOp | ComponentOp | DataSourceOp;
+export type JsonOperator = ModelOp | ComponentOp | DataSourceOp | FnOp | LocaleOp;
 ```
 
 _Source: src/operators.ts_
@@ -1764,6 +2210,146 @@ export interface JsonRendererSettings extends RendererSettings {
 
 _Source: src/context/json-renderer-context.tsx_
 
+### LOCALE_SERVICE
+
+**Kind:** `const`
+
+Зарезервированный ключ реестра для единственного сервиса локализации.
+
+`reg.locale(...)` кладёт сервис под этот ключ; оператор `"$locale(key)"` резолвится через него
+(`registry.getLocale()`). Ключ намеренно отличается от имени оператора, чтобы `$dataSource`/`$fn`
+не могли достать сервис локализации по имени.
+
+**Signature:**
+```typescript
+export const LOCALE_SERVICE
+```
+
+**Examples:**
+
+```typescript
+import { defineRegistry, createLocaleResolver } from '@reformer/renderer-json';
+
+const registry = defineRegistry((reg) => {
+  reg.locale(createLocaleResolver({ 'fields.email.label': 'Email' }));
+});
+```
+
+_Source: src/registry/constants.ts_
+
+### LocaleOp
+
+**Kind:** `type`
+
+Строка-оператор ссылки на ключ локализации: `` `$locale(${key})` ``.
+
+**Signature:**
+```typescript
+export type LocaleOp = `$locale(${string})`;
+```
+
+_Source: src/operators.ts_
+
+### LocaleParams
+
+**Kind:** `type`
+
+Параметры для интерполяции/склонения (ICU-values, i18next-values и т.п.).
+
+**Signature:**
+```typescript
+export type LocaleParams = Record<string, unknown>;
+```
+
+_Source: src/locale/locale-service.ts_
+
+### LocaleProvider
+
+**Kind:** `function`
+
+Провайдер сервиса локализации для реактивного пути. Оберни форму (или её часть) и передавай
+новый `service` при смене языка — вложенные `I18n` перерисуются без пересборки схемы.
+
+**Signature:**
+```typescript
+export function LocaleProvider({ service, children }: LocaleProviderProps): ReactNode
+```
+
+**Examples:**
+
+Переключение языка
+```tsx
+import { LocaleProvider, createLocaleService, JsonFormRenderer } from '@reformer/renderer-json';
+
+const services = { ru: createLocaleService(ruTable), en: createLocaleService(enTable) };
+function App() {
+const [lang, setLang] = useState<'ru' | 'en'>('ru');
+return (
+<LocaleProvider service={services[lang]}>
+<JsonFormRenderer schema={schema} />
+</LocaleProvider>
+);
+}
+```
+
+_Source: src/locale/locale-context.tsx_
+
+### LocaleProviderProps
+
+**Kind:** `interface`
+
+Props {@link LocaleProvider}.
+
+**Signature:**
+```typescript
+export interface LocaleProviderProps {
+  /** Текущий сервис локализации. Смена ссылки (напр. при переключении языка) перерендеривает все `I18n`. */
+  service: LocaleService;
+  /** Поддерево, в котором `I18n`/`useLocale` видят этот сервис. */
+  children: ReactNode;
+}
+```
+
+_Source: src/locale/locale-context.tsx_
+
+### LocaleResolver
+
+**Kind:** `type`
+
+Резолвер ключа (+опциональные параметры) в строку.
+
+**Signature:**
+```typescript
+export type LocaleResolver = (key: string, params?: LocaleParams) => string;
+```
+
+_Source: src/locale/locale-service.ts_
+
+### LocaleService
+
+**Kind:** `interface`
+
+Сервис локализации в реестре / контексте. `resolve` обязателен (строковый путь); `render`
+опционален (rich/markdown-путь через `Trans`/`RichText`); `keys` (если задан — напр., из каталога)
+включает проверку опечаток ключей на этапе `validateFormSchema`.
+
+**Signature:**
+```typescript
+export interface LocaleService {
+  /** Ключ (+params) → локализованная строка (при промахе — сам ключ). Для label/placeholder и fallback `Trans`. */
+  resolve: LocaleResolver;
+  /**
+   * Ключ (+params) → rich-контент (markdown/JSX). Опционален. Используется `Trans`/`RichText`, когда
+   * нужен не голый текст, а разметка. Реализуется потребителем (напр. через `react-markdown`).
+   */
+  render?(key: string, params?: LocaleParams): ReactNode;
+  /** Множество известных ключей. Есть → `validate` ловит `unknown locale key`; нет → проверка мягко пропускается (как для `$model`). */
+  keys?: readonly string[];
+}
+```
+
+_Source: src/locale/locale-service.ts_
+
 ### ModelOp
 
 **Kind:** `type`
@@ -1781,12 +2367,12 @@ _Source: src/operators.ts_
 
 **Kind:** `interface`
 
-Разобранный оператор: тип + аргумент (путь/имя).
+Разобранный оператор: тип + аргумент (путь/имя/ключ).
 
 **Signature:**
 ```typescript
 export interface ParsedOperator {
-  op: 'model' | 'component' | 'dataSource';
+  op: 'model' | 'component' | 'dataSource' | 'fn' | 'locale';
   arg: string;
 }
 ```
@@ -1838,6 +2424,19 @@ export interface RegistryBuilder {
    */
   component<P>(name: string, component: ComponentType<P>, description?: string): void;
   dataSource<T>(name: string, value: T, description?: string): void;
+  /**
+   * Зарегистрировать функцию под именем — доступна в схеме как `$fn(name)` (форматтеры,
+   * компараторы, `itemLabel`, обработчики). Отдельный от `dataSource` вид: бросает при регистрации,
+   * если передана не функция, и `validateFormSchema` отклоняет перепутанные `$fn`/`$dataSource`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fn<F extends (...args: any[]) => any>(name: string, fn: F, description?: string): void;
+  /**
+   * Зарегистрировать единственный сервис локализации для оператора `$locale(key)`. Принимает
+   * {@link LocaleService} (каталог через `createLocaleResolver` — включает validate-time проверку
+   * ключей) либо голый резолвер `(key) => string`. Кладётся под зарезервированный ключ `LOCALE_SERVICE`.
+   */
+  locale(service: LocaleService | LocaleResolver, description?: string): void;
 }
 ```
 
@@ -1848,6 +2447,8 @@ defineRegistry((reg: RegistryBuilder) => {
   reg.component('Input', Input);
   reg.component('Box', Box);
   reg.dataSource('LOAN_TYPES', LOAN_TYPES);
+  reg.fn('formatCurrency', formatCurrency);
+  reg.locale(createLocaleResolver({ 'fields.email.label': 'Email' }));
 });
 ```
 
@@ -1901,6 +2502,20 @@ export interface SchemaErrorPanelProps {
 
 _Source: src/components/schema-error-panel.tsx_
 
+### unwrapSignalValues
+
+**Kind:** `function`
+
+Разворачивает значения-сигналы в обычные (читает `.value`), литералы отдаёт как есть. Если сигналов
+не было — возвращает исходный объект (стабильная ссылка). Pure — тестируется без DOM.
+
+**Signature:**
+```typescript
+export function unwrapSignalValues(values?: LocaleParams): LocaleParams | undefined
+```
+
+_Source: src/locale/use-signal-value.ts_
+
 ### useJsonRendererSettings
 
 **Kind:** `function`
@@ -1927,3 +2542,39 @@ function MyControl() {
 ```
 
 _Source: src/context/json-renderer-context.tsx_
+
+### useLocale
+
+**Kind:** `function`
+
+Текущий сервис локализации из {@link LocaleProvider}. Без провайдера — fallback-to-key.
+Используется внутри {@link I18n}; вызывай напрямую для собственного localized-компонента.
+
+**Signature:**
+```typescript
+export function useLocale(): LocaleService
+```
+
+**Returns:** Активный {@link LocaleService}.
+
+_Source: src/locale/locale-context.tsx_
+
+### useSignalValues
+
+**Kind:** `function`
+
+Реактивно разворачивает `values`-сигналы. Перерендер компонента при изменении любого сигнала;
+литералы проходят как есть. Снапшот кэшируется (стабильная ссылка при неизменных значениях) —
+иначе `useSyncExternalStore` зациклится.
+
+**Signature:**
+```typescript
+export function useSignalValues(values?: LocaleParams): LocaleParams | undefined
+```
+
+**Parameters:**
+- `values` — - Параметры сообщения (сигналы и/или литералы).
+
+**Returns:** Развёрнутые значения для передачи в `LocaleService.resolve/render`.
+
+_Source: src/locale/use-signal-value.ts_
