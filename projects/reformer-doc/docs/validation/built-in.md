@@ -2,215 +2,305 @@
 sidebar_position: 2
 ---
 
-# Built-in Validator Factories
+# Встроенные валидаторы
 
-All factories are imported from `@reformer/core/validators`. They return a `Validator<TForm, TField>`
-and are placed in a schema node's `validators: [...]` array.
+Все встроенные валидаторы — **фабрики** из `@reformer/core/validators`. Каждая возвращает
+`Validator<TForm, TField>` и кладётся в массив `validators` узла схемы: `validators: [required(), email()]`.
 
-## required
+Общие правила:
 
-Field must have a non-empty value.
+- **Пустые значения пропускаются.** `''`, `null`, `undefined` (а для длины/чисел/дат — и невалидные
+  значения) считаются валидными. Обязательность проверяет отдельная фабрика `required()`.
+- **Опция `{ message }`.** Любой фабрике можно передать свой текст: `min(18, { message: 'Только 18+' })`.
+  Без него `message` резолвится из `code` в слое отображения.
+- **Omnibus `number()` удалён.** Числовые проверки собираются из отдельных фабрик
+  (`isNumber()`, `integer()`, `min()`, …).
+
+## Общие
+
+### `required(options?)`
+
+Поле должно быть заполнено. Пустыми считаются `null`, `undefined`, `''`, `[]` (пустой массив), а для
+`boolean` — любое значение, кроме `true` (обязательный чекбокс).
 
 ```typescript
 import { required } from '@reformer/core/validators';
 
-// In a schema field node:
-name: { value: model.$.name, validators: [required()] },
-// Error: { code: 'required', message: '...' }
+email: { value: model.$.email, component: Input, validators: [required()] },
+agreeToTerms: {
+  value: model.$.agreeToTerms,
+  component: Checkbox,
+  validators: [required({ message: 'Необходимо принять условия' })],
+},
+// Ошибка: { code: 'required', message }
 ```
 
-Empty values: `''`, `null`, `undefined`. For booleans, requires `true`.
+### `pattern(regex, options?)`
 
-## email
-
-Valid email format.
-
-```typescript
-import { email } from '@reformer/core/validators';
-
-email: { value: model.$.email, validators: [email()] },
-// Error: { code: 'email', message: '...' }
-```
-
-## minLength / maxLength
-
-String or array length constraints. Skipped for empty values.
-
-```typescript
-import { minLength, maxLength } from '@reformer/core/validators';
-
-name: { value: model.$.name, validators: [minLength(2)] },
-// Error: { code: 'minLength', params: { minLength: 2, actualLength: 1 } }
-
-bio: { value: model.$.bio, validators: [maxLength(500)] },
-// Error: { code: 'maxLength', params: { maxLength: 500, actualLength: 501 } }
-```
-
-## min / max
-
-Number value constraints. Skipped for empty values.
-
-```typescript
-import { min, max } from '@reformer/core/validators';
-
-age: { value: model.$.age, validators: [min(18)] },
-// Error: { code: 'min', params: { min: 18, actual: 16 } }
-
-quantity: { value: model.$.quantity, validators: [max(100)] },
-// Error: { code: 'max', params: { max: 100, actual: 150 } }
-```
-
-## pattern
-
-Match regex pattern.
+Значение должно соответствовать регулярному выражению.
 
 ```typescript
 import { pattern } from '@reformer/core/validators';
 
-code: { value: model.$.code, validators: [pattern(/^[A-Z]+$/)] },
-// Error: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
-
-// With custom message
-code: { value: model.$.code, validators: [pattern(/^[A-Z]+$/, { message: 'Must be uppercase' })] },
+code: {
+  value: model.$.code,
+  component: Input,
+  validators: [pattern(/^[A-Z]+$/, { message: 'Только заглавные латинские буквы' })],
+},
+// Ошибка: { code: 'pattern', params: { pattern: '^[A-Z]+$' } }
 ```
 
-## url
+### `email(options?)`
 
-Valid URL format.
+Формат email (упрощённый regex `^[^\s@]+@[^\s@]+\.[^\s@]+$`).
+
+```typescript
+import { required, email } from '@reformer/core/validators';
+
+email: { value: model.$.email, component: Input, validators: [required(), email()] },
+// Ошибка: { code: 'email' }
+```
+
+### `url(options?)`
+
+Формат URL. Дополнительные опции: `requireProtocol` (требовать `http(s)://`) и `allowedProtocols`
+(ограничить набор протоколов).
 
 ```typescript
 import { url } from '@reformer/core/validators';
 
-website: { value: model.$.website, validators: [url()] },
-
-// Options:
-// url({ requireProtocol: true })
-// url({ allowedProtocols: ['https'] })
+website: { value: model.$.website, component: Input, validators: [url()] },
+homepage: {
+  value: model.$.homepage,
+  component: Input,
+  validators: [url({ requireProtocol: true, allowedProtocols: ['https'] })],
+},
+// Ошибки: { code: 'url' } либо { code: 'url_protocol', params: { allowedProtocols } }
 ```
 
-## phone
+### `phone(options?)`
 
-Valid phone number format.
+Номер телефона. Формат задаётся опцией `format` типа `PhoneFormat`:
 
 ```typescript
-import { phone } from '@reformer/core/validators';
-
-phone: { value: model.$.phone, validators: [phone()] },
-
-// Options:
-// phone({ format: 'ru' })
+type PhoneFormat = 'international' | 'ru' | 'us' | 'any'; // по умолчанию 'any'
 ```
-
-## isNumber
-
-Value must be a finite number (type guard: `typeof === 'number' && !isNaN`).
 
 ```typescript
-import { isNumber } from '@reformer/core/validators';
+import { required, phone } from '@reformer/core/validators';
 
-amount: { value: model.$.amount, validators: [isNumber()] },
+phone: {
+  value: model.$.phone,
+  component: Input,
+  validators: [required(), phone({ format: 'ru' })],
+},
+// Ошибка: { code: 'phone', params: { format: 'ru' } }
 ```
 
-## integer
+## Длина строки
 
-Number must be an integer. Skips non-numbers (compose with `isNumber` for strict type check).
+Работают со строкой или массивом (проверяется `value.length`).
+
+### `minLength(n, options?)` · `maxLength(n, options?)`
+
+```typescript
+import { minLength, maxLength } from '@reformer/core/validators';
+
+name: { value: model.$.name, component: Input, validators: [minLength(2)] },
+bio: { value: model.$.bio, component: Textarea, validators: [maxLength(500)] },
+// minLength → { code: 'minLength', params: { minLength: 2, actualLength: 1 } }
+// maxLength → { code: 'maxLength', params: { maxLength: 500, actualLength: 501 } }
+```
+
+:::tip Непустой массив
+Требование «хотя бы один элемент» — это `minLength(1)` на поле-массиве:
+`validators: [minLength(1, { message: 'Добавьте хотя бы один элемент' })]`.
+:::
+
+## Числа
+
+Все числовые фабрики пропускают `null`/`undefined`; кроме `isNumber`, они также пропускают не-числа
+и `NaN` — строгую проверку типа даёт `isNumber()`.
+
+### `min(n, options?)` · `max(n, options?)`
+
+Границы значения (включительно).
+
+```typescript
+import { min, max } from '@reformer/core/validators';
+
+age: { value: model.$.age, component: Input, validators: [min(18)] },
+discount: { value: model.$.discount, component: Input, validators: [max(50)] },
+// min → { code: 'min', params: { min: 18, actual: 16 } }
+// max → { code: 'max', params: { max: 50, actual: 75 } }
+```
+
+### `isNumber(options?)`
+
+Значение — конечное число (не строка, не `NaN`).
+
+```typescript
+import { required, isNumber } from '@reformer/core/validators';
+
+amount: { value: model.$.amount, component: Input, validators: [required(), isNumber()] },
+// Ошибка: { code: 'isNumber' }
+```
+
+### `integer(options?)`
+
+Число должно быть целым.
 
 ```typescript
 import { integer } from '@reformer/core/validators';
 
-count: { value: model.$.count, validators: [integer()] },
+count: { value: model.$.count, component: Input, validators: [integer()] },
+// Ошибка: { code: 'integer' }
 ```
 
-## multipleOf
+### `multipleOf(n, options?)`
 
-Number must be a multiple of the given divisor.
+Число кратно делителю (сравнение с допуском — безопасно для дробного шага).
 
 ```typescript
 import { multipleOf } from '@reformer/core/validators';
 
-price: { value: model.$.price, validators: [multipleOf(0.01)] },
-rating: { value: model.$.rating, validators: [multipleOf(0.5)] },
+rating: { value: model.$.rating, component: Input, validators: [multipleOf(0.5)] },
+// Ошибка: { code: 'multipleOf', params: { multipleOf: 0.5 } }
 ```
 
-## nonNegative
+### `nonNegative(options?)` · `nonZero(options?)`
 
-Number must be `>= 0`.
+`nonNegative` — число `≥ 0`; `nonZero` — число не равно нулю.
 
 ```typescript
-import { nonNegative } from '@reformer/core/validators';
+import { nonNegative, nonZero } from '@reformer/core/validators';
 
-quantity: { value: model.$.quantity, validators: [nonNegative()] },
+balance: { value: model.$.balance, component: Input, validators: [nonNegative()] },
+divisor: { value: model.$.divisor, component: Input, validators: [nonZero()] },
+// nonNegative → { code: 'nonNegative' }
+// nonZero     → { code: 'nonZero' }
 ```
 
-## nonZero
-
-Number must not equal zero.
-
-```typescript
-import { nonZero } from '@reformer/core/validators';
-
-divisor: { value: model.$.divisor, validators: [nonZero()] },
-```
-
-Compose for richer constraints — there is no single `number()` factory anymore:
+:::info Собирайте числовые проверки из фабрик
+Единой фабрики `number()` больше нет. Составьте нужный набор:
 
 ```typescript
 import { isNumber, integer, min, max } from '@reformer/core/validators';
 
-percent: { value: model.$.percent, validators: [isNumber(), integer(), min(0), max(100)] },
+percent: {
+  value: model.$.percent,
+  component: Input,
+  validators: [isNumber(), integer(), min(0), max(100)],
+},
 ```
 
-## date
+:::
 
-Valid date value with optional constraints.
+## Даты
+
+Принимают `Date` или строку, парсимую в дату. Сравнение — по нормализованным датам (время обнуляется).
+Пустые и невалидные даты пропускаются (используйте `required()` и `isDate()`).
+
+### `isDate(options?)`
+
+Значение — валидная дата.
 
 ```typescript
-import { isDate, pastDate, minAge, minDate } from '@reformer/core/validators';
+import { required, isDate } from '@reformer/core/validators';
 
-birthDate: { value: model.$.birthDate, validators: [isDate(), pastDate(), minAge(18)] },
-
-eventDate: { value: model.$.eventDate, validators: [isDate(), minDate(new Date())] },
+eventDate: { value: model.$.eventDate, component: DatePicker, validators: [required(), isDate()] },
+// Ошибка: { code: 'date_invalid' }
 ```
 
-## notEmpty
+### `minDate(date, options?)` · `maxDate(date, options?)`
 
-Array must not be empty.
+Границы даты (включительно).
 
 ```typescript
-import { minLength } from '@reformer/core/validators';
+import { minDate, maxDate } from '@reformer/core/validators';
 
-// A non-empty array is expressed as minLength(1) on the array field:
-items: { value: model.$.items, validators: [minLength(1, { message: 'Add at least one item' })] },
+startDate: { value: model.$.startDate, component: DatePicker, validators: [minDate(new Date())] },
+birthDate: { value: model.$.birthDate, component: DatePicker, validators: [maxDate(new Date())] },
+// minDate → { code: 'date_min', params: { minDate } }
+// maxDate → { code: 'date_max', params: { maxDate } }
 ```
 
-## Combining Validators
+### `pastDate(options?)` · `futureDate(options?)`
 
-Apply multiple validators to one field. All run, errors are collected:
+`pastDate` — дата не в будущем; `futureDate` — дата не в прошлом (относительно сегодняшнего дня).
+
+```typescript
+import { pastDate, futureDate } from '@reformer/core/validators';
+
+birthDate: { value: model.$.birthDate, component: DatePicker, validators: [pastDate()] },
+appointment: { value: model.$.appointment, component: DatePicker, validators: [futureDate()] },
+// pastDate   → { code: 'date_future' } (дата оказалась в будущем)
+// futureDate → { code: 'date_past' }   (дата оказалась в прошлом)
+```
+
+### `minAge(years, options?)` · `maxAge(years, options?)`
+
+Возраст по дате рождения (в полных годах).
+
+```typescript
+import { required, minAge, maxAge } from '@reformer/core/validators';
+
+birthDate: {
+  value: model.$.birthDate,
+  component: DatePicker,
+  validators: [required(), minAge(18), maxAge(100)],
+},
+// minAge → { code: 'date_min_age', params: { minAge: 18, currentAge } }
+// maxAge → { code: 'date_max_age', params: { maxAge: 100, currentAge } }
+```
+
+## Комбинирование
+
+К одному полю можно применить несколько валидаторов — выполняются все, ошибки собираются в массив:
 
 ```typescript
 import { required, minLength, pattern } from '@reformer/core/validators';
 
 password: {
   value: model.$.password,
+  component: Input,
   validators: [
     required(),
     minLength(8),
-    pattern(/[A-Z]/, { message: 'Must contain uppercase' }),
-    pattern(/[0-9]/, { message: 'Must contain a number' }),
+    pattern(/[A-Z]/, { message: 'Нужна заглавная буква' }),
+    pattern(/[0-9]/, { message: 'Нужна цифра' }),
   ],
 },
 ```
 
-```typescript
-// If password is "abc"
-errors: [
-  { code: 'minLength', message: 'Min 8 chars', params: { minLength: 8, actualLength: 3 } },
-  { code: 'pattern', message: 'Must contain uppercase', params: { pattern: '[A-Z]' } },
-  { code: 'pattern', message: 'Must contain a number', params: { pattern: '[0-9]' } },
-];
-```
+## Справочник
 
-## Next Steps
+| Категория | Фабрика          | Код ошибки             | `params`                      |
+| --------- | ---------------- | ---------------------- | ----------------------------- |
+| Общие     | `required()`     | `required`             | —                             |
+| Общие     | `pattern(regex)` | `pattern`              | `{ pattern }`                 |
+| Общие     | `email()`        | `email`                | —                             |
+| Общие     | `url()`          | `url` / `url_protocol` | `{ allowedProtocols }`        |
+| Общие     | `phone()`        | `phone`                | `{ format }`                  |
+| Длина     | `minLength(n)`   | `minLength`            | `{ minLength, actualLength }` |
+| Длина     | `maxLength(n)`   | `maxLength`            | `{ maxLength, actualLength }` |
+| Числа     | `min(n)`         | `min`                  | `{ min, actual }`             |
+| Числа     | `max(n)`         | `max`                  | `{ max, actual }`             |
+| Числа     | `isNumber()`     | `isNumber`             | —                             |
+| Числа     | `integer()`      | `integer`              | —                             |
+| Числа     | `multipleOf(n)`  | `multipleOf`           | `{ multipleOf }`              |
+| Числа     | `nonNegative()`  | `nonNegative`          | —                             |
+| Числа     | `nonZero()`      | `nonZero`              | —                             |
+| Даты      | `isDate()`       | `date_invalid`         | —                             |
+| Даты      | `minDate(d)`     | `date_min`             | `{ minDate }`                 |
+| Даты      | `maxDate(d)`     | `date_max`             | `{ maxDate }`                 |
+| Даты      | `pastDate()`     | `date_future`          | —                             |
+| Даты      | `futureDate()`   | `date_past`            | —                             |
+| Даты      | `minAge(n)`      | `date_min_age`         | `{ minAge, currentAge }`      |
+| Даты      | `maxAge(n)`      | `date_max_age`         | `{ maxAge, currentAge }`      |
 
-- [Async Validation](/docs/validation/async) — Server-side validation
-- [Custom Validators](/docs/validation/custom) — Create your own
+## Дальше
+
+- [Кастомные валидаторы](/docs/validation/custom) — свои правила и кросс-полевые проверки.
+- [Асинхронная валидация](/docs/validation/async) — проверки через сервер.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение ошибок.

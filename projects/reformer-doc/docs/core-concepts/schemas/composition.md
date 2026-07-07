@@ -2,47 +2,50 @@
 sidebar_position: 5
 ---
 
-# Schema Composition
+# Композиция схем
 
-Decompose and reuse schemas across your application.
+Раскладывайте схемы на части и переиспользуйте их по всему приложению.
 
-## Why Composition?
+## Зачем композиция?
 
-- **Avoid duplication** — Write schemas once, use everywhere
-- **Consistency** — Same validation rules across forms
-- **Maintainability** — Update in one place
-- **Testing** — Test schemas in isolation
+- **Без дублирования** — описал схему один раз, используешь везде.
+- **Согласованность** — одни и те же правила во всех формах.
+- **Поддерживаемость** — правка в одном месте.
+- **Тестируемость** — каждую часть можно проверить изолированно.
 
-## Factory Functions
+## Builder-функции
 
-:::warning Always Use Factory Functions
-Use functions that return schema fragments, not direct objects.
+:::warning Всегда используйте builder-функции
+Переиспользуемый фрагмент схемы — это **функция**, возвращающая свежий объект узлов, привязанный к
+переданным сигналам модели. Не общий объект-литерал.
 :::
 
 ```typescript
-// ✅ Good — builder returns a fresh fragment bound to the given model signals
+import type { ModelSignals } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+
+// ✅ Хорошо — builder возвращает свежий фрагмент, привязанный к сигналам под-модели.
 export const addressNodes = (s: ModelSignals<Address>) => ({
   street: { value: s.street, component: Input },
   city: { value: s.city, component: Input },
 });
 
-// ❌ Bad — a shared object literal: not bound to a model, reused by reference
-export const addressNodes = {
+// ❌ Плохо — общий объект-литерал: не привязан к модели, переиспользуется по ссылке.
+export const addressNodesBad = {
   street: { value: '' },
   city: { value: '' },
 };
 ```
 
-## Reusable Field Schemas
+## Переиспользуемые поля
 
-Create common field configurations:
+Общие конфигурации полей — builder, принимающий сигнал поля (начальное значение живёт в модели):
 
 ```typescript title="schemas/common-fields.ts"
 import type { PathAwareSignal } from '@reformer/core';
 import { Input, Checkbox } from '@reformer/ui-kit';
 import { required, email } from '@reformer/core/validators';
 
-// Field builders take a model signal; the initial value lives in the model
 export const emailField = (value: PathAwareSignal<string>) => ({
   value,
   component: Input,
@@ -68,7 +71,7 @@ export const booleanField = (value: PathAwareSignal<boolean>) => ({
 });
 ```
 
-**Usage:**
+**Использование:**
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
@@ -80,7 +83,7 @@ type ProfileForm = {
   newsletter: boolean;
 };
 
-// Defaults (e.g. newsletter: true) live in the model, not the field builder
+// Значения по умолчанию (напр. newsletter: true) живут в модели, а не в builder поля.
 const model = createModel<ProfileForm>({
   email: '',
   phone: '',
@@ -98,9 +101,9 @@ const schema = {
 const form = createForm<ProfileForm>({ model, schema });
 ```
 
-## Reusable Group Schemas
+## Переиспользуемые группы
 
-Create schemas for common data structures:
+Builder для типовых структур данных привязывает каждое поле к сигналам переданной под-модели:
 
 ```typescript title="schemas/address-schema.ts"
 import type { ModelSignals } from '@reformer/core';
@@ -113,7 +116,6 @@ export type Address = {
   zipCode: string;
 };
 
-// Builder binds each field to the passed sub-model signals
 export const addressNodes = (s: ModelSignals<Address>) => ({
   street: { value: s.street, component: Input },
   city: { value: s.city, component: Input },
@@ -139,7 +141,7 @@ export const personNodes = (s: ModelSignals<Person>) => ({
 });
 ```
 
-**Composing schemas:**
+**Сборка схемы:**
 
 ```typescript
 type UserForm = {
@@ -154,7 +156,7 @@ const model = createModel<UserForm>({
   shippingAddress: { street: '', city: '', state: '', zipCode: '' },
 });
 
-// Each builder call returns a fresh fragment bound to its own sub-model
+// Каждый вызов builder возвращает свежий фрагмент, привязанный к своей под-модели.
 const schema = {
   person: personNodes(model.$.person),
   billingAddress: addressNodes(model.$.billingAddress),
@@ -164,19 +166,19 @@ const schema = {
 const form = createForm<UserForm>({ model, schema });
 ```
 
-## Reusable Validation Sets
+## Переиспользуемые наборы валидаторов
 
-Extract validation logic into functions:
+Выносите списки валидаторов в функции:
 
 ```typescript title="validators/address-validators.ts"
 import { required, pattern } from '@reformer/core/validators';
 
-// Reusable validator lists — spread into a schema node's `validators`
+// Переиспользуемые списки валидаторов — раскрываются в `validators` узла.
 export const addressValidators = {
   street: () => [required()],
   city: () => [required()],
   state: () => [required()],
-  zipCode: () => [required(), pattern(/^\d{5}(-\d{4})?$/, { message: 'Invalid ZIP code' })],
+  zipCode: () => [required(), pattern(/^\d{5}(-\d{4})?$/, { message: 'Некорректный индекс' })],
 };
 ```
 
@@ -190,7 +192,7 @@ export const personValidators = {
 };
 ```
 
-**Usage:**
+**Использование:**
 
 ```typescript
 import type { ModelSignals } from '@reformer/core';
@@ -198,7 +200,7 @@ import { Input } from '@reformer/ui-kit';
 import { addressValidators } from './validators/address-validators';
 import { personValidators } from './validators/person-validators';
 
-// Bake the reusable validator lists into the builders
+// Вшиваем переиспользуемые списки валидаторов в builder.
 const addressNodes = (s: ModelSignals<Address>) => ({
   street: { value: s.street, component: Input, validators: addressValidators.street() },
   city: { value: s.city, component: Input, validators: addressValidators.city() },
@@ -212,7 +214,7 @@ const personNodes = (s: ModelSignals<Person>) => ({
   email: { value: s.email, component: Input, validators: personValidators.email() },
 });
 
-// The same validator lists apply to billing and shipping addresses
+// Одни и те же списки валидаторов применяются к billing и shipping адресам.
 const schema = {
   person: personNodes(model.$.person),
   billingAddress: addressNodes(model.$.billingAddress),
@@ -222,18 +224,19 @@ const schema = {
 const form = createForm<UserForm>({ model, schema });
 ```
 
-## Reusable Behavior Sets
+## Переиспользуемые наборы behavior
 
-Extract behavior logic into functions:
+Логику behavior выносят в функцию, принимающую сигналы под-модели, и вызывают по разу на под-модель
+внутри `defineFormBehavior`:
 
 ```typescript title="behaviors/address-behaviors.ts"
 import { transformValue } from '@reformer/core/behaviors';
 import type { ModelSignals } from '@reformer/core';
 import type { Address } from '../schemas/address-schema';
 
-// Reusable behavior fragment — call it once per address inside defineFormBehavior
+// Переиспользуемый фрагмент behavior — вызывается по разу на адрес внутри defineFormBehavior.
 export function addressBehaviors(s: ModelSignals<Address>) {
-  // Auto-format ZIP code (idempotent: reformatting a formatted value is a no-op)
+  // Автоформат индекса (идемпотентно: повторное форматирование — no-op).
   transformValue(s.zipCode, (value) => {
     const digits = (value ?? '').replace(/\D/g, '');
     if (digits.length === 9) {
@@ -244,7 +247,7 @@ export function addressBehaviors(s: ModelSignals<Address>) {
 }
 ```
 
-**Usage:**
+**Использование:**
 
 ```typescript
 import { defineFormBehavior } from '@reformer/core/behaviors';
@@ -258,17 +261,72 @@ const userBehavior = defineFormBehavior<UserForm>(({ model }) => {
 const form = createForm<UserForm>({ model, schema, behavior: userBehavior });
 ```
 
-## Complete Module Pattern
+## Операторы `apply` и `applyEach`
 
-Bundle schema, validation, and behaviors together:
+Функция-обёртка выше (`addressBehaviors(model.$.billingAddress)`) инлайнит операторы. Когда переиспользуемый
+фрагмент удобнее оформить как **самостоятельную под-схему** `defineFormBehavior`, применяйте её
+операторами композиции.
+
+### apply — под-схема на группе
+
+`apply(targets, subSchema)` применяет под-схему behavior к одной или нескольким группам. Под-схема —
+обычный `defineFormBehavior` над типом группы; её scope `model` — это под-модель группы:
+
+```typescript
+import { defineFormBehavior, apply, transformValue } from '@reformer/core/behaviors';
+
+// Самостоятельная под-схема behavior для адреса.
+const addressBehavior = defineFormBehavior<Address>(({ model }) => {
+  transformValue(model.$.zipCode, (value) => (value ?? '').trim());
+});
+
+const behavior = defineFormBehavior<UserForm>(({ model }) => {
+  // Применяем одну под-схему сразу к обеим группам.
+  apply([model.$.billingAddress, model.$.shippingAddress], addressBehavior);
+});
+```
+
+### applyEach — per-item behavior массива
+
+`applyEach(array, itemSchema)` применяет под-схему к **каждому** элементу динамического массива и
+реагирует на добавление/удаление строк. Scope под-схемы — строка: `model` (под-модель строки,
+`row.$.<field>`) и `form` (нода строки):
+
+```typescript
+import { defineFormBehavior, applyEach, compute } from '@reformer/core/behaviors';
+
+type Item = { qty: number; price: number; lineTotal: number };
+type CartForm = { items: Item[] };
+
+const behavior = defineFormBehavior<CartForm>(({ model }) => {
+  applyEach(
+    model.$.items,
+    defineFormBehavior<Item>(({ model: row }) => {
+      // Считаем сумму строки для каждого элемента.
+      compute(row.$.lineTotal, () => (row.qty ?? 0) * (row.price ?? 0));
+    })
+  );
+});
+```
+
+:::info Value-операции и node-операции
+Value-операции (`compute` / `copyFrom` / `transformValue` на `row.$.*`) в `applyEach` работают
+всегда. Node-операции (`enableWhen` / `updateComponentProps` / `reset` через `form.*`) требуют, чтобы
+массив был **материализован** в схеме формы узлом `{ array, item }` — иначе доступ к ноде строки
+бросит понятную ошибку.
+:::
+
+## Полный модуль
+
+Собирайте схему, валидацию и behavior в один модуль:
 
 ```
 modules/
 └── contact-info/
-    ├── schema.ts       # Type + schema builder
-    ├── validators.ts   # Reusable validator lists
-    ├── behaviors.ts    # Reactive logic
-    └── index.ts        # Public exports
+    ├── schema.ts       # Тип + builder схемы
+    ├── validators.ts   # Переиспользуемые списки валидаторов
+    ├── behaviors.ts    # Реактивная логика
+    └── index.ts        # Публичные экспорты
 ```
 
 ```typescript title="modules/contact-info/schema.ts"
@@ -291,7 +349,7 @@ export const contactInfoNodes = (s: ModelSignals<ContactInfo>) => ({
     componentProps: {
       options: [
         { value: 'email', label: 'Email' },
-        { value: 'phone', label: 'Phone' },
+        { value: 'phone', label: 'Телефон' },
       ],
     },
   },
@@ -303,7 +361,7 @@ import { required, email, pattern } from '@reformer/core/validators';
 
 export const contactInfoValidators = {
   email: () => [required(), email()],
-  phone: () => [required(), pattern(/^\d{10}$/, { message: 'Must be 10 digits' })],
+  phone: () => [required(), pattern(/^\d{10}$/, { message: 'Нужно 10 цифр' })],
 };
 ```
 
@@ -329,7 +387,7 @@ export { contactInfoValidators } from './validators';
 export { contactInfoBehaviors } from './behaviors';
 ```
 
-**Usage:**
+**Использование:**
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
@@ -360,9 +418,9 @@ const behavior = defineFormBehavior<MyForm>(({ model }) => {
 const form = createForm<MyForm>({ model, schema, behavior });
 ```
 
-## Configurable Schemas
+## Конфигурируемые схемы
 
-Create schema factories with options:
+Builder может принимать опции и выбирать, какие поля выставлять:
 
 ```typescript title="schemas/configurable-person.ts"
 import type { ModelSignals } from '@reformer/core';
@@ -382,7 +440,7 @@ type PersonSchemaOptions = {
   includePhone?: boolean;
 };
 
-// The model materializes every field; the builder chooses which to expose
+// Модель материализует все поля; builder выбирает, какие из них выставить.
 export function createPersonNodes(s: ModelSignals<Person>, options: PersonSchemaOptions = {}) {
   const nodes: Record<string, unknown> = {
     firstName: { value: s.firstName, component: Input, validators: [required()] },
@@ -402,10 +460,10 @@ export function createPersonNodes(s: ModelSignals<Person>, options: PersonSchema
 }
 ```
 
-**Usage:**
+**Использование:**
 
 ```typescript
-// The model must materialize every field the builder can expose
+// Модель обязана материализовать все поля, которые builder может выставить.
 const model = createModel<Person>({
   firstName: '',
   lastName: '',
@@ -414,46 +472,44 @@ const model = createModel<Person>({
   phone: '',
 });
 
-// Basic person — only the three required fields are exposed
+// Базовый вариант — только три обязательных поля.
 const basicSchema = createPersonNodes(model.$);
 
-// Person with all fields
+// Полный вариант — со всеми полями.
 const detailedSchema = createPersonNodes(model.$, {
   includeMiddleName: true,
   includePhone: true,
 });
 ```
 
-## Recommended Folder Structure
+## Рекомендуемая структура папок
 
-:::note App-level reuse, not per-form layout
-This layout is about **schemas reused across many forms** — the app-level `schemas/` /
-`validators/` / `behaviors/` directories below are shared building blocks, not the files that
-make up a single form module. For how one form's own files are organized (flat per-concern
-files by default, with a `form.` / `renderer.` dot-prefix on the schema and behavior files),
-see [Project Structure](/docs/patterns/project-structure).
+:::note Переиспользование на уровне приложения, а не разметка одной формы
+Этот layout — про **схемы, переиспользуемые между многими формами**: каталоги `schemas/` /
+`validators/` / `behaviors/` ниже — общие строительные блоки, а не файлы одной формы. Как устроены
+файлы отдельной формы — см. [Структуру проекта](../../patterns/project-structure).
 :::
 
 ```
 src/
-├── forms/                    # Form instances
+├── forms/                    # Экземпляры форм
 │   ├── user-form.ts
 │   └── order-form.ts
 │
-├── schemas/                  # Reusable schemas
+├── schemas/                  # Переиспользуемые схемы
 │   ├── common-fields.ts
 │   ├── address-schema.ts
 │   └── person-schema.ts
 │
-├── validators/               # Reusable validators
+├── validators/               # Переиспользуемые валидаторы
 │   ├── address-validators.ts
 │   └── person-validators.ts
 │
-├── behaviors/                # Reusable behaviors
+├── behaviors/                # Переиспользуемые behavior
 │   ├── address-behaviors.ts
 │   └── format-behaviors.ts
 │
-└── modules/                  # Complete modules
+└── modules/                  # Готовые модули
     ├── contact-info/
     │   ├── schema.ts
     │   ├── validators.ts
@@ -463,16 +519,17 @@ src/
         └── ...
 ```
 
-## Best Practices
+## Best practices
 
-| Practice                  | Why                              |
-| ------------------------- | -------------------------------- |
-| Use factory functions     | Avoid shared references          |
-| Export types with schemas | Better type inference            |
-| Bundle related schemas    | Single import for module         |
-| Use descriptive names     | `validatePerson` not `validate1` |
-| Test schemas separately   | Easier debugging                 |
+| Практика                             | Почему                       |
+| ------------------------------------ | ---------------------------- |
+| Используйте builder-функции          | Нет общих ссылок на объекты  |
+| Экспортируйте типы вместе со схемами | Лучше вывод типов            |
+| Собирайте связанные схемы в модуль   | Один импорт на модуль        |
+| Понятные имена                       | `personNodes`, а не `nodes1` |
+| Тестируйте схемы отдельно            | Проще отлаживать             |
 
-## Next Steps
+## Дальше
 
-- [Project Structure](/docs/patterns/project-structure) — Organization tips
+- [Структура проекта](../../patterns/project-structure) — организация файлов формы.
+- [Схема behavior](./behavior-schema) — операторы `apply` / `applyEach` в контексте.

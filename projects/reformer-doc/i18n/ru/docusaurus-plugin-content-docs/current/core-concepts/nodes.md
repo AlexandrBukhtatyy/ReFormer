@@ -1,155 +1,136 @@
 ---
-sidebar_position: 1
+sidebar_position: 3
 ---
 
-# Nodes (Узлы)
+# Ноды и proxy
 
-Nodes — это строительные блоки форм ReFormer. Существует три типа:
+**Ноды** — строительные блоки формы. Их не создают вручную через `new` — их строит `createForm`
+поверх сигналов модели, а доступ к ним даёт типизированный **proxy**.
 
-| Node        | Назначение                                | Пример                    |
-| ----------- | ----------------------------------------- | ------------------------- |
-| `FieldNode` | Одиночное значение (строка, число и т.д.) | Текстовый input, checkbox |
-| `GroupNode` | Объект с именованными полями              | Секция формы, адрес       |
-| `ArrayNode` | Динамический список элементов             | Телефоны, адреса          |
+| Нода             | Назначение                           | Пример                  |
+| ---------------- | ------------------------------------ | ----------------------- |
+| `FieldNode`      | одно значение (строка, число, флаг)  | текстовое поле, чекбокс |
+| `GroupNode`      | объект с именованными полями         | секция формы, адрес     |
+| `ArrayNode`      | динамический список подформ          | телефоны, адреса        |
+| `ModelArrayNode` | массив, привязанный к массиву модели | список объектов модели  |
 
-## FieldNode
+## Доступ через proxy
 
-Простейший узел — хранит одно значение.
-
-```typescript
-import { FieldNode } from '@reformer/core';
-
-const name = new FieldNode({ value: '' });
-const age = new FieldNode({ value: 0 });
-const active = new FieldNode({ value: false });
-
-// Получение/установка значения
-name.value; // ''
-name.setValue('John');
-name.value; // 'John'
-```
-
-### Свойства FieldNode
-
-| Свойство   | Тип                   | Описание                      |
-| ---------- | --------------------- | ----------------------------- |
-| `value`    | `T`                   | Текущее значение              |
-| `valid`    | `boolean`             | Нет ошибок валидации          |
-| `invalid`  | `boolean`             | Есть ошибки валидации         |
-| `touched`  | `boolean`             | Пользователь взаимодействовал |
-| `dirty`    | `boolean`             | Значение изменено             |
-| `errors`   | `Record<string, any>` | Ошибки валидации              |
-| `disabled` | `boolean`             | Поле отключено                |
-| `visible`  | `boolean`             | Поле видимо                   |
-
-### Методы FieldNode
-
-| Метод                    | Описание                       |
-| ------------------------ | ------------------------------ |
-| `setValue(value)`        | Установить новое значение      |
-| `reset()`                | Сбросить к начальному значению |
-| `markAsTouched()`        | Пометить как touched           |
-| `markAsDirty()`          | Пометить как dirty             |
-| `disable()` / `enable()` | Переключить disabled           |
-| `show()` / `hide()`      | Переключить видимость          |
-
-## GroupNode
-
-Группирует несколько полей в объект.
+`createForm` возвращает proxy: к полям обращаются по имени, вложенность — цепочкой.
 
 ```typescript
-import { GroupNode } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-const form = new GroupNode({
-  form: {
-    firstName: { value: '' },
-    lastName: { value: '' },
-    address: {
-      street: { value: '' },
-      city: { value: '' },
-    },
+type Form = { firstName: string; address: { city: string } };
+
+const model = createModel<Form>({ firstName: '', address: { city: '' } });
+
+const schema = {
+  firstName: { value: model.$.firstName, component: Input },
+  address: {
+    city: { value: model.$.address.city, component: Input },
   },
-});
+};
 
-// Доступ к контролам
-form.controls.firstName.setValue('John');
-form.controls.address.controls.city.setValue('NYC');
+const form = createForm<Form>({ model, schema });
 
-// Получить полное значение
-form.value;
-// { firstName: 'John', lastName: '', address: { street: '', city: 'NYC' } }
+form.firstName; // FieldNode<string>
+form.address; // GroupNode
+form.address.city; // FieldNode<string> — вложенный доступ
 ```
 
-### Свойства GroupNode
+:::warning Proxy не проходит `instanceof`
+Не проверяйте тип ноды через `node instanceof FieldNode` — proxy это не пройдёт. Используйте
+[type-guards](#type-guards).
+:::
 
-Наследует все свойства FieldNode плюс:
+## Состояние ноды — сигналы
 
-| Свойство   | Тип               | Описание      |
-| ---------- | ----------------- | ------------- |
-| `controls` | `{ [key]: Node }` | Дочерние узлы |
+Свойства ноды `value`, `valid`, `invalid`, `errors`, `touched`, `dirty`, `disabled`, `pending` —
+**сигналы** (реактивные, только для чтения). В React их удобнее читать через
+[`useFormControl`](../react/hooks); вне React — через методы ниже или `.value` сигнала.
 
-### Методы GroupNode
+| Свойство (сигнал)   | Тип                 | Описание                                          |
+| ------------------- | ------------------- | ------------------------------------------------- |
+| `value`             | `T`                 | текущее значение                                  |
+| `valid` / `invalid` | `boolean`           | проходит / не проходит валидацию                  |
+| `errors`            | `ValidationError[]` | ошибки валидации (`[]` когда валидно)             |
+| `touched` / `dirty` | `boolean`           | пользователь взаимодействовал / значение менялось |
+| `disabled`          | `boolean`           | поле отключено                                    |
+| `pending`           | `boolean`           | идёт асинхронная валидация                        |
 
-| Метод             | Описание                          |
-| ----------------- | --------------------------------- |
-| `markAsTouched()` | Пометить все дочерние как touched |
-| `resetAll()`      | Сбросить все дочерние             |
-
-## ArrayNode
-
-Динамический список элементов.
+## Методы ноды
 
 ```typescript
-import { GroupNode } from '@reformer/core';
-
-const form = new GroupNode({
-  form: {
-    phones: [{ type: { value: 'home' }, number: { value: '123-456' } }],
-  },
-});
-
-// Доступ к элементам
-form.controls.phones.controls[0].controls.number.value; // '123-456'
-
-// Добавить элемент
-form.controls.phones.push({ type: 'work', number: '' });
-
-// Удалить элемент
-form.controls.phones.removeAt(0);
-
-// Получить все значения
-form.controls.phones.value; // [{ type: 'work', number: '' }]
+form.firstName.getValue(); // прочитать значение
+form.firstName.setValue('John'); // записать значение
+form.firstName.patchValue(partial); // частичное обновление (для групп/массивов)
+form.firstName.reset(); // сброс к начальному
+form.firstName.markAsTouched(); // отметить как «тронутое»
+form.firstName.markAsDirty();
+form.firstName.disable(); // отключить
+form.firstName.enable(); // включить
+form.firstName.validate(); // запустить валидацию ноды
 ```
 
-### Методы ArrayNode
+Изменение значения через ноду отражается в модели (и наоборот) — это одни и те же сигналы.
 
-| Метод                  | Описание                   |
-| ---------------------- | -------------------------- |
-| `push(value)`          | Добавить элемент в конец   |
-| `insert(index, value)` | Вставить в позицию         |
-| `removeAt(index)`      | Удалить элемент по индексу |
-| `move(from, to)`       | Переместить элемент        |
-| `clear()`              | Удалить все элементы       |
+### FieldNode
 
-## Вывод типов
-
-ReFormer автоматически выводит типы:
+Лист дерева. Дополнительно к общим методам:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    name: { value: '' },
-    age: { value: 0 },
-  },
-});
-
-// TypeScript знает типы
-form.value.name; // string
-form.value.age; // number
-form.controls.name; // FieldNode<string>
+form.email.updateComponentProps({ options: [...] }); // обновить пропсы компонента (например, опции Select)
+form.email.componentProps;   // сигнал текущих componentProps
+form.email.shouldShowError;  // сигнал: показывать ли ошибку (touched + invalid)
 ```
 
-## Следующие шаги
+### GroupNode
 
-- [Реактивное состояние](/docs/core-concepts/reactive-state) — как работает реактивность
-- [Валидация](/docs/validation/overview) — добавление правил валидации
+Группирует поля в объект.
+
+```typescript
+form.address.getValue(); // { city: '...', zip: '...' }
+form.address.touchAll(); // отметить все дочерние поля тронутыми
+form.address.getFieldByPath('city'); // доступ по строковому пути
+```
+
+### ArrayNode
+
+Динамический список подформ. Сами данные принадлежат модели, поэтому мутации выполняются на
+[модели](./model), а нода отражает их реактивно:
+
+```typescript
+model.phones.push({ type: 'mobile', number: '' }); // добавить элемент
+model.phones.removeAt(0);                           // удалить
+
+form.phones.at(0);                                  // FormProxy элемента
+form.phones.map((item, i) => /* ... */);            // обход элементов
+```
+
+## Type-guards
+
+Поскольку proxy не проходит `instanceof`, тип ноды определяют через guard-функции:
+
+```typescript
+import { isFieldNode, isGroupNode, isArrayNode, getNodeType } from '@reformer/core';
+
+if (isFieldNode(node)) {
+  /* лист */
+}
+if (isGroupNode(node)) {
+  /* группа */
+}
+if (isArrayNode(node)) {
+  /* массив */
+}
+
+getNodeType(node); // 'field' | 'group' | 'array'
+```
+
+## Дальше
+
+- [Схема формы](./schemas/overview) — как описать структуру и привязать ноды к модели.
+- [React-хуки](../react/hooks) — читать состояние нод в компонентах.
+- [Массивы и динамические формы](../patterns/arrays) — работа с `ArrayNode` на практике.

@@ -2,22 +2,53 @@
 sidebar_position: 1
 ---
 
-# Installation
+# Установка
 
-## Requirements
+## Требования
 
 - Node.js 18+
-- React 18+ (for React bindings)
+- React 18+ (для React-биндингов; поддерживаются 16.8–19)
 
-## Install
+## Установка пакета
 
 ```bash
-npm install @reformer/core@beta
+npm install @reformer/core
 ```
 
-ReFormer includes all necessary dependencies, including [Preact Signals Core](https://github.com/preactjs/signals/blob/main/packages/core/README.md#guide--api) for reactivity.
+Ядро тянет за собой реактивный движок
+[Preact Signals Core](https://github.com/preactjs/signals) — устанавливать его отдельно не нужно.
 
-## Next Steps
+Чаще всего вместе с ядром ставят набор готовых полей:
 
-- [Project Structure](/docs/patterns/project-structure) — Recommended project organization
-- [Quick Start](/docs/getting-started/quick-start) — Build your first form
+```bash
+npm install @reformer/core @reformer/ui-kit
+```
+
+## Точки входа пакета
+
+`@reformer/core` tree-shakeable и разбит на подпути — импортируйте только нужное:
+
+```typescript
+// Ядро: модель, форма, ноды, хуки
+import { createModel, createForm, useFormControl } from '@reformer/core';
+
+// Валидаторы — чистые фабрики
+import { required, email, min, minLength } from '@reformer/core/validators';
+
+// Behaviors — декларативный DSL
+import { defineFormBehavior, compute, onChange } from '@reformer/core/behaviors';
+
+// Signals — единый реактивный рантайм (для интеграций/продвинутых сценариев)
+import { signal, computed, effect } from '@reformer/core/signals';
+```
+
+:::tip Единый рантайм сигналов
+Если пишете свой пакет поверх ReFormer и работаете с сигналами напрямую — импортируйте `Signal` из
+`@reformer/core/signals`, а **не** из `@preact/signals-core`. Так все `@reformer/*`-пакеты разделяют
+один экземпляр рантайма и реактивность работает между ними согласованно.
+:::
+
+## Дальше
+
+- [Быстрый старт](./quick-start) — собрать первую форму.
+- [Организация проекта](../patterns/project-structure) — рекомендованная структура форм.

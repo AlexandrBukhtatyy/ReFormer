@@ -2,137 +2,180 @@
 sidebar_position: 3
 ---
 
-# Async Validation
+# Асинхронная валидация
 
-Validate against server or perform expensive checks.
+Для проверок, требующих сервера — уникальность email, валидация ИНН, доступность имени — служат
+**асинхронные валидаторы**. Они живут в отдельном массиве `asyncValidators` узла схемы.
 
-## Basic Async Validator
+## Контракт
 
-An async validator is a function returning `Promise<ValidationError | null>`. Place it in a
-field's `asyncValidators` array in the schema:
+Асинхронный валидатор — функция `(value, options?) => Promise<ValidationError | null>`. Второй
+аргумент содержит `signal: AbortSignal` для отмены устаревших запросов:
 
 ```typescript
-import { createModel, createForm, validateFormModel } from '@reformer/core';
-import { required } from '@reformer/core/validators';
+import type { AsyncValidatorFn } from '@reformer/core';
+
+const checkEmailUnique: AsyncValidatorFn<string> = async (value, options) => {
+  if (!value) return null; // пусто = валидно (обязательность — sync-валидатором)
+
+  const res = await fetch(`/api/check-email?email=${encodeURIComponent(value)}`, {
+    signal: options?.signal, // отмена запроса при следующей проверке
+  });
+  const { available } = (await res.json()) as { available: boolean };
+
+  return available ? null : { code: 'emailTaken', message: 'Email уже зарегистрирован' };
+};
+```
+
+## Подключение в схему
+
+```typescript
+import { createModel, createForm } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
 import { Input } from '@reformer/ui-kit';
 
-const model = createModel<{ username: string }>({ username: '' });
+const model = createModel<{ email: string }>({ email: '' });
 
 const schema = {
-  username: {
-    value: model.$.username,
+  email: {
+    value: model.$.email,
     component: Input,
-    validators: [required()],
-    asyncValidators: [
-      async (value: string) => {
-        const response = await fetch(`/api/check-username?name=${value}`);
-        const { available } = await response.json();
-
-        return available ? null : { code: 'usernameTaken', message: 'Username taken' };
-      },
-    ],
+    validators: [required(), email()], // синхронные — быстрый отсев
+    asyncValidators: [checkEmailUnique], // асинхронные — серверная проверка
+    debounce: 400, // задержка перед асинхронной валидацией (живой путь ноды)
+    updateOn: 'blur', // когда запускать проверку поля
   },
 };
 
 const form = createForm({ model, schema });
-
-// Whole-form validation (sync + async) runs the async validators too:
-const { valid, errors } = await validateFormModel(model, schema);
 ```
 
-## Debouncing
+:::info Порядок валидаторов
+Под `validateFormModel` валидаторы поля идут по порядку в массиве, но прогоняются **все** —
+включая асинхронные (раннего выхода при sync-ошибке нет), а ошибки агрегируются. Поэтому
+async-валидатор обязан сам отсеивать пустые/невалидные значения (`if (!value) return null`), иначе
+запрос уйдёт даже для незаполненного поля.
+:::
 
-Avoid too many requests with a per-field `debounce` (ms). The async validator only runs after
-typing pauses:
+## Debounce
+
+Опция `debounce` (мс) на узле откладывает запуск асинхронной валидации до паузы во вводе — вместо
+запроса на каждое нажатие клавиши:
 
 ```typescript
-const schema = {
-  username: {
-    value: model.$.username,
-    component: Input,
-    asyncValidators: [
-      async (value: string) => {
-        const available = await checkUsername(value);
-        return available ? null : { code: 'usernameTaken', message: 'Username taken' };
-      },
-    ],
-    debounce: 300, // Wait 300ms after typing stops
-  },
+username: {
+  value: model.$.username,
+  component: Input,
+  asyncValidators: [checkUsernameUnique],
+  debounce: 500, // подождать 500 мс после остановки ввода
+  updateOn: 'change',
+},
+```
+
+:::note debounce/updateOn — про «живой» путь ноды
+Опции `debounce` и `updateOn`, как и автоматическая отмена по `AbortController` ниже, действуют на
+**реактивном пути поля** (когда значение меняется через ноду). При запуске **on-demand** через
+`validateFormModel` (submit, шаг wizard, `revalidateWhen`) поле-узел валидаторы не троттлят. Для
+дорогого async вне ввода дросселируйте запуск сами — через `revalidateWhen` + собственный debounce
+(см. [Стратегии валидации](/docs/validation/validation-strategies)).
+:::
+
+## Отмена устаревших запросов
+
+Когда значение меняется до завершения предыдущей проверки, ReFormer **автоматически отменяет**
+устаревший запуск через `AbortController` — применяется только результат последней проверки.
+Чтобы прервать и сам сетевой запрос, передайте `options.signal` в `fetch` (см. пример выше) и
+игнорируйте `AbortError`:
+
+```typescript
+import type { AsyncValidatorFn } from '@reformer/core';
+
+const hasResults: AsyncValidatorFn<string> = async (value, options) => {
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(value)}`, {
+      signal: options?.signal,
+    });
+    const results = (await res.json()) as unknown[];
+    return results.length > 0 ? null : { code: 'noResults', message: 'Ничего не найдено' };
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') return null; // устаревший запрос — молча выходим
+    return { code: 'checkFailed', message: 'Не удалось выполнить проверку' };
+  }
 };
 ```
 
-## Loading State
+## Индикатор `pending`
 
-Track async validation in progress with the field's `pending` signal:
-
-```typescript
-const username = form.username;
-
-username.pending.value; // true while validating
-```
+Пока идёт асинхронная валидация, у поля активен сигнал `pending`. Читайте его через `useFormControl`:
 
 ```tsx
 import { useFormControl } from '@reformer/core';
 
 function UsernameField() {
-  const field = useFormControl(form.username);
+  const { value, errors, pending, shouldShowError } = useFormControl(form.username);
 
   return (
     <div>
-      <input value={field.value} onChange={(e) => field.setValue(e.target.value)} />
-      {field.pending && <span>Checking...</span>}
-      {field.errors.find((e) => e.code === 'usernameTaken') && <span>Username taken</span>}
+      <input value={value} onChange={(e) => form.username.setValue(e.target.value)} />
+      {pending && <span>Проверяем…</span>}
+      {shouldShowError && errors[0] && <span className="error">{errors[0].message}</span>}
     </div>
   );
 }
 ```
 
-## Async with Cross-Field Access
+## Проверка на submit
 
-Access other fields during async validation via `root`. The third argument is available when
-the validator runs through `validateFormModel(model, schema)`:
+На отправке `validateFormModel(model, schema)` прогоняет **все** валидаторы, включая асинхронные
+(параллельно, через `Promise.all`), и роутит ошибки в поля:
+
+```tsx
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  form.touchAll();
+
+  const { valid } = await validateFormModel(model, schema);
+  if (valid) await api.save(model.get());
+};
+```
+
+:::warning Дождитесь результата
+`validateFormModel` асинхронна — всегда `await`-айте её перед проверкой `valid`, иначе async-валидаторы
+не успеют отработать и форма отправится с непроверенными данными.
+:::
+
+## Кросс-полевой async
+
+Асинхронному валидатору, запущенному через `validateFormModel`, доступна корневая модель третьим
+аргументом `root` — можно читать соседние поля:
 
 ```typescript
-const checkEmail = async (value: string, _scope: unknown, root: { userId: string }) => {
-  const userId = root.userId;
+import type { ModelValidator, AsyncValidatorFn } from '@reformer/core';
 
-  const response = await fetch('/api/check-email', {
+const checkEmailForUser: ModelValidator<string, unknown, { userId: string }> = async (
+  value,
+  _scope,
+  root
+) => {
+  const res = await fetch('/api/check-email', {
     method: 'POST',
-    body: JSON.stringify({ email: value, userId }),
+    body: JSON.stringify({ email: value, userId: root.userId }),
   });
-
-  const { valid } = await response.json();
-  return valid ? null : { code: 'emailInUse', message: 'Email already in use' };
+  const { valid } = (await res.json()) as { valid: boolean };
+  return valid ? null : { code: 'emailInUse', message: 'Email уже занят' };
 };
 
-// Inside the form schema:
-email: { value: model.$.email, component: Input, asyncValidators: [checkEmail] },
-
-// root is passed when validating the whole form:
-await validateFormModel(model, schema);
+// email читает userId через root. Тип поля `asyncValidators` — AsyncValidatorFn (2 аргумента),
+// а cross-field ModelValidator принимает 3, поэтому при добавлении в схему нужен явный каст:
+email: {
+  value: model.$.email,
+  component: Input,
+  asyncValidators: [checkEmailForUser as AsyncValidatorFn<string>],
+},
 ```
 
-## Combining Sync and Async
+## Дальше
 
-Sync validators run first. Async only runs if sync passes:
-
-```typescript
-import { required, minLength } from '@reformer/core/validators';
-
-const schema = {
-  username: {
-    value: model.$.username,
-    component: Input,
-    // Sync: runs immediately
-    validators: [required(), minLength(3)],
-    // Async: only runs if sync validators pass
-    asyncValidators: [checkUsernameAvailable],
-  },
-};
-```
-
-## Next Steps
-
-- [Custom Validators](/docs/validation/custom) — Create reusable validators
-- [Behaviors](/docs/behaviors/overview) — Conditional validation with behaviors
-  </content>
+- [Кастомные валидаторы](/docs/validation/custom) — синхронные правила и кросс-полевые проверки.
+- [Стратегии валидации](/docs/validation/validation-strategies) — `updateOn`, debounce, пошаговые формы.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение ошибок.

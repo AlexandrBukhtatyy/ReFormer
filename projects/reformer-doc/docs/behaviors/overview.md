@@ -2,82 +2,128 @@
 sidebar_position: 1
 ---
 
-# Behaviors Overview
+# Behaviors — обзор
 
-Behaviors add reactive logic to forms: computed fields, conditional visibility, field synchronization.
+**Behaviors** — реактивная логика формы поверх сигналов модели: вычисляемые поля, условная
+доступность полей, синхронизация значений и реакции на изменения. Это отдельный слой M1 — он
+отвечает за **«как данные реагируют»**, тогда как валидаторы отвечают за **«правильны ли данные»**.
 
-## What Are Behaviors?
+## Два способа писать behaviors
 
-Behaviors automatically react to form changes:
+Под M1 behaviors работают на сигналах модели. Есть две поверхности API — декларативная и
+императивная.
+
+### 1. Декларативный DSL — `@reformer/core/behaviors`
+
+Рекомендуемый путь. Операторы (`compute`, `enableWhen`, `onChange`, …) вызываются внутри
+`defineFormBehavior(({ model, form }) => { … })` и **сами регистрируют свои отписки** — автор
+схемы не видит ни массива cleanup'ов, ни ручного управления жизненным циклом. Готовый behavior
+подключается к форме через `createForm({ model, schema, behavior })` — форма владеет его
+жизненным циклом.
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { defineFormBehavior, computeFrom, enableWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
 
-interface OrderForm {
+type OrderForm = {
   price: number;
   quantity: number;
   total: number;
-  discount: number;
-}
+  discount: number | null;
+};
 
-const model = createModel<OrderForm>({ price: 100, quantity: 1, total: 0, discount: 0 });
+const model = createModel<OrderForm>({ price: 100, quantity: 1, total: 0, discount: null });
 
-// Behaviors are declared inside `defineFormBehavior` and attached via `createForm({ behavior })`.
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {
-  // Auto-compute total — sources arrive as positional values
-  computeFrom(
-    [model.$.price, model.$.quantity],
-    model.$.total,
-    (price, quantity) => price * quantity
-  );
+  // Вычисляемое поле — auto-tracking по прочитанным сигналам
+  compute(model.$.total, () => model.price * model.quantity);
 
-  // Enable the discount field conditionally — the condition reads the model
-  enableWhen(model.$.discount, () => model.total > 500);
+  // Условная доступность — условие читает model.* реактивно
+  enableWhen(model.$.discount, () => model.total > 500, { resetOnDisable: true });
 });
 
-// `schema` binds the fields to components (see Quick Start).
+// schema привязывает поля к компонентам (см. «Быстрый старт»)
 const form = createForm<OrderForm>({ model, schema, behavior });
 ```
 
-## Available Behaviors
+### 2. Императивные примитивы — `@reformer/core`
 
-| Behavior                                                    | Description                       |
-| ----------------------------------------------------------- | --------------------------------- |
-| [`computeFrom`](/docs/behaviors/computed#computefrom)       | Calculate field from other fields |
-| [`transformValue`](/docs/behaviors/computed#transformvalue) | Transform value on change         |
-| [`enableWhen`](/docs/behaviors/conditional#enablewhen)      | Conditional enable/disable        |
-| [`resetWhen`](/docs/behaviors/conditional#resetwhen)        | Reset field on condition          |
-| [`copyFrom`](/docs/behaviors/sync#copyfrom)                 | Copy value from another field     |
-| [`syncFields`](/docs/behaviors/sync#syncfields)             | Two-way synchronization           |
-| [`watchField`](/docs/behaviors/watch#watchfield)            | React to field changes            |
-| [`revalidateWhen`](/docs/behaviors/watch#revalidatewhen)    | Trigger revalidation              |
-
-## How Behaviors Work
-
-1. Declare operators inside `defineFormBehavior(({ model, form }) => { … })`
-2. Pass the result to `createForm({ model, schema, behavior })`
-3. ReFormer sets up reactive subscriptions — when source signals change, the operators run automatically
+Большинство операций доступны как отдельные функции-примитивы из `@reformer/core`. Они принимают
+**сигналы** (`model.$.field`), **возвращают cleanup** и вызываются императивно — например, в
+`useEffect`. Escape-hatch, когда не строишь целую схему поведения. Не у каждого DSL-оператора есть
+одноимённый примитив: примитив для `compute` — это `computeFrom`, для `onChange` — `watchField`.
 
 ```typescript
-// When price or quantity changes → total updates
-computeFrom(
-  [model.$.price, model.$.quantity], // Watch these signals
-  model.$.total, // Update this signal
-  (price, quantity) => price * quantity // With this function (positional values)
-);
+import { useEffect } from 'react';
+import { copyFrom, enableWhen } from '@reformer/core';
+
+useEffect(() => {
+  const cleanups = [
+    copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail === true }),
+    enableWhen(model.$.city, () => Boolean(model.country)),
+  ];
+  return () => cleanups.forEach((c) => c());
+}, []);
 ```
 
-## Behavior vs Validation
+:::info Что выбрать
+DSL из `@reformer/core/behaviors` — по умолчанию: единый `behavior`, ambient auto-dispose,
+подключение одним `createForm({ behavior })`. Примитивы из `@reformer/core` — когда нужна точечная
+реакция без полной схемы (или вне React-дерева).
+:::
 
-| Aspect   | Validation             | Behavior                  |
-| -------- | ---------------------- | ------------------------- |
-| Purpose  | Check correctness      | React to changes          |
-| Output   | Errors                 | Side effects              |
-| Examples | Required, email format | Computed total, show/hide |
+## Операторы DSL
 
-## Next Steps
+| Оператор                                   | Назначение                                            |
+| ------------------------------------------ | ----------------------------------------------------- |
+| [`compute`](./computed#compute)            | Производное значение с auto-tracking                  |
+| [`computeFrom`](./computed#computefrom)    | Производное значение с явными зависимостями           |
+| [`copyFrom`](./sync#copyfrom)              | Копирование значения (скаляр или группа) по условию   |
+| [`syncFields`](./sync#syncfields)          | Двусторонняя синхронизация двух полей                 |
+| [`transformValue`](./sync#transformvalue)  | Идемпотентная трансформация значения на месте         |
+| [`enableWhen`](./conditional#enablewhen)   | Условное включение поля / полей / группы              |
+| [`disableWhen`](./conditional#disablewhen) | Условное выключение (инверсия `enableWhen`)           |
+| [`resetWhen`](./conditional#resetwhen)     | Сброс значения по условию                             |
+| [`onChange`](./watch#onchange)             | Реакция на изменение (async, debounce, AbortSignal)   |
+| [`revalidateWhen`](./watch#revalidatewhen) | Ревалидация схемы при изменении зависимостей          |
+| [`apply`](./custom#apply)                  | Применить под-схему к полю-группе (переиспользование) |
+| [`applyEach`](./custom#applyeach)          | Применить под-схему к каждому элементу массива        |
+| [`exclusiveFlag`](./custom#exclusiveflag)  | Взаимное исключение булева флага среди строк массива  |
+| [`aggregateInto`](./custom#aggregateinto)  | Агрегатная запись в строки массива                    |
 
-- [Computed Fields](/docs/behaviors/computed) — `computeFrom`, `transformValue`
-- [Conditional Logic](/docs/behaviors/conditional) — `enableWhen`, `resetWhen`
-- [Field Sync](/docs/behaviors/sync) — `copyFrom`, `syncFields`
+:::tip Как читать поля в behaviors
+Внутри `compute` / `onChange` / условий `when` читай поля как `model.field` — подписка на сигнал
+происходит автоматически. **Не** читай `model.get()` в реактивном контексте: это нереактивный
+снимок, зависимость не отследится. Примитивы (`computeFrom` / `copyFrom` / `enableWhen`) принимают
+**сигналы** `model.$.field`, а не строковые пути.
+:::
+
+## Как это работает
+
+1. Объяви операторы внутри `defineFormBehavior(({ model, form }) => { … })`.
+2. Передай результат в `createForm({ model, schema, behavior })`.
+3. Форма запускает поведение после построения нод: операторы подписываются на сигналы модели и
+   срабатывают при изменениях, а их отписки собираются автоматически и вызываются при уничтожении
+   формы.
+
+```typescript
+// Когда price или quantity меняется → total пересчитывается
+compute(model.$.total, () => model.price * model.quantity);
+```
+
+## Behavior vs Валидация
+
+| Аспект    | Валидация                          | Behavior                                |
+| --------- | ---------------------------------- | --------------------------------------- |
+| Задача    | Проверить корректность             | Реагировать на изменения                |
+| Результат | Ошибки                             | Побочные эффекты / производные значения |
+| Запуск    | `validateFormModel(model, schema)` | Реактивно, автоматически                |
+| Владелец  | Слой валидации (`errors`)          | Форма (жизненный цикл behavior)         |
+
+## Дальше
+
+- [Вычисляемые поля](./computed) — `compute`, `computeFrom`.
+- [Условная логика](./conditional) — `enableWhen`, `disableWhen`, `resetWhen`.
+- [Синхронизация полей](./sync) — `copyFrom`, `syncFields`, `transformValue`.
+- [Реакции на изменения](./watch) — `onChange`, `watchField`, `revalidateWhen`.
+- [Продвинутые behaviors](./custom) — примитивы vs DSL, массивные операторы, низкоуровневый авторинг.

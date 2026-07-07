@@ -2,134 +2,124 @@
 sidebar_position: 4
 ---
 
-# Field Synchronization
+# Синхронизация полей
 
-Copy values between fields or keep fields in sync.
+Копирование значений между полями и двусторонняя синхронизация. Три оператора: `copyFrom`,
+`syncFields`, `transformValue`.
 
 ## copyFrom
 
-Copy value from source to target field.
+`copyFrom(source, target, { when?, transform? })` копирует значение из `source` в `target` при
+выполнении условия `when`. Источник и цель — **скаляр** (`model.$.field`) или **группа целиком**
+(`model.$.group`). Оператор сам выходит из реактивного контекста, поэтому не порождает «Cycle
+detected».
 
 ```typescript
-import { copyFrom } from '@reformer/core/behaviors';
+import { defineFormBehavior, copyFrom } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [copyFrom(path.email, path.username)];
-```
+type Address = { street: string; city: string };
 
-### Example: Same Address
+type OrderForm = {
+  useShippingAsBilling: boolean;
+  shippingAddress: Address;
+  billingAddress: Address;
+};
 
-```typescript
-const form = new GroupNode({
-  form: {
-    billingAddress: {
-      street: { value: '' },
-      city: { value: '' },
-    },
-    shippingAddress: {
-      street: { value: '' },
-      city: { value: '' },
-    },
-    sameAsBilling: { value: false },
-  },
-  behaviors: (path, ctx) => [
-    // Only copy when checkbox is checked
-    copyFrom(path.billingAddress.street, path.shippingAddress.street, {
-      when: () => form.controls.sameAsBilling.value,
-    }),
-    copyFrom(path.billingAddress.city, path.shippingAddress.city, {
-      when: () => form.controls.sameAsBilling.value,
-    }),
-  ],
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  // копирование группы целиком — когда флаг включён
+  copyFrom(model.$.shippingAddress, model.$.billingAddress, {
+    when: () => model.useShippingAsBilling === true,
+  });
 });
 ```
 
-### Example: Initial Value
+### Copy + transform
+
+`transform` применяется к значению перед записью в target:
 
 ```typescript
-behaviors: (path, ctx) => [
-  // Copy only once, on initial load
-  copyFrom(path.defaultEmail, path.email, { once: true }),
-];
+import { defineFormBehavior, copyFrom } from '@reformer/core/behaviors';
+
+type ContactForm = { sameEmail: boolean; email: string; emailAdditional: string };
+
+const behavior = defineFormBehavior<ContactForm>(({ model }) => {
+  copyFrom(model.$.email, model.$.emailAdditional, {
+    when: () => model.sameEmail === true,
+    transform: (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+  });
+});
 ```
+
+:::info copyFrom при `when === false` не откатывает
+Когда условие становится ложным, `copyFrom` просто перестаёт писать — значение target остаётся
+последним скопированным. Чтобы очистить target при снятии флага, добавь параллельно `resetWhen`.
+:::
 
 ## syncFields
 
-Two-way synchronization between fields.
+`syncFields(a, b, { transform? })` создаёт **двустороннюю** связь: изменение любого из полей
+переписывает второе. Внутренний guard исключает петли. `transform` **асимметричен** — применяется
+только при движении `a → b`; обратно значение пишется как есть.
 
 ```typescript
-import { syncFields } from '@reformer/core/behaviors';
+import { defineFormBehavior, syncFields } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [syncFields(path.displayName, path.username)];
-```
+type DisplayForm = { internalCode: string; displayCode: string };
 
-When either field changes, the other updates:
-
-```typescript
-form.controls.displayName.setValue('john');
-form.controls.username.value; // 'john'
-
-form.controls.username.setValue('jane');
-form.controls.displayName.value; // 'jane'
-```
-
-### Example: Bidirectional Conversion
-
-```typescript
-const form = new GroupNode({
-  form: {
-    celsius: { value: 0 },
-    fahrenheit: { value: 32 },
-  },
-  behaviors: (path, ctx) => [
-    syncFields(path.celsius, path.fahrenheit, {
-      toTarget: (c) => (c * 9) / 5 + 32,
-      toSource: (f) => ((f - 32) * 5) / 9,
-    }),
-  ],
-});
-
-form.controls.celsius.setValue(100);
-form.controls.fahrenheit.value; // 212
-
-form.controls.fahrenheit.setValue(68);
-form.controls.celsius.value; // 20
-```
-
-## Conditional Copy
-
-Copy with transformation:
-
-```typescript
-behaviors: (path, ctx) => [
-  copyFrom(path.firstName, path.initials, {
-    transform: (firstName) => {
-      const lastName = form.controls.lastName.value;
-      return `${firstName[0]}${lastName[0]}`.toUpperCase();
-    },
-  }),
-];
-```
-
-## Array Field Copy
-
-Copy array values:
-
-```typescript
-const form = new GroupNode({
-  form: {
-    templateEmails: [{ value: 'admin@example.com' }, { value: 'support@example.com' }],
-    recipientEmails: [],
-    useTemplate: { value: false },
-  },
-  behaviors: (path, ctx) => [
-    copyFrom(path.templateEmails, path.recipientEmails, {
-      when: () => form.controls.useTemplate.value,
-    }),
-  ],
+const behavior = defineFormBehavior<DisplayForm>(({ model }) => {
+  // internalCode → displayCode: uppercase; обратно значение пишется как есть
+  syncFields(model.$.internalCode, model.$.displayCode, {
+    transform: (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+  });
 });
 ```
 
-## Next Steps
+:::warning Двустороннюю связь делает syncFields, а не пара copyFrom
+Симметричная пара `copyFrom(a, b)` + `copyFrom(b, a)` конфликтует по направлению. Для двусторонней
+связи бери `syncFields`; для одностороннего копирования по условию — `copyFrom`.
+:::
 
-- [Watch Behaviors](/docs/behaviors/watch) — Custom reactions to changes
-- [Validation](/docs/validation/overview) — Combine with validation
+## transformValue
+
+`transformValue(target, transformer)` подписывается на изменение поля и переписывает его
+трансформированной версией: uppercase для кодов, `trim + toLowerCase` для email, округление чисел.
+Применяется ко всем источникам изменения (пользователь, `model.field = …`, `copyFrom`).
+
+```typescript
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
+
+type ProfileForm = { promoCode: string; email: string; amount: number };
+
+const behavior = defineFormBehavior<ProfileForm>(({ model }) => {
+  transformValue(model.$.promoCode, (value) => (value ?? '').toUpperCase());
+  transformValue(model.$.email, (value) => (value ?? '').trim().toLowerCase());
+  transformValue(model.$.amount, (value) =>
+    typeof value === 'number' ? Math.round(value) : value
+  );
+});
+```
+
+:::warning Трансформер обязан быть идемпотентным
+`transformValue` пишет обратно в то же поле, поэтому `f(f(x)) === f(x)` обязательно — иначе
+бесконечный цикл. Для добавления префикса ставь guard «уже преобразовано»:
+
+```typescript
+// ❌ f(f(x)) = "prefix-prefix-x" ≠ f(x)
+transformValue(model.$.field, (v) => `prefix-${v}`);
+
+// ✅ guard
+transformValue(model.$.field, (v) => (v?.startsWith('prefix-') ? v : `prefix-${v}`));
+```
+
+:::
+
+:::info transformValue vs compute
+`transformValue` нормализует **само** поле — доступа к другим полям у него нет. Если значение
+зависит от других полей, это [`compute`](./computed#compute), а не `transformValue`.
+:::
+
+## Дальше
+
+- [Условная логика](./conditional) — `resetWhen` для сброса target.
+- [Вычисляемые поля](./computed) — `compute` для производных значений.
+- [Реакции на изменения](./watch) — `onChange`, `revalidateWhen`.

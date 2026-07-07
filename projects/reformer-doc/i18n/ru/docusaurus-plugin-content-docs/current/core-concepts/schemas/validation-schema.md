@@ -4,200 +4,247 @@ sidebar_position: 3
 
 # Схема валидации
 
-Схема валидации определяет правила проверки данных формы.
+В M1 валидация — **не** отдельная схема-функция. Она живёт прямо в схеме формы: каждый узел поля
+несёт массив `validators`, а вся модель проверяется против схемы через `validateFormModel` (или
+`validateModelSync`). Отдельного `validateForm()`, реестра или операторов регистрации в v6 нет.
 
-## Тип ValidationSchemaFn
+## Валидаторы на узле схемы
+
+Валидаторы — **чистые фабрики** из `@reformer/core/validators`. Фабрика возвращает функцию
+`(value) => error | null` и кладётся в массив `validators` узла поля:
 
 ```typescript
-type ValidationSchemaFn<T> = (path: FieldPath<T>) => void;
-```
-
-Функция валидации получает типобезопасный объект `path` для объявления правил:
-
-```typescript
-import { GroupNode } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
 
-const form = new GroupNode({
-  form: {
-    name: { value: '' },
-    email: { value: '' },
-  },
-  validation: (path) => {
-    validate(path.name, required());
-    validate(path.name, minLength(2));
-    validate(path.email, required());
-    validate(path.email, email());
-  },
-});
+type User = { name: string; email: string };
+
+const model = createModel<User>({ name: '', email: '' });
+
+const schema = {
+  name: { value: model.$.name, component: Input, validators: [required(), minLength(2)] },
+  email: { value: model.$.email, component: Input, validators: [required(), email()] },
+};
+
+const form = createForm<User>({ model, schema });
 ```
 
-## FieldPath — типобезопасные пути
+Схема привязывает каждое поле к **сигналу модели** (`value: model.$.<field>`): значение — источник
+истины в модели, а узел добавляет поверх UI-конфиг и валидаторы. Схема здесь ровно та же, что
+передаётся в `createForm` — отдельную схему для валидации собирать не нужно.
 
-`FieldPath<T>` обеспечивает типобезопасный доступ к полям формы:
+## Запуск валидации
 
 ```typescript
-interface User {
-  name: string;
-  email: string;
-  address: {
-    city: string;
-    zip: string;
-  };
-}
+import { validateFormModel, validateModel, validateModelSync } from '@reformer/core';
 
-validation: (path: FieldPath<User>) => {
-  validate(path.name, required()); // ✅ Корректно
-  validate(path.email, required()); // ✅ Корректно
-  validate(path.address.city, required()); // ✅ Корректно - вложенный доступ
-  validate(path.phone, required()); // ❌ Ошибка TypeScript!
-};
+// Async-aware (sync + async валидаторы). Роутит ошибки в ноды формы для показа в UI.
+const { valid, errors } = await validateFormModel(model, schema);
+
+// То же, но БЕЗ роутинга в ноды — чистая headless-проверка данных.
+const res = await validateModel(model, schema);
+
+// Только sync (например, быстрый gate «можно ли перейти на след. шаг»). Async пропускаются.
+const sync = validateModelSync(model, schema);
+if (!sync.valid) console.log(sync.errors); // { 'email': [{ code, message }], ... }
 ```
 
-### Преимущества
+| Функция             | Async                 | Роутинг ошибок в ноды | Когда использовать                      |
+| ------------------- | --------------------- | --------------------- | --------------------------------------- |
+| `validateFormModel` | да (sync + async)     | да                    | submit — показать ошибки в UI           |
+| `validateModel`     | да (sync + async)     | нет                   | headless-проверка данных                |
+| `validateModelSync` | нет (async пропущены) | нет                   | быстрый sync-gate (шаг wizard, переход) |
 
-1. **Автодополнение** — IDE показывает доступные поля
-2. **Проверка на этапе компиляции** — ловите опечатки заранее
-3. **Поддержка рефакторинга** — безопасное переименование полей
+Результат — `{ valid: boolean; errors: Record<string, ValidationError[]> }`, где ключ `errors` — путь
+поля (`'email'`, `'items.0.name'`), и попадают в него только поля с ошибками.
+
+:::tip Показ ошибок в UI
+Перед submit вызовите `form.touchAll()` и затем `validateFormModel(model, schema)` — ошибки
+разведутся по нодам и покажутся автоматически. См. [Быстрый старт](../../getting-started/quick-start).
+:::
 
 ## Встроенные валидаторы
 
-| Валидатор                            | Описание                       |
-| ------------------------------------ | ------------------------------ |
-| `validate(path.field, required())`   | Поле должно иметь значение     |
-| `validate(path.field, email())`      | Корректный формат email        |
-| `validate(path.field, minLength(n))` | Минимальная длина строки       |
-| `validate(path.field, maxLength(n))` | Максимальная длина строки      |
-| `validate(path.field, min(n))`       | Минимальное числовое значение  |
-| `validate(path.field, max(n))`       | Максимальное числовое значение |
-| `pattern(path.field, regex)`         | Соответствие regex             |
+| Валидатор      | Описание                   |
+| -------------- | -------------------------- |
+| `required()`   | Поле должно иметь значение |
+| `email()`      | Корректный email           |
+| `minLength(n)` | Минимальная длина строки   |
+| `maxLength(n)` | Максимальная длина строки  |
+| `min(n)`       | Минимальное число          |
+| `max(n)`       | Максимальное число         |
+| `pattern(re)`  | Совпадение с регуляркой    |
+| `isNumber()`   | Значение — число           |
+| `integer()`    | Целое число                |
 
-Полный список см. в [Встроенные валидаторы](/docs/validation/built-in).
+Полный список (числовые, датовые и др.) — в [Встроенных валидаторах](../../validation/built-in).
+
+## Тип валидатора
+
+Валидатор — чистая функция трёх аргументов `(value, scope, root)`:
+
+```typescript
+type Validator<TForm, TField> = (
+  value: TField, // значение поля
+  scope: unknown, // ближайшая scope-модель (под-модель элемента массива или корень)
+  root: FormModel<TForm> // корневая модель (value-proxy: root.field читает значение)
+) => ValidationError | null;
+```
+
+Тот же контракт, но со стороны **данных** (2-й/3-й аргументы — модель, а не ноды формы), называется
+`ModelValidator<TValue, TModel, TRoot>`; он также допускает `Promise` в результате:
+
+```typescript
+type ModelValidator<TValue, TModel, TRoot> = (
+  value: TValue,
+  model: TModel, // ближайший scope
+  root: TRoot // корневая модель
+) => ValidationError | null | Promise<ValidationError | null>;
+```
+
+Встроенные фабрики (`required()`, `email()`, …) возвращают `(value) => …` и лишние аргументы
+игнорируют. Кастомные валидаторы принимают все три и кладутся в тот же массив `validators`.
+
+## Кастомные и cross-field валидаторы
+
+Кастомная проверка — обычная функция в `validators`. Cross-field правило читает соседние поля через
+`root` и вешается на поле-носитель ошибки:
+
+```typescript
+import type { ModelValidator } from '@reformer/core';
+
+// Value-only
+const strongPassword: ModelValidator<string> = (value) =>
+  !value || value.length < 8 ? { code: 'too-short', message: 'Минимум 8 символов' } : null;
+
+// Cross-field: сравниваем с другим полем через root
+const passwordsMatch: ModelValidator<string, unknown, { password: string }> = (
+  value,
+  _scope,
+  root
+) =>
+  value && root.password && value !== root.password
+    ? { code: 'mismatch', message: 'Пароли не совпадают' }
+    : null;
+
+const schema = {
+  password: { value: model.$.password, component: Input, validators: [required(), strongPassword] },
+  confirmPassword: {
+    value: model.$.confirmPassword,
+    component: Input,
+    validators: [required(), passwordsMatch],
+  },
+};
+```
 
 ## Условная валидация
 
-Применяйте валидаторы на основе условий:
+Чтобы поле проверялось только при выполнении условия, сделайте валидатор **самопроверяющим**: он
+читает управляющее поле через `root` и возвращает `null`, когда правило неприменимо:
 
 ```typescript
-import { when } from '@reformer/core/validators';
+import { Input, Checkbox } from '@reformer/ui-kit';
 
-validation: (path) => {
-  validate(path.email, required());
-
-  // Валидировать телефон только если пользователь хочет SMS
-  when(
-    () => form.controls.wantsSms.value === true,
-    () => {
-      validate(path.phone, required());
-      validate(path.phone, pattern(/^\d{10}$/));
-    }
-  );
+const schema = {
+  wantsSms: { value: model.$.wantsSms, component: Checkbox },
+  phone: {
+    value: model.$.phone,
+    component: Input,
+    validators: [
+      // Телефон обязателен только если пользователь хочет SMS.
+      (value, _scope, root) =>
+        root.wantsSms && !value ? { code: 'required', message: 'Укажите телефон для SMS' } : null,
+    ],
+  },
 };
 ```
 
-## Вложенная валидация
-
-Валидация вложенных объектов и массивов:
-
-```typescript
-interface Order {
-  customer: {
-    name: string;
-    email: string;
-  };
-  items: Array<{
-    product: string;
-    quantity: number;
-  }>;
-}
-
-validation: (path) => {
-  // Вложенный объект
-  validate(path.customer.name, required());
-  validate(path.customer.email, email());
-
-  // Элементы массива (валидирует шаблон каждого элемента)
-  validate(path.items.product, required());
-  validate(path.items.quantity, min(1));
-};
-```
-
-## Кросс-валидация полей
-
-Валидация полей относительно друг друга:
-
-```typescript
-import { custom } from '@reformer/core/validators';
-
-validation: (path) => {
-  validate(path.password, required());
-  validate(path.confirmPassword, required());
-
-  custom(path.confirmPassword, (value, _control, root) => {
-    const password = root.password.value;
-    if (value !== password) {
-      return { match: 'Пароли должны совпадать' };
-    }
-    return null;
-  });
-};
-```
+:::info Условие валидации ≠ условная доступность
+Если поле должно ещё и **отключаться** (или скрываться) при невыполнении условия — это забота
+behavior, а не валидатора. Используйте `enableWhen` (см. [Схему behavior](./behavior-schema)) и
+условный рендер, а валидатор оставьте самопроверяющим.
+:::
 
 ## Асинхронная валидация
 
-Серверная валидация:
+Асинхронные проверки (например, уникальность на сервере) кладите в `asyncValidators` узла. Они
+запускаются под `validateFormModel` / `validateModel` и пропускаются `validateModelSync`:
 
 ```typescript
-import { asyncValidator } from '@reformer/core/validators';
-
-validation: (path) => {
-  validate(path.username, required());
-
-  asyncValidator(path.username, async (value) => {
-    const exists = await checkUsername(value);
-    if (exists) {
-      return { taken: 'Имя пользователя уже занято' };
-    }
-    return null;
-  });
+const schema = {
+  username: {
+    value: model.$.username,
+    component: Input,
+    validators: [required()],
+    asyncValidators: [
+      async (value) => {
+        const exists = await checkUsername(value as string);
+        return exists ? { code: 'taken', message: 'Имя уже занято' } : null;
+      },
+    ],
+    debounce: 300,
+  },
 };
 ```
 
-Подробнее см. [Асинхронная валидация](/docs/validation/async).
+Подробнее — в [Асинхронной валидации](../../validation/async).
 
-## Извлечение наборов валидации
+## Валидация по массиву
 
-Создавайте переиспользуемые функции валидации:
+Правило уровня всего массива (уникальность, «хотя бы один элемент») пишется как `ModelValidator`,
+читает элементы через `root.<array>` и вешается на поле-носитель ошибки:
 
 ```typescript
-import { FieldPath } from '@reformer/core';
-import { required, email, minLength } from '@reformer/core/validators';
+import type { ModelValidator } from '@reformer/core';
 
-// Переиспользуемый набор валидации
-export function validatePerson(path: FieldPath<Person>) {
-  validate(path.firstName, required());
-  validate(path.firstName, minLength(2));
-  validate(path.lastName, required());
-  validate(path.email, required());
-  validate(path.email, email());
-}
+type Order = { orderName: string; items: { name: string }[] };
 
-// Использование
-const form = new GroupNode({
-  form: {
-    user: personSchema(),
-    admin: personSchema(),
+// Уникальность имён по массиву.
+const uniqueItemNames: ModelValidator<string, unknown, Order> = (_value, _scope, root) => {
+  const names = root.items.map((i) => i.name);
+  return names.length !== new Set(names).size
+    ? { code: 'duplicate', message: 'Имена элементов должны быть уникальны' }
+    : null;
+};
+
+const schema = {
+  orderName: {
+    value: model.$.orderName,
+    component: Input,
+    validators: [required(), uniqueItemNames],
   },
-  validation: (path) => {
-    validatePerson(path.user);
-    validatePerson(path.admin);
-  },
-});
+  items: { array: model.items, item: itemSchema },
+};
 ```
 
-## Следующие шаги
+Правила отдельных полей элемента (`name` обязателен и т.п.) объявляются в под-схеме элемента
+`item` — см. [Схему формы](./form-schema).
 
-- [Обзор валидации](/docs/validation/overview) — Подробное руководство
-- [Встроенные валидаторы](/docs/validation/built-in) — Все валидаторы
-- [Кастомные валидаторы](/docs/validation/custom) — Создание своих
-- [Композиция](./composition) — Переиспользование наборов валидации
+## Переиспользование наборов валидаторов
+
+Списки валидаторов и целые builder узлов легко вынести и переиспользовать:
+
+```typescript
+import { required, email, minLength } from '@reformer/core/validators';
+import type { SchemaValidator } from '@reformer/core';
+
+// Переиспользуемые списки валидаторов.
+// Тип поля узла — SchemaValidator (широкий контракт, принимает и фабрики, и ModelValidator);
+// встроенные фабрики возвращают Validator, поэтому ModelValidator[] здесь не подойдёт.
+const nameValidators: SchemaValidator[] = [required(), minLength(2)];
+const emailValidators: SchemaValidator[] = [required(), email()];
+
+const schema = {
+  firstName: { value: model.$.user.firstName, component: Input, validators: nameValidators },
+  lastName: { value: model.$.user.lastName, component: Input, validators: nameValidators },
+  email: { value: model.$.user.email, component: Input, validators: emailValidators },
+};
+```
+
+## Дальше
+
+- [Обзор валидации](../../validation/overview) — подробный гайд.
+- [Встроенные валидаторы](../../validation/built-in) — весь список.
+- [Кастомные валидаторы](../../validation/custom) — свои правила.
+- [Композиция](./composition) — переиспользование наборов валидации.

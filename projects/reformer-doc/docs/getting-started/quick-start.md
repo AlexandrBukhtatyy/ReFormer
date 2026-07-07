@@ -2,238 +2,157 @@
 sidebar_position: 2
 ---
 
-# Quick Start
+# Быстрый старт
 
-Build a simple contact form in 5 minutes.
+Соберём форму обратной связи за пять минут. Пройдём весь путь M1: **модель → схема → форма →
+рендер → отправка**.
 
-## Step 1: Create Field Components
-
-ReFormer uses your own components to render form fields.
-
-### Basic Components
-
-```tsx title="src/components/ui/Input.tsx"
-import * as React from 'react';
-
-interface InputProps {
-  value?: string;
-  onChange?: (value: string) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
-}
-
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ value, onChange, onBlur, placeholder, disabled }, ref) => (
-    <input
-      ref={ref}
-      type="text"
-      value={value ?? ''}
-      onChange={(e) => onChange?.(e.target.value)}
-      onBlur={onBlur}
-      placeholder={placeholder}
-      disabled={disabled}
-      className="border rounded px-3 py-2 w-full"
-    />
-  )
-);
-```
-
-```tsx title="src/components/ui/Textarea.tsx"
-import * as React from 'react';
-
-interface TextareaProps {
-  value?: string;
-  onChange?: (value: string) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
-}
-
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ value, onChange, onBlur, placeholder, disabled }, ref) => (
-    <textarea
-      ref={ref}
-      value={value ?? ''}
-      onChange={(e) => onChange?.(e.target.value)}
-      onBlur={onBlur}
-      placeholder={placeholder}
-      disabled={disabled}
-      rows={4}
-      className="border rounded px-3 py-2 w-full"
-    />
-  )
-);
-```
-
-### Universal FormField Component
-
-```tsx title="src/components/ui/FormField.tsx"
-import * as React from 'react';
-import { useFormControl, type FieldNode } from '@reformer/core';
-
-interface FormFieldProps {
-  control: FieldNode<any>;
-  className?: string;
-}
-
-export const FormField: React.FC<FormFieldProps> = ({ control, className }) => {
-  const { value, errors, disabled, shouldShowError, componentProps } = useFormControl(control);
-
-  const Component = control.component;
-
-  return (
-    <div className={className}>
-      {componentProps.label && (
-        <label className="block mb-1 text-sm font-medium">{componentProps.label}</label>
-      )}
-
-      <Component
-        {...componentProps}
-        value={value ?? ''}
-        onChange={(e: unknown) => {
-          const newValue = (e as { target?: { value?: unknown } })?.target?.value ?? e;
-          control.setValue(newValue);
-        }}
-        onBlur={() => control.markAsTouched()}
-        disabled={disabled}
-      />
-
-      {shouldShowError && (
-        <span className="text-red-500 text-sm mt-1 block">{errors[0]?.message}</span>
-      )}
-    </div>
-  );
-};
-```
-
-:::tip Why FormField?
-`FormField` automatically:
-
-- Renders label from `componentProps`
-- Binds value to form state
-- Calls `markAsTouched()` on blur
-- Shows validation errors
-  :::
-
-## Step 2: Define Form Interface
+## Шаг 1. Тип формы
 
 ```typescript
-type ContactFormType = {
+type ContactForm = {
   name: string;
   email: string;
   message: string;
 };
 ```
 
-## Step 3: Create Form Definition
+:::tip Объявляйте форму через `type`, а не `interface`
+Интерпретатору схемы удобнее работать с `type`-алиасами. Подробнее — в
+[рецептах типобезопасности](../patterns/project-structure).
+:::
 
-```typescript title="src/forms/contact-form.ts"
-import { createModel, createForm } from '@reformer/core';
+## Шаг 2. Модель — источник истины
+
+Модель хранит значения. Обычный на вид объект, где под каждым полем стоит реактивный сигнал.
+
+```typescript
+import { createModel } from '@reformer/core';
+
+const model = createModel<ContactForm>({ name: '', email: '', message: '' });
+```
+
+## Шаг 3. Схема — привязка полей
+
+Схема — объект, где каждый ключ описывает поле: привязка к сигналу модели (`value: model.$.<field>`),
+компонент, его пропсы и валидаторы. Валидаторы — чистые фабрики из `@reformer/core/validators`.
+
+```typescript
 import { required, email, minLength } from '@reformer/core/validators';
-import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
+import { Input, Textarea } from '@reformer/ui-kit';
 
-type ContactFormType = {
-  name: string;
-  email: string;
-  message: string;
+const schema = {
+  name: {
+    value: model.$.name,
+    component: Input,
+    componentProps: { label: 'Имя', placeholder: 'Ваше имя' },
+    validators: [required(), minLength(2)],
+  },
+  email: {
+    value: model.$.email,
+    component: Input,
+    componentProps: { label: 'Email', type: 'email' },
+    validators: [required(), email()],
+  },
+  message: {
+    value: model.$.message,
+    component: Textarea,
+    componentProps: { label: 'Сообщение' },
+    validators: [required(), minLength(10)],
+  },
 };
-
-export function createContactForm() {
-  // 1. Model — the source of truth for values.
-  const model = createModel<ContactFormType>({ name: '', email: '', message: '' });
-
-  // 2. Single schema — binds components + validators to the model's signals.
-  //    Validators are inline factories from `@reformer/core/validators`.
-  const schema = {
-    children: [
-      {
-        value: model.$.name,
-        component: Input,
-        componentProps: { label: 'Name' },
-        validators: [required(), minLength(2)],
-      },
-      {
-        value: model.$.email,
-        component: Input,
-        componentProps: { label: 'Email' },
-        validators: [required(), email()],
-      },
-      {
-        value: model.$.message,
-        component: Textarea,
-        componentProps: { label: 'Message' },
-        validators: [required(), minLength(10)],
-      },
-    ],
-  };
-
-  // 3. Wire model + schema into a typed form.
-  const form = createForm<ContactFormType>({ model, schema });
-  return { form, model, schema };
-}
 ```
 
-:::info Key Points
+:::info Schema-driven UI
+Компонент и его пропсы (`label`, `placeholder`, `type`, `options`) объявляются в **схеме поля**, а не
+в JSX. В разметке рендерится один универсальный `<FormField control={form.x} />` — он сам подтянет
+`componentProps`, значение и ошибки. Не пишите свои обёртки с `label`-пропами.
+:::
 
-- **`createModel<T>`** — reactive model that owns the form values
-- **`createForm({ model, schema })`** — wires the model + schema into a typed form
-- **`component`** — React component to render the field
-- **`componentProps`** — props passed to the component (label, placeholder, etc.)
-- **`validators`** — inline validator factories on each schema node
-  :::
+## Шаг 4. Форма
 
-## Step 4: Create Form Component
+`createForm` строит ноды поверх сигналов модели и возвращает типизированный proxy.
 
-```tsx title="src/components/ContactForm.tsx"
+```typescript
+import { createForm } from '@reformer/core';
+
+const form = createForm<ContactForm>({ model, schema });
+```
+
+## Шаг 5. Рендер и отправка
+
+В React создавайте `model` / `schema` / `form` **один раз** через `useMemo`, иначе форма
+пересоздастся на каждый рендер. Универсальный `FormField` из `@reformer/ui-kit` делает всю работу по
+связыванию поля с состоянием.
+
+```tsx
 import { useMemo } from 'react';
-import { validateFormModel } from '@reformer/core';
-import { createContactForm } from '@/forms/contact-form';
-import { FormField } from '@/components/ui/FormField';
+import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { required, email, minLength } from '@reformer/core/validators';
+import { FormField, Input, Textarea, Button } from '@reformer/ui-kit';
+
+type ContactForm = { name: string; email: string; message: string };
 
 export function ContactForm() {
-  const { form, model, schema } = useMemo(() => createContactForm(), []);
+  const { form, model, schema } = useMemo(() => {
+    const model = createModel<ContactForm>({ name: '', email: '', message: '' });
+    const schema = {
+      name: {
+        value: model.$.name,
+        component: Input,
+        componentProps: { label: 'Имя', placeholder: 'Ваше имя' },
+        validators: [required(), minLength(2)],
+      },
+      email: {
+        value: model.$.email,
+        component: Input,
+        componentProps: { label: 'Email', type: 'email' },
+        validators: [required(), email()],
+      },
+      message: {
+        value: model.$.message,
+        component: Textarea,
+        componentProps: { label: 'Сообщение' },
+        validators: [required(), minLength(10)],
+      },
+    };
+    const form = createForm<ContactForm>({ model, schema });
+    return { form, model, schema };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     form.touchAll();
-    // Validate the whole model against the schema; errors route into the form nodes.
+    // Валидируем всю модель против схемы; ошибки роутятся в ноды для отображения.
     const { valid } = await validateFormModel(model, schema);
-
     if (valid) {
-      console.log('Submit:', model.get());
+      console.log('Отправка:', model.get());
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+    <form onSubmit={handleSubmit}>
       <FormField control={form.name} />
       <FormField control={form.email} />
       <FormField control={form.message} />
-
-      <button
-        type="submit"
-        className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
-      >
-        Submit
-      </button>
+      <Button type="submit">Отправить</Button>
     </form>
   );
 }
 ```
 
-## Result
+## Итог
 
-You've created a form with:
+Готовая форма с:
 
-- ✅ TypeScript type safety
-- ✅ Declarative validation
-- ✅ Automatic error display
-- ✅ Clean and minimal code
+- ✅ типобезопасностью на TypeScript;
+- ✅ декларативной валидацией;
+- ✅ автоматическим показом ошибок;
+- ✅ минимумом кода в разметке.
 
-## Next Steps
+## Дальше
 
-- [Core Concepts](/docs/core-concepts/nodes) — Learn about Nodes in depth
-- [Validation](/docs/validation/overview) — All built-in validators
-- [Behaviors](/docs/behaviors/overview) — Computed fields and conditional logic
+- [Основные концепции](../core-concepts/reactive-state) — реактивность, модель, ноды, схемы.
+- [Валидация](../validation/overview) — все встроенные валидаторы и кастомные правила.
+- [Behaviors](../behaviors/overview) — вычисляемые поля и условная логика.
+- [Свои компоненты полей](../react/custom-fields) — если нужен не `@reformer/ui-kit`.

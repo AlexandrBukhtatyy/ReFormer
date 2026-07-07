@@ -2,19 +2,21 @@
 sidebar_position: 4
 ---
 
-# Схема поведений
+# Схема behavior
 
-Поведение определяет реактивную логику и побочные эффекты для формы.
+Behavior — это реактивная логика формы: вычисляемые поля, условная доступность, синхронизация и
+реакции на изменения. В M1 behavior описывается декларативно через `defineFormBehavior` и
+подключается при сборке формы — `createForm({ model, schema, behavior })`.
 
-## Определение поведений
+## Определение behavior
 
-В M1 поведения объявляются через `defineFormBehavior` и подключаются в `createForm({ behavior })`.
-Setup-колбэк получает типобезопасный scope (`{ model, form }`); операторы привязываются к сигналам
-модели (`model.$.<field>`), а жизненным циклом владеет форма:
+Функция-setup получает типобезопасный scope `{ model, form }`. Операторы внутри неё привязываются к
+сигналам модели (`model.$.<field>`), а форма сама владеет их жизненным циклом (отписками):
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
-import { defineFormBehavior, computeFrom, enableWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, compute, enableWhen } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
 type OrderForm = { price: number; quantity: number; total: number; discount: number };
 
@@ -26,163 +28,102 @@ const schema = {
   total: {
     value: model.$.total,
     component: Input,
-    componentProps: { type: 'number', disabled: true },
+    componentProps: { type: 'number' },
+    disabled: true,
   },
   discount: { value: model.$.discount, component: Input, componentProps: { type: 'number' } },
 };
 
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {
-  // Автовычисление итога
-  computeFrom(
-    [model.$.price, model.$.quantity],
-    model.$.total,
-    (price, quantity) => price * quantity
-  );
+  // Автовычисление total.
+  compute(model.$.total, () => (model.price ?? 0) * (model.quantity ?? 0));
 
-  // Включить скидку только для крупных заказов
+  // Скидка доступна только для крупных заказов.
   enableWhen(model.$.discount, () => model.total > 500);
 });
 
 const form = createForm<OrderForm>({ model, schema, behavior });
 ```
 
-## Доступные поведения
+:::info Два способа писать behavior
+**Декларативный DSL** из `@reformer/core/behaviors` (`defineFormBehavior` + операторы) сам
+регистрирует отписки и передаётся в `createForm({ behavior })` — это рекомендуемый путь.
+**Примитивы** из `@reformer/core` (`computeFrom`, `copyFrom`, `watchField`, …) принимают сигналы,
+возвращают cleanup-функцию и вызываются императивно (например, в `useEffect`). Подробнее — в
+[Обзоре behaviors](../../behaviors/overview).
+:::
 
-| Поведение        | Тип           | Описание                                |
-| ---------------- | ------------- | --------------------------------------- |
-| `computeFrom`    | Вычисляемое   | Вычислить поле из других полей          |
-| `transformValue` | Вычисляемое   | Трансформировать значение при изменении |
-| `enableWhen`     | Условное      | Включить/отключить по условию           |
-| `resetWhen`      | Условное      | Сбросить поле при выполнении условия    |
-| `copyFrom`       | Синхронизация | Копировать значение из другого поля     |
-| `syncFields`     | Синхронизация | Двусторонняя синхронизация полей        |
-| `watchField`     | Наблюдение    | Реагировать на изменения поля           |
-| `revalidateWhen` | Наблюдение    | Запустить ревалидацию                   |
+## Операторы
 
-## Вычисляемые поведения
+| Оператор         | Категория     | Назначение                                      |
+| ---------------- | ------------- | ----------------------------------------------- |
+| `compute`        | вычисляемые   | Значение из других полей (auto-tracking)        |
+| `computeFrom`    | вычисляемые   | Значение из явного списка источников            |
+| `transformValue` | вычисляемые   | Идемпотентное преобразование значения при вводе |
+| `enableWhen`     | условные      | Включить/выключить поле по условию              |
+| `disableWhen`    | условные      | Инверсия `enableWhen`                           |
+| `resetWhen`      | условные      | Сбросить поле при выполнении условия            |
+| `copyFrom`       | синхронизация | Скопировать значение из другого поля/группы     |
+| `syncFields`     | синхронизация | Двусторонняя синхронизация двух полей           |
+| `onChange`       | реакции       | Side-эффект на изменение (async, `AbortSignal`) |
+| `revalidateWhen` | реакции       | Перезапуск валидации при изменении зависимостей |
+| `apply`          | композиция    | Применить под-схему behavior к группе           |
+| `applyEach`      | композиция    | Per-item behavior для элементов массива         |
 
-### computeFrom
+Полные примеры и опции каждого оператора — в разделе [Behaviors](../../behaviors/overview). Ниже —
+краткий обзор ключевых.
 
-Вычисление значения поля из других полей. Значения источников приходят позиционно:
+## Вычисляемые поля
+
+`compute` подписывается на сигналы, прочитанные внутри колбэка, и пишет результат в target. Цель не
+входит в источники — цикла нет. Когда нужен явный список зависимостей — `computeFrom` (значения
+источников приходят позиционно):
 
 ```typescript
-import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+import { defineFormBehavior, compute, computeFrom } from '@reformer/core/behaviors';
 
 const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Один источник
-  computeFrom([model.$.firstName], model.$.initials, (firstName) =>
-    firstName.charAt(0).toUpperCase()
-  );
+  // auto-tracking: читаем нужные поля прямо в колбэке
+  compute(model.$.fullName, () => `${model.firstName} ${model.lastName}`.trim());
 
-  // Несколько источников
-  computeFrom([model.$.firstName, model.$.lastName], model.$.fullName, (firstName, lastName) =>
-    `${firstName} ${lastName}`.trim()
+  // явные источники
+  computeFrom(
+    [model.$.price, model.$.quantity],
+    model.$.total,
+    (price, quantity) => price * quantity
   );
 });
 ```
 
-### transformValue
+:::warning Не читайте `model.get()` внутри `compute` / `when`
+`model.get()` — нереактивный снимок: зависимость не отследится, пересчёта не будет. Читайте поля по
+отдельности (`model.field` или `model.$.field.value`). `model.get()` — только вне реактивного
+контекста (в `onChange`, обработчиках событий).
+:::
 
-Трансформация значения при изменении (трансформер должен быть идемпотентным):
+## Условная доступность
 
-```typescript
-import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
-
-const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Приведение к нижнему регистру
-  transformValue(model.$.username, (value) => (value ?? '').toLowerCase());
-
-  // Форматирование номера телефона
-  transformValue(model.$.phone, (value) => {
-    if (!value) return value;
-    const digits = value.replace(/\D/g, '');
-    if (digits.length === 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    }
-    return value;
-  });
-});
-```
-
-## Условные поведения
-
-### enableWhen
-
-Включение или отключение поля по условию. Условие читает `model.*` реактивно:
+`enableWhen` включает/выключает поле по условию, читаемому реактивно. Опция `resetOnDisable`
+сбрасывает значение при выключении:
 
 ```typescript
 import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
 
 const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Включить адрес доставки, если не совпадает с платёжным
-  enableWhen(model.$.shippingAddress, () => !model.sameAsBilling);
-
-  // Включить скидку для премиум-пользователей
-  enableWhen(model.$.discount, () => model.userType === 'premium');
+  enableWhen(model.$.discount, () => model.userType === 'premium', { resetOnDisable: true });
 });
 ```
 
-### resetWhen
+:::info Видимость полей
+Методов `.show()` / `.hide()` / `.visible` в API нет. Для условной **доступности** используйте
+`enableWhen`, для условного **показа** — обычный условный рендер в JSX по значению модели.
+:::
 
-Сброс поля при выполнении условия:
+## Асинхронные реакции
 
-```typescript
-import { defineFormBehavior, resetWhen } from '@reformer/core/behaviors';
-
-const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Сбросить доставку при выборе «совпадает с платёжным»
-  resetWhen(model.$.shippingAddress, () => model.sameAsBilling === true);
-});
-```
-
-## Синхронизация полей
-
-### copyFrom
-
-Копирование значения из другого поля (source и target могут быть полями или целыми группами):
-
-```typescript
-import { defineFormBehavior, copyFrom } from '@reformer/core/behaviors';
-
-const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Копировать платёжный адрес в доставку при установке чекбокса
-  copyFrom(model.$.billingAddress, model.$.shippingAddress, {
-    when: () => model.sameAsBilling === true,
-  });
-});
-```
-
-### syncFields
-
-Двусторонняя синхронизация:
-
-```typescript
-import { defineFormBehavior, syncFields } from '@reformer/core/behaviors';
-
-const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Синхронизация email-полей (изменение любого обновляет оба)
-  syncFields(model.$.email, model.$.confirmEmail);
-});
-```
-
-## Наблюдение за изменениями
-
-### watchField
-
-Реакция на изменения поля. `watchField` из `@reformer/core` — низкоуровневый примитив: обычная
-подписка на сигнал модели, возвращающая cleanup:
-
-```typescript
-import { watchField } from '@reformer/core';
-
-const stop = watchField(model.$.country, (country) => {
-  model.city = ''; // сброс зависимого поля при смене страны
-});
-// stop(); // отписаться
-```
-
-Для async-реакции — загрузки зависимых опций с debounce и отменой запросов — используй `onChange`
-внутри `defineFormBehavior` (колбэк выполняется вне effect-контекста и получает `AbortSignal`):
+Для загрузки зависимых опций, обновления `componentProps` и других side-эффектов — `onChange`.
+Колбэк выполняется вне effect-контекста (можно писать сигналы/ноды), 2-м аргументом приходит
+`{ signal }` (`AbortSignal`), который аннулируется при следующей смене значения:
 
 ```typescript
 import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
@@ -191,75 +132,47 @@ const behavior = defineFormBehavior<Form>(({ model, form }) => {
   onChange(
     model.$.country,
     async (country, { signal }) => {
-      const states = await loadStates(country, { signal });
-      form.state.updateComponentProps({ options: states });
+      const cities = await loadCities(country, { signal });
+      form.city.updateComponentProps({ options: cities });
     },
     { debounce: 300 }
   );
 });
 ```
 
-### revalidateWhen
+## Переиспользуемые наборы behavior
 
-Перезапуск валидации при изменении другого поля. В M1 валидация on-demand, поэтому ревалидация — это
-явный колбэк, запускаемый сигналами-зависимостями:
-
-```typescript
-import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
-import { validateFormModel } from '@reformer/core';
-
-const behavior = defineFormBehavior<Form>(({ model }) => {
-  // Ревалидировать при изменении password (confirmPassword перепроверится относительно него)
-  revalidateWhen([model.$.password], () => {
-    void validateFormModel(model, schema);
-  });
-});
-```
-
-## Извлечение наборов поведений
-
-Создавайте переиспользуемые функции поведений, работающие с сигналами под-модели:
+Набор behavior выносится в функцию, принимающую сигналы под-модели (`ModelSignals<Sub>`), и
+вызывается по разу на под-модель внутри `defineFormBehavior`:
 
 ```typescript
 import type { ModelSignals } from '@reformer/core';
-import { createModel, createForm } from '@reformer/core';
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-// Переиспользуемые поведения для под-модели адреса
-function addressBehaviors(address: ModelSignals<Address>) {
-  // Автоформатирование почтового индекса
-  transformValue(address.zipCode, (value) => {
-    if (!value) return value;
-    const digits = value.replace(/\D/g, '');
-    if (digits.length === 9) {
-      return `${digits.slice(0, 5)}-${digits.slice(5)}`;
-    }
-    return value;
-  });
+function addressBehaviors(s: ModelSignals<Address>) {
+  transformValue(s.zip, (value) => (value ?? '').trim());
 }
 
-// Использование — вызываем набор для каждой под-модели внутри defineFormBehavior
 const behavior = defineFormBehavior<Order>(({ model }) => {
   addressBehaviors(model.$.billing);
   addressBehaviors(model.$.shipping);
 });
-
-const form = createForm<Order>({ model, schema, behavior });
 ```
 
-## Поведение vs Валидация
+Операторы композиции `apply` (переиспользовать под-схему на группе) и `applyEach` (per-item behavior
+массива) — в [Композиции](./composition).
 
-| Аспект                | Валидация                | Поведение                         |
-| --------------------- | ------------------------ | --------------------------------- |
-| **Назначение**        | Проверка корректности    | Реакция на изменения              |
-| **Результат**         | Ошибки                   | Побочные эффекты                  |
-| **Когда срабатывает** | После изменения значения | После изменения значения          |
-| **Примеры**           | Required, формат email   | Вычисляемый итог, показать/скрыть |
+## Behavior и валидация
 
-## Следующие шаги
+| Аспект        | Валидация                 | Behavior             |
+| ------------- | ------------------------- | -------------------- |
+| **Цель**      | Проверка корректности     | Реакция на изменения |
+| **Результат** | Ошибки                    | Side-эффекты         |
+| **Владелец**  | Слой валидации (`errors`) | Форма (`createForm`) |
 
-- [Обзор поведений](/docs/behaviors/overview) — Подробное руководство
-- [Вычисляемые поля](/docs/behaviors/computed) — `computeFrom`, `transformValue`
-- [Условная логика](/docs/behaviors/conditional) — `enableWhen`, `resetWhen`
-- [Композиция](./composition) — Переиспользование наборов поведений
-  </content>
+## Дальше
+
+- [Обзор behaviors](../../behaviors/overview) — подробный гайд.
+- [Вычисляемые поля](../../behaviors/computed) — `compute`, `computeFrom`, `transformValue`.
+- [Условная логика](../../behaviors/conditional) — `enableWhen`, `resetWhen`.
+- [Композиция](./composition) — переиспользование наборов behavior.

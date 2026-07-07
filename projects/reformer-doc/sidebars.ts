@@ -8,17 +8,18 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
-      label: 'Getting Started',
+      label: 'Начало работы',
       collapsed: false,
       items: ['getting-started/installation', 'getting-started/quick-start'],
     },
     {
       type: 'category',
-      label: 'Core Concepts',
+      label: 'Основные концепции',
       collapsed: true,
       items: [
-        'core-concepts/nodes',
         'core-concepts/reactive-state',
+        'core-concepts/model',
+        'core-concepts/nodes',
         {
           type: 'category',
           label: 'Схемы',
@@ -40,8 +41,8 @@ const sidebars: SidebarsConfig = {
       items: [
         'validation/overview',
         'validation/built-in',
-        'validation/async',
         'validation/custom',
+        'validation/async',
         'validation/validation-strategies',
         'validation/error-handling',
       ],
@@ -61,15 +62,21 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'React',
+      label: 'Интеграция с React',
       collapsed: true,
       items: ['react/hooks', 'react/custom-fields'],
     },
     {
       type: 'category',
-      label: 'Паттерны',
+      label: 'Рекомендованные паттерны',
       collapsed: true,
-      items: ['patterns/project-structure', 'patterns/openapi-generation'],
+      items: [
+        'patterns/project-structure',
+        'patterns/arrays',
+        'patterns/submit-and-reset',
+        'patterns/async-preload',
+        'patterns/openapi-generation',
+      ],
     },
     {
       type: 'category',

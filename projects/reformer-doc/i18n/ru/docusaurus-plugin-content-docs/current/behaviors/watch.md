@@ -2,205 +2,114 @@
 sidebar_position: 5
 ---
 
-# Watch Behaviors
+# Реакции на изменения
 
-Реакция на изменения полей с кастомной логикой.
+Побочные эффекты в ответ на изменение поля: загрузка зависимых опций, аналитика, ревалидация.
+Основной оператор — `onChange`; низкоуровневый примитив — `watchField`; для перевалидации схемы —
+`revalidateWhen`.
+
+## onChange
+
+`onChange(source, cb, { debounce?, immediate? })` вызывает `cb(value, { signal })` при изменении
+поля. Колбэк выполняется **вне effect-контекста** — в нём можно безопасно писать сигналы и ноды
+(`updateComponentProps` / `reset`) без «Cycle detected». Для async-колбэков вторым аргументом
+приходит `{ signal }` (AbortSignal): при следующей смене значения предыдущий вызов аннулируется —
+передавай `signal` в `fetch`.
+
+```typescript
+import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
+
+type AddressForm = { country: string; city: string };
+
+const behavior = defineFormBehavior<AddressForm>(({ model, form }) => {
+  onChange(
+    model.$.country,
+    async (country, { signal }) => {
+      if (!country) {
+        form.city.updateComponentProps({ options: [] });
+        return;
+      }
+      try {
+        const cities = await fetchCities(country, { signal }); // отмена устаревших запросов
+        form.city.updateComponentProps({ options: cities });
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
+        form.city.updateComponentProps({ options: [] });
+      }
+    },
+    { debounce: 300 } // не дёргать сеть на каждый keystroke
+  );
+});
+```
+
+### Опции
+
+| Опция             | Назначение                                                   |
+| ----------------- | ------------------------------------------------------------ |
+| `debounce: 300`   | не вызывать колбэк на каждое изменение (300–500 мс для сети) |
+| `immediate: true` | вызвать колбэк сразу при регистрации (по умолчанию `false`)  |
+
+`signal` полезен не только для `fetch` — на нём можно чистить любой ресурс при следующей смене
+значения:
+
+```typescript
+onChange(model.$.livePreview, (enabled, { signal }) => {
+  if (!enabled) return;
+  const interval = setInterval(refreshPreview, 1000);
+  // signal аннулируется на следующем изменении — чистим интервал
+  signal.addEventListener('abort', () => clearInterval(interval));
+});
+```
 
 ## watchField
 
-Выполнение callback при изменении значения поля.
+`watchField(source, cb, { immediate? })` из `@reformer/core` — базовая подписка на изменение сигнала
+(без debounce и AbortSignal), поверх которой построен `onChange`. Это **примитив**: возвращает
+cleanup и вызывается императивно. Для простых синхронных реакций:
 
 ```typescript
-import { defineFormBehavior, watchField } from '@reformer/core/behaviors';
+import { watchField } from '@reformer/core';
 
-const behavior = defineFormBehavior(({ model }) => {
-  watchField(model.$.country, (country) => {
-    console.log(`Страна изменилась на ${country}`);
-    // Загрузить города для новой страны
-    loadCities(country);
-  });
+// вызывается при каждом изменении (по умолчанию НЕ на инициализации)
+const stop = watchField(model.$.country, () => {
+  model.city = ''; // сброс зависимого поля
 });
+// stop() — отписаться
 ```
 
-### Пример: Динамические опции
-
-```typescript
-import { createModel, createForm } from '@reformer/core';
-import { defineFormBehavior, watchField } from '@reformer/core/behaviors';
-
-interface CategoryForm {
-  category: string;
-  subcategory: string;
-}
-
-const model = createModel<CategoryForm>({ category: '', subcategory: '' });
-
-const behavior = defineFormBehavior<CategoryForm>(({ model, form }) => {
-  watchField(model.$.category, async (category) => {
-    // Сбросить подкатегорию
-    model.subcategory = '';
-
-    // Загрузить подкатегории
-    const options = await fetchSubcategories(category);
-    form.subcategory.updateComponentProps({ options });
-  });
-});
-
-// `schema` связывает поля с компонентами (см. Быстрый старт).
-const form = createForm<CategoryForm>({ model, schema, behavior });
-```
-
-### Пример: Аналитика
-
-```typescript
-const behavior = defineFormBehavior(({ model }) => {
-  watchField(model.$.step, (step) => {
-    analytics.track('form_step_changed', { step });
-  });
-});
-```
+:::info onChange vs watchField
+`onChange` (DSL) — async-реакции с debounce и AbortSignal внутри `defineFormBehavior`. `watchField`
+(примитив) — простая синхронная подписка, когда нужна отписка вручную (например, в `useEffect`).
+:::
 
 ## revalidateWhen
 
-Запуск повторной валидации поля при изменении другого поля. Под M1 валидация
-on-demand, поэтому колбэк ревалидации заново вызывает `validateFormModel(model, schema)`.
+Под M1 валидация — on-demand (`validateFormModel`). Если правило одного поля зависит от **другого**
+поля, изменение этого другого поля само по себе проверку не перезапустит. `revalidateWhen(deps,
+revalidate)` вызывает колбэк ревалидации при изменении любой из зависимостей (не на инициализации).
 
 ```typescript
 import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
 import { validateFormModel } from '@reformer/core';
 
-const behavior = defineFormBehavior(({ model }) => {
-  // Перевалидировать схему при изменении password (правило confirmPassword перепроверится)
+type RegistrationForm = { password: string; confirmPassword: string };
+
+const behavior = defineFormBehavior<RegistrationForm>(({ model }) => {
+  // при смене password перевалидируем схему — правило confirmPassword перепроверится
   revalidateWhen([model.$.password], () => {
     void validateFormModel(model, schema);
   });
 });
 ```
 
-### Пример: Диапазон дат
+:::warning Триггеры — ДРУГИЕ поля
+В `deps` передавай поля, от которых зависит правило, а не само проверяемое поле (оно и так
+валидируется при собственном изменении). И убедись, что правило реально читает триггер — это
+cross-field `ModelValidator`, читающий `root` (см. [Валидацию](../validation/overview)).
+:::
 
-```typescript
-import { createModel, createForm } from '@reformer/core';
-import type { ModelValidator } from '@reformer/core';
-import { validateFormModel } from '@reformer/core';
-import { defineFormBehavior, revalidateWhen } from '@reformer/core/behaviors';
-import { Input } from '@reformer/ui-kit';
+## Дальше
 
-interface DateRangeForm {
-  startDate: string;
-  endDate: string;
-}
-
-const model = createModel<DateRangeForm>({ startDate: '', endDate: '' });
-
-// Кросс-валидация: endDate не может быть раньше startDate (читает root)
-const endAfterStart: ModelValidator<string, unknown, DateRangeForm> = (value, _schema, root) =>
-  root.startDate && value && value < root.startDate
-    ? { code: 'endBeforeStart', message: 'Дата окончания раньше даты начала' }
-    : null;
-
-const schema = {
-  startDate: { value: model.$.startDate, component: Input },
-  endDate: { value: model.$.endDate, component: Input, validators: [endAfterStart] },
-};
-
-const behavior = defineFormBehavior<DateRangeForm>(({ model }) => {
-  // Перевалидировать endDate при изменении startDate
-  revalidateWhen([model.$.startDate], () => {
-    void validateFormModel(model, schema);
-  });
-});
-
-const form = createForm<DateRangeForm>({ model, schema, behavior });
-```
-
-### Пример: Кросс-валидация
-
-```typescript
-const behavior = defineFormBehavior(({ model }) => {
-  // Сложность пароля зависит от username (не может содержать его)
-  revalidateWhen([model.$.username], () => void validateFormModel(model, schema));
-
-  // Подтверждение пароля должно совпадать с паролем
-  revalidateWhen([model.$.password], () => void validateFormModel(model, schema));
-});
-```
-
-## Отслеживание нескольких полей
-
-Отслеживание нескольких полей:
-
-```typescript
-const behavior = defineFormBehavior(({ model }) => {
-  // Вызывается при изменении любого из них
-  watchField(model.$.firstName, () => updateDisplayName());
-  watchField(model.$.lastName, () => updateDisplayName());
-});
-```
-
-## Debounced Watch
-
-Предотвращение слишком частых обновлений через `onChange` (debounce + AbortSignal):
-
-```typescript
-import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
-
-const behavior = defineFormBehavior(({ model }) => {
-  onChange(
-    model.$.searchQuery,
-    async (query, { signal }) => {
-      const results = await search(query, { signal });
-      setSearchResults(results);
-    },
-    { debounce: 300 }
-  );
-});
-```
-
-## Watch с очисткой
-
-Очистка при следующем изменении через abort-сигнал:
-
-```typescript
-import { defineFormBehavior, onChange } from '@reformer/core/behaviors';
-
-const behavior = defineFormBehavior(({ model }) => {
-  onChange(model.$.livePreview, (enabled, { signal }) => {
-    if (enabled) {
-      const interval = setInterval(refreshPreview, 1000);
-      // signal аннулируется при следующем изменении — очищаем интервал
-      signal.addEventListener('abort', () => clearInterval(interval));
-    }
-  });
-});
-```
-
-## Комбинирование Watch с другими Behaviors
-
-```typescript
-import {
-  defineFormBehavior,
-  enableWhen,
-  watchField,
-  revalidateWhen,
-} from '@reformer/core/behaviors';
-import { validateFormModel } from '@reformer/core';
-
-const behavior = defineFormBehavior(({ model }) => {
-  // Показать premium поля
-  enableWhen(model.$.premiumOptions, () => model.plan === 'premium');
-
-  // Отслеживать изменения плана
-  watchField(model.$.plan, (plan) => {
-    analytics.track('plan_selected', { plan });
-  });
-
-  // Перевалидировать зависимые поля
-  revalidateWhen([model.$.plan], () => void validateFormModel(model, schema));
-});
-```
-
-## Следующие шаги
-
-- [Валидация](/docs/validation/overview) — комбинирование с валидацией
-- [React интеграция](/docs/react/hooks) — использование в React-компонентах
+- [Вычисляемые поля](./computed) — `compute` для производных значений (а не ручной `onChange` + запись).
+- [Синхронизация полей](./sync) — `copyFrom`, `syncFields`.
+- [Валидация](../validation/overview) — `validateFormModel` и cross-field правила.

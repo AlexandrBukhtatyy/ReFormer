@@ -2,224 +2,216 @@
 sidebar_position: 2
 ---
 
-# Form Schema
+# Схема формы
 
-Form Schema defines the structure of your form data and field configuration.
+Схема описывает **структуру** формы: какие поля в ней есть, к какому сигналу модели привязано каждое
+из них и каким компонентом оно рендерится. В M1 схема — это обычный объект, где каждый ключ —
+узел, а не хранилище значений: значения живут в [модели](../model).
 
-## FormSchema Type
+## Узел поля
 
-`FormSchema<T>` automatically maps your TypeScript interface to field configurations:
+Лист схемы — **узел поля**. Он привязывает поле к сигналу модели (`value: model.$.<field>`) и держит
+его UI-конфиг и валидаторы:
 
 ```typescript
-import { FormSchema, GroupNode } from '@reformer/core';
-
-interface User {
-  name: string;
-  email: string;
-  age: number;
+{
+  value: model.$.fieldName,   // сигнал модели (PathAwareSignal) — обязателен
+  component: Input,           // React-компонент поля
+  componentProps?: object,    // пропсы компонента (label, placeholder, options, type, ...)
+  validators?: [...],         // чистые фабрики / ModelValidator
+  asyncValidators?: [...],    // асинхронные валидаторы
+  disabled?: boolean,         // начальное состояние «поле отключено»
+  updateOn?: 'change' | 'blur' | 'submit',
+  debounce?: number,          // задержка (мс) перед асинхронной валидацией
 }
-
-const schema: FormSchema<User> = {
-  name: { value: '' },
-  email: { value: '' },
-  age: { value: 0 },
-};
-
-const form = new GroupNode<User>({ form: schema });
 ```
 
-## Type Mapping Rules
+| Поле              | Тип                              | Назначение                                                       |
+| ----------------- | -------------------------------- | ---------------------------------------------------------------- |
+| `value`           | `PathAwareSignal<T>`             | Привязка к сигналу модели (`model.$.<field>`) — обязателен       |
+| `component`       | React-компонент                  | Чем рендерится поле                                              |
+| `componentProps`  | `object`                         | Пропсы компонента (`label`, `placeholder`, `options`, `type`, …) |
+| `validators`      | массив                           | Валидаторы поля (см. [Схему валидации](./validation-schema))     |
+| `asyncValidators` | массив                           | Асинхронные валидаторы                                           |
+| `disabled`        | `boolean`                        | Начальное состояние «отключено»                                  |
+| `updateOn`        | `'change' \| 'blur' \| 'submit'` | Когда обновлять значение из ввода                                |
+| `debounce`        | `number`                         | Задержка перед асинхронной валидацией (мс)                       |
 
-`FormSchema<T>` uses these rules to determine field types:
+:::warning `disabled` узла ≠ `componentProps.disabled`
+`disabled` — это **поле узла** (начальное состояние ноды); дальше состоянием управляют методы
+`form.field.disable()` / `enable()` и оператор `enableWhen`. `componentProps.disabled` — это UI-проп
+компонента, и на состояние ноды он **не влияет** (частая причина «вычисляемое поле остаётся
+редактируемым»).
+:::
 
-| TypeScript Type               | Schema Type        | Example                    |
-| ----------------------------- | ------------------ | -------------------------- |
-| `string`, `number`, `boolean` | `FieldConfig<T>`   | `name: { value: '' }`      |
-| `Date`, `File`, `Blob`        | `FieldConfig<T>`   | `date: { value: null }`    |
-| Nested object                 | `FormSchema<T>`    | `address: { city: {...} }` |
-| Array of objects              | `[FormSchema<T>]`  | `items: [{ name: {...} }]` |
-| Array of primitives           | `FieldConfig<T[]>` | `tags: { value: [] }`      |
-
-### Primitives
-
-```typescript
-interface BasicForm {
-  name: string;
-  age: number;
-  active: boolean;
-}
-
-const schema: FormSchema<BasicForm> = {
-  name: { value: '' }, // FieldConfig<string>
-  age: { value: 0 }, // FieldConfig<number>
-  active: { value: false }, // FieldConfig<boolean>
-};
-```
-
-### Nested Objects
-
-Objects become nested `FormSchema`:
+## Примитивные поля
 
 ```typescript
-interface WithAddress {
-  name: string;
-  address: {
-    street: string;
-    city: string;
-  };
-}
+import { createModel, createForm } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { Input, Select, Checkbox } from '@reformer/ui-kit';
 
-const schema: FormSchema<WithAddress> = {
-  name: { value: '' },
-  address: {
-    // FormSchema<Address>
-    street: { value: '' },
-    city: { value: '' },
+type MyForm = { name: string; age: number | null; agree: boolean; status: string };
+
+const model = createModel<MyForm>({ name: '', age: null, agree: false, status: 'active' });
+
+const schema = {
+  name: {
+    value: model.$.name,
+    component: Input,
+    componentProps: { label: 'Имя', placeholder: 'Введите имя' },
+    validators: [required()],
   },
-};
-```
-
-### Arrays
-
-Arrays of objects use tuple syntax `[{...}]`:
-
-```typescript
-interface WithItems {
-  title: string;
-  items: Array<{
-    name: string;
-    price: number;
-  }>;
-}
-
-const schema: FormSchema<WithItems> = {
-  title: { value: '' },
-  items: [
-    {
-      // [FormSchema<Item>]
-      name: { value: '' },
-      price: { value: 0 },
+  age: {
+    value: model.$.age,
+    component: Input,
+    componentProps: { type: 'number', label: 'Возраст' },
+  },
+  agree: {
+    value: model.$.agree,
+    component: Checkbox,
+    componentProps: { label: 'Согласен с условиями' },
+  },
+  status: {
+    value: model.$.status,
+    component: Select,
+    componentProps: {
+      label: 'Статус',
+      options: [
+        { value: 'active', label: 'Активен' },
+        { value: 'inactive', label: 'Неактивен' },
+      ],
     },
-  ],
-};
-```
-
-## FieldConfig
-
-Each field uses `FieldConfig<T>`:
-
-```typescript
-interface FieldConfig<T> {
-  value: T | null; // Initial value (required)
-  disabled?: boolean; // Field disabled state
-  updateOn?: 'change' | 'blur' | 'submit'; // When to update
-  debounce?: number; // Debounce for async validation (ms)
-}
-```
-
-### Field Options
-
-```typescript
-const schema: FormSchema<User> = {
-  // Basic field
-  name: { value: '' },
-
-  // Disabled by default
-  email: { value: '', disabled: true },
-
-  // Update on blur (not on every keystroke)
-  password: { value: '', updateOn: 'blur' },
-
-  // Debounce async validation
-  username: { value: '', debounce: 300 },
-};
-```
-
-## Optional Fields
-
-Handle optional fields with `null`:
-
-```typescript
-interface Profile {
-  name: string;
-  bio?: string;
-  avatar?: File;
-}
-
-const schema: FormSchema<Profile> = {
-  name: { value: '' },
-  bio: { value: '' }, // Use empty string for optional string
-  avatar: { value: null }, // Use null for optional File
-};
-```
-
-## Complex Example
-
-```typescript
-interface Order {
-  customer: {
-    name: string;
-    email: string;
-    phone?: string;
-  };
-  items: Array<{
-    product: string;
-    quantity: number;
-    price: number;
-  }>;
-  shipping: {
-    address: string;
-    city: string;
-    notes?: string;
-  };
-  express: boolean;
-}
-
-const orderSchema: FormSchema<Order> = {
-  customer: {
-    name: { value: '' },
-    email: { value: '' },
-    phone: { value: '' },
   },
-  items: [
-    {
-      product: { value: '' },
-      quantity: { value: 1 },
-      price: { value: 0 },
-    },
-  ],
-  shipping: {
-    address: { value: '' },
-    city: { value: '' },
-    notes: { value: '' },
-  },
-  express: { value: false },
 };
 
-const form = new GroupNode<Order>({ form: orderSchema });
+const form = createForm<MyForm>({ model, schema });
 ```
 
-## Type Inference
+:::info Схема верхнего уровня — именованный объект
+Узлы описываются как именованные ключи объекта (`{ name: {...}, age: {...} }`), а не как массив
+`{ children: [...] }`. Ключ узла = имя поля модели, к которому он привязан.
+:::
 
-TypeScript infers types automatically:
+## Вложенные группы
+
+Вложенная группа — обычный объект под-узлов, привязанных к сигналам под-модели
+(`model.$.address.city`). Такую группу удобно вынести в **builder**, принимающий `ModelSignals<Sub>`:
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    name: { value: '' },
-    age: { value: 0 },
-  },
+import type { ModelSignals } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+
+type Address = { street: string; city: string; zip: string };
+
+const addressNodes = (s: ModelSignals<Address>) => ({
+  street: { value: s.street, component: Input, componentProps: { label: 'Улица' } },
+  city: { value: s.city, component: Input, componentProps: { label: 'Город' } },
+  zip: { value: s.zip, component: Input, componentProps: { label: 'Индекс' } },
 });
 
-// TypeScript knows:
-form.value.name; // string
-form.value.age; // number
-form.controls.name; // FieldNode<string>
-form.controls.age; // FieldNode<number>
+const schema = {
+  address: addressNodes(model.$.address),
+};
 ```
 
-## Next Steps
+Builder привязывает каждое поле к переданным сигналам под-модели, поэтому один и тот же builder можно
+применить к нескольким адресам — см. [Композицию](./composition).
 
-- [Validation Schema](./validation-schema) — Add validation rules
-- [Behavior Schema](./behavior-schema) — Add reactive logic
-- [Composition](./composition) — Reuse form schemas
+## Массивы — узел `{ array, item }`
+
+Массивы объектов принадлежат модели. В схеме массив объявляется узлом
+`{ array: model.<path>, item: (itemModel) => subSchema }`, где `item` строит под-схему одного
+элемента из его под-модели (`FormModel<Item>`):
+
+```typescript
+import { createModel, createForm, type FormModel } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
+
+type Item = { id: string; name: string; price: number };
+type MyForm = { items: Item[] };
+
+const model = createModel<MyForm>({ items: [] });
+
+// Под-схема одного элемента (item.$.field — сигнал под-модели элемента).
+const itemSchema = (item: FormModel<Item>) => ({
+  id: { value: item.$.id, component: Input },
+  name: { value: item.$.name, component: Input },
+  price: { value: item.$.price, component: Input, componentProps: { type: 'number' } },
+});
+
+const schema = {
+  items: { array: model.items, item: itemSchema },
+};
+
+const form = createForm<MyForm>({ model, schema });
+```
+
+Массив в узле связывается через **value-proxy** `model.items` (он несёт путь), а не через сигнальный
+`model.$.items`. Операции над коллекцией (`push`/`removeAt`/`move`/…) выполняются на модели:
+
+```typescript
+model.items.push({ id: '1', name: '', price: 0 }); // плоские значения, без { value, component }
+model.items.removeAt(0);
+model.items.length; // реактивная длина
+```
+
+:::tip Тип элемента — через `type`
+Тип элемента массива объявляйте через `type`-alias, а не `interface` — иначе он не совместим с
+`Record<string, FormValue>`, и узел массива его отвергнет.
+:::
+
+Подробнее о динамических списках — в [Композиции](./composition) и разделе про [ноды массива](../nodes).
+
+## Тип схемы в M1 — `unknown`
+
+Схема в M1 типизирована как `unknown`, а не как строгий `FormSchema<T>`. Это сделано намеренно:
+интерпретатор `createForm` **обходит произвольную структуру** и собирает листья
+`{ value: signal, component?, ... }`. Благодаря этому в схеме допустимы обёртки (шаги wizard, секции,
+группировки) — они не ломают компиляцию.
+
+Типобезопасность при этом не теряется: её обеспечивают сами сигналы модели. Привязка `value:
+model.$.<field>` типизирована, поэтому опечатка в имени поля — ошибка компиляции.
+
+## Доступ через proxy
+
+`createForm` возвращает **proxy**: к полям обращаются по имени, к вложенным — цепочкой, к элементам
+массива — через `.at(i)`:
+
+```typescript
+const form = createForm<MyForm>({ model, schema });
+
+form.name; // FieldNode<string> — TypeScript знает тип
+form.address.city; // FieldNode<string> — вложенный доступ
+form.items.at(0); // FormProxy<Item> — элемент массива
+
+form.name.setValue('John');
+form.name.value.value; // текущее значение (через сигнал)
+```
+
+:::warning Proxy не проходит `instanceof`
+Не проверяйте тип ноды через `node instanceof FieldNode` — proxy это не пройдёт. Используйте
+type-guards.
+:::
+
+```typescript
+import { isFieldNode, isGroupNode, isArrayNode } from '@reformer/core';
+
+if (isFieldNode(node)) {
+  /* лист */
+}
+if (isGroupNode(node)) {
+  /* группа */
+}
+if (isArrayNode(node)) {
+  /* массив */
+}
+```
+
+Подробнее о нодах, их сигналах и методах — в [Ноды и proxy](../nodes).
+
+## Дальше
+
+- [Схема валидации](./validation-schema) — правила корректности на узлах.
+- [Схема behavior](./behavior-schema) — реактивная логика.
+- [Композиция](./composition) — переиспользование схем.

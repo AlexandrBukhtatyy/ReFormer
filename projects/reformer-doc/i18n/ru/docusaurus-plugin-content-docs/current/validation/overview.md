@@ -4,118 +4,164 @@ sidebar_position: 1
 
 # Обзор валидации
 
-ReFormer предоставляет декларативную валидацию со встроенными валидаторами и поддержкой кастомной валидации.
+Валидация в ReFormer — **декларативная** и **headless**. Правила описываются прямо в схеме поля,
+а сама проверка — чистая функция данных: движок обходит модель по схеме, прогоняет валидаторы и
+раскладывает ошибки по полям. UI подсвечивает их автоматически.
 
-## Базовое использование
+## Как это устроено
 
-Определите валидаторы прямо в узле схемы поля через массив `validators`:
+Валидаторы кладутся в массив `validators` узла схемы. Это чистые **фабрики**
+(`required()`, `email()`, `min(18)`, …) из `@reformer/core/validators`, возвращающие функцию
+`(value, scope, root) => ValidationError | null`.
 
 ```typescript
 import { createModel, createForm, validateFormModel } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
+import { Input } from '@reformer/ui-kit';
 
 type ContactForm = { name: string; email: string };
 
 const model = createModel<ContactForm>({ name: '', email: '' });
 
 const schema = {
-  name: { value: model.$.name, validators: [required(), minLength(2)] },
-  email: { value: model.$.email, validators: [required(), email()] },
+  name: {
+    value: model.$.name,
+    component: Input,
+    validators: [required(), minLength(2)],
+  },
+  email: {
+    value: model.$.email,
+    component: Input,
+    validators: [required(), email()],
+  },
 };
 
 const form = createForm<ContactForm>({ model, schema });
-
-// Валидация по требованию — ошибки разводятся по полям для отображения:
-const result = await validateFormModel(model, schema); // { valid, errors }
 ```
 
-## Состояние валидации
+:::info Валидаторы — чистые фабрики
+`required()`, `min(50000)`, `email()` возвращают функцию и **вызываются со скобками** прямо в массиве:
+`validators: [required(), min(50000)]`. Валидация запускается движком, а не самим полем.
+:::
 
-Реактивное состояние поля читается через `useFormControl` внутри компонентов:
+## Запуск валидации
+
+Валидация выполняется **по требованию** — обычно на submit — через `validateFormModel(model, schema)`.
+Функция обходит модель по схеме, возвращает `{ valid, errors }` и **роутит ошибки в ноды формы**,
+поэтому поля с ошибками подсветятся в UI.
 
 ```typescript
+const { valid, errors } = await validateFormModel(model, schema);
+// valid: boolean
+// errors: Record<string, ValidationError[]> — только поля с ошибками, ключ — путь поля
+```
+
+Канонический submit-флоу — «валидировать → проверить `valid` → взять снимок `model.get()`»:
+
+```tsx
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  form.touchAll(); // раскрыть все ошибки в UI
+
+  const { valid } = await validateFormModel(model, schema);
+  if (valid) {
+    await api.save(model.get());
+  }
+};
+```
+
+:::tip Три варианта запуска
+
+- `validateFormModel(model, schema)` — полная проверка (sync + async), **роутит ошибки в ноды формы**.
+- `validateModel(model, schema)` — то же самое, но **без нод** (headless: server action, тест) — только результат.
+- `validateModelSync(model, schema)` — только синхронные валидаторы, без сети; удобно как быстрый
+  gate «можно ли перейти на следующий шаг».
+  :::
+
+## Чтение состояния поля
+
+В компонентах реактивное состояние поля читают через `useFormControl`:
+
+```tsx
 import { useFormControl } from '@reformer/core';
 
 function NameField() {
   const { value, errors, valid, shouldShowError } = useFormControl(form.name);
   // errors: ValidationError[] — пустой [] когда поле валидно
   // valid: boolean
-  // shouldShowError: true только после того, как поле стало touched
+  // shouldShowError: invalid && (touched || dirty) — показывать ошибку только после взаимодействия
+
+  return (
+    <div>
+      <input value={value} onChange={(e) => form.name.setValue(e.target.value)} />
+      {shouldShowError && errors[0] && <span className="error">{errors[0].message}</span>}
+    </div>
+  );
 }
 ```
 
-Валидация всей модели на сабмите — ошибки разводятся обратно по полям:
+| Поле состояния      | Тип                 | Назначение                                              |
+| ------------------- | ------------------- | ------------------------------------------------------- | --- | ----------------------------- |
+| `value`             | `T`                 | текущее значение поля                                   |
+| `errors`            | `ValidationError[]` | ошибки поля; `[]` когда валидно                         |
+| `valid` / `invalid` | `boolean`           | прошло ли поле проверку                                 |
+| `touched` / `dirty` | `boolean`           | взаимодействовал ли пользователь / менялось ли значение |
+| `shouldShowError`   | `boolean`           | `invalid && (touched                                    |     | dirty)` — удобный флаг для UI |
+| `pending`           | `boolean`           | идёт асинхронная валидация                              |
+
+:::info `@reformer/ui-kit`
+Универсальный `FormField` из `@reformer/ui-kit` уже подписан на `useFormControl` — он сам покажет
+ошибку и индикатор `pending`. Свои обёртки нужны, только если вы не используете ui-kit.
+:::
+
+## Объект ошибки
+
+Каждая ошибка — это `ValidationError`:
 
 ```typescript
-const { valid, errors } = await validateFormModel(model, schema);
+interface ValidationError {
+  code: string; // машинный код: 'required', 'email', 'minLength', …
+  message: string; // текст для пользователя
+  params?: Record<string, FormValue>; // данные ошибки: { minLength: 2, actualLength: 1 }
+  severity?: 'error' | 'warning'; // 'error' (по умолчанию) блокирует submit; 'warning' — нет
+}
 ```
-
-## Сообщения об ошибках
-
-`errors` поля — это массив объектов `ValidationError` (`{ code, message, params? }`),
-пустой когда поле валидно:
 
 ```typescript
-form.name.errors.value;
-// []                                                  — когда валидно
-// [{ code: 'required', message: 'Имя обязательно' }]  — когда required не прошёл
-// [{ code: 'minLength', message: 'Слишком коротко',
-//    params: { minLength: 2, actualLength: 1 } }]     — когда minLength не прошёл
+// Пример содержимого form.name.errors (валидаторам передан свой { message }):
+[]; // — когда валидно
+[{ code: 'required', message: 'Укажите имя' }]; // — required не пройден
+[{ code: 'minLength', message: 'Минимум 2 символа', params: { minLength: 2, actualLength: 1 } }];
 ```
 
-## Встроенные валидаторы
-
-| Валидатор                      | Описание                           | Ключ ошибки    |
-| ------------------------------ | ---------------------------------- | -------------- |
-| `validators: [required()]`     | Поле должно иметь значение         | `required`     |
-| `validators: [email()]`        | Корректный формат email            | `email`        |
-| `validators: [minLength(n)]`   | Минимальная длина строки           | `minLength`    |
-| `validators: [maxLength(n)]`   | Максимальная длина строки          | `maxLength`    |
-| `validators: [min(n)]`         | Минимальное числовое значение      | `min`          |
-| `validators: [max(n)]`         | Максимальное числовое значение     | `max`          |
-| `validators: [pattern(regex)]` | Соответствие регулярному выражению | `pattern`      |
-| `validators: [url()]`          | Корректный формат URL              | `url`          |
-| `validators: [phone()]`        | Корректный формат телефона         | `phone`        |
-| `validators: [isNumber()]`     | Значение — число                   | `isNumber`     |
-| `validators: [integer()]`      | Целое число                        | `integer`      |
-| `validators: [multipleOf(n)]`  | Кратно n                           | `multipleOf`   |
-| `validators: [nonNegative()]`  | `≥ 0`                              | `nonNegative`  |
-| `validators: [nonZero()]`      | `≠ 0`                              | `nonZero`      |
-| `validators: [isDate()]`       | Корректная дата                    | `date_invalid` |
+:::tip Пустое сообщение = резолв по коду
+Если валидатору не передать `{ message }`, в `message` попадёт пустая строка (или `'invalid'`), а
+человекочитаемый текст резолвится из `code` в слое отображения (`@reformer/ui-kit`). Свой текст
+задаётся опцией: `required({ message: 'Укажите имя' })`.
+:::
 
 ## Условная валидация
 
-Применять валидацию только при выполнении условия:
+Правила, применяемые только в части формы, описываются узлом-веткой `{ when, children }`. Когда
+`when` возвращает `false`, поддерево пропускается, а ошибки его полей очищаются.
 
 ```typescript
-import { required } from '@reformer/core/validators';
-
-// Branch-узел валидирует children только когда `when` истинно.
-// При ложном условии поддерево пропускается, а ошибки его полей очищаются.
 const schema = {
-  children: [
-    {
-      when: (_scope, root) => root.contactByPhone === true,
-      children: [{ value: model.$.phone, validators: [required()] }],
-    },
-  ],
+  contactByPhone: { value: model.$.contactByPhone, component: Checkbox },
+  // Телефон обязателен, только если выбран контакт по телефону:
+  phoneBranch: {
+    when: (_scope, root) => root.contactByPhone === true,
+    children: [{ value: model.$.phone, component: Input, validators: [required()] }],
+  },
 };
+
+const { valid } = await validateFormModel(model, schema);
 ```
 
-## Время валидации
+## Дальше
 
-Валидация запускается автоматически когда:
-
-- Изменяется значение
-- Поле помечается как touched (для отображения)
-
-```typescript
-// Ручная валидация
-form.validate(); // Валидировать всю форму
-```
-
-## Следующие шаги
-
-- [Встроенные валидаторы](/docs/validation/built-in) — все валидаторы с примерами
-- [Асинхронная валидация](/docs/validation/async) — серверная валидация
-- [Кастомные валидаторы](/docs/validation/custom) — создание своих валидаторов
+- [Встроенные валидаторы](/docs/validation/built-in) — полный список фабрик с сигнатурами.
+- [Кастомные валидаторы](/docs/validation/custom) — свои правила и кросс-полевые проверки.
+- [Асинхронная валидация](/docs/validation/async) — проверки через сервер.
+- [Стратегии валидации](/docs/validation/validation-strategies) — `updateOn`, debounce, пошаговые формы.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение, фильтрация и отображение ошибок.

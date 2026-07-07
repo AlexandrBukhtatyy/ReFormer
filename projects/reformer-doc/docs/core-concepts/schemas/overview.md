@@ -2,31 +2,32 @@
 sidebar_position: 1
 ---
 
-# Schemas Overview
+# Обзор схем
 
-ReFormer separates a form into three concerns — structure, validation, and behavior — to keep code
-focused and reusable. In the M1 architecture values live in a **model**, the **schema** binds each
-field to a model signal (and carries its validators), and reactive logic is declared separately with
-`defineFormBehavior`.
+ReFormer делит форму на три независимые заботы — **структуру**, **валидацию** и **behavior** — чтобы
+код оставался сфокусированным и переиспользуемым. В архитектуре M1 значения живут в **модели**,
+**схема** привязывает каждое поле к сигналу модели (и несёт его валидаторы), а реактивная логика
+описывается отдельно через `defineFormBehavior`.
 
-## Structure, Validation, and Behavior
+## Структура, валидация и behavior
 
-| Concern        | Purpose                            | Where it lives            |
-| -------------- | ---------------------------------- | ------------------------- |
-| **Structure**  | Data model and field configuration | `model` + `schema` nodes  |
-| **Validation** | Validation rules                   | `validators` on each node |
-| **Behavior**   | Reactive logic and side effects    | `defineFormBehavior`      |
+| Забота        | Что описывает                    | Где живёт                   |
+| ------------- | -------------------------------- | --------------------------- |
+| **Структура** | Данные и конфигурация полей      | `model` + узлы `schema`     |
+| **Валидация** | Правила корректности данных      | `validators` на узлах схемы |
+| **Behavior**  | Реактивная логика и side-эффекты | `defineFormBehavior`        |
 
 ```typescript
 import { createModel, createForm } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
 import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
 type Person = { firstName: string; lastName: string; fullName: string; email: string };
 
 const model = createModel<Person>({ firstName: '', lastName: '', fullName: '', email: '' });
 
-// 1. Schema — structure + validation. Each node binds a model signal to a component.
+// 1. Схема — структура + валидация. Каждый узел привязывает сигнал модели к компоненту.
 const schema = {
   firstName: { value: model.$.firstName, component: Input, validators: [required()] },
   lastName: { value: model.$.lastName, component: Input, validators: [required()] },
@@ -34,7 +35,7 @@ const schema = {
   email: { value: model.$.email, component: Input, validators: [required(), email()] },
 };
 
-// 2. Behavior — reactive logic, declared separately
+// 2. Behavior — реактивная логика, описывается отдельно.
 const behavior = defineFormBehavior<Person>(({ model }) => {
   computeFrom([model.$.firstName, model.$.lastName], model.$.fullName, (firstName, lastName) =>
     `${firstName} ${lastName}`.trim()
@@ -44,36 +45,57 @@ const behavior = defineFormBehavior<Person>(({ model }) => {
 const form = createForm<Person>({ model, schema, behavior });
 ```
 
-## Why Separate Concerns?
+## Связь модели и схемы
 
-### Separation of Concerns
+Схема **не хранит значения** — их источник истины это модель. Узел лишь связывает поле с сигналом
+модели через `value: model.$.<field>` и добавляет поверх него UI-конфиг (`component`,
+`componentProps`) и валидаторы.
 
-Each concern has a single responsibility:
+```typescript
+const model = createModel<Person>({ firstName: '', lastName: '', fullName: '', email: '' });
 
-- **Structure** (`model` + `schema`): "What data do we collect?"
-- **Validation** (`validators`): "Is the data correct?"
-- **Behavior** (`defineFormBehavior`): "How should data react to changes?"
+const schema = {
+  // value — сигнал модели, а не начальное значение. Значение 'firstName' живёт в модели.
+  firstName: { value: model.$.firstName, component: Input, validators: [required()] },
+};
+```
 
-### Reusability & Decomposition
+Из-за этого запись через ноду (`form.firstName.setValue('Jane')`) и через модель
+(`model.firstName = 'Jane'`) — это один и тот же сигнал: изменение в одном месте мгновенно видно в
+другом. Подробнее о модели — в [Модель данных](../model), о нодах — в [Ноды и proxy](../nodes).
 
-Each concern can be decomposed into reusable parts and combined across sub-models:
+## Зачем разделять заботы?
+
+### Разделение ответственности
+
+У каждой заботы одна зона ответственности:
+
+- **Структура** (`model` + `schema`): «какие данные собираем?»
+- **Валидация** (`validators`): «корректны ли данные?»
+- **Behavior** (`defineFormBehavior`): «как данные реагируют на изменения?»
+
+### Переиспользование и декомпозиция
+
+Каждую заботу можно разложить на переиспользуемые части и собрать поверх под-моделей. Ключевой
+приём — **builder**, принимающий сигналы под-модели (`ModelSignals<Sub>`):
 
 ```typescript
 import { createModel, createForm, type ModelSignals } from '@reformer/core';
 import { required } from '@reformer/core/validators';
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
 type Address = { street: string; city: string; zip: string };
 type OrderForm = { billingAddress: Address; shippingAddress: Address };
 
-// 1. Reusable schema builder — nodes bound to a sub-model's signals, validators inline
+// 1. Переиспользуемый builder схемы — узлы привязаны к сигналам под-модели, валидаторы inline.
 const addressNodes = (s: ModelSignals<Address>) => ({
   street: { value: s.street, component: Input, validators: [required()] },
   city: { value: s.city, component: Input, validators: [required()] },
   zip: { value: s.zip, component: Input, validators: [required()] },
 });
 
-// 2. Reusable behavior set — operates on the same sub-model signals
+// 2. Переиспользуемый набор behavior — работает с теми же сигналами под-модели.
 const addressBehaviors = (s: ModelSignals<Address>) => {
   transformValue(s.zip, (value) => (value ?? '').trim());
 };
@@ -83,13 +105,13 @@ const model = createModel<OrderForm>({
   shippingAddress: { street: '', city: '', zip: '' },
 });
 
-// Compose into a single schema — reuse the builder for both addresses
+// Собираем схему — переиспользуем builder для обоих адресов.
 const schema = {
   billingAddress: addressNodes(model.$.billingAddress),
   shippingAddress: addressNodes(model.$.shippingAddress),
 };
 
-// Compose one behavior — apply the same set to both sub-models
+// Собираем один behavior — применяем один набор к обеим под-моделям.
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {
   addressBehaviors(model.$.billingAddress);
   addressBehaviors(model.$.shippingAddress);
@@ -98,54 +120,55 @@ const behavior = defineFormBehavior<OrderForm>(({ model }) => {
 const orderForm = createForm<OrderForm>({ model, schema, behavior });
 ```
 
-Reuse works at several granularities:
+Переиспользование работает на разной гранулярности:
 
 ```typescript
-// One validator list, many fields
+// Один список валидаторов — много полей.
 const emailRules = [required(), email()];
 const schema = {
   email: { value: model.$.email, component: Input, validators: emailRules },
   backupEmail: { value: model.$.backupEmail, component: Input, validators: emailRules },
 };
 
-// One node builder, applied to many sub-models
+// Один builder узлов — много под-моделей.
 const addressSchema = {
   billingAddress: addressNodes(model.$.billingAddress),
   shippingAddress: addressNodes(model.$.shippingAddress),
 };
 
-// One behavior set, applied to many sub-models (inside defineFormBehavior)
+// Один набор behavior — много под-моделей (внутри defineFormBehavior).
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {
   addressBehaviors(model.$.billingAddress);
   addressBehaviors(model.$.shippingAddress);
 });
 ```
 
-:::tip Builder Functions
-Prefer builder functions that take a sub-model's signals (`addressNodes(model.$.billingAddress)`) over
-hand-duplicating node objects. Each call binds to the right signals and keeps definitions DRY.
+:::tip Builder-функции, а не общие объекты
+Предпочитайте builder, принимающий сигналы под-модели (`addressNodes(model.$.billingAddress)`),
+ручному дублированию объектов узлов. Каждый вызов привязывается к нужным сигналам и держит
+определения DRY.
 :::
 
-**Benefits of decomposition:**
+**Что даёт декомпозиция:**
 
-- **DRY** — Write once, use everywhere
-- **Consistency** — Same rules across all forms
-- **Maintainability** — Update in one place
-- **Testing** — Test each part in isolation
+- **DRY** — написал один раз, используешь везде.
+- **Согласованность** — одни и те же правила во всех формах.
+- **Поддерживаемость** — правка в одном месте.
+- **Тестируемость** — каждую часть можно проверить изолированно.
 
-See [Composition](./composition) for complete patterns and best practices.
+Полные паттерны и best practices — в [Композиции](./composition).
 
-### Testability
+### Тестируемость
 
-Test validation in isolation with `validateModelSync`:
+Валидацию можно проверять изолированно через `validateModelSync` — без нод и UI:
 
 ```typescript
 import { createModel, validateModelSync } from '@reformer/core';
 import { required } from '@reformer/core/validators';
 
-describe('person validation', () => {
-  it('requires firstName', () => {
-    const model = createModel<Person>({ firstName: '', lastName: '' });
+describe('валидация person', () => {
+  it('требует firstName', () => {
+    const model = createModel<Person>({ firstName: '', lastName: '', fullName: '', email: '' });
     const schema = {
       firstName: { value: model.$.firstName, validators: [required()] },
       lastName: { value: model.$.lastName },
@@ -154,36 +177,35 @@ describe('person validation', () => {
     const { valid, errors } = validateModelSync(model, schema);
 
     expect(valid).toBe(false);
-    expect(errors.firstName?.[0]?.code).toBe('required');
+    expect(errors['firstName']?.[0]?.code).toBe('required');
   });
 });
 ```
 
-### Type Safety
+### Типобезопасность
 
-Model signals (`model.$.<field>`) are fully typed, so binding an unknown field is a compile-time error:
+Сигналы модели (`model.$.<field>`) полностью типизированы, поэтому привязка несуществующего поля —
+ошибка компиляции:
 
 ```typescript
 const schema = {
-  firstName: { value: model.$.firstName, validators: [required()] }, // ✅ typed signal
-  // middleName: { value: model.$.middleName }, // ❌ Error: 'middleName' doesn't exist on the model
+  firstName: { value: model.$.firstName, validators: [required()] }, // ✅ типизированный сигнал
+  // middleName: { value: model.$.middleName }, // ❌ Ошибка: поля 'middleName' нет в модели
 };
 ```
 
-## Schema Structure
+## Из чего собирается форма
 
 ```
 createForm({ model, schema, behavior })
-├── model: FormModel<T>        → source of truth for values
-├── schema                     → nodes: { value: signal, component?, validators? }
-└── behavior: FormBehavior<T>  → defineFormBehavior(...) — reactive logic
+├── model: FormModel<T>        → источник истины для значений
+├── schema                     → узлы: { value: signal, component?, validators? }
+└── behavior: FormBehavior<T>  → defineFormBehavior(...) — реактивная логика
 ```
 
-## Next Steps
+## Дальше
 
-- [Form Schema](./form-schema) — Structure and field configuration
-- [Validation Schema](./validation-schema) — Validation rules
-- [Behavior Schema](./behavior-schema) — Reactive logic
-- [Composition](./composition) — Reuse and decomposition patterns
-  </content>
-  </invoke>
+- [Схема формы](./form-schema) — структура и конфигурация полей.
+- [Схема валидации](./validation-schema) — правила корректности.
+- [Схема behavior](./behavior-schema) — реактивная логика.
+- [Композиция](./composition) — переиспользование и декомпозиция.
