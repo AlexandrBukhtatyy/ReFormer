@@ -17,9 +17,6 @@ function VariantCard({ variant }: { variant: VariantDef }) {
   const Render = variant.render;
   return (
     <div className={styles.card}>
-      <div className={styles.cardHead}>
-        <p className={styles.cardTitle}>{variant.title}</p>
-      </div>
       <ApiPreview
         minimal
         hint={variant.hint ?? variant.description}

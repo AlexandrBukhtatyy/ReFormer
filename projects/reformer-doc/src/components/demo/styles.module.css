@@ -150,12 +150,6 @@
   padding: 0 0.15rem;
 }
 
-.cardTitle {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
 /* ── Таб Examples ────────────────────────────────────────────────────── */
 .example {
   margin: 0 0 2.5rem;
@@ -640,9 +634,11 @@
 
 .controlName {
   align-self: flex-start;
-  color: var(--ifm-color-danger);
+  color: var(--ifm-color-primary);
   font-weight: 600;
   font-size: 0.85rem;
+  background-color: transparent;
+  border: none;
 }
 
 .controlDesc {
