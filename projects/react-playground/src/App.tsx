@@ -6,7 +6,6 @@ import RegistrationFormRendererJson from './pages/examples/complex-multy-step-fo
 import RegistrationForm from './pages/examples/registration-form/RegistrationForm';
 import ValidationExamples from './pages/examples/validation/ValidationExamples';
 import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
-import AsyncSelectExample from './pages/examples/async-select/AsyncSelectExample';
 import MccaCoreV20 from './pages/examples/mcp-credit-application-core-v20';
 import MccaRendererReactV20 from './pages/examples/mcp-credit-application-renderer-react-v20';
 import MccaRendererJsonV20 from './pages/examples/mcp-credit-application-renderer-json-v20';
@@ -155,7 +154,6 @@ function Layout() {
           <Route path="/examples/simple" element={<RegistrationForm />} />
           <Route path="/examples/validation" element={<ValidationExamples />} />
           <Route path="/examples/behaviors" element={<BehaviorsExamples />} />
-          <Route path="/examples/async-select" element={<AsyncSelectExample />} />
           <Route path="/examples/complex" element={<CreditApplicationForm />} />
           <Route path="/examples/complex-renderer" element={<CreditApplicationFormRenderer />} />
           <Route path="/examples/json-renderer" element={<RegistrationFormRendererJson />} />
