@@ -242,7 +242,7 @@ model.properties.length; // реактивная длина
 ```typescript
 // Модель данных (источник истины значений)
 createModel<T extends object>(initial: T): FormModel<T>
-// model.get() / model.set(partial) / model.patch(partial) / model.isDirty()
+// model.get() / model.set(full) / model.patch(partial) / model.isDirty()
 // model.reset() / model.captureInitial() / model.signalAt(path)
 // model.$.field            → PathAwareSignal<FieldType>  (escape-hatch к сигналу)
 // model.arrayField         → ModelArray<Item>            (push/removeAt/insertAt/move/swap/clear/at/map/length)
@@ -2964,7 +2964,7 @@ A: Передай в колбэк под-схему только этого по
 // Модель (источник истины значений):
 interface ModelApi<T> {
   get(): T;                         // снимок значений — для submit
-  set(value: Partial<T>): void;     // массовая замена (load с сервера)
+  set(value: T): void;              // полная установка (все ключи T)
   patch(value: Partial<T>): void;   // частичное слияние
   isDirty(): boolean;               // отличаются ли значения от initial-снимка
   reset(): void;                    // вернуть к initial-снимку
@@ -3085,7 +3085,7 @@ import { createModel, validateModel } from '@reformer/core';
 
 async function processFormPayload(rawData: Partial<MyForm>) {
   const model = createModel<MyForm>(initialValues);
-  model.set(rawData); // load данных
+  model.patch(rawData); // частичный load данных
 
   const result = await validateModel(model, schema); // без нод — просто данные
   if (!result.valid) return { ok: false, errors: result.errors };
@@ -3168,8 +3168,8 @@ race-guard через deps). Динамические `componentProps` (опци
 
 ```typescript
 // Модель:
-model.set(value: Partial<T>): void;   // массовая замена (load с сервера). Не меняет initial.
-model.patch(value: Partial<T>): void; // частичное слияние (алиас set по семантике merge)
+model.set(value: T): void;            // полная установка значений (load полного DTO). Не меняет initial.
+model.patch(value: Partial<T>): void; // частичное слияние (только переданные ключи). Не меняет initial.
 model.reset(): void;                  // вернуть к initial-снимку
 model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 
@@ -6083,12 +6083,11 @@ export interface ModelApi<T> {
   /** Снимок значений (без подписки) — для submit. */
   get(): T;
   /**
-   * @deprecated Алиас {@link ModelApi.patch}: `set` выполняет то же частичное **слияние** —
-   *   обновляет только переданные ключи, отсутствующие НЕ трогает (это НЕ полная замена, вопреки
-   *   старому названию). Используйте `patch`; для замены с обнулением лишних полей делайте
-   *   `patch({ ...defaults, ...dto })` явно. Не меняет initial-снимок.
+   * Полная установка значений: принимает объект целиком (все ключи `T`) и записывает их в модель.
+   * Производными полями (цели `compute`) владеет compute — их значения из payload игнорируются.
+   * Не меняет initial-снимок. Для частичного обновления (только переданные ключи) — {@link ModelApi.patch}.
    */
-  set(value: Partial<T>): void;
+  set(value: T): void;
   /**
    * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
    * отсутствующие ключи НЕ трогаются. Не меняет initial-снимок.

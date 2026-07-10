@@ -160,7 +160,10 @@ describe('FormModel: API get/set/patch/isDirty/reset', () => {
     const m = makeModel();
     m.set({
       loanType: 'car',
+      loanAmount: null,
       personalData: { lastName: 'Сидоров', firstName: 'П', gender: 'male' },
+      coBorrowers: [],
+      tags: [],
     });
     expect(m.loanType).toBe('car');
     expect(m.personalData.lastName).toBe('Сидоров');
