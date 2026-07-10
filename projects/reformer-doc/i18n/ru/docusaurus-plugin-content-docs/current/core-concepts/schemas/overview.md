@@ -77,10 +77,10 @@ const schema = {
 ### Переиспользование и декомпозиция
 
 Каждую заботу можно разложить на переиспользуемые части и собрать поверх под-моделей. Ключевой
-приём — **builder**, принимающий сигналы под-модели (`ModelSignals<Sub>`):
+приём — **builder**, принимающий под-модель (`FormModel<Sub>`):
 
 ```typescript
-import { createModel, createForm, type ModelSignals } from '@reformer/core';
+import { createModel, createForm, type FormModel } from '@reformer/core';
 import { required } from '@reformer/core/validators';
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 import { Input } from '@reformer/ui-kit';
@@ -89,15 +89,15 @@ type Address = { street: string; city: string; zip: string };
 type OrderForm = { billingAddress: Address; shippingAddress: Address };
 
 // 1. Переиспользуемый builder схемы — узлы привязаны к сигналам под-модели, валидаторы inline.
-const addressNodes = (s: ModelSignals<Address>) => ({
-  street: { value: s.street, component: Input, validators: [required()] },
-  city: { value: s.city, component: Input, validators: [required()] },
-  zip: { value: s.zip, component: Input, validators: [required()] },
+const addressNodes = (m: FormModel<Address>) => ({
+  street: { value: m.$.street, component: Input, validators: [required()] },
+  city: { value: m.$.city, component: Input, validators: [required()] },
+  zip: { value: m.$.zip, component: Input, validators: [required()] },
 });
 
 // 2. Переиспользуемый набор behavior — работает с теми же сигналами под-модели.
-const addressBehaviors = (s: ModelSignals<Address>) => {
-  transformValue(s.zip, (value) => (value ?? '').trim());
+const addressBehaviors = (m: FormModel<Address>) => {
+  transformValue(m.$.zip, (value) => (value ?? '').trim());
 };
 
 const model = createModel<OrderForm>({
@@ -107,14 +107,14 @@ const model = createModel<OrderForm>({
 
 // Собираем схему — переиспользуем builder для обоих адресов.
 const schema = {
-  billingAddress: addressNodes(model.$.billingAddress),
-  shippingAddress: addressNodes(model.$.shippingAddress),
+  billingAddress: addressNodes(model.billingAddress),
+  shippingAddress: addressNodes(model.shippingAddress),
 };
 
 // Собираем один behavior — применяем один набор к обеим под-моделям.
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {
-  addressBehaviors(model.$.billingAddress);
-  addressBehaviors(model.$.shippingAddress);
+  addressBehaviors(model.billingAddress);
+  addressBehaviors(model.shippingAddress);
 });
 
 const orderForm = createForm<OrderForm>({ model, schema, behavior });
@@ -132,19 +132,19 @@ const schema = {
 
 // Один builder узлов — много под-моделей.
 const addressSchema = {
-  billingAddress: addressNodes(model.$.billingAddress),
-  shippingAddress: addressNodes(model.$.shippingAddress),
+  billingAddress: addressNodes(model.billingAddress),
+  shippingAddress: addressNodes(model.shippingAddress),
 };
 
 // Один набор behavior — много под-моделей (внутри defineFormBehavior).
 const behavior = defineFormBehavior<OrderForm>(({ model }) => {
-  addressBehaviors(model.$.billingAddress);
-  addressBehaviors(model.$.shippingAddress);
+  addressBehaviors(model.billingAddress);
+  addressBehaviors(model.shippingAddress);
 });
 ```
 
 :::tip Builder-функции, а не общие объекты
-Предпочитайте builder, принимающий сигналы под-модели (`addressNodes(model.$.billingAddress)`),
+Предпочитайте builder, принимающий под-модель (`addressNodes(model.billingAddress)`),
 ручному дублированию объектов узлов. Каждый вызов привязывается к нужным сигналам и держит
 определения DRY.
 :::

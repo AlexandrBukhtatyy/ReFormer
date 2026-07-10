@@ -66,20 +66,21 @@ const form = createForm<MyForm>({ model, schema });
 
 ### Nested Objects
 
-Вложенная группа — обычный объект под-узлов, привязанных к сигналам под-модели
-(`model.$.address.city`). Удобно вынести в builder, принимающий `ModelSignals<Sub>`:
+Вложенная группа модели — это сама по себе под-модель `FormModel<Sub>` (доступна как `model.<group>`,
+с `.$`/API). Удобно вынести в builder, принимающий `FormModel<Sub>` — симметрично builder'у элемента
+массива. Сигналы под-модели идентичны корневым: `model.address.$.city === model.$.address.city`.
 
 ```typescript
-import type { ModelSignals } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 
-const addressNodes = (s: ModelSignals<Address>) => ({
-  street: { value: s.street, component: Input, componentProps: { label: 'Street' } },
-  city:   { value: s.city,   component: Input, componentProps: { label: 'City' } },
-  zip:    { value: s.zip,    component: Input, componentProps: { label: 'ZIP' } },
+const addressNodes = (m: FormModel<Address>) => ({
+  street: { value: m.$.street, component: Input, componentProps: { label: 'Street' } },
+  city:   { value: m.$.city,   component: Input, componentProps: { label: 'City' } },
+  zip:    { value: m.$.zip,    component: Input, componentProps: { label: 'ZIP' } },
 });
 
 const schema = {
-  address: addressNodes(model.$.address),
+  address: addressNodes(model.address),
 };
 ```
 

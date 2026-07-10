@@ -937,20 +937,21 @@ const form = createForm<MyForm>({ model, schema });
 
 ### Nested Objects
 
-Вложенная группа — обычный объект под-узлов, привязанных к сигналам под-модели
-(`model.$.address.city`). Удобно вынести в builder, принимающий `ModelSignals<Sub>`:
+Вложенная группа модели — это сама по себе под-модель `FormModel<Sub>` (доступна как `model.<group>`,
+с `.$`/API). Удобно вынести в builder, принимающий `FormModel<Sub>` — симметрично builder'у элемента
+массива. Сигналы под-модели идентичны корневым: `model.address.$.city === model.$.address.city`.
 
 ```typescript
-import type { ModelSignals } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 
-const addressNodes = (s: ModelSignals<Address>) => ({
-  street: { value: s.street, component: Input, componentProps: { label: 'Street' } },
-  city:   { value: s.city,   component: Input, componentProps: { label: 'City' } },
-  zip:    { value: s.zip,    component: Input, componentProps: { label: 'ZIP' } },
+const addressNodes = (m: FormModel<Address>) => ({
+  street: { value: m.$.street, component: Input, componentProps: { label: 'Street' } },
+  city:   { value: m.$.city,   component: Input, componentProps: { label: 'City' } },
+  zip:    { value: m.$.zip,    component: Input, componentProps: { label: 'ZIP' } },
 });
 
 const schema = {
-  address: addressNodes(model.$.address),
+  address: addressNodes(model.address),
 };
 ```
 
@@ -1963,11 +1964,12 @@ const count = useArrayLength(control.items);
 // value-доступ (реактивно внутри effect/computed, запись присваиванием)
 model.email;                 // читать
 model.email = 'a@b.c';       // писать
-model.address.city;          // вложенное поле
+model.address.city;          // вложенное поле (model.address — под-модель FormModel<Address>)
 
 // через сигнал (escape-hatch)
 model.$.email.value;         // реактивное чтение/запись
 model.$.email.peek();        // нереактивный снимок
+model.$.address.city.value;  // сигнал вложенного поля (≡ model.address.$.city у под-модели)
 
 // весь объект
 model.get();                 // снимок { email, address: { city }, ... } — для submit
@@ -4217,6 +4219,7 @@ const schema = {
 component: Section,
 children: [
 { value: model.$.email, component: Input, validators: [required] },
+// вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
 { value: model.$.profile.name, component: Input },
 ],
 };
@@ -4279,11 +4282,19 @@ export function createModel<T extends object>(initial: T): FormModel<T>
 **Examples:**
 
 ```typescript
-const model = createModel<{ email: string; tags: string[] }>({ email: '', tags: [] });
+const model = createModel<{ email: string; profile: { name: string }; tags: string[] }>({
+  email: '',
+  profile: { name: '' },
+  tags: [],
+});
 model.email = 'a@b.c';
-model.$.email.value;        // 'a@b.c' (сигнал)
+model.$.email.value;          // 'a@b.c' (сигнал)
+// вложенная объект-группа — под-модель FormModel (value-доступ + `.$` + API):
+model.profile.name = 'Ada';   // value-запись
+model.$.profile.name.value;   // 'Ada' (сигнал; ≡ model.profile.$.name у под-модели)
+model.profile.get();          // { name: 'Ada' }
 model.tags.push('x');
-model.get();                // { email: 'a@b.c', tags: ['x'] }
+model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tags: ['x'] }
 ```
 
 _Source: src/core/model/form-model.ts_
@@ -4953,7 +4964,9 @@ _Source: src/core/utils/error-handler.ts_
 
 **Kind:** `type`
 
-FormModel — value-proxy объекта `T` + {@link ModelApi}.
+FormModel — под-модель объекта `T`: value-доступ ({@link ModelObject}) + `.$`-сигналы + {@link ModelApi}
+(get/set/patch/isDirty/reset/signalAt). Вложенные объекты-группы модели — тоже {@link FormModel}
+(доступны как `model.<group>`), поэтому `model.<group>.$.<field>` эквивалентно `model.$.<group>.<field>`.
 
 **Signature:**
 ```typescript
@@ -6057,7 +6070,7 @@ _Source: src/core/validation/validators/min-length.ts_
 
 **Kind:** `interface`
 
-API уровня модели (доступно на корне и под-моделях элементов массива).
+API уровня модели (доступно на корне, под-моделях вложенных объектов-групп и элементов массива).
 
 ⚠️ Имена методов (`$`/`get`/`set`/`patch`/`isDirty`/`reset`/`signalAt`/`captureInitial`)
 зарезервированы: одноимённое поле формы их затеняет (редкий краевой случай).
@@ -6215,8 +6228,9 @@ _Source: src/core/nodes/model-array-node.ts_
 
 **Kind:** `type`
 
-value-proxy объекта: поля доступны как обычные свойства (чтение реактивно
-внутри `effect`/`computed`, запись — присваиванием).
+Карта value-полей объекта (value-половина {@link FormModel}): поля доступны как обычные свойства
+(чтение реактивно внутри `effect`/`computed`, запись — присваиванием). Вложенные объекты-поля
+резолвятся в под-модели {@link FormModel} (см. {@link ModelValue}), массивы — в {@link ModelArray}.
 
 **Signature:**
 ```typescript
@@ -6288,7 +6302,8 @@ _Source: src/core/model/validate-model.ts_
 Значение поля в value-доступе модели:
 - массив → {@link ModelArray}
 - спец-объект (Date/File/Blob) → как есть
-- объект → вложенный value-proxy
+- объект → под-модель {@link FormModel} (value-доступ + `.$`-сигналы + API get/set/patch/…);
+  промоутится рантаймом (`makeFormModel`); сигналы идентичны `model.$.<path>`
 - примитив → значение
 
 **Signature:**
@@ -6299,7 +6314,7 @@ export type ModelValue<V> =
     : NonNullable<V> extends Opaque
       ? V
       : NonNullable<V> extends object
-        ? ModelObject<NonNullable<V>>
+        ? FormModel<NonNullable<V>>
         : V;
 ```
 

@@ -5,7 +5,7 @@
  * (как сигналы `@preact/signals-core`). Источник истины значения под архитектурой M1.
  *
  * - value-доступ: `model.field` читает/пишет значение «как у обычного объекта»;
- *   вложенные объекты → вложенный proxy, массивы → {@link ModelArray}.
+ *   вложенные объекты → под-модель {@link FormModel} (с `.$` и {@link ModelApi}), массивы → {@link ModelArray}.
  * - escape-hatch: `model.$.field` отдаёт сам {@link PathAwareSignal} (для привязки в схеме).
  *
  * @group Model
@@ -51,7 +51,8 @@ type ModelArrayItem<U> =
  * Значение поля в value-доступе модели:
  * - массив → {@link ModelArray}
  * - спец-объект (Date/File/Blob) → как есть
- * - объект → вложенный value-proxy
+ * - объект → под-модель {@link FormModel} (value-доступ + `.$`-сигналы + API get/set/patch/…);
+ *   промоутится рантаймом (`makeFormModel`); сигналы идентичны `model.$.<path>`
  * - примитив → значение
  *
  * @group Model
@@ -62,12 +63,13 @@ export type ModelValue<V> =
     : NonNullable<V> extends Opaque
       ? V
       : NonNullable<V> extends object
-        ? ModelObject<NonNullable<V>>
+        ? FormModel<NonNullable<V>>
         : V;
 
 /**
- * value-proxy объекта: поля доступны как обычные свойства (чтение реактивно
- * внутри `effect`/`computed`, запись — присваиванием).
+ * Карта value-полей объекта (value-половина {@link FormModel}): поля доступны как обычные свойства
+ * (чтение реактивно внутри `effect`/`computed`, запись — присваиванием). Вложенные объекты-поля
+ * резолвятся в под-модели {@link FormModel} (см. {@link ModelValue}), массивы — в {@link ModelArray}.
  *
  * @group Model
  */
@@ -142,7 +144,7 @@ type ModelSignalNode<V> =
         : PathAwareSignal<V>;
 
 /**
- * API уровня модели (доступно на корне и под-моделях элементов массива).
+ * API уровня модели (доступно на корне, под-моделях вложенных объектов-групп и элементов массива).
  *
  * ⚠️ Имена методов (`$`/`get`/`set`/`patch`/`isDirty`/`reset`/`signalAt`/`captureInitial`)
  * зарезервированы: одноимённое поле формы их затеняет (редкий краевой случай).
@@ -177,7 +179,9 @@ export interface ModelApi<T> {
 }
 
 /**
- * FormModel — value-proxy объекта `T` + {@link ModelApi}.
+ * FormModel — под-модель объекта `T`: value-доступ ({@link ModelObject}) + `.$`-сигналы + {@link ModelApi}
+ * (get/set/patch/isDirty/reset/signalAt). Вложенные объекты-группы модели — тоже {@link FormModel}
+ * (доступны как `model.<group>`), поэтому `model.<group>.$.<field>` эквивалентно `model.$.<group>.<field>`.
  *
  * @group Model
  */

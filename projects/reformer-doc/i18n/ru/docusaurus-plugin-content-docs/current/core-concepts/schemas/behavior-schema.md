@@ -142,20 +142,20 @@ const behavior = defineFormBehavior<Form>(({ model, form }) => {
 
 ## Переиспользуемые наборы behavior
 
-Набор behavior выносится в функцию, принимающую сигналы под-модели (`ModelSignals<Sub>`), и
-вызывается по разу на под-модель внутри `defineFormBehavior`:
+Набор behavior выносится в функцию, принимающую под-модель группы (`FormModel<Sub>` — с `.$` и
+API), и вызывается по разу на под-модель внутри `defineFormBehavior`:
 
 ```typescript
-import type { ModelSignals } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
 
-function addressBehaviors(s: ModelSignals<Address>) {
-  transformValue(s.zip, (value) => (value ?? '').trim());
+function addressBehaviors(m: FormModel<Address>) {
+  transformValue(m.$.zip, (value) => (value ?? '').trim());
 }
 
 const behavior = defineFormBehavior<Order>(({ model }) => {
-  addressBehaviors(model.$.billing);
-  addressBehaviors(model.$.shipping);
+  addressBehaviors(model.billing);
+  addressBehaviors(model.shipping);
 });
 ```
 

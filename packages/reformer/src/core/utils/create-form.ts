@@ -203,6 +203,7 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
  *   component: Section,
  *   children: [
  *     { value: model.$.email, component: Input, validators: [required] },
+ *     // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
  *     { value: model.$.profile.name, component: Input },
  *   ],
  * };

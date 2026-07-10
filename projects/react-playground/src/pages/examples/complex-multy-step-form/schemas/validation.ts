@@ -17,7 +17,6 @@ import {
   validateFormModel,
   type ModelValidator,
   type FormModel,
-  type ModelSignals,
   type ModelArray,
   type PathAwareSignal,
   type ValidationError,
@@ -268,29 +267,29 @@ export const ruName = (label: string): Rule<string>[] => [
 // Под-схемы вложенных групп / элементов массивов
 // ============================================================================
 
-const addressFields = (s: ModelSignals<Address>): SchemaNode[] => [
-  field(s.region, [
+const addressFields = (m: FormModel<Address>): SchemaNode[] => [
+  field(m.$.region, [
     required({ message: 'Укажите регион' }),
     minLength(2, { message: 'Минимум 2 символа' }),
     maxLength(100, { message: 'Максимум 100 символов' }),
   ]),
-  field(s.city, [
+  field(m.$.city, [
     required({ message: 'Укажите город' }),
     minLength(2, { message: 'Минимум 2 символа' }),
     maxLength(100, { message: 'Максимум 100 символов' }),
   ]),
-  field(s.street, [
+  field(m.$.street, [
     required({ message: 'Укажите улицу' }),
     minLength(3, { message: 'Минимум 3 символа' }),
     maxLength(200, { message: 'Максимум 200 символов' }),
   ]),
-  field(s.house, [
+  field(m.$.house, [
     required({ message: 'Укажите номер дома' }),
     maxLength(10, { message: 'Максимум 10 символов' }),
   ]),
   // apartment опционален в типе Address, но всегда материализован в модели
-  field(s.apartment!, [maxLength(10, { message: 'Максимум 10 символов' })]),
-  field(s.postalCode, [
+  field(m.$.apartment!, [maxLength(10, { message: 'Максимум 10 символов' })]),
+  field(m.$.postalCode, [
     required({ message: 'Укажите почтовый индекс' }),
     pattern(/^\d{6}$/, { message: 'Индекс должен содержать 6 цифр' }),
   ]),
@@ -428,39 +427,39 @@ const step2 = (model: M): SchemaNode => {
   const m = model.$;
   return {
     children: [
-      field(m.personalData.lastName, ruName('Фамилия')),
-      field(m.personalData.firstName, ruName('Имя')),
-      field(m.personalData.middleName, ruName('Отчество')),
-      field(m.personalData.birthDate, [
+      field(model.$.personalData.lastName, ruName('Фамилия')),
+      field(model.$.personalData.firstName, ruName('Имя')),
+      field(model.$.personalData.middleName, ruName('Отчество')),
+      field(model.$.personalData.birthDate, [
         required({ message: 'Дата рождения обязательна' }),
         minAge(18, { message: 'Заемщику должно быть не менее 18 лет' }),
         maxAge(70, { message: 'Максимальный возраст заемщика: 70 лет' }),
       ]),
-      field(m.personalData.gender, [required({ message: 'Выберите пол' })]),
-      field(m.personalData.birthPlace, [
+      field(model.$.personalData.gender, [required({ message: 'Выберите пол' })]),
+      field(model.$.personalData.birthPlace, [
         required({ message: 'Место рождения обязательно' }),
         minLength(5, { message: 'Минимум 5 символов' }),
         maxLength(100, { message: 'Максимум 100 символов' }),
       ]),
-      field(m.passportData.series, [
+      field(model.$.passportData.series, [
         required({ message: 'Серия паспорта обязательна' }),
         pattern(/^\d{2}\s\d{2}$/, { message: 'Формат: 00 00' }),
       ]),
-      field(m.passportData.number, [
+      field(model.$.passportData.number, [
         required({ message: 'Номер паспорта обязателен' }),
         pattern(/^\d{6}$/, { message: 'Номер должен содержать 6 цифр' }),
       ]),
-      field(m.passportData.issueDate, [
+      field(model.$.passportData.issueDate, [
         required({ message: 'Дата выдачи обязательна' }),
         pastDate({ message: 'Дата выдачи не может быть в будущем' }),
         passportIssuedAfter14,
       ]),
-      field(m.passportData.issuedBy, [
+      field(model.$.passportData.issuedBy, [
         required({ message: 'Кем выдан обязательно' }),
         minLength(10, { message: 'Минимум 10 символов' }),
         maxLength(200, { message: 'Максимум 200 символов' }),
       ]),
-      field(m.passportData.departmentCode, [
+      field(model.$.passportData.departmentCode, [
         required({ message: 'Код подразделения обязателен' }),
         pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' }),
       ]),
@@ -497,9 +496,9 @@ const step3 = (model: M): SchemaNode => {
         email({ message: 'Введите корректный email' }),
         emailAdditionalDiffers,
       ]),
-      { children: addressFields(m.registrationAddress) },
+      { children: addressFields(model.registrationAddress) },
       // адрес проживания — только если не совпадает с регистрацией
-      applyWhen(notSameAddress, addressFields(m.residenceAddress)),
+      applyWhen(notSameAddress, addressFields(model.residenceAddress)),
     ],
   };
 };

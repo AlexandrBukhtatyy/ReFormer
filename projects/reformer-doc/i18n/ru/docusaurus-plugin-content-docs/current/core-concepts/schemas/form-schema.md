@@ -95,27 +95,28 @@ const form = createForm<MyForm>({ model, schema });
 
 ## Вложенные группы
 
-Вложенная группа — обычный объект под-узлов, привязанных к сигналам под-модели
-(`model.$.address.city`). Такую группу удобно вынести в **builder**, принимающий `ModelSignals<Sub>`:
+Вложенная группа — сама по себе под-модель `FormModel<Sub>`: доступна как `model.address`, несёт `.$`
+(сигналы) и API (`get`/`set`/`patch`/`isDirty`/`reset`), а её узлы привязаны к сигналам под-модели
+(`model.$.address.city`). Такую группу удобно вынести в **builder**, принимающий `FormModel<Sub>`:
 
 ```typescript
-import type { ModelSignals } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 import { Input } from '@reformer/ui-kit';
 
 type Address = { street: string; city: string; zip: string };
 
-const addressNodes = (s: ModelSignals<Address>) => ({
-  street: { value: s.street, component: Input, componentProps: { label: 'Улица' } },
-  city: { value: s.city, component: Input, componentProps: { label: 'Город' } },
-  zip: { value: s.zip, component: Input, componentProps: { label: 'Индекс' } },
+const addressNodes = (m: FormModel<Address>) => ({
+  street: { value: m.$.street, component: Input, componentProps: { label: 'Улица' } },
+  city: { value: m.$.city, component: Input, componentProps: { label: 'Город' } },
+  zip: { value: m.$.zip, component: Input, componentProps: { label: 'Индекс' } },
 });
 
 const schema = {
-  address: addressNodes(model.$.address),
+  address: addressNodes(model.address),
 };
 ```
 
-Builder привязывает каждое поле к переданным сигналам под-модели, поэтому один и тот же builder можно
+Builder привязывает каждое поле к сигналам переданной под-модели, поэтому один и тот же builder можно
 применить к нескольким адресам — см. [Композицию](./composition).
 
 ## Массивы — узел `{ array, item }`
