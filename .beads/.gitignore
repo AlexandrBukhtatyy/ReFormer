@@ -21,6 +21,7 @@ redirect
 sync_base.jsonl
 export-state/
 export-state.json
+.auto-import-issues.jsonl
 
 # Legacy embedded Dolt artefacts (from pre-SQLite versions; safe to delete)
 embeddeddolt/
