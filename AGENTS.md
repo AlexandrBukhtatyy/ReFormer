@@ -64,7 +64,7 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --claim  # Claim work atomically
 bd close <id>         # Complete work
-bd dolt push          # Push beads data to remote
+bd dolt push          # Dolt-remote sync (НЕ git working tree; для git-sync см. «Beads sync — этот проект» ниже)
 ```
 
 ## Non-Interactive Shell Commands
@@ -141,3 +141,20 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
+
+## Beads sync — этот проект (важно)
+
+Секция «Session Completion» выше сгенерирована шаблоном bd и советует `bd dolt push` — **в этом проекте
+это не тот канал**. Как работает на самом деле:
+
+- **beads сам автокоммитит свои файлы в git.** В обычной git-истории появляются коммиты
+  `chore(beads): sync issues jsonl` (обновляет `.beads/issues.jsonl` + `interactions.jsonl`) и
+  `bd: update sync.remote` (`.beads/config.yaml`) — их создаёт beads, вперемешку с твоими коммитами.
+  Поэтому вручную `bd export` + `git commit` для `issues.jsonl` обычно **не нужен** (можно проверить `git log`).
+- **Отправка на GitHub — обычным `git push`** (remote `origin`). Именно он публикует beads-автокоммиты.
+- **`bd dolt push` НЕ публикует git-коммиты.** Он пушит встроенную Dolt-БД в Dolt-remote и git-историю
+  не трогает — поэтому после него на GitHub «ничего не появляется». Для отправки beads-изменений — `git push`.
+- **Не коммить** машинно-локальные файлы: `.beads/.auto-import-issues.jsonl`, `.beads/.local_version`,
+  `.beads/last-touched` (watermark/runtime; `embeddeddolt/` и `backup/` уже в `.beads/.gitignore`).
+  `.beads/interactions.jsonl` может снова стать modified после bd-команд — beads закоммитит его сам.
+- `git push` beads-изменений (как и любых) — только по явной просьбе пользователя.
