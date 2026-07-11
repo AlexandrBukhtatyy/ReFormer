@@ -41,12 +41,6 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     description: 'Регистрация с асинхронной валидацией, behaviors и маской телефона',
   },
   {
-    id: 'async-select',
-    path: '/examples/async-select',
-    title: 'Async Select',
-    description: 'Select с серверным поиском и пагинацией (ResourceConfig: partial / preload)',
-  },
-  {
     id: 'complex',
     path: '/examples/complex',
     title: 'Комплексная форма',

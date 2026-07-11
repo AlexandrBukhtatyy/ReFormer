@@ -53,6 +53,5 @@ sidebar_label: Обзор
 - **Валидация** — встроенные валидаторы (`/examples/validation`).
 - **Behaviors** — реактивные вычисления и условная видимость (`/examples/behaviors`).
 - **Регистрация** — async-валидация + behaviors + маска телефона (`/examples/simple`).
-- **Async Select** — серверный поиск и пагинация опций (`/examples/async-select`).
 - **MCP-сгенерированные формы** — вывод MCP-сервера для трёх слоёв
   (`/examples/mcca-core-v20`, `/examples/mcca-renderer-react-v20`, `/examples/mcca-renderer-json-v20`).
