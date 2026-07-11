@@ -6803,7 +6803,7 @@ _Source: src/state/behaviors-value.ts_
 
 Выполняет функцию вне контекста effect (отложенная запись на микротаск).
 
-Сбои fn (синхронный throw и async-rejection) маршрутизируются через {@link FormErrorHandler}, а не
+Сбои fn (синхронный throw и async-rejection) маршрутизируются dev-логгером (logDeferError), а не
 всплывают неперехваченными. Возвращает отменитель: вызов до срабатывания микротаска отменяет запись
 (liveness-охрана — не писать против снесённого узла при dispose в том же тике).
 
@@ -6878,7 +6878,7 @@ _Source: src/state/safe-effect.ts_
 
 `withDebounce` уже откладывает вызов (таймер) — этого достаточно для выхода из effect-контекста,
 поэтому дополнительного `queueMicrotask` нет (устранён двойной defer). Сбои callback (в т.ч.
-async-rejection) маршрутизируются через {@link FormErrorHandler}.
+async-rejection) маршрутизируются dev-логгером (logDeferError).
 
 **Signature:**
 ```typescript
