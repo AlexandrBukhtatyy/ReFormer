@@ -54,6 +54,9 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
           {errors.map((err, i) => (
             <Comp
               key={err.code ?? i}
+              // forwardRef ref прикрепляем к первому отрисованному элементу, иначе он
+              // молча теряется в multi/render-режимах (нарушение контракта forwardRef).
+              ref={i === 0 ? ref : undefined}
               id={i === 0 ? ids.errorId : undefined}
               role="alert"
               {...props}
@@ -68,16 +71,24 @@ export const FormFieldError = forwardRef<HTMLParagraphElement, FormFieldErrorPro
     if (multi) {
       return (
         <>
-          {errors.map((err, i) => (
-            <Comp
-              key={err.code ?? i}
-              id={i === 0 ? ids.errorId : undefined}
-              role="alert"
-              {...props}
-            >
-              {resolve(err)}
-            </Comp>
-          ))}
+          {errors.map((err, i) => {
+            // asChild + multi: у Slot нет пользовательского дочернего элемента (каждая
+            // ошибка — строка резолвера), а Slot требует валидный ReactElement и иначе
+            // рендерит null → раньше `<FormField.Error asChild multi/>` не показывал
+            // ничего. Оборачиваем строку в <span>, чтобы Slot смёржил в него a11y-пропсы.
+            const content = resolve(err);
+            return (
+              <Comp
+                key={err.code ?? i}
+                ref={i === 0 ? ref : undefined}
+                id={i === 0 ? ids.errorId : undefined}
+                role="alert"
+                {...props}
+              >
+                {asChild ? <span>{content}</span> : content}
+              </Comp>
+            );
+          })}
         </>
       );
     }

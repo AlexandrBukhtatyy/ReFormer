@@ -19,6 +19,7 @@ function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldContr
     valid: control.valid,
     invalid: control.invalid,
     touched: control.touched,
+    dirty: control.dirty,
     shouldShowError: control.shouldShowError,
     componentProps: control.componentProps,
   };
@@ -31,6 +32,7 @@ function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldContr
     { key: 'valid' },
     { key: 'invalid' },
     { key: 'touched' },
+    { key: 'dirty' },
     { key: 'shouldShowError' },
     { key: 'componentProps' },
   ];
@@ -44,13 +46,14 @@ function useFieldControl<T extends FormValue>(control: FieldNode<T>): FieldContr
       valid: values.valid as boolean,
       invalid: values.invalid as boolean,
       touched: values.touched as boolean,
+      dirty: values.dirty as boolean,
       shouldShowError: values.shouldShowError as boolean,
       componentProps: values.componentProps as Record<string, unknown>,
     }),
     []
   );
 
-  return useSignalSubscription(signals, configs, buildSnapshot);
+  return useSignalSubscription(signals, configs, buildSnapshot, control);
 }
 
 /** @internal */
@@ -64,6 +67,7 @@ function useArrayControl<T extends object>(control: ArrayNode<T>): ArrayControlS
     invalid: control.invalid,
     touched: control.touched,
     dirty: control.dirty,
+    disabled: control.disabled,
   };
 
   const configs: SignalConfig<keyof typeof signals>[] = [
@@ -75,6 +79,7 @@ function useArrayControl<T extends object>(control: ArrayNode<T>): ArrayControlS
     { key: 'invalid' },
     { key: 'touched' },
     { key: 'dirty' },
+    { key: 'disabled' },
   ];
 
   const buildSnapshot = useCallback(
@@ -87,11 +92,12 @@ function useArrayControl<T extends object>(control: ArrayNode<T>): ArrayControlS
       invalid: values.invalid as boolean,
       touched: values.touched as boolean,
       dirty: values.dirty as boolean,
+      disabled: values.disabled as boolean,
     }),
     []
   );
 
-  return useSignalSubscription(signals, configs, buildSnapshot);
+  return useSignalSubscription(signals, configs, buildSnapshot, control);
 }
 
 /**
@@ -110,6 +116,7 @@ function useEmptyControl(): ArrayControlState<object> {
       invalid: false,
       touched: false,
       dirty: false,
+      disabled: false,
     }),
     []
   );

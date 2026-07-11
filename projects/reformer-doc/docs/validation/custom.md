@@ -2,517 +2,212 @@
 sidebar_position: 4
 ---
 
-# Custom Validators
+# Кастомные валидаторы
 
-Create reusable validators for your application.
+Когда встроенных фабрик недостаточно, правило описывается обычной функцией. Кастомный валидатор
+кладётся в тот же массив `validators`, что и встроенные.
 
-## Simple Custom Validator
+## Контракт
 
-Use `validate()` for inline custom validators. The validator receives
-`(value, control, root)`:
+Валидатор — чистая функция `(value, scope, root)`:
+
+- `value` — значение поля;
+- `scope` — ближайшая scope-модель (под-модель элемента массива или корень);
+- `root` — корневая модель формы (`root.someField` читает значение соседнего поля).
+
+Возвращает `ValidationError` (`{ code, message, params?, severity? }`) либо `null`, если значение
+валидно. Пустые значения принято пропускать — обязательность закрывает `required()`.
+
+## Инлайн-валидатор
+
+Простое правило можно записать прямо в массиве:
 
 ```typescript
-import { validate } from '@reformer/core/validators';
+import { createModel, createForm } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-validation: (path) => {
-  // Inline custom validator
-  validate(path.age, (value, _control, _root) => {
-    if (value < 18) {
-      return { code: 'mustBeAdult', message: 'Must be 18+' };
-    }
-    return null;
-  });
+const model = createModel<{ age: number | null }>({ age: null });
+
+const schema = {
+  age: {
+    value: model.$.age,
+    component: Input,
+    validators: [
+      (value: number | null) =>
+        value != null && value < 18 ? { code: 'mustBeAdult', message: 'Только 18+' } : null,
+    ],
+  },
 };
+
+const form = createForm({ model, schema });
 ```
 
-## Reusable Validator Factory
+## Переиспользуемая фабрика
 
-Create validator functions that can be reused across your application:
+Чтобы применять правило в нескольких формах, оформите его фабрикой, возвращающей `Validator`.
+В M1 каждый валидатор возвращает **одну** ошибку — сложную проверку разбивают на несколько
+правил, все они выполняются и их ошибки накапливаются:
 
 ```typescript title="validators/password.ts"
-/**
- * Validates password strength
- * Requires: uppercase, lowercase, number, min 8 chars
- */
-export function strongPassword() {
-  return (value: string) => {
-    if (!value) return null; // Skip if empty (use required() separately)
-
-    const errors: Record<string, boolean> = {};
-
-    if (!/[A-Z]/.test(value)) {
-      errors.noUppercase = true;
-    }
-    if (!/[a-z]/.test(value)) {
-      errors.noLowercase = true;
-    }
-    if (!/[0-9]/.test(value)) {
-      errors.noNumber = true;
-    }
-    if (value.length < 8) {
-      errors.tooShort = true;
-    }
-
-    return Object.keys(errors).length ? errors : null;
-  };
-}
-
-// Usage in form
-import { required } from '@reformer/core/validators';
-import { strongPassword } from './validators/password';
-
-validation: (path) => {
-  validate(path.password, required());
-  validate(path.password, strongPassword());
-};
-```
-
-### Display Specific Errors
-
-```tsx
-{
-  password.touched && password.errors?.noUppercase && (
-    <span className="error">Must contain uppercase letter</span>
-  );
-}
-{
-  password.touched && password.errors?.noNumber && (
-    <span className="error">Must contain a number</span>
-  );
-}
-{
-  password.touched && password.errors?.tooShort && (
-    <span className="error">Must be at least 8 characters</span>
-  );
-}
-```
-
-## Validator with Parameters
-
-Create configurable validators:
-
-```typescript title="validators/range.ts"
-export function range(min: number, max: number) {
-  return (value: number) => {
-    if (value == null) return null; // Skip if empty
-
-    if (value < min || value > max) {
-      return {
-        range: {
-          min,
-          max,
-          actual: value,
-        },
-      };
-    }
-    return null;
-  };
-}
-
-// Usage
-import { range } from './validators/range';
-
-validation: (path) => {
-  validate(path.quantity, required());
-  validate(path.quantity, range(1, 100));
-};
-```
-
-### Error Object with Data
-
-```tsx
-{
-  quantity.touched && quantity.errors?.range && (
-    <span className="error">
-      Value must be between {quantity.errors.range.min} and {quantity.errors.range.max}
-    </span>
-  );
-}
-```
-
-## Validator with Context
-
-Access the entire form during validation:
-
-```typescript title="validators/match-field.ts"
-/**
- * Validates that field matches another field
- */
 import type { Validator } from '@reformer/core';
 
-export function matchesPassword<TForm extends { password: string }>(): Validator<TForm, string> {
-  return (value, _control, root) => {
-    const password = root.password.value.value;
+export const hasUppercase = (): Validator<unknown, string> => (value) =>
+  !value || /[A-Z]/.test(value) ? null : { code: 'noUppercase', message: 'Нужна заглавная буква' };
 
-    if (value && password && value !== password) {
-      return { code: 'passwordMismatch', message: 'Passwords do not match' };
-    }
-    return null;
-  };
-}
-
-// Usage
-validation: (path) => {
-  validate(path.password, required());
-  validate(path.confirmPassword, required());
-  validate(path.confirmPassword, matchesPassword());
-};
+export const hasNumber = (): Validator<unknown, string> => (value) =>
+  !value || /[0-9]/.test(value) ? null : { code: 'noNumber', message: 'Нужна цифра' };
 ```
 
-## Complex Custom Validator
+```typescript
+// Применение в схеме:
+import { required, minLength } from '@reformer/core/validators';
+import { hasUppercase, hasNumber } from './validators/password';
 
-Validator with multiple rules and custom messages:
+password: {
+  value: model.$.password,
+  component: Input,
+  validators: [required(), minLength(8), hasUppercase(), hasNumber()],
+},
+```
 
-```typescript title="validators/username.ts"
-export function username() {
-  return (value: string) => {
-    if (!value) return null;
+## Валидатор с параметрами
 
-    // Length check
-    if (value.length < 3 || value.length > 20) {
+Параметризуйте фабрику и прикладывайте данные ошибки через `params` — их можно использовать при
+отображении:
+
+```typescript title="validators/range.ts"
+import type { Validator } from '@reformer/core';
+
+export function range(min: number, max: number): Validator<unknown, number> {
+  return (value) => {
+    if (value == null) return null; // пропускаем пустое
+    if (value < min || value > max) {
       return {
-        usernameLength: { min: 3, max: 20, actual: value.length },
+        code: 'range',
+        message: `Допустимо от ${min} до ${max}`,
+        params: { min, max, actual: value },
       };
     }
-
-    // Character check
-    if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-      return { usernameInvalidChars: true };
-    }
-
-    // Reserved words
-    const reserved = ['admin', 'root', 'system'];
-    if (reserved.includes(value.toLowerCase())) {
-      return { usernameReserved: true };
-    }
-
     return null;
   };
 }
-
-// Usage
-validation: (path) => {
-  validate(path.username, required());
-  validate(path.username, username());
-};
 ```
 
-## Cross-Field Validation
-
-Validate relationships between fields. The third argument `root` gives access to the entire form proxy.
-
 ```typescript
-validation: (path) => {
-  validate(path.startDate, required());
-  validate(path.endDate, required());
+import { required } from '@reformer/core/validators';
+import { range } from './validators/range';
 
-  // Validate end date is after start date
-  validate(path.endDate, (value, _control, root) => {
-    const startDate = root.startDate.value.value;
-
-    if (value && startDate && new Date(value as string) < new Date(startDate)) {
-      return { code: 'endBeforeStart', message: 'End date must be after start date' };
-    }
-    return null;
-  });
-};
+quantity: {
+  value: model.$.quantity,
+  component: Input,
+  validators: [required(), range(1, 100)],
+},
 ```
 
-For validation that depends on multiple fields and attaches the error to a specific field,
-attach a `validate` to the chosen target field and read siblings through `root`:
+## Кросс-полевые проверки
+
+Правило, зависящее от другого поля, читает соседа через третий аргумент `root`. Оно вешается на
+поле, которое должно нести ошибку. Для типизированного `root` используйте `ModelValidator`:
 
 ```typescript
-import { validate } from '@reformer/core/validators';
+import type { ModelValidator } from '@reformer/core';
+import { required } from '@reformer/core/validators';
 
-validation: (path) => {
-  validate(path.endDate, (value, _control, root) => {
-    const startDate = root.startDate.value.value;
-    if (startDate && value && new Date(value) < new Date(startDate)) {
-      return { code: 'endBeforeStart', message: 'End date must be after start date' };
-    }
-    return null;
-  });
-};
-```
+type PasswordForm = { password: string; confirmPassword: string };
 
-## Array Item Validation
+// confirmPassword должен совпадать с password — читаем соседа через root
+const matchesPassword: ModelValidator<string, unknown, PasswordForm> = (value, _scope, root) =>
+  value && root.password && value !== root.password
+    ? { code: 'passwordMismatch', message: 'Пароли не совпадают' }
+    : null;
 
-Validate items in dynamic arrays:
-
-```typescript
-interface ContactForm {
-  name: string;
-  emails: string[];
-}
-
-const form = new GroupNode<ContactForm>({
-  form: {
-    name: { value: '' },
-    emails: [{ value: '' }],
+const schema = {
+  password: { value: model.$.password, component: Input, validators: [required()] },
+  confirmPassword: {
+    value: model.$.confirmPassword,
+    component: Input,
+    validators: [required(), matchesPassword],
   },
-  validation: (path) => {
-    validate(path.name, required());
+};
+```
 
-    // Validate each email in the array
-    validate(path.emails.$each, required());
-    validate(path.emails.$each, email());
+:::tip Пересчёт зависимого поля
+Чтобы `confirmPassword` перепроверялся при изменении `password`, свяжите поля через `revalidateWhen`
+в behavior — см. [Стратегии валидации](/docs/validation/validation-strategies#зависимые-поля).
+:::
+
+## Условная валидация
+
+Кастомные правила, действующие только в части формы, включаются узлом-веткой `{ when, children }`.
+Когда `when` — `false`, поддерево пропускается, а ошибки его полей очищаются:
+
+```typescript
+import { validateFormModel } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+
+const isNineDigits = (value: string) =>
+  /^\d{9}$/.test(value) ? null : { code: 'invalidTaxId', message: 'ИНН — 9 цифр' };
+
+const schema = {
+  country: { value: model.$.country, component: Input, validators: [required()] },
+  // ИНН обязателен только для страны US
+  taxBranch: {
+    when: (_scope, root) => root.country === 'US',
+    children: [{ value: model.$.taxId, component: Input, validators: [required(), isNineDigits] }],
   },
+};
+
+const { valid } = await validateFormModel(model, schema);
+```
+
+## Валидация элементов массива
+
+Секция массива в схеме валидации описывается как
+`{ componentProps: { control: model.<array>, itemComponent: (item) => subSchema } }`.
+`validateFormModel` проходит её по каждому элементу и применяет валидаторы к его полям:
+
+```typescript
+import { createModel, validateFormModel, type FormModel } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+
+type ContactForm = { emails: { address: string }[] };
+
+const model = createModel<ContactForm>({ emails: [{ address: '' }] });
+
+// Под-схема одного элемента массива
+const emailItem = (item: FormModel<{ address: string }>) => ({
+  address: { value: item.$.address, validators: [required(), email()] },
 });
-```
 
-## Conditional Validation with Custom Logic
-
-Use `applyWhen()` for conditional custom validators:
-
-```typescript
-import { applyWhen, validate, required } from '@reformer/core/validators';
-
-validation: (path) => {
-  validate(path.country, required());
-
-  // Require tax ID only for US users
-  applyWhen(
-    path.country,
-    (country) => country === 'US',
-    (path) => {
-      validate(path.taxId, required());
-      validate(path.taxId, (value) => {
-        if (!/^\d{9}$/.test(value as string)) {
-          return { code: 'invalidTaxId', message: 'Tax ID must be 9 digits' };
-        }
-        return null;
-      });
-    }
-  );
-};
-```
-
-## Async Custom Validator
-
-Check server-side data:
-
-```typescript title="validators/username-availability.ts"
-export function checkUsernameAvailability() {
-  return async (value: string) => {
-    if (!value || value.length < 3) return null;
-
-    try {
-      const response = await fetch(`/api/check-username?username=${encodeURIComponent(value)}`);
-      const { available } = await response.json();
-
-      if (!available) {
-        return { usernameTaken: true };
-      }
-      return null;
-    } catch (error) {
-      return { serverError: true };
-    }
-  };
-}
-
-// Usage
-import { validateAsync, validate, required } from '@reformer/core/validators';
-
-validation: (path) => {
-  validate(path.username, required());
-  validate(path.username, username());
-
-  // Async validation with debounce. Note: pass the async function directly
-  // (signature: `(value, control, root) => Promise<ValidationError | null>`),
-  // not a factory invocation.
-  validateAsync(path.username, checkUsernameAvailability(), {
-    debounce: 500,
-  });
-};
-```
-
-## Practical Examples
-
-### Credit Card Validator
-
-```typescript title="validators/credit-card.ts"
-export function creditCard() {
-  return (value: string) => {
-    if (!value) return null;
-
-    // Remove spaces and dashes
-    const cleaned = value.replace(/[\s-]/g, '');
-
-    // Check length
-    if (cleaned.length < 13 || cleaned.length > 19) {
-      return { invalidCardLength: true };
-    }
-
-    // Luhn algorithm
-    let sum = 0;
-    let isEven = false;
-
-    for (let i = cleaned.length - 1; i >= 0; i--) {
-      let digit = parseInt(cleaned[i]);
-
-      if (isEven) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-
-      sum += digit;
-      isEven = !isEven;
-    }
-
-    if (sum % 10 !== 0) {
-      return { invalidCard: true };
-    }
-
-    return null;
-  };
-}
-```
-
-### Phone Number Validator
-
-```typescript title="validators/phone.ts"
-export function phoneNumber(countryCode: string = 'US') {
-  return (value: string) => {
-    if (!value) return null;
-
-    const patterns = {
-      US: /^\+?1?\s*\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$/,
-      UK: /^\+?44\s?[0-9]{10}$/,
-      RU: /^\+?7\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/,
-    };
-
-    const pattern = patterns[countryCode];
-    if (!pattern) {
-      return { unsupportedCountry: true };
-    }
-
-    if (!pattern.test(value)) {
-      return { invalidPhone: { country: countryCode } };
-    }
-
-    return null;
-  };
-}
-
-// Usage
-validation: (path) => {
-  validate(path.phone, required());
-  validate(path.phone, phoneNumber('US'));
-};
-```
-
-### File Upload Validator
-
-```typescript title="validators/file.ts"
-interface FileValidatorOptions {
-  maxSize?: number; // in bytes
-  allowedTypes?: string[];
-}
-
-export function fileValidator(options: FileValidatorOptions = {}) {
-  return (file: File) => {
-    if (!file) return null;
-
-    const { maxSize = 5 * 1024 * 1024, allowedTypes } = options;
-
-    // Check file size
-    if (file.size > maxSize) {
-      return {
-        fileTooLarge: {
-          maxSize: maxSize / 1024 / 1024,
-          actual: file.size / 1024 / 1024,
-        },
-      };
-    }
-
-    // Check file type
-    if (allowedTypes && !allowedTypes.includes(file.type)) {
-      return {
-        invalidFileType: {
-          allowed: allowedTypes,
-          actual: file.type,
-        },
-      };
-    }
-
-    return null;
-  };
-}
-
-// Usage
-validation: (path) => {
-  validate(path.avatar, required());
-  validate(
-    path.avatar,
-    fileValidator({
-      maxSize: 2 * 1024 * 1024, // 2MB
-      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-    })
-  );
-};
-```
-
-## Tips for Custom Validators
-
-### 1. Return Null for Valid Values
-
-```typescript
-// ✅ Good
-return null;
-
-// ❌ Bad
-return undefined;
-return {};
-```
-
-### 2. Skip Empty Values
-
-Let `required()` handle empty values:
-
-```typescript
-export function myValidator() {
-  return (value: string) => {
-    if (!value) return null; // Skip empty values
-
-    // Validation logic
-    if (isInvalid(value)) {
-      return { myError: true };
-    }
-
-    return null;
-  };
-}
-```
-
-### 3. Use Descriptive Error Keys
-
-```typescript
-// ✅ Good - descriptive
-return { passwordTooWeak: true };
-return { usernameTaken: true };
-
-// ❌ Bad - generic
-return { invalid: true };
-return { error: true };
-```
-
-### 4. Include Useful Error Data
-
-```typescript
-// ✅ Good - provides context
-return {
-  tooLong: {
-    max: 100,
-    actual: value.length,
-  },
+const schema = {
+  emails: { componentProps: { control: model.emails, itemComponent: emailItem } },
 };
 
-// ❌ Bad - no context
-return { tooLong: true };
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
-## Next Steps
+## Предупреждения вместо ошибок
 
-- [Async Validation](/docs/validation/async) — Server-side validation
-- [Behaviors](/docs/behaviors/overview) — Reactive form logic
-- [Schema Composition](/docs/core-concepts/schemas/composition) — Share validators across forms
+Ошибка с `severity: 'warning'` показывается пользователю, но **не блокирует** submit (`valid`
+остаётся `true`). Используйте для «мягких» подсказок:
+
+```typescript
+const weakButAllowed = (value: string) =>
+  value && value.length < 12
+    ? { code: 'shortPassword', message: 'Рекомендуем 12+ символов', severity: 'warning' as const }
+    : null;
+```
+
+## Советы
+
+- **Возвращайте `null` для валидного значения** — не `undefined` и не `{}`.
+- **Пропускайте пустое** (`if (!value) return null`) — обязательность закрывает `required()`.
+- **Используйте описательные `code`** (`passwordTooWeak`, а не `invalid`) — по ним удобно фильтровать
+  и локализовать ошибки.
+- **Кладите контекст в `params`** (`{ max: 100, actual: value.length }`) — пригодится при отображении.
+
+## Дальше
+
+- [Асинхронная валидация](/docs/validation/async) — проверки уникальности через сервер.
+- [Стратегии валидации](/docs/validation/validation-strategies) — `updateOn`, пошаговые формы, зависимые поля.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение `ValidationError`.

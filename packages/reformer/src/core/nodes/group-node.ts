@@ -120,6 +120,21 @@ export class GroupNode<T> extends FormNode<T> {
   /** Form-level validation errors */
   private readonly _formErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
 
+  /**
+   * M1: валидация уровня модели/схемы (`validateFormModel(model, schema)`). Привязывается
+   * `createForm({ model, schema })`, т.к. под M1 валидаторы срезаны с FieldNode и живут на слое
+   * модели. Без неё `validate()`/`submit()` пропускали бы все schema-валидаторы. @internal
+   */
+  private _modelValidate?: () => Promise<boolean>;
+
+  /**
+   * M1: связь листовой ноды-ребёнка → её сигнал модели (тот, что помечает `markDerived`).
+   * Нужна bulk-сеттерам (`setValue`/`patchValue`), чтобы корректно определять derived-поля:
+   * `field.value` — computed-обёртка, отличная от записываемого сигнала модели. @internal
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly _fieldSignals = new WeakMap<FormNode<any>, Signal<unknown>>();
+
   // ============================================================================
   // Публичные computed signals
   // ============================================================================
@@ -155,8 +170,17 @@ export class GroupNode<T> extends FormNode<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.formSubmitter = new FormSubmitter(this as any);
 
-    // Принимаем либо плоскую FormSchema (M1-путь createForm), либо обёртку `{ form }`.
-    const isConfig = 'form' in schemaOrConfig;
+    // Принимаем либо плоскую FormSchema (M1-путь createForm), либо обёртку `{ form: FormSchema }`.
+    // Строкового ключа `'form' in x` мало: поле данных верхнего уровня, буквально названное `form`,
+    // тоже породило бы ключ `form`. Различаем по форме значения: у обёртки `form` — это под-схема
+    // (её значения — FieldConfig'и), а у поля-данных `form` — сам FieldConfig (несёт «ручку»
+    // значения `valueSignal`/`value`). Так поле, названное `form`, больше не ломает форму.
+    const formVal = (schemaOrConfig as { form?: unknown }).form;
+    const formIsFieldConfig =
+      formVal != null &&
+      typeof formVal === 'object' &&
+      ('valueSignal' in formVal || 'value' in formVal);
+    const isConfig = 'form' in schemaOrConfig && !formIsFieldConfig;
     const formSchema = isConfig
       ? (schemaOrConfig as GroupNodeConfig<T>).form
       : (schemaOrConfig as FormSchema<T>);
@@ -233,8 +257,10 @@ export class GroupNode<T> extends FormNode<T> {
     for (const [key, fieldValue] of Object.entries(value as any)) {
       const field = this._fields.get(key as keyof T);
       if (field) {
-        // F9: производные поля (цели compute) не затираем при bulk-set.
-        if (isDerived(field.value as Signal<unknown>)) continue;
+        // F9: производные поля (цели compute) не затираем при bulk-set. Сверяем с записываемым
+        // сигналом модели (его помечает markDerived), а не с computed-обёрткой field.value.
+        const derivedSig = this._fieldSignals.get(field) ?? (field.value as Signal<unknown>);
+        if (isDerived(derivedSig)) continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         field.setValue(fieldValue as any, options);
       }
@@ -249,8 +275,10 @@ export class GroupNode<T> extends FormNode<T> {
       for (const [key, fieldValue] of Object.entries(value)) {
         const field = this._fields.get(key as keyof T);
         if (field && fieldValue !== undefined) {
-          // F9: производные поля (цели compute) не затираем при bulk-patch.
-          if (isDerived(field.value as Signal<unknown>)) continue;
+          // F9: производные поля (цели compute) не затираем при bulk-patch. Сверяем с записываемым
+          // сигналом модели (его помечает markDerived), а не с computed-обёрткой field.value.
+          const derivedSig = this._fieldSignals.get(field) ?? (field.value as Signal<unknown>);
+          if (isDerived(derivedSig)) continue;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           field.setValue(fieldValue as any, { emitEvent: false });
         }
@@ -276,6 +304,9 @@ export class GroupNode<T> extends FormNode<T> {
    * ```
    */
   reset(value?: T): void {
+    // Сбрасываем и form-level ошибки (setErrors) — иначе форма остаётся invalid после reset.
+    // Согласовано с ArrayNode.reset()/ModelArrayNode.reset(), которые очищают свои _arrayErrors.
+    this._formErrors.value = [];
     this._fields.forEach((field, key) => {
       const resetValue = value?.[key];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -287,6 +318,7 @@ export class GroupNode<T> extends FormNode<T> {
    * Сбросить форму к исходным значениям (initialValues)
    */
   resetToInitial(): void {
+    this._formErrors.value = [];
     this._fields.forEach((field) => {
       if ('resetToInitial' in field && typeof field.resetToInitial === 'function') {
         field.resetToInitial();
@@ -300,14 +332,20 @@ export class GroupNode<T> extends FormNode<T> {
     // Очищаем ошибки перед валидацией
     this.clearErrors();
 
-    // Валидация всех полей. Контекстная (cross-field) валидация под M1 выполняется
-    // движком validateFormModel(model, schema), а не нодой.
+    // Валидация всех полей (legacy-путь: у FieldNode есть собственные валидаторы).
     await Promise.all(Array.from(this._fields.values()).map((field) => field.validate()));
 
+    // M1: schema-валидаторы срезаны с FieldNode и живут на слое модели — прогоняем их через
+    // привязанный validateFormModel(model, schema). Он роутит ошибки в ноды (setErrors), поэтому
+    // итоговая проверка field.valid ниже уже учитывает найденные схемой ошибки. Без этого
+    // submit()/validate() под M1 всегда возвращали true и пропускали невалидные данные.
+    const modelValid = this._modelValidate ? await this._modelValidate() : true;
+
     // Проверяем, все ли поля валидны
-    return Array.from(this._fields.values()).every(
+    const fieldsValid = Array.from(this._fields.values()).every(
       (field) => field.valid.value || field.disabled.value
     );
+    return modelValid && fieldsValid;
   }
 
   /**
@@ -408,7 +446,12 @@ export class GroupNode<T> extends FormNode<T> {
    *
    * @param onSubmit - Callback для отправки данных
    * @param options - Опции submit (skipValidation, skipTouch)
-   * @returns Результат от onSubmit или null если валидация не пройдена
+   * @returns Результат от onSubmit или `null` если валидация не пройдена
+   *
+   * @remarks
+   * `null` перегружен: он означает и «валидация не пройдена», и легитимный `null`-результат
+   * `onSubmit` (или void-обработчик). Если вызывающей стороне нужно различать эти случаи —
+   * используйте {@link submitWithResult}, который возвращает явный флаг `success`.
    */
   async submit<R>(
     onSubmit: (values: T) => Promise<R> | R,
@@ -650,6 +693,26 @@ export class GroupNode<T> extends FormNode<T> {
    */
   attachBehaviorCleanup(cleanup: () => void): void {
     this._behaviorCleanup = cleanup;
+  }
+
+  /**
+   * Прикрепить валидацию уровня модели/схемы (M1). Вызывается `createForm({ model, schema })`,
+   * чтобы `validate()`/`submit()` прогоняли schema-валидаторы (`validateFormModel`), а не только
+   * пустые FieldNode. Возвращаемый флаг — валидна ли модель по схеме.
+   * @internal
+   */
+  attachModelValidator(validate: () => Promise<boolean>): void {
+    this._modelValidate = validate;
+  }
+
+  /**
+   * Связать листовую ноду-ребёнка с её сигналом модели (M1). Вызывается `createForm` для каждого
+   * листового поля на его владеющей группе — используется bulk-сеттерами для derived-guard (F9).
+   * @internal
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  registerFieldSignal(node: FormNode<any>, signal: Signal<unknown>): void {
+    this._fieldSignals.set(node, signal);
   }
 
   /**

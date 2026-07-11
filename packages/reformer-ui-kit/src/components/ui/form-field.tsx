@@ -68,7 +68,11 @@ function FormFieldInner({
         data-testid={`error-${testId}`}
       />
 
-      {pending && <span className="text-gray-500 text-sm mt-1 block">Проверка...</span>}
+      {pending && (
+        <span role="status" aria-live="polite" className="text-gray-500 text-sm mt-1 block">
+          Проверка...
+        </span>
+      )}
     </div>
   );
 }

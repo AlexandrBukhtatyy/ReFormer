@@ -160,7 +160,10 @@ describe('FormModel: API get/set/patch/isDirty/reset', () => {
     const m = makeModel();
     m.set({
       loanType: 'car',
+      loanAmount: null,
       personalData: { lastName: 'Сидоров', firstName: 'П', gender: 'male' },
+      coBorrowers: [],
+      tags: [],
     });
     expect(m.loanType).toBe('car');
     expect(m.personalData.lastName).toBe('Сидоров');
@@ -221,5 +224,81 @@ describe('FormModel: signalAt', () => {
   it('возвращает undefined для несуществующего пути', () => {
     const m = makeModel();
     expect(m.signalAt('nope.nope')).toBeUndefined();
+  });
+});
+
+describe('FormModel: вложенные группы — суб-модели', () => {
+  it('вложенная группа — FormModel: сигнал идентичен корневому $-дереву', () => {
+    const m = makeModel();
+    // model.personalData.$.lastName === model.$.personalData.lastName (тот же PathAwareSignal)
+    expect(m.personalData.$.lastName).toBe(m.$.personalData.lastName);
+    expect(m.personalData.$.lastName.__path).toBe('personalData.lastName');
+  });
+
+  it('__path группы сохранён (паритет с прежним value-proxy)', () => {
+    const m = makeModel();
+    expect((m.personalData as unknown as { __path: string }).__path).toBe('personalData');
+  });
+
+  it('value-доступ сохранён (чтение/запись/get)', () => {
+    const m = makeModel();
+    expect(m.personalData.lastName).toBe('');
+    m.personalData.lastName = 'Иванов';
+    expect(m.personalData.lastName).toBe('Иванов');
+    expect(m.get().personalData.lastName).toBe('Иванов');
+    expect(m.personalData.get()).toEqual({ lastName: 'Иванов', firstName: '', gender: 'male' });
+  });
+
+  it('фасад под-модели стабилен (facadeCache)', () => {
+    const m = makeModel();
+    expect(m.personalData).toBe(m.personalData);
+  });
+
+  it('API под-модели scoped на группу (isDirty/reset/signalAt)', () => {
+    const m = makeModel();
+    const pd = m.personalData;
+    expect(pd.isDirty()).toBe(false);
+    pd.lastName = 'X';
+    expect(pd.isDirty()).toBe(true);
+    // относительный путь резолвится от группы, тот же сигнал
+    expect(pd.signalAt('lastName')).toBe(m.$.personalData.lastName);
+    pd.reset();
+    expect(pd.isDirty()).toBe(false);
+    expect(pd.lastName).toBe('');
+    // правка соседнего корневого поля не пачкает под-модель
+    m.loanType = 'mortgage';
+    expect(pd.isDirty()).toBe(false);
+    expect(m.isDirty()).toBe(true);
+  });
+
+  it('реактивен через суб-модель ($-сигнал общий)', () => {
+    const m = makeModel();
+    const seen: unknown[] = [];
+    const dispose = effect(() => {
+      seen.push(m.personalData.$.lastName.value);
+    });
+    m.personalData.lastName = 'Петров';
+    expect(seen).toEqual(['', 'Петров']);
+    dispose();
+  });
+
+  it('корень: __path === "" и не enumerable', () => {
+    const m = makeModel();
+    expect((m as unknown as { __path: string }).__path).toBe('');
+    expect('__path' in m).toBe(false);
+    expect(Object.keys(m)).not.toContain('__path');
+  });
+
+  it('элемент массива: индекс и at() дают тот же фасад', () => {
+    const m = makeModel();
+    m.coBorrowers.push({
+      personalData: { lastName: 'A', firstName: 'B' },
+      relationship: 'брат',
+      monthlyIncome: 100,
+    });
+    expect(m.coBorrowers[0]).toBe(m.coBorrowers.at(0));
+    expect(m.coBorrowers[0].$.personalData.lastName).toBe(m.$.coBorrowers[0].personalData.lastName);
+    // вложенная группа внутри элемента массива — тоже суб-модель
+    expect(m.coBorrowers[0].personalData.$.lastName).toBe(m.$.coBorrowers[0].personalData.lastName);
   });
 });

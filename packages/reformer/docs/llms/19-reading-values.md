@@ -21,11 +21,12 @@ const count = useArrayLength(control.items);
 // value-доступ (реактивно внутри effect/computed, запись присваиванием)
 model.email;                 // читать
 model.email = 'a@b.c';       // писать
-model.address.city;          // вложенное поле
+model.address.city;          // вложенное поле (model.address — под-модель FormModel<Address>)
 
 // через сигнал (escape-hatch)
 model.$.email.value;         // реактивное чтение/запись
 model.$.email.peek();        // нереактивный снимок
+model.$.address.city.value;  // сигнал вложенного поля (≡ model.address.$.city у под-модели)
 
 // весь объект
 model.get();                 // снимок { email, address: { city }, ... } — для submit

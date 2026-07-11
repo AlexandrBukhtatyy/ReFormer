@@ -5,7 +5,7 @@ import { appendFileSync, mkdirSync, existsSync } from 'fs';
 export const reportIssueToolDefinition = {
   name: 'report_issue',
   description:
-    'Report an issue encountered while working with ReFormer and its solution. Use this when you find and fix a ReFormer-related error.',
+    'Report an issue encountered while working with ReFormer and its solution. Appends the report to a local scratch log (~/.reformer/issues.jsonl) on this machine for later manual review — it is not aggregated or fed back into the other tools. Use this when you find and fix a ReFormer-related error.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -21,7 +21,7 @@ export const reportIssueToolDefinition = {
         type: 'array',
         items: { type: 'string' },
         description:
-          'Tags for categorization and analytics. Recommended: category:<type> (schema, validation, behavior, react, types, other), agent:<name> (claude, cursor), severity:<level> (critical, major, minor)',
+          'Tags for categorization. Recommended: category:<type> (schema, validation, behavior, react, types, other), agent:<name> (claude, cursor), severity:<level> (critical, major, minor)',
       },
       context: {
         type: 'object',
@@ -78,12 +78,6 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
 }> {
   const { error, solution, tags, context } = args;
 
-  // Create directory if not exists
-  const reformerDir = join(homedir(), '.reformer');
-  if (!existsSync(reformerDir)) {
-    mkdirSync(reformerDir, { recursive: true });
-  }
-
   // Prepare issue record
   const issue = {
     timestamp: new Date().toISOString(),
@@ -93,9 +87,28 @@ export async function reportIssueTool(args: ReportIssueArgs): Promise<{
     context: context || null,
   };
 
-  // Append to JSONL file
+  const reformerDir = join(homedir(), '.reformer');
   const issuesFile = join(reformerDir, 'issues.jsonl');
-  appendFileSync(issuesFile, JSON.stringify(issue) + '\n', 'utf-8');
+
+  // fs can fail (read-only home, permissions, disk full, path collision). Degrade to a
+  // friendly text result like the neighbouring tools instead of throwing an unhandled
+  // exception out of the CallTool handler.
+  try {
+    if (!existsSync(reformerDir)) {
+      mkdirSync(reformerDir, { recursive: true });
+    }
+    appendFileSync(issuesFile, JSON.stringify(issue) + '\n', 'utf-8');
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Could not write the issue to the local log (${issuesFile}): ${reason}`,
+        },
+      ],
+    };
+  }
 
   // Extract category from tags for display
   const categoryTag = tags?.find((t) => t.startsWith('category:'));

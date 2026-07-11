@@ -7,7 +7,7 @@
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { effect } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
-import { useFormControl, getNodeForSignal } from '@reformer/core';
+import { getNodeForSignal } from '@reformer/core';
 import type {
   RenderNode,
   FieldWrapperProps,
@@ -47,6 +47,49 @@ interface RenderNodeComponentProps<T> {
 // ============================================================================
 
 /**
+ * Подписка листового рендерера ТОЛЬКО на `value` + `disabled` поля (а не на все 9 сигналов
+ * {@link useFormControl}). Обёрнутые `Component`/`FieldWrapper` получают `control` и подписываются
+ * на errors/touched/pending/valid/… сами, поэтому родителю эти сигналы не нужны — лишние
+ * ре-рендеры при churn'е валидации/touch устраняются, и `React.memo` пользовательских компонентов
+ * поля не обесценивается. Снапшот кэшируется по паре (value, disabled): иначе useSyncExternalStore
+ * получал бы свежий объект каждый getSnapshot и зациклился бы. SSR-safe.
+ */
+function useFieldValueAndDisabled(fieldNode: FieldNode<unknown>): {
+  value: unknown;
+  disabled: boolean;
+} {
+  const cacheRef = useRef<{ value: unknown; disabled: boolean }>({
+    value: fieldNode.value.value,
+    disabled: fieldNode.disabled.value,
+  });
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      let first = true;
+      return effect(() => {
+        void fieldNode.value.value; // зависимость: сигнал value
+        void fieldNode.disabled.value; // зависимость: сигнал disabled
+        if (first) {
+          first = false;
+          return;
+        }
+        onStoreChange();
+      });
+    },
+    [fieldNode]
+  );
+  const getSnapshot = useCallback((): { value: unknown; disabled: boolean } => {
+    const value = fieldNode.value.value;
+    const disabled = fieldNode.disabled.value;
+    const prev = cacheRef.current;
+    if (prev.value === value && prev.disabled === disabled) return prev;
+    const next = { value, disabled };
+    cacheRef.current = next;
+    return next;
+  }, [fieldNode]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
  * Поле единой схемы (M1): значение из сигнала модели; state-нода резолвится по сигналу через реестр.
  * `component`/`componentProps` берутся из схемы (как в схеме формы); `fieldWrapper` оборачивает.
  */
@@ -59,8 +102,12 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   fieldNode: FieldNode<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }): ReactNode {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const state = useFormControl(fieldNode as FieldNode<any>);
+  // Подписка только на value+disabled (не на все 9 сигналов useFormControl).
+  const { value, disabled } = useFieldValueAndDisabled(fieldNode);
+  // Стабильные колбэки: fieldNode стабилен для данного сигнала → не пересоздаются каждый рендер,
+  // поэтому React.memo на пользовательском Component держится.
+  const onChange = useCallback((v: unknown) => fieldNode.setValue(v as never), [fieldNode]);
+  const onBlur = useCallback(() => fieldNode.markAsTouched(), [fieldNode]);
   const Component = node.component;
   if (!Component) {
     if (typeof console !== 'undefined') {
@@ -87,8 +134,8 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
         : undefined;
 
   const inputProps: Record<string, unknown> = {
-    value: state.value,
-    disabled: state.disabled,
+    value,
+    disabled,
     ...inputComponentProps,
   };
   if (testId && inputProps['data-testid'] === undefined) {
@@ -96,12 +143,7 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   }
 
   const input = (
-    <Component
-      control={fieldNode}
-      {...inputProps}
-      onChange={(value: unknown) => fieldNode.setValue(value as never)}
-      onBlur={() => fieldNode.markAsTouched()}
-    />
+    <Component control={fieldNode} {...inputProps} onChange={onChange} onBlur={onBlur} />
   );
 
   const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
@@ -173,6 +215,28 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
   const control = node.array;
   useModelArrayRevision(control); // ре-рендер при структурных изменениях массива, включая reorder
   const length = control.length;
+  // Кэш поддеревьев по идентичности под-модели элемента (`im` кэшируется в ядре, зеркалит
+  // stableKey WeakMap). Без него `node.item(im)` в цикле строил бы новый RenderNode на каждый
+  // рендер → identity пропа `node` дочернего memo-рендерера менялась бы → memo ломался, и все
+  // поля всех элементов ре-рендерились при любом структурном изменении (O(элементы×поля)).
+  // Кэш сбрасывается при смене фабрики `node.item` (напр. новая схема).
+  const subtreeCacheRef = useRef<{
+    itemFn: ArrayRenderNode<unknown>['item'];
+    map: WeakMap<object, RenderNode<unknown>>;
+  } | null>(null);
+  if (!subtreeCacheRef.current || subtreeCacheRef.current.itemFn !== node.item) {
+    subtreeCacheRef.current = { itemFn: node.item, map: new WeakMap() };
+  }
+  const getSubtree = (im: unknown): RenderNode<unknown> => {
+    if (im == null || typeof im !== 'object') return node.item(im) as RenderNode<unknown>;
+    const cache = subtreeCacheRef.current!.map;
+    let sub = cache.get(im as object);
+    if (sub === undefined) {
+      sub = node.item(im) as RenderNode<unknown>;
+      cache.set(im as object, sub);
+    }
+    return sub;
+  };
   const cp = node.componentProps ?? {};
   const {
     title,
@@ -190,11 +254,19 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
       ? itemLabel(im, index)
       : `${(itemLabel as string) ?? title ?? 'Элемент'} #${index + 1}`;
 
+  // aria-labels перемещения и Tailwind-классы кнопок переопределяемы через componentProps
+  // (дефолты сохраняют прежнее поведение). Позволяет i18n и консументам без Tailwind
+  // подставить свои строки/классы, не форкая рендерер.
+  const moveUpLabel = (cp.moveUpLabel as string | undefined) ?? 'Переместить вверх';
+  const moveDownLabel = (cp.moveDownLabel as string | undefined) ?? 'Переместить вниз';
   const addBtnClass =
+    (cp.addButtonClassName as string | undefined) ??
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2';
   const removeBtnClass =
+    (cp.removeButtonClassName as string | undefined) ??
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-destructive-foreground shadow hover:bg-destructive/90 h-9 px-4 py-2';
   const moveBtnClass =
+    (cp.moveButtonClassName as string | undefined) ??
     'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 h-9 w-9';
 
   const addButton = (cls: string) => (
@@ -219,7 +291,7 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
 
       {Array.from({ length }, (_, i) => {
         const im = control.at(i);
-        const subtree = node.item(im) as RenderNode<unknown>;
+        const subtree = getSubtree(im); // кэш по идентичности `im` → стабильный `node` для memo
         const showRemove = length > 1;
         return (
           <div key={stableKey(im)} className={cardClassName} data-testid={`array-item-${i}`}>
@@ -231,7 +303,7 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label="Переместить вверх"
+                        aria-label={moveUpLabel}
                         data-testid={`array-item-${i}-move-up`}
                         className={moveBtnClass}
                         disabled={i === 0}
@@ -241,7 +313,7 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
                       </button>
                       <button
                         type="button"
-                        aria-label="Переместить вниз"
+                        aria-label={moveDownLabel}
                         data-testid={`array-item-${i}-move-down`}
                         className={moveBtnClass}
                         disabled={i === length - 1}
@@ -330,7 +402,8 @@ export function RenderNodeComponent<T>({
   // Итоговое: override > behavior > видимо по умолчанию
   const isHidden = hiddenOverride != null ? hiddenOverride : isHiddenByBehavior;
 
-  // Lifecycle-хуки ноды (onInit/onDestroy)
+  // Lifecycle-хуки ноды (onMount/onUnmount). onInit — синхронный build-time хук (см. render-behavior),
+  // не проходит через этот путь и не хранится в lifecycleRegistry.
   const lifecycleHooks = selector ? overrideMaps?.lifecycleRegistry.get(selector) : undefined;
   useNodeLifecycle(lifecycleHooks);
 

@@ -2,601 +2,171 @@
 sidebar_position: 6
 ---
 
-# Кастомные Поведения
+# Продвинутые behaviors
 
-Создавайте переиспользуемые поведения для добавления реактивной логики в ваши формы.
+Разница между примитивами и DSL, низкоуровневый авторинг (`effect`, `defer`, `onDispose`,
+`getScope`) и операторы для динамических массивов (`apply`, `applyEach`, `exclusiveFlag`,
+`aggregateInto`).
 
-## Что такое Поведения?
+## Примитивы vs DSL
 
-Поведения — это реактивные побочные эффекты, которые выполняются при изменении значений формы. Они полезны для:
+Оба слоя работают на одних и тех же сигналах модели, но управляют жизненным циклом по-разному.
 
-- Автосохранения данных формы
-- Синхронизации полей
-- Управления фокусом
-- Клавиатурных сокращений
-- Отслеживания аналитики
-- Кастомной логики форм
+|                | Примитивы (`@reformer/core`) | DSL (`@reformer/core/behaviors`)           |
+| -------------- | ---------------------------- | ------------------------------------------ |
+| Возвращают     | cleanup-функцию              | ничего (авто-регистрация отписки)          |
+| Жизненный цикл | вызываешь cleanup сам        | владеет форма (`createForm({ behavior })`) |
+| Где вызывать   | императивно (`useEffect`)    | внутри `defineFormBehavior`                |
+| Аргументы      | сигналы `model.$.x`          | сигналы `model.$.x`                        |
 
-## Простое Кастомное Поведение
+Встроенные DSL-операторы — тонкие обёртки над примитивами слоя данных. Собственные операторы пишутся
+так же и неотличимы от встроенных.
 
-Используйте `use()` для применения кастомных поведений:
+## Низкоуровневый авторинг
+
+Внутри `defineFormBehavior` доступны примитивы построения собственных операторов из
+`@reformer/core/behaviors`:
+
+| Функция              | Назначение                                                                      |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `effect(fn)`         | реактивный эффект с авто-dispose; `fn` может вернуть свой cleanup               |
+| `defer(fn)`          | отложенная запись вне effect-контекста (микротаск) — защита от «Cycle detected» |
+| `onDispose(cleanup)` | зарегистрировать произвольную отписку в активной схеме                          |
+| `getScope<T>()`      | текущий scope `{ model, form }` (escape-hatch для кросс-операторов)             |
+
+Собственный оператор строится из `effect` (реактивное чтение) и `defer` (cycle-safe запись) — ровно
+так же, как встроенный `copyFrom`:
 
 ```typescript
-behaviors: (path, { use }) => [
-  // Простое поведение
-  use({
-    key: 'myBehavior',
-    paths: [path.field1],
-    run: (values) => {
-      console.log('Field1 изменилось:', values.field1);
-    },
-  }),
-];
+import { defineFormBehavior, effect, defer } from '@reformer/core/behaviors';
+import type { Signal } from '@reformer/core/behaviors';
+
+// Свой оператор поверх effect + defer — неотличим от встроенного
+function mirror<T>(source: Signal<T>, target: Signal<T>): void {
+  effect(() => {
+    const value = source.value; // подписка на источник
+    defer(() => {
+      target.value = value; // запись вне effect-контекста
+    });
+  });
+}
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  mirror(model.$.a, model.$.b);
+});
 ```
 
-## Поведение с Множественными Зависимостями
-
-Реагируйте на изменения в нескольких полях:
+`onDispose` регистрирует произвольную отписку — например, внешний таймер или подписку, которую нужно
+снять при уничтожении формы:
 
 ```typescript
-behaviors: (path, { use }) => [
-  use({
-    key: 'calculateTotal',
-    paths: [path.price, path.quantity, path.tax],
-    run: (values) => {
-      const { price, quantity, tax } = values;
-      const subtotal = price * quantity;
-      const total = subtotal + (subtotal * tax) / 100;
-      console.log('Итого:', total);
-    },
-  }),
-];
+import { defineFormBehavior, onDispose } from '@reformer/core/behaviors';
+
+const behavior = defineFormBehavior<MyForm>(({ model }) => {
+  const id = setInterval(() => console.log(model.get()), 5000);
+  onDispose(() => clearInterval(id)); // вызовется при teardown формы
+});
 ```
 
-## Переиспользуемая Фабрика Поведений
+## Операторы динамических массивов
 
-Создавайте фабрики поведений для переиспользования в формах:
+Массивы объектов принадлежат модели: мутации — `model.<array>.push/insertAt/removeAt/...`, реактивная
+длина в React — [`useArrayLength`](../react/hooks). Массивные операторы поведения работают поверх этих
+сигналов и реагируют на добавление/удаление строк.
 
-```typescript title="behaviors/auto-save.ts"
-import { Behavior } from '@reformer/core';
+### applyEach
 
-interface AutoSaveOptions {
-  /**
-   * Задержка в мс перед сохранением
-   */
-  debounce?: number;
-  /**
-   * Функция для сохранения данных
-   */
-  onSave: (data: any) => Promise<void>;
-}
+`applyEach(array, itemSchema)` применяет под-схему к **каждому** элементу массива, реагируя на
+add/remove: новым строкам поведение применяется, удалённым — отписывается. Под-схема получает scope
+строки — `model` (под-модель строки, `row.$.field`) и `form` (нода строки).
 
-export function autoSave<T>(options: AutoSaveOptions): Behavior<T> {
-  const { debounce = 1000, onSave } = options;
-  let timeoutId: NodeJS.Timeout;
+```typescript
+import { defineFormBehavior, applyEach, compute } from '@reformer/core/behaviors';
 
-  return {
-    key: 'autoSave',
-    paths: [], // Пустой массив = слушать все поля
-    run: (values, ctx) => {
-      clearTimeout(timeoutId);
+type LineItem = { qty: number; price: number; lineTotal: number };
+type Invoice = { items: LineItem[] };
 
-      timeoutId = setTimeout(async () => {
-        try {
-          await onSave(root.getValue());
-          console.log('Автосохранено');
-        } catch (error) {
-          console.error('Ошибка автосохранения:', error);
-        }
-      }, debounce);
-    },
-    cleanup: () => {
-      clearTimeout(timeoutId);
-    },
-  };
-}
-
-// Использование
-import { autoSave } from './behaviors/auto-save';
-
-behaviors: (path, { use }) => [
-  use(
-    autoSave({
-      debounce: 2000,
-      onSave: async (data) => {
-        await fetch('/api/save', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        });
-      },
+const behavior = defineFormBehavior<Invoice>(({ model }) => {
+  applyEach(
+    model.$.items,
+    defineFormBehavior<LineItem>(({ model: row }) => {
+      compute(row.$.lineTotal, () => row.qty * row.price); // per-row value-операция
     })
-  ),
-];
-```
-
-## Поведение с Очисткой
-
-Очищайте ресурсы при уничтожении поведения:
-
-```typescript title="behaviors/field-focus.ts"
-import { Behavior } from '@reformer/core';
-
-interface FocusFieldOptions {
-  fieldName: string;
-  delay?: number;
-}
-
-export function focusField<T>(options: FocusFieldOptions): Behavior<T> {
-  const { fieldName, delay = 0 } = options;
-  let timeoutId: NodeJS.Timeout;
-
-  return {
-    key: `focusField:${fieldName}`,
-    paths: [],
-    run: (_values, ctx) => {
-      timeoutId = setTimeout(() => {
-        const input = document.querySelector<HTMLInputElement>(`[name="${fieldName}"]`);
-        input?.focus();
-      }, delay);
-    },
-    cleanup: () => {
-      clearTimeout(timeoutId);
-    },
-  };
-}
-
-// Использование - фокус на первом поле с ошибкой
-behaviors: (path, { use }) => [use(focusField({ fieldName: 'email', delay: 100 }))];
-```
-
-## Условное Поведение
-
-Выполняйте поведение только при выполнении условия:
-
-```typescript title="behaviors/conditional-sync.ts"
-import { Behavior } from '@reformer/core';
-
-interface ConditionalSyncOptions<T> {
-  condition: (form: T) => boolean;
-  targetPath: any;
-  sourcePath: any;
-}
-
-export function conditionalSync<T>(options: ConditionalSyncOptions<T>): Behavior<T> {
-  const { condition, targetPath, sourcePath } = options;
-
-  return {
-    key: 'conditionalSync',
-    paths: [sourcePath],
-    run: (values, ctx) => {
-      const formValue = root.getValue();
-
-      if (condition(formValue)) {
-        const sourceValue = values[sourcePath.__key];
-        root[targetPath.__key].setValue(sourceValue);
-      }
-    },
-  };
-}
-
-// Использование - копировать адрес доставки в адрес плательщика при установке флажка
-behaviors: (path, { use }) => [
-  use(
-    conditionalSync({
-      condition: (form) => form.sameAsShipping,
-      targetPath: path.shippingAddress,
-      sourcePath: path.billingAddress,
-    })
-  ),
-];
-```
-
-## Практические Примеры
-
-### Автодополнение из API
-
-```typescript title="behaviors/auto-complete.ts"
-import { Behavior } from '@reformer/core';
-
-interface AutoCompleteOptions {
-  searchPath: any;
-  resultPath: any;
-  fetchResults: (query: string) => Promise<any[]>;
-  minLength?: number;
-  debounce?: number;
-}
-
-export function autoComplete<T>(options: AutoCompleteOptions): Behavior<T> {
-  const { searchPath, resultPath, fetchResults, minLength = 2, debounce = 300 } = options;
-
-  let timeoutId: NodeJS.Timeout;
-
-  return {
-    key: 'autoComplete',
-    paths: [searchPath],
-    run: (values, ctx) => {
-      clearTimeout(timeoutId);
-
-      const query = values[searchPath.__key];
-
-      if (!query || query.length < minLength) {
-        root[resultPath.__key].setValue([]);
-        return;
-      }
-
-      timeoutId = setTimeout(async () => {
-        try {
-          const results = await fetchResults(query);
-          root[resultPath.__key].setValue(results);
-        } catch (error) {
-          console.error('Ошибка автодополнения:', error);
-        }
-      }, debounce);
-    },
-    cleanup: () => {
-      clearTimeout(timeoutId);
-    },
-  };
-}
-
-// Использование
-behaviors: (path, { use }) => [
-  use(
-    autoComplete({
-      searchPath: path.citySearch,
-      resultPath: path.citySuggestions,
-      fetchResults: async (query) => {
-        const response = await fetch(`/api/cities?q=${encodeURIComponent(query)}`);
-        return response.json();
-      },
-      minLength: 3,
-      debounce: 500,
-    })
-  ),
-];
-```
-
-### Клавиатурные Сокращения
-
-```typescript title="behaviors/keyboard-shortcuts.ts"
-import { Behavior } from '@reformer/core';
-
-interface KeyboardShortcut {
-  key: string;
-  ctrl?: boolean;
-  shift?: boolean;
-  alt?: boolean;
-  action: (ctx: any) => void;
-}
-
-export function keyboardShortcuts<T>(shortcuts: KeyboardShortcut[]): Behavior<T> {
-  const handleKeyDown = (event: KeyboardEvent, ctx: any) => {
-    for (const shortcut of shortcuts) {
-      if (
-        event.key === shortcut.key &&
-        event.ctrlKey === !!shortcut.ctrl &&
-        event.shiftKey === !!shortcut.shift &&
-        event.altKey === !!shortcut.alt
-      ) {
-        event.preventDefault();
-        shortcut.action(ctx);
-        return;
-      }
-    }
-  };
-
-  return {
-    key: 'keyboardShortcuts',
-    paths: [],
-    run: (_values, ctx) => {
-      const listener = (e: KeyboardEvent) => handleKeyDown(e, ctx);
-      document.addEventListener('keydown', listener);
-
-      return () => {
-        document.removeEventListener('keydown', listener);
-      };
-    },
-  };
-}
-
-// Использование
-behaviors: (path, { use }) => [
-  use(
-    keyboardShortcuts([
-      {
-        key: 's',
-        ctrl: true,
-        action: (scope, _root) => {
-          root.markAsTouched();
-          if (root.valid.value) {
-            console.log('Сохранение...', root.getValue());
-          }
-        },
-      },
-      {
-        key: 'Escape',
-        action: (scope, _root) => {
-          root.reset();
-        },
-      },
-    ])
-  ),
-];
-```
-
-### Отслеживание Аналитики
-
-```typescript title="behaviors/analytics.ts"
-import { Behavior } from '@reformer/core';
-
-interface AnalyticsOptions {
-  trackChanges?: boolean;
-  trackErrors?: boolean;
-  trackSubmit?: boolean;
-}
-
-export function analytics<T>(options: AnalyticsOptions = {}): Behavior<T> {
-  const { trackChanges = true, trackErrors = true } = options;
-
-  return {
-    key: 'analytics',
-    paths: [], // Слушать все поля
-    run: (values, ctx) => {
-      if (trackChanges) {
-        // Отслеживание изменений полей
-        Object.keys(values).forEach((key) => {
-          const field = root[key];
-          if (field?.touched?.value) {
-            window.analytics?.track('Form Field Changed', {
-              form: root.constructor.name,
-              field: key,
-              hasError: !!field.errors?.value,
-            });
-          }
-        });
-      }
-
-      if (trackErrors) {
-        // Отслеживание ошибок валидации
-        Object.keys(values).forEach((key) => {
-          const field = root[key];
-          if (field?.errors?.value) {
-            window.analytics?.track('Form Validation Error', {
-              form: root.constructor.name,
-              field: key,
-              errors: Object.keys(field.errors.value),
-            });
-          }
-        });
-      }
-    },
-  };
-}
-
-// Использование
-behaviors: (path, { use }) => [
-  use(
-    analytics({
-      trackChanges: true,
-      trackErrors: true,
-    })
-  ),
-];
-```
-
-### Синхронизация с LocalStorage
-
-```typescript title="behaviors/local-storage-sync.ts"
-import { Behavior } from '@reformer/core';
-
-interface LocalStorageSyncOptions {
-  key: string;
-  debounce?: number;
-}
-
-export function localStorageSync<T>(options: LocalStorageSyncOptions): Behavior<T> {
-  const { key, debounce = 500 } = options;
-  let timeoutId: NodeJS.Timeout;
-
-  return {
-    key: 'localStorageSync',
-    paths: [], // Слушать все поля
-    run: (values, ctx) => {
-      clearTimeout(timeoutId);
-
-      timeoutId = setTimeout(() => {
-        try {
-          const data = root.getValue();
-          localStorage.setItem(key, JSON.stringify(data));
-        } catch (error) {
-          console.error('Ошибка сохранения в localStorage:', error);
-        }
-      }, debounce);
-    },
-    cleanup: () => {
-      clearTimeout(timeoutId);
-    },
-  };
-}
-
-// Загрузка из хранилища
-export function loadFromLocalStorage<T>(key: string): T | null {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
-  } catch (error) {
-    console.error('Ошибка загрузки из localStorage:', error);
-    return null;
-  }
-}
-
-// Использование
-const savedData = loadFromLocalStorage('myForm');
-
-const form = new GroupNode({
-  form: {
-    name: { value: savedData?.name || '' },
-    email: { value: savedData?.email || '' },
-  },
-  behaviors: (path, { use }) => [use(localStorageSync({ key: 'myForm', debounce: 1000 }))],
+  );
 });
 ```
 
-### Отслеживание Видимости Полей
+:::info Value-операции vs node-операции в строке
+Value-операции (`compute` / `copyFrom` / `transformValue` на `row.$.*`) работают всегда.
+Node-операции (`enableWhen` / `updateComponentProps` / `reset` через `form.*`) требуют, чтобы массив
+был **материализован** в схеме формы (узел `{ array, item }`) — иначе доступ к `form.*` строки бросит
+понятную ошибку.
+:::
 
-```typescript title="behaviors/visibility-watcher.ts"
-import { Behavior } from '@reformer/core';
+### apply
 
-interface VisibilityWatcherOptions {
-  onVisibilityChange: (fieldName: string, visible: boolean) => void;
-}
-
-export function visibilityWatcher<T>(options: VisibilityWatcherOptions): Behavior<T> {
-  const { onVisibilityChange } = options;
-  const previousState = new Map<string, boolean>();
-
-  return {
-    key: 'visibilityWatcher',
-    paths: [], // Слушать все поля
-    run: (_values, ctx) => {
-      Object.keys(root).forEach((key) => {
-        const field = root[key];
-        const currentlyVisible = field?.visible?.value ?? true;
-        const wasVisible = previousState.get(key);
-
-        if (wasVisible !== currentlyVisible) {
-          previousState.set(key, currentlyVisible);
-          onVisibilityChange(key, currentlyVisible);
-        }
-      });
-    },
-  };
-}
-
-// Использование
-behaviors: (path, { use }) => [
-  use(
-    visibilityWatcher({
-      onVisibilityChange: (fieldName, visible) => {
-        console.log(`Поле ${fieldName} теперь ${visible ? 'видимо' : 'скрыто'}`);
-      },
-    })
-  ),
-];
-```
-
-## Комбинирование Нескольких Поведений
+`apply(targets, subSchema)` применяет переиспользуемую под-схему к одному или нескольким
+полям-группам:
 
 ```typescript
-import { autoSave } from './behaviors/auto-save';
-import { analytics } from './behaviors/analytics';
-import { keyboardShortcuts } from './behaviors/keyboard-shortcuts';
+import { defineFormBehavior, apply, copyFrom } from '@reformer/core/behaviors';
 
-const form = new GroupNode({
-  form: {
-    name: { value: '' },
-    email: { value: '' },
-  },
-  behaviors: (path, { use }) => [
-    // Автосохранение каждые 2 секунды
-    use(
-      autoSave({
-        debounce: 2000,
-        onSave: async (data) => {
-          await fetch('/api/save', {
-            method: 'POST',
-            body: JSON.stringify(data),
-          });
-        },
-      })
-    ),
+type Address = { country: string; countryCode: string };
+type ProfileForm = { registrationAddress: Address; residenceAddress: Address };
 
-    // Отслеживание взаимодействий с формой
-    use(
-      analytics({
-        trackChanges: true,
-        trackErrors: true,
-      })
-    ),
+// Переиспользуемая под-схема для группы-адреса
+const addressBehavior = defineFormBehavior<Address>(({ model: addr }) => {
+  copyFrom(addr.$.country, addr.$.countryCode, {
+    transform: (c) => (c ?? '').slice(0, 2).toUpperCase(),
+  });
+});
 
-    // Добавление клавиатурных сокращений
-    use(
-      keyboardShortcuts([
-        {
-          key: 's',
-          ctrl: true,
-          action: (scope, _root) => console.log('Сохранение...'),
-        },
-      ])
-    ),
-  ],
+const behavior = defineFormBehavior<ProfileForm>(({ model }) => {
+  apply([model.$.registrationAddress, model.$.residenceAddress], addressBehavior);
 });
 ```
 
-## Советы по Кастомным Поведениям
+### exclusiveFlag
 
-### 1. Всегда Указывайте Уникальный Ключ
+`exclusiveFlag(array, getFlag)` реализует взаимное исключение булева флага среди строк массива
+(single-selection — «единственный primary»): когда флаг строки становится `true`, у остальных строк
+он сбрасывается в `false`.
 
 ```typescript
-// ✅ Хорошо - уникальный ключ
-use({
-  key: 'myBehavior',
-  paths: [path.field],
-  run: () => {},
-});
+import { defineFormBehavior, exclusiveFlag } from '@reformer/core/behaviors';
 
-// ❌ Плохо - отсутствует ключ
-use({
-  paths: [path.field],
-  run: () => {},
+type ContactsForm = { contacts: { name: string; primary: boolean }[] };
+
+const behavior = defineFormBehavior<ContactsForm>(({ model }) => {
+  exclusiveFlag(model.$.contacts, (row) => row.$.primary);
 });
 ```
 
-### 2. Очищайте Ресурсы
+### aggregateInto
+
+`aggregateInto(array, derive)` делает агрегатную запись в строки: `derive(snapshot)` получает снимок
+строк и возвращает список `{ index, patch }`, который применяется к строкам. Записи коалесцируются в
+один отложенный проход на финальном состоянии; `derive` должна **сходиться** (на фикспоинте возвращать
+те же значения).
 
 ```typescript
-// ✅ Хорошо - очищает таймер
-use({
-  key: 'myBehavior',
-  paths: [path.field],
-  run: () => {
-    const timerId = setTimeout(() => {}, 1000);
-  },
-  cleanup: () => {
-    clearTimeout(timerId);
-  },
+import { defineFormBehavior, aggregateInto } from '@reformer/core/behaviors';
+
+type SplitForm = { rows: { percent: number }[] };
+
+const behavior = defineFormBehavior<SplitForm>(({ model }) => {
+  // последняя строка = 100 − Σ(остальные)
+  aggregateInto(model.$.rows, (rows) => {
+    const n = rows.length;
+    if (n === 0) return [];
+    const others = rows.slice(0, n - 1).reduce((sum, r) => sum + r.percent, 0);
+    return [{ index: n - 1, patch: { percent: 100 - others } }];
+  });
 });
 ```
 
-### 3. Указывайте Зависимости
+## Дальше
 
-```typescript
-// ✅ Хорошо - реагирует только на конкретные поля
-paths: [path.field1, path.field2];
-
-// ❌ Плохо - реагирует на все изменения (если не задумано)
-paths: [];
-```
-
-### 4. Обрабатывайте Ошибки
-
-```typescript
-use({
-  key: 'myBehavior',
-  paths: [path.field],
-  run: async (values, _control, root) => {
-    try {
-      await someAsyncOperation(values);
-    } catch (error) {
-      console.error('Ошибка поведения:', error);
-      // Не пробрасывайте ошибку - поведения не должны ломать форму
-    }
-  },
-});
-```
-
-## Следующие Шаги
-
-- [Вычисляемые Поля](/docs/behaviors/computed) — Встроенное вычисляемое поведение
-- [Условная Логика](/docs/behaviors/conditional) — Встроенные условные поведения
-- [Композиция схем](/docs/core-concepts/schemas/composition) — Композиция сложных форм
+- [Реакции на изменения](./watch) — `onChange`, `watchField`.
+- [Вычисляемые поля](./computed) — `compute` по массиву через `model.<array>.map`.
+- [Массивы и динамические формы](../patterns/arrays) — рендер и мутации массивов.

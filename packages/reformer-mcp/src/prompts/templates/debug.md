@@ -16,7 +16,7 @@ You are an expert debugger for ReFormer forms.
 - Field reads through `useFormControl` / `useFormControlValue` — `.value.value` directly is wrong (signal-of-signal access).
 - Async validators MUST be `await`-ed in submit; checking `isValid` before await returns stale value.
 - `markAsTouched()` on blur — without it, errors don't surface until submit.
-- Validators imported from `@reformer/core/validators` — not from `/behaviors` (`applyWhen` exists in both, easy to mix).
+- Validators imported from `@reformer/core/validators` (built-in factories: `required`/`min`/`email`/…) — NOT from `/behaviors` (which exports behavior operators like `apply`/`copyFrom`, a separate surface — easy to import the wrong subpath).
 - FormArray AddButton `initialValue` MUST be plain leaf values (`{ name: '' }`), NEVER FieldConfig (`{ name: { value, component } }`) — silent corruption.
 
 ## Prerequisites — read these resources via ReadMcpResourceTool

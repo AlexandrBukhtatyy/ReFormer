@@ -13,7 +13,8 @@ import type { Validator, ValidateOptions } from '../../types/validation-schema';
  *
  * Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
  *
- * Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
+ * Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
+ * обязательный multi-select / FormArray без выбранных элементов).
  * Для boolean полей требуется значение `true`.
  *
  * @param options - Опции валидатора ({@link ValidateOptions}): `message`, `params`
@@ -41,17 +42,16 @@ export function required<TForm = unknown, TField = unknown>(
   options?: ValidateOptions
 ): Validator<TForm, TField> {
   return (value) => {
-    if (value === null || value === undefined || value === '') {
+    const isEmpty =
+      value === null ||
+      value === undefined ||
+      value === '' ||
+      (Array.isArray(value) && value.length === 0) ||
+      (typeof value === 'boolean' && value !== true);
+    if (isEmpty) {
       return {
         code: 'required',
-        message: options?.message ?? 'invalid',
-        params: options?.params,
-      };
-    }
-    if (typeof value === 'boolean' && value !== true) {
-      return {
-        code: 'required',
-        message: options?.message ?? 'invalid',
+        message: options?.message ?? '',
         params: options?.params,
       };
     }

@@ -20,7 +20,14 @@ import {
   type JsonFormSchema,
   type JsonNode,
 } from '../types/json-schema';
-import { parseOperator, isModelOp, isComponentOp, isDataSourceOp } from '../operators';
+import {
+  parseOperator,
+  isModelOp,
+  isComponentOp,
+  isDataSourceOp,
+  isFnOp,
+  isLocaleOp,
+} from '../operators';
 import type { ComponentRegistry } from '../registry/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -36,8 +43,10 @@ function resolveComponent(op: string | undefined, registry: ComponentRegistry): 
       `Component "${name}" not found in registry. Available: ${registry.names().join(', ')}`
     );
   }
-  if (meta.type === 'dataSource') {
-    throw new Error(`Entry "${name}" is a 'dataSource' and cannot be used as $component(...)`);
+  // Не даём использовать не-'component'-запись (dataSource/fn/locale) как $component(...),
+  // иначе рантайм принял бы схему, которую validateFormSchema (getComponentNames) отклоняет.
+  if (meta.type !== 'component') {
+    throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $component(...)`);
   }
   return meta.component;
 }
@@ -50,7 +59,96 @@ function resolveDataSource(name: string, registry: ComponentRegistry): unknown {
       `Data source "${name}" not found in registry. Available: ${registry.names().join(', ')}`
     );
   }
+  // Симметрично resolveComponent: не даём использовать 'component'-запись как $dataSource(...),
+  // иначе рантайм принял бы схему, которую validateFormSchema (getDataSourceNames) отклоняет.
+  if (meta.type !== 'dataSource') {
+    throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $dataSource(...)`);
+  }
   return meta.component;
+}
+
+/** Резолв функции реестра по имени из `'$fn(name)'` (форматтер/компаратор/itemLabel/обработчик). */
+function resolveFn(name: string, registry: ComponentRegistry): unknown {
+  const meta = registry.get(name);
+  if (!meta) {
+    throw new Error(
+      `Function "${name}" not found in registry. Available: ${registry.names().join(', ')}`
+    );
+  }
+  // Симметрично resolveDataSource: перепутанные $fn/$dataSource отвергаются (валидатор — раздельно).
+  if (meta.type !== 'fn') {
+    throw new Error(`Entry "${name}" is a '${meta.type}' and cannot be used as $fn(...)`);
+  }
+  return meta.component;
+}
+
+/**
+ * Резолв ключа локализации в строку через сервис реестра. Промах/нет сервиса → сам ключ.
+ * `params` (структурная форма `{ $locale, params }`) — литералы для интерполяции/склонения.
+ */
+function resolveLocale(
+  key: string,
+  registry: ComponentRegistry,
+  params?: Record<string, unknown>
+): string {
+  return registry.getLocale?.()?.resolve(key, params) ?? key;
+}
+
+/**
+ * Структурная форма `$locale` с параметрами в `componentProps`: `{ $locale: 'key', params?: {…} }`.
+ * Объект (не строка-оператор), чтобы не парсить аргументы. `params` — литералы (статичный путь);
+ * реактивные model-параметры — через компонент `I18n`.
+ */
+function isLocaleObjectForm(
+  v: unknown
+): v is { $locale: string; params?: Record<string, unknown> } {
+  return (
+    v !== null &&
+    typeof v === 'object' &&
+    typeof (v as Record<string, unknown>).$locale === 'string'
+  );
+}
+
+/**
+ * Разворачивает `params` структурной `$locale`-формы: `$model(path)` → снимок значения (`.peek()`,
+ * БЕЗ подписки на сигнал), литералы — как есть. Строковый путь статичен, поэтому это снимок на момент
+ * конвертации, а не реакция; для реактивных model-параметров — компонент `I18n`.
+ */
+function snapshotLocaleParams(
+  params: Record<string, unknown> | undefined,
+  scope: any
+): Record<string, unknown> | undefined {
+  if (!params) return params;
+  let touched = false;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(params)) {
+    const v = params[k];
+    if (isModelOp(v)) {
+      const sig = (scope as FormModel<unknown>).signalAt(parseOperator(v)!.arg);
+      out[k] = sig?.peek?.();
+      touched = true;
+    } else {
+      out[k] = v;
+    }
+  }
+  return touched ? out : params;
+}
+
+/**
+ * Предупреждение: `$model(...)` в `params` строковой `$locale`-формы берётся снимком и НЕ реактивен.
+ * Направляет на компонент `I18n` для живого значения. Guard `typeof console` — как у сиблинг-warn ниже.
+ */
+function warnLocaleModelParams(key: string, params?: Record<string, unknown>): void {
+  if (!params || typeof console === 'undefined') return;
+  for (const k of Object.keys(params)) {
+    if (isModelOp(params[k])) {
+      console.warn(
+        `[JsonRenderer] $locale("${key}"): параметр "${k}" (=${String(params[k])}) взят снимком ` +
+          `значения на момент рендера и не обновляется при изменении модели. Для реактивного значения ` +
+          `используй I18n: { component: "$component(I18n)", componentProps: { id: "${key}", values: { ${k}: "${String(params[k])}" } } }.`
+      );
+    }
+  }
 }
 
 /** Значение по dot-пути в value-прокси модели ('properties' → model.properties массив-прокси). */
@@ -77,7 +175,13 @@ function cloneLiteral<T>(v: T): T {
 function transformPropValue(value: unknown, scope: any, registry: ComponentRegistry): unknown {
   if (isDataSourceOp(value)) return resolveDataSource(parseOperator(value)!.arg, registry);
   if (isComponentOp(value)) return resolveComponent(value, registry);
+  if (isFnOp(value)) return resolveFn(parseOperator(value)!.arg, registry);
+  if (isLocaleOp(value)) return resolveLocale(parseOperator(value)!.arg, registry);
   if (isModelOp(value)) return (scope as FormModel<unknown>).signalAt(parseOperator(value)!.arg);
+  if (isLocaleObjectForm(value)) {
+    warnLocaleModelParams(value.$locale, value.params);
+    return resolveLocale(value.$locale, registry, snapshotLocaleParams(value.params, scope));
+  }
   if (looksLikeNode(value)) return convertNodeM1(value, scope, registry);
   if (Array.isArray(value)) return value.map((v) => transformPropValue(v, scope, registry));
   if (value !== null && typeof value === 'object') {
@@ -126,11 +230,17 @@ function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistr
     if (!signal && typeof console !== 'undefined') {
       console.warn(`[JsonRenderer/M1] No model signal for "${path}".`);
     }
+    const componentProps = transformProps(node.componentProps, scope, registry);
+    // Пер-полевая обёртка: JSON `wrapper: { component: '$component(FormField)' }` →
+    // renderer `componentProps.fieldWrapper` (обёртка получает control/label/errors одного поля).
+    const fieldWrapper = node.wrapper
+      ? resolveComponent((node.wrapper as { component?: string }).component, registry)
+      : undefined;
     return {
       ...(node.selector ? { selector: node.selector } : {}),
       value: signal,
       component: resolveComponent(node.component, registry),
-      componentProps: transformProps(node.componentProps, scope, registry),
+      componentProps: fieldWrapper ? { ...(componentProps ?? {}), fieldWrapper } : componentProps,
     } as unknown as RenderNode<T>;
   }
 

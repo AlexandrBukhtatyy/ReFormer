@@ -4,170 +4,210 @@ sidebar_position: 4
 
 # Кастомные валидаторы
 
-Создание переиспользуемых валидаторов для вашего приложения.
+Когда встроенных фабрик недостаточно, правило описывается обычной функцией. Кастомный валидатор
+кладётся в тот же массив `validators`, что и встроенные.
 
-## Простой кастомный валидатор
+## Контракт
 
-Используйте `validate()` для инлайн кастомных валидаторов:
+Валидатор — чистая функция `(value, scope, root)`:
+
+- `value` — значение поля;
+- `scope` — ближайшая scope-модель (под-модель элемента массива или корень);
+- `root` — корневая модель формы (`root.someField` читает значение соседнего поля).
+
+Возвращает `ValidationError` (`{ code, message, params?, severity? }`) либо `null`, если значение
+валидно. Пустые значения принято пропускать — обязательность закрывает `required()`.
+
+## Инлайн-валидатор
+
+Простое правило можно записать прямо в массиве:
 
 ```typescript
-import { validate } from '@reformer/core/validators';
+import { createModel, createForm } from '@reformer/core';
+import { Input } from '@reformer/ui-kit';
 
-validation: (path) => {
-  // Инлайн кастомный валидатор
-  validate(path.age, (value) => {
-    if (value < 18) {
-      return { mustBeAdult: true };
-    }
-    return null;
-  });
+const model = createModel<{ age: number | null }>({ age: null });
+
+const schema = {
+  age: {
+    value: model.$.age,
+    component: Input,
+    validators: [
+      (value: number | null) =>
+        value != null && value < 18 ? { code: 'mustBeAdult', message: 'Только 18+' } : null,
+    ],
+  },
 };
-// Ошибка: { mustBeAdult: true }
+
+const form = createForm({ model, schema });
 ```
 
-## Переиспользуемая фабрика валидаторов
+## Переиспользуемая фабрика
+
+Чтобы применять правило в нескольких формах, оформите его фабрикой, возвращающей `Validator`.
+В M1 каждый валидатор возвращает **одну** ошибку — сложную проверку разбивают на несколько
+правил, все они выполняются и их ошибки накапливаются:
+
+```typescript title="validators/password.ts"
+import type { Validator } from '@reformer/core';
+
+export const hasUppercase = (): Validator<unknown, string> => (value) =>
+  !value || /[A-Z]/.test(value) ? null : { code: 'noUppercase', message: 'Нужна заглавная буква' };
+
+export const hasNumber = (): Validator<unknown, string> => (value) =>
+  !value || /[0-9]/.test(value) ? null : { code: 'noNumber', message: 'Нужна цифра' };
+```
 
 ```typescript
-// validators/password.ts
-import { ValidatorFn } from '@reformer/core';
+// Применение в схеме:
+import { required, minLength } from '@reformer/core/validators';
+import { hasUppercase, hasNumber } from './validators/password';
 
-export function strongPassword(): ValidatorFn {
-  return (value: string) => {
-    const errors: Record<string, boolean> = {};
-
-    if (!/[A-Z]/.test(value)) {
-      errors.noUppercase = true;
-    }
-    if (!/[a-z]/.test(value)) {
-      errors.noLowercase = true;
-    }
-    if (!/[0-9]/.test(value)) {
-      errors.noNumber = true;
-    }
-    if (value.length < 8) {
-      errors.tooShort = true;
-    }
-
-    return Object.keys(errors).length ? errors : null;
-  };
-}
-
-// Использование
-validate(path.password, strongPassword());
+password: {
+  value: model.$.password,
+  component: Input,
+  validators: [required(), minLength(8), hasUppercase(), hasNumber()],
+},
 ```
 
 ## Валидатор с параметрами
 
-```typescript
-export function range(min: number, max: number): ValidatorFn {
-  return (value: number) => {
+Параметризуйте фабрику и прикладывайте данные ошибки через `params` — их можно использовать при
+отображении:
+
+```typescript title="validators/range.ts"
+import type { Validator } from '@reformer/core';
+
+export function range(min: number, max: number): Validator<unknown, number> {
+  return (value) => {
+    if (value == null) return null; // пропускаем пустое
     if (value < min || value > max) {
-      return { range: { min, max, actual: value } };
+      return {
+        code: 'range',
+        message: `Допустимо от ${min} до ${max}`,
+        params: { min, max, actual: value },
+      };
     }
     return null;
   };
 }
-
-// Использование
-validate(path.quantity, range(1, 100));
-// Ошибка: { range: { min: 1, max: 100, actual: 150 } }
 ```
 
-## Валидатор с контекстом
-
-Доступ к состоянию формы во время валидации:
-
 ```typescript
-import { ContextualValidatorFn } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { range } from './validators/range';
 
-export function matchField(fieldName: string): ContextualValidatorFn {
-  return (value, context) => {
-    const otherValue = context.root.controls[fieldName].value;
-
-    if (value !== otherValue) {
-      return { mismatch: { field: fieldName } };
-    }
-    return null;
-  };
-}
-
-// Использование
-validate(path.confirmPassword, matchField('password'));
+quantity: {
+  value: model.$.quantity,
+  component: Input,
+  validators: [required(), range(1, 100)],
+},
 ```
 
-## Кросс-валидация полей
+## Кросс-полевые проверки
 
-Валидация связей между полями:
+Правило, зависящее от другого поля, читает соседа через третий аргумент `root`. Оно вешается на
+поле, которое должно нести ошибку. Для типизированного `root` используйте `ModelValidator`:
 
 ```typescript
-validation: (path) => {
-  validate(path.startDate, required());
-  validate(path.endDate, required());
+import type { ModelValidator } from '@reformer/core';
+import { required } from '@reformer/core/validators';
 
-  // Валидация, что дата окончания после даты начала
-  validate(path.endDate, (value, _control, root) => {
-    const startDate = root.startDate.value.value;
+type PasswordForm = { password: string; confirmPassword: string };
 
-    if (value && startDate && new Date(value) < new Date(startDate)) {
-      return { endBeforeStart: true };
-    }
-    return null;
-  });
+// confirmPassword должен совпадать с password — читаем соседа через root
+const matchesPassword: ModelValidator<string, unknown, PasswordForm> = (value, _scope, root) =>
+  value && root.password && value !== root.password
+    ? { code: 'passwordMismatch', message: 'Пароли не совпадают' }
+    : null;
+
+const schema = {
+  password: { value: model.$.password, component: Input, validators: [required()] },
+  confirmPassword: {
+    value: model.$.confirmPassword,
+    component: Input,
+    validators: [required(), matchesPassword],
+  },
 };
+```
+
+:::tip Пересчёт зависимого поля
+Чтобы `confirmPassword` перепроверялся при изменении `password`, свяжите поля через `revalidateWhen`
+в behavior — см. [Стратегии валидации](/docs/validation/validation-strategies#зависимые-поля).
+:::
+
+## Условная валидация
+
+Кастомные правила, действующие только в части формы, включаются узлом-веткой `{ when, children }`.
+Когда `when` — `false`, поддерево пропускается, а ошибки его полей очищаются:
+
+```typescript
+import { validateFormModel } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+
+const isNineDigits = (value: string) =>
+  /^\d{9}$/.test(value) ? null : { code: 'invalidTaxId', message: 'ИНН — 9 цифр' };
+
+const schema = {
+  country: { value: model.$.country, component: Input, validators: [required()] },
+  // ИНН обязателен только для страны US
+  taxBranch: {
+    when: (_scope, root) => root.country === 'US',
+    children: [{ value: model.$.taxId, component: Input, validators: [required(), isNineDigits] }],
+  },
+};
+
+const { valid } = await validateFormModel(model, schema);
 ```
 
 ## Валидация элементов массива
 
-Валидация элементов в динамических массивах:
+Секция массива в схеме валидации описывается как
+`{ componentProps: { control: model.<array>, itemComponent: (item) => subSchema } }`.
+`validateFormModel` проходит её по каждому элементу и применяет валидаторы к его полям:
 
 ```typescript
-interface ContactForm {
-  name: string;
-  emails: string[];
-}
+import { createModel, validateFormModel, type FormModel } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
 
-const form = new GroupNode<ContactForm>({
-  form: {
-    name: { value: '' },
-    emails: [{ value: '' }],
-  },
-  validation: (path) => {
-    validate(path.name, required());
+type ContactForm = { emails: { address: string }[] };
 
-    // Валидация каждого email в массиве
-    validate(path.emails.$each, required());
-    validate(path.emails.$each, email());
-  },
+const model = createModel<ContactForm>({ emails: [{ address: '' }] });
+
+// Под-схема одного элемента массива
+const emailItem = (item: FormModel<{ address: string }>) => ({
+  address: { value: item.$.address, validators: [required(), email()] },
 });
+
+const schema = {
+  emails: { componentProps: { control: model.emails, itemComponent: emailItem } },
+};
+
+const { valid, errors } = await validateFormModel(model, schema);
 ```
 
-## Условная валидация с кастомной логикой
+## Предупреждения вместо ошибок
 
-Используйте `when()` для условных кастомных валидаторов:
+Ошибка с `severity: 'warning'` показывается пользователю, но **не блокирует** submit (`valid`
+остаётся `true`). Используйте для «мягких» подсказок:
 
 ```typescript
-import { when } from '@reformer/core/validators';
-
-validation: (path) => {
-  validate(path.country, required());
-
-  // Требовать tax ID только для пользователей из США
-  when(
-    () => form.controls.country.value === 'US',
-    (path) => {
-      validate(path.taxId, required());
-      validate(path.taxId, (value) => {
-        if (!/^\d{9}$/.test(value)) {
-          return { invalidTaxId: true };
-        }
-        return null;
-      });
-    }
-  );
-};
+const weakButAllowed = (value: string) =>
+  value && value.length < 12
+    ? { code: 'shortPassword', message: 'Рекомендуем 12+ символов', severity: 'warning' as const }
+    : null;
 ```
 
-## Следующие шаги
+## Советы
 
-- [Behaviors](/docs/behaviors/overview) — реактивная логика форм
-- [API Reference](/docs/api) — полная документация API
+- **Возвращайте `null` для валидного значения** — не `undefined` и не `{}`.
+- **Пропускайте пустое** (`if (!value) return null`) — обязательность закрывает `required()`.
+- **Используйте описательные `code`** (`passwordTooWeak`, а не `invalid`) — по ним удобно фильтровать
+  и локализовать ошибки.
+- **Кладите контекст в `params`** (`{ max: 100, actual: value.length }`) — пригодится при отображении.
+
+## Дальше
+
+- [Асинхронная валидация](/docs/validation/async) — проверки уникальности через сервер.
+- [Стратегии валидации](/docs/validation/validation-strategies) — `updateOn`, пошаговые формы, зависимые поля.
+- [Обработка ошибок](/docs/validation/error-handling) — чтение и отображение `ValidationError`.

@@ -2,97 +2,121 @@
 sidebar_position: 3
 ---
 
-# Conditional Logic
+# Условная логика
 
-Show, hide, enable, or disable fields based on conditions.
+Условная **доступность** и **сброс** полей в зависимости от других полей. Три оператора:
+`enableWhen`, `disableWhen`, `resetWhen`.
+
+:::info Доступность ≠ валидация ≠ скрытие
+Здесь речь о доступности и значениях. Смежные механизмы:
+
+- **условная валидация** — нативный branch-узел схемы `{ when, children }`, исполняется
+  `validateFormModel` (см. [Валидацию](../validation/overview));
+- **скрытие из разметки** — условный рендер в JSX через `useFormControlValue` (см.
+  [React-хуки](../react/hooks)).
+  :::
 
 ## enableWhen
 
-Enable field only when condition is true.
+`enableWhen(target, condition, { resetOnDisable? })` включает/выключает поле реактивно. Пока условие
+ложно, поле **disabled** и не участвует в валидации. С `resetOnDisable: true` значение поля
+сбрасывается при выключении; по умолчанию `false` — значение сохраняется.
 
 ```typescript
-import { enableWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, enableWhen } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [
-  enableWhen(path.submitButton, () => form.controls.agreeToTerms.value === true),
-];
+type CreditForm = {
+  loanType: 'mortgage' | 'car' | 'consumer';
+  sameAsRegistration: boolean;
+  propertyValue: number | null;
+  initialPayment: number | null;
+  residenceAddress: { city: string; street: string };
+};
+
+const behavior = defineFormBehavior<CreditForm>(({ model }) => {
+  enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', {
+    resetOnDisable: true,
+  });
+});
 ```
 
-### Example: Step Form
+### Несколько целей и группы
+
+`target` может быть **массивом** сигналов (одно условие на несколько полей) или **группой**
+(поддерево целиком):
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    step1Complete: { value: false },
-    step2Data: { value: '' },
-  },
-  behaviors: (path, ctx) => [
-    enableWhen(path.step2Data, () => form.controls.step1Complete.value === true),
-  ],
+const behavior = defineFormBehavior<CreditForm>(({ model }) => {
+  // массив целей — одно условие на оба поля
+  enableWhen([model.$.propertyValue, model.$.initialPayment], () => model.loanType === 'mortgage', {
+    resetOnDisable: true,
+  });
+
+  // группа — проходит по всему поддереву
+  enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false);
+});
+```
+
+:::warning Групповой таргет — только DSL
+Групповую цель поддерживает `enableWhen` из `@reformer/core/behaviors`. Одноимённый примитив из
+`@reformer/core` резолвит только leaf-сигналы — на сигнале группы это тихий no-op.
+:::
+
+## disableWhen
+
+`disableWhen(target, condition, { resetOnDisable? })` — инверсия `enableWhen`: выключает поле, когда
+условие **истинно**.
+
+```typescript
+import { defineFormBehavior, disableWhen } from '@reformer/core/behaviors';
+
+type OrderForm = { hasPromo: boolean; promoCode: string };
+
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  // отключаем поле промокода, пока не отмечен флаг «есть промокод»
+  disableWhen(model.$.promoCode, () => model.hasPromo === false, { resetOnDisable: true });
 });
 ```
 
 ## resetWhen
 
-Reset field to initial value when condition becomes true.
+`resetWhen(target, condition, { resetValue? })` сбрасывает значение поля к `resetValue`, когда
+`condition` истинно. Альтернатива `enableWhen({ resetOnDisable: true })`, когда поле должно остаться
+**enabled**, но содержимое нужно очистить. По умолчанию пишет `null`; для строк и чисел задавай
+`resetValue` явно.
 
 ```typescript
-import { resetWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, resetWhen } from '@reformer/core/behaviors';
 
-behaviors: (path, ctx) => [
-  // Reset details when type changes
-  resetWhen(path.typeDetails, () => form.controls.type.value, { watchValue: true }),
-];
-```
+type CheckoutForm = { paymentType: 'card' | 'cash'; cardNumber: string };
 
-### Example: Dependent Dropdowns
-
-```typescript
-const form = new GroupNode({
-  form: {
-    country: { value: '' },
-    city: { value: '' },
-  },
-  behaviors: (path, ctx) => [
-    // Reset city when country changes
-    resetWhen(path.city, () => form.controls.country.value, { watchValue: true }),
-  ],
+const behavior = defineFormBehavior<CheckoutForm>(({ model }) => {
+  // сброс номера карты при переключении на наличные; поле остаётся доступным
+  resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 });
-
-form.controls.country.setValue('US');
-form.controls.city.setValue('NYC');
-form.controls.country.setValue('UK'); // city resets to ''
 ```
 
-## Combining Conditions
+:::tip enableWhen vs resetWhen
 
-Use multiple behaviors together:
+- Поле должно **исчезнуть** из валидации/состояния → `enableWhen(..., { resetOnDisable: true })`.
+- Поле остаётся доступным, нужно лишь **очистить значение** → `resetWhen(..., { resetValue })`.
+  :::
+
+### Условие не должно читать собственную цель
+
+`condition` в `resetWhen` (как и `when` в `copyFrom` / `enableWhen`) должно зависеть только от
+**независимых** полей. Если оно читает целевое поле — сброс триггерит своё же условие:
 
 ```typescript
-behaviors: (path, ctx) => [
-  // Show business fields only for business accounts
-  enableWhen(path.companyName, () => form.controls.accountType.value === 'business'),
-  enableWhen(path.taxId, () => form.controls.accountType.value === 'business'),
+// ❌ самотриггер — условие читает cardNumber (цель)
+resetWhen(model.$.cardNumber, () => model.cardNumber !== '');
 
-  // Reset business fields when switching to personal
-  resetWhen(path.companyName, () => form.controls.accountType.value === 'personal'),
-  resetWhen(path.taxId, () => form.controls.accountType.value === 'personal'),
-];
+// ✅ условие зависит только от независимого поля
+resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-## Complex Conditions
+## Дальше
 
-```typescript
-behaviors: (path, ctx) => [
-  enableWhen(path.spouseInfo, () => {
-    const status = form.controls.maritalStatus.value;
-    const includeSpouse = form.controls.includeSpouse.value;
-    return status === 'married' && includeSpouse === true;
-  }),
-];
-```
-
-## Next Steps
-
-- [Field Sync](/docs/behaviors/sync) — Copy and synchronize fields
-- [Watch Behaviors](/docs/behaviors/watch) — React to changes
+- [Синхронизация полей](./sync) — `copyFrom`, `syncFields`.
+- [Вычисляемые поля](./computed) — `compute` с опцией `when` для условной записи.
+- [Реакции на изменения](./watch) — `onChange` для сложной логики.

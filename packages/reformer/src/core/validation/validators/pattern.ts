@@ -43,14 +43,19 @@ export function pattern<TForm = unknown, TField extends string | undefined = str
   regex: RegExp,
   options?: ValidateOptions
 ): Validator<TForm, TField> {
+  // Клонируем regex: с флагами /g или /y `RegExp.test` stateful (двигает `lastIndex`
+  // между вызовами), из-за чего один и тот же ввод чередовал бы valid/invalid. Клон
+  // изолирует состояние от экземпляра вызывающего кода; `lastIndex` сбрасываем на каждый вызов.
+  const re = new RegExp(regex.source, regex.flags);
   return (value) => {
     if (!value) {
       return null;
     }
-    if (!regex.test(value as string)) {
+    re.lastIndex = 0;
+    if (!re.test(value as string)) {
       return {
         code: 'pattern',
-        message: options?.message ?? 'invalid',
+        message: options?.message ?? '',
         params: { pattern: regex.source, ...options?.params },
       };
     }

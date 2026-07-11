@@ -58,12 +58,38 @@ export function getDataSourceNames(registry: ComponentRegistry): string[] {
   return registry.names().filter((n) => registry.get(n)?.type === 'dataSource');
 }
 
-const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * Имена функций реестра (`reg.fn`) — то, что валидно в `$fn(...)`: форматтеры/компараторы/itemLabel/
+ * обработчики. Отдельно от {@link getDataSourceNames}, поэтому `validateFormSchema` ловит перепутанные
+ * `$fn`/`$dataSource`.
+ *
+ * @param registry - Реестр (см. {@link defineRegistry}).
+ * @returns Массив имён функций.
+ */
+export function getFnNames(registry: ComponentRegistry): string[] {
+  return registry.names().filter((n) => registry.get(n)?.type === 'fn');
+}
 
 /**
- * Конкретная мета-схема: базовая + (если заданы `componentNames`) сужение паттерна `$component(...)`
- * до enum имён (`^\$component\((Input|Select|…)\)$`). `$dataSource`-имена JSON Schema'й не покрыть
- * (вложены в произвольный componentProps) — их проверяет рекурсивный обход в `validateFormSchema`.
+ * Известные ключи локализации сервиса реестра (`reg.locale` с каталогом) — то, что валидно в
+ * `$locale(...)`. `undefined`, если сервис не зарегистрирован или задан голым резолвером без `keys`
+ * (тогда `validateFormSchema` мягко пропускает проверку ключей, как для `$model`-путей).
+ *
+ * @param registry - Реестр (см. {@link defineRegistry}).
+ * @returns Массив ключей либо `undefined`.
+ */
+export function getLocaleKeys(registry: ComponentRegistry): readonly string[] | undefined {
+  return registry.getLocale?.()?.keys;
+}
+
+/**
+ * Конкретная мета-схема: базовая + (если заданы `componentNames`) сужение `$component(...)` до
+ * enum допустимых значений (`["$component(Input)", "$component(Select)", …]`). `$dataSource`-имена
+ * JSON Schema'й не покрыть (вложены в произвольный componentProps) — их проверяет рекурсивный обход
+ * в `validateFormSchema`.
+ *
+ * enum, а не regex-`pattern`: ajv перечисляет допустимые имена в тексте ошибки, IDE даёт
+ * автодополнение по значениям, а имена не нужно экранировать под regex (напр. `$fieldWrapper`).
  *
  * @example
  * ```ts
@@ -74,12 +100,13 @@ export function buildFormSchemaMetaSchema(opts?: {
   componentNames?: string[];
 }): Record<string, unknown> {
   const schema = JSON.parse(JSON.stringify(metaSchema)) as {
-    definitions: { componentOp: { pattern: string } };
+    definitions: { componentOp: { pattern?: string; enum?: string[] } };
   };
   const names = opts?.componentNames;
   if (names && names.length > 0) {
-    const alt = names.map(escapeRe).join('|');
-    schema.definitions.componentOp.pattern = `^\\$component\\((${alt})\\)$`;
+    const op = schema.definitions.componentOp;
+    delete op.pattern;
+    op.enum = names.map((n) => `$component(${n})`);
   }
   return schema as unknown as Record<string, unknown>;
 }

@@ -127,8 +127,13 @@ export class FormErrorHandler {
     // Извлекаем сообщение из ошибки
     const message = this.extractMessage(error);
 
-    // Логируем в DEV режиме
-    if (import.meta.env.DEV) {
+    // Логируем в DEV режиме.
+    // ВАЖНО: используем process.env.NODE_ENV (как subscription-manager.ts), а НЕ import.meta.env.DEV.
+    // import.meta.env.DEV статически заменяется Vite в момент СБОРКИ самой библиотеки (=false в prod-
+    // сборке dist), поэтому в опубликованном пакете ветка была бы вырезана и консумент не получал бы
+    // никакой диагностики даже в своей dev-сборке. process.env.NODE_ENV подставляет бандлер КОНСУМЕНТА,
+    // поэтому лог доживает до dev-сборок консумеров.
+    if (process.env.NODE_ENV !== 'production') {
       console.error(`[${context}]`, error);
     }
 

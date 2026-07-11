@@ -1,7 +1,57 @@
 import { themes as prismThemes } from 'prism-react-renderer';
-import type { Config } from '@docusaurus/types';
+import type { Config, Plugin } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import path from 'path';
+import { createRequire } from 'module';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+const require = createRequire(import.meta.url);
+
+/**
+ * Инлайн-плагин для ЖИВЫХ демо @reformer/ui-kit:
+ * 1. `configurePostCss` — подключает Tailwind v4 (@tailwindcss/postcss) в
+ *    PostCSS-пайплайн Docusaurus, чтобы `src/css/reformer-demo.css`
+ *    (theme+utilities+@source+@theme) компилировался.
+ * 2. `configureWebpack` — дедуплицирует singleton-рантаймы (React, Radix,
+ *    @preact/signals-core): одна копия на всё дерево, иначе ломаются
+ *    `instanceof Signal` и React-контекст Radix при workspace-линке.
+ *    Аналог `resolve.dedupe` из projects/react-playground/vite.config.ts.
+ */
+function reformerLiveDemoPlugin(): Plugin<void> {
+  // Каталог установленного пакета. Некоторые пакеты (@preact/signals-core,
+  // @radix-ui/*) не экспортируют './package.json' — тогда резолвим entry и
+  // поднимаемся до node_modules/<pkg>.
+  const pkgDir = (pkg: string) => {
+    try {
+      return path.dirname(require.resolve(`${pkg}/package.json`));
+    } catch {
+      const entry = require.resolve(pkg);
+      const marker = path.join('node_modules', ...pkg.split('/'));
+      const idx = entry.lastIndexOf(marker);
+      return idx === -1 ? path.dirname(entry) : entry.slice(0, idx + marker.length);
+    }
+  };
+  return {
+    name: 'reformer-live-demo',
+    configurePostCss(postcssOptions) {
+      postcssOptions.plugins.push(require('@tailwindcss/postcss'));
+      return postcssOptions;
+    },
+    configureWebpack() {
+      return {
+        resolve: {
+          alias: {
+            react: pkgDir('react'),
+            'react-dom': pkgDir('react-dom'),
+            '@preact/signals-core': pkgDir('@preact/signals-core'),
+            '@radix-ui/react-select': pkgDir('@radix-ui/react-select'),
+            '@radix-ui/react-slot': pkgDir('@radix-ui/react-slot'),
+          },
+        },
+      };
+    },
+  };
+}
 
 const config: Config = {
   title: 'ReFormer',
@@ -20,12 +70,7 @@ const config: Config = {
   trailingSlash: false,
   deploymentBranch: 'gh-pages',
 
-  // 'warn' вместо 'throw' — typedoc-plugin-markdown копирует MD-файлы из @see
-  // ссылок (например `@see [docs/llms/22-cycle-detection.md](...)` в behaviors)
-  // в `_media/`, после чего Docusaurus не резолвит их как routes и считает
-  // broken. Это известный артефакт интеграции, реальных navigation-ошибок не
-  // означает. Переход обратно на 'throw' — после починки typedoc-генерации.
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -45,6 +90,7 @@ const config: Config = {
     },
   },
   plugins: [
+    reformerLiveDemoPlugin,
     [
       'docusaurus-plugin-typedoc',
       {
@@ -100,7 +146,7 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: ['./src/css/custom.css', './src/css/reformer-demo.css'],
         },
       } satisfies Preset.Options,
     ],
@@ -115,7 +161,6 @@ const config: Config = {
       textColor: '#92400e',
       isCloseable: true,
     },
-    image: 'img/reformer-social-card.jpg',
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -128,26 +173,33 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'docsSidebar',
+          sidebarId: 'coreSidebar',
           position: 'left',
-          label: 'Docs',
+          label: 'Core',
         },
         {
           type: 'docSidebar',
-          sidebarId: 'uiSidebar',
+          sidebarId: 'cdkSidebar',
+          position: 'left',
+          label: 'CDK',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'uiKitSidebar',
           position: 'left',
           label: 'UI-Kit',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'rendererSidebar',
+          position: 'left',
+          label: 'Renderer',
         },
         {
           type: 'docSidebar',
           sidebarId: 'mcpSidebar',
           position: 'left',
           label: 'MCP',
-        },
-        {
-          to: '/docs/api',
-          position: 'left',
-          label: 'Core API',
         },
         {
           href: 'https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground?file=projects/react-playground/src/App.tsx',

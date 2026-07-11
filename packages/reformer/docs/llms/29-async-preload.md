@@ -13,8 +13,8 @@ race-guard через deps). Динамические `componentProps` (опци
 
 ```typescript
 // Модель:
-model.set(value: Partial<T>): void;   // массовая замена (load с сервера). Не меняет initial.
-model.patch(value: Partial<T>): void; // частичное слияние (алиас set по семантике merge)
+model.set(value: T): void;            // полная установка значений (load полного DTO). Не меняет initial.
+model.patch(value: Partial<T>): void; // частичное слияние (только переданные ключи). Не меняет initial.
 model.reset(): void;                  // вернуть к initial-снимку
 model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 

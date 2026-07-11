@@ -35,20 +35,18 @@ export function buildCreditApplicationSchema(
   model: FormModel<CreditApplicationForm>,
   form?: FormProxy<CreditApplicationForm>
 ): RenderNode<CreditApplicationForm> {
-  const m = model.$;
-
   // ── Step 1 — Основная информация о кредите ─────────────────────────────────
   const step1Body = {
     component: Box,
     componentProps: { className: 'space-y-4' },
     children: [
       {
-        value: m.loanType,
+        value: model.$.loanType,
         component: Select,
         componentProps: { label: 'Тип кредита', testId: 'loanType', options: LOAN_TYPE_OPTIONS },
       },
       {
-        value: m.loanAmount,
+        value: model.$.loanAmount,
         component: Input,
         componentProps: {
           label: 'Сумма кредита (₽)',
@@ -58,12 +56,12 @@ export function buildCreditApplicationSchema(
         },
       },
       {
-        value: m.loanTerm,
+        value: model.$.loanTerm,
         component: Input,
         componentProps: { label: 'Срок кредита (мес.)', testId: 'loanTerm', type: 'number' },
       },
       {
-        value: m.loanPurpose,
+        value: model.$.loanPurpose,
         component: Textarea,
         componentProps: { label: 'Цель кредита', testId: 'loanPurpose', maxLength: 500 },
       },
@@ -74,7 +72,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Ипотека', className: 'space-y-4' },
         children: [
           {
-            value: m.propertyValue,
+            value: model.$.propertyValue,
             component: Input,
             componentProps: {
               label: 'Стоимость недвижимости (₽)',
@@ -83,7 +81,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.initialPayment,
+            value: model.$.initialPayment,
             component: Input,
             componentProps: {
               label: 'Первоначальный взнос (₽)',
@@ -101,22 +99,22 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Автокредит', className: 'space-y-4' },
         children: [
           {
-            value: m.carBrand,
+            value: model.$.carBrand,
             component: Input,
             componentProps: { label: 'Марка автомобиля', testId: 'carBrand' },
           },
           {
-            value: m.carModel,
+            value: model.$.carModel,
             component: Select,
             componentProps: { label: 'Модель автомобиля', testId: 'carModel', options: [] },
           },
           {
-            value: m.carYear,
+            value: model.$.carYear,
             component: Input,
             componentProps: { label: 'Год выпуска', testId: 'carYear', type: 'number' },
           },
           {
-            value: m.carPrice,
+            value: model.$.carPrice,
             component: Input,
             componentProps: {
               label: 'Стоимость автомобиля (₽)',
@@ -132,7 +130,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Расчёт', className: 'space-y-4' },
         children: [
           {
-            value: m.interestRate,
+            value: model.$.interestRate,
             component: Input,
             componentProps: {
               label: 'Процентная ставка (%)',
@@ -142,7 +140,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.monthlyPayment,
+            value: model.$.monthlyPayment,
             component: Input,
             componentProps: {
               label: 'Ежемесячный платёж (₽)',
@@ -166,22 +164,22 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Личные данные', className: 'space-y-4' },
         children: [
           {
-            value: m.personalData.lastName,
+            value: model.$.personalData.lastName,
             component: Input,
             componentProps: { label: 'Фамилия', testId: 'personalData-lastName' },
           },
           {
-            value: m.personalData.firstName,
+            value: model.$.personalData.firstName,
             component: Input,
             componentProps: { label: 'Имя', testId: 'personalData-firstName' },
           },
           {
-            value: m.personalData.middleName,
+            value: model.$.personalData.middleName,
             component: Input,
             componentProps: { label: 'Отчество', testId: 'personalData-middleName' },
           },
           {
-            value: m.personalData.birthDate,
+            value: model.$.personalData.birthDate,
             component: Input,
             componentProps: {
               label: 'Дата рождения',
@@ -190,7 +188,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.personalData.gender,
+            value: model.$.personalData.gender,
             component: RadioGroup,
             componentProps: {
               label: 'Пол',
@@ -199,17 +197,17 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.personalData.birthPlace,
+            value: model.$.personalData.birthPlace,
             component: Input,
             componentProps: { label: 'Место рождения', testId: 'personalData-birthPlace' },
           },
           {
-            value: m.fullName,
+            value: model.$.fullName,
             component: Input,
             componentProps: { label: 'Полное имя', testId: 'fullName', ...RO },
           },
           {
-            value: m.age,
+            value: model.$.age,
             component: Input,
             componentProps: { label: 'Возраст (лет)', testId: 'age', type: 'number', ...RO },
           },
@@ -220,7 +218,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Паспортные данные', className: 'space-y-4' },
         children: [
           {
-            value: m.passportData.series,
+            value: model.$.passportData.series,
             component: InputMask,
             componentProps: {
               label: 'Серия паспорта',
@@ -229,7 +227,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.passportData.number,
+            value: model.$.passportData.number,
             component: InputMask,
             componentProps: {
               label: 'Номер паспорта',
@@ -238,7 +236,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.passportData.issueDate,
+            value: model.$.passportData.issueDate,
             component: Input,
             componentProps: {
               label: 'Дата выдачи',
@@ -247,12 +245,12 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.passportData.issuedBy,
+            value: model.$.passportData.issuedBy,
             component: Input,
             componentProps: { label: 'Кем выдан', testId: 'passportData-issuedBy' },
           },
           {
-            value: m.passportData.departmentCode,
+            value: model.$.passportData.departmentCode,
             component: InputMask,
             componentProps: {
               label: 'Код подразделения',
@@ -267,12 +265,12 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Документы', className: 'space-y-4' },
         children: [
           {
-            value: m.inn,
+            value: model.$.inn,
             component: InputMask,
             componentProps: { label: 'ИНН', testId: 'inn', mask: '999999999999' },
           },
           {
-            value: m.snils,
+            value: model.$.snils,
             component: InputMask,
             componentProps: { label: 'СНИЛС', testId: 'snils', mask: '999-999-999 99' },
           },
@@ -291,7 +289,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Контакты', className: 'space-y-4' },
         children: [
           {
-            value: m.phoneMain,
+            value: model.$.phoneMain,
             component: InputMask,
             componentProps: {
               label: 'Основной телефон',
@@ -300,7 +298,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.phoneAdditional,
+            value: model.$.phoneAdditional,
             component: InputMask,
             componentProps: {
               label: 'Дополнительный телефон',
@@ -309,12 +307,12 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.email,
+            value: model.$.email,
             component: Input,
             componentProps: { label: 'Email', testId: 'email', type: 'email' },
           },
           {
-            value: m.sameEmail,
+            value: model.$.sameEmail,
             component: Checkbox,
             componentProps: {
               label: 'Использовать основной email для уведомлений',
@@ -322,7 +320,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.emailAdditional,
+            value: model.$.emailAdditional,
             component: Input,
             componentProps: {
               label: 'Дополнительный email',
@@ -337,7 +335,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Адрес регистрации', className: 'space-y-4' },
         children: [
           {
-            value: m.registrationAddress.region,
+            value: model.$.registrationAddress.region,
             component: Select,
             componentProps: {
               label: 'Регион',
@@ -346,27 +344,27 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.registrationAddress.city,
+            value: model.$.registrationAddress.city,
             component: Select,
             componentProps: { label: 'Город', testId: 'registrationAddress-city', options: [] },
           },
           {
-            value: m.registrationAddress.street,
+            value: model.$.registrationAddress.street,
             component: Input,
             componentProps: { label: 'Улица', testId: 'registrationAddress-street' },
           },
           {
-            value: m.registrationAddress.house,
+            value: model.$.registrationAddress.house,
             component: Input,
             componentProps: { label: 'Дом', testId: 'registrationAddress-house' },
           },
           {
-            value: m.registrationAddress.apartment,
+            value: model.$.registrationAddress.apartment,
             component: Input,
             componentProps: { label: 'Квартира', testId: 'registrationAddress-apartment' },
           },
           {
-            value: m.registrationAddress.postalCode,
+            value: model.$.registrationAddress.postalCode,
             component: InputMask,
             componentProps: {
               label: 'Индекс',
@@ -377,7 +375,7 @@ export function buildCreditApplicationSchema(
         ],
       },
       {
-        value: m.sameAsRegistration,
+        value: model.$.sameAsRegistration,
         component: Checkbox,
         componentProps: {
           label: 'Адрес проживания совпадает с адресом регистрации',
@@ -390,7 +388,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Адрес проживания', className: 'space-y-4' },
         children: [
           {
-            value: m.residenceAddress.region,
+            value: model.$.residenceAddress.region,
             component: Select,
             componentProps: {
               label: 'Регион',
@@ -399,27 +397,27 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.residenceAddress.city,
+            value: model.$.residenceAddress.city,
             component: Select,
             componentProps: { label: 'Город', testId: 'residenceAddress-city', options: [] },
           },
           {
-            value: m.residenceAddress.street,
+            value: model.$.residenceAddress.street,
             component: Input,
             componentProps: { label: 'Улица', testId: 'residenceAddress-street' },
           },
           {
-            value: m.residenceAddress.house,
+            value: model.$.residenceAddress.house,
             component: Input,
             componentProps: { label: 'Дом', testId: 'residenceAddress-house' },
           },
           {
-            value: m.residenceAddress.apartment,
+            value: model.$.residenceAddress.apartment,
             component: Input,
             componentProps: { label: 'Квартира', testId: 'residenceAddress-apartment' },
           },
           {
-            value: m.residenceAddress.postalCode,
+            value: model.$.residenceAddress.postalCode,
             component: InputMask,
             componentProps: {
               label: 'Индекс',
@@ -438,7 +436,7 @@ export function buildCreditApplicationSchema(
     componentProps: { className: 'space-y-4' },
     children: [
       {
-        value: m.employmentStatus,
+        value: model.$.employmentStatus,
         component: RadioGroup,
         componentProps: {
           label: 'Статус занятости',
@@ -453,17 +451,17 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Работа по найму', className: 'space-y-4' },
         children: [
           {
-            value: m.companyName,
+            value: model.$.companyName,
             component: Input,
             componentProps: { label: 'Название компании', testId: 'companyName' },
           },
           {
-            value: m.companyInn,
+            value: model.$.companyInn,
             component: InputMask,
             componentProps: { label: 'ИНН компании', testId: 'companyInn', mask: '9999999999' },
           },
           {
-            value: m.companyPhone,
+            value: model.$.companyPhone,
             component: InputMask,
             componentProps: {
               label: 'Телефон компании',
@@ -472,12 +470,12 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.companyAddress,
+            value: model.$.companyAddress,
             component: Input,
             componentProps: { label: 'Адрес компании', testId: 'companyAddress' },
           },
           {
-            value: m.position,
+            value: model.$.position,
             component: Input,
             componentProps: { label: 'Должность', testId: 'position' },
           },
@@ -490,17 +488,17 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'ИП / самозанятый', className: 'space-y-4' },
         children: [
           {
-            value: m.businessType,
+            value: model.$.businessType,
             component: Input,
             componentProps: { label: 'Тип бизнеса', testId: 'businessType' },
           },
           {
-            value: m.businessInn,
+            value: model.$.businessInn,
             component: InputMask,
             componentProps: { label: 'ИНН ИП', testId: 'businessInn', mask: '999999999999' },
           },
           {
-            value: m.businessActivity,
+            value: model.$.businessActivity,
             component: Textarea,
             componentProps: { label: 'Вид деятельности', testId: 'businessActivity' },
           },
@@ -511,7 +509,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Стаж и доход', className: 'space-y-4' },
         children: [
           {
-            value: m.workExperienceTotal,
+            value: model.$.workExperienceTotal,
             component: Input,
             componentProps: {
               label: 'Общий стаж (мес.)',
@@ -520,7 +518,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.workExperienceCurrent,
+            value: model.$.workExperienceCurrent,
             component: Input,
             componentProps: {
               label: 'Стаж на текущем месте (мес.)',
@@ -529,7 +527,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.monthlyIncome,
+            value: model.$.monthlyIncome,
             component: Input,
             componentProps: {
               label: 'Ежемесячный доход (₽)',
@@ -538,7 +536,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.additionalIncome,
+            value: model.$.additionalIncome,
             component: Input,
             componentProps: {
               label: 'Дополнительный доход (₽)',
@@ -547,12 +545,12 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.additionalIncomeSource,
+            value: model.$.additionalIncomeSource,
             component: Input,
             componentProps: { label: 'Источник доп. дохода', testId: 'additionalIncomeSource' },
           },
           {
-            value: m.totalIncome,
+            value: model.$.totalIncome,
             component: Input,
             componentProps: {
               label: 'Общий доход (₽)',
@@ -689,7 +687,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Личное', className: 'space-y-4' },
         children: [
           {
-            value: m.maritalStatus,
+            value: model.$.maritalStatus,
             component: RadioGroup,
             componentProps: {
               label: 'Семейное положение',
@@ -698,7 +696,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.dependents,
+            value: model.$.dependents,
             component: Input,
             componentProps: {
               label: 'Количество иждивенцев',
@@ -707,7 +705,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.education,
+            value: model.$.education,
             component: Select,
             componentProps: {
               label: 'Образование',
@@ -719,7 +717,7 @@ export function buildCreditApplicationSchema(
       },
       // Имущество
       {
-        value: m.hasProperty,
+        value: model.$.hasProperty,
         component: Checkbox,
         componentProps: { label: 'У меня есть имущество', testId: 'hasProperty' },
       },
@@ -738,7 +736,7 @@ export function buildCreditApplicationSchema(
       },
       // Кредиты
       {
-        value: m.hasExistingLoans,
+        value: model.$.hasExistingLoans,
         component: Checkbox,
         componentProps: { label: 'У меня есть другие кредиты', testId: 'hasExistingLoans' },
       },
@@ -756,7 +754,7 @@ export function buildCreditApplicationSchema(
       },
       // Созаемщики
       {
-        value: m.hasCoBorrower,
+        value: model.$.hasCoBorrower,
         component: Checkbox,
         componentProps: { label: 'Добавить созаемщика', testId: 'hasCoBorrower' },
       },
@@ -778,7 +776,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Итоги', className: 'space-y-4' },
         children: [
           {
-            value: m.coBorrowersIncome,
+            value: model.$.coBorrowersIncome,
             component: Input,
             componentProps: {
               label: 'Доход созаемщиков (₽)',
@@ -788,7 +786,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.paymentToIncomeRatio,
+            value: model.$.paymentToIncomeRatio,
             component: Input,
             componentProps: {
               label: 'Платёж от дохода (%)',
@@ -812,7 +810,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Согласия', className: 'space-y-4' },
         children: [
           {
-            value: m.agreePersonalData,
+            value: model.$.agreePersonalData,
             component: Checkbox,
             componentProps: {
               label: 'Согласие на обработку персональных данных',
@@ -820,7 +818,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.agreeCreditHistory,
+            value: model.$.agreeCreditHistory,
             component: Checkbox,
             componentProps: {
               label: 'Согласие на проверку кредитной истории',
@@ -828,7 +826,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.agreeMarketing,
+            value: model.$.agreeMarketing,
             component: Checkbox,
             componentProps: {
               label: 'Согласие на получение маркетинговых материалов',
@@ -836,7 +834,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.agreeTerms,
+            value: model.$.agreeTerms,
             component: Checkbox,
             componentProps: { label: 'Согласие с условиями кредитования', testId: 'agreeTerms' },
           },
@@ -847,7 +845,7 @@ export function buildCreditApplicationSchema(
         componentProps: { title: 'Подтверждение', className: 'space-y-4' },
         children: [
           {
-            value: m.confirmAccuracy,
+            value: model.$.confirmAccuracy,
             component: Checkbox,
             componentProps: {
               label: 'Подтверждаю точность введённых данных',
@@ -855,7 +853,7 @@ export function buildCreditApplicationSchema(
             },
           },
           {
-            value: m.electronicSignature,
+            value: model.$.electronicSignature,
             component: InputMask,
             componentProps: {
               label: 'Код подтверждения из СМС',

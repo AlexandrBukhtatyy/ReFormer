@@ -4,172 +4,208 @@ sidebar_position: 1
 
 # Обзор схем
 
-ReFormer использует архитектуру из трёх схем для разделения ответственности и максимального переиспользования кода.
+ReFormer делит форму на три независимые заботы — **структуру**, **валидацию** и **behavior** — чтобы
+код оставался сфокусированным и переиспользуемым. В архитектуре M1 значения живут в **модели**,
+**схема** привязывает каждое поле к сигналу модели (и несёт его валидаторы), а реактивная логика
+описывается отдельно через `defineFormBehavior`.
 
-## Три типа схем
+## Структура, валидация и behavior
 
-| Схема               | Назначение                            | Свойство     |
-| ------------------- | ------------------------------------- | ------------ |
-| **Схема формы**     | Структура данных и конфигурация полей | `form`       |
-| **Схема валидации** | Правила валидации                     | `validation` |
-| **Схема поведений** | Реактивная логика и побочные эффекты  | `behavior`   |
+| Забота        | Что описывает                    | Где живёт                   |
+| ------------- | -------------------------------- | --------------------------- |
+| **Структура** | Данные и конфигурация полей      | `model` + узлы `schema`     |
+| **Валидация** | Правила корректности данных      | `validators` на узлах схемы |
+| **Behavior**  | Реактивная логика и side-эффекты | `defineFormBehavior`        |
 
 ```typescript
-import { GroupNode } from '@reformer/core';
+import { createModel, createForm } from '@reformer/core';
 import { required, email } from '@reformer/core/validators';
-import { computeFrom } from '@reformer/core/behaviors';
+import { defineFormBehavior, computeFrom } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
-const form = new GroupNode({
-  // 1. Схема формы - структура
-  form: {
-    firstName: { value: '' },
-    lastName: { value: '' },
-    fullName: { value: '' },
-    email: { value: '' },
-  },
+type Person = { firstName: string; lastName: string; fullName: string; email: string };
 
-  // 2. Схема валидации - правила
-  validation: (path) => {
-    validate(path.firstName, required());
-    validate(path.lastName, required());
-    validate(path.email, required());
-    validate(path.email, email());
-  },
+const model = createModel<Person>({ firstName: '', lastName: '', fullName: '', email: '' });
 
-  // 3. Схема поведений - логика
-  behavior: (path) => {
-    computeFrom([path.firstName, path.lastName], path.fullName, ({ firstName, lastName }) =>
-      `${firstName} ${lastName}`.trim()
-    );
-  },
+// 1. Схема — структура + валидация. Каждый узел привязывает сигнал модели к компоненту.
+const schema = {
+  firstName: { value: model.$.firstName, component: Input, validators: [required()] },
+  lastName: { value: model.$.lastName, component: Input, validators: [required()] },
+  fullName: { value: model.$.fullName, component: Input },
+  email: { value: model.$.email, component: Input, validators: [required(), email()] },
+};
+
+// 2. Behavior — реактивная логика, описывается отдельно.
+const behavior = defineFormBehavior<Person>(({ model }) => {
+  computeFrom([model.$.firstName, model.$.lastName], model.$.fullName, (firstName, lastName) =>
+    `${firstName} ${lastName}`.trim()
+  );
 });
+
+const form = createForm<Person>({ model, schema, behavior });
 ```
 
-## Зачем три схемы?
+## Связь модели и схемы
+
+Схема **не хранит значения** — их источник истины это модель. Узел лишь связывает поле с сигналом
+модели через `value: model.$.<field>` и добавляет поверх него UI-конфиг (`component`,
+`componentProps`) и валидаторы.
+
+```typescript
+const model = createModel<Person>({ firstName: '', lastName: '', fullName: '', email: '' });
+
+const schema = {
+  // value — сигнал модели, а не начальное значение. Значение 'firstName' живёт в модели.
+  firstName: { value: model.$.firstName, component: Input, validators: [required()] },
+};
+```
+
+Из-за этого запись через ноду (`form.firstName.setValue('Jane')`) и через модель
+(`model.firstName = 'Jane'`) — это один и тот же сигнал: изменение в одном месте мгновенно видно в
+другом. Подробнее о модели — в [Модель данных](../model), о нодах — в [Ноды и proxy](../nodes).
+
+## Зачем разделять заботы?
 
 ### Разделение ответственности
 
-Каждая схема имеет одну зону ответственности:
+У каждой заботы одна зона ответственности:
 
-- **Схема формы**: «Какие данные мы собираем?»
-- **Схема валидации**: «Корректны ли данные?»
-- **Схема поведений**: «Как данные должны реагировать на изменения?»
+- **Структура** (`model` + `schema`): «какие данные собираем?»
+- **Валидация** (`validators`): «корректны ли данные?»
+- **Behavior** (`defineFormBehavior`): «как данные реагируют на изменения?»
 
 ### Переиспользование и декомпозиция
 
-Каждую схему можно декомпозировать на переиспользуемые части и комбинировать с помощью функции `apply`:
+Каждую заботу можно разложить на переиспользуемые части и собрать поверх под-моделей. Ключевой
+приём — **builder**, принимающий под-модель (`FormModel<Sub>`):
 
 ```typescript
-import { apply, required } from '@reformer/core/validators';
-import { apply as applyBehavior, watchField } from '@reformer/core/behaviors';
+import { createModel, createForm, type FormModel } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { defineFormBehavior, transformValue } from '@reformer/core/behaviors';
+import { Input } from '@reformer/ui-kit';
 
-// 1. Переиспользуемая схема формы (всегда используйте фабричные функции!)
-const addressSchema = (): FormSchema<Address> => ({
-  street: { value: '' },
-  city: { value: '' },
-  zipCode: { value: '' },
+type Address = { street: string; city: string; zip: string };
+type OrderForm = { billingAddress: Address; shippingAddress: Address };
+
+// 1. Переиспользуемый builder схемы — узлы привязаны к сигналам под-модели, валидаторы inline.
+const addressNodes = (m: FormModel<Address>) => ({
+  street: { value: m.$.street, component: Input, validators: [required()] },
+  city: { value: m.$.city, component: Input, validators: [required()] },
+  zip: { value: m.$.zip, component: Input, validators: [required()] },
 });
 
-// 2. Переиспользуемая схема валидации
-const addressValidation: ValidationSchemaFn<Address> = (path) => {
-  validate(path.street, required());
-  validate(path.city, required());
-  validate(path.zipCode, required());
+// 2. Переиспользуемый набор behavior — работает с теми же сигналами под-модели.
+const addressBehaviors = (m: FormModel<Address>) => {
+  transformValue(m.$.zip, (value) => (value ?? '').trim());
 };
 
-// 3. Переиспользуемая схема поведений
-const addressBehavior: BehaviorSchemaFn<Address> = (path) => {
-  watchField(path.zipCode, (value, ctx) => {
-    // Форматирование индекса
-  });
+const model = createModel<OrderForm>({
+  billingAddress: { street: '', city: '', zip: '' },
+  shippingAddress: { street: '', city: '', zip: '' },
+});
+
+// Собираем схему — переиспользуем builder для обоих адресов.
+const schema = {
+  billingAddress: addressNodes(model.billingAddress),
+  shippingAddress: addressNodes(model.shippingAddress),
 };
 
-// Композиция в формы с помощью apply()
-const orderForm = new GroupNode<OrderForm>({
-  form: {
-    billingAddress: addressSchema(),
-    shippingAddress: addressSchema(),
-  },
-  validation: (path) => {
-    // Применяем одну валидацию к нескольким полям
-    apply([path.billingAddress, path.shippingAddress], addressValidation);
-  },
-  behavior: (path) => {
-    // Применяем одно поведение к нескольким полям
-    applyBehavior([path.billingAddress, path.shippingAddress], addressBehavior);
-  },
+// Собираем один behavior — применяем один набор к обеим под-моделям.
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  addressBehaviors(model.billingAddress);
+  addressBehaviors(model.shippingAddress);
+});
+
+const orderForm = createForm<OrderForm>({ model, schema, behavior });
+```
+
+Переиспользование работает на разной гранулярности:
+
+```typescript
+// Один список валидаторов — много полей.
+const emailRules = [required(), email()];
+const schema = {
+  email: { value: model.$.email, component: Input, validators: emailRules },
+  backupEmail: { value: model.$.backupEmail, component: Input, validators: emailRules },
+};
+
+// Один builder узлов — много под-моделей.
+const addressSchema = {
+  billingAddress: addressNodes(model.billingAddress),
+  shippingAddress: addressNodes(model.shippingAddress),
+};
+
+// Один набор behavior — много под-моделей (внутри defineFormBehavior).
+const behavior = defineFormBehavior<OrderForm>(({ model }) => {
+  addressBehaviors(model.billingAddress);
+  addressBehaviors(model.shippingAddress);
 });
 ```
 
-Функция `apply` поддерживает гибкую композицию:
-
-```typescript
-// Одно поле + одна схема
-apply(path.address, addressValidation);
-
-// Несколько полей + одна схема
-apply([path.billingAddress, path.shippingAddress], addressValidation);
-
-// Одно поле + несколько схем
-apply(path.email, [requiredValidation, emailValidation]);
-
-// Несколько полей + несколько схем
-apply([path.email, path.phone], [requiredValidation, formatValidation]);
-```
-
-:::tip Фабричные функции
-Всегда используйте функции, возвращающие схемы (`addressSchema()`), а не прямые объекты. Это гарантирует, что каждая форма получит свой собственный экземпляр и избежит багов с разделяемым состоянием.
+:::tip Builder-функции, а не общие объекты
+Предпочитайте builder, принимающий под-модель (`addressNodes(model.billingAddress)`),
+ручному дублированию объектов узлов. Каждый вызов привязывается к нужным сигналам и держит
+определения DRY.
 :::
 
-**Преимущества декомпозиции:**
+**Что даёт декомпозиция:**
 
-- **DRY** — Пишем один раз, используем везде
-- **Консистентность** — Одинаковые правила во всех формах
-- **Поддерживаемость** — Обновляем в одном месте
-- **Тестируемость** — Тестируем каждую часть изолированно
+- **DRY** — написал один раз, используешь везде.
+- **Согласованность** — одни и те же правила во всех формах.
+- **Поддерживаемость** — правка в одном месте.
+- **Тестируемость** — каждую часть можно проверить изолированно.
 
-Подробнее см. [Композиция](./composition).
+Полные паттерны и best practices — в [Композиции](./composition).
 
 ### Тестируемость
 
-Тестируйте каждую схему изолированно:
+Валидацию можно проверять изолированно через `validateModelSync` — без нод и UI:
 
 ```typescript
-// Тестирование валидации отдельно
-describe('validatePerson', () => {
+import { createModel, validateModelSync } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+
+describe('валидация person', () => {
   it('требует firstName', () => {
-    const form = new GroupNode({
-      form: personSchema(),
-      validation: validatePerson,
-    });
-    expect(form.controls.firstName.errors).toEqual({ required: true });
+    const model = createModel<Person>({ firstName: '', lastName: '', fullName: '', email: '' });
+    const schema = {
+      firstName: { value: model.$.firstName, validators: [required()] },
+      lastName: { value: model.$.lastName },
+    };
+
+    const { valid, errors } = validateModelSync(model, schema);
+
+    expect(valid).toBe(false);
+    expect(errors['firstName']?.[0]?.code).toBe('required');
   });
 });
 ```
 
 ### Типобезопасность
 
-Все три схемы используют `FieldPath<T>` для проверки типов на этапе компиляции:
+Сигналы модели (`model.$.<field>`) полностью типизированы, поэтому привязка несуществующего поля —
+ошибка компиляции:
 
 ```typescript
-validation: (path) => {
-  validate(path.firstName, required()); // ✅ TypeScript знает, что это поле существует
-  validate(path.middleName, required()); // ❌ Ошибка: 'middleName' не существует
+const schema = {
+  firstName: { value: model.$.firstName, validators: [required()] }, // ✅ типизированный сигнал
+  // middleName: { value: model.$.middleName }, // ❌ Ошибка: поля 'middleName' нет в модели
 };
 ```
 
-## Структура схем
+## Из чего собирается форма
 
 ```
-Конфигурация GroupNode
-├── form: FormSchema<T>           → Структура данных
-├── validation: ValidationSchemaFn<T>  → Правила валидации
-└── behavior: BehaviorSchemaFn<T>      → Реактивная логика
+createForm({ model, schema, behavior })
+├── model: FormModel<T>        → источник истины для значений
+├── schema                     → узлы: { value: signal, component?, validators? }
+└── behavior: FormBehavior<T>  → defineFormBehavior(...) — реактивная логика
 ```
 
-## Следующие шаги
+## Дальше
 
-- [Схема формы](./form-schema) — Структура и конфигурация полей
-- [Схема валидации](./validation-schema) — Правила валидации
-- [Схема поведений](./behavior-schema) — Реактивная логика
-- [Композиция](./composition) — Паттерны переиспользования и декомпозиции
+- [Схема формы](./form-schema) — структура и конфигурация полей.
+- [Схема валидации](./validation-schema) — правила корректности.
+- [Схема behavior](./behavior-schema) — реактивная логика.
+- [Композиция](./composition) — переиспользование и декомпозиция.

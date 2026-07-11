@@ -13,7 +13,7 @@
 // Модель (источник истины значений):
 interface ModelApi<T> {
   get(): T;                         // снимок значений — для submit
-  set(value: Partial<T>): void;     // массовая замена (load с сервера)
+  set(value: T): void;              // полная установка (все ключи T)
   patch(value: Partial<T>): void;   // частичное слияние
   isDirty(): boolean;               // отличаются ли значения от initial-снимка
   reset(): void;                    // вернуть к initial-снимку
@@ -134,7 +134,7 @@ import { createModel, validateModel } from '@reformer/core';
 
 async function processFormPayload(rawData: Partial<MyForm>) {
   const model = createModel<MyForm>(initialValues);
-  model.set(rawData); // load данных
+  model.patch(rawData); // частичный load данных
 
   const result = await validateModel(model, schema); // без нод — просто данные
   if (!result.valid) return { ok: false, errors: result.errors };

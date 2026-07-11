@@ -1,11 +1,15 @@
 /**
  * Типы для validation schema.
  *
- * Контракт валидаторов: операторы vs валидаторы.
- * - Операторы (validate, validateAsync, apply, applyWhen, validateItems)
- *   регистрируют валидаторы в схеме. Единственная точка контакта с реестром.
- * - Валидаторы — чистые функции (value, control, root) => error | null.
- *   Не знают про реестр. Импортируются как фабрики из `@reformer/core/validators`.
+ * Валидаторы — чистые функции `(value, scope, root) => error | null`. Не знают про реестр,
+ * импортируются как фабрики из `@reformer/core/validators` и кладутся в поле `validators`
+ * узла схемы; вызывает их движок M1 (`validateModel`/`validateFormModel`).
+ *
+ * Legacy-движок операторов регистрации (`validate`/`validateAsync`/`applyWhen`/…) удалён после Ф7
+ * (см. `core/validation/index.ts`). Типы {@link AsyncValidator}, {@link ConditionFn} и
+ * {@link ValidateAsyncOptions} ниже — осиротевшие остатки той поверхности: они экспортируются
+ * ради обратной совместимости, но рантаймом уже не потребляются (живой async-путь использует
+ * `AsyncValidatorFn` из узла поля).
  *
  * См. docs/plans/atomic-meandering-wreath.md для деталей.
  */
@@ -57,8 +61,11 @@ export type Validator<TForm, TField> = (
 
 /**
  * Чистый асинхронный валидатор поля. Та же тройка аргументов `(value, scope, root)`, что у
- * {@link Validator}, но возвращает `Promise`. Регистрируется через
- * `validateAsync(path, validator, { debounce })`.
+ * {@link Validator}, но возвращает `Promise`.
+ *
+ * @deprecated Осиротевший остаток удалённого оператора `validateAsync` (Ф7). Рантаймом не
+ * потребляется — живой async-путь узла поля использует `AsyncValidatorFn` `(value, { signal })`.
+ * Экспортируется только ради обратной совместимости.
  */
 export type AsyncValidator<TForm, TField> = (
   value: TField,
@@ -67,7 +74,10 @@ export type AsyncValidator<TForm, TField> = (
 ) => Promise<ValidationError | null>;
 
 /**
- * Функция условия для applyWhen.
+ * Функция-предикат `(value) => boolean`.
+ *
+ * @deprecated Осиротевший остаток удалённого оператора `applyWhen` (Ф7). Рантаймом не
+ * потребляется; экспортируется только ради обратной совместимости.
  */
 export type ConditionFn<T> = (value: T) => boolean;
 
@@ -76,19 +86,23 @@ export type ConditionFn<T> = (value: T) => boolean;
 // ============================================================================
 
 /**
- * Опции для функции validate.
+ * Опции валидатора-фабрики (`required()`/`pattern()`/…). Передаются вторым (или последним)
+ * аргументом в фабрику и попадают в возвращаемую {@link ValidationError}.
  */
 export interface ValidateOptions {
-  /** Сообщение об ошибке */
+  /** Готовое сообщение об ошибке. Если не задано, валидаторы кладут `''`, и отображаемый текст
+   * резолвится из `code` (см. резолвер сообщений в `@reformer/cdk`). */
   message?: string;
-  /** Параметры ошибки */
+  /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
   params?: Record<string, FormValue>;
 }
 
 /**
- * Опции для функции validateAsync.
+ * @deprecated Осиротевший остаток удалённого оператора `validateAsync` (Ф7): опция `debounce`
+ * подключалась тем оператором, которого больше нет. Рантаймом не потребляется; экспортируется
+ * только ради обратной совместимости.
  */
 export interface ValidateAsyncOptions extends ValidateOptions {
-  /** Задержка перед выполнением валидации (в мс) */
+  /** Задержка перед выполнением валидации (в мс). */
   debounce?: number;
 }

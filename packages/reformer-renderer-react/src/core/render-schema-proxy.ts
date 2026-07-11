@@ -50,8 +50,17 @@ export interface RenderSchemaOverrideMaps {
   callbackRegistry: Map<string, Map<string, (...args: any[]) => any>>;
   /** Хуки жизненного цикла ноды: selector → { onMount, onUnmount } */
   lifecycleRegistry: Map<string, NodeLifecycleHooks>;
-  /** Инкрементируется при любом изменении — все подписчики перечитывают свои значения */
+  /**
+   * Глобальный счётчик изменений (сохранён для обратной совместимости). Пер-нодовые подписчики
+   * больше на него НЕ подписываются — см. {@link RenderSchemaOverrideMaps.versionFor}.
+   */
   version: Signal<number>;
+  /**
+   * Пер-selector версия-сигнал (ленивое создание). Нода подписывается только на сигнал СВОЕГО
+   * selector, поэтому `setHidden`/`patchProps` уведомляют O(1) подписчиков (только затронутую
+   * ноду), а не O(N) все ноды дерева через единый глобальный сигнал.
+   */
+  versionFor(selector: string): Signal<number>;
 }
 
 /**
@@ -166,6 +175,21 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
   const callbackRegistry = new Map<string, Map<string, (...args: any[]) => any>>();
   const lifecycleRegistry = new Map<string, NodeLifecycleHooks>();
   const version = signal(0);
+  const selectorVersions = new Map<string, Signal<number>>();
+  const versionFor = (selector: string): Signal<number> => {
+    let s = selectorVersions.get(selector);
+    if (!s) {
+      s = signal(0);
+      selectorVersions.set(selector, s);
+    }
+    return s;
+  };
+  // Бампнуть версию: глобальную (обратная совместимость — на неё уже никто из нод не подписан)
+  // и точечно сигнал selector'а, чтобы уведомить ТОЛЬКО подписчиков этой ноды (O(1), не O(N)).
+  const bump = (selector: string): void => {
+    version.value++;
+    versionFor(selector).value++;
+  };
 
   const overrideMaps: RenderSchemaOverrideMaps = {
     hiddenOverrides,
@@ -176,6 +200,7 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
     callbackRegistry,
     lifecycleRegistry,
     version,
+    versionFor,
   };
 
   const proxyFn = fn as RenderSchemaProxy<T>;
@@ -188,22 +213,22 @@ export function createRenderSchema<T>(fn: RenderSchemaFn<T>): RenderSchemaProxy<
   proxyFn.node = (selector: string): RenderNodeControl => ({
     setHidden(value: boolean) {
       hiddenOverrides.set(selector, value);
-      version.value++;
+      bump(selector);
       return this;
     },
     resetHidden() {
       hiddenOverrides.delete(selector);
-      version.value++;
+      bump(selector);
       return this;
     },
     patchProps(partial: Record<string, unknown>) {
       propsOverrides.set(selector, { ...(propsOverrides.get(selector) ?? {}), ...partial });
-      version.value++;
+      bump(selector);
       return this;
     },
     resetProps() {
       propsOverrides.delete(selector);
-      version.value++;
+      bump(selector);
       return this;
     },
     getRef<H>(): RefObject<H> {
@@ -234,8 +259,10 @@ export function useHiddenOverride(selector: string | undefined): boolean | null 
 
   return useSyncExternalStore(
     useCallback(
-      (onStoreChange: () => void) => (maps ? maps.version.subscribe(onStoreChange) : () => {}),
-      [maps]
+      // Подписка только на сигнал СВОЕГО selector (O(1) notify). Ноды без selector не подписываются.
+      (onStoreChange: () => void) =>
+        maps && selector ? maps.versionFor(selector).subscribe(onStoreChange) : () => {},
+      [maps, selector]
     ),
     () => (selector && maps ? (maps.hiddenOverrides.get(selector) ?? null) : null),
     () => (selector && maps ? (maps.hiddenOverrides.get(selector) ?? null) : null)
@@ -252,8 +279,10 @@ export function usePropsOverride(selector: string | undefined): Record<string, u
 
   return useSyncExternalStore(
     useCallback(
-      (onStoreChange: () => void) => (maps ? maps.version.subscribe(onStoreChange) : () => {}),
-      [maps]
+      // Подписка только на сигнал СВОЕГО selector (O(1) notify). Ноды без selector не подписываются.
+      (onStoreChange: () => void) =>
+        maps && selector ? maps.versionFor(selector).subscribe(onStoreChange) : () => {},
+      [maps, selector]
     ),
     () => (selector && maps ? (maps.propsOverrides.get(selector) ?? null) : null),
     () => (selector && maps ? (maps.propsOverrides.get(selector) ?? null) : null)

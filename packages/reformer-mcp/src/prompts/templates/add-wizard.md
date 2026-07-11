@@ -169,28 +169,58 @@ Conditional sub-sections within steps (mortgage, residence, etc.) get their own 
 
 ### Integration B3 — `target=renderer-json`
 
-Same as B2 mechanics (`schema.node().setHidden`), but the schema is built from JSON via a `RenderSchemaFn`-wrapper that injects `form` into root `FormRoot` componentProps:
+Same `setHidden` mechanics as B2, but the tree is built from JSON via `convertJsonToM1Tree(jsonSchema, registry, model)` and mounted through `JsonRendererProvider` + `JsonFormRenderer` — there is **no** `form` prop and **no** `createRenderSchemaFromJson(...)` wrapper (both are pre-M1). The model owns the data; the converter binds JSON leaves to model signals. Runtime entities that can't live in static JSON (a `FormProxy` for the wizard node, a validation config) are injected into nodes **by `selector`** via the `renderBehavior` prop + `onInit`/`patchProps`.
 
 {{{{raw}}}}
 
 ```tsx
-const schema = useMemo(() => {
-  const baseFn = createRenderSchemaFromJson<MyForm>(jsonSchema, registry);
-  // RenderSchemaFn takes NO arguments — `() => RenderNode<T>`. The tree binds model signals itself.
-  const fnWithForm: RenderSchemaFn<MyForm> = () => {
-    const root = baseFn() as ContainerRenderNode<MyForm>;
-    return { ...root, componentProps: { ...(root.componentProps ?? {}), form } };
+import { useMemo } from 'react';
+import { createForm, createModel, type FormProxy } from '@reformer/core';
+import {
+  JsonFormRenderer,
+  JsonRendererProvider,
+  convertJsonToM1Tree,
+  type JsonFormSchema,
+} from '@reformer/renderer-json';
+import { onInit, type RenderBehaviorFn } from '@reformer/renderer-react';
+
+const jsonSchema = rawJsonSchema as unknown as JsonFormSchema;
+
+export function MyWizardPage() {
+  const registry = useMemo(() => createMyRegistry(), []);
+  const { model, form } = useMemo(() => {
+    const model = createModel<MyForm>(initialValues);
+    // Form is built from the SAME JSON: the converter binds leaves to model signals.
+    const form = createForm<MyForm>({
+      model,
+      schema: convertJsonToM1Tree(jsonSchema, registry, model),
+    });
+    return { model, form };
+  }, [registry]);
+
+  // Inject the wizard's FormProxy (+ validation config) into the wizard node — addressed by selector.
+  const renderBehavior: RenderBehaviorFn<MyForm> = (schema) => {
+    onInit(schema.node('wizard'), () => {
+      schema.node('wizard').patchProps({ form, config: makeValidationConfig(model) });
+    });
+    // A3/A4 manual wizard: drive schema.node('stepN').setHidden(...) React-mediated (see ⚠ below).
   };
-  return createRenderSchema(fnWithForm);
-}, [registry, form]);
-useEffect(() => {
-  /* same setHidden loop as B2 */
-}, [schema, currentStep]);
+
+  return (
+    <JsonRendererProvider settings={{ registry, model }}>
+      <JsonFormRenderer<MyForm>
+        schema={jsonSchema}
+        renderBehavior={renderBehavior}
+        validate={import.meta.env.DEV}
+      />
+    </JsonRendererProvider>
+  );
+}
 ```
 
 {{{{/raw}}}}
 
-JSON `selector: 'stepN'` on each step container; `useEffect setHidden` orchestration in `index.tsx`. Conditional sub-sections via `useFormControlValue(form.field as never)` + `useEffect setHidden('subsection-selector')`.
+JSON `selector: 'stepN'` on each step container. With **A1** (ui-kit `FormWizard`) the injected `form` lets `FormWizard` switch steps itself — no manual `setHidden` cascade. With **A3/A4** wire the step-visibility `setHidden` cascade React-mediated, exactly as B2. Conditional sub-sections via `useFormControlValue(form.field as never)` + a `useEffect` toggling `schema.node('subsection-selector').setHidden(...)`.
 
 ⚠️ **NEVER use raw `effect()` from `@preact/signals-core` для setHidden orchestration.** `setHidden` пишет в hidden-signal, raw `effect()` подписан на signals → infinite loop с «Cycle detected». Используй React-mediated bridge: `const x = useFormControlValue(form.x as never); useEffect(() => schema.node('y').setHidden(...), [schema, x])` — **отдельный `useEffect` per condition**. См. add-behavior.md rule #9 с примерами ❌/✅.
 
@@ -222,7 +252,7 @@ JSON `selector: 'stepN'` on each step container; `useEffect setHidden` orchestra
 - **A3**: `reformer://docs/cdk/formwizard-indicator`, `reformer://docs/cdk/formwizard-actions`, `reformer://docs/cdk/formwizard-progress`, `reformer://docs/cdk/external-control-via-ref-2`, `reformer://docs/cdk/conditional-dynamic-step-count-in-formwizard`, `reformer://docs/cdk/multi-step-submit`.
 - **A4**: `reformer://docs/core/multi-step-form-validation` for `validateFormModel(model, schema)` semantics.
 - **B2 / B3**: `reformer://docs/renderer-react/render-schema-proxy` for `schema.node().setHidden()` API.
-- **B3**: `reformer://docs/renderer-json/quick-start` for `FormRoot` self-managed root + `RenderSchemaFn`-wrapper boilerplate.
+- **B3**: `reformer://docs/renderer-json/quick-start` for the M1 mount (`convertJsonToM1Tree` + `JsonRendererProvider`/`JsonFormRenderer`) + `renderBehavior`/`onInit`/`patchProps` injection by `selector`.
 
 ## Task
 
@@ -245,4 +275,4 @@ JSON `selector: 'stepN'` on each step container; `useEffect setHidden` orchestra
 - [ ] Visual baseline present (step indicator strip with icons + en-dashes, card wrap, progress text, nav arrows) — either from A1/A2 or wired manually for A3/A4
 - [ ] testIds present per convention
 - [ ] (B2 / B3) all step containers have `selector: 'stepN'`
-- [ ] (B3) `RenderSchemaFn`-wrapper injects `form` into root `FormRoot` componentProps
+- [ ] (B3) mounted with `convertJsonToM1Tree` + `JsonRendererProvider`/`JsonFormRenderer` (no `form` prop); `form` injected into the wizard node via `renderBehavior` + `onInit`/`patchProps` (by `selector`)

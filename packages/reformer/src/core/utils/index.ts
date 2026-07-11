@@ -10,7 +10,7 @@ export { FormErrorHandler, ErrorStrategy } from './error-handler';
 export { createForm, createFormFromModel } from './create-form';
 export type { CreateFormFromModelArgs } from './create-form';
 export { registerSignalNode, getNodeForSignal } from './signal-node-registry';
-export { markDerived, isDerived } from './derived-registry';
+export { markDerived, isDerived, unmarkDerived } from './derived-registry';
 export { uniqueId } from './unique-id';
 export { safeCallback, runOutsideEffect, safeDebouncedCallback } from './safe-effect';
 export { FormSubmitter } from './form-submitter';

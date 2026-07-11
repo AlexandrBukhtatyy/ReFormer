@@ -1,0 +1,672 @@
+/* ── Оболочка страницы компонента + табы ─────────────────────────────── */
+.componentDoc {
+  margin: 1rem 0 2rem;
+}
+
+.tabBar {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--ifm-color-primary);
+}
+
+.tabActive {
+  color: var(--ifm-color-primary);
+  border-bottom-color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+/* ── Info-подсказка Variants vs Examples ─────────────────────────────── */
+.hint {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.hintTrigger {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ifm-color-emphasis-500);
+  cursor: help;
+  transition: color 0.15s ease;
+}
+
+.hintTrigger:hover,
+.hintTrigger:focus-visible {
+  color: var(--ifm-color-primary);
+}
+
+.tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0; /* раскрывается влево от иконки — не уедет за правый край */
+  z-index: 10;
+  width: max-content;
+  max-width: 320px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--ifm-global-shadow-md);
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+}
+
+.tooltip p {
+  margin: 0;
+}
+.tooltip p + p {
+  margin-top: 0.5rem;
+}
+
+.hint:hover .tooltip,
+.hint:focus-within .tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Живая канва демо ────────────────────────────────────────────────── */
+.canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  min-height: 72px;
+}
+
+.canvasCenter {
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.fallback {
+  color: var(--ifm-color-emphasis-500);
+  font-size: 0.9rem;
+}
+
+/* ── Таб Variants: галерея карточек ──────────────────────────────────── */
+/* Две колонки: панель ApiPreview широкая, в одну узкую ячейку не влезает.
+   На узких экранах (≤996px) схлопывается в одну колонку. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 996px) {
+  .gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Карточка — лёгкий стек «заголовок + панель». Рамку/радиус даёт сама панель
+   ApiPreview, поэтому у карточки их нет (иначе двойной контур). */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cardHead {
+  padding: 0 0.15rem;
+}
+
+/* ── Таб Examples ────────────────────────────────────────────────────── */
+.example {
+  margin: 0 0 2.5rem;
+}
+
+.exampleTitle {
+  scroll-margin-top: 5rem;
+}
+
+.exampleDesc {
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* ── Таб API: playground (канва + knobs) ─────────────────────────────── */
+.playground {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 997px) {
+  .playground {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    align-items: start;
+  }
+}
+
+.knobs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+}
+
+.knobsTitle {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0 0 0.25rem;
+}
+
+.knobRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.knobLabel {
+  font-size: 0.9rem;
+  color: var(--ifm-font-color-base);
+}
+
+.knobControl {
+  min-width: 120px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+}
+
+.propsTableWrap {
+  overflow-x: auto;
+  margin-top: 1.5rem;
+}
+
+/* ── Таб API (стиль TaigaUI): тулбар + канва + form-data + контролы ────────── */
+.apiExplorer {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Единый контур карточки превью: рамка+радиус на контейнере, а внутренние
+   секции дают только нижний разделитель — обводка не «рвётся». */
+.apiPreview {
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Последняя секция карточки не рисует нижний разделитель — иначе при скрытом
+   футере (Variants/Examples) останется «висячая» линия у скруглённого низа. */
+.apiPreview > *:last-child {
+  border-bottom: none;
+}
+
+.apiToolbar {
+  /* relative — контекст позиционирования для .apiTooltip: тултип тянется по
+     ширине тулбара (≈ ширина карточки), а не по крошечной иконке. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  background: var(--ifm-background-surface-color);
+}
+
+/* Левые табы Preview/Code + селект формата кода */
+.apiViewTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.apiViewTab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.apiViewTab:hover {
+  color: var(--ifm-color-primary);
+}
+
+.apiViewTabActive {
+  color: var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-200);
+  font-weight: 600;
+}
+
+.apiToolbarRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+/* ── Подсказка в шапке ApiPreview (иконка ⓘ у правого края + tooltip) ──── */
+.apiHint {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Тултип привязан к тулбару (position:relative выше): правый край под иконкой,
+   ширина ограничена шириной карточки (100% = ширина тулбара) — не клипается
+   overflow:hidden карточки на узких Variants-карточках. */
+.apiTooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 8px;
+  max-width: min(360px, calc(100% - 16px));
+  width: max-content;
+  z-index: 10;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--ifm-global-shadow-md);
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+}
+
+.apiHint:hover .apiTooltip,
+.apiHint:focus-within .apiTooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Вид Code внутри карточки: код-блок заполняет тело без своей рамки/радиуса. */
+.apiCodeView :global(.theme-code-block) {
+  margin: 0;
+  border-radius: 0;
+}
+
+.apiToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+}
+
+/* Полноширинный трек: сохраняет непрерывный нижний разделитель карточки,
+   свободное место справа (при сужении превью) закрашивается его фоном. */
+.apiCanvasTrack {
+  display: flex;
+  justify-content: flex-start;
+  padding: 1rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  background: var(--ifm-background-surface-color);
+}
+
+/* Превью-поверхность: ресайзится по ширине, тематизирована токенами ui-kit. */
+.apiCanvas {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 96px;
+  padding: 1.5rem 2.25rem 1.5rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+/* ── Превью с изменяемой шириной («шторка» на правом крае) ───────────── */
+.resizable {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 200px;
+}
+
+.resizableContent {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Вертикальная ручка на правом крае: тянешь — меняешь ширину контейнера.
+   Грип-индикатор — иконка GripVertical (наследует цвет через currentColor). */
+.resizableHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--ifm-color-emphasis-400);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.resizableHandle:hover {
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* Живой бейдж текущей ширины — виден только во время перетаскивания. */
+.resizableWidth {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
+  padding: 0.1rem 0.4rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-800);
+  color: var(--ifm-background-color);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Minimal: превью во всю ширину карточки (edge-to-edge) ───────────── */
+.apiCanvasTrackMinimal {
+  padding: 0;
+}
+
+.apiCanvasMinimal {
+  width: 100%;
+  min-width: 0;
+  /* Поверхность edge-to-edge (трек без гаттера, рамки нет), но контент не
+     прилипает к краям — умеренный внутренний отступ. */
+  padding: 1rem;
+  border: none;
+  border-radius: 0;
+}
+
+/* Локальная тёмная превью-тема канвы, независимая от темы сайта. */
+.apiCanvas[data-preview-theme='dark'] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  color: var(--foreground);
+}
+
+.apiCanvas[data-preview-theme='light'] {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  color: var(--foreground);
+}
+
+/* Шахматный фон, чтобы виден был реальный фон компонента. */
+.apiCanvasBg {
+  background-image:
+    linear-gradient(45deg, rgba(128, 128, 128, 0.12) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(128, 128, 128, 0.12) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.12) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.12) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+.apiOutput {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  /* <pre> получает border-radius от Infima — сбрасываем, иначе контур «защипывается». */
+  border: none;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  border-radius: 0;
+  background: var(--ifm-background-surface-color);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.apiValueBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.apiValueLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* «Value» как кнопка-переключатель, сворачивающая секцию Form data. */
+.apiValueToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+}
+
+.apiValueToggle:hover {
+  color: var(--ifm-color-primary);
+}
+
+.apiChevron {
+  transition: transform 0.15s ease;
+}
+
+.apiChevron[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+.apiValueBtns {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.apiBtn {
+  appearance: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.apiBtn:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.apiBtnPrimary {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.apiStatus {
+  font-size: 0.85rem;
+}
+
+.apiCode {
+  margin: 1.25rem 0 0.5rem;
+}
+
+/* Группы контролов */
+.apiGroup {
+  margin-top: 1.25rem;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.apiGroupHead {
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.controlRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 200px;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.controlRow:last-child {
+  border-bottom: none;
+}
+
+.controlInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.controlName {
+  align-self: flex-start;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  background-color: transparent;
+  border: none;
+}
+
+.controlDesc {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.controlType {
+  font-size: 0.8rem;
+  color: var(--ifm-color-primary);
+  white-space: nowrap;
+}
+
+.controlWidget {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.controlReadonly {
+  color: var(--ifm-color-emphasis-500);
+}
+
+@media (max-width: 768px) {
+  .controlRow {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+  .controlWidget {
+    justify-content: flex-start;
+  }
+}

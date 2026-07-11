@@ -286,7 +286,7 @@ export default function BehaviorsExamples() {
   const paymentType = useFormControlValue(form.paymentType) as string;
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="mx-auto">
       <h2 className="text-2xl font-bold mb-2">Примеры поведений (Behaviors)</h2>
       <p className="text-gray-600 mb-6">Демонстрация реактивных поведений ReFormer</p>
 

@@ -1,13 +1,18 @@
 import { forwardRef, type ForwardedRef, type ReactElement } from 'react';
+import { useFormControl } from '@reformer/core';
 import { Slot } from '../form-wizard/Slot';
 import { useFormArrayContext } from './FormArrayContext';
 import type { FormArrayAddButtonProps } from './types';
 
 function FormArrayAddButtonInner<T extends object>(
-  { children, initialValue, asChild = false, ...props }: FormArrayAddButtonProps<T>,
+  { children, initialValue, asChild = false, disabled, ...props }: FormArrayAddButtonProps<T>,
   ref: ForwardedRef<HTMLButtonElement>
 ) {
-  const { add } = useFormArrayContext<T>();
+  const { add, control } = useFormArrayContext<T>();
+  // Отражаем disabled-состояние массива: после ArrayNode.disable() (в т.ч. каскадом от группы)
+  // массив структурно неизменяем, поэтому кнопка добавления должна быть отключена.
+  const { disabled: arrayDisabled } = useFormControl(control);
+  const isDisabled = disabled || arrayDisabled;
 
   const Comp = asChild ? Slot : 'button';
 
@@ -15,7 +20,11 @@ function FormArrayAddButtonInner<T extends object>(
     <Comp
       ref={ref}
       type={asChild ? undefined : 'button'}
-      onClick={() => add(initialValue)}
+      disabled={isDisabled}
+      onClick={() => {
+        if (isDisabled) return;
+        add(initialValue);
+      }}
       {...props}
     >
       {children}

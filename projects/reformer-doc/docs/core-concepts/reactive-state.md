@@ -1,132 +1,89 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
 ---
 
-# Reactive State
+# Реактивность и сигналы
 
-ReFormer uses [Preact Signals](https://preactjs.com/guide/v10/signals/) for fine-grained reactivity.
+ReFormer построен на [сигналах](https://github.com/preactjs/signals) — они дают
+**точечную (fine-grained) реактивность**: при изменении значения перерисовываются только те
+компоненты, которые это значение читают.
 
-## How It Works
+## Что такое сигнал
 
-Every node property is a Signal:
+Сигнал — это ячейка значения, на которую можно подписаться. Прочитал внутри реактивного контекста —
+подписался; записал — все подписчики пересчитались.
 
 ```typescript
-import { FieldNode } from '@reformer/core';
-import { effect } from '@preact/signals-react';
+import { signal, computed, effect } from '@reformer/core/signals';
 
-const name = new FieldNode({ value: '' });
+const count = signal(0);
+const double = computed(() => count.value * 2); // зависит от count
 
-// Subscribe to changes
 effect(() => {
-  console.log('Name changed:', name.value);
+  console.log('count =', count.value, 'double =', double.value);
 });
+// сразу логирует: count = 0 double = 0
 
-name.setValue('John'); // logs: "Name changed: John"
-name.setValue('Jane'); // logs: "Name changed: Jane"
+count.value = 5; // логирует: count = 5 double = 10
 ```
 
-## Reactive Properties
+:::warning Импортируйте рантайм из `@reformer/core/signals`
+Для работы с сигналами напрямую берите `signal` / `computed` / `effect` / `batch` из
+`@reformer/core/signals`, а **не** из `@preact/signals-core` или `@preact/signals-react`. Это
+гарантирует, что все `@reformer/*`-пакеты используют один экземпляр рантайма и реактивность работает
+между ними согласованно.
+:::
 
-All these properties are reactive:
+## Сигналы в форме
 
-```typescript
-const field = new FieldNode({ value: '' });
+В архитектуре M1 сигналы — это «провода», по которым связаны модель и форма:
 
-// Value
-field.value; // reactive
-
-// Validation state
-field.valid; // reactive
-field.invalid; // reactive
-field.errors; // reactive
-
-// Interaction state
-field.touched; // reactive
-field.dirty; // reactive
-
-// UI state
-field.disabled; // reactive
-field.visible; // reactive
-```
-
-## Computed Values
-
-GroupNode and ArrayNode compute their value from children:
+- **Значения** живут в модели. `model.$.field` — сигнал значения поля (см.
+  [Модель данных](./model)).
+- **Состояние ноды** (`value`, `valid`, `invalid`, `errors`, `touched`, `dirty`, `disabled`,
+  `pending`) — тоже сигналы, вычисляемые формой поверх сигналов модели (см. [Ноды](./nodes)).
 
 ```typescript
-const form = new GroupNode({
-  form: {
-    firstName: { value: '' },
-    lastName: { value: '' },
-  },
-});
+import { createModel } from '@reformer/core';
+import { effect } from '@reformer/core/signals';
 
-// form.value is computed from children
+const model = createModel<{ name: string }>({ name: '' });
+
+// model.$.name — сигнал значения
 effect(() => {
-  console.log('Form value:', form.value);
+  console.log('name изменилось:', model.$.name.value);
 });
 
-form.controls.firstName.setValue('John');
-// logs: { firstName: 'John', lastName: '' }
-
-form.controls.lastName.setValue('Doe');
-// logs: { firstName: 'John', lastName: 'Doe' }
+model.name = 'John'; // логирует: name изменилось: John
+model.name = 'Jane'; // логирует: name изменилось: Jane
 ```
 
-## React Integration
+## Реактивность в React
 
-The `useFormControl` hook subscribes to all field changes:
+В компонентах **не подписывайтесь через `effect` вручную** — используйте хуки. Они построены на
+`useSyncExternalStore` и корректно интегрированы с React 18+:
 
 ```tsx
-import { useFormControl } from '@reformer/core';
+import { useFormControl, useFormControlValue } from '@reformer/core';
 
-function Input({ field }: { field: FieldNode<string> }) {
-  const control = useFormControl(field);
+// Полное состояние поля — ре-рендер при изменении любого его сигнала
+function NameField({ control }) {
+  const { value, errors, shouldShowError } = useFormControl(control);
+  // ...
+}
 
-  // Component re-renders when any property changes
-  return (
-    <div>
-      <input
-        value={control.value}
-        onChange={(e) => control.setValue(e.target.value)}
-        disabled={control.disabled}
-      />
-      {control.touched && control.errors?.required && <span>Required</span>}
-    </div>
-  );
+// Только значение — ре-рендер лишь при изменении value (оптимизация)
+function Greeting({ control }) {
+  const name = useFormControlValue(control);
+  return <span>Привет, {name}</span>;
 }
 ```
 
-## Performance
+Благодаря точечной реактивности соседние поля не перерисовывают друг друга: меняется `name` —
+ре-рендерится только компонент, читающий `name`.
 
-Signals provide fine-grained updates — only components using changed values re-render:
+## Дальше
 
-```tsx
-function Form() {
-  // This component doesn't re-render on field changes
-  return (
-    <form>
-      <NameField />
-      <EmailField />
-      <SubmitButton />
-    </form>
-  );
-}
-
-function NameField() {
-  const name = useFormControl(form.controls.name);
-  // Only re-renders when name changes
-  return <input value={name.value} />;
-}
-
-function EmailField() {
-  const email = useFormControl(form.controls.email);
-  // Only re-renders when email changes
-  return <input value={email.value} />;
-}
-```
-
-## Next Steps
-
-- [Nodes](/docs/core-concepts/nodes) — Learn about node types
-- [Validation](/docs/validation/overview) — Add validation rules
+- [Модель данных](./model) — где живут значения и как их читать/писать.
+- [Ноды и proxy](./nodes) — из чего состоит форма.
+- [React-хуки](../react/hooks) — `useFormControl`, `useFormControlValue`, `useArrayLength`.

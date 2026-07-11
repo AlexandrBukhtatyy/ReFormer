@@ -17,7 +17,7 @@ type ValidateMod = typeof import('@reformer/renderer-json/validate');
 export const validateJsonSchemaToolDefinition = {
   name: 'validate_json_schema',
   description:
-    'Validate a @reformer/renderer-json form-DSL JSON schema before rendering. Checks node structure, operator syntax ($model/$component/$dataSource), and — when component/dataSource names are supplied — that every $component(...)/$dataSource(...) name is known. Returns { valid, errors }. Call it on the JSON schema you generated (target renderer-json) before handing it off. Pass componentNames/dataSourceNames matching the registry you will build.',
+    'Validate a @reformer/renderer-json form-DSL JSON schema before rendering. Checks node structure, operator syntax ($model/$component/$dataSource/$fn/$locale), and — when the matching name/key lists are supplied — that every $component(...)/$dataSource(...)/$fn(...) name and every $locale(...) key is known. Returns { valid, errors }. Call it on the JSON schema you generated (target renderer-json) before handing it off. Pass componentNames/dataSourceNames/fnNames/localeKeys matching the registry you will build.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -37,6 +37,18 @@ export const validateJsonSchemaToolDefinition = {
         description:
           'Names registered as data sources (e.g. ["LOAN_TYPES","GENDERS"]). Enables unknown-$dataSource(...) detection. Omit to skip name checks.',
       },
+      fnNames: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Names registered as functions via reg.fn (e.g. ["formatCurrency","propertyItemLabel"]). Enables unknown-$fn(...) detection. Omit to skip $fn name checks.',
+      },
+      localeKeys: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Known localization keys from your reg.locale catalog (e.g. ["fields.email.label"]). Enables unknown-$locale(...) key detection. Omit to skip $locale key checks.',
+      },
     },
     required: ['schema'],
   },
@@ -46,6 +58,8 @@ export interface ValidateJsonSchemaArgs {
   schema: unknown;
   componentNames?: string[];
   dataSourceNames?: string[];
+  fnNames?: string[];
+  localeKeys?: string[];
 }
 
 export async function validateJsonSchemaTool(
@@ -81,6 +95,8 @@ export async function validateJsonSchemaTool(
   const { valid, errors } = validateFormSchema(schema, {
     componentNames: args.componentNames,
     dataSourceNames: args.dataSourceNames,
+    fnNames: args.fnNames,
+    localeKeys: args.localeKeys,
   });
 
   if (valid) {

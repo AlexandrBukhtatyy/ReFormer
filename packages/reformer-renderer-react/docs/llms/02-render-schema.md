@@ -39,7 +39,6 @@ import type { RenderSchemaFn } from '@reformer/renderer-react';
 import { Box, Section, Input } from '@reformer/ui-kit';
 
 const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
-  const m = model.$;
   return () => ({
     component: Box,
     componentProps: { className: 'grid grid-cols-2 gap-4' },
@@ -48,8 +47,8 @@ const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
         component: Section,
         componentProps: { title: 'Личные данные', className: 'space-y-4' },
         children: [
-          { value: m.firstName, component: Input, componentProps: { label: 'Имя' } },
-          { value: m.lastName, component: Input, componentProps: { label: 'Фамилия' } },
+          { value: model.$.firstName, component: Input, componentProps: { label: 'Имя' } },
+          { value: model.$.lastName, component: Input, componentProps: { label: 'Фамилия' } },
         ],
       },
     ],

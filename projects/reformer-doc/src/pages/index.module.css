@@ -21,3 +21,86 @@
   align-items: center;
   justify-content: center;
 }
+
+.heroLead {
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  font-size: 1.15rem;
+  opacity: 0.92;
+}
+
+/* ── Секции ────────────────────────────────────────────────────────────── */
+.section {
+  padding: 3.5rem 0;
+}
+
+.sectionAlt {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.sectionTitle {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+}
+
+/* ── Грид пакетов ──────────────────────────────────────────────────────── */
+.packageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.packageCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.packageCard:hover {
+  text-decoration: none;
+  color: inherit;
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.packageIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.packageName {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--ifm-color-primary);
+}
+
+.packageDesc {
+  font-size: 0.92rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* ── Быстрый старт ─────────────────────────────────────────────────────── */
+.quickStart {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.features {
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+  width: 100%;
+}

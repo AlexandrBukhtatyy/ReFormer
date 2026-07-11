@@ -10,7 +10,7 @@
  */
 
 import { Select, Checkbox, Input, InputMask, RadioGroup, Textarea } from '@reformer/ui-kit';
-import type { FormModel, ModelSignals } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 import {
   LOAN_TYPES,
   EMPLOYMENT_STATUSES,
@@ -32,95 +32,95 @@ import type { CoBorrower } from '../components/nested-forms/CoBorrower/types';
 // Под-схемы вложенных групп (получают сигналы под-модели через model.$.<group>)
 // ============================================================================
 
-const personalDataNodes = (s: ModelSignals<PersonalData>) => ({
+const personalDataNodes = (m: FormModel<PersonalData>) => ({
   lastName: {
-    value: s.lastName,
+    value: m.$.lastName,
     component: Input,
     componentProps: { label: 'Фамилия', placeholder: 'Введите фамилию' },
   },
   firstName: {
-    value: s.firstName,
+    value: m.$.firstName,
     component: Input,
     componentProps: { label: 'Имя', placeholder: 'Введите имя' },
   },
   middleName: {
-    value: s.middleName,
+    value: m.$.middleName,
     component: Input,
     componentProps: { label: 'Отчество', placeholder: 'Введите отчество' },
   },
   birthDate: {
-    value: s.birthDate,
+    value: m.$.birthDate,
     component: Input,
     componentProps: { label: 'Дата рождения', type: 'date' },
   },
   gender: {
-    value: s.gender,
+    value: m.$.gender,
     component: RadioGroup,
     componentProps: { label: 'Пол', options: GENDERS },
   },
   birthPlace: {
-    value: s.birthPlace,
+    value: m.$.birthPlace,
     component: Input,
     componentProps: { label: 'Место рождения', placeholder: 'Введите место рождения' },
   },
 });
 
-const passportDataNodes = (s: ModelSignals<PassportData>) => ({
+const passportDataNodes = (m: FormModel<PassportData>) => ({
   series: {
-    value: s.series,
+    value: m.$.series,
     component: InputMask,
     componentProps: { label: 'Серия паспорта', placeholder: '00 00', mask: '99 99' },
   },
   number: {
-    value: s.number,
+    value: m.$.number,
     component: InputMask,
     componentProps: { label: 'Номер паспорта', placeholder: '000000', mask: '999999' },
   },
   issueDate: {
-    value: s.issueDate,
+    value: m.$.issueDate,
     component: Input,
     componentProps: { label: 'Дата выдачи', type: 'date' },
   },
   issuedBy: {
-    value: s.issuedBy,
+    value: m.$.issuedBy,
     component: Textarea,
     componentProps: { label: 'Кем выдан', placeholder: 'Введите наименование органа', rows: 3 },
   },
   departmentCode: {
-    value: s.departmentCode,
+    value: m.$.departmentCode,
     component: InputMask,
     componentProps: { label: 'Код подразделения', placeholder: '000-000', mask: '999-999' },
   },
 });
 
-const addressNodes = (s: ModelSignals<Address>) => ({
+const addressNodes = (m: FormModel<Address>) => ({
   region: {
-    value: s.region,
+    value: m.$.region,
     component: Input,
     componentProps: { label: 'Регион', placeholder: 'Введите регион' },
   },
   city: {
-    value: s.city,
+    value: m.$.city,
     component: Input,
     componentProps: { label: 'Город', placeholder: 'Введите город' },
   },
   street: {
-    value: s.street,
+    value: m.$.street,
     component: Input,
     componentProps: { label: 'Улица', placeholder: 'Введите улицу' },
   },
   house: {
-    value: s.house,
+    value: m.$.house,
     component: Input,
     componentProps: { label: 'Дом', placeholder: '№' },
   },
   apartment: {
-    value: s.apartment,
+    value: m.$.apartment,
     component: Input,
     componentProps: { label: 'Квартира', placeholder: '№' },
   },
   postalCode: {
-    value: s.postalCode,
+    value: m.$.postalCode,
     component: InputMask,
     componentProps: { label: 'Индекс', placeholder: '000000', mask: '999999' },
   },
@@ -383,8 +383,8 @@ export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>)
   },
 
   // ── Шаг 2: Персональные данные ──────────────────────────────────────────
-  personalData: personalDataNodes(model.$.personalData),
-  passportData: passportDataNodes(model.$.passportData),
+  personalData: personalDataNodes(model.personalData),
+  passportData: passportDataNodes(model.passportData),
   inn: {
     value: model.$.inn,
     component: InputMask,
@@ -429,13 +429,13 @@ export const creditApplicationSchema = (model: FormModel<CreditApplicationForm>)
       type: 'email',
     },
   },
-  registrationAddress: addressNodes(model.$.registrationAddress),
+  registrationAddress: addressNodes(model.registrationAddress),
   sameAsRegistration: {
     value: model.$.sameAsRegistration,
     component: Checkbox,
     componentProps: { label: 'Адрес проживания совпадает с адресом регистрации' },
   },
-  residenceAddress: addressNodes(model.$.residenceAddress),
+  residenceAddress: addressNodes(model.residenceAddress),
 
   // ── Шаг 4: Информация о занятости ───────────────────────────────────────
   employmentStatus: {

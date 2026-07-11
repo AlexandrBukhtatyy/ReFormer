@@ -25,6 +25,7 @@ import { registerSignalNode } from './signal-node-registry';
 import type { FormProxy, GroupNodeConfig, FormSchema, FieldConfig } from '../types';
 import type { FormSchemaNode } from '../types/schema-node';
 import type { FormModel } from '../model/types';
+import { validateFormModel } from '../model/validate-model';
 import type { FormBehavior } from '../../behaviors';
 
 /**
@@ -95,6 +96,20 @@ function harvestFieldConfig(
       disabled: node.disabled as boolean | undefined,
       debounce: node.debounce as number | undefined,
     });
+  } else if (
+    process.env.NODE_ENV !== 'production' &&
+    node.component !== undefined &&
+    ('valueSignal' in node || node.value != null)
+  ) {
+    // DEV-подсказка: узел похож на поле (есть `component`), но «ручка» value — не сигнал модели.
+    // Частая ошибка: `value: model.<path>` (value-прокси) вместо `value: model.$.<path>`
+    // (PathAwareSignal), либо `valueSignal:` (harvest его не разбирает). Без сигнала harvest молча
+    // пропустит узел, и поле отрендерится без компонента/пропсов/валидаторов.
+    console.warn(
+      '[reformer] createForm({ schema }): узел с `component` не распознан как поле — ' +
+        '`value` не является сигналом модели. Ожидается `value: model.$.<path>`; ' +
+        'проверьте, что не передан `value: model.<path>` (value-прокси) или `valueSignal:`.'
+    );
   }
   for (const [key, child] of Object.entries(node)) {
     if (key === 'value') continue; // сам сигнал не разворачиваем
@@ -188,6 +203,7 @@ function collectLeafPaths(shape: Record<string, unknown>, basePath: string, out:
  *   component: Section,
  *   children: [
  *     { value: model.$.email, component: Input, validators: [required] },
+ *     // вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
  *     { value: model.$.profile.name, component: Input },
  *   ],
  * };
@@ -234,7 +250,26 @@ export function createFormFromModel<T>(args: CreateFormFromModelArgs<T>): FormPr
   for (const path of leafPaths) {
     const sig = model.signalAt(path);
     const node = groupNode.getFieldByPath(path);
-    if (sig && node) registerSignalNode(sig as Signal<unknown>, node);
+    if (sig && node) {
+      registerSignalNode(sig as Signal<unknown>, node);
+      // F9: связать листовую ноду с её сигналом модели на ВЛАДЕЮЩЕЙ группе, чтобы bulk-set/patch
+      // (GroupNode.setValue/patchValue) сверял derived-guard с записываемым сигналом, а не с
+      // computed-обёрткой field.value (которую markDerived никогда не помечает).
+      const dot = path.lastIndexOf('.');
+      const owner = dot === -1 ? groupNode : groupNode.getFieldByPath(path.slice(0, dot));
+      if (owner instanceof GroupNode) owner.registerFieldSignal(node, sig as Signal<unknown>);
+    }
+  }
+
+  // M1: schema-валидаторы срезаны с FieldNode и живут на слое модели. Привязываем валидацию модели
+  // к форме, чтобы form.validate()/submit() прогоняли их (validateFormModel роутит ошибки в ноды),
+  // а не пропускали невалидные данные через всегда-true node-gate.
+  if (schema !== undefined) {
+    const validationSchema = schema;
+    groupNode.attachModelValidator(async () => {
+      const res = await validateFormModel(model, validationSchema);
+      return res.valid;
+    });
   }
 
   // Декларативное поведение: запускаем ПОСЛЕ заполнения реестра (enableWhen резолвит ноды по сигналу),

@@ -79,17 +79,19 @@
 
 ## 4. Risk matrix (must-not-do)
 
-| ⚠️  | Что не делать                                                                      | Почему                                                                                                                                          |
-| --- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `enableWhen` + `resetOnDisable: true` на whole `ArrayNode`                         | Browser hang на mount (verified iter-1). Условный показ массива гейти в JSX/setHidden.                                                          |
-| 2   | Conditional fields через `enableWhen` (loanType/employmentStatus)                  | Visible-disabled = visual spam. Используй JSX-conditional для core, `hideWhen`/`setHidden` для renderer-react/json.                             |
-| 3   | `FormArray.AddButton initialValue` = FieldConfig (`{ value, component }`)          | Silent corruption: `[object Object]` в Textarea, checkbox flip true. Template factory возвращает PLAIN leaf values.                             |
-| 4   | `watchField` без `{ immediate: false }` или без value-equality guard на `setValue` | Реактивный цикл, browser hang. Каждый `watchField` — `{ immediate: false }` + `if (ctx.form.X.value.value !== next) ctx.form.X.setValue(next)`. |
-| 5   | `testId` с дефисами или с одним leaf-name                                          | Collisions при дублирующихся именах в разных шагах. Convention: dotted-path (`step1.loanAmount`, `step2.passportData.series`).                  |
-| 6   | Reшreстуктурировать спеку (collapse/drop/move fields)                              | Spec literal: каждое поле спеки = отдельное поле в FormSchema, в том же шаге, с тем же именем.                                                  |
-| 7   | Дефолтные английские placeholder `"Select an option..."` или выдуманные label      | User-facing strings берём из спеки (canonical labels table) или задаём по шаблону спеки на родном языке.                                        |
+| ⚠️  | Что не делать                                                                      | Почему                                                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `enableWhen` + `resetOnDisable: true` на whole `ArrayNode`                         | Browser hang на mount (verified iter-1). Условный показ массива гейти в JSX/setHidden.                                                                                                                                         |
+| 2   | Conditional fields через `enableWhen` (напр. дискриминатор типа/статуса)           | Visible-disabled = visual spam. Используй JSX-conditional для core, `hideWhen`/`setHidden` для renderer-react/json.                                                                                                            |
+| 3   | `FormArray.AddButton initialValue` = FieldConfig (`{ value, component }`)          | Silent corruption: `[object Object]` в Textarea, checkbox flip true. Template factory возвращает PLAIN leaf values.                                                                                                            |
+| 4   | `watchField` без `{ immediate: false }` или без value-equality guard на `setValue` | Реактивный цикл, browser hang. Каждый `watchField` — `{ immediate: false }` + `if (form.X.value.value !== next) form.X.setValue(next)` (чтение FieldNode — двойной `.value`; `ctx.form.*` — удалённый path-API, не используй). |
+| 5   | `testId` с дефисами или с одним leaf-name                                          | Collisions при дублирующихся именах в разных шагах. Convention: dotted-path (`step1.loanAmount`, `step2.passportData.series`).                                                                                                 |
+| 6   | Reшreстуктурировать спеку (collapse/drop/move fields)                              | Spec literal: каждое поле спеки = отдельное поле в FormSchema, в том же шаге, с тем же именем.                                                                                                                                 |
+| 7   | Дефолтные английские placeholder `"Select an option..."` или выдуманные label      | User-facing strings берём из спеки (canonical labels table) или задаём по шаблону спеки на родном языке.                                                                                                                       |
 
 ## 5. Verification scenarios (playwright)
+
+> ⚠️ **Таблица ниже — ПРИМЕР, построенный под `docs/specs/credit-application-form.md`.** Если `{{specPathRel}}` — другая спека, это НЕ твои сценарии: перечитай спеку (секции 1 и 1.1 выше) и выведи сценарии из её собственных полей/поведений. Конкретные значения (`loanType="Ипотека"`, `monthlyIncome=120000`, `totalIncome=140000`, `residenceAddress`, `hasProperty`, `"Заявка отправлена"`) — credit-specific, не переноси их вслепую в план чужой формы. Ниже — образец формы и глубины сценариев, не контракт данных.
 
 | #   | Сценарий               | Шаги                                                                     | Ожидаемый результат                                                                                         |
 | --- | ---------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
@@ -103,6 +105,8 @@
 | 8   | End-to-end happy path  | Заполнить {{stepsCountText}} шагов canonical happy-path данными → submit | console.log values JSON, alert "Заявка отправлена".                                                         |
 
 ## 6. Test fixtures
+
+> ⚠️ **Фикстуры ниже — ПРИМЕР для credit-application (`docs/specs/credit-application-form.md`).** Для другой `{{specPathRel}}` собери happy-path / edge-case JSON из полей своей спеки: структура `step1..step6`, `loanType`, `passportData`, `snils` и т.п. — credit-specific. Приведено как образец объёма и формы, не как контракт данных для любой формы.
 
 ### Happy-path (consumer кредит, минимум conditional полей)
 
@@ -188,7 +192,7 @@
 - [ ] Sub-agent stage 2 (Types) знает: {{totalFields}} fields, {{steps}} steps, conditional list, computed list, arrays.
 - [ ] Sub-agent stage 3 (FormSchema+UI) использует **target=`{{target}}`** + canonical strings из спеки.
 - [ ] Sub-agent stage 4 (Validation) использует canonical messages, добавляет `{ message }` к каждому validator.
-- [ ] Sub-agent stage 5 (Behaviors) применяет 8 watchField + copyFrom + enableWhen с cycle-prevention.
+- [ ] Sub-agent stage 5 (Behaviors) применяет behaviours из таблицы поведений спеки (watchField/computeFrom + copyFrom + enableWhen) с cycle-prevention — число и состав берутся из спеки (см. секцию 1.1), а не фиксированы.
 - [ ] Sub-agent stage 6 (FormArray + Wizard) использует PLAIN leaves в template + lucide-icons + clickable chips + progress text.
 - [ ] Sub-agent stage 7 (Report) фиксирует план vs реализация.
 

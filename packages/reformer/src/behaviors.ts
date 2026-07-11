@@ -30,6 +30,7 @@ import {
   revalidateWhen as coreRevalidateWhen,
   runOutsideEffect,
   markDerived,
+  unmarkDerived,
   type BehaviorCleanup,
   type FormModel,
   type FormProxy,
@@ -218,6 +219,7 @@ export function compute<R>(
   options?: { when?: () => boolean }
 ): void {
   markDerived(target); // F9: bulk-load (set/patch/patchValue) не затирает вычисляемое поле
+  onDispose(() => unmarkDerived(target)); // при снятии behavior снова разрешаем bulk-set (refcount)
   const guard = makeCycleGuard(target as Signal<unknown>); // F7: детект расходящегося цикла
   effect(() => {
     if (options?.when && !options.when()) return;
@@ -237,6 +239,7 @@ export function computeFrom<R>(
   options?: { when?: (...values: any[]) => boolean }
 ): void {
   markDerived(target); // F9: см. compute
+  onDispose(() => unmarkDerived(target)); // refcount: см. compute
   const guard = makeCycleGuard(target as Signal<unknown>); // F7
   effect(() => {
     const values = sources.map((s) => s.value); // подписка на источники

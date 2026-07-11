@@ -200,6 +200,21 @@ export interface FieldControlState<T> {
    * ```
    */
   componentProps: Record<string, unknown>;
+
+  /**
+   * Флаг изменения поля.
+   * `true` когда значение поля отличается от начального.
+   *
+   * Реактивный аналог `control.dirty` — паритет с {@link ArrayControlState.dirty}.
+   *
+   * @example
+   * ```tsx
+   * const { dirty } = useFormControl(field);
+   *
+   * return dirty ? <span className="badge">Изменено</span> : null;
+   * ```
+   */
+  dirty: boolean;
 }
 
 /**
@@ -342,4 +357,21 @@ export interface ArrayControlState<T> {
    * ```
    */
   dirty: boolean;
+
+  /**
+   * Флаг отключения массива.
+   * `true` когда массив отключён (`ArrayNode.disable()`), в том числе через
+   * распространение disable от родительской группы.
+   *
+   * Используйте для отключения UI-действий добавления/удаления, когда массив
+   * структурно неизменяем.
+   *
+   * @example
+   * ```tsx
+   * const { disabled } = useFormControl(itemsArray);
+   *
+   * return <button disabled={disabled} onClick={() => control.push()}>Add</button>;
+   * ```
+   */
+  disabled: boolean;
 }

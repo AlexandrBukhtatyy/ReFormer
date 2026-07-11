@@ -8,7 +8,13 @@ import {
   type ModelValidator,
 } from '@reformer/core';
 import { email, max, min, maxLength, minLength, required } from '@reformer/core/validators';
-import { CURRENT_YEAR, type CreditForm, type ExistingLoan } from './types';
+import {
+  CURRENT_YEAR,
+  type CreditForm,
+  type Property,
+  type ExistingLoan,
+  type CoBorrower,
+} from './types';
 
 type M = FormModel<CreditForm>;
 
@@ -190,7 +196,7 @@ const step5 = (model: M) => ({
       [
         {
           array: model.properties,
-          item: (item: FormModel<CreditForm['properties'][number]>) => ({
+          item: (item: FormModel<Property>) => ({
             children: [
               { value: item.$.type, validators: [required()] },
               { value: item.$.description, validators: [required()] },
@@ -226,7 +232,7 @@ const step5 = (model: M) => ({
       [
         {
           array: model.coBorrowers,
-          item: (item: FormModel<CreditForm['coBorrowers'][number]>) => ({
+          item: (item: FormModel<CoBorrower>) => ({
             children: [
               { value: item.$.personalData.lastName, validators: [required()] },
               { value: item.$.personalData.firstName, validators: [required()] },

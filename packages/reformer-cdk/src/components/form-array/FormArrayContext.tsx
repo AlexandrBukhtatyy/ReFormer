@@ -6,10 +6,11 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { ArrayNode, FormProxy } from '@reformer/core';
+import type { ArrayNode, FormProxy, ValidationError } from '@reformer/core';
 
 /**
- * Представляет элемент массива с контролом, индексом и действиями
+ * Представляет элемент массива с контролом, индексом и действиями (включая хелперы reorder,
+ * чтобы консументы сырого `useFormArray`/контекста получали тот же набор, что и `FormArray.List`).
  */
 export interface FormArrayItem<T extends object> {
   /** Контрол для данного элемента */
@@ -20,6 +21,14 @@ export interface FormArrayItem<T extends object> {
   id: string | number;
   /** Удалить этот элемент из массива */
   remove: () => void;
+  /** Переместить элемент на одну позицию вверх (no-op если он первый) */
+  moveUp: () => void;
+  /** Переместить элемент на одну позицию вниз (no-op если он последний) */
+  moveDown: () => void;
+  /** Можно ли переместить вверх (index > 0) */
+  canMoveUp: boolean;
+  /** Можно ли переместить вниз (index < length - 1) */
+  canMoveDown: boolean;
 }
 
 /**
@@ -38,11 +47,26 @@ export interface FormArrayContextValue<T extends object = Record<string, unknown
   clear: () => void;
   /** Вставить элемент на указанную позицию */
   insert: (index: number, value?: Partial<T>) => void;
+  /** Удалить элемент по индексу (симметрично insert-by-index) */
+  removeAt: (index: number) => void;
   /** Переместить элемент (реордер, состояние сохраняется) */
   move: (from: number, to: number) => void;
   /** Поменять местами два элемента (реордер, состояние сохраняется) */
   swap: (a: number, b: number) => void;
-  /** Оригинальный ArrayNode */
+  /** Получить контрол элемента по индексу */
+  at: (index: number) => FormProxy<T> | undefined;
+  /** Ошибки уровня массива (например `minItems` / «At least one phone required») */
+  errors: ValidationError[];
+  /** Валиден ли массив (и все его элементы) */
+  valid: boolean;
+  /** Невалиден ли массив (есть ошибки массива или любого элемента) */
+  invalid: boolean;
+  /**
+   * Оригинальный узел массива. Типизирован как `ArrayNode<T>` (не union с `ModelArrayNode`),
+   * чтобы существующие консументы контекста, передающие `control` в `useFormControl` (AddButton/
+   * RemoveButton), продолжали типизироваться под array-перегрузку. M1 `ModelArrayNode` совместим
+   * структурно и корректно работает в рантайме (контекст `<any>`-стёрт при создании в FormArray.Root).
+   */
   control: ArrayNode<T>;
 }
 

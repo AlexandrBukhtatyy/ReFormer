@@ -108,6 +108,12 @@ function resolveAliases(topic: string): string[] {
 export async function findRecipeTool(
   args: FindRecipeArgs
 ): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  // MCP Server не валидирует args по inputSchema — обязательный `topic` может прийти
+  // отсутствующим/не-строкой. Защищаемся до .trim(), иначе — необработанный TypeError
+  // (ср. паттерн в check-behaviors.ts).
+  if (typeof args.topic !== 'string') {
+    return text('Argument "topic" is required and must be a non-empty string.');
+  }
   const topic = args.topic.trim();
   if (!topic) {
     return text('Argument "topic" is required and must be non-empty.');
@@ -207,6 +213,49 @@ function locateDocsDir(pkg: string): string | null {
 }
 
 /**
+ * Score how well a docs/llms filename matches a topic. Higher is better; 0 = no match.
+ *
+ * The `NN-` numeric prefix is stripped before matching so digits never contribute a
+ * match (a degenerate topic like "05" no longer resolves a file by its file number).
+ * Ranking, strongest first:
+ *   100 — exact match on the human-readable stem, or on the full stem incl. NN- prefix
+ *    75 — the topic is a whole hyphen-delimited segment of the stem ("api" in "api-signatures")
+ *    60 — the stem starts with the topic ("recipe" → "recipes")
+ *    40 — plain substring anywhere in the stem
+ */
+export function scoreDocFileMatch(fileName: string, topic: string): number {
+  const lower = topic.trim().toLowerCase();
+  if (!lower) return 0;
+  const stem = fileName.replace(/\.md$/i, '').toLowerCase();
+  const stripped = stem.replace(/^\d+-/, '');
+  if (stripped === lower || stem === lower) return 100;
+  if (stripped.split('-').includes(lower)) return 75;
+  if (stripped.startsWith(lower)) return 60;
+  if (stripped.includes(lower)) return 40;
+  return 0;
+}
+
+/**
+ * Pick the best-matching filename for a topic among candidates, by descending score.
+ * Ties keep the first candidate — with the curated `NN-` numbering and alphabetical
+ * readdir order this means the lower file number wins, which is the intended priority.
+ * Crucially, an exact match beats an earlier loose substring match regardless of
+ * position (the old first-match-wins loop shadowed it).
+ */
+export function pickBestDocFile(fileNames: string[], topic: string): string | null {
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const fileName of fileNames) {
+    const score = scoreDocFileMatch(fileName, topic);
+    if (score > bestScore) {
+      bestScore = score;
+      best = fileName;
+    }
+  }
+  return best;
+}
+
+/**
  * Find a markdown file inside docs/llms whose name matches the topic.
  * Accepts both raw and NN-prefixed forms ("recipes" → "05-recipes.md").
  */
@@ -214,7 +263,6 @@ function findDocFile(pkg: string, topic: string): DocFile | null {
   const docsDir = locateDocsDir(pkg);
   if (!docsDir) return null;
 
-  const lower = topic.toLowerCase();
   let entries: string[];
   try {
     entries = readdirSync(docsDir).filter((f) => f.endsWith('.md'));
@@ -222,21 +270,18 @@ function findDocFile(pkg: string, topic: string): DocFile | null {
     return null;
   }
 
-  for (const fileName of entries) {
-    const stem = fileName.replace(/\.md$/, '').toLowerCase();
-    const stripped = stem.replace(/^\d+-/, '');
-    if (stem === lower || stripped === lower || stem.includes(lower) || stripped.includes(lower)) {
-      const absPath = resolve(docsDir, fileName);
-      const raw = readFileSync(absPath, 'utf-8');
-      const titleMatch = raw.match(/^#\s+(.+)$/m);
-      return {
-        fileName,
-        absPath,
-        title: titleMatch ? titleMatch[1].trim() : stripped,
-      };
-    }
-  }
-  return null;
+  const fileName = pickBestDocFile(entries, topic);
+  if (!fileName) return null;
+
+  const absPath = resolve(docsDir, fileName);
+  const raw = readFileSync(absPath, 'utf-8');
+  const titleMatch = raw.match(/^#\s+(.+)$/m);
+  const stripped = fileName.replace(/\.md$/, '').toLowerCase().replace(/^\d+-/, '');
+  return {
+    fileName,
+    absPath,
+    title: titleMatch ? titleMatch[1].trim() : stripped,
+  };
 }
 
 function buildFallbackHint(topic: string, targets: ReformerPackage[]): string {

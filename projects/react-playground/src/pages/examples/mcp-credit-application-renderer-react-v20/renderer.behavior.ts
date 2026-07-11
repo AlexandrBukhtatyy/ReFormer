@@ -10,20 +10,19 @@ export function makeCreditRenderBehavior(
   model: FormModel<CreditApplicationForm>,
   onDone?: (result: { id?: string; message: string }) => void
 ): RenderBehaviorFn<CreditApplicationForm> {
-  const m = model.$;
   return (schema) => {
     // Conditional sections — hidden until the controlling value matches.
-    hideWhen(schema.node('mortgage-section'), () => m.loanType.value !== 'mortgage');
-    hideWhen(schema.node('car-section'), () => m.loanType.value !== 'car');
-    hideWhen(schema.node('employed-section'), () => m.employmentStatus.value !== 'employed');
+    hideWhen(schema.node('mortgage-section'), () => model.$.loanType.value !== 'mortgage');
+    hideWhen(schema.node('car-section'), () => model.$.loanType.value !== 'car');
+    hideWhen(schema.node('employed-section'), () => model.$.employmentStatus.value !== 'employed');
     hideWhen(
       schema.node('selfEmployed-section'),
-      () => m.employmentStatus.value !== 'selfEmployed'
+      () => model.$.employmentStatus.value !== 'selfEmployed'
     );
-    hideWhen(schema.node('residence-section'), () => m.sameAsRegistration.value === true);
-    hideWhen(schema.node('properties-section'), () => m.hasProperty.value !== true);
-    hideWhen(schema.node('existingLoans-section'), () => m.hasExistingLoans.value !== true);
-    hideWhen(schema.node('coBorrowers-section'), () => m.hasCoBorrower.value !== true);
+    hideWhen(schema.node('residence-section'), () => model.$.sameAsRegistration.value === true);
+    hideWhen(schema.node('properties-section'), () => model.$.hasProperty.value !== true);
+    hideWhen(schema.node('existingLoans-section'), () => model.$.hasExistingLoans.value !== true);
+    hideWhen(schema.node('coBorrowers-section'), () => model.$.hasCoBorrower.value !== true);
 
     // Submit — FormWizard onSubmit is no-arg; read values from the model.
     onComponentEvent(schema.node('wizard'), 'onSubmit', async () => {

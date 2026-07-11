@@ -3,22 +3,60 @@ sidebar_position: 1
 slug: /
 ---
 
-# Introduction
+# Введение
 
-**ReFormer** is a forms library built on [Preact Signals Core](https://github.com/preactjs/signals/blob/main/packages/core/README.md#guide--api). It provides a declarative way to build complex forms with validation, computed fields, and conditional logic.
+**ReFormer** — библиотека для построения сложных форм на React, основанная на
+[сигналах](https://github.com/preactjs/signals). Она даёт декларативный способ описывать формы с
+валидацией, вычисляемыми полями и условной логикой — без ручной синхронизации состояния и лишних
+перерисовок.
 
-## Key Features
+## Философия: архитектура M1
 
-- **Reactive State** — Built on Signals for fine-grained reactivity
-- **Type-Safe** — Full TypeScript support with inferred types
-- **Declarative Validation** — Built-in validators + custom validation support
-- **Declarative Form Behaviors** — Computed fields, conditional visibility, field synchronization
-- **Nested Forms** — Support for complex nested structures and dynamic arrays
-- **Framework Agnostic** — Core library works anywhere, React bindings included
-- **AI-Friendly** — Well-documented API with clear patterns, easy for AI assistants to understand and generate code
+В основе ядра лежит архитектура **M1**, разделяющая форму на четыре слоя. Каждый слой отвечает за
+одну задачу, что делает форму предсказуемой, переиспользуемой и легко тестируемой.
 
-## Next Steps
+```
+Модель  ─────►  Схема  ─────►  Форма  ─────►  Behavior
+createModel     привязка       createForm     defineFormBehavior
+значения        поле↔сигнал    ноды/proxy     реактивная логика
+```
 
-- [Installation](/docs/getting-started/installation) — Add ReFormer to your project
-- [Quick Start](/docs/getting-started/quick-start) — Build your first form
-- [API Reference](/docs/api) — Full API documentation
+1. **Модель** (`createModel`) — источник истины для значений. Обычный на вид объект, где под каждым
+   полем стоит реактивный сигнал. Значения принадлежат модели, а не UI.
+2. **Схема** — дерево узлов, где каждый узел привязывает поле модели к компоненту
+   (`value: model.$.field`) и держит его конфигурацию (`component`, `componentProps`, `validators`).
+3. **Форма** (`createForm`) — строит ноды (`FieldNode` / `GroupNode` / `ArrayNode`) поверх сигналов
+   модели и отдаёт типизированный proxy: `form.email`, `form.address.city`.
+4. **Behavior** (`defineFormBehavior`) — декларативная реактивная логика: вычисляемые поля, условная
+   доступность, синхронизация, реакции на изменения.
+
+Такое разделение — ключевая идея: **«какие данные собираем»** (модель + схема) отделено от
+**«как данные реагируют»** (behavior) и от **«правильны ли данные»** (валидаторы).
+
+## Ключевые возможности
+
+- **Реактивность на сигналах** — точечные обновления без лишних ре-рендеров.
+- **Типобезопасность** — полный вывод типов из формы; доступ к полям через типизированный proxy.
+- **Декларативная валидация** — набор встроенных валидаторов-фабрик + произвольная кастомная логика.
+- **Декларативные behaviors** — вычисляемые поля, условная доступность, синхронизация полей.
+- **Вложенность и массивы** — сложные структуры и динамические списки, принадлежащие модели.
+- **AI-friendly** — предсказуемый API с чёткими паттернами, удобный для генерации ассистентами.
+
+## Экосистема
+
+`@reformer/core` — фундамент. Поверх него:
+
+| Пакет                                                       | Назначение                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------- |
+| [`@reformer/core`](/docs/packages/core)                     | ядро: модель, схема, форма, behaviors, валидаторы, хуки |
+| [`@reformer/cdk`](/docs/packages/cdk)                       | headless-компоненты (FormArray, FormWizard, FormField)  |
+| [`@reformer/ui-kit`](/docs/packages/ui-kit)                 | готовые стилизованные поля (Input, Select, Checkbox, …) |
+| [`@reformer/renderer-react`](/docs/packages/renderer-react) | рендеринг формы из render-схемы                         |
+| [`@reformer/renderer-json`](/docs/packages/renderer-json)   | форма из JSON-описания                                  |
+| [`@reformer/mcp`](/docs/packages/mcp)                       | MCP-сервер для AI-ассистентов                           |
+
+## Дальше
+
+- [Установка](/docs/getting-started/installation) — добавить ReFormer в проект.
+- [Быстрый старт](/docs/getting-started/quick-start) — собрать первую форму.
+- [Основные концепции](/docs/core-concepts/reactive-state) — как всё устроено внутри.

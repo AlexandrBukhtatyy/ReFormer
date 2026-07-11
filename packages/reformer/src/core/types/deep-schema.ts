@@ -57,6 +57,29 @@ export interface FieldConfig<T> {
 }
 
 /**
+ * «Хотя бы одно поле обязано присутствовать»: превращает объект со всеми опциональными
+ * свойствами в объединение вариантов, где ровно один ключ обязателен, а остальные опциональны.
+ * Пустой объект `{}` не assignable ни к одному варианту и потому отклоняется.
+ *
+ * @internal
+ */
+type RequireAtLeastOne<T> = {
+  [K in keyof T]-?: Required<Pick<T, K>> & Partial<Omit<T, K>>;
+}[keyof T];
+
+/**
+ * {@link FieldConfig}, из которого нельзя сделать пустой `{}`.
+ *
+ * Все свойства {@link FieldConfig} опциональны, поэтому в {@link FormSchema} опечатка вида
+ * `{ email: {} }` молча проходит проверку типов и в рантайме становится пустой подгруппой
+ * вместо поля. `NonEmptyFieldConfig` требует наличия хотя бы одного свойства (value/valueSignal/
+ * component/validators/…), оставляя каждое из них опциональным по отдельности.
+ *
+ * @internal
+ */
+type NonEmptyFieldConfig<T> = RequireAtLeastOne<FieldConfig<T>>;
+
+/**
  * Конфигурация массива
  * @group Types
  * @category Configuration Types
@@ -116,15 +139,17 @@ export interface ArrayConfig<T extends object> {
  * ```
  */
 export type FormSchema<T> = {
+  // Листовые позиции используют NonEmptyFieldConfig: пустой `{}` (частая опечатка) отклоняется
+  // на этапе компиляции, но каждое свойство FieldConfig по отдельности остаётся опциональным.
   [K in keyof T]: NonNullable<T[K]> extends string | number | boolean
-    ? FieldConfig<T[K]>
+    ? NonEmptyFieldConfig<T[K]>
     : NonNullable<T[K]> extends Array<infer U>
       ? U extends string | number | boolean
-        ? FieldConfig<T[K]>
+        ? NonEmptyFieldConfig<T[K]>
         : U extends Date | File | Blob | AnyFunction
-          ? FieldConfig<T[K]>
+          ? NonEmptyFieldConfig<T[K]>
           : [FormSchema<U>]
       : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
-        ? FieldConfig<T[K]>
+        ? NonEmptyFieldConfig<T[K]>
         : FormSchema<NonNullable<T[K]>>;
 };

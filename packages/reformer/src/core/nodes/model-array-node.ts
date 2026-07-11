@@ -72,6 +72,9 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
   private readonly itemNodes: Signal<FormProxy<T>[]> = signal<FormProxy<T>[]>([]);
   // Кэш per-item формы по идентичности фасада под-модели (фасады кэшируются в core).
   private readonly cache = new WeakMap<object, FormProxy<T>>();
+  // Фасады под-моделей, для которых сейчас смонтированы формы — «предыдущий» набор для
+  // реконсиляции в disposeSync. Выпавшие из массива элементы диспозятся и вытесняются из кэша.
+  private mountedModels: FormModel<T>[] = [];
   private readonly initial: T[];
   private readonly _arrayErrors: Signal<ValidationError[]> = signal<ValidationError[]>([]);
   private readonly disposeSync: () => void;
@@ -106,10 +109,15 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
     super();
     this.initial = control.toArray();
 
-    // Синхронизация per-item форм с массивом модели (по длине). Формы кэшируются по фасаду элемента,
-    // поэтому при reorder/повторном рендере не пересоздаются (состояние сохраняется).
+    // Синхронизация per-item форм с массивом модели. Формы кэшируются по фасаду элемента, поэтому
+    // при reorder/повторном рендере не пересоздаются (состояние сохраняется). Выпавшие элементы
+    // (removeAt/clear/setValue/reset мутируют массив модели → эффект перезапускается) детерминированно
+    // диспозятся и вытесняются из кэша — иначе форма удалённого элемента продолжала бы владеть живыми
+    // подписками (disposeSync вложенных ModelArrayNode, cleanup поведений, watch/computeFrom). Реордер
+    // (move/swap) не меняет набор фасадов, поэтому ничего не диспозит.
     this.disposeSync = effect(() => {
       const len = control.length; // зависимость от длины массива модели
+      const nextModels: FormModel<T>[] = [];
       const next: FormProxy<T>[] = [];
       for (let i = 0; i < len; i++) {
         const itemModel = control.at(i);
@@ -119,9 +127,23 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
           node = buildItem(itemModel);
           this.cache.set(itemModel as unknown as object, node);
         }
+        nextModels.push(itemModel);
         next.push(node);
       }
+      // Собрать формы выпавших элементов ДО обновления состояния, чтобы НЕ диспозить при reorder
+      // (move/swap сохраняют набор фасадов — nextSet содержит их все).
+      const nextSet = new Set<FormModel<T>>(nextModels);
+      const stale: FormProxy<T>[] = [];
+      for (const prevModel of this.mountedModels) {
+        if (nextSet.has(prevModel)) continue;
+        const staleNode = this.cache.get(prevModel as unknown as object);
+        this.cache.delete(prevModel as unknown as object); // вытеснить, чтобы не вернуть диспознутый proxy
+        if (staleNode) stale.push(staleNode);
+      }
+      this.mountedModels = nextModels;
       this.itemNodes.value = next;
+      // Детерминированный teardown форм удалённых элементов (после обновления itemNodes).
+      stale.forEach((n) => this.disposeItemNode(n));
     });
 
     this.length = computed(() => this.itemNodes.value.length);
@@ -243,8 +265,20 @@ export class ModelArrayNode<T extends object> extends FormNode<T[]> {
     this.itemNodes.value.forEach((n) => (n as unknown as { enable?: () => void }).enable?.());
   }
 
-  /** Очистка подписки синхронизации. */
+  /** Диспозит форму элемента (эффекты/поведения/вложенные подписки); терпима к не-GroupNode. */
+  private disposeItemNode(node: FormProxy<T>): void {
+    (node as unknown as { dispose?: () => void }).dispose?.();
+  }
+
+  /**
+   * Очистка подписки синхронизации И детерминированный teardown всех форм элементов.
+   * Без пробрасывания dispose в itemNodes эффекты/поведения каждой формы элемента (в т.ч. disposeSync
+   * вложенных ModelArrayNode) остались бы жить после teardown формы — утечка подписок.
+   */
   dispose(): void {
     this.disposeSync();
+    // disposeSync остановлен — itemNodes.value держит последний набор; диспозим каждую форму.
+    this.itemNodes.value.forEach((n) => this.disposeItemNode(n));
+    this.mountedModels = [];
   }
 }

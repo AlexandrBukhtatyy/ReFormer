@@ -32,17 +32,15 @@ function computeAge(birthDate: string): number {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form }) => {
-  const m = model.$;
-
   // ===== Computed fields (C.1–C.8) =====
 
   // C.3 initialPayment — 20% стоимости недвижимости (только для ипотеки)
-  compute(m.initialPayment, () => Math.round((model.propertyValue ?? 0) * 0.2), {
+  compute(model.$.initialPayment, () => Math.round((model.propertyValue ?? 0) * 0.2), {
     when: () => model.loanType === 'mortgage',
   });
 
   // C.1 interestRate — базовая ставка по типу + корректировки (регион, имущество)
-  compute(m.interestRate, () => {
+  compute(model.$.interestRate, () => {
     let rate = BASE_RATE[model.loanType] ?? 15;
     const hasCollateral = model.hasProperty && model.properties.map(() => null).length > 0;
     if (hasCollateral) rate -= 0.5;
@@ -52,7 +50,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form }) =
   });
 
   // C.2 monthlyPayment — аннуитетная формула
-  compute(m.monthlyPayment, () => {
+  compute(model.$.monthlyPayment, () => {
     const principal = model.loanAmount ?? 0;
     const term = model.loanTerm ?? 0;
     const i = (model.interestRate ?? 0) / 100 / 12;
@@ -63,68 +61,78 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form }) =
   });
 
   // C.4 fullName — Фамилия Имя Отчество
-  compute(m.fullName, () =>
+  compute(model.$.fullName, () =>
     [model.personalData.lastName, model.personalData.firstName, model.personalData.middleName]
       .filter(Boolean)
       .join(' ')
   );
 
   // C.5 age — возраст из даты рождения
-  compute(m.age, () => computeAge(model.personalData.birthDate));
+  compute(model.$.age, () => computeAge(model.personalData.birthDate));
 
   // C.6 totalIncome — основной + дополнительный доход
-  compute(m.totalIncome, () => (model.monthlyIncome ?? 0) + (model.additionalIncome ?? 0));
+  compute(model.$.totalIncome, () => (model.monthlyIncome ?? 0) + (model.additionalIncome ?? 0));
 
   // C.7 paymentToIncomeRatio — платёж / доход, %
-  compute(m.paymentToIncomeRatio, () => {
+  compute(model.$.paymentToIncomeRatio, () => {
     const income = model.totalIncome ?? 0;
     if (income <= 0) return 0;
     return round2(((model.monthlyPayment ?? 0) / income) * 100);
   });
 
   // C.8 coBorrowersIncome — сумма доходов созаёмщиков (реактивно по массиву)
-  compute(m.coBorrowersIncome, () =>
+  compute(model.$.coBorrowersIncome, () =>
     model.coBorrowers.map((cb) => cb.monthlyIncome ?? 0).reduce((sum, v) => sum + v, 0)
   );
 
   // ===== Conditional visibility/availability (enableWhen) =====
 
   // ипотека
-  enableWhen([m.propertyValue, m.initialPayment], () => model.loanType === 'mortgage', {
+  enableWhen([model.$.propertyValue, model.$.initialPayment], () => model.loanType === 'mortgage', {
     resetOnDisable: true,
   });
   // автокредит
-  enableWhen([m.carBrand, m.carModel, m.carYear, m.carPrice], () => model.loanType === 'car', {
-    resetOnDisable: true,
-  });
+  enableWhen(
+    [model.$.carBrand, model.$.carModel, model.$.carYear, model.$.carPrice],
+    () => model.loanType === 'car',
+    {
+      resetOnDisable: true,
+    }
+  );
   // работа по найму
   enableWhen(
-    [m.companyName, m.companyInn, m.companyPhone, m.companyAddress, m.position],
+    [
+      model.$.companyName,
+      model.$.companyInn,
+      model.$.companyPhone,
+      model.$.companyAddress,
+      model.$.position,
+    ],
     () => model.employmentStatus === 'employed',
     { resetOnDisable: true }
   );
   // ИП / самозанятый
   enableWhen(
-    [m.businessType, m.businessInn, m.businessActivity],
+    [model.$.businessType, model.$.businessInn, model.$.businessActivity],
     () => model.employmentStatus === 'selfEmployed',
     {
       resetOnDisable: true,
     }
   );
   // адрес проживания (группа) — включается при отличии от регистрации
-  enableWhen(m.residenceAddress, () => model.sameAsRegistration === false);
+  enableWhen(model.$.residenceAddress, () => model.sameAsRegistration === false);
 
   // ===== Copy-from =====
-  copyFrom(m.registrationAddress, m.residenceAddress, {
+  copyFrom(model.$.registrationAddress, model.$.residenceAddress, {
     when: () => model.sameAsRegistration === true,
   });
-  copyFrom(m.email, m.emailAdditional, { when: () => model.sameEmail === true });
+  copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail === true });
 
   // ===== Async options loading =====
 
   // carBrand → модели авто (+ сброс выбранной модели)
   onChange(
-    m.carBrand,
+    model.$.carBrand,
     async (brand, { signal }) => {
       model.carModel = null;
       if (!brand) {
@@ -144,7 +152,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form }) =
 
   // registrationAddress.region → города (+ сброс города)
   onChange(
-    m.registrationAddress.region,
+    model.$.registrationAddress.region,
     async (region, { signal }) => {
       model.registrationAddress.city = '';
       if (!region) {
@@ -164,7 +172,7 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form }) =
 
   // residenceAddress.region → города (+ сброс города)
   onChange(
-    m.residenceAddress.region,
+    model.$.residenceAddress.region,
     async (region, { signal }) => {
       model.residenceAddress.city = '';
       if (!region) {
@@ -183,13 +191,13 @@ export const creditBehavior = defineFormBehavior<CreditForm>(({ model, form }) =
   );
 
   // ===== Array management — очистка при снятии флага =====
-  onChange(m.hasProperty, (has) => {
+  onChange(model.$.hasProperty, (has) => {
     if (!has) while (model.properties.length > 0) model.properties.removeAt(0);
   });
-  onChange(m.hasExistingLoans, (has) => {
+  onChange(model.$.hasExistingLoans, (has) => {
     if (!has) while (model.existingLoans.length > 0) model.existingLoans.removeAt(0);
   });
-  onChange(m.hasCoBorrower, (has) => {
+  onChange(model.$.hasCoBorrower, (has) => {
     if (!has) while (model.coBorrowers.length > 0) model.coBorrowers.removeAt(0);
   });
 });

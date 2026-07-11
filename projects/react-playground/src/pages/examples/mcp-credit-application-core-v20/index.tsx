@@ -292,7 +292,7 @@ export default function McpCreditApplicationCoreV20({
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-6" data-testid="credit-application-core-v20">
+    <div className="mx-auto  p-6" data-testid="credit-application-core-v20">
       <h1 className="mb-6 text-2xl font-bold">Заявка на кредит</h1>
       <FormWizard form={form} steps={STEPS} config={config} onSubmit={handleSubmit} />
     </div>

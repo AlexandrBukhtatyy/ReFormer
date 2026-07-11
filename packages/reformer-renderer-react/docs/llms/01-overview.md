@@ -50,7 +50,6 @@ interface MyForm {
 
 // (1) Построить M1-дерево: листья привязаны к сигналам модели (`model.$.<field>`).
 function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
-  const m = model.$;
   return {
     component: Box,
     componentProps: { className: 'space-y-4' },
@@ -59,9 +58,9 @@ function buildSchema(model: FormModel<MyForm>): RenderNode<MyForm> {
         component: Section,
         componentProps: { title: 'Вход' },
         children: [
-          { value: m.email, component: Input, componentProps: { label: 'Email' } },
+          { value: model.$.email, component: Input, componentProps: { label: 'Email' } },
           {
-            value: m.password,
+            value: model.$.password,
             component: Input,
             componentProps: { label: 'Пароль', type: 'password' },
           },
@@ -101,7 +100,6 @@ import { Box, Input } from '@reformer/ui-kit';
 
 // form нужен ТОЛЬКО рендеру; при createForm дерево строится БЕЗ form.
 function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): RenderNode<MyForm> {
-  const m = model.$;
   return {
     selector: 'wizard',
     component: FormWizard,
@@ -117,8 +115,8 @@ function buildSchema(model: FormModel<MyForm>, form?: FormProxy<MyForm>): Render
             component: Box,
             componentProps: { className: 'space-y-4' },
             children: [
-              { value: m.loanAmount, component: Input, componentProps: { label: 'Сумма' } },
-              { value: m.loanTerm, component: Input, componentProps: { label: 'Срок' } },
+              { value: model.$.loanAmount, component: Input, componentProps: { label: 'Сумма' } },
+              { value: model.$.loanTerm, component: Input, componentProps: { label: 'Срок' } },
             ],
           },
         },

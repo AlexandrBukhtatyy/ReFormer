@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { deriveNumberDisplay, resolveEmittedNumber } from './input-number-buffer';
 
 /** Общие props компонента {@link Input}, не зависящие от `type`. */
 interface InputBaseProps extends Omit<
@@ -95,26 +96,26 @@ export type InputProps = NumberInputProps | TextInputProps;
 const Input = React.forwardRef<HTMLInputElement, InputProps>((props, ref) => {
   const type = props.type ?? 'text';
 
+  // Сырой строковый буфер для `type="number"`: удерживает промежуточные и
+  // неканонические состояния ввода («1.», «1.50», «0.05», «-», ведущие нули),
+  // которые схлопнулись бы при round-trip через `Number(...).toString()`.
+  // Для остальных типов не используется (значение и так строка).
+  const [rawNumberInput, setRawNumberInput] = React.useState<string | null>(null);
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
 
     // Сужаем union по `props.type` (не деструктурируя дискриминант) — тогда `props.onChange`
     // типизирован точно (`number|null` / `string|null`) и вызовы ниже без единого каста.
     if (props.type === 'number') {
-      if (newValue === '') {
-        props.onChange?.(null);
-      } else {
-        const numValue = Number(newValue);
-        // Only call onChange if the value is a valid number (not NaN)
-        if (!isNaN(numValue)) {
-          // Block negative values if min is 0 or positive
-          const minValue = props.min !== undefined ? Number(props.min) : undefined;
-          if (minValue !== undefined && minValue >= 0 && numValue < 0) {
-            props.onChange?.(0);
-          } else {
-            props.onChange?.(numValue);
-          }
-        }
+      // Запоминаем сырую строку до канонизации — из неё выводим отображение.
+      setRawNumberInput(newValue);
+      const minValue = props.min !== undefined ? Number(props.min) : undefined;
+      const result = resolveEmittedNumber(newValue, minValue);
+      // Частичный ввод («-», «.», «1e») не эмитим — поле не откатывается,
+      // но буфер сохранит набранное.
+      if (result.emit) {
+        props.onChange?.(result.value);
       }
     } else {
       props.onChange?.(newValue || null);
@@ -122,15 +123,15 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>((props, ref) => {
   };
 
   const inputValue = React.useMemo(() => {
+    if (props.type === 'number') {
+      // Показываем сырой буфер, пока он согласован с value; иначе — каноническое
+      // value.toString() (внешнее изменение value выигрывает).
+      return deriveNumberDisplay(rawNumberInput, props.value);
+    }
     const value = props.value;
     if (value === null || value === undefined) return '';
-    if (props.type === 'number' && typeof value === 'number') {
-      // Don't render NaN values in number inputs
-      if (isNaN(value)) return '';
-      return value.toString();
-    }
     return String(value);
-  }, [props.value, props.type]);
+  }, [props.value, props.type, rawNumberInput]);
 
   // Нативные атрибуты (min/max/name/id/aria-*/…) прокидываем как есть. value/onChange/type читаем
   // через `props` (для сужения union), className/onBlur/placeholder/disabled рендерим явно —

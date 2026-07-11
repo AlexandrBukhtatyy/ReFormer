@@ -1,239 +1,272 @@
 ---
 sidebar_position: 1
-sidebar_label: Hooks
 ---
 
-# Hooks
+# React-хуки
 
-ReFormer provides React hooks for seamless integration with React 18+.
+ReFormer даёт три хука для чтения состояния нод в React-компонентах (React 18+). Все они построены
+на `useSyncExternalStore` и обновляют компонент **точечно** — только когда меняются те сигналы, на
+которые подписан хук.
+
+| Хук                            | Что возвращает                      | Когда брать                                           |
+| ------------------------------ | ----------------------------------- | ----------------------------------------------------- |
+| `useFormControl(control)`      | полное состояние ноды (объект)      | нужны `value`, `errors`, `touched`, `disabled` и т.д. |
+| `useFormControlValue(control)` | **только значение** (`T` напрямую)  | нужно лишь значение — условный рендер, вычисления     |
+| `useArrayLength(arrayNode)`    | реактивная длина массива (`number`) | рендер динамического списка                           |
+
+:::info Доступ к нодам — через proxy
+Ноды берут из proxy формы по имени: `form.email`, `form.address.city`, `form.phones` — напрямую,
+без промежуточного контейнера полей.
+:::
 
 ## useFormControl
 
-Subscribe to all field state changes. The component re-renders only when control data actually changes.
-
-```typescript
-import { useFormControl } from '@reformer/core';
-
-function TextField({ field }: { field: FieldNode<string> }) {
-  const { value, disabled, errors, shouldShowError } = useFormControl(field);
-
-  return (
-    <div>
-      <input
-        value={value}
-        onChange={(e) => field.setValue(e.target.value)}
-        onBlur={() => field.markAsTouched()}
-        disabled={disabled}
-      />
-      {shouldShowError && errors.length > 0 && (
-        <span className="error">{errors[0].message}</span>
-      )}
-    </div>
-  );
-}
-```
-
-### Return Value for FieldNode
-
-| Property          | Type                  | Description                              |
-| ----------------- | --------------------- | ---------------------------------------- |
-| `value`           | `T`                   | Current value                            |
-| `valid`           | `boolean`             | Is valid                                 |
-| `invalid`         | `boolean`             | Has errors                               |
-| `errors`          | `ValidationError[]`   | Array of validation errors               |
-| `touched`         | `boolean`             | User interacted with field               |
-| `disabled`        | `boolean`             | Is disabled                              |
-| `pending`         | `boolean`             | Async validation in progress             |
-| `shouldShowError` | `boolean`             | Should display error (touched + invalid) |
-| `componentProps`  | `Record<string, any>` | Custom props for component               |
-
-### Return Value for ArrayNode
-
-| Property  | Type                | Description                  |
-| --------- | ------------------- | ---------------------------- |
-| `value`   | `T[]`               | Current array value          |
-| `length`  | `number`            | Number of items in array     |
-| `valid`   | `boolean`           | Is valid                     |
-| `invalid` | `boolean`           | Has errors                   |
-| `errors`  | `ValidationError[]` | Array of validation errors   |
-| `touched` | `boolean`           | User interacted              |
-| `dirty`   | `boolean`           | Value changed from initial   |
-| `pending` | `boolean`           | Async validation in progress |
-
-### Example: Complete Field Component
+Подписка на **всё** состояние ноды. Компонент ре-рендерится только при реальном изменении данных
+контрола.
 
 ```tsx
-function FormField({ field, label }: { field: FieldNode<string>; label: string }) {
-  const { value, disabled, errors, shouldShowError, pending } = useFormControl(field);
+import { useFormControl } from '@reformer/core';
+import type { FieldNode } from '@reformer/core';
+
+function TextField({ control, label }: { control: FieldNode<string>; label: string }) {
+  const { value, disabled, errors, shouldShowError, pending } = useFormControl(control);
 
   return (
-    <div className="form-field">
+    <div className="field">
       <label>{label}</label>
       <input
-        value={value}
-        onChange={(e) => field.setValue(e.target.value)}
-        onBlur={() => field.markAsTouched()}
+        value={value ?? ''}
         disabled={disabled}
+        onChange={(e) => control.setValue(e.target.value)}
+        onBlur={() => control.markAsTouched()}
+        aria-invalid={shouldShowError}
       />
-      {shouldShowError && errors.length > 0 && (
-        <span className="error-message">{errors[0].message}</span>
-      )}
-      {pending && <span className="loading">Validating...</span>}
+      {shouldShowError && errors[0] && <span className="error">{errors[0].message}</span>}
+      {pending && <span className="loading">Проверка…</span>}
     </div>
   );
 }
 ```
+
+### Состояние для `FieldNode`
+
+| Свойство          | Тип                       | Описание                                           |
+| ----------------- | ------------------------- | -------------------------------------------------- |
+| `value`           | `T`                       | текущее значение                                   |
+| `errors`          | `ValidationError[]`       | ошибки валидации (`[]` когда валидно)              |
+| `valid`           | `boolean`                 | поле проходит валидацию                            |
+| `invalid`         | `boolean`                 | есть ошибки                                        |
+| `touched`         | `boolean`                 | пользователь взаимодействовал (был `blur`)         |
+| `dirty`           | `boolean`                 | значение отличается от начального                  |
+| `disabled`        | `boolean`                 | поле отключено                                     |
+| `pending`         | `boolean`                 | идёт асинхронная валидация                         |
+| `shouldShowError` | `boolean`                 | пора показать ошибку (`touched && invalid`)        |
+| `componentProps`  | `Record<string, unknown>` | пропсы компонента из схемы (`label`, `options`, …) |
+
+### Состояние для `ArrayNode`
+
+То же самое, плюс реактивная `length`; у массива нет `shouldShowError` и `componentProps`.
+
+| Свойство            | Тип                 | Описание                                 |
+| ------------------- | ------------------- | ---------------------------------------- |
+| `value`             | `T[]`               | значения всех элементов                  |
+| `length`            | `number`            | количество элементов (реактивно)         |
+| `errors`            | `ValidationError[]` | ошибки уровня массива                    |
+| `valid` / `invalid` | `boolean`           | валиден ли массив и все элементы         |
+| `touched`           | `boolean`           | было взаимодействие с любым элементом    |
+| `dirty`             | `boolean`           | массив изменился относительно начального |
+| `disabled`          | `boolean`           | массив отключён                          |
+| `pending`           | `boolean`           | идёт асинхронная валидация               |
+
+:::tip `componentProps` — из схемы
+`label`, `placeholder`, `options` и прочие пропсы задаются в **схеме поля** и читаются из
+`useFormControl(control).componentProps`, а не из JSX-пропсов. Подробнее — в разделе
+[Свои компоненты полей](./custom-fields).
+:::
 
 ---
 
 ## useFormControlValue
 
-Subscribe to field value only, without tracking errors, valid, touched, etc. Use this when you need only the value for conditional rendering — it provides better performance by avoiding unnecessary re-renders.
+Подписка **только на значение**. Компонент не ре-рендерится при изменении `errors`, `touched`,
+`valid` и других свойств — это дешевле, чем `useFormControl`, когда нужно лишь значение.
 
-```typescript
+:::warning Не деструктурируйте результат
+`useFormControlValue` возвращает значение `T` **напрямую**, а не объект. Присваивайте его
+переменной целиком.
+
+```tsx
+const email = useFormControlValue(form.email); // ✅ верно
+const { value } = useFormControlValue(form.email); // ❌ значение — не объект
+```
+
+:::
+
+Типичный сценарий — условный рендер по значению другого поля:
+
+```tsx
 import { useFormControlValue } from '@reformer/core';
+import type { FormProxy } from '@reformer/core';
 
-function ConditionalField({
-  showWhenField,
-  field
-}: {
-  showWhenField: FieldNode<string>;
-  field: FieldNode<string>;
-}) {
-  // Re-renders only when showWhenField.value changes
-  const showWhenValue = useFormControlValue(showWhenField);
+function ShippingSection({ form }: { form: FormProxy<CheckoutForm> }) {
+  // Ре-рендер только когда меняется hasShipping
+  const hasShipping = useFormControlValue(form.hasShipping);
 
-  if (showWhenValue !== 'show') {
+  if (!hasShipping) {
     return null;
   }
 
-  return <TextField field={field} />;
-}
-```
-
-### Return Value
-
-| Type | Description   |
-| ---- | ------------- |
-| `T`  | Current value |
-
-### When to Use
-
-Use `useFormControlValue` instead of `useFormControl` when:
-
-- You need only the value for conditional rendering
-- You want to minimize re-renders
-- You don't need validation state or other properties
-
-```tsx
-// ❌ Inefficient - re-renders on any state change
-function BadExample({ field }: { field: FieldNode<string> }) {
-  const { value } = useFormControl(field);
-  return <span>Selected: {value}</span>;
-}
-
-// ✅ Efficient - re-renders only on value change
-function GoodExample({ field }: { field: FieldNode<string> }) {
-  const value = useFormControlValue(field);
-  return <span>Selected: {value}</span>;
-}
-```
-
----
-
-## Usage Examples
-
-### With GroupNode
-
-Access controls from GroupNode:
-
-```tsx
-function UserForm() {
-  const form = useMemo(() => createUserForm(), []);
-
   return (
-    <form>
-      <FormField field={form.controls.firstName} label="First Name" />
-      <FormField field={form.controls.lastName} label="Last Name" />
-      <FormField field={form.controls.email} label="Email" />
-    </form>
-  );
-}
-```
-
-### With ArrayNode
-
-Render dynamic arrays:
-
-```tsx
-function PhoneList({ array }: { array: ArrayNode<PhoneSchema> }) {
-  const { length } = useFormControl(array);
-
-  return (
-    <div>
-      {array.map((phone, index) => (
-        <div key={phone.id}>
-          <FormField field={phone.controls.type} label="Type" />
-          <FormField field={phone.controls.number} label="Number" />
-          <button onClick={() => array.removeAt(index)}>Remove</button>
-        </div>
-      ))}
-      {length === 0 && <span>No phones added</span>}
-      <button onClick={() => array.push({ type: 'mobile', number: '' })}>Add Phone</button>
+    <div className="shipping">
+      <FormField control={form.city} />
+      <FormField control={form.street} />
     </div>
   );
 }
 ```
 
-### Form Submission
+### Когда использовать
 
-Handle form submit:
+- условный рендер секции по значению флага/селекта;
+- вычисляемое отображение (счётчик символов, превью, «итого по строке»);
+- read-only показ значения без интерактивности.
+
+Если компоненту нужны `errors`, `disabled` или другие свойства — берите `useFormControl`: одна
+подписка эффективнее, чем несколько разных хуков на один контрол.
+
+---
+
+## useArrayLength
+
+Реактивная длина массива. Значения массива принадлежат [модели](../core-concepts/model), поэтому
+мутации выполняются на модели (`model.phones.push` / `removeAt`), а рендер — через ноду формы
+(`form.phones.map`). `useArrayLength` подписывается только на `length` и не ре-рендерится при
+изменении полей внутри элементов.
 
 ```tsx
-function ContactForm() {
-  const form = useMemo(() => createContactForm(), []);
-  const { invalid } = useFormControl(form.controls.email);
+import { useArrayLength } from '@reformer/core';
+import { FormField } from '@reformer/ui-kit';
+import type { FormModel, FormProxy } from '@reformer/core';
 
-  const handleSubmit = (e: React.FormEvent) => {
+function PhoneList({ form, model }: { form: FormProxy<OrderForm>; model: FormModel<OrderForm> }) {
+  const length = useArrayLength(form.phones);
+
+  return (
+    <div>
+      {form.phones.map((phone, index) => (
+        <div key={index} className="row">
+          <FormField control={phone.type} />
+          <FormField control={phone.number} />
+          <button type="button" onClick={() => model.phones.removeAt(index)}>
+            Удалить
+          </button>
+        </div>
+      ))}
+
+      {length === 0 && <p>Телефонов пока нет</p>}
+
+      <button type="button" onClick={() => model.phones.push({ type: 'mobile', number: '' })}>
+        Добавить телефон
+      </button>
+    </div>
+  );
+}
+```
+
+:::info push принимает плоские значения
+`model.phones.push({ type, number })` — это **значения** элемента, а не узел схемы
+(`{ value, component }`). Компонент и его пропсы берутся из фабрики элемента в схеме.
+:::
+
+---
+
+## Отправка формы
+
+Сабмит в M1 — это три шага, без опоры на агрегированные флаги формы:
+
+1. `form.touchAll()` — пометить все поля тронутыми, чтобы показались ошибки.
+2. `validateFormModel(model, schema)` — headless-валидация данных модели против схемы; ошибки
+   роутятся в ноды для отображения.
+3. `model.get()` — снимок всех значений для отправки.
+
+```tsx
+import { useMemo } from 'react';
+import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { required, email } from '@reformer/core/validators';
+import { FormField, Input, Button } from '@reformer/ui-kit';
+
+type ContactForm = { name: string; email: string };
+
+export function ContactFormView() {
+  const { form, model, schema } = useMemo(() => {
+    const model = createModel<ContactForm>({ name: '', email: '' });
+    const schema = {
+      name: {
+        value: model.$.name,
+        component: Input,
+        componentProps: { label: 'Имя' },
+        validators: [required()],
+      },
+      email: {
+        value: model.$.email,
+        component: Input,
+        componentProps: { label: 'Email', type: 'email' },
+        validators: [required(), email()],
+      },
+    };
+    const form = createForm<ContactForm>({ model, schema });
+    return { form, model, schema };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    form.markAsTouched();
+    form.touchAll();
 
-    if (form.valid) {
-      console.log(form.value);
+    const { valid } = await validateFormModel(model, schema);
+    if (valid) {
+      console.log('Отправка:', model.get());
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <FormField field={form.controls.name} label="Name" />
-      <FormField field={form.controls.email} label="Email" />
-      <button type="submit" disabled={invalid}>
-        Submit
-      </button>
+      <FormField control={form.name} />
+      <FormField control={form.email} />
+      <Button type="submit">Отправить</Button>
     </form>
   );
 }
 ```
+
+:::warning Источник сабмита — валидация модели, не флаги формы
+Валидность для отправки определяет результат `validateFormModel(model, schema)`, а данные —
+`model.get()`. Не полагайтесь на агрегированные флаги формы как на источник сабмита — используйте
+headless-валидацию модели.
+:::
 
 ---
 
-## Performance
+## Производительность
 
-Both hooks use `useSyncExternalStore` for optimal React 18+ integration:
+Все три хука используют `useSyncExternalStore` и подписываются точечно, поэтому родительский
+компонент не перерисовывается при изменении отдельных полей.
 
 ```tsx
 function Form() {
-  // This component doesn't re-render on field changes
+  // Этот компонент не ре-рендерится при изменении полей —
+  // перерисовывается только тот, кто подписан на конкретную ноду.
   return (
     <form>
-      <NameField /> {/* Re-renders only when name changes */}
-      <EmailField /> {/* Re-renders only when email changes */}
+      <FormField control={form.name} /> {/* ре-рендер только при смене name */}
+      <FormField control={form.email} /> {/* ре-рендер только при смене email */}
     </form>
   );
 }
 ```
 
-## Next Steps
+## Дальше
 
-- [Custom Fields](/docs/react/custom-fields) — Building custom form fields
-- [Examples](https://stackblitz.com/~/github.com/AButsai/ReFormer/tree/main/projects/react-playground) — Live playground
+- [Свои компоненты полей](./custom-fields) — как построить поле на `useFormControl`.
+- [Ноды и proxy](../core-concepts/nodes) — что форма строит поверх модели.
+- [Модель данных](../core-concepts/model) — массивы модели и `model.get()`.
+- [Примеры](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer/tree/main/projects/react-playground) — живая песочница.

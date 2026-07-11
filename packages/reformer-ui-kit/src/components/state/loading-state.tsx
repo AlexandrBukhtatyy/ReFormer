@@ -32,6 +32,8 @@ export function LoadingState({
   return (
     <div
       data-testid="loading-state"
+      role="status"
+      aria-live="polite"
       className={className ?? 'w-full flex items-center justify-center p-12'}
     >
       <div className="text-center space-y-4">

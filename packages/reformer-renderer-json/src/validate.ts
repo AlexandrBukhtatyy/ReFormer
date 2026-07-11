@@ -17,8 +17,14 @@
  */
 
 import Ajv, { type ErrorObject } from 'ajv';
-import { formSchemaMetaSchema, getComponentNames, getDataSourceNames } from './schema';
-import { parseOperator } from './operators';
+import {
+  formSchemaMetaSchema,
+  getComponentNames,
+  getDataSourceNames,
+  getFnNames,
+  getLocaleKeys,
+} from './schema';
+import { parseOperator, isModelOp } from './operators';
 import type { ComponentRegistry } from './registry/types';
 
 /** Результат валидации схемы. */
@@ -28,39 +34,98 @@ export interface FormSchemaValidationResult {
   errors: string[];
 }
 
-/** Опции: реестр (имена извлекаются автоматически) либо явные списки имён. */
+/** Опции: реестр (имена извлекаются автоматически) либо явные списки имён/ключей. */
 export interface ValidateFormSchemaOptions {
   registry?: ComponentRegistry;
   componentNames?: string[];
   dataSourceNames?: string[];
+  /** Имена функций `reg.fn` для проверки `$fn(...)`. Не заданы → проверка `$fn`-имён пропускается. */
+  fnNames?: string[];
+  /** Ключи каталога локализации для проверки `$locale(...)`. Не заданы → проверка ключей пропускается. */
+  localeKeys?: readonly string[];
 }
 
-/** Рекурсивно собирает ошибки неизвестных `$component(...)`/`$dataSource(...)`-имён по всему дереву. */
+/** Известные имена/ключи по видам операторов; `undefined` для вида → его проверка пропускается. */
+interface OperatorNameChecks {
+  componentNames?: string[];
+  dataSourceNames?: string[];
+  fnNames?: string[];
+  localeKeys?: readonly string[];
+}
+
+/** Рекурсивно собирает ошибки неизвестных `$component/$dataSource/$fn`-имён и `$locale`-ключей по дереву. */
 function walkOperatorNames(
   node: unknown,
   path: string,
-  componentNames: string[] | undefined,
-  dataSourceNames: string[] | undefined,
+  checks: OperatorNameChecks,
   errors: string[]
 ): void {
   if (typeof node === 'string') {
     const op = parseOperator(node);
+    const { componentNames, dataSourceNames, fnNames, localeKeys } = checks;
     if (op?.op === 'component' && componentNames && !componentNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown component "${op.arg}"`);
     } else if (op?.op === 'dataSource' && dataSourceNames && !dataSourceNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown dataSource "${op.arg}"`);
+    } else if (op?.op === 'fn' && fnNames && !fnNames.includes(op.arg)) {
+      errors.push(`${path || '/'}: unknown fn "${op.arg}"`);
+    } else if (op?.op === 'locale' && localeKeys && !localeKeys.includes(op.arg)) {
+      errors.push(`${path || '/'}: unknown locale key "${op.arg}"`);
     }
     return;
   }
   if (Array.isArray(node)) {
-    node.forEach((v, i) =>
-      walkOperatorNames(v, `${path}[${i}]`, componentNames, dataSourceNames, errors)
-    );
+    node.forEach((v, i) => walkOperatorNames(v, `${path}[${i}]`, checks, errors));
     return;
   }
   if (node !== null && typeof node === 'object') {
+    // Структурная форма `$locale` с параметрами: `{ $locale: 'key', params?: {…} }`. Ключ здесь —
+    // голая строка (не оператор `$locale(...)`), поэтому проверяем его отдельно от строковой ветви.
+    const n = node as Record<string, unknown>;
+    if (
+      typeof n.$locale === 'string' &&
+      checks.localeKeys &&
+      !checks.localeKeys.includes(n.$locale)
+    ) {
+      errors.push(`${path ? `${path}.` : ''}$locale: unknown locale key "${n.$locale}"`);
+    }
     for (const [k, v] of Object.entries(node)) {
-      walkOperatorNames(v, path ? `${path}.${k}` : k, componentNames, dataSourceNames, errors);
+      walkOperatorNames(v, path ? `${path}.${k}` : k, checks, errors);
+    }
+  }
+}
+
+/** Похож ли объект на array-узел (`array: '$model(...)'` + `item.$template`)? */
+function looksLikeArrayNode(n: Record<string, unknown>): boolean {
+  return (
+    isModelOp(n.array) &&
+    typeof n.item === 'object' &&
+    n.item !== null &&
+    '$template' in (n.item as Record<string, unknown>)
+  );
+}
+
+/**
+ * Рекурсивно флагает array-узлы без `initialValue`. Листья шаблона несут `value: '$model(...)'`
+ * (под-пути элемента-объекта), поэтому без литерал-`initialValue` кнопка «Добавить» кладёт `{}` —
+ * core строит GroupNode без детей, `$model(...)`-листья резолвятся в undefined-сигналы и ничего
+ * не рендерят (карточка только с кнопками). Схема при этом структурно валидна (initialValue
+ * опционален), так что молчаливую поломку ловим здесь.
+ */
+function walkArrayInitialValue(node: unknown, path: string, errors: string[]): void {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => walkArrayInitialValue(v, `${path}[${i}]`, errors));
+    return;
+  }
+  if (node !== null && typeof node === 'object') {
+    const n = node as Record<string, unknown>;
+    if (looksLikeArrayNode(n) && n.initialValue === undefined) {
+      errors.push(
+        `${path || '/'}: array node is missing "initialValue" — the "Add" button would create an empty element and its "$model(...)" template leaves would render nothing. Provide an "initialValue" literal with the element's keys.`
+      );
+    }
+    for (const [k, v] of Object.entries(n)) {
+      walkArrayInitialValue(v, path ? `${path}.${k}` : k, errors);
     }
   }
 }
@@ -88,6 +153,8 @@ export function validateFormSchema(
     opts.componentNames ?? (opts.registry ? getComponentNames(opts.registry) : undefined);
   const dataSourceNames =
     opts.dataSourceNames ?? (opts.registry ? getDataSourceNames(opts.registry) : undefined);
+  const fnNames = opts.fnNames ?? (opts.registry ? getFnNames(opts.registry) : undefined);
+  const localeKeys = opts.localeKeys ?? (opts.registry ? getLocaleKeys(opts.registry) : undefined);
 
   const errors: string[] = [];
 
@@ -96,12 +163,19 @@ export function validateFormSchema(
   const validateFn = ajv.compile(formSchemaMetaSchema);
   if (!validateFn(schema)) {
     for (const e of (validateFn.errors ?? []) as ErrorObject[]) {
+      // Node discriminates via if/then/else — ajv emits a redundant meta-error
+      // ('must match "then"/"else" schema') next to the real branch error. Drop it so the
+      // actual cause isn't buried under generic branch noise (the whole point of a DSL validator).
+      if (e.keyword === 'if') continue;
       errors.push(`${e.instancePath || '/'} ${e.message ?? 'invalid'}`.trim());
     }
   }
 
-  // (b) Имена $component/$dataSource по всему дереву (включая вложенные в opaque componentProps)
-  walkOperatorNames(schema, '', componentNames, dataSourceNames, errors);
+  // (b) Имена $component/$dataSource/$fn и ключи $locale по всему дереву (включая вложенные в opaque componentProps)
+  walkOperatorNames(schema, '', { componentNames, dataSourceNames, fnNames, localeKeys }, errors);
+
+  // (c) Array-узлы без initialValue → молчаливо ломающиеся элементы (см. walkArrayInitialValue)
+  walkArrayInitialValue(schema, '', errors);
 
   return { valid: errors.length === 0, errors };
 }

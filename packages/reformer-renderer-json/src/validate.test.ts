@@ -91,4 +91,133 @@ describe('validateFormSchema', () => {
     const schema = { root: { selector: 'orphan', componentProps: {} } };
     expect(validateFormSchema(schema, opts).valid).toBe(false);
   });
+
+  it('flags an array node that omits initialValue (silently-broken elements)', () => {
+    const schema = {
+      root: {
+        array: '$model(coBorrowers)',
+        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, opts);
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/initialValue/i);
+  });
+
+  it('accepts an array node that provides initialValue', () => {
+    const schema = {
+      root: {
+        array: '$model(coBorrowers)',
+        initialValue: { name: '' },
+        item: { $template: { value: '$model(name)', component: '$component(Input)' } },
+      },
+    };
+    expect(validateFormSchema(schema, opts).valid).toBe(true);
+  });
+
+  it('rejects an unknown $fn name nested in componentProps', () => {
+    const schema = {
+      root: {
+        array: '$model(properties)',
+        initialValue: { type: '' },
+        componentProps: { itemLabel: '$fn(MISSING)' },
+        item: { $template: { value: '$model(type)', component: '$component(Input)' } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { ...opts, fnNames: ['itemLabel'] });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/fn.*MISSING/i);
+  });
+
+  it('rejects a dataSource name used as $fn (cross-type)', () => {
+    const schema = {
+      root: {
+        value: '$model(x)',
+        component: '$component(Input)',
+        componentProps: { format: '$fn(LOAN_TYPES)' },
+      },
+    };
+    // LOAN_TYPES известен как dataSource, но НЕ как fn → ошибка ещё на validate.
+    const { valid, errors } = validateFormSchema(schema, { ...opts, fnNames: ['itemLabel'] });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/fn.*LOAN_TYPES/i);
+  });
+
+  it('skips $fn name checks when fnNames is not provided', () => {
+    const schema = {
+      root: {
+        value: '$model(x)',
+        component: '$component(Input)',
+        componentProps: { format: '$fn(whatever)' },
+      },
+    };
+    // Без fnNames проверка имён $fn мягко пропускается (синтаксис валиден).
+    expect(validateFormSchema(schema, opts).valid).toBe(true);
+  });
+
+  it('rejects an unknown $locale key when a catalog (localeKeys) is provided', () => {
+    const schema = {
+      root: {
+        value: '$model(email)',
+        component: '$component(Input)',
+        componentProps: { label: '$locale(fields.typo)' },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, {
+      ...opts,
+      localeKeys: ['fields.email.label'],
+    });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/locale key.*fields\.typo/i);
+  });
+
+  it('skips $locale key checks when localeKeys is not provided (open-ended keys)', () => {
+    const schema = {
+      root: {
+        value: '$model(email)',
+        component: '$component(Input)',
+        componentProps: { label: '$locale(any.key)' },
+      },
+    };
+    expect(validateFormSchema(schema, opts).valid).toBe(true);
+  });
+
+  it('rejects an unknown key in the structured { $locale, params } form', () => {
+    const schema = {
+      root: {
+        value: '$model(x)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.typo', params: { count: 3 } } },
+      },
+    };
+    const { valid, errors } = validateFormSchema(schema, { ...opts, localeKeys: ['fields.min'] });
+    expect(valid).toBe(false);
+    expect(errors.join('\n')).toMatch(/locale key.*fields\.typo/i);
+  });
+
+  it('accepts a known key in the structured { $locale, params } form', () => {
+    const schema = {
+      root: {
+        value: '$model(x)',
+        component: '$component(Input)',
+        componentProps: { label: { $locale: 'fields.min', params: { count: 3 } } },
+      },
+    };
+    expect(validateFormSchema(schema, { ...opts, localeKeys: ['fields.min'] }).valid).toBe(true);
+  });
+
+  it('reports only the relevant branch, not a cross-branch wall, for a bad node', () => {
+    // Узел явно field (несёт `value`), но `value` — не $model-оператор.
+    const schema = { root: { value: 'email', component: '$component(Input)' } };
+    const { valid, errors } = validateFormSchema(schema, opts);
+    expect(valid).toBe(false);
+    // Настоящая причина всплывает (pattern у value)…
+    expect(errors.join('\n')).toMatch(/value.*pattern/i);
+    // …и НЕ погребена под ошибками чужих ветвей (array/item), oneOf- или then/else-шумом.
+    expect(errors.join('\n')).not.toMatch(/oneOf/i);
+    expect(errors.join('\n')).not.toMatch(/'array'|'item'/i);
+    expect(errors.join('\n')).not.toMatch(/then|else/i);
+    // Ровно одна структурная ошибка — по value, без кросс-ветвевой стены.
+    expect(errors.filter((e) => e.includes('/root')).length).toBe(1);
+  });
 });

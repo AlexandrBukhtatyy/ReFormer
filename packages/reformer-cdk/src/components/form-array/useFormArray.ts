@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
-import { useFormControl, type ArrayNode } from '@reformer/core';
+import {
+  useFormControl,
+  type ArrayNode,
+  type FormProxy,
+  type ValidationError,
+} from '@reformer/core';
 // FormArrayItem объявлен один раз в FormArrayContext (устранён дубль-интерфейс с тем же именем).
 import type { FormArrayItem } from './FormArrayContext';
+import type { FormArrayControl } from './types';
 
 /**
  * Return type for useFormArray hook
@@ -19,10 +25,20 @@ export interface UseFormArrayReturn<T extends object> {
   clear: () => void;
   /** Insert a new item at a specific index */
   insert: (index: number, value?: Partial<T>) => void;
+  /** Remove an item by index (symmetric with insert-by-index) */
+  removeAt: (index: number) => void;
   /** Move an item from one index to another (reorder, state preserved) */
   move: (from: number, to: number) => void;
   /** Swap two items by index (reorder, state preserved) */
   swap: (a: number, b: number) => void;
+  /** Get item control at a specific index */
+  at: (index: number) => FormProxy<T> | undefined;
+  /** Array-level validation errors (e.g. `minItems`) */
+  errors: ValidationError[];
+  /** Whether the array (and all its items) is valid */
+  valid: boolean;
+  /** Whether the array (or any item) is invalid */
+  invalid: boolean;
 }
 
 /**
@@ -88,12 +104,17 @@ export interface UseFormArrayReturn<T extends object> {
  * }
  * ```
  */
-export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormArrayReturn<T> {
+export function useFormArray<T extends object>(
+  control: FormArrayControl<T>
+): UseFormArrayReturn<T> {
   // Subscribe to array length AND value. `value` ref changes on reorder (move/swap), which keeps
   // the same length — without it the memo below would not recompute and the UI would not reorder.
-  const { length, value } = useFormControl(control);
+  // ModelArrayNode структурно совместим с ArrayNode для useFormControl (duck-typed по length/map);
+  // cast нужен лишь потому, что перегрузка типизирована строго под ArrayNode.
+  const { length, value, errors, valid, invalid } = useFormControl(control as ArrayNode<T>);
 
-  // Memoize items array - recalculates when length OR order changes.
+  // Memoize items array - recalculates when length OR order changes. Хелперы reorder выводятся на
+  // базовый элемент, чтобы консументы сырого хука получали тот же набор, что и FormArray.List.
   const items = useMemo(
     () =>
       control.map((itemControl, index) => ({
@@ -101,6 +122,10 @@ export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormAr
         index,
         id: itemControl.id ?? index,
         remove: () => control.removeAt(index),
+        moveUp: () => control.move(index, index - 1),
+        moveDown: () => control.move(index, index + 1),
+        canMoveUp: index > 0,
+        canMoveDown: index < length - 1,
       })),
     // `value` is intentionally in deps: its reference changes on add/remove/reorder.
     [control, length, value]
@@ -113,7 +138,12 @@ export function useFormArray<T extends object>(control: ArrayNode<T>): UseFormAr
     add: (value?: Partial<T>) => control.push(value),
     clear: () => control.clear(),
     insert: (index: number, value?: Partial<T>) => control.insert(index, value),
+    removeAt: (index: number) => control.removeAt(index),
     move: (from: number, to: number) => control.move(from, to),
     swap: (a: number, b: number) => control.swap(a, b),
+    at: (index: number) => control.at(index),
+    errors,
+    valid,
+    invalid,
   };
 }

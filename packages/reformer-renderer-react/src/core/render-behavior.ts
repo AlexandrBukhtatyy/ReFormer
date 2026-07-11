@@ -149,6 +149,11 @@ function setLifecycleHook<K extends keyof import('./render-schema-proxy').NodeLi
  *
  * Типичный кейс: создать форму/стейт, закрепить за нодой через patchProps.
  *
+ * В ОТЛИЧИЕ от {@link onMount}/{@link onUnmount} это НЕ пер-нодовый lifecycle-хук: он не
+ * привязан к монтированию какой-либо ноды и не хранится в lifecycleRegistry. Аргумент `_node`
+ * принимается только ради симметрии сигнатуры с onMount/onUnmount и не используется — `fn`
+ * вызывается синхронно в момент применения behavior к схеме.
+ *
  * @example
  * ```typescript
  * onInit(schema.node('wizard'), () => {
@@ -157,7 +162,7 @@ function setLifecycleHook<K extends keyof import('./render-schema-proxy').NodeLi
  * });
  * ```
  */
-export function onInit(node: RenderNodeControl, fn: () => void): void {
+export function onInit(_node: RenderNodeControl, fn: () => void): void {
   fn();
 }
 

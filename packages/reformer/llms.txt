@@ -242,7 +242,7 @@ model.properties.length; // реактивная длина
 ```typescript
 // Модель данных (источник истины значений)
 createModel<T extends object>(initial: T): FormModel<T>
-// model.get() / model.set(partial) / model.patch(partial) / model.isDirty()
+// model.get() / model.set(full) / model.patch(partial) / model.isDirty()
 // model.reset() / model.captureInitial() / model.signalAt(path)
 // model.$.field            → PathAwareSignal<FieldType>  (escape-hatch к сигналу)
 // model.arrayField         → ModelArray<Item>            (push/removeAt/insertAt/move/swap/clear/at/map/length)
@@ -937,20 +937,21 @@ const form = createForm<MyForm>({ model, schema });
 
 ### Nested Objects
 
-Вложенная группа — обычный объект под-узлов, привязанных к сигналам под-модели
-(`model.$.address.city`). Удобно вынести в builder, принимающий `ModelSignals<Sub>`:
+Вложенная группа модели — это сама по себе под-модель `FormModel<Sub>` (доступна как `model.<group>`,
+с `.$`/API). Удобно вынести в builder, принимающий `FormModel<Sub>` — симметрично builder'у элемента
+массива. Сигналы под-модели идентичны корневым: `model.address.$.city === model.$.address.city`.
 
 ```typescript
-import type { ModelSignals } from '@reformer/core';
+import type { FormModel } from '@reformer/core';
 
-const addressNodes = (s: ModelSignals<Address>) => ({
-  street: { value: s.street, component: Input, componentProps: { label: 'Street' } },
-  city:   { value: s.city,   component: Input, componentProps: { label: 'City' } },
-  zip:    { value: s.zip,    component: Input, componentProps: { label: 'ZIP' } },
+const addressNodes = (m: FormModel<Address>) => ({
+  street: { value: m.$.street, component: Input, componentProps: { label: 'Street' } },
+  city:   { value: m.$.city,   component: Input, componentProps: { label: 'City' } },
+  zip:    { value: m.$.zip,    component: Input, componentProps: { label: 'ZIP' } },
 });
 
 const schema = {
-  address: addressNodes(model.$.address),
+  address: addressNodes(model.address),
 };
 ```
 
@@ -1963,11 +1964,12 @@ const count = useArrayLength(control.items);
 // value-доступ (реактивно внутри effect/computed, запись присваиванием)
 model.email;                 // читать
 model.email = 'a@b.c';       // писать
-model.address.city;          // вложенное поле
+model.address.city;          // вложенное поле (model.address — под-модель FormModel<Address>)
 
 // через сигнал (escape-hatch)
 model.$.email.value;         // реактивное чтение/запись
 model.$.email.peek();        // нереактивный снимок
+model.$.address.city.value;  // сигнал вложенного поля (≡ model.address.$.city у под-модели)
 
 // весь объект
 model.get();                 // снимок { email, address: { city }, ... } — для submit
@@ -2962,7 +2964,7 @@ A: Передай в колбэк под-схему только этого по
 // Модель (источник истины значений):
 interface ModelApi<T> {
   get(): T;                         // снимок значений — для submit
-  set(value: Partial<T>): void;     // массовая замена (load с сервера)
+  set(value: T): void;              // полная установка (все ключи T)
   patch(value: Partial<T>): void;   // частичное слияние
   isDirty(): boolean;               // отличаются ли значения от initial-снимка
   reset(): void;                    // вернуть к initial-снимку
@@ -3083,7 +3085,7 @@ import { createModel, validateModel } from '@reformer/core';
 
 async function processFormPayload(rawData: Partial<MyForm>) {
   const model = createModel<MyForm>(initialValues);
-  model.set(rawData); // load данных
+  model.patch(rawData); // частичный load данных
 
   const result = await validateModel(model, schema); // без нод — просто данные
   if (!result.valid) return { ok: false, errors: result.errors };
@@ -3166,8 +3168,8 @@ race-guard через deps). Динамические `componentProps` (опци
 
 ```typescript
 // Модель:
-model.set(value: Partial<T>): void;   // массовая замена (load с сервера). Не меняет initial.
-model.patch(value: Partial<T>): void; // частичное слияние (алиас set по семантике merge)
+model.set(value: T): void;            // полная установка значений (load полного DTO). Не меняет initial.
+model.patch(value: Partial<T>): void; // частичное слияние (только переданные ключи). Не меняет initial.
 model.reset(): void;                  // вернуть к initial-снимку
 model.captureInitial(): void;         // сделать текущие значения новым initial-снимком
 
@@ -3815,6 +3817,23 @@ export interface ArrayControlState<T> {
    * ```
    */
   dirty: boolean;
+
+  /**
+   * Флаг отключения массива.
+   * `true` когда массив отключён (`ArrayNode.disable()`), в том числе через
+   * распространение disable от родительской группы.
+   *
+   * Используйте для отключения UI-действий добавления/удаления, когда массив
+   * структурно неизменяем.
+   *
+   * @example
+   * ```tsx
+   * const { disabled } = useFormControl(itemsArray);
+   *
+   * return <button disabled={disabled} onClick={() => control.push()}>Add</button>;
+   * ```
+   */
+  disabled: boolean;
 }
 ```
 
@@ -3913,8 +3932,7 @@ _Source: src/core/types/index.ts_
 **Kind:** `type`
 
 Чистый асинхронный валидатор поля. Та же тройка аргументов `(value, scope, root)`, что у
-{@link Validator}, но возвращает `Promise`. Регистрируется через
-`validateAsync(path, validator, { debounce })`.
+{@link Validator}, но возвращает `Promise`.
 
 **Signature:**
 ```typescript
@@ -3924,6 +3942,10 @@ export type AsyncValidator<TForm, TField> = (
   root: FormModel<TForm>
 ) => Promise<ValidationError | null>;
 ```
+
+**Deprecated:** Осиротевший остаток удалённого оператора `validateAsync` (Ф7). Рантаймом не
+потребляется — живой async-путь узла поля использует `AsyncValidatorFn` `(value, { signal })`.
+Экспортируется только ради обратной совместимости.
 
 _Source: src/core/types/validation-schema.ts_
 
@@ -4034,12 +4056,15 @@ _Source: src/core/model/behaviors.ts_
 
 **Kind:** `type`
 
-Функция условия для applyWhen.
+Функция-предикат `(value) => boolean`.
 
 **Signature:**
 ```typescript
 export type ConditionFn<T> = (value: T) => boolean;
 ```
+
+**Deprecated:** Осиротевший остаток удалённого оператора `applyWhen` (Ф7). Рантаймом не
+потребляется; экспортируется только ради обратной совместимости.
 
 _Source: src/core/types/validation-schema.ts_
 
@@ -4194,6 +4219,7 @@ const schema = {
 component: Section,
 children: [
 { value: model.$.email, component: Input, validators: [required] },
+// вложенная группа: `model.$.profile.name` (≡ под-модель `model.profile.$.name` — тот же сигнал)
 { value: model.$.profile.name, component: Input },
 ],
 };
@@ -4256,11 +4282,19 @@ export function createModel<T extends object>(initial: T): FormModel<T>
 **Examples:**
 
 ```typescript
-const model = createModel<{ email: string; tags: string[] }>({ email: '', tags: [] });
+const model = createModel<{ email: string; profile: { name: string }; tags: string[] }>({
+  email: '',
+  profile: { name: '' },
+  tags: [],
+});
 model.email = 'a@b.c';
-model.$.email.value;        // 'a@b.c' (сигнал)
+model.$.email.value;          // 'a@b.c' (сигнал)
+// вложенная объект-группа — под-модель FormModel (value-доступ + `.$` + API):
+model.profile.name = 'Ada';   // value-запись
+model.$.profile.name.value;   // 'Ada' (сигнал; ≡ model.profile.$.name у под-модели)
+model.profile.get();          // { name: 'Ada' }
 model.tags.push('x');
-model.get();                // { email: 'a@b.c', tags: ['x'] }
+model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tags: ['x'] }
 ```
 
 _Source: src/core/model/form-model.ts_
@@ -4346,6 +4380,15 @@ _Source: src/core/validation/validators/email.ts_
 ⚠️ Поле должно быть материализовано в форме (`createForm`) — иначе ноды в реестре нет (например,
 элемент массива, который строится per-item).
 
+⚠️ Если то же поле одновременно является целью `compute`/`computeFrom`, обязательно ограничь
+compute тем же условием (`when`), что и это `enableWhen`. Механизмы не согласованы: `enableWhen`
+работает со статус-машиной ноды (enable/disable/reset), а `compute` пишет `target.value` напрямую
+в сигнал модели и проверяет только собственный `options.when` — состояние `disabled` он НЕ смотрит.
+Поэтому при выключенном поле любое изменение зависимости compute молча заново заполнит его (а с
+`resetOnDisable` — перезапишет только что сброшенное значение), и так как `getValue()`/`submit`
+включают disabled-поля, мусор утечёт в payload. Это аналог правила #13 гайда add-behavior,
+которое сегодня сформулировано только для `copyFrom`; для `compute` то же ограничение обязательно.
+
 **Signature:**
 ```typescript
 export function enableWhen(
@@ -4359,6 +4402,12 @@ export function enableWhen(
 
 ```typescript
 enableWhen(model.$.propertyValue, () => model.loanType === 'mortgage', { resetOnDisable: true });
+
+// Поле-цель compute, которое ТАКЖЕ в resetOnDisable enableWhen: compute обязан нести тот же when,
+// иначе initialPayment заново заполнится в выключенном состоянии и утечёт в submit.
+compute(model.$.initialPayment, () => model.propertyValue * 0.2, {
+  when: () => model.loanType === 'mortgage',
+});
 ```
 
 _Source: src/core/model/behaviors.ts_
@@ -4633,6 +4682,21 @@ export interface FieldControlState<T> {
    * ```
    */
   componentProps: Record<string, unknown>;
+
+  /**
+   * Флаг изменения поля.
+   * `true` когда значение поля отличается от начального.
+   *
+   * Реактивный аналог `control.dirty` — паритет с {@link ArrayControlState.dirty}.
+   *
+   * @example
+   * ```tsx
+   * const { dirty } = useFormControl(field);
+   *
+   * return dirty ? <span className="badge">Изменено</span> : null;
+   * ```
+   */
+  dirty: boolean;
 }
 ```
 
@@ -4900,7 +4964,9 @@ _Source: src/core/utils/error-handler.ts_
 
 **Kind:** `type`
 
-FormModel — value-proxy объекта `T` + {@link ModelApi}.
+FormModel — под-модель объекта `T`: value-доступ ({@link ModelObject}) + `.$`-сигналы + {@link ModelApi}
+(get/set/patch/isDirty/reset/signalAt). Вложенные объекты-группы модели — тоже {@link FormModel}
+(доступны как `model.<group>`), поэтому `model.<group>.$.<field>` эквивалентно `model.$.<group>.<field>`.
 
 **Signature:**
 ```typescript
@@ -4960,7 +5026,27 @@ _Source: src/core/nodes/form-node.ts_
 
 **Signature:**
 ```typescript
-export type FormProxy<T> = GroupNode<T> & FormControlsProxy<T>;
+export type FormProxy<T> = GroupNode<T> &
+  // Исключаем имена, совпадающие с членами GroupNode: для них `form.<name>` возвращает член узла,
+  // а не поле. Оставлять их в полевом пространстве — значит пересекать, напр., ReadonlySignal<FieldStatus>
+  // с FieldNode<string> и молча компилировать невозможный тип. Escape-hatch — `form.$` ниже.
+  Omit<FormControlsProxy<T>, keyof GroupNode<T>> & {
+    /**
+     * Escape-hatch пространство имён «controls»: типобезопасный доступ ко ВСЕМ полям формы
+     * по имени, включая поля, чьи имена совпадают с членами {@link GroupNode}
+     * (`value`/`status`/`id`/`errors`/…), недостижимые через `form.<name>`.
+     *
+     * @example
+     * ```typescript
+     * // модель: { status: string; email: string }
+     * form.status;      // ReadonlySignal<FieldStatus> — агрегат GroupNode (не поле!)
+     * form.$.status;    // FieldNode<string> — поле пользователя
+     * form.$.status.setValue('active');
+     * form.$.email;     // FieldNode<string> — так же доступны и незатенённые поля
+     * ```
+     */
+    readonly $: FormControlsProxy<T>;
+  };
 ```
 
 **Examples:**
@@ -5007,16 +5093,18 @@ _Source: src/core/types/form-proxy.ts_
 **Signature:**
 ```typescript
 export type FormSchema<T> = {
+  // Листовые позиции используют NonEmptyFieldConfig: пустой `{}` (частая опечатка) отклоняется
+  // на этапе компиляции, но каждое свойство FieldConfig по отдельности остаётся опциональным.
   [K in keyof T]: NonNullable<T[K]> extends string | number | boolean
-    ? FieldConfig<T[K]>
+    ? NonEmptyFieldConfig<T[K]>
     : NonNullable<T[K]> extends Array<infer U>
       ? U extends string | number | boolean
-        ? FieldConfig<T[K]>
+        ? NonEmptyFieldConfig<T[K]>
         : U extends Date | File | Blob | AnyFunction
-          ? FieldConfig<T[K]>
+          ? NonEmptyFieldConfig<T[K]>
           : [FormSchema<U>]
       : NonNullable<T[K]> extends Date | File | Blob | AnyFunction
-        ? FieldConfig<T[K]>
+        ? NonEmptyFieldConfig<T[K]>
         : FormSchema<NonNullable<T[K]>>;
 };
 ```
@@ -5628,6 +5716,9 @@ _Source: src/core/validation/validators/is-number.ts_
 bulk-сеттеры (`model.set`/`model.patch`, `patchValue`/`setValue`) пропускают это поле, чтобы
 значение из payload не затирало вычисляемое. Прикладной код напрямую обычно не вызывает.
 
+Идемпотентна на уровне флага: повторные вызовы наращивают счётчик ссылок, чтобы каждый оператор,
+пишущий в этот сигнал, был сбалансирован своим {@link unmarkDerived} при dispose.
+
 **Signature:**
 ```typescript
 export function markDerived(signal: Signal<any>): void
@@ -5647,6 +5738,7 @@ markDerived(model.$.total);
 
 **See also:**
 - {@link isDerived} - проверка пометки
+- {@link unmarkDerived} - снять пометку при dispose оператора
 
 _Source: src/core/utils/derived-registry.ts_
 
@@ -5978,7 +6070,7 @@ _Source: src/core/validation/validators/min-length.ts_
 
 **Kind:** `interface`
 
-API уровня модели (доступно на корне и под-моделях элементов массива).
+API уровня модели (доступно на корне, под-моделях вложенных объектов-групп и элементов массива).
 
 ⚠️ Имена методов (`$`/`get`/`set`/`patch`/`isDirty`/`reset`/`signalAt`/`captureInitial`)
 зарезервированы: одноимённое поле формы их затеняет (редкий краевой случай).
@@ -5991,12 +6083,11 @@ export interface ModelApi<T> {
   /** Снимок значений (без подписки) — для submit. */
   get(): T;
   /**
-   * @deprecated Алиас {@link ModelApi.patch}: `set` выполняет то же частичное **слияние** —
-   *   обновляет только переданные ключи, отсутствующие НЕ трогает (это НЕ полная замена, вопреки
-   *   старому названию). Используйте `patch`; для замены с обнулением лишних полей делайте
-   *   `patch({ ...defaults, ...dto })` явно. Не меняет initial-снимок.
+   * Полная установка значений: принимает объект целиком (все ключи `T`) и записывает их в модель.
+   * Производными полями (цели `compute`) владеет compute — их значения из payload игнорируются.
+   * Не меняет initial-снимок. Для частичного обновления (только переданные ключи) — {@link ModelApi.patch}.
    */
-  set(value: Partial<T>): void;
+  set(value: T): void;
   /**
    * Частичное слияние значений (load/patch с сервера): обновляет только переданные ключи,
    * отсутствующие ключи НЕ трогаются. Не меняет initial-снимок.
@@ -6136,8 +6227,9 @@ _Source: src/core/nodes/model-array-node.ts_
 
 **Kind:** `type`
 
-value-proxy объекта: поля доступны как обычные свойства (чтение реактивно
-внутри `effect`/`computed`, запись — присваиванием).
+Карта value-полей объекта (value-половина {@link FormModel}): поля доступны как обычные свойства
+(чтение реактивно внутри `effect`/`computed`, запись — присваиванием). Вложенные объекты-поля
+резолвятся в под-модели {@link FormModel} (см. {@link ModelValue}), массивы — в {@link ModelArray}.
 
 **Signature:**
 ```typescript
@@ -6209,7 +6301,8 @@ _Source: src/core/model/validate-model.ts_
 Значение поля в value-доступе модели:
 - массив → {@link ModelArray}
 - спец-объект (Date/File/Blob) → как есть
-- объект → вложенный value-proxy
+- объект → под-модель {@link FormModel} (value-доступ + `.$`-сигналы + API get/set/patch/…);
+  промоутится рантаймом (`makeFormModel`); сигналы идентичны `model.$.<path>`
 - примитив → значение
 
 **Signature:**
@@ -6220,7 +6313,7 @@ export type ModelValue<V> =
     : NonNullable<V> extends Opaque
       ? V
       : NonNullable<V> extends object
-        ? ModelObject<NonNullable<V>>
+        ? FormModel<NonNullable<V>>
         : V;
 ```
 
@@ -6607,7 +6700,8 @@ _Source: src/core/utils/signal-node-registry.ts_
 
 Возвращает чистую функцию-валидатор `(value, control, root)`. Передаётся в `validate()`.
 
-Пустыми считаются: `null`, `undefined`, `''` (пустая строка).
+Пустыми считаются: `null`, `undefined`, `''` (пустая строка), `[]` (пустой массив —
+обязательный multi-select / FormArray без выбранных элементов).
 Для boolean полей требуется значение `true`.
 
 **Signature:**
@@ -6707,26 +6801,31 @@ _Source: src/core/model/behaviors.ts_
 
 **Kind:** `function`
 
-Выполняет функцию вне контекста effect
+Выполняет функцию вне контекста effect (отложенная запись на микротаск).
 
-Более простой вариант для одиночного вызова
+Сбои fn (синхронный throw и async-rejection) маршрутизируются через {@link FormErrorHandler}, а не
+всплывают неперехваченными. Возвращает отменитель: вызов до срабатывания микротаска отменяет запись
+(liveness-охрана — не писать против снесённого узла при dispose в том же тике).
 
 **Signature:**
 ```typescript
-export function runOutsideEffect(fn: () => void | Promise<void>): void
+export function runOutsideEffect(fn: () => void | Promise<void>): () => void
 ```
 
 **Parameters:**
 - `fn` — - Функция для выполнения
+
+**Returns:** Отменитель ещё не выполненной записи (no-op, если запись уже выполнена)
 
 **Examples:**
 
 ```typescript
 effect(() => {
   const value = signal.value;
-  runOutsideEffect(() => {
+  const cancel = runOutsideEffect(() => {
     otherSignal.value = transform(value);
   });
+  onDispose(cancel); // отменить ожидающую запись, если узел снесут в этом же тике
 });
 ```
 
@@ -6738,8 +6837,8 @@ _Source: src/core/utils/safe-effect.ts_
 
 Создает callback, который выполняется вне контекста effect
 
-Использует queueMicrotask для отложенного выполнения,
-что позволяет модифицировать сигналы без вызова "Cycle detected"
+Откладывает вызов через {@link runOutsideEffect} — то есть получает маршрутизацию ошибок и
+обработку async-rejection «бесплатно».
 
 **Signature:**
 ```typescript
@@ -6777,7 +6876,9 @@ _Source: src/core/utils/safe-effect.ts_
 
 Создает версию callback с поддержкой debounce, безопасную для effect
 
-Комбинирует debounce логику с выходом из effect контекста
+`withDebounce` уже откладывает вызов (таймер) — этого достаточно для выхода из effect-контекста,
+поэтому дополнительного `queueMicrotask` нет (устранён двойной defer). Сбои callback (в т.ч.
+async-rejection) маршрутизируются через {@link FormErrorHandler}.
 
 **Signature:**
 ```typescript
@@ -7103,6 +7204,42 @@ export type UnknownRecord = Record<string, unknown>;
 ```
 
 _Source: src/core/types/index.ts_
+
+### unmarkDerived
+
+**Kind:** `function`
+
+Снять пометку производного сигнала (обратная операция к {@link markDerived}).
+
+Вызывается из очистки (`onDispose`) оператора `compute`/`computeFrom`, когда поведение снимается,
+но модель/сигнал продолжают жить (динамическая перекоммутация: удалить под-схему → сохранить модель
+→ bulk-set). Без этого сигнал остаётся помеченным навсегда, и bulk-сеттеры навсегда пропускают
+поле, которое больше ничем не вычисляется.
+
+Учитывает счётчик ссылок: пометка снимается только когда снят последний владелец. Вызов на
+непомеченном сигнале — безопасный no-op.
+
+**Signature:**
+```typescript
+export function unmarkDerived(signal: Signal<any>): void
+```
+
+**Parameters:**
+- `signal` — - Сигнал значения из {@link FormModel}, ранее помеченный {@link markDerived}
+
+**Examples:**
+
+```typescript
+import { markDerived, unmarkDerived } from '@reformer/core';
+
+markDerived(model.$.total);
+onDispose(() => unmarkDerived(model.$.total)); // при снятии compute снова разрешаем bulk-set
+```
+
+**See also:**
+- {@link markDerived} - пометить сигнал производным
+
+_Source: src/core/utils/derived-registry.ts_
 
 ### url
 
@@ -7605,15 +7742,17 @@ _Source: src/hooks/useFormControlValue.ts_
 
 **Kind:** `interface`
 
-Опции для функции validateAsync.
-
 **Signature:**
 ```typescript
 export interface ValidateAsyncOptions extends ValidateOptions {
-  /** Задержка перед выполнением валидации (в мс) */
+  /** Задержка перед выполнением валидации (в мс). */
   debounce?: number;
 }
 ```
+
+**Deprecated:** Осиротевший остаток удалённого оператора `validateAsync` (Ф7): опция `debounce`
+подключалась тем оператором, которого больше нет. Рантаймом не потребляется; экспортируется
+только ради обратной совместимости.
 
 _Source: src/core/types/validation-schema.ts_
 
@@ -7709,14 +7848,16 @@ _Source: src/core/model/validate-model.ts_
 
 **Kind:** `interface`
 
-Опции для функции validate.
+Опции валидатора-фабрики (`required()`/`pattern()`/…). Передаются вторым (или последним)
+аргументом в фабрику и попадают в возвращаемую {@link ValidationError}.
 
 **Signature:**
 ```typescript
 export interface ValidateOptions {
-  /** Сообщение об ошибке */
+  /** Готовое сообщение об ошибке. Если не задано, валидаторы кладут `''`, и отображаемый текст
+   * резолвится из `code` (см. резолвер сообщений в `@reformer/cdk`). */
   message?: string;
-  /** Параметры ошибки */
+  /** Параметры ошибки (подстановка в шаблон сообщения / i18n). */
   params?: Record<string, FormValue>;
 }
 ```

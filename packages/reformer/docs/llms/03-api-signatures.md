@@ -5,7 +5,7 @@
 ```typescript
 // Модель данных (источник истины значений)
 createModel<T extends object>(initial: T): FormModel<T>
-// model.get() / model.set(partial) / model.patch(partial) / model.isDirty()
+// model.get() / model.set(full) / model.patch(partial) / model.isDirty()
 // model.reset() / model.captureInitial() / model.signalAt(path)
 // model.$.field            → PathAwareSignal<FieldType>  (escape-hatch к сигналу)
 // model.arrayField         → ModelArray<Item>            (push/removeAt/insertAt/move/swap/clear/at/map/length)

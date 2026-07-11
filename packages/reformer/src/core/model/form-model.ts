@@ -234,42 +234,18 @@ function buildNode(value: unknown, path: string): ModelNode {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-function childValue(node: ModelNode | undefined): unknown {
-  if (!node) return undefined;
-  if (node.kind === 'leaf') return node.read();
-  if (node.kind === 'group') return groupValueProxy(node);
-  return arrayValueProxy(node);
-}
-
-function groupValueProxy(group: GroupNode): any {
-  return new Proxy(
-    {},
-    {
-      get: (_t, key) => {
-        if (key === '__path') return group.path;
-        return typeof key === 'string' ? childValue(group.children.get(key)) : undefined;
-      },
-      set: (_t, key, val) => {
-        if (typeof key !== 'string') return false;
-        const child = group.children.get(key);
-        if (child) child.set(val);
-        return true;
-      },
-      has: (_t, key) => typeof key === 'string' && group.children.has(key),
-      ownKeys: () => [...group.children.keys()],
-      getOwnPropertyDescriptor: (_t, key) =>
-        typeof key === 'string' && group.children.has(key)
-          ? { enumerable: true, configurable: true }
-          : undefined,
-    }
-  );
-}
-
-function itemFacade(node: ModelNode | undefined): unknown {
+/**
+ * Value-фасад узла модели: объектная группа → под-модель {@link makeFormModel} (value-доступ + `.$` + API),
+ * массив → {@link arrayValueProxy}, лист → значение (реактивное чтение). Единая точка value-доступа —
+ * и для полей корня/групп (`model.personalData`), и для обхода массива (`at`/`map`/`forEach`/индекс/итератор):
+ * объектные узлы всюду единообразно промоутятся в {@link FormModel} со стабильной идентичностью (facadeCache),
+ * поэтому `model.personalData.$.lastName === model.$.personalData.lastName` и `arr[i] === arr.at(i)`.
+ */
+function nodeValue(node: ModelNode | undefined): unknown {
   if (!node) return undefined;
   if (node.kind === 'group') return makeFormModel(node);
   if (node.kind === 'array') return arrayValueProxy(node);
-  return node.read();
+  return node.read(); // лист — реактивное чтение (подписка в effect/computed)
 }
 
 function arrayValueProxy(arr: ArrayNode): any {
@@ -283,22 +259,22 @@ function arrayValueProxy(arr: ArrayNode): any {
     move: (f: number, t: number) => arr.move(f, t),
     swap: (a: number, b: number) => arr.swap(a, b),
     clear: () => arr.clear(),
-    at: (i: number) => itemFacade(arr.items.value[i]),
+    at: (i: number) => nodeValue(arr.items.value[i]),
     map: (fn: (item: unknown, i: number) => unknown) =>
-      arr.items.value.map((n, i) => fn(itemFacade(n), i)),
+      arr.items.value.map((n, i) => fn(nodeValue(n), i)),
     forEach: (fn: (item: unknown, i: number) => void) =>
-      arr.items.value.forEach((n, i) => fn(itemFacade(n), i)),
+      arr.items.value.forEach((n, i) => fn(nodeValue(n), i)),
     toArray: () => arr.peek(),
     [Symbol.iterator]: function* () {
       const list = arr.items.value;
-      for (let i = 0; i < list.length; i++) yield childValue(list[i]);
+      for (let i = 0; i < list.length; i++) yield nodeValue(list[i]);
     },
   };
   return new Proxy(api, {
     get: (target, key, recv) => {
       if (key === '__path') return arr.path;
       if (typeof key === 'string' && isIndexKey(key))
-        return childValue(arr.items.value[Number(key)]);
+        return nodeValue(arr.items.value[Number(key)]);
       return Reflect.get(target, key, recv);
     },
     has: (target, key) => {
@@ -404,10 +380,12 @@ function makeFormModel(group: GroupNode): any {
     {},
     {
       get: (_t, key) => {
+        // Паритет с прежним groupValueProxy: путь группы читаем и на под-модели (не enumerable — см. ownKeys ниже).
+        if (key === '__path') return group.path;
         if (typeof key !== 'string') return undefined;
         // Поле формы затеняет одноимённый метод API (редкий краевой случай).
         const child = group.children.get(key);
-        if (child) return childValue(child);
+        if (child) return nodeValue(child);
         if (RESERVED.has(key)) return api[key];
         return undefined;
       },
@@ -447,11 +425,19 @@ function makeFormModel(group: GroupNode): any {
  *
  * @example
  * ```typescript
- * const model = createModel<{ email: string; tags: string[] }>({ email: '', tags: [] });
+ * const model = createModel<{ email: string; profile: { name: string }; tags: string[] }>({
+ *   email: '',
+ *   profile: { name: '' },
+ *   tags: [],
+ * });
  * model.email = 'a@b.c';
- * model.$.email.value;        // 'a@b.c' (сигнал)
+ * model.$.email.value;          // 'a@b.c' (сигнал)
+ * // вложенная объект-группа — под-модель FormModel (value-доступ + `.$` + API):
+ * model.profile.name = 'Ada';   // value-запись
+ * model.$.profile.name.value;   // 'Ada' (сигнал; ≡ model.profile.$.name у под-модели)
+ * model.profile.get();          // { name: 'Ada' }
  * model.tags.push('x');
- * model.get();                // { email: 'a@b.c', tags: ['x'] }
+ * model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tags: ['x'] }
  * ```
  */
 export function createModel<T extends object>(initial: T): FormModel<T> {

@@ -8,6 +8,7 @@ import { FormArrayRemoveButton } from './FormArrayRemoveButton';
 import { FormArrayEmpty } from './FormArrayEmpty';
 import { FormArrayCount } from './FormArrayCount';
 import { FormArrayItemIndex } from './FormArrayItemIndex';
+import { FormArrayError } from './FormArrayError';
 import type { FormArrayRootProps } from './types';
 
 /**
@@ -160,6 +161,7 @@ type FormArrayComponent = typeof FormArrayRoot & {
   Empty: typeof FormArrayEmpty;
   Count: typeof FormArrayCount;
   ItemIndex: typeof FormArrayItemIndex;
+  Error: typeof FormArrayError;
 };
 
 /**
@@ -182,6 +184,7 @@ type FormArrayComponent = typeof FormArrayRoot & {
  * - `FormArray.Empty` - content for empty state
  * - `FormArray.Count` - display item count
  * - `FormArray.ItemIndex` - display item index (inside List)
+ * - `FormArray.Error` - display array-level validation errors (e.g. minItems)
  *
  * ## FormArrayHandle API (ref)
  * - `add(value?)` - add item to the end
@@ -303,3 +306,4 @@ FormArray.RemoveButton = FormArrayRemoveButton;
 FormArray.Empty = FormArrayEmpty;
 FormArray.Count = FormArrayCount;
 FormArray.ItemIndex = FormArrayItemIndex;
+FormArray.Error = FormArrayError;

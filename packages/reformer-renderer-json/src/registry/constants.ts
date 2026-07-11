@@ -15,3 +15,21 @@
  * ```
  */
 export const FIELD_WRAPPER = '$fieldWrapper';
+
+/**
+ * Зарезервированный ключ реестра для единственного сервиса локализации.
+ *
+ * `reg.locale(...)` кладёт сервис под этот ключ; оператор `"$locale(key)"` резолвится через него
+ * (`registry.getLocale()`). Ключ намеренно отличается от имени оператора, чтобы `$dataSource`/`$fn`
+ * не могли достать сервис локализации по имени.
+ *
+ * @example
+ * ```typescript
+ * import { defineRegistry, createLocaleResolver } from '@reformer/renderer-json';
+ *
+ * const registry = defineRegistry((reg) => {
+ *   reg.locale(createLocaleResolver({ 'fields.email.label': 'Email' }));
+ * });
+ * ```
+ */
+export const LOCALE_SERVICE = '$localeService';
