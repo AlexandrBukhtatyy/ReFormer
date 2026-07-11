@@ -5,12 +5,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import { GroupNode } from '../../../src/core/nodes/group-node';
-import { ArrayNode } from '../../../src/core/nodes/array-node';
-import { FormNode } from '../../../src/core/nodes/form-node';
-import { createForm } from '../../../src/core/utils/create-form';
-import { isArrayNode, isFieldNode, isGroupNode } from '../../../src/core/utils/type-guards';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import { GroupNode } from '../../../src/form/nodes/group-node';
+import { ArrayNode } from '../../../src/form/nodes/array-node';
+import { FormNode } from '../../../src/form/nodes/form-node';
+import { createForm } from '../../../src/form/create-form';
+import { isArrayNode, isFieldNode, isGroupNode } from '../../../src/form/type-guards';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('FormNode Type Guards', () => {

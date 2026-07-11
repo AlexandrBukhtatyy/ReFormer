@@ -29,44 +29,48 @@ export default defineConfig({
         // renderer-react и др. пакеты импортируют Signal отсюда → одна копия рантайма,
         // единая идентичность класса Signal через границы пакетов.
         signals: resolve(__dirname, 'src/signals.ts'),
+        // Низкоуровневый state-субстрат (M1): createModel + сигналы + value-операции +
+        // headless-валидация + producer-флаг. Импортирует из тех же core-файлов, что и index →
+        // общий chunk (один derived-WeakMap, единая идентичность Signal). Основа доменных модулей.
+        state: resolve(__dirname, 'src/state/index.ts'),
         // Декларативный контракт схемы поведения. Импортирует примитивы из index → общий chunk
         // (единый реестр сигнал→нода и единый ambient-сток).
-        behaviors: resolve(__dirname, 'src/behaviors.ts'),
+        behaviors: resolve(__dirname, 'src/form/behaviors.ts'),
         // Re-export file that imports from index to ensure single module instance.
-        validators: resolve(__dirname, 'src/validators.ts'),
+        validators: resolve(__dirname, 'src/form/validators.ts'),
         // Granular validator exports for tree-shaking
-        'validators/required': resolve(__dirname, 'src/core/validation/validators/required.ts'),
-        'validators/email': resolve(__dirname, 'src/core/validation/validators/email.ts'),
-        'validators/min': resolve(__dirname, 'src/core/validation/validators/min.ts'),
-        'validators/max': resolve(__dirname, 'src/core/validation/validators/max.ts'),
-        'validators/min-length': resolve(__dirname, 'src/core/validation/validators/min-length.ts'),
-        'validators/max-length': resolve(__dirname, 'src/core/validation/validators/max-length.ts'),
-        'validators/pattern': resolve(__dirname, 'src/core/validation/validators/pattern.ts'),
-        'validators/url': resolve(__dirname, 'src/core/validation/validators/url.ts'),
-        'validators/phone': resolve(__dirname, 'src/core/validation/validators/phone.ts'),
+        'validators/required': resolve(__dirname, 'src/form/validation/validators/required.ts'),
+        'validators/email': resolve(__dirname, 'src/form/validation/validators/email.ts'),
+        'validators/min': resolve(__dirname, 'src/form/validation/validators/min.ts'),
+        'validators/max': resolve(__dirname, 'src/form/validation/validators/max.ts'),
+        'validators/min-length': resolve(__dirname, 'src/form/validation/validators/min-length.ts'),
+        'validators/max-length': resolve(__dirname, 'src/form/validation/validators/max-length.ts'),
+        'validators/pattern': resolve(__dirname, 'src/form/validation/validators/pattern.ts'),
+        'validators/url': resolve(__dirname, 'src/form/validation/validators/url.ts'),
+        'validators/phone': resolve(__dirname, 'src/form/validation/validators/phone.ts'),
         // Number validators (atomic)
-        'validators/is-number': resolve(__dirname, 'src/core/validation/validators/is-number.ts'),
-        'validators/integer': resolve(__dirname, 'src/core/validation/validators/integer.ts'),
+        'validators/is-number': resolve(__dirname, 'src/form/validation/validators/is-number.ts'),
+        'validators/integer': resolve(__dirname, 'src/form/validation/validators/integer.ts'),
         'validators/multiple-of': resolve(
           __dirname,
-          'src/core/validation/validators/multiple-of.ts'
+          'src/form/validation/validators/multiple-of.ts'
         ),
         'validators/non-negative': resolve(
           __dirname,
-          'src/core/validation/validators/non-negative.ts'
+          'src/form/validation/validators/non-negative.ts'
         ),
-        'validators/non-zero': resolve(__dirname, 'src/core/validation/validators/non-zero.ts'),
+        'validators/non-zero': resolve(__dirname, 'src/form/validation/validators/non-zero.ts'),
         // Date validators (atomic)
-        'validators/is-date': resolve(__dirname, 'src/core/validation/validators/is-date.ts'),
-        'validators/min-date': resolve(__dirname, 'src/core/validation/validators/min-date.ts'),
-        'validators/max-date': resolve(__dirname, 'src/core/validation/validators/max-date.ts'),
-        'validators/past-date': resolve(__dirname, 'src/core/validation/validators/past-date.ts'),
+        'validators/is-date': resolve(__dirname, 'src/form/validation/validators/is-date.ts'),
+        'validators/min-date': resolve(__dirname, 'src/form/validation/validators/min-date.ts'),
+        'validators/max-date': resolve(__dirname, 'src/form/validation/validators/max-date.ts'),
+        'validators/past-date': resolve(__dirname, 'src/form/validation/validators/past-date.ts'),
         'validators/future-date': resolve(
           __dirname,
-          'src/core/validation/validators/future-date.ts'
+          'src/form/validation/validators/future-date.ts'
         ),
-        'validators/min-age': resolve(__dirname, 'src/core/validation/validators/min-age.ts'),
-        'validators/max-age': resolve(__dirname, 'src/core/validation/validators/max-age.ts'),
+        'validators/min-age': resolve(__dirname, 'src/form/validation/validators/min-age.ts'),
+        'validators/max-age': resolve(__dirname, 'src/form/validation/validators/max-age.ts'),
       },
       formats: ['es'],
     },

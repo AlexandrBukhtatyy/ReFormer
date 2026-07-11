@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FormProxy } from '../../../src';
-import { createForm } from '../../../src/core/utils/create-form';
+import { createForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('GroupNode - getFieldByPath()', () => {

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { NodeFactory } from '../../../src/core/factories/node-factory';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import { GroupNode } from '../../../src/core/nodes/group-node';
-import { ArrayNode } from '../../../src/core/nodes/array-node';
+import { NodeFactory } from '../../../src/form/factories/node-factory';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import { GroupNode } from '../../../src/form/nodes/group-node';
+import { ArrayNode } from '../../../src/form/nodes/array-node';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('NodeFactory', () => {

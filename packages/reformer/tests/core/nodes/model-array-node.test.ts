@@ -6,10 +6,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { effect } from '@preact/signals-core';
-import { createModel } from '../../../src/core/model';
-import { ModelArrayNode } from '../../../src/core/nodes/model-array-node';
-import { createForm } from '../../../src/core/utils/create-form';
-import type { FormModel } from '../../../src/core/model';
+import { createModel } from '../../../src/state/index';
+import { ModelArrayNode } from '../../../src/form/nodes/model-array-node';
+import { createForm } from '../../../src/form/create-form';
+import type { FormModel } from '../../../src/state/index';
 
 interface Row {
   name: string;

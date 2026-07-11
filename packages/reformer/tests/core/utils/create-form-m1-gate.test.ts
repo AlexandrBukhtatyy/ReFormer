@@ -9,10 +9,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createForm } from '../../../src/core/utils/create-form';
-import { createModel } from '../../../src/core/model';
-import type { ModelValidator } from '../../../src/core/model';
-import { markDerived } from '../../../src/core/utils/derived-registry';
+import { createForm } from '../../../src/form/create-form';
+import { createModel } from '../../../src/state/index';
+import type { ModelValidator } from '../../../src/form/index';
+import { markDerived } from '../../../src/state/derived-registry';
 
 const InputStub = () => null;
 

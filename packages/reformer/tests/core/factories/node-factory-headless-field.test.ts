@@ -8,9 +8,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { NodeFactory } from '../../../src/core/factories/node-factory';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import { GroupNode } from '../../../src/core/nodes/group-node';
+import { NodeFactory } from '../../../src/form/factories/node-factory';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import { GroupNode } from '../../../src/form/nodes/group-node';
 
 describe('NodeFactory.isFieldConfig — headless legacy fields (defect #32)', () => {
   const factory = new NodeFactory();

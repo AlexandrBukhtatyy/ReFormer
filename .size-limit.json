@@ -2,7 +2,7 @@
   {
     "name": "@reformer/core",
     "path": "packages/reformer/dist/index.js",
-    "limit": "20 kB"
+    "limit": "21 kB"
   },
   {
     "name": "@reformer/core (validators only)",
@@ -13,6 +13,11 @@
     "name": "@reformer/core (behaviors only)",
     "path": "packages/reformer/dist/behaviors.js",
     "limit": "5 kB"
+  },
+  {
+    "name": "@reformer/core (state only)",
+    "path": "packages/reformer/dist/state.js",
+    "limit": "2 kB"
   },
   {
     "name": "@reformer/cdk",

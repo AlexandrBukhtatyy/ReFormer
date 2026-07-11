@@ -17,7 +17,7 @@ import {
   runOutsideEffect,
   safeCallback,
   safeDebouncedCallback,
-} from '../../../src/core/utils/safe-effect';
+} from '../../../src/state/safe-effect';
 
 // setTimeout(0) — макрозадача, гарантированно после всех микрозадач текущего тика (после flush).
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));

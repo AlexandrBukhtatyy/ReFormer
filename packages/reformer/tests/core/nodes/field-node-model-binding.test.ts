@@ -8,9 +8,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import { createModel } from '../../../src/core/model';
-import type { ValidatorFn } from '../../../src/core/types';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import { createModel } from '../../../src/state/index';
+import type { ValidatorFn } from '../../../src/form/types/index';
 
 const required: ValidatorFn<string> = (v) =>
   v === '' || v == null ? { code: 'required', message: 'Обязательно' } : null;

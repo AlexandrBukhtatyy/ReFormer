@@ -97,4 +97,32 @@ export default defineConfig([
       'react/prop-types': 'off',
     },
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Граница модулей @reformer/core: state ⇏ form (M1-модуляризация).
+  //
+  // state-субстрат (signals + модель + value-операции + headless-валидация +
+  // producer-флаг + утилиты) НЕ должен импортировать form-слой (ноды, create-form,
+  // реестр сигнал→нода, валидацию, hooks, DSL behaviors). Обратное направление
+  // (form → state) разрешено. Держит слои расцепленными для subpath `@reformer/core/state`.
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    files: ['packages/reformer/src/signals.ts', 'packages/reformer/src/state/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/form/**', '**/form'],
+              message:
+                'Граница state⇏form: модуль state (src/state, src/signals) не импортирует form-слой ' +
+                '(src/form/**: ноды/create-form/реестр/валидацию/схемы/hooks/DSL). Обратное направление ' +
+                'form→state разрешено. state — строго реактивный: без форм/валидации/схем.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);

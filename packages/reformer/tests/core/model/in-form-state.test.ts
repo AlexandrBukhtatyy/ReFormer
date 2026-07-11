@@ -4,9 +4,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createForm } from '../../../src/core/utils/create-form';
-import { createModel, enableWhen, disableWhen, validateFormModel } from '../../../src/core/model';
-import type { ModelValidator } from '../../../src/core/model';
+import { createForm } from '../../../src/form/create-form';
+import { createModel } from '../../../src/state/index';
+import { enableWhen, disableWhen, validateFormModel } from '../../../src/form/index';
+import type { ModelValidator } from '../../../src/form/index';
 
 const InputStub = () => null;
 // микротаск-флаш (enableWhen пишет состояние через runOutsideEffect = queueMicrotask)

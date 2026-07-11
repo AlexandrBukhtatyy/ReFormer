@@ -21,8 +21,13 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createForm } from '../../../src/core/utils/create-form';
-import type { FormProxy, FormSchema, ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
+import { createForm } from '../../../src/form/create-form';
+import type {
+  FormProxy,
+  FormSchema,
+  ValidatorFn,
+  AsyncValidatorFn,
+} from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 
 // ============================================================================

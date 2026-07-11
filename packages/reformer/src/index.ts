@@ -1,23 +1,17 @@
-export * from './core/types';
-export * from './core/factories';
-export * from './core/utils';
+/**
+ * Публичный barrel `@reformer/core` — зонтик над модулями `model` (state) и `form`.
+ *
+ * Состав экспортов НЕ изменился при модуляризации (реорг в src/model + src/form): реализация
+ * разложена по модулям, а этот barrel по-прежнему отдаёт единую поверхность.
+ */
 
-// Слой данных FormModel (M1)
-export * from './core/model';
-
-export { FormNode } from './core/nodes/form-node';
-export { FieldNode } from './core/nodes/field-node';
-export { GroupNode } from './core/nodes/group-node';
-export { ArrayNode } from './core/nodes/array-node';
-export { ModelArrayNode } from './core/nodes/model-array-node';
-export type { ModelArrayControl } from './core/nodes/model-array-node';
-export type { SetValueOptions } from './core/nodes/form-node';
-
-export { useFormControl } from './hooks/useFormControl';
-export { useFormControlValue } from './hooks/useFormControlValue';
-export { useArrayLength } from './hooks/useArrayLength';
-export type { FieldControlState, ArrayControlState } from './hooks/types';
-
-// Validators namespace (чистые фабрики). Legacy behaviors-namespace и validateForm удалены (Ф7);
-// M1-behaviors (computeFrom/enableWhen/…) экспортируются из './core/model'.
-export * as validators from './core/validation';
+// Общие + form типы (контракты значения/валидации реэкспортятся из model/contracts).
+export * from './form/types/index';
+// Фабрики нод.
+export * from './form/factories/index';
+// State-модуль: модель, value-операции, headless-валидация, producer-флаг, утилиты субстрата.
+export * from './state/index';
+// Form-модуль: ноды, createForm, enableWhen/disableWhen, validateFormModel, submit, хуки.
+export * from './form/index';
+// Validators namespace (чистые фабрики).
+export * as validators from './form/validation/index';

@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createModel } from '../../src/core/model';
-import { createForm } from '../../src/core/utils/create-form';
+import { createModel } from '../../src/state/index';
+import { createForm } from '../../src/form/create-form';
 import {
   defineFormBehavior,
   compute,
@@ -17,9 +17,9 @@ import {
   effect,
   defer,
   applyEach,
-} from '../../src/behaviors';
+} from '../../src/form/behaviors';
 import { convertBetween, onChangeThrottled } from './custom-operators';
-import type { FormProxy } from '../../src/core/types';
+import type { FormProxy } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const fieldErrors = (n: unknown) => (n as { errors: { value: { code: string }[] } }).errors.value;

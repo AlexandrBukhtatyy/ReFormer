@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createModel } from '../../src/core/model';
-import { createForm } from '../../src/core/utils/create-form';
-import { defineFormBehavior, compute, computeFrom } from '../../src/behaviors';
+import { createModel } from '../../src/state/index';
+import { createForm } from '../../src/form/create-form';
+import { defineFormBehavior, compute, computeFrom } from '../../src/form/behaviors';
 
 describe('F7 · детект расходящихся циклов', () => {
   it('расходящийся взаимный compute → понятная ошибка', () => {

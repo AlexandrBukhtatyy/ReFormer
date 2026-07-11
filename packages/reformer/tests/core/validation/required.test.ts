@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { required } from '../../../src/core/validation/validators/required';
+import { required } from '../../../src/form/validation/validators/required';
 
 const v = required() as unknown as (value: unknown) => { code: string; message: string } | null;
 

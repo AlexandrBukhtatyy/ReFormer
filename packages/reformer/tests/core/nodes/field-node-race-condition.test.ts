@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import type { AsyncValidatorFn } from '../../../src/core/types';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import type { AsyncValidatorFn } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('FieldNode - Race Condition Protection', () => {

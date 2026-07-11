@@ -3697,7 +3697,7 @@ _Auto-generated from JSDoc on public exports._
 export type AnyFunction = (...args: never[]) => unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### ArrayConfig
 
@@ -3713,7 +3713,7 @@ export interface ArrayConfig<T extends object> {
 }
 ```
 
-_Source: src/core/types/deep-schema.ts_
+_Source: src/form/types/deep-schema.ts_
 
 ### ArrayControlState
 
@@ -3879,7 +3879,7 @@ Add Phone
 - {@link useFormControl} - хук для получения состояния
 - {@link FieldControlState} - состояние для полей
 
-_Source: src/hooks/types.ts_
+_Source: src/form/hooks/types.ts_
 
 ### ArrayNode
 
@@ -3908,7 +3908,7 @@ array.at(0)?.title.setValue('Updated');
 console.log(array.length.value); // 1
 ```
 
-_Source: src/core/nodes/array-node.ts_
+_Source: src/form/nodes/array-node.ts_
 
 ### ArrayNodeLike
 
@@ -3925,7 +3925,7 @@ export interface ArrayNodeLike {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### AsyncValidator
 
@@ -3947,7 +3947,7 @@ export type AsyncValidator<TForm, TField> = (
 потребляется — живой async-путь узла поля использует `AsyncValidatorFn` `(value, { signal })`.
 Экспортируется только ради обратной совместимости.
 
-_Source: src/core/types/validation-schema.ts_
+_Source: src/form/types/validation-schema.ts_
 
 ### AsyncValidatorFn
 
@@ -3987,7 +3987,7 @@ const emailExistsAbortable: AsyncValidatorFn<string> = async (value, options) =>
 };
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### AsyncValidatorOptions
 
@@ -4006,7 +4006,7 @@ export interface AsyncValidatorOptions {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### BehaviorCleanup
 
@@ -4019,7 +4019,7 @@ _Source: src/core/types/index.ts_
 export type BehaviorCleanup = () => void;
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### computeFrom
 
@@ -4050,7 +4050,7 @@ export function computeFrom<R>(
 computeFrom([model.$.price, model.$.qty], model.$.total, (price, qty) => price * qty);
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### ConditionFn
 
@@ -4066,7 +4066,7 @@ export type ConditionFn<T> = (value: T) => boolean;
 **Deprecated:** Осиротевший остаток удалённого оператора `applyWhen` (Ф7). Рантаймом не
 потребляется; экспортируется только ради обратной совместимости.
 
-_Source: src/core/types/validation-schema.ts_
+_Source: src/form/types/validation-schema.ts_
 
 ### ConfigWithSchema
 
@@ -4082,7 +4082,7 @@ export interface ConfigWithSchema {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### ConfigWithValue
 
@@ -4097,7 +4097,7 @@ export interface ConfigWithValue {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### copyFrom
 
@@ -4120,7 +4120,7 @@ export function copyFrom<T>(
 copyFrom(model.$.email, model.$.emailAdditional, { when: () => model.sameEmail });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### createForm
 
@@ -4176,7 +4176,7 @@ form.email.setValue('test@mail.com');
 const { valid } = await validateFormModel(model, schema);
 ```
 
-_Source: src/core/utils/create-form.ts_
+_Source: src/form/create-form.ts_
 
 ### createFormFromModel
 
@@ -4234,7 +4234,7 @@ console.log(model.email); // 'user@mail.com'
 **See also:**
 - {@link createForm} - основная фабрика (диспетчеризует сюда при аргументе `{ model, schema }`)
 
-_Source: src/core/utils/create-form.ts_
+_Source: src/form/create-form.ts_
 
 ### CreateFormFromModelArgs
 
@@ -4261,7 +4261,7 @@ export interface CreateFormFromModelArgs<T> {
 }
 ```
 
-_Source: src/core/utils/create-form.ts_
+_Source: src/form/create-form.ts_
 
 ### createModel
 
@@ -4297,7 +4297,7 @@ model.tags.push('x');
 model.get();                  // { email: 'a@b.c', profile: { name: 'Ada' }, tags: ['x'] }
 ```
 
-_Source: src/core/model/form-model.ts_
+_Source: src/state/form-model.ts_
 
 ### disableWhen
 
@@ -4329,7 +4329,7 @@ export function disableWhen(
 disableWhen(model.$.discount, () => model.plan !== 'promo', { resetOnDisable: true });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/form/behaviors-node.ts_
 
 ### email
 
@@ -4366,7 +4366,7 @@ validators: [required(), email({ message: 'Введите корректный e
 },
 ```
 
-_Source: src/core/validation/validators/email.ts_
+_Source: src/form/validation/validators/email.ts_
 
 ### enableWhen
 
@@ -4410,7 +4410,7 @@ compute(model.$.initialPayment, () => model.propertyValue * 0.2, {
 });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/form/behaviors-node.ts_
 
 ### ErrorFilterOptions
 
@@ -4435,7 +4435,7 @@ export interface ErrorFilterOptions {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### ErrorStrategy
 
@@ -4468,7 +4468,7 @@ export enum ErrorStrategy {
 }
 ```
 
-_Source: src/core/utils/error-handler.ts_
+_Source: src/form/error-handler.ts_
 
 ### FieldConfig
 
@@ -4506,7 +4506,7 @@ export interface FieldConfig<T> {
 }
 ```
 
-_Source: src/core/types/deep-schema.ts_
+_Source: src/form/types/deep-schema.ts_
 
 ### FieldControlState
 
@@ -4730,7 +4730,7 @@ onChange={e => control.setValue(e.target.value)}
 - {@link useFormControl} - хук для получения состояния
 - {@link ArrayControlState} - состояние для массивов
 
-_Source: src/hooks/types.ts_
+_Source: src/form/hooks/types.ts_
 
 ### FieldNode
 
@@ -4760,7 +4760,7 @@ await field.validate();
 console.log(field.valid.value); // true
 ```
 
-_Source: src/core/nodes/field-node.ts_
+_Source: src/form/nodes/field-node.ts_
 
 ### FieldPathSegment
 
@@ -4777,7 +4777,7 @@ export type FieldPathSegment = {
 };
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### FieldStatus
 
@@ -4790,7 +4790,7 @@ _Source: src/core/types/index.ts_
 export type FieldStatus = 'valid' | 'invalid' | 'pending' | 'disabled';
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### FormArrayProxy
 
@@ -4844,7 +4844,7 @@ todos.forEach((item, i) => {
 });
 ```
 
-_Source: src/core/types/form-proxy.ts_
+_Source: src/form/types/form-proxy.ts_
 
 ### FormControlsProxy
 
@@ -4876,7 +4876,7 @@ export type FormControlsProxy<T> = {
 };
 ```
 
-_Source: src/core/types/form-proxy.ts_
+_Source: src/form/types/form-proxy.ts_
 
 ### FormErrorHandler
 
@@ -4958,7 +4958,7 @@ try {
 }
 ```
 
-_Source: src/core/utils/error-handler.ts_
+_Source: src/form/error-handler.ts_
 
 ### FormModel
 
@@ -4973,7 +4973,7 @@ FormModel — под-модель объекта `T`: value-доступ ({@link
 export type FormModel<T> = ModelObject<T> & ModelApi<T>;
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### FormNode
 
@@ -5013,7 +5013,7 @@ form.email instanceof FormNode; // true
 form.email.markAsTouched();
 ```
 
-_Source: src/core/nodes/form-node.ts_
+_Source: src/form/nodes/form-node.ts_
 
 ### FormProxy
 
@@ -5072,7 +5072,7 @@ form.email.setValue('test@mail.com');
 form.profile.name.setValue('John');
 ```
 
-_Source: src/core/types/form-proxy.ts_
+_Source: src/form/types/form-proxy.ts_
 
 ### FormSchema
 
@@ -5137,7 +5137,7 @@ const schema: FormSchema<Form> = {
 };
 ```
 
-_Source: src/core/types/deep-schema.ts_
+_Source: src/form/types/deep-schema.ts_
 
 ### FormSchemaNode
 
@@ -5196,7 +5196,7 @@ export interface FormSchemaNode {
 }
 ```
 
-_Source: src/core/types/schema-node.ts_
+_Source: src/form/types/schema-node.ts_
 
 ### FormStatusMachine
 
@@ -5233,7 +5233,7 @@ statusMachine.disable();
 console.log(statusMachine.disabled.value); // true
 ```
 
-_Source: src/core/utils/status-machine.ts_
+_Source: src/form/status-machine.ts_
 
 ### FormSubmitter
 
@@ -5263,7 +5263,7 @@ if (submitter.submitting.value) {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: src/form/form-submitter.ts_
 
 ### FormValue
 
@@ -5286,7 +5286,7 @@ export type FormValue =
   | { [key: string]: FormValue };
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### futureDate
 
@@ -5324,7 +5324,7 @@ validators: [required(), futureDate({ message: 'Дата записи должн
 },
 ```
 
-_Source: src/core/validation/validators/future-date.ts_
+_Source: src/form/validation/validators/future-date.ts_
 
 ### getNodeForSignal
 
@@ -5359,7 +5359,7 @@ getNodeForSignal(sig)?.setErrors([{ code: 'required', message: 'Обязател
 **See also:**
 - {@link registerSignalNode} - регистрация связи сигнал→нода
 
-_Source: src/core/utils/signal-node-registry.ts_
+_Source: src/form/signal-node-registry.ts_
 
 ### getNodeType
 
@@ -5385,7 +5385,7 @@ export function getNodeType(node: unknown): string
 console.log('Node type:', getNodeType(node)); // "FieldNode" | "GroupNode" | "ArrayNode" | "FormNode" | "Unknown"
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: src/form/type-guards.ts_
 
 ### GroupNode
 
@@ -5420,7 +5420,7 @@ await proxy.validate();
 console.log(proxy.valid.value);
 ```
 
-_Source: src/core/nodes/group-node.ts_
+_Source: src/form/nodes/group-node.ts_
 
 ### GroupNodeConfig
 
@@ -5439,7 +5439,7 @@ export interface GroupNodeConfig<T> {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### integer
 
@@ -5475,7 +5475,7 @@ validators: [required(), integer({ message: 'Должно быть целым ч
 },
 ```
 
-_Source: src/core/validation/validators/integer.ts_
+_Source: src/form/validation/validators/integer.ts_
 
 ### isArrayNode
 
@@ -5506,7 +5506,7 @@ if (isArrayNode(node)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: src/form/type-guards.ts_
 
 ### isDate
 
@@ -5543,7 +5543,7 @@ validators: [required(), isDate({ message: 'Введите корректную 
 },
 ```
 
-_Source: src/core/validation/validators/is-date.ts_
+_Source: src/form/validation/validators/is-date.ts_
 
 ### isDerived
 
@@ -5577,7 +5577,7 @@ if (!isDerived(model.$.total)) {
 **See also:**
 - {@link markDerived} - пометить сигнал производным
 
-_Source: src/core/utils/derived-registry.ts_
+_Source: src/state/derived-registry.ts_
 
 ### isFieldNode
 
@@ -5608,7 +5608,7 @@ if (isFieldNode(node)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: src/form/type-guards.ts_
 
 ### isFormNode
 
@@ -5637,7 +5637,7 @@ if (isFormNode(value)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: src/form/type-guards.ts_
 
 ### isGroupNode
 
@@ -5666,7 +5666,7 @@ if (isGroupNode(node)) {
 }
 ```
 
-_Source: src/core/utils/type-guards.ts_
+_Source: src/form/type-guards.ts_
 
 ### isNumber
 
@@ -5704,7 +5704,7 @@ validators: [required(), isNumber({ message: 'Введите число' })],
 },
 ```
 
-_Source: src/core/validation/validators/is-number.ts_
+_Source: src/form/validation/validators/is-number.ts_
 
 ### markDerived
 
@@ -5740,7 +5740,7 @@ markDerived(model.$.total);
 - {@link isDerived} - проверка пометки
 - {@link unmarkDerived} - снять пометку при dispose оператора
 
-_Source: src/core/utils/derived-registry.ts_
+_Source: src/state/derived-registry.ts_
 
 ### max
 
@@ -5780,7 +5780,7 @@ validators: [required(), max(50, { message: 'Не более 50%' })],
 },
 ```
 
-_Source: src/core/validation/validators/max.ts_
+_Source: src/form/validation/validators/max.ts_
 
 ### maxAge
 
@@ -5820,7 +5820,7 @@ validators: [maxAge(100, { message: 'Проверьте дату рождени�
 },
 ```
 
-_Source: src/core/validation/validators/max-age.ts_
+_Source: src/form/validation/validators/max-age.ts_
 
 ### maxDate
 
@@ -5860,7 +5860,7 @@ validators: [maxDate(new Date(), { message: 'Дата не может быть �
 },
 ```
 
-_Source: src/core/validation/validators/max-date.ts_
+_Source: src/form/validation/validators/max-date.ts_
 
 ### maxLength
 
@@ -5902,7 +5902,7 @@ validators: [maxLength(500, { message: 'Максимум 500 символов' }
 },
 ```
 
-_Source: src/core/validation/validators/max-length.ts_
+_Source: src/form/validation/validators/max-length.ts_
 
 ### min
 
@@ -5942,7 +5942,7 @@ validators: [required(), min(1, { message: 'Минимум 1' })],
 },
 ```
 
-_Source: src/core/validation/validators/min.ts_
+_Source: src/form/validation/validators/min.ts_
 
 ### minAge
 
@@ -5982,7 +5982,7 @@ validators: [required(), minAge(18, { message: 'Вам должно быть н�
 },
 ```
 
-_Source: src/core/validation/validators/min-age.ts_
+_Source: src/form/validation/validators/min-age.ts_
 
 ### minDate
 
@@ -6022,7 +6022,7 @@ validators: [required(), minDate(new Date(), { message: 'Дата не рань�
 },
 ```
 
-_Source: src/core/validation/validators/min-date.ts_
+_Source: src/form/validation/validators/min-date.ts_
 
 ### minLength
 
@@ -6064,7 +6064,7 @@ validators: [required(), minLength(8, { message: 'Минимум 8 символ�
 },
 ```
 
-_Source: src/core/validation/validators/min-length.ts_
+_Source: src/form/validation/validators/min-length.ts_
 
 ### ModelApi
 
@@ -6104,7 +6104,7 @@ export interface ModelApi<T> {
 }
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### ModelArray
 
@@ -6150,7 +6150,7 @@ export interface ModelArray<U> {
 }
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### ModelArrayControl
 
@@ -6173,7 +6173,7 @@ export interface ModelArrayControl<TItem extends object> {
 }
 ```
 
-_Source: src/core/nodes/model-array-node.ts_
+_Source: src/form/nodes/model-array-node.ts_
 
 ### ModelArrayNode
 
@@ -6221,7 +6221,7 @@ rows.at(0)?.name.setValue('B');     // правка поля элемента д
 rows.length.value;                  // 1 (реактивная длина)
 ```
 
-_Source: src/core/nodes/model-array-node.ts_
+_Source: src/form/nodes/model-array-node.ts_
 
 ### ModelObject
 
@@ -6238,7 +6238,7 @@ export type ModelObject<T> = {
 };
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### ModelSignals
 
@@ -6254,7 +6254,7 @@ export type ModelSignals<T> = {
 };
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### ModelValidationResult
 
@@ -6271,7 +6271,7 @@ export interface ModelValidationResult {
 }
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: src/form/validate-model-core.ts_
 
 ### ModelValidator
 
@@ -6292,7 +6292,7 @@ export type ModelValidator<TValue = unknown, TModel = unknown, TRoot = unknown> 
 ) => ValidationError | null | Promise<ValidationError | null>;
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: src/form/validate-model-core.ts_
 
 ### ModelValue
 
@@ -6317,7 +6317,7 @@ export type ModelValue<V> =
         : V;
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### multipleOf
 
@@ -6356,7 +6356,7 @@ validators: [multipleOf(0.5, { message: 'Только шаг 0.5' })],
 },
 ```
 
-_Source: src/core/validation/validators/multiple-of.ts_
+_Source: src/form/validation/validators/multiple-of.ts_
 
 ### NodeFactory
 
@@ -6426,7 +6426,7 @@ const factory = new NodeFactory();
 const node = factory.createNode({ value: '', component: Input }); // → FieldNode<string>
 ```
 
-_Source: src/core/factories/node-factory.ts_
+_Source: src/form/factories/node-factory.ts_
 
 ### nonNegative
 
@@ -6462,7 +6462,7 @@ validators: [nonNegative({ message: 'Баланс не может быть от�
 },
 ```
 
-_Source: src/core/validation/validators/non-negative.ts_
+_Source: src/form/validation/validators/non-negative.ts_
 
 ### nonZero
 
@@ -6498,7 +6498,7 @@ validators: [nonZero({ message: 'Не может быть нулём' })],
 },
 ```
 
-_Source: src/core/validation/validators/non-zero.ts_
+_Source: src/form/validation/validators/non-zero.ts_
 
 ### pastDate
 
@@ -6535,7 +6535,7 @@ validators: [required(), pastDate({ message: 'Дата рождения не м�
 },
 ```
 
-_Source: src/core/validation/validators/past-date.ts_
+_Source: src/form/validation/validators/past-date.ts_
 
 ### PathAwareSignal
 
@@ -6552,7 +6552,7 @@ export type PathAwareSignal<T> = Signal<T> & {
 };
 ```
 
-_Source: src/core/model/types.ts_
+_Source: src/state/types.ts_
 
 ### pattern
 
@@ -6600,7 +6600,7 @@ pattern(/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/, { message: 'Формат +7 (999) 1
 },
 ```
 
-_Source: src/core/validation/validators/pattern.ts_
+_Source: src/form/validation/validators/pattern.ts_
 
 ### phone
 
@@ -6638,7 +6638,7 @@ validators: [required(), phone({ format: 'ru' })],
 },
 ```
 
-_Source: src/core/validation/validators/phone.ts_
+_Source: src/form/validation/validators/phone.ts_
 
 ### PhoneFormat
 
@@ -6656,7 +6656,7 @@ _Source: src/core/validation/validators/phone.ts_
 export type PhoneFormat = 'international' | 'ru' | 'us' | 'any';
 ```
 
-_Source: src/core/validation/validators/phone.ts_
+_Source: src/form/validation/validators/phone.ts_
 
 ### registerSignalNode
 
@@ -6690,7 +6690,7 @@ if (sig && node) registerSignalNode(sig, node);
 **See also:**
 - {@link getNodeForSignal} - обратный поиск ноды по сигналу
 
-_Source: src/core/utils/signal-node-registry.ts_
+_Source: src/form/signal-node-registry.ts_
 
 ### required
 
@@ -6736,7 +6736,7 @@ validators: [required({ message: 'Необходимо принять услов
 },
 ```
 
-_Source: src/core/validation/validators/required.ts_
+_Source: src/form/validation/validators/required.ts_
 
 ### resetWhen
 
@@ -6759,7 +6759,7 @@ export function resetWhen<T>(
 resetWhen(model.$.cardNumber, () => model.paymentType !== 'card', { resetValue: '' });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### ResourceLoadResult
 
@@ -6772,7 +6772,7 @@ _Source: src/core/model/behaviors.ts_
 export type ResourceLoadResult = unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### revalidateWhen
 
@@ -6795,7 +6795,7 @@ export function revalidateWhen(
 revalidateWhen([model.$.maxAmount], () => validateFormModel(model, schema));
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### runOutsideEffect
 
@@ -6829,7 +6829,7 @@ effect(() => {
 });
 ```
 
-_Source: src/core/utils/safe-effect.ts_
+_Source: src/state/safe-effect.ts_
 
 ### safeCallback
 
@@ -6868,7 +6868,7 @@ effect(() => {
 });
 ```
 
-_Source: src/core/utils/safe-effect.ts_
+_Source: src/state/safe-effect.ts_
 
 ### safeDebouncedCallback
 
@@ -6906,7 +6906,7 @@ return effect(() => {
 });
 ```
 
-_Source: src/core/utils/safe-effect.ts_
+_Source: src/state/safe-effect.ts_
 
 ### SchemaArrayControl
 
@@ -6929,7 +6929,7 @@ export interface SchemaArrayControl {
 }
 ```
 
-_Source: src/core/types/schema-node.ts_
+_Source: src/form/types/schema-node.ts_
 
 ### SchemaValidator
 
@@ -6948,7 +6948,7 @@ export type SchemaValidator = (
 ) => ValidationError | null | Promise<ValidationError | null>;
 ```
 
-_Source: src/core/types/schema-node.ts_
+_Source: src/form/types/schema-node.ts_
 
 ### SetValueOptions
 
@@ -6966,7 +6966,7 @@ export interface SetValueOptions {
 }
 ```
 
-_Source: src/core/nodes/form-node.ts_
+_Source: src/form/nodes/form-node.ts_
 
 ### StatusEvent
 
@@ -6985,7 +6985,7 @@ export type StatusEvent =
   | { type: 'SET_ERRORS'; hasErrors: boolean };
 ```
 
-_Source: src/core/utils/status-machine.ts_
+_Source: src/form/status-machine.ts_
 
 ### SubmitOptions
 
@@ -7003,7 +7003,7 @@ export interface SubmitOptions {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: src/form/form-submitter.ts_
 
 ### SubmitResult
 
@@ -7023,7 +7023,7 @@ export interface SubmitResult<R> {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: src/form/form-submitter.ts_
 
 ### SubmittableForm
 
@@ -7044,7 +7044,7 @@ export interface SubmittableForm<T extends object> {
 }
 ```
 
-_Source: src/core/utils/form-submitter.ts_
+_Source: src/form/form-submitter.ts_
 
 ### SubscriptionManager
 
@@ -7087,7 +7087,7 @@ class FieldNode {
 }
 ```
 
-_Source: src/core/utils/subscription-manager.ts_
+_Source: src/state/subscription-manager.ts_
 
 ### syncFields
 
@@ -7111,7 +7111,7 @@ export function syncFields<T>(
 syncFields(model.$.field1, model.$.field2);
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### transformValue
 
@@ -7134,7 +7134,7 @@ export function transformValue<T>(
 transformValue(model.$.promoCode, (v) => (v ?? '').toUpperCase());
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### uniqueId
 
@@ -7161,7 +7161,7 @@ uniqueId(SubscriptionKey.WatchField); // → 'watchField-1'
 uniqueId(SubscriptionKey.WatchField); // → 'watchField-2'
 ```
 
-_Source: src/core/utils/unique-id.ts_
+_Source: src/form/unique-id.ts_
 
 ### UnknownCallback
 
@@ -7175,7 +7175,7 @@ _Source: src/core/utils/unique-id.ts_
 export type UnknownCallback = (...args: unknown[]) => unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### UnknownFormValue
 
@@ -7189,7 +7189,7 @@ Requires explicit type checking before use
 export type UnknownFormValue = unknown;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### UnknownRecord
 
@@ -7203,7 +7203,7 @@ _Source: src/core/types/index.ts_
 export type UnknownRecord = Record<string, unknown>;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### unmarkDerived
 
@@ -7239,7 +7239,7 @@ onDispose(() => unmarkDerived(model.$.total)); // при снятии compute с
 **See also:**
 - {@link markDerived} - пометить сигнал производным
 
-_Source: src/core/utils/derived-registry.ts_
+_Source: src/state/derived-registry.ts_
 
 ### url
 
@@ -7283,7 +7283,7 @@ validators: [url({ requireProtocol: true, allowedProtocols: ['https'] })],
 },
 ```
 
-_Source: src/core/validation/validators/url.ts_
+_Source: src/form/validation/validators/url.ts_
 
 ### useArrayLength
 
@@ -7321,7 +7321,7 @@ function ArrayRenderer({ arrayNode }) {
 }
 ```
 
-_Source: src/hooks/useArrayLength.ts_
+_Source: src/form/hooks/useArrayLength.ts_
 
 ### useFormControl
 
@@ -7555,7 +7555,7 @@ return <div>Items: {length}</div>;
 - {@link FieldControlState} - тип состояния для FieldNode
 - {@link ArrayControlState} - тип состояния для ArrayNode
 
-_Source: src/hooks/useFormControl.ts_
+_Source: src/form/hooks/useFormControl.ts_
 
 ### useFormControlValue
 
@@ -7736,7 +7736,7 @@ return (
 - {@link useFormControl} - для полного состояния поля
 - {@link FieldNode} - тип контрола поля
 
-_Source: src/hooks/useFormControlValue.ts_
+_Source: src/form/hooks/useFormControlValue.ts_
 
 ### ValidateAsyncOptions
 
@@ -7754,7 +7754,7 @@ export interface ValidateAsyncOptions extends ValidateOptions {
 подключалась тем оператором, которого больше нет. Рантаймом не потребляется; экспортируется
 только ради обратной совместимости.
 
-_Source: src/core/types/validation-schema.ts_
+_Source: src/form/types/validation-schema.ts_
 
 ### validateFormModel
 
@@ -7788,7 +7788,7 @@ const res = await validateFormModel(model, schema);
 if (res.valid) await api.save(model.get());
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: src/form/validate-model.ts_
 
 ### validateModel
 
@@ -7811,7 +7811,7 @@ const res = await validateModel(model, schema);
 if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: src/form/validate-model-core.ts_
 
 ### validateModelSync
 
@@ -7842,7 +7842,7 @@ const res = validateModelSync(model, schema);
 if (!res.valid) console.log(res.errors); // { 'email': [{ code, message }], ... }
 ```
 
-_Source: src/core/model/validate-model.ts_
+_Source: src/form/validate-model-core.ts_
 
 ### ValidateOptions
 
@@ -7862,7 +7862,7 @@ export interface ValidateOptions {
 }
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: src/form/types/validation-schema.ts_
 
 ### ValidationError
 
@@ -7881,7 +7881,7 @@ export interface ValidationError {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### Validator
 
@@ -7929,7 +7929,7 @@ children: [
 };
 ```
 
-_Source: src/core/types/validation-schema.ts_
+_Source: src/form/types/validation-schema.ts_
 
 ### ValidatorFn
 
@@ -7942,7 +7942,7 @@ _Source: src/core/types/validation-schema.ts_
 export type ValidatorFn<T = FormValue> = (value: T) => ValidationError | null;
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/contracts.ts_
 
 ### watchField
 
@@ -7969,7 +7969,7 @@ watchField(model.$.country, async (country) => {
 });
 ```
 
-_Source: src/core/model/behaviors.ts_
+_Source: src/state/behaviors-value.ts_
 
 ### WithBehaviorSchema
 
@@ -7984,7 +7984,7 @@ export interface WithBehaviorSchema {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_
 
 ### WithValidationSchema
 
@@ -7999,4 +7999,4 @@ export interface WithValidationSchema {
 }
 ```
 
-_Source: src/core/types/index.ts_
+_Source: src/form/types/index.ts_

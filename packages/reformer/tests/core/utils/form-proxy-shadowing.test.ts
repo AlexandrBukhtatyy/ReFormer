@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { GroupNode } from '../../../src/core/nodes/group-node';
-import { FieldNode } from '../../../src/core/nodes/field-node';
+import { GroupNode } from '../../../src/form/nodes/group-node';
+import { FieldNode } from '../../../src/form/nodes/field-node';
 
 interface ShadowedModel {
   status: string; // совпадает с GroupNode.status (агрегированный сигнал)

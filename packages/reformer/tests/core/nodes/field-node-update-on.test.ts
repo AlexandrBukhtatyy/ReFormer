@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import type { ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
-import { createForm } from '../../../src/core/utils/create-form';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import type { ValidatorFn, AsyncValidatorFn } from '../../../src/form/types/index';
+import { createForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 const requiredValidator: ValidatorFn<string> = (value: string) => {
