@@ -45,7 +45,7 @@ type M = FormModel<CreditApplicationForm>;
 /**
  * Правило поля типа `TField`. Проверяется ТОЛЬКО значение (`value`): движок игнорирует scope/root
  * для value-only фабрик, а cross-field/async читают их через свои типы (`crossField`/`when`/именованный
- * `ModelValidator`). Поэтому scope/root помечены `never` — благодаря этому `field(m.loanAmount, [email()])`
+ * `ModelValidator`). Поэтому scope/root помечены `never` — благодаря этому `field(model.$.loanAmount, [email()])`
  * подсветится ошибкой (поле `number`, `email` ждёт `string`), а фабрики/cross-field присваиваются без `any`.
  */
 type Rule<TField> = (
@@ -364,56 +364,55 @@ const coBorrowerItem = (im: FormModel<CoBorrower>): SchemaNode => ({
 // ============================================================================
 
 const step1 = (model: M): SchemaNode => {
-  const m = model.$;
   const isMortgage = (r: Root) => r.loanType === 'mortgage';
   const isCar = (r: Root) => r.loanType === 'car';
   return {
     children: [
-      field(m.loanType, [required({ message: 'Выберите тип кредита' })]),
-      field(m.loanAmount, [
+      field(model.$.loanType, [required({ message: 'Выберите тип кредита' })]),
+      field(model.$.loanAmount, [
         required({ message: 'Укажите сумму кредита' }),
         min(50000, { message: 'Минимум 50 000 ₽' }),
         max(10000000, { message: 'Максимум 10 000 000 ₽' }),
         when(isMortgage, loanAmountVsPropertyMinusPayment),
       ]),
-      field(m.loanTerm, [
+      field(model.$.loanTerm, [
         required({ message: 'Укажите срок кредита' }),
         min(6, { message: 'Минимум 6 месяцев' }),
         max(240, { message: 'Максимум 240 месяцев' }),
       ]),
-      field(m.loanPurpose, [
+      field(model.$.loanPurpose, [
         required({ message: 'Укажите цель кредита' }),
         minLength(10, { message: 'Минимум 10 символов' }),
         maxLength(500, { message: 'Не более 500 символов' }),
       ]),
       applyWhen(isMortgage, [
-        field(m.propertyValue, [
+        field(model.$.propertyValue, [
           required({ message: 'Укажите стоимость недвижимости' }),
           min(1000000, { message: 'Минимум 1 000 000 ₽' }),
         ]),
-        field(m.initialPayment, [
+        field(model.$.initialPayment, [
           required({ message: 'Укажите первоначальный взнос' }),
           min(0, { message: 'Не может быть отрицательным' }),
           initialPaymentVsProperty,
         ]),
       ]),
       applyWhen(isCar, [
-        field(m.carBrand, [
+        field(model.$.carBrand, [
           required({ message: 'Укажите марку автомобиля' }),
           minLength(2, { message: 'Минимум 2 символа' }),
           maxLength(50, { message: 'Максимум 50 символов' }),
         ]),
-        field(m.carModel, [
+        field(model.$.carModel, [
           required({ message: 'Укажите модель автомобиля' }),
           minLength(1, { message: 'Минимум 1 символ' }),
           maxLength(50, { message: 'Максимум 50 символов' }),
         ]),
-        field(m.carYear, [
+        field(model.$.carYear, [
           required({ message: 'Укажите год выпуска' }),
           min(2000, { message: 'Не ранее 2000' }),
           max(CURRENT_YEAR + 1, { message: `Не позднее ${CURRENT_YEAR + 1}` }),
         ]),
-        field(m.carPrice, [
+        field(model.$.carPrice, [
           required({ message: 'Укажите стоимость автомобиля' }),
           min(300000, { message: 'Минимум 300 000 ₽' }),
           max(10000000, { message: 'Максимум 10 000 000 ₽' }),
@@ -424,7 +423,6 @@ const step1 = (model: M): SchemaNode => {
 };
 
 const step2 = (model: M): SchemaNode => {
-  const m = model.$;
   return {
     children: [
       field(model.$.personalData.lastName, ruName('Фамилия')),
@@ -463,11 +461,11 @@ const step2 = (model: M): SchemaNode => {
         required({ message: 'Код подразделения обязателен' }),
         pattern(/^\d{3}-\d{3}$/, { message: 'Формат: 000-000' }),
       ]),
-      field(m.inn, [
+      field(model.$.inn, [
         required({ message: 'ИНН обязателен' }),
         pattern(/^\d{12}$/, { message: 'ИНН должен содержать 12 цифр' }),
       ]),
-      field(m.snils, [
+      field(model.$.snils, [
         required({ message: 'СНИЛС обязателен' }),
         pattern(/^\d{3}-\d{3}-\d{3}\s\d{2}$/, { message: 'Формат: 000-000-000 00' }),
       ]),
@@ -476,23 +474,22 @@ const step2 = (model: M): SchemaNode => {
 };
 
 const step3 = (model: M): SchemaNode => {
-  const m = model.$;
   const notSameAddress = (r: Root) => r.sameAsRegistration === false;
   return {
     children: [
-      field(m.phoneMain, [
+      field(model.$.phoneMain, [
         required({ message: 'Телефон обязателен' }),
         pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
       ]),
-      field(m.phoneAdditional, [
+      field(model.$.phoneAdditional, [
         pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
         phoneAdditionalDiffers,
       ]),
-      field(m.email, [
+      field(model.$.email, [
         required({ message: 'Email обязателен' }),
         email({ message: 'Введите корректный email' }),
       ]),
-      field(m.emailAdditional, [
+      field(model.$.emailAdditional, [
         email({ message: 'Введите корректный email' }),
         emailAdditionalDiffers,
       ]),
@@ -504,42 +501,41 @@ const step3 = (model: M): SchemaNode => {
 };
 
 const step4 = (model: M): SchemaNode => {
-  const m = model.$;
   const isEmployed = (r: Root) => r.employmentStatus === 'employed';
   const isSelfEmployed = (r: Root) => r.employmentStatus === 'selfEmployed';
   return {
     children: [
-      field(m.employmentStatus, [required({ message: 'Укажите статус занятости' })]),
+      field(model.$.employmentStatus, [required({ message: 'Укажите статус занятости' })]),
       applyWhen(isEmployed, [
-        field(m.companyName, [
+        field(model.$.companyName, [
           required({ message: 'Укажите название компании' }),
           minLength(3, { message: 'Минимум 3 символа' }),
           maxLength(200, { message: 'Максимум 200 символов' }),
         ]),
-        field(m.companyInn, [
+        field(model.$.companyInn, [
           required({ message: 'ИНН компании обязателен' }),
           pattern(/^\d{10}$/, { message: 'ИНН компании — 10 цифр' }),
         ]),
-        field(m.companyPhone, [
+        field(model.$.companyPhone, [
           required({ message: 'Телефон компании обязателен' }),
           pattern(PHONE, { message: 'Формат: +7 (___) ___-__-__' }),
         ]),
-        field(m.companyAddress, [
+        field(model.$.companyAddress, [
           required({ message: 'Адрес компании обязателен' }),
           minLength(10, { message: 'Минимум 10 символов' }),
           maxLength(300, { message: 'Максимум 300 символов' }),
         ]),
-        field(m.position, [
+        field(model.$.position, [
           required({ message: 'Укажите должность' }),
           minLength(3, { message: 'Минимум 3 символа' }),
           maxLength(100, { message: 'Максимум 100 символов' }),
         ]),
-        field(m.workExperienceTotal, [
+        field(model.$.workExperienceTotal, [
           required({ message: 'Укажите общий стаж' }),
           min(0, { message: 'Не может быть отрицательным' }),
           max(60, { message: 'Максимум 60 лет' }),
         ]),
-        field(m.workExperienceCurrent, [
+        field(model.$.workExperienceCurrent, [
           required({ message: 'Укажите стаж на текущем месте' }),
           min(0, { message: 'Не может быть отрицательным' }),
           max(60, { message: 'Максимум 60 лет' }),
@@ -547,49 +543,48 @@ const step4 = (model: M): SchemaNode => {
         ]),
       ]),
       applyWhen(isSelfEmployed, [
-        field(m.businessType, [required({ message: 'Укажите тип бизнеса' })]),
-        field(m.businessInn, [
+        field(model.$.businessType, [required({ message: 'Укажите тип бизнеса' })]),
+        field(model.$.businessInn, [
           required({ message: 'ИНН ИП обязателен' }),
           pattern(/^\d{12}$/, { message: 'ИНН ИП — 12 цифр' }),
         ]),
-        field(m.businessActivity, [
+        field(model.$.businessActivity, [
           required({ message: 'Укажите вид деятельности' }),
           minLength(10, { message: 'Минимум 10 символов' }),
           maxLength(300, { message: 'Максимум 300 символов' }),
         ]),
       ]),
-      field(m.monthlyIncome, [
+      field(model.$.monthlyIncome, [
         required({ message: 'Укажите ежемесячный доход' }),
         min(10000, { message: 'Минимум 10 000 ₽' }),
         max(10000000, { message: 'Максимум 10 000 000 ₽' }),
       ]),
-      field(m.additionalIncome, [
+      field(model.$.additionalIncome, [
         min(0, { message: 'Не может быть отрицательным' }),
         max(10000000, { message: 'Максимум 10 000 000 ₽' }),
       ]),
-      field(m.additionalIncomeSource, [additionalIncomeSourceRequired]),
+      field(model.$.additionalIncomeSource, [additionalIncomeSourceRequired]),
     ],
   };
 };
 
 const step5 = (model: M): SchemaNode => {
-  const m = model.$;
   return {
     children: [
-      field(m.maritalStatus, [required({ message: 'Укажите семейное положение' })]),
-      field(m.dependents, [
+      field(model.$.maritalStatus, [required({ message: 'Укажите семейное положение' })]),
+      field(model.$.dependents, [
         required({ message: 'Укажите количество иждивенцев' }),
         min(0, { message: 'Не может быть отрицательным' }),
         max(10, { message: 'Максимум 10' }),
       ]),
-      field(m.education, [required({ message: 'Укажите уровень образования' })]),
-      field(m.hasProperty, [
+      field(model.$.education, [required({ message: 'Укажите уровень образования' })]),
+      field(model.$.hasProperty, [
         notEmptyWhen('hasProperty', 'properties', 'Добавьте хотя бы один объект имущества'),
       ]),
-      field(m.hasExistingLoans, [
+      field(model.$.hasExistingLoans, [
         notEmptyWhen('hasExistingLoans', 'existingLoans', 'Добавьте информацию о кредите'),
       ]),
-      field(m.hasCoBorrower, [
+      field(model.$.hasCoBorrower, [
         notEmptyWhen('hasCoBorrower', 'coBorrowers', 'Добавьте информацию о созаемщике'),
       ]),
       arraySection(model.properties, propertyItem),
@@ -600,7 +595,6 @@ const step5 = (model: M): SchemaNode => {
 };
 
 const step6 = (model: M): SchemaNode => {
-  const m = model.$;
   const smsCode: ModelValidator<string, unknown, Root> = async (value) => {
     if (!value || value.length !== 6) return null;
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -613,13 +607,15 @@ const step6 = (model: M): SchemaNode => {
   };
   return {
     children: [
-      field(m.agreePersonalData, [required({ message: 'Согласие на обработку ПД обязательно' })]),
-      field(m.agreeCreditHistory, [
+      field(model.$.agreePersonalData, [
+        required({ message: 'Согласие на обработку ПД обязательно' }),
+      ]),
+      field(model.$.agreeCreditHistory, [
         required({ message: 'Согласие на проверку кредитной истории обязательно' }),
       ]),
-      field(m.agreeTerms, [required({ message: 'Согласие с условиями обязательно' })]),
-      field(m.confirmAccuracy, [required({ message: 'Подтверждение точности обязательно' })]),
-      field(m.electronicSignature, [
+      field(model.$.agreeTerms, [required({ message: 'Согласие с условиями обязательно' })]),
+      field(model.$.confirmAccuracy, [required({ message: 'Подтверждение точности обязательно' })]),
+      field(model.$.electronicSignature, [
         required({ message: 'Введите код из СМС' }),
         minLength(6, { message: 'Код — 6 символов' }),
         maxLength(6, { message: 'Код — 6 символов' }),
@@ -632,13 +628,12 @@ const step6 = (model: M): SchemaNode => {
 
 /** Cross-field/warnings уровня всей формы (вне per-step). */
 const fullExtras = (model: M): SchemaNode => {
-  const m = model.$;
   return {
     children: [
-      field(m.monthlyPayment, [paymentToIncome]),
-      field(m.age, [validateAge, warnSeniorAge]),
-      field(m.paymentToIncomeRatio, [warnHighDebt]),
-      field(m.workExperienceCurrent, [warnLowExperience]),
+      field(model.$.monthlyPayment, [paymentToIncome]),
+      field(model.$.age, [validateAge, warnSeniorAge]),
+      field(model.$.paymentToIncomeRatio, [warnHighDebt]),
+      field(model.$.workExperienceCurrent, [warnLowExperience]),
     ],
   };
 };

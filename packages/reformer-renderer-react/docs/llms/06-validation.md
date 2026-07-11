@@ -165,7 +165,6 @@ export function buildSchema(
   model: FormModel<CreditForm>,
   form?: FormProxy<CreditForm>
 ): RenderNode<CreditForm> {
-  const m = model.$;
   return {
     selector: 'wizard',
     component: FormWizard,
@@ -178,7 +177,7 @@ export function buildSchema(
           title: 'Кредит',
           body: {
             component: Input, // лист несёт только value/component/componentProps — без validators
-            value: m.loanAmount,
+            value: model.$.loanAmount,
             componentProps: { label: 'Сумма' },
           },
         },
@@ -190,7 +189,7 @@ export function buildSchema(
 
 ## Anti-patterns
 
-- **Вписывать `validators` в лист RenderNode** (`{ value: m.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной model-схеме (Шаг 1), а не в render-дереве.
+- **Вписывать `validators` в лист RenderNode** (`{ value: model.$.x, component: Input, validators: [...] }`) — главная ловушка. У `ModelFieldRenderNode` нет поля `validators` (как и у array/container узлов). TypeScript даёт `TS2353: 'validators' does not exist in type 'RenderNode<T>'`. Валидация значений живёт в отдельной model-схеме (Шаг 1), а не в render-дереве.
 - **Ждать, что рендерер сам провалидирует значения** — `FormRenderer` только отображает ошибки, уже проставленные в ноды. Значения проверяет `validateFormModel(model, schema)`; без её вызова (обычно из `validateStep`/`validateAll` wizard-а) поля не подсветятся.
 - **Строить схему валидации по значениям, а не по shape модели** — узел это `{ value: model.$.path, validators }`, где `value` — сигнал (стабильная ссылка на форму модели), а не текущее значение поля. Схему собирают один раз на `model`; значения читаются движком в момент прогона.
 - **Забыть `selector: 'wizard'` при инъекции через render-behavior** — без `selector` узел не адресуется через `schema.node('wizard')`, `onInit`/`patchProps` не найдут его и валидация не прокинется. (При инлайн-инъекции в `componentProps` это не нужно.)

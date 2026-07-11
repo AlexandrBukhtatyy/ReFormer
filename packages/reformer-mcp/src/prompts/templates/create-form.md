@@ -46,7 +46,6 @@ You design and write a new form on `@reformer/*`.
 
   // ✅ correct — leaves carry model signals; the schema fn takes no argument
   const buildSchema = (model: FormModel<MyForm>): RenderSchemaFn<MyForm> => {
-    const m = model.$;
     return () => ({
       component: Box,
       children: [step1Body(m)],
@@ -56,8 +55,8 @@ You design and write a new form on `@reformer/*`.
     return {
       component: Box,
       children: [
-        { value: m.email, component: Input }, // model signal — resolved at render
-        { value: m.password, component: InputPassword },
+        { value: model.$.email, component: Input }, // model signal — resolved at render
+        { value: model.$.password, component: InputPassword },
       ],
     };
   }
