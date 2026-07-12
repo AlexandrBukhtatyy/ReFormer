@@ -1,102 +1,102 @@
 # ReFormer
 
-Reactive form state management library for React with signals-based architecture.
+Библиотека реактивного управления состоянием форм для React на сигнальной архитектуре.
 
 [![npm version](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)
 [![npm downloads](https://img.shields.io/npm/dm/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Links
+## Ссылки
 
-- [Documentation](https://alexandrbukhtatyy.github.io/ReFormer/) - Full documentation and API reference
-- [Playground](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer?file=projects/react-playground/src/App.tsx) - Try ReFormer in StackBlitz
+- [Документация](https://alexandrbukhtatyy.github.io/ReFormer/) — полная документация и справочник по API
+- [Песочница](https://stackblitz.com/~/github.com/AlexandrBukhtatyy/ReFormer?file=projects/react-playground/src/App.tsx) — попробуйте ReFormer в StackBlitz
 
-## Commands
+## Команды
 
-### Common commands
+### Основные команды
 
 ```
-# Install dependencies for @reformer/core
+# Установить зависимости для @reformer/core
 npm install -w @reformer/core
 
-# Build @reformer/core
+# Собрать @reformer/core
 npm run build -w @reformer/core
 
 
-# Install dependencies for @reformer/cdk
+# Установить зависимости для @reformer/cdk
 npm install -w @reformer/cdk
 
-# Build @reformer/cdk
+# Собрать @reformer/cdk
 npm run build -w @reformer/cdk
 
 
-# Install dependencies for @reformer/renderer-react
+# Установить зависимости для @reformer/renderer-react
 npm install -w @reformer/renderer-react
 
-# Build @reformer/renderer-react
+# Собрать @reformer/renderer-react
 npm run build -w @reformer/renderer-react
 
 
-# Install dependencies for react-playground
+# Установить зависимости для react-playground
 npm install -w react-playground
 
-# Build react-playground
+# Собрать react-playground
 npm run build -w react-playground
 
-# Run react-playground in dev mode
+# Запустить react-playground в режиме разработки
 npm run dev -w react-playground
 ```
 
-### Running tests
+### Запуск тестов
 
-Setup instructions, test commands, and the full command reference live in [README.md](./projects/react-playground-e2e/README.md).
+Инструкции по настройке, команды тестов и полный справочник команд — в [README.md](./projects/react-playground-e2e/README.md).
 
-## Packages
+## Пакеты
 
-| Package                                                        | Description                                                            | Version                                                                                                                     |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [@reformer/core](./packages/reformer)                          | Core form state management with signals-based architecture             | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
-| [@reformer/cdk](./packages/reformer-cdk)                       | Headless compound components — `FormArray`, `FormWizard`, `FormField`  | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
-| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | Styled form components built on Tailwind CSS + Radix UI                | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
-| [@reformer/renderer-react](./packages/reformer-renderer-react) | Schema-driven React renderer — TS `RenderSchema` → JSX                 | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
-| [@reformer/renderer-json](./packages/reformer-renderer-json)   | JSON-based renderer — `JsonFormSchema` + component registry            | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
-| [@reformer/mcp](./packages/reformer-mcp)                       | MCP server — provides docs, recipes and JSDoc symbols to AI assistants | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
+| Пакет                                                          | Описание                                                                 | Версия                                                                                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| [@reformer/core](./packages/reformer)                          | Ядро управления состоянием форм на сигнальной архитектуре                | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
+| [@reformer/cdk](./packages/reformer-cdk)                       | Headless-составные компоненты — `FormArray`, `FormWizard`, `FormField`   | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
+| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | Стилизованные компоненты форм на Tailwind CSS + Radix UI                 | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
+| [@reformer/renderer-react](./packages/reformer-renderer-react) | React-рендерер на основе схемы — TS `RenderSchema` → JSX                 | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
+| [@reformer/renderer-json](./packages/reformer-renderer-json)   | Рендерер на основе JSON — `JsonFormSchema` + реестр компонентов          | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
+| [@reformer/mcp](./packages/reformer-mcp)                       | MCP-сервер — отдаёт документацию, рецепты и JSDoc-символы ИИ-ассистентам | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
 
-## Features
+## Возможности
 
-- **AI-friendly** - includes LLMs.txt for AI assistants, MCP server available
-- **Signals-based** - reactive state powered by @preact/signals-core
-- **Declarative validation** - built-in validators + custom sync/async support
-- **Dynamic behaviors** - computed fields, conditional logic, field watchers
-- **TypeScript-first** - full type inference and safety
-- **Tree-shakeable** - import only what you need
-- **Multi-step forms** - wizard support with step validation
-- **Dynamic arrays** - add/remove form items with FormArray
-- **React 16.8+ to 19** - broad compatibility
+- **Дружелюбие к ИИ** — есть LLMs.txt для ИИ-ассистентов, доступен MCP-сервер
+- **На сигналах** — реактивное состояние на @preact/signals-core
+- **Декларативная валидация** — встроенные валидаторы + поддержка кастомных sync/async
+- **Динамические поведения** — вычисляемые поля, условная логика, наблюдатели за полями
+- **TypeScript-first** — полный вывод типов и типобезопасность
+- **Tree-shaking** — импортируйте только то, что нужно
+- **Многошаговые формы** — поддержка мастера с валидацией по шагам
+- **Динамические массивы** — добавление/удаление элементов формы через FormArray
+- **React с 16.8 по 19** — широкая совместимость
 
-## Installation
+## Установка
 
 ```bash
-# Core library
+# Ядро библиотеки
 npm install @reformer/core
 
-# Styled inputs + FormField wrapper (used in Quick Start below)
+# Стилизованные инпуты + обёртка FormField (используются в «Быстром старте» ниже)
 npm install @reformer/ui-kit
 
-# Optional: Headless compound components (FormArray, FormWizard)
+# Опционально: headless-составные компоненты (FormArray, FormWizard)
 npm install @reformer/cdk
 
-# Optional: schema-driven rendering (choose one — see "Rendering: three approaches")
-npm install @reformer/renderer-react   # layout as a type-safe TS tree
-npm install @reformer/renderer-json    # layout as plain JSON + registry
+# Опционально: рендеринг на основе схемы (выберите один — см. «Рендеринг: три подхода»)
+npm install @reformer/renderer-react   # разметка как типобезопасное TS-дерево
+npm install @reformer/renderer-json    # разметка как чистый JSON + реестр
 ```
 
-## Quick Start
+## Быстрый старт
 
 Архитектура **M1**: сначала создаётся **модель данных** (`createModel`) — источник истины
 значений, затем **форма** (`createForm({ model, schema })`), где схема привязывает каждое поле к
 сигналу модели (`model.$.field`), несёт его `component` + `componentProps` и список `validators`.
-В JSX рендерится один универсальный `<FormField control={form.x} />` на поле — без per-field обёрток.
+В JSX рендерится один универсальный `<FormField control={form.x} />` на поле — без обёрток на каждое поле.
 
 ```tsx
 import { useMemo } from 'react';
@@ -104,14 +104,14 @@ import { createModel, createForm, validateFormModel } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
 import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
-// Тип формы — `type` alias (structural-совместимость с generic-constraint внутри библиотеки).
+// Тип формы — `type` alias (структурная совместимость с generic-ограничением внутри библиотеки).
 type LoginForm = {
   email: string;
   password: string;
 };
 
 function LoginFormExample() {
-  // model + schema + form создаются ОДИН раз (useMemo, пустые deps) —
+  // model + schema + form создаются ОДИН раз (useMemo, пустой массив зависимостей) —
   // иначе форма пересоздаётся на каждый рендер.
   const { model, form, schema } = useMemo(() => {
     // 1. Модель — источник истины значений.
@@ -129,7 +129,7 @@ function LoginFormExample() {
       password: {
         value: model.$.password,
         component: InputPassword,
-        componentProps: { label: 'Password' },
+        componentProps: { label: 'Пароль' },
         validators: [required(), minLength(8)],
       },
     };
@@ -142,13 +142,13 @@ function LoginFormExample() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Submit-флоу M1: markAsTouched (показать ошибки) → validateFormModel → model.get().
+    // Флоу отправки M1: markAsTouched (показать ошибки) → validateFormModel → model.get().
     // Именно validateFormModel исполняет `validators` листьев схемы (sync + async).
     form.markAsTouched();
     const result = await validateFormModel(model, schema);
     if (!result.valid) return;
 
-    console.log('Form data:', model.get());
+    console.log('Данные формы:', model.get());
     form.reset();
   };
 
@@ -159,25 +159,25 @@ function LoginFormExample() {
       <FormField control={form.password} testId="password" />
 
       <Button type="submit" disabled={form.pending.value}>
-        {form.pending.value ? 'Checking…' : 'Login'}
+        {form.pending.value ? 'Проверка…' : 'Войти'}
       </Button>
     </form>
   );
 }
 ```
 
-> Don't want `@reformer/ui-kit`? You can also pass any React component into `component` /
-> `componentProps` (your own design system) or write a thin per-field wrapper around
-> `useFormControl(control)` — see [@reformer/core README](./packages/reformer/README.md).
+> Не хотите `@reformer/ui-kit`? В `component` / `componentProps` можно передать любой
+> React-компонент (вашу собственную дизайн-систему) или написать тонкую обёртку поля вокруг
+> `useFormControl(control)` — см. [README @reformer/core](./packages/reformer/README.md).
 
-## Validators
+## Валидаторы
 
 Валидаторы объявляются прямо в поле схемы — массивом `validators: [...]`. Встроенные фабрики
 (`required()`, `email()`, …) — чистые функции `(value) => ValidationError | null`. Кастомные и
 кросс-полевые правила — это `ModelValidator<TValue, TModel>`: `(value, model) => ValidationError | null`,
 где соседние поля читаются из `model`. Async-валидатор — просто `async` `ModelValidator`.
-Исполняет все правила `validateFormModel(model, schema)` (на submit); `form.validate()` по нодам
-схемные правила НЕ запустит.
+Исполняет все правила `validateFormModel(model, schema)` (при отправке); `form.validate()` по нодам
+НЕ запустит схемные правила.
 
 ```tsx
 import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
@@ -196,22 +196,22 @@ type RegistrationForm = {
 
 // Кросс-полевое правило — читаем соседнее поле из `model`.
 const passwordsMatch: ModelValidator<string, RegistrationForm> = (value, model) =>
-  value && value !== model.password
-    ? { code: 'mismatch', message: 'Passwords do not match' }
-    : null;
+  value && value !== model.password ? { code: 'mismatch', message: 'Пароли не совпадают' } : null;
 
 // Условная валидация — без спец-оператора: просто проверяем `model` внутри правила.
-// (Для условного ВКЛючения/сброса самого поля — behavior `enableWhen`, см. ниже.)
+// (Для условного ВКЛючения/сброса самого поля — поведение `enableWhen`, см. ниже.)
 const propertyValueForMortgage: ModelValidator<number, RegistrationForm> = (value, model) =>
   model.loanType === 'mortgage' && (!value || value < 100000)
-    ? { code: 'min', message: 'Property value must be at least 100000' }
+    ? { code: 'min', message: 'Стоимость имущества — не менее 100000' }
     : null;
 
 // Async-правило — async ModelValidator; сетевой сбой не должен блокировать (верните null).
 const usernameAvailable: ModelValidator<string> = async (value) => {
   if (!value || value.length < 3) return null;
   const res = await fetch(`/api/check-username?u=${encodeURIComponent(value)}`);
-  return (await res.json()).available ? null : { code: 'taken', message: 'Username is taken' };
+  return (await res.json()).available
+    ? null
+    : { code: 'taken', message: 'Имя пользователя занято' };
 };
 
 const model = createModel<RegistrationForm>({
@@ -260,12 +260,12 @@ const result = await validateFormModel(model, schema); // → { valid: boolean, 
 числовые: `isNumber`, `integer`, `multipleOf`, `nonNegative`, `nonZero` ·
 даты: `isDate`, `minDate`, `maxDate`, `pastDate`, `futureDate`, `minAge`, `maxAge`.
 
-## Behaviors
+## Поведения
 
 Реактивное поведение описывается декларативной схемой `defineFormBehavior<T>(({ model, form }) => …)`
 и подключается через `createForm({ model, schema, behavior })` — форма владеет жизненным циклом
-(подписки/cleanup/защита от циклов внутри каждого оператора). Value-операции (`compute`,
-`computeFrom`, `copyFrom`) пишут сигналы модели (`model.$`), state/UI-операции (`enableWhen`,
+(подписки/очистка/защита от циклов внутри каждого оператора). Операции значений (`compute`,
+`computeFrom`, `copyFrom`) пишут сигналы модели (`model.$`), а операции состояния/UI (`enableWhen`,
 `onChange` + `updateComponentProps`) — ноды формы (`form.*`).
 
 ```tsx
@@ -280,8 +280,8 @@ import {
 } from '@reformer/core/behaviors';
 
 const behavior = defineFormBehavior<OrderForm>(({ model, form }) => {
-  // Вычисляемое поле. `compute(target, () => …)` — auto-tracking (зависимости по чтению model.*);
-  // `computeFrom([...sources], target, fn)` — явный список источников-сигналов (escape hatch).
+  // Вычисляемое поле. `compute(target, () => …)` — автоотслеживание зависимостей (по чтению model.*);
+  // `computeFrom([...sources], target, fn)` — явный список источников-сигналов (запасной вариант).
   compute(model.$.total, () => model.price * model.quantity);
   computeFrom(
     [model.$.price, model.$.discount],
@@ -308,19 +308,19 @@ const form = createForm<OrderForm>({ model, schema, behavior });
 
 > Полный набор DSL-операторов: `compute`, `computeFrom`, `copyFrom`, `onChange`, `enableWhen` /
 > `disableWhen`, `transformValue`, `resetWhen`, `syncFields`, `revalidateWhen`, а также `apply`
-> (под-схема для группы) и `applyEach` (per-item для массива).
+> (под-схема для группы) и `applyEach` (на каждый элемент массива).
 
-## Arrays & Multi-step
+## Массивы и многошаговые формы
 
 ### FormArray
 
-Массивы объектов принадлежат модели (`model.items`) и объявляются в схеме узлом
+Массивы объектов принадлежат модели (`model.items`) и объявляются в схеме нодой
 `{ array: model.items, item: (itemModel) => itemSchema }`. UI строится либо стилизованным
-`FormArraySection` (типизированный `itemComponent` — **canonical**), либо headless-compound
-`FormArray.*` из `@reformer/cdk/form-array`.
+`FormArraySection` (типизированный `itemComponent` — **канонический вариант**), либо
+headless-составным `FormArray.*` из `@reformer/cdk/form-array`.
 
 ```tsx
-// Canonical: типизированная стилизованная секция из @reformer/ui-kit/form-array.
+// Канонический вариант: типизированная стилизованная секция из @reformer/ui-kit/form-array.
 import { FormArraySection } from '@reformer/ui-kit/form-array';
 import { FormField } from '@reformer/ui-kit';
 import type { FormProxy } from '@reformer/core';
@@ -339,44 +339,44 @@ const PropertyForm: FC<{ control: FormProxy<Property> }> = ({ control }) => (
 <FormArraySection
   control={form.properties}
   itemComponent={PropertyForm}
-  title="Properties"
+  title="Имущество"
   initialValue={{ type: 'apartment', estimatedValue: 0 }}
 />;
 ```
 
 ```tsx
-// Headless-compound: полный контроль над разметкой (@reformer/cdk/form-array).
-// Пин типа <Property> на List возвращает типизированный item.
+// Headless-составной вариант: полный контроль над разметкой (@reformer/cdk/form-array).
+// Пин типа <Property> на List возвращает типизированный элемент.
 import { FormArray } from '@reformer/cdk/form-array';
 
 <FormArray.Root control={form.properties}>
   <FormArray.Empty>
-    <p>No items added</p>
+    <p>Пока нет элементов</p>
   </FormArray.Empty>
 
   <FormArray.List<Property>>
     {({ control, index, remove }) => (
       <div key={control.id}>
-        <h4>Item #{index + 1}</h4>
+        <h4>Элемент №{index + 1}</h4>
         <FormField control={control.type} />
         <button type="button" onClick={remove}>
-          Remove
+          Удалить
         </button>
       </div>
     )}
   </FormArray.List>
 
-  <FormArray.AddButton>Add Item</FormArray.AddButton>
+  <FormArray.AddButton>Добавить элемент</FormArray.AddButton>
 </FormArray.Root>;
 ```
 
-### FormWizard (Multi-step Wizard)
+### FormWizard (многошаговый мастер)
 
-`@reformer/ui-kit/form-wizard` — стилизованный wizard: шаги задаются массивом `steps`
+`@reformer/ui-kit/form-wizard` — стилизованный мастер: шаги задаются массивом `steps`
 (`{ number, title, icon, body }`), а `config` — это `{ validateStep, validateAll }`, где оба
 колбэка возвращают `boolean | Promise<boolean>`. Канон M1 — валидировать через
 `validateFormModel(model, …)`. `body` шага полиморфен: FC (`{ control }`), готовый `ReactNode`
-или `RenderNode` (для renderer-flow, см. ниже).
+или `RenderNode` (для рендерер-флоу, см. ниже).
 
 ```tsx
 import { useMemo, type FC } from 'react';
@@ -388,7 +388,7 @@ import { FormField, Input, InputPassword } from '@reformer/ui-kit';
 
 type SignupForm = { email: string; password: string };
 
-// Step-компоненты получают control={form} через ui-kit FormWizard.
+// Компоненты шагов получают control={form} через ui-kit FormWizard.
 const StepAccount: FC<{ control: FormProxy<SignupForm> }> = ({ control }) => (
   <FormField control={control.email} />
 );
@@ -424,7 +424,7 @@ function SignupWizard() {
     { number: 2, title: 'Пароль', icon: '🔒', body: StepSecurity },
   ];
 
-  // config — колбэки, а не схемы. Валидируем подмножество полей шага через validateFormModel.
+  // config — это колбэки, а не схемы. Валидируем подмножество полей шага через validateFormModel.
   const config: FormWizardConfig = {
     validateStep: async (step) => {
       const stepSchema = { children: [schema.children[step - 1]] };
@@ -433,33 +433,33 @@ function SignupWizard() {
     validateAll: async () => (await validateFormModel(model, schema)).valid,
   };
 
-  // onSubmit — signature `() => void | Promise<void>` (без values); значения читаем из модели.
+  // onSubmit имеет сигнатуру `() => void | Promise<void>` (без values); значения читаем из модели.
   const handleSubmit = async () => {
-    console.log('submit', model.get());
+    console.log('отправка', model.get());
   };
 
   return <FormWizard form={form} config={config} steps={steps} onSubmit={handleSubmit} />;
 }
 ```
 
-## Rendering: three approaches
+## Рендеринг: три подхода
 
 Одна и та же форма (модель + схема) рендерится **тремя** способами — выбирайте по тому,
-где живёт описание layout'а:
+где живёт описание разметки:
 
-| Подход                         | Layout описывается            | Когда выбирать                                         |
-| ------------------------------ | ----------------------------- | ------------------------------------------------------ |
-| **Imperative JSX**             | вручную в JSX (`<FormField>`) | обычные формы; максимальный контроль над разметкой     |
-| **`@reformer/renderer-react`** | TS-дерево `RenderNode`        | layout как данные, но type-safe (IDE go-to-definition) |
-| **`@reformer/renderer-json`**  | чистый JSON + реестр          | схема из БД / CMS / приходит строкой с сервера         |
+| Подход                         | Разметка описывается          | Когда выбирать                                                      |
+| ------------------------------ | ----------------------------- | ------------------------------------------------------------------- |
+| **Императивный JSX**           | вручную в JSX (`<FormField>`) | обычные формы; максимальный контроль над разметкой                  |
+| **`@reformer/renderer-react`** | TS-дерево `RenderNode`        | разметка как данные, но типобезопасно (переход к определению в IDE) |
+| **`@reformer/renderer-json`**  | чистый JSON + реестр          | схема из БД / CMS / приходит строкой с сервера                      |
 
-Первый способ — это [Quick Start](#quick-start) выше (`<FormField control={form.x} />` руками).
-Ниже — два schema-driven варианта. Во всех трёх **модель и валидация одинаковы** (M1: `createModel` +
-`validators` в схеме + `validateFormModel`) — меняется только описание layout'а.
+Первый способ — это [Быстрый старт](#быстрый-старт) выше (`<FormField control={form.x} />` руками).
+Ниже — два варианта на основе схемы. Во всех трёх **модель и валидация одинаковы** (M1: `createModel` +
+`validators` в схеме + `validateFormModel`) — меняется только описание разметки.
 
 ### @reformer/renderer-react
 
-Layout — TS-дерево `RenderNode<T>`: листья несут `value: model.$.x` (сигнал модели) + `component`.
+Разметка — TS-дерево `RenderNode<T>`: листья несут `value: model.$.x` (сигнал модели) + `component`.
 **Одно дерево** служит и форме (`createForm({ model, schema })` строит ноды), и рендеру
 (`createRenderSchema(() => tree)` → `<FormRenderer />`). Аргумент `path` больше не нужен, обёртка
 `FormRoot` — тоже (привязка идёт через сигналы, а не через контекст-форму).
@@ -488,7 +488,7 @@ function buildTree(model: FormModel<LoginForm>): RenderNode<LoginForm> {
       {
         value: model.$.password,
         component: InputPassword,
-        componentProps: { label: 'Password' },
+        componentProps: { label: 'Пароль' },
         validators: [required(), minLength(8)],
       },
     ],
@@ -500,11 +500,11 @@ function LoginPage() {
     const model = createModel<LoginForm>({ email: '', password: '' });
     const tree = buildTree(model);
 
-    // createForm строит форму из того же дерева (harvest листьев по сигналу).
-    // form используется для submit (validateFormModel) — как в Quick Start.
+    // createForm строит форму из того же дерева (сбор листьев по сигналу).
+    // form используется для отправки (validateFormModel) — как в «Быстром старте».
     const form = createForm<LoginForm>({ model, schema: tree });
 
-    // RenderSchema-proxy для декларативного рендера (+ программное управление нодами:
+    // RenderSchema-прокси для декларативного рендера (+ программное управление нодами:
     // schema.node('id').setHidden(true) / .patchProps({...})).
     const schema = createRenderSchema<LoginForm>(() => tree);
     return { model, form, schema };
@@ -515,12 +515,13 @@ function LoginPage() {
 }
 ```
 
-> Layout как данные, но type-safe: `model.$.email` — типизированный сигнал (IDE go-to-definition,
-> безопасный рефакторинг). Подробнее — [@reformer/renderer-react overview](./packages/reformer-renderer-react/README.md).
+> Разметка как данные, но типобезопасно: `model.$.email` — типизированный сигнал (переход к
+> определению в IDE, безопасный рефакторинг). Подробнее —
+> [обзор @reformer/renderer-react](./packages/reformer-renderer-react/README.md).
 
 ### @reformer/renderer-json
 
-Layout — **чистый JSON**: все привязки кодируются строками-операторами (`$model(...)`,
+Разметка — **чистый JSON**: все привязки кодируются строками-операторами (`$model(...)`,
 `$component(...)`, `$dataSource(...)`), поэтому схему можно положить в `.json` или принять строкой
 с сервера/CMS. Компоненты и данные резолвятся через **реестр** (`defineRegistry`). Валидаторов в
 JSON нет — валидация значений живёт в отдельной TS-схеме над моделью (`validateFormModel`).
@@ -540,8 +541,8 @@ import { Box, FormField, Input, InputPassword } from '@reformer/ui-kit';
 
 type LoginForm = { email: string; password: string };
 
-// 1. Layout как ЧИСТЫЙ JSON (мог прийти строкой с сервера / из CMS / БД).
-//    field-node: value '$model(path)' + component '$component(Name)'; container: children.
+// 1. Разметка как ЧИСТЫЙ JSON (мог прийти строкой с сервера / из CMS / БД).
+//    поле: value '$model(path)' + component '$component(Name)'; контейнер: children.
 const jsonSchema: JsonFormSchema = {
   version: '1.0',
   root: {
@@ -558,7 +559,7 @@ const jsonSchema: JsonFormSchema = {
         selector: 'password',
         value: '$model(password)',
         component: '$component(InputPassword)',
-        componentProps: { label: 'Password' },
+        componentProps: { label: 'Пароль' },
       },
     ],
   },
@@ -586,7 +587,7 @@ function LoginPage() {
     return { model, form, registry };
   }, []);
 
-  // 4. Provider инъектит registry + model (по нему JsonFormRenderer резолвит $model);
+  // 4. Провайдер внедряет registry + model (по нему JsonFormRenderer резолвит $model);
   //    fieldWrapper берётся из реестра (FIELD_WRAPPER). `validate` включает панель ошибок схемы.
   return (
     <JsonRendererProvider settings={{ registry, model }}>
@@ -597,19 +598,19 @@ function LoginPage() {
 ```
 
 > Голые строки не резолвятся: нужны операторы — `component: '$component(Input)'`, `value: '$model(email)'`
-> (template-literal типы отловят это на компиляции). `selector` — id узла для render-behavior, НЕ путь
+> (типы template-literal отловят это на компиляции). `selector` — id ноды для render-поведения, НЕ путь
 > к полю. Полный DSL (`$dataSource`, `$fn`, `$locale`, массивы `item.$template`) —
-> [@reformer/renderer-json overview](./packages/reformer-renderer-json/README.md).
+> [обзор @reformer/renderer-json](./packages/reformer-renderer-json/README.md).
 
-## MCP Server (AI Integration)
+## MCP-сервер (интеграция с ИИ)
 
-For AI assistants like Claude, install the MCP server:
+Для ИИ-ассистентов вроде Claude установите MCP-сервер:
 
 ```bash
 npm install -g @reformer/mcp
 ```
 
-Add to your Claude config:
+Добавьте в конфиг Claude:
 
 ```json
 {
@@ -621,6 +622,6 @@ Add to your Claude config:
 }
 ```
 
-## License
+## Лицензия
 
 MIT
