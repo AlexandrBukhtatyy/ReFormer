@@ -19,8 +19,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import type { ValidatorFn, AsyncValidatorFn } from '../../../src/core/types';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import type { ValidatorFn, AsyncValidatorFn } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 
 // ============================================================================

@@ -236,7 +236,7 @@ The model owns all values. Decisions: the data shape as a `type` (NOT `interface
 import { createModel } from '@reformer/core';
 type RegForm = { email: string; password: string; age: number | null };
 const model = createModel<RegForm>({ email: '', password: '', age: null });
-// model.email (value) · model.$.email (signal) · model.get() · model.set(partial)
+// model.email (value) · model.$.email (signal) · model.get() · model.set(full)
 ```
 
 ## 27. 2. Schema — field leaves

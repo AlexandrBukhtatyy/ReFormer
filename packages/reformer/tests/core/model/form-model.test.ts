@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { effect } from '@preact/signals-core';
-import { createModel } from '../../../src/core/model';
+import { createModel } from '../../../src/state/index';
 
 interface CoBorrower {
   personalData: { lastName: string; firstName: string };

@@ -23,9 +23,9 @@ vi.mock('use-sync-external-store/shim', () => ({
 }));
 
 // Импортируем ПОСЛЕ vi.mock (hoisted).
-import { useFormControl } from '../../src/hooks/useFormControl';
-import { createModel } from '../../src/core/model';
-import { createForm } from '../../src/core/utils/create-form';
+import { useFormControl } from '../../src/form/hooks/useFormControl';
+import { createModel } from '../../src/state/index';
+import { createForm } from '../../src/form/create-form';
 
 interface Form {
   email: string;

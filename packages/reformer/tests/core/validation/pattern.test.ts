@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { pattern } from '../../../src/core/validation/validators/pattern';
+import { pattern } from '../../../src/form/validation/validators/pattern';
 
 describe('pattern — stateful RegExp determinism (regression #20)', () => {
   it('флаг /g: один и тот же валидный ввод стабильно валиден при повторных вызовах', () => {

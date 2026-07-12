@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { signal } from '@preact/signals-core';
-import { markDerived, isDerived, unmarkDerived } from '../../../src/core/utils/derived-registry';
+import { markDerived, isDerived, unmarkDerived } from '../../../src/state/derived-registry';
 
 describe('derived-registry', () => {
   it('markDerived помечает сигнал, isDerived читает пометку', () => {

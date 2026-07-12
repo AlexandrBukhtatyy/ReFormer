@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ArrayNode } from '../../../src/core/nodes/array-node';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import { createForm } from '../../../src/core/utils/create-form';
+import { ArrayNode } from '../../../src/form/nodes/array-node';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import { createForm } from '../../../src/form/create-form';
 import type { FormProxy } from '../../../src';
 import { ComponentInstance } from '../../test-utils/types';
 

@@ -7,8 +7,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { FormProxy, ValidationError } from '../../../src/core/types';
-import { createForm } from '../../../src/core/utils/create-form';
+import type { FormProxy, ValidationError } from '../../../src/form/types/index';
+import { createForm } from '../../../src/form/create-form';
 import { ComponentInstance } from '../../test-utils/types';
 
 interface TestForm {

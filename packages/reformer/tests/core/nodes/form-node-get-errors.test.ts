@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FieldNode } from '../../../src/core/nodes/field-node';
-import { createForm } from '../../../src/core/utils/create-form';
-import type { ValidationError } from '../../../src/core/types';
+import { FieldNode } from '../../../src/form/nodes/field-node';
+import { createForm } from '../../../src/form/create-form';
+import type { ValidationError } from '../../../src/form/types/index';
 import { ComponentInstance } from '../../test-utils/types';
 
 describe('FormNode.getErrors()', () => {

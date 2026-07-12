@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createModel } from '../../src/core/model';
-import { createForm } from '../../src/core/utils/create-form';
+import { createModel } from '../../src/state/index';
+import { createForm } from '../../src/form/create-form';
 import {
   defineFormBehavior,
   compute,
@@ -16,8 +16,8 @@ import {
   effect,
   onDispose,
   transformValue,
-} from '../../src/behaviors';
-import type { FormProxy } from '../../src/core/types';
+} from '../../src/form/behaviors';
+import type { FormProxy } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 

@@ -4,10 +4,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createModel, type FormModel } from '../../src/core/model';
-import { createForm } from '../../src/core/utils/create-form';
-import { defineFormBehavior, enableWhen, onChange, applyEach } from '../../src/behaviors';
-import type { FormProxy } from '../../src/core/types';
+import { createModel, type FormModel } from '../../src/state/index';
+import { createForm } from '../../src/form/create-form';
+import { defineFormBehavior, enableWhen, onChange, applyEach } from '../../src/form/behaviors';
+import type { FormProxy } from '../../src/form/types/index';
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 

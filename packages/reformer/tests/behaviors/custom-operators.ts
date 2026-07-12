@@ -10,7 +10,7 @@
  * cleanup'ами: их собирает активная `defineFormBehavior`.
  */
 
-import { onChange, type ReadonlySignal, type Signal } from '../../src/behaviors';
+import { onChange, type ReadonlySignal, type Signal } from '../../src/form/behaviors';
 
 /**
  * F4 — двусторонняя конвертация двух числовых полей (last-edited-wins).

@@ -15,6 +15,10 @@
       "types": "./dist/signals.d.ts",
       "import": "./dist/signals.js"
     },
+    "./state": {
+      "types": "./dist/state.d.ts",
+      "import": "./dist/state.js"
+    },
     "./behaviors": {
       "types": "./dist/behaviors.d.ts",
       "import": "./dist/behaviors.js"

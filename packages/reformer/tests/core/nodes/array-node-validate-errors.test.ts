@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { ArrayNode } from '../../../src/core/nodes/array-node';
+import { ArrayNode } from '../../../src/form/nodes/array-node';
 import { ComponentInstance } from '../../test-utils/types';
 
 interface Item {

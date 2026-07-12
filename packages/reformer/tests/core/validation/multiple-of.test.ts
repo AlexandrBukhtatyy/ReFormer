@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { multipleOf } from '../../../src/core/validation/validators/multiple-of';
+import { multipleOf } from '../../../src/form/validation/validators/multiple-of';
 
 const v = multipleOf(0.1) as unknown as (value: unknown) => unknown;
 const vHalf = multipleOf(0.5) as unknown as (value: unknown) => unknown;

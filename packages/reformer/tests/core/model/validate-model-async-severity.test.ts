@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createModel } from '../../../src/core/model';
-import { validateModel, validateModelSync } from '../../../src/core/model';
-import type { ModelValidator } from '../../../src/core/model';
+import { createModel } from '../../../src/state/index';
+import { validateModel, validateModelSync } from '../../../src/form/index';
+import type { ModelValidator } from '../../../src/form/index';
 
 const InputStub = () => null;
 

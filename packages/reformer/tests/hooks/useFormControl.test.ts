@@ -12,9 +12,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FieldNode } from '../../src/core/nodes/field-node';
-import type { FormControlState } from '../../src/hooks/useFormControl';
-import type { ValidatorFn, AsyncValidatorFn, FormValue } from '../../src/core/types';
+import { FieldNode } from '../../src/form/nodes/field-node';
+import type { FormControlState } from '../../src/form/hooks/useFormControl';
+import type { ValidatorFn, AsyncValidatorFn, FormValue } from '../../src/form/types/index';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MockComponent: React.ComponentType<any> = () => null;
