@@ -224,3 +224,16 @@
     }
   }
 }
+
+/*
+ * Infima (тема Docusaurus) оформляет <table>: рамки ячеек + зебра-полосы
+ * (tr:nth-child(2n) → бледный фон). react-day-picker внутри Calendar / DatePicker
+ * рендерит именно <table>, из-за чего сетка календаря покрывалась тёмными
+ * полосами. Гасим table-оформление Infima в зоне демо и порталов. Вне @layer +
+ * !important — чтобы победить неслойные Infima-правила по специфичности.
+ */
+.reformer-demo :is(table, thead, tbody, tr, th, td),
+[data-radix-popper-content-wrapper] :is(table, thead, tbody, tr, th, td) {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
