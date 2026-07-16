@@ -141,68 +141,86 @@
  * Arial'ом), reset нативной кнопки/списков/заголовков.
  */
 @layer base {
-  .reformer-demo {
+  /*
+   * ВАЖНО: Radix порталит floating-контент (Popover / Select / DropdownMenu / Tooltip /
+   * HoverCard / Calendar внутри DatePicker) и модалки (Dialog / Sheet / Drawer / AlertDialog)
+   * в document.body — ВНЕ `.reformer-demo`. Без этого календарь/дропдауны рисуются
+   * нативными кнопками (серый outset). Поэтому scope reset'а включает и корни порталов:
+   * `[data-radix-popper-content-wrapper]` (floating) + `data-slot` контента модалок.
+   * Селекторы порталов узкие (Radix/shadcn-специфичные) — Infima/Algolia-модалки не заденут.
+   */
+  .reformer-demo,
+  [data-radix-popper-content-wrapper],
+  [data-slot='dialog-content'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='sheet-content'],
+  [data-slot='drawer-content'],
+  [data-slot='command-dialog'] {
     color: var(--foreground);
-  }
-  .reformer-demo *,
-  .reformer-demo *::before,
-  .reformer-demo *::after {
-    box-sizing: border-box;
-    border: 0 solid;
-  }
-  .reformer-demo button,
-  .reformer-demo input,
-  .reformer-demo optgroup,
-  .reformer-demo select,
-  .reformer-demo textarea {
-    font: inherit;
-    font-feature-settings: inherit;
-    font-variation-settings: inherit;
-    letter-spacing: inherit;
-    color: inherit;
-  }
-  .reformer-demo button,
-  .reformer-demo [type='button'],
-  .reformer-demo [type='reset'],
-  .reformer-demo [type='submit'] {
-    appearance: button;
-    background-color: transparent;
-    background-image: none;
-    cursor: pointer;
-  }
-  .reformer-demo :disabled {
-    cursor: default;
-  }
-  .reformer-demo h1,
-  .reformer-demo h2,
-  .reformer-demo h3,
-  .reformer-demo h4,
-  .reformer-demo h5,
-  .reformer-demo h6 {
-    font-size: inherit;
-    font-weight: inherit;
-    margin: 0;
-  }
-  .reformer-demo p,
-  .reformer-demo figure,
-  .reformer-demo blockquote {
-    margin: 0;
-  }
-  .reformer-demo ol,
-  .reformer-demo ul,
-  .reformer-demo menu {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .reformer-demo svg {
-    display: block;
-    vertical-align: middle;
-  }
-  .reformer-demo img,
-  .reformer-demo svg,
-  .reformer-demo video {
-    max-width: 100%;
-    height: auto;
+
+    &,
+    & *,
+    & *::before,
+    & *::after {
+      box-sizing: border-box;
+      border: 0 solid;
+      margin: 0;
+      padding: 0;
+    }
+    & button,
+    & input,
+    & optgroup,
+    & select,
+    & textarea {
+      font: inherit;
+      font-feature-settings: inherit;
+      font-variation-settings: inherit;
+      letter-spacing: inherit;
+      color: inherit;
+    }
+    & button,
+    & [type='button'],
+    & [type='reset'],
+    & [type='submit'] {
+      appearance: button;
+      background-color: transparent;
+      background-image: none;
+      cursor: pointer;
+    }
+    & :disabled {
+      cursor: default;
+    }
+    & h1,
+    & h2,
+    & h3,
+    & h4,
+    & h5,
+    & h6 {
+      font-size: inherit;
+      font-weight: inherit;
+      margin: 0;
+    }
+    & p,
+    & figure,
+    & blockquote {
+      margin: 0;
+    }
+    & ol,
+    & ul,
+    & menu {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    & svg {
+      display: block;
+      vertical-align: middle;
+    }
+    & img,
+    & svg,
+    & video {
+      max-width: 100%;
+      height: auto;
+    }
   }
 }
