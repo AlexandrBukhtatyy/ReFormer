@@ -163,7 +163,10 @@
     & *::before,
     & *::after {
       box-sizing: border-box;
-      border: 0 solid;
+      /* shadcn полагается на глобальное `* { @apply border-border }`: без явного
+       * цвета Tailwind `border`-класс берёт currentColor (→ чёрные рамки у Alert/
+       * Card/Dialog/Command/Combobox и т.д.). Задаём токен `--border`. */
+      border: 0 solid var(--border);
       margin: 0;
       padding: 0;
     }
