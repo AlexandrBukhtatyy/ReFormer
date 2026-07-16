@@ -1,0 +1,19 @@
+---
+id: drawer
+title: Drawer
+sidebar_label: Drawer
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { drawerDocConfig } from '@site/src/components/demo/examples/drawer';
+
+# Drawer
+
+Выезжающая панель на shadcn / vaul. Это compound-компонент: корень `Drawer`
+(управляет состоянием и стороной выезда `direction`), `DrawerTrigger` (открывает),
+`DrawerContent` (тело в `Portal` с оверлеем и «ручкой» перетаскивания),
+`DrawerHeader` + `DrawerTitle` / `DrawerDescription`, `DrawerFooter` и `DrawerClose`.
+Жест drag-to-dismiss, focus-trap, закрытие по `Esc`, `aria-labelledby` /
+`aria-describedby` — из vaul «из коробки».
+
+<ComponentDoc config={drawerDocConfig} />

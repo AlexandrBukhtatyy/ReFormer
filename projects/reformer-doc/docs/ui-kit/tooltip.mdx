@@ -1,0 +1,17 @@
+---
+id: tooltip
+title: Tooltip
+sidebar_label: Tooltip
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { tooltipDocConfig } from '@site/src/components/demo/examples/tooltip';
+
+# Tooltip
+
+Всплывающая подсказка на shadcn / Radix `Tooltip`. Compound: `TooltipProvider` (общий контекст
+задержки, оборачивает приложение один раз) + `Tooltip` + `TooltipTrigger` + `TooltipContent`.
+Подсказка появляется при наведении курсора или фокусе с клавиатуры; `Content` рендерится в
+портале со стрелкой, сторона задаётся через `side`.
+
+<ComponentDoc config={tooltipDocConfig} />

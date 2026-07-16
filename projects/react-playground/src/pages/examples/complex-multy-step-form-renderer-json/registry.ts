@@ -16,13 +16,13 @@ import { createElement } from 'react';
 import type { FormProxy } from '@reformer/core';
 import { defineRegistry, FIELD_WRAPPER, type ComponentRegistry } from '@reformer/renderer-json';
 import {
-  Input,
-  InputPassword,
-  InputMask,
-  Textarea,
-  Select,
-  Checkbox,
-  RadioGroup,
+  InputField,
+  InputPasswordField,
+  InputMaskField,
+  TextareaField,
+  SelectField,
+  CheckboxField,
+  RadioGroupField,
   Box,
   Section,
   Collapsible,
@@ -60,13 +60,13 @@ import type { CoBorrower } from '../complex-multy-step-form/components/nested-fo
 export function createCreditApplicationRegistry(): ComponentRegistry {
   return defineRegistry((reg) => {
     // ui-kit base
-    reg.component('Input', Input);
-    reg.component('InputPassword', InputPassword);
-    reg.component('InputMask', InputMask);
-    reg.component('Textarea', Textarea);
-    reg.component('Select', Select);
-    reg.component('Checkbox', Checkbox);
-    reg.component('RadioGroup', RadioGroup);
+    reg.component('Input', InputField);
+    reg.component('InputPassword', InputPasswordField);
+    reg.component('InputMask', InputMaskField);
+    reg.component('Textarea', TextareaField);
+    reg.component('Select', SelectField);
+    reg.component('Checkbox', CheckboxField);
+    reg.component('RadioGroup', RadioGroupField);
 
     reg.component('Box', Box);
     reg.component('Section', Section);

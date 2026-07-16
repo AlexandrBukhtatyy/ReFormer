@@ -1,0 +1,17 @@
+---
+id: spinner
+title: Spinner
+sidebar_label: Spinner
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { spinnerDocConfig } from '@site/src/components/demo/examples/spinner';
+
+# Spinner
+
+Индикатор загрузки на shadcn — крутящаяся иконка (`lucide` `Loader2Icon`) с
+spin-анимацией. Размер (`size-*`) и цвет (`text-*`) задаются классами через
+`className`; базовые стили (`size-4 animate-spin`) можно перекрыть через
+`tailwind-merge`. Доступность встроена: `role="status"` + `aria-label="Loading"`.
+
+<ComponentDoc config={spinnerDocConfig} />

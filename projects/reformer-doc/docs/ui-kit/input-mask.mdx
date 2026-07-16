@@ -9,8 +9,9 @@ import { inputMaskDocConfig } from '@site/src/components/demo/examples/input-mas
 
 # InputMask
 
-Текстовое поле с маской-подсказкой: символ `9` означает цифру, остальные символы —
-литералы в placeholder. Маска подсвечивает формат; строгую проверку делайте
-валидатором `pattern`.
+Текстовое поле с маской-подсказкой поверх pure shadcn `Input`. Шаблон `mask` (символ `9` — цифра,
+прочие символы — литералы: `+`, `-`, `(`, `)`, пробел, точка) показывается в `placeholder` и помечает
+формат; автоматической вставки литералов **нет**. Значение — `string | null` (пустой ввод → `null`).
+Для форм — `InputMaskField`.
 
 <ComponentDoc config={inputMaskDocConfig} />

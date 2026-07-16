@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LoadingState } from './loading-state';
-import { ErrorState } from './error-state';
+import { LoadingState, ErrorState } from './index';
 
 describe('LoadingState a11y — объявление статуса скринридерам', () => {
   it('несёт role="status" и aria-live="polite"', () => {

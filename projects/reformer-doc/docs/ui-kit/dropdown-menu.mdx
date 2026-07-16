@@ -1,0 +1,19 @@
+---
+id: dropdown-menu
+title: DropdownMenu
+sidebar_label: DropdownMenu
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { dropdownMenuDocConfig } from '@site/src/components/demo/examples/dropdown-menu';
+
+# DropdownMenu
+
+Выпадающее меню на shadcn / Radix `DropdownMenu`. Собирается из частей: `DropdownMenu` (корень),
+`DropdownMenuTrigger` (открытие), `DropdownMenuContent` (список в Portal) и пунктов —
+`DropdownMenuItem`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem` (+ `RadioGroup`),
+`DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuShortcut`, `DropdownMenuGroup` и вложенное
+подменю `DropdownMenuSub` / `SubTrigger` / `SubContent`. Все части несут свой `data-slot`, поэтому
+стиль правится через `className` (tailwind-merge).
+
+<ComponentDoc config={dropdownMenuDocConfig} />

@@ -57,7 +57,7 @@ npm run dev -w react-playground
 | -------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | [@reformer/core](./packages/reformer)                          | Ядро управления состоянием форм на сигнальной архитектуре                | [![npm](https://img.shields.io/npm/v/@reformer/core.svg)](https://www.npmjs.com/package/@reformer/core)                     |
 | [@reformer/cdk](./packages/reformer-cdk)                       | Headless-составные компоненты — `FormArray`, `FormWizard`, `FormField`   | [![npm](https://img.shields.io/npm/v/@reformer/cdk.svg)](https://www.npmjs.com/package/@reformer/cdk)                       |
-| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | Стилизованные компоненты форм на Tailwind CSS + Radix UI                 | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
+| [@reformer/ui-kit](./packages/reformer-ui-kit)                 | 72 компонента на shadcn/ui (new-york, Tailwind CSS v4) + form-версии     | [![npm](https://img.shields.io/npm/v/@reformer/ui-kit.svg)](https://www.npmjs.com/package/@reformer/ui-kit)                 |
 | [@reformer/renderer-react](./packages/reformer-renderer-react) | React-рендерер на основе схемы — TS `RenderSchema` → JSX                 | [![npm](https://img.shields.io/npm/v/@reformer/renderer-react.svg)](https://www.npmjs.com/package/@reformer/renderer-react) |
 | [@reformer/renderer-json](./packages/reformer-renderer-json)   | Рендерер на основе JSON — `JsonFormSchema` + реестр компонентов          | [![npm](https://img.shields.io/npm/v/@reformer/renderer-json.svg)](https://www.npmjs.com/package/@reformer/renderer-json)   |
 | [@reformer/mcp](./packages/reformer-mcp)                       | MCP-сервер — отдаёт документацию, рецепты и JSDoc-символы ИИ-ассистентам | [![npm](https://img.shields.io/npm/v/@reformer/mcp.svg)](https://www.npmjs.com/package/@reformer/mcp)                       |
@@ -102,7 +102,7 @@ npm install @reformer/renderer-json    # разметка как чистый JS
 import { useMemo } from 'react';
 import { createModel, createForm, validateFormModel } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
-import { Button, FormField, Input, InputPassword } from '@reformer/ui-kit';
+import { Button, FormField, InputField, InputPasswordField } from '@reformer/ui-kit';
 
 // Тип формы — `type` alias (структурная совместимость с generic-ограничением внутри библиотеки).
 type LoginForm = {
@@ -122,13 +122,13 @@ function LoginFormExample() {
     const schema = {
       email: {
         value: model.$.email,
-        component: Input,
+        component: InputField,
         componentProps: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
         validators: [required(), email()],
       },
       password: {
         value: model.$.password,
-        component: InputPassword,
+        component: InputPasswordField,
         componentProps: { label: 'Пароль' },
         validators: [required(), minLength(8)],
       },
@@ -182,7 +182,7 @@ function LoginFormExample() {
 ```tsx
 import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
 import { required, email, minLength, min, max, pattern } from '@reformer/core/validators';
-import { Input, InputPassword } from '@reformer/ui-kit';
+import { InputField, InputPasswordField } from '@reformer/ui-kit';
 
 type RegistrationForm = {
   username: string;
@@ -227,24 +227,24 @@ const model = createModel<RegistrationForm>({
 const schema = {
   username: {
     value: model.$.username,
-    component: Input,
+    component: InputField,
     validators: [required(), minLength(3), usernameAvailable],
   },
-  email: { value: model.$.email, component: Input, validators: [required(), email()] },
+  email: { value: model.$.email, component: InputField, validators: [required(), email()] },
   password: {
     value: model.$.password,
-    component: InputPassword,
+    component: InputPasswordField,
     validators: [required(), minLength(8)],
   },
   confirmPassword: {
     value: model.$.confirmPassword,
-    component: InputPassword,
+    component: InputPasswordField,
     validators: [required(), passwordsMatch],
   },
-  age: { value: model.$.age, component: Input, validators: [min(18), max(120)] },
+  age: { value: model.$.age, component: InputField, validators: [min(18), max(120)] },
   propertyValue: {
     value: model.$.propertyValue,
-    component: Input,
+    component: InputField,
     validators: [propertyValueForMortgage],
   },
 };
@@ -384,7 +384,7 @@ import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import type { FormWizardConfig } from '@reformer/cdk/form-wizard';
 import { createModel, createForm, validateFormModel, type FormProxy } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
-import { FormField, Input, InputPassword } from '@reformer/ui-kit';
+import { FormField, InputField, InputPasswordField } from '@reformer/ui-kit';
 
 type SignupForm = { email: string; password: string };
 
@@ -403,13 +403,13 @@ function SignupWizard() {
       children: [
         {
           value: model.$.email,
-          component: Input,
+          component: InputField,
           componentProps: { label: 'Email' },
           validators: [required(), email()],
         },
         {
           value: model.$.password,
-          component: InputPassword,
+          component: InputPasswordField,
           componentProps: { label: 'Пароль' },
           validators: [required(), minLength(8)],
         },
@@ -469,7 +469,7 @@ import { useMemo } from 'react';
 import { createModel, createForm, type FormModel } from '@reformer/core';
 import { required, email, minLength } from '@reformer/core/validators';
 import { FormRenderer, createRenderSchema, type RenderNode } from '@reformer/renderer-react';
-import { Box, FormField, Input, InputPassword } from '@reformer/ui-kit';
+import { Box, FormField, InputField, InputPasswordField } from '@reformer/ui-kit';
 
 type LoginForm = { email: string; password: string };
 
@@ -481,13 +481,13 @@ function buildTree(model: FormModel<LoginForm>): RenderNode<LoginForm> {
     children: [
       {
         value: model.$.email,
-        component: Input,
+        component: InputField,
         componentProps: { label: 'Email', type: 'email' },
         validators: [required(), email()],
       },
       {
         value: model.$.password,
-        component: InputPassword,
+        component: InputPasswordField,
         componentProps: { label: 'Пароль' },
         validators: [required(), minLength(8)],
       },
@@ -537,7 +537,7 @@ import {
   FIELD_WRAPPER,
   type JsonFormSchema,
 } from '@reformer/renderer-json';
-import { Box, FormField, Input, InputPassword } from '@reformer/ui-kit';
+import { Box, FormField, InputField, InputPasswordField } from '@reformer/ui-kit';
 
 type LoginForm = { email: string; password: string };
 
@@ -573,8 +573,8 @@ function LoginPage() {
     //    reg.fn для функций). FIELD_WRAPPER — обёртка поля (Label → Control → Error).
     const registry = defineRegistry((reg) => {
       reg.component('Box', Box);
-      reg.component('Input', Input);
-      reg.component('InputPassword', InputPassword);
+      reg.component('Input', InputField); // имя из JSON ($component(Input)) → field-версия
+      reg.component('InputPassword', InputPasswordField);
       reg.component(FIELD_WRAPPER, FormField);
     });
 

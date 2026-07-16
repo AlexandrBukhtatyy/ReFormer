@@ -104,4 +104,8 @@ export {
   getDataSourceNames,
   getFnNames,
   getLocaleKeys,
+  stripDocExtensions,
+  allowOperatorStrings,
+  toComponentPropsValidatorSchema,
 } from './schema';
+export type { ComponentPropsSchema, BuildFormSchemaMetaSchemaOptions } from './schema';

@@ -1,0 +1,19 @@
+---
+id: sheet
+title: Sheet
+sidebar_label: Sheet
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { sheetDocConfig } from '@site/src/components/demo/examples/sheet';
+
+# Sheet
+
+Боковая панель на shadcn / Radix Dialog. Это compound-компонент: корень `Sheet`
+(управляет состоянием), `SheetTrigger` (открывает), `SheetContent` (тело в `Portal`
+с оверлеем и крестиком закрытия), `SheetHeader` + `SheetTitle` / `SheetDescription`,
+`SheetFooter` и `SheetClose`. Направление выезда задаёт prop `side`
+(`top` / `right` / `bottom` / `left`). Focus-trap, закрытие по `Esc`,
+`aria-labelledby` / `aria-describedby` — из Radix «из коробки».
+
+<ComponentDoc config={sheetDocConfig} />

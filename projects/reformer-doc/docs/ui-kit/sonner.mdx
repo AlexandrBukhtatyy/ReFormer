@@ -1,0 +1,21 @@
+---
+id: sonner
+title: Sonner
+sidebar_label: Sonner
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { sonnerDocConfig } from '@site/src/components/demo/examples/sonner';
+
+# Sonner
+
+Тост-уведомления на shadcn / [sonner](https://sonner.emilkowal.ski/). Обёртка `Toaster`
+монтируется один раз (в реальном приложении — в корне), а сами уведомления вызываются
+императивно через `toast(...)` и типизированные хелперы `toast.success` / `toast.error` /
+`toast.warning` / `toast.info` / `toast.promise`. По сравнению с апстримом убрана зависимость
+`next-themes` — тема статична (`system`); иконки статусов приходят из `lucide-react`.
+
+`sonner` — тяжёлая опциональная зависимость (external в сборке ui-kit): установите её в
+приложении-потребителе, чтобы `Toaster` заработал.
+
+<ComponentDoc config={sonnerDocConfig} />

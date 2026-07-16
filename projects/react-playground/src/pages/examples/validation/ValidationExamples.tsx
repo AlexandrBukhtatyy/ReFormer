@@ -19,7 +19,7 @@ import {
   integer,
   pastDate,
 } from '@reformer/core/validators';
-import { Input, FormField, ExampleCard } from '@reformer/ui-kit';
+import { InputField, FormField, ExampleCard } from '@reformer/ui-kit';
 
 interface ValidationDemoForm {
   requiredField: string;
@@ -65,13 +65,13 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
     children: [
       {
         value: model.$.requiredField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Обязательное поле' },
         validators: [required({ message: 'Это поле обязательно' })],
       },
       {
         value: model.$.emailField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'email@example.com', type: 'email' },
         validators: [
           required({ message: 'Email обязателен' }),
@@ -80,7 +80,7 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.minLengthField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Минимум 5 символов' },
         validators: [
           required({ message: 'Поле обязательно' }),
@@ -89,25 +89,25 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.maxLengthField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Максимум 10 символов' },
         validators: [maxLength(10, { message: 'Максимум 10 символов' })],
       },
       {
         value: model.$.minField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Минимум 10', type: 'number' },
         validators: [required({ message: 'Введите число' }), min(10, { message: 'Минимум 10' })],
       },
       {
         value: model.$.maxField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Максимум 100', type: 'number' },
         validators: [required({ message: 'Введите число' }), max(100, { message: 'Максимум 100' })],
       },
       {
         value: model.$.patternField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Только буквы' },
         validators: [
           required({ message: 'Поле обязательно' }),
@@ -116,7 +116,7 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.urlField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'https://example.com' },
         validators: [
           required({ message: 'URL обязателен' }),
@@ -125,7 +125,7 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.phoneField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: '+7 900 123-45-67', type: 'tel' },
         validators: [
           required({ message: 'Телефон обязателен' }),
@@ -134,7 +134,7 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.numberField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Целое число', type: 'number' },
         validators: [
           required({ message: 'Число обязательно' }),
@@ -146,7 +146,7 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.dateField,
-        component: Input,
+        component: InputField,
         componentProps: { type: 'date' },
         validators: [
           required({ message: 'Дата обязательна' }),
@@ -155,7 +155,7 @@ function buildSchema(model: ReturnType<typeof createModel<ValidationDemoForm>>) 
       },
       {
         value: model.$.customField,
-        component: Input,
+        component: InputField,
         componentProps: { placeholder: 'Пароль (мин. 8 символов, цифра, буква)' },
         validators: [required({ message: 'Пароль обязателен' }), customPassword],
       },

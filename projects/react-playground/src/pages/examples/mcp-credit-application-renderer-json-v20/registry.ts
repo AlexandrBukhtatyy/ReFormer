@@ -5,14 +5,14 @@
 import { createElement, type FC } from 'react';
 import {
   Box,
-  Checkbox,
+  CheckboxField,
   FormField,
-  Input,
-  InputMask,
-  RadioGroup,
+  InputField,
+  InputMaskField,
+  RadioGroupField,
   Section,
-  Select,
-  Textarea,
+  SelectField,
+  TextareaField,
 } from '@reformer/ui-kit';
 import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
 import { defineRegistry, FIELD_WRAPPER } from '@reformer/renderer-json';
@@ -75,12 +75,12 @@ export function createRegistry() {
     reg.component('Section', Section);
 
     // Leaf field components.
-    reg.component('Input', Input);
-    reg.component('Select', Select);
-    reg.component('Textarea', Textarea);
-    reg.component('Checkbox', Checkbox);
-    reg.component('RadioGroup', RadioGroup);
-    reg.component('InputMask', InputMask);
+    reg.component('Input', InputField);
+    reg.component('Select', SelectField);
+    reg.component('Textarea', TextareaField);
+    reg.component('Checkbox', CheckboxField);
+    reg.component('RadioGroup', RadioGroupField);
+    reg.component('InputMask', InputMaskField);
 
     // Field wrapper (label / error / hint).
     reg.component(FIELD_WRAPPER, FormField);

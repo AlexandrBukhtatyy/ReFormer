@@ -14,6 +14,14 @@ import metaSchema from './form-schema.schema.json';
 import type { ComponentRegistry } from '../registry/types';
 
 /**
+ * Схема `componentProps` одного компонента (структурно = ui-kit `PropsSchema` после
+ * `mergeFieldPropsSchema`, но БЕЗ завязки на `@reformer/ui-kit`: renderer-json React-free
+ * и не зависит от ui-kit). Draft-07 JSON Schema плюс `x-*`-расширения (`x-doc`/`x-runtimeProps`/
+ * `x-registryName`) — последние вырезаются перед компиляцией ajv ({@link stripDocExtensions}).
+ */
+export type ComponentPropsSchema = Record<string, unknown>;
+
+/**
  * Базовая мета-схема form-DSL (draft-07): структура узлов + синтаксис операторов, имена компонентов
  * НЕ ограничены (паттерн `$component(...)` открыт). Для сужения до конкретного реестра —
  * {@link buildFormSchemaMetaSchema}. Используется как `$schema` в IDE и как база валидатора.
@@ -82,6 +90,108 @@ export function getLocaleKeys(registry: ComponentRegistry): readonly string[] | 
   return registry.getLocale?.()?.keys;
 }
 
+/** Определение `operatorOp` из базовой мета-схемы (escape-hatch оператор-строки на месте значения). */
+function operatorOpDefinition(): Record<string, unknown> {
+  const defs = (metaSchema as { definitions: Record<string, unknown> }).definitions;
+  return defs.operatorOp as Record<string, unknown>;
+}
+
+/**
+ * Рекурсивно вырезает `x-*`-ключи (`x-doc`/`x-runtimeProps`/`x-registryName`) из схемы. Нужно перед
+ * компиляцией ajv: в strict-режиме ajv бросает `unknown keyword: "x-doc"`. Удачно — это машинная
+ * гарантия, что валидатор DSL физически не видит doc-метаданные.
+ *
+ * @param schema - Любой JSON-совместимый узел (объект/массив/скаляр).
+ * @returns Глубокая копия без `x-*`-ключей.
+ */
+export function stripDocExtensions<T>(schema: T): T {
+  return deepStripDocExtensions(schema) as T;
+}
+
+function deepStripDocExtensions(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(deepStripDocExtensions);
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k.startsWith('x-')) continue;
+      out[k] = deepStripDocExtensions(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Рекурсивно оборачивает КАЖДЫЙ проп схемы в `anyOf: [<честный тип>, operatorOp]`, чтобы автор
+ * схемы формы не дублировал escape-hatch руками: оператор-строка (`"$dataSource(LOAN_TYPES)"`,
+ * `"$fn(fmt)"`) допустима на месте любого значения componentProps. Спускается во вложенные
+ * `properties` и `items`; сам объект в `anyOf` не оборачивается (componentProps — всегда объект).
+ * Ссылается на `#/definitions/operatorOp` — определение подставляет {@link toComponentPropsValidatorSchema}.
+ *
+ * @param schema - JSON Schema (обычно после {@link stripDocExtensions}).
+ * @returns Копия схемы с обёрнутыми пропами.
+ */
+export function allowOperatorStrings<T>(schema: T): T {
+  return wrapPropsWithOperator(schema) as T;
+}
+
+function wrapPropsWithOperator(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(wrapPropsWithOperator);
+  if (value === null || typeof value !== 'object') return value;
+  const node = value as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...node };
+  if (
+    node.properties !== null &&
+    typeof node.properties === 'object' &&
+    !Array.isArray(node.properties)
+  ) {
+    const props: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(node.properties as Record<string, unknown>)) {
+      props[k] = { anyOf: [wrapPropsWithOperator(v), { $ref: '#/definitions/operatorOp' }] };
+    }
+    out.properties = props;
+  }
+  if (node.items !== undefined) {
+    out.items = wrapPropsWithOperator(node.items);
+  }
+  return out;
+}
+
+/**
+ * Превращает схему `componentProps` компонента ({@link ComponentPropsSchema}) в самодостаточную
+ * ajv-схему: {@link stripDocExtensions} (снять `x-*`) → {@link allowOperatorStrings} (обернуть пропы
+ * в `anyOf` с operatorOp) → добавить `definitions.operatorOp`, чтобы `$ref` резолвился при
+ * standalone-компиляции. Используется фазой (d) `validateFormSchema` и IDE-веткой
+ * {@link buildFormSchemaMetaSchema}.
+ *
+ * @param propsSchema - Полная схема componentProps (враппер + вариант; уже прошедшая mergeFieldPropsSchema).
+ * @returns JSON-схема, готовая к `ajv.compile`.
+ */
+export function toComponentPropsValidatorSchema(
+  propsSchema: ComponentPropsSchema
+): Record<string, unknown> {
+  const stripped = stripDocExtensions(propsSchema) as Record<string, unknown>;
+  const wrapped = allowOperatorStrings(stripped) as Record<string, unknown>;
+  const existingDefs = (wrapped.definitions as Record<string, unknown> | undefined) ?? {};
+  return {
+    ...wrapped,
+    definitions: { ...existingDefs, operatorOp: operatorOpDefinition() },
+  };
+}
+
+/** Опции {@link buildFormSchemaMetaSchema}. */
+export interface BuildFormSchemaMetaSchemaOptions {
+  /** Имена компонентов реестра — сужают `$component(...)` до enum. */
+  componentNames?: string[];
+  /**
+   * Карта регистр-имя → схема componentProps. НОВОЕ необязательное поле: если задано, в `fieldNode`/
+   * `containerNode` добавляются `allOf`-ветки `if/then` (по одной на компонент) для IDE-подсветки
+   * componentProps через `$schema`. Реальную проверку делает рекурсивный обход в `validateFormSchema`
+   * (§ Props-компаньоны: `if/then` структурно недостижим для вложенных нод, годится только для IDE).
+   */
+  propSchemas?: Record<string, ComponentPropsSchema>;
+}
+
 /**
  * Конкретная мета-схема: базовая + (если заданы `componentNames`) сужение `$component(...)` до
  * enum допустимых значений (`["$component(Input)", "$component(Select)", …]`). `$dataSource`-имена
@@ -91,22 +201,42 @@ export function getLocaleKeys(registry: ComponentRegistry): readonly string[] | 
  * enum, а не regex-`pattern`: ajv перечисляет допустимые имена в тексте ошибки, IDE даёт
  * автодополнение по значениям, а имена не нужно экранировать под regex (напр. `$fieldWrapper`).
  *
+ * Если задан `propSchemas`, в узлы, несущие `component`, добавляются `if/then`-ветки для IDE-подсветки
+ * componentProps. В `if` обязателен `required: ['component']` — иначе нода без `component` (напр.
+ * array-нода) вакуумно проходит `if` и получает чужой `then`.
+ *
  * @example
  * ```ts
  * const schema = buildFormSchemaMetaSchema({ componentNames: getComponentNames(registry) });
  * ```
  */
-export function buildFormSchemaMetaSchema(opts?: {
-  componentNames?: string[];
-}): Record<string, unknown> {
+export function buildFormSchemaMetaSchema(
+  opts?: BuildFormSchemaMetaSchemaOptions
+): Record<string, unknown> {
   const schema = JSON.parse(JSON.stringify(metaSchema)) as {
-    definitions: { componentOp: { pattern?: string; enum?: string[] } };
+    definitions: Record<string, { pattern?: string; enum?: string[]; allOf?: unknown[] }>;
   };
   const names = opts?.componentNames;
   if (names && names.length > 0) {
     const op = schema.definitions.componentOp;
     delete op.pattern;
     op.enum = names.map((n) => `$component(${n})`);
+  }
+  const propSchemas = opts?.propSchemas;
+  if (propSchemas && Object.keys(propSchemas).length > 0) {
+    const branches = Object.entries(propSchemas).map(([name, ps]) => ({
+      if: {
+        required: ['component'],
+        properties: { component: { const: `$component(${name})` } },
+      },
+      then: {
+        properties: { componentProps: toComponentPropsValidatorSchema(ps) },
+      },
+    }));
+    for (const def of ['fieldNode', 'containerNode'] as const) {
+      const target = schema.definitions[def];
+      target.allOf = [...(target.allOf ?? []), ...branches];
+    }
   }
   return schema as unknown as Record<string, unknown>;
 }

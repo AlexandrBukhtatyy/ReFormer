@@ -1,0 +1,20 @@
+---
+id: context-menu
+title: ContextMenu
+sidebar_label: ContextMenu
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { contextMenuDocConfig } from '@site/src/components/demo/examples/context-menu';
+
+# ContextMenu
+
+Контекстное меню на shadcn / Radix `ContextMenu`. В отличие от `DropdownMenu` открывается правым кликом
+(contextmenu) по области-триггеру, а не кнопкой. Собирается из частей: `ContextMenu` (корень),
+`ContextMenuTrigger` (область), `ContextMenuContent` (список в Portal) и пунктов — `ContextMenuItem`,
+`ContextMenuCheckboxItem`, `ContextMenuRadioItem` (+ `RadioGroup`), `ContextMenuLabel`,
+`ContextMenuSeparator`, `ContextMenuShortcut`, `ContextMenuGroup` и вложенное подменю `ContextMenuSub` /
+`SubTrigger` / `SubContent`. Все части несут свой `data-slot`, поэтому стиль правится через `className`
+(tailwind-merge).
+
+<ComponentDoc config={contextMenuDocConfig} />

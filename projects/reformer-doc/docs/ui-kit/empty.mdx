@@ -1,0 +1,17 @@
+---
+id: empty
+title: Empty
+sidebar_label: Empty
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { emptyDocConfig } from '@site/src/components/demo/examples/empty';
+
+# Empty
+
+Пустое состояние на shadcn — центрированный блок с пунктирной рамкой для экранов «здесь пока
+ничего нет». Собирается из частей: `Empty` (корень), `EmptyHeader` + `EmptyMedia` (иконка /
+иллюстрация) / `EmptyTitle` / `EmptyDescription`, и `EmptyContent` (действия). Все части — обычные
+`div` со своим `data-slot`, поэтому стиль легко правится через `className` (tailwind-merge).
+
+<ComponentDoc config={emptyDocConfig} />

@@ -1,0 +1,21 @@
+---
+id: alert-dialog
+title: AlertDialog
+sidebar_label: AlertDialog
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { alertDialogDocConfig } from '@site/src/components/demo/examples/alert-dialog';
+
+# AlertDialog
+
+Модальное окно-подтверждение на shadcn / Radix AlertDialog. Это compound-компонент:
+корень `AlertDialog` (управляет состоянием), `AlertDialogTrigger` (открывает),
+`AlertDialogContent` (тело в `Portal` с оверлеем), `AlertDialogHeader` +
+`AlertDialogTitle` / `AlertDialogDescription` (+ опц. `AlertDialogMedia` для иконки),
+`AlertDialogFooter` с парой `AlertDialogCancel` / `AlertDialogAction`. В отличие от
+`Dialog`, у окна роль `alertdialog` и нет крестика — закрытие только через явные кнопки.
+`AlertDialogAction` / `AlertDialogCancel` обёрнуты в `Button` и принимают `variant` /
+`size` из `buttonVariants`. Focus-trap и `aria` — из Radix «из коробки».
+
+<ComponentDoc config={alertDialogDocConfig} />

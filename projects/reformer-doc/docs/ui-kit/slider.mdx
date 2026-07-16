@@ -1,0 +1,17 @@
+---
+id: slider
+title: Slider
+sidebar_label: Slider
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { sliderDocConfig } from '@site/src/components/demo/examples/slider';
+
+# Slider
+
+Слайдер на Radix (`Track` / `Range` / `Thumb`, role=slider). Значение — скаляр `number | null`:
+одно-thumb режим сводит контракт формы к числу через `sliderAdapter` (`number` → Radix `[n]`,
+`onValueChange(number[])` → `arr[0]`). Диапазон и шаг задаются `min` / `max` / `step`. Раскладка
+обычная — верхнюю подпись рисует `FormField` (не inline). Для форм — `SliderField`.
+
+<ComponentDoc config={sliderDocConfig} />

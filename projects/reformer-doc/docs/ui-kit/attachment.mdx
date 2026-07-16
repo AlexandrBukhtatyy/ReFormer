@@ -1,0 +1,19 @@
+---
+id: attachment
+title: Attachment
+sidebar_label: Attachment
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { attachmentDocConfig } from '@site/src/components/demo/examples/attachment';
+
+# Attachment
+
+Чип-превью прикреплённого файла на shadcn — AI-примитив для лент вложений и превью
+загрузок. Компонуется из частей: `AttachmentMedia` (иконка или миниатюра),
+`AttachmentContent` с `AttachmentTitle` / `AttachmentDescription`, `AttachmentActions`
+с `AttachmentAction` (кнопки), `AttachmentTrigger` (делает весь чип кликабельным) и
+`AttachmentGroup` (прокручиваемая лента). Стадию загрузки задаёт `state`
+(`idle` / `uploading` / `processing` / `error` / `done`), форму — `size` и `orientation`.
+
+<ComponentDoc config={attachmentDocConfig} />

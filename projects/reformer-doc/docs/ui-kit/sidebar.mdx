@@ -1,0 +1,25 @@
+---
+id: sidebar
+title: Sidebar
+sidebar_label: Sidebar
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { sidebarDocConfig } from '@site/src/components/demo/examples/sidebar';
+
+# Sidebar
+
+Навигационная боковая панель приложения на shadcn. `SidebarProvider` держит
+состояние (свёрнута/развёрнута, персист в cookie, горячая клавиша `Cmd/Ctrl+B`,
+мобильный режим через `Sheet`) и раздаёт его через контекст `useSidebar`. `Sidebar` —
+сама панель (`side` / `variant` / `collapsible`), `SidebarInset` — основная область
+рядом с ней, `SidebarTrigger` сворачивает и разворачивает. Внутри: `SidebarHeader` /
+`SidebarContent` / `SidebarFooter`, секции (`SidebarGroup` / `SidebarGroupLabel` /
+`SidebarGroupAction`) и меню (`SidebarMenu` / `SidebarMenuItem` / `SidebarMenuButton` /
+`SidebarMenuAction` / `SidebarMenuBadge` / `SidebarMenuSub…`). Все части несут свой
+`data-slot`.
+
+Тяжёлый компонент — импортируется из отдельного subpath
+`@reformer/ui-kit/sidebar`.
+
+<ComponentDoc config={sidebarDocConfig} />

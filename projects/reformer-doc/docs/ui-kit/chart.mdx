@@ -1,0 +1,22 @@
+---
+id: chart
+title: Chart
+sidebar_label: Chart
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { chartDocConfig } from '@site/src/components/demo/examples/chart';
+
+# Chart
+
+Тонкая обёртка над [recharts](https://recharts.org) в стиле shadcn/ui. `ChartContainer`
+оборачивает единственный recharts-график в `ResponsiveContainer` и инъектит CSS-переменные
+цвета из `config` (`ChartConfig`): каждый ключ ряда даёт `--color-<key>`, который график
+читает через `fill` / `stroke="var(--color-<key>)"`. `ChartTooltipContent` и
+`ChartLegendContent` — стилизованные tooltip и легенда, берущие подписи и цвета из того же
+config.
+
+recharts — тяжёлая опциональная зависимость (optional peer), поэтому компонент живёт вне
+главного barrel и импортируется по subpath: `import { ChartContainer } from '@reformer/ui-kit/chart'`.
+
+<ComponentDoc config={chartDocConfig} />

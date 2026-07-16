@@ -1,0 +1,28 @@
+---
+id: table
+title: Table
+sidebar_label: Table
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { tableDocConfig } from '@site/src/components/demo/examples/table';
+
+# Table
+
+Два уровня. **base** — дословный набор частей shadcn/ui (`Table`, `TableHeader`, `TableBody`,
+`TableFooter`, `TableRow`, `TableHead`, `TableCell`, `TableCaption`) для ручной вёрстки:
+`Table` оборачивает `<table>` в скролл-контейнер (`overflow-x-auto`), остальные части —
+тонкие стилизованные обёртки над соответствующими тегами.
+
+**DataGrid** — data-driven обёртка поверх `base`. Движок [@tanstack/react-table](https://tanstack.com/table)
+работает в режиме `manualPagination` / `manualSorting` / `manualFiltering`, поэтому реальную
+сортировку, пагинацию и фильтрацию выполняет ваш `dataProvider` (server-driven): грид держит
+только состояние и на каждое изменение `filters` / `sorting` / `pagination` дёргает провайдер.
+Состояния загрузки / ошибки / пустого результата показываются через `AsyncBoundary` + `State`
+(`LoadingState` / `ErrorState`), а навигация по страницам — через компонент `Pagination`.
+
+`@tanstack/react-table` — тяжёлая опциональная зависимость (optional peer), поэтому компонент
+живёт вне главного barrel и импортируется по subpath:
+`import { DataGrid } from '@reformer/ui-kit/table'`.
+
+<ComponentDoc config={tableDocConfig} />

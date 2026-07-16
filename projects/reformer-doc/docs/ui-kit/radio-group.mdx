@@ -9,7 +9,9 @@ import { radioGroupDocConfig } from '@site/src/components/demo/examples/radio-gr
 
 # RadioGroup
 
-Группа радио-кнопок из массива `options`. Одиночный выбор и навигация стрелками.
-Горизонтальная раскладка — через `className="!flex-row gap-6"`.
+Группа радио-кнопок на Radix. Вариант **base** — чистый примитив (`RadioGroup` — контейнер
+`role="radiogroup"`, `RadioGroupItem` — `role="radio"`) для ручной сборки. Field-версия рендерит
+опции из массива `options` (`{ value, label }`); значение — строка (`option.value | null`), каждый
+вариант получает per-option `data-testid`. Для форм — `RadioGroupField`.
 
 <ComponentDoc config={radioGroupDocConfig} />

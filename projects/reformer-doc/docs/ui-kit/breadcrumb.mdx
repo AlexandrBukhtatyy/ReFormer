@@ -1,0 +1,22 @@
+---
+id: breadcrumb
+title: Breadcrumb
+sidebar_label: Breadcrumb
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { breadcrumbDocConfig } from '@site/src/components/demo/examples/breadcrumb';
+
+# Breadcrumb
+
+Хлебные крошки на shadcn/ui. Compound-набор:
+`Breadcrumb` / `BreadcrumbList` / `BreadcrumbItem` / `BreadcrumbLink` /
+`BreadcrumbPage` / `BreadcrumbSeparator` / `BreadcrumbEllipsis`.
+
+Предыдущие уровни пути — кликабельные `BreadcrumbLink`, текущая (неактивная)
+страница — `BreadcrumbPage`. Разделитель по умолчанию — иконка-шеврон, но
+`BreadcrumbSeparator` принимает произвольный `children`. Длинный путь можно
+свернуть через `BreadcrumbEllipsis`. Для интеграции со ссылками роутера у
+`BreadcrumbLink` есть проп `asChild`.
+
+<ComponentDoc config={breadcrumbDocConfig} />

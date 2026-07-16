@@ -43,7 +43,8 @@
     "typescript": "^5.7.0"
   },
   "optionalDependencies": {
-    "@reformer/renderer-json": ">=6.0.0"
+    "@reformer/renderer-json": ">=6.0.0",
+    "@reformer/ui-kit": ">=7.0.0"
   },
   "peerDependencies": {
     "@reformer/core": ">=1.1.0"

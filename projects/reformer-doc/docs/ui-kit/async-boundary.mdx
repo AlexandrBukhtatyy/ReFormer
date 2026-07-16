@@ -1,0 +1,18 @@
+---
+id: async-boundary
+title: AsyncBoundary
+sidebar_label: AsyncBoundary
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { asyncBoundaryDocConfig } from '@site/src/components/demo/examples/async-boundary';
+
+# AsyncBoundary
+
+ReFormer-специфичный контейнер трёх состояний: `loading` / `error` / `ready`.
+Состояние задаётся снаружи через проп `status`, а слоты `LoadingComponent` и
+`ErrorComponent` — это `ComponentType` без props (для настройки props оберни их в
+тонкий компонент). В состоянии `ready` рендерятся `children`. Это **не**
+Suspense-boundary — ничего не throw'ится, состоянием управляешь сам.
+
+<ComponentDoc config={asyncBoundaryDocConfig} />

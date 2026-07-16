@@ -1,0 +1,23 @@
+---
+id: date-picker
+title: DatePicker
+sidebar_label: DatePicker
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { datePickerDocConfig } from '@site/src/components/demo/examples/date-picker';
+
+# DatePicker
+
+Выбор даты: [Popover](./popover) с [Calendar](./calendar) (`mode="single"`) и кнопкой-триггером
+([Button](./button) `outline` + иконка + отформатированная дата через
+[date-fns](https://date-fns.org)). Вариант **base** — управляемый композит
+(`value: Date | undefined` / `onChange`), выбор даты сам закрывает поповер. Для форм —
+`DatePickerField` (алиас на field-версию single-date: значение `Date | null`, `selected` /
+`onSelect` Calendar сводятся к `value` / `onChange`). Формат подписи настраивается через
+`dateFormat`, текст пустого состояния — через `placeholder`.
+
+Компонент тяжёлый (тянет `react-day-picker`) — импортируется из подпути
+`@reformer/ui-kit/date-picker`, а не из главного barrel.
+
+<ComponentDoc config={datePickerDocConfig} />

@@ -1,0 +1,17 @@
+---
+id: marker
+title: Marker
+sidebar_label: Marker
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { markerDocConfig } from '@site/src/components/demo/examples/marker';
+
+# Marker
+
+AI-примитив на shadcn / Radix `Slot` — строка-маркер для AI-ответов: источники, шаги
+рассуждения, статусы. Compound-набор: `Marker` / `MarkerIcon` / `MarkerContent`. Стиль
+строки задаётся через `variant` (`default` / `separator` / `border`), а `asChild` рендерит
+вместо `<div>` дочерний элемент (например, `<a>`) со стилями маркера.
+
+<ComponentDoc config={markerDocConfig} />
