@@ -1,0 +1,16 @@
+---
+id: badge
+title: Badge
+sidebar_label: Badge
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { badgeDocConfig } from '@site/src/components/demo/examples/badge';
+
+# Badge
+
+Метка/значок на shadcn / Radix `Slot`. Стиль задаётся через `variant`, а `asChild`
+рендерит вместо `<span>` дочерний элемент (например, `<a>` или роутер-`Link`) со
+стилями метки — ховер-эффекты (`[a&]`) при этом активируются на ссылке.
+
+<ComponentDoc config={badgeDocConfig} />

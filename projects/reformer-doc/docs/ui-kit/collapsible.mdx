@@ -1,0 +1,17 @@
+---
+id: collapsible
+title: Collapsible
+sidebar_label: Collapsible
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { collapsibleDocConfig } from '@site/src/components/demo/examples/collapsible';
+
+# Collapsible
+
+Раскрывающийся блок на shadcn / Radix `Collapsible`. Compound-набор:
+`Collapsible` / `CollapsibleTrigger` / `CollapsibleContent`. Компонент headless —
+управляет только состоянием раскрытия (uncontrolled через `defaultOpen` либо
+controlled через `open` + `onOpenChange`), а оформление задаёт вызывающий код.
+
+<ComponentDoc config={collapsibleDocConfig} />

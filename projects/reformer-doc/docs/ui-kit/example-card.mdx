@@ -1,0 +1,17 @@
+---
+id: example-card
+title: ExampleCard
+sidebar_label: ExampleCard
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { exampleCardDocConfig } from '@site/src/components/demo/examples/example-card';
+
+# ExampleCard
+
+ReFormer-специфичная playground-обёртка примера: заголовок, описание и область с
+живым примером, а кнопка в шапке переключает карточку в режим «код» (переданный
+текст `code`) с copy-to-clipboard. Утилита для документации и playground — **не**
+для продакшена.
+
+<ComponentDoc config={exampleCardDocConfig} />

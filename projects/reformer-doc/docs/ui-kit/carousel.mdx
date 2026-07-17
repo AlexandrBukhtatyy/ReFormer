@@ -1,0 +1,19 @@
+---
+id: carousel
+title: Carousel
+sidebar_label: Carousel
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { carouselDocConfig } from '@site/src/components/demo/examples/carousel';
+
+# Carousel
+
+Карусель на shadcn / [embla-carousel-react](https://www.embla-carousel.com/). Это
+compound-компонент: корень `Carousel` (инициализирует embla и раздаёт контекст),
+`CarouselContent` (вьюпорт с flex-треком), `CarouselItem` (слайд, ширина — через `basis-*`),
+и стрелки `CarouselPrevious` / `CarouselNext` (outline/icon `Button`, авто-`disabled` на краях).
+Навигация клавишами `←` / `→` и свайпом — из embla. `embla-carousel-react` — optional peer
+dependency (ставится в приложении-потребителе).
+
+<ComponentDoc config={carouselDocConfig} />

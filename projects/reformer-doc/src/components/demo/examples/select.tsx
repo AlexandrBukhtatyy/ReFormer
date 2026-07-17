@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Root as SelectRoot } from '@radix-ui/react-select';
 import {
+  SelectField,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  selectAsyncPropsSchema,
   type ResourceConfig,
 } from '@reformer/ui-kit';
+import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
 import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
+import { controlsFromPropsSchema } from '../controls-from-schema';
 import type { ComponentDocConfig } from '../types';
 
 const LOAN = [
@@ -24,7 +27,7 @@ const GROUPED = [
   { value: 'minsk', label: 'Минск', group: 'Беларусь' },
 ];
 
-/* ─── Кастомный шаблон элемента (ручная композиция, аватар + ФИО) ─────────── */
+/* ─── Кастомный шаблон элемента (ручная сборка base-compound: аватар + ФИО) ─── */
 
 const PEOPLE = [
   { value: 'ivanov', name: 'Иванов И.И.', role: 'Менеджер', color: '#6366f1' },
@@ -40,19 +43,12 @@ const initials = (name: string) =>
     .join('')
     .toUpperCase();
 
-/**
- * Кастомный item + выбранное значение через ручную сборку под-компонентов
- * Select. Форма недостижима `options`-пропом (там только строковый label),
- * поэтому — SelectItem с произвольной разметкой (аватар-инициалы + ФИО + роль).
- * Radix переносит содержимое item в SelectValue, так что выбранное значение в
- * триггере тоже рендерится по этому шаблону.
- */
 function CustomItemVariant() {
   const [value, setValue] = useState<string>('');
   return (
     <div style={{ maxWidth: 380, width: '100%' }}>
-      <SelectRoot value={value} onValueChange={setValue}>
-        <SelectTrigger>
+      <Select value={value} onValueChange={setValue}>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Выберите сотрудника" />
         </SelectTrigger>
         <SelectContent>
@@ -84,7 +80,7 @@ function CustomItemVariant() {
             </SelectItem>
           ))}
         </SelectContent>
-      </SelectRoot>
+      </Select>
     </div>
   );
 }
@@ -98,11 +94,8 @@ const COUNTRIES = [
   { id: 'by', label: 'Беларусь', value: 'by' },
   { id: 'kz', label: 'Казахстан', value: 'kz' },
   { id: 'am', label: 'Армения', value: 'am' },
-  { id: 'ge', label: 'Грузия', value: 'ge' },
-  { id: 'rs', label: 'Сербия', value: 'rs' },
 ];
 
-// static: один снимок при маунте, без поиска и пагинации.
 const staticResource: ResourceConfig<string> = {
   type: 'static',
   load: async () => {
@@ -111,7 +104,6 @@ const staticResource: ResourceConfig<string> = {
   },
 };
 
-// preload: грузим всё сразу, поиск фильтрует загруженные опции на клиенте.
 const preloadResource: ResourceConfig<string> = {
   type: 'preload',
   load: async () => {
@@ -120,7 +112,6 @@ const preloadResource: ResourceConfig<string> = {
   },
 };
 
-// partial: серверные поиск (load({ search })) и пагинация (load({ page })).
 const CITY_POOL = Array.from({ length: 64 }, (_, i) => ({
   id: i + 1,
   label: `Город ${i + 1}`,
@@ -138,7 +129,6 @@ const partialResource: ResourceConfig<string> = {
   },
 };
 
-// Источник, который всегда падает — витрина состояния «ошибка + Retry».
 const failingResource: ResourceConfig<string> = {
   type: 'static',
   load: async () => {
@@ -150,28 +140,28 @@ const failingResource: ResourceConfig<string> = {
 export const selectDocConfig: ComponentDocConfig = {
   name: 'Select',
   importFrom: '@reformer/ui-kit',
-  description: 'Выпадающий список на Radix. Inline-опции или асинхронный источник (resource).',
+  description:
+    'Выпадающий список на Radix. Вариант base — чистый compound (ручная сборка), async — inline-опции или асинхронный источник (resource).',
   variants: [
     {
       id: 'single',
       title: 'Одиночный выбор (options)',
       description:
-        'Дефолтная форма: плоский список inline-опций через проп options. Модель выбора — одно значение (value: string | null).',
+        'Плоский список inline-опций через проп options. Значение — строка (value: string | null).',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
       }),
       code: `{
   value: model.$.loanType,
-  component: Select,
+  component: SelectField,
   componentProps: {
     label: 'Тип кредита',
     placeholder: 'Выберите тип',
     options: [
       { value: 'consumer', label: 'Потребительский' },
       { value: 'mortgage', label: 'Ипотека' },
-      { value: 'auto', label: 'Авто' },
     ],
   },
 }`,
@@ -179,61 +169,41 @@ export const selectDocConfig: ComponentDocConfig = {
     {
       id: 'grouped',
       title: 'Группировка опций (options + group)',
-      description:
-        'Форма с секциями: опции с одинаковым group объединяются под заголовком SelectLabel. Раскладка задаётся тем же options-пропом — поле group у элемента.',
+      description: 'Опции с одинаковым group объединяются под заголовком SelectLabel.',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: { label: 'Город', placeholder: 'Выберите город', options: GROUPED },
       }),
       code: `componentProps: {
   label: 'Город',
-  placeholder: 'Выберите город',
   options: [
     { value: 'msk', label: 'Москва', group: 'Россия' },
-    { value: 'spb', label: 'Санкт-Петербург', group: 'Россия' },
     { value: 'minsk', label: 'Минск', group: 'Беларусь' },
   ],
 }`,
     },
     {
       id: 'custom-item',
-      title: 'Кастомный шаблон элемента (ручная сборка)',
+      title: 'Кастомный шаблон элемента (ручная сборка base-compound)',
       description:
-        'Форма, недостижимая options-пропом: произвольная разметка item и выбранного значения. Собирается вручную из SelectTrigger / SelectValue / SelectContent / SelectItem — здесь аватар-инициалы + ФИО + роль.',
+        'Форма, недостижимая options-пропом: произвольная разметка item (аватар + ФИО + роль). Собирается из Select / SelectTrigger / SelectContent / SelectItem варианта base.',
       render: CustomItemVariant,
-      code: `import { Root as SelectRoot } from '@radix-ui/react-select';
-import {
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@reformer/ui-kit';
+      code: `import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@reformer/ui-kit';
 
-function PeopleSelect({ value, onChange }) {
-  return (
-    <SelectRoot value={value ?? ''} onValueChange={onChange}>
-      <SelectTrigger>
-        <SelectValue placeholder="Выберите сотрудника" />
-      </SelectTrigger>
-      <SelectContent>
-        {people.map((p) => (
-          <SelectItem key={p.value} value={p.value}>
-            <span className="row">
-              <span className="avatar" style={{ background: p.color }}>
-                {initials(p.name)}
-              </span>
-              <span className="meta">
-                <span className="name">{p.name}</span>
-                <span className="role">{p.role}</span>
-              </span>
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </SelectRoot>
-  );
-}`,
+<Select value={value} onValueChange={onChange}>
+  <SelectTrigger className="w-full">
+    <SelectValue placeholder="Выберите сотрудника" />
+  </SelectTrigger>
+  <SelectContent>
+    {people.map((p) => (
+      <SelectItem key={p.value} value={p.value}>
+        <Avatar>{initials(p.name)}</Avatar>
+        <span>{p.name}</span>
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>`,
     },
   ],
   examples: [
@@ -241,87 +211,57 @@ function PeopleSelect({ value, onChange }) {
       id: 'clearable',
       title: 'Очистка выбора (clearable)',
       description:
-        'clearable=true добавляет крестик справа от значения; клик сбрасывает выбор в null через onChange(null).',
+        'clearable=true добавляет крестик; клик сбрасывает выбор в null через onChange(null).',
       render: makeFieldVariant({
         initial: 'mortgage',
-        component: Select,
+        component: SelectField,
         componentProps: { label: 'Тип кредита', options: LOAN, clearable: true },
       }),
-      code: `{
-  value: model.$.loanType,
-  component: Select,
-  componentProps: { label: 'Тип кредита', options: LOAN, clearable: true },
-}`,
+      code: `componentProps: { label: 'Тип кредита', options: LOAN, clearable: true }`,
     },
     {
       id: 'resource-static',
       title: 'Resource: static (снимок)',
-      description:
-        'type="static" — один load({}) при маунте, без поля поиска и пагинации. Опции берутся из внешнего источника.',
+      description: 'type="static" — один load({}) при маунте, без поля поиска и пагинации.',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
           resource: staticResource,
         },
       }),
-      code: `import { type ResourceConfig } from '@reformer/ui-kit';
-
-const countries: ResourceConfig<string> = {
-  type: 'static', // один load({}) при маунте; без поиска и пагинации
-  load: async () => {
-    const items = await fetch('/api/countries').then((r) => r.json());
-    return {
-      items: items.map((c) => ({ id: c.code, label: c.name, value: c.code })),
-      totalCount: items.length,
-    };
-  },
+      code: `const countries: ResourceConfig<string> = {
+  type: 'static',
+  load: async () => ({ items: await fetchCountries(), totalCount: n }),
 };
-
-// схема:
-{
-  value: model.$.country,
-  component: Select,
-  componentProps: { label: 'Страна', resource: countries },
-}`,
+componentProps: { label: 'Страна', resource: countries }`,
     },
     {
       id: 'resource-preload',
       title: 'Resource: preload + клиентский поиск',
       description:
-        'type="preload" грузит все опции сразу; в дропдауне появляется поле Search, фильтрующее загруженные опции на клиенте.',
+        'type="preload" грузит всё сразу; поле Search фильтрует загруженные опции на клиенте.',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
           resource: preloadResource,
         },
       }),
-      code: `const countries: ResourceConfig<string> = {
-  type: 'preload', // грузим всё, поиск фильтрует на клиенте
-  load: async () => {
-    const items = await fetch('/api/countries').then((r) => r.json());
-    return {
-      items: items.map((c) => ({ id: c.code, label: c.name, value: c.code })),
-      totalCount: items.length,
-    };
-  },
-};
-
-// componentProps: { label: 'Страна', resource: countries }`,
+      code: `const countries: ResourceConfig<string> = { type: 'preload', load: async () => ({ items, totalCount }) };`,
     },
     {
       id: 'resource-partial',
       title: 'Resource: partial (серверные поиск и пагинация)',
       description:
-        'type="partial" — debounce-поиск уходит на сервер (load({ search })), а следующие страницы догружаются по мере скролла (infinite-scroll до totalCount).',
+        'type="partial" — debounce-поиск на сервер (load({ search })), догрузка страниц по скроллу.',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: {
           label: 'Город',
           placeholder: 'Выберите город',
@@ -329,67 +269,51 @@ const countries: ResourceConfig<string> = {
         },
       }),
       code: `const cities: ResourceConfig<string> = {
-  type: 'partial',
-  pageSize: 20,
-  load: async ({ search = '', page = 1, pageSize = 20 }) => {
-    const res = await fetch(\`/api/cities?q=\${search}&page=\${page}&size=\${pageSize}\`);
-    const { rows, total } = await res.json();
-    return {
-      items: rows.map((c) => ({ id: c.id, label: c.name, value: c.id })),
-      totalCount: total,
-    };
+  type: 'partial', pageSize: 20,
+  load: async ({ search, page, pageSize }) => {
+    const { rows, total } = await fetchCities(search, page, pageSize);
+    return { items: rows, totalCount: total };
   },
-};
-
-// componentProps: { label: 'Город', resource: cities }`,
+};`,
     },
     {
       id: 'resource-error',
       title: 'Ошибка загрузки + Retry',
       description:
-        'Когда load() у resource падает и опций нет, дропдаун показывает «Failed to load options» и кнопку Retry (повтор первичной загрузки).',
+        'Когда load() падает и опций нет — дропдаун показывает «Failed to load options» и кнопку Retry.',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: {
           label: 'Страна',
           placeholder: 'Выберите страну',
           resource: failingResource,
         },
       }),
-      code: `const countries: ResourceConfig<string> = {
-  type: 'static',
-  load: async () => {
-    // если промис реджектится и опций ещё нет —
-    // в дропдауне появляется «Failed to load options» + Retry
-    throw new Error('Network error');
-  },
-};
-
-// componentProps: { label: 'Страна', resource: countries }`,
+      code: `const src: ResourceConfig<string> = { type: 'static', load: async () => { throw new Error('Network'); } };`,
     },
     {
       id: 'validation',
       title: 'Обязательный выбор (валидатор)',
       description:
-        'validators: [required()] прямо в ноде схемы — интеграция валидации ReFormer. touched-поле с пустым значением показывает ошибку под полем.',
+        'validators: [required()] прямо в ноде схемы. touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: null,
-        component: Select,
+        component: SelectField,
         componentProps: { label: 'Тип кредита', placeholder: 'Выберите тип', options: LOAN },
         validators: [required({ message: 'Выберите тип кредита' })],
         touched: true,
       }),
       code: `{
   value: model.$.loanType,
-  component: Select,
+  component: SelectField,
   componentProps: { label: 'Тип кредита', options: LOAN },
   validators: [required({ message: 'Выберите тип кредита' })],
 }`,
     },
   ],
   api: {
-    component: Select,
+    component: SelectField,
     initialValue: null,
     baseComponentProps: { label: 'Тип кредита', options: LOAN },
     validators: [required({ message: 'Выберите тип' })],
@@ -398,85 +322,21 @@ const countries: ResourceConfig<string> = {
       { label: 'Ипотека', value: 'mortgage' },
       { label: 'Очистить (null)', value: null },
     ],
-    controls: [
-      {
-        prop: 'value',
-        type: 'string | null',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Выбранное значение из option.value. null — ничего не выбрано.',
-      },
-      {
-        prop: 'onChange',
-        type: '(value: string | null) => void',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Выбор варианта; при очистке приходит null.',
-      },
-      {
-        prop: 'onBlur',
-        type: '() => void',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Срабатывает при закрытии дропдауна.',
-      },
-      {
-        prop: 'options',
-        type: 'Array<{ value; label; group? }>',
-        group: 'Options',
-        kind: 'readonly',
-        description: 'Inline-опции. Одинаковый group объединяется в секцию.',
-      },
-      {
-        prop: 'resource',
-        type: 'ResourceConfig',
-        group: 'Options',
-        kind: 'readonly',
-        description: 'Асинхронный источник опций (static / preload / partial).',
-      },
-      {
-        prop: 'placeholder',
-        type: 'string',
-        group: 'Textfield',
-        kind: 'text',
-        default: 'Выберите вариант',
-        description: 'Подсказка в триггере.',
-      },
-      {
-        prop: 'clearable',
-        type: 'boolean',
-        group: 'Behavior',
-        kind: 'boolean',
-        default: false,
-        description: 'Показывать крестик очистки в null.',
-      },
-      {
-        prop: 'required',
-        type: 'boolean',
-        group: 'State',
-        kind: 'boolean',
-        default: false,
-        description: 'Рисует required-маркер «*» у метки и aria-required.',
-      },
-      {
-        prop: 'disabled',
-        type: 'boolean',
-        group: 'State',
-        kind: 'boolean',
-        default: false,
-        description: 'Блокирует выбор.',
-      },
-    ],
+    // Единый источник — props-схема варианта. Ручной controls[] запрещён (§ Props-компаньоны).
+    // omit: label/options — задаются baseComponentProps (иначе перетрут initialValues undefined-ами).
+    controls: controlsFromPropsSchema(mergeFieldPropsSchema(selectAsyncPropsSchema), {
+      omit: ['label', 'options'],
+    }),
     code: (v) =>
       `{
   value: model.$.loanType,
-  component: Select,
+  component: SelectField,
   componentProps: {
     label: 'Тип кредита',
     options: LOAN,
     placeholder: '${v.placeholder}',${v.required ? '\n    required: true,' : ''}${v.clearable ? '\n    clearable: true,' : ''}
   },
   validators: [required()],
-}${v.disabled ? '\n// поле отключено: form.loanType.disable()' : ''}`,
+}`,
   },
 };

@@ -1,0 +1,19 @@
+---
+id: combobox
+title: Combobox
+sidebar_label: Combobox
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { comboboxDocConfig } from '@site/src/components/demo/examples/combobox';
+
+# Combobox
+
+Автодополнение (поиск по списку) на композиции **Popover + Command + Button**: триггер-кнопка
+показывает `label` текущего значения и открывает выпадающий список опций с полем поиска. Отдельного
+shadcn-примитива нет — это рецепт из готовых компонентов. Контракт value-based (`value: string | null`,
+`onChange(string | null)`); для форм — `ComboboxField` (алиас на field-версию base).
+
+Тяжёлый компонент: импортируется из подпути `@reformer/ui-kit/combobox` (вне главного barrel).
+
+<ComponentDoc config={comboboxDocConfig} />

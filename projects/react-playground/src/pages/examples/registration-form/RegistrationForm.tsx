@@ -11,7 +11,13 @@
 import { useMemo, useState } from 'react';
 import { createModel, createForm, validateFormModel, type ModelValidator } from '@reformer/core';
 import { required, email, minLength, pattern } from '@reformer/core/validators';
-import { Input, InputPassword, InputMask, Checkbox, FormField } from '@reformer/ui-kit';
+import {
+  InputField,
+  InputPasswordField,
+  InputMaskField,
+  CheckboxField,
+  FormField,
+} from '@reformer/ui-kit';
 import { FormStateDisplay } from './FormSateDisplay';
 
 export interface RegistrationFormData {
@@ -88,7 +94,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
     children: [
       {
         value: model.$.username,
-        component: Input,
+        component: InputField,
         componentProps: {
           label: 'Имя пользователя',
           placeholder: 'Логин (латиница)',
@@ -103,7 +109,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.email,
-        component: Input,
+        component: InputField,
         componentProps: {
           label: 'Email',
           placeholder: 'your@email.com',
@@ -118,7 +124,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.password,
-        component: InputPassword,
+        component: InputPasswordField,
         componentProps: { label: 'Пароль', placeholder: 'Минимум 8 символов', testId: 'password' },
         validators: [
           required({ message: 'Пароль обязателен' }),
@@ -128,7 +134,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.confirmPassword,
-        component: InputPassword,
+        component: InputPasswordField,
         componentProps: {
           label: 'Подтвердите пароль',
           placeholder: 'Повторите пароль',
@@ -138,7 +144,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.fullName,
-        component: Input,
+        component: InputField,
         componentProps: { label: 'Полное имя', placeholder: 'Иван Иванов', testId: 'fullName' },
         validators: [
           required({ message: 'Полное имя обязательно' }),
@@ -147,7 +153,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.phone,
-        component: InputMask,
+        component: InputMaskField,
         componentProps: {
           label: 'Телефон',
           placeholder: '+7 (999) 123-45-67',
@@ -161,7 +167,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.captcha,
-        component: Input,
+        component: InputField,
         componentProps: {
           label: 'Введите captcha',
           placeholder: 'Подсказка: ABC123',
@@ -171,7 +177,7 @@ function buildSchema(model: ReturnType<typeof createModel<RegistrationFormData>>
       },
       {
         value: model.$.acceptTerms,
-        component: Checkbox,
+        component: CheckboxField,
         componentProps: { label: 'Я принимаю условия использования', testId: 'acceptTerms' },
         validators: [termsAccepted],
       },

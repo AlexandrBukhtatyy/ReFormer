@@ -1,0 +1,17 @@
+---
+id: section
+title: Section
+sidebar_label: Section
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { sectionDocConfig } from '@site/src/components/demo/examples/section';
+
+# Section
+
+Семантический `<section>`-контейнер для группировки связанных полей формы с опциональным
+заголовком. `titleAs` управляет уровнем заголовка (`h1`-`h6`), `className` — раскладкой
+контейнера (например, `grid grid-cols-2 gap-4`). Это DSL-контейнер: у него нет seam
+(`value`/`onChange`) и field-версии — в схеме он оборачивает массив дочерних нод.
+
+<ComponentDoc config={sectionDocConfig} />

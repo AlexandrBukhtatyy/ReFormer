@@ -1,0 +1,18 @@
+---
+id: item
+title: Item
+sidebar_label: Item
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { itemDocConfig } from '@site/src/components/demo/examples/item';
+
+# Item
+
+Строка списка на shadcn — универсальный «ряд» с медиа, контентом и действиями. Собирается из частей:
+`Item` (корень, `variant` / `size` / `asChild`), `ItemGroup` + `ItemSeparator` для списков, а внутри —
+`ItemMedia`, `ItemContent` (`ItemTitle` / `ItemDescription`), `ItemActions`, а также `ItemHeader` /
+`ItemFooter` на всю ширину. Все части — обычные элементы со своим `data-slot`, стиль правится через
+`className` (tailwind-merge).
+
+<ComponentDoc config={itemDocConfig} />

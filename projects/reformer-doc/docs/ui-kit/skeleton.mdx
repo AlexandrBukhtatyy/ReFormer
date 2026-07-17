@@ -1,0 +1,16 @@
+---
+id: skeleton
+title: Skeleton
+sidebar_label: Skeleton
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { skeletonDocConfig } from '@site/src/components/demo/examples/skeleton';
+
+# Skeleton
+
+Плейсхолдер загрузки на shadcn — `<div>` с pulse-анимацией. Форма и размер задаются
+классами (`h-*`, `w-*`, `rounded-*`) через `className`; базовые стили
+(`animate-pulse rounded-md bg-accent`) можно перекрыть через `tailwind-merge`.
+
+<ComponentDoc config={skeletonDocConfig} />

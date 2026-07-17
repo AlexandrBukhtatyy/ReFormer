@@ -61,6 +61,16 @@ jobs:
       - name: Run @reformer/renderer-json tests
         run: npm run test -w @reformer/renderer-json
 
+      - name: Bundle size (size-limit)
+        # Enforces brotli caps in .size-limit.json against the freshly built dist/
+        # of every @reformer/* package (all builds above ran, so the artifacts
+        # exist). Guards the heavy @reformer/ui-kit subpaths (chart/table/sidebar/
+        # calendar/carousel/command/drawer/date-picker/resizable/sonner/input-otp)
+        # and the shared utils chunk — if the vite `external` predicate ever stops
+        # excluding a heavy dep, its subpath balloons and this step goes red.
+        # @size-limit/file measures brotli and does NOT follow imports.
+        run: npm run size
+
       - name: Check generated form-schema is up to date
         run: |
           npm run gen:form-schema -w react-playground

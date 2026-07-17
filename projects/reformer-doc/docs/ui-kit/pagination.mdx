@@ -1,0 +1,18 @@
+---
+id: pagination
+title: Pagination
+sidebar_label: Pagination
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { paginationDocConfig } from '@site/src/components/demo/examples/pagination';
+
+# Pagination
+
+Постраничная навигация на shadcn. Набор частей: `Pagination` / `PaginationContent` /
+`PaginationItem` / `PaginationLink` / `PaginationPrevious` / `PaginationNext` /
+`PaginationEllipsis`. Активная страница помечается `isActive` на `PaginationLink`
+(`aria-current="page"` + стиль `outline`). Навигация — через `href` (ссылки) или
+`onClick` (controlled-состояние).
+
+<ComponentDoc config={paginationDocConfig} />

@@ -1,0 +1,17 @@
+---
+id: aspect-ratio
+title: AspectRatio
+sidebar_label: AspectRatio
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { aspectRatioDocConfig } from '@site/src/components/demo/examples/aspect-ratio';
+
+# AspectRatio
+
+Обёртка над Radix AspectRatio — держит вложенный контент (`img`, `video`, плейсхолдер)
+в фиксированной пропорции `ratio` (например `16 / 9` или `1`) независимо от ширины контейнера.
+Ширину задаёт родитель, высота считается автоматически, поэтому раскладка не «прыгает»
+при загрузке медиа.
+
+<ComponentDoc config={aspectRatioDocConfig} />

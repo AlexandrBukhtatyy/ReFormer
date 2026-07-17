@@ -1,0 +1,17 @@
+---
+id: card
+title: Card
+sidebar_label: Card
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { cardDocConfig } from '@site/src/components/demo/examples/card';
+
+# Card
+
+Карточка на shadcn — контейнер с шапкой, контентом и подвалом. Собирается из частей:
+`Card` (корень), `CardHeader` + `CardTitle` / `CardDescription` / `CardAction`, `CardContent`
+и `CardFooter`. Все части — обычные `div` со своим `data-slot`, поэтому стиль легко правится
+через `className` (tailwind-merge).
+
+<ComponentDoc config={cardDocConfig} />

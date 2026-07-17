@@ -1,0 +1,21 @@
+---
+id: message-scroller
+title: MessageScroller
+sidebar_label: MessageScroller
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { messageScrollerDocConfig } from '@site/src/components/demo/examples/message-scroller';
+
+# MessageScroller
+
+Авто-скроллящийся контейнер списка сообщений на shadcn / headless-примитиве
+`@shadcn/react/message-scroller`. Compound-набор:
+`MessageScrollerProvider` / `MessageScroller` / `MessageScrollerViewport` /
+`MessageScrollerContent` / `MessageScrollerItem` / `MessageScrollerButton`.
+`Provider` держит поведение — авто-скролл к последнему сообщению, привязку к якорю
+(`scrollAnchor`) и отслеживание видимых сообщений, — а behaviour-хуки
+(`useMessageScroller`, `useMessageScrollerScrollable`, `useMessageScrollerVisibility`)
+дают императивный скролл и статус прокрутки.
+
+<ComponentDoc config={messageScrollerDocConfig} />

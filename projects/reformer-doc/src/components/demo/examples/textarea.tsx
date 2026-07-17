@@ -1,224 +1,74 @@
-import { useState } from 'react';
-import { useFormControlValue } from '@reformer/core';
-import { required, maxLength } from '@reformer/core/validators';
-import { Textarea, FormField } from '@reformer/ui-kit';
-import { useDemoField } from '../harness';
+import { TextareaField, textareaBasePropsSchema } from '@reformer/ui-kit';
+import { mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
+import { required } from '@reformer/core/validators';
 import { makeFieldVariant } from '../field-demo';
+import { controlsFromPropsSchema } from '../controls-from-schema';
 import type { ComponentDocConfig } from '../types';
-
-/* ─── Examples (контекстные приёмы) ────────────────────────────────────── */
-
-const COUNTER_MAX = 280;
-
-/** onChange + нативный maxLength: живой счётчик оставшихся символов. */
-function CharCounterExample() {
-  const { control } = useDemoField({
-    initial: '',
-    component: Textarea,
-    componentProps: { label: 'Пост', placeholder: 'Что нового?', maxLength: COUNTER_MAX },
-  });
-  const value = useFormControlValue(control);
-  const used = value ? String(value).length : 0;
-  const left = COUNTER_MAX - used;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 380 }}>
-      <FormField control={control} />
-      <span
-        style={{
-          alignSelf: 'flex-end',
-          fontSize: '0.85rem',
-          color: left < 20 ? 'var(--ifm-color-danger)' : 'var(--ifm-color-emphasis-700)',
-        }}
-      >
-        Осталось {left} из {COUNTER_MAX}
-      </span>
-    </div>
-  );
-}
-
-/** onBlur: нормализация значения (trim + схлопывание пробелов) при уходе из поля. */
-function NormalizeOnBlurExample() {
-  const [value, setValue] = useState<string | null>('   Много    лишних   пробелов   ');
-  return (
-    <div style={{ maxWidth: 380 }}>
-      <Textarea
-        value={value}
-        placeholder="Текст нормализуется при потере фокуса"
-        onChange={setValue}
-        onBlur={() => setValue((prev) => (prev ? prev.trim().replace(/\s+/g, ' ') : prev))}
-      />
-    </div>
-  );
-}
 
 export const textareaDocConfig: ComponentDocConfig = {
   name: 'Textarea',
   importFrom: '@reformer/ui-kit',
-  description: 'Многострочное текстовое поле. Вертикальный resize.',
-  // Textarea устроено просто: единственная ось конфигурации-формы — раскладка
-  // подписи (с label / без label). Размер (rows), состояния (пусто/заполнено/
-  // disabled/invalid) и возможности (maxLength, валидация, нормализация) — это
-  // НЕ формы: rows — стилизация, состояния показывает интерактивная вкладка API,
-  // возможности — вкладка Examples.
+  description:
+    'Многострочное текстовое поле на pure shadcn Textarea. Значение — string | null (пустой ввод → null). TextareaField биндится к M1-полю через nativeInputAdapter.',
   variants: [
     {
-      id: 'basic',
-      title: 'С подписью',
-      description: 'Дефолтная форма: подпись сверху, многострочное поле с подсказкой-placeholder.',
+      id: 'base',
+      title: 'Базовое поле',
+      description: 'Многострочный ввод. Значение — string | null (пустой ввод → null).',
       render: makeFieldVariant({
         initial: '',
-        component: Textarea,
-        componentProps: { label: 'Комментарий', placeholder: 'Опишите проблему' },
+        component: TextareaField,
+        componentProps: { label: 'Комментарий', placeholder: 'Введите комментарий', rows: 4 },
       }),
       code: `{
   value: model.$.comment,
-  component: Textarea,
-  componentProps: { label: 'Комментарий', placeholder: 'Опишите проблему' },
-}`,
-    },
-    {
-      id: 'placeholder-only',
-      title: 'Без подписи',
-      description: 'Форма без label — только placeholder-подсказка внутри поля.',
-      render: makeFieldVariant({
-        initial: '',
-        component: Textarea,
-        componentProps: { placeholder: 'Опишите проблему…' },
-      }),
-      code: `{
-  value: model.$.comment,
-  component: Textarea,
-  componentProps: { placeholder: 'Опишите проблему…' },
+  component: TextareaField,
+  componentProps: { label: 'Комментарий', placeholder: 'Введите комментарий', rows: 4 },
 }`,
     },
   ],
   examples: [
     {
       id: 'validation',
-      title: 'Обязательное поле с бизнес-лимитом длины',
+      title: 'Валидатор required',
       description:
-        'Валидаторы @reformer/core: required() и maxLength(500) как бизнес-правило (в отличие от нативного props maxLength). Ошибка показывается после touch.',
+        'validators прямо в ноде схемы; touched-поле с пустым значением показывает ошибку.',
       render: makeFieldVariant({
         initial: '',
-        component: Textarea,
-        componentProps: { label: 'Комментарий', placeholder: 'Не менее пары слов', required: true },
-        validators: [required({ message: 'Заполните комментарий' }), maxLength(500)],
+        component: TextareaField,
+        componentProps: { label: 'Комментарий', placeholder: 'Обязательное поле', rows: 4 },
+        validators: [required({ message: 'Укажите комментарий' })],
         touched: true,
       }),
-      code: `import { required, maxLength } from '@reformer/core/validators';
-
-{
+      code: `{
   value: model.$.comment,
-  component: Textarea,
-  componentProps: { label: 'Комментарий', required: true },
-  validators: [required(), maxLength(500)],
-}`,
-    },
-    {
-      id: 'char-counter',
-      title: 'Счётчик оставшихся символов',
-      description:
-        'useFormControlValue реактивно читает значение; нативный maxLength даёт hard-cap ввода.',
-      render: CharCounterExample,
-      code: `import { useFormControlValue } from '@reformer/core';
-
-function CharCounter({ control, max }) {
-  const value = useFormControlValue(control); // string | null
-  const left = max - (value?.length ?? 0);
-  return <span>Осталось {left} из {max}</span>;
-}
-
-// componentProps: { label: 'Пост', maxLength: 280 }`,
-    },
-    {
-      id: 'normalize-blur',
-      title: 'Нормализация текста на потере фокуса',
-      description:
-        'Приём: onBlur тримит значение и схлопывает лишние пробелы/переводы строк при уходе из поля.',
-      render: NormalizeOnBlurExample,
-      code: `import { useState } from 'react';
-import { Textarea } from '@reformer/ui-kit';
-
-function NoteField() {
-  const [value, setValue] = useState<string | null>('');
-  return (
-    <Textarea
-      value={value}
-      onChange={setValue}
-      onBlur={() => setValue((v) => (v ? v.trim().replace(/\\s+/g, ' ') : v))}
-    />
-  );
+  component: TextareaField,
+  componentProps: { label: 'Комментарий', rows: 4 },
+  validators: [required()],
 }`,
     },
   ],
   api: {
-    component: Textarea,
+    component: TextareaField,
     initialValue: '',
     baseComponentProps: { label: 'Комментарий' },
+    validators: [required({ message: 'Обязательно' })],
     valuePresets: [
-      { label: 'Текст', value: 'Пример комментария' },
+      { label: 'Пример текста', value: 'Пример комментария' },
       { label: 'Очистить', value: '' },
     ],
-    controls: [
-      {
-        prop: 'value',
-        type: 'string | null',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Значение. null/undefined — пустое поле.',
-      },
-      {
-        prop: 'onChange',
-        type: '(value: string | null) => void',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Пустая строка приводится к null.',
-      },
-      {
-        prop: 'onBlur',
-        type: '() => void',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Срабатывает при потере фокуса.',
-      },
-      {
-        prop: 'maxLength',
-        type: 'number',
-        group: 'Control',
-        kind: 'readonly',
-        description: 'Нативный hard-лимит длины (soft-protection UI).',
-      },
-      {
-        prop: 'placeholder',
-        type: 'string',
-        group: 'Textfield',
-        kind: 'text',
-        default: 'Введите текст',
-        description: 'Подсказка внутри поля.',
-      },
-      {
-        prop: 'rows',
-        type: 'number',
-        group: 'Appearance',
-        kind: 'number',
-        default: 3,
-        min: 2,
-        max: 12,
-        description: 'Видимая высота в строках.',
-      },
-      {
-        prop: 'disabled',
-        type: 'boolean',
-        group: 'State',
-        kind: 'boolean',
-        default: false,
-        description: 'Блокирует ввод.',
-      },
-    ],
-    code: (v) => `{
-  value: model.$.comment,
-  component: Textarea,
-  componentProps: { label: 'Комментарий', placeholder: '${v.placeholder}', rows: ${v.rows} },
-}${v.disabled ? '\n// form.comment.disable()' : ''}`,
+    controls: controlsFromPropsSchema(mergeFieldPropsSchema(textareaBasePropsSchema), {
+      omit: ['label'],
+    }),
+    code: (v) =>
+      `{
+  value: model.$.value,
+  component: TextareaField,
+  componentProps: {
+    label: 'Комментарий',
+    placeholder: '${v.placeholder}',${v.rows ? `\n    rows: ${v.rows},` : ''}${v.required ? '\n    required: true,' : ''}
+  },
+  validators: [required()],
+}`,
   },
 };

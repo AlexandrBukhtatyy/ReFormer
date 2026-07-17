@@ -1,0 +1,18 @@
+---
+id: toggle-group
+title: ToggleGroup
+sidebar_label: ToggleGroup
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { toggleGroupDocConfig } from '@site/src/components/demo/examples/toggle-group';
+
+# ToggleGroup
+
+Группа кнопок-переключателей на Radix. Вариант **base** — чистый примитив (`ToggleGroup` —
+контейнер, `ToggleGroupItem` — кнопка) для ручной сборки. В single-режиме (`type="single"`)
+контейнер получает `role="radiogroup"`, а активная кнопка — `data-state="on"`. Field-версия рендерит
+опции из массива `options` (`{ value, label }`); значение — строка (`option.value | null`), каждый
+вариант получает per-option `data-testid`. Для форм — `ToggleGroupField`.
+
+<ComponentDoc config={toggleGroupDocConfig} />

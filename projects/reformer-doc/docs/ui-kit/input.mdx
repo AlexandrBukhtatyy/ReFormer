@@ -9,8 +9,8 @@ import { inputDocConfig } from '@site/src/components/demo/examples/input';
 
 # Input
 
-Текстовое и числовое поле ввода из `@reformer/ui-kit`. Ниже — три вкладки:
-**Variants** (готовые пресеты для копирования), **Examples** (сценарии с привязкой
-к форме) и **API** (интерактивная площадка props).
+Текстовое поле на pure shadcn `Input`. Вариант **base** — строковый (`text` / `email` / `tel` / `url`),
+вариант **number** — числовой буфер, удерживающий промежуточный ввод (`1.`, `0.05`, `-`, ведущие нули).
+Для форм — `InputField`, диспетчеризующий по `type` (`number` → буфер, иначе строковый).
 
 <ComponentDoc config={inputDocConfig} />

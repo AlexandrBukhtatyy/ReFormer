@@ -1,0 +1,20 @@
+---
+id: typography
+title: Typography
+sidebar_label: Typography
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { typographyDocConfig } from '@site/src/components/demo/examples/typography';
+
+# Typography
+
+Набор типографских обёрток на Tailwind-классах по образцу shadcn/ui. Это **не**
+form-control и **не** примитив с Radix — в shadcn типографика оформлена как
+guide-страница, а не registry-компонент. Здесь каждый элемент (`TypographyH1…H4`,
+`TypographyP`, `TypographyBlockquote`, `TypographyList`, `TypographyInlineCode`,
+`TypographyLead`, `TypographyLarge`, `TypographySmall`, `TypographyMuted`) — тонкая
+обёртка над нужным тегом с `data-slot` и мёржем `className` через `cn()` (класс
+вызывающего перекрывает конфликтующие дефолтные).
+
+<ComponentDoc config={typographyDocConfig} />

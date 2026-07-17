@@ -1,0 +1,17 @@
+---
+id: box
+title: Box
+sidebar_label: Box
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { boxDocConfig } from '@site/src/components/demo/examples/box';
+
+# Box
+
+DSL-контейнер: простой `<div>`-обёртка для группировки элементов в `RenderSchema`.
+Layout полностью задаётся через `className` (atomic CSS / Tailwind — `flex`, `grid`, `gap-*`),
+а дочерние ноды перечисляются в `children[]` схемы рендера. Box — не form-control:
+у него нет `value`/`onChange`, единственный сериализуемый проп — `className`.
+
+<ComponentDoc config={boxDocConfig} />

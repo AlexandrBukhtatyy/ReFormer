@@ -1,0 +1,18 @@
+---
+id: dialog
+title: Dialog
+sidebar_label: Dialog
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { dialogDocConfig } from '@site/src/components/demo/examples/dialog';
+
+# Dialog
+
+Модальное окно на shadcn / Radix Dialog. Это compound-компонент: корень `Dialog`
+(управляет состоянием), `DialogTrigger` (открывает), `DialogContent` (тело в `Portal`
+с оверлеем и крестиком закрытия), `DialogHeader` + `DialogTitle` / `DialogDescription`,
+`DialogFooter` и `DialogClose`. Focus-trap, закрытие по `Esc`, `aria-labelledby` /
+`aria-describedby` — из Radix «из коробки».
+
+<ComponentDoc config={dialogDocConfig} />

@@ -1,0 +1,17 @@
+---
+id: direction
+title: DirectionProvider
+sidebar_label: DirectionProvider
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { directionDocConfig } from '@site/src/components/demo/examples/direction';
+
+# DirectionProvider
+
+Провайдер направления письма (LTR/RTL) на shadcn / Radix. Оберните приложение или поддерево
+в `DirectionProvider` один раз — вложенные Radix-примитивы (`Select`, `Tooltip`, `Slider` и др.)
+подхватят направление из контекста через `useDirection` и развернут раскладку для RTL-языков.
+Собственной DOM-обёртки провайдер не создаёт.
+
+<ComponentDoc config={directionDocConfig} />

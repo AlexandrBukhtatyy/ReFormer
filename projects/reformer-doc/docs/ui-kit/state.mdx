@@ -1,0 +1,18 @@
+---
+id: state
+title: State
+sidebar_label: State
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { stateDocConfig } from '@site/src/components/demo/examples/state';
+
+# State
+
+ReFormer-специфичные заглушки состояний экрана формы: `LoadingState` —
+центрированный спиннер с подписью, пока грузятся данные; `ErrorState` — карточка
+ошибки с опциональной кнопкой «Повторить». Оба несут ARIA для скринридеров:
+`LoadingState` — `role="status"` + `aria-live="polite"`, `ErrorState` —
+`role="alert"` + `aria-live="assertive"`.
+
+<ComponentDoc config={stateDocConfig} />

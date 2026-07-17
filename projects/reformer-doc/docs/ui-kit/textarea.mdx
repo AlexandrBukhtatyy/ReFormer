@@ -9,7 +9,7 @@ import { textareaDocConfig } from '@site/src/components/demo/examples/textarea';
 
 # Textarea
 
-Многострочное текстовое поле с вертикальным resize. Высота — через `rows`,
-soft-лимит длины — через нативный `maxLength` (бизнес-лимит — валидатором `maxLength`).
+Многострочное текстовое поле на pure shadcn `Textarea`. Значение — `string | null`
+(пустой ввод → `null`). Для форм — `TextareaField`, биндится к M1-полю через `nativeInputAdapter`.
 
 <ComponentDoc config={textareaDocConfig} />

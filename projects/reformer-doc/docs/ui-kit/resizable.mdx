@@ -1,0 +1,21 @@
+---
+id: resizable
+title: Resizable
+sidebar_label: Resizable
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { resizableDocConfig } from '@site/src/components/demo/examples/resizable';
+
+# Resizable
+
+Панели с изменяемым размером на shadcn / `react-resizable-panels`. Compound-набор:
+`ResizablePanelGroup` / `ResizablePanel` / `ResizableHandle`. Ориентация задаётся
+пропом `orientation` (`"horizontal"` — панели рядом, `"vertical"` — друг над другом)
+на группе, стартовое соотношение — `defaultSize` на панелях. `withHandle` на
+`ResizableHandle` рисует видимую рукоятку. Группы можно вкладывать друг в друга.
+
+Зависимость `react-resizable-panels` не бандлится в `@reformer/ui-kit` (external) —
+у потребителя она ставится как optional peer.
+
+<ComponentDoc config={resizableDocConfig} />

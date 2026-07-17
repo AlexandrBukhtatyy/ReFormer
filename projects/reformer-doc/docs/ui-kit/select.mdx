@@ -9,7 +9,9 @@ import { selectDocConfig } from '@site/src/components/demo/examples/select';
 
 # Select
 
-Выпадающий список на Radix. Опции задаются inline через `options` или подгружаются
-асинхронно через `resource` (стратегии `static` / `preload` / `partial`).
+Выпадающий список на Radix. Вариант **base** — чистый compound для ручной сборки
+(`Select` / `SelectTrigger` / `SelectContent` / `SelectItem`). Вариант **async** — высокоуровневый:
+inline `options` или асинхронный источник `resource` (стратегии `static` / `preload` / `partial`)
+с поиском, пагинацией и очисткой. Для форм — `SelectField` (алиас на field-версию `async`).
 
 <ComponentDoc config={selectDocConfig} />

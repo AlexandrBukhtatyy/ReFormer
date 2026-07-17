@@ -1,0 +1,19 @@
+---
+id: command
+title: Command
+sidebar_label: Command
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { commandDocConfig } from '@site/src/components/demo/examples/command';
+
+# Command
+
+Командная палитра на shadcn / [cmdk](https://cmdk.paco.me). Корень `Command`
+управляет фильтрацией и клавиатурной навигацией; `CommandInput` фильтрует список
+на лету, `CommandList` прокручивает результаты, а `CommandGroup` / `CommandItem` /
+`CommandSeparator` / `CommandShortcut` / `CommandEmpty` формируют структуру.
+`CommandDialog` оборачивает палитру в модальный `Dialog` — классический паттерн
+`⌘K`. Все части несут свой `data-slot`.
+
+<ComponentDoc config={commandDocConfig} />

@@ -1,0 +1,19 @@
+---
+id: tabs
+title: Tabs
+sidebar_label: Tabs
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { tabsDocConfig } from '@site/src/components/demo/examples/tabs';
+
+# Tabs
+
+Вкладки на shadcn / Radix `Tabs`. Compound-набор:
+`Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`.
+Активная вкладка задаётся через `defaultValue` (uncontrolled) либо через
+`value` + `onValueChange` (controlled). Стиль списка переключается пропом
+`variant` (`"default"` — с заливкой, `"line"` — с подчёркиванием), а `orientation`
+располагает список сверху или сбоку.
+
+<ComponentDoc config={tabsDocConfig} />

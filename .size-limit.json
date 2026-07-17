@@ -30,9 +30,79 @@
     "limit": "10 kB"
   },
   {
-    "name": "@reformer/ui-kit",
+    "name": "@reformer/ui-kit (index shim)",
     "path": "packages/reformer-ui-kit/dist/index.js",
     "limit": "15 kB"
+  },
+  {
+    "name": "@reformer/ui-kit (utils chunk: clsx + tailwind-merge)",
+    "path": "packages/reformer-ui-kit/dist/utils-*.js",
+    "limit": "13 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/chart (recharts external)",
+    "path": "packages/reformer-ui-kit/dist/chart.js",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/table (@tanstack/react-table external)",
+    "path": "packages/reformer-ui-kit/dist/table.js",
+    "limit": "3.5 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/sidebar (composite)",
+    "path": "packages/reformer-ui-kit/dist/sidebar.js",
+    "limit": "4.5 kB"
+  },
+  {
+    "name": "@reformer/ui-kit Select (async field, default SelectField)",
+    "path": "packages/reformer-ui-kit/dist/select-async.field-*.js",
+    "limit": "4.3 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/message-scroller (AI composite)",
+    "path": "packages/reformer-ui-kit/dist/message-scroller-base-*.js",
+    "limit": "8 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/calendar (react-day-picker external)",
+    "path": "packages/reformer-ui-kit/dist/calendar-base-*.js",
+    "limit": "2 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/carousel (embla-carousel-react external)",
+    "path": "packages/reformer-ui-kit/dist/carousel.js",
+    "limit": "1.4 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/command (cmdk external)",
+    "path": "packages/reformer-ui-kit/dist/command-base-*.js",
+    "limit": "1.3 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/input-otp (input-otp external)",
+    "path": "packages/reformer-ui-kit/dist/input-otp.js",
+    "limit": "1.1 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/drawer (vaul external)",
+    "path": "packages/reformer-ui-kit/dist/drawer.js",
+    "limit": "1 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/date-picker (date-fns external)",
+    "path": "packages/reformer-ui-kit/dist/date-picker.js",
+    "limit": "1 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/resizable (react-resizable-panels external)",
+    "path": "packages/reformer-ui-kit/dist/resizable.js",
+    "limit": "0.75 kB"
+  },
+  {
+    "name": "@reformer/ui-kit/sonner (sonner external)",
+    "path": "packages/reformer-ui-kit/dist/sonner.js",
+    "limit": "0.5 kB"
   },
   {
     "name": "@reformer/renderer-json",

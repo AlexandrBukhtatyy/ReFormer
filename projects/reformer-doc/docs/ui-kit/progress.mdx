@@ -1,0 +1,16 @@
+---
+id: progress
+title: Progress
+sidebar_label: Progress
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { progressDocConfig } from '@site/src/components/demo/examples/progress';
+
+# Progress
+
+Индикатор прогресса на shadcn / Radix `Progress` (Root + Indicator). Заполнение задаётся
+числом `value` (0..100); полоса несёт `role="progressbar"` и `aria-valuenow` из коробки.
+Высоту, скругление и цвет можно перекрыть через `className` (мёржатся `tailwind-merge`).
+
+<ComponentDoc config={progressDocConfig} />

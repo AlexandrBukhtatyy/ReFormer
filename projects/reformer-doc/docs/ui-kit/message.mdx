@@ -1,0 +1,17 @@
+---
+id: message
+title: Message
+sidebar_label: Message
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { messageDocConfig } from '@site/src/components/demo/examples/message';
+
+# Message
+
+Сообщение чата с ИИ на shadcn. Compound-набор:
+`MessageGroup` / `Message` / `MessageAvatar` / `MessageContent` / `MessageHeader` / `MessageFooter`.
+Сторона реплики задаётся через `align` (`"start"` — ассистент слева, `"end"` — пользователь справа),
+а `MessageGroup` собирает реплики в вертикальный тред.
+
+<ComponentDoc config={messageDocConfig} />

@@ -1,83 +1,243 @@
 # @reformer/ui-kit
 
-Styled, ready-to-use form components for `@reformer/core`, built with Tailwind CSS and Radix UI.
+Готовый набор из **72 компонентов** на базе [shadcn/ui](https://ui.shadcn.com/)
+(стиль **new-york**, палитра **neutral**, Tailwind CSS v4), интегрированный с формами
+`@reformer/core` через тонкий HOC-слой.
 
-Where [`@reformer/cdk`](https://www.npmjs.com/package/@reformer/cdk) gives you headless primitives,
-`@reformer/ui-kit` gives you drop-in, accessible, pre-styled controls (inputs, selects, checkboxes,
-buttons, layout) that bind straight to a ReFormer `FieldNode`.
+Там, где [`@reformer/cdk`](https://www.npmjs.com/package/@reformer/cdk) даёт headless-примитивы,
+`@reformer/ui-kit` даёт стилизованные, доступные (a11y) контролы и их **form-версии**, которые
+привязываются прямо к ReFormer-ноде (`FieldNode`) через один универсальный `<FormField>`.
 
-## Features
+## Что нового в v7
 
-- **Styled out of the box** — Tailwind CSS design tokens, sensible defaults
-- **Accessible** — built on Radix UI primitives (Select, Slot, …)
-- **Form-aware** — controlled `value` / `onChange` that plug into `useFormControl`
-- **TypeScript** — fully typed, discriminated props (e.g. `Input` narrows by `type`)
-- **Tree-shakable** — import the whole kit or individual components via subpaths
+- **Полный набор shadcn/ui** — 72 компонента (все примитивы shadcn + ReFormer-специфичные:
+  `Box`, `Section`, `FormField`, `FormArraySection`, `FormWizard`, `AsyncBoundary`, `ErrorState`,
+  `LoadingState`, `InputMask`, `InputPassword`, `ExampleCard`).
+- **Каталог-на-компонент + «Варианты»** — каждый компонент лежит под `variants/`; `base` — чистый
+  shadcn-примитив, функциональные варианты (`async`, `number`, …) — пресеты под юзкейс.
+- **Чистый shadcn + HOC** — примитивы не знают про формы; form-интеграцию добавляет
+  `withFormControl`, порождая `*Field`-версии.
+- **Self-contained тема** — пакет поставляет oklch-токены и анимации через `@reformer/ui-kit/styles`.
+- **Тяжёлые компоненты — только через subpath** (`@reformer/ui-kit/chart`, `/table`, …), вне
+  главного barrel, чтобы recharts/@tanstack и т.п. не попадали в бандл по умолчанию.
 
-## Installation
+## Установка
 
 ```bash
 npm install @reformer/ui-kit @reformer/core
 ```
 
-`@reformer/ui-kit` renders with Tailwind CSS — make sure Tailwind is configured in your app so the
-component classes are generated. `@reformer/cdk` and `@reformer/renderer-react` are optional peers
-(needed only if you use the re-exported `FormArray` / `FormWizard`).
+Peer-зависимости: `@reformer/core`, `@reformer/cdk`, `@reformer/renderer-react`, `react`, `react-dom`.
+Пакет рендерится с **Tailwind CSS v4** — Tailwind должен быть настроен в приложении (см. «Тема» ниже).
 
-## Components
+## Концепт вариантов
 
-| Component                     | Purpose                                                   |
-| ----------------------------- | --------------------------------------------------------- |
-| `Input`                       | Text / email / number input (discriminated by `type`)     |
-| `InputMask`                   | Masked text input                                         |
-| `InputPassword`               | Password input with show/hide toggle                      |
-| `Textarea`                    | Multi-line text input                                     |
-| `Select`                      | Radix-based dropdown (`+ SelectItem`, `SelectTrigger`, …) |
-| `Checkbox`                    | Boolean checkbox                                          |
-| `RadioGroup`                  | Single-choice radio group                                 |
-| `Button`                      | Styled button                                             |
-| `Box` / `Section`             | Layout containers                                         |
-| `Collapsible`                 | Expand/collapse container                                 |
-| `AsyncBoundary`               | Loading / error boundary for async UI                     |
-| `FormField`                   | Label + control + error wrapper                           |
-| `ErrorState` / `LoadingState` | State display components (`@reformer/ui-kit/state`)       |
+«Вариант» — это **функциональная разновидность** компонента под конкретный юзкейс, а не стилевая ось
+(размер/цвет/раскладка лейбла — обычные props/классы внутри реализации).
 
-## Imports
-
-```tsx
-// The whole kit
-import { Input, Select, Checkbox, Button, FormField } from '@reformer/ui-kit';
-
-// Or individual components via subpaths (tree-shaking)
-import { Input } from '@reformer/ui-kit/input';
-import { Select } from '@reformer/ui-kit/select';
-import { Checkbox } from '@reformer/ui-kit/checkbox';
+```
+src/components/<cmp>/
+  variants/
+    base/                       # ОБЯЗАТЕЛЕН: чистый shadcn-примитив (data-slot, radix-ui, cn)
+      <cmp>-base.tsx
+      <cmp>-base.field.tsx      #   form-версия (только для form-control компонентов)
+      <cmp>-base.props.ts       #   props-схема (источник controls[] и DSL-валидации)
+    <variant>/                  # функциональный пресет (async / number / …) — по потребности
+  index.ts                      # barrel: примитивы + их field + алиас <Cmp>Field + props-схемы
 ```
 
-## Quick example
+Пример: у `Select` вариант `base` — ручная сборка дропдауна из shadcn-частей, а `async` — готовое
+поле с `options` / `resource` / `clearable`. Оба — разные компоненты с разными props.
 
-Bind a component to a ReFormer field via `useFormControl`:
+## Импорты
 
 ```tsx
-import { useFormControl, type FieldNode } from '@reformer/core';
-import { Input } from '@reformer/ui-kit';
+// Из корневого barrel (60 «лёгких» компонентов)
+import { Input, Select, Checkbox, Button, Box, FormField } from '@reformer/ui-kit';
 
-function EmailField({ control }: { control: FieldNode<string> }) {
-  const { value, disabled, errors, shouldShowError } = useFormControl(control);
+// Через subpath отдельного компонента (tree-shaking)
+import { Input } from '@reformer/ui-kit/input';
+import { Select, SelectField } from '@reformer/ui-kit/select';
 
+// Тяжёлые компоненты — ТОЛЬКО через subpath (вне barrel)
+import { ChartContainer, ChartTooltip, type ChartConfig } from '@reformer/ui-kit/chart';
+import { DataGrid, type TableSettings } from '@reformer/ui-kit/table';
+
+// Props-схемы (React-free) для MCP / renderer-json
+import { defaultPropSchemas, mergeFieldPropsSchema } from '@reformer/ui-kit/meta';
+```
+
+### Компоненты только через subpath (тяжёлые зависимости)
+
+`calendar` · `carousel` · `chart` · `combobox` · `command` · `date-picker` · `drawer` ·
+`input-otp` · `resizable` · `sidebar` · `sonner` · `table`
+
+Они держат optional-peer зависимости (recharts, `@tanstack/react-table`, react-day-picker, cmdk,
+embla, vaul, input-otp, react-resizable-panels, sonner) и **не входят в главный barrel** — импортируйте
+их точечно: `@reformer/ui-kit/chart`, `@reformer/ui-kit/table` и т.п.
+
+## Form-интеграция: `*Field` + `withFormControl`
+
+Примитивы (`Input`, `Select`, `Checkbox`, …) — чистый shadcn: они не знают про формы и работают со
+своими нативными событиями (`Input` — `onChange(e)`, `Checkbox` — `onCheckedChange`, `Slider` —
+`onValueChange`). Форме нужен **единый value-based контракт** (`value` + `onChange(value)`), поэтому
+рядом с каждым form-control лежит его **field-версия**, порождённая внутренним HOC:
+
+```ts
+// внутри пакета (src/fields) — иллюстрация механизма, не публичный импорт:
+export const SelectAsyncField = withFormControl(SelectAsync, valueChangeAdapter);
+export const InputBaseField = withFormControl(Input, nativeInputAdapter);
+```
+
+`withFormControl(Primitive, adapter)` приводит событие примитива к `onChange(value)`, прокидывает
+`value`/`disabled`/`aria-*` и отбрасывает не-DOM ключи (`control`, `testId`). Адаптер выбирается под
+event-shape примитива (`nativeInputAdapter`, `checkedAdapter`, `valueChangeAdapter`, `sliderAdapter`,
+`dateAdapter`, `pressedAdapter`).
+
+**Соглашение об именах**: field-версия варианта — `<Cmp><Variant>Field`, плюс алиас `<Cmp>Field` на
+дефолтный для форм вариант. Публичная поверхность форм — именно `*Field`-компоненты (сам HOC
+внутренний):
+
+| Компонент     | Field-версия (public)                | Дефолтный алиас                    |
+| ------------- | ------------------------------------ | ---------------------------------- |
+| Input         | `InputBaseField`, `InputNumberField` | `InputField` (диспетчер по `type`) |
+| InputPassword | `InputPasswordBaseField`             | `InputPasswordField`               |
+| InputMask     | `InputMaskBaseField`                 | `InputMaskField`                   |
+| InputOTP      | `InputOTPBaseField`                  | `InputOTPField`                    |
+| Textarea      | `TextareaBaseField`                  | `TextareaField`                    |
+| Select        | `SelectAsyncField`                   | `SelectField`                      |
+| NativeSelect  | `NativeSelectBaseField`              | `NativeSelectField`                |
+| Checkbox      | `CheckboxBaseField`                  | `CheckboxField`                    |
+| Switch        | `SwitchBaseField`                    | `SwitchField`                      |
+| Toggle        | `ToggleBaseField`                    | `ToggleField`                      |
+| ToggleGroup   | `ToggleGroupBaseField`               | `ToggleGroupField`                 |
+| RadioGroup    | `RadioGroupBaseField`                | `RadioGroupField`                  |
+| Slider        | `SliderBaseField`                    | `SliderField`                      |
+| Calendar      | `CalendarBaseField`                  | `CalendarField`                    |
+| DatePicker    | `DatePickerBaseField`                | `DatePickerField`                  |
+| Combobox      | `ComboboxBaseField`                  | `ComboboxField`                    |
+
+В M1-схеме поля `component` указывает на **field-версию** (не на голый примитив): `<FormField>` подаёт
+контролу резолвленные `value` / `onChange(value)`, которые понимает только `*Field`.
+
+## Тема (self-contained)
+
+Пакет поставляет тему через subpath-экспорт `@reformer/ui-kit/styles` — oklch-токены shadcn
+(new-york / neutral), dark-вариант и анимации (`tw-animate-css`). Подключается **голым импортом** в
+вашем Tailwind-входе:
+
+```css
+/* app.css / globals.css — ваш Tailwind v4 entry */
+@import 'tailwindcss';
+@import '@reformer/ui-kit/styles';
+
+/* Tailwind должен «видеть» классы пакета — укажите @source на его исходники/сборку: */
+@source '../node_modules/@reformer/ui-kit/dist';
+```
+
+> Импортировать строго голым `@import '@reformer/ui-kit/styles';` — обёртка `layer(theme)` ломает
+> `@custom-variant`. Сам вход Tailwind (`@import 'tailwindcss'`) и `@source` держит consumer: тема
+> отдаёт токены и анимации, но не тянет Tailwind за собой.
+
+## Примеры
+
+### 1. Базовый компонент (чистый примитив)
+
+```tsx
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@reformer/ui-kit';
+
+function LoanTypePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <Input
-      type="email"
-      value={value}
-      disabled={disabled}
-      onChange={(v) => control.setValue(v ?? '')}
-      onBlur={() => control.markAsTouched()}
-      aria-invalid={shouldShowError}
-      placeholder={shouldShowError ? errors[0]?.message : 'you@example.com'}
-    />
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Выберите тип кредита" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="consumer">Потребительский</SelectItem>
+        <SelectItem value="mortgage">Ипотека</SelectItem>
+        <SelectItem value="auto">Авто</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 ```
+
+### 2. Form-поле (`SelectField` внутри `FormField`)
+
+Архитектура M1: сначала модель (`createModel`) — источник истины значений, затем форма
+(`createForm({ model, schema })`), где поле привязано к сигналу модели и несёт `component`
+(**field-версию**) + `componentProps` + `validators`. В JSX — один `<FormField control={form.x} />`.
+
+```tsx
+import { useMemo } from 'react';
+import { createModel, createForm, validateFormModel } from '@reformer/core';
+import { required } from '@reformer/core/validators';
+import { Button, FormField, SelectField, InputField } from '@reformer/ui-kit';
+
+type LoanForm = { loanType: string; amount: number };
+
+function LoanFormExample() {
+  const { model, form, schema } = useMemo(() => {
+    const model = createModel<LoanForm>({ loanType: '', amount: 0 });
+    const schema = {
+      loanType: {
+        value: model.$.loanType,
+        component: SelectField, // ← field-версия: понимает value / onChange(value)
+        componentProps: {
+          label: 'Тип кредита',
+          placeholder: 'Выберите вариант',
+          options: [
+            { value: 'consumer', label: 'Потребительский' },
+            { value: 'mortgage', label: 'Ипотека' },
+          ],
+        },
+        validators: [required()],
+      },
+      amount: {
+        value: model.$.amount,
+        component: InputField,
+        componentProps: { label: 'Сумма', type: 'number', min: 0 },
+        validators: [required()],
+      },
+    };
+    const form = createForm<LoanForm>({ model, schema });
+    return { model, form, schema };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    form.markAsTouched();
+    const result = await validateFormModel(model, schema);
+    if (!result.valid) return;
+    console.log('Данные:', model.get());
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* FormField рендерит Label → Control → Error и подключает value/onChange/onBlur ноды */}
+      <FormField control={form.loanType} testId="loanType" />
+      <FormField control={form.amount} testId="amount" />
+      <Button type="submit">Отправить</Button>
+    </form>
+  );
+}
+```
+
+`componentProps` — контракт враппера (`label`, `required`, `testId`) плюс props варианта
+(`options`, `placeholder`, `clearable`, …). `value` / `onChange` / `onBlur` / `disabled` резолвит
+`<FormField>` (seam) — в `componentProps` их не пишут.
+
+### 3. Динамические массивы и мастер
+
+```tsx
+// Стилизованная секция массива (типизированный itemComponent)
+import { FormArraySection } from '@reformer/ui-kit/form-array';
+// Многошаговый мастер
+import { FormWizard, type FormWizardStep } from '@reformer/ui-kit/form-wizard';
+```
+
+Полные примеры `FormArraySection` и `FormWizard` — в корневом
+[README проекта](../../README.md#массивы-и-многошаговые-формы).
 
 ## License
 

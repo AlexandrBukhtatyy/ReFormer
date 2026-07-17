@@ -14,6 +14,39 @@
  */
 type ValidateMod = typeof import('@reformer/renderer-json/validate');
 
+/**
+ * Форма модуля `@reformer/ui-kit/meta` (React-free): карта дефолтных props-схем + слияние с враппером.
+ * Опциональная зависимость — грузится лениво, при отсутствии пакета фаза props-валидации пропускается.
+ */
+interface UiKitMetaMod {
+  defaultPropSchemas?: Record<string, Record<string, unknown>>;
+  mergeFieldPropsSchema?: (schema: Record<string, unknown>) => Record<string, unknown>;
+}
+
+/**
+ * Ленивая подгрузка карты `componentProps`-схем из `@reformer/ui-kit/meta` (optional dependency).
+ * Каждая дефолтная схема варианта сливается с контрактом враппера через `mergeFieldPropsSchema`
+ * (иначе `label`/`required`/`testId` в реальном `componentProps` дали бы ложные срабатывания).
+ * Нет пакета / не собран → `undefined` (props не проверяем, graceful fallback).
+ */
+async function loadComponentPropSchemas(): Promise<
+  Record<string, Record<string, unknown>> | undefined
+> {
+  try {
+    const meta = (await import('@reformer/ui-kit/meta')) as UiKitMetaMod;
+    const defaults = meta.defaultPropSchemas;
+    if (!defaults || typeof defaults !== 'object') return undefined;
+    const merge = meta.mergeFieldPropsSchema;
+    const out: Record<string, Record<string, unknown>> = {};
+    for (const [name, schema] of Object.entries(defaults)) {
+      out[name] = typeof merge === 'function' ? merge(schema) : schema;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const validateJsonSchemaToolDefinition = {
   name: 'validate_json_schema',
   description:
@@ -92,11 +125,16 @@ export async function validateJsonSchemaTool(
     );
   }
 
+  // Optionally load componentProps schemas from `@reformer/ui-kit/meta` (optional dep). Present →
+  // phase (d) checks each node's `componentProps` (typos, wrong types). Absent → skipped gracefully.
+  const propSchemas = await loadComponentPropSchemas();
+
   const { valid, errors } = validateFormSchema(schema, {
     componentNames: args.componentNames,
     dataSourceNames: args.dataSourceNames,
     fnNames: args.fnNames,
     localeKeys: args.localeKeys,
+    propSchemas,
   });
 
   if (valid) {

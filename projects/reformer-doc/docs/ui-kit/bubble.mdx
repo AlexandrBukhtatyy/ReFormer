@@ -1,0 +1,17 @@
+---
+id: bubble
+title: Bubble
+sidebar_label: Bubble
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { bubbleDocConfig } from '@site/src/components/demo/examples/bubble';
+
+# Bubble
+
+AI-примитив пузыря сообщения чата на shadcn / Radix `Slot`. Стиль задаётся через
+`variant`, сторона — через `align` (`start` — входящее, `end` — исходящее). Фон и
+паддинги живут на `BubbleContent`, а `BubbleReactions` — плавающая пилюля реакций
+поверх пузыря. `BubbleGroup` держит вертикальный стек сообщений.
+
+<ComponentDoc config={bubbleDocConfig} />

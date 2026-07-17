@@ -1,0 +1,17 @@
+---
+id: input-otp
+title: InputOTP
+sidebar_label: InputOTP
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { inputOtpDocConfig } from '@site/src/components/demo/examples/input-otp';
+
+# InputOTP
+
+Поле ввода одноразового кода (OTP) на [`input-otp`](https://input-otp.rodz.dev/). Дефолтная раскладка
+разворачивает одну `InputOTPGroup` из `maxLength` слотов; кастомная (разбивка на группы через
+`InputOTPSeparator`) собирается из base-примитивов `InputOTP` / `InputOTPGroup` / `InputOTPSlot` /
+`InputOTPSeparator`. Значение — `string | null` (пустой ввод → `null`). Для форм — `InputOTPField`.
+
+<ComponentDoc config={inputOtpDocConfig} />

@@ -50,12 +50,12 @@ import {
   Box,
   ErrorState,
   LoadingState,
-  Select,
-  Checkbox,
-  Input,
-  InputMask,
-  RadioGroup,
-  Textarea,
+  SelectField,
+  CheckboxField,
+  InputField,
+  InputMaskField,
+  RadioGroupField,
+  TextareaField,
 } from '@reformer/ui-kit';
 import { createElement } from 'react';
 
@@ -113,14 +113,14 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-6',
                       },
                       children: [
-                        f(model.$.loanType, Select, {
+                        f(model.$.loanType, SelectField, {
                           label: 'Тип кредита',
                           placeholder: 'Выберите тип кредита',
                           options: LOAN_TYPES,
                         }),
                         f(
                           model.$.loanAmount,
-                          Input,
+                          InputField,
                           num({
                             label: 'Сумма кредита (₽)',
                             placeholder: 'Введите сумму',
@@ -131,7 +131,7 @@ export function buildCreditApplicationSchema(
                         ),
                         f(
                           model.$.loanTerm,
-                          Input,
+                          InputField,
                           num({
                             label: 'Срок кредита (месяцев)',
                             placeholder: 'Введите срок',
@@ -139,7 +139,7 @@ export function buildCreditApplicationSchema(
                             max: 240,
                           })
                         ),
-                        f(model.$.loanPurpose, Textarea, {
+                        f(model.$.loanPurpose, TextareaField, {
                           label: 'Цель кредита',
                           placeholder: 'Опишите, на что планируете потратить средства',
                           rows: 4,
@@ -158,7 +158,7 @@ export function buildCreditApplicationSchema(
                       children: [
                         f(
                           model.$.propertyValue,
-                          Input,
+                          InputField,
                           num({
                             label: 'Стоимость недвижимости (₽)',
                             placeholder: 'Введите стоимость',
@@ -168,7 +168,7 @@ export function buildCreditApplicationSchema(
                         ),
                         f(
                           model.$.initialPayment,
-                          Input,
+                          InputField,
                           num({
                             label: 'Первоначальный взнос (₽)',
                             placeholder: 'Введите сумму',
@@ -187,11 +187,11 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-4',
                       },
                       children: [
-                        f(model.$.carBrand, Input, {
+                        f(model.$.carBrand, InputField, {
                           label: 'Марка автомобиля',
                           placeholder: 'Например: Toyota',
                         }),
-                        f(model.$.carModel, Select, {
+                        f(model.$.carModel, SelectField, {
                           label: 'Модель автомобиля',
                           placeholder: 'Например: Camry',
                         }),
@@ -201,12 +201,12 @@ export function buildCreditApplicationSchema(
                           children: [
                             f(
                               model.$.carYear,
-                              Input,
+                              InputField,
                               num({ label: 'Год выпуска', placeholder: '2020' })
                             ),
                             f(
                               model.$.carPrice,
-                              Input,
+                              InputField,
                               num({
                                 label: 'Стоимость автомобиля (₽)',
                                 placeholder: 'Введите стоимость',
@@ -249,15 +249,15 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-3 gap-4' },
                           children: [
-                            f(model.$.personalData.lastName, Input, {
+                            f(model.$.personalData.lastName, InputField, {
                               label: 'Фамилия',
                               placeholder: 'Введите фамилию',
                             }),
-                            f(model.$.personalData.firstName, Input, {
+                            f(model.$.personalData.firstName, InputField, {
                               label: 'Имя',
                               placeholder: 'Введите имя',
                             }),
-                            f(model.$.personalData.middleName, Input, {
+                            f(model.$.personalData.middleName, InputField, {
                               label: 'Отчество',
                               placeholder: 'Введите отчество',
                             }),
@@ -267,17 +267,17 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.personalData.birthDate, Input, {
+                            f(model.$.personalData.birthDate, InputField, {
                               label: 'Дата рождения',
                               type: 'date',
                             }),
-                            f(model.$.personalData.gender, RadioGroup, {
+                            f(model.$.personalData.gender, RadioGroupField, {
                               label: 'Пол',
                               options: GENDERS,
                             }),
                           ],
                         },
-                        f(model.$.personalData.birthPlace, Input, {
+                        f(model.$.personalData.birthPlace, InputField, {
                           label: 'Место рождения',
                           placeholder: 'Введите место рождения',
                         }),
@@ -295,19 +295,19 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.passportData.series, InputMask, {
+                            f(model.$.passportData.series, InputMaskField, {
                               label: 'Серия паспорта',
                               placeholder: '00 00',
                               mask: '99 99',
                             }),
-                            f(model.$.passportData.number, InputMask, {
+                            f(model.$.passportData.number, InputMaskField, {
                               label: 'Номер паспорта',
                               placeholder: '000000',
                               mask: '999999',
                             }),
                           ],
                         },
-                        f(model.$.passportData.issuedBy, Textarea, {
+                        f(model.$.passportData.issuedBy, TextareaField, {
                           label: 'Кем выдан',
                           placeholder: 'Введите наименование органа',
                           rows: 3,
@@ -316,11 +316,11 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.passportData.issueDate, Input, {
+                            f(model.$.passportData.issueDate, InputField, {
                               label: 'Дата выдачи',
                               type: 'date',
                             }),
-                            f(model.$.passportData.departmentCode, InputMask, {
+                            f(model.$.passportData.departmentCode, InputMaskField, {
                               label: 'Код подразделения',
                               placeholder: '000-000',
                               mask: '999-999',
@@ -341,12 +341,12 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.inn, InputMask, {
+                            f(model.$.inn, InputMaskField, {
                               label: 'ИНН',
                               placeholder: '123456789012',
                               mask: '999999999999',
                             }),
-                            f(model.$.snils, InputMask, {
+                            f(model.$.snils, InputMaskField, {
                               label: 'СНИЛС',
                               placeholder: '123-456-789 00',
                               mask: '999-999-999 99',
@@ -386,12 +386,12 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.phoneMain, InputMask, {
+                            f(model.$.phoneMain, InputMaskField, {
                               label: 'Основной телефон',
                               placeholder: '+7 (___) ___-__-__',
                               mask: '+7 (999) 999-99-99',
                             }),
-                            f(model.$.phoneAdditional, InputMask, {
+                            f(model.$.phoneAdditional, InputMaskField, {
                               label: 'Дополнительный телефон',
                               placeholder: '+7 (___) ___-__-__',
                               mask: '+7 (999) 999-99-99',
@@ -402,12 +402,12 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.email, Input, {
+                            f(model.$.email, InputField, {
                               label: 'Email',
                               placeholder: 'example@mail.com',
                               type: 'email',
                             }),
-                            f(model.$.emailAdditional, Input, {
+                            f(model.$.emailAdditional, InputField, {
                               label: 'Дополнительный email',
                               placeholder: 'example@mail.com',
                               type: 'email',
@@ -428,17 +428,17 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.registrationAddress.region, Input, {
+                            f(model.$.registrationAddress.region, InputField, {
                               label: 'Регион',
                               placeholder: 'Введите регион',
                             }),
-                            f(model.$.registrationAddress.city, Input, {
+                            f(model.$.registrationAddress.city, InputField, {
                               label: 'Город',
                               placeholder: 'Введите город',
                             }),
                           ],
                         },
-                        f(model.$.registrationAddress.street, Input, {
+                        f(model.$.registrationAddress.street, InputField, {
                           label: 'Улица',
                           placeholder: 'Введите улицу',
                         }),
@@ -446,15 +446,15 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-3 gap-4' },
                           children: [
-                            f(model.$.registrationAddress.house, Input, {
+                            f(model.$.registrationAddress.house, InputField, {
                               label: 'Дом',
                               placeholder: '№',
                             }),
-                            f(model.$.registrationAddress.apartment, Input, {
+                            f(model.$.registrationAddress.apartment, InputField, {
                               label: 'Квартира',
                               placeholder: '№',
                             }),
-                            f(model.$.registrationAddress.postalCode, InputMask, {
+                            f(model.$.registrationAddress.postalCode, InputMaskField, {
                               label: 'Индекс',
                               placeholder: '000000',
                               mask: '999999',
@@ -463,7 +463,7 @@ export function buildCreditApplicationSchema(
                         },
                       ],
                     },
-                    f(model.$.sameAsRegistration, Checkbox, {
+                    f(model.$.sameAsRegistration, CheckboxField, {
                       label: 'Адрес проживания совпадает с адресом регистрации',
                     }),
                     {
@@ -477,17 +477,17 @@ export function buildCreditApplicationSchema(
                               component: Box,
                               componentProps: { className: 'grid grid-cols-2 gap-4' },
                               children: [
-                                f(model.$.residenceAddress.region, Input, {
+                                f(model.$.residenceAddress.region, InputField, {
                                   label: 'Регион',
                                   placeholder: 'Введите регион',
                                 }),
-                                f(model.$.residenceAddress.city, Input, {
+                                f(model.$.residenceAddress.city, InputField, {
                                   label: 'Город',
                                   placeholder: 'Введите город',
                                 }),
                               ],
                             },
-                            f(model.$.residenceAddress.street, Input, {
+                            f(model.$.residenceAddress.street, InputField, {
                               label: 'Улица',
                               placeholder: 'Введите улицу',
                             }),
@@ -495,15 +495,15 @@ export function buildCreditApplicationSchema(
                               component: Box,
                               componentProps: { className: 'grid grid-cols-3 gap-4' },
                               children: [
-                                f(model.$.residenceAddress.house, Input, {
+                                f(model.$.residenceAddress.house, InputField, {
                                   label: 'Дом',
                                   placeholder: '№',
                                 }),
-                                f(model.$.residenceAddress.apartment, Input, {
+                                f(model.$.residenceAddress.apartment, InputField, {
                                   label: 'Квартира',
                                   placeholder: '№',
                                 }),
-                                f(model.$.residenceAddress.postalCode, InputMask, {
+                                f(model.$.residenceAddress.postalCode, InputMaskField, {
                                   label: 'Индекс',
                                   placeholder: '000000',
                                   mask: '999999',
@@ -537,7 +537,7 @@ export function buildCreditApplicationSchema(
                       component: Box,
                       componentProps: { className: 'space-y-4' },
                       children: [
-                        f(model.$.employmentStatus, RadioGroup, {
+                        f(model.$.employmentStatus, RadioGroupField, {
                           label: 'Статус занятости',
                           options: EMPLOYMENT_STATUSES,
                         }),
@@ -552,7 +552,7 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-4',
                       },
                       children: [
-                        f(model.$.companyName, Input, {
+                        f(model.$.companyName, InputField, {
                           label: 'Название компании',
                           placeholder: 'Введите название',
                         }),
@@ -560,19 +560,19 @@ export function buildCreditApplicationSchema(
                           component: Box,
                           componentProps: { className: 'grid grid-cols-2 gap-4' },
                           children: [
-                            f(model.$.companyInn, InputMask, {
+                            f(model.$.companyInn, InputMaskField, {
                               label: 'ИНН компании',
                               placeholder: '1234567890',
                               mask: '9999999999',
                             }),
-                            f(model.$.companyPhone, InputMask, {
+                            f(model.$.companyPhone, InputMaskField, {
                               label: 'Телефон компании',
                               placeholder: '+7 (___) ___-__-__',
                               mask: '+7 (999) 999-99-99',
                             }),
                           ],
                         },
-                        f(model.$.companyAddress, Input, {
+                        f(model.$.companyAddress, InputField, {
                           label: 'Адрес компании',
                           placeholder: 'Полный адрес',
                         }),
@@ -584,7 +584,7 @@ export function buildCreditApplicationSchema(
                             className: 'space-y-4',
                           },
                           children: [
-                            f(model.$.position, Input, {
+                            f(model.$.position, InputField, {
                               label: 'Должность',
                               placeholder: 'Ваша должность',
                             }),
@@ -594,7 +594,7 @@ export function buildCreditApplicationSchema(
                               children: [
                                 f(
                                   model.$.workExperienceTotal,
-                                  Input,
+                                  InputField,
                                   num({
                                     label: 'Общий стаж работы (месяцев)',
                                     placeholder: '0',
@@ -603,7 +603,7 @@ export function buildCreditApplicationSchema(
                                 ),
                                 f(
                                   model.$.workExperienceCurrent,
-                                  Input,
+                                  InputField,
                                   num({
                                     label: 'Стаж на текущем месте (месяцев)',
                                     placeholder: '0',
@@ -625,16 +625,16 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-4',
                       },
                       children: [
-                        f(model.$.businessType, Input, {
+                        f(model.$.businessType, InputField, {
                           label: 'Тип бизнеса',
                           placeholder: 'ИП, ООО и т.д.',
                         }),
-                        f(model.$.businessInn, InputMask, {
+                        f(model.$.businessInn, InputMaskField, {
                           label: 'ИНН ИП',
                           placeholder: '123456789012',
                           mask: '999999999999',
                         }),
-                        f(model.$.businessActivity, Textarea, {
+                        f(model.$.businessActivity, TextareaField, {
                           label: 'Вид деятельности',
                           placeholder: 'Опишите вид деятельности',
                           rows: 3,
@@ -652,7 +652,7 @@ export function buildCreditApplicationSchema(
                       children: [
                         f(
                           model.$.monthlyIncome,
-                          Input,
+                          InputField,
                           num({
                             label: 'Ежемесячный доход (₽)',
                             placeholder: '0',
@@ -666,7 +666,7 @@ export function buildCreditApplicationSchema(
                           children: [
                             f(
                               model.$.additionalIncome,
-                              Input,
+                              InputField,
                               num({
                                 label: 'Дополнительный доход (₽)',
                                 placeholder: '0',
@@ -674,7 +674,7 @@ export function buildCreditApplicationSchema(
                                 step: 1000,
                               })
                             ),
-                            f(model.$.additionalIncomeSource, Input, {
+                            f(model.$.additionalIncomeSource, InputField, {
                               label: 'Источник дополнительного дохода',
                               placeholder: 'Опишите источник',
                             }),
@@ -714,7 +714,7 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-4',
                       },
                       children: [
-                        f(model.$.maritalStatus, RadioGroup, {
+                        f(model.$.maritalStatus, RadioGroupField, {
                           label: 'Семейное положение',
                           options: MARITAL_STATUSES,
                         }),
@@ -724,7 +724,7 @@ export function buildCreditApplicationSchema(
                           children: [
                             f(
                               model.$.dependents,
-                              Input,
+                              InputField,
                               num({
                                 label: 'Количество иждивенцев',
                                 placeholder: '0',
@@ -732,7 +732,7 @@ export function buildCreditApplicationSchema(
                                 max: 10,
                               })
                             ),
-                            f(model.$.education, Select, {
+                            f(model.$.education, SelectField, {
                               label: 'Образование',
                               placeholder: 'Выберите уровень образования',
                               options: EDUCATIONS,
@@ -746,7 +746,7 @@ export function buildCreditApplicationSchema(
                       component: Section,
                       componentProps: { className: 'space-y-4' },
                       children: [
-                        f(model.$.hasProperty, Checkbox, { label: 'У меня есть имущество' }),
+                        f(model.$.hasProperty, CheckboxField, { label: 'У меня есть имущество' }),
                         {
                           selector: 'properties-array',
                           array: model.properties,
@@ -762,7 +762,7 @@ export function buildCreditApplicationSchema(
                             component: Box,
                             componentProps: { className: 'space-y-3' },
                             children: [
-                              f(im.$.type, Select, {
+                              f(im.$.type, SelectField, {
                                 label: 'Тип имущества',
                                 placeholder: 'Выберите тип',
                                 testId: 'property-type',
@@ -775,7 +775,7 @@ export function buildCreditApplicationSchema(
                                   { value: 'other', label: 'Другое' },
                                 ],
                               }),
-                              f(im.$.description, Textarea, {
+                              f(im.$.description, TextareaField, {
                                 label: 'Описание',
                                 placeholder: 'Опишите имущество',
                                 rows: 2,
@@ -783,7 +783,7 @@ export function buildCreditApplicationSchema(
                               }),
                               f(
                                 im.$.estimatedValue,
-                                Input,
+                                InputField,
                                 num({
                                   label: 'Оценочная стоимость',
                                   placeholder: '0',
@@ -792,7 +792,7 @@ export function buildCreditApplicationSchema(
                                   testId: 'property-estimatedValue',
                                 })
                               ),
-                              f(im.$.hasEncumbrance, Checkbox, {
+                              f(im.$.hasEncumbrance, CheckboxField, {
                                 label: 'Имеется обременение (залог)',
                                 testId: 'property-hasEncumbrance',
                               }),
@@ -806,7 +806,7 @@ export function buildCreditApplicationSchema(
                       component: Section,
                       componentProps: { className: 'space-y-4' },
                       children: [
-                        f(model.$.hasExistingLoans, Checkbox, {
+                        f(model.$.hasExistingLoans, CheckboxField, {
                           label: 'У меня есть другие кредиты',
                         }),
                         {
@@ -824,12 +824,12 @@ export function buildCreditApplicationSchema(
                             component: Box,
                             componentProps: { className: 'space-y-3' },
                             children: [
-                              f(im.$.bank, Input, {
+                              f(im.$.bank, InputField, {
                                 label: 'Банк',
                                 placeholder: 'Название банка',
                                 testId: 'existingLoan-bank',
                               }),
-                              f(im.$.type, Select, {
+                              f(im.$.type, SelectField, {
                                 label: 'Тип кредита',
                                 placeholder: 'Выберите тип',
                                 options: EXISTING_LOAN_TYPES,
@@ -841,7 +841,7 @@ export function buildCreditApplicationSchema(
                                 children: [
                                   f(
                                     im.$.amount,
-                                    Input,
+                                    InputField,
                                     num({
                                       label: 'Сумма кредита (₽)',
                                       placeholder: '0',
@@ -852,7 +852,7 @@ export function buildCreditApplicationSchema(
                                   ),
                                   f(
                                     im.$.remainingAmount,
-                                    Input,
+                                    InputField,
                                     num({
                                       label: 'Остаток долга (₽)',
                                       placeholder: '0',
@@ -869,7 +869,7 @@ export function buildCreditApplicationSchema(
                                 children: [
                                   f(
                                     im.$.monthlyPayment,
-                                    Input,
+                                    InputField,
                                     num({
                                       label: 'Ежемесячный платеж (₽)',
                                       placeholder: '0',
@@ -878,7 +878,7 @@ export function buildCreditApplicationSchema(
                                       testId: 'existingLoan-monthlyPayment',
                                     })
                                   ),
-                                  f(im.$.maturityDate, Input, {
+                                  f(im.$.maturityDate, InputField, {
                                     label: 'Дата погашения',
                                     type: 'date',
                                     testId: 'existingLoan-maturityDate',
@@ -895,7 +895,7 @@ export function buildCreditApplicationSchema(
                       component: Section,
                       componentProps: { className: 'space-y-4' },
                       children: [
-                        f(model.$.hasCoBorrower, Checkbox, { label: 'Добавить созаемщика' }),
+                        f(model.$.hasCoBorrower, CheckboxField, { label: 'Добавить созаемщика' }),
                         {
                           selector: 'co-borrowers-array',
                           array: model.coBorrowers,
@@ -915,24 +915,24 @@ export function buildCreditApplicationSchema(
                                 component: Box,
                                 componentProps: { className: 'grid grid-cols-3 gap-4' },
                                 children: [
-                                  f(im.$.personalData.lastName, Input, {
+                                  f(im.$.personalData.lastName, InputField, {
                                     label: 'Фамилия',
                                     placeholder: 'Введите фамилию',
                                     testId: 'coBorrower-lastName',
                                   }),
-                                  f(im.$.personalData.firstName, Input, {
+                                  f(im.$.personalData.firstName, InputField, {
                                     label: 'Имя',
                                     placeholder: 'Введите имя',
                                     testId: 'coBorrower-firstName',
                                   }),
-                                  f(im.$.personalData.middleName, Input, {
+                                  f(im.$.personalData.middleName, InputField, {
                                     label: 'Отчество',
                                     placeholder: 'Введите отчество',
                                     testId: 'coBorrower-middleName',
                                   }),
                                 ],
                               },
-                              f(im.$.personalData.birthDate, Input, {
+                              f(im.$.personalData.birthDate, InputField, {
                                 label: 'Дата рождения',
                                 type: 'date',
                                 testId: 'coBorrower-birthDate',
@@ -941,13 +941,13 @@ export function buildCreditApplicationSchema(
                                 component: Box,
                                 componentProps: { className: 'grid grid-cols-2 gap-4' },
                                 children: [
-                                  f(im.$.phone, InputMask, {
+                                  f(im.$.phone, InputMaskField, {
                                     label: 'Телефон',
                                     placeholder: '+7 (___) ___-__-__',
                                     mask: '+7 (999) 999-99-99',
                                     testId: 'coBorrower-phone',
                                   }),
-                                  f(im.$.email, Input, {
+                                  f(im.$.email, InputField, {
                                     label: 'Email',
                                     placeholder: 'example@mail.com',
                                     type: 'email',
@@ -959,7 +959,7 @@ export function buildCreditApplicationSchema(
                                 component: Box,
                                 componentProps: { className: 'grid grid-cols-2 gap-4' },
                                 children: [
-                                  f(im.$.relationship, Select, {
+                                  f(im.$.relationship, SelectField, {
                                     label: 'Отношение к заемщику',
                                     placeholder: 'Выберите отношение',
                                     options: RELATIONSHIPS,
@@ -967,7 +967,7 @@ export function buildCreditApplicationSchema(
                                   }),
                                   f(
                                     im.$.monthlyIncome,
-                                    Input,
+                                    InputField,
                                     num({
                                       label: 'Ежемесячный доход (₽)',
                                       placeholder: '0',
@@ -1020,16 +1020,16 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-3',
                       },
                       children: [
-                        f(model.$.agreePersonalData, Checkbox, {
+                        f(model.$.agreePersonalData, CheckboxField, {
                           label: 'Согласие на обработку персональных данных',
                         }),
-                        f(model.$.agreeCreditHistory, Checkbox, {
+                        f(model.$.agreeCreditHistory, CheckboxField, {
                           label: 'Согласие на проверку кредитной истории',
                         }),
-                        f(model.$.agreeTerms, Checkbox, {
+                        f(model.$.agreeTerms, CheckboxField, {
                           label: 'Согласие с условиями кредитования',
                         }),
-                        f(model.$.confirmAccuracy, Checkbox, {
+                        f(model.$.confirmAccuracy, CheckboxField, {
                           label: 'Подтверждаю точность введенных данных',
                         }),
                       ],
@@ -1041,7 +1041,7 @@ export function buildCreditApplicationSchema(
                         titleClassName: 'text-lg font-semibold mt-6',
                       },
                       children: [
-                        f(model.$.agreeMarketing, Checkbox, {
+                        f(model.$.agreeMarketing, CheckboxField, {
                           label: 'Согласие на получение маркетинговых материалов',
                         }),
                       ],
@@ -1054,7 +1054,7 @@ export function buildCreditApplicationSchema(
                         className: 'space-y-4',
                       },
                       children: [
-                        f(model.$.electronicSignature, InputMask, {
+                        f(model.$.electronicSignature, InputMaskField, {
                           label: 'Код подтверждения из СМС',
                           placeholder: '123456',
                           mask: '999999',

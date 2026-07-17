@@ -1,0 +1,18 @@
+---
+id: hover-card
+title: HoverCard
+sidebar_label: HoverCard
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { hoverCardDocConfig } from '@site/src/components/demo/examples/hover-card';
+
+# HoverCard
+
+Всплывающая карточка-предпросмотр на shadcn / Radix `HoverCard`. Compound-набор:
+`HoverCard` / `HoverCardTrigger` / `HoverCardContent`. Карточка появляется при
+наведении курсора или фокусе с клавиатуры на триггере (обычно ссылке). Задержку
+показа и скрытия задают `openDelay` / `closeDelay` на `HoverCard`, а позицию —
+`side` / `align` / `sideOffset` на `HoverCardContent`.
+
+<ComponentDoc config={hoverCardDocConfig} />

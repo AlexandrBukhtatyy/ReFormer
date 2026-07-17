@@ -1,0 +1,18 @@
+---
+id: popover
+title: Popover
+sidebar_label: Popover
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { popoverDocConfig } from '@site/src/components/demo/examples/popover';
+
+# Popover
+
+Всплывающая панель на shadcn / Radix `Popover`. `PopoverTrigger` открывает `PopoverContent`
+(рендерится в `Portal`), позиционируемый относительно триггера или отдельного `PopoverAnchor`
+через `align` / `side` / `sideOffset`. Содержимое собирается из презентационных частей
+`PopoverHeader` / `PopoverTitle` / `PopoverDescription` — все части несут свой `data-slot`,
+поэтому стиль правится через `className` (tailwind-merge).
+
+<ComponentDoc config={popoverDocConfig} />

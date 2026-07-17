@@ -1,0 +1,24 @@
+---
+id: navigation-menu
+title: NavigationMenu
+sidebar_label: NavigationMenu
+---
+
+import { ComponentDoc } from '@site/src/components/demo';
+import { navigationMenuDocConfig } from '@site/src/components/demo/examples/navigation-menu';
+
+# NavigationMenu
+
+Горизонтальное навигационное меню на shadcn / Radix `NavigationMenu`. Compound-набор:
+`NavigationMenu` (корень) + `NavigationMenuList` / `NavigationMenuItem` /
+`NavigationMenuTrigger` / `NavigationMenuContent` / `NavigationMenuLink` /
+`NavigationMenuIndicator` / `NavigationMenuViewport`.
+
+Пункт-триггер раскрывает выпадающую панель (`NavigationMenuContent`). По умолчанию
+(`viewport={true}`) панель проецируется в общий слой `NavigationMenuViewport` под меню;
+при `viewport={false}` — раскрывается инлайн под своим пунктом. Стиль пункта-триггера
+задаёт `navigationMenuTriggerStyle()` — его же применяют к `NavigationMenuLink`, чтобы
+простая ссылка выглядела как пункт меню. Клавиатурная навигация и `aria` — из Radix
+«из коробки».
+
+<ComponentDoc config={navigationMenuDocConfig} />
