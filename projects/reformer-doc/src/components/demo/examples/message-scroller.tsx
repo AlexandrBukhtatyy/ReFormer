@@ -7,10 +7,8 @@ import {
   MessageScrollerItem,
   MessageScrollerButton,
   useMessageScroller,
-  Bubble,
-  BubbleContent,
-  Button,
-} from '@reformer/ui-kit';
+} from '@reformer/ui-kit/message-scroller';
+import { Bubble, BubbleContent, Button } from '@reformer/ui-kit';
 import type { ComponentDocConfig } from '../types';
 
 /**

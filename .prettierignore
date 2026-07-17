@@ -11,3 +11,6 @@ projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-js
 
 # planning artifacts — authored ad-hoc by plan mode / agents, not prod docs
 docs/plans/
+
+# beads issue tracker — файлы ведёт bd (jsonl/yaml/backup), не prettier
+.beads/

@@ -60,8 +60,8 @@
     "limit": "4.3 kB"
   },
   {
-    "name": "@reformer/ui-kit/message-scroller (AI composite)",
-    "path": "packages/reformer-ui-kit/dist/message-scroller-base-*.js",
+    "name": "@reformer/ui-kit/message-scroller (@shadcn/react external)",
+    "path": "packages/reformer-ui-kit/dist/message-scroller.js",
     "limit": "8 kB"
   },
   {

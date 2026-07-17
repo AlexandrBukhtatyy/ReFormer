@@ -37,7 +37,6 @@ export * from './components/label';
 export * from './components/marker';
 export * from './components/menubar';
 export * from './components/message';
-export * from './components/message-scroller';
 export * from './components/native-select';
 export * from './components/navigation-menu';
 export * from './components/pagination';

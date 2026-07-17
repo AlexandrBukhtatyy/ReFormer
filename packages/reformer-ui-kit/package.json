@@ -373,6 +373,7 @@
     "@reformer/cdk": "*",
     "@reformer/core": "*",
     "@reformer/renderer-react": "*",
+    "@shadcn/react": "^0.2.1",
     "@tanstack/react-table": "^8.21.3",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.10.1",
