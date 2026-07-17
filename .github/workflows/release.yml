@@ -56,7 +56,9 @@ jobs:
             run_tests: false
           - workspace: '@reformer/ui-kit'
             dir: packages/reformer-ui-kit
-            deps: '@reformer/core @reformer/cdk'
+            # ui-kit tsc ссылается на @reformer/renderer-react (FormArraySection,
+            # FormWizard) — без его dist declaration-файлы собираются с TS2307.
+            deps: '@reformer/core @reformer/cdk @reformer/renderer-react'
             run_tests: false
           - workspace: '@reformer/renderer-json'
             dir: packages/reformer-renderer-json
@@ -68,7 +70,10 @@ jobs:
             # tool) — renderer-json must be built first so its dist types resolve.
             # renderer-json itself needs core + renderer-react, so build the full
             # chain in order (deps are built sequentially).
-            deps: '@reformer/core @reformer/renderer-react @reformer/renderer-json'
+            # Тот же tool лениво импортирует @reformer/ui-kit/meta (props-валидация):
+            # импорт динамический, но tsc всё равно резолвит типы → нужен dist ui-kit,
+            # а ui-kit требует core + cdk + renderer-react.
+            deps: '@reformer/core @reformer/cdk @reformer/renderer-react @reformer/ui-kit @reformer/renderer-json'
             run_tests: false
 
     permissions:
