@@ -19,7 +19,7 @@ export interface ExampleCardProps {
   code: string;
   /** Дополнительный CSS-класс контейнера. */
   className?: string;
-  /** Tailwind-класс фона карточки. По умолчанию `'bg-white'`. */
+  /** Tailwind-класс фона карточки. По умолчанию `'bg-card'` (адаптируется к теме). */
   bgColor?: string;
 }
 
@@ -140,7 +140,7 @@ export function ExampleCard({
   children,
   code,
   className,
-  bgColor = 'bg-white',
+  bgColor = 'bg-card',
 }: ExampleCardProps) {
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -164,8 +164,8 @@ export function ExampleCard({
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0 pr-2">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          {description && <p className="text-sm text-gray-600 mt-1">{description}</p>}
+          <h3 className="text-lg font-semibold text-card-foreground">{title}</h3>
+          {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
         </div>
 
         {/* Buttons */}
@@ -176,8 +176,8 @@ export function ExampleCard({
             className={cn(
               'p-1.5 rounded transition-colors',
               showCode
-                ? 'bg-blue-100 text-blue-600'
-                : 'hover:bg-gray-200 text-gray-600 hover:text-gray-800'
+                ? 'bg-primary/10 text-primary'
+                : 'hover:bg-accent text-muted-foreground hover:text-foreground'
             )}
             title={showCode ? 'Показать пример' : 'Показать код'}
           >
