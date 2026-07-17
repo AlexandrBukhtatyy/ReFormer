@@ -9,6 +9,7 @@
     "startCommand": "npm run stackblitz:start"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "build": "npm run build --workspaces",
     "dev": "npm run dev --workspace react-playground",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -74,6 +75,7 @@
     "husky": "^9.1.7",
     "knip": "^6.23.0",
     "lint-staged": "^16.2.6",
+    "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
     "semantic-release": "^25.0.3",
     "semantic-release-monorepo": "^8.0.2",
