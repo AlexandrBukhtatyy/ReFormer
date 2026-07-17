@@ -21,6 +21,24 @@
 - **Тяжёлые компоненты — только через subpath** (`@reformer/ui-kit/chart`, `/table`, …), вне
   главного barrel, чтобы recharts/@tanstack и т.п. не попадали в бандл по умолчанию.
 
+## Миграция с v6
+
+v7 — мажорный релиз без обратной совместимости: v6-компоненты удалены, API реструктурирован под
+shadcn (`data-slot`, unified `radix-ui`, cva). Что менять в коде:
+
+| v6                                                                     | v7                                                                               |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `component: Input` в схеме формы                                       | `component: InputField` — form-версии теперь `*Field`                            |
+| `<Input value={v} onChange={setV} />`                                  | `<InputField … />`; чистый `Input` следует API shadcn (native `onChange(event)`) |
+| `Select` / `Checkbox` / `RadioGroup` / `Textarea` как поля             | `SelectField` / `CheckboxField` / `RadioGroupField` / `TextareaField`            |
+| Токены темы копировались в проект                                      | голый `@import '@reformer/ui-kit/styles';`                                       |
+| `import { … } from '@reformer/ui-kit'` для chart/table/calendar и т.п. | только через subpath: `@reformer/ui-kit/chart`, `/table`, `/calendar`, …         |
+| `src/components/ui/*`                                                  | `src/components/<cmp>/variants/base/*`                                           |
+
+Тяжёлые компоненты требуют своих optional peer-зависимостей (recharts, `@tanstack/react-table`,
+react-day-picker, cmdk, vaul, embla-carousel-react, sonner, input-otp, react-resizable-panels,
+`@shadcn/react`) — ставьте их только если используете соответствующий subpath.
+
 ## Установка
 
 ```bash
