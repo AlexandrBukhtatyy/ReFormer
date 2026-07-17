@@ -838,3 +838,139 @@ seam-контракт варианта не выражается через `sea
 - `projects/reformer-doc/src/components/demo/{ComponentDoc.tsx, types.ts, field-demo.tsx, harness.ts, ApiExplorer.tsx, controls-from-schema.ts (NEW), examples/select.tsx}`,
   `projects/reformer-doc/docs/ui-kit/select.mdx` — система документации (3 таба) и эталон doc-config/mdx.
 - `projects/react-playground/src/pages/examples/**/registry.ts`, `projects/react-playground/scripts/gen-form-json-schema.ts`, `projects/react-playground/src/index.css` — репрезентативные консумеры + CI-гейт схемы + миграция темы.
+
+## (ВЫПОЛНЕНО) Публикация в npm — восстановлена
+
+Итог: Release 6/6 success, на npm — `ui-kit@10.0.0`, `mcp@10.1.0`, `core@9.1.1`, `renderer-json@9.1.1`,
+`cdk@9.0.2`, `renderer-react@8.1.2`. Ниже — история диагностики (PR #43, #44), оставлена как контекст.
+
+### (история) Публикация в npm: что осталось (по run 29570847781)
+
+### Context
+
+Публикация **восстановлена**. Цепочка была такой: `release: needs: test`, а `test` лежал с ~6 июля
+(`format:check` спотыкался о `.beads/config.yaml`), потом добавился сломанный `npm ci`. PR #42 это
+починил, `NPM_TOKEN` обновлён — и Release выпустил **5 из 6** пакетов: `core@9.1.0`, `cdk@9.0.1`,
+`renderer-react@8.1.1`, `ui-kit@9.0.1`, `renderer-json@9.1.0`. Осталось две вещи.
+
+### 1. mcp не публикуется — нет ui-kit в matrix.deps (блокер)
+
+`Release @reformer/mcp` падает на сборке:
+`src/tools/validate-json-schema.ts(36,32): TS2307: Cannot find module '@reformer/ui-kit/meta'`.
+
+Волна 4 добавила в mcp ленивый `await import('@reformer/ui-kit/meta')`. Импорт динамический, но
+`tsc` всё равно резолвит типы, а `dist` ui-kit в этом джобе не собран:
+
+```yaml
+- workspace: '@reformer/mcp'
+  deps: '@reformer/core @reformer/renderer-react @reformer/renderer-json'   # нет @reformer/ui-kit
+```
+
+**Фикс** в `.github/workflows/release.yml` (deps собираются последовательно; ui-kit требует core+cdk):
+
+```yaml
+  deps: '@reformer/core @reformer/cdk @reformer/renderer-react @reformer/ui-kit @reformer/renderer-json'
+```
+
+### 2. ui-kit вышел 9.0.1 (patch) вместо major — `!` не распознан
+
+Лог: `Analysis of 7 commits complete: patch release` → `9.0.1`. Коммит
+`feat(reformer-ui-kit)!: migrate to shadcn/ui new-york (v7)` не засчитан как breaking: в
+`.releaserc.json` пакетов нет `plugins`/`preset`, поэтому используется дефолтный **angular**-preset,
+а он понимает только футер `BREAKING CHANGE:` и **не** понимает `!` в заголовке (это синтаксис
+`conventionalcommits`). В теле коммита футера нет — отсюда patch вместо major.
+
+**Рекомендация: сделать оба шага, в порядке B → A.**
+
+- **B (системно, чтобы грабли не повторились):** в каждый `packages/*/.releaserc.json` добавить
+  ```json
+  "plugins": [
+    ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
+    ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
+    "@semantic-release/npm",
+    "@semantic-release/github"
+  ]
+  ```
+- **A (выпустить пропущенный major):** пустой коммит с корректным футером —
+  `git commit --allow-empty -m "feat(reformer-ui-kit): v7 shadcn migration" -m "BREAKING CHANGE: ui-kit переписан на shadcn/ui: v6-компоненты удалены, form-версии теперь *Field, тяжёлые компоненты только через subpath."`
+  → ui-kit 9.0.1 → 10.0.0. (Уже выпущенный 9.0.1 переиграть нельзя — только новый релиз.)
+
+### 3. Косметика (не блокеры)
+
+- `Release @reformer/ui-kit` сыплет `TS2307: Cannot find module '@reformer/renderer-react'`
+  (у ui-kit `deps: 'core cdk'`). Сборку не валит — `vite-plugin-dts` логирует, но не падает (так же
+  было 6 июля при success). Стоит добавить renderer-react в deps ui-kit ради полных d.ts.
+- `semantic-release-monorepo` в fail-хуке кидает `TypeError: Cannot read properties of undefined
+  (reading 'map')` (`only-package-commits.js:26`) и **маскирует настоящую ошибку** — из-за него
+  первичный сбой (`verifyConditions` @semantic-release/npm) читался как невнятный TypeError. Issue.
+
+### Verification
+
+```bash
+gh run list --repo AlexandrBukhtatyy/ReFormer --workflow=Release --limit 1   # ожидаем success 6/6
+npm view @reformer/mcp version                                               # должен обновиться
+npm view @reformer/ui-kit version                                            # 10.0.0 после шага A
+```
+
+## Фикс: semantic-release-monorepo маскирует настоящую ошибку релиза
+
+### Context
+
+Когда Release падал из-за протухшего `NPM_TOKEN`, в логе вместо внятного
+`Failed step "verifyConditions" of plugin "@semantic-release/npm"` наверх всплывал
+
+```
+TypeError: Cannot read properties of undefined (reading 'map')
+    at withFiles (semantic-release-monorepo/src/only-package-commits.js:26:13)
+    at onlyPackageCommits (only-package-commits.js:38:34)
+```
+
+Это стоило часа диагностики на всех 6 пакетах. Причина: `index.js` оборачивает шаг `fail`
+композицией с `withOnlyPackageCommits`, а `withFiles` делает `commits.map(...)` **без guard**. В
+хуке `fail` при **раннем** сбое (verifyConditions — до `analyzeCommits`) `context.commits` ещё не
+собран → `undefined.map` → TypeError затирает исходную ошибку.
+
+Отключить `fail` нельзя: он рабочий — через него `@semantic-release/github` создаёт issue о сбое
+релиза (пример: issue #15 «The automated release is failing 🚨», label `semantic-release`).
+Upstream мёртв: `8.0.2` — latest на npm, фикса нет. Решение — **patch-package** (выбор пользователя):
+чиним библиотеку локально, сохраняя всю monorepo-логику `fail` (фильтрация коммитов +
+`mapNextReleaseVersion` для тег-формата в issue).
+
+### Что делать
+
+1. `npm i -D patch-package` (latest 8.0.1) в **корень** — там же объявлен
+   `semantic-release-monorepo@^8.0.2` (`package.json:79`, dev).
+2. Внести guard в `node_modules/semantic-release-monorepo/src/only-package-commits.js`, функция
+   `withFiles` (строка ~26) — единственная правка:
+   ```js
+   // было
+   commits.map(commit =>
+   // стало
+   (commits ?? []).map(commit =>
+   ```
+   Дальше по цепочке всё сходится само: `onlyPackageCommits` получит `[]`, `.filter(...)` вернёт `[]`,
+   `mapCommits` положит в контекст пустой список — плагины `fail` (github) используют `errors`, а не
+   `commits`, поэтому issue о сбое создастся нормально, а исходная ошибка больше не будет затёрта.
+3. `npx patch-package semantic-release-monorepo` → создаст `patches/semantic-release-monorepo+8.0.2.patch`.
+4. В корневой `package.json` добавить `"postinstall": "patch-package"` (сейчас нет ни `postinstall`,
+   ни `prepare` — конфликта не будет). `npm ci` в CI ставит devDeps до postinstall, так что патч
+   применится и в Release-джобах.
+5. Закоммитить `patches/`, `package.json`, `package-lock.json`. Ветка + PR в `main` (как #43/#44).
+
+### Verification
+
+```bash
+rm -rf node_modules && npm ci          # postinstall должен напечатать применение патча
+grep -n "commits ?? \[\]" node_modules/semantic-release-monorepo/src/only-package-commits.js
+npm run lint && npm run format:check   # patches/*.patch не должен попадать под prettier
+```
+
+Проверка «в бою» — на следующем Release: джобы должны остаться зелёными (6/6). Смоук на сам баг:
+временно подменить `NPM_TOKEN` на невалидный в форке/ветке и убедиться, что в логе виден
+`Failed step "verifyConditions" of plugin "@semantic-release/npm"`, а не TypeError. Делать это на
+рабочем `main` не нужно — достаточно, что guard тривиален и покрыт первыми двумя проверками.
+
+### Follow-up (необязательно)
+
+Отправить тот же однострочный guard в upstream `semantic-release-monorepo`. Репозиторий не указан
+в `package.json` пакета — искать по npm-странице. Если PR примут — снять патч и `postinstall`.

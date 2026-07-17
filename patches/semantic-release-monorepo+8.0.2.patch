@@ -1,0 +1,13 @@
+diff --git a/node_modules/semantic-release-monorepo/src/only-package-commits.js b/node_modules/semantic-release-monorepo/src/only-package-commits.js
+index 6c89b71..c3e3a00 100644
+--- a/node_modules/semantic-release-monorepo/src/only-package-commits.js
++++ b/node_modules/semantic-release-monorepo/src/only-package-commits.js
+@@ -23,7 +23,7 @@ const getPackagePath = async () => {
+ const withFiles = async commits => {
+   const limit = pLimit(Number(process.env.SRM_MAX_THREADS) || 500);
+   return Promise.all(
+-    commits.map(commit =>
++    (commits ?? []).map(commit =>
+       limit(async () => {
+         const files = await memoizedGetCommitFiles(commit.hash);
+         return { ...commit, files };
