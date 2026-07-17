@@ -55,11 +55,15 @@ lines.push(
   `const modules: Array<Record<string, unknown>> = [${files.map((_, i) => `m${i}`).join(', ')}];`
 );
 lines.push('');
-lines.push('/** Карта регистр-имя → полная props-схема дефолтного варианта (для renderer-json/MCP). */');
+lines.push(
+  '/** Карта регистр-имя → полная props-схема дефолтного варианта (для renderer-json/MCP). */'
+);
 lines.push('export const defaultPropSchemas: Record<string, PropsSchema> = Object.fromEntries(');
 lines.push('  modules');
 lines.push('    .flatMap((m) => Object.values(m) as PropsSchema[])');
-lines.push("    .filter((s): s is PropsSchema => Boolean(s) && typeof s === 'object' && 'x-registryName' in s)");
+lines.push(
+  "    .filter((s): s is PropsSchema => Boolean(s) && typeof s === 'object' && 'x-registryName' in s)"
+);
 lines.push("    .map((s) => [s['x-registryName'] as string, s])");
 lines.push(');');
 lines.push('');

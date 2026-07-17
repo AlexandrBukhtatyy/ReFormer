@@ -56,6 +56,11 @@
         "$component($fieldWrapper)"
       ]
     },
+    "operatorOp": {
+      "type": "string",
+      "pattern": "^\\$(model|component|dataSource|fn|locale)\\(.+\\)$",
+      "description": "Any DSL operator string (\"$model/$component/$dataSource/$fn/$locale(...)\") used as an escape hatch on a componentProps value (e.g. \"options\": \"$dataSource(LOAN_TYPES)\"). The component-props validator wraps every prop in anyOf:[honest type, operatorOp] via allowOperatorStrings, so an operator string is accepted wherever a literal value is."
+    },
     "node": {
       "$comment": "Discriminated by which operator key is present (array→value→component), mirroring the isArrayNode/isFieldNode/isContainerNode runtime guards. Using oneOf here made ajv (allErrors) report failures against all three branches for any single mistake, burying the real cause; if/then/else surfaces only the relevant branch's errors.",
       "if": {

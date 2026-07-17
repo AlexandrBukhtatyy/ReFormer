@@ -27,6 +27,7 @@ const HEAVY = new Set([
   'drawer',
   'sonner',
   'input-otp',
+  'message-scroller',
 ]);
 
 const components = existsSync(componentsDir)

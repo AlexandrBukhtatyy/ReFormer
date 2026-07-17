@@ -48,6 +48,7 @@ const EXTERNAL: RegExp[] = [
   /^sonner$/,
   /^input-otp$/,
   /^react-resizable-panels$/,
+  /^@shadcn\/react/,
 ];
 
 export default defineConfig({

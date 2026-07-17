@@ -33,13 +33,13 @@ describe('ExampleCard (base)', () => {
     expect(html).toContain('Однострочное поле с placeholder');
   });
 
-  it('bgColor задаёт tailwind-класс фона (по умолчанию bg-white)', () => {
+  it('bgColor задаёт tailwind-класс фона (по умолчанию bg-card — токен темы)', () => {
     const def = renderToStaticMarkup(
       <ExampleCard title="Т" code={`x`}>
         <span>x</span>
       </ExampleCard>
     );
-    expect(def).toContain('bg-white');
+    expect(def).toContain('bg-card');
 
     const custom = renderToStaticMarkup(
       <ExampleCard title="Т" bgColor="bg-red-50" code={`x`}>
