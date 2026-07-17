@@ -1,5 +1,11 @@
 {
   "extends": "semantic-release-monorepo",
   "branches": ["main", { "name": "develop", "prerelease": "beta" }],
-  "tagFormat": "renderer-json-v${version}"
+  "tagFormat": "renderer-json-v${version}",
+  "plugins": [
+    ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
+    ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
+    "@semantic-release/npm",
+    "@semantic-release/github"
+  ]
 }
