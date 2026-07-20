@@ -56,16 +56,37 @@ bd close <id>         # Complete work
 Секция «Session Completion» выше сгенерирована шаблоном bd и советует `bd dolt push` — **в этом проекте
 это не тот канал**. Как работает на самом деле:
 
-- **beads сам автокоммитит свои файлы в git.** В обычной git-истории появляются коммиты
-  `chore(beads): sync issues jsonl` (обновляет `.beads/issues.jsonl` + `interactions.jsonl`) и
-  `bd: update sync.remote` (`.beads/config.yaml`) — их создаёт beads, вперемешку с твоими коммитами.
-  Поэтому вручную `bd export` + `git commit` для `issues.jsonl` обычно **не нужен** (можно проверить `git log`).
-- **Отправка на GitHub — обычным `git push`** (remote `origin`). Именно он публикует beads-автокоммиты.
+- **⚠️ На автокоммит рассчитывать НЕЛЬЗЯ — синхронизировать надо руками.** Раньше здесь было
+  написано, что beads сам коммитит свои файлы. По факту (проверено 2026-07-20) в embedded-режиме
+  этого не происходит: задачи пишутся в `.beads/embeddeddolt/`, который в `.gitignore`, а трекаемый
+  `.beads/issues.jsonl` не обновляется вообще. За период 11–20 июля так «потерялись» из git 24 задачи —
+  они существовали только в локальной БД и не пережили бы клон. Историю `chore(beads): sync issues jsonl`
+  в git-логе создавали прошлые ручные синхронизации, а не автоматика.
+- **Как синхронизировать (делать в конце сессии, где заводились/закрывались задачи):**
+
+  ```bash
+  bd export -o .beads/issues.jsonl          # выгрузить задачи из БД в трекаемый JSONL
+  git add .beads/issues.jsonl .beads/interactions.jsonl
+  git commit -m "chore(beads): sync issues jsonl"
+  git push                                   # без push задачи не увидит никто, кроме тебя
+  ```
+
+  Проверка, что нужна синхронизация: `grep -c '"id"' .beads/issues.jsonl` против `bd list --status=open`
+  — если в JSONL меньше, экспорт не делался. Экспорт всегда **append**, старые записи не переписываются;
+  перед коммитом полезно убедиться в этом: `git diff --numstat .beads/issues.jsonl` (второе число = 0).
+
+- **`bd export` без `-o` печатает в stdout, а не пишет файл.** Частая ошибка: команда «отработала»,
+  а `issues.jsonl` не изменился. Всегда указывай `-o .beads/issues.jsonl`.
+- **Память (`bd remember`) в экспорт по умолчанию НЕ попадает** — там может быть чувствительный
+  контекст агента. Не добавляй `--include-memories`/`--all` без явной необходимости.
+- **Отправка на GitHub — обычным `git push`** (remote `origin`).
 - **`bd dolt push` НЕ публикует git-коммиты.** Он пушит встроенную Dolt-БД в Dolt-remote и git-историю
   не трогает — поэтому после него на GitHub «ничего не появляется». Для отправки beads-изменений — `git push`.
 - **Не коммить** машинно-локальные файлы: `.beads/.auto-import-issues.jsonl`, `.beads/.local_version`,
   `.beads/last-touched` (watermark/runtime; `embeddeddolt/` и `backup/` уже в `.beads/.gitignore`).
-  `.beads/interactions.jsonl` может снова стать modified после bd-команд — beads закоммитит его сам.
+- **`.beads/interactions.jsonl` — append-only журнал аудита.** Каждая bd-команда сразу дописывает в него
+  строку-событие, поэтому файл почти всегда в статусе modified. Коммитить его надо вместе с
+  `issues.jsonl` в том же `chore(beads)`-коммите (сам он никуда не уедет).
 - Правило «Git commits — strict authorization» (ниже) действует и здесь: не пушь без явной просьбы пользователя.
 
 ## File output locations — куда что писать
