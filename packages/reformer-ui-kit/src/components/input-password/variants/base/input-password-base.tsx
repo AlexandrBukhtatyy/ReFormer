@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 
 /** Props компонента {@link InputPassword}. */
 export interface InputPasswordProps extends Omit<
@@ -24,6 +25,18 @@ export interface InputPasswordProps extends Omit<
    * `true`. Иконка появляется только когда `value` непустой.
    */
   showToggle?: boolean;
+}
+
+/**
+ * Императивный handle {@link InputPassword}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+ * getElement на нативном input) + управление видимостью пароля. Достаётся из схемы:
+ * `schema.node('password').getRef<InputPasswordHandle>().current?.setVisible(true)`.
+ */
+export interface InputPasswordHandle extends FieldHandle {
+  /** Переключить видимость пароля (password ↔ text). */
+  toggleVisibility(): void;
+  /** Задать видимость пароля явно. */
+  setVisible(visible: boolean): void;
 }
 
 /**
@@ -54,7 +67,7 @@ export interface InputPasswordProps extends Omit<
  * />
  * ```
  */
-const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
+const InputPassword = React.forwardRef<InputPasswordHandle, InputPasswordProps>(
   (
     {
       className,
@@ -69,13 +82,26 @@ const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
     ref
   ) => {
     const [showPassword, setShowPassword] = React.useState(false);
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+    // Императивный handle: baseline (focus/blur/… через inputRef) + управление видимостью.
+    // Функциональные апдейты setShowPassword → deps [] безопасны (нет захвата stale showPassword).
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        ...makeElementFieldHandle(inputRef),
+        toggleVisibility: () => setShowPassword((v) => !v),
+        setVisible: (visible: boolean) => setShowPassword(visible),
+      }),
+      []
+    );
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange?.(event.target.value || null);
     };
 
     const togglePasswordVisibility = () => {
-      setShowPassword(!showPassword);
+      setShowPassword((v) => !v);
     };
 
     const hasValue = Boolean(value);
@@ -83,7 +109,7 @@ const InputPassword = React.forwardRef<HTMLInputElement, InputPasswordProps>(
     return (
       <div data-slot="input-password" style={{ position: 'relative', width: '100%' }}>
         <input
-          ref={ref}
+          ref={inputRef}
           type={showPassword ? 'text' : 'password'}
           value={value || ''}
           disabled={disabled}

@@ -13,5 +13,11 @@ const inputPasswordAdapter: FieldAdapter = {
   toValue: (v) => v ?? null, // InputPassword принимает string|null (внутри приводит к '' для input)
 };
 
-/** Поле пароля: value-based InputPassword + identity-адаптер. */
-export const InputPasswordBaseField = withFormControl(InputPassword, inputPasswordAdapter);
+/**
+ * Поле пароля: value-based InputPassword + identity-адаптер.
+ * `exposesHandle: true` — InputPassword сам реализует {@link InputPasswordHandle} (useImperativeHandle),
+ * поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+ */
+export const InputPasswordBaseField = withFormControl(InputPassword, inputPasswordAdapter, {
+  exposesHandle: true,
+});

@@ -67,4 +67,10 @@ describe('InputPasswordField (form-версия)', () => {
     expect(html).toContain('id="control-a"');
     expect(html).toContain('aria-labelledby="label-a"');
   });
+
+  it('field — forwardRef passthrough (exposesHandle): InputPassword сам владеет InputPasswordHandle', () => {
+    // withFormControl(..., { exposesHandle: true }) → forwardRef exotic (объект), не функция.
+    // Рантайм-поведение handle (toggleVisibility/setVisible) проверяется в e2e (Playwright).
+    expect(typeof InputPasswordField).toBe('object');
+  });
 });

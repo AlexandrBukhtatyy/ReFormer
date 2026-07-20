@@ -61,3 +61,40 @@ describe('createRenderSchema — пер-selector version-сигналы (defect 
     expect(schema.__overrideMaps.version.value).toBe(v0 + 2);
   });
 });
+
+/**
+ * Мост «селектор → живой компонент» (GAP 1): getRef() регистрирует ленивый ref в refRegistry,
+ * а RenderNodeComponent читает его по selector (`refRegistry.get(selector)`) и вешает на field-компонент.
+ * Здесь проверяется сторона proxy (контракт registry); DOM-проброс ref на лист — в e2e (Playwright).
+ */
+describe('createRenderSchema — getRef (refRegistry, мост селектор→компонент)', () => {
+  it('getRef() возвращает стабильный ref на selector (idempotent)', () => {
+    const schema = createRenderSchema(trivialSchema);
+    const a1 = schema.node('email').getRef();
+    const a2 = schema.node('email').getRef();
+    const b = schema.node('phone').getRef();
+
+    expect(a1).toBe(a2); // тот же selector → тот же RefObject (ленивое создание кэшируется)
+    expect(a1).not.toBe(b); // разные selector → разные ref
+    expect(a1.current).toBeNull(); // до монтирования — null
+  });
+
+  it('getRef() регистрирует selector в refRegistry (нода подхватит его при рендере)', () => {
+    const schema = createRenderSchema(trivialSchema);
+    expect(schema.__overrideMaps.refRegistry.has('email')).toBe(false);
+
+    const ref = schema.node('email').getRef();
+
+    expect(schema.__overrideMaps.refRegistry.has('email')).toBe(true);
+    expect(schema.__overrideMaps.refRegistry.get('email')).toBe(ref);
+  });
+
+  it('getRef() НЕ бампает version (ref запрашивается до первого рендера, как wizard)', () => {
+    const schema = createRenderSchema(trivialSchema);
+    const v0 = schema.__overrideMaps.version.value;
+
+    schema.node('email').getRef();
+
+    expect(schema.__overrideMaps.version.value).toBe(v0); // никакого ре-рендера на getRef
+  });
+});

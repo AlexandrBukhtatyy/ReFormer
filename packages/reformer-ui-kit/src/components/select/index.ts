@@ -14,7 +14,7 @@ export {
 
 // async — высокоуровневый вариант (options/resource/clearable) + типы источника.
 export { SelectAsync } from './variants/async/select-async';
-export type { SelectAsyncProps } from './variants/async/select-async';
+export type { SelectAsyncProps, SelectAsyncHandle } from './variants/async/select-async';
 export type {
   ResourceConfig,
   ResourceLoadParams,

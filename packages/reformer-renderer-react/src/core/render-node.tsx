@@ -97,10 +97,17 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   node,
   fieldNode,
   fieldWrapper: FieldWrapper,
+  nodeRef,
 }: {
   node: ModelFieldRenderNode;
   fieldNode: FieldNode<unknown>;
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
+  /**
+   * Ref из refRegistry (schema.node(selector).getRef()) — вешается на живой field-компонент,
+   * чтобы render-behaviors могли достучаться до его императивного handle (FieldHandle и наследники).
+   * Стабильный createRef → React.memo не тарашит. undefined, если нода без selector или ref не запрошен.
+   */
+  nodeRef?: React.RefObject<unknown>;
 }): ReactNode {
   // Подписка только на value+disabled (не на все 9 сигналов useFormControl).
   const { value, disabled } = useFieldValueAndDisabled(fieldNode);
@@ -143,7 +150,13 @@ const ModelFieldRenderer = memo(function ModelFieldRenderer({
   }
 
   const input = (
-    <Component control={fieldNode} {...inputProps} onChange={onChange} onBlur={onBlur} />
+    <Component
+      control={fieldNode}
+      {...inputProps}
+      {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
+      onChange={onChange}
+      onBlur={onBlur}
+    />
   );
 
   const EffectiveWrapper = perFieldWrapper ?? FieldWrapper;
@@ -425,7 +438,22 @@ export function RenderNodeComponent<T>({
       }
       return null;
     }
-    return <ModelFieldRenderer node={node} fieldNode={fieldNode} fieldWrapper={fieldWrapper} />;
+    // Адресация ref листа: явный `selector` в приоритете, иначе — индексный путь модели
+    // (`phones.0.number`), который сигнал несёт в `__path`. Даёт адресацию строк FormArray
+    // (`schema.node('phones.0.number').getRef()`) без перечисления индексов автором схемы.
+    const leafRefKey = selector ?? (node.value as { __path?: string }).__path;
+    const leafRef =
+      leafRefKey && overrideMaps?.refRegistry.has(leafRefKey)
+        ? overrideMaps.refRegistry.get(leafRefKey)
+        : undefined;
+    return (
+      <ModelFieldRenderer
+        node={node}
+        fieldNode={fieldNode}
+        fieldWrapper={fieldWrapper}
+        nodeRef={leafRef}
+      />
+    );
   }
 
   // ========================================

@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { Button } from '@/components/button';
 import { Calendar } from '@/components/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
@@ -26,26 +27,53 @@ export interface DatePickerProps extends Omit<
 }
 
 /**
+ * Императивный handle {@link DatePicker}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+ * getElement на кнопке-триггере) + управление поповером календаря. Достаётся из схемы:
+ * `schema.node('customDate').getRef<DatePickerHandle>().current?.open()`.
+ */
+export interface DatePickerHandle extends FieldHandle {
+  /** Открыть поповер с календарём. */
+  open(): void;
+  /** Закрыть поповер. */
+  close(): void;
+}
+
+/**
  * DatePicker — Popover c Calendar (single) и кнопкой-триггером, показывающей выбранную дату.
  * Управляемый контракт `value: Date | undefined` / `onChange(date)`. Поповер закрывается сам
  * при выборе даты. Стандартное standalone-использование:
  * `<DatePicker value={date} onChange={setDate} />`.
  */
-function DatePicker({
-  value,
-  onChange,
-  placeholder = 'Выберите дату',
-  dateFormat = 'PPP',
-  className,
-  disabled,
-  ...props
-}: DatePickerProps) {
+const DatePicker = React.forwardRef<DatePickerHandle, DatePickerProps>(function DatePicker(
+  {
+    value,
+    onChange,
+    placeholder = 'Выберите дату',
+    dateFormat = 'PPP',
+    className,
+    disabled,
+    ...props
+  },
+  ref
+) {
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      ...makeElementFieldHandle(triggerRef),
+      open: () => setOpen(true),
+      close: () => setOpen(false),
+    }),
+    []
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           data-slot="date-picker-trigger"
@@ -74,7 +102,7 @@ function DatePicker({
       </PopoverContent>
     </Popover>
   );
-}
+});
 DatePicker.displayName = 'DatePicker';
 
 export { DatePicker };

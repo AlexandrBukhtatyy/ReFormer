@@ -21,6 +21,39 @@ function composeRefs<T>(...refs: Array<Ref<T> | undefined>): RefCallback<T> {
 }
 
 /**
+ * Ref дочернего элемента без deprecation-предупреждений на React 18 и 19.
+ *
+ * React 18: `ref` вынесен из props в `element.ref`, а `element.props.ref` — warning-геттер.
+ * React 19: наоборот — `ref` обычный проп (`element.props.ref`), а чтение `element.ref`
+ * печатает «Accessing element.ref was removed in React 19».
+ *
+ * Актуальный источник определяем по warning-геттеру (React помечает его `isReactWarning`) —
+ * тот же приём, что в `@radix-ui/react-slot`. Важная деталь: на React 19 ref-геттер флагом НЕ
+ * помечен, поэтому финальная ветка сперва читает `props.ref` и, если он задан, до `element.ref`
+ * не доходит; а когда ref не передавали, React кладёт в `element.ref` обычный `null` без геттера —
+ * чтение безопасно в обоих случаях.
+ */
+function getElementRef(element: ReactElement): Ref<unknown> | undefined {
+  type WarnGetter = (() => unknown) & { isReactWarning?: boolean };
+  const propsRefGetter = Object.getOwnPropertyDescriptor(element.props as object, 'ref')?.get as
+    | WarnGetter
+    | undefined;
+  if (propsRefGetter?.isReactWarning) {
+    return (element as ReactElement & { ref?: Ref<unknown> }).ref;
+  }
+  const elementRefGetter = Object.getOwnPropertyDescriptor(element, 'ref')?.get as
+    | WarnGetter
+    | undefined;
+  if (elementRefGetter?.isReactWarning) {
+    return (element.props as { ref?: Ref<unknown> }).ref;
+  }
+  return (
+    (element.props as { ref?: Ref<unknown> }).ref ??
+    (element as ReactElement & { ref?: Ref<unknown> }).ref
+  );
+}
+
+/**
  * Merges slot props with child props.
  * - Event handlers are chained (child first, then slot)
  * - className is concatenated
@@ -108,7 +141,7 @@ export const Slot = forwardRef<HTMLElement, SlotProps>(
     const mergedProps = mergeProps(slotProps, childProps);
 
     // Handle ref merging: композируем forwarded + child ref (оба получают узел), а не берём один.
-    const childRef = (child as ReactElement & { ref?: Ref<unknown> }).ref;
+    const childRef = getElementRef(child);
     const mergedRef = composeRefs(forwardedRef, childRef);
 
     return cloneElement(child, {
