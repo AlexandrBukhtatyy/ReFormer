@@ -9,6 +9,7 @@ import BehaviorsExamples from './pages/examples/behaviors/BehaviorsExamples';
 import MccaCoreV20 from './pages/examples/mcp-credit-application-core-v20';
 import MccaRendererReactV20 from './pages/examples/mcp-credit-application-renderer-react-v20';
 import MccaRendererJsonV20 from './pages/examples/mcp-credit-application-renderer-json-v20';
+import ImperativeHandles from './pages/examples/imperative-handles/ImperativeHandles';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -19,7 +20,8 @@ type ExamplePage =
   | 'json-renderer'
   | 'mcca-core-v20'
   | 'mcca-renderer-react-v20'
-  | 'mcca-renderer-json-v20';
+  | 'mcca-renderer-json-v20'
+  | 'imperative-handles';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -78,6 +80,13 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     title: 'MCP: renderer-json v20',
     description:
       'Сгенерировано MCP (v20, minimalist form-* layout) — renderer-json: JSON + registry',
+  },
+  {
+    id: 'imperative-handles',
+    path: '/examples/imperative-handles',
+    title: 'Императивные handle',
+    description:
+      'schema.node(sel).getRef<H>() — focus/open/clear/toggle живых компонентов по селектору',
   },
 ];
 
@@ -154,6 +163,7 @@ function Layout() {
           <Route path="/examples/mcca-core-v20" element={<MccaCoreV20 />} />
           <Route path="/examples/mcca-renderer-react-v20" element={<MccaRendererReactV20 />} />
           <Route path="/examples/mcca-renderer-json-v20" element={<MccaRendererJsonV20 />} />
+          <Route path="/examples/imperative-handles" element={<ImperativeHandles />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>

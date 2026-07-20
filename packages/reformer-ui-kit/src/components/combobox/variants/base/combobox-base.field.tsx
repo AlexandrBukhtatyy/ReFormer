@@ -14,4 +14,10 @@ const comboboxAdapter: FieldAdapter = {
   toValue: (v) => v ?? null, // Combobox принимает string|null
 };
 
-export const ComboboxBaseField = withFormControl(Combobox, comboboxAdapter);
+/**
+ * `exposesHandle: true` — Combobox сам реализует {@link ComboboxHandle} (useImperativeHandle),
+ * поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+ */
+export const ComboboxBaseField = withFormControl(Combobox, comboboxAdapter, {
+  exposesHandle: true,
+});

@@ -3,6 +3,7 @@ import { XIcon } from 'lucide-react';
 import { Select as SelectPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
+import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import {
   resolveStrategyFlags,
   resourceReducer,
@@ -149,12 +150,30 @@ export interface SelectAsyncProps extends Omit<
 }
 
 /**
+ * Императивный handle {@link SelectAsync}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+ * getElement на кнопке-триггере) + управление дропдауном и асинхронным источником. Достаётся из схемы:
+ * `schema.node('city').getRef<SelectAsyncHandle>().current?.reload()`.
+ */
+export interface SelectAsyncHandle extends FieldHandle {
+  /** Открыть дропдаун. */
+  open(): void;
+  /** Закрыть дропдаун (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить выбранное значение в `null`. */
+  clear(): void;
+  /** Перезагрузить источник опций с первой страницы. */
+  reload(): void;
+  /** Догрузить следующую страницу (стратегия `partial`). */
+  loadMore(): void;
+}
+
+/**
  * Высокоуровневый Select (вариант `async`): inline `options` ИЛИ асинхронный `resource`
  * (`static` / `preload` / `partial`) с поиском, пагинацией и очисткой. Value-based контракт
  * (`value` / `onChange(string|null)` / `onBlur`) — пригоден для формы напрямую (см. `SelectAsyncField`).
  */
 const SelectAsync = React.forwardRef<
-  HTMLButtonElement,
+  SelectAsyncHandle,
   SelectAsyncProps & {
     id?: string;
     'data-testid'?: string;
@@ -188,6 +207,27 @@ const SelectAsync = React.forwardRef<
     ref
   ) => {
     const ro = useResourceOptions(resource);
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    // `open` поднят в контролируемое состояние: Radix Root был неуправляемым, из-за чего
+    // императивные open()/close() были невыразимы. onOpenChange по-прежнему эмитит onBlur.
+    const [open, setOpen] = React.useState(false);
+    // ro.loadMore меняет identity на каждом изменении состояния ресурса — держим его в ref,
+    // чтобы handle оставался стабильным (deps [onChange]), но звал всегда актуальные reload/loadMore.
+    const roRef = React.useRef(ro);
+    roRef.current = ro;
+
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        ...makeElementFieldHandle(triggerRef),
+        open: () => setOpen(true),
+        close: () => setOpen(false),
+        clear: () => onChange?.(null),
+        reload: () => roRef.current.reload(),
+        loadMore: () => roRef.current.loadMore(),
+      }),
+      [onChange]
+    );
 
     const options = React.useMemo(() => {
       if (directOptions) {
@@ -209,8 +249,9 @@ const SelectAsync = React.forwardRef<
       onChange?.(newValue);
     };
 
-    const handleOpenChange = (open: boolean) => {
-      if (!open) onBlur?.();
+    const handleOpenChange = (next: boolean) => {
+      setOpen(next);
+      if (!next) onBlur?.();
     };
 
     const handleClear = (e: React.MouseEvent) => {
@@ -247,12 +288,15 @@ const SelectAsync = React.forwardRef<
           data-slot="select"
           value={value || ''}
           onValueChange={handleValueChange}
-          onOpenChange={handleOpenChange}
           disabled={disabled || initialLoading}
           {...props}
+          // open/onOpenChange — ПОСЛЕ {...props}: состояние дропдауна теперь принадлежит компоненту
+          // (иначе стороннее props.open перетёрло бы контролируемое состояние и сломало handle).
+          open={open}
+          onOpenChange={handleOpenChange}
         >
           <SelectTrigger
-            ref={ref}
+            ref={triggerRef}
             className={cn('w-full', className, showClearButton && 'pr-14')}
             disabled={initialLoading}
             id={id}

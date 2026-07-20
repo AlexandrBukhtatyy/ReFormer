@@ -150,6 +150,13 @@ export default defineConfig({
       testDir: './tests/pages/behaviors',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Императивные handle полей по селектору (schema.node(sel).getRef()).
+    // Поведенческое доказательство: unit-тесты идут без DOM, реальные focus/open/toggle — только тут.
+    {
+      name: 'imperative-handles',
+      testDir: './tests/pages/imperative-handles',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md

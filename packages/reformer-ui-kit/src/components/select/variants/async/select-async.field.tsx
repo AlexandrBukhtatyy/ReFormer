@@ -12,4 +12,10 @@ const selectAsyncAdapter: FieldAdapter = {
   toValue: (v) => v ?? null, // SelectAsync принимает string|null (внутри приводит к '' для Radix)
 };
 
-export const SelectAsyncField = withFormControl(SelectAsync, selectAsyncAdapter);
+/**
+ * `exposesHandle: true` — SelectAsync сам реализует {@link SelectAsyncHandle} (useImperativeHandle),
+ * поэтому HOC форвардит ref потребителя прямо в композит (passthrough), без своего baseline-handle.
+ */
+export const SelectAsyncField = withFormControl(SelectAsync, selectAsyncAdapter, {
+  exposesHandle: true,
+});

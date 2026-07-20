@@ -2,6 +2,7 @@ import * as React from 'react';
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { type FieldHandle, makeElementFieldHandle } from '@/fields/field-handle';
 import { Button } from '@/components/button';
 import {
   Command,
@@ -55,30 +56,59 @@ export interface ComboboxProps {
 }
 
 /**
+ * Императивный handle {@link Combobox}: baseline {@link FieldHandle} (focus/blur/scrollIntoView/
+ * getElement на кнопке-триггере) + управление popover'ом. Достаётся из схемы:
+ * `schema.node('city').getRef<ComboboxHandle>().current?.open()`.
+ */
+export interface ComboboxHandle extends FieldHandle {
+  /** Открыть popover со списком. */
+  open(): void;
+  /** Закрыть popover (эмитит `onBlur`, как обычное закрытие). */
+  close(): void;
+  /** Сбросить выбранное значение в `null`. */
+  clear(): void;
+}
+
+/**
  * Combobox (вариант `base`): управляемый поиск по опциям в Popover + Command. Триггер-кнопка
  * показывает `label` текущего значения либо `placeholder`. Выбор опции эмитит `onChange(value)`;
  * при `clearable` повторный клик по выбранной опции или крестик сбрасывают выбор в `null`.
  */
-function Combobox({
-  className,
-  value,
-  onChange,
-  onBlur,
-  options = [],
-  placeholder,
-  searchPlaceholder,
-  emptyText,
-  clearable = false,
-  disabled,
-  id,
-  'data-testid': dataTestId,
-  'aria-invalid': ariaInvalid,
-  'aria-labelledby': ariaLabelledBy,
-  'aria-describedby': ariaDescribedBy,
-  'aria-errormessage': ariaErrorMessage,
-  'aria-required': ariaRequired,
-}: ComboboxProps) {
+const Combobox = React.forwardRef<ComboboxHandle, ComboboxProps>(function Combobox(
+  {
+    className,
+    value,
+    onChange,
+    onBlur,
+    options = [],
+    placeholder,
+    searchPlaceholder,
+    emptyText,
+    clearable = false,
+    disabled,
+    id,
+    'data-testid': dataTestId,
+    'aria-invalid': ariaInvalid,
+    'aria-labelledby': ariaLabelledBy,
+    'aria-describedby': ariaDescribedBy,
+    'aria-errormessage': ariaErrorMessage,
+    'aria-required': ariaRequired,
+  },
+  ref
+) {
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      ...makeElementFieldHandle(triggerRef),
+      open: () => setOpen(true),
+      close: () => setOpen(false),
+      clear: () => onChange?.(null),
+    }),
+    [onChange]
+  );
 
   const selectedLabel = React.useMemo(
     () => options.find((opt) => opt.value === value)?.label,
@@ -108,6 +138,7 @@ function Combobox({
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
+            ref={triggerRef}
             type="button"
             variant="outline"
             role="combobox"
@@ -173,7 +204,7 @@ function Combobox({
       )}
     </div>
   );
-}
+});
 Combobox.displayName = 'Combobox';
 
 export { Combobox };

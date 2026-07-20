@@ -1,5 +1,6 @@
 // СГЕНЕРИРОВАНО scripts/generate-exports.mjs — не редактировать вручную.
 export { cn } from './lib/utils';
+export type { FieldHandle } from './fields/field-handle';
 export * from './components/accordion';
 export * from './components/alert';
 export * from './components/alert-dialog';

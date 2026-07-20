@@ -61,6 +61,9 @@ const light = components.filter((c) => !HEAVY.has(c));
 const barrel = [
   '// СГЕНЕРИРОВАНО scripts/generate-exports.mjs — не редактировать вручную.',
   "export { cn } from './lib/utils';",
+  // Базовый императивный контракт полей: нужен потребителям для schema.node(sel).getRef<FieldHandle>().
+  // Rich-handle композитов (SelectAsyncHandle и т.п.) уходят через барели своих компонентов.
+  "export type { FieldHandle } from './fields/field-handle';",
   ...light.map((c) => `export * from './components/${c}';`),
   '',
 ].join('\n');
