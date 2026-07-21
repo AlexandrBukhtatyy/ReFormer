@@ -164,6 +164,13 @@ export default defineConfig({
       testDir: './tests/pages/html-nodes',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Форма регистрации из JSON-схемы: layout в JSON, правила значений в TS-схеме над моделью,
+    // обработчики кнопок через $fn. Тесты идут по этим границам.
+    {
+      name: 'registration-form-json',
+      testDir: './tests/pages/registration-form-json',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md

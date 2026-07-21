@@ -11,6 +11,7 @@ import MccaRendererReactV20 from './pages/examples/mcp-credit-application-render
 import MccaRendererJsonV20 from './pages/examples/mcp-credit-application-renderer-json-v20';
 import ImperativeHandles from './pages/examples/imperative-handles/ImperativeHandles';
 import HtmlNodesExample from './pages/examples/html-nodes/HtmlNodesExample';
+import RegistrationFormJson from './pages/examples/registration-form-renderer-json/RegistrationFormRendererJson';
 type ExamplePage =
   | 'simple'
   | 'validation'
@@ -23,7 +24,8 @@ type ExamplePage =
   | 'mcca-renderer-react-v20'
   | 'mcca-renderer-json-v20'
   | 'imperative-handles'
-  | 'html-nodes';
+  | 'html-nodes'
+  | 'registration-json';
 
 const examples: { id: ExamplePage; path: string; title: string; description: string }[] = [
   {
@@ -96,6 +98,13 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     title: 'HTML-узлы',
     description:
       'Нативные теги и текст прямо в схеме: component: \'div\' / "$html(div)" и реактивный text из модели',
+  },
+  {
+    id: 'registration-json',
+    path: '/examples/registration-json',
+    title: 'Регистрация (JSON)',
+    description:
+      'Та же форма регистрации, но layout целиком в JSON-схеме; валидация — TS-схемой над моделью',
   },
 ];
 
@@ -174,6 +183,7 @@ function Layout() {
           <Route path="/examples/mcca-renderer-json-v20" element={<MccaRendererJsonV20 />} />
           <Route path="/examples/imperative-handles" element={<ImperativeHandles />} />
           <Route path="/examples/html-nodes" element={<HtmlNodesExample />} />
+          <Route path="/examples/registration-json" element={<RegistrationFormJson />} />
           <Route path="/" element={<Navigate to="/examples/simple" replace />} />
           <Route path="*" element={<Navigate to="/examples/simple" replace />} />
         </Routes>
