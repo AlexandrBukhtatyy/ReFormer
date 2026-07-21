@@ -5,8 +5,11 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
 
+// Тесты живут рядом с исходниками — в dist их декларации не нужны и уезжают в npm.
+const TEST_FILES = ['**/*.test.ts', '**/*.test.tsx'];
+
 export default defineConfig({
-  plugins: [dts({ insertTypesEntry: true })],
+  plugins: [dts({ insertTypesEntry: true, exclude: TEST_FILES })],
   test: {
     coverage: {
       provider: 'v8',
