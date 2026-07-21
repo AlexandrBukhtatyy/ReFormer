@@ -29,15 +29,42 @@ Peer-зависимости (должны быть в проекте):
 
 ```json
 {
-  "@reformer/cdk": ">=1.0.0-beta.0",
-  "@reformer/core": ">=1.1.0-beta.0",
-  "@radix-ui/react-select": "^2.0.0",
-  "@radix-ui/react-slot": "^1.0.0",
-  "lucide-react": "^0.400.0",
+  "@reformer/cdk": ">=1.0.0",
+  "@reformer/core": ">=1.1.0",
+  "@reformer/renderer-react": ">=1.0.0",
   "react": "^18.0.0 || ^19.0.0",
   "react-dom": "^18.0.0 || ^19.0.0"
 }
 ```
+
+`radix-ui`, `lucide-react`, `clsx`, `tailwind-merge` и `class-variance-authority` —
+обычные зависимости пакета, ставить их отдельно не нужно.
+
+### Опциональные peer-зависимости
+
+Двенадцать компонентов построены на внешних библиотеках. Чтобы приложению, которому
+нужен один `Input`, не прилетали recharts и react-table, эти библиотеки объявлены
+**опциональными** peer-зависимостями: npm их не поставит и не поругается, но без них
+соответствующий subpath не зарезолвится (`ERR_MODULE_NOT_FOUND`). Ставьте ту, чей
+компонент используете:
+
+| subpath                        | поставить                       |
+| ------------------------------ | ------------------------------- |
+| `./table` (DataGrid-вариант)   | `@tanstack/react-table` (>=8)   |
+| `./command`, `./combobox`      | `cmdk` (>=1)                    |
+| `./chart`                      | `recharts` (>=3)                |
+| `./calendar`                   | `react-day-picker` (>=10)       |
+| `./date-picker`                | `date-fns` (>=4)                |
+| `./carousel`                   | `embla-carousel-react` (>=8)    |
+| `./drawer`                     | `vaul` (>=1)                    |
+| `./input-otp`                  | `input-otp` (>=1.4)             |
+| `./resizable`                  | `react-resizable-panels` (>=4)  |
+| `./sonner`                     | `sonner` (>=2)                  |
+| `./message-scroller`           | `@shadcn/react` (^0.2.1)        |
+
+Корневой barrel (`import { … } from '@reformer/ui-kit'`) эти компоненты не
+реэкспортирует, поэтому без единой опциональной зависимости пакет полностью
+работоспособен — они нужны только при deep-import конкретного компонента.
 
 Tailwind должен быть подключён в проекте: `@reformer/ui-kit` использует
 utility-классы (`h-9`, `rounded-md`, `border-input`, `text-destructive`, ...).

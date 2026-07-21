@@ -1161,6 +1161,28 @@ function App() {
 
 _Auto-generated from JSDoc on public exports._
 
+### allowOperatorStrings
+
+**Kind:** `function`
+
+Рекурсивно оборачивает КАЖДЫЙ проп схемы в `anyOf: [<честный тип>, operatorOp]`, чтобы автор
+схемы формы не дублировал escape-hatch руками: оператор-строка (`"$dataSource(LOAN_TYPES)"`,
+`"$fn(fmt)"`) допустима на месте любого значения componentProps. Спускается во вложенные
+`properties` и `items`; сам объект в `anyOf` не оборачивается (componentProps — всегда объект).
+Ссылается на `#/definitions/operatorOp` — определение подставляет {@link toComponentPropsValidatorSchema}.
+
+**Signature:**
+```typescript
+export function allowOperatorStrings<T>(schema: T): T
+```
+
+**Parameters:**
+- `schema` — - JSON Schema (обычно после {@link stripDocExtensions}).
+
+**Returns:** Копия схемы с обёрнутыми пропами.
+
+_Source: src/schema/index.ts_
+
 ### buildFormSchemaMetaSchema
 
 **Kind:** `function`
@@ -1173,17 +1195,44 @@ JSON Schema'й не покрыть (вложены в произвольный c
 enum, а не regex-`pattern`: ajv перечисляет допустимые имена в тексте ошибки, IDE даёт
 автодополнение по значениям, а имена не нужно экранировать под regex (напр. `$fieldWrapper`).
 
+Если задан `propSchemas`, в узлы, несущие `component`, добавляются `if/then`-ветки для IDE-подсветки
+componentProps. В `if` обязателен `required: ['component']` — иначе нода без `component` (напр.
+array-нода) вакуумно проходит `if` и получает чужой `then`.
+
 **Signature:**
 ```typescript
-export function buildFormSchemaMetaSchema(opts?: {
-  componentNames?: string[];
-}): Record<string, unknown>
+export function buildFormSchemaMetaSchema(
+  opts?: BuildFormSchemaMetaSchemaOptions
+): Record<string, unknown>
 ```
 
 **Examples:**
 
 ```ts
 const schema = buildFormSchemaMetaSchema({ componentNames: getComponentNames(registry) });
+```
+
+_Source: src/schema/index.ts_
+
+### BuildFormSchemaMetaSchemaOptions
+
+**Kind:** `interface`
+
+Опции {@link buildFormSchemaMetaSchema}.
+
+**Signature:**
+```typescript
+export interface BuildFormSchemaMetaSchemaOptions {
+  /** Имена компонентов реестра — сужают `$component(...)` до enum. */
+  componentNames?: string[];
+  /**
+   * Карта регистр-имя → схема componentProps. НОВОЕ необязательное поле: если задано, в `fieldNode`/
+   * `containerNode` добавляются `allOf`-ветки `if/then` (по одной на компонент) для IDE-подсветки
+   * componentProps через `$schema`. Реальную проверку делает рекурсивный обход в `validateFormSchema`
+   * (§ Props-компаньоны: `if/then` структурно недостижим для вложенных нод, годится только для IDE).
+   */
+  propSchemas?: Record<string, ComponentPropsSchema>;
+}
 ```
 
 _Source: src/schema/index.ts_
@@ -1224,6 +1273,22 @@ export type ComponentOp = `$component(${string})`;
 ```
 
 _Source: src/operators.ts_
+
+### ComponentPropsSchema
+
+**Kind:** `type`
+
+Схема `componentProps` одного компонента (структурно = ui-kit `PropsSchema` после
+`mergeFieldPropsSchema`, но БЕЗ завязки на `@reformer/ui-kit`: renderer-json React-free
+и не зависит от ui-kit). Draft-07 JSON Schema плюс `x-*`-расширения (`x-doc`/`x-runtimeProps`/
+`x-registryName`) — последние вырезаются перед компиляцией ajv ({@link stripDocExtensions}).
+
+**Signature:**
+```typescript
+export type ComponentPropsSchema = Record<string, unknown>;
+```
+
+_Source: src/schema/index.ts_
 
 ### ComponentRegistry
 
@@ -2501,6 +2566,50 @@ export interface SchemaErrorPanelProps {
 ```
 
 _Source: src/components/schema-error-panel.tsx_
+
+### stripDocExtensions
+
+**Kind:** `function`
+
+Рекурсивно вырезает `x-*`-ключи (`x-doc`/`x-runtimeProps`/`x-registryName`) из схемы. Нужно перед
+компиляцией ajv: в strict-режиме ajv бросает `unknown keyword: "x-doc"`. Удачно — это машинная
+гарантия, что валидатор DSL физически не видит doc-метаданные.
+
+**Signature:**
+```typescript
+export function stripDocExtensions<T>(schema: T): T
+```
+
+**Parameters:**
+- `schema` — - Любой JSON-совместимый узел (объект/массив/скаляр).
+
+**Returns:** Глубокая копия без `x-*`-ключей.
+
+_Source: src/schema/index.ts_
+
+### toComponentPropsValidatorSchema
+
+**Kind:** `function`
+
+Превращает схему `componentProps` компонента ({@link ComponentPropsSchema}) в самодостаточную
+ajv-схему: {@link stripDocExtensions} (снять `x-*`) → {@link allowOperatorStrings} (обернуть пропы
+в `anyOf` с operatorOp) → добавить `definitions.operatorOp`, чтобы `$ref` резолвился при
+standalone-компиляции. Используется фазой (d) `validateFormSchema` и IDE-веткой
+{@link buildFormSchemaMetaSchema}.
+
+**Signature:**
+```typescript
+export function toComponentPropsValidatorSchema(
+  propsSchema: ComponentPropsSchema
+): Record<string, unknown>
+```
+
+**Parameters:**
+- `propsSchema` — - Полная схема componentProps (враппер + вариант; уже прошедшая mergeFieldPropsSchema).
+
+**Returns:** JSON-схема, готовая к `ajv.compile`.
+
+_Source: src/schema/index.ts_
 
 ### unwrapSignalValues
 

@@ -36,8 +36,9 @@ shadcn (`data-slot`, unified `radix-ui`, cva). Что менять в коде:
 | `src/components/ui/*`                                                  | `src/components/<cmp>/variants/base/*`                                           |
 
 Тяжёлые компоненты требуют своих optional peer-зависимостей (recharts, `@tanstack/react-table`,
-react-day-picker, cmdk, vaul, embla-carousel-react, sonner, input-otp, react-resizable-panels,
-`@shadcn/react`) — ставьте их только если используете соответствующий subpath.
+react-day-picker, date-fns, cmdk, vaul, embla-carousel-react, sonner, input-otp,
+react-resizable-panels, `@shadcn/react`) — ставьте их только если используете
+соответствующий subpath.
 
 ## Установка
 
@@ -88,11 +89,13 @@ import { defaultPropSchemas, mergeFieldPropsSchema } from '@reformer/ui-kit/meta
 ### Компоненты только через subpath (тяжёлые зависимости)
 
 `calendar` · `carousel` · `chart` · `combobox` · `command` · `date-picker` · `drawer` ·
-`input-otp` · `resizable` · `sidebar` · `sonner` · `table`
+`input-otp` · `message-scroller` · `resizable` · `sonner` · `table`
 
-Они держат optional-peer зависимости (recharts, `@tanstack/react-table`, react-day-picker, cmdk,
-embla, vaul, input-otp, react-resizable-panels, sonner) и **не входят в главный barrel** — импортируйте
-их точечно: `@reformer/ui-kit/chart`, `@reformer/ui-kit/table` и т.п.
+Они держат optional-peer зависимости (recharts, `@tanstack/react-table`, react-day-picker, date-fns,
+cmdk, embla, vaul, input-otp, react-resizable-panels, sonner, `@shadcn/react`) и **не входят
+в главный barrel** — импортируйте их точечно: `@reformer/ui-kit/chart`, `@reformer/ui-kit/table`
+и т.п. `sidebar` тоже живёт только в subpath, но тяжёлых зависимостей не тянет — он крупный,
+а не внешний.
 
 ## Form-интеграция: `*Field` + `withFormControl`
 
