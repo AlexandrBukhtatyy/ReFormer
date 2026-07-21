@@ -14,7 +14,8 @@ const pkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as {
   exports: Record<string, unknown>;
 };
 
-const FIXED = new Set(['.', './meta', './styles']);
+// Фиксированные точки — не компоненты, каталога в src/components/ у них нет.
+const FIXED = new Set(['.', './meta', './fields', './styles']);
 
 function componentDirs(): string[] {
   if (!existsSync(componentsDir)) return [];
@@ -31,9 +32,13 @@ describe('package.json#exports ↔ src/components', () => {
     .filter((k) => k.startsWith('./') && !FIXED.has(k))
     .map((k) => k.slice(2));
 
-  it('фиксированные точки присутствуют: ., ./meta, ./styles', () => {
+  it('фиксированные точки присутствуют: ., ./meta, ./fields, ./styles', () => {
     expect(pkg.exports['.']).toBeTruthy();
     expect(pkg.exports['./meta']).toBeTruthy();
+    expect(pkg.exports['./fields']).toEqual({
+      types: './dist/fields.d.ts',
+      import: './dist/fields.js',
+    });
     expect(pkg.exports['./styles']).toBe('./src/styles/theme.css');
   });
 

@@ -15,6 +15,10 @@
       "types": "./dist/meta.d.ts",
       "import": "./dist/meta.js"
     },
+    "./fields": {
+      "types": "./dist/fields.d.ts",
+      "import": "./dist/fields.js"
+    },
     "./styles": "./src/styles/theme.css",
     "./accordion": {
       "types": "./dist/accordion.d.ts",

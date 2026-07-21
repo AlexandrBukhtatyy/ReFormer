@@ -167,10 +167,15 @@ queueMicrotask(() => {
 
 ## Своё поле с handle
 
+Слой создания полей публикуется точкой `@reformer/ui-kit/fields` — оттуда доступны
+`withFormControl`, все адаптеры-пресеты (`nativeInputAdapter`, `checkedAdapter`, `pressedAdapter`,
+`valueChangeAdapter`, `sliderAdapter`, `dateAdapter`), `makeElementFieldHandle` и типы
+`FieldAdapter` / `WithFormControlOptions` / `FieldHandle`.
+
 `withFormControl` принимает третий аргумент:
 
 ```tsx
-import { withFormControl, type FieldHandle } from '@/fields/with-form-control';
+import { withFormControl, type FieldHandle } from '@reformer/ui-kit/fields';
 
 // 1) baseline по умолчанию — handle синтезируется из DOM-узла примитива, ничего делать не нужно:
 export const MyField = withFormControl(MyPrimitive, myAdapter);
