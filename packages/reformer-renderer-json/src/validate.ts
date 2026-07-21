@@ -27,6 +27,7 @@ import {
   type ComponentPropsSchema,
 } from './schema';
 import { parseOperator, isModelOp } from './operators';
+import { isAllowedHtmlTag } from './html/html-tags';
 import type { ComponentRegistry } from './registry/types';
 
 /** Результат валидации схемы. */
@@ -74,6 +75,12 @@ function walkOperatorNames(
     const { componentNames, dataSourceNames, fnNames, localeKeys } = checks;
     if (op?.op === 'component' && componentNames && !componentNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown component "${op.arg}"`);
+    } else if (op?.op === 'html' && !isAllowedHtmlTag(op.arg)) {
+      // Whitelist статичен (не зависит от реестра), поэтому проверяется всегда — в отличие от
+      // имён компонентов, которые без реестра пропускаются.
+      errors.push(
+        `${path || '/'}: HTML tag "${op.arg}" is not allowed in $html(...) — presentational tags only`
+      );
     } else if (op?.op === 'dataSource' && dataSourceNames && !dataSourceNames.includes(op.arg)) {
       errors.push(`${path || '/'}: unknown dataSource "${op.arg}"`);
     } else if (op?.op === 'fn' && fnNames && !fnNames.includes(op.arg)) {

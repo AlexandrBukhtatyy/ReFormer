@@ -72,6 +72,12 @@ function harvestFieldConfig(
   arrayItems: ArrayItemBuilders
 ): void {
   if (schema == null || typeof schema !== 'object') return;
+  // Сигнал — лист обхода, а не узел: спуск внутрь него бессмыслен (у Signal нет `component`/
+  // `children`) и опасен — его внутренние поля (`_targets`/`_node`) образуют двусвязные списки
+  // подписок с обратными ссылками. Сигналы попадают под обход не только как `node.value` (тот
+  // пропускается ниже по ключу), но и под произвольными ключами: `text: model.$.x` у html-узла,
+  // `componentProps.<prop>: '$model(…)'` после резолва в renderer-json.
+  if (schema instanceof Signal) return;
   if (Array.isArray(schema)) {
     for (const child of schema) harvestFieldConfig(child, map, arrayItems);
     return;

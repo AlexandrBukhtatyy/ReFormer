@@ -5,7 +5,7 @@
  */
 
 import { memo, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { effect } from '@reformer/core/signals';
+import { effect, Signal } from '@reformer/core/signals';
 import type { FieldNode, FormProxy } from '@reformer/core';
 import { getNodeForSignal } from '@reformer/core';
 import type {
@@ -14,8 +14,15 @@ import type {
   ModelFieldRenderNode,
   ArrayRenderNode,
   RenderModelArrayControl,
+  RenderText,
+  RenderTextPart,
 } from './types';
-import { isContainerRenderNode, isModelFieldRenderNode, isArrayRenderNode } from './utils';
+import {
+  isContainerRenderNode,
+  isModelFieldRenderNode,
+  isArrayRenderNode,
+  VOID_HTML_TAGS,
+} from './utils';
 import { useRenderContext } from './render-context';
 import { useContext } from 'react';
 import {
@@ -367,6 +374,89 @@ const ModelArraySectionRenderer = memo(function ModelArraySectionRenderer({
   );
 });
 
+// ============================================================================
+// TEXT CONTENT — статический и реактивный текст узла
+// ============================================================================
+
+/** Нормализует {@link RenderText} к массиву частей (одиночное значение → массив из одного). */
+function toTextParts(text: RenderText): readonly RenderTextPart[] {
+  return Array.isArray(text) ? text : [text as RenderTextPart];
+}
+
+/** Части-сигналы (на них подписывается {@link RenderTextContent}); литералы отбрасываются. */
+function collectTextSignals(parts: readonly RenderTextPart[]): Array<Signal<unknown>> {
+  const out: Array<Signal<unknown>> = [];
+  for (const p of parts) if (p instanceof Signal) out.push(p as Signal<unknown>);
+  return out;
+}
+
+/** Склейка частей в строку: сигналы читаются, `null`/`undefined` дают пустую строку (как в React). */
+function joinTextParts(parts: readonly RenderTextPart[]): string {
+  let out = '';
+  for (const p of parts) {
+    const v = p instanceof Signal ? (p as Signal<unknown>).value : p;
+    if (v != null) out += String(v);
+  }
+  return out;
+}
+
+/**
+ * Стабильный ключ набора сигналов: меняется только когда набор реально другой. Нужен, чтобы
+ * `subscribe` не пересоздавался на каждый рендер (схема-фабрика отдаёт новый литерал `text` каждый
+ * раз, хотя сами сигналы модели стабильны) — иначе React дисposит и создаёт preact-effect на
+ * каждый commit.
+ */
+function useSignalSetKey(signals: ReadonlyArray<Signal<unknown>>): number {
+  const ref = useRef<{ signals: ReadonlyArray<Signal<unknown>>; key: number }>({ signals, key: 0 });
+  const prev = ref.current;
+  if (prev.signals.length !== signals.length || signals.some((s, i) => s !== prev.signals[i])) {
+    ref.current = { signals, key: prev.key + 1 };
+  }
+  return ref.current.key;
+}
+
+/**
+ * Текстовое содержимое узла ({@link ContainerRenderNode.text}). Части-сигналы подписываются точечно,
+ * поэтому изменение значения модели перерисовывает только этот текст, а не поддерево узла.
+ * Снапшот — примитив-строка, поэтому кэшировать его (в отличие от объектных снапшотов выше)
+ * не нужно: `useSyncExternalStore` сравнивает через `Object.is`. SSR-safe.
+ */
+const RenderTextContent = memo(function RenderTextContent({
+  text,
+}: {
+  text: RenderText;
+}): ReactNode {
+  const parts = toTextParts(text);
+  const signals = collectTextSignals(parts);
+  const signalsKey = useSignalSetKey(signals);
+  // Актуальные части/сигналы читаются из ref-ов: subscribe/getSnapshot ключуются по составу
+  // сигналов, а не по идентичности литерала `text`.
+  const partsRef = useRef(parts);
+  partsRef.current = parts;
+  const signalsRef = useRef(signals);
+  signalsRef.current = signals;
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (signalsRef.current.length === 0) return () => {};
+      let first = true;
+      return effect(() => {
+        for (const s of signalsRef.current) void s.value; // зависимости эффекта
+        if (first) {
+          first = false;
+          return;
+        }
+        onStoreChange();
+      });
+    },
+    [signalsKey]
+  );
+
+  const getSnapshot = useCallback(() => joinTextParts(partsRef.current), []);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+});
+
 /**
  * Рекурсивный рендеринг узла {@link RenderNode}. Определяет тип узла и рендерит
  * соответственно: {@link ModelFieldRenderNode} → компонент поля с wrapper (значение
@@ -476,13 +566,24 @@ export function RenderNodeComponent<T>({
     const callbackOverrides = callbackMap ? Object.fromEntries(callbackMap) : {};
     const effectiveProps = callbackMap ? { ...propsPatched, ...callbackOverrides } : propsPatched;
 
+    // Нативный HTML-тег (`component: 'div'`) — не компонент: `componentProps` тут DOM-атрибуты,
+    // а `selector` адресует УЗЕЛ схемы, поэтому в разметку не пробрасывается (иначе утёк бы
+    // неизвестным атрибутом). Для компонентов поведение прежнее.
+    const isHtmlTag = typeof Component === 'string';
+    const selectorProp = !isHtmlTag && selector !== undefined ? { selector } : {};
+    // JSX по широкому `ElementType` разворачивается в union всех intrinsic-элементов и валит
+    // компиляцию (TS2590). Рантайм-семантика от сужения не меняется: React сам различает
+    // строку-тег и компонент.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Comp = Component as React.ComponentType<any>;
+
     // Если компонент управляет children самостоятельно (например, wizard с RenderNode[]),
     // передаём children как сырые данные без авторендеринга через RenderNodeComponent.
     // form пробрасывается в self-managed компоненты как prop, чтобы они могли
     // вызывать `<RenderNodeComponent form={form} ...>` для своих дочерних узлов
     // (используется в RendererFormArraySection, RendererFormWizard и т.п.).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((Component as any).__selfManagedChildren === true) {
+    if (!isHtmlTag && (Component as any).__selfManagedChildren === true) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SelfManagedComponent = Component as React.ComponentType<any>;
       // Не перетираем form, если уже задан в componentProps (orchestrator-инжект).
@@ -505,16 +606,24 @@ export function RenderNodeComponent<T>({
       );
     }
 
+    // Void-теги (<hr>, <br>, <img>) содержимого не имеют — React бросает на любых непустых
+    // children, поэтому такому узлу не передаём ни `text`, ни `children` вовсе.
+    if (isHtmlTag && VOID_HTML_TAGS.has(Component as string)) {
+      return <Comp {...effectiveProps} {...(nodeRef !== undefined ? { ref: nodeRef } : {})} />;
+    }
+
     return (
-      <Component
-        {...(selector !== undefined ? { selector } : {})}
+      <Comp
+        {...selectorProp}
         {...effectiveProps}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
       >
+        {/* text идёт перед children — так `<p>Внимание! <b>…</b></p>` собирается без обёрток */}
+        {node.text !== undefined ? <RenderTextContent text={node.text} /> : null}
         {children?.map((child, i) => (
           <RenderNodeComponent key={i} node={child} form={form} />
         ))}
-      </Component>
+      </Comp>
     );
   }
 

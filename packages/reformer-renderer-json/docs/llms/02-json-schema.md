@@ -8,10 +8,11 @@
 - **`JsonNode`** — узел дерева. Дискриминированный union по строке-оператору, которую он несёт:
   - **field-node** (`JsonFieldNode`) — лист: `value: '$model(path)'` + опциональный `component: '$component(Name)'` (дефолт — Input). Не имеет `children`. Несёт **только layout** — валидаторов в JSON нет, оператора `$validator(...)` не существует. Валидация значений — отдельная TS-схема над моделью, см. [06-validation.md](06-validation.md).
   - **array-node** (`JsonArrayNode`) — массив: `array: '$model(path)'` + `item: { $template: <JsonNode> }` + опциональный `initialValue` (литерал нового элемента для кнопки «Добавить»).
-  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` + опциональные `children`.
+  - **container-node** (`JsonContainerNode`) — контейнер (Box/Section/Wizard/Step): `component: '$component(Name)'` **или** нативный тег `'$html(div)'` + опциональные `children` и `text`.
 - **Операторы** — единственный способ привязки (см. [`operators.ts`](../../src/operators.ts)):
   - `'$model(path)'` — путь к полю/массиву модели (лист → `model.signalAt(path)`, массив → value-прокси массива).
   - `'$component(Name)'` — имя компонента в реестре (`reg.component`).
+  - `'$html(tag)'` — нативный HTML-тег для презентационной вёрстки без регистрации компонента. Тег проверяется по whitelist (`isAllowedHtmlTag`) и конвертером, и `validateFormSchema`.
   - `'$dataSource(NAME)'` — имя registry-source (`reg.dataSource`): options, itemLabel, константы, loading-компоненты.
   - `'$fn(name)'` — имя функции в реестре (`reg.fn`): форматтеры, компараторы, itemLabel, обработчики. Резолвится в саму функцию (передаётся в проп как есть). Отдельный от `$dataSource` вид — `validate` ловит перепутанные `$fn`/`$dataSource` и `reg.fn` бросает на не-функцию.
   - `'$locale(key)'` — ключ строки для сервиса локализации (`reg.locale`). Резолвится в **строку на этапе конвертации** (`registry.getLocale().resolve(key)`); промах ключа / нет сервиса → сам ключ. Только `componentProps` (label/placeholder/title/aria-*), не структурные позиции. С параметрами — структурная форма `{ "$locale": "key", "params": { … } }` (объект, params — литералы). Реактивный/markdown-текст — компонент `$component(I18n)`, см. [08-i18n.md](08-i18n.md).
@@ -31,10 +32,35 @@ function inspect(node: JsonNode) {
   } else if (isFieldNode(node)) {
     // node.value: '$model(...)', node.component?: '$component(...)'
   } else if (isContainerNode(node)) {
-    // node.component: '$component(...)', node.children?: JsonNode[]
+    // node.component: '$component(...)' | '$html(...)', node.children?: JsonNode[]
   }
 }
 ```
+
+## HTML-узлы (`$html`) и текст
+
+Заголовки, инфо-плашки, разделители и сводки описываются схемой — регистрировать ради них компонент не нужно:
+
+```json
+{
+  "component": "$html(div)",
+  "componentProps": { "className": "p-4 bg-blue-50 rounded-md" },
+  "children": [
+    { "component": "$html(h3)", "text": "$locale(summary.title)" },
+    { "component": "$html(p)", "text": ["Платёж: ", "$model(monthlyPayment)", " ₽"] },
+    { "component": "$html(hr)" }
+  ]
+}
+```
+
+- **`text`** — литерал (строка/число), оператор или массив частей (склеивается без разделителя). `'$model(path)'` в тексте даёт **реактивное** значение (рендерер подписывается на сигнал), `'$locale(key)'` — строку каталога.
+- `text` рендерится **перед** `children`, поэтому inline-разметка собирается без обёрток: `{ "component": "$html(p)", "text": "Внимание! ", "children": [{ "component": "$html(b)", "text": "…" }] }`.
+- Для html-узла `componentProps` — это DOM-атрибуты (`className`, `id`, `aria-*`).
+- **Безопасность.** JSON-схема — недоверенный вход (может прийти с сервера), поэтому:
+  - разрешены только презентационные теги; `script`/`style`/`iframe`/`object`/`embed`/`link`/`meta` и управляющие элементы формы (`form`/`input`/`select`/`button`) — нет (поля описываются field-узлами);
+  - из `componentProps` вычищаются `dangerouslySetInnerHTML`, обработчики `on*` и `javascript:`/`vbscript:`/`data:`-URL в `href`/`src` (`data:image/` разрешён);
+  - неизвестный тег — ошибка и в `validateFormSchema`, и в конвертере (не молчаливый пропуск).
+- Сырой HTML-строкой вставить нельзя by design — разметка всегда описывается деревом узлов.
 
 ## Examples
 
@@ -127,6 +153,9 @@ const schema: JsonFormSchema = {
 - **Аргументы у `$fn`** — оператор передаёт функцию **по ссылке**; биндинга аргументов (`$fn(goToStep, 2)`) нет. Нужен предзаданный аргумент — зарегистрируй уже связанную функцию через `reg.fn`.
 - **`$locale` для reactive-переключения языка** — ключ резолвится в строку **на этапе конвертации** (иначе signal уронил бы строковые компоненты). Смена языка = новый сервис в `reg.locale` + пересборка дерева, а не «живое» обновление. Для live-переключения и markdown/rich — компонент `$component(I18n)` + `LocaleProvider`, см. [08-i18n.md](08-i18n.md).
 - **Динамический/составной ключ `$locale`** — ключ это статичный литерал (`$locale(fields.email.label)`); вложить в него `$model(...)`/выражение нельзя. При наличии каталога опечатка ключа ловится на `validate`; без каталога промах молча деградирует до самого ключа.
+- **Регистрировать компонент ради статичного блока** — `reg.component('InfoBlock', …)` для абзаца с текстом заменяется узлом `$html(div)`/`$html(p)` + `text`. Компонент нужен, когда есть своя логика или состояние.
+- **`$component(div)` вместо `$html(div)`** — нативные теги живут в отдельном операторе и через реестр не резолвятся: `$component(div)` даст `unknown component "div"`.
+- **Ждать от `$html` произвольной разметки** — оператор принимает ОДИН тег (`$html(div)`), а не HTML-фрагмент. Вложенность описывается `children`.
 
 ## See also
 

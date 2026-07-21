@@ -7,7 +7,7 @@
 - **`RenderSchemaFn<T>`** — `() => RenderNode<T>`. Без аргументов: возвращает корневой узел. Привязка к данным — через сигналы в листьях, поэтому legacy-аргумент `path` удалён.
 - **`ModelFieldRenderNode`** — узел-поле. Несёт `value: Signal` (сигнал модели, `model.$.<field>`), `component` (UI-компонент), `componentProps` (пропсы поля). State-нода (errors/disabled/validation) резолвится по сигналу через реестр `getNodeForSignal` (реестр заполняет `createForm`). Поля `validators` у узла **НЕТ** — правила валидации значений живут в отдельной TS-схеме над моделью, а не в render-дереве (`validators: [...]` на листе даст `TS2353`; см. [06-validation.md](06-validation.md)).
 - **`ArrayRenderNode<T>`** — узел-массив модели. Данные принадлежат модели (`array: model.<path>`), форма элемента описывается `item(itemModel)`, `initialValue` — значение/фабрика нового элемента.
-- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент, дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`).
+- **`ContainerRenderNode<T>`** — узел-контейнер. В `component` — React-компонент **либо нативный HTML-тег строкой** (`'div'`, `'h3'`, `'hr'`), дочерние узлы задаются в **top-level** `children` (НЕ в `componentProps`). Опциональный `text` задаёт текстовое содержимое.
 
 Type guards:
 
@@ -16,6 +16,7 @@ import {
   isModelFieldRenderNode,
   isArrayRenderNode,
   isContainerRenderNode,
+  isHtmlTagRenderNode,
 } from '@reformer/renderer-react';
 
 if (isModelFieldRenderNode(node)) {
@@ -27,7 +28,33 @@ if (isArrayRenderNode(node)) {
 if (isContainerRenderNode(node)) {
   /* node.children — RenderNode[] (top-level, не в componentProps) */
 }
+if (isHtmlTagRenderNode(node)) {
+  /* node.component — строка-тег ('div'), а не компонент */
+}
 ```
+
+### HTML-узлы и текст
+
+Презентационная вёрстка (заголовки, инфо-плашки, разделители, сводки) описывается прямо в схеме — отдельный React-компонент ради неё заводить не нужно:
+
+```typescript
+{
+  component: 'div',
+  componentProps: { className: 'p-4 bg-blue-50 rounded-md' },  // для тега это DOM-атрибуты
+  children: [
+    { component: 'h3', text: 'Итого' },
+    { component: 'p', text: ['Платёж: ', model.$.monthlyPayment, ' ₽'] },
+    { component: 'hr' },
+  ],
+}
+```
+
+- **`text`** принимает литерал (`string`/`number`), **сигнал** (`model.$.x` или `computed(...)`) или массив таких частей — массив склеивается без разделителя. `null`/`undefined` дают пустую строку.
+- Сигнал подписывается **точечно**: при изменении модели перерисовывается только текст, а не поддерево узла.
+- `text` рендерится **перед** `children` — так собирается inline-разметка: `{ component: 'p', text: 'Внимание! ', children: [{ component: 'b', text: 'платёж высокий' }] }` → `<p>Внимание! <b>платёж высокий</b></p>`.
+- `selector` в DOM **не** пробрасывается (он адресует узел схемы, а не элемент), но `hideWhen`/`patchProps` по нему работают как обычно.
+- Void-теги (`hr`, `br`, `img`) содержимого не получают — `text`/`children` для них игнорируются.
+- `text` работает и на узле-компоненте: `{ component: Button, text: 'Отправить' }`.
 
 ## Examples
 
@@ -138,6 +165,8 @@ hideWhen(schema.node('extra-section'), () => !form.subscribe.value.value);
 - **Класть `children` в `componentProps`** — `children` это TOP-LEVEL свойство контейнера. Рендерер деструктурирует `const { children } = node`. В `componentProps.children` узлы не отрисуются.
 - **Хранить `RenderSchemaProxy` внутри компонента без `useMemo`** — на каждом ре-рендере создаётся новый proxy, что ломает override-карты и lifecycle-хуки.
 - **Забыть `createForm` перед рендером** — лист-узел резолвит state-ноду по сигналу через реестр. Без `createForm({ model, schema })` реестр пуст, поле логирует warning и рендерится как `null`.
+- **Заводить компонент ради статичного блока текста** — `{ component: 'div', children: [{ component: 'p', text: '…' }] }` описывает то же самое схемой; отдельный компонент нужен, когда есть своя логика или состояние.
+- **Ожидать реактивности от интерполяции строкой** — `text: \`Платёж: ${model.$.x.value} ₽\`` читает значение ОДИН раз при построении схемы. Реактивен только сам сигнал: `text: ['Платёж: ', model.$.x, ' ₽']`.
 
 ## See also
 

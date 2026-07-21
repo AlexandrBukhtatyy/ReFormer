@@ -22,7 +22,7 @@
  * @module core/types/schema-node
  */
 
-import type { ComponentType } from 'react';
+import type { ElementType } from 'react';
 // type-only импорт из barrel: schema-node реэкспортится из `./index`, поэтому образуется
 // type-only цикл `index ↔ schema-node`, который стирается при emit (рантайм-цикла нет).
 import type { ValidationError } from './contracts';
@@ -81,8 +81,12 @@ export interface FormSchemaNode {
    * `Signal`). Движок разбирает узел как поле рантаймом по `value instanceof Signal`.
    */
   value?: unknown;
-  /** UI-компонент. Опционален: core-часть работает без UI (значение/валидация). */
-  component?: ComponentType<any>;
+  /**
+   * UI-компонент либо нативный HTML-тег (`'div'`, `'p'`, `'h3'`) для презентационной вёрстки
+   * прямо в схеме. Опционален: core-часть работает без UI (значение/валидация) и `component`
+   * не интерпретирует — он доезжает до рендерера как есть.
+   */
+  component?: ElementType;
   /** Props компонента. Также «клапан» для вложенности под-узлов (напр. steps визарда). */
   componentProps?: Record<string, unknown>;
   validators?: SchemaValidator[];

@@ -3,6 +3,7 @@ import {
   parseOperator,
   isModelOp,
   isComponentOp,
+  isHtmlOp,
   isDataSourceOp,
   isFnOp,
   isLocaleOp,
@@ -58,5 +59,22 @@ describe('operator type-guards', () => {
     expect(isModelOp('$fn(x)')).toBe(false);
     expect(isComponentOp('$locale(x)')).toBe(false);
     expect(isDataSourceOp('$fn(x)')).toBe(false);
+  });
+
+  it('isHtmlOp matches only $html(...)', () => {
+    expect(isHtmlOp('$html(div)')).toBe(true);
+    expect(isHtmlOp('$component(Input)')).toBe(false);
+    expect(isHtmlOp('$model(x)')).toBe(false);
+    expect(isHtmlOp('div')).toBe(false);
+  });
+
+  it('parseOperator разбирает $html(tag)', () => {
+    expect(parseOperator('$html(div)')).toEqual({ op: 'html', arg: 'div' });
+    expect(parseOperator('$html(h3)')).toEqual({ op: 'html', arg: 'h3' });
+  });
+
+  it('$component-гард не путается с $html (оба ссылаются на «что рендерить»)', () => {
+    expect(isComponentOp('$html(div)')).toBe(false);
+    expect(isHtmlOp('$component(Box)')).toBe(false);
   });
 });

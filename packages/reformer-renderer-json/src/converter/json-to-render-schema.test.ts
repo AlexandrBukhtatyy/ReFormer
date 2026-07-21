@@ -201,4 +201,89 @@ describe('convertJsonToM1Tree', () => {
       warn.mockRestore();
     });
   });
+
+  describe('HTML-узлы ($html(tag) + text)', () => {
+    it('резолвит $html(tag) в строку-тег для рендерера', () => {
+      const node = convert({ component: '$html(div)', componentProps: { className: 'p-4' } });
+      expect(node.component).toBe('div');
+      expect(node.componentProps.className).toBe('p-4');
+    });
+
+    it('приводит тег к нижнему регистру', () => {
+      expect(convert({ component: '$html(DIV)' }).component).toBe('div');
+    });
+
+    it('бросает на теге вне whitelist — схема недоверенная', () => {
+      expect(() => convert({ component: '$html(script)' })).toThrow(/not allowed in \$html/i);
+      expect(() => convert({ component: '$html(iframe)' })).toThrow(/not allowed in \$html/i);
+    });
+
+    it('рекурсивно конвертирует children html-узла', () => {
+      const node = convert({
+        component: '$html(div)',
+        children: [
+          { component: '$html(h3)', text: 'Итого' },
+          { value: '$model(email)', component: '$component(Input)' },
+        ],
+      });
+      expect(node.children[0].component).toBe('h3');
+      expect(node.children[0].text).toBe('Итого');
+      expect(node.children[1].component).toBe(InputStub);
+    });
+
+    it('оставляет литеральный text как есть', () => {
+      expect(convert({ component: '$html(p)', text: 'Внимание' }).text).toBe('Внимание');
+      expect(convert({ component: '$html(p)', text: 42 }).text).toBe(42);
+    });
+
+    it('резолвит $model(...) в тексте в сигнал — рендерер на него подпишется', () => {
+      const node = convert({ component: '$html(p)', text: '$model(monthlyPayment)' });
+      expect(node.text).toEqual({ __path: 'monthlyPayment' });
+    });
+
+    it('резолвит части массива-текста по отдельности', () => {
+      const node = convert({
+        component: '$html(p)',
+        text: ['Платёж: ', '$model(monthlyPayment)', ' ₽'],
+      });
+      expect(node.text).toEqual(['Платёж: ', { __path: 'monthlyPayment' }, ' ₽']);
+    });
+
+    it('резолвит $locale(...) в тексте в строку каталога', () => {
+      expect(convert({ component: '$html(span)', text: '$locale(fields.email.label)' }).text).toBe(
+        'Email'
+      );
+    });
+
+    it('не добавляет ключ text, если его нет в схеме', () => {
+      expect('text' in convert({ component: '$html(div)' })).toBe(false);
+    });
+
+    it('чистит небезопасные props html-узла', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const node = convert({
+        component: '$html(a)',
+        componentProps: { href: 'javascript:alert(1)', className: 'link', onClick: 'x' },
+      });
+      expect(node.componentProps).toEqual({ className: 'link' });
+      warn.mockRestore();
+    });
+
+    it('props компонентов реестра не чистит — их поверхность задаёт сам компонент', () => {
+      const onClick = (): void => {};
+      const node = convert({
+        component: '$component(Input)',
+        componentProps: { onClick },
+      });
+      expect(node.componentProps.onClick).toBe(onClick);
+    });
+
+    it('конвертирует html-узлы, вложенные в произвольный componentProps (напр. steps визарда)', () => {
+      const node = convert({
+        component: '$component(Input)',
+        componentProps: { steps: [{ component: '$html(section)', text: 'Шаг' }] },
+      });
+      expect(node.componentProps.steps[0].component).toBe('section');
+    });
+  });
 });

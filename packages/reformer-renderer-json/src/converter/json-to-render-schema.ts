@@ -24,17 +24,37 @@ import {
   parseOperator,
   isModelOp,
   isComponentOp,
+  isHtmlOp,
   isDataSourceOp,
   isFnOp,
   isLocaleOp,
 } from '../operators';
+import { isAllowedHtmlTag, sanitizeHtmlProps } from '../html/html-tags';
 import type { ComponentRegistry } from '../registry/types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Резолв компонента реестра по строке `'$component(name)'` (тип component). */
+/**
+ * Резолв нативного тега из `'$html(tag)'`. Тег вне whitelist — ошибка конвертации, а не молчаливый
+ * пропуск: схема недоверенная, и `$html(script)` должен упасть здесь так же, как падает
+ * `validateFormSchema`.
+ */
+function resolveHtmlTag(op: string): string {
+  const tag = parseOperator(op)?.arg;
+  if (!tag) throw new Error(`Invalid $html operator: "${op}"`);
+  if (!isAllowedHtmlTag(tag)) {
+    throw new Error(
+      `HTML tag "${tag}" is not allowed in $html(...). Presentational tags only — ` +
+        'script/style/iframe/form-controls are excluded by design.'
+    );
+  }
+  return tag.toLowerCase();
+}
+
+/** Резолв компонента реестра по строке `'$component(name)'` (тип component) либо тега `'$html(tag)'`. */
 function resolveComponent(op: string | undefined, registry: ComponentRegistry): any {
   if (!op) return undefined;
+  if (isHtmlOp(op)) return resolveHtmlTag(op);
   const name = parseOperator(op)?.arg;
   if (!name) throw new Error(`Invalid $component operator: "${op}"`);
   const meta = registry.get(name);
@@ -160,7 +180,9 @@ function resolveModelPath(scope: any, path: string): any {
 function looksLikeNode(v: unknown): v is JsonNode {
   if (v === null || typeof v !== 'object') return false;
   const n = v as Record<string, unknown>;
-  return isModelOp(n.value) || isModelOp(n.array) || isComponentOp(n.component);
+  return (
+    isModelOp(n.value) || isModelOp(n.array) || isComponentOp(n.component) || isHtmlOp(n.component)
+  );
 }
 
 /** Глубокий клон литерал-объекта (initialValue нового элемента массива — без shared-ссылок). */
@@ -205,6 +227,17 @@ function transformProps(
 }
 
 /**
+ * Резолв текстового содержимого узла (`text`) в форму, понятную рендереру: `'$model(path)'` →
+ * сигнал (рендерер подпишется и обновит текст), `'$locale(key)'` → строка, литералы — как есть.
+ * Переиспользует {@link transformPropValue}, поэтому набор операторов в тексте тот же, что в props.
+ */
+function transformText(text: unknown, scope: any, registry: ComponentRegistry): unknown {
+  if (text === undefined) return undefined;
+  if (Array.isArray(text)) return text.map((part) => transformPropValue(part, scope, registry));
+  return transformPropValue(text, scope, registry);
+}
+
+/**
  * Конвертирует JsonNode в RenderNode (M1). Дискриминация — по строке-оператору:
  * массив (`array`+`item`) → field (`value`) → контейнер (`component`).
  */
@@ -244,12 +277,19 @@ function convertNodeM1<T>(node: JsonNode, scope: any, registry: ComponentRegistr
     } as unknown as RenderNode<T>;
   }
 
-  // Контейнер
+  // Контейнер: компонент реестра либо нативный HTML-тег
   if (isContainerNode(node)) {
+    const isHtml = isHtmlOp(node.component);
+    const component = resolveComponent(node.component, registry);
+    const props = transformProps(node.componentProps, scope, registry);
     return {
       ...(node.selector ? { selector: node.selector } : {}),
-      component: resolveComponent(node.component, registry),
-      componentProps: transformProps(node.componentProps, scope, registry),
+      component,
+      // У html-узла componentProps — DOM-атрибуты, пришедшие из недоверенной схемы: чистим их
+      // (обработчики, innerHTML, javascript:-URL). Props компонентов реестра не трогаем —
+      // их поверхность определяет сам компонент.
+      componentProps: isHtml ? sanitizeHtmlProps(props, component as string) : props,
+      ...(node.text !== undefined ? { text: transformText(node.text, scope, registry) } : {}),
       children: node.children?.map((c) => convertNodeM1(c, scope, registry)),
     } as unknown as RenderNode<T>;
   }

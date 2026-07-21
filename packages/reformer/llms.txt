@@ -5164,8 +5164,12 @@ export interface FormSchemaNode {
    * `Signal`). Движок разбирает узел как поле рантаймом по `value instanceof Signal`.
    */
   value?: unknown;
-  /** UI-компонент. Опционален: core-часть работает без UI (значение/валидация). */
-  component?: ComponentType<any>;
+  /**
+   * UI-компонент либо нативный HTML-тег (`'div'`, `'p'`, `'h3'`) для презентационной вёрстки
+   * прямо в схеме. Опционален: core-часть работает без UI (значение/валидация) и `component`
+   * не интерпретирует — он доезжает до рендерера как есть.
+   */
+  component?: ElementType;
   /** Props компонента. Также «клапан» для вложенности под-узлов (напр. steps визарда). */
   componentProps?: Record<string, unknown>;
   validators?: SchemaValidator[];

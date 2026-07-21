@@ -157,6 +157,13 @@ export default defineConfig({
       testDir: './tests/pages/imperative-handles',
       use: { ...devices['Desktop Chrome'] },
     },
+    // HTML-узлы схемы (нативные теги + реактивный `text`). Unit-тесты рендерят через
+    // renderToStaticMarkup и живую перерисовку по сигналу показать не могут — она проверяется тут.
+    {
+      name: 'html-nodes',
+      testDir: './tests/pages/html-nodes',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ITER abstract test projects — переиспользуют POM + spec файлы
     // complex-multy-step-form для прогона против iter-форм. Активны только
     // когда MCP_ITER_VERSION env установлен. См. docs/iter-prompts/orchestrator.md

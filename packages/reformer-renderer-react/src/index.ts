@@ -34,6 +34,8 @@ export type {
   RenderNode,
   ContainerRenderNode,
   ContainerRenderNodeProps,
+  RenderText,
+  RenderTextPart,
   FormRendererProps,
   RendererSettings,
   FieldWrapperProps,
@@ -52,7 +54,13 @@ export {
 } from './core/render-context';
 
 // Utils
-export { isModelFieldRenderNode, isArrayRenderNode, isContainerRenderNode } from './core/utils';
+export {
+  isModelFieldRenderNode,
+  isArrayRenderNode,
+  isContainerRenderNode,
+  isHtmlTagRenderNode,
+  VOID_HTML_TAGS,
+} from './core/utils';
 
 // Programmatic render schema control
 export { createRenderSchema, isRenderSchemaProxy } from './core/render-schema-proxy';
