@@ -9,6 +9,7 @@
 import { readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { format, resolveConfig } from 'prettier';
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const componentsDir = join(pkgRoot, 'src', 'components');
@@ -68,5 +69,12 @@ lines.push("    .map((s) => [s['x-registryName'] as string, s])");
 lines.push(');');
 lines.push('');
 
-writeFileSync(join(pkgRoot, 'src', 'meta.ts'), lines.join('\n'));
+// Прогоняем через prettier с конфигом репозитория: список `modules` растёт вместе
+// с числом props-схем и рано или поздно перестаёт влезать в printWidth. Без этого
+// `npm run build` каждый раз оставляет meta.ts неотформатированным, `format:check`
+// краснеет, а lint-staged возвращает форматирование при коммите — и файл вечно
+// «изменён» в рабочем дереве.
+const target = join(pkgRoot, 'src', 'meta.ts');
+const options = await resolveConfig(target);
+writeFileSync(target, await format(lines.join('\n'), { ...options, filepath: target }));
 console.log(`generate-meta: ${files.length} props-схем → src/meta.ts`);
