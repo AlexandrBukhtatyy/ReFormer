@@ -1,207 +1,241 @@
 {
   "version": "1.0",
   "root": {
-    "component": "$html(div)",
+    "selector": "prefill-boundary",
+    "component": "$component(AsyncBoundary)",
     "componentProps": {
-      "className": "p-6 bg-white rounded-lg shadow"
+      "load": "$fn(loadPrefill)",
+      "onSuccess": "$fn(applyPrefill)",
+      "delayMs": 0,
+      "loadingTitle": "Загружаем данные приглашения…",
+      "loadingSubtitle": "Пожалуйста, подождите",
+      "errorTitle": "Не удалось загрузить приглашение",
+      "retryLabel": "Повторить"
     },
     "children": [
       {
-        "component": "$html(h2)",
-        "componentProps": {
-          "className": "text-xl font-bold mb-4"
-        },
-        "text": "Регистрация"
-      },
-      {
-        "component": "$html(p)",
-        "componentProps": {
-          "className": "text-sm text-gray-600 mb-6"
-        },
-        "text": "Заполните форму для создания нового аккаунта. Все поля обязательны."
-      },
-      {
         "component": "$html(div)",
-        "componentProps": {
-          "className": "grid grid-cols-1 md:grid-cols-2 gap-4"
-        },
+        "componentProps": { "className": "flex flex-col md:flex-row gap-6 mx-auto" },
         "children": [
           {
-            "value": "$model(username)",
-            "component": "$component(Input)",
-            "componentProps": {
-              "label": "Имя пользователя",
-              "placeholder": "Логин (латиница)",
-              "testId": "username",
-              "className": "mb-4"
-            }
-          },
-          {
-            "value": "$model(email)",
-            "component": "$component(Input)",
-            "componentProps": {
-              "label": "Email",
-              "placeholder": "your@email.com",
-              "type": "email",
-              "testId": "email",
-              "className": "mb-4"
-            }
-          }
-        ]
-      },
-      {
-        "component": "$html(div)",
-        "componentProps": {
-          "className": "grid grid-cols-1 md:grid-cols-2 gap-4"
-        },
-        "children": [
-          {
-            "value": "$model(password)",
-            "component": "$component(InputPassword)",
-            "componentProps": {
-              "label": "Пароль",
-              "placeholder": "Минимум 8 символов",
-              "testId": "password",
-              "className": "mb-4"
-            }
-          },
-          {
-            "value": "$model(confirmPassword)",
-            "component": "$component(InputPassword)",
-            "componentProps": {
-              "label": "Подтвердите пароль",
-              "placeholder": "Повторите пароль",
-              "testId": "confirmPassword",
-              "className": "mb-4"
-            }
-          }
-        ]
-      },
-      {
-        "value": "$model(fullName)",
-        "component": "$component(Input)",
-        "componentProps": {
-          "label": "Полное имя",
-          "placeholder": "Иван Иванов",
-          "testId": "fullName",
-          "className": "mb-4"
-        }
-      },
-      {
-        "component": "$html(div)",
-        "componentProps": {
-          "className": "grid grid-cols-1 md:grid-cols-2 gap-4"
-        },
-        "children": [
-          {
-            "value": "$model(phone)",
-            "component": "$component(InputMask)",
-            "componentProps": {
-              "label": "Телефон",
-              "placeholder": "+7 (999) 123-45-67",
-              "mask": "+7 (999) 999-99-99",
-              "testId": "phone",
-              "className": "mb-4"
-            }
-          },
-          {
-            "value": "$model(captcha)",
-            "component": "$component(Input)",
-            "componentProps": {
-              "label": "Введите captcha",
-              "placeholder": "Подсказка: ABC123",
-              "testId": "captcha",
-              "className": "mb-4"
-            }
-          }
-        ]
-      },
-      {
-        "value": "$model(acceptTerms)",
-        "component": "$component(Checkbox)",
-        "componentProps": {
-          "label": "Я принимаю условия использования",
-          "testId": "acceptTerms",
-          "className": "mb-6"
-        }
-      },
-      {
-        "component": "$html(div)",
-        "componentProps": {
-          "className": "flex gap-2 mt-6"
-        },
-        "children": [
-          {
-            "selector": "submit-button",
-            "component": "$component(Button)",
-            "componentProps": {
-              "type": "button",
-              "onClick": "$fn(submit)",
-              "data-testid": "submit"
-            },
-            "text": "Зарегистрироваться"
-          },
-          {
-            "selector": "reset-button",
-            "component": "$component(Button)",
-            "componentProps": {
-              "type": "button",
-              "variant": "secondary",
-              "onClick": "$fn(reset)",
-              "data-testid": "reset"
-            },
-            "text": "Очистить"
-          }
-        ]
-      },
-      {
-        "component": "$html(div)",
-        "componentProps": {
-          "className": "mt-6 p-4 bg-blue-50 border border-blue-200 rounded"
-        },
-        "children": [
-          {
-            "component": "$html(h3)",
-            "componentProps": {
-              "className": "font-semibold mb-2"
-            },
-            "text": "💡 Подсказки для тестирования"
-          },
-          {
-            "component": "$html(ul)",
-            "componentProps": {
-              "className": "text-sm text-gray-700 space-y-1"
-            },
+            "component": "$html(div)",
+            "componentProps": { "className": "flex-1 p-6 bg-white rounded-lg shadow" },
             "children": [
               {
-                "component": "$html(li)",
-                "text": "• Занятые username: ",
+                "component": "$html(h2)",
+                "componentProps": { "className": "text-xl font-bold mb-4" },
+                "text": "Регистрация"
+              },
+              {
+                "component": "$html(p)",
+                "componentProps": { "className": "text-sm text-gray-600 mb-6" },
+                "text": "Поля предзаполнены по приглашению. Проверьте данные и завершите регистрацию."
+              },
+
+              {
+                "component": "$html(div)",
+                "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
                 "children": [
                   {
-                    "component": "$html(code)",
-                    "text": "johndoe, janedoe, admin"
+                    "value": "$model(username)",
+                    "component": "$component(Input)",
+                    "componentProps": {
+                      "label": "Имя пользователя",
+                      "placeholder": "Логин (латиница)",
+                      "testId": "username",
+                      "className": "mb-4"
+                    }
+                  },
+                  {
+                    "value": "$model(email)",
+                    "component": "$component(Input)",
+                    "componentProps": {
+                      "label": "Email",
+                      "placeholder": "your@email.com",
+                      "type": "email",
+                      "testId": "email",
+                      "className": "mb-4"
+                    }
                   }
                 ]
               },
+
               {
-                "component": "$html(li)",
-                "text": "• Занятые email: ",
+                "component": "$html(div)",
+                "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
                 "children": [
                   {
-                    "component": "$html(code)",
-                    "text": "john@example.com, admin@example.com"
+                    "value": "$model(password)",
+                    "component": "$component(InputPassword)",
+                    "componentProps": {
+                      "label": "Пароль",
+                      "placeholder": "Минимум 8 символов",
+                      "testId": "password",
+                      "className": "mb-4"
+                    }
+                  },
+                  {
+                    "value": "$model(confirmPassword)",
+                    "component": "$component(InputPassword)",
+                    "componentProps": {
+                      "label": "Подтвердите пароль",
+                      "placeholder": "Повторите пароль",
+                      "testId": "confirmPassword",
+                      "className": "mb-4"
+                    }
                   }
                 ]
               },
+
               {
-                "component": "$html(li)",
-                "text": "• Правильная captcha: ",
+                "value": "$model(fullName)",
+                "component": "$component(Input)",
+                "componentProps": {
+                  "label": "Полное имя",
+                  "placeholder": "Иван Иванов",
+                  "testId": "fullName",
+                  "className": "mb-4"
+                }
+              },
+
+              {
+                "component": "$html(div)",
+                "componentProps": { "className": "grid grid-cols-1 md:grid-cols-2 gap-4" },
                 "children": [
                   {
-                    "component": "$html(code)",
-                    "text": "ABC123"
+                    "value": "$model(phone)",
+                    "component": "$component(InputMask)",
+                    "componentProps": {
+                      "label": "Телефон",
+                      "placeholder": "+7 (999) 123-45-67",
+                      "mask": "+7 (999) 999-99-99",
+                      "testId": "phone",
+                      "className": "mb-4"
+                    }
+                  },
+                  {
+                    "value": "$model(captcha)",
+                    "component": "$component(Input)",
+                    "componentProps": {
+                      "label": "Введите captcha",
+                      "placeholder": "Подсказка: ABC123",
+                      "testId": "captcha",
+                      "className": "mb-4"
+                    }
                   }
                 ]
+              },
+
+              {
+                "value": "$model(acceptTerms)",
+                "component": "$component(Checkbox)",
+                "componentProps": {
+                  "label": "Я принимаю условия использования",
+                  "testId": "acceptTerms",
+                  "className": "mb-6"
+                }
+              },
+
+              {
+                "component": "$html(div)",
+                "componentProps": { "className": "flex gap-2 mt-6" },
+                "children": [
+                  {
+                    "selector": "submit-button",
+                    "component": "$component(Button)",
+                    "componentProps": {
+                      "type": "button",
+                      "onClick": "$fn(submit)",
+                      "data-testid": "submit"
+                    },
+                    "text": "Зарегистрироваться"
+                  },
+                  {
+                    "selector": "reset-button",
+                    "component": "$component(Button)",
+                    "componentProps": {
+                      "type": "button",
+                      "variant": "secondary",
+                      "onClick": "$fn(reset)",
+                      "data-testid": "reset"
+                    },
+                    "text": "Очистить"
+                  }
+                ]
+              },
+
+              {
+                "component": "$html(p)",
+                "componentProps": {
+                  "className": "mt-4 text-sm text-gray-700",
+                  "data-testid": "submit-status"
+                },
+                "text": "$dataSource(SUBMIT_STATUS)"
+              },
+
+              {
+                "component": "$html(div)",
+                "componentProps": {
+                  "className": "mt-6 p-4 bg-blue-50 border border-blue-200 rounded"
+                },
+                "children": [
+                  {
+                    "component": "$html(h3)",
+                    "componentProps": { "className": "font-semibold mb-2" },
+                    "text": "💡 Подсказки для тестирования"
+                  },
+                  {
+                    "component": "$html(ul)",
+                    "componentProps": { "className": "text-sm text-gray-700 space-y-1" },
+                    "children": [
+                      {
+                        "component": "$html(li)",
+                        "text": "• Занятые username: ",
+                        "children": [
+                          { "component": "$html(code)", "text": "johndoe, janedoe, admin" }
+                        ]
+                      },
+                      {
+                        "component": "$html(li)",
+                        "text": "• Занятые email: ",
+                        "children": [
+                          {
+                            "component": "$html(code)",
+                            "text": "john@example.com, admin@example.com"
+                          }
+                        ]
+                      },
+                      {
+                        "component": "$html(li)",
+                        "text": "• Правильная captcha: ",
+                        "children": [{ "component": "$html(code)", "text": "ABC123" }]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "component": "$html(div)",
+            "componentProps": { "className": "flex-1 p-6 bg-white rounded-lg shadow" },
+            "children": [
+              {
+                "component": "$html(h2)",
+                "componentProps": { "className": "text-xl font-bold mb-4" },
+                "text": "Состояние формы"
+              },
+              {
+                "selector": "form-state",
+                "component": "$component(FormStateDisplay)"
+              },
+              {
+                "component": "$html(div)",
+                "componentProps": {
+                  "className": "mt-6 p-4 bg-gray-50 border rounded text-sm text-gray-700"
+                },
+                "text": "Весь экран описан JSON-схемой: колонки, заголовки, поля, кнопки и загрузка префилла. В .tsx остались только JsonRendererProvider и JsonFormRenderer."
               }
             ]
           }

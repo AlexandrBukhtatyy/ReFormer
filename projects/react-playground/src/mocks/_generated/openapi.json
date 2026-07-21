@@ -288,6 +288,54 @@
         }
       }
     },
+    "/api/v1/auth/registration-prefill": {
+      "get": {
+        "operationId": "getRegistrationPrefill",
+        "summary": "Префилл формы регистрации по коду приглашения",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "invite",
+            "in": "query",
+            "description": "Код приглашения",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Данные для предзаполнения формы",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Приглашение не найдено"
+          }
+        }
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "operationId": "registerUser",

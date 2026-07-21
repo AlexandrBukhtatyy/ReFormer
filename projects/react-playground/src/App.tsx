@@ -104,7 +104,7 @@ const examples: { id: ExamplePage; path: string; title: string; description: str
     path: '/examples/registration-json',
     title: 'Регистрация (JSON)',
     description:
-      'Та же форма регистрации, но layout целиком в JSON-схеме; валидация — TS-схемой над моделью',
+      'Весь экран из JSON: AsyncBoundary грузит префилл, в .tsx только Provider и Renderer',
   },
 ];
 

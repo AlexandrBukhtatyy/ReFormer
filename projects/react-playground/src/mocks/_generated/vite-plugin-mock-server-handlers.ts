@@ -100,6 +100,14 @@ export const routes = [
   },
 
   {
+    method: 'GET',
+    pattern: /^\/api\/v1\/auth\/registration-prefill$/,
+    handler: async (req: IncomingMessage, params: string[], query: URLSearchParams) => {
+      return resolvers.getRegistrationPrefill(query.get('invite'));
+    },
+  },
+
+  {
     method: 'POST',
     pattern: /^\/api\/v1\/auth\/register$/,
     handler: async (req: IncomingMessage, params: string[], query: URLSearchParams) => {
