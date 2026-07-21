@@ -55,26 +55,31 @@ jobs:
       - name: Run @reformer/ui-kit tests
         run: npm run test -w @reformer/ui-kit
 
-      - name: Packaging guard @reformer/ui-kit
-        # Две проверки, которых не даёт ни build, ни vitest — обе про то, что видит
-        # ПОТРЕБИТЕЛЬ пакета, а не монорепо:
-        #   check:dist-deps — каждый внешний импорт dist/ объявлен в dependencies или
-        #     peerDependencies. Ловит зависимость, оставленную в devDependencies: локально
-        #     всё зелёное, а из npm subpath падает с ERR_MODULE_NOT_FOUND (так разъехались
-        #     11 heavy-deps: recharts / cmdk / @tanstack/react-table / …).
-        #   check:subpaths — npm pack + установка тарбола в чистый проект в os.tmpdir()
-        #     и динамический импорт всех subpath из exports. Вне репозитория намеренно:
-        #     внутри него недостающий пакет ложно находится в корневом node_modules.
-        #     Заодно проверяет поле "files" (subpath объявлен, а файла в тарболе нет).
-        # Требует собранных core / cdk / renderer-react — они пакуются локальными
-        # тарболами (проверяем текущий код, а не последний релиз в npm).
-        run: npm run check:packaging -w @reformer/ui-kit
+      - name: Subpath smoke @reformer/ui-kit
+        # npm pack + установка тарбола в чистый проект в os.tmpdir() и динамический
+        # импорт всех subpath из exports. Вне репозитория намеренно: внутри него
+        # недостающая зависимость ложно находится в корневом node_modules и проверка
+        # зеленеет. Соседи ставятся по списку из peerDependencies, поэтому
+        # незадекларированный импорт в песочнице не резолвится. Заодно проверяет поле
+        # "files" (subpath объявлен, а файла в тарболе нет). Требует собранных
+        # core / cdk / renderer-react — они пакуются локальными тарболами, чтобы
+        # проверять текущий код, а не последний релиз в npm.
+        run: npm run check:subpaths -w @reformer/ui-kit
 
       - name: Build @reformer/renderer-json
         run: npm run build -w @reformer/renderer-json
 
       - name: Run @reformer/renderer-json tests
         run: npm run test -w @reformer/renderer-json
+
+      - name: Dist deps ↔ manifest
+        # Каждый внешний импорт dist/ должен быть объявлен в dependencies или
+        # peerDependencies пакета. Ловит зависимость, оставленную в devDependencies:
+        # локально и в CI всё зелёное (devDeps установлены), а у потребителя subpath
+        # падает с ERR_MODULE_NOT_FOUND — так разъехались 11 heavy-deps @reformer/ui-kit
+        # (recharts / cmdk / @tanstack/react-table / …). Идёт после всех build-шагов:
+        # проверяются dist/ всех packages/*.
+        run: npm run check:dist-deps
 
       - name: Bundle size (size-limit)
         # Enforces brotli caps in .size-limit.json against the freshly built dist/
@@ -90,6 +95,14 @@ jobs:
         run: |
           npm run gen:form-schema -w react-playground
           git diff --exit-code -- 'projects/react-playground/src/pages/examples/complex-multy-step-form-renderer-json/form-schema.schema.json'
+
+      - name: Check generated llms.txt is up to date
+        # llms.txt собирается из docs/llms/*.md + JSDoc и публикуется в npm (поле files).
+        # Build каждого пакета уже прогнал generate:llms, поэтому расхождение здесь
+        # значит, что закоммиченный файл отстал от исходников: правки в docs/llms или
+        # в JSDoc до потребителя не доедут. Так llms.txt @reformer/ui-kit целый релизный
+        # цикл отдавал устаревший список peer-зависимостей.
+        run: git diff --exit-code -- 'packages/*/llms.txt'
 
       - name: Typecheck
         # Runs AFTER package builds so @reformer/* dist type declarations exist —

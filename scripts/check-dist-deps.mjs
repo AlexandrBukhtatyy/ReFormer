@@ -1,26 +1,30 @@
 #!/usr/bin/env node
-// Guard: каждый внешний импорт собранного dist/ должен быть объявлен в манифесте.
+// Guard: каждый внешний импорт собранного dist/ должен быть объявлен в манифесте пакета.
 //
-// Зачем: vite не бандлит пакеты, попавшие в `external` (см. vite.config.ts) — они
-// остаются `import "..."` в dist и должны прийти к потребителю из node_modules.
-// Если такой пакет числится только в devDependencies, локально и в CI всё зелёное
-// (devDeps установлены), а у потребителя `import "@reformer/ui-kit/<subpath>"`
-// падает с ERR_MODULE_NOT_FOUND. Именно так разъехались 11 heavy-deps до v11.
+// Зачем: vite не бандлит пакеты, попавшие в `external` (см. vite.config.ts каждого
+// пакета) — они остаются `import "..."` в dist и должны прийти к потребителю из
+// node_modules. Если такой пакет числится только в devDependencies, локально и в CI
+// всё зелёное (devDeps установлены), а у потребителя `import "@reformer/<pkg>/<subpath>"`
+// падает с ERR_MODULE_NOT_FOUND. Именно так разъехались 11 heavy-deps @reformer/ui-kit.
 //
 // Скрипт обходит dist/**/*.js, вынимает спецификаторы модулей (es-module-lexer —
 // настоящий парсер ESM, а не регексп по `from "..."`, который ловит ложные
 // срабатывания на строковых литералах внутри кода), нормализует до имени пакета
 // и вычитает dependencies + peerDependencies + optionalDependencies.
 // Непустой остаток → exit 1.
+//
+// Использование:
+//   node scripts/check-dist-deps.mjs                          # все packages/* с dist
+//   node scripts/check-dist-deps.mjs packages/reformer-ui-kit  # конкретные пакеты
+//   node scripts/check-dist-deps.mjs .                         # из каталога пакета
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { init, parse } from 'es-module-lexer';
 
-const pkgDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const distDir = path.join(pkgDir, 'dist');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Спецификатор пакета: `name`, `@scope/name` и любой их subpath. */
 const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
@@ -42,57 +46,83 @@ function walk(dir) {
   return out;
 }
 
+/** Каталоги пакетов: аргументы CLI либо все packages/* с package.json. */
+function targetDirs() {
+  const args = process.argv.slice(2);
+  if (args.length > 0) return args.map((arg) => path.resolve(arg));
+  const packagesDir = path.join(repoRoot, 'packages');
+  return readdirSync(packagesDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(path.join(packagesDir, d.name, 'package.json')))
+    .map((d) => path.join(packagesDir, d.name));
+}
+
+/** @returns {{ ok: boolean, name: string, message: string }} */
+function checkPackage(pkgDir) {
+  const pkg = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
+  const distDir = path.join(pkgDir, 'dist');
+
+  if (!existsSync(distDir)) {
+    return { ok: false, name: pkg.name, message: 'нет dist/ — сначала соберите пакет' };
+  }
+  const files = walk(distDir);
+  if (files.length === 0) {
+    return { ok: false, name: pkg.name, message: 'в dist/ нет .js — сначала соберите пакет' };
+  }
+
+  const declared = new Set([
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.peerDependencies ?? {}),
+    ...Object.keys(pkg.optionalDependencies ?? {}),
+  ]);
+
+  /** имя пакета → Set<файл dist, где встретился> */
+  const external = new Map();
+
+  for (const file of files) {
+    const [imports] = parse(readFileSync(file, 'utf8'), path.basename(file));
+    for (const imp of imports) {
+      const specifier = imp.n; // undefined для динамического импорта с вычисляемым путём
+      if (!specifier) continue;
+      if (specifier.startsWith('.') || specifier.startsWith('/')) continue;
+      if (specifier.startsWith('node:') || builtinModules.includes(specifier)) continue;
+      const name = toPackageName(specifier);
+      if (!name || name === pkg.name) continue;
+      if (!external.has(name)) external.set(name, new Set());
+      external.get(name).add(path.relative(pkgDir, file));
+    }
+  }
+
+  const missing = [...external.keys()].filter((name) => !declared.has(name)).sort();
+  if (missing.length === 0) {
+    return {
+      ok: true,
+      name: pkg.name,
+      message: `${external.size} внешних импортов dist/ (${files.length} файлов) объявлены`,
+    };
+  }
+
+  const details = missing
+    .map((name) => {
+      const where = [...external.get(name)].sort();
+      const shown = where.slice(0, 5).join(', ');
+      return `  ${name}\n    ← ${shown}${where.length > 5 ? ` (+${where.length - 5})` : ''}`;
+    })
+    .join('\n');
+  return {
+    ok: false,
+    name: pkg.name,
+    message: `${missing.length} внешн. зависимост(ь/и) есть в dist, но не объявлены:\n${details}`,
+  };
+}
+
 await init;
 
-const pkg = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
-const declared = new Set([
-  ...Object.keys(pkg.dependencies ?? {}),
-  ...Object.keys(pkg.peerDependencies ?? {}),
-  ...Object.keys(pkg.optionalDependencies ?? {}),
-]);
-
-let files;
-try {
-  files = walk(distDir);
-} catch {
-  console.error(`✗ ${distDir} не найден — сначала соберите пакет (npm run build).`);
-  process.exit(1);
-}
-if (files.length === 0) {
-  console.error(`✗ в ${distDir} нет .js — сначала соберите пакет (npm run build).`);
-  process.exit(1);
+const results = targetDirs().map(checkPackage);
+for (const { ok, name, message } of results) {
+  console[ok ? 'log' : 'error'](`${ok ? '✓' : '✗'} ${name}: ${message}`);
 }
 
-/** package name → Set<файл dist, где встретился> */
-const external = new Map();
-
-for (const file of files) {
-  const source = readFileSync(file, 'utf8');
-  const [imports] = parse(source, path.basename(file));
-  for (const imp of imports) {
-    const specifier = imp.n; // undefined для динамического импорта с вычисляемым путём
-    if (!specifier) continue;
-    if (specifier.startsWith('.') || specifier.startsWith('/')) continue;
-    if (specifier.startsWith('node:') || builtinModules.includes(specifier)) continue;
-    const name = toPackageName(specifier);
-    if (!name || name === pkg.name) continue;
-    if (!external.has(name)) external.set(name, new Set());
-    external.get(name).add(path.relative(pkgDir, file));
-  }
-}
-
-const missing = [...external.keys()].filter((name) => !declared.has(name)).sort();
-
-if (missing.length > 0) {
-  console.error(
-    `✗ ${pkg.name}: ${missing.length} внешн. зависимост(ь/и) есть в dist, но не объявлены в package.json:\n`
-  );
-  for (const name of missing) {
-    const where = [...external.get(name)].sort();
-    const shown = where.slice(0, 5).join(', ');
-    console.error(`  ${name}`);
-    console.error(`    ← ${shown}${where.length > 5 ? ` (+${where.length - 5})` : ''}`);
-  }
+if (results.some((r) => !r.ok)) {
   console.error(
     '\n  Heavy-зависимость одного subpath → опциональный peer (peerDependencies +\n' +
       '  peerDependenciesMeta.optional), чтобы её не тянули потребители остальных\n' +
@@ -101,7 +131,3 @@ if (missing.length > 0) {
   );
   process.exit(1);
 }
-
-console.log(
-  `✓ ${pkg.name}: все ${external.size} внешних импорта dist/ (${files.length} файлов) объявлены в манифесте.`
-);
